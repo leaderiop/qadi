@@ -195,7 +195,7 @@ its own decision — and two rows showing the same document share one.
 
 ```tsx
 import { Can } from "@guard/react";
-import { eq, hasResourceAttribute, subject } from "@guard/core";
+import { eq, hasResourceAttribute, subjectId } from "@guard/core";
 
 // A `type`, not an `interface`: `Resource` is `Record<string, unknown>`, and
 // interfaces have no implicit index signature, so they are not assignable to it.
@@ -205,9 +205,9 @@ type Doc = {
   readonly title: string;
 };
 
-// `subject(path)` reads the subject's *attributes*, not its identity fields,
-// so the id has to be published as an attribute to be referenced this way.
-const ownsIt = hasResourceAttribute("owner", eq(subject("userId")));
+// "the resource's owner is me". `subjectId()` names the subject's identity;
+// `subject(path)` would read its attributes, which is a different thing.
+const ownsIt = hasResourceAttribute("owner", eq(subjectId()));
 
 export const DocRow = ({ doc }: { readonly doc: Doc }) => (
   <li>
@@ -426,7 +426,7 @@ export const withGuard = (subject: AuthSubject | undefined, ui: ReactNode) => {
 | A list re-evaluates per render | Resource objects rebuilt each render | Render from a stable array, or memoise |
 | Control flickers on refresh | `waiting` reads as pending by design | Use `useDecision` and decide for yourself |
 | Everything denied, nothing loading | No provider above the hook | The thrown `MissingGuardProviderError` names the hook |
-| `subject("id")` never matches | `subject(path)` reads attributes, not identity | Publish the id as an attribute |
+| `subject("id")` never matches | `subject(path)` reads attributes, not identity | Use `subjectId()` |
 | Outage looks like a denial | `useCan` collapses failure into `false` | Use `useDecision`, or give `Can` a `failure` node |
 | `interface Doc` rejected as a resource | Interfaces have no implicit index signature | Declare the resource type as a `type` alias |
 

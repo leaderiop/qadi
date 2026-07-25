@@ -11,7 +11,7 @@ import {
   hasRole,
   makeSubject,
   permission,
-  subject,
+  subjectId,
 } from "@guard/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -114,19 +114,14 @@ describe("useDecision", () => {
 
   it("evaluates against a resource when one is given", async () => {
     // "the resource's owner is me" — a relational rule expressed with a ref.
-    // `subject(path)` reads the subject's *attributes*, not its identity
-    // fields, so the id has to be published as an attribute to be referenced.
-    const ownsIt = hasResourceAttribute("owner", eq(subject("userId")));
+    const ownsIt = hasResourceAttribute("owner", eq(subjectId()));
     const Probe2 = ({ owner }: { readonly owner: string }) => {
       const result = useDecision(ownsIt, { owner });
       return <span>{AsyncResult.isSuccess(result) ? result.value._tag : "pending"}</span>;
     };
 
     render(
-      <GuardProvider
-        atoms={working}
-        subject={makeSubject({ id: "u1", attributes: { userId: "u1" } })}
-      >
+      <GuardProvider atoms={working} subject={makeSubject({ id: "u1" })}>
         <Probe2 owner="u1" />
       </GuardProvider>,
     );

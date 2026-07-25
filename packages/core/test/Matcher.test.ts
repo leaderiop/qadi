@@ -10,6 +10,7 @@ import * as M from "../src/Matcher.ts";
 
 const ctx: M.MatcherContext = {
   subject: { dept: "eng", nested: { deep: 7 } },
+  subjectId: "u1",
   resource: { owner: "eng", tags: ["a", "b"] },
 };
 

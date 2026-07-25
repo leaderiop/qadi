@@ -15,14 +15,28 @@ import * as Schema from "effect/Schema";
 // ---------------------------------------------------------------------------
 
 const SubjectRef = Schema.TaggedStruct("SubjectRef", { path: Schema.String });
+const SubjectIdRef = Schema.TaggedStruct("SubjectIdRef", {});
 const ResourceRef = Schema.TaggedStruct("ResourceRef", { path: Schema.String });
 const LiteralRef = Schema.TaggedStruct("LiteralRef", { value: Schema.Unknown });
 
-export const ValueRef = Schema.Union([SubjectRef, ResourceRef, LiteralRef]);
+export const ValueRef = Schema.Union([SubjectRef, SubjectIdRef, ResourceRef, LiteralRef]);
 export type ValueRef = typeof ValueRef.Type;
 
-/** References a field of the subject by dot-path. */
+/**
+ * References a field of the subject's **attributes** by dot-path.
+ *
+ * Identity is not reachable this way: `subject("id")` means the attribute named
+ * `id`, which is normally absent. Use {@link subjectId} for the subject's own
+ * identifier.
+ */
 export const subject = (path: string): ValueRef => ({ _tag: "SubjectRef", path });
+/**
+ * References the subject's own identifier.
+ *
+ * A distinct variant rather than a reserved path, so that an attribute happening
+ * to be called `id` can never shadow it — or be shadowed by it.
+ */
+export const subjectId = (): ValueRef => ({ _tag: "SubjectIdRef" });
 /** References a field of the resource by dot-path. */
 export const resource = (path: string): ValueRef => ({ _tag: "ResourceRef", path });
 /** A constant value. */
@@ -144,7 +158,9 @@ const containsValue = (value: unknown, needle: unknown): boolean => {
 
 /** The subject and resource a matcher may reference. */
 export interface MatcherContext {
+  /** The subject's attributes. Its identity is `subjectId`, kept separate. */
   readonly subject: Readonly<Record<string, unknown>>;
+  readonly subjectId: string;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
 }
 
@@ -152,6 +168,8 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
   switch (ref._tag) {
     case "SubjectRef":
       return getByPath(context.subject, ref.path);
+    case "SubjectIdRef":
+      return context.subjectId;
     case "ResourceRef":
       return getByPath(context.resource, ref.path);
     case "LiteralRef":

@@ -327,3 +327,36 @@ describe("decision metadata", () => {
       assert.strictEqual(d.trace.children.length, 2);
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] })))));
 });
+
+describe("subject identity references", () => {
+  // "the resource's owner is me" is the archetypal relational rule, and until
+  // now it was inexpressible: `subject("id")` reads the subject's *attributes*,
+  // where `id` is normally absent, so the comparison silently denied.
+  const ownsIt = P.hasResourceAttribute("owner", M.eq(M.subjectId()));
+
+  it.effect("allows when the resource attribute equals the subject id", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(ownsIt, { resource: { owner: "u1" } });
+      assert.isTrue(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
+
+  it.effect("denies when the resource belongs to someone else", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(ownsIt, { resource: { owner: "u2" } });
+      assert.isFalse(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
+
+  it.effect("leaves subject(\"id\") meaning the attribute named id", () =>
+    Effect.gen(function* () {
+      // Adding a way in must not quietly change an existing meaning. A subject
+      // carrying an `id` attribute distinct from its identity proves the two
+      // references stay separate rather than one shadowing the other.
+      const byAttribute = P.hasResourceAttribute("owner", M.eq(M.subject("id")));
+      const d = yield* evaluate(byAttribute, { resource: { owner: "from-attribute" } });
+      assert.isTrue(isAllowed(d));
+    }).pipe(
+      Effect.provide(
+        testLayer(subjectWith({ id: "u1", attributes: { id: "from-attribute" } })),
+      ),
+    ));
+});

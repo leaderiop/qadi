@@ -126,7 +126,11 @@ const evaluateNode = (
 > => {
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
 
-  const matcherContext: MatcherContext = { subject: subject.attributes, resource };
+  const matcherContext: MatcherContext = {
+    subject: subject.attributes,
+    subjectId: subject.id,
+    resource,
+  };
 
   switch (policy._tag) {
     case "HasPermission": {

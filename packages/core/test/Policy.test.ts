@@ -106,6 +106,7 @@ describe("Policy serialization", () => {
       const matchers: ReadonlyArray<M.Matcher> = [
         M.eq(M.literal(1)),
         M.eq(M.subject("dept")),
+        M.eq(M.subjectId()),
         M.eq(M.resource("owner")),
         M.neq(M.literal("x")),
         M.inArray([1, 2, 3]),

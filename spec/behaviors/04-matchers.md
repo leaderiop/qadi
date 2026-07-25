@@ -39,18 +39,38 @@ export type Matcher =
 ## BEH-EG-026: Value references
 
 ```ts
-export const subject: (path: string) => ValueRef;
-export const resource: (path: string) => ValueRef;
-export const literal: (value: unknown) => ValueRef;
+export const subject: (path: string) => ValueRef;   // subject attributes
+export const subjectId: () => ValueRef;             // the subject's own id
+export const resource: (path: string) => ValueRef;  // resource fields
+export const literal: (value: unknown) => ValueRef; // a constant
 ```
 
-A comparison may target a constant, a field of the subject, or a field of the
-resource — the last of which expresses relational rules such as "the document's
-owner equals the subject's id".
+A comparison may target a constant, an attribute of the subject, the subject's
+identifier, or a field of the resource. Together these express relational rules
+such as "the document's owner is me":
+
+```ts
+hasResourceAttribute("owner", eq(subjectId()))
+```
+
+```
+REQUIREMENT: `subject(path)` MUST address the subject's *attributes* only. The
+             subject's identity MUST NOT be reachable through a path, because a
+             reserved path would be shadowed by — or would shadow — an attribute
+             that happened to share its name.
+```
+
+```
+REQUIREMENT: `subjectId()` MUST be a distinct variant of the union rather than a
+             reserved path or a magic string, so that it survives serialization
+             as data and can never collide with an attribute name.
+```
 
 ```
 REQUIREMENT: Paths MUST be dot-separated and MUST yield `undefined` at any
-             missing step rather than throwing.
+             missing step rather than throwing. A reference that resolves to
+             nothing denies; it is not an error, because an unset attribute is a
+             legitimate answer rather than a policy defect.
 ```
 
 ## BEH-EG-027: Constructors and semantics
@@ -94,6 +114,13 @@ export const evaluateMatcher: (
   value: unknown,
   context: MatcherContext,
 ) => boolean;
+
+export interface MatcherContext {
+  /** The subject's attributes. Its identity is `subjectId`, kept separate. */
+  readonly subject: Readonly<Record<string, unknown>>;
+  readonly subjectId: string;
+  readonly resource: Readonly<Record<string, unknown>> | undefined;
+}
 ```
 
 ```
