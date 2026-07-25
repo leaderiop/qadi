@@ -12,7 +12,10 @@
       "import": "./lib/index.js"
     }
   },
-  "files": ["lib", "src"],
+  "files": [
+    "lib",
+    "src"
+  ],
   "scripts": {
     "build": "tsc -b tsconfig.json",
     "typecheck": "tsc -b tsconfig.json",
@@ -27,7 +30,9 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "catalog:",
+    "happy-dom": "^20.11.1",
     "react": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

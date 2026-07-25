@@ -71,9 +71,10 @@ export class GuardWorld extends World {
 
   /** Runs a policy and records the outcome for the Then steps. */
   run(policy: Policy): void {
-    const program = evaluate(policy, {
-      ...(this.resource === undefined ? {} : { resource: this.resource }),
-    }).pipe(
+    const options =
+      this.resource === undefined ? undefined : { resource: this.resource };
+
+    const program = evaluate(policy, options).pipe(
       Effect.provide(
         guardTestLayer(this.subject, {
           attributes: this.resolvedAttributes,

@@ -69,6 +69,10 @@ const RULES = [
  */
 const EXEMPTIONS = {
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
+  // React's useEffect is Promise-based, so `runtime.runPromiseExit(...).then(...)`
+  // is the sanctioned Effect-to-React bridge. Confining the exemption to this
+  // one file keeps the boundary visible instead of letting Promises spread.
+  "packages/react/src/GuardContext.tsx": ["no-raw-promise"],
 };
 
 /** Recursively collect .ts/.tsx files under a directory. */
