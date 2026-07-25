@@ -198,3 +198,19 @@ behavior means updating the behavior doc, the invariant, and the traceability
 matrix in the same change. TypeScript blocks in `spec/behaviors/*.md` are
 extracted and type-checked in CI — documentation that does not compile is a
 build failure.
+
+## 12. Specification code fences
+
+`spec/` uses two TypeScript fence languages, and the distinction is load-bearing:
+
+- ` ```typescript ` — a **runnable example**. Extracted and compiled by
+  `scripts/check-doc-examples.mjs`; it must import what it uses and must
+  type-check against the real API.
+- ` ```ts ` — an **API signature listing or fragment**. Reference material, not
+  compiled.
+
+Prefer `typescript` wherever an example can be made to compile. The predecessor's
+documentation was uniformly uncompilable — every README example called a
+signature that no longer existed — which is worse than no documentation, because
+readers and models pattern-match against it. This gate has already caught two
+errors in our own docs.

@@ -22,7 +22,8 @@
     "format:check": "oxfmt --check packages features",
     "spec:verify": "bash spec/scripts/verify-traceability.sh",
     "spec:verify:strict": "bash spec/scripts/verify-traceability.sh --strict",
-    "check": "pnpm typecheck && pnpm lint && pnpm coverage && pnpm test:bdd && pnpm spec:verify:strict"
+    "check": "pnpm typecheck && pnpm lint && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict",
+    "spec:examples": "node scripts/check-doc-examples.mjs"
   },
   "devDependencies": {
     "@effect/language-service": "^0.77.0",

@@ -11,3 +11,5 @@ features/reports/
 .env
 .env.*
 !.env.example
+
+.doc-examples/
