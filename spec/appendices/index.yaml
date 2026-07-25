@@ -1,7 +1,7 @@
 kind: appendices
-package: "@guard/react"
-infix: EG
+package: "@qadi/react"
+infix: QD
 entries:
-  - id: "GUARD-APP-REACT"
+  - id: "QADI-APP-REACT"
     file: "react-integration.md"
     title: "React Integration Guide"

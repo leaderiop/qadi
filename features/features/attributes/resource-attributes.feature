@@ -1,4 +1,4 @@
-@attributes @resource @REQ-EG-006
+@attributes @resource @REQ-QD-006
 Feature: Resource attribute policies
 
   Scenario: A matching resource attribute grants access

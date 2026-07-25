@@ -90,9 +90,9 @@ writeFileSync(
         noUnusedLocals: false,
         noUnusedParameters: false,
         paths: {
-          "@guard/core": ["../packages/core/src/index.ts"],
-          "@guard/react": ["../packages/react/src/index.ts"],
-          "@guard/testing": ["../packages/testing/src/index.ts"],
+          "@qadi/core": ["../packages/core/src/index.ts"],
+          "@qadi/react": ["../packages/react/src/index.ts"],
+          "@qadi/testing": ["../packages/testing/src/index.ts"],
         },
       },
     },

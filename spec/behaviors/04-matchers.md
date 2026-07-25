@@ -4,19 +4,19 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-BEH-04                                   |
+> | Document ID    | QADI-BEH-04                                    |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
-## BEH-EG-025: Matchers are data
+## BEH-QD-025: Matchers are data
 
-> **See:** [ADR-EG-002](../decisions/002-schema-derived-policy-adt.md)
+> **See:** [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)
 
 Matchers contain no closures, so they serialize with the policy that holds them.
 Like `Policy`, the union is schema-defined and the type is derived from it.
@@ -36,7 +36,7 @@ export type Matcher =
   | { readonly _tag: "Size"; readonly matcher: Matcher };
 ```
 
-## BEH-EG-026: Value references
+## BEH-QD-026: Value references
 
 ```ts
 export const subject: (path: string) => ValueRef;   // subject attributes
@@ -73,7 +73,7 @@ REQUIREMENT: Paths MUST be dot-separated and MUST yield `undefined` at any
              legitimate answer rather than a policy defect.
 ```
 
-## BEH-EG-027: Constructors and semantics
+## BEH-QD-027: Constructors and semantics
 
 ```ts
 export const eq: (ref: ValueRef) => Matcher;
@@ -106,7 +106,7 @@ REQUIREMENT: `contains` MUST apply to arrays and strings only.
              Any other input type MUST yield false, never an error.
 ```
 
-## BEH-EG-028: Evaluation is pure
+## BEH-QD-028: Evaluation is pure
 
 ```ts
 export const evaluateMatcher: (

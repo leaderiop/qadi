@@ -226,7 +226,7 @@ const evaluateNode = (
 };
 
 /** Short-circuits on the first denying child. */
-const evaluateAllOf = Effect.fn("guard.allOf")(function* (
+const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
   policy: Extract<Policy, { _tag: "AllOf" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
@@ -255,7 +255,7 @@ const evaluateAllOf = Effect.fn("guard.allOf")(function* (
  * `Intersection` on an `anyOf` is honoured rather than silently downgraded to
  * `First`, which is what the predecessor did.
  */
-const evaluateAnyOf = Effect.fn("guard.anyOf")(function* (
+const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
   policy: Extract<Policy, { _tag: "AnyOf" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
@@ -291,10 +291,10 @@ const evaluateAnyOf = Effect.fn("guard.anyOf")(function* (
 /**
  * Evaluates a policy against the current subject.
  *
- * Emits a `guard.evaluate` span carrying the decision, so authorization shows up
+ * Emits a `qadi.evaluate` span carrying the decision, so authorization shows up
  * in tracing without a bespoke audit port.
  */
-export const evaluate = Effect.fn("guard.evaluate")(function* (
+export const evaluate = Effect.fn("qadi.evaluate")(function* (
   policy: Policy,
   options?: EvaluateOptions,
 ) {
@@ -329,10 +329,10 @@ export const evaluate = Effect.fn("guard.evaluate")(function* (
       });
 
   yield* Effect.annotateCurrentSpan({
-    "guard.decision": decision._tag,
-    "guard.subject_id": subject.id,
-    "guard.evaluation_id": evaluationId,
-    "guard.policy_tag": policy._tag,
+    "qadi.decision": decision._tag,
+    "qadi.subject_id": subject.id,
+    "qadi.evaluation_id": evaluationId,
+    "qadi.policy_tag": policy._tag,
   });
 
   return decision;

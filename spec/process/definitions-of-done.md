@@ -4,13 +4,13 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-PROC-02                                  |
+> | Document ID    | QADI-PROC-02                                   |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 
@@ -27,7 +27,7 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 3 | `oxlint` | Lint clean |
 | 4 | `node scripts/check-house-style.mjs` | House rules the linter cannot express |
 | 5 | `vitest run --coverage` | Tests pass; thresholds met |
-| 6 | `pnpm --filter @guard/features test` | Acceptance scenarios pass |
+| 6 | `pnpm --filter @qadi/features test` | Acceptance scenarios pass |
 | 7 | `bash spec/scripts/verify-traceability.sh --strict` | Specification is internally consistent |
 
 ## Per-change checklist
@@ -37,7 +37,7 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 - [ ] A new design choice with a real alternative has an ADR.
 - [ ] New identifiers appear in `traceability.md` and the directory `index.yaml`.
 - [ ] Coverage thresholds still met (95% core, 90% workspace).
-- [ ] New user-visible behaviour has a Gherkin scenario tagged `@REQ-EG-NNN`.
+- [ ] New user-visible behaviour has a Gherkin scenario tagged `@REQ-QD-NNN`.
 
 ## What "done" excludes
 

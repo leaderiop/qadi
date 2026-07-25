@@ -4,22 +4,22 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-BEH-02                                   |
+> | Document ID    | QADI-BEH-02                                    |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [01 — Permission Tokens](./01-permissions.md)_
 
 ---
 
-## BEH-EG-009: Role construction is total
+## BEH-QD-009: Role construction is total
 
-> **Invariant:** [INV-EG-002](../invariants.md#inv-eg-002-role-graph-acyclicity)
-> **See:** [ADR-EG-015](../decisions/015-role-dag-acyclic-by-construction.md)
+> **Invariant:** [INV-QD-002](../invariants.md#inv-qd-002-role-graph-acyclicity)
+> **See:** [ADR-QD-015](../decisions/015-role-dag-acyclic-by-construction.md)
 
 Parents are held **by value**, so a role cannot reference one that does not yet
 exist. The graph is a DAG by construction and construction cannot fail.
@@ -38,7 +38,7 @@ export const role: <const TName extends string>(config: {
 }) => Role<TName>;
 ```
 
-## BEH-EG-010: Permission flattening
+## BEH-QD-010: Permission flattening
 
 ```ts
 export const flattenPermissions: (self: Role) => ReadonlySet<PermissionKey>;
@@ -51,7 +51,7 @@ REQUIREMENT: Flattening MUST include permissions inherited transitively, and
              a grandparent — MUST be walked once, not exponentially.
 ```
 
-## BEH-EG-011: Transitive role names
+## BEH-QD-011: Transitive role names
 
 ```ts
 export const roleNames: (self: Role) => ReadonlySet<string>;
@@ -63,9 +63,9 @@ REQUIREMENT: A subject holding a role MUST satisfy `hasRole` for every ancestor
              MUST satisfy `hasRole("editor")`.
 ```
 
-## BEH-EG-012: Resolving a serialized role graph
+## BEH-QD-012: Resolving a serialized role graph
 
-> **See:** [ADR-EG-015](../decisions/015-role-dag-acyclic-by-construction.md)
+> **See:** [ADR-QD-015](../decisions/015-role-dag-acyclic-by-construction.md)
 
 Cycles become representable only when parents are named rather than referenced.
 

@@ -1,4 +1,4 @@
-# ADR-EG-007: Permission tokens and the reserved separator
+# ADR-QD-007: Permission tokens and the reserved separator
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

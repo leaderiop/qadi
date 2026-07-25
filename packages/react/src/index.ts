@@ -1,4 +1,4 @@
 export * from "./components.tsx";
-export * from "./GuardAtoms.ts";
-export * from "./GuardProvider.tsx";
+export * from "./QadiAtoms.ts";
+export * from "./QadiProvider.tsx";
 export * from "./hooks.ts";

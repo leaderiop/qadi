@@ -1,4 +1,4 @@
-# ADR-EG-003: `_tag` is the discriminant
+# ADR-QD-003: `_tag` is the discriminant
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

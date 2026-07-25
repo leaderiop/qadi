@@ -1,5 +1,5 @@
 import { When } from "@cucumber/cucumber";
-import type { Policy } from "@guard/core";
+import type { Policy } from "@qadi/core";
 import {
   allOf,
   anyOf,
@@ -14,8 +14,8 @@ import {
   not,
   permission,
   subjectId,
-} from "@guard/core";
-import { GuardWorld } from "./world.ts";
+} from "@qadi/core";
+import { QadiWorld } from "./world.ts";
 
 /** Parses a `"resource:action"` key into a permission policy. */
 const permissionPolicy = (key: string): Policy => {
@@ -29,52 +29,52 @@ const permissionPolicy = (key: string): Policy => {
 const permissionList = (keys: string): ReadonlyArray<Policy> =>
   keys.split(",").map((k) => permissionPolicy(k.trim()));
 
-When("they request permission {string}", function (this: GuardWorld, key: string) {
+When("they request permission {string}", function (this: QadiWorld, key: string) {
   this.run(permissionPolicy(key));
 });
 
-When("they must satisfy all of {string}", function (this: GuardWorld, keys: string) {
+When("they must satisfy all of {string}", function (this: QadiWorld, keys: string) {
   this.run(allOf(permissionList(keys)));
 });
 
-When("they must satisfy any of {string}", function (this: GuardWorld, keys: string) {
+When("they must satisfy any of {string}", function (this: QadiWorld, keys: string) {
   this.run(anyOf(permissionList(keys)));
 });
 
-When("they must hold role {string}", function (this: GuardWorld, name: string) {
+When("they must hold role {string}", function (this: QadiWorld, name: string) {
   this.run(hasRole(name));
 });
 
-When("they must not hold role {string}", function (this: GuardWorld, name: string) {
+When("they must not hold role {string}", function (this: QadiWorld, name: string) {
   this.run(not(hasRole(name)));
 });
 
 When(
   "they must have attribute {string} of at least {int}",
-  function (this: GuardWorld, key: string, threshold: number) {
+  function (this: QadiWorld, key: string, threshold: number) {
     this.run(hasAttribute(key, gte(threshold)));
   },
 );
 
 When(
   "the resource attribute {string} must equal {string}",
-  function (this: GuardWorld, key: string, value: string) {
+  function (this: QadiWorld, key: string, value: string) {
     this.run(hasResourceAttribute(key, eq(literal(value))));
   },
 );
 
-When("they must be {string} of the resource", function (this: GuardWorld, relation: string) {
+When("they must be {string} of the resource", function (this: QadiWorld, relation: string) {
   this.run(hasRelationship(relation));
 });
 
 /** "the resource's owner is me" — the archetypal relational rule. */
 const ownership = (): Policy => hasResourceAttribute("owner", eq(subjectId()));
 
-When("the resource must be owned by the subject", function (this: GuardWorld) {
+When("the resource must be owned by the subject", function (this: QadiWorld) {
   this.run(ownership());
 });
 
-When("the ownership policy is round-tripped and evaluated", function (this: GuardWorld) {
+When("the ownership policy is round-tripped and evaluated", function (this: QadiWorld) {
   this.roundTrip(ownership());
   if (this.restored === undefined) throw new Error("round trip produced nothing");
   this.run(this.restored);
@@ -83,7 +83,7 @@ When("the ownership policy is round-tripped and evaluated", function (this: Guar
 When(
   "a policy exposing fields {string} for {string} and {string} for {string} is evaluated with union visibility",
   function (
-    this: GuardWorld,
+    this: QadiWorld,
     fieldsA: string,
     keyA: string,
     fieldsB: string,
@@ -109,7 +109,7 @@ When(
 When(
   "a policy exposing fields {string} for {string} and {string} for {string} is round-tripped and evaluated with union visibility",
   function (
-    this: GuardWorld,
+    this: QadiWorld,
     fieldsA: string,
     keyA: string,
     fieldsB: string,

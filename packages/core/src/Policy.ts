@@ -3,7 +3,7 @@
  *
  * Defined **once** as a Schema; the TypeScript type is derived from it and the
  * JSON codec is derived from it. This is the central design decision of the
- * library (ADR-EG-002).
+ * library (ADR-QD-002).
  *
  * The predecessor maintained the type in one file and a hand-written
  * serializer/deserializer in two others. They drifted: `fieldStrategy` was

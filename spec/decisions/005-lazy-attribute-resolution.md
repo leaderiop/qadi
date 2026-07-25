@@ -1,4 +1,4 @@
-# ADR-EG-005: Attribute resolution is lazy and per-node
+# ADR-QD-005: Attribute resolution is lazy and per-node
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

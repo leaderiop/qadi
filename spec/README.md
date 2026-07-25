@@ -1,16 +1,16 @@
-# Guard — Specification
+# Qadi — Specification
 
 > **Document Control**
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-00                                       |
-> | Revision       | 1.0                                            |
+> | Document ID    | QADI-00                                        |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification — Master Index        |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -35,19 +35,29 @@ link is broken. `scripts/check-doc-examples.mjs` compiles the runnable examples.
 | [Traceability](./traceability.md) | Behavior → source → test → invariant → decision → scenario |
 | [Roadmap](./roadmap.md) | What is deliberately unbuilt, and why |
 
+### Models
+
+| Document | Purpose |
+| -------- | ------- |
+| [00 — Access Control Model Adoption Matrix](./models/00-adoption-matrix.md) | Which models Qadi expresses, which it does not, and what each would cost |
+
+Model documents are planning records, not specification. They carry `MOD-QD-NNN`
+identifiers precisely so that describing a capability cannot be mistaken for
+having verified one.
+
 ### Behaviors
 
 | Document | Requirements |
 | -------- | ------------ |
-| [01 — Permission Tokens](./behaviors/01-permissions.md) | BEH-EG-001–006 |
-| [02 — Roles and Inheritance](./behaviors/02-roles.md) | BEH-EG-009–012 |
-| [03 — Policy ADT](./behaviors/03-policy-adt.md) | BEH-EG-017–020 |
-| [04 — Matcher DSL](./behaviors/04-matchers.md) | BEH-EG-025–028 |
-| [05 — Evaluator](./behaviors/05-evaluator.md) | BEH-EG-033–040 |
-| [06 — Services and Layers](./behaviors/06-services.md) | BEH-EG-041–044 |
-| [07 — Enforcement](./behaviors/07-enforcement.md) | BEH-EG-049–053 |
-| [08 — Serialization](./behaviors/08-serialization.md) | BEH-EG-057–059 |
-| [09 — React Integration](./behaviors/09-react.md) | BEH-EG-065–069 |
+| [01 — Permission Tokens](./behaviors/01-permissions.md) | BEH-QD-001–006 |
+| [02 — Roles and Inheritance](./behaviors/02-roles.md) | BEH-QD-009–012 |
+| [03 — Policy ADT](./behaviors/03-policy-adt.md) | BEH-QD-017–020 |
+| [04 — Matcher DSL](./behaviors/04-matchers.md) | BEH-QD-025–028 |
+| [05 — Evaluator](./behaviors/05-evaluator.md) | BEH-QD-033–040 |
+| [06 — Services and Layers](./behaviors/06-services.md) | BEH-QD-041–044 |
+| [07 — Enforcement](./behaviors/07-enforcement.md) | BEH-QD-049–053 |
+| [08 — Serialization](./behaviors/08-serialization.md) | BEH-QD-057–059 |
+| [09 — React Integration](./behaviors/09-react.md) | BEH-QD-065–069 |
 
 ### Decisions
 
@@ -55,12 +65,12 @@ Seventeen ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 
 | ADR | Decision |
 | --- | -------- |
-| [ADR-EG-002](./decisions/002-schema-derived-policy-adt.md) | The policy ADT is schema-derived — the central decision |
-| [ADR-EG-004](./decisions/004-single-effect-evaluator.md) | One `Effect`-returning evaluator |
-| [ADR-EG-005](./decisions/005-lazy-attribute-resolution.md) | Lazy per-node attribute resolution |
-| [ADR-EG-011](./decisions/011-enforce-as-aspect.md) | `Guard.enforce` is an Effect aspect |
-| [ADR-EG-014](./decisions/014-react-via-atoms.md) | React integrates through Effect atoms |
-| [ADR-EG-016](./decisions/016-gxp-out-of-scope.md) | GxP compliance is out of scope |
+| [ADR-QD-002](./decisions/002-schema-derived-policy-adt.md) | The policy ADT is schema-derived — the central decision |
+| [ADR-QD-004](./decisions/004-single-effect-evaluator.md) | One `Effect`-returning evaluator |
+| [ADR-QD-005](./decisions/005-lazy-attribute-resolution.md) | Lazy per-node attribute resolution |
+| [ADR-QD-011](./decisions/011-enforce-as-aspect.md) | `Qadi.enforce` is an Effect aspect |
+| [ADR-QD-014](./decisions/014-react-via-atoms.md) | React integrates through Effect atoms |
+| [ADR-QD-016](./decisions/016-gxp-out-of-scope.md) | GxP compliance is out of scope |
 
 ### Appendices
 
@@ -85,16 +95,16 @@ Reviewing a change: [Invariants](./invariants.md) →
 
 ## Why this library exists
 
-Guard replaces an earlier `Result`-based authorization library. The rewrite was
+Qadi replaces an earlier `Result`-based authorization library. The rewrite was
 prompted by defects that were structural rather than incidental — each came from
 maintaining two representations of one thing and letting them drift:
 
 | Defect | Cause | Now prevented by |
 | ------ | ----- | ---------------- |
-| Field visibility silently narrowed on a JSON round trip | Hand-written codec drifted from the type | [INV-EG-003](./invariants.md#inv-eg-003-codectype-identity) |
-| Async relationship API never called | Two evaluators, one unreachable | [ADR-EG-004](./decisions/004-single-effect-evaluator.md) |
-| Short-circuiting destroyed by eager resolution | Resolve-then-evaluate in two phases | [INV-EG-005](./invariants.md#inv-eg-005-short-circuit-preservation) |
-| One error code for two unrelated failures | Manual code allocation | [INV-EG-010](./invariants.md#inv-eg-010-error-codes-are-injective) |
+| Field visibility silently narrowed on a JSON round trip | Hand-written codec drifted from the type | [INV-QD-003](./invariants.md#inv-qd-003-codectype-identity) |
+| Async relationship API never called | Two evaluators, one unreachable | [ADR-QD-004](./decisions/004-single-effect-evaluator.md) |
+| Short-circuiting destroyed by eager resolution | Resolve-then-evaluate in two phases | [INV-QD-005](./invariants.md#inv-qd-005-short-circuit-preservation) |
+| One error code for two unrelated failures | Manual code allocation | [INV-QD-010](./invariants.md#inv-qd-010-error-codes-are-injective) |
 | Documentation examples that did not compile | Nothing checked them | `scripts/check-doc-examples.mjs` |
 
 The first of those was reproduced against the original implementation before
@@ -105,11 +115,12 @@ this rewrite began: a policy exposing `["title", "author"]` returned only
 
 | Prefix | Meaning |
 | ------ | ------- |
-| `BEH-EG-NNN` | Functional behavior requirement |
-| `INV-EG-NNN` | Runtime invariant |
-| `ADR-EG-NNN` | Architecture decision |
-| `REQ-EG-NNN` | Acceptance scenario tag on a `.feature` file |
-| `CCR-EG-NNN` | Change control record |
+| `BEH-QD-NNN` | Functional behavior requirement |
+| `INV-QD-NNN` | Runtime invariant |
+| `ADR-QD-NNN` | Architecture decision |
+| `REQ-QD-NNN` | Acceptance scenario tag on a `.feature` file |
+| `MOD-QD-NNN` | Access control model adoption record — planning, not specification |
+| `CCR-QD-NNN` | Change control record |
 
 Full rules in [the identifier scheme](./process/requirement-id-scheme.md).
 
@@ -117,6 +128,8 @@ Full rules in [the identifier scheme](./process/requirement-id-scheme.md).
 
 | CCR | Date | Change |
 | --- | ---- | ------ |
-| CCR-EG-001 | 2026-07-25 | Initial specification |
-| CCR-EG-002 | 2026-07-25 | Glossary, user requirements and roadmap |
-| CCR-EG-003 | 2026-07-26 | React rebuilt on `effect/unstable/reactivity` (ADR-EG-014 revised, ADR-EG-017 added) |
+| CCR-QD-001 | 2026-07-25 | Initial specification |
+| CCR-QD-002 | 2026-07-25 | Glossary, user requirements and roadmap |
+| CCR-QD-003 | 2026-07-26 | React rebuilt on `effect/unstable/reactivity` (ADR-QD-014 revised, ADR-QD-017 added) |
+| CCR-QD-004 | 2026-07-26 | Access control model adoption matrix; `MOD-QD` identifier series registered |
+| CCR-QD-005 | 2026-07-26 | Library renamed Guard → Qadi; scope `@guard/*` → `@qadi/*`; infix `EG` → `QD`; service tags, span names and document ids follow |

@@ -13,10 +13,10 @@
       "@/*": [
         "./src/*"
       ],
-      "@guard/core": [
+      "@qadi/core": [
         "../../packages/core/src/index.ts"
       ],
-      "@guard/testing": [
+      "@qadi/testing": [
         "../../packages/testing/src/index.ts"
       ]
     }

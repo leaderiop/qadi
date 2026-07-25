@@ -6,7 +6,7 @@
  * enforcement as an adapter wrapper that ran at resolution time, but it was
  * really an eight-argument function you had to remember to call. Here the
  * subject, resolvers and identifier generator all travel in the environment, so
- * the call site is `handler.pipe(Guard.enforce(canEdit))`.
+ * the call site is `handler.pipe(Qadi.enforce(canEdit))`.
  */
 import * as Effect from "effect/Effect";
 import type { Decision } from "./Decision.ts";
@@ -60,7 +60,7 @@ export const assert = (
  *
  * @example
  * ```ts
- * const handler = updateDocument(id).pipe(Guard.enforce(canEditDocument))
+ * const handler = updateDocument(id).pipe(Qadi.enforce(canEditDocument))
  * ```
  */
 export const enforce =

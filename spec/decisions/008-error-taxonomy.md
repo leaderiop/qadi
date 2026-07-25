@@ -1,4 +1,4 @@
-# ADR-EG-008: `Data.TaggedError` with codes derived from tags
+# ADR-QD-008: `Data.TaggedError` with codes derived from tags
 
 > **Status:** Accepted
 > **Date:** 2026-07-25
@@ -13,10 +13,10 @@ aggregation keyed on the code conflated two unrelated failures.
 ## Decision
 
 Every error is a `Data.TaggedError` with a namespaced tag such as
-`"guard/AccessDenied"`. The `_tag` is the identity.
+`"qadi/AccessDenied"`. The `_tag` is the identity.
 
 Stable numeric codes are derived from the tag by a single map declared
-`satisfies Record<GuardError["_tag"], ...>`, so an error without a code is a
+`satisfies Record<QadiError["_tag"], ...>`, so an error without a code is a
 compile error and a duplicated code is visible in one place.
 
 ## Consequences

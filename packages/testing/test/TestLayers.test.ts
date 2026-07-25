@@ -1,11 +1,11 @@
 import { assert, describe, it } from "@effect/vitest";
-import { evaluate, hasAttribute, hasRelationship, isAllowed, gte, anyOf, hasRole } from "@guard/core";
+import { evaluate, hasAttribute, hasRelationship, isAllowed, gte, anyOf, hasRole } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import {
   administrator,
   edgeRelationshipResolver,
   failingAttributeResolver,
-  guardTestLayer,
+  qadiTestLayer,
   nobody,
   policies,
   recordingAttributeResolver,
@@ -32,31 +32,31 @@ describe("fixtures", () => {
   });
 });
 
-describe("guardTestLayer", () => {
+describe("qadiTestLayer", () => {
   it.effect("wires a complete environment with deterministic ids", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(policies.canRead);
       assert.isTrue(isAllowed(d));
       assert.strictEqual(d.evaluationId, "eval-1");
-    }).pipe(Effect.provide(guardTestLayer(administrator))));
+    }).pipe(Effect.provide(qadiTestLayer(administrator))));
 
   it.effect("honours a custom id prefix", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(policies.canRead);
       assert.strictEqual(d.evaluationId, "run-1");
-    }).pipe(Effect.provide(guardTestLayer(administrator, { idPrefix: "run" }))));
+    }).pipe(Effect.provide(qadiTestLayer(administrator, { idPrefix: "run" }))));
 
   it.effect("defaults fail closed", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(hasRelationship("owner"), { resource: { id: "d" } });
       assert.isFalse(isAllowed(d));
-    }).pipe(Effect.provide(guardTestLayer(nobody))));
+    }).pipe(Effect.provide(qadiTestLayer(nobody))));
 
   it.effect("resolves configured attributes", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(hasAttribute("tier", gte(3)));
       assert.isTrue(isAllowed(d));
-    }).pipe(Effect.provide(guardTestLayer(nobody, { attributes: { tier: 5 } }))));
+    }).pipe(Effect.provide(qadiTestLayer(nobody, { attributes: { tier: 5 } }))));
 
   it.effect("resolves configured relationships", () =>
     Effect.gen(function* () {
@@ -64,7 +64,7 @@ describe("guardTestLayer", () => {
       assert.isTrue(isAllowed(d));
     }).pipe(
       Effect.provide(
-        guardTestLayer(subjectWith({ id: "u1" }), {
+        qadiTestLayer(subjectWith({ id: "u1" }), {
           relationships: [["u1", "owner", "d1"]],
         }),
       ),
@@ -79,7 +79,7 @@ describe("recording resolvers", () => {
       const policy = anyOf([hasAttribute("tier", gte(1)), hasAttribute("other", gte(1))]);
 
       yield* evaluate(policy).pipe(
-        Effect.provide(guardTestLayer(nobody, { attributeResolver: resolver.layer })),
+        Effect.provide(qadiTestLayer(nobody, { attributeResolver: resolver.layer })),
       );
 
       assert.deepStrictEqual([...resolver.calls], ["tier"]);
@@ -90,7 +90,7 @@ describe("recording resolvers", () => {
       const resolver = edgeRelationshipResolver([["u1", "owner", "d1"]]);
       yield* evaluate(hasRelationship("owner"), { resource: { id: "d1" } }).pipe(
         Effect.provide(
-          guardTestLayer(subjectWith({ id: "u1" }), {
+          qadiTestLayer(subjectWith({ id: "u1" }), {
             relationshipResolver: resolver.layer,
           }),
         ),
@@ -103,7 +103,7 @@ describe("recording resolvers", () => {
       const r = yield* Effect.result(
         evaluate(hasAttribute("x", gte(1))).pipe(
           Effect.provide(
-            guardTestLayer(nobody, { attributeResolver: failingAttributeResolver() }),
+            qadiTestLayer(nobody, { attributeResolver: failingAttributeResolver() }),
           ),
         ),
       );
@@ -115,21 +115,21 @@ describe("fixture policies", () => {
   it.effect("canReadAndWrite requires both", () =>
     Effect.gen(function* () {
       assert.isFalse(isAllowed(yield* evaluate(policies.canReadAndWrite)));
-    }).pipe(Effect.provide(guardTestLayer(viewer))));
+    }).pipe(Effect.provide(qadiTestLayer(viewer))));
 
   it.effect("adminOrReader accepts either", () =>
     Effect.gen(function* () {
       assert.isTrue(isAllowed(yield* evaluate(policies.adminOrReader)));
-    }).pipe(Effect.provide(guardTestLayer(viewer))));
+    }).pipe(Effect.provide(qadiTestLayer(viewer))));
 
   it.effect("isAdmin matches the inherited role name", () =>
     Effect.gen(function* () {
       assert.isTrue(isAllowed(yield* evaluate(policies.isAdmin)));
       assert.isFalse(isAllowed(yield* evaluate(hasRole("nope"))));
-    }).pipe(Effect.provide(guardTestLayer(administrator))));
+    }).pipe(Effect.provide(qadiTestLayer(administrator))));
 
   it.effect("canWrite denies a viewer", () =>
     Effect.gen(function* () {
       assert.isFalse(isAllowed(yield* evaluate(policies.canWrite)));
-    }).pipe(Effect.provide(guardTestLayer(viewer))));
+    }).pipe(Effect.provide(qadiTestLayer(viewer))));
 });

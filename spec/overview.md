@@ -4,19 +4,19 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-OVERVIEW                                 |
+> | Document ID    | QADI-OVERVIEW                                  |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
 ## Mission
 
-Guard decides whether a subject may perform an action, and which parts of the
+Qadi decides whether a subject may perform an action, and which parts of the
 result they may see. It is Effect-native: evaluation is an `Effect`, dependencies
 are `Layer`s, and observability comes from Effect's tracing rather than a
 bespoke port.
@@ -39,16 +39,16 @@ grant in production.
 decision — including its trace and duration — is reproducible under test.
 
 **Say only what is true.** Capability that is not implemented, wired and tested
-is not shipped. See [ADR-EG-016](decisions/016-gxp-out-of-scope.md).
+is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 
 ## Packages
 
 | Package | Description |
 | ------- | ----------- |
-| `@guard/core` | Tokens, policy ADT, matchers, evaluator, enforcement |
-| `@guard/testing` | Fixtures, deterministic layers, recording resolvers |
-| `@guard/react` | `GuardProvider`, hooks, `Can`/`Cannot` |
-| `@guard/features` | Cucumber acceptance suite (private) |
+| `@qadi/core` | Tokens, policy ADT, matchers, evaluator, enforcement |
+| `@qadi/testing` | Fixtures, deterministic layers, recording resolvers |
+| `@qadi/react` | `QadiProvider`, hooks, `Can`/`Cannot` |
+| `@qadi/features` | Cucumber acceptance suite (private) |
 
 ## Public API surface
 
@@ -79,7 +79,7 @@ is not shipped. See [ADR-EG-016](decisions/016-gxp-out-of-scope.md).
 | ------ | ---- | ------ |
 | `evaluate` | function | `Evaluate.ts` |
 | `Decision`, `Allow`, `Deny`, `Trace`, `isAllowed`, `project` | type + function | `Decision.ts` |
-| `enforce`, `enforceProjected`, `check`, `decide`, `assert`, `filter` | function | `Guard.ts` |
+| `enforce`, `enforceProjected`, `check`, `decide`, `assert`, `filter` | function | `Qadi.ts` |
 
 ### Services
 
@@ -95,7 +95,7 @@ is not shipped. See [ADR-EG-016](decisions/016-gxp-out-of-scope.md).
 `AccessDenied`, `AttributeResolveError`, `RelationshipResolveError`,
 `MissingResource`, `MissingResourceId`, `PolicyTooDeep`,
 `CircularRoleInheritance`, `InvalidPermissionSegment`, plus `ERROR_CODES` and
-`errorCode`. See [ADR-EG-008](decisions/008-error-taxonomy.md).
+`errorCode`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
 ## Worked example
 
@@ -114,7 +114,7 @@ import {
   hasRole,
   permission,
   role,
-} from "@guard/core";
+} from "@qadi/core";
 
 const readDoc = permission("doc", "read");
 const editor = role({ name: "editor", permissions: [readDoc] });
@@ -125,7 +125,7 @@ const canReadTitle = allOf([
   hasPermission(readDoc, { fields: ["id", "title"] }),
 ]);
 
-const guardServices = Layer.mergeAll(
+const qadiServices = Layer.mergeAll(
   AttributeResolverNone,
   RelationshipResolverNever,
   EvaluationIdLive,
@@ -140,7 +140,7 @@ declare const loadDocument: (id: string) => Effect.Effect<{
 const program = loadDocument("doc-1").pipe(
   enforceProjected(canReadTitle),
   Effect.provide(currentSubjectLayer(fromRoles({ id: "u1", roles: [editor] }))),
-  Effect.provide(guardServices),
+  Effect.provide(qadiServices),
 );
 // → { id: "doc-1", title: "…" }   `internalNotes` is not returned.
 ```

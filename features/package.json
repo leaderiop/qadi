@@ -1,9 +1,9 @@
 {
-  "name": "@guard/features",
+  "name": "@qadi/features",
   "version": "0.0.0",
   "type": "module",
   "private": true,
-  "description": "Cucumber BDD acceptance tests for @guard/core",
+  "description": "Cucumber BDD acceptance tests for @qadi/core",
   "scripts": {
     "test": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts",
     "test:dry": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts --dry-run",
@@ -11,8 +11,8 @@
     "typecheck": "tsc -b tsconfig.json"
   },
   "dependencies": {
-    "@guard/core": "workspace:*",
-    "@guard/testing": "workspace:*",
+    "@qadi/core": "workspace:*",
+    "@qadi/testing": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

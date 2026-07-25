@@ -1,4 +1,4 @@
-# ADR-EG-013: Sequential short-circuit by default
+# ADR-QD-013: Sequential short-circuit by default
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

@@ -4,20 +4,20 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-BEH-08                                   |
+> | Document ID    | QADI-BEH-08                                    |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
-## BEH-EG-057: The codec is derived
+## BEH-QD-057: The codec is derived
 
-> **Invariant:** [INV-EG-003](../invariants.md#inv-eg-003-codec-type-identity)
-> **See:** [ADR-EG-002](../decisions/002-schema-derived-policy-adt.md)
+> **Invariant:** [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity)
+> **See:** [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)
 
 ```ts
 export const PolicyFromJson: Schema.Codec<Policy, string>;
@@ -32,7 +32,7 @@ REQUIREMENT: Serialization MUST be derived from the policy schema. It MUST NOT
              be hand-written.
 ```
 
-## BEH-EG-058: Round-trip identity
+## BEH-QD-058: Round-trip identity
 
 ```
 REQUIREMENT: For every policy `p`, `fromJson(toJson(p))` MUST be structurally
@@ -43,9 +43,9 @@ This is the guarantee the rewrite exists to provide. It is verified three ways:
 
 - a unit test pinning the exact defect (`Union` visibility narrowing to `First`);
 - a property test over ~60 generated policy trees;
-- a Gherkin scenario, `@REQ-EG-008`.
+- a Gherkin scenario, `@REQ-QD-008`.
 
-## BEH-EG-059: Decoding rejects hostile input
+## BEH-QD-059: Decoding rejects hostile input
 
 ```
 REQUIREMENT: Decoding MUST reject an unknown `_tag`, a permission segment

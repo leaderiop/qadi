@@ -9,7 +9,7 @@ import {
   RelationshipResolverNever,
 } from "../src/RelationshipResolver.ts";
 
-export type GuardServices =
+export type QadiServices =
   | CurrentSubject
   | AttributeResolver
   | RelationshipResolver
@@ -26,7 +26,7 @@ export const testLayer = (
     readonly attributes?: Layer.Layer<AttributeResolver>;
     readonly relationships?: Layer.Layer<RelationshipResolver>;
   },
-): Layer.Layer<GuardServices> =>
+): Layer.Layer<QadiServices> =>
   Layer.mergeAll(
     currentSubjectLayer(subject),
     overrides?.attributes ?? AttributeResolverNone,

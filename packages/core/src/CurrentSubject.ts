@@ -3,7 +3,7 @@
  *
  * Passing the subject as a parameter through every call is what forced the
  * predecessor's enforcement function to take eight arguments. As a service it
- * travels in the environment, so `Guard.enforce(policy)` needs no plumbing.
+ * travels in the environment, so `Qadi.enforce(policy)` needs no plumbing.
  */
 import * as Context from "effect/Context";
 import * as Layer from "effect/Layer";
@@ -11,7 +11,7 @@ import type { AuthSubject } from "./AuthSubject.ts";
 import { anonymous } from "./AuthSubject.ts";
 
 export class CurrentSubject extends Context.Service<CurrentSubject, AuthSubject>()(
-  "guard/CurrentSubject",
+  "qadi/CurrentSubject",
 ) {}
 
 /**

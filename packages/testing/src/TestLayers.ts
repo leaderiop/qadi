@@ -14,13 +14,13 @@ import {
   RelationshipResolverNever,
   currentSubjectLayer,
   evaluationIdSequential,
-} from "@guard/core";
-import type { AuthSubject } from "@guard/core";
+} from "@qadi/core";
+import type { AuthSubject } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
 /** Everything an evaluation needs. */
-export type GuardTestServices =
+export type QadiTestServices =
   | CurrentSubject
   | AttributeResolver
   | RelationshipResolver
@@ -51,10 +51,10 @@ export interface TestLayerOptions {
  * Evaluation ids are sequential rather than random, so decisions can be
  * asserted on exactly.
  */
-export const guardTestLayer = (
+export const qadiTestLayer = (
   subject: AuthSubject,
   options?: TestLayerOptions,
-): Layer.Layer<GuardTestServices> =>
+): Layer.Layer<QadiTestServices> =>
   Layer.mergeAll(
     currentSubjectLayer(subject),
     options?.attributeResolver ??

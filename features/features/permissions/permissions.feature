@@ -1,4 +1,4 @@
-@permissions @REQ-EG-001
+@permissions @REQ-QD-001
 Feature: Permission-based access control
 
   A subject is granted access when it holds the requested permission.

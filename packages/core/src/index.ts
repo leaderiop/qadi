@@ -5,7 +5,7 @@ export * from "./Decision.ts";
 export * from "./Errors.ts";
 export * from "./Evaluate.ts";
 export * from "./EvaluationId.ts";
-export * from "./Guard.ts";
+export * from "./Qadi.ts";
 export * from "./Matcher.ts";
 export * from "./Permission.ts";
 export * from "./Policy.ts";

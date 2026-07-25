@@ -6,17 +6,17 @@ import {
   hasRole,
   makeSubject,
   permission,
-} from "@guard/core";
-import type { AuthSubject } from "@guard/core";
+} from "@qadi/core";
+import type { AuthSubject } from "@qadi/core";
 import * as Layer from "effect/Layer";
 import { assert, afterEach, describe, expect, it } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import {
   Can,
   Cannot,
-  GuardProvider,
-  MissingGuardProviderError,
-  makeGuardAtoms,
+  QadiProvider,
+  MissingQadiProviderError,
+  makeQadiAtoms,
   useCan,
   useSubject,
 } from "../src/index.ts";
@@ -24,7 +24,7 @@ import {
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
 
-const atoms = makeGuardAtoms(
+const atoms = makeQadiAtoms(
   Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
 );
 
@@ -33,9 +33,9 @@ const nobody: AuthSubject = makeSubject({ id: "u2" });
 
 const wrap = (subject: AuthSubject | undefined, ui: React.ReactNode) =>
   render(
-    <GuardProvider atoms={atoms} subject={subject}>
+    <QadiProvider atoms={atoms} subject={subject}>
       {ui}
-    </GuardProvider>,
+    </QadiProvider>,
   );
 
 afterEach(() => {
@@ -101,7 +101,7 @@ describe("hooks", () => {
   it("throws a helpful error outside a provider", () => {
     // Failing loudly beats silently denying every check, which would look like
     // a permissions bug rather than a wiring bug.
-    assert.throws(() => render(<Probe />), MissingGuardProviderError);
+    assert.throws(() => render(<Probe />), MissingQadiProviderError);
   });
 
   it("follows the subject when it changes", async () => {
@@ -110,9 +110,9 @@ describe("hooks", () => {
     await waitFor(() => expect(screen.getByText("admin=false")).toBeDefined());
 
     rerender(
-      <GuardProvider atoms={atoms} subject={makeSubject({ id: "u3", roles: ["admin"] })}>
+      <QadiProvider atoms={atoms} subject={makeSubject({ id: "u3", roles: ["admin"] })}>
         <Probe2 />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("admin=true")).toBeDefined());
   });
@@ -122,18 +122,18 @@ describe("isolated contexts", () => {
   it("keeps two authorization contexts apart", async () => {
     // Two atom sets, two registries. A tenant cannot observe another tenant's
     // decisions even when both providers are mounted in the same tree.
-    const tenant = makeGuardAtoms(
+    const tenant = makeQadiAtoms(
       Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
     );
 
     const Inner = () => <span>{`isolated:${useCan(isAdmin)}`}</span>;
 
     render(
-      <GuardProvider atoms={atoms} subject={reader}>
-        <GuardProvider atoms={tenant} subject={makeSubject({ id: "t", roles: ["admin"] })}>
+      <QadiProvider atoms={atoms} subject={reader}>
+        <QadiProvider atoms={tenant} subject={makeSubject({ id: "t", roles: ["admin"] })}>
           <Inner />
-        </GuardProvider>
-      </GuardProvider>,
+        </QadiProvider>
+      </QadiProvider>,
     );
 
     await waitFor(() => expect(screen.getByText("isolated:true")).toBeDefined());

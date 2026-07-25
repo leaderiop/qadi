@@ -4,20 +4,20 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-BEH-05                                   |
+> | Document ID    | QADI-BEH-05                                    |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
-## BEH-EG-033: One evaluator
+## BEH-QD-033: One evaluator
 
-> **Invariant:** [INV-EG-005](../invariants.md#inv-eg-005-short-circuit-preservation)
-> **See:** [ADR-EG-004](../decisions/004-single-effect-evaluator.md)
+> **Invariant:** [INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation)
+> **See:** [ADR-QD-004](../decisions/004-single-effect-evaluator.md)
 
 ```ts
 export const evaluate: (
@@ -36,9 +36,9 @@ REQUIREMENT: There MUST be exactly one evaluator. A separate synchronous path
              unreachable.
 ```
 
-## BEH-EG-034: Lazy attribute resolution
+## BEH-QD-034: Lazy attribute resolution
 
-> **See:** [ADR-EG-005](../decisions/005-lazy-attribute-resolution.md)
+> **See:** [ADR-QD-005](../decisions/005-lazy-attribute-resolution.md)
 
 ```
 REQUIREMENT: `HasAttribute` MUST read the subject's own attributes first and
@@ -51,9 +51,9 @@ REQUIREMENT: Resolution MUST occur at the node that needs the value, so that a
              verified by counting resolver invocations, not by timing.
 ```
 
-## BEH-EG-035: Short-circuiting
+## BEH-QD-035: Short-circuiting
 
-> **See:** [ADR-EG-013](../decisions/013-short-circuit-default.md)
+> **See:** [ADR-QD-013](../decisions/013-short-circuit-default.md)
 
 ```
 REQUIREMENT: `AllOf` MUST stop at its first denying child.
@@ -68,9 +68,9 @@ REQUIREMENT: `AnyOf` MUST honour an explicit `Intersection` strategy. The
              other value as short-circuit, so a stated intersection was ignored.
 ```
 
-## BEH-EG-036: Failure is not denial
+## BEH-QD-036: Failure is not denial
 
-> **Invariant:** [INV-EG-006](../invariants.md#inv-eg-006-failure-is-not-denial)
+> **Invariant:** [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)
 
 ```
 REQUIREMENT: A failed attribute or relationship lookup MUST propagate as an
@@ -84,9 +84,9 @@ REQUIREMENT: A `HasResourceAttribute` or `HasRelationship` policy evaluated
              `MissingResourceId`. It is a wiring error, not a decision.
 ```
 
-## BEH-EG-037: Determinism
+## BEH-QD-037: Determinism
 
-> **See:** [ADR-EG-012](../decisions/012-deterministic-time-and-ids.md)
+> **See:** [ADR-QD-012](../decisions/012-deterministic-time-and-ids.md)
 
 ```
 REQUIREMENT: Durations MUST come from `Clock` and identifiers from
@@ -95,7 +95,7 @@ REQUIREMENT: Durations MUST come from `Clock` and identifiers from
              reproducible under `TestClock`.
 ```
 
-## BEH-EG-038: Bounded recursion
+## BEH-QD-038: Bounded recursion
 
 ```
 REQUIREMENT: Evaluation MUST reject a policy tree deeper than `maxDepth`
@@ -103,7 +103,7 @@ REQUIREMENT: Evaluation MUST reject a policy tree deeper than `maxDepth`
              input.
 ```
 
-## BEH-EG-039: Decisions and traces
+## BEH-QD-039: Decisions and traces
 
 ```ts
 export type Decision = Allow | Deny;
@@ -123,7 +123,7 @@ REQUIREMENT: Every evaluation MUST produce a full trace tree, so that a denial
              can always answer "why".
 ```
 
-## BEH-EG-040: Worked example
+## BEH-QD-040: Worked example
 
 ```typescript
 import * as Effect from "effect/Effect";
@@ -139,7 +139,7 @@ import {
   makeSubject,
   permission,
   type EvaluationError,
-} from "@guard/core";
+} from "@qadi/core";
 
 const readDoc = permission("doc", "read");
 

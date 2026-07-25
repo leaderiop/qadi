@@ -4,22 +4,22 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-BEH-03                                   |
+> | Document ID    | QADI-BEH-03                                    |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [02 — Roles and Inheritance](./02-roles.md)_
 
 ---
 
-## BEH-EG-017: The policy union
+## BEH-QD-017: The policy union
 
-> **Invariant:** [INV-EG-003](../invariants.md#inv-eg-003-codec-type-identity)
-> **See:** [ADR-EG-002](../decisions/002-schema-derived-policy-adt.md), [ADR-EG-003](../decisions/003-tag-discriminant.md)
+> **Invariant:** [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity)
+> **See:** [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md), [ADR-QD-003](../decisions/003-tag-discriminant.md)
 
 Nine variants, discriminated on `_tag`. The union is defined once as a Schema;
 the TypeScript type and the JSON codec are both derived from it.
@@ -47,10 +47,10 @@ REQUIREMENT: The TypeScript type and the JSON codec MUST derive from a single
              predecessor's serializer to silently drop `fieldStrategy`.
 ```
 
-## BEH-EG-018: Field visibility strategy
+## BEH-QD-018: Field visibility strategy
 
-> **Invariant:** [INV-EG-004](../invariants.md#inv-eg-004-field-visibility-lattice)
-> **See:** [ADR-EG-006](../decisions/006-field-strategy-always-encoded.md)
+> **Invariant:** [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top)
+> **See:** [ADR-QD-006](../decisions/006-field-strategy-always-encoded.md)
 
 ```ts
 export const FieldStrategy: Schema.Literals<["Intersection", "Union", "First"]>;
@@ -73,7 +73,7 @@ REQUIREMENT: An absent field set means ALL fields — the top of the lattice, no
              the empty set. Intersecting it with any set S yields S.
 ```
 
-## BEH-EG-019: Combinators
+## BEH-QD-019: Combinators
 
 ```ts
 export const hasPermission: (permission: Permission, options?: FieldOptions) => Policy;
@@ -100,7 +100,7 @@ REQUIREMENT: Combinators MUST OMIT optional keys rather than setting them to
              different from the same policy after a round trip.
 ```
 
-## BEH-EG-020: Worked example
+## BEH-QD-020: Worked example
 
 ```typescript
 import {
@@ -114,7 +114,7 @@ import {
   not,
   permission,
   type Policy,
-} from "@guard/core";
+} from "@qadi/core";
 
 const readDoc = permission("doc", "read");
 

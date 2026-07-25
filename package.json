@@ -1,5 +1,5 @@
 {
-  "name": "guard-monorepo",
+  "name": "qadi-monorepo",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:types": "vitest run --typecheck",
     "coverage": "vitest run --coverage",
-    "test:bdd": "pnpm --filter @guard/features test",
+    "test:bdd": "pnpm --filter @qadi/features test",
     "lint": "oxlint && node scripts/check-house-style.mjs",
     "lint:fix": "oxlint --fix",
     "lint:style": "node scripts/check-house-style.mjs",

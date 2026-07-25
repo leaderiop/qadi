@@ -1,4 +1,4 @@
-# ADR-EG-006: `fieldStrategy` is required and always encoded
+# ADR-QD-006: `fieldStrategy` is required and always encoded
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

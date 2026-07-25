@@ -1,4 +1,4 @@
-# Guard
+# Qadi
 
 Effect-native authorization for TypeScript. Permission tokens, a role DAG, a
 schema-derived policy ADT, and a single `Effect`-returning evaluator.
@@ -8,7 +8,7 @@ schema-derived policy ADT, and a single `Effect`-returning evaluator.
 
 ## Why
 
-Guard is a ground-up rewrite of an earlier `Result`-based authorization library.
+Qadi is a ground-up rewrite of an earlier `Result`-based authorization library.
 The rewrite exists to remove a class of defect structurally rather than by
 discipline. In the previous implementation:
 
@@ -26,10 +26,10 @@ TypeScript type and the JSON codec are derived from it, so they cannot diverge.
 
 | Package | Description |
 | ------- | ----------- |
-| `@guard/core` | Tokens, policy ADT, evaluator, enforcement |
-| `@guard/testing` | Test layers, fixtures, conformance suites, matchers |
-| `@guard/react` | `GuardProvider`, hooks, `Can`/`Cannot` |
-| `@guard/features` | Cucumber BDD acceptance tests (private) |
+| `@qadi/core` | Tokens, policy ADT, evaluator, enforcement |
+| `@qadi/testing` | Test layers, fixtures, conformance suites, matchers |
+| `@qadi/react` | `QadiProvider`, hooks, `Can`/`Cannot` |
+| `@qadi/features` | Cucumber BDD acceptance tests (private) |
 
 ## Development
 

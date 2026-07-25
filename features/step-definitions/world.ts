@@ -1,8 +1,8 @@
 import { World } from "@cucumber/cucumber";
 import type { IWorldOptions } from "@cucumber/cucumber";
-import type { AuthSubject, Decision, Policy } from "@guard/core";
-import { evaluate, isAllowed, makeSubject, toJson, fromJson } from "@guard/core";
-import { guardTestLayer } from "@guard/testing";
+import type { AuthSubject, Decision, Policy } from "@qadi/core";
+import { evaluate, isAllowed, makeSubject, toJson, fromJson } from "@qadi/core";
+import { qadiTestLayer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 
 /** What a Then step can assert on. */
@@ -29,7 +29,7 @@ const NO_OUTCOME: Outcome = {
  * on demand so that Given steps can keep amending the subject right up until
  * the When step runs.
  */
-export class GuardWorld extends World {
+export class QadiWorld extends World {
   subjectId = "alice";
   roles: Array<string> = [];
   permissions: Array<`${string}:${string}`> = [];
@@ -76,7 +76,7 @@ export class GuardWorld extends World {
 
     const program = evaluate(policy, options).pipe(
       Effect.provide(
-        guardTestLayer(this.subject, {
+        qadiTestLayer(this.subject, {
           attributes: this.resolvedAttributes,
           relationships: this.relationships,
         }),

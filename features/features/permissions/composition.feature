@@ -1,4 +1,4 @@
-@permissions @composition @REQ-EG-002
+@permissions @composition @REQ-QD-002
 Feature: Composing policies
 
   Scenario: allOf requires every permission

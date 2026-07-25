@@ -1,9 +1,9 @@
 import { Given, setWorldConstructor, Before } from "@cucumber/cucumber";
-import { GuardWorld } from "./world.ts";
+import { QadiWorld } from "./world.ts";
 
-setWorldConstructor(GuardWorld);
+setWorldConstructor(QadiWorld);
 
-Before(function (this: GuardWorld) {
+Before(function (this: QadiWorld) {
   this.reset();
 });
 
@@ -11,13 +11,13 @@ Before(function (this: GuardWorld) {
 // Subject
 // ---------------------------------------------------------------------------
 
-Given("a subject {string}", function (this: GuardWorld, id: string) {
+Given("a subject {string}", function (this: QadiWorld, id: string) {
   this.subjectId = id;
 });
 
 Given(
   "the subject has permission {string}",
-  function (this: GuardWorld, key: string) {
+  function (this: QadiWorld, key: string) {
     const [resource, action] = key.split(":");
     if (resource === undefined || action === undefined) {
       throw new Error(`malformed permission key: ${key}`);
@@ -26,24 +26,24 @@ Given(
   },
 );
 
-Given("the subject has no permissions", function (this: GuardWorld) {
+Given("the subject has no permissions", function (this: QadiWorld) {
   this.permissions = [];
 });
 
-Given("the subject has role {string}", function (this: GuardWorld, name: string) {
+Given("the subject has role {string}", function (this: QadiWorld, name: string) {
   this.roles.push(name);
 });
 
 Given(
   "the subject has attribute {string} of {int}",
-  function (this: GuardWorld, key: string, value: number) {
+  function (this: QadiWorld, key: string, value: number) {
     this.attributes[key] = value;
   },
 );
 
 Given(
   "the subject has attribute {string} of {string}",
-  function (this: GuardWorld, key: string, value: string) {
+  function (this: QadiWorld, key: string, value: string) {
     this.attributes[key] = value;
   },
 );
@@ -54,32 +54,32 @@ Given(
 
 Given(
   "the attribute service resolves {string} to {int}",
-  function (this: GuardWorld, key: string, value: number) {
+  function (this: QadiWorld, key: string, value: number) {
     this.resolvedAttributes[key] = value;
   },
 );
 
 Given(
   "the subject is {string} of resource {string}",
-  function (this: GuardWorld, relation: string, resourceId: string) {
+  function (this: QadiWorld, relation: string, resourceId: string) {
     this.relationships.push([this.subjectId, relation, resourceId]);
   },
 );
 
 Given(
   "the resource {string} with attribute {string} of {string}",
-  function (this: GuardWorld, id: string, key: string, value: string) {
+  function (this: QadiWorld, id: string, key: string, value: string) {
     this.resource = { id, [key]: value };
   },
 );
 
-Given("the resource {string}", function (this: GuardWorld, id: string) {
+Given("the resource {string}", function (this: QadiWorld, id: string) {
   this.resource = { id };
 });
 
 Given(
   "the resource {string} owned by {string}",
-  function (this: GuardWorld, id: string, owner: string) {
+  function (this: QadiWorld, id: string, owner: string) {
     this.resource = { id, owner };
   },
 );

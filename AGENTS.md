@@ -1,4 +1,4 @@
-# Guard — Engineering Conventions
+# Qadi — Engineering Conventions
 
 Effect-native authorization library. **Effect v4.** These rules are not suggestions; code that violates them does not merge.
 
@@ -47,7 +47,7 @@ export interface AttributeResolverShape {
 export class AttributeResolver extends Context.Service<
   AttributeResolver,
   AttributeResolverShape
->()("guard/AttributeResolver") {
+>()("qadi/AttributeResolver") {
   // `use` requires its callback to RETURN an Effect — it is a one-step method
   // accessor, not an identity read.
   static resolve = (attribute: string) =>
@@ -55,7 +55,7 @@ export class AttributeResolver extends Context.Service<
 }
 ```
 
-Tag ids are namespaced: `"guard/AttributeResolver"`.
+Tag ids are namespaced: `"qadi/AttributeResolver"`.
 
 To obtain the whole service, `yield* AttributeResolver`. Note that alchemy's
 `static current = X.use((x) => x)` idiom **only typechecks when the service
@@ -91,7 +91,7 @@ tsc's variadic inference limit. Nest into groups.
 Not `Schema.TaggedErrorClass`. Namespaced tags.
 
 ```ts
-export class AccessDenied extends Data.TaggedError("guard/AccessDenied")<{
+export class AccessDenied extends Data.TaggedError("qadi/AccessDenied")<{
   readonly policyTag: string;
   readonly subjectId: string;
   readonly reason: string;
@@ -102,8 +102,8 @@ Handling — v4 uses the **array form**; there is no `catchTags({...})` object f
 
 ```ts
 // ✅
-Effect.catchTag("guard/AccessDenied", (e) => …)
-Effect.catchTag(["guard/AccessDenied", "guard/PolicyEvaluationError"], (e) => …)
+Effect.catchTag("qadi/AccessDenied", (e) => …)
+Effect.catchTag(["qadi/AccessDenied", "qadi/PolicyEvaluationError"], (e) => …)
 
 // ❌ structural checks on unknown
 if (Predicate.hasProperty(e, "_tag") && (e as { _tag: unknown })._tag === "X")
@@ -117,7 +117,7 @@ decision must never become a defect.
 Every effectful function is `Effect.fn(function* …)`. Name it when a span is wanted.
 
 ```ts
-export const evaluate = Effect.fn("guard.evaluate")(function* (policy: Policy) {
+export const evaluate = Effect.fn("qadi.evaluate")(function* (policy: Policy) {
   const subject = yield* CurrentSubject;
   // …
 });
@@ -149,7 +149,7 @@ evaluation trace untestable. Under `TestClock` ours are reproducible.
 Domain types are ordinarily **hand-written interfaces** with template-literal
 brands — that is the alchemy norm and it applies to `Permission`, `Role`, `AuthSubject`.
 
-**The Policy ADT is the deliberate exception** (ADR-EG-002). Policies cross a
+**The Policy ADT is the deliberate exception** (ADR-QD-002). Policies cross a
 trust boundary: they are persisted and re-parsed from untrusted JSON. Hand-written
 codecs are exactly what caused the data-loss defect this library was rewritten to
 fix. So the policy union is defined once as a Schema and the type is derived:
@@ -189,7 +189,7 @@ Coverage thresholds are enforced in config — a shortfall fails the run.
 `packages/core` is held at 95%, everything else at 90%.
 
 Every behavior in `spec/behaviors/` has tests; every `.feature` file is tagged
-`@REQ-EG-NNN` so BDD scenarios join the traceability chain.
+`@REQ-QD-NNN` so BDD scenarios join the traceability chain.
 
 ## 11. Specification
 
@@ -219,23 +219,23 @@ errors in our own docs.
 
 ## 13. React
 
-`@guard/react` is a binding over `effect/unstable/reactivity`, not a
+`@qadi/react` is a binding over `effect/unstable/reactivity`, not a
 state-management layer of its own. The rules that keep it that way:
 
 - **No React state for decisions.** Decisions live in atoms. If you find
   yourself writing `useState` + `useEffect` to hold one, the atom graph is the
   place for it instead.
 - **No additional dependencies.** The React glue is one `useSyncExternalStore`
-  call in `GuardProvider.tsx`. `@effect/atom-react` supplies the same thing plus
+  call in `QadiProvider.tsx`. `@effect/atom-react` supplies the same thing plus
   features this package does not use, and was rejected on that basis
-  (ADR-EG-014).
+  (ADR-QD-014).
 - **Submodule imports, as everywhere else:**
   `import * as Atom from "effect/unstable/reactivity/Atom"`.
 - **Read decisions through `currentDecision`.** It is the single place the rule
-  "a decision being re-checked is not a decision" lives (ADR-EG-017). A new
+  "a decision being re-checked is not a decision" lives (ADR-QD-017). A new
   consumer that reads `AsyncResult.isSuccess` directly will report stale allows.
 - **Atoms are keyed by reference.** Policies and resources belong at module
   scope or behind `useMemo`; anything built inline in render defeats sharing.
-- **Test the graph, not the DOM, where you can.** `GuardAtoms.test.ts` renders
+- **Test the graph, not the DOM, where you can.** `QadiAtoms.test.ts` renders
   nothing — caching, sharing and invalidation are properties of the atoms, and
   proving them through components only makes the test slower and vaguer.

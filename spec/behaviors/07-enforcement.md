@@ -4,19 +4,19 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-BEH-07                                   |
+> | Document ID    | QADI-BEH-07                                    |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
-## BEH-EG-049: Enforcement is an aspect
+## BEH-QD-049: Enforcement is an aspect
 
-> **See:** [ADR-EG-011](../decisions/011-enforce-as-aspect.md)
+> **See:** [ADR-QD-011](../decisions/011-enforce-as-aspect.md)
 
 ```ts
 export const enforce: (
@@ -28,7 +28,7 @@ export const enforce: (
 ```
 
 ```ts
-const handler = updateDocument(id).pipe(Guard.enforce(canEditDocument));
+const handler = updateDocument(id).pipe(Qadi.enforce(canEditDocument));
 ```
 
 ```
@@ -36,7 +36,7 @@ REQUIREMENT: When the policy denies, the guarded effect MUST NOT run. It is not
              enough to discard its result — the protected work must never start.
 ```
 
-## BEH-EG-050: The enforcement surface
+## BEH-QD-050: The enforcement surface
 
 ```ts
 export const decide: (policy: Policy, options?: EvaluateOptions) => Effect.Effect<Decision, ...>;
@@ -51,9 +51,9 @@ export const filter: <A extends Record<string, unknown>>(
 `filter` evaluates the policy once per element, with the element as the
 resource, which expresses row-level authorization over a collection.
 
-## BEH-EG-051: Field-level projection
+## BEH-QD-051: Field-level projection
 
-> **Invariant:** [INV-EG-004](../invariants.md#inv-eg-004-field-visibility-lattice)
+> **Invariant:** [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top)
 
 ```ts
 export const enforceProjected: (
@@ -76,10 +76,10 @@ REQUIREMENT: A denial MUST project to the empty object.
              Fields listed but absent from the record MUST be skipped silently.
 ```
 
-## BEH-EG-052: Denial carries its reason
+## BEH-QD-052: Denial carries its reason
 
 ```ts
-export class AccessDenied extends Data.TaggedError("guard/AccessDenied")<{
+export class AccessDenied extends Data.TaggedError("qadi/AccessDenied")<{
   readonly subjectId: string;
   readonly policyTag: string;
   readonly reason: string;
@@ -91,7 +91,7 @@ REQUIREMENT: `AccessDenied` MUST be catchable by tag and MUST carry the subject,
              the policy tag and a human-readable reason.
 ```
 
-## BEH-EG-053: Worked example
+## BEH-QD-053: Worked example
 
 ```typescript
 import * as Effect from "effect/Effect";
@@ -100,7 +100,7 @@ import {
   enforceProjected,
   hasPermission,
   permission,
-} from "@guard/core";
+} from "@qadi/core";
 
 const readDoc = permission("doc", "read");
 

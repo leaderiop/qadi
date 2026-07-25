@@ -71,10 +71,10 @@ importers:
 
   features:
     dependencies:
-      '@guard/core':
+      '@qadi/core':
         specifier: workspace:*
         version: link:../packages/core
-      '@guard/testing':
+      '@qadi/testing':
         specifier: workspace:*
         version: link:../packages/testing
       effect:
@@ -112,7 +112,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@guard/core':
+      '@qadi/core':
         specifier: workspace:*
         version: link:../core
       effect:
@@ -146,7 +146,7 @@ importers:
 
   packages/testing:
     dependencies:
-      '@guard/core':
+      '@qadi/core':
         specifier: workspace:*
         version: link:../core
       effect:

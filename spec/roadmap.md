@@ -4,21 +4,22 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-RMP                                      |
-> | Revision       | 1.1                                            |
+> | Document ID    | QADI-RMP                                       |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.1 (2026-07-26): React rebuilt on atoms (CCR-EG-003)<br>1.0 (2026-07-25): Initial release (CCR-EG-002) |
+> | Change History | 1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
 ## Current state
 
-Version `0.0.0`, unpublished. The core is complete and verified: nine policy
-variants, eleven matchers, the evaluator, enforcement, serialization, React
-integration and a test toolkit.
+Version `0.0.0`, unpublished, under the `@qadi` scope with the `QD`
+specification infix. The core is complete and verified: nine policy variants,
+eleven matchers, the evaluator, enforcement, serialization, React integration
+and a test toolkit.
 
 | Gate | Status |
 | ---- | ------ |
@@ -28,38 +29,29 @@ integration and a test toolkit.
 | Acceptance scenarios | 31 scenarios, 128 steps passing |
 | Coverage | 99.6% statements, 96.1% branches — thresholds enforced |
 | Doc examples compile | 17 blocks |
-| Specification integrity | 11 checks passing |
+| Specification integrity | 13 checks passing |
 
 Nothing below is required for the library to be correct. These are gaps in
 confidence, ergonomics or reach.
 
 ## Blocking first release
 
-### Decide the package scope
-
-`@guard/*` is a placeholder. It is unclaimed on npm and almost certainly wrong.
-The `EG` specification infix has the same status.
-
-Both are now embedded in roughly thirty documents and every package manifest.
-Renaming is a mechanical sweep today and gets more expensive with each addition,
-so it should happen before anything else.
-
 ### Track `effect/unstable/reactivity`
 
-`@guard/react` is built on a module that is unstable by name
-([ADR-EG-014](./decisions/014-react-via-atoms.md)). Its API may move before
+`@qadi/react` is built on a module that is unstable by name
+([ADR-QD-014](./decisions/014-react-via-atoms.md)). Its API may move before
 Effect 4.0 is released, and this package moves with it.
 
-The exposure is contained — `GuardAtoms.ts` and one `useSyncExternalStore` call
-in `GuardProvider.tsx` — but there is no canary for it yet. The core package has
+The exposure is contained — `QadiAtoms.ts` and one `useSyncExternalStore` call
+in `QadiProvider.tsx` — but there is no canary for it yet. The core package has
 `v4-api-smoke.test.ts` pinning the APIs it relies on; the reactivity APIs
 deserve the same, so a beta bump fails loudly in one place rather than
 mysteriously across the React suite.
 
 ### Verify span emission
 
-`URS-EG-012` — decisions appear in tracing — is satisfied by inspection only.
-`evaluate` annotates a `guard.evaluate` span, but no test asserts that the span
+`URS-QD-012` — decisions appear in tracing — is satisfied by inspection only.
+`evaluate` annotates a `qadi.evaluate` span, but no test asserts that the span
 is emitted or that its attributes are what the specification claims.
 
 This is the one requirement in the URS with no verification behind it, which
@@ -68,7 +60,7 @@ a span collector layer would close it.
 
 ### Extend short-circuit coverage to relationships
 
-`URS-EG-010` is proved for attribute resolution by counting resolver calls.
+`URS-QD-010` is proved for attribute resolution by counting resolver calls.
 There is no equivalent proof that an unevaluated branch performs no
 *relationship* lookup. `edgeRelationshipResolver` already records its calls, so
 the test is a small addition — the gap is coverage, not capability.
@@ -86,8 +78,8 @@ interacts with both short-circuiting (which it forfeits) and field-set merging
 Those interactions need designing, not bolting on.
 
 Two ADRs previously stated this option *existed*. They have been corrected —
-see [ADR-EG-005](./decisions/005-lazy-attribute-resolution.md) and
-[ADR-EG-013](./decisions/013-short-circuit-default.md).
+see [ADR-QD-005](./decisions/005-lazy-attribute-resolution.md) and
+[ADR-QD-013](./decisions/013-short-circuit-default.md).
 
 ### Policy explanation
 
@@ -99,14 +91,14 @@ rule say", which is a different question and the one a security reviewer asks.
 
 ### Server-side rendering
 
-`GuardProvider` accepts `initialValues`, which is the hook a hydration story
+`QadiProvider` accepts `initialValues`, which is the hook a hydration story
 would use, but nothing yet encodes decisions on the server and seeds them on the
 client. Until it does, a server-rendered page shows its pending state and
 re-decides after mount.
 
 ### Batch subject evaluation
 
-`Guard.filter` evaluates one policy against many resources. The transpose —
+`Qadi.filter` evaluates one policy against many resources. The transpose —
 one policy against many subjects, for "who can see this?" — is a distinct
 access pattern that the current shape does not serve well, since the subject
 comes from the environment rather than a parameter.
@@ -141,7 +133,7 @@ lifetime.
 A Promise-returning facade for consumers not using Effect. It would widen
 adoption considerably, and it would reintroduce exactly the dual-path shape
 that produced the predecessor's dead `checkAsync` API
-([ADR-EG-004](./decisions/004-single-effect-evaluator.md)). If it happens it
+([ADR-QD-004](./decisions/004-single-effect-evaluator.md)). If it happens it
 should be a thin, separately-packaged wrapper over `ManagedRuntime`, never a
 second evaluator.
 
@@ -149,10 +141,10 @@ second evaluator.
 
 | Item | Why |
 | ---- | --- |
-| GxP / 21 CFR Part 11 support | [ADR-EG-016](./decisions/016-gxp-out-of-scope.md) — the predecessor shipped unassembled compliance primitives and qualification evidence asserting untested properties |
-| Policy storage or administration UI | Out of scope; Guard decides, it does not persist or administer |
+| GxP / 21 CFR Part 11 support | [ADR-QD-016](./decisions/016-gxp-out-of-scope.md) — the predecessor shipped unassembled compliance primitives and qualification evidence asserting untested properties |
+| Policy storage or administration UI | Out of scope; Qadi decides, it does not persist or administer |
 | Authentication | Out of scope; the caller supplies an authenticated subject |
-| Backward compatibility with the predecessor's JSON | Discriminant changed from `kind` to `_tag` ([ADR-EG-003](./decisions/003-tag-discriminant.md)); a migration script is cheaper than a permanent compatibility layer |
+| Backward compatibility with the predecessor's JSON | Discriminant changed from `kind` to `_tag` ([ADR-QD-003](./decisions/003-tag-discriminant.md)); a migration script is cheaper than a permanent compatibility layer |
 
 ---
 

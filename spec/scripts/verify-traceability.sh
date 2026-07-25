@@ -31,7 +31,7 @@ report() { # status, check, detail
 }
 
 echo
-echo "Guard specification verification"
+echo "Qadi specification verification"
 echo "| Status | Check                                      | Detail"
 echo "| ------ | ------------------------------------------ | ------"
 
@@ -74,18 +74,18 @@ for index in "$SPEC_DIR"/*/index.yaml; do
 done
 
 # ---------------------------------------------------------------------------
-# 2. Every INV-EG-NNN in invariants.md appears in traceability.md.
+# 2. Every INV-QD-NNN in invariants.md appears in traceability.md.
 # ---------------------------------------------------------------------------
 if [[ -f "$SPEC_DIR/invariants.md" && -f "$SPEC_DIR/traceability.md" ]]; then
   untraced=""
   while IFS= read -r inv; do
     grep -q "$inv" "$SPEC_DIR/traceability.md" || untraced="${untraced} ${inv}"
-  done < <(grep -oE 'INV-EG-[0-9]{3}' "$SPEC_DIR/invariants.md" | sort -u)
+  done < <(grep -oE 'INV-QD-[0-9]{3}' "$SPEC_DIR/invariants.md" | sort -u)
 
   if [[ -n "$untraced" ]]; then
     report FAIL "invariants -> traceability" "untraced:${untraced}"
   else
-    n=$(grep -ocE 'INV-EG-[0-9]{3}' "$SPEC_DIR/invariants.md" 2>/dev/null || echo 0)
+    n=$(grep -ocE 'INV-QD-[0-9]{3}' "$SPEC_DIR/invariants.md" 2>/dev/null || echo 0)
     report PASS "invariants -> traceability" "all invariants traced"
   fi
 else
@@ -93,7 +93,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Every ADR file maps to an ADR-EG-NNN present in traceability.md.
+# 3. Every ADR file maps to an ADR-QD-NNN present in traceability.md.
 # ---------------------------------------------------------------------------
 if [[ -d "$SPEC_DIR/decisions" && -f "$SPEC_DIR/traceability.md" ]]; then
   untraced=""
@@ -102,7 +102,7 @@ if [[ -d "$SPEC_DIR/decisions" && -f "$SPEC_DIR/traceability.md" ]]; then
     [[ -e "$f" ]] || continue
     found=$((found + 1))
     num="$(basename "$f" | cut -c1-3)"
-    grep -q "ADR-EG-$num" "$SPEC_DIR/traceability.md" || untraced="${untraced} ADR-EG-$num"
+    grep -q "ADR-QD-$num" "$SPEC_DIR/traceability.md" || untraced="${untraced} ADR-QD-$num"
   done
 
   if [[ $found -eq 0 ]]; then
@@ -117,7 +117,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3b. Every URS-EG-NNN declared in urs.md appears in its traceability table.
+# 3b. Every URS-QD-NNN declared in urs.md appears in its traceability table.
 #
 # The heading declares a requirement; the table is where it is tied to a
 # behavior and a test. A requirement added without a row is a requirement
@@ -131,7 +131,7 @@ if [[ -f "$SPEC_DIR/urs.md" ]]; then
     # Count occurrences: one is the heading alone, so it is untraced.
     n=$(grep -c "$urs" "$SPEC_DIR/urs.md")
     [[ "$n" -ge 2 ]] || untraced="${untraced} ${urs}"
-  done < <(grep -oE '^### (URS|NFR)-EG-[0-9]{3}' "$SPEC_DIR/urs.md" | sed -E 's/^### //' | sort -u)
+  done < <(grep -oE '^### (URS|NFR)-QD-[0-9]{3}' "$SPEC_DIR/urs.md" | sed -E 's/^### //' | sort -u)
 
   if [[ $declared -eq 0 ]]; then
     report SKIP "urs -> traceability table" "no requirements declared"
@@ -145,11 +145,11 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Every REQ-EG-NNN tag used in a .feature file is defined in traceability.md.
+# 4. Every REQ-QD-NNN tag used in a .feature file is defined in traceability.md.
 # ---------------------------------------------------------------------------
 if [[ -d "$ROOT_DIR/features/features" && -f "$SPEC_DIR/traceability.md" ]]; then
   undefined=""
-  tags=$(grep -rhoE '@REQ-EG-[0-9]{3}' "$ROOT_DIR/features/features" 2>/dev/null | sort -u)
+  tags=$(grep -rhoE '@REQ-QD-[0-9]{3}' "$ROOT_DIR/features/features" 2>/dev/null | sort -u)
   if [[ -z "$tags" ]]; then
     report SKIP "features -> traceability" "no .feature tags yet"
   else

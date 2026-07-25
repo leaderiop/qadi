@@ -4,20 +4,20 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-INV                                      |
+> | Document ID    | QADI-INV                                       |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
 Properties that hold for every execution. Each names the mechanism that enforces
 it, because an invariant nobody enforces is a wish.
 
-## INV-EG-001: Permission key uniqueness
+## INV-QD-001: Permission key uniqueness
 
 Two distinct permissions never produce the same runtime lookup key.
 
@@ -29,11 +29,11 @@ containing the reserved separator.
 never collide with `{resource: "a", action: "b:c"}`. In the predecessor both
 formatted to `"a:b:c"` and each silently granted the other.
 
-**Related**: [BEH-EG-002](behaviors/01-permissions.md), [ADR-EG-007](decisions/007-permission-token-representation.md).
+**Related**: [BEH-QD-002](behaviors/01-permissions.md), [ADR-QD-007](decisions/007-permission-token-representation.md).
 
 ---
 
-## INV-EG-002: Role graph acyclicity
+## INV-QD-002: Role graph acyclicity
 
 The role inheritance graph reachable from any `Role` value is acyclic.
 
@@ -46,11 +46,11 @@ referenced, and it detects cycles explicitly.
 visited set is still required, but only to keep a diamond linear rather than
 exponential.
 
-**Related**: [BEH-EG-009](behaviors/02-roles.md), [ADR-EG-015](decisions/015-role-dag-acyclic-by-construction.md).
+**Related**: [BEH-QD-009](behaviors/02-roles.md), [ADR-QD-015](decisions/015-role-dag-acyclic-by-construction.md).
 
 ---
 
-## INV-EG-003: Codec/type identity
+## INV-QD-003: Codec/type identity
 
 The JSON codec and the TypeScript type of a policy cannot disagree.
 
@@ -63,13 +63,13 @@ policy. The predecessor maintained three artefacts by hand and they drifted,
 silently dropping `fieldStrategy` on encode.
 
 **Enforcement**: a property test over generated policy trees, a unit test
-pinning the original defect, and Gherkin scenario `@REQ-EG-008`.
+pinning the original defect, and Gherkin scenario `@REQ-QD-008`.
 
-**Related**: [BEH-EG-017](behaviors/03-policy-adt.md), [BEH-EG-058](behaviors/08-serialization.md), [ADR-EG-002](decisions/002-schema-derived-policy-adt.md).
+**Related**: [BEH-QD-017](behaviors/03-policy-adt.md), [BEH-QD-058](behaviors/08-serialization.md), [ADR-QD-002](decisions/002-schema-derived-policy-adt.md).
 
 ---
 
-## INV-EG-004: Field visibility is a lattice with `undefined` at the top
+## INV-QD-004: Field visibility is a lattice with `undefined` at the top
 
 An absent field set means *all fields*, never *no fields*.
 
@@ -81,11 +81,11 @@ is, since a branch granting everything makes the union everything.
 the restriction, and a denial projects to `{}`. Treating `undefined` as the empty
 set would invert the meaning of every unrestricted policy.
 
-**Related**: [BEH-EG-018](behaviors/03-policy-adt.md), [BEH-EG-051](behaviors/07-enforcement.md), [ADR-EG-006](decisions/006-field-strategy-always-encoded.md).
+**Related**: [BEH-QD-018](behaviors/03-policy-adt.md), [BEH-QD-051](behaviors/07-enforcement.md), [ADR-QD-006](decisions/006-field-strategy-always-encoded.md).
 
 ---
 
-## INV-EG-005: Short-circuit preservation
+## INV-QD-005: Short-circuit preservation
 
 A policy branch that is not evaluated performs no attribute or relationship
 lookup.
@@ -101,11 +101,11 @@ before evaluating anything.
 
 **Enforcement**: tests count resolver invocations rather than measuring time.
 
-**Related**: [BEH-EG-034](behaviors/05-evaluator.md), [BEH-EG-035](behaviors/05-evaluator.md), [ADR-EG-005](decisions/005-lazy-attribute-resolution.md).
+**Related**: [BEH-QD-034](behaviors/05-evaluator.md), [BEH-QD-035](behaviors/05-evaluator.md), [ADR-QD-005](decisions/005-lazy-attribute-resolution.md).
 
 ---
 
-## INV-EG-006: Failure is not denial
+## INV-QD-006: Failure is not denial
 
 A broken lookup never presents as "not authorized".
 
@@ -117,11 +117,11 @@ denial and a fault remain distinguishable at every layer, including React's
 **Implication**: an attribute-store outage surfaces as an incident rather than
 sending an engineer to audit permissions.
 
-**Related**: [BEH-EG-036](behaviors/05-evaluator.md), [BEH-EG-066](behaviors/09-react.md).
+**Related**: [BEH-QD-036](behaviors/05-evaluator.md), [BEH-QD-066](behaviors/09-react.md).
 
 ---
 
-## INV-EG-007: Defaults fail closed
+## INV-QD-007: Defaults fail closed
 
 Every default layer denies rather than grants.
 
@@ -133,11 +133,11 @@ resolves to `undefined`, which satisfies no matcher.
 immediately in testing. A default that granted would turn an omission into a
 silent breach.
 
-**Related**: [BEH-EG-043](behaviors/06-services.md), [ADR-EG-010](decisions/010-context-service-and-layers.md).
+**Related**: [BEH-QD-043](behaviors/06-services.md), [ADR-QD-010](decisions/010-context-service-and-layers.md).
 
 ---
 
-## INV-EG-008: Evaluation is reproducible
+## INV-QD-008: Evaluation is reproducible
 
 Given the same subject, policy and services, an evaluation produces the same
 decision, identifier and duration.
@@ -150,31 +150,31 @@ except `EvaluationId.ts`, which is the one recorded exemption.
 **Implication**: traces can be asserted exactly. The predecessor built a trace
 feature whose contents no test could predict.
 
-**Related**: [BEH-EG-037](behaviors/05-evaluator.md), [ADR-EG-012](decisions/012-deterministic-time-and-ids.md).
+**Related**: [BEH-QD-037](behaviors/05-evaluator.md), [ADR-QD-012](decisions/012-deterministic-time-and-ids.md).
 
 ---
 
-## INV-EG-009: Guarded effects do not run when denied
+## INV-QD-009: Guarded effects do not run when denied
 
-`Guard.enforce` never starts the effect it wraps unless the policy allows.
+`Qadi.enforce` never starts the effect it wraps unless the policy allows.
 
-**Source**: `packages/core/src/Guard.ts` — `enforce` is
+**Source**: `packages/core/src/Qadi.ts` — `enforce` is
 `Effect.flatMap(assert(policy), () => self)`, so `self` is only constructed into
 the chain after the assertion succeeds.
 
 **Implication**: guarding a mutation is safe. Discarding a result after the fact
 would not be.
 
-**Related**: [BEH-EG-049](behaviors/07-enforcement.md), [ADR-EG-011](decisions/011-enforce-as-aspect.md).
+**Related**: [BEH-QD-049](behaviors/07-enforcement.md), [ADR-QD-011](decisions/011-enforce-as-aspect.md).
 
 ---
 
-## INV-EG-010: Error codes are injective
+## INV-QD-010: Error codes are injective
 
 No two error tags share a numeric code.
 
 **Source**: `packages/core/src/Errors.ts` — `ERROR_CODES` is declared
-`satisfies Record<GuardError["_tag"], ...>`, so an error without a code does not
+`satisfies Record<QadiError["_tag"], ...>`, so an error without a code does not
 compile, and every code is visible in one table.
 
 **Implication**: log aggregation keyed on the code cannot conflate unrelated
@@ -182,6 +182,6 @@ failures, as the predecessor's duplicated `ACL007` did.
 
 **Enforcement**: a test asserts the code set has no duplicates.
 
-**Related**: [ADR-EG-008](decisions/008-error-taxonomy.md).
+**Related**: [ADR-QD-008](decisions/008-error-taxonomy.md).
 
 ---

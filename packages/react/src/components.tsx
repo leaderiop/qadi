@@ -4,8 +4,8 @@
  * These render nothing of their own; they choose between the nodes they are
  * given. All the state lives in the atoms.
  */
-import type { Policy, Resource } from "@guard/core";
-import { isAllowed } from "@guard/core";
+import type { Policy, Resource } from "@qadi/core";
+import { isAllowed } from "@qadi/core";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import type { ReactNode } from "react";
 import { useDecision } from "./hooks.ts";

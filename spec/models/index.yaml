@@ -1,0 +1,7 @@
+kind: models
+package: qadi
+infix: QD
+entries:
+  - id: "MOD-QD-000"
+    file: "00-adoption-matrix.md"
+    title: "00 — Access Control Model Adoption Matrix"
