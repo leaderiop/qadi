@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -154,15 +154,26 @@ exists, this table is the record.
 
 ### 3.1 Shipped — P0
 
-| Model | Expressed by | Evidence |
-| ----- | ------------ | -------- |
-| Role-based (RBAC₀, RBAC₁) | `hasRole`, `anyOfRoles`, role DAG | `REQ-QD-003`, [ADR-QD-015](../decisions/015-role-dag-acyclic-by-construction.md) |
-| Attribute-based (ABAC) | `hasAttribute`, `hasResourceAttribute` | `REQ-QD-004`, `REQ-QD-006` |
-| Relationship-based (ReBAC) | `hasRelationship` | `REQ-QD-005` |
-| Capability / permission token | `hasPermission` | `REQ-QD-001`, [ADR-QD-007](../decisions/007-permission-token-representation.md) |
-| Identity-based (IBAC) | `subjectId()` value reference | `REQ-QD-009` |
-| Content-dependent | `hasResourceAttribute` | `REQ-QD-006` |
-| Field-level authorization | `fields` + `fieldStrategy` | `REQ-QD-007`, [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top) |
+Documented. Every worked example in these seven is compiled by CI, so a
+signature that drifts fails the build rather than the reader.
+
+| Model | Document | Expressed by | Evidence |
+| ----- | -------- | ------------ | -------- |
+| Role-based (RBAC₀, RBAC₁) | [MOD-QD-001](./01-rbac.md) | `hasRole`, `anyOfRoles`, role DAG | `REQ-QD-003`, [ADR-QD-015](../decisions/015-role-dag-acyclic-by-construction.md) |
+| Attribute-based (ABAC) | [MOD-QD-002](./02-abac.md) | `hasAttribute`, `hasResourceAttribute` | `REQ-QD-004`, `REQ-QD-006` |
+| Relationship-based (ReBAC) | [MOD-QD-003](./03-rebac.md) | `hasRelationship` | `REQ-QD-005` |
+| Capability / permission token | [MOD-QD-004](./04-capability.md) | `hasPermission` | `REQ-QD-001`, [ADR-QD-007](../decisions/007-permission-token-representation.md) |
+| Identity-based (IBAC) | [MOD-QD-005](./05-ibac.md) | `subjectId()` value reference | `REQ-QD-009` |
+| Content-dependent | [MOD-QD-006](./06-content-dependent.md) | `hasResourceAttribute` | `REQ-QD-006` |
+| Field-level authorization | [MOD-QD-007](./07-field-level.md) | `fields` + `fieldStrategy` | `REQ-QD-007`, [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top) |
+
+Writing them corrected two claims made earlier in this document and one in the
+brief they were written from. `hasResourceAttribute` reads a **flat key**, not a
+dotted path — descending into a value is `fieldMatch`'s job, and `getByPath`
+serves only the `SubjectRef` and `ResourceRef` value references on the other
+side of a comparison. A `HasRelationship` node with no resource id fails with
+`MissingResourceId` specifically. And `contains` takes a constant rather than a
+value reference, so co-ownership is written `someMatch(eq(subjectId()))`.
 
 ### 3.2 Wiring only — P1
 
