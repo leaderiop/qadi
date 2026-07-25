@@ -1,0 +1,251 @@
+/**
+ * The policy algebraic data type.
+ *
+ * Defined **once** as a Schema; the TypeScript type is derived from it and the
+ * JSON codec is derived from it. This is the central design decision of the
+ * library (ADR-EG-002).
+ *
+ * The predecessor maintained the type in one file and a hand-written
+ * serializer/deserializer in two others. They drifted: `fieldStrategy` was
+ * never written to JSON, so a policy stored and reloaded silently narrowed
+ * field-level visibility. Deriving both artefacts from one definition makes
+ * that class of defect unrepresentable.
+ *
+ * `fieldStrategy` is therefore **required**, not optional — an omitted optional
+ * field is exactly what went missing before.
+ */
+import * as Schema from "effect/Schema";
+import { Matcher } from "./Matcher.ts";
+import type { Permission } from "./Permission.ts";
+import { PermissionSchema } from "./Permission.ts";
+
+// ---------------------------------------------------------------------------
+// Field visibility strategy
+// ---------------------------------------------------------------------------
+
+/**
+ * How a composite policy merges the visible-field sets of its children.
+ *
+ * `undefined` field sets mean "all fields", the top of the lattice, so
+ * intersecting with them is identity.
+ *
+ * - `Intersection` — visible in *every* allowing child (least privilege)
+ * - `Union` — visible in *any* allowing child; forces full evaluation
+ * - `First` — the first allowing child's set; short-circuits
+ */
+export const FieldStrategy = Schema.Literals(["Intersection", "Union", "First"]);
+export type FieldStrategy = typeof FieldStrategy.Type;
+
+// ---------------------------------------------------------------------------
+// The policy union
+// ---------------------------------------------------------------------------
+
+export type Policy =
+  | { readonly _tag: "HasPermission"; readonly permission: Permission; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasRole"; readonly role: string }
+  | { readonly _tag: "HasAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasResourceAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasRelationship"; readonly relation: string; readonly depth?: number | undefined; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
+  | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
+  | { readonly _tag: "Not"; readonly policy: Policy }
+  | { readonly _tag: "Labeled"; readonly label: string; readonly policy: Policy };
+
+/** Single suspended self-reference shared by every recursive position. */
+const PolicyRef = Schema.suspend((): Schema.Codec<Policy> => Policy);
+
+const Fields = Schema.optional(Schema.Array(Schema.String));
+
+const HasPermission = Schema.TaggedStruct("HasPermission", {
+  permission: PermissionSchema,
+  fields: Fields,
+});
+
+const HasRole = Schema.TaggedStruct("HasRole", { role: Schema.String });
+
+const HasAttribute = Schema.TaggedStruct("HasAttribute", {
+  attribute: Schema.String,
+  matcher: Matcher,
+  fields: Fields,
+});
+
+const HasResourceAttribute = Schema.TaggedStruct("HasResourceAttribute", {
+  attribute: Schema.String,
+  matcher: Matcher,
+  fields: Fields,
+});
+
+const HasRelationship = Schema.TaggedStruct("HasRelationship", {
+  relation: Schema.String,
+  depth: Schema.optional(Schema.Number),
+  fields: Fields,
+});
+
+const AllOf = Schema.TaggedStruct("AllOf", {
+  policies: Schema.Array(PolicyRef),
+  fieldStrategy: FieldStrategy,
+});
+
+const AnyOf = Schema.TaggedStruct("AnyOf", {
+  policies: Schema.Array(PolicyRef),
+  fieldStrategy: FieldStrategy,
+});
+
+const Not = Schema.TaggedStruct("Not", { policy: PolicyRef });
+
+const Labeled = Schema.TaggedStruct("Labeled", {
+  label: Schema.String,
+  policy: PolicyRef,
+});
+
+export const Policy: Schema.Codec<Policy> = Schema.Union([
+  HasPermission,
+  HasRole,
+  HasAttribute,
+  HasResourceAttribute,
+  HasRelationship,
+  AllOf,
+  AnyOf,
+  Not,
+  Labeled,
+]);
+
+// ---------------------------------------------------------------------------
+// Combinators
+// ---------------------------------------------------------------------------
+
+export interface FieldOptions {
+  /** Restricts the fields visible when this policy allows. Omitted means all. */
+  readonly fields?: ReadonlyArray<string>;
+}
+
+export interface CombinatorOptions {
+  /** Defaults to `Intersection` for `allOf` and `First` for `anyOf`. */
+  readonly fieldStrategy?: FieldStrategy;
+}
+
+/** The subject holds the given permission. */
+/**
+ * Optional keys are *omitted* rather than set to `undefined`.
+ *
+ * `Schema.optional` drops absent keys on decode, so writing `fields: undefined`
+ * would make a constructed policy structurally different from the same policy
+ * after a round trip — and `deepStrictEqual` would see the difference. Omitting
+ * keeps encode/decode an exact identity.
+ */
+const optionalKey = <K extends string, V>(
+  key: K,
+  value: V | undefined,
+): Readonly<Record<K, V>> | Record<string, never> =>
+  value === undefined ? {} : ({ [key]: value } as Readonly<Record<K, V>>);
+
+export const hasPermission = (
+  permission: Permission,
+  options?: FieldOptions,
+): Policy => ({
+  _tag: "HasPermission",
+  permission,
+  ...optionalKey("fields", options?.fields),
+});
+
+/** The subject holds the given role, directly or by inheritance. */
+export const hasRole = (role: string): Policy => ({ _tag: "HasRole", role });
+
+/** A subject attribute satisfies the matcher. */
+export const hasAttribute = (
+  attribute: string,
+  matcher: Matcher,
+  options?: FieldOptions,
+): Policy => ({
+  _tag: "HasAttribute",
+  attribute,
+  matcher,
+  ...optionalKey("fields", options?.fields),
+});
+
+/** A resource attribute satisfies the matcher. */
+export const hasResourceAttribute = (
+  attribute: string,
+  matcher: Matcher,
+  options?: FieldOptions,
+): Policy => ({
+  _tag: "HasResourceAttribute",
+  attribute,
+  matcher,
+  ...optionalKey("fields", options?.fields),
+});
+
+/** The subject has the named relationship to the resource. */
+export const hasRelationship = (
+  relation: string,
+  options?: FieldOptions & { readonly depth?: number },
+): Policy => ({
+  _tag: "HasRelationship",
+  relation,
+  ...optionalKey("depth", options?.depth),
+  ...optionalKey("fields", options?.fields),
+});
+
+/**
+ * Every child must allow.
+ *
+ * Defaults to `Intersection`: a subject may see only the fields every branch
+ * agrees on. Least privilege is the safe default for a conjunction.
+ */
+export const allOf = (
+  policies: ReadonlyArray<Policy>,
+  options?: CombinatorOptions,
+): Policy => ({
+  _tag: "AllOf",
+  policies,
+  fieldStrategy: options?.fieldStrategy ?? "Intersection",
+});
+
+/**
+ * At least one child must allow.
+ *
+ * Defaults to `First`, which short-circuits. Pass `Union` to evaluate every
+ * child and merge their field sets — useful when several grants each expose a
+ * different slice of a record.
+ */
+export const anyOf = (
+  policies: ReadonlyArray<Policy>,
+  options?: CombinatorOptions,
+): Policy => ({
+  _tag: "AnyOf",
+  policies,
+  fieldStrategy: options?.fieldStrategy ?? "First",
+});
+
+/** Inverts a decision. Carries no field visibility of its own. */
+export const not = (policy: Policy): Policy => ({ _tag: "Not", policy });
+
+/** Attaches a human-readable label, surfaced in the evaluation trace. */
+export const labeled = (label: string, policy: Policy): Policy => ({
+  _tag: "Labeled",
+  label,
+  policy,
+});
+
+/** Any of the given roles. */
+export const anyOfRoles = (roles: ReadonlyArray<string>): Policy =>
+  anyOf(roles.map(hasRole));
+
+// ---------------------------------------------------------------------------
+// Serialization — derived, never hand-written
+// ---------------------------------------------------------------------------
+
+/** JSON string codec for a policy. */
+export const PolicyFromJson = Schema.fromJsonString(Policy);
+
+/** Encodes a policy to a JSON string. */
+export const toJson = Schema.encodeEffect(PolicyFromJson);
+
+/** Decodes a policy from an untrusted JSON string. */
+export const fromJson = Schema.decodeUnknownEffect(PolicyFromJson);
+
+/** Encodes a policy to a plain JSON value. */
+export const toJsonValue = Schema.encodeEffect(Policy);
+
+/** Decodes a policy from an untrusted plain JSON value. */
+export const fromJsonValue = Schema.decodeUnknownEffect(Policy);

@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "clean": "tsc -b --clean && rm -rf packages/*/lib",
-    "typecheck": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json && tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:types": "vitest run --typecheck",

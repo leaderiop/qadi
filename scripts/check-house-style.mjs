@@ -58,6 +58,19 @@ const RULES = [
   },
 ];
 
+/**
+ * Files exempt from specific rules, with the reason.
+ *
+ * A service that exists precisely to encapsulate a nondeterministic call is the
+ * sanctioned place to make it. Keeping the exemption to one named file means
+ * the boundary stays visible rather than dissolving into convention.
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const EXEMPTIONS = {
+  "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
+};
+
 /** Recursively collect .ts/.tsx files under a directory. */
 const collect = (dir) => {
   /** @type {string[]} */
@@ -95,6 +108,8 @@ const strip = (line) =>
 let failures = 0;
 
 for (const file of sources) {
+  const rel = relative(ROOT, file);
+  const exempt = EXEMPTIONS[rel] ?? [];
   const lines = readFileSync(file, "utf8").split("\n");
   let inBlockComment = false;
 
@@ -110,10 +125,11 @@ for (const file of sources) {
     if (line.trim() === "" || line.trimStart().startsWith("*")) return;
 
     for (const rule of RULES) {
+      if (exempt.includes(rule.id)) continue;
       if (rule.re.test(rule.raw === true ? raw : line)) {
         failures += 1;
         console.error(
-          `${relative(ROOT, file)}:${index + 1}  [${rule.id}] ${rule.message}\n    ${raw.trim()}`
+          `${rel}:${index + 1}  [${rule.id}] ${rule.message}\n    ${raw.trim()}`
         );
       }
     }
