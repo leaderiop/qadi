@@ -26,7 +26,7 @@
     "effect": "catalog:"
   },
   "peerDependencies": {
-    "react": ">=19"
+    "react": ">=19.2.4"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
@@ -34,6 +34,7 @@
     "@types/react": "catalog:",
     "happy-dom": "^20.11.1",
     "react": "catalog:",
+    "react-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

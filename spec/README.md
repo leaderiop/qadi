@@ -51,7 +51,7 @@ link is broken. `scripts/check-doc-examples.mjs` compiles the runnable examples.
 
 ### Decisions
 
-Sixteen ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
+Seventeen ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 
 | ADR | Decision |
 | --- | -------- |
@@ -59,7 +59,14 @@ Sixteen ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 | [ADR-EG-004](./decisions/004-single-effect-evaluator.md) | One `Effect`-returning evaluator |
 | [ADR-EG-005](./decisions/005-lazy-attribute-resolution.md) | Lazy per-node attribute resolution |
 | [ADR-EG-011](./decisions/011-enforce-as-aspect.md) | `Guard.enforce` is an Effect aspect |
+| [ADR-EG-014](./decisions/014-react-via-atoms.md) | React integrates through Effect atoms |
 | [ADR-EG-016](./decisions/016-gxp-out-of-scope.md) | GxP compliance is out of scope |
+
+### Appendices
+
+| Document | Purpose |
+| -------- | ------- |
+| [React Integration Guide](./appendices/react-integration.md) | A worked application, from wiring to testing — every example compiled in CI |
 
 ### Process
 
@@ -111,3 +118,5 @@ Full rules in [the identifier scheme](./process/requirement-id-scheme.md).
 | CCR | Date | Change |
 | --- | ---- | ------ |
 | CCR-EG-001 | 2026-07-25 | Initial specification |
+| CCR-EG-002 | 2026-07-25 | Glossary, user requirements and roadmap |
+| CCR-EG-003 | 2026-07-26 | React rebuilt on `effect/unstable/reactivity` (ADR-EG-014 revised, ADR-EG-017 added) |

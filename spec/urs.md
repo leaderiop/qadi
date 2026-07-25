@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | GUARD-URS                                      |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Guard Engineering                              |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-002) |
+> | Change History | 1.1 (2026-07-26): React verification re-pointed (CCR-EG-003)<br>1.0 (2026-07-25): Initial release (CCR-EG-002) |
 
 ---
 
@@ -195,14 +195,14 @@ so the specification cannot drift from itself.
 | URS-EG-004 | [BEH-EG-018](./behaviors/03-policy-adt.md), [BEH-EG-051](./behaviors/07-enforcement.md) | `Evaluate.test.ts`, REQ-EG-007 |
 | URS-EG-005 | [BEH-EG-058](./behaviors/08-serialization.md), [INV-EG-003](./invariants.md#inv-eg-003-codectype-identity) | `Policy.test.ts` (property), REQ-EG-008 |
 | URS-EG-006 | [BEH-EG-059](./behaviors/08-serialization.md), [BEH-EG-038](./behaviors/05-evaluator.md) | `Policy.test.ts`, `Evaluate.test.ts` |
-| URS-EG-007 | [BEH-EG-036](./behaviors/05-evaluator.md), [INV-EG-006](./invariants.md#inv-eg-006-failure-is-not-denial) | `Evaluate.test.ts`, `Policies.test.tsx` |
+| URS-EG-007 | [BEH-EG-036](./behaviors/05-evaluator.md), [BEH-EG-066](./behaviors/09-react.md), [INV-EG-006](./invariants.md#inv-eg-006-failure-is-not-denial) | `Evaluate.test.ts`, `hooks.test.tsx` |
 | URS-EG-008 | [BEH-EG-043](./behaviors/06-services.md), [INV-EG-007](./invariants.md#inv-eg-007-defaults-fail-closed) | `Layers.test.ts` |
 | URS-EG-009 | [BEH-EG-039](./behaviors/05-evaluator.md) | `Evaluate.test.ts` |
-| URS-EG-010 | [BEH-EG-034](./behaviors/05-evaluator.md), [INV-EG-005](./invariants.md#inv-eg-005-short-circuit-preservation) | `Evaluate.test.ts` (call counts) |
+| URS-EG-010 | [BEH-EG-034](./behaviors/05-evaluator.md), [BEH-EG-065](./behaviors/09-react.md), [INV-EG-005](./invariants.md#inv-eg-005-short-circuit-preservation) | `Evaluate.test.ts`, `GuardAtoms.test.ts` (call counts) |
 | URS-EG-011 | [BEH-EG-041](./behaviors/06-services.md), [BEH-EG-042](./behaviors/06-services.md) | `Layers.test.ts`, `TestLayers.test.ts` |
 | URS-EG-012 | [ADR-EG-009](./decisions/009-observability-via-effect.md) | — see [§7](#7-known-gaps) |
-| URS-EG-013 | [BEH-EG-065](./behaviors/09-react.md), [BEH-EG-066](./behaviors/09-react.md) | `GuardContext.test.tsx` |
-| URS-EG-014 | [BEH-EG-068](./behaviors/09-react.md) | `GuardContext.test.tsx` |
+| URS-EG-013 | [BEH-EG-067](./behaviors/09-react.md), [BEH-EG-068](./behaviors/09-react.md) | `GuardProvider.test.tsx`, `hooks.test.tsx` |
+| URS-EG-014 | [BEH-EG-070](./behaviors/09-react.md) | `GuardAtoms.test.ts`, `GuardProvider.test.tsx` |
 | NFR-EG-001 | [INV-EG-008](./invariants.md#inv-eg-008-evaluation-is-reproducible) | `Evaluate.test.ts` |
 | NFR-EG-002 | — | `scripts/check-house-style.mjs` |
 | NFR-EG-003 | — | `vitest.config.ts` thresholds |

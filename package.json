@@ -29,6 +29,8 @@
     "@effect/language-service": "^0.77.0",
     "@effect/vitest": "catalog:",
     "@types/node": "^25.7.0",
+    "@types/react": "catalog:",
+    "react": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "effect": "catalog:",
     "oxfmt": "^0.36.0",

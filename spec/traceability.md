@@ -40,7 +40,7 @@ contract.
 | [06 — Services and Layers](behaviors/06-services.md) | BEH-EG-041–044 | `packages/core/src/{CurrentSubject,AttributeResolver,RelationshipResolver,EvaluationId}.ts` |
 | [07 — Enforcement](behaviors/07-enforcement.md) | BEH-EG-049–052 | `packages/core/src/Guard.ts` |
 | [08 — Serialization](behaviors/08-serialization.md) | BEH-EG-057–059 | `packages/core/src/Policy.ts` |
-| [09 — React Integration](behaviors/09-react.md) | BEH-EG-065–069 | `packages/react/src/GuardContext.tsx` |
+| [09 — React Integration](behaviors/09-react.md) | BEH-EG-065–071 | `packages/react/src/GuardAtoms.ts`, `GuardProvider.tsx`, `hooks.ts`, `components.tsx` |
 
 ## §2 Invariant traceability
 
@@ -74,9 +74,10 @@ contract.
 | [ADR-EG-011](decisions/011-enforce-as-aspect.md) | `enforce` as an aspect | INV-EG-009 |
 | [ADR-EG-012](decisions/012-deterministic-time-and-ids.md) | Deterministic time and ids | INV-EG-008 |
 | [ADR-EG-013](decisions/013-short-circuit-default.md) | Short-circuit by default | INV-EG-005 |
-| [ADR-EG-014](decisions/014-react-managed-runtime.md) | React via ManagedRuntime | INV-EG-006 |
+| [ADR-EG-014](decisions/014-react-via-atoms.md) | React via Effect atoms | INV-EG-006 |
 | [ADR-EG-015](decisions/015-role-dag-acyclic-by-construction.md) | Role DAG acyclic by construction | INV-EG-002 |
 | [ADR-EG-016](decisions/016-gxp-out-of-scope.md) | GxP out of scope | — |
+| [ADR-EG-017](decisions/017-stale-decisions-are-not-decisions.md) | A decision being re-checked is not a decision | INV-EG-007 |
 
 ## §4 Test file map
 
@@ -90,8 +91,10 @@ contract.
 | `packages/core/test/Layers.test.ts` | BEH-EG-041–044, INV-EG-007 |
 | `packages/core/test/Guard.test.ts` | BEH-EG-049–052, INV-EG-009 |
 | `packages/testing/test/TestLayers.test.ts` | Test fixtures and layers |
-| `packages/react/test/GuardContext.test.tsx` | BEH-EG-065–068 |
-| `packages/react/test/Policies.test.tsx` | BEH-EG-066, INV-EG-006 |
+| `packages/react/test/GuardAtoms.test.ts` | BEH-EG-065, BEH-EG-069, BEH-EG-070 |
+| `packages/react/test/GuardProvider.test.tsx` | BEH-EG-067, BEH-EG-068, BEH-EG-070 |
+| `packages/react/test/hooks.test.tsx` | BEH-EG-066, BEH-EG-068, BEH-EG-069, INV-EG-006, ADR-EG-017 |
+| `packages/react/test/edges.test.tsx` | BEH-EG-067, BEH-EG-068 |
 
 ## §5 Acceptance scenario traceability
 

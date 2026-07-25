@@ -201,11 +201,13 @@ build failure.
 
 ## 12. Specification code fences
 
-`spec/` uses two TypeScript fence languages, and the distinction is load-bearing:
+`spec/` uses three TypeScript fence languages, and the distinction is load-bearing:
 
 - ` ```typescript ` — a **runnable example**. Extracted and compiled by
   `scripts/check-doc-examples.mjs`; it must import what it uses and must
   type-check against the real API.
+- ` ```tsx ` — a runnable example **containing JSX**. Compiled the same way, as
+  a `.tsx` file.
 - ` ```ts ` — an **API signature listing or fragment**. Reference material, not
   compiled.
 
@@ -214,3 +216,26 @@ documentation was uniformly uncompilable — every README example called a
 signature that no longer existed — which is worse than no documentation, because
 readers and models pattern-match against it. This gate has already caught two
 errors in our own docs.
+
+## 13. React
+
+`@guard/react` is a binding over `effect/unstable/reactivity`, not a
+state-management layer of its own. The rules that keep it that way:
+
+- **No React state for decisions.** Decisions live in atoms. If you find
+  yourself writing `useState` + `useEffect` to hold one, the atom graph is the
+  place for it instead.
+- **No additional dependencies.** The React glue is one `useSyncExternalStore`
+  call in `GuardProvider.tsx`. `@effect/atom-react` supplies the same thing plus
+  features this package does not use, and was rejected on that basis
+  (ADR-EG-014).
+- **Submodule imports, as everywhere else:**
+  `import * as Atom from "effect/unstable/reactivity/Atom"`.
+- **Read decisions through `currentDecision`.** It is the single place the rule
+  "a decision being re-checked is not a decision" lives (ADR-EG-017). A new
+  consumer that reads `AsyncResult.isSuccess` directly will report stale allows.
+- **Atoms are keyed by reference.** Policies and resources belong at module
+  scope or behind `useMemo`; anything built inline in render defeats sharing.
+- **Test the graph, not the DOM, where you can.** `GuardAtoms.test.ts` renders
+  nothing — caching, sharing and invalidation are properties of the atoms, and
+  proving them through components only makes the test slower and vaguer.

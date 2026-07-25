@@ -8,5 +8,6 @@ catalog:
   '@vitest/coverage-v8': 4.1.10
   effect: '>=4.0.0-beta.100 || >=4.0.0'
   react: 19.2.8
+  react-dom: 19.2.8
   typescript: ^7.0.0
   vitest: 4.1.10

@@ -32,7 +32,9 @@ const RULES = [
   },
   {
     id: "no-raw-promise",
-    re: /\bnew\s+Promise\s*\(|\.then\s*\(/,
+    // The type-argument branch matters: `new Promise<void>(...)` is the form
+    // that actually gets written, and without it the rule passes everything.
+    re: /\bnew\s+Promise\s*(?:<[^>]*>)?\s*\(|\.then\s*\(/,
     message: "No raw Promises — use Effect.",
   },
   {
@@ -69,10 +71,10 @@ const RULES = [
  */
 const EXEMPTIONS = {
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
-  // React's useEffect is Promise-based, so `runtime.runPromiseExit(...).then(...)`
-  // is the sanctioned Effect-to-React bridge. Confining the exemption to this
-  // one file keeps the boundary visible instead of letting Promises spread.
-  "packages/react/src/GuardContext.tsx": ["no-raw-promise"],
+  // React Suspense is *defined* in terms of a thrown promise, so one has to
+  // exist at that boundary. It is confined to `useDecisionSuspense`; every
+  // other hook reads the atom synchronously and needs no Promise at all.
+  "packages/react/src/hooks.ts": ["no-raw-promise"],
 };
 
 /** Recursively collect .ts/.tsx files under a directory. */

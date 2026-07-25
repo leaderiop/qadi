@@ -1,0 +1,7 @@
+kind: appendices
+package: "@guard/react"
+infix: EG
+entries:
+  - id: "GUARD-APP-REACT"
+    file: "react-integration.md"
+    title: "React Integration Guide"

@@ -7,9 +7,10 @@
  * that does not compile is worse than none, because a reader (or a model)
  * pattern-matches against it.
  *
- * Blocks fenced ```typescript are extracted into a scratch file and compiled.
- * Blocks fenced ```ts are treated as illustrative fragments and skipped, which
- * gives authors an explicit opt-out for partial snippets.
+ * Blocks fenced ```typescript are extracted into a scratch file and compiled;
+ * ```tsx blocks are compiled the same way, as .tsx. Blocks fenced ```ts are
+ * treated as illustrative fragments and skipped, which gives authors an
+ * explicit opt-out for partial snippets.
  */
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -29,7 +30,9 @@ const collectMarkdown = (dir) => {
   return out;
 };
 
-/** Extracts ```typescript blocks, ignoring ```ts fragments. */
+/** Extracts ```typescript and ```tsx blocks, ignoring ```ts fragments. */
+const COMPILED = { typescript: "ts", tsx: "tsx" };
+
 const extractBlocks = (source) => {
   const blocks = [];
   const lines = source.split("\n");
@@ -39,14 +42,17 @@ const extractBlocks = (source) => {
     const fence = /^[ \t]*```(\w*)/.exec(line);
     if (fence !== null) {
       if (current === null) {
-        current = fence[1] === "typescript" ? [] : undefined;
+        const ext = COMPILED[fence[1]];
+        current = ext === undefined ? undefined : { ext, lines: [] };
       } else {
-        if (current !== undefined) blocks.push(current.join("\n"));
+        if (current !== undefined) {
+          blocks.push({ ext: current.ext, source: current.lines.join("\n") });
+        }
         current = null;
       }
       continue;
     }
-    if (Array.isArray(current)) current.push(line);
+    if (current !== undefined && current !== null) current.lines.push(line);
   }
   return blocks;
 };
@@ -63,8 +69,8 @@ for (const file of collectMarkdown(SPEC)) {
     // Declaration-only blocks describe a signature rather than use it; wrapping
     // them in `declare module` would change their meaning, so they are compiled
     // as-is and simply must be self-consistent.
-    const name = `${relative(SPEC, file).replace(/[/.]/g, "_")}_${index}.ts`;
-    writeFileSync(join(OUT, name), block);
+    const name = `${relative(SPEC, file).replace(/[/.]/g, "_")}_${index}.${block.ext}`;
+    writeFileSync(join(OUT, name), block.source);
     written.push(name);
     count += 1;
   });
@@ -75,7 +81,7 @@ writeFileSync(
   JSON.stringify(
     {
       extends: "../tsconfig.base.json",
-      include: ["*.ts"],
+      include: ["*.ts", "*.tsx"],
       compilerOptions: {
         noEmit: true,
         composite: false,
@@ -85,6 +91,7 @@ writeFileSync(
         noUnusedParameters: false,
         paths: {
           "@guard/core": ["../packages/core/src/index.ts"],
+          "@guard/react": ["../packages/react/src/index.ts"],
           "@guard/testing": ["../packages/testing/src/index.ts"],
         },
       },

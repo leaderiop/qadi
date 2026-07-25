@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | GUARD-RMP                                      |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Guard Engineering                              |
 > | Classification | Planning                                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-002) |
+> | Change History | 1.1 (2026-07-26): React rebuilt on atoms (CCR-EG-003)<br>1.0 (2026-07-25): Initial release (CCR-EG-002) |
 
 ---
 
@@ -24,11 +24,11 @@ integration and a test toolkit.
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 137 passing |
+| Unit and property tests | 163 passing |
 | Acceptance scenarios | 27 scenarios, 111 steps passing |
-| Coverage | 99.2% statements, 95.5% branches — thresholds enforced |
-| Doc examples compile | 5 blocks |
-| Specification integrity | 8 checks passing |
+| Coverage | 99.6% statements, 96.1% branches — thresholds enforced |
+| Doc examples compile | 17 blocks |
+| Specification integrity | 11 checks passing |
 
 Nothing below is required for the library to be correct. These are gaps in
 confidence, ergonomics or reach.
@@ -43,6 +43,18 @@ The `EG` specification infix has the same status.
 Both are now embedded in roughly thirty documents and every package manifest.
 Renaming is a mechanical sweep today and gets more expensive with each addition,
 so it should happen before anything else.
+
+### Track `effect/unstable/reactivity`
+
+`@guard/react` is built on a module that is unstable by name
+([ADR-EG-014](./decisions/014-react-via-atoms.md)). Its API may move before
+Effect 4.0 is released, and this package moves with it.
+
+The exposure is contained — `GuardAtoms.ts` and one `useSyncExternalStore` call
+in `GuardProvider.tsx` — but there is no canary for it yet. The core package has
+`v4-api-smoke.test.ts` pinning the APIs it relies on; the reactivity APIs
+deserve the same, so a beta bump fails loudly in one place rather than
+mysteriously across the React suite.
 
 ### Verify span emission
 
@@ -84,6 +96,13 @@ permission `doc:write`" — for administrative interfaces and review.
 
 The trace already answers "why was this denied". This answers "what does this
 rule say", which is a different question and the one a security reviewer asks.
+
+### Server-side rendering
+
+`GuardProvider` accepts `initialValues`, which is the hook a hydration story
+would use, but nothing yet encodes decisions on the server and seeds them on the
+client. Until it does, a server-rendered page shows its pending state and
+re-decides after mount.
 
 ### Batch subject evaluation
 

@@ -1,4 +1,3 @@
-import { render, screen, waitFor } from "@testing-library/react";
 import {
   AttributeResolverNone,
   EvaluationIdLive,
@@ -10,23 +9,22 @@ import {
 } from "@guard/core";
 import type { AuthSubject } from "@guard/core";
 import * as Layer from "effect/Layer";
-import * as ManagedRuntime from "effect/ManagedRuntime";
 import { assert, afterEach, describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import {
   Can,
   Cannot,
   GuardProvider,
   MissingGuardProviderError,
-  createGuardHooks,
+  makeGuardAtoms,
   useCan,
   useSubject,
 } from "../src/index.ts";
 
-const read = permission("doc", "read");
-const canRead = hasPermission(read);
+const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
 
-const runtime = ManagedRuntime.make(
+const atoms = makeGuardAtoms(
   Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
 );
 
@@ -35,7 +33,7 @@ const nobody: AuthSubject = makeSubject({ id: "u2" });
 
 const wrap = (subject: AuthSubject | undefined, ui: React.ReactNode) =>
   render(
-    <GuardProvider runtime={runtime} subject={subject}>
+    <GuardProvider atoms={atoms} subject={subject}>
       {ui}
     </GuardProvider>,
   );
@@ -51,13 +49,24 @@ describe("Can / Cannot", () => {
   });
 
   it("renders the fallback when the policy denies", async () => {
-    wrap(nobody, <Can policy={canRead} fallback={<span>nope</span>}>allowed</Can>);
+    wrap(
+      nobody,
+      <Can policy={canRead} fallback={<span>nope</span>}>
+        allowed
+      </Can>,
+    );
     await waitFor(() => expect(screen.getByText("nope")).toBeDefined());
   });
 
   it("renders the pending node while the subject is loading", () => {
-    // undefined subject means "still loading", so neither branch is decided.
-    wrap(undefined, <Can policy={canRead} pending={<span>wait</span>}>allowed</Can>);
+    // An undefined subject means the decision is not computable yet, so neither
+    // branch has been decided.
+    wrap(
+      undefined,
+      <Can policy={canRead} pending={<span>wait</span>}>
+        allowed
+      </Can>,
+    );
     expect(screen.getByText("wait")).toBeDefined();
   });
 
@@ -90,47 +99,43 @@ describe("hooks", () => {
   });
 
   it("throws a helpful error outside a provider", () => {
-    // Failing loudly beats silently denying every check, which would look
-    // like a permissions bug rather than a wiring bug.
+    // Failing loudly beats silently denying every check, which would look like
+    // a permissions bug rather than a wiring bug.
     assert.throws(() => render(<Probe />), MissingGuardProviderError);
+  });
+
+  it("follows the subject when it changes", async () => {
+    const Probe2 = () => <span>{`admin=${useCan(isAdmin)}`}</span>;
+    const { rerender } = wrap(reader, <Probe2 />);
+    await waitFor(() => expect(screen.getByText("admin=false")).toBeDefined());
+
+    rerender(
+      <GuardProvider atoms={atoms} subject={makeSubject({ id: "u3", roles: ["admin"] })}>
+        <Probe2 />
+      </GuardProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("admin=true")).toBeDefined());
   });
 });
 
-describe("createGuardHooks", () => {
-  it("produces an isolated context that does not see the default provider", async () => {
-    const isolated = createGuardHooks();
+describe("isolated contexts", () => {
+  it("keeps two authorization contexts apart", async () => {
+    // Two atom sets, two registries. A tenant cannot observe another tenant's
+    // decisions even when both providers are mounted in the same tree.
+    const tenant = makeGuardAtoms(
+      Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+    );
 
-    const Inner = () => {
-      const allowed = isolated.useCan(isAdmin);
-      return <span>{`isolated:${allowed}`}</span>;
-    };
+    const Inner = () => <span>{`isolated:${useCan(isAdmin)}`}</span>;
 
     render(
-      <GuardProvider runtime={runtime} subject={reader}>
-        <isolated.GuardProvider
-          runtime={runtime}
-          subject={makeSubject({ id: "tenant", roles: ["admin"] })}
-        >
+      <GuardProvider atoms={atoms} subject={reader}>
+        <GuardProvider atoms={tenant} subject={makeSubject({ id: "t", roles: ["admin"] })}>
           <Inner />
-        </isolated.GuardProvider>
+        </GuardProvider>
       </GuardProvider>,
     );
 
-    // The inner hook reads the isolated provider's subject, not the outer one.
     await waitFor(() => expect(screen.getByText("isolated:true")).toBeDefined());
-  });
-
-  it("its hooks throw outside their own provider", () => {
-    const isolated = createGuardHooks();
-    const Inner = () => <span>{String(isolated.useCan(canRead))}</span>;
-    assert.throws(
-      () =>
-        render(
-          <GuardProvider runtime={runtime} subject={reader}>
-            <Inner />
-          </GuardProvider>,
-        ),
-      MissingGuardProviderError,
-    );
   });
 });

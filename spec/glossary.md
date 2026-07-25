@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | GUARD-GLOSSARY                                 |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Guard Engineering                              |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-002) |
+> | Change History | 1.1 (2026-07-26): Reactivity terms added (CCR-EG-003)<br>1.0 (2026-07-25): Initial release (CCR-EG-002) |
 
 ---
 
@@ -213,6 +213,36 @@ A function that wraps an `Effect` to add behaviour without changing its shape.
 `Guard.enforce(policy)` is one: it fails the wrapped effect with `AccessDenied`
 when the policy denies, and — importantly — never starts it.
 See [INV-EG-009](invariants.md#inv-eg-009-guarded-effects-do-not-run-when-denied).
+
+## Atom
+
+A node of reactive state from `effect/unstable/reactivity`. Guard's React
+package defines one per distinct authorization question, so components asking
+the same question share one evaluation rather than each running their own.
+See [ADR-EG-014](decisions/014-react-via-atoms.md).
+
+## Atom registry
+
+The store that computes atom values, tracks their dependencies, and disposes
+them when nothing is watching. Each `GuardProvider` owns one, which is what
+makes two authorization contexts structurally unable to see each other's
+decisions. See [BEH-EG-070](behaviors/09-react.md).
+
+## Waiting
+
+A flag on an `AsyncResult` meaning "this is the previous value, and a new one is
+being computed". For cached data that is stale-while-revalidate; for
+authorization it is an over-permission, so every convenience API in
+`@guard/react` treats a waiting result as *not decided*.
+See [ADR-EG-017](decisions/017-stale-decisions-are-not-decisions.md).
+
+## Invalidation
+
+Discarding decisions so they are computed again, keyed through the `Reactivity`
+service. Needed because authority changes independently of identity: a role
+granted server-side leaves the same subject id holding different powers, and
+nothing in the atom graph would notice on its own.
+See [BEH-EG-069](behaviors/09-react.md).
 
 ## Trust boundary
 
