@@ -1,6 +1,13 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      // Resolve workspace packages to source, matching tsconfig `paths`.
+      "@guard/core": fileURLToPath(new URL("../core/src/index.ts", import.meta.url)),
+    },
+  },
   test: {
     name: "testing",
     include: ["test/**/*.test.ts"],

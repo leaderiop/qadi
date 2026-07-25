@@ -33,6 +33,13 @@
     "declaration": true,
     "declarationMap": true,
     "noErrorTruncation": true,
+    // Workspace packages resolve to source, not to built output. Emitted .d.ts
+    // files keep their `.ts` specifiers, which do not resolve against lib/, and
+    // resolving to source means tests need no build step.
+    "paths": {
+      "@guard/core": ["./packages/core/src/index.ts"],
+      "@guard/testing": ["./packages/testing/src/index.ts"]
+    },
     "plugins": [
       {
         "name": "@effect/language-service",
