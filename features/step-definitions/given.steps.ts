@@ -76,3 +76,10 @@ Given(
 Given("the resource {string}", function (this: GuardWorld, id: string) {
   this.resource = { id };
 });
+
+Given(
+  "the resource {string} owned by {string}",
+  function (this: GuardWorld, id: string, owner: string) {
+    this.resource = { id, owner };
+  },
+);

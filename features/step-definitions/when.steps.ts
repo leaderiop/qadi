@@ -13,6 +13,7 @@ import {
   literal,
   not,
   permission,
+  subjectId,
 } from "@guard/core";
 import { GuardWorld } from "./world.ts";
 
@@ -64,6 +65,19 @@ When(
 
 When("they must be {string} of the resource", function (this: GuardWorld, relation: string) {
   this.run(hasRelationship(relation));
+});
+
+/** "the resource's owner is me" — the archetypal relational rule. */
+const ownership = (): Policy => hasResourceAttribute("owner", eq(subjectId()));
+
+When("the resource must be owned by the subject", function (this: GuardWorld) {
+  this.run(ownership());
+});
+
+When("the ownership policy is round-tripped and evaluated", function (this: GuardWorld) {
+  this.roundTrip(ownership());
+  if (this.restored === undefined) throw new Error("round trip produced nothing");
+  this.run(this.restored);
 });
 
 When(

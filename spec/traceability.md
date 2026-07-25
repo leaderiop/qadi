@@ -108,6 +108,7 @@ contract.
 | REQ-EG-006 | `features/features/attributes/resource-attributes.feature` | BEH-EG-036 |
 | REQ-EG-007 | `features/features/field-visibility/field-visibility.feature` | BEH-EG-018 |
 | REQ-EG-008 | `features/features/serialization/round-trip.feature` | BEH-EG-058, INV-EG-003 |
+| REQ-EG-009 | `features/features/attributes/ownership.feature` | BEH-EG-026, BEH-EG-036 |
 
 ## §6 Coverage targets
 

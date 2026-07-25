@@ -24,8 +24,8 @@ integration and a test toolkit.
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 163 passing |
-| Acceptance scenarios | 27 scenarios, 111 steps passing |
+| Unit and property tests | 166 passing |
+| Acceptance scenarios | 31 scenarios, 128 steps passing |
 | Coverage | 99.6% statements, 96.1% branches — thresholds enforced |
 | Doc examples compile | 17 blocks |
 | Specification integrity | 11 checks passing |
