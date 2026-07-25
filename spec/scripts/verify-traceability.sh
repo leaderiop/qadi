@@ -117,6 +117,34 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 3b. Every URS-EG-NNN declared in urs.md appears in its traceability table.
+#
+# The heading declares a requirement; the table is where it is tied to a
+# behavior and a test. A requirement added without a row is a requirement
+# nobody has to satisfy.
+# ---------------------------------------------------------------------------
+if [[ -f "$SPEC_DIR/urs.md" ]]; then
+  untraced=""
+  declared=0
+  while IFS= read -r urs; do
+    declared=$((declared + 1))
+    # Count occurrences: one is the heading alone, so it is untraced.
+    n=$(grep -c "$urs" "$SPEC_DIR/urs.md")
+    [[ "$n" -ge 2 ]] || untraced="${untraced} ${urs}"
+  done < <(grep -oE '^### (URS|NFR)-EG-[0-9]{3}' "$SPEC_DIR/urs.md" | sed -E 's/^### //' | sort -u)
+
+  if [[ $declared -eq 0 ]]; then
+    report SKIP "urs -> traceability table" "no requirements declared"
+  elif [[ -n "$untraced" ]]; then
+    report FAIL "urs -> traceability table" "untraced:${untraced}"
+  else
+    report PASS "urs -> traceability table" "$declared requirement(s) traced"
+  fi
+else
+  report SKIP "urs -> traceability table" "urs.md absent"
+fi
+
+# ---------------------------------------------------------------------------
 # 4. Every REQ-EG-NNN tag used in a .feature file is defined in traceability.md.
 # ---------------------------------------------------------------------------
 if [[ -d "$ROOT_DIR/features/features" && -f "$SPEC_DIR/traceability.md" ]]; then

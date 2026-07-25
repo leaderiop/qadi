@@ -29,8 +29,11 @@ link is broken. `scripts/check-doc-examples.mjs` compiles the runnable examples.
 | Document | Purpose |
 | -------- | ------- |
 | [Overview](./overview.md) | Mission, design philosophy, public API surface |
+| [User Requirements](./urs.md) | What users need, in their terms — and the two gaps that has surfaced |
+| [Glossary](./glossary.md) | Terms of art, and where this codebase narrows an industry sense |
 | [Invariants](./invariants.md) | Properties that hold for every execution, and what enforces each |
 | [Traceability](./traceability.md) | Behavior → source → test → invariant → decision → scenario |
+| [Roadmap](./roadmap.md) | What is deliberately unbuilt, and why |
 
 ### Behaviors
 
@@ -64,6 +67,14 @@ Sixteen ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 | -------- | ------- |
 | [Requirement Identifier Scheme](./process/requirement-id-scheme.md) | ID allocation and cross-reference obligations |
 | [Definitions of Done](./process/definitions-of-done.md) | The merge gate |
+
+### Reading order
+
+New to the library: [Overview](./overview.md) → [User Requirements](./urs.md) →
+[Glossary](./glossary.md) → the behaviors.
+
+Reviewing a change: [Invariants](./invariants.md) →
+[Traceability](./traceability.md) → [Definitions of Done](./process/definitions-of-done.md).
 
 ## Why this library exists
 

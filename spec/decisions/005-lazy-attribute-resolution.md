@@ -32,6 +32,9 @@ subject's own `attributes` first and calls `AttributeResolver` only on a miss.
 - Lookups are sequential by default, so a policy needing several attributes
   makes several round trips rather than one batch.
 
-**Trade-off accepted**: `EvaluateOptions.concurrency` exists for callers who
-would rather pay for speculative lookups than latency. Correct-and-cheap is the
-right default; fast-and-wasteful is the opt-in.
+**Trade-off accepted**: correct-and-cheap is the right default. A caller who
+would rather pay for speculative lookups than latency has no escape hatch yet;
+an opt-in concurrency mode is [planned](../roadmap.md#concurrent-evaluation)
+but deliberately unimplemented, because parallel evaluation interacts with both
+short-circuiting and field-set merging in ways that need designing rather than
+bolting on.

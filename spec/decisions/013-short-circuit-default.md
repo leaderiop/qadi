@@ -18,7 +18,9 @@ The one exception is `fieldStrategy: "Union"` on an `anyOf`, which must see
 every child in order to merge their field sets. This is a semantic requirement
 of the strategy, not a performance choice, and is documented as such.
 
-`EvaluateOptions.concurrency` opts into parallel evaluation.
+There is currently **no** opt-out. Parallel evaluation is
+[planned](../roadmap.md#concurrent-evaluation) but unimplemented; until it is
+designed properly, this document does not pretend it exists.
 
 **`anyOf` honours an explicit `Intersection`** rather than silently downgrading
 it to `First`. The predecessor special-cased only `"union"` and treated every
@@ -34,8 +36,10 @@ type system and then ignored.
 
 **Negative**:
 
-- A policy needing several independent remote lookups is slower than it could be.
+- A policy needing several independent remote lookups is slower than it could
+  be, and until concurrent evaluation lands there is no way to opt out.
 
-**Trade-off accepted**: authorization is on the request path, but so is the
-cost of speculative lookups. The caller knows which trade they want; the safe
-one is the default.
+**Trade-off accepted**: authorization is on the request path, but so is the cost
+of speculative lookups. Defaulting to the safe behaviour and leaving the fast
+one unbuilt is the right order: a wrong-but-fast default cannot be fixed
+compatibly, whereas adding an opt-in later can.
