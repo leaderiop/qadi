@@ -1,0 +1,35 @@
+{
+  "name": "@guard/react",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "React integration for @guard/core — GuardProvider, hooks, Can/Cannot",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "bun": "./src/index.ts",
+      "import": "./lib/index.js"
+    }
+  },
+  "files": ["lib", "src"],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@guard/core": "workspace:*",
+    "effect": "catalog:"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@types/react": "catalog:",
+    "react": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

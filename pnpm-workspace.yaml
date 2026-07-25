@@ -1,0 +1,14 @@
+packages:
+  - packages/*
+  - features
+
+# Single source of truth for shared version pins.
+# Effect v4 is in beta; the range accepts the beta line and the eventual 4.0.0 release.
+catalog:
+  effect: ">=4.0.0-beta.100 || >=4.0.0"
+  "@effect/vitest": ">=4.0.0-beta.100 || >=4.0.0"
+  typescript: "^7.0.0"
+  vitest: "4.1.10"
+  "@vitest/coverage-v8": "4.1.10"
+  react: "^19.2.0"
+  "@types/react": "^19.2.0"

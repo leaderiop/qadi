@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.base.json",
+  "include": ["step-definitions/**/*.ts", "cucumber.config.ts"],
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "outDir": "./lib",
+    "rootDir": ".",
+    "tsBuildInfoFile": "./lib/.tsbuildinfo"
+  },
+  "references": [
+    { "path": "../packages/core/tsconfig.src.json" },
+    { "path": "../packages/testing/tsconfig.src.json" }
+  ]
+}

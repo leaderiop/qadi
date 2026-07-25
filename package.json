@@ -1,0 +1,41 @@
+{
+  "name": "guard-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@10.17.1",
+  "description": "Effect-native authorization: permission tokens, role DAG, schema-derived policy ADT, Effect evaluator",
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "clean": "tsc -b --clean && rm -rf packages/*/lib",
+    "typecheck": "tsc -b tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:types": "vitest run --typecheck",
+    "coverage": "vitest run --coverage",
+    "test:bdd": "pnpm --filter @guard/features test",
+    "lint": "oxlint && node scripts/check-house-style.mjs",
+    "lint:fix": "oxlint --fix",
+    "lint:style": "node scripts/check-house-style.mjs",
+    "format": "oxfmt packages features",
+    "format:check": "oxfmt --check packages features",
+    "spec:verify": "bash spec/scripts/verify-traceability.sh",
+    "spec:verify:strict": "bash spec/scripts/verify-traceability.sh --strict",
+    "check": "pnpm typecheck && pnpm lint && pnpm coverage && pnpm test:bdd && pnpm spec:verify:strict"
+  },
+  "devDependencies": {
+    "@effect/language-service": "^0.77.0",
+    "@effect/vitest": "catalog:",
+    "@types/node": "^25.7.0",
+    "@vitest/coverage-v8": "catalog:",
+    "effect": "catalog:",
+    "oxfmt": "^0.36.0",
+    "oxlint": "^1.51.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

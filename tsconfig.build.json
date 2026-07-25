@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core/tsconfig.src.json" },
+    { "path": "packages/testing/tsconfig.src.json" },
+    { "path": "packages/react/tsconfig.src.json" }
+  ]
+}

@@ -1,0 +1,200 @@
+# Guard — Engineering Conventions
+
+Effect-native authorization library. **Effect v4.** These rules are not suggestions; code that violates them does not merge.
+
+Style reference projects (read them when in doubt):
+
+- `/Users/u1070457/Projects/Sanofi/alchemy` — Effect v4 beta, `AGENTS.md` is its authority
+- `/Users/u1070457/Projects/Sanofi/effect` — the Effect v4 source itself
+
+---
+
+## 1. Imports
+
+**Submodule namespace imports only.**
+
+```ts
+import * as Context from "effect/Context";
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
+```
+
+| Don't | Do |
+| ----- | -- |
+| `import { Effect, Layer } from "effect"` | `import * as Effect from "effect/Effect"` |
+| `import { evaluate } from "./Evaluate.js"` | `import { evaluate } from "./Evaluate.ts"` |
+| `import { Policy } from "./Policy.ts"` (type-only) | `import type { Policy } from "./Policy.ts"` |
+
+Relative imports carry the **`.ts` extension** (`allowImportingTsExtensions` +
+`rewriteRelativeImportExtensions`). `verbatimModuleSyntax` is on, so
+`import type` is mandatory for type-only imports.
+
+## 2. Services — `Context.Service`
+
+Never `Effect.Service`, `Context.Tag`, `Context.GenericTag`, or `Context.Reference`.
+The shape is a **separately exported `interface …Shape`**.
+
+```ts
+export interface AttributeResolverShape {
+  readonly resolve: (
+    attribute: string,
+    resource?: Resource,
+  ) => Effect.Effect<unknown, AttributeResolveError>;
+}
+
+export class AttributeResolver extends Context.Service<
+  AttributeResolver,
+  AttributeResolverShape
+>()("guard/AttributeResolver") {
+  // `use` requires its callback to RETURN an Effect — it is a one-step method
+  // accessor, not an identity read.
+  static resolve = (attribute: string) =>
+    AttributeResolver.use((r) => r.resolve(attribute));
+}
+```
+
+Tag ids are namespaced: `"guard/AttributeResolver"`.
+
+To obtain the whole service, `yield* AttributeResolver`. Note that alchemy's
+`static current = X.use((x) => x)` idiom **only typechecks when the service
+Shape is itself an `Effect`** (as in its `AWSEnvironment`). Our shapes are plain
+records, so we use the method-accessor form above. `packages/core/test/v4-api-smoke.test.ts`
+pins this and the other v4 APIs we depend on.
+
+## 3. Layers — standalone consts, own file
+
+No `static layer`. No `.Default`. One implementation per file, named for what it is.
+
+```ts
+// AttributeResolverSubject.ts
+export const AttributeResolverSubject = Layer.effect(
+  AttributeResolver,
+  Effect.gen(function* () {
+    const subject = yield* CurrentSubject;
+    return {
+      resolve: (attribute) => Effect.succeed(subject.attributes[attribute]),
+    };
+  }),
+);
+```
+
+Naming: `…Live` (production), `…Test` (deterministic), `Default` (the layer of a
+namespace-imported module), or implementation-specific (`…Subject`, `…Never`).
+
+**Gotcha:** `Layer.mergeAll` silently drops tail layers past ~90 arguments —
+tsc's variadic inference limit. Nest into groups.
+
+## 4. Errors — `Data.TaggedError`
+
+Not `Schema.TaggedErrorClass`. Namespaced tags.
+
+```ts
+export class AccessDenied extends Data.TaggedError("guard/AccessDenied")<{
+  readonly policyTag: string;
+  readonly subjectId: string;
+  readonly reason: string;
+}> {}
+```
+
+Handling — v4 uses the **array form**; there is no `catchTags({...})` object form:
+
+```ts
+// ✅
+Effect.catchTag("guard/AccessDenied", (e) => …)
+Effect.catchTag(["guard/AccessDenied", "guard/PolicyEvaluationError"], (e) => …)
+
+// ❌ structural checks on unknown
+if (Predicate.hasProperty(e, "_tag") && (e as { _tag: unknown })._tag === "X")
+```
+
+Never `Effect.orDie` in evaluation or enforcement paths — an authorization
+decision must never become a defect.
+
+## 5. Functions — `Effect.fn`
+
+Every effectful function is `Effect.fn(function* …)`. Name it when a span is wanted.
+
+```ts
+export const evaluate = Effect.fn("guard.evaluate")(function* (policy: Policy) {
+  const subject = yield* CurrentSubject;
+  // …
+});
+```
+
+`Effect.gen` to construct; `.pipe` for the error/retry tail of a single expression.
+
+## 6. Forbidden
+
+| Don't | Do |
+| ----- | -- |
+| `async` / `await` | `Effect.fn(function* …)` |
+| `new Promise(...)`, `.then(...)` | `Effect` |
+| `import fs from "node:fs"` | `yield* FileSystem.FileSystem` |
+| `Date.now()`, `new Date()` | `yield* Clock.currentTimeMillis` / `DateTime` |
+| `performance.now()` | `Effect.timed` |
+| `crypto.randomUUID()` | the `EvaluationId` service |
+| `Effect.either` / `effect/Either` | `Effect.result` + `Result.isSuccess/isFailure` |
+| `as`, `as any`, `!`, `any` | fix the type |
+
+Sync CPU-only calls still get wrapped: `yield* Effect.sync(() => …)`.
+
+Determinism matters here beyond taste: the previous implementation used
+`performance.now()` and `new Date()` inside the evaluator, which made every
+evaluation trace untestable. Under `TestClock` ours are reproducible.
+
+## 7. Schema
+
+Domain types are ordinarily **hand-written interfaces** with template-literal
+brands — that is the alchemy norm and it applies to `Permission`, `Role`, `AuthSubject`.
+
+**The Policy ADT is the deliberate exception** (ADR-EG-002). Policies cross a
+trust boundary: they are persisted and re-parsed from untrusted JSON. Hand-written
+codecs are exactly what caused the data-loss defect this library was rewritten to
+fix. So the policy union is defined once as a Schema and the type is derived:
+
+```ts
+export const Policy = Schema.Union([HasPermission, HasRole, AllOf, /* … */]);
+export type Policy = typeof Policy.Type;
+```
+
+v4 API notes: `Schema.Union([...])` takes an **array**; the type is
+`Schema.Codec<T>` (not `Schema.Schema<T>`); recursion factors into a single
+shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
+`decodeUnknown` → `decodeUnknownEffect`; `ParseResult` → `SchemaIssue`.
+
+## 8. Naming
+
+| Pattern | Meaning |
+| ------- | ------- |
+| `make…` | builder returning a value or Effect |
+| `…Unsafe` **suffix** | v4 convention — `makeUnsafe`, not `unsafeMake` |
+| `…Live` / `…Test` / `Default` | layers |
+| `is…` | type guards |
+| `…Shape` | a service's payload interface |
+| `…Like` | structural brand for requirement bubbling |
+
+## 9. Barrels
+
+`export * from "./File.ts"`, alphabetical. Shared scaffolding stays **out** of
+the barrel — exporting internal helpers leaks generic names into the flat
+namespace. Re-export internal types explicitly where `.d.ts` emission needs to
+name them (TS2883).
+
+## 10. Tests
+
+`@effect/vitest`: `it.effect`, `it.scoped`, `it.layer`, `TestClock`.
+Coverage thresholds are enforced in config — a shortfall fails the run.
+`packages/core` is held at 95%, everything else at 90%.
+
+Every behavior in `spec/behaviors/` has tests; every `.feature` file is tagged
+`@REQ-EG-NNN` so BDD scenarios join the traceability chain.
+
+## 11. Specification
+
+`spec/` is normative. Code follows the spec, not the reverse. Changing public
+behavior means updating the behavior doc, the invariant, and the traceability
+matrix in the same change. TypeScript blocks in `spec/behaviors/*.md` are
+extracted and type-checked in CI — documentation that does not compile is a
+build failure.

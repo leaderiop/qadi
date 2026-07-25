@@ -1,0 +1,24 @@
+{
+  "name": "@guard/features",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Cucumber BDD acceptance tests for @guard/core",
+  "scripts": {
+    "test": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js",
+    "test:dry": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js --dry-run",
+    "test:tags": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js --tags",
+    "typecheck": "tsc -b tsconfig.json"
+  },
+  "dependencies": {
+    "@guard/core": "workspace:*",
+    "@guard/testing": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.2.0",
+    "@types/node": "^25.7.0",
+    "tsx": "^4.19.2",
+    "typescript": "catalog:"
+  }
+}

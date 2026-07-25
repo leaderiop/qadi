@@ -1,0 +1,133 @@
+/**
+ * Canary for the Effect v4 APIs this library's design depends on.
+ *
+ * Effect v4 is beta and renamed a great deal from v3. If a beta bump breaks one
+ * of these, the failure should surface here rather than diffused across the
+ * whole codebase.
+ */
+import { assert, describe, it } from "@effect/vitest";
+import * as Context from "effect/Context";
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
+
+// ---------------------------------------------------------------------------
+// Services: Context.Service<Self, Shape>()("ns/Id") + standalone Layer const
+// ---------------------------------------------------------------------------
+
+interface GreeterShape {
+  readonly greet: (name: string) => Effect.Effect<string>;
+}
+
+class Greeter extends Context.Service<Greeter, GreeterShape>()("smoke/Greeter") {
+  // `use` requires the callback to RETURN an Effect, so it is a one-step method
+  // accessor — not a `static current = X.use((x) => x)` identity read. That
+  // alchemy idiom only typechecks when the service Shape is itself an Effect.
+  static greet = (name: string) => Greeter.use((g) => g.greet(name));
+}
+
+const GreeterLive = Layer.effect(
+  Greeter,
+  Effect.gen(function* () {
+    return {
+      greet: (name: string) => Effect.succeed(`hello ${name}`),
+    };
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Errors: Data.TaggedError with namespaced tags
+// ---------------------------------------------------------------------------
+
+class Boom extends Data.TaggedError("smoke/Boom")<{ readonly why: string }> {}
+class Bang extends Data.TaggedError("smoke/Bang")<{ readonly code: number }> {}
+
+// ---------------------------------------------------------------------------
+// Recursive tagged-union schema (the Policy ADT shape)
+// ---------------------------------------------------------------------------
+
+type Node = Leaf | Branch;
+
+interface Leaf {
+  readonly _tag: "Leaf";
+  readonly value: number;
+}
+
+interface Branch {
+  readonly _tag: "Branch";
+  readonly children: ReadonlyArray<Node>;
+  readonly strategy: "all" | "any";
+}
+
+const NodeRef = Schema.suspend((): Schema.Codec<Node> => NodeSchema);
+
+const LeafSchema = Schema.TaggedStruct("Leaf", {
+  value: Schema.Number,
+});
+
+const BranchSchema = Schema.TaggedStruct("Branch", {
+  children: Schema.Array(NodeRef),
+  strategy: Schema.Literals(["all", "any"]),
+});
+
+const NodeSchema: Schema.Codec<Node> = Schema.Union([LeafSchema, BranchSchema]);
+
+const NodeFromJson = Schema.fromJsonString(NodeSchema);
+
+describe("effect v4 API canary", () => {
+  it.effect("Context.Service + Layer.effect + Effect.fn", () =>
+    Effect.gen(function* () {
+      const run = Effect.fn("smoke.run")(function* (name: string) {
+        const greeter = yield* Greeter;
+        return yield* greeter.greet(name);
+      });
+
+      const result = yield* run("world");
+      assert.strictEqual(result, "hello world");
+    }).pipe(Effect.provide(GreeterLive)));
+
+  it.effect("static method accessor via use", () =>
+    Effect.gen(function* () {
+      assert.strictEqual(yield* Greeter.greet("x"), "hello x");
+    }).pipe(Effect.provide(GreeterLive)));
+
+  it.effect("catchTag array form handles a union of tagged errors", () =>
+    Effect.gen(function* () {
+      const fail = (n: number): Effect.Effect<string, Boom | Bang> =>
+        n > 0
+          ? Effect.fail(new Boom({ why: "positive" }))
+          : Effect.fail(new Bang({ code: n }));
+
+      const recovered = yield* fail(1).pipe(
+        Effect.catchTag(["smoke/Boom", "smoke/Bang"], (e) => Effect.succeed(e._tag)),
+      );
+      assert.strictEqual(recovered, "smoke/Boom");
+    }));
+
+  it.effect("recursive union schema round-trips through JSON", () =>
+    Effect.gen(function* () {
+      const tree: Node = {
+        _tag: "Branch",
+        strategy: "any",
+        children: [
+          { _tag: "Leaf", value: 1 },
+          { _tag: "Branch", strategy: "all", children: [{ _tag: "Leaf", value: 2 }] },
+        ],
+      };
+
+      const json = yield* Schema.encodeEffect(NodeFromJson)(tree);
+      assert.isString(json);
+
+      const back = yield* Schema.decodeUnknownEffect(NodeFromJson)(json);
+      assert.deepStrictEqual(back, tree);
+    }));
+
+  it.effect("decoding rejects an unknown tag", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        Schema.decodeUnknownEffect(NodeFromJson)(`{"_tag":"Nope"}`),
+      );
+      assert.isTrue(result._tag === "Failure");
+    }));
+});

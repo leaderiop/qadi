@@ -1,0 +1,36 @@
+{
+  "name": "@guard/core",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Effect-native authorization: permission tokens, role DAG, schema-derived policy ADT, Effect evaluator",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "bun": "./src/index.ts",
+      "import": "./lib/index.js"
+    },
+    "./*": {
+      "types": "./lib/*.d.ts",
+      "bun": "./src/*.ts",
+      "import": "./lib/*.js"
+    }
+  },
+  "files": ["lib", "src"],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json",
+    "test": "vitest run",
+    "test:types": "vitest run --typecheck"
+  },
+  "dependencies": {
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "keywords": ["effect", "authorization", "rbac", "abac", "rebac", "policy", "typescript"]
+}
