@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -177,27 +177,48 @@ value reference, so co-ownership is written `someMatch(eq(subjectId()))`.
 
 ### 3.2 Wiring only — P1
 
-No core change. Each costs a resolver implementation, a recipe in an appendix,
-and a scenario. Grouped by the service they extend.
+Documented. No core change: each costs a resolver implementation the caller
+writes, because the data behind it is theirs. Grouped by the service they extend.
 
-| Model | Extends | Note |
-| ----- | ------- | ---- |
-| Discretionary (DAC) | `RelationshipResolver` | Ownership is already the shape; the doc is a recipe, not a feature |
-| Access control lists | `RelationshipResolver` | An ACL entry is a relation tuple |
-| Zanzibar-style stores | `RelationshipResolver` | Adapter for SpiceDB / OpenFGA; `depth` maps to userset rewrite depth |
-| Claims-based | `CurrentSubject` | OIDC claims are subject attributes; the work is mapping, not deciding |
-| Context-aware (CBAC) | `AttributeResolver` | Device, network, posture as resolved attributes |
-| Temporal (TRBAC) | `AttributeResolver` + `Clock` | Must read `Clock`, never `Date.now` — [ADR-QD-012](../decisions/012-deterministic-time-and-ids.md) |
-| Spatial (GEO-RBAC) | `AttributeResolver` | Geofence test belongs in the resolver, not a matcher |
-| Risk-adaptive (RAdAC) | `AttributeResolver` | Risk score in, threshold compared by `gte` |
-| Trust / reputation | `AttributeResolver` | As RAdAC, different provenance |
-| Purpose-based | `AttributeResolver` | Purpose as a declared attribute; enforcement of the *declaration* needs E2 |
-| Consent-based | `RelationshipResolver` | Consent is a relation between data subject and processor |
-| Hierarchical resource scoping | `RelationshipResolver` | Tenant trees, organisation hierarchies; `depth` already models ancestry |
-| Team-based (TMAC) | `RelationshipResolver` | Membership is a relation |
-| Organisation-based (OrBAC) | `AttributeResolver` | Organisation and activity as attributes |
-| Type enforcement | `AttributeResolver` | Domain–type pairs as attributes |
-| Label-based (row/table labels) | `AttributeResolver` | Comparison only; *dominance* needs E4 |
+| Model | Document | Extends | Note |
+| ----- | -------- | ------- | ---- |
+| Discretionary (DAC) | [MOD-QD-008](./08-dac.md) | `RelationshipResolver` | Ownership is already the shape; a recipe, not a feature |
+| Access control lists | [MOD-QD-009](./09-acl.md) | `RelationshipResolver` | An ACL entry is a relation tuple; deny rows need E3 |
+| Zanzibar-style stores | [MOD-QD-010](./10-zanzibar.md) | `RelationshipResolver` | Adapter for SpiceDB / OpenFGA; `depth` maps to userset rewrite depth |
+| Claims-based | [MOD-QD-011](./11-claims.md) | `CurrentSubject` | OIDC claims are subject attributes; the work is mapping, not deciding |
+| Context-aware (CBAC) | [MOD-QD-012](./12-context-aware.md) | `AttributeResolver` | Device, network, posture as resolved attributes |
+| Temporal (TRBAC) | [MOD-QD-013](./13-temporal.md) | `AttributeResolver` + `Clock` | Must read `Clock`, never `Date.now` — [ADR-QD-012](../decisions/012-deterministic-time-and-ids.md) |
+| Spatial (GEO-RBAC) | [MOD-QD-014](./14-spatial.md) | `AttributeResolver` | Geofence test belongs in the resolver, not a matcher |
+| Risk-adaptive (RAdAC) | [MOD-QD-015](./15-risk-adaptive.md) | `AttributeResolver` | Risk score in, threshold compared by `lt`; step-up needs E2 |
+| Trust / reputation | [MOD-QD-016](./16-trust.md) | `AttributeResolver` | As RAdAC, different provenance and incentive |
+| Purpose-based | [MOD-QD-017](./17-purpose.md) | `AttributeResolver` | Purpose as a declared attribute; enforcing the *declaration* needs E2 |
+| Consent-based | [MOD-QD-018](./18-consent.md) | `RelationshipResolver` | Consent is a relation; the data subject collapses into the resource |
+| Hierarchical resource scoping | [MOD-QD-019](./19-hierarchy.md) | `RelationshipResolver` | Tenant trees; exceptions to an inherited grant need E3 |
+| Team-based (TMAC) | [MOD-QD-020](./20-tmac.md) | `RelationshipResolver` | Membership is a relation; role ∧ team is the recipe |
+| Organisation-based (OrBAC) | [MOD-QD-021](./21-orbac.md) | `AttributeResolver` | Organisation and view map cleanly; *activity* needs E1 |
+| Type enforcement | [MOD-QD-022](./22-type-enforcement.md) | `AttributeResolver` | Domain–type pairs; the *operation* needs E1 |
+| Label-based | [MOD-QD-023](./23-label-based.md) | `AttributeResolver` | Comparison only; *dominance* needs E4 |
+
+#### Two constraints the P1 documents established
+
+Writing these against the real source found two limits that were not previously
+recorded anywhere, and both narrow what a resolver-backed model can express.
+
+**The resource never reaches the resolver.** `RelationshipCheck` carries
+`subjectId`, `relation`, `resourceId` and `depth` — nothing else. An adapter
+cannot consult another field of the resource, so anything it needs must be
+encoded into the id or fixed per resolver layer. `AttributeResolver.resolve`
+is narrower still, taking only `(subjectId, attribute)`: it never sees the
+resource at all, which is why trust scoped to a particular resource must be a
+relationship rather than a resolved attribute.
+
+**Only `eq` and `neq` accept a value reference.** `gte`, `lt` and `contains`
+take constants. So a comparison between two *live* values — a clearance against
+a resource's level, an expiry against the current time — is not expressible in
+the policy tree at all. The workable forms are enumeration with `inArray`, or
+deriving the comparison in the resolver and matching the boolean. This is the
+sharpest expressiveness limit found in the phase and it affects the temporal,
+label-based and type-enforcement models alike.
 
 ### 3.3 Core change — P2 and P3
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-00                                        |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification — Master Index        |
-> | Change History | 1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.3 (2026-07-26): Wiring-only model documents (CCR-QD-007)<br>1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -47,6 +47,22 @@ link is broken. `scripts/check-doc-examples.mjs` compiles the runnable examples.
 | [05 — Identity-Based Access Control](./models/05-ibac.md) | `subjectId()` ownership, and when to prefer ReBAC |
 | [06 — Content-Dependent Access Control](./models/06-content-dependent.md) | Deciding on the data's own values; the row-level boundary |
 | [07 — Field-Level Authorization](./models/07-field-level.md) | The visibility lattice — the reason this library exists |
+| [08 — Discretionary Access Control](./models/08-dac.md) | Owner-granted access; why granting itself is out of scope |
+| [09 — Access Control Lists](./models/09-acl.md) | ACL entries as relation tuples; deny rows need an enabler |
+| [10 — Zanzibar-Style Relationship Stores](./models/10-zanzibar.md) | SpiceDB / OpenFGA adapters; Qadi is the policy side |
+| [11 — Claims-Based Access Control](./models/11-claims.md) | Tokens to subjects; scopes are not permissions |
+| [12 — Context-Aware Access Control](./models/12-context-aware.md) | Device, network and posture; failure is not denial |
+| [13 — Temporal Access Control](./models/13-temporal.md) | Time from `Clock`, never the ambient clock |
+| [14 — Spatial Access Control](./models/14-spatial.md) | Geofencing and data residency; geometry stays in the resolver |
+| [15 — Risk-Adaptive Access Control](./models/15-risk-adaptive.md) | Score in the resolver, threshold in the policy |
+| [16 — Trust- and Reputation-Based Access Control](./models/16-trust.md) | Standing rather than assignment; an adversarial input |
+| [17 — Purpose-Based Access Control](./models/17-purpose.md) | GDPR purpose limitation as a field projection |
+| [18 — Consent-Based Access Control](./models/18-consent.md) | A three-party relation; revocation for free |
+| [19 — Hierarchical Resource Scoping](./models/19-hierarchy.md) | Tenant and folder trees; `depth` and its limits |
+| [20 — Team-Based Access Control](./models/20-tmac.md) | Care teams and case teams; role ∧ team |
+| [21 — Organisation-Based Access Control](./models/21-orbac.md) | Multi-tenant rule catalogues; activity has no home yet |
+| [22 — Type Enforcement](./models/22-type-enforcement.md) | SELinux-shaped domain/type matrices, and why it is not MAC |
+| [23 — Label-Based Access Control](./models/23-label-based.md) | Clearances and classifications; dominance needs an enabler |
 
 Model documents are planning records, not specification. They carry `MOD-QD-NNN`
 identifiers precisely so that describing a capability cannot be mistaken for
@@ -141,3 +157,4 @@ Full rules in [the identifier scheme](./process/requirement-id-scheme.md).
 | CCR-QD-004 | 2026-07-26 | Access control model adoption matrix; `MOD-QD` identifier series registered |
 | CCR-QD-005 | 2026-07-26 | Library renamed Guard → Qadi; scope `@guard/*` → `@qadi/*`; infix `EG` → `QD`; service tags, span names and document ids follow |
 | CCR-QD-006 | 2026-07-26 | Model documents for the seven shipped access control models (MOD-QD-001–007) |
+| CCR-QD-007 | 2026-07-26 | Model documents for the sixteen wiring-only models (MOD-QD-008–023) |
