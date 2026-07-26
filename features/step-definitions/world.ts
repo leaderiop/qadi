@@ -7,6 +7,7 @@ import type {
   Obligation,
   Policy,
   Predicate,
+  Trace,
 } from "@qadi/core";
 import {
   DecisionHistory,
@@ -48,6 +49,19 @@ export interface Outcome {
    * (ADR-QD-023). A rule table's first question is which row hit.
    */
   readonly traceReason: string | undefined;
+  /**
+   * The label of every `Labeled` node that refused, outermost first.
+   *
+   * Attribution cannot come off `reason`. `Labeled` copies its child's sentence
+   * verbatim and carries the label in a field of its own, `Not` passes none at
+   * all, and `AllOf` propagates the child's — so a denial's reason names the
+   * leaf that refused and never the branch it sat in. A label is a property of
+   * the trace ([BEH-QD-039](../../spec/behaviors/05-evaluator.md)).
+   *
+   * Only refusing nodes are collected. An allowing label names nothing, because
+   * an `allOf` needs every child to allow.
+   */
+  readonly deniedLabels: ReadonlyArray<string>;
   readonly visibleFields: ReadonlyArray<string> | undefined;
   readonly obligations: ReadonlyArray<string>;
   /** The `_tag` of the error enforcement produced, when it produced one. */
@@ -60,6 +74,7 @@ const NO_OUTCOME: Outcome = {
   errored: false,
   reason: undefined,
   traceReason: undefined,
+  deniedLabels: [],
   visibleFields: undefined,
   obligations: [],
   failure: undefined,
@@ -307,12 +322,24 @@ const unreachableHistory = Layer.succeed(DecisionHistory, {
     Effect.fail(new DecisionHistoryUnavailable({ event: query.event, cause: "down" })),
 });
 
+/**
+ * The labels of every refusing `Labeled` node, in pre-order.
+ *
+ * A pre-order walk rather than a single value: a denial can sit inside several
+ * labelled ancestors, and the outermost is not always the interesting one.
+ */
+const deniedLabels = (trace: Trace): ReadonlyArray<string> => [
+  ...(!trace.allowed && trace.label !== undefined ? [trace.label] : []),
+  ...trace.children.flatMap(deniedLabels),
+];
+
 const toOutcome = (decision: Decision): Outcome => ({
   allowed: isAllowed(decision),
   denied: !isAllowed(decision),
   errored: false,
   reason: decision._tag === "Deny" ? decision.reason : undefined,
   traceReason: decision.trace.reason,
+  deniedLabels: deniedLabels(decision.trace),
   visibleFields: decision._tag === "Allow" ? decision.visibleFields : undefined,
   obligations:
     decision._tag === "Allow" ? decision.obligations.map((o) => o.id) : [],

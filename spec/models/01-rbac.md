@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-01                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-006) |
+> | Change History | 1.1 (2026-07-26): RBAC₂ statuses corrected — both separation-of-duty forms ship (CCR-QD-021)<br>1.0 (2026-07-26): Initial release (CCR-QD-006) |
 
 ---
 
@@ -135,18 +135,22 @@ const program = Effect.gen(function* () {
 
 ## What is missing
 
-**RBAC₂ — constrained RBAC** is not shipped, and is a separate document.
+**RBAC₂ — constrained RBAC** is largely shipped, and is a separate document
+([MOD-QD-024](./24-separation-of-duty.md)). Both separation-of-duty forms ship;
+what remains excluded is the half that is administration rather than decision.
 
 - *Static separation of duty* — mutually exclusive roles may not both be
-  assigned. **Additive, no enabler**: a constraint over the catalogue, checked
-  where roles are assigned, needing nothing the evaluator lacks.
+  assigned. **Shipped, in part** (`@REQ-QD-017`): nothing additive was ever
+  required. *Detecting* a subject who holds a conflicting pair is
+  `not(allOf([hasRole(a), hasRole(b)]))` and always was; *preventing* the
+  assignment is permanently the caller's, because Qadi has no administrative
+  surface and never sees a grant. See [MOD-QD-024](./24-separation-of-duty.md).
 - *Dynamic separation of duty* — both roles may be held, but not activated
-  together. **Needs E5, the decision history port** ([00 §2](./00-adoption-matrix.md)),
-  since the answer depends on what the subject has already done. It also forces
-  a restatement of
+  together. **Shipped** (`@REQ-QD-012`): it needed ~~E5, the decision history
+  port~~, which landed in CCR-QD-016. It also forced a restatement of
   [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) —
-  reproducibility becomes *given the same history* — and that weakening must be
-  explicit rather than silent.
+  reproducibility became *given the same history* — and that weakening was made
+  explicit in the same change rather than left silent.
 - *Cardinality* and *prerequisite roles* — administrative constraints over
   assignment, not decisions; they belong with the surface Qadi does not have.
 
@@ -154,8 +158,10 @@ const program = Effect.gen(function* () {
 **Administrative RBAC** stays excluded — Qadi decides, it does not administer
 ([00 §3.4](./00-adoption-matrix.md), [the URS](../urs.md)). **Sessions** have no
 representation: activating a subset of assigned roles is modelled today by
-building a narrower `AuthSubject` — adequate for RBAC₀ and RBAC₁, insufficient
-for dynamic separation of duty.
+building a narrower `AuthSubject`, which is adequate for RBAC₀ and RBAC₁. Dynamic
+separation of duty no longer waits on sessions — the history port answers it
+directly, by asking what the subject has already done rather than what they have
+currently activated. Sessions remain unrepresented for other reasons.
 
 ## Verification
 

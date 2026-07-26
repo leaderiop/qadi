@@ -78,6 +78,13 @@ Given("the resource {string}", function (this: QadiWorld, id: string) {
 });
 
 Given(
+  "the resource {string} raised by {string}",
+  function (this: QadiWorld, id: string, raisedBy: string) {
+    this.resource = { id, raisedBy };
+  },
+);
+
+Given(
   "the resource {string} owned by {string}",
   function (this: QadiWorld, id: string, owner: string) {
     this.resource = { id, owner };

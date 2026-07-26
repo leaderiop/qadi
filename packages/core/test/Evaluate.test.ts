@@ -884,6 +884,96 @@ describe("decision history", () => {
     }).pipe(Effect.provide(testLayer(clerk))));
 });
 
+describe("separation of duty as a control", () => {
+  // The dynamic half is the history port above. This is the other two forms
+  // MOD-QD-024 names, and neither needs a construct of its own: they are
+  // compositions of `allOf`, `not`, `labeled` and `subjectId()`.
+  const sodRole = P.labeled("sod.role", P.hasRole("approve-payment"));
+  const sodStatic = P.labeled(
+    "sod.static",
+    P.not(P.allOf([P.hasRole("raise-payment"), P.hasRole("approve-payment")])),
+  );
+  const notSelfRaised = P.not(P.hasResourceAttribute("raisedBy", M.eq(M.subjectId())));
+
+  const fourEyes = P.allOf([sodRole, sodStatic, P.labeled("sod.object", notSelfRaised)]);
+
+  const hardened = P.allOf([
+    sodRole,
+    sodStatic,
+    P.labeled(
+      "sod.object",
+      P.allOf([P.hasResourceAttribute("raisedBy", M.exists()), notSelfRaised]),
+    ),
+  ]);
+
+  const conflicted = subjectWith({
+    id: "u-clerk",
+    roles: ["raise-payment", "approve-payment"],
+  });
+  const approver = subjectWith({ id: "u-approver", roles: ["approve-payment"] });
+  const raiser = subjectWith({ id: "u-raiser", roles: ["raise-payment"] });
+
+  const raisedByOther = { resource: { id: "pay-1", raisedBy: "u-other" } };
+
+  it.effect("a subject holding both conflicting roles is refused", () =>
+    Effect.gen(function* () {
+      // Detection, not prevention: the invalid grant already exists by the time
+      // a subject reaches evaluation, and Qadi never saw it made.
+      const d = yield* evaluate(fourEyes, raisedByOther);
+      assert.isFalse(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(conflicted))));
+
+  it.effect("the refusal is attributable to the branch, and the reason is not", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(fourEyes, raisedByOther);
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+
+      // A label never reaches the reason. `Labeled` copies its child's sentence
+      // verbatim into a separate field, `Not` passes no label at all, and
+      // `AllOf` propagates the child's — so this sentence names the negation and
+      // never the branch it sat in.
+      assert.strictEqual(d.reason, "negated policy allowed");
+      assert.strictEqual(d.trace.children[1]?.label, "sod.static");
+
+      // `AllOf` short-circuits, so the object branch was never evaluated. Its
+      // absence from the trace is evidence in its own right.
+      assert.strictEqual(d.trace.children.length, 2);
+    }).pipe(Effect.provide(testLayer(conflicted))));
+
+  it.effect("holding one role of the pair is not a conflict", () =>
+    Effect.gen(function* () {
+      // `not(allOf([a, b]))` allows whenever either is missing, which is what
+      // mutual exclusion means. The raiser is refused by the role branch.
+      const d = yield* evaluate(fourEyes, raisedByOther);
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.include(d.reason, "approve-payment");
+      assert.strictEqual(d.trace.children.length, 1);
+    }).pipe(Effect.provide(testLayer(raiser))));
+
+  it.effect("nobody approves what they raised", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(fourEyes, {
+        resource: { id: "pay-2", raisedBy: "u-approver" },
+      });
+      assert.isFalse(isAllowed(d));
+      assert.isTrue(
+        isAllowed(yield* evaluate(fourEyes, { resource: { id: "pay-3", raisedBy: "x" } })),
+      );
+    }).pipe(Effect.provide(testLayer(approver))));
+
+  it.effect("an absent raisedBy GRANTS self-approval, and exists() closes it", () =>
+    Effect.gen(function* () {
+      // The hazard, and the opposite of what MOD-QD-024 forecast. `eq` against
+      // an absent field is false, so the negation allows — and a payment row
+      // with no raiser recorded is what a data migration leaves behind.
+      const unrecorded = { resource: { id: "pay-4" } };
+      assert.isTrue(isAllowed(yield* evaluate(fourEyes, unrecorded)));
+      assert.isFalse(isAllowed(yield* evaluate(hardened, unrecorded)));
+    }).pipe(Effect.provide(testLayer(approver))));
+});
+
 describe("obligations", () => {
   // An obligation is a condition on permission, so a decision carries those
   // contributed by the allow it returned — ADR-QD-019. Every rule below follows
