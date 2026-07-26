@@ -572,8 +572,8 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
       // The only evidence that makes a second interpreter over the same tree
       // trustworthy rather than merely plausible. It is obtainable at all only
       // because the predicate is executable (ADR-QD-024).
-      const policies = FastCheck.sample(tree, 120);
-      const sample = FastCheck.sample(rows, 12);
+      const policies = FastCheck.sample(tree, { numRuns: 120, seed: 1024 });
+      const sample = FastCheck.sample(rows, { numRuns: 12, seed: 1024 });
 
       for (const policy of policies) {
         const predicate = yield* translate(policy);

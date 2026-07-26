@@ -197,12 +197,12 @@ describe("security labels", () => {
     a.length === b.length && a.every((c) => b.includes(c));
 
   it("PROPERTY: dominance is reflexive and antisymmetric", () => {
-    for (const a of FastCheck.sample(labels, 200)) {
+    for (const a of FastCheck.sample(labels, { numRuns: 200, seed: 1029 })) {
       assert.strictEqual(compareLabels(a, a), "Equal", `reflexivity: ${JSON.stringify(a)}`);
       assert.isTrue(labelDominates(a, a));
     }
 
-    for (const [a, b] of FastCheck.sample(FastCheck.tuple(labels, labels), 400)) {
+    for (const [a, b] of FastCheck.sample(FastCheck.tuple(labels, labels), { numRuns: 400, seed: 1029 })) {
       // Antisymmetry as the IMPLICATION, not as an example: mutual dominance
       // must force equality. Asserting `Equal` on a pair built to be equal
       // proves nothing about the pairs that are not.
@@ -215,7 +215,7 @@ describe("security labels", () => {
 
   it("PROPERTY: dominance is transitive", () => {
     let witnesses = 0;
-    for (const [a, b, c] of FastCheck.sample(FastCheck.tuple(labels, labels, labels), 2000)) {
+    for (const [a, b, c] of FastCheck.sample(FastCheck.tuple(labels, labels, labels), { numRuns: 2000, seed: 1029 })) {
       if (labelDominates(a, b) && labelDominates(b, c)) {
         witnesses += 1;
         assert.isTrue(
@@ -243,7 +243,7 @@ describe("security labels", () => {
     let flows = 0;
     for (const [source, subject, sink] of FastCheck.sample(
       FastCheck.tuple(labels, labels, labels),
-      2000,
+      { numRuns: 2000, seed: 1029 },
     )) {
       const mayRead = labelDominates(subject, source);
       const mayWrite = labelDominates(sink, subject);
@@ -299,7 +299,7 @@ describe("security labels", () => {
     // MOD-QD-029's Verification rows 4 and 5, unstatable until now.
     for (const [a, b, c] of FastCheck.sample(
       FastCheck.tuple(labels, labels, labels),
-      600,
+      { numRuns: 600, seed: 1029 },
     )) {
       const j = join(a, b);
       assert.isTrue(labelDominates(j, a), `not an upper bound of a: ${JSON.stringify([a, b])}`);
@@ -315,7 +315,7 @@ describe("security labels", () => {
   it("PROPERTY: meet is the GREATEST lower bound", () => {
     for (const [a, b, c] of FastCheck.sample(
       FastCheck.tuple(labels, labels, labels),
-      600,
+      { numRuns: 600, seed: 1029 },
     )) {
       const m = meet(a, b);
       assert.isTrue(labelDominates(a, m), `not a lower bound of a: ${JSON.stringify([a, b])}`);
@@ -331,7 +331,7 @@ describe("security labels", () => {
     // join(a, meet(a, b)) = a and meet(a, join(a, b)) = a. The pair of laws that
     // distinguishes a lattice from any two operators that happen to produce
     // bounds — and the ones a future compartment hierarchy would break first.
-    for (const [a, b] of FastCheck.sample(FastCheck.tuple(labels, labels), 400)) {
+    for (const [a, b] of FastCheck.sample(FastCheck.tuple(labels, labels), { numRuns: 400, seed: 1029 })) {
       assert.strictEqual(
         compareLabels(join(a, meet(a, b)), a),
         "Equal",
@@ -346,7 +346,7 @@ describe("security labels", () => {
   });
 
   it("PROPERTY: compareLabels is total, and its two strict values mirror", () => {
-    for (const [a, b] of FastCheck.sample(FastCheck.tuple(labels, labels), 400)) {
+    for (const [a, b] of FastCheck.sample(FastCheck.tuple(labels, labels), { numRuns: 400, seed: 1029 })) {
       const forward = compareLabels(a, b);
       assert.include(["Equal", "Dominates", "DominatedBy", "Incomparable"], forward);
 

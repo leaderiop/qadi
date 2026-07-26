@@ -92,3 +92,6 @@ entries:
   - id: "ADR-QD-030"
     file: "030-policy-simplification.md"
     title: "Simplification preserves the verdict, not the trace, and is never automatic"
+  - id: "ADR-QD-031"
+    file: "031-decision-cache.md"
+    title: "A cache stores the trace, not the decision, and the key is the security boundary"

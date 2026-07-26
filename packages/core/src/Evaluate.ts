@@ -10,12 +10,15 @@
  */
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import type { Concurrency } from "effect/Types";
 import { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
+import type { DecisionCacheKey } from "./DecisionCache.ts";
+import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
@@ -654,17 +657,43 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   const evaluationId = yield* EvaluationId.next;
   const startedAt = yield* Clock.currentTimeMillis;
 
-  const trace = yield* evaluateNode(
+  // Optional by construction: `serviceOption` adds nothing to the requirements, so
+  // `EvaluationServices` is unchanged and an application that never provides a cache
+  // behaves exactly as it did (ADR-QD-031).
+  const cache = yield* Effect.serviceOption(DecisionCache);
+  const cacheKey: DecisionCacheKey = {
+    subjectId: subject.id,
     policy,
-    subject,
-    {
-      resource: options?.resource,
-      action: options?.action,
-      concurrency: options?.concurrency,
-    },
-    0,
-    options?.maxDepth ?? DEFAULT_MAX_DEPTH,
-  );
+    resource: options?.resource,
+    action: options?.action,
+  };
+
+  const cached = Option.isSome(cache)
+    ? yield* cache.value.lookup(cacheKey)
+    : undefined;
+
+  // The TRACE is cached, never the `Decision`. A cached decision would carry a
+  // duplicate `evaluationId`, so two log lines would claim to be the same event and
+  // correlation — the one thing the identifier exists for — would stop working. The
+  // id and the duration below are stamped per call, hit or miss, so a hit is
+  // indistinguishable from a fresh evaluation except that it was faster.
+  const trace =
+    cached ??
+    (yield* evaluateNode(
+      policy,
+      subject,
+      {
+        resource: options?.resource,
+        action: options?.action,
+        concurrency: options?.concurrency,
+      },
+      0,
+      options?.maxDepth ?? DEFAULT_MAX_DEPTH,
+    ));
+
+  if (cached === undefined && Option.isSome(cache)) {
+    yield* cache.value.remember(cacheKey, trace);
+  }
 
   const durationMillis = (yield* Clock.currentTimeMillis) - startedAt;
 

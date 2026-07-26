@@ -281,7 +281,7 @@ describe("Policy serialization", () => {
         ),
       })).node;
 
-      const samples = FastCheck.sample(tree, 60);
+      const samples = FastCheck.sample(tree, { numRuns: 60, seed: 1002 });
       for (const policy of samples) {
         const restored = yield* Effect.flatMap(P.toJson(policy), P.fromJson);
         assert.deepStrictEqual(restored, policy);

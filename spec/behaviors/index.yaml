@@ -62,3 +62,6 @@ entries:
   - id: "BEH-QD-153"
     file: "20-simplification.md"
     title: "20 — Policy Simplification"
+  - id: "BEH-QD-161"
+    file: "21-decision-cache.md"
+    title: "21 — Decision Cache"

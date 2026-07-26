@@ -1824,7 +1824,7 @@ describe("concurrent evaluation", () => {
       })).node;
 
       let composites = 0;
-      for (const policy of FastCheck.sample(tree, 150)) {
+      for (const policy of FastCheck.sample(tree, { numRuns: 150, seed: 1026 })) {
         const sequential = yield* run(policy, undefined);
         const concurrent = yield* run(policy, "unbounded");
         const bounded = yield* run(policy, 2);

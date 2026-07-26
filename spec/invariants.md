@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.13                                            |
+> | Revision       | 1.14                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -721,5 +721,52 @@ property holds trivially for a `simplify` that returns its argument. Idempotence
 second property over 200 trees.
 
 **Related**: [BEH-QD-154](behaviors/20-simplification.md), [BEH-QD-155](behaviors/20-simplification.md), [INV-QD-004](#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top), [ADR-QD-030](decisions/030-policy-simplification.md).
+
+---
+
+## INV-QD-025: A cache hit differs from a miss only in speed and identity
+
+A cached decision equals an uncached one in verdict, visible fields, obligations and
+trace, and carries a **different** `evaluationId`.
+
+**Source**: `packages/core/src/DecisionCache.ts` and `Evaluate.ts` — the cache stores
+the `Trace`, and `evaluate` stamps `evaluationId` and `durationMillis` per call on a
+hit as well as a miss.
+
+**Implication**: caching the `Decision` whole is the obvious implementation and it
+breaks correlation. Two evaluations would share one `evaluationId`, so two log lines,
+two spans and two audit records would claim to be the same event — undoing
+[ADR-QD-012](decisions/012-deterministic-time-and-ids.md), whose whole purpose is that
+an identifier comes from a service so traces can be correlated and tested. So the
+identity clause is asserted as an **inequality**: equality there is the defect, not
+the guarantee.
+
+**The key is a security boundary, and this is the second time.** The key is
+`subjectId + policy + resource + action`. Keyed on the policy alone, a cache serves
+one subject's allow to another — the same class of defect as an unbound hydration
+payload ([INV-QD-022](#inv-qd-022-a-hydrated-decision-belongs-to-the-subject-that-hydrates-it)).
+A decision is *about* a subject, so any structure holding decisions holds the subject.
+`concurrency` is deliberately **not** in the key: it cannot change the answer
+([INV-QD-020](#inv-qd-020-concurrency-changes-lookups-never-decisions)), so including
+it would split one entry in two for nothing.
+
+**Freshness is the caller's, and the failure mode is not the key's.** A correct key
+prevents the cross-subject leak; only the *lifetime* governs staleness, and Qadi has
+no notion of a request boundary. `decisionCacheLayer` is therefore a function
+returning a fresh cache, so a call site reads as "make a cache here".
+
+**A silently-ineffective cache is worse than none**, which is why the trap has a test
+rather than a note. `Effect.provide` builds a layer per execution, so piping the cache
+onto a single `evaluate` yields a fresh empty cache every run: the same lookups, the
+same cost, and code that reads as though it were caching.
+
+**Enforcement**: `DecisionCache.test.ts` — the same question twice with and without a
+cache, counting resolver calls; a hit compared field by field against its miss with
+`evaluationId` asserted **unequal**; two subjects through one cache with a resolver
+that answers differently, so a leak surfaces as the second subject being allowed; the
+resource and the action each shown to split entries; a denial shown to cache; the
+per-evaluation trap asserted directly; and `concurrency` shown not to split an entry.
+
+**Related**: [BEH-QD-162](behaviors/21-decision-cache.md), [BEH-QD-163](behaviors/21-decision-cache.md), [ADR-QD-031](decisions/031-decision-cache.md).
 
 ---

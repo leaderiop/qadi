@@ -194,7 +194,7 @@ describe("explain", () => {
       ),
     })).node;
 
-    for (const policy of FastCheck.sample(tree, 200)) {
+    for (const policy of FastCheck.sample(tree, { numRuns: 200, seed: 1027 })) {
       const text = renderExplanation(explain(policy));
       assert.isAbove(text.length, 0, `empty rendering for ${JSON.stringify(policy)}`);
       assert.notInclude(text, "undefined", `undefined leaked for ${JSON.stringify(policy)}`);

@@ -2,6 +2,7 @@ export * from "./AttributeResolver.ts";
 export * from "./AuthSubject.ts";
 export * from "./CurrentSubject.ts";
 export * from "./Decision.ts";
+export * from "./DecisionCache.ts";
 export * from "./DecisionHistory.ts";
 export * from "./Errors.ts";
 export * from "./Evaluate.ts";
