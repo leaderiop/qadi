@@ -150,12 +150,24 @@ surviving mutant is most likely to be an authorization defect.
 test written for concurrent evaluation kills evaluator mutants that nothing else
 reached. Every file is above the threshold and the aggregate sits just under 90%.
 
-**What remains unanalysed, stated rather than closed**: 66 mutants still survive in
-`Evaluate.ts`, 39 in `Predicate.ts` and 10 in `Explanation.ts`. Nobody has read
-them. The plausible reading is that most are message strings and defensive arms
-where a survivor is the correct answer, but that is a guess, and the honest position
-is that the *threshold* is met while the *question* — which of those 115 survivors
-matters — has not been asked.
+**The survivors have now been read** (CCR-QD-037). 157 of them, and the question was
+worth asking once: **62 are `StringLiteral`** — the wording of a `reason`, where a
+survivor is the correct answer, since no security property depends on a sentence.
+52 affect logic, and of those exactly **one was a real gap**: `fieldMatch` guarded a
+non-object with `isObject(value) && …`, and every existing test used a non-object
+whose property was `undefined`, so `&&` and `||` agreed by accident. A string has a
+real `length`, so they disagree — `fieldMatch("length", gte(3))` on `"hello"` would
+have read the property off a primitive. Now tested.
+
+Two mutants that looked alarming were **reproduction errors of mine**: the JSON report
+gives the replacement text but not which subexpression it replaced, so a hand-applied
+"same" mutant can be a different one. A hypothesis that `coverageAnalysis: "perTest"`
+was under-attributing tests was checked against `"all"` and **disproved** — 157 either
+way.
+
+The remaining ~156 are message strings, defensive arms and equivalent mutants. That is
+a reading, not a proof, and re-reading them is cheap now that the JSON reporter is
+enabled.
 
 **Phase 4 of the [model adoption matrix](./models/00-adoption-matrix.md) is
 complete**: all five additive enablers have shipped, each with an ADR settled

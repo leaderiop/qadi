@@ -82,6 +82,21 @@ describe("matchers", () => {
     assert.isFalse(run(M.fieldMatch("deep", M.gte(7)), "not an object"));
   });
 
+  it("fieldMatch refuses a NON-OBJECT whose property would have matched", () => {
+    // A mutation survivor found this. Every existing case used a non-object whose
+    // property was `undefined`, so `isObject(v) && …` and `isObject(v) || …` agreed
+    // by accident — both false. A string has a real `length`, so the two disagree:
+    // the guard denies, and dropping it would read the property off a primitive.
+    //
+    // `"hello".length` is 5, which satisfies `gte(3)`. The answer must still be
+    // false, because a string is not an object with a `length` field the policy
+    // author meant to address.
+    assert.isFalse(run(M.fieldMatch("length", M.gte(3)), "hello"));
+    // An array IS an object, so this one legitimately matches — which is the
+    // contrast that makes the string case meaningful rather than incidental.
+    assert.isTrue(run(M.fieldMatch("length", M.gte(3)), [1, 2, 3]));
+  });
+
   it("someMatch and everyMatch quantify over arrays", () => {
     assert.isTrue(run(M.someMatch(M.gte(3)), [1, 5]));
     assert.isFalse(run(M.someMatch(M.gte(3)), [1, 2]));

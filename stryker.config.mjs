@@ -54,7 +54,7 @@ export default {
    * Revisit when Stryker supports TypeScript 7; then this becomes `tsconfig.json`.
    */
   tsconfigFile: "tsconfig.stryker-disabled.json",
-  reporters: ["html", "clear-text", "progress"],
+  reporters: ["html", "json", "clear-text", "progress"],
   htmlReporter: { fileName: "reports/mutation/index.html" },
   coverageAnalysis: "perTest",
 
