@@ -192,11 +192,10 @@ fail-closed default by
 serialisation of `depth` by the round-trip property test in
 `packages/core/test/Policy.test.ts`. The rest is the caller's resolver, tested
 against their own tree — including a cycle case, which is the one the library
-cannot help with. The short-circuit caveat inherited from
-[MOD-QD-003](./03-rebac.md) applies here and costs more: no test proves that an
-unevaluated `anyOf` branch performs no *relationship* lookup, and under a
-decision-time upward walk that branch is the most expensive thing an evaluation
-does.
+cannot help with. Short-circuiting *is* now proven for relationships
+([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation)), which
+matters here more than most: under a decision-time upward walk, the branch that
+gets skipped is the most expensive thing an evaluation does.
 
 ---
 

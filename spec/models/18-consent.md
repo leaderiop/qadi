@@ -233,11 +233,13 @@ invalidation step; and the register unavailable, asserting a
 ever shipped, needs a scenario tagged with a newly allocated `REQ-QD` identifier
 covering the same three.
 
-The caveat inherited from [MOD-QD-003](./03-rebac.md) applies: no test proves that
-an unevaluated branch performs no *relationship* lookup, so any claim that a
-failed permission check spares the register a call rests on
-[INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation), verified
-for attribute resolution only.
+The claim that a failed permission check spares the consent register a call is
+proven rather than inferred: `Evaluate.test.ts` records the queries a
+relationship resolver is asked and asserts there are none when an earlier `allOf`
+child denies
+([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation)). For a
+register holding health data, not being consulted is itself the desirable
+property.
 
 ---
 

@@ -137,7 +137,7 @@ No `RegistryProvider`, no runtime prop, no `Suspense` boundary required. The
 provider creates its own registry, seeds the subject into it at construction —
 so the first render already has it — and disposes it on unmount.
 
-## 4. Qadi the interface
+## 4. Gate the interface
 
 ```tsx
 import { Can, useCan } from "@qadi/react";

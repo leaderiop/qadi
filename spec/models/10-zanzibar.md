@@ -203,14 +203,13 @@ actual argument for running both.
 
 **Latency, and the ordering that mitigates it.** Every `hasRelationship` node is
 a network call — by a wide margin the most expensive thing an evaluation does, so
-cheap local checks belong first in an `anyOf`. That rests on
-[INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation), **which is
-verified for attribute resolution only**: no test yet proves that an unevaluated
-branch performs no *relationship* lookup. It is tracked on the
-[roadmap](../roadmap.md#extend-short-circuit-coverage-to-relationships) and is a
-prerequisite for this phase in [the matrix](./00-adoption-matrix.md), and matters
-more here than anywhere else in the P1 tier: the unproven saving is a round trip,
-not a map lookup.
+cheap local checks belong first in an `anyOf`. That saving is now proven for
+relationships directly, not merely inferred from the attribute case:
+`Evaluate.test.ts` records the queries a resolver is asked and asserts there are
+none when an earlier branch settles the decision
+([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation)). It
+matters more here than anywhere else in the P1 tier, because the saving is a
+round trip rather than a map lookup.
 
 **No adapter ships.** Qadi ships the port and this recipe; naming an adapter
 package would be inventing one.

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -135,7 +135,7 @@ a real service in production — without touching policy or enforcement code.
 Authorization outcomes must appear in the tracing the application already runs,
 with no bespoke adapter.
 
-### URS-QD-013 — Qadi a user interface with the same rules
+### URS-QD-013 — Enforce the same rules in a user interface
 
 The rules enforced on the server must be usable to show and hide interface
 elements, from the same policy values.
@@ -198,7 +198,7 @@ so the specification cannot drift from itself.
 | URS-QD-007 | [BEH-QD-036](./behaviors/05-evaluator.md), [BEH-QD-066](./behaviors/09-react.md), [INV-QD-006](./invariants.md#inv-qd-006-failure-is-not-denial) | `Evaluate.test.ts`, `hooks.test.tsx` |
 | URS-QD-008 | [BEH-QD-043](./behaviors/06-services.md), [INV-QD-007](./invariants.md#inv-qd-007-defaults-fail-closed) | `Layers.test.ts` |
 | URS-QD-009 | [BEH-QD-039](./behaviors/05-evaluator.md) | `Evaluate.test.ts` |
-| URS-QD-010 | [BEH-QD-034](./behaviors/05-evaluator.md), [BEH-QD-065](./behaviors/09-react.md), [INV-QD-005](./invariants.md#inv-qd-005-short-circuit-preservation) | `Evaluate.test.ts`, `QadiAtoms.test.ts` (call counts) |
+| URS-QD-010 | [BEH-QD-034](./behaviors/05-evaluator.md), [BEH-QD-065](./behaviors/09-react.md), [INV-QD-005](./invariants.md#inv-qd-005-short-circuit-preservation) | `Evaluate.test.ts` (attribute and relationship call counts), `QadiAtoms.test.ts` |
 | URS-QD-011 | [BEH-QD-041](./behaviors/06-services.md), [BEH-QD-042](./behaviors/06-services.md) | `Layers.test.ts`, `TestLayers.test.ts` |
 | URS-QD-012 | [ADR-QD-009](./decisions/009-observability-via-effect.md) | — see [§7](#7-known-gaps) |
 | URS-QD-013 | [BEH-QD-067](./behaviors/09-react.md), [BEH-QD-068](./behaviors/09-react.md) | `QadiProvider.test.tsx`, `hooks.test.tsx` |
@@ -211,18 +211,26 @@ so the specification cannot drift from itself.
 
 ## 7. Known gaps
 
-Writing this document surfaced two requirements that are asserted rather than
-verified. They are recorded here instead of being quietly dropped.
+Writing this document surfaced two requirements that were asserted rather than
+verified. They are recorded here instead of being quietly dropped. One remains.
 
 **URS-QD-012 has no test.** `evaluate` annotates a `qadi.evaluate` span, but
 nothing asserts that the span is emitted or that its attributes are correct. The
 requirement is satisfied by inspection only. Tracked on the
 [roadmap](./roadmap.md#verify-span-emission).
 
-**URS-QD-010 is verified only for attribute resolution.** The call-count tests
-cover `AttributeResolver`; there is no equivalent test proving that an
-unevaluated branch performs no *relationship* lookup. Tracked on the
-[roadmap](./roadmap.md#extend-short-circuit-coverage-to-relationships).
+**URS-QD-010 was verified only for attribute resolution. Closed (CCR-QD-009).**
+The call-count tests covered `AttributeResolver` alone; nothing proved that an
+unevaluated branch performs no *relationship* lookup — the more expensive of the
+two, and the one most likely to cross a network. `Evaluate.test.ts` now records
+the queries a relationship resolver is asked and asserts there are none when an
+earlier branch settles the decision, under both `anyOf` and `allOf`, with the
+`Union` strategy asserted to perform every lookup by design.
+
+Closing it found a second, unrecorded gap: `RelationshipResolveError`
+propagation was untested entirely, so [INV-QD-006](./invariants.md#inv-qd-006-failure-is-not-denial)
+held for attribute failures by test and for relationship failures by inspection.
+That is now covered too.
 
 ---
 

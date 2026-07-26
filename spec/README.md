@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-00                                        |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification — Master Index        |
-> | Change History | 1.4 (2026-07-26): Core-change and excluded model documents (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only model documents (CCR-QD-007)<br>1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.4 (2026-07-26): Core-change and excluded model documents (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only model documents (CCR-QD-007)<br>1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -173,3 +173,4 @@ Full rules in [the identifier scheme](./process/requirement-id-scheme.md).
 | CCR-QD-006 | 2026-07-26 | Model documents for the seven shipped access control models (MOD-QD-001–007) |
 | CCR-QD-007 | 2026-07-26 | Model documents for the sixteen wiring-only models (MOD-QD-008–023) |
 | CCR-QD-008 | 2026-07-26 | Model documents for the core-change and excluded models (MOD-QD-024–037); model set complete |
+| CCR-QD-009 | 2026-07-26 | Relationship short-circuit and resolver-failure coverage; URS-QD-010 known gap closed |

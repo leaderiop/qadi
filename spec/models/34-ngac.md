@@ -267,10 +267,10 @@ The compiled example rests on proven mechanics — relationship evaluation by
 `REQ-QD-005`, the fail-closed default by
 [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) — but the
 resolver in it is the caller's and its traversal is untested by anything here.
-The short-circuit caveat from [MOD-QD-003](./03-rebac.md) applies and costs more
-than usual: no test proves that an unevaluated `anyOf` branch performs no
-*relationship* lookup, and under a full graph traversal that branch is the whole
-cost of the decision.
+Short-circuiting *is* proven for relationships
+([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation)), which
+matters more here than usual: under a full graph traversal, the branch that gets
+skipped is the whole cost of the decision.
 
 Were E6 built, its scenario would need a newly allocated `REQ-QD` identifier and
 would have to assert the property the naive implementation loses first: that a

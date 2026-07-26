@@ -3,12 +3,15 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
+import { AttributeResolveError, RelationshipResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { relationshipResolverFromEdges } from "../src/RelationshipResolver.ts";
+import {
+  RelationshipResolver,
+  relationshipResolverFromEdges,
+} from "../src/RelationshipResolver.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
@@ -228,6 +231,102 @@ describe("short-circuiting", () => {
       const r = yield* Effect.result(
         evaluate(P.hasAttribute("x", M.exists())).pipe(
           Effect.provide(testLayer(subjectWith({}), { attributes: failing })),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+    }));
+
+  /**
+   * Records the queries a resolver was actually asked, so an unevaluated branch
+   * can be shown to cost nothing — not merely to be absent from the decision.
+   *
+   * A relationship lookup is the expensive one: it is the branch most likely to
+   * cross a network. Counting attribute calls proved the rule for the cheap
+   * case only, which is why these mirror the tests above.
+   */
+  const recordingRelationships = (calls: Array<string>) =>
+    Layer.succeed(RelationshipResolver, {
+      check: (request) =>
+        Effect.sync(() => {
+          calls.push(`${request.subjectId} ${request.relation} ${request.resourceId}`);
+          return request.relation === "owner";
+        }),
+    });
+
+  const doc = { resource: { id: "doc-1" } };
+
+  it.effect("AnyOf/First performs no relationship lookup once a child allows", () =>
+    Effect.gen(function* () {
+      const calls: Array<string> = [];
+      const policy = P.anyOf([P.hasRole("a"), P.hasRelationship("owner")]);
+
+      const d = yield* evaluate(policy, doc).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ roles: ["a"] }), {
+            relationships: recordingRelationships(calls),
+          }),
+        ),
+      );
+
+      assert.isTrue(isAllowed(d));
+      assert.deepStrictEqual(calls, []);
+    }));
+
+  it.effect("AllOf performs no relationship lookup once a child denies", () =>
+    Effect.gen(function* () {
+      const calls: Array<string> = [];
+      const policy = P.allOf([P.hasRole("nope"), P.hasRelationship("owner")]);
+
+      const d = yield* evaluate(policy, doc).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), {
+            relationships: recordingRelationships(calls),
+          }),
+        ),
+      );
+
+      assert.isFalse(isAllowed(d));
+      assert.deepStrictEqual(calls, []);
+    }));
+
+  it.effect("AnyOf/Union performs every relationship lookup by design", () =>
+    Effect.gen(function* () {
+      const calls: Array<string> = [];
+      const policy = P.anyOf(
+        [P.hasRelationship("owner"), P.hasRelationship("editor")],
+        { fieldStrategy: "Union" },
+      );
+
+      const d = yield* evaluate(policy, doc).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), {
+            relationships: recordingRelationships(calls),
+          }),
+        ),
+      );
+
+      assert.isTrue(isAllowed(d));
+      assert.deepStrictEqual(calls, ["u1 owner doc-1", "u1 editor doc-1"]);
+    }));
+
+  it.effect("relationship resolution errors propagate rather than denying", () =>
+    Effect.gen(function* () {
+      // Same rule as the attribute case: an unreachable relationship store is
+      // an outage, not a decision that the subject lacks the relationship.
+      const failing = Layer.succeed(RelationshipResolver, {
+        check: (request) =>
+          Effect.fail(
+            new RelationshipResolveError({
+              relation: request.relation,
+              resourceId: request.resourceId,
+              cause: "boom",
+            }),
+          ),
+      });
+
+      const r = yield* Effect.result(
+        evaluate(P.hasRelationship("owner"), doc).pipe(
+          Effect.provide(testLayer(subjectWith({}), { relationships: failing })),
         ),
       );
       assert.strictEqual(r._tag, "Failure");

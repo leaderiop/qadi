@@ -150,19 +150,7 @@ const allowed = check(canReadDocument, { resource: { id: "doc-1" } }).pipe(
 
 ## What is missing
 
-Nothing in the model; three things around it.
-
-**Relationship short-circuit coverage.** Short-circuiting is proven for
-attribute resolution by counting resolver calls — an unevaluated `anyOf` branch
-must perform no attribute lookup
-([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation)). No
-equivalent assertion exists for *relationship* lookups. `edgeRelationshipResolver`
-already records its queries, so this is a coverage gap, not a capability gap;
-it is tracked on the
-[roadmap](../roadmap.md#extend-short-circuit-coverage-to-relationships) and in
-the known gaps of [the URS](../urs.md), and it matters more than its size
-suggests, because a relationship lookup is the most expensive thing an
-evaluation does.
+Nothing in the model; two things around it.
 
 **Qadi ships no graph store — it ships a port.** Zanzibar-style adapters for
 SpiceDB and OpenFGA are P1 *Wiring* work in the
@@ -181,6 +169,7 @@ question with a depth budget attached.
 | Evidence | Location |
 | -------- | -------- |
 | Resolver consulted; absent edge denies; missing `resource.id` fails; default fails closed | `packages/core/test/Evaluate.test.ts` |
+| An unevaluated branch performs **no relationship lookup**, under both `anyOf` and `allOf`; `Union` performs every lookup by design; a resolver failure propagates rather than denying | `packages/core/test/Evaluate.test.ts` |
 | `RelationshipResolverNever` denies everything; `relationshipResolverFromEdges` matches direct edges only | `packages/core/test/Layers.test.ts` |
 | `hasRelationship` carries `depth` and `fields`; JSON round trip via the FastCheck generator | `packages/core/test/Policy.test.ts` |
 | `edgeRelationshipResolver` records its queries; `qadiTestLayer` defaults fail closed | `packages/testing/test/TestLayers.test.ts` |

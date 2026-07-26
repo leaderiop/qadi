@@ -177,12 +177,12 @@ already proven: relationship evaluation by `REQ-QD-005`, the fail-closed default
 by [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed), and
 owner-as-field by `REQ-QD-009`.
 
-One caveat inherited from [MOD-QD-003](./03-rebac.md): there is still no test
-proving that an unevaluated branch performs no *relationship* lookup. The
-short-circuit claim in the worked example above rests on the general rule in
-[INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation), which is
-verified for attribute resolution only. Closing that gap is listed as a
-prerequisite for this phase in [the matrix](./00-adoption-matrix.md).
+The short-circuit claim in the worked example — that an owner reading their own
+document performs no grant lookup — is now proven directly rather than inferred.
+`Evaluate.test.ts` records the queries a relationship resolver is asked and
+asserts there are none when an earlier branch settles the decision, under both
+`anyOf` and `allOf`
+([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation)).
 
 ---
 

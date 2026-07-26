@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -320,15 +320,15 @@ with model adoption, and one — the package scope — was resolved by it.
 | Roadmap item | Interaction |
 | ------------ | ----------- |
 | Decide the package scope | **Resolved.** See §4.1 |
-| Extend short-circuit coverage to relationships | **Prerequisite for P1.** Every P1 model adds relationship lookups; the short-circuit proof should exist before the surface widens |
+| Extend short-circuit coverage to relationships | **Closed** (CCR-QD-009). Was a prerequisite for P1, since every P1 model adds relationship lookups; the proof now exists |
 | Verify span emission | **Prerequisite for E2.** Obligations are reported through the span; asserting them requires the span collector this item already needs |
 | Batch subject evaluation | **Is E6.** Same work, listed twice; the roadmap entry is the authority |
 | Concurrent evaluation | **Blocked by E3.** Combining algorithms and evaluation order are the same design question, and settling concurrency first would fix the answer |
 
-The two entries in [Known gaps](../urs.md) are both verification gaps, not
-capability gaps, and both are already tracked. Neither blocks model adoption,
-but the relationship short-circuit gap is listed above as a prerequisite because
-P1 multiplies the untested surface.
+Both entries in [Known gaps](../urs.md) were verification gaps rather than
+capability gaps. One is now closed: relationship short-circuiting is proven, and
+closing it also covered `RelationshipResolveError` propagation, which turned out
+to be untested entirely. Only the span-emission gap remains.
 
 ### 4.1 The package-scope conflict, and how it was resolved
 
@@ -363,9 +363,10 @@ REQUIREMENT: Model documents MUST confine `@qadi/` references to import
 Phases are ordered by dependency, not by value. Nothing here is required for the
 library to be correct.
 
-**Phase 0 — Unblock.** ✔ Package scope and infix resolved (CCR-QD-005). Still
-open: close the relationship short-circuit coverage gap. Neither is model work;
-both get more expensive once model documents exist.
+**Phase 0 — Unblock.** ✔ Complete. Package scope and infix resolved
+(CCR-QD-005); relationship short-circuit coverage closed (CCR-QD-009). Neither
+was model work, and both would have grown more expensive once the model
+documents existed.
 
 **Phase 1 — Record what is shipped.** ✔ Seven P0 documents (CCR-QD-006). The
 template proof: it corrected three API claims this document had wrong, which is
