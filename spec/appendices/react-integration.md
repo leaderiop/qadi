@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-APP-REACT                                 |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Appendix — Worked Example                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-003) |
+> | Change History | 1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
 
 ---
 
@@ -79,9 +79,11 @@ process.
 
 ## 2. Define the atoms and the policies
 
-Both at module scope. Atoms are keyed by policy *reference*, so a policy built
-inline in render is a new key on every render — a new atom, a new evaluation,
-and no sharing with any other component asking the same question.
+Both at module scope. Atoms are keyed *structurally*, so a policy built inline
+in render still shares an atom with an equal one built anywhere else — but the
+structural hash is cached per object, so a fresh object every render re-walks the
+whole policy tree to arrive at the atom it was always going to find. Hoisting is
+a performance habit here, not a correctness requirement.
 
 ```typescript
 import { allOf, hasPermission, hasRole, permission } from "@qadi/core";
@@ -422,8 +424,8 @@ export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
 
 | Symptom | Cause | Fix |
 | ------- | ----- | --- |
-| Every render re-evaluates | Policy built inline; atoms key on reference | Hoist the policy to module scope |
-| A list re-evaluates per render | Resource objects rebuilt each render | Render from a stable array, or memoise |
+| Every render re-hashes the policy tree | Policy built inline; the structural hash is cached per object | Hoist the policy to module scope |
+| A list re-hashes per render | Resource objects rebuilt each render | Render from a stable array, or memoise |
 | Control flickers on refresh | `waiting` reads as pending by design | Use `useDecision` and decide for yourself |
 | Everything denied, nothing loading | No provider above the hook | The thrown `MissingQadiProviderError` names the hook |
 | `subject("id")` never matches | `subject(path)` reads attributes, not identity | Use `subjectId()` |

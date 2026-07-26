@@ -122,8 +122,14 @@ export const makeQadiAtoms = (layer: QadiLayer): QadiAtoms => {
       .pipe(runtime.factory.withReactivity([DECISIONS_KEY]));
 
   // `Atom.family` memoises on the argument, so every component asking the same
-  // question shares one evaluation. Policies are compared by reference: build
-  // them as module-level constants.
+  // question shares one evaluation. It keys **structurally** — the family holds
+  // a `MutableHashMap`, which compares with `Equal.equals` — so two separately
+  // constructed but equal policies share one atom, and sharing survives a policy
+  // built inline in render. Hoisting to module scope is still worth doing, but
+  // for hashing cost rather than for correctness: the hash is cached per object,
+  // so a fresh object each render re-walks the whole policy tree.
+  // `v4-reactivity-smoke.test.ts` pins this; a bump to reference keying would
+  // silently stop inline policies sharing.
   const decision = Atom.family((policy: Policy) => decisionAtom(policy, undefined));
 
   const decisionByResource = Atom.family((policy: Policy) =>

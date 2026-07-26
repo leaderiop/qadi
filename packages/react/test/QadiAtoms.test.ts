@@ -110,6 +110,31 @@ describe("makeQadiAtoms", () => {
     expect(atoms.decision(canRead)).not.toBe(atoms.decision(isAdmin));
   });
 
+  it("shares one atom between two equal policies built independently", () => {
+    // BEH-QD-071. `Atom.family` keys structurally, so sharing does not depend on
+    // the caller holding one reference — a policy built inline in render still
+    // shares with an equal one built anywhere else.
+    //
+    // This document and this package both claimed the opposite until the
+    // reactivity canary disproved it. The practical advice (hoist to module
+    // scope) was unaffected, which is why the wrong reason went unchallenged.
+    const atoms = makeQadiAtoms(baseLayer);
+
+    expect(atoms.decision(hasRole("admin"))).toBe(atoms.decision(hasRole("admin")));
+    expect(atoms.decision(hasRole("admin"))).not.toBe(atoms.decision(hasRole("editor")));
+
+    // Nested structure, not just a flat leaf: the comparison has to walk in.
+    const a = hasPermission(permission("doc", "read"));
+    const b = hasPermission(permission("doc", "read"));
+    const c = hasPermission(permission("doc", "write"));
+    expect(atoms.decision(a)).toBe(atoms.decision(b));
+    expect(atoms.decision(a)).not.toBe(atoms.decision(c));
+
+    // And for the resource key, which is keyed the same way.
+    expect(atoms.decisionFor(a, { id: "d1" })).toBe(atoms.decisionFor(b, { id: "d1" }));
+    expect(atoms.decisionFor(a, { id: "d1" })).not.toBe(atoms.decisionFor(a, { id: "d2" }));
+  });
+
   it("keys resource-scoped decisions by policy and resource together", () => {
     const atoms = makeQadiAtoms(baseLayer);
     const doc = { id: "d1" };

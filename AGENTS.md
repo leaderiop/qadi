@@ -234,8 +234,12 @@ state-management layer of its own. The rules that keep it that way:
 - **Read decisions through `currentDecision`.** It is the single place the rule
   "a decision being re-checked is not a decision" lives (ADR-QD-017). A new
   consumer that reads `AsyncResult.isSuccess` directly will report stale allows.
-- **Atoms are keyed by reference.** Policies and resources belong at module
-  scope or behind `useMemo`; anything built inline in render defeats sharing.
+- **Atoms are keyed structurally.** `Atom.family` compares with `Equal.equals`,
+  so two separately built but equal policies share one atom and an inline policy
+  still shares. Hoist to module scope or `useMemo` anyway — the hash is cached
+  per object, so a fresh object each render re-walks the tree — but do not claim
+  inline "defeats sharing", because it does not.
+  `v4-reactivity-smoke.test.ts` pins the keying rule.
 - **Test the graph, not the DOM, where you can.** `QadiAtoms.test.ts` renders
   nothing — caching, sharing and invalidation are properties of the atoms, and
   proving them through components only makes the test slower and vaguer.

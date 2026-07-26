@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -25,7 +25,7 @@ serialization, React integration and a test toolkit.
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 192 passing |
+| Unit and property tests | 203 passing |
 | Acceptance scenarios | 38 scenarios, 159 steps passing |
 | Coverage | 99.6% statements, 96.6% branches — thresholds enforced |
 | Doc examples compile | 55 blocks |
@@ -45,17 +45,21 @@ confidence, ergonomics or reach.
 
 ## Blocking first release
 
-### Track `effect/unstable/reactivity`
+Nothing. The last item — a canary over `effect/unstable/reactivity` — closed in
+CCR-QD-013.
 
-`@qadi/react` is built on a module that is unstable by name
-([ADR-QD-014](./decisions/014-react-via-atoms.md)). Its API may move before
-Effect 4.0 is released, and this package moves with it.
+`@qadi/react` is still built on a module that is unstable by name
+([ADR-QD-014](./decisions/014-react-via-atoms.md)), and its API may still move
+before Effect 4.0. What changed is that the exposure is now pinned:
+`packages/react/test/v4-reactivity-smoke.test.ts` exercises every reactivity API
+`QadiAtoms.ts` and `QadiProvider.tsx` call, so a beta bump fails in one place
+rather than diffusely across the React suite.
 
-The exposure is contained — `QadiAtoms.ts` and one `useSyncExternalStore` call
-in `QadiProvider.tsx` — but there is no canary for it yet. The core package has
-`v4-api-smoke.test.ts` pinning the APIs it relies on; the reactivity APIs
-deserve the same, so a beta bump fails loudly in one place rather than
-mysteriously across the React suite.
+Writing it immediately earned its keep. `Atom.family` keys **structurally**, not
+by reference — the opposite of what this package, its behaviour document, its
+integration guide and `AGENTS.md` had all stated since the React rebuild. The
+practical advice was unaffected, which is why the wrong reason survived three
+revisions; see [BEH-QD-071](./behaviors/09-react.md).
 
 ## Planned
 

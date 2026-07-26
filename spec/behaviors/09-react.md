@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 2.0                                                          |
+> | Revision       | 2.1                                                          |
 > | Effective Date | 2026-07-26                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -199,14 +199,28 @@ now one implementation and no factory to keep in sync.
 ## BEH-QD-071: Policy identity
 
 ```
-REQUIREMENT: Build policies as module-level constants. Atoms are keyed by
-             policy reference, so a policy constructed inline in render is a new
-             key on every render: a new atom, a new evaluation, and no sharing
-             with any other component asking the same question.
+REQUIREMENT: Atoms MUST be keyed such that two equal policies share one
+             evaluation. `Atom.family` compares with `Equal.equals`, so keying
+             is structural: a policy constructed inline in render shares with
+             an equal one built anywhere else.
+```
+
+```
+REQUIREMENT: Policies SHOULD be built as module-level constants — a
+             recommendation, not a correctness rule. The structural hash is
+             cached per object, so a fresh object on every render re-walks the
+             whole policy tree to find the atom it was already going to find.
 ```
 
 The same applies to the `resource` argument and to the record passed to
 `usePolicies`. Hoist them, or memoise them.
+
+**This document said the opposite until revision 1.1**, and stated it as a
+requirement: that keying was by reference and an inline policy therefore got a
+new atom and no sharing. Writing the reactivity canary disproved it. The
+practical advice was unchanged by the correction, which is exactly why it
+survived three revisions unchallenged — the guidance was right and the reason
+was wrong.
 
 ---
 
