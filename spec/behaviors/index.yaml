@@ -50,3 +50,6 @@ entries:
   - id: "BEH-QD-121"
     file: "16-predicates.md"
     title: "16 — Predicate Output"
+  - id: "BEH-QD-129"
+    file: "17-concurrency.md"
+    title: "17 — Concurrent Evaluation"

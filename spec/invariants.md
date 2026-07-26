@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -89,6 +89,15 @@ set would invert the meaning of every unrestricted policy.
 
 A policy branch that is not evaluated performs no attribute or relationship
 lookup.
+
+**Scoped, not universal, since CCR-QD-027**: this holds under the default
+sequential evaluation. `EvaluateOptions.concurrency` forfeits it deliberately and
+by explicit request — see
+[INV-QD-020](#inv-qd-020-concurrency-changes-lookups-never-decisions), which
+carries the property that makes forfeiting it safe. The invariant is *scoped*
+rather than repealed because a caller who does not ask for concurrency is
+unaffected by its existence, and that is the whole safety argument
+([ADR-QD-026](decisions/026-concurrent-evaluation.md)).
 
 **Source**: `packages/core/src/Evaluate.ts` — resolution happens inside the leaf
 evaluator, reached only when that leaf is visited. `AllOf` returns at its first
@@ -496,5 +505,50 @@ emergent. An invariant recorded before that change is cheap; recorded after, it
 is archaeology.
 
 **Related**: [BEH-QD-102](behaviors/13-labels.md), [ADR-QD-021](decisions/021-label-lattice.md).
+
+---
+
+## INV-QD-020: Concurrency changes lookups, never decisions
+
+For every policy and every request, the `Decision` and its `Trace` are identical
+whether or not `EvaluateOptions.concurrency` is supplied.
+
+**Source**: `packages/core/src/Evaluate.ts` — the rules that combine child traces
+live in one fold per composite (`stepAllOf`/`finishAllOf`, `stepAnyOf`/
+`finishAnyOf`, and the `step` closure inside `evaluateRules`). Both paths drive
+that same fold in declaration order; the sequential one stops evaluating when a
+step yields a verdict, the concurrent one evaluates everything and then stops
+*folding* at the same index.
+
+**Implication**: `Trace.children` is the half a naive implementation gets wrong.
+`Effect.forEach` preserves input order, so the verdict would survive while the
+trace grew — a concurrent `allOf` recording four children where the sequential one
+records two. The trace is public, is what `filter` and the React bindings surface,
+and is what a reviewer reads to answer "why". So the concurrent path **discards**
+trace nodes for children evaluated after the decisive one: the work was speculative
+by construction, and keeping it would make the trace depend on a performance switch.
+
+**This is structural rather than asserted into place.** There is no second copy of
+the decision rules to compare against — unlike
+[INV-QD-018](#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows),
+where a predicate has an independent reason to exist as a second interpreter. A
+schedule has none, so duplicating the rules and testing agreement was rejected in
+favour of sharing them.
+
+**Enforcement**: a `FastCheck` property samples 150 generated trees — composites
+under all three field strategies, negation, and rule tables under all three
+combining algorithms — and compares the full trace across sequential, bounded and
+unbounded evaluation. Plus explicit cases for the three interactions that made this
+undesignable earlier: `First` field-set order, the deciding rule selected by index
+rather than arrival, and a resolver failure in a branch a sequential walk would
+have skipped.
+
+**The property needs a vacuity guard, and this is the second time.** Equality of
+decisions alone would hold for a `concurrency` option that did nothing at all, so
+the property counts the trees where the concurrent run performed *more* lookups
+than the sequential one and asserts that count is non-trivial. INV-QD-018 cost this
+lesson once; it is cheaper to apply it than to relearn it.
+
+**Related**: [BEH-QD-130](behaviors/17-concurrency.md), [INV-QD-005](#inv-qd-005-short-circuit-preservation), [ADR-QD-026](decisions/026-concurrent-evaluation.md).
 
 ---

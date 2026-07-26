@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as FastCheck from "effect/testing/FastCheck";
 import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
@@ -1590,5 +1591,260 @@ describe("observability", () => {
       assert.isDefined(span);
       if (span === undefined) return;
       assert.notStrictEqual(span.status._tag, "Started");
+    }));
+});
+
+describe("concurrent evaluation", () => {
+  // ADR-QD-026: turning concurrency on changes which lookups happen and how long
+  // they take. It must not change the decision or the trace.
+  const label = (level: number, ...compartments: ReadonlyArray<string>) => ({
+    level,
+    compartments,
+  });
+
+  const subject = subjectWith({
+    id: "u-1",
+    roles: ["editor"],
+    permissions: ["doc:read"],
+    attributes: { seniority: 5, clearance: label(2, "CRYPTO") },
+  });
+
+  const resource = { id: "doc-1", ownerId: "u-1", tenantId: "t-1", label: label(1) };
+
+  /** Counts every attribute and relationship lookup an evaluation performs. */
+  const counting = (calls: Array<string>) => ({
+    attributes: Layer.succeed(AttributeResolver, {
+      resolve: (_id: string, attribute: string) =>
+        Effect.sync(() => {
+          calls.push(`attr:${attribute}`);
+          return attribute === "riskScore" ? 10 : undefined;
+        }),
+    }),
+    relationships: Layer.succeed(RelationshipResolver, {
+      check: (request: { readonly relation: string }) =>
+        Effect.sync(() => {
+          calls.push(`rel:${request.relation}`);
+          return request.relation === "owner";
+        }),
+    }),
+  });
+
+  const run = (policy: P.Policy, concurrency: number | "unbounded" | undefined) =>
+    Effect.gen(function* () {
+      const calls: Array<string> = [];
+      const decision = yield* evaluate(policy, {
+        resource,
+        action: "read",
+        ...(concurrency === undefined ? {} : { concurrency }),
+      }).pipe(Effect.provide(testLayer(subject, counting(calls))));
+      return { decision, calls };
+    });
+
+  it.effect("the decision and the whole trace are identical either way", () =>
+    Effect.gen(function* () {
+      // A tree with a denying branch mid-way, so short-circuiting is observable:
+      // sequential stops at `hasRole("legal")`, concurrent evaluates past it and
+      // must then discard what it learned.
+      const policy = P.allOf([
+        P.hasPermission(permission("doc", "read")),
+        P.hasRole("legal"),
+        P.hasRelationship("owner"),
+        P.hasAttribute("riskScore", M.gte(1)),
+      ]);
+
+      const sequential = yield* run(policy, undefined);
+      const concurrent = yield* run(policy, "unbounded");
+
+      assert.isFalse(isAllowed(sequential.decision));
+      assert.isFalse(isAllowed(concurrent.decision));
+      // Deep equality over the trace, which includes `children` — the shape a
+      // reviewer reads and the thing a naive implementation would change.
+      assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
+      assert.strictEqual(concurrent.decision.trace.children.length, 2);
+    }));
+
+  it.effect("concurrency performs MORE lookups, or it is doing nothing", () =>
+    Effect.gen(function* () {
+      // The equality test above would pass if `concurrency` were ignored
+      // entirely. This is the half that proves it is not.
+      const policy = P.allOf([
+        P.hasRole("legal"),
+        P.hasRelationship("owner"),
+        P.hasAttribute("riskScore", M.gte(1)),
+      ]);
+
+      const sequential = yield* run(policy, undefined);
+      const concurrent = yield* run(policy, "unbounded");
+
+      // `hasRole` denies from the subject in hand, so sequential asks nothing.
+      assert.deepStrictEqual(sequential.calls, []);
+      assert.deepStrictEqual(concurrent.calls.toSorted(), ["attr:riskScore", "rel:owner"]);
+      assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
+    }));
+
+  it.effect("an allowing anyOf under First keeps the first branch's fields", () =>
+    Effect.gen(function* () {
+      // The interaction the roadmap named: under `First` the order of allowing
+      // children decides the field set, so concurrency must fold by declaration
+      // order rather than by which fiber finished first.
+      const policy = P.anyOf([
+        P.hasRelationship("owner", { fields: ["id", "title"] }),
+        P.hasPermission(permission("doc", "read"), { fields: ["id", "title", "body"] }),
+      ]);
+
+      const sequential = yield* run(policy, undefined);
+      const concurrent = yield* run(policy, "unbounded");
+
+      assert.strictEqual(sequential.decision._tag, "Allow");
+      assert.strictEqual(concurrent.decision._tag, "Allow");
+      if (sequential.decision._tag !== "Allow" || concurrent.decision._tag !== "Allow") return;
+      assert.deepStrictEqual(sequential.decision.visibleFields, ["id", "title"]);
+      assert.deepStrictEqual(concurrent.decision.visibleFields, ["id", "title"]);
+      assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
+    }));
+
+  it.effect("the deciding rule is selected by index, not by arrival", () =>
+    Effect.gen(function* () {
+      // E3's constraint. Under DenyOverrides the verdict is order-independent but
+      // the DECIDING ROW is not, and it supplies the field set and obligations.
+      const audited = obligation("audit.log");
+      const policy = P.rules(
+        [
+          P.permitWhen(P.hasRelationship("owner")),
+          P.permitWhen(P.obliged(audited, P.hasRole("editor"))),
+          P.denyWhen(P.hasRole("suspended")),
+        ],
+        { combining: "DenyOverrides" },
+      );
+
+      const sequential = yield* run(policy, undefined);
+      const concurrent = yield* run(policy, "unbounded");
+
+      assert.isTrue(isAllowed(sequential.decision));
+      assert.strictEqual(sequential.decision.trace.reason, "rules[0] permitted");
+      assert.strictEqual(concurrent.decision.trace.reason, "rules[0] permitted");
+      // Row 0 carries no duty; row 1 does. Selecting by arrival could pick row 1
+      // and the decision would owe an obligation the sequential run does not.
+      assert.strictEqual(concurrent.decision._tag, "Allow");
+      if (concurrent.decision._tag !== "Allow") return;
+      assert.deepStrictEqual(concurrent.decision.obligations, []);
+      assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
+    }));
+
+  it.effect("a nested tree agrees at every depth", () =>
+    Effect.gen(function* () {
+      const policy = P.allOf([
+        P.anyOf([P.hasRole("nobody"), P.hasRelationship("owner")]),
+        P.anyOf(
+          [P.hasAttribute("riskScore", M.gte(1)), P.hasPermission(permission("doc", "read"))],
+          { fieldStrategy: "Union" },
+        ),
+        P.not(P.hasRole("suspended")),
+      ]);
+
+      const sequential = yield* run(policy, undefined);
+      const concurrent = yield* run(policy, 2);
+
+      assert.isTrue(isAllowed(sequential.decision));
+      assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
+    }));
+
+  it.effect("an error in any branch still fails rather than denying", () =>
+    Effect.gen(function* () {
+      // INV-QD-006 under concurrency: a resolver failure is an error, and it must
+      // not be swallowed into a denial just because a sibling denied first.
+      const policy = P.allOf([
+        P.hasRole("legal"),
+        P.hasAttribute("boom", M.gte(1)),
+      ]);
+
+      const failing = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
+      });
+
+      const r = yield* Effect.result(
+        evaluate(policy, { resource, concurrency: "unbounded" }).pipe(
+          Effect.provide(testLayer(subject, { attributes: failing })),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+    }));
+
+  it.effect("PROPERTY: both paths agree on every generated tree", () =>
+    Effect.gen(function* () {
+      // The same shape of evidence INV-QD-018 needed for predicates: two ways of
+      // producing one answer, compared rather than argued about. Here the two are
+      // not two interpreters but two schedules over one interpreter, so agreement
+      // is a claim about the fold rather than about the semantics.
+      const leaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
+        FastCheck.constantFrom("editor", "legal", "suspended").map((r) => P.hasRole(r)),
+        FastCheck.constant(P.hasPermission(permission("doc", "read"))),
+        FastCheck.constant(P.hasPermission(permission("doc", "delete"))),
+        FastCheck.constantFrom("owner", "viewer").map((r) => P.hasRelationship(r)),
+        FastCheck.constantFrom("riskScore", "seniority", "absent").map((a) =>
+          P.hasAttribute(a, M.gte(1)),
+        ),
+        FastCheck.constant(P.hasResourceAttribute("ownerId", M.eq(M.subjectId()))),
+      );
+
+      const strategies = FastCheck.constantFrom(
+        "First" as const,
+        "Union" as const,
+        "Intersection" as const,
+      );
+
+      const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
+        node: FastCheck.oneof(
+          { maxDepth: 3, withCrossShrink: true },
+          leaf,
+          FastCheck.tuple(
+            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }),
+            strategies,
+          ).map(([ps, fieldStrategy]) => P.allOf(ps, { fieldStrategy })),
+          FastCheck.tuple(
+            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }),
+            strategies,
+          ).map(([ps, fieldStrategy]) => P.anyOf(ps, { fieldStrategy })),
+          (tie("node") as FastCheck.Arbitrary<P.Policy>).map(P.not),
+          FastCheck.tuple(
+            FastCheck.array(
+              FastCheck.tuple(
+                tie("node") as FastCheck.Arbitrary<P.Policy>,
+                FastCheck.boolean(),
+              ).map(([c, permits]) => (permits ? P.permitWhen(c) : P.denyWhen(c))),
+              { maxLength: 3 },
+            ),
+            FastCheck.constantFrom(
+              "FirstApplicable" as const,
+              "DenyOverrides" as const,
+              "PermitOverrides" as const,
+            ),
+          ).map(([rs, combining]) => P.rules(rs, { combining })),
+        ),
+      })).node;
+
+      let composites = 0;
+      for (const policy of FastCheck.sample(tree, 150)) {
+        const sequential = yield* run(policy, undefined);
+        const concurrent = yield* run(policy, "unbounded");
+        const bounded = yield* run(policy, 2);
+
+        assert.deepStrictEqual(
+          concurrent.decision.trace,
+          sequential.decision.trace,
+          `unbounded disagreed on ${JSON.stringify(policy)}`,
+        );
+        assert.deepStrictEqual(
+          bounded.decision.trace,
+          sequential.decision.trace,
+          `bounded disagreed on ${JSON.stringify(policy)}`,
+        );
+        if (concurrent.calls.length > sequential.calls.length) composites += 1;
+      }
+
+      // Vacuity guard, the lesson INV-QD-018 cost: if no generated tree ever had
+      // a branch the sequential path skipped, every assertion above would hold
+      // for a `concurrency` option that did nothing at all.
+      assert.isAbove(composites, 10);
     }));
 });

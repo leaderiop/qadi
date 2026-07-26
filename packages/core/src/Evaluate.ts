@@ -10,6 +10,7 @@
  */
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import type { Concurrency } from "effect/Types";
 import { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
@@ -50,18 +51,40 @@ export interface EvaluateOptions {
    * Defaults to 64.
    */
   readonly maxDepth?: number;
+  /**
+   * Evaluate the children of `allOf`, `anyOf` and `rules` concurrently.
+   *
+   * Absent — the default — evaluation is sequential and short-circuits, so a
+   * branch that is never reached performs no lookup
+   * ([INV-QD-005](../../../spec/invariants.md#inv-qd-005-short-circuit-preservation)).
+   * Supplying this **forfeits that** in exchange for latency: every child of a
+   * composite is evaluated, so a caller pays for speculative attribute and
+   * relationship lookups against their own store.
+   *
+   * What it does *not* change is the answer. The decision and its trace are
+   * identical either way, because both paths drive the same fold over children in
+   * declaration order — including discarding the trace of a child evaluated after
+   * the decisive one ([ADR-QD-026](../../../spec/decisions/026-concurrent-evaluation.md)).
+   */
+  readonly concurrency?: Concurrency;
 }
 
 /**
- * The request-scoped inputs a policy may read.
+ * Everything a recursive call passes through unchanged: the inputs a policy may
+ * read, plus the settings that govern how the walk is performed.
  *
- * Bundled rather than threaded as separate parameters: every recursive call
- * passes them unchanged, and a third positional `string | undefined` beside
- * `depth` and `maxDepth` is exactly the shape an argument-order slip hides in.
+ * Bundled rather than threaded as separate parameters, and `concurrency` is the
+ * clearest case for it. `Concurrency` is `number | "unbounded" | "inherit"`, so a
+ * positional slip between it, `depth` and `maxDepth` would **typecheck** — which
+ * is exactly the shape of bug this bundle exists to make impossible.
+ *
+ * `concurrency` is deliberately here and not in `MatcherContext`: it is a
+ * property of the evaluation, never a value a matcher can compare against.
  */
-interface Request {
+interface Evaluation {
   readonly resource: Resource | undefined;
   readonly action: string | undefined;
+  readonly concurrency: Concurrency | undefined;
 }
 
 const DEFAULT_MAX_DEPTH = 64;
@@ -150,7 +173,7 @@ const mergeFields = (
 const evaluateNode = (
   policy: Policy,
   subject: AuthSubject,
-  request: Request,
+  request: Evaluation,
   depth: number,
   maxDepth: number,
 ): Effect.Effect<
@@ -333,37 +356,141 @@ const evaluateNode = (
 };
 
 /** Short-circuits on the first denying child. */
+/**
+ * The accumulator both `AllOf` paths drive, and the reason concurrency cannot
+ * change an answer.
+ *
+ * The decision rules live in `stepAllOf`/`finishAllOf` and nowhere else. The
+ * sequential path steps one child at a time and stops evaluating the moment a
+ * step returns a verdict; the concurrent path evaluates every child and then
+ * steps over the results **in declaration order**, stopping at the same index.
+ * Same fold, same input order, same output — including the shape of
+ * `Trace.children`, which is public and is what a reviewer reads.
+ */
+interface AllOfFold {
+  readonly children: Array<Trace>;
+  readonly fieldSets: Array<ReadonlyArray<string> | undefined>;
+  obligations: ReadonlyArray<Obligation>;
+}
+
+const beginAllOf = (): AllOfFold => ({
+  children: [],
+  fieldSets: [],
+  obligations: NO_OBLIGATIONS,
+});
+
+/** Returns a verdict once one child settles the question, `undefined` while open. */
+const stepAllOf = (fold: AllOfFold, trace: Trace): Trace | undefined => {
+  fold.children.push(trace);
+  if (!trace.allowed) {
+    return deny("AllOf", trace.reason ?? "a required policy denied", fold.children);
+  }
+  fold.fieldSets.push(trace.visibleFields);
+  // Every child allowed, so every child's duties apply. Union, never
+  // intersection — dropping one a branch required would be a quiet grant.
+  fold.obligations = unionObligations(fold.obligations, trace.obligations);
+  return undefined;
+};
+
+const finishAllOf = (
+  policy: Extract<Policy, { _tag: "AllOf" }>,
+  fold: AllOfFold,
+): Trace =>
+  allow(
+    "AllOf",
+    mergeFields(policy.fieldStrategy, fold.fieldSets),
+    fold.children,
+    undefined,
+    fold.obligations,
+  );
+
 const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
   policy: Extract<Policy, { _tag: "AllOf" }>,
   subject: AuthSubject,
-  request: Request,
+  request: Evaluation,
   depth: number,
   maxDepth: number,
 ) {
-  const children: Array<Trace> = [];
-  const fieldSets: Array<ReadonlyArray<string> | undefined> = [];
-  let obligations: ReadonlyArray<Obligation> = NO_OBLIGATIONS;
+  const fold = beginAllOf();
 
-  for (const child of policy.policies) {
-    const trace = yield* evaluateNode(child, subject, request, depth + 1, maxDepth);
-    children.push(trace);
-    if (!trace.allowed) {
-      return deny("AllOf", trace.reason ?? "a required policy denied", children);
+  if (request.concurrency === undefined) {
+    for (const child of policy.policies) {
+      const verdict = stepAllOf(
+        fold,
+        yield* evaluateNode(child, subject, request, depth + 1, maxDepth),
+      );
+      if (verdict !== undefined) return verdict;
     }
-    fieldSets.push(trace.visibleFields);
-    // Every child allowed, so every child's duties apply. Union, never
-    // intersection — dropping one a branch required would be a quiet grant.
-    obligations = unionObligations(obligations, trace.obligations);
+  } else {
+    const traces = yield* Effect.forEach(
+      policy.policies,
+      (child) => evaluateNode(child, subject, request, depth + 1, maxDepth),
+      { concurrency: request.concurrency },
+    );
+    // Traces arrive in input order regardless of completion order, so the fold
+    // below is the sequential fold. Children after the decisive one are dropped:
+    // the work was speculative, and keeping it would make the trace depend on a
+    // performance switch (ADR-QD-026).
+    for (const trace of traces) {
+      const verdict = stepAllOf(fold, trace);
+      if (verdict !== undefined) return verdict;
+    }
   }
 
-  return allow(
-    "AllOf",
-    mergeFields(policy.fieldStrategy, fieldSets),
-    children,
-    undefined,
-    obligations,
-  );
+  return finishAllOf(policy, fold);
 });
+
+interface AnyOfFold {
+  readonly children: Array<Trace>;
+  readonly allowingFieldSets: Array<ReadonlyArray<string> | undefined>;
+  /** `First` may stop at the first allowing child; the others must see them all. */
+  readonly exhaustive: boolean;
+  obligations: ReadonlyArray<Obligation>;
+  lastReason: string | undefined;
+}
+
+const beginAnyOf = (policy: Extract<Policy, { _tag: "AnyOf" }>): AnyOfFold => ({
+  children: [],
+  allowingFieldSets: [],
+  exhaustive: policy.fieldStrategy !== "First",
+  obligations: NO_OBLIGATIONS,
+  lastReason: undefined,
+});
+
+const stepAnyOf = (fold: AnyOfFold, trace: Trace): Trace | undefined => {
+  fold.children.push(trace);
+
+  if (trace.allowed) {
+    fold.allowingFieldSets.push(trace.visibleFields);
+    fold.obligations = unionObligations(fold.obligations, trace.obligations);
+    if (!fold.exhaustive) {
+      // Under `First` the obligations are the winning branch's, so the set
+      // depends on the order the author wrote the branches in. Accepted, and
+      // stated: collecting from every branch would force exhaustive
+      // evaluation and repeal INV-QD-005 for any tree carrying a duty.
+      return allow("AnyOf", trace.visibleFields, fold.children, undefined, fold.obligations);
+    }
+  } else {
+    fold.lastReason = trace.reason;
+  }
+  return undefined;
+};
+
+const finishAnyOf = (
+  policy: Extract<Policy, { _tag: "AnyOf" }>,
+  fold: AnyOfFold,
+): Trace => {
+  if (fold.allowingFieldSets.length > 0) {
+    return allow(
+      "AnyOf",
+      mergeFields(policy.fieldStrategy, fold.allowingFieldSets),
+      fold.children,
+      undefined,
+      fold.obligations,
+    );
+  }
+  return deny("AnyOf", fold.lastReason ?? "no alternative policy allowed", fold.children);
+};
 
 /**
  * Short-circuits on the first allowing child — except under `Union`, which must
@@ -375,46 +502,33 @@ const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
 const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
   policy: Extract<Policy, { _tag: "AnyOf" }>,
   subject: AuthSubject,
-  request: Request,
+  request: Evaluation,
   depth: number,
   maxDepth: number,
 ) {
-  const children: Array<Trace> = [];
-  const allowingFieldSets: Array<ReadonlyArray<string> | undefined> = [];
-  const exhaustive = policy.fieldStrategy !== "First";
-  let obligations: ReadonlyArray<Obligation> = NO_OBLIGATIONS;
-  let lastReason: string | undefined;
+  const fold = beginAnyOf(policy);
 
-  for (const child of policy.policies) {
-    const trace = yield* evaluateNode(child, subject, request, depth + 1, maxDepth);
-    children.push(trace);
-
-    if (trace.allowed) {
-      allowingFieldSets.push(trace.visibleFields);
-      obligations = unionObligations(obligations, trace.obligations);
-      if (!exhaustive) {
-        // Under `First` the obligations are the winning branch's, so the set
-        // depends on the order the author wrote the branches in. Accepted, and
-        // stated: collecting from every branch would force exhaustive
-        // evaluation and repeal INV-QD-005 for any tree carrying a duty.
-        return allow("AnyOf", trace.visibleFields, children, undefined, obligations);
-      }
-    } else {
-      lastReason = trace.reason;
+  if (request.concurrency === undefined) {
+    for (const child of policy.policies) {
+      const verdict = stepAnyOf(
+        fold,
+        yield* evaluateNode(child, subject, request, depth + 1, maxDepth),
+      );
+      if (verdict !== undefined) return verdict;
+    }
+  } else {
+    const traces = yield* Effect.forEach(
+      policy.policies,
+      (child) => evaluateNode(child, subject, request, depth + 1, maxDepth),
+      { concurrency: request.concurrency },
+    );
+    for (const trace of traces) {
+      const verdict = stepAnyOf(fold, trace);
+      if (verdict !== undefined) return verdict;
     }
   }
 
-  if (allowingFieldSets.length > 0) {
-    return allow(
-      "AnyOf",
-      mergeFields(policy.fieldStrategy, allowingFieldSets),
-      children,
-      undefined,
-      obligations,
-    );
-  }
-
-  return deny("AnyOf", lastReason ?? "no alternative policy allowed", children);
+  return finishAnyOf(policy, fold);
 });
 
 /**
@@ -429,7 +543,7 @@ const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
 const evaluateRules = Effect.fn("qadi.rules")(function* (
   policy: Extract<Policy, { _tag: "Rules" }>,
   subject: AuthSubject,
-  request: Request,
+  request: Evaluation,
   depth: number,
   maxDepth: number,
 ) {
@@ -452,25 +566,50 @@ const evaluateRules = Effect.fn("qadi.rules")(function* (
   let firstApplying: Applied | undefined;
   let firstDecisive: Applied | undefined;
 
-  for (let index = 0; index < policy.rules.length; index += 1) {
-    const rule = policy.rules[index]!;
-    // The condition answers *does this rule apply*, never *is this permitted*.
-    const trace = yield* evaluateNode(
-      rule.condition,
-      subject,
-      request,
-      depth + 1,
-      maxDepth,
-    );
+  /**
+   * Folds one condition result at index `index`. Returns `true` when the walk is
+   * settled and no later rule can change the outcome.
+   *
+   * Shared by both paths so the **deciding rule** is selected identically. Under
+   * the overrides it is the first applying row of the winning effect *by index* —
+   * selecting by arrival would make two runs of the same table owe different
+   * duties, which is the constraint E3 contributed (ADR-QD-023).
+   */
+  const step = (index: number, trace: Trace): boolean => {
     children.push(trace);
-    if (!trace.allowed) continue;
+    if (!trace.allowed) return false;
 
+    const rule = policy.rules[index]!;
     const applied: Applied = { index, rule, trace };
     firstApplying ??= applied;
-    if (decisive === undefined) break;
+    if (decisive === undefined) return true;
     if (rule.effect === decisive) {
       firstDecisive = applied;
-      break;
+      return true;
+    }
+    return false;
+  };
+
+  if (request.concurrency === undefined) {
+    for (let index = 0; index < policy.rules.length; index += 1) {
+      // The condition answers *does this rule apply*, never *is this permitted*.
+      const trace = yield* evaluateNode(
+        policy.rules[index]!.condition,
+        subject,
+        request,
+        depth + 1,
+        maxDepth,
+      );
+      if (step(index, trace)) break;
+    }
+  } else {
+    const traces = yield* Effect.forEach(
+      policy.rules,
+      (rule) => evaluateNode(rule.condition, subject, request, depth + 1, maxDepth),
+      { concurrency: request.concurrency },
+    );
+    for (let index = 0; index < traces.length; index += 1) {
+      if (step(index, traces[index]!)) break;
     }
   }
 
@@ -518,7 +657,11 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   const trace = yield* evaluateNode(
     policy,
     subject,
-    { resource: options?.resource, action: options?.action },
+    {
+      resource: options?.resource,
+      action: options?.action,
+      concurrency: options?.concurrency,
+    },
     0,
     options?.maxDepth ?? DEFAULT_MAX_DEPTH,
   );

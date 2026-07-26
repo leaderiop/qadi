@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.10                                           |
+> | Revision       | 1.11                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -144,6 +144,20 @@ elements, from the same policy values.
 
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
+
+### URS-QD-022 — Trade speculative lookups for latency
+
+A developer must be able to ask for the branches of a composite policy to be
+evaluated concurrently, and must be certain that doing so cannot change the answer
+— only how quickly it arrives and how many lookups it costs.
+
+Rationale: a policy with three independent relationship branches against a remote
+graph store costs three sequential round trips today. Some callers would rather pay
+for lookups they may not need than for latency they can measure. What makes this
+safe rather than merely faster is that the decision and its trace are identical
+either way: if a performance switch could change an authorization outcome, or even
+change the explanation of one, no reviewer could reason about the policy without
+knowing how it was scheduled.
 
 ### URS-QD-021 — Push a policy into a query
 
@@ -286,6 +300,7 @@ so the specification cannot drift from itself.
 | URS-QD-019 | [BEH-QD-105](./behaviors/14-subject-sets.md) | `SubjectSet.test.ts`, `@REQ-QD-014` |
 | URS-QD-020 | [BEH-QD-111](./behaviors/15-rules.md), [INV-QD-017](./invariants.md#inv-qd-017-a-rule-list-stops-at-the-first-rule-that-cannot-be-overridden) | `Rules.test.ts`, `@REQ-QD-015` |
 | URS-QD-021 | [BEH-QD-121](./behaviors/16-predicates.md), [INV-QD-018](./invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows) | `Predicate.test.ts` (property), `@REQ-QD-016` |
+| URS-QD-022 | [BEH-QD-130](./behaviors/17-concurrency.md), [INV-QD-020](./invariants.md#inv-qd-020-concurrency-changes-lookups-never-decisions) | `Evaluate.test.ts` (property), `@REQ-QD-022` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |

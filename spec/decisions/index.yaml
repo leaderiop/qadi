@@ -77,3 +77,6 @@ entries:
   - id: "ADR-QD-025"
     file: "025-mutation-testing.md"
     title: "Mutation testing is a merge gate, and its evidence must be reproducible by someone else"
+  - id: "ADR-QD-026"
+    file: "026-concurrent-evaluation.md"
+    title: "Concurrency changes what is looked up, never what is decided"

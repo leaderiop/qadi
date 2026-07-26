@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RTM                                       |
-> | Revision       | 1.13                                           |
+> | Revision       | 1.14                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Verification Record                            |
-> | Change History | 1.13 (2026-07-26): ADR-QD-025, mutation testing as a merge gate (CCR-QD-026)<br>1.12 (2026-07-26): MLS verified; INV-QD-019 and BEH-QD-102, the order laws (CCR-QD-024)<br>1.11 (2026-07-26): Biba verified, both variants (CCR-QD-023)<br>1.10 (2026-07-26): Chinese Wall and task-based control verified (CCR-QD-022)<br>1.9 (2026-07-26): Separation of duty verified (CCR-QD-021)<br>1.8 (2026-07-26): Predicate output built (CCR-QD-020)<br>1.7 (2026-07-26): Rule tables built (CCR-QD-019)<br>1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.14 (2026-07-26): Concurrent evaluation; behaviour 17, INV-QD-020, ADR-QD-026, `@REQ-QD-022` (CCR-QD-027)<br>1.13 (2026-07-26): ADR-QD-025, mutation testing as a merge gate (CCR-QD-026)<br>1.12 (2026-07-26): MLS verified; INV-QD-019 and BEH-QD-102, the order laws (CCR-QD-024)<br>1.11 (2026-07-26): Biba verified, both variants (CCR-QD-023)<br>1.10 (2026-07-26): Chinese Wall and task-based control verified (CCR-QD-022)<br>1.9 (2026-07-26): Separation of duty verified (CCR-QD-021)<br>1.8 (2026-07-26): Predicate output built (CCR-QD-020)<br>1.7 (2026-07-26): Rule tables built (CCR-QD-019)<br>1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -48,6 +48,7 @@ contract.
 | [14 — Subject Sets](behaviors/14-subject-sets.md) | BEH-QD-105–109 | `packages/core/src/SubjectSet.ts` |
 | [15 — Rule Tables](behaviors/15-rules.md) | BEH-QD-111–117 | `packages/core/src/Policy.ts`, `Evaluate.ts` |
 | [16 — Predicate Output](behaviors/16-predicates.md) | BEH-QD-121–128 | `packages/core/src/Predicate.ts`, `Matcher.ts`, `Errors.ts` |
+| [17 — Concurrent Evaluation](behaviors/17-concurrency.md) | BEH-QD-129–135 | `packages/core/src/Evaluate.ts` |
 
 ## §2 Invariant traceability
 
@@ -72,6 +73,7 @@ contract.
 | [INV-QD-017](invariants.md#inv-qd-017-a-rule-list-stops-at-the-first-rule-that-cannot-be-overridden) | A rule list stops at the first rule that cannot be overridden | Per-algorithm stopping condition in `evaluateRules` | `Rules.test.ts` (resolver call counts and trace child counts) |
 | [INV-QD-018](invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows) | A predicate admits exactly the rows the evaluator allows | An executable predicate, compared against the evaluator | `Predicate.test.ts` (property over policies × rows) |
 | [INV-QD-019](invariants.md#inv-qd-019-dominance-is-a-partial-order) | Dominance is a partial order | `>=` on level composed with containment on compartments | `Matcher.test.ts` (properties over sampled pairs and triples) |
+| [INV-QD-020](invariants.md#inv-qd-020-concurrency-changes-lookups-never-decisions) | Concurrency changes lookups, never decisions | One fold per composite, driven by both paths in declaration order | `Evaluate.test.ts` (property over generated trees, sequential vs bounded vs unbounded) |
 
 ## §3 Decision traceability
 
@@ -102,6 +104,7 @@ contract.
 | [ADR-QD-023](decisions/023-combining-algorithms.md) | A rule list stops at the first rule that cannot be overridden | INV-QD-003, INV-QD-004, INV-QD-005, INV-QD-006, INV-QD-017 |
 | [ADR-QD-024](decisions/024-predicate-output.md) | A predicate is a second interpreter, shipped with its reference semantics | INV-QD-004, INV-QD-006, INV-QD-010, INV-QD-011, INV-QD-013, INV-QD-018 |
 | [ADR-QD-025](decisions/025-mutation-testing.md) | Mutation testing as a merge gate | — (it verifies the others rather than adding one) |
+| [ADR-QD-026](decisions/026-concurrent-evaluation.md) | Concurrency changes lookups, never decisions | INV-QD-005 (scoped), INV-QD-006, INV-QD-017, INV-QD-020 |
 
 ## §4 Test file map
 
@@ -149,6 +152,7 @@ contract.
 | REQ-QD-019 | `features/features/tbac/tbac.feature` | BEH-QD-019, BEH-QD-026, BEH-QD-036, BEH-QD-092 |
 | REQ-QD-020 | `features/features/biba/biba.feature` | BEH-QD-034, BEH-QD-073, BEH-QD-098–099, INV-QD-015 |
 | REQ-QD-021 | `features/features/mls/mls.feature` | BEH-QD-098–099, BEH-QD-102, INV-QD-015, INV-QD-019 |
+| REQ-QD-022 | `features/features/concurrency/concurrency.feature` | BEH-QD-129–133, INV-QD-005, INV-QD-020 |
 
 ## §6 Coverage targets
 

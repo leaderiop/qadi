@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.15                                           |
+> | Revision       | 1.16                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -35,6 +35,22 @@ review, predicate output, serialization, React integration and a test toolkit.
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
+
+**Concurrent evaluation shipped**
+([ADR-QD-026](./decisions/026-concurrent-evaluation.md)):
+`EvaluateOptions.concurrency` evaluates the children of `allOf`, `anyOf` and
+`rules` in parallel, and **changes nothing else**. The decision and the whole
+trace are identical either way, because both paths drive the same fold over
+children in declaration order — the concurrent one discards the trace of any child
+it evaluated after the decisive one, since keeping it would make `Trace.children`
+depend on a performance switch. INV-QD-005 is **scoped** rather than repealed: it
+holds under the default, and forfeiting it requires asking.
+
+Two things the long-standing entry for this item got right and one it did not. The
+field-set interaction and the deciding-rule-by-index constraint were both real and
+both had to be designed for. But the entry framed the work as *resolving* those
+interactions, when the answer was to make them unreachable: share the fold, and a
+schedule cannot reach a decision rule at all.
 
 **Mutation testing is a gate rather than an aspiration**
 ([ADR-QD-025](./decisions/025-mutation-testing.md)): `stryker run` is step 9 of
@@ -128,34 +144,6 @@ survivors) is the same work at a smaller scale, and `Errors.ts` at 61.54% is mos
 message strings, where a survivor may be the correct answer.
 
 Raising the threshold itself is a decision to take **after** this, not before.
-
-### Concurrent evaluation
-
-An opt-in `EvaluateOptions.concurrency` allowing sibling policies to evaluate in
-parallel, for callers who would rather pay for speculative lookups than latency.
-
-Deliberately unbuilt rather than merely unfinished. Parallel evaluation
-interacts with both short-circuiting (which it forfeits) and field-set merging
-(where the order of allowing children currently determines the `First` result).
-Those interactions need designing, not bolting on.
-
-**Subject sets are the separable half of this**, and they shipped sequential
-(CCR-QD-018). Elements of a batch do not combine, so no combining algorithm has
-to be settled first; what stopped concurrency there was that a batch multiplies
-the load on the caller's store by its own length. Bounding that fan-out is the
-design question for `decideSubjects`, and it is not the one above.
-
-**Unblocked by E3** (CCR-QD-019): the algorithm set is settled, so this can now
-be designed. Building E3 added one constraint to design against. `DenyOverrides`
-and `PermitOverrides` are order-independent in the **verdict** but not in the
-**deciding rule**, which is the first applying row of the winning effect and
-supplies the decision's field set and obligations — so a concurrent
-implementation must still resolve the decider by index after collecting every
-result, or two runs of the same table will owe different duties.
-
-Two ADRs previously stated this option *existed*. They have been corrected —
-see [ADR-QD-005](./decisions/005-lazy-attribute-resolution.md) and
-[ADR-QD-013](./decisions/013-short-circuit-default.md).
 
 ### Policy explanation
 

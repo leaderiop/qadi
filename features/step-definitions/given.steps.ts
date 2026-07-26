@@ -308,3 +308,22 @@ Given(
     this.candidates.push({ id, roles: [], permissions: [`${resource}:${action}`] });
   },
 );
+
+// ---------------------------------------------------------------------------
+// Concurrency
+// ---------------------------------------------------------------------------
+
+/**
+ * Turns on concurrent evaluation for whatever `When` step follows.
+ *
+ * Every scenario using this has a sequential twin elsewhere in the suite
+ * asserting the identical outcome. That pairing *is* the evidence for
+ * INV-QD-020 at acceptance level: the answer does not depend on the schedule.
+ */
+Given("evaluation is concurrent", function (this: QadiWorld) {
+  this.concurrency = "unbounded";
+});
+
+Given("evaluation is concurrent, two at a time", function (this: QadiWorld) {
+  this.concurrency = 2;
+});

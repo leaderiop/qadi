@@ -24,6 +24,7 @@ import {
   fromJson,
 } from "@qadi/core";
 import * as Layer from "effect/Layer";
+import type { Concurrency } from "effect/Types";
 import { qadiReviewLayer, qadiTestLayer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 
@@ -106,6 +107,14 @@ export class QadiWorld extends World {
   events: Array<readonly [string, string, string]> | undefined = undefined;
   /** Set when a scenario wants the history store to be down rather than absent. */
   historyUnreachable = false;
+  /**
+   * Set when a scenario asks for concurrent evaluation.
+   *
+   * `undefined` is not "sequential" — it is the key being absent from
+   * `EvaluateOptions` entirely, so a scenario that never mentions concurrency
+   * evaluates exactly as it did before the option existed (ADR-QD-026).
+   */
+  concurrency: Concurrency | undefined = undefined;
 
   outcome: Outcome = NO_OUTCOME;
   /** Candidates for a subject-set review, in the order they were given. */
@@ -144,6 +153,7 @@ export class QadiWorld extends World {
     this.workRan = false;
     this.events = undefined;
     this.historyUnreachable = false;
+    this.concurrency = undefined;
     this.outcome = NO_OUTCOME;
     this.candidates = [];
     this.review = [];
@@ -171,6 +181,7 @@ export class QadiWorld extends World {
     const options: EvaluateOptions = {
       ...(this.resource === undefined ? {} : { resource: this.resource }),
       ...(this.action === undefined ? {} : { action: this.action }),
+      ...(this.concurrency === undefined ? {} : { concurrency: this.concurrency }),
     };
 
     const program = evaluate(policy, options).pipe(
