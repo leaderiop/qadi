@@ -152,6 +152,7 @@ describe("Policy serialization", () => {
         M.eq(M.subjectId()),
         M.eq(M.resource("owner")),
         M.eq(M.action()),
+        M.dominates(M.subject("clearance")),
         M.neq(M.literal("x")),
         M.inArray([1, 2, 3]),
         M.exists(),
@@ -221,6 +222,9 @@ describe("Policy serialization", () => {
         // than in Policy, so a leaf that never nests one would leave it out of
         // the round-trip property entirely.
         FastCheck.constant(P.hasAttribute("op", M.eq(M.action()))),
+        FastCheck.string().map((path) =>
+          P.hasAttribute("clearance", M.dominates(M.resource(path))),
+        ),
         // `Obligation` is a struct with a `Record(String, Unknown)` inside it,
         // so the generator has to reach nested arbitrary JSON for the property
         // to say anything about the obligation codec.

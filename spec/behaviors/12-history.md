@@ -194,4 +194,4 @@ does know.
 
 ---
 
-_Previous: [11 — Obligations](./11-obligations.md)_
+_Previous: [11 — Obligations](./11-obligations.md) | Next: [13 — The Label Lattice](./13-labels.md)_

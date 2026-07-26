@@ -62,3 +62,6 @@ entries:
   - id: "ADR-QD-020"
     file: "020-decision-history-port.md"
     title: "History is a three-valued port, because a boolean cannot fail closed under negation"
+  - id: "ADR-QD-021"
+    file: "021-label-lattice.md"
+    title: "Dominance is a four-valued comparison, and the label never enters the policy"

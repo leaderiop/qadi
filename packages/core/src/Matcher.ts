@@ -9,6 +9,7 @@
  * so a matcher survives serialization.
  */
 import * as Schema from "effect/Schema";
+import { isSecurityLabel, labelDominates } from "./SecurityLabel.ts";
 
 // ---------------------------------------------------------------------------
 // Value references
@@ -64,6 +65,7 @@ export const literal = (value: unknown): ValueRef => ({ _tag: "LiteralRef", valu
 export type Matcher =
   | { readonly _tag: "Eq"; readonly ref: ValueRef }
   | { readonly _tag: "Neq"; readonly ref: ValueRef }
+  | { readonly _tag: "Dominates"; readonly ref: ValueRef }
   | { readonly _tag: "In"; readonly values: ReadonlyArray<unknown> }
   | { readonly _tag: "Exists" }
   | { readonly _tag: "Gte"; readonly value: number }
@@ -82,6 +84,7 @@ const MatcherRef = Schema.suspend((): Schema.Codec<Matcher> => Matcher);
 
 const Eq = Schema.TaggedStruct("Eq", { ref: ValueRef });
 const Neq = Schema.TaggedStruct("Neq", { ref: ValueRef });
+const Dominates = Schema.TaggedStruct("Dominates", { ref: ValueRef });
 const In = Schema.TaggedStruct("In", { values: Schema.Array(Schema.Unknown) });
 const Exists = Schema.TaggedStruct("Exists", {});
 const Gte = Schema.TaggedStruct("Gte", { value: Schema.Number });
@@ -98,6 +101,7 @@ const Size = Schema.TaggedStruct("Size", { matcher: MatcherRef });
 export const Matcher: Schema.Codec<Matcher> = Schema.Union([
   Eq,
   Neq,
+  Dominates,
   In,
   Exists,
   Gte,
@@ -117,6 +121,27 @@ export const Matcher: Schema.Codec<Matcher> = Schema.Union([
 export const eq = (ref: ValueRef): Matcher => ({ _tag: "Eq", ref });
 /** Attribute does not equal the referenced value. */
 export const neq = (ref: ValueRef): Matcher => ({ _tag: "Neq", ref });
+/**
+ * The attribute's security label **dominates** the referenced one — at least as
+ * high, and at least as broad.
+ *
+ * The first matcher beyond `eq`/`neq` to take a `ValueRef`, and that is the
+ * point: dominance relates two *live* values, which the numeric matchers cannot
+ * do because `gte` and `lt` take a plain number.
+ *
+ * Both rules of Bell–LaPadula are this one comparison with the operands
+ * exchanged — never a negation, which is why a boolean answer is safe here:
+ *
+ * ```ts
+ * hasAttribute("clearance", dominates(resource("label")))        // no read up
+ * hasResourceAttribute("label", dominates(subject("clearance"))) // no write down
+ * ```
+ *
+ * Denies when either side is not a `SecurityLabel`. That is resolved data
+ * behaving as resolved data always has — `gte(3)` on `undefined` is false too —
+ * and not the missing-caller-argument case that `MissingAction` covers.
+ */
+export const dominates = (ref: ValueRef): Matcher => ({ _tag: "Dominates", ref });
 /** Attribute is one of the listed values. */
 export const inArray = (values: ReadonlyArray<unknown>): Matcher => ({ _tag: "In", values });
 /** Attribute is present and not null. */
@@ -209,6 +234,7 @@ export const referencesAction = (self: Matcher): boolean => {
   switch (self._tag) {
     case "Eq":
     case "Neq":
+    case "Dominates":
       return self.ref._tag === "ActionRef";
     case "FieldMatch":
     case "SomeMatch":
@@ -240,6 +266,15 @@ export const evaluateMatcher = (
       return value === resolveRef(self.ref, context);
     case "Neq":
       return value !== resolveRef(self.ref, context);
+    case "Dominates": {
+      // Incomparable labels deny, which is what a dominance test means. The
+      // four-valued `compareLabels` exists for explaining that; a matcher only
+      // answers "did this match".
+      const other = resolveRef(self.ref, context);
+      return (
+        isSecurityLabel(value) && isSecurityLabel(other) && labelDominates(value, other)
+      );
+    }
     case "In":
       return self.values.includes(value);
     case "Exists":

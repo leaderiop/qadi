@@ -617,6 +617,110 @@ describe("the action dimension", () => {
     }));
 });
 
+describe("the label lattice", () => {
+  // Bell-LaPadula as one stored policy: no read up, no write down. Before E1 and
+  // E4 this took `n x 2^c` transcribed rungs whose ordering was itself a trap —
+  // the permitted sets shrink as clearance rises, so descending rungs are right
+  // for reads and wrong for writes.
+  const label = (level: number, ...compartments: ReadonlyArray<string>) => ({
+    level,
+    compartments,
+  });
+
+  const blp = P.anyOf([
+    P.allOf([
+      P.hasAction("read"),
+      P.hasAttribute("clearance", M.dominates(M.resource("label"))),
+    ]),
+    P.allOf([
+      P.hasAction("write"),
+      P.hasResourceAttribute("label", M.dominates(M.subject("clearance"))),
+    ]),
+  ]);
+
+  const cleared = (l: ReturnType<typeof label>) =>
+    subjectWith({ id: "u1", attributes: { clearance: l } });
+
+  const decide = (
+    subjectLabel: ReturnType<typeof label>,
+    action: string,
+    resourceLabel: ReturnType<typeof label>,
+  ) =>
+    evaluate(blp, { action, resource: { id: "doc", label: resourceLabel } }).pipe(
+      Effect.provide(testLayer(cleared(subjectLabel))),
+      Effect.map(isAllowed),
+    );
+
+  it.effect("reads down, refuses to read up", () =>
+    Effect.gen(function* () {
+      assert.isTrue(yield* decide(label(2), "read", label(1)));
+      assert.isTrue(yield* decide(label(1), "read", label(1)));
+      assert.isFalse(yield* decide(label(1), "read", label(2)));
+    }));
+
+  it.effect("writes up, refuses to write down", () =>
+    Effect.gen(function* () {
+      assert.isTrue(yield* decide(label(1), "write", label(2)));
+      assert.isTrue(yield* decide(label(1), "write", label(1)));
+      assert.isFalse(yield* decide(label(2), "write", label(1)));
+    }));
+
+  it.effect("refuses across incomparable compartments, where a scalar would allow", () =>
+    Effect.gen(function* () {
+      // Read as numbers both labels are 2 and each reads the other. This is the
+      // case the enumeration approach gets WRONG, not merely approximately.
+      const crypto = label(2, "CRYPTO");
+      const bio = label(2, "BIO");
+      assert.isFalse(yield* decide(crypto, "read", bio));
+      assert.isFalse(yield* decide(bio, "read", crypto));
+      assert.isFalse(yield* decide(crypto, "write", bio));
+    }));
+
+  it.effect("a broader clearance reads a narrower document at the same level", () =>
+    Effect.gen(function* () {
+      assert.isTrue(yield* decide(label(2, "CRYPTO", "BIO"), "read", label(2, "CRYPTO")));
+      assert.isFalse(yield* decide(label(2, "CRYPTO"), "read", label(2, "CRYPTO", "BIO")));
+    }));
+
+  it.effect("the whole rule survives a round trip through JSON", () =>
+    Effect.gen(function* () {
+      const restored = yield* Effect.flatMap(P.toJson(blp), P.fromJson);
+      assert.deepStrictEqual(restored, blp);
+
+      const d = yield* evaluate(restored, {
+        action: "read",
+        resource: { id: "doc", label: label(1) },
+      }).pipe(Effect.provide(testLayer(cleared(label(2)))));
+      assert.isTrue(isAllowed(d));
+    }));
+
+  it.effect("a subject with no clearance is denied, not errored", () =>
+    Effect.gen(function* () {
+      // Resolved data, not a caller argument: an absent label denies the way an
+      // absent attribute always has. ADR-QD-021 states why this differs from
+      // MissingAction.
+      const d = yield* evaluate(blp, {
+        action: "read",
+        resource: { id: "doc", label: label(0) },
+      }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" }))));
+      assert.isFalse(isAllowed(d));
+    }));
+
+  it.effect("dominates without an action still fails rather than denying", () =>
+    Effect.gen(function* () {
+      // `referencesAction` has to know about the new matcher, or a policy
+      // comparing against `action()` would deny instead of failing.
+      const r = yield* Effect.result(
+        evaluate(P.hasAttribute("clearance", M.dominates(M.action()))).pipe(
+          Effect.provide(testLayer(cleared(label(1)))),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/MissingAction");
+    }));
+});
+
 describe("decision history", () => {
   // The port is three-valued because a boolean cannot fail closed under
   // negation: whichever way an unwired default answers, it grants under one of

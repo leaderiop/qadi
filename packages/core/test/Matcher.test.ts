@@ -7,6 +7,12 @@ import {
   Deny,
 } from "../src/Decision.ts";
 import * as M from "../src/Matcher.ts";
+import {
+  compareLabels,
+  isSecurityLabel,
+  labelDominates,
+  type SecurityLabel,
+} from "../src/SecurityLabel.ts";
 
 const ctx: M.MatcherContext = {
   subject: { dept: "eng", nested: { deep: 7 } },
@@ -88,6 +94,108 @@ describe("matchers", () => {
   });
 });
 
+describe("security labels", () => {
+  const label = (level: number, ...compartments: ReadonlyArray<string>): SecurityLabel => ({
+    level,
+    compartments,
+  });
+
+  it("a total order behaves like one", () => {
+    assert.strictEqual(compareLabels(label(2), label(1)), "Dominates");
+    assert.strictEqual(compareLabels(label(1), label(2)), "DominatedBy");
+    assert.strictEqual(compareLabels(label(1), label(1)), "Equal");
+  });
+
+  it("compartments make the order PARTIAL — the whole reason E4 exists", () => {
+    // (Secret, {CRYPTO}) and (Secret, {BIO}) are incomparable: neither may read
+    // the other. Read as scalars both are level 2 and each reads the other,
+    // which allows exactly where dominance denies.
+    const crypto = label(2, "CRYPTO");
+    const bio = label(2, "BIO");
+    assert.strictEqual(compareLabels(crypto, bio), "Incomparable");
+    assert.strictEqual(compareLabels(bio, crypto), "Incomparable");
+    assert.isFalse(labelDominates(crypto, bio));
+    assert.isFalse(labelDominates(bio, crypto));
+  });
+
+  it("breadth is required as well as height", () => {
+    // Higher level, narrower compartments: still not dominant.
+    assert.strictEqual(compareLabels(label(3), label(1, "CRYPTO")), "Incomparable");
+    assert.strictEqual(compareLabels(label(3, "CRYPTO", "BIO"), label(1, "CRYPTO")), "Dominates");
+  });
+
+  it("Equal is distinguishable from Dominates, which is why there are four values", () => {
+    assert.strictEqual(compareLabels(label(2, "A"), label(2, "A")), "Equal");
+    assert.strictEqual(compareLabels(label(2, "A", "B"), label(2, "A")), "Dominates");
+    // Both are `labelDominates`; only `compareLabels` tells them apart.
+    assert.isTrue(labelDominates(label(2, "A"), label(2, "A")));
+  });
+
+  it("compartment order is irrelevant", () => {
+    assert.strictEqual(compareLabels(label(1, "A", "B"), label(1, "B", "A")), "Equal");
+  });
+
+  it("the empty compartment set is dominated by every label at or below its level", () => {
+    assert.strictEqual(compareLabels(label(1, "A"), label(1)), "Dominates");
+    assert.strictEqual(compareLabels(label(0), label(0)), "Equal");
+  });
+
+  it("recognises labels in untrusted data and rejects everything else", () => {
+    assert.isTrue(isSecurityLabel({ level: 1, compartments: [] }));
+    assert.isFalse(isSecurityLabel({ level: "1", compartments: [] }));
+    assert.isFalse(isSecurityLabel({ level: 1, compartments: [2] }));
+    assert.isFalse(isSecurityLabel({ level: 1 }));
+    assert.isFalse(isSecurityLabel(null));
+    assert.isFalse(isSecurityLabel(2));
+    assert.isFalse(isSecurityLabel(undefined));
+  });
+});
+
+describe("the dominates matcher", () => {
+  const ctxWith = (
+    subject: Readonly<Record<string, unknown>>,
+    resource: Readonly<Record<string, unknown>> | undefined,
+  ): M.MatcherContext => ({ subject, subjectId: "u1", resource, action: undefined });
+
+  const secret = { level: 2, compartments: ["CRYPTO"] };
+  const internal = { level: 1, compartments: [] };
+  const bio = { level: 2, compartments: ["BIO"] };
+
+  it("allows a read down and refuses a read up", () => {
+    const context = ctxWith({}, { label: internal });
+    assert.isTrue(M.evaluateMatcher(M.dominates(M.resource("label")), secret, context));
+
+    const up = ctxWith({}, { label: secret });
+    assert.isFalse(M.evaluateMatcher(M.dominates(M.resource("label")), internal, up));
+  });
+
+  it("refuses across incomparable compartments in both directions", () => {
+    assert.isFalse(
+      M.evaluateMatcher(M.dominates(M.resource("label")), secret, ctxWith({}, { label: bio })),
+    );
+    assert.isFalse(
+      M.evaluateMatcher(M.dominates(M.resource("label")), bio, ctxWith({}, { label: secret })),
+    );
+  });
+
+  it("denies rather than throwing when either side is not a label", () => {
+    // The quiet failure mode: a policy written against the wrong attribute name
+    // looks like a working least-privilege rule. `evaluateMatcher` is total, so
+    // it cannot complain — these cases are pinned instead.
+    const context = ctxWith({}, { label: internal, notALabel: 7 });
+    assert.isFalse(M.evaluateMatcher(M.dominates(M.resource("label")), 2, context));
+    assert.isFalse(M.evaluateMatcher(M.dominates(M.resource("label")), undefined, context));
+    assert.isFalse(M.evaluateMatcher(M.dominates(M.resource("notALabel")), secret, context));
+    assert.isFalse(M.evaluateMatcher(M.dominates(M.resource("missing")), secret, context));
+  });
+
+  it("dominance is reflexive, so acting at your own level is permitted", () => {
+    assert.isTrue(
+      M.evaluateMatcher(M.dominates(M.resource("label")), secret, ctxWith({}, { label: secret })),
+    );
+  });
+});
+
 describe("referencesAction", () => {
   // The evaluator asks this before running a matcher, because the matcher
   // itself cannot fail: an absent action would resolve to undefined, match
@@ -95,6 +203,7 @@ describe("referencesAction", () => {
   it("sees a bare action reference under eq and neq", () => {
     assert.isTrue(M.referencesAction(M.eq(M.action())));
     assert.isTrue(M.referencesAction(M.neq(M.action())));
+    assert.isTrue(M.referencesAction(M.dominates(M.action())));
   });
 
   it("sees one nested at any depth", () => {
@@ -108,6 +217,7 @@ describe("referencesAction", () => {
     const withoutAction: ReadonlyArray<M.Matcher> = [
       M.eq(M.subjectId()),
       M.neq(M.resource("owner")),
+      M.dominates(M.resource("label")),
       M.inArray([1]),
       M.exists(),
       M.gte(1),

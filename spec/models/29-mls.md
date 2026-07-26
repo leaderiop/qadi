@@ -54,7 +54,7 @@ designed twice and differently.
 | -------- | ----- |
 | Status | **Additive** |
 | Priority | **P3** |
-| Enablers required | ~~**E1**~~ **shipped**; **E4** outstanding |
+| Enablers required | ~~**E1, E4**~~ **shipped**; none outstanding |
 | Breaking change | No |
 
 E4 supplies dominance; E1 supplies the action dimension the two instances need
@@ -128,7 +128,16 @@ Transcribe a chain; do not transcribe compartments.
 
 ## Proposed API design
 
-Nothing below exists; these signatures are proposed, hence `ts` fences.
+> **Superseded by [ADR-QD-021](../decisions/021-label-lattice.md).** E4 shipped,
+> and in two respects it is *cheaper* than sketched below. `compartments` is an
+> array rather than a `ReadonlySet`, and there is **no `SecurityLabel` codec at
+> all** — the `Dominates` matcher carries a `ValueRef` and no label, so both
+> operands are runtime data and the set-ordering hazard described below never
+> arises. The comparison is four-valued (`Equal` is named separately) and `join`
+> and `meet` were declined as out of scope. The sketch is left as written.
+
+Nothing below existed when this was written; these signatures are proposed, hence
+`ts` fences.
 
 The class, restricted to the standard form, with its codec:
 

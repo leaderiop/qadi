@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -302,5 +302,34 @@ distinction is held by the schema rather than by a comment.
 assert directly that `not(hasActed(e))` allows where `hasNotActed(e)` denies.
 
 **Related**: [BEH-QD-090](behaviors/12-history.md), [BEH-QD-091](behaviors/12-history.md), [ADR-QD-020](decisions/020-decision-history-port.md).
+
+---
+
+## INV-QD-015: Incomparable labels deny in both directions
+
+Two labels that neither dominate nor are dominated by each other reach nothing
+of the other's.
+
+**Source**: `packages/core/src/SecurityLabel.ts` — `compareLabels` returns
+`"Incomparable"` when neither covers the other, and `labelDominates` admits only
+`"Equal"` and `"Dominates"`.
+
+**Implication**: `(Secret, {CRYPTO})` and `(Secret, {BIO})` cannot read one
+another. This is the property a scalar comparison destroys rather than
+approximates: read as numbers both labels are `2`, each reaches the other, and
+the answer is *allow* exactly where dominance says *deny*. Shipping that under
+the name Bell–LaPadula would be a security defect, not a simplification.
+
+**Why a boolean matcher is nevertheless safe here**, unlike the history port
+([INV-QD-014](#inv-qd-014-an-unwired-history-port-denies-both-polarities)): both
+directions of the rule are asked by *swapping the operands*, never by negating
+the answer, so `Incomparable` collapsing to `false` denies in both. The four
+values exist for explanation, not for the decision.
+
+**Enforcement**: tests assert incomparability in both directions at the matcher
+level and end to end through a Bell–LaPadula policy, plus a Gherkin scenario
+under `@REQ-QD-013`. A mutation that drops the compartment test kills five.
+
+**Related**: [BEH-QD-098](behaviors/13-labels.md), [ADR-QD-021](decisions/021-label-lattice.md).
 
 ---

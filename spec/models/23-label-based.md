@@ -65,8 +65,8 @@ Three things get called "label-based", and they cost very different amounts:
 | Form | Shape | What it needs |
 | ---- | ----- | ------------- |
 | **Label comparison** | Label as a value; a total order or a small fixed set | Nothing. Expressible today — this document |
-| **Lattice dominance** | `(level, compartments)` ordered by dominance | **E4** — additive, P3 |
-| **Bell–LaPadula, Biba** | Dominance *plus* read-down / write-up asymmetry | **E4** — additive, P3; E1 shipped |
+| **Lattice dominance** | `(level, compartments)` ordered by dominance | Nothing — **E4 shipped**; use `dominates` |
+| **Bell–LaPadula, Biba** | Dominance *plus* read-down / write-up asymmetry | Nothing — E1 and E4 both shipped |
 
 Comparison suffices more often than it looks, because most real schemes are
 **totally ordered** — Public < Internal < Confidential < Secret — and a total
@@ -80,6 +80,9 @@ where a reviewer can read it.
 `gte` and `lt` take a **plain number**, not a value reference. A threshold
 against a constant works; comparing the subject's clearance *number* against the
 resource's level *number* does not, because there is no `gte(resource("level"))`.
+That constraint stands for the numeric matchers and was the argument for E4:
+`dominates(ref)` is now the one comparison that relates two live values, and a
+scheme with compartments should use it rather than the enumeration below.
 `eq` and `neq` do take a `ValueRef` and can relate the two sides — but by
 equality, and a label scheme decided by equality is not a label scheme. Two ways
 round it, and no third: **enumerate** the permitted label set per clearance rung
@@ -189,12 +192,12 @@ system that is subtly wrong is worse than one that is absent, because it produce
 a confident allow on the data it was installed to protect. Do not approximate
 this: wait for E4, or enumerate a finite label set and use `inArray`.
 
-**Bell–LaPadula and Biba — E4.** No-read-up with no-write-down, and its
-integrity mirror, need dominance *and* an action dimension, because the rule for
-reading is not the rule for writing. The action half has shipped
-([E1](./00-adoption-matrix.md#e1--action-dimension)); dominance has not, and it
-is the half that carries the safety trap. Both models are P3 in the
-[matrix](./00-adoption-matrix.md) and get their own documents.
+**~~Bell–LaPadula and Biba — E4.~~ Closed.** No-read-up with no-write-down, and
+its integrity mirror, need dominance *and* an action dimension. Both halves have
+shipped — [E1](./00-adoption-matrix.md#e1--action-dimension) and
+[E4](./00-adoption-matrix.md#e4--label-lattice) — so the rule is one policy using
+`dominates`, and the enumeration below is now the fallback for genuinely
+irregular lattices rather than the only route.
 
 **Row-level enforcement — enabler E7.** In a database, label-based control
 usually means the label *filters rows* before they are returned: the predicate is

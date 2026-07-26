@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.11                                           |
+> | Revision       | 1.12                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -72,7 +72,7 @@ independent designs that each bolt a field onto `Policy`.
 | **E1** | Action dimension | **Shipped** | Bell–LaPadula, Biba, MLS, RuBAC, XACML parity, UCON, NGAC, OrBAC, type enforcement |
 | **E2** | Obligations on `Decision` | **Shipped** | XACML parity, UCON, purpose-based, consent-based, break-glass |
 | **E3** | Combining algorithms | Breaking | RuBAC, XACML parity |
-| **E4** | Label lattice | Additive | Bell–LaPadula, Biba, MLS, label-based |
+| **E4** | Label lattice | **Shipped** | Bell–LaPadula, Biba, MLS, label-based |
 | **E5** | Decision history port | **Shipped** | Chinese Wall, history-based, dynamic separation of duty, UCON |
 | **E6** | Subject-set evaluation | Additive | NGAC, administrative review tooling |
 | **E7** | Predicate output | Breaking | Row-level security, cell-level security |
@@ -176,9 +176,38 @@ call-counting tests ([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-pres
 
 ### E4 — Label lattice
 
-A security label is a `(level, compartments)` pair ordered by dominance. Qadi
-has `Matcher` variants for equality, membership and ordering on numbers, but
-none for lattice dominance, and no place to declare the lattice.
+**Shipped: [ADR-QD-021](../decisions/021-label-lattice.md),
+[13 — The Label Lattice](../behaviors/13-labels.md),
+[INV-QD-015](../invariants.md#inv-qd-015-incomparable-labels-deny-in-both-directions),
+`@REQ-QD-013`.**
+
+A security label is a `(level, compartments)` pair ordered by dominance. Qadi had
+matchers for equality, membership and ordering on numbers, none for dominance,
+and nowhere to declare a lattice.
+
+| Addition | Where |
+| -------- | ----- |
+| `SecurityLabel`, `isSecurityLabel` | a new `SecurityLabel.ts` |
+| `LabelOrdering`, `compareLabels`, `labelDominates` | the four-valued comparison |
+| `dominates(ref)` → `Dominates` | the matcher union, twelfth variant |
+
+**The lattice is declared nowhere**, which was the first open question. §3.3's
+three options were a service holding it, a field on the matcher, or restricting
+to `(level, compartments)` computed structurally; the third wins outright — no
+configuration surface, no ambient state, no two policies disagreeing about the
+order they were written against.
+
+**Four values, not two, and cheaper than forecast.** The comparison distinguishes
+`Equal`, `Dominates`, `DominatedBy` and `Incomparable`; the matcher's boolean is
+*derived* from it. And the label never enters a policy — `Dominates` carries a
+`ValueRef` and no label, so both operands are runtime data. That removes the cost
+[MOD-QD-027](./27-bell-lapadula.md) called "the one that matters": there is no
+`SecurityLabel` codec, no canonical set ordering, and no round-trip hazard.
+
+**The ★-property trap in §3.3 disappears with it.** 27 had to warn that
+descending `anyOf` rungs are correct for reads and wrong for writes, because the
+permitted sets shrink as clearance rises. With a real comparison there are no
+rungs to order wrongly.
 
 ### E5 — Decision history port
 
@@ -322,10 +351,10 @@ uncompiled fences, because it does not exist.
 | Rule-based (RuBAC), ordered | [MOD-QD-025](./25-rubac.md) | Breaking | E3 | P2 |
 | Usage control (UCON) | [MOD-QD-032](./32-ucon.md) | Breaking | — (continuity is architectural) | P3 |
 | Task-based (TBAC) | [MOD-QD-033](./33-tbac.md) | **Shipped** | — | P3 |
-| Bell–LaPadula | [MOD-QD-027](./27-bell-lapadula.md) | Additive | E4 | P3 |
-| Biba, strict | [MOD-QD-028](./28-biba.md) | Additive | E4 | P3 |
-| Biba, low-water-mark | [MOD-QD-028](./28-biba.md) | Additive | E4 | P3 |
-| Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | Additive | E4 | P3 |
+| Bell–LaPadula | [MOD-QD-027](./27-bell-lapadula.md) | **Shipped** | — | P3 |
+| Biba, strict | [MOD-QD-028](./28-biba.md) | **Shipped** | — | P3 |
+| Biba, low-water-mark | [MOD-QD-028](./28-biba.md) | **Shipped** | — | P3 |
+| Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | **Shipped** | — | P3 |
 | Chinese Wall (Brewer–Nash) | [MOD-QD-030](./30-chinese-wall.md) | **Shipped** | — | P3 |
 | History-based (HBAC) | [MOD-QD-031](./31-hbac.md) | **Shipped** | — | P3 |
 | Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | Additive | E6 | P3 |
@@ -366,6 +395,14 @@ see [E5](#e5--decision-history-port) and
 matcher returning `boolean` collapses "incomparable" into "false" — correct as a
 dominance *test*, wrong for anything needing to distinguish the two. E4's design
 should define the boolean in terms of a three-valued comparison.
+
+*Resolved, and the count was four rather than three:*
+[ADR-QD-021](../decisions/021-label-lattice.md) names `Equal` separately from
+`Dominates`, because a caller explaining a decision wants to know which. The
+matcher stays boolean and that is safe here — both directions of the rule are
+asked by *swapping the operands*, never by negating the answer, which is exactly
+what distinguishes this from [E5](#e5--decision-history-port), where negation was
+the only other route and forced a third value into the *port*.
 
 **The three E5 sketches do not agree, and that is the point of writing them.**
 [MOD-QD-024](./24-separation-of-duty.md) proposes `hasActed` keyed by resource;
@@ -498,10 +535,13 @@ not written down — the refusal belongs to `assert` and `filter` too.
 the one genuine safety trap in this matrix — was settled by ADR before any code,
 and the answer was that the question had no boolean solution.
 
-Next: E4 and E6. E4's design question still stands and is still ADR-before-code:
-whether dominance is two- or three-valued. E5 is a strong precedent for the
-answer, having needed a third value for exactly the reason a partial order has
-incomparable pairs.
+✔ **E4 (CCR-QD-017).** Its design question was settled by ADR before code, as
+required, and the answer widened rather than narrowed: four values, not three.
+Building it also cost *less* than forecast, because the label turned out never to
+enter a policy.
+
+Next: **E6** — subject-set evaluation — which is the last additive enabler and
+carries no recorded design question. Then phase 5.
 
 Two design questions must be settled by ADR *before* code, because both are
 silent-failure risks rather than matters of taste: the polarity of E5's default

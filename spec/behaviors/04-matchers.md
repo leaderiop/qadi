@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-04                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -25,6 +25,7 @@ Like `Policy`, the union is schema-defined and the type is derived from it.
 export type Matcher =
   | { readonly _tag: "Eq"; readonly ref: ValueRef }
   | { readonly _tag: "Neq"; readonly ref: ValueRef }
+  | { readonly _tag: "Dominates"; readonly ref: ValueRef }
   | { readonly _tag: "In"; readonly values: ReadonlyArray<unknown> }
   | { readonly _tag: "Exists" }
   | { readonly _tag: "Gte"; readonly value: number }

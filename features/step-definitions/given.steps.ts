@@ -117,3 +117,50 @@ Given(
 Given("the history store is unreachable", function (this: QadiWorld) {
   this.historyUnreachable = true;
 });
+
+// ---------------------------------------------------------------------------
+// Security labels
+// ---------------------------------------------------------------------------
+
+const label = (level: number, compartments: string) => ({
+  level,
+  compartments: compartments === "" ? [] : compartments.split(",").map((c) => c.trim()),
+});
+
+Given(
+  "a subject {string} cleared at level {int}",
+  function (this: QadiWorld, id: string, level: number) {
+    this.subjectId = id;
+    this.attributes["clearance"] = label(level, "");
+  },
+);
+
+Given(
+  "a subject {string} cleared at level {int} in compartment {string}",
+  function (this: QadiWorld, id: string, level: number, compartment: string) {
+    this.subjectId = id;
+    this.attributes["clearance"] = label(level, compartment);
+  },
+);
+
+Given(
+  "a subject {string} cleared at level {int} in compartments {string}",
+  function (this: QadiWorld, id: string, level: number, compartments: string) {
+    this.subjectId = id;
+    this.attributes["clearance"] = label(level, compartments);
+  },
+);
+
+Given(
+  "the resource {string} classified at level {int}",
+  function (this: QadiWorld, id: string, level: number) {
+    this.resource = { id, label: label(level, "") };
+  },
+);
+
+Given(
+  "the resource {string} classified at level {int} in compartment {string}",
+  function (this: QadiWorld, id: string, level: number, compartment: string) {
+    this.resource = { id, label: label(level, compartment) };
+  },
+);

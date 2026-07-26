@@ -64,8 +64,8 @@ name:
 
 | Variant | Status | Priority | Enablers required | Breaking change |
 | ------- | ------ | -------- | ----------------- | --------------- |
-| **Strict Biba** | Additive | P3 | ~~E1~~, E4 | No |
-| **Low-water-mark Biba** | Additive | P3 | ~~E1~~, E4, **E5** | No |
+| **Strict Biba** | **Shipped** | P3 | ~~E1, E4~~ | No |
+| **Low-water-mark Biba** | **Shipped** | P3 | ~~E1, E4, E5~~ | No |
 
 The second row is a finding this document contributes. The
 [matrix](./00-adoption-matrix.md) records Biba as `E1, E4`, which holds for the
@@ -194,9 +194,12 @@ a larger departure than adding a matcher. Settle that in an ADR first.
 
 ## Verification
 
-Nothing verifies this model, and nothing can: E4 and E5 are unbuilt, so there is
-no dominance relation and no history port to test against. E1 has shipped, so the
-verb is no longer among the missing pieces. The compiled example proves its signatures are current, not that Biba is
+Every enabler this model named has now shipped — E1, E4 and E5 — so nothing
+blocks it. What is still true is that nothing verifies *Biba specifically*: the
+mechanics are proven by [27](./27-bell-lapadula.md)'s ★-property tests and by
+`@REQ-QD-013`, and Biba is those tests with the operands exchanged. Adopting it
+means writing that exchange down as scenarios, which is now an afternoon rather
+than three enablers. The compiled example proves its signatures are current, not that Biba is
 enforced — its constant thresholds are a projection of the rule onto one rung.
 
 Adopting the model means newly allocated `REQ-QD` scenarios covering at minimum:

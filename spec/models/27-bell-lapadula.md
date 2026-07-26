@@ -47,7 +47,7 @@ P3, behind sixteen recipes costing nothing but a resolver.
 | -------- | ----- |
 | Status | **Additive** |
 | Priority | **P3** |
-| Enablers required | ~~**E1**~~ **shipped**; **E4** outstanding |
+| Enablers required | ~~**E1, E4**~~ **shipped**; none outstanding |
 | Breaking change | No |
 
 ## What Qadi can express today
@@ -115,6 +115,14 @@ correct verb is a convention, not an enforced rule: nothing stops a handler
 calling `mayRead` on a write path, and Qadi cannot detect it.
 
 ## Proposed API design
+
+> **Superseded by [ADR-QD-021](../decisions/021-label-lattice.md).** E4 shipped,
+> and in two respects it is *cheaper* than sketched below. `compartments` is an
+> array rather than a `ReadonlySet`, and there is **no `SecurityLabel` codec at
+> all** — the `Dominates` matcher carries a `ValueRef` and no label, so both
+> operands are runtime data and the set-ordering hazard described below never
+> arises. The comparison is four-valued (`Equal` is named separately) and `join`
+> and `meet` were declined as out of scope. The sketch is left as written.
 
 ### Why both enablers, and what each supplies
 
@@ -209,9 +217,10 @@ standing between this library and the defect that motivated the rewrite.
 
 ## What it would cost
 
-E4 alone, now that E1 has shipped — the cheaper half went first, on the argument
-that it unlocked six other models. E4 is the half with a real design question in
-it, and all of what follows is E4's.
+Nothing further: E1 and E4 have both shipped. What follows is the cost as
+estimated, kept for the record — the design question it names was settled by
+[ADR-QD-021](../decisions/021-label-lattice.md), and the row below it about a
+`ReadonlySet` codec turned out not to apply, because no label is ever encoded.
 
 | Invariant | Risk |
 | --------- | ---- |
@@ -243,9 +252,12 @@ already given it up.
 
 ## Verification
 
-Nothing verifies this model. E1 has shipped, but E4 has not, so no part of this
-document beyond the compiled example and the action dimension describes shipped
-API — and without dominance there is no rule to test.
+This model is now verified. Both enablers shipped, and the ★-property is
+asserted end to end in `packages/core/test/Evaluate.test.ts` — reads down and not
+up, writes up and not down, and **incomparable compartments refused in both
+directions**, which is the case the enumeration approach gets wrong rather than
+approximately right. `@REQ-QD-013` covers the same ground as scenarios. See
+[13 — The Label Lattice](../behaviors/13-labels.md).
 
 Bell–LaPadula is, however, unusually testable, and that is worth noting while the
 design is open. The two rules are small, total and mutually constraining, and

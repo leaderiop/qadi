@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RTM                                       |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Verification Record                            |
-> | Change History | 1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -44,6 +44,7 @@ contract.
 | [10 — The Action Dimension](behaviors/10-actions.md) | BEH-QD-073–078 | `packages/core/src/Evaluate.ts`, `Policy.ts`, `Matcher.ts`, `Errors.ts` |
 | [11 — Obligations](behaviors/11-obligations.md) | BEH-QD-081–087 | `packages/core/src/Obligation.ts`, `Decision.ts`, `Policy.ts`, `Evaluate.ts`, `Qadi.ts` |
 | [12 — Decision History](behaviors/12-history.md) | BEH-QD-089–095 | `packages/core/src/DecisionHistory.ts`, `Policy.ts`, `Evaluate.ts`, `Errors.ts` |
+| [13 — The Label Lattice](behaviors/13-labels.md) | BEH-QD-097–101 | `packages/core/src/SecurityLabel.ts`, `Matcher.ts` |
 
 ## §2 Invariant traceability
 
@@ -63,6 +64,7 @@ contract.
 | [INV-QD-012](invariants.md#inv-qd-012-obligations-are-never-narrowed) | Obligations are never narrowed | `unionObligations`, the only combinator | `Evaluate.test.ts` |
 | [INV-QD-013](invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation) | Enforcement refuses an undischarged obligation | One shared `permitted` path | `Qadi.test.ts` |
 | [INV-QD-014](invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities) | An unwired history port denies both polarities | Three-valued port; `DecisionHistoryUnknown` | `Evaluate.test.ts`, `TestLayers.test.ts` |
+| [INV-QD-015](invariants.md#inv-qd-015-incomparable-labels-deny-in-both-directions) | Incomparable labels deny both ways | `compareLabels` / `labelDominates` | `Matcher.test.ts`, `Evaluate.test.ts` |
 
 ## §3 Decision traceability
 
@@ -87,7 +89,8 @@ contract.
 | [ADR-QD-017](decisions/017-stale-decisions-are-not-decisions.md) | A decision being re-checked is not a decision | INV-QD-007 |
 | [ADR-QD-018](decisions/018-action-dimension.md) | The action is an evaluation input, not a permission segment | INV-QD-001, INV-QD-006, INV-QD-011 |
 | [ADR-QD-019](decisions/019-obligations.md) | Obligations are a condition on permission | INV-QD-003, INV-QD-005, INV-QD-009, INV-QD-012, INV-QD-013 |
-| [ADR-QD-020](decisions/020-decision-history-port.md) | History is a three-valued port (*Proposed*) | INV-QD-003, INV-QD-006, INV-QD-007, INV-QD-008, INV-QD-014 |
+| [ADR-QD-020](decisions/020-decision-history-port.md) | History is a three-valued port | INV-QD-003, INV-QD-006, INV-QD-007, INV-QD-008, INV-QD-014 |
+| [ADR-QD-021](decisions/021-label-lattice.md) | Dominance is four-valued; the label never enters the policy (*Proposed*) | INV-QD-003, INV-QD-007, INV-QD-015 |
 
 ## §4 Test file map
 
@@ -97,8 +100,8 @@ contract.
 | `packages/react/test/v4-reactivity-smoke.test.ts` | `effect/unstable/reactivity` API canary, ADR-QD-014 |
 | `packages/core/test/Tokens.test.ts` | BEH-QD-001–012, INV-QD-001, INV-QD-002, INV-QD-010 |
 | `packages/core/test/Policy.test.ts` | BEH-QD-017–019, BEH-QD-057–059, BEH-QD-074, BEH-QD-081, BEH-QD-091–092, INV-QD-003 |
-| `packages/core/test/Matcher.test.ts` | BEH-QD-025–028, BEH-QD-075, INV-QD-004, INV-QD-011 |
-| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–039, BEH-QD-073–078, BEH-QD-081–086, BEH-QD-089–095, INV-QD-005, INV-QD-006, INV-QD-008, INV-QD-011, INV-QD-012, INV-QD-014, ADR-QD-009 |
+| `packages/core/test/Matcher.test.ts` | BEH-QD-025–028, BEH-QD-075, BEH-QD-097–099, INV-QD-004, INV-QD-011, INV-QD-015 |
+| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–039, BEH-QD-073–078, BEH-QD-081–086, BEH-QD-089–095, BEH-QD-098–101, INV-QD-005, INV-QD-006, INV-QD-008, INV-QD-011, INV-QD-012, INV-QD-014, INV-QD-015, ADR-QD-009 |
 | `packages/core/test/Layers.test.ts` | BEH-QD-041–044, INV-QD-007 |
 | `packages/core/test/Qadi.test.ts` | BEH-QD-049–052, BEH-QD-085, INV-QD-009, INV-QD-013 |
 | `packages/testing/test/TestLayers.test.ts` | Test fixtures and layers, INV-QD-014 |
@@ -123,6 +126,7 @@ contract.
 | REQ-QD-010 | `features/features/actions/actions.feature` | BEH-QD-073–076, INV-QD-011 |
 | REQ-QD-011 | `features/features/obligations/obligations.feature` | BEH-QD-081–085, INV-QD-012, INV-QD-013 |
 | REQ-QD-012 | `features/features/history/history.feature` | BEH-QD-090–093, INV-QD-014 |
+| REQ-QD-013 | `features/features/labels/labels.feature` | BEH-QD-098–099, INV-QD-015 |
 
 ## §6 Coverage targets
 

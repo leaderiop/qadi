@@ -13,3 +13,4 @@ export * from "./Policy.ts";
 export * from "./Qadi.ts";
 export * from "./RelationshipResolver.ts";
 export * from "./Role.ts";
+export * from "./SecurityLabel.ts";

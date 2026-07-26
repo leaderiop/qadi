@@ -13,12 +13,15 @@ import {
   eq,
   literal,
   lt,
+  dominates,
   hasActed,
   hasNotActed,
   not,
   obligation,
   obliged,
   permission,
+  resource,
+  subject,
   subjectId,
 } from "@qadi/core";
 import { QadiWorld } from "./world.ts";
@@ -222,4 +225,25 @@ When("they must have raised the resource", function (this: QadiWorld) {
  */
 When("the negation of having raised the resource is evaluated", function (this: QadiWorld) {
   this.run(not(hasActed("raised")));
+});
+
+// ---------------------------------------------------------------------------
+// Label dominance
+// ---------------------------------------------------------------------------
+
+/**
+ * Bell-LaPadula: no read up, no write down. Both rules are one comparison with
+ * the operands exchanged, which is why a boolean matcher is safe here — the
+ * question is never asked by negating the answer.
+ */
+When("Bell-LaPadula is enforced", function (this: QadiWorld) {
+  this.run(
+    anyOf([
+      allOf([hasAction("read"), hasAttribute("clearance", dominates(resource("label")))]),
+      allOf([
+        hasAction("write"),
+        hasResourceAttribute("label", dominates(subject("clearance"))),
+      ]),
+    ]),
+  );
 });

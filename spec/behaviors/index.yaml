@@ -38,3 +38,6 @@ entries:
   - id: "BEH-QD-089"
     file: "12-history.md"
     title: "12 — Decision History"
+  - id: "BEH-QD-097"
+    file: "13-labels.md"
+    title: "13 — The Label Lattice"
