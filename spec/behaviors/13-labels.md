@@ -178,6 +178,33 @@ const classification: SecurityLabel = { level: 2, compartments: ["BIO"] };
 // scalars they are both `2`, and each would reach the other.
 ```
 
+## BEH-QD-102: Dominance is a partial order
+
+> **Invariant:** [INV-QD-019](../invariants.md#inv-qd-019-dominance-is-a-partial-order)
+
+```
+REQUIREMENT: `labelDominates` MUST be reflexive, antisymmetric and transitive
+             over every pair and triple of labels.
+```
+
+```
+REQUIREMENT: Antisymmetry MUST mean that mutual dominance forces equality — the
+             same level and the same compartment set, compared as sets.
+```
+
+[BEH-QD-098](#beh-qd-098-four-values) states reflexivity, which is one law of
+three, and it is the only one an example-based test naturally reaches. The other
+two are why the model composes:
+
+```
+REQUIREMENT: No sequence of a permitted read followed by a permitted write MUST
+             move information to a label that does not dominate its origin.
+```
+
+That last is not a separate rule for the evaluator to enforce. It is transitivity
+restated in the terms the model uses, and it holds *because* dominance composes —
+which is the whole reason this requirement is written down rather than assumed.
+
 ---
 
 _Previous: [12 — Decision History](./12-history.md) | Next: [14 — Subject Sets](./14-subject-sets.md)_

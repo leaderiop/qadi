@@ -210,6 +210,16 @@ Given(
   },
 );
 
+/** The plural existed for the subject and not the resource. A genuine partial
+ * order needs two compartments on BOTH sides — `{A,B}` against `{A,C}` — which
+ * the singular cannot express. */
+Given(
+  "the resource {string} classified at level {int} in compartments {string}",
+  function (this: QadiWorld, id: string, level: number, compartments: string) {
+    this.resource = { id, label: label(level, compartments) };
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Integrity labels
 // ---------------------------------------------------------------------------

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-27                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): Status corrected to Shipped, citing `@REQ-QD-013` as borrowed; the prescribed order-law property tests built (INV-QD-019, BEH-QD-102); the shipped tree promoted to a compiled example; the INV-QD-003 "one that matters" risk withdrawn; three prior revisions absorbed without a bump (CCR-QD-012, CCR-QD-016, CCR-QD-017) now recorded (CCR-QD-024)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -45,25 +45,52 @@ P3, behind sixteen recipes costing nothing but a resolver.
 
 | Property | Value |
 | -------- | ----- |
-| Status | **Additive** |
+| Status | **Shipped** |
 | Priority | **P3** |
 | Enablers required | ~~**E1, E4**~~ **shipped**; none outstanding |
 | Breaking change | No |
 
-## What Qadi can express today
+**Shipped: [ADR-QD-018](../decisions/018-action-dimension.md),
+[ADR-QD-021](../decisions/021-label-lattice.md),
+[13 — The Label Lattice](../behaviors/13-labels.md),
+[INV-QD-015](../invariants.md#inv-qd-015-incomparable-labels-deny-in-both-directions),
+[INV-QD-019](../invariants.md#inv-qd-019-dominance-is-a-partial-order),
+`@REQ-QD-013`, `packages/core/test/Evaluate.test.ts`.**
+
+The tag is **borrowed and not allocated**, deliberately.
+`features/features/labels/labels.feature` is described as *"Bell-LaPadula as one
+stored policy: no read up, no write down"* — it is this model's acceptance suite
+under a name given to the enabler, and allocating a second tag over the same nine
+scenarios would buy a row in the traceability matrix and no evidence.
+[MOD-QD-028](./28-biba.md) set the precedent in the other direction: it needed
+its own tag because nothing existed for the inverted reading.
+
+## What Qadi could express before E4
+
+> **Historical.** The section below is the pre-E4 workaround, kept because the
+> enumeration it describes is what callers on the old shape have deployed and the
+> hazard in its rung ordering is real. It is **not** the model — see
+> [The shape it took](#the-shape-it-took) — and nothing below this line should be
+> copied into new code.
 
 One special case, and it should be labelled as such rather than as the model: a
 **totally ordered, compartment-free** scheme, with the verb chosen by the caller
 selecting which of two policies to evaluate. `gte` and `lt` take a plain number,
-never a value reference, so the subject's clearance cannot be compared against
-the resource's level ([matrix §3.2](./00-adoption-matrix.md)); both rules are
-therefore enumerated as rungs, and the enumeration is what a reviewer reads.
+never a value reference, so the subject's clearance could not be compared against
+the resource's level; both rules are therefore enumerated as rungs, and the
+enumeration is what a reviewer reads.
+
+*Corrected in CCR-QD-024.* The premise about `gte` and `lt` still holds — they
+take constants to this day. The conclusion does not: `dominates` takes a
+`ValueRef` (ADR-QD-021), so for **labels** the two live values do compare, and
+the general rule is one policy rather than a transcribed ladder.
 
 ```typescript
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever,
+  AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive,
+  RelationshipResolverNever,
   allOf, anyOf, check, currentSubjectLayer, gte, hasAttribute,
   hasResourceAttribute, inArray, lt, makeSubject,
   type Matcher, type Policy,
@@ -104,6 +131,7 @@ const program = Effect.all([
       currentSubjectLayer(makeSubject({ id: "u-7", attributes: { clearance: 2 } })),
       AttributeResolverNone,
       RelationshipResolverNever,
+      DecisionHistoryUnknown,
       EvaluationIdLive,
     ),
   ),
@@ -111,10 +139,15 @@ const program = Effect.all([
 ```
 
 A useful recipe and a poor model. Two policies the caller must pair with the
-correct verb is a convention, not an enforced rule: nothing stops a handler
-calling `mayRead` on a write path, and Qadi cannot detect it.
+correct verb is a convention, not an enforced rule: nothing stopped a handler
+calling `mayRead` on a write path, and Qadi could not detect it.
 
-## Proposed API design
+*Corrected in CCR-QD-024.* It can now: `hasAction` makes the verb an input to
+evaluation rather than a convention around it (ADR-QD-018), so the two policies
+became two arms of one, and a handler cannot pick the wrong arm because it does
+not pick.
+
+## The shape it took
 
 > **Superseded by [ADR-QD-021](../decisions/021-label-lattice.md).** E4 shipped,
 > and in two respects it is *cheaper* than sketched below. `compartments` is an
@@ -134,10 +167,10 @@ knowing that `a` dominates `b` says nothing until you know which of read or writ
 was attempted; with **E1 and no E4** the verb is known, but labels can only be
 compared as scalars — the wrong answer the moment compartments exist.
 
-That second case is now the live one. E1 shipped
-([ADR-QD-018](../decisions/018-action-dimension.md)), so this model is exactly
-one enabler away, and it is the enabler carrying the design question rather than
-the mechanical work.
+Both cases are closed: E1 shipped in
+[ADR-QD-018](../decisions/018-action-dimension.md) and E4 in
+[ADR-QD-021](../decisions/021-label-lattice.md). The argument above is why they
+had to ship as a pair, and it survived the build unchanged.
 
 ```ts
 export interface SecurityLabel {
@@ -149,6 +182,12 @@ export interface SecurityLabel {
 export const dominates = (a: SecurityLabel, b: SecurityLabel): boolean =>
   a.level >= b.level && [...b.compartments].every((c) => a.compartments.has(c));
 ```
+
+*As shipped:* `compartments` is a `ReadonlyArray<string>`, and the predicate is
+named **`labelDominates`** — `dominates` is the *matcher constructor*, which takes
+one `ValueRef` rather than two labels. ADR-QD-021 records the two names as "close
+enough to confuse" and chose the split deliberately; the sketch above asserts the
+name that lost, and [29](./29-mls.md) built a claim on it that the ADR overruled.
 
 ### Why compartments break scalar comparison
 
@@ -189,17 +228,67 @@ export interface MatcherContext {
 }
 ```
 
-With both enablers the model becomes one policy rather than two, and the verb
-stops being a convention the caller may forget. Per
+With both enablers the model **became** one policy rather than two, and the verb
+stopped being a convention the caller may forget. Per
 [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness) that action
 input must not be derived from or compared against the action segment of a
 permission token — two spellings of one word that must stay apart.
 
-```ts
-anyOf([
+This is the model, entire, and it is byte-for-byte the tree
+`packages/core/test/Evaluate.test.ts` evaluates:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import {
+  AttributeResolverNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+  allOf,
+  anyOf,
+  check,
+  currentSubjectLayer,
+  dominates,
+  hasAction,
+  hasAttribute,
+  hasResourceAttribute,
+  makeSubject,
+  resource,
+  subject,
+  type SecurityLabel,
+} from "@qadi/core";
+
+const blp = anyOf([
+  // No read up: the reader must dominate what it reads.
   allOf([hasAction("read"), hasAttribute("clearance", dominates(resource("label")))]),
-  allOf([hasAction("write"), hasResourceAttribute("label", dominates(subject("clearance")))]),
+  // No write down: what is written must dominate the writer.
+  allOf([
+    hasAction("write"),
+    hasResourceAttribute("label", dominates(subject("clearance"))),
+  ]),
 ]);
+
+// A clearance and a classification, as they arrive from JSON. Neither dominates
+// the other — incomparable compartments — so both the read and the write refuse.
+// Compared as scalars both are `2`, and each would reach the other.
+const clearance: SecurityLabel = { level: 2, compartments: ["CRYPTO"] };
+const classification: SecurityLabel = { level: 2, compartments: ["BIO"] };
+
+const program = check(blp, {
+  action: "read",
+  resource: { id: "doc-1", label: classification },
+}).pipe(
+  Effect.provide(
+    Layer.mergeAll(
+      currentSubjectLayer(makeSubject({ id: "u-7", attributes: { clearance } })),
+      AttributeResolverNone,
+      RelationshipResolverNever,
+      DecisionHistoryUnknown,
+      EvaluationIdLive,
+    ),
+  ),
+);
 ```
 
 ### The four coordinated edits
@@ -215,7 +304,13 @@ the `FastCheck.letrec` generator behind the round-trip property test must gain
 the variant in the same change, or the new node is untested by the one property
 standing between this library and the defect that motivated the rewrite.
 
-## What it would cost
+*Held exactly, and cost less than four.* `Dominates` landed in all four places in
+one change and the generator gained it in the same commit. But `SecurityLabel`
+needed none of them — it is a hand-written interface, never a codec, because a
+label never enters a policy tree. The rule is about **variants**, not about every
+type a variant mentions, and this section did not draw that line.
+
+## What it cost
 
 Nothing further: E1 and E4 have both shipped. What follows is the cost as
 estimated, kept for the record — the design question it names was settled by
@@ -224,7 +319,7 @@ estimated, kept for the record — the design question it names was settled by
 
 | Invariant | Risk |
 | --------- | ---- |
-| [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) | **The one that matters.** `Dominates` is a new codec variant, and `SecurityLabel` carries a `ReadonlySet` |
+| ~~[INV-QD-003](../invariants.md#inv-qd-003-codectype-identity)~~ | ~~**The one that matters.** `Dominates` is a new codec variant, and `SecurityLabel` carries a `ReadonlySet`~~ — **withdrawn.** `Dominates` cost the same as `Eq`, and `SecurityLabel` is a hand-written interface with no codec at all, so the risk this row called the largest did not exist |
 | [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one) | Settled: an absent `action` **fails**; it neither denies nor matches every branch |
 | [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | Unaffected — dominance is pure, and a lattice is data, not state |
 
@@ -236,6 +331,16 @@ on decode. Two encodings of one label that compare unequal is precisely the clas
 of defect schema-derived types were adopted to prevent. Whether the lattice is
 declared as data handed to the evaluator or left implicit in the labels
 themselves is the other open question, and belongs in an ADR.
+
+*Resolved in ADR-QD-021, and this paragraph is the reason it went the way it
+did.* The hazard is real, and the ADR quotes the sentence above when explaining
+why it chose the array: the way to make a canonical set encoding safe is to need
+no set encoding, so `compartments` is an array and **no label is ever encoded** —
+`Dominates` carries a `ValueRef`, and both operands arrive as runtime data. The
+second question is settled too: the lattice is declared **nowhere**, and
+dominance is computed structurally from `(level, compartments)`
+([BEH-QD-097](../behaviors/13-labels.md)). The ADR this paragraph asked for is
+ADR-QD-021.
 
 ## Tranquillity
 
@@ -252,24 +357,56 @@ already given it up.
 
 ## Verification
 
-This model is now verified. Both enablers shipped, and the ★-property is
-asserted end to end in `packages/core/test/Evaluate.test.ts` — reads down and not
-up, writes up and not down, and **incomparable compartments refused in both
-directions**, which is the case the enumeration approach gets wrong rather than
-approximately right. `@REQ-QD-013` covers the same ground as scenarios. See
-[13 — The Label Lattice](../behaviors/13-labels.md).
+This model is verified.
 
-Bell–LaPadula is, however, unusually testable, and that is worth noting while the
-design is open. The two rules are small, total and mutually constraining, and
-dominance is a partial order — so property tests over generated lattices suit it
-far better than worked examples do: reflexivity, antisymmetry and transitivity of
-dominance; incomparable labels denying in **both** directions; and the composite
-property the model exists for, that no sequence of permitted reads and permitted
-writes moves information to a label which does not dominate its origin. Adopting
-it means an ADR per enabler, a behaviour, an invariant and newly allocated
-`REQ-QD` scenarios covering at minimum a read allowed by dominance, a read denied
-by an incomparable compartment set, a write denied downward, and an absent action
-denying.
+| Claim | Evidence |
+| ----- | -------- |
+| Reads down, refuses to read up | `@REQ-QD-013`, `Evaluate.test.ts` |
+| Writes up, refuses to write down | `@REQ-QD-013`, `Evaluate.test.ts` |
+| Incomparable compartments refuse a read in **both** directions | `@REQ-QD-013` (two scenarios), INV-QD-015 |
+| Incomparable compartments refuse a write | `Evaluate.test.ts`, `Matcher.test.ts` |
+| A broader clearance reads a narrower document at the same level | `@REQ-QD-013`, `Evaluate.test.ts` |
+| An absent clearance denies rather than failing | `@REQ-QD-013`, ADR-QD-021 |
+| An absent **action** fails rather than denying | `Evaluate.test.ts`, INV-QD-011 |
+| The rule survives a round trip through JSON | `Evaluate.test.ts` |
+| **Dominance is reflexive, antisymmetric and transitive** | `Matcher.test.ts` properties, INV-QD-019, BEH-QD-102 |
+| **No permitted read-then-write moves information downwards** | `Matcher.test.ts` property |
+
+One imprecision corrected while assembling that table: the previous wording
+claimed incomparable compartments were "refused in both directions" end to end.
+For a **read** they are, in two scenarios and two unit tests. For a **write** the
+refusal is asserted once, in one direction. The relation is symmetric so the
+second direction adds little, but the sentence claimed more than the suite did.
+
+### The property tests this document asked for now exist
+
+Revision 1.0 argued Bell–LaPadula is "unusually testable" and prescribed exactly
+this: *"reflexivity, antisymmetry and transitivity of dominance; incomparable
+labels denying in both directions; and the composite property the model exists
+for, that no sequence of permitted reads and permitted writes moves information to
+a label which does not dominate its origin."*
+
+All of it is now asserted, under [INV-QD-019](../invariants.md#inv-qd-019-dominance-is-a-partial-order)
+and [BEH-QD-102](../behaviors/13-labels.md). Two things the forecast did not
+anticipate:
+
+- **The composite property *is* transitivity.** `subject ⊵ source` permits the
+  read and `sink ⊵ subject` permits the write, so `sink ⊵ source` follows if and
+  only if dominance composes. The document listed them as two items; they are one
+  law stated twice, and the interesting direction is that the ★-property's
+  guarantee turns out to be a consequence of the order rather than a rule the
+  evaluator enforces.
+- **The laws hold structurally, so the tests found nothing.** With `>=` on levels
+  and containment on compartments there is no arrangement of the current code that
+  violates them, and no mutation broke a law without also breaking an example.
+  That makes them regression protection against a specific future change — a
+  configurable lattice or a compartment hierarchy, which is what
+  [29](./29-mls.md) asks for — rather than the bug-finding exercise "unusually
+  testable" implied.
+
+The remaining ask, an ADR per enabler, was met by ADR-QD-018 and ADR-QD-021. No
+new `REQ-QD` was allocated: `@REQ-QD-013` is this model's suite under the
+enabler's name, and the Status section says so.
 
 ---
 

@@ -455,3 +455,46 @@ must read identically on both sides.
 **Related**: [BEH-QD-127](behaviors/16-predicates.md), [ADR-QD-024](decisions/024-predicate-output.md).
 
 ---
+
+## INV-QD-019: Dominance is a partial order
+
+`labelDominates` is reflexive, antisymmetric and transitive over every label.
+
+**Source**: `packages/core/src/SecurityLabel.ts` — `compareLabels` composes `>=`
+on `level` with containment on `compartments`, and both relations are themselves
+partial orders.
+
+**Implication**: this is what makes the ★-property a guarantee rather than a pair
+of checks. A subject may read `source` when it dominates it and write `sink` when
+`sink` dominates it; information then flows `source → sink`, and confidentiality
+requires `sink` to dominate `source`. That conclusion follows **only** if
+dominance composes. Bell–LaPadula's security property is therefore not an extra
+rule the evaluator enforces — it is a consequence of the order being an order,
+and it is the one thing about the model that no example-based test states.
+
+[INV-QD-015](#inv-qd-015-incomparable-labels-deny-in-both-directions) covers
+incomparability, which is one law of four. The other three had been asserted only
+by example, and both [MOD-QD-027](models/27-bell-lapadula.md) and
+[MOD-QD-029](models/29-mls.md) prescribed property tests for them.
+
+**Enforcement**: `FastCheck` properties in `packages/core/test/Matcher.test.ts`
+sample labels over four levels and three compartments — small deliberately, since
+a wide alphabet makes overlapping-incomparable pairs rare, and those are the pairs
+where a law can fail. Antisymmetry is asserted as the **implication** (mutual
+dominance forces equal level and equal compartment set), not by comparing a pair
+built to be equal. The flow property is stated separately in the terms the model
+uses, and each property counts its witnesses and asserts the count, because an
+antecedent that never fires makes the assertion vacuous — only about one triple in
+sixteen forms a dominance chain.
+
+**What this invariant is, honestly**: regression protection, not a bug found. The
+laws hold *structurally*, and no mutation of `covers` or `compareLabels` broke one
+without also breaking an example test. The change it guards against is a named
+one: MOD-QD-029 asks for `join`, and a configurable lattice or a compartment
+hierarchy is exactly where a structurally-emergent transitivity stops being
+emergent. An invariant recorded before that change is cheap; recorded after, it
+is archaeology.
+
+**Related**: [BEH-QD-102](behaviors/13-labels.md), [ADR-QD-021](decisions/021-label-lattice.md).
+
+---

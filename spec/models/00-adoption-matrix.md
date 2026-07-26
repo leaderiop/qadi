@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.18                                           |
+> | Revision       | 1.19                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.18 (2026-07-26): Both Biba variants verified as `@REQ-QD-020`; the low-water-mark E5 finding withdrawn — the original E1/E4 answer was right; `Shipped, in part` added to the §1.1 legend; the Bell–LaPadula and MLS status disagreement recorded as open (CCR-QD-023)<br>1.17 (2026-07-26): Chinese Wall and TBAC verified; HBAC corrected to Shipped, in part; the §3.3 fence claim and the four-sketch note corrected (CCR-QD-022)<br>1.16 (2026-07-26): Static separation of duty verified; the §3.3 static row corrected to Shipped, in part (CCR-QD-021)<br>1.15 (2026-07-26): E7 shipped; ADR-QD-024 Accepted; phase 5 complete; every enabler shipped (CCR-QD-020)<br>1.14 (2026-07-26): E3 shipped; ADR-QD-023 Accepted; two §3.3 claims corrected (CCR-QD-019)<br>1.13 (2026-07-26): E6 shipped; ADR-QD-022 Accepted; phase 4 complete (CCR-QD-018)<br>1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.19 (2026-07-26): Bell–LaPadula and MLS status disagreement closed — 27 to Shipped on a borrowed `@REQ-QD-013`, 29 to Shipped, in part as a ceiling; MLS verified as `@REQ-QD-021`; the order laws proven under INV-QD-019 (CCR-QD-024)<br>1.18 (2026-07-26): Both Biba variants verified as `@REQ-QD-020`; the low-water-mark E5 finding withdrawn — the original E1/E4 answer was right; `Shipped, in part` added to the §1.1 legend; the Bell–LaPadula and MLS status disagreement recorded as open (CCR-QD-023)<br>1.17 (2026-07-26): Chinese Wall and TBAC verified; HBAC corrected to Shipped, in part; the §3.3 fence claim and the four-sketch note corrected (CCR-QD-022)<br>1.16 (2026-07-26): Static separation of duty verified; the §3.3 static row corrected to Shipped, in part (CCR-QD-021)<br>1.15 (2026-07-26): E7 shipped; ADR-QD-024 Accepted; phase 5 complete; every enabler shipped (CCR-QD-020)<br>1.14 (2026-07-26): E3 shipped; ADR-QD-023 Accepted; two §3.3 claims corrected (CCR-QD-019)<br>1.13 (2026-07-26): E6 shipped; ADR-QD-022 Accepted; phase 4 complete (CCR-QD-018)<br>1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -468,7 +468,7 @@ masquerade as API.
 | Bell–LaPadula | [MOD-QD-027](./27-bell-lapadula.md) | **Shipped** | — | P3 |
 | Biba, strict | [MOD-QD-028](./28-biba.md) | **Shipped** | — | P3 |
 | Biba, low-water-mark | [MOD-QD-028](./28-biba.md) | **Shipped** | — | P3 |
-| Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | **Shipped** | — | P3 |
+| Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | **Shipped, in part** | — (`join` and `meet` are declined; an irregular lattice is still hand-enumerated) | P3 |
 | Chinese Wall (Brewer–Nash) | [MOD-QD-030](./30-chinese-wall.md) | **Shipped** | — | P3 |
 | History-based (HBAC) | [MOD-QD-031](./31-hbac.md) | **Shipped, in part** | — (the windowed count and the ordering question are deferred) | P3 |
 | Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | **Shipped, in part** | — (user-space review is out of reach) | P3 |
@@ -494,15 +494,33 @@ name **shadows** the mark and fails open. This is the one correction in this
 section where the original table was right and the model document talked it out
 of being right.
 
-**Open: two rows above are unearned, in the other direction.** Both Biba rows read
-**Shipped** and, as of CCR-QD-023, are covered by `@REQ-QD-020`. The
-Bell–LaPadula and MLS rows also read **Shipped**, applied by the same commit that
-built E4 — but [MOD-QD-027](./27-bell-lapadula.md) and
+**~~Open: two rows above are unearned, in the other direction.~~ Closed in
+CCR-QD-024.** Both Biba rows read **Shipped** and, as of CCR-QD-023, are covered
+by `@REQ-QD-020`. The Bell–LaPadula and MLS rows also read **Shipped**, applied by
+the same commit that built E4 — but [MOD-QD-027](./27-bell-lapadula.md) and
 [MOD-QD-029](./29-mls.md) still say **Additive** in their own Status sections, so
 document and table disagree. By the definition in §1.1 the word requires tests:
 27 is covered in substance by `@REQ-QD-013`, whose feature file is titled for it;
-29 is not covered by anything. Audited and corrected under a CCR of its own, not
-this one.
+29 is not covered by anything.
+
+*Both audited. 27 was right and 29 was not.* 27 moves to **Shipped**, citing
+`@REQ-QD-013` as a **borrowed** tag rather than allocating a second one over the
+same nine scenarios. 29 moves to **Shipped, in part** — a **ceiling** — because it
+defines a lattice as "a partial order with joins" and E4 shipped no joins; three of
+the seven laws in its own Verification table turned out unsatisfiable rather than
+merely unmet. It gains `@REQ-QD-021`, whose scenarios state the rule as **flow**
+with no `hasAction`, which is the claim that the general model needs E4 alone.
+
+**And both documents asked for the same missing evidence.** 27 and 29 each
+prescribed property tests over generated lattices for reflexivity, antisymmetry
+and transitivity; neither got them, and `grep` for either word across `packages/`
+returned nothing. They now exist as
+[INV-QD-019](../invariants.md#inv-qd-019-dominance-is-a-partial-order). The
+finding worth keeping is why it matters: 27's "composite property" — that no
+sequence of permitted reads and writes moves information downwards — **is**
+transitivity, so the ★-property's guarantee is a consequence of the order being an
+order rather than a rule the evaluator enforces. Nothing had tested that dominance
+composes.
 
 **E1 was the highest-leverage enabler, and this table understated it.** Three
 models — OrBAC's *activity*, type enforcement's *operation*, and NGAC's

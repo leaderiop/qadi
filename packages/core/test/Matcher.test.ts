@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as FastCheck from "effect/testing/FastCheck";
 import {
   intersectFields,
   project,
@@ -148,6 +149,130 @@ describe("security labels", () => {
     assert.isFalse(isSecurityLabel(null));
     assert.isFalse(isSecurityLabel(2));
     assert.isFalse(isSecurityLabel(undefined));
+  });
+
+  it("OVERLAPPING compartment sets are incomparable, not merely disjoint ones", () => {
+    // The shape of incomparability the suite did not have. Every other case here
+    // is either disjoint singletons (`{CRYPTO}` vs `{BIO}`) or a strict superset;
+    // this is the canonical partial-order case, where the sets SHARE a
+    // compartment and still neither contains the other.
+    //
+    // It is coverage of a case a reviewer would expect rather than a mutant
+    // nothing else catches — `length <=` and `some` in place of `every` are both
+    // killed by the tests above as well.
+    assert.strictEqual(compareLabels(label(2, "A", "B"), label(2, "A", "C")), "Incomparable");
+    assert.strictEqual(compareLabels(label(2, "A", "C"), label(2, "A", "B")), "Incomparable");
+    assert.strictEqual(compareLabels(label(3, "A", "B"), label(1, "A", "C")), "Incomparable");
+  });
+
+  // -------------------------------------------------------------------------
+  // The order laws (INV-QD-019)
+  //
+  // Both MOD-QD-027 and MOD-QD-029 asked for these and neither got them; the
+  // laws were stated in prose and asserted only by example. They matter because
+  // the guarantee the star-property exists to give — that no sequence of
+  // permitted reads and writes moves information downwards — is TRANSITIVITY,
+  // and nothing tested that dominance composes.
+  //
+  // Honest about what they are: with `>=` on levels and containment on
+  // compartments the laws hold STRUCTURALLY, and no mutation tried against
+  // `covers` or `compareLabels` broke one of them without also breaking an
+  // example test. So these are regression protection, not bug-finders — and the
+  // change they protect against is a named one. MOD-QD-029 asks for `join`, and
+  // a configurable lattice or a compartment hierarchy is exactly where a
+  // structurally-emergent transitivity stops being emergent.
+  // -------------------------------------------------------------------------
+
+  // Three compartments over four levels. Deliberately small: a wide alphabet
+  // makes overlapping-incomparable pairs vanishingly rare in a sample, and
+  // those are the pairs where these laws can fail.
+  const labels: FastCheck.Arbitrary<SecurityLabel> = FastCheck.record({
+    level: FastCheck.integer({ min: 0, max: 3 }),
+    compartments: FastCheck.subarray(["A", "B", "C"]),
+  });
+
+  const sameSet = (a: ReadonlyArray<string>, b: ReadonlyArray<string>) =>
+    a.length === b.length && a.every((c) => b.includes(c));
+
+  it("PROPERTY: dominance is reflexive and antisymmetric", () => {
+    for (const a of FastCheck.sample(labels, 200)) {
+      assert.strictEqual(compareLabels(a, a), "Equal", `reflexivity: ${JSON.stringify(a)}`);
+      assert.isTrue(labelDominates(a, a));
+    }
+
+    for (const [a, b] of FastCheck.sample(FastCheck.tuple(labels, labels), 400)) {
+      // Antisymmetry as the IMPLICATION, not as an example: mutual dominance
+      // must force equality. Asserting `Equal` on a pair built to be equal
+      // proves nothing about the pairs that are not.
+      if (labelDominates(a, b) && labelDominates(b, a)) {
+        assert.strictEqual(a.level, b.level);
+        assert.isTrue(sameSet(a.compartments, b.compartments));
+      }
+    }
+  });
+
+  it("PROPERTY: dominance is transitive", () => {
+    let witnesses = 0;
+    for (const [a, b, c] of FastCheck.sample(FastCheck.tuple(labels, labels, labels), 2000)) {
+      if (labelDominates(a, b) && labelDominates(b, c)) {
+        witnesses += 1;
+        assert.isTrue(
+          labelDominates(a, c),
+          `transitivity: ${JSON.stringify([a, b, c])}`,
+        );
+      }
+    }
+    // A vacuous property passes. Assert the antecedent actually fired, or a
+    // `labelDominates` that always returned false would satisfy this test.
+    // Only about one triple in sixteen forms a chain, so the sample has to be
+    // large for the guard to mean anything — measured, not guessed.
+    assert.isAbove(witnesses, 80);
+  });
+
+  it("PROPERTY: no permitted read-then-write moves information downwards", () => {
+    // The composite property MOD-QD-027 named, in the terms it named it: a
+    // subject may READ `source` when it dominates it, and WRITE `sink` when the
+    // sink dominates the subject. Information then flows source -> sink, and
+    // confidentiality requires the sink to dominate the source.
+    //
+    // It reduces to transitivity above, which is the point worth recording: the
+    // star-property's guarantee is not an extra rule the evaluator enforces, it
+    // is a consequence of the order being an order.
+    let flows = 0;
+    for (const [source, subject, sink] of FastCheck.sample(
+      FastCheck.tuple(labels, labels, labels),
+      2000,
+    )) {
+      const mayRead = labelDominates(subject, source);
+      const mayWrite = labelDominates(sink, subject);
+      if (mayRead && mayWrite) {
+        flows += 1;
+        assert.isTrue(
+          labelDominates(sink, source),
+          `leak: ${JSON.stringify({ source, subject, sink })}`,
+        );
+      }
+    }
+    assert.isAbove(flows, 80);
+  });
+
+  it("PROPERTY: compareLabels is total, and its two strict values mirror", () => {
+    for (const [a, b] of FastCheck.sample(FastCheck.tuple(labels, labels), 400)) {
+      const forward = compareLabels(a, b);
+      assert.include(["Equal", "Dominates", "DominatedBy", "Incomparable"], forward);
+
+      // Swapping the operands must swap the answer, never change its kind. Both
+      // rules of every label model are asked by swapping operands, so an
+      // asymmetry here would make one direction of the rule silently wrong.
+      const reverse = compareLabels(b, a);
+      const mirrored =
+        forward === "Dominates"
+          ? "DominatedBy"
+          : forward === "DominatedBy"
+            ? "Dominates"
+            : forward;
+      assert.strictEqual(reverse, mirrored, `mirror: ${JSON.stringify([a, b])}`);
+    }
   });
 });
 

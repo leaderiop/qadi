@@ -368,6 +368,26 @@ When("Bell-LaPadula is enforced", function (this: QadiWorld) {
 });
 
 // ---------------------------------------------------------------------------
+// The Denning lattice
+// ---------------------------------------------------------------------------
+
+/**
+ * The flow rule, stated as Denning stated it: information may flow from `A` to
+ * `B` only when `B` dominates `A`. No read, no write, no verb.
+ *
+ * This is MOD-QD-029's claim that the general model needs E4 alone and not E1 —
+ * Bell-LaPadula and Biba are the documents that need both, because a flow rule
+ * with no direction cannot tell one instance from the other. It is also the one
+ * shape neither `labels.feature` nor `biba.feature` exercises: every other label
+ * scenario in the suite is a two-armed `anyOf` gated on `hasAction`.
+ */
+When("information flows to the resource", function (this: QadiWorld) {
+  this.run(
+    labeled("flow", hasResourceAttribute("label", dominates(subject("clearance")))),
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Integrity, the other direction
 // ---------------------------------------------------------------------------
 
