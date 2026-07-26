@@ -58,8 +58,9 @@ in the specification up to CCR-QD-035 was produced by a person running it by han
 
 Conventions are in [`AGENTS.md`](./AGENTS.md) and are enforced, not merely
 documented: `scripts/check-house-style.mjs` fails the build on `async`/`await`,
-raw `Promise`, barrel `effect` imports, type assertions, and ambient
-clock/UUID access in production source.
+raw `Promise`, barrel `effect` imports, type assertions, ambient clock/UUID
+access, and any `switch` beyond the four declared hot-path dispatchers — in
+production source.
 
 `packages/core/test/v4-api-smoke.test.ts` is a canary pinning the Effect v4 APIs
 the design depends on. Effect v4 is in beta; if a bump renames something, that

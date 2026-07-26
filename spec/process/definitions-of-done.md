@@ -47,6 +47,12 @@ Note what that costs: CI is only as complete as `check`. `pnpm format:check` is 
 in it and fails on 127 of 145 files, which is a pre-existing state nobody has decided
 about — recorded here rather than left for someone to discover.
 
+Step 4 gained a `SWITCH_BUDGET` in CCR-QD-039. AGENTS.md §5a bans dispatching on a
+`_tag` with `switch` and had named **two** deliberate exceptions while there were
+**four**, with nothing checking the count — the rule was enforced by memory alone. The
+budget declares each file and its exact number and fails in both directions, so a new
+switch needs a written reason and a converted one needs the document updated.
+
 Step 9 is new in CCR-QD-034, and it exists because the document it checks drifted
 **twice**. CCR-QD-025 found `spec/overview.md` still describing the library as it stood
 before any of the seven enablers shipped; six commits later it was missing ten more

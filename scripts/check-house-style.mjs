@@ -77,6 +77,35 @@ const EXEMPTIONS = {
   "packages/react/src/hooks.ts": ["no-raw-promise"],
 };
 
+/**
+ * Deliberate `switch` statements, by file and exact count (AGENTS.md §5a).
+ *
+ * A **count** rather than a per-file pass, because a blanket exemption would let
+ * the next `switch` into an already-exempt file unseen — and both files that
+ * hold one are the two hottest in the library, so they are exactly where one
+ * would be added. Any deviation fails, in both directions: one *fewer* means a
+ * dispatcher was converted to `Match` and §5a now overstates the exceptions,
+ * which is a documentation change this gate should insist on rather than allow.
+ *
+ * The four here all dispatch once per policy node or matcher node per
+ * evaluation — and in `filter` and `decideSubjects`, once per element on top of
+ * that — with handlers closing over per-call state, so the matcher cannot be
+ * hoisted to module scope the way §5a's preferred form requires. Converting
+ * them needs a benchmark, which does not exist yet; until it does, the cost is
+ * unmeasured and the exception stands.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const SWITCH_BUDGET = {
+  // `evaluateNode` on `policy._tag`, and `mergeFields` on the `FieldStrategy`
+  // literal union — which §5a would otherwise route to `Match.value`.
+  "packages/core/src/Evaluate.ts": 2,
+  // `evaluateMatcher` on `self._tag`, and `resolveRef` on `ref._tag`.
+  "packages/core/src/Matcher.ts": 2,
+};
+
+const SWITCH = /\bswitch\s*\(/;
+
 /** Recursively collect .ts/.tsx files under a directory. */
 const collect = (dir) => {
   /** @type {string[]} */
@@ -113,6 +142,9 @@ const strip = (line) =>
 
 let failures = 0;
 
+/** @type {Map<string, number[]>} */
+const switchLines = new Map();
+
 for (const file of sources) {
   const rel = relative(ROOT, file);
   const exempt = EXEMPTIONS[rel] ?? [];
@@ -130,6 +162,12 @@ for (const file of sources) {
     const line = strip(raw);
     if (line.trim() === "" || line.trimStart().startsWith("*")) return;
 
+    if (SWITCH.test(line)) {
+      const found = switchLines.get(rel) ?? [];
+      found.push(index + 1);
+      switchLines.set(rel, found);
+    }
+
     for (const rule of RULES) {
       if (exempt.includes(rule.id)) continue;
       if (rule.re.test(rule.raw === true ? raw : line)) {
@@ -142,9 +180,45 @@ for (const file of sources) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// §5a — dispatch through `Match`, not `switch`. Checked against the declared
+// budget, so an exception has to be written down to survive.
+// ---------------------------------------------------------------------------
+
+let declaredSwitches = 0;
+
+for (const [rel, budget] of Object.entries(SWITCH_BUDGET)) {
+  const found = switchLines.get(rel) ?? [];
+  declaredSwitches += budget;
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [no-switch] declares ${budget} deliberate switch(es), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    ${
+          found.length > budget
+            ? "A new switch needs a reason in AGENTS.md §5a and this budget, or Match instead."
+            : "One was converted — update AGENTS.md §5a and this budget so the two agree."
+        }`,
+    );
+  }
+}
+
+for (const [rel, found] of switchLines) {
+  if (rel in SWITCH_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [no-switch] Dispatch with effect/Match, not switch — AGENTS.md §5a.\n` +
+      `    A hot path that genuinely needs one is declared in SWITCH_BUDGET with its reason.`,
+  );
+}
+
 if (failures > 0) {
   console.error(`\n${failures} house-style violation(s). See AGENTS.md.`);
   process.exit(1);
 }
 
-console.log(`house-style: ${sources.length} file(s) clean`);
+console.log(
+  `house-style: ${sources.length} file(s) clean ` +
+    `(${declaredSwitches} declared switch(es))`,
+);

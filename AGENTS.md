@@ -160,12 +160,32 @@ inside them is fine.
 `Match.value(x)` rebuilds per call, which is fine for a translator invoked once
 per request and is worth avoiding on a per-node evaluation path.
 
-**Two hot-path switches remain unconverted**: `evaluateNode` in `Evaluate.ts` and
-`evaluateMatcher` in `Matcher.ts`. Both run once per policy node per evaluation —
-and in `filter` and `decideSubjects`, once per element on top of that — where
-their handlers close over per-call state so the matcher cannot be hoisted. They
-are a deliberate exception, not an oversight; converting them needs a benchmark
-first.
+**Four switches remain unconverted**, and the exception is enforced rather than
+remembered: `scripts/check-house-style.mjs` carries a `SWITCH_BUDGET` naming each
+file and its exact count, and gate 4 fails on any deviation.
+
+| Location | Dispatches on |
+| -------- | ------------- |
+| `Evaluate.ts` — `evaluateNode` | `policy._tag` |
+| `Evaluate.ts` — `mergeFields` | the `FieldStrategy` literal union |
+| `Matcher.ts` — `evaluateMatcher` | `self._tag` |
+| `Matcher.ts` — `resolveRef` | `ref._tag` |
+
+All four run once per policy node or matcher node per evaluation — and in `filter`
+and `decideSubjects`, once per element on top of that — where their handlers close
+over per-call state so the matcher cannot be hoisted to module scope. They are a
+deliberate exception, not an oversight; converting them needs a benchmark first.
+**No benchmark exists yet**, so the cost is unmeasured, and that is the honest
+reason the exception stands rather than a claim that a switch is faster.
+
+The budget is an exact count and not a per-file pass, deliberately: a blanket
+exemption would let the next `switch` into these two files unnoticed, and they are
+the two hottest in the library — exactly where one would be added. It fails in both
+directions, so converting one to `Match` also fails until this table and the budget
+are updated together.
+
+This section said "two" while there were four, and named only the two whose
+justification someone had written down; nothing checked the count (CCR-QD-039).
 
 ## 6. Forbidden
 
