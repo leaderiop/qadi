@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.16                                           |
+> | Revision       | 1.17                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.16 (2026-07-26): Static separation of duty verified; the §3.3 static row corrected to Shipped, in part (CCR-QD-021)<br>1.15 (2026-07-26): E7 shipped; ADR-QD-024 Accepted; phase 5 complete; every enabler shipped (CCR-QD-020)<br>1.14 (2026-07-26): E3 shipped; ADR-QD-023 Accepted; two §3.3 claims corrected (CCR-QD-019)<br>1.13 (2026-07-26): E6 shipped; ADR-QD-022 Accepted; phase 4 complete (CCR-QD-018)<br>1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.17 (2026-07-26): Chinese Wall and TBAC verified; HBAC corrected to Shipped, in part; the §3.3 fence claim and the four-sketch note corrected (CCR-QD-022)<br>1.16 (2026-07-26): Static separation of duty verified; the §3.3 static row corrected to Shipped, in part (CCR-QD-021)<br>1.15 (2026-07-26): E7 shipped; ADR-QD-024 Accepted; phase 5 complete; every enabler shipped (CCR-QD-020)<br>1.14 (2026-07-26): E3 shipped; ADR-QD-023 Accepted; two §3.3 claims corrected (CCR-QD-019)<br>1.13 (2026-07-26): E6 shipped; ADR-QD-022 Accepted; phase 4 complete (CCR-QD-018)<br>1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -448,9 +448,12 @@ label-based and type-enforcement models alike.
 
 ### 3.3 Core change — P2 and P3
 
-Documented. Each carries one compiled example of the closest thing expressible
-today, so the gap is demonstrated rather than asserted; all proposed API is in
-uncompiled fences, because it does not exist.
+Documented. Every document carries one compiled example, so the gap is
+demonstrated rather than asserted. When these were written all proposed API sat in
+uncompiled fences, because none of it existed; the rows that have since shipped
+carry a compiled example of the **shipped** form beside the workaround, and their
+withdrawn sketches stay uncompiled deliberately — so a declined name can never
+masquerade as API.
 
 | Model | Document | Status | Enablers | Priority |
 | ----- | -------- | ------ | -------- | -------- |
@@ -466,7 +469,7 @@ uncompiled fences, because it does not exist.
 | Biba, low-water-mark | [MOD-QD-028](./28-biba.md) | **Shipped** | — | P3 |
 | Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | **Shipped** | — | P3 |
 | Chinese Wall (Brewer–Nash) | [MOD-QD-030](./30-chinese-wall.md) | **Shipped** | — | P3 |
-| History-based (HBAC) | [MOD-QD-031](./31-hbac.md) | **Shipped** | — | P3 |
+| History-based (HBAC) | [MOD-QD-031](./31-hbac.md) | **Shipped, in part** | — (the windowed count and the ordering question are deferred) | P3 |
 | Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | **Shipped, in part** | — (user-space review is out of reach) | P3 |
 | Row-level security | [MOD-QD-035](./35-row-level.md) | **Shipped** | — | P3 |
 | Cell-level security | [MOD-QD-036](./36-cell-level.md) | **Shipped, in part** | — (the cell half is declined) | P3 |
@@ -542,6 +545,16 @@ The divergence is useful rather than embarrassing — it is what a design review
 would have surfaced, arrived at cheaply. E5's ADR must settle all four points
 before any code, and the safest default remains the one from §3.3 above: the
 fail-closed polarity inverts for a negative node.
+
+*Settled, and the code followed rather than preceded it.*
+[ADR-QD-020](../decisions/020-decision-history-port.md) answers all four points —
+a three-valued read, one member, no write, and `event`. The second half of that
+last sentence is the claim the *Resolved* note above overturns: there is no safest
+boolean default, which is why the port is not boolean. All four sketches are now
+annotated in their own documents (CCR-QD-021, CCR-QD-022) rather than deleted, so
+the divergence stays on the record — and two of them turn out to have reached the
+three-valued answer from opposite directions without either having the whole
+argument.
 
 **A write path would cost more than the read.** Chinese Wall needs an access
 *recorded* for the wall to exist. If Qadi's evaluator writes, it is no longer

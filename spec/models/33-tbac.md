@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-33                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): Shipped and verified as `@REQ-QD-019`; the absent-`raisedBy` hazard closed in the example (CCR-QD-022)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -36,12 +36,17 @@ wants authorisation to follow the workflow rather than run alongside it.
 
 | Property | Value |
 | -------- | ----- |
-| Status | **Additive** |
+| Status | **Shipped** |
 | Priority | **P3** |
 | Enablers required | ~~**E5**~~ **shipped**; none outstanding |
 | Breaking change | No |
 
-**The distinction from every model documented so far** is what makes this
+**Shipped: [ADR-QD-020](../decisions/020-decision-history-port.md),
+[12 — Decision History](../behaviors/12-history.md), `@REQ-QD-019`,
+`packages/core/test/Evaluate.test.ts`.** The cheapest model in this set to
+complete, because most of it already worked and the rest was **one conjunct**.
+
+**The distinction from every model documented so far** is what made this
 additive rather than wiring. Roles, attributes and relationships are all
 *standing* facts: true until something changes them, and true again on the next
 call. A task authorisation is *transient and consumable* — it has a validity
@@ -49,13 +54,18 @@ window and a use count, and Qadi has no notion of either. A policy that allows
 will allow again a millisecond later, indefinitely, because nothing in the
 evaluator records that a decision was ever taken.
 
-**Usage counting is the whole of the E5 dependency.** "Approve once" requires
-knowing whether the right has already been exercised, and that is history. This
-is the same port [31 — History-Based Access Control](./31-hbac.md) proposes, and
-TBAC needs only its cheapest question — *has this subject done X to this
-object?* — with no window, no ordering, no aggregation. Two models converging on
-the same narrow question is the argument for that narrow port shape rather than
-a general history query interface.
+*The analysis was right and the verdict was too heavy.* It is a real distinction —
+a task authorisation is transient and consumable where a role is standing — but
+expressing it cost one labelled conjunct, not a construct.
+
+**Usage counting was the whole of the E5 dependency**, and it turned out not to be
+counting at all. "Approve once" requires knowing whether the right has already
+been exercised, and that is history. This is the same port
+[31 — History-Based Access Control](./31-hbac.md) proposed, and TBAC needed only
+its cheapest question — *has this subject done X to this object?* — with no
+window, no ordering, no aggregation. Two models converging on the same narrow
+question is the argument for that narrow port shape rather than a general history
+query interface, and it is the argument that won.
 
 ## What Qadi can express today
 
@@ -70,10 +80,12 @@ ordinary facts once the engine has written them down:
 | The step is open | `hasResourceAttribute("state", eq(literal("awaiting-approval")))` | No lookup — a field on the resource in hand |
 | The professional right to act at all | `hasRole("approver")` | A set lookup on the subject |
 | The composition | `allOf([…])` | Short-circuits on the first denial |
+| The use is spent | `hasNotActed("approved")` | One port call, last |
 
-What is genuinely missing is only the **consumption** — the once-ness. Validity
-already works, because a step the engine has advanced is no longer
-`awaiting-approval`, and the policy denies on the next call.
+What was genuinely missing was only the **consumption** — the once-ness — and it
+is the smallest thing any model in this set needed: one conjunct. Validity always
+worked, because a step the engine has advanced is no longer `awaiting-approval`,
+and the policy denies on the next call.
 
 ```typescript
 import {
@@ -82,7 +94,10 @@ import {
   allOf,
   check,
   currentSubjectLayer,
+  decisionHistoryFromEvents,
   eq,
+  exists,
+  hasNotActed,
   hasRelationship,
   hasResourceAttribute,
   hasRole,
@@ -103,14 +118,26 @@ const TaskAssignments = relationshipResolverFromEdges([
 ]);
 
 // A workflow-step authorisation, entirely in shipped capability. Each branch is
-// labelled, so the trace records which one denied. The role check is a set
-// lookup on the subject in hand, so it goes first and spares the resolver call.
+// labelled, so the trace records which one denied — and they are ordered
+// cheapest first: a set lookup, then two free comparisons on the resource in
+// hand, then a resolver call, then a port call.
 const canApproveInvoice = allOf([
   labeled("task.role", hasRole("approver")),
-  labeled("task.assigned", hasRelationship("assigned-task")),
   labeled("task.open", hasResourceAttribute("state", eq(literal("awaiting-approval")))),
-  // Object-based separation of duty — see MOD-QD-024. Needs no history.
-  labeled("task.not-raiser", not(hasResourceAttribute("raisedBy", eq(subjectId())))),
+  // Object-based separation of duty — see MOD-QD-024. Needs no history, and needs
+  // `exists`: without it an absent `raisedBy` GRANTS the self-approval this
+  // branch exists to stop.
+  labeled(
+    "task.not-raiser",
+    allOf([
+      hasResourceAttribute("raisedBy", exists()),
+      not(hasResourceAttribute("raisedBy", eq(subjectId()))),
+    ]),
+  ),
+  labeled("task.assigned", hasRelationship("assigned-task")),
+  // The once-ness. `scope` defaults to `"Resource"`, which is exactly the keyed
+  // question this model wanted.
+  labeled("task.once", hasNotActed("approved")),
 ]);
 
 const program = Effect.gen(function* () {
@@ -126,12 +153,37 @@ const program = Effect.gen(function* () {
     resource: { id: "invoice-1041", state: "approved", raisedBy: "u-clerk" },
   });
 
-  return { whileOpen, afterAdvance };
+  // Denied: the right was already exercised against this very invoice. Nothing
+  // about the subject, the resource or the assignment differs from `whileOpen`.
+  const afterApproving = yield* check(canApproveInvoice, {
+    resource: { id: "invoice-1041", state: "awaiting-approval", raisedBy: "u-clerk" },
+  }).pipe(
+    Effect.provide(decisionHistoryFromEvents([["u-amina", "approved", "invoice-1041"]])),
+  );
+
+  return { whileOpen, afterAdvance, afterApproving };
 }).pipe(
   Effect.provide(currentSubjectLayer(makeSubject({ id: "u-amina", roles: ["approver"] }))),
-  Effect.provide(Layer.mergeAll(TaskAssignments, AttributeResolverNone, EvaluationIdLive)),
+  Effect.provide(
+    Layer.mergeAll(
+      TaskAssignments,
+      AttributeResolverNone,
+      // An approval on a *different* invoice, so the first two calls allow and
+      // deny on their own terms and the keyed question is demonstrated.
+      decisionHistoryFromEvents([["u-amina", "approved", "invoice-1040"]]),
+      EvaluationIdLive,
+    ),
+  ),
 );
 ```
+
+*One correction and one addition.* The `task.not-raiser` branch was written
+without the `exists` guard, which **granted** whenever `raisedBy` was absent —
+the hazard [MOD-QD-024](./24-separation-of-duty.md) records, arriving in the one
+other document that recommends the rule. And the branches were ordered with the
+resolver call ahead of two free comparisons; cheapest-first is what
+[INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation) implies, and
+the original comment had it half right.
 
 **Where the workflow lives.** TBAC presupposes an engine that activates tasks,
 assigns them, records completion and ends them. Qadi is not that engine and
@@ -151,7 +203,7 @@ matched as a boolean, not written in the policy tree.
 
 **Separation of duty pairs with this constantly.** "Approve this invoice, unless
 you raised it" is a TBAC authorisation and a dynamic separation-of-duty
-constraint at once, and both want E5 —
+constraint at once, and both wanted E5 — and both have it —
 [24 — Separation of Duty](./24-separation-of-duty.md). The two are closer than
 they look, because the *object-based* case above needs no enabler at all: who
 raised the invoice is a column on the invoice, not history.
@@ -163,7 +215,16 @@ default layer — is settled in
 [ADR-QD-020](../decisions/020-decision-history-port.md) and has shipped; TBAC
 added nothing to it. One detail below is out of date: the parameter is `event`,
 not `action`, precisely because of the naming hazard this document recorded — see
-[what it would cost](#what-it-would-cost).
+[what it cost](#what-it-cost).
+
+> **Superseded by [ADR-QD-020](../decisions/020-decision-history-port.md).** Two
+> differences, and the second is a small delight. The parameter is `event`, not
+> `action`, for exactly the naming reason this document records below. And the
+> options object omits `scope` — the shipped signature is
+> `HistoryOptions extends FieldOptions { readonly scope?: HistoryScope }` — but
+> because it **defaults to `"Resource"`**, every call site this document writes is
+> correct unchanged. *The sketch asked for exactly the default, without knowing
+> there would be one.* The fence is left as written; ADR-QD-020 quotes it.
 
 ```ts
 /** Has this subject already performed `action` against this resource? Denies
@@ -179,12 +240,13 @@ Dropped into the `allOf` above beside `task.open`, that is the whole of "approve
 once, while the step is open". Recording that the approval happened stays the
 engine's write; the port is read-only, as the relationship port is.
 
-## What it would cost
+## What it cost
 
 **E5 in its narrowest shape, and nothing else.** One of the cheapest P3 models,
-precisely because most of it already works: no new service beyond the shared
+precisely because most of it already worked: no new service beyond the shared
 history port, no second policy variant beyond `hasNotActed`, no change to any
-existing type or wire format.
+existing type or wire format. *Held, and cheaper than priced* — TBAC contributed
+nothing to the port and consumed one conjunct of it.
 
 The costs are therefore E5's, argued in full in
 [24](./24-separation-of-duty.md) and [31](./31-hbac.md) and inherited without
@@ -200,6 +262,18 @@ subject *has* acted; and
 lookup must be lazy, so an `allOf` already denied by the role branch never
 reaches it.
 
+*One correction, and one thing now proven rather than assumed.* The INV-QD-007
+clause has the right requirement and the wrong remedy: a negative policy under an
+unwired port must indeed deny, but *"so the default layer has to assert the
+subject has acted"* does not follow — a `true`-answering default breaks `hasActed`
+instead, and no boolean default is fail-closed for both polarities. The shipped
+default is `DecisionHistoryUnknown`, whose third value satisfies neither
+([INV-QD-014](../invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities)).
+INV-QD-005's laziness is no longer inherited on trust: `@REQ-QD-019` asserts that
+a refusal at the role branch leaves both `task.assigned` and `task.once` out of
+the trace, and a unit test asserts that neither the resolver nor the port was
+called.
+
 The one cost specific to TBAC is a *naming* decision. The history port's
 `action` and a permission token's action segment
 ([ADR-QD-007](../decisions/007-permission-token-representation.md)) are
@@ -211,27 +285,54 @@ action dimension in the same terms: the two must never be derived from or
 compared against each other. A history port naming its field `action` inherits
 that rule; it does not get to relitigate it.
 
+*Called correctly, and the ADR spelled it out in this document's terms.* The
+parameter is `event` precisely to stay apart from `hasAction` and
+`hasRelationship` — a three-way collision this section predicted from two.
+
 ## Verification
 
-Nothing here is built, and this document claims no evidence for the consumption
-half — `hasNotActed` does not exist, so nothing exercises once-ness.
+**Both halves are built, and the composition this document called untested has
+seven scenarios.** `hasNotActed` exists; once-ness is exercised.
 
-The rest is a different case, worth stating precisely: the compiled example
-rests entirely on shipped, tested mechanics — relationship evaluation by
-`REQ-QD-005`, role membership by `REQ-QD-003`, resource attributes by
-`REQ-QD-006`, combinator semantics by `REQ-QD-002`, the `subjectId()` value
-reference by `REQ-QD-009`, and the fail-closed default by
-[INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed). Untested is the
-*composition as a workflow control*: an acceptance scenario under a newly
-allocated `REQ-QD` identifier would allow while the step is open and deny once
-the engine advances it, deny for the raiser, and deny a subject holding the role
-but no assignment. Two caveats carry over — the short-circuit saving that puts
-`hasRole` first is sound by
-[INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation) but
-unmeasured for relationship lookups (the gap recorded in [08](./08-dac.md),
-which should close before a second lazy port arrives), and the consumption part
-would additionally need an error-injection test proving an unavailable history
-store surfaces as a failure rather than a `Deny`.
+| Claim | Evidence |
+| ----- | -------- |
+| An assigned approver may approve an open step | `@REQ-QD-019` |
+| **A spent approval is refused** — the characteristic construct | `@REQ-QD-019`, `packages/core/test/Evaluate.test.ts` ("a spent approval is refused, and nothing else changed") |
+| Once-ness is keyed per object — an approval elsewhere spends nothing here | `@REQ-QD-019`, `Evaluate.test.ts`; the default `scope: "Resource"` |
+| A step the engine has advanced is closed | `@REQ-QD-019` |
+| Nobody approves the invoice they raised | `@REQ-QD-019` |
+| An unrecorded raiser does not open the step, and why the `exists` guard is needed | `@REQ-QD-019` |
+| The role without the assignment is not authority | `@REQ-QD-019` |
+| The cheapest check refuses first, and neither the resolver nor the port is called | `@REQ-QD-019` (absent from the trace) and `Evaluate.test.ts` (neither dependency invoked) — [INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation) |
+| The standing mechanics underneath | `REQ-QD-005` (relationships), `REQ-QD-003` (roles), `REQ-QD-006` (resource attributes), `REQ-QD-002` (combinators), `REQ-QD-009` (`subjectId()`), [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) |
+| An unavailable history store surfaces as a failure, not a `Deny` | Inherited rather than duplicated: `@REQ-QD-012`, `Evaluate.test.ts`, `ACL011`, [BEH-QD-093](../behaviors/12-history.md) |
+| The task lifecycle — activation, assignment, completion | **None, and none is wanted.** That is the engine's; the URS places administration out of scope |
+
+`@REQ-QD-019` chains through [traceability](../traceability.md) §5 to
+[BEH-QD-019](../behaviors/03-policy-adt.md) (combinators),
+[BEH-QD-026](../behaviors/04-matchers.md) (value references),
+[BEH-QD-036](../behaviors/05-evaluator.md) (relationships and resource
+attributes) and [BEH-QD-092](../behaviors/12-history.md) (scope). No new
+`BEH-QD` or `INV-QD` identifier was allocated, following `REQ-QD-009`'s
+precedent.
+
+**What the forecast got wrong.**
+
+- *"Additive."* One conjunct, and no contribution to the port at all.
+- *"`hasNotActed(action, { fields? })`."* The parameter is `event`, and there is a
+  `scope` the sketch did not know it already had by default.
+- *"The default layer has to assert the subject has acted."* No boolean default
+  works; the third value does.
+- *"Needs no history"* on the object-based branch. True — and the branch as
+  written **granted** when `raisedBy` was absent, which is worse than needing an
+  enabler. The correction came from [24](./24-separation-of-duty.md) rather than
+  from here.
+
+**And what it got right**, which is nearly all of it: most of TBAC was already
+expressible and the document said so plainly; the once-ness was the only gap; the
+narrow port shape was the right call and two models converging on it was the
+argument that carried; the write stays the engine's; and the naming hazard was
+predicted before the port existed.
 
 ---
 

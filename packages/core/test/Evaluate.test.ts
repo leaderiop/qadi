@@ -974,6 +974,96 @@ describe("separation of duty as a control", () => {
     }).pipe(Effect.provide(testLayer(approver))));
 });
 
+describe("task-based access control", () => {
+  // The consumable permission — "approve this invoice, once, while the step is
+  // open". MOD-QD-033 called usage counting the whole of its E5 dependency; it
+  // turned out to be one conjunct, and `scope` defaults to exactly the keyed
+  // question it wanted.
+  const approver = subjectWith({ id: "u-amina", roles: ["approver"] });
+  const openStep = {
+    resource: { id: "invoice-1041", state: "awaiting-approval", raisedBy: "u-clerk" },
+  };
+
+  const assigned = relationshipResolverFromEdges([
+    ["u-amina", "assigned-task", "invoice-1041"],
+  ]);
+
+  const canApprove = P.allOf([
+    P.labeled("task.role", P.hasRole("approver")),
+    P.labeled(
+      "task.open",
+      P.hasResourceAttribute("state", M.eq(M.literal("awaiting-approval"))),
+    ),
+    P.labeled(
+      "task.not-raiser",
+      P.allOf([
+        P.hasResourceAttribute("raisedBy", M.exists()),
+        P.not(P.hasResourceAttribute("raisedBy", M.eq(M.subjectId()))),
+      ]),
+    ),
+    P.labeled("task.assigned", P.hasRelationship("assigned-task")),
+    P.labeled("task.once", P.hasNotActed("approved")),
+  ]);
+
+  it.effect("a spent approval is refused, and nothing else changed", () =>
+    Effect.gen(function* () {
+      // The same policy, subject, resource and assignment. Only the recorded
+      // event differs, which is the whole of "transient and consumable".
+      const unspent = testLayer(approver, {
+        relationships: assigned,
+        history: decisionHistoryFromEvents([["u-amina", "approved", "invoice-1040"]]),
+      });
+      const spent = testLayer(approver, {
+        relationships: assigned,
+        history: decisionHistoryFromEvents([["u-amina", "approved", "invoice-1041"]]),
+      });
+
+      assert.isTrue(
+        isAllowed(yield* evaluate(canApprove, openStep).pipe(Effect.provide(unspent))),
+      );
+      assert.isFalse(
+        isAllowed(yield* evaluate(canApprove, openStep).pipe(Effect.provide(spent))),
+      );
+    }));
+
+  it.effect("the role gate spares both the resolver and the port", () =>
+    Effect.gen(function* () {
+      // What the acceptance scenarios cannot assert: not merely that the later
+      // branches are absent from the trace, but that neither dependency was
+      // *called* (INV-QD-005). Two recording layers, one policy.
+      const edges: Array<string> = [];
+      const events: Array<string> = [];
+
+      const recordingEdges = Layer.succeed(RelationshipResolver, {
+        check: (request) =>
+          Effect.sync(() => {
+            edges.push(request.relation);
+            return true;
+          }),
+      });
+      const recordingEvents = Layer.succeed(DecisionHistory, {
+        hasActed: (query) =>
+          Effect.sync(() => {
+            events.push(query.event);
+            return "NotActed";
+          }),
+      });
+
+      const d = yield* evaluate(canApprove, openStep).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u-amina" }), {
+            relationships: recordingEdges,
+            history: recordingEvents,
+          }),
+        ),
+      );
+
+      assert.isFalse(isAllowed(d));
+      assert.deepStrictEqual(edges, []);
+      assert.deepStrictEqual(events, []);
+    }));
+});
+
 describe("obligations", () => {
   // An obligation is a condition on permission, so a decision carries those
   // contributed by the allow it returned — ADR-QD-019. Every rule below follows

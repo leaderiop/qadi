@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-30                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): Shipped and verified as `@REQ-QD-018`; `DecisionHistorySealed` withdrawn; the shipped form added (CCR-QD-022)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -26,7 +26,7 @@ wall is built by the first access.
 The defining property is that **the decision depends on history**, and
 specifically on *this subject's own past accesses*. Every model documented so far
 is a function of state someone else maintains; a Chinese Wall decision is a
-function of what the deciding system previously told this very subject. That is
+function of what the deciding system previously told this very subject. That was
 enabler [E5](./00-adoption-matrix.md) — the decision history port, and only E5.
 Two consequences: **a subject's permissions shrink monotonically** and never
 recover, and this is the one model where a decision has a **side effect on future
@@ -44,24 +44,88 @@ asked for far less often than its prominence in the literature suggests, hence P
 
 | Property | Value |
 | -------- | ----- |
-| Status | **Additive** |
+| Status | **Shipped** |
 | Priority | **P3** |
 | Enablers required | ~~**E5**~~ **shipped**; none outstanding |
 | Breaking change | No |
 
-Additive because nothing existing changes shape — a new service, a new policy
-variant, a new error — and no policy serialised today becomes invalid.
+**Shipped: [ADR-QD-020](../decisions/020-decision-history-port.md),
+[BEH-QD-094](../behaviors/12-history.md),
+[INV-QD-014](../invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities),
+`@REQ-QD-018`, `packages/core/test/Evaluate.test.ts`.**
 
-## What Qadi can express today
+*"Additive" overstated it, and that is this document's largest miss.* Nothing was
+added for this model at all: no service member, no policy variant, no matcher, no
+error. Brewer–Nash is a **composition of two nodes** the shared port already
+carries, and the whole of the `Engagement` union, the `record` write and the
+`withinWall` variant sketched below was declined rather than built.
 
-Only the static half: the conflict-class structure as resource attributes, plus an
-engagement marker if the caller maintains one.
+## The shape it took
+
+The conflict class is the **event** and the company in hand is the **resource**,
+so the model is two questions: have you touched this class at all, or is this the
+very company you touched?
 
 ```typescript
 import {
-  AttributeResolverNone, EvaluationIdLive, allOf, anyOf, check, currentSubjectLayer,
-  eq, hasRelationship, hasResourceAttribute, hasRole, labeled, literal, makeSubject,
-  relationshipResolverFromEdges, subject,
+  AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever, allOf, anyOf,
+  check, currentSubjectLayer, decisionHistoryFromEvents, eq, hasActed, hasNotActed,
+  hasResourceAttribute, hasRole, labeled, literal, makeSubject,
+} from "@qadi/core";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+
+// One policy per conflict class, because the class names the event and is baked
+// into the node rather than read off the resource.
+const withinWall = (conflictClass: string) =>
+  anyOf([
+    // Exempt material first: a field on the resource in hand, so an anonymised
+    // read costs no history lookup at all (INV-QD-005).
+    labeled("wall.sanitised", hasResourceAttribute("sanitised", eq(literal(true)))),
+    labeled("wall.first", hasNotActed(conflictClass, { scope: "Any" })),
+    labeled("wall.same", hasActed(conflictClass, { scope: "Resource" })),
+  ]);
+
+const canRead = allOf([hasRole("analyst"), withinWall("oil")]);
+
+// The caller's store, behind the port. `an-1` is engaged with Shell.
+const engaged = decisionHistoryFromEvents([["an-1", "oil", "shell"]]);
+
+const services = Layer.mergeAll(
+  currentSubjectLayer(makeSubject({ id: "an-1", roles: ["analyst"] })),
+  engaged,
+  AttributeResolverNone,
+  RelationshipResolverNever,
+  EvaluationIdLive,
+);
+
+const at = (id: string, sanitised = false) =>
+  check(canRead, { resource: { id, sanitised } });
+
+const program = Effect.gen(function* () {
+  const competitor = yield* at("bp"); // denied — the wall closed on first access
+  const sameCompany = yield* at("shell"); // allowed — this is the engagement
+  const anonymised = yield* at("bp-research", true); // allowed — exempt
+  return { competitor, sameCompany, anonymised };
+}).pipe(Effect.provide(services));
+```
+
+**One node per class, exactly as forecast.** The paragraph below predicted it —
+*"the attribute path cannot be derived from the resource, so every further class
+needs its own node"* — and it survived a complete change of mechanism. The reason
+is the same one, differently spelled: the class names the event, and an event is
+part of the node rather than a field of the request.
+
+## What Qadi could express before
+
+Before the port, only the static half: the conflict-class structure as resource
+attributes, plus an engagement marker if the caller maintained one.
+
+```typescript
+import {
+  AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive, allOf, anyOf, check,
+  currentSubjectLayer, eq, hasRelationship, hasResourceAttribute, hasRole, labeled,
+  literal, makeSubject, relationshipResolverFromEdges, subject,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -91,6 +155,10 @@ const analyst = makeSubject({
 const services = Layer.mergeAll(
   AttributeResolverNone,
   relationshipResolverFromEdges([["an-1", "engaged-with", "obj-b1"]]),
+  // Present even though no branch reads history: `EvaluationServices` requires
+  // the port unconditionally, and omitting it leaves a residual requirement that
+  // only surfaces when something runs the program.
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   currentSubjectLayer(analyst),
 );
@@ -114,6 +182,10 @@ that analyst may access anything. The encoding errs closed: the safe direction a
 the wrong answer. No arrangement of shipped constructors fixes it, because the
 missing ingredient is not a matcher but the record of what this subject did last.
 
+It is kept because the shape of the workaround is the shape of the gap, and the
+section above it is what closed the gap. **Nothing below this line should be
+copied.**
+
 ## Proposed API design
 
 > **Superseded by [ADR-QD-020](../decisions/020-decision-history-port.md), and
@@ -132,6 +204,12 @@ missing ingredient is not a matcher but the record of what this subject did last
 > declined on *this document's own* reasoning, quoted below: an evaluator that
 > writes is not reproducible, and a write member on an evaluation service is one
 > the evaluator must be trusted never to call. The sketch is left as written.
+>
+> Three further names below never existed and must not be lifted from here:
+> `DecisionHistorySealed`, `decisionHistoryFromAccesses`, and this document's
+> spelling of the error. The shipped layers are `DecisionHistoryUnknown` and
+> `decisionHistoryFromEvents`; `DecisionHistoryUnavailable` carries
+> `{ event, cause }` (`ACL011`), not `{ subjectId, scope, cause }`.
 
 The port answers one question — *what is this subject's engagement within this
 conflict class?* A tagged union rather than a boolean is deliberate: a boolean port
@@ -184,6 +262,29 @@ export const withinWall: (options: {
 }) => Policy;
 ```
 
+### The third value came back, for another reason
+
+This is the most interesting thing in the document, and it is only visible in
+hindsight.
+
+The paragraph above argues that a boolean read is wrong **because a boolean has a
+polarity**, and proposes three cases. The *union* was declined: `ActedResult` is a
+three-valued **answer**, it carries no member, and it has no notion of a sealed
+class. But the *argument* is the one
+[ADR-QD-020](../decisions/020-decision-history-port.md) accepted, and the port
+shipped three-valued.
+
+So this document was **right about the shape and wrong about the content**, and
+right for a reason it did not have. Not that a class can be sealed — that
+`hasNotActed` is negative, `hasActed` is positive, and **no boolean default is
+fail-closed for both**. [24](./24-separation-of-duty.md) reached the same trap from
+the polarity side; this document reached it from the return-type side, and neither
+had the whole of it.
+
+`DecisionHistorySealed` never existed. Sealing is what `DecisionHistoryUnknown`
+does to *every* wall at once, which is the last scenario under `@REQ-QD-018` and
+`Evaluate.test.ts`'s "an unwired port seals every wall rather than opening it".
+
 `withinWall` names the two resource attributes it reads; the *evaluator* does the
 comparison, so the decision stays in Qadi rather than migrating into the port. Its
 rule: read both attributes, denying if either is absent; query the port; allow on
@@ -208,6 +309,11 @@ const openObject = (object: WalledObject) =>
   });
 ```
 
+*Held, and it decided the ADR.* The `record` write was declined on exactly this
+reasoning, which
+[ADR-QD-020](../decisions/020-decision-history-port.md) adopts and cites — a
+forecast that settled a later decision rather than merely anticipating it.
+
 An evaluator that writes is no longer reproducible, and
 [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) is worth more
 than the saved line. It is also no longer safe to call speculatively, and Qadi is
@@ -220,13 +326,21 @@ every decision an identity and deliberately has no store behind it, and
 [ADR-QD-012](../decisions/012-deterministic-time-and-ids.md) keeps that identity
 *deterministic* rather than persistent.
 
-## What it would cost
+## What it cost
 
 E5, and nothing else: a service, two layers, one error and one `Policy` variant —
 the variant being the expensive half, since per
 [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) it lands in the schema
 union, the derived type, the evaluator and the FastCheck generator in a single
-change. **The port must be a port** — the caller's store behind an interface,
+change.
+
+*Three misses, and the third is the one worth keeping.* **Two** variants shipped
+(`HasActed` and `HasNotActed`), not one, because a trace that records which
+question was asked is worth more than a schema entry saved. `relation` became
+**`event`**, to break a three-way collision with `hasAction` and
+`hasRelationship`. And the `withinWall` variant this paragraph prices **was not
+built at all** — so the expensive half cost Chinese Wall nothing, and the model
+that drove E5 hardest is the one that contributed no node to it. **The port must be a port** — the caller's store behind an interface,
 exactly as `RelationshipResolver` is. Qadi holding accesses itself would make it a
 system of record, which [the URS](../urs.md) forbids and
 [ADR-QD-016](../decisions/016-gxp-out-of-scope.md) reinforces; E5 is the enabler
@@ -243,31 +357,79 @@ property to hold on to when implementing E5. `DecisionHistoryUnavailable` reache
 the caller on the error channel — never collapsed to `Deny`, which would make an
 outage indistinguishable from a policy result, and never to `Unengaged`.
 
+*Held, and sharpened.* The inversion is real and the shipped shape names it:
+`"Unknown"` satisfies neither polarity so it grants nothing, and an unreachable
+store is `DecisionHistoryUnavailable` (`ACL011`) on the error channel
+([BEH-QD-093](../behaviors/12-history.md)). The asymmetry this paragraph
+identified — that this port fails towards *grant* where every other fails towards
+denial — is why the answer is three-valued rather than defaulted.
+
 **[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) must be
 restated as reproducible *given the same history*.** With a history port the same
 subject, policy and resource legitimately yield different answers on the second
 call; that is the model working. Unrestated, the invariant does not become false
 loudly but quietly, and the qualification evidence goes on citing it.
 
-Two more need attention.
+*Restated in CCR-QD-016*, in the change that landed the port, as this asked — "the
+same subject, policy, services **and history**".
+
+Two more needed attention and neither was weakened.
 [INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation): the lookup
 must be lazy, and the relationship short-circuit gap recorded in [08](./08-dac.md)
-should be closed before a second lazy port is added.
-[INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed): satisfied by
-`DecisionHistorySealed`, which is why `Engagement` carries a third variant.
+should be closed before a second lazy port is added. *It closed first, as asked*
+(CCR-QD-009).
+
+> **Withdrawn.**
+> [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) is satisfied by
+> **`DecisionHistoryUnknown`**, not by a layer that never existed. The clause that
+> followed — *"which is why `Engagement` carries a third variant"* — has the right
+> conclusion and the wrong premise: a third value **was** needed, and not because
+> a class can be sealed. See [the third value came back](#the-third-value-came-back-for-another-reason).
 
 ## Verification
 
-Nothing here is built and this document claims no evidence. The compiled example
-proves only that its constructors exist, not that they implement Brewer–Nash.
+**The model is built.** Eight scenarios sit under `@REQ-QD-018` in
+`features/features/chinese-wall/chinese-wall.feature`, and two unit tests in
+`packages/core/test/Evaluate.test.ts` reach the same claims independently.
 
-| Part | What would prove it |
-| ---- | ------------------- |
-| First access is free | An acceptance scenario under a newly allocated `REQ-QD` identifier: an `Unengaged` subject is allowed against any member of the class |
-| The wall closes, and stays closed | The same subject and policy, after `record`, denied against a different member and still allowed against the same one; and a property test that no sequence of accesses re-admits a member once a different member of its class was accessed |
-| Failure is not denial | Error injection on `engagement`: evaluation fails, and the failure is neither `Deny` nor `Unengaged` |
-| Fail-closed default and laziness | `withinWall` denies under `DecisionHistorySealed`; a call-counting test that a denied `allOf` sibling suppresses the lookup |
-| Wire format and reproducibility | The round-trip property once `WithinWall` is in the FastCheck generator; two evaluations against the same history agree, against a changed history may differ |
+| Claim | Evidence |
+| ----- | -------- |
+| The first access in a class is free | `@REQ-QD-018`, `Evaluate.test.ts` |
+| The wall closes against a competitor | `@REQ-QD-018`, `Evaluate.test.ts` |
+| The company already engaged with stays accessible | `@REQ-QD-018`, `Evaluate.test.ts` |
+| Classes are independent, and one analyst's engagement is not another's wall | `@REQ-QD-018` — the store is wired with an unrelated class, so the question is demonstrably keyed |
+| Sanitised material is exempt, at no history cost | `@REQ-QD-018`; the exempt branch is a resource field checked first ([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation)) |
+| A refused wall names **every** branch | `@REQ-QD-018` — a disjunction must ask all three to know none allowed |
+| An unwired port seals rather than opens | `@REQ-QD-018`, `Evaluate.test.ts` ("an unwired port seals every wall rather than opening it"), [INV-QD-014](../invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities) |
+| Failure is not denial | [BEH-QD-093](../behaviors/12-history.md), `Evaluate.test.ts` — `DecisionHistoryUnavailable` (`ACL011`) on the error channel, never `Deny` |
+| The lookup is lazy | `Evaluate.test.ts` ("an unevaluated history branch performs no lookup") |
+| Wire format and reproducibility | The round-trip property in `packages/core/test/Policy.test.ts`, with `HasActed`/`HasNotActed` in the generator; [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) as restated |
+| **The `record` write** | **None, and none is wanted.** It was declined on this document's own argument; the caller writes after acting. The row states the exclusion rather than omitting it |
+
+`@REQ-QD-018` chains through [traceability](../traceability.md) §5 to
+[BEH-QD-019](../behaviors/03-policy-adt.md) (combinators),
+[BEH-QD-039](../behaviors/05-evaluator.md) (decisions and traces),
+[BEH-QD-092](../behaviors/12-history.md) (scope) and
+[BEH-QD-094](../behaviors/12-history.md) (Chinese Wall needs nothing further),
+plus [INV-QD-014](../invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities).
+No new `BEH-QD` or `INV-QD` identifier was allocated, following `REQ-QD-009`'s
+precedent: nothing new is claimed about the evaluator.
+
+**What the forecast got wrong.**
+
+- *"Only the static half."* The whole model is expressible, and was the day the
+  port shipped.
+- *"One `Policy` variant."* Zero, for this model. Two shipped for the port, and
+  Chinese Wall contributed neither.
+- *"A third variant, satisfied by `DecisionHistorySealed`."* Three values, for a
+  different reason, and that layer never existed.
+- *"The read must return which member the subject is engaged with."* It need not —
+  `hasActed(class, { scope: "Resource" })` asks about the company in hand, so the
+  answer is a fact rather than a value.
+
+**And what it got right**, which is the larger half: one node per class, for the
+reason given; the write is the caller's, and that decided the ADR; and a boolean
+read would have been wrong, though not quite for the reason argued.
 
 ---
 

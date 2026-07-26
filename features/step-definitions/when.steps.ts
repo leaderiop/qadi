@@ -285,6 +285,68 @@ When(
 );
 
 // ---------------------------------------------------------------------------
+// Chinese Wall
+// ---------------------------------------------------------------------------
+
+/**
+ * Brewer–Nash as two questions the one-member port already answers.
+ *
+ * The conflict class names the *event* and the company in hand is the
+ * *resource*, so there is one policy per class — which is what MOD-QD-030
+ * forecast when it said the attribute path cannot be derived from the resource.
+ */
+const withinWall = (conflictClass: string): Policy =>
+  anyOf([
+    // Exempt material first: a field on the resource in hand, so an exempt read
+    // costs no history lookup at all (INV-QD-005).
+    labeled("wall.sanitised", hasResourceAttribute("sanitised", eq(literal(true)))),
+    labeled("wall.first", hasNotActed(conflictClass, { scope: "Any" })),
+    labeled("wall.same", hasActed(conflictClass, { scope: "Resource" })),
+  ]);
+
+const oilWall = (): Policy =>
+  allOf([labeled("wall.analyst", hasRole("analyst")), withinWall("oil")]);
+
+When("the conflict-of-interest wall is enforced", function (this: QadiWorld) {
+  this.run(oilWall());
+});
+
+// ---------------------------------------------------------------------------
+// Task-based access control
+// ---------------------------------------------------------------------------
+
+/**
+ * A workflow-step authorisation, complete.
+ *
+ * Cheapest first (INV-QD-005): `hasRole` is a set lookup, `state` and `raisedBy`
+ * are fields on the resource in hand, `assigned-task` costs a resolver call, and
+ * `task.once` costs a port call. MOD-QD-033's own example put the resolver ahead
+ * of two free comparisons.
+ */
+const canApproveInvoice = (): Policy =>
+  allOf([
+    labeled("task.role", hasRole("approver")),
+    labeled("task.open", hasResourceAttribute("state", eq(literal("awaiting-approval")))),
+    labeled(
+      "task.not-raiser",
+      // `exists` is not decoration: without it an absent `raisedBy` GRANTS the
+      // self-approval this branch exists to stop (MOD-QD-024 Rev 1.1).
+      allOf([
+        hasResourceAttribute("raisedBy", exists()),
+        not(hasResourceAttribute("raisedBy", eq(subjectId()))),
+      ]),
+    ),
+    labeled("task.assigned", hasRelationship("assigned-task")),
+    // The once-ness, and the whole of the E5 dependency. `scope` defaults to
+    // `"Resource"`, which is exactly the keyed question TBAC wanted.
+    labeled("task.once", hasNotActed("approved")),
+  ]);
+
+When("the invoice approval policy is evaluated", function (this: QadiWorld) {
+  this.run(canApproveInvoice());
+});
+
+// ---------------------------------------------------------------------------
 // Label dominance
 // ---------------------------------------------------------------------------
 

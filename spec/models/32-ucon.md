@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-32                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): E5 shipped; the enabler rows and the write-path precondition brought up to date (CCR-QD-022)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -46,7 +46,7 @@ counter — which is the part this document recommends pursuing.
 | -------- | ----- |
 | Status | **Breaking** |
 | Priority | **P3** |
-| Enablers required | ~~**E1, E2**~~ **shipped**; **E5** outstanding |
+| Enablers required | ~~**E1, E2, E5**~~ **shipped**; none outstanding — what is missing is not an enabler |
 | Breaking change | Yes |
 
 ### Why this is the deepest mismatch in the matrix
@@ -101,7 +101,7 @@ ordinary pieces of work and one that is out of scope:
 | Authorisations (pre) | Shipped | — |
 | Conditions (environmental) | Shipped, via `AttributeResolver` | — |
 | Obligations (pre) | `obliged`, discharged before the guarded effect | **E2 — shipped** |
-| Attribute mutability | Missing | **E5** + a write path |
+| Attribute mutability | Missing the **write** half | ~~**E5**~~ **shipped**, plus a write path |
 | Continuity / ongoing enforcement | **Architecturally absent** | Not an enabler |
 
 The first row understated one gap, since closed. A UCON authorisation is a
@@ -208,9 +208,10 @@ obligations are *actions*: an obligation is **data returned with a decision**,
 never a callback the evaluator invokes. The moment the evaluator can run one,
 evaluation has side effects and INV-QD-009 is gone.
 
-### Attribute mutability — E5, plus a write path
+### Attribute mutability — E5 shipped, plus a write path
 
-E5 as scoped in [the matrix](./00-adoption-matrix.md) is a *read* port. UCON
+E5 as scoped in [the matrix](./00-adoption-matrix.md) was a *read* port, and that
+is what shipped ([ADR-QD-020](../decisions/020-decision-history-port.md)). UCON
 needs the write half too, and the only safe shape keeps it out of the evaluator.
 
 ```ts
@@ -264,14 +265,13 @@ decision shapes, and the reasoning applies with more force.
 | ---- | ------- |
 | **E1** — action dimension | **Done.** Additive and cheap, as forecast; shipped on the argument that it unlocks seven models |
 | **E2** — obligations | **Done.** Built on the argument from [XACML parity](./26-xacml.md) and purpose-based control, not from UCON |
-| **E5** — decision history port | **Pursue**, driven by [Chinese Wall](./30-chinese-wall.md) and [history-based control](./31-hbac.md) |
-| Write path / `postUpdate` | **Pursue conditionally** — only once E5 exists, and only as a caller-invoked journal |
+| **E5** — decision history port | **Done.** Built on [Chinese Wall](./30-chinese-wall.md)'s and [history-based control](./31-hbac.md)'s argument, as forecast — and three-valued rather than boolean ([ADR-QD-020](../decisions/020-decision-history-port.md)) |
+| Write path / `postUpdate` | **Pursue conditionally.** The precondition has fired — E5 exists — and the condition holds: still only as a caller-invoked journal, and nothing has asked for one |
 | Continuity / `onUpdate` | **Decline.** Not an enabler, not on the [roadmap](../roadmap.md), not a gap to close |
 
-**The recommendation is that Qadi never targets UCON.** It should build E5 —
-having built E1 and E2 — because other models justify it independently, and state
-—
-here, once — that continuous enforcement is out of scope. An application needing
+**The recommendation is that Qadi never targets UCON.** It built E5 — having built
+E1 and E2 — because other models justified it independently, and it states, here
+and once, that continuous enforcement is out of scope. An application needing
 it should terminate sessions at the layer that owns them, consulting Qadi for the
 decision each time it re-checks.
 
@@ -287,10 +287,15 @@ no scenario to write and no `REQ-QD` identifier to allocate. The compiled exampl
 above is the sole verified content: it exercises shipped API, and CI fails if a
 signature under it drifts.
 
-Were the recommended parts built, the evidence they need is recorded in their own
-documents — obligations in [XACML parity](./26-xacml.md), the history port in
+The recommended parts have been built, and the evidence lives where the shipped
+behaviour lives rather than in the documents that argued for it: obligations in
+[11 — Obligations](../behaviors/11-obligations.md) and
+[XACML parity](./26-xacml.md), the history port in
+[12 — Decision History](../behaviors/12-history.md) and
+[ADR-QD-020](../decisions/020-decision-history-port.md).
 [Chinese Wall](./30-chinese-wall.md) and
-[history-based control](./31-hbac.md). One obligation falls to this document
+[history-based control](./31-hbac.md) are now *verified models* citing that
+behaviour, not the place its evidence is kept. One obligation falls to this document
 alone: if continuity is ever reconsidered, that must open with an ADR superseding
 this recommendation and a restatement of
 [INV-QD-009](../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied),

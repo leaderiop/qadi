@@ -98,6 +98,23 @@ Given(
   },
 );
 
+/** Brewer–Nash exempts anonymised material explicitly, and it needs no history. */
+Given("the sanitised material {string}", function (this: QadiWorld, id: string) {
+  this.resource = { id, sanitised: true };
+});
+
+/**
+ * A purpose-built setter, because `"the resource … with attribute … of …"`
+ * *replaces* the resource rather than merging into it — two attributes cannot be
+ * chained, and a workflow step needs both its state and its raiser.
+ */
+Given(
+  "the task {string} in state {string} raised by {string}",
+  function (this: QadiWorld, id: string, state: string, raisedBy: string) {
+    this.resource = { id, state, raisedBy };
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Request
 // ---------------------------------------------------------------------------
@@ -118,6 +135,27 @@ Given(
   "the history records that {string} raised {string}",
   function (this: QadiWorld, subjectId: string, resourceId: string) {
     this.events = [...(this.events ?? []), [subjectId, "raised", resourceId]];
+  },
+);
+
+/**
+ * A conflict-of-interest access, keyed `[subject, class, company]`.
+ *
+ * The conflict **class is the event** and the **company is the resource**, which
+ * is the whole reason Brewer–Nash needed no construct of its own: it is two
+ * questions the one-member port already answers (ADR-QD-020).
+ */
+Given(
+  "the history records that {string} accessed {string} in the {string} class",
+  function (this: QadiWorld, subjectId: string, company: string, conflictClass: string) {
+    this.events = [...(this.events ?? []), [subjectId, conflictClass, company]];
+  },
+);
+
+Given(
+  "the history records that {string} approved {string}",
+  function (this: QadiWorld, subjectId: string, resourceId: string) {
+    this.events = [...(this.events ?? []), [subjectId, "approved", resourceId]];
   },
 );
 
