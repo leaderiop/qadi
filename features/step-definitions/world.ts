@@ -37,6 +37,14 @@ export interface Outcome {
   readonly denied: boolean;
   readonly errored: boolean;
   readonly reason: string | undefined;
+  /**
+   * The root trace node's own sentence.
+   *
+   * Distinct from `reason`, which a denial always carries: a `Rules` node
+   * carries one when it *allows* too, naming the row that permitted
+   * (ADR-QD-023). A rule table's first question is which row hit.
+   */
+  readonly traceReason: string | undefined;
   readonly visibleFields: ReadonlyArray<string> | undefined;
   readonly obligations: ReadonlyArray<string>;
   /** The `_tag` of the error enforcement produced, when it produced one. */
@@ -48,6 +56,7 @@ const NO_OUTCOME: Outcome = {
   denied: false,
   errored: false,
   reason: undefined,
+  traceReason: undefined,
   visibleFields: undefined,
   obligations: [],
   failure: undefined,
@@ -248,6 +257,7 @@ const toOutcome = (decision: Decision): Outcome => ({
   denied: !isAllowed(decision),
   errored: false,
   reason: decision._tag === "Deny" ? decision.reason : undefined,
+  traceReason: decision.trace.reason,
   visibleFields: decision._tag === "Allow" ? decision.visibleFields : undefined,
   obligations:
     decision._tag === "Allow" ? decision.obligations.map((o) => o.id) : [],

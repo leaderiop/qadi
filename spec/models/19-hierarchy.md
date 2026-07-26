@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-19                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-007) |
+> | Change History | 1.1 (2026-07-26): Inherited-grant exceptions closed by E3 (CCR-QD-019)<br>1.0 (2026-07-26): Initial release (CCR-QD-007) |
 
 ---
 
@@ -148,20 +148,28 @@ const program = check(canViewProject, { resource: { id: "project-atlas" } }).pip
 
 ## What is missing
 
-**There is no way to carve a hole out of an inherited grant.** Inheritance here
-is downward and monotonic: a grant at the root reaches every leaf, and Qadi
-cannot express "…except this subtree". Exceptions require ordered evaluation,
-where a deny at a lower node overrides an allow inherited from above, and that
-is enabler **E3 — combining algorithms**, which the
-[adoption matrix](./00-adoption-matrix.md) marks **Breaking**. `AllOf` and
-`AnyOf` are unordered sets whose allow/deny rule is hard-coded; there is no
-`deny-overrides` and no first-match. `not(...)` does not fill the gap — it
-composes as a plain boolean, so excluding a subtree means restating the whole
-rule as "inherited grant **and not** in the excluded set", every exceptable rule
-rewritten at every call site with the exclusion list threaded through. This is
-the sharpest limitation of the model as Qadi has it today, and a product whose
-tenancy story depends on exclusions should not adopt this pattern before E3
-lands.
+**~~There is no way to carve a hole out of an inherited grant.~~ Closed by E3
+(CCR-QD-019).** Inheritance here is downward and monotonic: a grant at the root
+reaches every leaf, and Qadi could not express "…except this subtree". Exceptions
+require ordered evaluation, where a deny at a lower node overrides an allow
+inherited from above, and that was enabler **E3 — combining algorithms**. It has
+shipped ([ADR-QD-023](../decisions/023-combining-algorithms.md)):
+
+```ts
+rules([denyWhen(hasRelationship("excluded")), permitWhen(hasRelationship("member", { depth: 3 }))],
+      { combining: "DenyOverrides" })
+```
+
+The document called this "the sharpest limitation of the model as Qadi has it
+today", and it was right. `not(...)` did not fill the gap — it composes as a
+plain boolean, so excluding a subtree meant restating the whole rule as
+"inherited grant **and not** in the excluded set", every exceptable rule
+rewritten at every call site with the exclusion list threaded through, and the
+negation inverting the fail-closed default on the way.
+
+What the exclusion still costs is a resolver that can answer it. The `excluded`
+relation above is the caller's to define and the caller's to keep consistent with
+the tree — Qadi orders the rows, it does not know which subtree is carved out.
 
 **Depth bounds are a safety property, and they are the caller's to enforce.** An
 unbounded upward walk over a tree that is deep, or — through a re-parenting bug

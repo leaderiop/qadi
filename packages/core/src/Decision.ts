@@ -16,7 +16,13 @@ export interface Trace {
   /** Present only for `Labeled` nodes. */
   readonly label?: string | undefined;
   readonly allowed: boolean;
-  /** Why the node denied. Absent when it allowed. */
+  /**
+   * The sentence explaining this node's outcome.
+   *
+   * A denial always carries one. An allow carries one only for `Rules`, which
+   * names the row that permitted: a rule table's first diagnostic question is
+   * *which row hit*, and it is asked in both directions (ADR-QD-023).
+   */
   readonly reason?: string | undefined;
   readonly children: ReadonlyArray<Trace>;
   /**

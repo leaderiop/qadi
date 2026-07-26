@@ -258,6 +258,25 @@ describe("Policy serialization", () => {
             }),
             FastCheck.constantFrom("Intersection" as const, "Union" as const, "First" as const),
           ).map(([ps, strategy]) => P.anyOf(ps, { fieldStrategy: strategy })),
+          // A rule's condition is a full policy tree, and `Rule` is the only
+          // untagged struct in the codec — INV-QD-003 is what makes this branch
+          // mandatory in the same change that added the variant.
+          FastCheck.tuple(
+            FastCheck.array(
+              FastCheck.tuple(
+                tie("node") as FastCheck.Arbitrary<P.Policy>,
+                FastCheck.boolean(),
+              ).map(([condition, permits]) =>
+                permits ? P.permitWhen(condition) : P.denyWhen(condition),
+              ),
+              { minLength: 1, maxLength: 3 },
+            ),
+            FastCheck.constantFrom(
+              "FirstApplicable" as const,
+              "DenyOverrides" as const,
+              "PermitOverrides" as const,
+            ),
+          ).map(([rs, combining]) => P.rules(rs, { combining })),
           (tie("node") as FastCheck.Arbitrary<P.Policy>).map(P.not),
         ),
       })).node;

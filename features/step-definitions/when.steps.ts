@@ -1,8 +1,11 @@
-import { When } from "@cucumber/cucumber";
-import type { Policy } from "@qadi/core";
+import { DataTable, When } from "@cucumber/cucumber";
+import type { Combining, Policy, Rule } from "@qadi/core";
 import {
   allOf,
   anyOf,
+  denyWhen,
+  permitWhen,
+  rules,
   gte,
   hasAction,
   hasAttribute,
@@ -246,6 +249,70 @@ When("Bell-LaPadula is enforced", function (this: QadiWorld) {
       ]),
     ]),
   );
+});
+
+// ---------------------------------------------------------------------------
+// Rule tables
+// ---------------------------------------------------------------------------
+
+/**
+ * The condition mini-language the feature file writes in.
+ *
+ * Deliberately small. A rule table is *data* an operator maintains, so the
+ * scenarios read as rows rather than as a tree, and the condition column has to
+ * stay short enough to be read at a glance.
+ */
+const condition = (text: string): Policy => {
+  const [head, ...rest] = text.trim().split(/\s+/);
+  switch (head) {
+    case "role":
+      return hasRole(rest.join(" "));
+    case "owner":
+      return ownership();
+    // `allOf([])` allows vacuously, which is the catch-all row. There is no
+    // `always()` variant, and the awkwardness falls on the widening side.
+    case "always":
+      return allOf([]);
+    default:
+      throw new Error(`unknown rule condition: ${text}`);
+  }
+};
+
+const table = (data: DataTable): ReadonlyArray<Rule> =>
+  data.hashes().map((row) => {
+    const text = row["condition"];
+    if (text === undefined) throw new Error("a rule row needs a condition");
+    return row["effect"] === "deny"
+      ? denyWhen(condition(text))
+      : permitWhen(condition(text));
+  });
+
+const COMBINING: Readonly<Record<string, Combining>> = {
+  FirstApplicable: "FirstApplicable",
+  DenyOverrides: "DenyOverrides",
+  PermitOverrides: "PermitOverrides",
+};
+
+const combiningNamed = (name: string): Combining => {
+  const found = COMBINING[name];
+  if (found === undefined) throw new Error(`unknown combining algorithm: ${name}`);
+  return found;
+};
+
+When("the rule table is evaluated", function (this: QadiWorld, data: DataTable) {
+  this.run(rules(table(data)));
+});
+
+When(
+  "the rule table is evaluated with {string}",
+  function (this: QadiWorld, combining: string, data: DataTable) {
+    this.run(rules(table(data), { combining: combiningNamed(combining) }));
+  },
+);
+
+When("the empty rule table is evaluated", function (this: QadiWorld) {
+  // `allOf([])` allows vacuously; a table emptied by an administrator must not.
+  this.run(rules([]));
 });
 
 // ---------------------------------------------------------------------------

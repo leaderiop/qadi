@@ -87,18 +87,24 @@ checked mechanically by `spec/scripts/verify-traceability.sh`:
 Cross-references are relative markdown links whose text is the identifier:
 
 ```markdown
-[INV-QD-001](../invariants.md#inv-qd-001-policy-immutability)
+[INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness)
 [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)
 ```
+
+The anchor is the heading's GitHub slug, and it is **not verified by
+`verify-traceability.sh`** — that script checks the file resolves, never the
+fragment. An anchor naming a heading that does not exist therefore passes the
+merge gate, so these examples must cite real ones or they teach the wrong thing
+by being copied.
 
 Each `## BEH-QD-NNN` heading carries a reference blockquote directly beneath it:
 
 ```markdown
 ## BEH-QD-001: Permission Tokens
 
-> **Invariant:** [INV-QD-002](../invariants.md#inv-qd-002-permission-key-uniqueness)
+> **Invariant:** [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness)
 > **See:** [ADR-QD-007](../decisions/007-permission-token-representation.md)
-> **DoD:** [DoD 1](../process/definitions-of-done.md#dod-1-permission-tokens)
+> **DoD:** [Merge gate](../process/definitions-of-done.md#merge-gate)
 ```
 
 Each invariant carries a `**Related**:` line pointing back at the behaviors and

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-09                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-007) |
+> | Change History | 1.1 (2026-07-26): Deny rows and ordering closed by E3 (CCR-QD-019)<br>1.0 (2026-07-26): Initial release (CCR-QD-007) |
 
 ---
 
@@ -150,34 +150,42 @@ const program = check(canRead, { resource: { id: "doc-1" } }).pipe(
 
 ## What is missing
 
-**Negative entries.** Many list systems carry explicit DENY rows that override
-any ALLOW regardless of what else the list says — NTFS and XACML both do.
-**An ACL containing deny rows cannot be faithfully expressed in Qadi today.**
-`not` buys a *named* exclusion:
+**~~Negative entries.~~ Closed by E3 (CCR-QD-019).** Many list systems carry
+explicit DENY rows that override any ALLOW regardless of what else the list says
+— NTFS and XACML both do. This is now expressible:
+
+```ts
+rules([denyWhen(hasRelationship("banned")), permitWhen(hasRelationship("reader"))],
+      { combining: "DenyOverrides" })
+```
+
+What this document recorded as missing was real, and it is worth keeping because
+the workaround it warned about is still writable. `not` buys a *named* exclusion:
 
 ```ts
 allOf([hasRelationship("reader"), not(hasRelationship("banned"))])
 ```
 
 That is deny-overrides for one relation, enumerated at authoring time by someone
-who already knew the deny row existed. The ACL rule is that *any* deny row beats
-*any* allow row without the policy naming either, and expressing that needs an
-ordered combining algorithm over the entry set. Qadi has none: `AllOf` and
-`AnyOf` are unordered, and their allow/deny rule is hard-coded in the evaluator.
-That is enabler **E3** in [the matrix](./00-adoption-matrix.md), marked
-**Breaking**, because the honest fix changes what the existing combinators mean.
-
-Two consequences, before anyone ships the `not` workaround. Negation **inverts
-the fail-closed default** — an unwired resolver denies `banned`, so
+who already knew the deny row existed. Two consequences follow, and **both are
+reasons to prefer a `Deny` row now that one exists**. Negation **inverts the
+fail-closed default** — an unwired resolver denies `banned`, so
 `not(hasRelationship("banned"))` returns *true*, and
-[INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) then protects
-only through the positive branch beside it. And a deny row added after the policy
-was written has no effect at all, silently: the exact failure mode explicit deny
-exists to prevent.
+[INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) then protects only
+through the positive branch beside it. A `Deny` row refuses because it applied,
+never because something under it was unavailable. And a deny row added after the
+policy was written had no effect at all, silently — the exact failure mode
+explicit deny exists to prevent — where a row appended to a `DenyOverrides` table
+takes effect wherever it sits.
 
-**Ordering** is absent for the same reason — first-applicable,
-most-specific-wins and inheritance-with-override are orderings over a list, and
-Qadi evaluates a set. **Enumeration**, "who is on this list?", is the transpose
+**~~Ordering~~ Closed by the same change.** First-applicable, most-specific-wins
+and inheritance-with-override are orderings over a list, and Qadi evaluated a
+set; a rule table is ordered, and order is meaning rather than an artefact
+([BEH-QD-114](../behaviors/15-rules.md)). What remains out of reach is not
+ordering but *derivation*: a rule table is written, so most-specific-wins over a
+resolver-held entry set still means the caller ordering the rows.
+
+**Enumeration**, "who is on this list?", is the transpose
 of the question Qadi answers and needs subject-set evaluation, enabler **E6**,
 tracked on the [roadmap](../roadmap.md). **Administration** — creating, editing
 and revoking entries — is the application's, per [the URS](../urs.md) and

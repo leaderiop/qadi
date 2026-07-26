@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-26                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): E3 shipped; the recommended subset is complete (CCR-QD-019)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -42,16 +42,23 @@ for obligations, the one part of XACML with no substitute in this matrix.
 
 | Property | Value |
 | -------- | ----- |
-| Status | **Breaking** |
+| Status | **Shipped, in part** — the recommended subset; the rest is declined |
 | Priority | **P2** |
-| Enablers required | ~~**E1** (action dimension)~~ and ~~**E2** (obligations)~~ **shipped**; **E3** (combining algorithms) outstanding |
-| Breaking change | Yes — E3 changes what `AllOf` and `AnyOf` mean |
+| Enablers required | ~~**E1**~~, ~~**E2**~~, ~~**E3**~~ — all shipped |
+| Breaking change | Yes — E3 added a policy variant a predating decoder rejects |
 
-E1 and E2 were additive; only E3 makes this row breaking. A useful subset of
-parity therefore lands without a breaking change, and the recommendation below
-turns on exactly that split. E1 has since shipped
-([ADR-QD-018](../decisions/018-action-dimension.md)) — on its own merits, as the
-recommendation below argues it should be, not for parity.
+E1 and E2 were additive; only E3 made this row breaking. A useful subset of
+parity therefore landed without a breaking change, and the recommendation below
+turns on exactly that split. All three have now shipped —
+[ADR-QD-018](../decisions/018-action-dimension.md),
+[ADR-QD-019](../decisions/019-obligations.md) and
+[ADR-QD-023](../decisions/023-combining-algorithms.md) — each on its own merits,
+as the recommendation below argues each should be, and none for parity.
+
+**"Shipped, in part" is the ceiling for this row, not a stage on the way to
+"Shipped".** What remains unbuilt is what this document declines outright: the
+XML dialect and its request/response profile, the four-value decision algebra,
+and the rest of the combining catalogue. None is deferred.
 
 ## What Qadi can express today
 
@@ -67,7 +74,8 @@ verb, the obligation and the combinator.
 | Action | `hasAction`, `action()` | **Shipped** — E1 |
 | Environment attributes | Resolved attributes ([MOD-QD-012](./12-context-aware.md)) | **Partial** |
 | Obligations and advice | `obliged`, `Allow.obligations`, `advisory` | **Shipped** — E2 |
-| Combining algorithms | `allOf` / `anyOf`, fixed and unordered | **Missing** — E3 |
+| Combining algorithms | `rules`, `permitWhen`, `denyWhen`, three algorithms | **Shipped, in part** — E3; the catalogue is declined |
+| Rule `<Effect>` | `RuleEffect` — `Permit` \| `Deny` | **Shipped** — E3 |
 | Decision point (PDP) | The evaluator — `decide`, `check`, `enforce` | **Shipped** |
 | Information point (PIP) | `AttributeResolver`, `RelationshipResolver` | **Shipped** |
 | Administration and enforcement points | The caller's; Qadi neither administers nor enforces | Out of scope ([URS](../urs.md)) |
@@ -126,9 +134,10 @@ const program = decide(labeled("cardiology-access", allOf([target, condition])),
 );
 ```
 
-That rule can now say which operation is attempted (E1) and attach "and write an
-access record" to the allow (E2). Both have shipped. What remains is only the
-combining algorithm.
+That rule can now say which operation is attempted (E1), attach "and write an
+access record" to the allow (E2), and sit in an ordered table beside a row that
+refuses (E3). All three have shipped, and the recommended subset of parity is
+complete.
 
 ## Proposed API design
 
@@ -239,15 +248,39 @@ obligations execute, evaluation acquires side effects and
 is gone. Reporting them belongs on the existing span
 ([ADR-QD-009](../decisions/009-observability-via-effect.md)), not a new port.
 
-### E3 — combining algorithms
+### E3 — combining algorithms — **shipped**
 
 XACML defines `deny-overrides`, `permit-overrides`, `first-applicable`,
-`only-one-applicable` and their ordered variants; Qadi has `allOf` and `anyOf`,
+`only-one-applicable` and their ordered variants; Qadi had `allOf` and `anyOf`,
 unordered, with the allow/deny rule hard-coded in the evaluator. This document
-does **not** design that mechanism. Ordered first-match is the same problem in a
-more common vocabulary, and it is designed in
-[25 — Rule-Based Access Control](./25-rubac.md); parity should consume whatever
-lands there rather than propose a second, XACML-flavoured spelling of it.
+deliberately did **not** design that mechanism. Ordered first-match is the same
+problem in a more common vocabulary, it was designed in
+[25 — Rule-Based Access Control](./25-rubac.md), and parity consumes what landed
+there rather than proposing a second, XACML-flavoured spelling of it.
+
+Three of the five algorithms shipped:
+
+| XACML | Qadi |
+| ----- | ---- |
+| `deny-overrides`, `ordered-deny-overrides` | `DenyOverrides` |
+| `permit-overrides`, `ordered-permit-overrides` | `PermitOverrides` |
+| `first-applicable` | `FirstApplicable` |
+| `only-one-applicable` | **declined** |
+
+The ordered and unordered pairs collapse because a Qadi rule list is *always*
+ordered — order is meaning
+([BEH-QD-114](../behaviors/15-rules.md)) rather than a variant of the algorithm.
+`only-one-applicable` exists to close the standard under its own composition
+rules and returns `Indeterminate` when two rules apply, which is a fourth value
+this document already declines below.
+
+One thing deferring the design bought that proposing it would not have:
+[MOD-QD-025](./25-rubac.md) reached the deciding-rule formulation, under which a
+rule table needs no `fieldStrategy` and no obligation merge rule at all. A
+XACML-flavoured spelling would have started from that standard's rule of
+collecting obligations from every rule whose effect matches the final decision —
+which forfeits short-circuiting under `PermitOverrides` to satisfy a table in a
+specification.
 
 ## What it would cost
 
@@ -255,7 +288,7 @@ lands there rather than propose a second, XACML-flavoured spelling of it.
 | ------- | ------ | ---- |
 | ~~**E1**~~ **shipped** | Additive | `action` on `EvaluateOptions` and `MatcherContext`; an `ActionRef` across schema, type, constructor and generator — plus a `referencesAction` pre-check this table did not anticipate |
 | ~~**E2**~~ **shipped** | Additive to `Decision`, codec change for `Policy` | Landed as scoped, plus one thing this table did not anticipate: the refusal belongs to `assert` and `filter` too, not only `enforce`. [ADR-QD-019](../decisions/019-obligations.md) |
-| **E3** | Breaking | Deferred to [MOD-QD-025](./25-rubac.md) |
+| ~~**E3**~~ **shipped** | Breaking | Designed and delivered in [MOD-QD-025](./25-rubac.md); three algorithms, the catalogue declined. [ADR-QD-023](../decisions/023-combining-algorithms.md) |
 
 Invariants at risk: [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness)
 (the action must not alias permission segments),
@@ -269,11 +302,12 @@ collection must not force exhaustive evaluation) and
 ### The recommendation: do not pursue full parity
 
 E1 was worth building because a policy that cannot see the verb cannot express
-read-down or write-up, which blocked a whole family of models; it has shipped on
-that argument alone. E2 was worth
-building because obligations have no substitute anywhere in this matrix, and has
-also shipped. E3 is worth building because ordered rule lists are how people
-write rules, and is the only one of the three still open.
+read-down or write-up, which blocked a whole family of models; it shipped on
+that argument alone. E2 was worth building because obligations have no substitute
+anywhere in this matrix, and shipped on that one. E3 was worth building because
+ordered rule lists are how people write rules wherever rules are maintained as
+data, and it shipped on that one. **The recommendation held for all three: each
+was justified by a user, and none by the standard.**
 
 Each is worth building **on its own merits** — none because XACML has it. Three
 things should be declined outright: the XML dialect and its request/response

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-25                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): Shipped as E3; two forecasts corrected (CCR-QD-019)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -40,22 +40,72 @@ visible as its own row, addable without rewriting the rules around it.
 
 | Property | Value |
 | -------- | ----- |
-| Status | **Breaking** |
+| Status | **Shipped** |
 | Priority | **P2** |
-| Enablers required | E3 — combining algorithms |
-| Breaking change | Yes |
+| Enablers required | ~~E3 — combining algorithms~~ **shipped** |
+| Breaking change | Yes — a decoder predating `Rules` rejects a policy containing one |
 
-The obstruction is structural, not a missing combinator. `AllOf` and `AnyOf` are
-**unordered sets** of children whose allow/deny rule is hard-coded in
-`evaluateAllOf` and `evaluateAnyOf`; `FieldStrategy` is their only knob and it
-governs **field-set merging only**, never the outcome. No node in the ADT
-carries an effect, so none can say "and if I match, deny"; `not` inverts a
+**Shipped: [ADR-QD-023](../decisions/023-combining-algorithms.md),
+[15 — Rule Tables](../behaviors/15-rules.md),
+[INV-QD-017](../invariants.md#inv-qd-017-a-rule-list-stops-at-the-first-rule-that-cannot-be-overridden),
+`@REQ-QD-015`.**
+
+The obstruction this document recorded was structural, not a missing combinator.
+`AllOf` and `AnyOf` are **unordered sets** of children whose allow/deny rule is
+hard-coded in `evaluateAllOf` and `evaluateAnyOf`; `FieldStrategy` is their only
+knob and it governs **field-set merging only**, never the outcome. No node in the
+ADT carried an effect, so none could say "and if I match, deny"; `not` inverts a
 subtree but composes as ordinary boolean negation, so it cannot express "deny
 wins over the sibling that allowed".
 
-## What Qadi can express today
+| Addition | Where |
+| -------- | ----- |
+| `Rules` | the policy union, eleventh variant of fourteen |
+| `Rule`, `RuleEffect`, `Combining` | `Policy.ts` |
+| `rules`, `permitWhen`, `denyWhen` | the constructors |
+| `evaluateRules` | `Evaluate.ts`, beside `evaluateAllOf` and `evaluateAnyOf` |
+| a `reason` on an *allowing* trace node | `Decision.ts` — the first in the library |
 
-The workable idiom is **negative conditions first**: collect every deny rule into
+## The shape it took
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import {
+  AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive,
+  RelationshipResolverNever, allOf, check, currentSubjectLayer, denyWhen, eq,
+  hasAttribute, hasResourceAttribute, hasRole, literal, makeSubject, permitWhen,
+  rules, subjectId,
+} from "@qadi/core";
+
+// The rule table an operator maintains, as rows. Each refusal is its own row,
+// addable without touching the rest — which is the whole demand.
+const canEdit = rules([
+  denyWhen(hasAttribute("status", eq(literal("suspended")))),
+  denyWhen(allOf([hasResourceAttribute("legalHold", eq(literal(true))), hasRole("legal")])),
+  permitWhen(hasResourceAttribute("ownerId", eq(subjectId()))),
+  permitWhen(hasRole("editor")),
+  // Rule 5, the default, is the absence of a permit: no row applying denies.
+]);
+
+const subject = makeSubject({ id: "u-1", roles: ["editor"], attributes: { status: "active" } });
+const resolvers = Layer.mergeAll(
+  AttributeResolverNone, RelationshipResolverNever, DecisionHistoryUnknown, EvaluationIdLive,
+);
+
+const program = check(canEdit, {
+  resource: { id: "doc-1", ownerId: "u-1", legalHold: false },
+}).pipe(Effect.provide(currentSubjectLayer(subject)), Effect.provide(resolvers));
+```
+
+Note what the second deny row no longer needs: under the old idiom it was
+`allOf([legalHold, not(hasRole("legal"))])`, because the whole guard was about to
+be negated. A `Deny` row states the refusal directly, so the negation — and the
+hazard below that came with it — is gone.
+
+## What Qadi could express before
+
+The workable idiom was **negative conditions first**: collect every deny rule into
 one disjunction, negate the whole thing, and require it alongside the permits.
 
 ```typescript
@@ -92,7 +142,7 @@ const program = check(canEdit, {
 }).pipe(Effect.provide(currentSubjectLayer(subject)), Effect.provide(resolvers));
 ```
 
-This works, and it degrades badly. **Every new deny rule must be threaded into
+This worked, and it degraded badly. **Every new deny rule had to be threaded into
 the guard clause**, not appended to a list; the guard grows a second conjunction
 of exceptions the moment one deny should apply to only some permits; and the
 rule table an operator wanted to edit is a tree only its author can change
@@ -117,10 +167,12 @@ distinguish "did not apply" from "applied, and said no"; a rule list needs two,
 combining algorithms, field merging and the wire format all follow from
 admitting the second bit.
 
-## Proposed API design
+## The design, and where it landed differently
 
-E3 needs a `Combining` literal union either way. The only question is where it
-sits, and the two answers are not equally good.
+E3 needed a `Combining` literal union either way. The only question was where it
+sat, and the two answers were not equally good. This document preferred the
+variant; [ADR-QD-023](../decisions/023-combining-algorithms.md) agreed and kept
+the argument verbatim.
 
 ```ts
 type Combining = "FirstApplicable" | "DenyOverrides" | "PermitOverrides";
@@ -130,8 +182,8 @@ interface Rule {
   /** Evaluated for *match*, not outcome: allow means "this rule applies". */
   readonly condition: Policy;
   readonly effect: RuleEffect;
-  readonly label?: string | undefined;
-  readonly fields?: ReadonlyArray<string> | undefined;
+  readonly label?: string | undefined;      // ← not shipped
+  readonly fields?: ReadonlyArray<string> | undefined;  // ← not shipped
 }
 
 // Rejected: `combining: Combining` bolted onto the existing AllOf and AnyOf.
@@ -139,8 +191,18 @@ interface Rule {
 // { readonly _tag: "Rules"
 // ; readonly rules: ReadonlyArray<Rule>
 // ; readonly combining: Combining
-// ; readonly fieldStrategy: FieldStrategy }
+// ; readonly fieldStrategy: FieldStrategy }   // ← not shipped
 ```
+
+**Three of those fields did not ship, and the reason is one decision.** Exactly
+one rule decides a table under every algorithm, so there is nothing to merge and
+`fieldStrategy` has no work to do; the deciding rule's condition supplies the
+field set and the obligations, which is
+[ADR-QD-019](../decisions/019-obligations.md)'s existing sentence rather than a
+new rule. `fields` and `label` on the row went with it: a condition is an
+ordinary policy and already carries both, through `fields` on its leaves and
+through `labeled`. `Rule` shipped with two members, `condition` and `effect` —
+the second bit, and nothing else.
 
 **Why not the field.** `fieldStrategy` is required precisely because
 [ADR-QD-006](../decisions/006-field-strategy-always-encoded.md) found the
@@ -154,10 +216,17 @@ call counting. The smaller diff, the larger change.
 **Why the variant.** Existing semantics stay untouched and the round-trip
 property is extended rather than perturbed. The comment on `condition` is
 load-bearing: inside a rule a `Policy` answers *does this apply?* and `effect`
-answers *and what then?*. No rule matching is a denial, per
-[INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) — there is no
+answers *and what then?*. No rule matching is a denial — there is no
 "default permit" spelling, and a caller wanting one writes a final rule that
-always matches.
+always matches, which is spelled `permitWhen(allOf([]))`.
+
+*One correction.* This paragraph cited
+[INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed), and that is the
+same misrouting [MOD-QD-026](./26-xacml.md) made about the absent action. That
+invariant governs what an *unwired resolver* answers. A table in which no row
+applied has no missing service in it; it simply granted nothing, exactly as
+`anyOf([])` does. The rule is default-deny, not fail-closed, and the two are
+different mechanisms that happen to agree here.
 
 [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) requires the variant
 to land in **four places in one change**:
@@ -190,7 +259,7 @@ change**. A variant absent from the generator is untested by the round-trip
 property — the regression guard for the data-loss defect this library was
 rewritten to fix.
 
-## What it would cost
+## What it cost
 
 **Why it is breaking.** Even as a new variant, `Rules` changes the wire format in
 the direction that hurts: a decoder predating it *rejects* a policy containing
@@ -216,6 +285,14 @@ today's cost profile where allowing is the cheap outcome. The invariant must
 therefore be restated as a property *of the combining algorithm*, or it weakens
 silently the moment `Rules` ships.
 
+*This document called it correctly and it is the sharpest thing in here.* The
+restatement shipped as
+[INV-QD-017](../invariants.md#inv-qd-017-a-rule-list-stops-at-the-first-rule-that-cannot-be-overridden),
+one sentence covering all three rows of that table: **a rule list stops at the
+first rule that cannot be overridden.** INV-QD-005 defers to it rather than
+enumerating a third node, because an invariant true by listing has stopped
+constraining anything.
+
 **INV-QD-004 — the field lattice.** A `Deny` rule contributes no field set, for
 the reason `Not` contributes none: knowing a rule refused says nothing about
 which fields are safe. Under `FirstApplicable` exactly one rule decides, so
@@ -223,28 +300,47 @@ which fields are safe. Under `FirstApplicable` exactly one rule decides, so
 permitting rules' sets merge — and `First` is ill-defined there. `undefined` must
 remain **top**, meaning all fields, in every case.
 
-**Concurrent evaluation** is on the
-[roadmap](../roadmap.md#concurrent-evaluation) and already recorded as blocked by
-E3. The dependency runs this way round: `FirstApplicable` is inherently
-sequential, its order being meaning rather than optimisation, while the two
-overrides are order-independent and are precisely the algorithms concurrency
-would help. Settling concurrency first would fix the answer prematurely.
+*Half right, and noticing which half is what removed the field.* The `Deny`
+sentence shipped unchanged, and it carries further than written here: a `Deny`
+row's condition may well have **allowed**, so this is the first place in the
+library where an allowing subtree contributes nothing to the decision above it.
+The observation that `fieldStrategy` is meaningless under `FirstApplicable` and
+ill-defined for `First` elsewhere was the answer rather than a caveat — a knob
+that is meaningless in one case and ill-defined in another is a knob that should
+not exist. Exactly one rule decides under **every** algorithm, and there is
+nothing to merge.
+
+**Concurrent evaluation** was on the
+[roadmap](../roadmap.md#concurrent-evaluation) and recorded as blocked by E3. The
+dependency ran this way round: `FirstApplicable` is inherently sequential, its
+order being meaning rather than optimisation, while the two overrides are
+order-independent and are precisely the algorithms concurrency would help.
+Settling concurrency first would have fixed the answer prematurely.
+
+*Unblocked, and still unbuilt.* The algorithm set is now settled, so the roadmap
+entry can be designed. One thing that surfaced in building it constrains the
+design: the overrides are order-independent in the **verdict** but not in the
+**deciding rule**, which is the first applying row of the winning effect and
+supplies the field set and obligations. A concurrent implementation must still
+resolve the decider by index after collecting every result, or two runs of the
+same table will owe different duties.
 
 ## Verification
 
-**Nothing verifies this model. It is unbuilt**, and this document asserts only
-intent — no `BEH-QD`, `INV-QD` or `REQ-QD` identifier is allocated here. The
-compiled example is the exception: it uses shipped API only and is type-checked
-by CI, resting on `REQ-QD-003`, `REQ-QD-004`, `REQ-QD-006` and `REQ-QD-009`.
+**This model is built.** `packages/core/test/Rules.test.ts` covers it, the
+round-trip property in `packages/core/test/Policy.test.ts` gained its `Rules`
+branch in the same change that added the variant
+([INV-QD-003](../invariants.md#inv-qd-003-codectype-identity)), and eleven
+scenarios are tagged `@REQ-QD-015`.
 
-Building the model means, in one change: an ADR settling the combining set and
-the short-circuit restatement; a behaviour in
-[the policy ADT](../behaviors/03-policy-adt.md); the four edits above plus the
-generator branch; per-algorithm call-counting tests, since "`FirstApplicable`
-evaluated three rules and stopped" is the claim rather than a side effect; and a
-scenario tagged with a newly allocated `REQ-QD` identifier. Order-dependence
-needs its own test — that a *reordered* rule list decides differently — because
-it is the one property no existing test could have caught.
+The plan this document set out was followed to the letter, and both of the tests
+it insisted on earned their place. Per-algorithm call counting is what proves
+"`FirstApplicable` evaluated three rules and stopped" as a claim rather than a
+side effect — and the trace's child count asserts the same thing by an
+independent route, so a mutant would have to defeat both. Order-dependence has
+its own test, and it remains the one property no existing test could have caught:
+`allOf` and `anyOf` are order-*observable* but never order-*dependent*, so a rule
+list is the first construct in Qadi where moving a row changes the answer.
 
 ---
 

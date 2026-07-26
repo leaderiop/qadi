@@ -30,7 +30,7 @@ import { evaluateMatcher, referencesAction } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
-import type { FieldStrategy, Policy } from "./Policy.ts";
+import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 
 /** Arbitrary resource attributes a policy may inspect. */
@@ -284,6 +284,9 @@ const evaluateNode = (
     case "AnyOf":
       return evaluateAnyOf(policy, subject, request, depth, maxDepth);
 
+    case "Rules":
+      return evaluateRules(policy, subject, request, depth, maxDepth);
+
     case "Not":
       return Effect.map(
         evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
@@ -412,6 +415,90 @@ const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
   }
 
   return deny("AnyOf", lastReason ?? "no alternative policy allowed", children);
+});
+
+/**
+ * Walks an ordered rule table.
+ *
+ * Exactly one rule decides, and the walk stops at the first rule that cannot be
+ * overridden (INV-QD-017). `FirstApplicable` stops at the first rule that
+ * applies at all; the overrides stop at the first rule carrying the effect
+ * nothing later can beat, and must otherwise ask every rule — which inverts the
+ * cost profile of the rest of the library, where allowing is the cheap outcome.
+ */
+const evaluateRules = Effect.fn("qadi.rules")(function* (
+  policy: Extract<Policy, { _tag: "Rules" }>,
+  subject: AuthSubject,
+  request: Request,
+  depth: number,
+  maxDepth: number,
+) {
+  const children: Array<Trace> = [];
+
+  /** The effect that ends the walk. `undefined` under `FirstApplicable`,
+   *  where the first rule to apply at all is already final. */
+  const decisive: RuleEffect | undefined =
+    policy.combining === "DenyOverrides"
+      ? "Deny"
+      : policy.combining === "PermitOverrides"
+        ? "Permit"
+        : undefined;
+
+  interface Applied {
+    readonly index: number;
+    readonly rule: Rule;
+    readonly trace: Trace;
+  }
+  let firstApplying: Applied | undefined;
+  let firstDecisive: Applied | undefined;
+
+  for (let index = 0; index < policy.rules.length; index += 1) {
+    const rule = policy.rules[index]!;
+    // The condition answers *does this rule apply*, never *is this permitted*.
+    const trace = yield* evaluateNode(
+      rule.condition,
+      subject,
+      request,
+      depth + 1,
+      maxDepth,
+    );
+    children.push(trace);
+    if (!trace.allowed) continue;
+
+    const applied: Applied = { index, rule, trace };
+    firstApplying ??= applied;
+    if (decisive === undefined) break;
+    if (rule.effect === decisive) {
+      firstDecisive = applied;
+      break;
+    }
+  }
+
+  // Under the overrides, an applying rule of the other effect decides only
+  // because nothing decisive was found — which is knowable solely by asking all.
+  const deciding = firstDecisive ?? firstApplying;
+
+  if (deciding === undefined) {
+    return deny("Rules", "no rule applied", children);
+  }
+
+  if (deciding.rule.effect === "Deny") {
+    // `Not`'s rule: a refusal permits nothing, so it carries neither fields nor
+    // obligations — whatever its own condition's trace holds (ADR-QD-023).
+    return deny("Rules", `rules[${deciding.index}] denied`, children);
+  }
+
+  return {
+    policyTag: "Rules" as const,
+    allowed: true,
+    // The only allowing node in the library that carries a reason. A rule
+    // table's first question is *which row hit*, and it is asked in both
+    // directions.
+    reason: `rules[${deciding.index}] permitted`,
+    children,
+    visibleFields: deciding.trace.visibleFields,
+    obligations: deciding.trace.obligations,
+  };
 });
 
 /**

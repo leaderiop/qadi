@@ -44,3 +44,6 @@ entries:
   - id: "BEH-QD-105"
     file: "14-subject-sets.md"
     title: "14 — Subject Sets"
+  - id: "BEH-QD-111"
+    file: "15-rules.md"
+    title: "15 — Rule Tables"

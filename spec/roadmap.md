@@ -5,31 +5,31 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.10                                           |
+> | Revision       | 1.11                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
 ## Current state
 
 Version `0.0.0`, unpublished, under the `@qadi` scope with the `QD`
-specification infix. The core is complete and verified: thirteen policy variants,
+specification infix. The core is complete and verified: fourteen policy variants,
 twelve matchers, five value references, obligations, a decision-history port, a
-label lattice, the evaluator, enforcement, subject-set review, serialization,
-React integration and a test toolkit.
+label lattice, ordered rule tables, the evaluator, enforcement, subject-set
+review, serialization, React integration and a test toolkit.
 
 | Gate | Status |
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 295 passing |
-| Acceptance scenarios | 72 scenarios, 320 steps passing |
+| Unit and property tests | 322 passing |
+| Acceptance scenarios | 83 scenarios, 368 steps passing |
 | Coverage | 99.7% statements, 97.1% branches — thresholds enforced |
-| Doc examples compile | 60 blocks |
+| Doc examples compile | 62 blocks |
 | Specification integrity | 13 checks passing |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
@@ -57,8 +57,17 @@ one policy across many subjects, answering "who can reach this?" — and answera
 by nobody, since the subject travels as a parameter and the ambient one is
 replaced rather than read.
 
-What remains from the matrix is **phase 5**: E3, combining algorithms, and E7,
-predicate output. Both change what an existing construct means, so both should
+**Phase 5 is under way.** **E3, combining algorithms**
+([ADR-QD-023](./decisions/023-combining-algorithms.md)): a policy can be an
+ordered rule table whose rows carry an effect of their own, so "and if this
+matches, refuse" is a row rather than a negated guard clause hoisted ahead of
+every permit. The phase was framed as "both change what an existing construct
+means", and for E3 that was wrong — the honest fix was a new variant, and
+`AllOf`, `AnyOf` and every serialized policy kept the meaning they had. It is
+breaking for a different reason: a decoder predating `Rules` rejects a policy
+containing one.
+
+What remains is **E7**, predicate output, which the framing does fit. It should
 land before `1.0.0` or not at all.
 
 Nothing below is required for the library to be correct. These are gaps in
@@ -99,6 +108,14 @@ Those interactions need designing, not bolting on.
 to be settled first; what stopped concurrency there was that a batch multiplies
 the load on the caller's store by its own length. Bounding that fan-out is the
 design question for `decideSubjects`, and it is not the one above.
+
+**Unblocked by E3** (CCR-QD-019): the algorithm set is settled, so this can now
+be designed. Building E3 added one constraint to design against. `DenyOverrides`
+and `PermitOverrides` are order-independent in the **verdict** but not in the
+**deciding rule**, which is the first applying row of the winning effect and
+supplies the decision's field set and obligations — so a concurrent
+implementation must still resolve the decider by index after collecting every
+result, or two runs of the same table will owe different duties.
 
 Two ADRs previously stated this option *existed*. They have been corrected —
 see [ADR-QD-005](./decisions/005-lazy-attribute-resolution.md) and

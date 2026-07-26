@@ -100,10 +100,11 @@ having verified one.
 | [12 — Decision History](./behaviors/12-history.md) | BEH-QD-089–095 |
 | [13 — The Label Lattice](./behaviors/13-labels.md) | BEH-QD-097–101 |
 | [14 — Subject Sets](./behaviors/14-subject-sets.md) | BEH-QD-105–109 |
+| [15 — Rule Tables](./behaviors/15-rules.md) | BEH-QD-111–117 |
 
 ### Decisions
 
-Twenty-two ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
+Twenty-three ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 
 | ADR | Decision |
 | --- | -------- |
@@ -118,9 +119,10 @@ Twenty-two ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 | [ADR-QD-020](./decisions/020-decision-history-port.md) | History is a three-valued port — a boolean cannot fail closed under negation |
 | [ADR-QD-021](./decisions/021-label-lattice.md) | Dominance is four-valued; the label never enters the policy |
 | [ADR-QD-022](./decisions/022-subject-set-evaluation.md) | A subject set is asked by nobody, and reports rather than enforces |
+| [ADR-QD-023](./decisions/023-combining-algorithms.md) | A rule list stops at the first rule that cannot be overridden |
 
-All twenty-two are **Accepted** and describe code that exists. ADR-QD-018
-through ADR-QD-022 were each written *Proposed* first — recording a
+All twenty-three are **Accepted** and describe code that exists. ADR-QD-018
+through ADR-QD-023 were each written *Proposed* first — recording a
 decision whose implementation had not landed — and moved to Accepted when the
 capability shipped with its behaviour, invariant and scenario. That is the path a
 Proposed decision takes, and for ADR-QD-020 and ADR-QD-021 it was mandatory: the

@@ -52,6 +52,45 @@ export const HistoryScope = Schema.Literals(["Resource", "Any"]);
 export type HistoryScope = typeof HistoryScope.Type;
 
 // ---------------------------------------------------------------------------
+// Rule lists
+// ---------------------------------------------------------------------------
+
+/**
+ * How a rule list resolves the rules that applied.
+ *
+ * Exactly one rule decides under each (ADR-QD-023):
+ *
+ * - `FirstApplicable` — the first rule that applies
+ * - `DenyOverrides` — the first applying `Deny`; failing that, the first
+ *   applying `Permit`
+ * - `PermitOverrides` — the first applying `Permit`; failing that, the first
+ *   applying `Deny`
+ */
+export const Combining = Schema.Literals([
+  "FirstApplicable",
+  "DenyOverrides",
+  "PermitOverrides",
+]);
+export type Combining = typeof Combining.Type;
+
+/** What it means for a rule to apply. */
+export const RuleEffect = Schema.Literals(["Permit", "Deny"]);
+export type RuleEffect = typeof RuleEffect.Type;
+
+/**
+ * One row of a rule table.
+ *
+ * The `condition` is evaluated for **applicability**, not outcome: allowing
+ * means "this rule applies", and `effect` says what applying means. That second
+ * bit is the whole of E3 — boolean composition has one bit per child and so
+ * cannot distinguish "did not apply" from "applied, and said no".
+ */
+export interface Rule {
+  readonly condition: Policy;
+  readonly effect: RuleEffect;
+}
+
+// ---------------------------------------------------------------------------
 // The policy union
 // ---------------------------------------------------------------------------
 
@@ -66,6 +105,7 @@ export type Policy =
   | { readonly _tag: "HasNotActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
+  | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<Rule>; readonly combining: Combining }
   | { readonly _tag: "Not"; readonly policy: Policy }
   | { readonly _tag: "Obliged"; readonly obligation: Obligation; readonly policy: Policy }
   | { readonly _tag: "Labeled"; readonly label: string; readonly policy: Policy };
@@ -127,6 +167,17 @@ const AnyOf = Schema.TaggedStruct("AnyOf", {
   fieldStrategy: FieldStrategy,
 });
 
+/** Untagged: a rule is a row of a table, not a member of the policy union. */
+const RuleStruct = Schema.Struct({
+  condition: PolicyRef,
+  effect: RuleEffect,
+});
+
+const Rules = Schema.TaggedStruct("Rules", {
+  rules: Schema.Array(RuleStruct),
+  combining: Combining,
+});
+
 const Not = Schema.TaggedStruct("Not", { policy: PolicyRef });
 
 const Obliged = Schema.TaggedStruct("Obliged", {
@@ -150,6 +201,7 @@ export const Policy: Schema.Codec<Policy> = Schema.Union([
   HasNotActed,
   AllOf,
   AnyOf,
+  Rules,
   Not,
   Obliged,
   Labeled,
@@ -309,6 +361,37 @@ export const anyOf = (
   _tag: "AnyOf",
   policies,
   fieldStrategy: options?.fieldStrategy ?? "First",
+});
+
+/**
+ * A rule that permits when its condition applies.
+ *
+ * Named `permitWhen` rather than `permit` because `Deny` is already a decision
+ * class, and a bare `deny` in scope beside it would be read as producing one.
+ */
+export const permitWhen = (condition: Policy): Rule => ({ condition, effect: "Permit" });
+
+/** A rule that refuses when its condition applies — the explicit deny row. */
+export const denyWhen = (condition: Policy): Rule => ({ condition, effect: "Deny" });
+
+/**
+ * An ordered rule table, walked from the top.
+ *
+ * Exactly one rule decides, and the decision's field set and obligations are
+ * that rule's alone (ADR-QD-023). No rule applying is a denial, and so is an
+ * empty list: there is no default-permit spelling, and a caller wanting one
+ * writes `permitWhen(allOf([]))` as the final row.
+ *
+ * Defaults to `FirstApplicable`, the cheapest of the three — the overrides
+ * cannot short-circuit in the direction that used to be cheap.
+ */
+export const rules = (
+  rules: ReadonlyArray<Rule>,
+  options?: { readonly combining?: Combining },
+): Policy => ({
+  _tag: "Rules",
+  rules,
+  combining: options?.combining ?? "FirstApplicable",
 });
 
 /** Inverts a decision. Carries no field visibility of its own. */

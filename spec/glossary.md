@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -65,7 +65,7 @@ exponentially. See [BEH-QD-010](behaviors/02-roles.md).
 ## Policy
 
 A tree of authorization conditions, and the central data type of the library.
-Nine variants discriminated on `_tag`. A policy is **plain data**: it contains
+Fourteen variants discriminated on `_tag`. A policy is **plain data**: it contains
 no closures, so it can be stored as JSON and reloaded without loss.
 See [BEH-QD-017](behaviors/03-policy-adt.md) and [ADR-QD-002](decisions/002-schema-derived-policy-adt.md).
 
@@ -112,6 +112,37 @@ child of an `allOf`, the first allowing child of an `anyOf`. The one exception
 is the `Union` field strategy, which must observe every child to merge their
 field sets — a semantic requirement, not a performance choice.
 See [INV-QD-005](invariants.md#inv-qd-005-short-circuit-preservation).
+
+A **rule table** stops by its own rule instead — at the first row that cannot be
+overridden, which is not always the first row that decides anything.
+See [INV-QD-017](invariants.md#inv-qd-017-a-rule-list-stops-at-the-first-rule-that-cannot-be-overridden).
+
+## Rule table
+
+An ordered list of rows, each pairing a condition with an effect, walked from the
+top. The construct that lets a policy say "and if this matches, refuse". Written
+with `rules`, `permitWhen` and `denyWhen`.
+See [BEH-QD-111](behaviors/15-rules.md) and [ADR-QD-023](decisions/023-combining-algorithms.md).
+
+## Rule effect
+
+`Permit` or `Deny` — what it means for a row to apply. The second bit a boolean
+combinator cannot carry: under `anyOf`, a child that denies and a child that is
+irrelevant are the same event; in a rule table they are opposites.
+See [BEH-QD-111](behaviors/15-rules.md).
+
+## Applicability
+
+What a rule's condition answers. Allowing means *this row applies*, not *this is
+permitted* — so inside a `Deny` row an allowing condition produces a refusal.
+See [BEH-QD-112](behaviors/15-rules.md).
+
+## Combining algorithm
+
+How a rule table resolves the rows that applied: `FirstApplicable`,
+`DenyOverrides` or `PermitOverrides`. Exactly one row decides under each, and it
+supplies the decision's field set and obligations.
+See [BEH-QD-112](behaviors/15-rules.md).
 
 ## Resolver
 

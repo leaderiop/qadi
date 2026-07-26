@@ -68,3 +68,6 @@ entries:
   - id: "ADR-QD-022"
     file: "022-subject-set-evaluation.md"
     title: "A subject set is asked by nobody, and the answer reports rather than enforces"
+  - id: "ADR-QD-023"
+    file: "023-combining-algorithms.md"
+    title: "A rule list stops at the first rule that cannot be overridden"

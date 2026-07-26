@@ -74,6 +74,16 @@ Then("the answer is empty", function (this: QadiWorld) {
   assert.deepEqual(this.answer, []);
 });
 
+/**
+ * A rule table's first diagnostic question, asked in both directions.
+ *
+ * `Rules` is the only node in the library whose *allowing* trace carries a
+ * reason, and this is what that is for (ADR-QD-023).
+ */
+Then("the deciding row is {string}", function (this: QadiWorld, expected: string) {
+  assert.equal(this.outcome.traceReason, expected);
+});
+
 Then("the review covers {string}", function (this: QadiWorld, expected: string) {
   const want = expected.split(",").map((s) => s.trim());
   assert.deepEqual(this.review.map((r) => r.id), want);

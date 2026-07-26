@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RTM                                       |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Verification Record                            |
-> | Change History | 1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.7 (2026-07-26): Rule tables built (CCR-QD-019)<br>1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -46,6 +46,7 @@ contract.
 | [12 — Decision History](behaviors/12-history.md) | BEH-QD-089–095 | `packages/core/src/DecisionHistory.ts`, `Policy.ts`, `Evaluate.ts`, `Errors.ts` |
 | [13 — The Label Lattice](behaviors/13-labels.md) | BEH-QD-097–101 | `packages/core/src/SecurityLabel.ts`, `Matcher.ts` |
 | [14 — Subject Sets](behaviors/14-subject-sets.md) | BEH-QD-105–109 | `packages/core/src/SubjectSet.ts` |
+| [15 — Rule Tables](behaviors/15-rules.md) | BEH-QD-111–117 | `packages/core/src/Policy.ts`, `Evaluate.ts` |
 
 ## §2 Invariant traceability
 
@@ -67,6 +68,7 @@ contract.
 | [INV-QD-014](invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities) | An unwired history port denies both polarities | Three-valued port; `DecisionHistoryUnknown` | `Evaluate.test.ts`, `TestLayers.test.ts` |
 | [INV-QD-015](invariants.md#inv-qd-015-incomparable-labels-deny-in-both-directions) | Incomparable labels deny both ways | `compareLabels` / `labelDominates` | `Matcher.test.ts`, `Evaluate.test.ts` |
 | [INV-QD-016](invariants.md#inv-qd-016-a-batch-decision-is-the-decision-made-alone) | A batch decision equals the decision made alone | Per-element `provideService`; no batch state | `SubjectSet.test.ts` |
+| [INV-QD-017](invariants.md#inv-qd-017-a-rule-list-stops-at-the-first-rule-that-cannot-be-overridden) | A rule list stops at the first rule that cannot be overridden | Per-algorithm stopping condition in `evaluateRules` | `Rules.test.ts` (resolver call counts and trace child counts) |
 
 ## §3 Decision traceability
 
@@ -94,6 +96,7 @@ contract.
 | [ADR-QD-020](decisions/020-decision-history-port.md) | History is a three-valued port | INV-QD-003, INV-QD-006, INV-QD-007, INV-QD-008, INV-QD-014 |
 | [ADR-QD-021](decisions/021-label-lattice.md) | Dominance is four-valued; the label never enters the policy | INV-QD-003, INV-QD-007, INV-QD-015 |
 | [ADR-QD-022](decisions/022-subject-set-evaluation.md) | A subject set is asked by nobody, and reports rather than enforces | INV-QD-006, INV-QD-008, INV-QD-016 |
+| [ADR-QD-023](decisions/023-combining-algorithms.md) | A rule list stops at the first rule that cannot be overridden | INV-QD-003, INV-QD-004, INV-QD-005, INV-QD-006, INV-QD-017 |
 
 ## §4 Test file map
 
@@ -106,6 +109,7 @@ contract.
 | `packages/core/test/Matcher.test.ts` | BEH-QD-025–028, BEH-QD-075, BEH-QD-097–099, INV-QD-004, INV-QD-011, INV-QD-015 |
 | `packages/core/test/Evaluate.test.ts` | BEH-QD-033–039, BEH-QD-073–078, BEH-QD-081–086, BEH-QD-089–095, BEH-QD-098–101, INV-QD-005, INV-QD-006, INV-QD-008, INV-QD-011, INV-QD-012, INV-QD-014, INV-QD-015, ADR-QD-009 |
 | `packages/core/test/SubjectSet.test.ts` | BEH-QD-105–109, INV-QD-006, INV-QD-016 |
+| `packages/core/test/Rules.test.ts` | BEH-QD-111–117, INV-QD-004, INV-QD-006, INV-QD-017 |
 | `packages/core/test/Layers.test.ts` | BEH-QD-041–044, INV-QD-007 |
 | `packages/core/test/Qadi.test.ts` | BEH-QD-049–052, BEH-QD-085, INV-QD-009, INV-QD-013 |
 | `packages/testing/test/TestLayers.test.ts` | Test fixtures and layers, INV-QD-014 |
@@ -132,6 +136,7 @@ contract.
 | REQ-QD-012 | `features/features/history/history.feature` | BEH-QD-090–093, INV-QD-014 |
 | REQ-QD-013 | `features/features/labels/labels.feature` | BEH-QD-098–099, INV-QD-015 |
 | REQ-QD-014 | `features/features/subject-sets/subject-sets.feature` | BEH-QD-105–108, INV-QD-016 |
+| REQ-QD-015 | `features/features/rules/rules.feature` | BEH-QD-111–116, INV-QD-017 |
 
 ## §6 Coverage targets
 

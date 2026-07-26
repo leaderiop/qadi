@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -98,6 +98,14 @@ every child to merge field sets.
 **Implication**: `anyOf(cheapRbacCheck, expensiveAttributeCheck)` costs one set
 lookup when the first branch allows. The predecessor resolved the entire tree
 before evaluating anything.
+
+**`Rules` is governed by
+[INV-QD-017](#inv-qd-017-a-rule-list-stops-at-the-first-rule-that-cannot-be-overridden)
+instead**, and is not an exception to this one. Where stopping is a property of a
+boolean operator here, a rule list stops according to its combining algorithm,
+and two of the three cannot stop in the direction that is cheap everywhere else.
+Enumerating a third node in this invariant would have made it true only by
+listing; the property belongs to the algorithm.
 
 **Enforcement**: tests count resolver invocations rather than measuring time.
 
@@ -363,5 +371,44 @@ dropping the `provideService` does not compile — `SubjectSetServices` excludes
 `CurrentSubject`, so the ambient one is unreachable.
 
 **Related**: [BEH-QD-106](behaviors/14-subject-sets.md), [ADR-QD-022](decisions/022-subject-set-evaluation.md).
+
+---
+
+## INV-QD-017: A rule list stops at the first rule that cannot be overridden
+
+Every combining algorithm has a stated stopping condition, and evaluation
+performs no work beyond it.
+
+**Source**: `packages/core/src/Evaluate.ts` — `evaluateRules` breaks on the first
+applying rule under `FirstApplicable`, and on the first applying rule whose
+effect is the *decisive* one under the overrides. Nothing else ends the walk.
+
+| Combining | Stops at | Must otherwise |
+| --------- | -------- | -------------- |
+| `FirstApplicable` | the first applying rule — nothing overrides anything | — |
+| `DenyOverrides` | the first applying `Deny` | evaluate every rule to permit |
+| `PermitOverrides` | the first applying `Permit` | evaluate every rule to deny |
+
+**Implication**: the overrides **invert the cost profile of the rest of the
+library**, where allowing is the cheap outcome. Under `DenyOverrides` a permit is
+the expensive answer, because nothing-denied is knowable only by asking
+everything. That is the algorithm's meaning rather than an implementation
+shortfall, and a caller who wants the cheap profile back writes
+`FirstApplicable`, which is the default.
+
+**Why this exists rather than a third clause in
+[INV-QD-005](#inv-qd-005-short-circuit-preservation)**: stopping is a property of
+a boolean operator there and of the *algorithm* here. Enumerating `Rules` beside
+`AllOf` and `AnyOf` would have left INV-QD-005 true by listing, which is how an
+invariant stops constraining anything.
+
+**Enforcement**: six tests count resolver invocations across the three
+algorithms in both directions, and assert the child count of the trace — a walk
+that stopped early has fewer children than the table has rows, so the claim is
+made twice by independent means. A mutation running every rule under
+`FirstApplicable` kills two; one that stops the overrides at the first applying
+rule of either effect kills five.
+
+**Related**: [BEH-QD-115](behaviors/15-rules.md), [ADR-QD-023](decisions/023-combining-algorithms.md).
 
 ---
