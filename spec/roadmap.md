@@ -31,7 +31,7 @@ review, predicate output, serialization, React integration and a test toolkit.
 | Coverage | 99.89% statements, 98.34% branches, 100% lines — thresholds enforced |
 | Doc examples compile | 68 blocks |
 | Specification integrity | 13 checks passing |
-| Mutation score | 90.10% on `packages/core`, break threshold 80 — enforced |
+| Mutation score | ~90% on `packages/core`, break threshold 80 — enforced |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
@@ -99,7 +99,7 @@ surviving mutant is most likely to be an authorization defect.
 
 *It now scores 81.25%*, and not because anyone set out to fix it — the property
 test written for concurrent evaluation kills evaluator mutants that nothing else
-reached. Every file is above the threshold and the aggregate is 90.10%.
+reached. Every file is above the threshold and the aggregate sits just under 90%.
 
 **What remains unanalysed, stated rather than closed**: 66 mutants still survive in
 `Evaluate.ts`, 39 in `Predicate.ts` and 10 in `Explanation.ts`. Nobody has read

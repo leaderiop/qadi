@@ -316,8 +316,8 @@ that is meaningless in one case and ill-defined in another is a knob that should
 not exist. Exactly one rule decides under **every** algorithm, and there is
 nothing to merge.
 
-**Concurrent evaluation** was on the
-[roadmap](../roadmap.md#concurrent-evaluation) and recorded as blocked by E3. The
+**Concurrent evaluation** was on the roadmap and recorded as blocked by E3, and
+has since shipped ([ADR-QD-026](../decisions/026-concurrent-evaluation.md)). The
 dependency ran this way round: `FirstApplicable` is inherently sequential, its
 order being meaning rather than optimisation, while the two overrides are
 order-independent and are precisely the algorithms concurrency would help.
