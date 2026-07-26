@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.19                                           |
+> | Revision       | 1.21                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.21 (2026-07-26): Policy simplification shipped (ADR-QD-030, CCR-QD-031)<br>1.20 (2026-07-26): `join` and `meet` shipped; MLS to Shipped (ADR-QD-029, CCR-QD-030)<br>1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -26,15 +26,35 @@ review, predicate output, serialization, React integration and a test toolkit.
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 419 passing |
-| Acceptance scenarios | 147 scenarios, 723 steps passing |
-| Coverage | 99.89% statements, 98.34% branches, 100% lines — thresholds enforced |
-| Doc examples compile | 68 blocks |
+| Unit and property tests | 438 passing |
+| Acceptance scenarios | 150 scenarios, 735 steps passing |
+| Coverage | 99.9% statements, 98.37% branches, 100% lines — thresholds enforced |
+| Doc examples compile | 69 blocks |
 | Specification integrity | 13 checks passing |
 | Mutation score | ~90% on `packages/core`, break threshold 80 — enforced |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
+
+**Policy simplification shipped, and the roadmap's own objection was the right
+one** ([ADR-QD-030](./decisions/030-policy-simplification.md)). `simplify` collapses
+single-child composites and flattens same-strategy nesting; it is opt-in, and nothing
+in the library calls it, because a shallower tree means a shallower trace and the
+trace is what a reviewer reads.
+
+Two conditions were not obvious and both are disclosure hazards rather than
+verdict ones. Flattening is sound **only when the field strategies match** — an
+`Intersection` parent absorbing a `Union` child reaches the same verdict and exposes a
+different field set. And **double-negation elimination is unsound here**: `Not` carries
+`visibleFields: undefined` and no obligations by design, so `not(not(p))` allows with
+*every* field and owes *nothing* where `p` allows with its own fields and owes its own
+duties. That rewrite was written, and the property test rejected it.
+
+**`join` and `meet` shipped**
+([ADR-QD-029](./decisions/029-lattice-join-and-meet.md)), reversing ADR-QD-021's
+decline on MOD-QD-029's own unanswered argument. MLS is now **Shipped** and the
+specification's oldest contradiction is closed — the model defines a lattice as "a
+partial order with joins" and E4 had shipped only the order.
 
 **Server-side rendering shipped**
 ([ADR-QD-028](./decisions/028-decision-hydration.md)): `dehydrateDecisions` on the
@@ -181,14 +201,12 @@ they are undecided rather than because they are next.
 
 ## Under consideration
 
-These have real arguments on both sides and are not yet decided.
-
-### Policy simplification
-
-Rewriting a policy tree to an equivalent smaller one — collapsing nested
-`allOf`, eliminating double negation. Cheap to implement, but it makes the trace
-diverge from the policy the author wrote, which undermines explanation. Probably
-only worth it as an explicit, opt-in transform.
+These have real arguments on both sides and are not yet decided. **Policy
+simplification** left this section in CCR-QD-031: its objection — that rewriting the
+tree makes the trace diverge from the policy the author wrote — turned out to be
+exactly right, and naming it was what produced the design (opt-in, and nothing calls
+it). An item can leave here by being built *because of* its objection rather than in
+spite of it.
 
 ### Caching decisions
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.14                                           |
+> | Revision       | 1.15                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.15 (2026-07-26): URS-QD-026, simplification (CCR-QD-031)<br>1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -144,6 +144,18 @@ elements, from the same policy values.
 
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
+
+### URS-QD-026 — Flatten a policy built by composition
+
+A developer composing policies from helpers must be able to reduce the resulting tree
+to an equivalent smaller one, and must be certain the reduction cannot change who is
+allowed or what they may see.
+
+Rationale: a tenant helper composed with a role helper composed with an ownership
+helper produces a tree several nodes deeper than the rule it expresses, which makes a
+stored policy harder to read and a compiled predicate longer than it needs to be. The
+certainty is the requirement: a transform that preserved allow-or-deny while altering
+the field set would be a disclosure change that every existing test would pass.
 
 ### URS-QD-025 — Classify a document derived from two others
 
@@ -341,6 +353,7 @@ so the specification cannot drift from itself.
 | URS-QD-023 | [BEH-QD-137](./behaviors/18-explanation.md), [INV-QD-021](./invariants.md#inv-qd-021-every-policy-explains) | `Explanation.test.ts` (property), `@REQ-QD-023` |
 | URS-QD-024 | [BEH-QD-146](./behaviors/19-hydration.md), [INV-QD-022](./invariants.md#inv-qd-022-a-hydrated-decision-belongs-to-the-subject-that-hydrates-it) | `Hydration.test.ts` |
 | URS-QD-025 | [BEH-QD-103](./behaviors/13-labels.md), [INV-QD-023](./invariants.md#inv-qd-023-every-pair-of-labels-has-a-least-upper-and-a-greatest-lower-bound) | `Matcher.test.ts` (properties), `@REQ-QD-021` |
+| URS-QD-026 | [BEH-QD-154](./behaviors/20-simplification.md), [INV-QD-024](./invariants.md#inv-qd-024-simplification-changes-the-tree-and-nothing-a-caller-can-observe) | `Simplify.test.ts` (property over policies × subjects) |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |

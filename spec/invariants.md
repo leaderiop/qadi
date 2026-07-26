@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.12                                            |
+> | Revision       | 1.13                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -673,5 +673,53 @@ correct join strictly dominates the mistaken one, and a reader who may read the
 mistaken label may not read the correct one.
 
 **Related**: [BEH-QD-103](behaviors/13-labels.md), [INV-QD-019](#inv-qd-019-dominance-is-a-partial-order), [ADR-QD-029](decisions/029-lattice-join-and-meet.md).
+
+---
+
+## INV-QD-024: Simplification changes the tree and nothing a caller can observe
+
+For every policy and every subject, `simplify(p)` yields the same verdict, the same
+`visibleFields` and the same obligations as `p`.
+
+**Source**: `packages/core/src/Simplify.ts` — two rewrites, both conditional:
+a single-child composite collapses to its child, and a composite nested in the same
+composite flattens **only when the field strategies match**.
+
+**Implication**: the guarantee has to be about fields and duties, not only the
+verdict. A rewrite that preserved allow-or-deny while changing `visibleFields` would
+be a **disclosure** defect, and field visibility is the reason this library exists
+([MOD-QD-007](models/07-field-level.md)). Every allow-or-deny test in the suite would
+still have passed.
+
+**It deliberately does *not* preserve the trace.** A simplified policy has fewer
+nodes, so its trace has fewer nodes; that is what "smaller tree" means. `labeled`
+nodes are never removed, so a denial's attribution survives, and nothing in the
+library calls `simplify`, so no trace changes unless a caller asks
+([ADR-QD-030](decisions/030-policy-simplification.md)).
+
+**The property rejected a rewrite, which is the point of having it.** Double
+negation elimination — `not(not(p))` → `p` — was written and is unsound here. `Not`
+carries `visibleFields: undefined`, the top of the lattice, and no obligations,
+because knowing a policy did *not* hold says nothing about which fields are safe. So
+`not(not(hasPermission(read, { fields: ["id"] })))` allows with **every** field where
+the inner policy allows with `["id"]`, and `not(not(obliged(audit, p)))` owes
+**nothing** where the inner owes `audit`. Both differences run in the safe direction
+for the rewrite, and both are differences.
+
+That counterexample needs a policy which *allows* with a restricted field set beneath
+two negations, and every intuition says the negations cancel — so it is not something
+a hand-written test would have looked for. It is the second time a property has paid
+for itself by contradicting something obvious; the first was
+[INV-QD-018](#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows).
+
+**Enforcement**: a `FastCheck` property over 120 generated trees × **four subjects**,
+comparing verdict, visible fields and obligations. Four subjects rather than one
+because a rewrite sound for a subject who is denied everything says nothing: the
+field-strategy trap is invisible unless two branches *allow* with different field
+sets. A vacuity guard asserts that at least twenty trees actually shrank, since the
+property holds trivially for a `simplify` that returns its argument. Idempotence is a
+second property over 200 trees.
+
+**Related**: [BEH-QD-154](behaviors/20-simplification.md), [BEH-QD-155](behaviors/20-simplification.md), [INV-QD-004](#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top), [ADR-QD-030](decisions/030-policy-simplification.md).
 
 ---

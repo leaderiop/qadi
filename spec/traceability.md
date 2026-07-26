@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RTM                                       |
-> | Revision       | 1.17                                           |
+> | Revision       | 1.18                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Verification Record                            |
-> | Change History | 1.17 (2026-07-26): `join` and `meet`; INV-QD-023, ADR-QD-029; MLS to Shipped (CCR-QD-030)<br>1.16 (2026-07-26): Decision hydration; behaviour 19, INV-QD-022, ADR-QD-028 (CCR-QD-029)<br>1.15 (2026-07-26): Policy explanation; behaviour 18, INV-QD-021, ADR-QD-027, `@REQ-QD-023` (CCR-QD-028)<br>1.14 (2026-07-26): Concurrent evaluation; behaviour 17, INV-QD-020, ADR-QD-026, `@REQ-QD-022` (CCR-QD-027)<br>1.13 (2026-07-26): ADR-QD-025, mutation testing as a merge gate (CCR-QD-026)<br>1.12 (2026-07-26): MLS verified; INV-QD-019 and BEH-QD-102, the order laws (CCR-QD-024)<br>1.11 (2026-07-26): Biba verified, both variants (CCR-QD-023)<br>1.10 (2026-07-26): Chinese Wall and task-based control verified (CCR-QD-022)<br>1.9 (2026-07-26): Separation of duty verified (CCR-QD-021)<br>1.8 (2026-07-26): Predicate output built (CCR-QD-020)<br>1.7 (2026-07-26): Rule tables built (CCR-QD-019)<br>1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.18 (2026-07-26): Policy simplification; behaviour 20, INV-QD-024, ADR-QD-030 (CCR-QD-031)<br>1.17 (2026-07-26): `join` and `meet`; INV-QD-023, ADR-QD-029; MLS to Shipped (CCR-QD-030)<br>1.16 (2026-07-26): Decision hydration; behaviour 19, INV-QD-022, ADR-QD-028 (CCR-QD-029)<br>1.15 (2026-07-26): Policy explanation; behaviour 18, INV-QD-021, ADR-QD-027, `@REQ-QD-023` (CCR-QD-028)<br>1.14 (2026-07-26): Concurrent evaluation; behaviour 17, INV-QD-020, ADR-QD-026, `@REQ-QD-022` (CCR-QD-027)<br>1.13 (2026-07-26): ADR-QD-025, mutation testing as a merge gate (CCR-QD-026)<br>1.12 (2026-07-26): MLS verified; INV-QD-019 and BEH-QD-102, the order laws (CCR-QD-024)<br>1.11 (2026-07-26): Biba verified, both variants (CCR-QD-023)<br>1.10 (2026-07-26): Chinese Wall and task-based control verified (CCR-QD-022)<br>1.9 (2026-07-26): Separation of duty verified (CCR-QD-021)<br>1.8 (2026-07-26): Predicate output built (CCR-QD-020)<br>1.7 (2026-07-26): Rule tables built (CCR-QD-019)<br>1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -51,6 +51,7 @@ contract.
 | [17 — Concurrent Evaluation](behaviors/17-concurrency.md) | BEH-QD-129–135 | `packages/core/src/Evaluate.ts` |
 | [18 — Policy Explanation](behaviors/18-explanation.md) | BEH-QD-137–143 | `packages/core/src/Explanation.ts` |
 | [19 — Decision Hydration](behaviors/19-hydration.md) | BEH-QD-145–150 | `packages/react/src/Hydration.ts` |
+| [20 — Policy Simplification](behaviors/20-simplification.md) | BEH-QD-153–156 | `packages/core/src/Simplify.ts` |
 
 ## §2 Invariant traceability
 
@@ -79,6 +80,7 @@ contract.
 | [INV-QD-021](invariants.md#inv-qd-021-every-policy-explains) | Every policy explains | `Match.tagsExhaustive` over policies, matchers and refs; no error channel | `Explanation.test.ts` (property over generated trees, plus node counts) |
 | [INV-QD-022](invariants.md#inv-qd-022-a-hydrated-decision-belongs-to-the-subject-that-hydrates-it) | A hydrated decision belongs to the subject that hydrates it | Subject-id check that seeds nothing on mismatch; undecodable entries dropped | `Hydration.test.ts` (cross-subject seeding asserted to deny) |
 | [INV-QD-023](invariants.md#inv-qd-023-every-pair-of-labels-has-a-least-upper-and-a-greatest-lower-bound) | Every pair of labels has a least upper and a greatest lower bound | `join` maxes the level and unions the compartments; `meet` mins and intersects | `Matcher.test.ts` (bound and absorption properties) |
+| [INV-QD-024](invariants.md#inv-qd-024-simplification-changes-the-tree-and-nothing-a-caller-can-observe) | Simplification changes the tree and nothing observable | Two conditional rewrites; nothing in the library calls it | `Simplify.test.ts` (property over policies × four subjects) |
 
 ## §3 Decision traceability
 
@@ -113,6 +115,7 @@ contract.
 | [ADR-QD-027](decisions/027-policy-explanation.md) | An explanation is a tree, and English is one rendering | INV-QD-021 |
 | [ADR-QD-028](decisions/028-decision-hydration.md) | A hydrated decision is bound to a subject and carries no trace | INV-QD-007, INV-QD-022 |
 | [ADR-QD-029](decisions/029-lattice-join-and-meet.md) | `join` and `meet` ship as utilities | INV-QD-019, INV-QD-023 |
+| [ADR-QD-030](decisions/030-policy-simplification.md) | Simplification preserves the verdict, not the trace | INV-QD-004, INV-QD-012, INV-QD-024 |
 
 ## §4 Test file map
 
@@ -129,6 +132,7 @@ contract.
 | `packages/core/test/Predicate.test.ts` | BEH-QD-121–128, INV-QD-006, INV-QD-011, INV-QD-018 |
 | `packages/core/test/Explanation.test.ts` | BEH-QD-137–143, INV-QD-021 |
 | `packages/react/test/Hydration.test.ts` | BEH-QD-145–150, INV-QD-022 |
+| `packages/core/test/Simplify.test.ts` | BEH-QD-153–156, INV-QD-024 |
 | `packages/core/test/Layers.test.ts` | BEH-QD-041–044, INV-QD-007 |
 | `packages/core/test/Qadi.test.ts` | BEH-QD-049–052, BEH-QD-085, INV-QD-009, INV-QD-013 |
 | `packages/testing/test/TestLayers.test.ts` | Test fixtures and layers, INV-QD-014 |

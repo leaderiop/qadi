@@ -16,4 +16,5 @@ export * from "./Qadi.ts";
 export * from "./RelationshipResolver.ts";
 export * from "./Role.ts";
 export * from "./SecurityLabel.ts";
+export * from "./Simplify.ts";
 export * from "./SubjectSet.ts";

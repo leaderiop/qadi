@@ -59,3 +59,6 @@ entries:
   - id: "BEH-QD-145"
     file: "19-hydration.md"
     title: "19 — Decision Hydration"
+  - id: "BEH-QD-153"
+    file: "20-simplification.md"
+    title: "20 — Policy Simplification"

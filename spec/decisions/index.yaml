@@ -89,3 +89,6 @@ entries:
   - id: "ADR-QD-029"
     file: "029-lattice-join-and-meet.md"
     title: "join and meet ship as utilities, and the evaluator still never derives a label"
+  - id: "ADR-QD-030"
+    file: "030-policy-simplification.md"
+    title: "Simplification preserves the verdict, not the trace, and is never automatic"
