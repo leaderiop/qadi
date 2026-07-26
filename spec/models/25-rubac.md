@@ -112,7 +112,8 @@ one disjunction, negate the whole thing, and require it alongside the permits.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever,
+  AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive,
+  RelationshipResolverNever,
   allOf, anyOf, check, currentSubjectLayer, eq, hasAttribute,
   hasResourceAttribute, hasRole, labeled, literal, makeSubject, not, subjectId,
 } from "@qadi/core";
@@ -135,7 +136,12 @@ const permitted = labeled("permit-rules", anyOf([
 const canEdit = allOf([not(blocked), permitted]);
 
 const subject = makeSubject({ id: "u-1", roles: ["editor"], attributes: { status: "active" } });
-const resolvers = Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive);
+const resolvers = Layer.mergeAll(
+  AttributeResolverNone,
+  RelationshipResolverNever,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+);
 
 const program = check(canEdit, {
   resource: { id: "doc-1", ownerId: "u-1", legalHold: false },

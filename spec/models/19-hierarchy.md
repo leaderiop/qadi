@@ -93,6 +93,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -139,7 +140,7 @@ const canViewProject = anyOf([
 const program = check(canViewProject, { resource: { id: "project-atlas" } }).pipe(
   Effect.provide(currentSubjectLayer(makeSubject({ id: "u-olivia" }))),
   Effect.provide(
-    Layer.mergeAll(TenancyTreeResolver, AttributeResolverNone, EvaluationIdLive),
+    Layer.mergeAll(TenancyTreeResolver, AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive),
   ),
 );
 // A `member` grant on `org-acme` allows: the organisation sits in the project's

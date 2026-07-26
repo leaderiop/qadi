@@ -103,6 +103,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -173,6 +174,7 @@ const services = Layer.mergeAll(
   StoreResolver,
   AttributeResolverNone,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
 );
 
 const program = check(canViewEmployee, {

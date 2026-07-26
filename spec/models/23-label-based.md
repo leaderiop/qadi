@@ -103,6 +103,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
   allOf,
@@ -161,6 +162,7 @@ const program = loadReport("rpt-1").pipe(
       AttributeResolverNone,
       RelationshipResolverNever,
       EvaluationIdLive,
+      DecisionHistoryUnknown,
     ),
   ),
 );

@@ -37,7 +37,7 @@ contract.
 | [03 — Policy ADT](behaviors/03-policy-adt.md) | BEH-QD-017–019 | `packages/core/src/Policy.ts` |
 | [04 — Matcher DSL](behaviors/04-matchers.md) | BEH-QD-025–028 | `packages/core/src/Matcher.ts` |
 | [05 — Evaluator](behaviors/05-evaluator.md) | BEH-QD-033–039 | `packages/core/src/Evaluate.ts`, `Decision.ts` |
-| [06 — Services and Layers](behaviors/06-services.md) | BEH-QD-041–044 | `packages/core/src/{CurrentSubject,AttributeResolver,RelationshipResolver,EvaluationId}.ts` |
+| [06 — Services and Layers](behaviors/06-services.md) | BEH-QD-041–044 | `packages/core/src/{CurrentSubject,AttributeResolver,RelationshipResolver,DecisionHistory,EvaluationId}.ts` |
 | [07 — Enforcement](behaviors/07-enforcement.md) | BEH-QD-049–052 | `packages/core/src/Qadi.ts` |
 | [08 — Serialization](behaviors/08-serialization.md) | BEH-QD-057–059 | `packages/core/src/Policy.ts` |
 | [09 — React Integration](behaviors/09-react.md) | BEH-QD-065–071 | `packages/react/src/QadiAtoms.ts`, `QadiProvider.tsx`, `hooks.ts`, `components.tsx` |

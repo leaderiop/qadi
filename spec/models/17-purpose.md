@@ -124,6 +124,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
   allOf,
@@ -180,6 +181,7 @@ const services = (purpose: string) =>
     AttributeResolverNone,
     RelationshipResolverNever,
     EvaluationIdLive,
+    DecisionHistoryUnknown,
   );
 
 // Same clinician, same record, two purposes, two shapes of answer.

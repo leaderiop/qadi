@@ -104,6 +104,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
   allOf,
@@ -142,6 +143,7 @@ const services = Layer.mergeAll(
   AttributeResolverNone,
   RelationshipResolverNever,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
 );
 
 // The rule as it would be stored and reloaded — malformed input fails the

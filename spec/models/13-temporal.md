@@ -96,6 +96,7 @@ import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
+  DecisionHistoryUnknown,
   AttributeResolver,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -147,7 +148,7 @@ const program = Effect.gen(function* () {
   }).pipe(Effect.provide(currentSubjectLayer(subject)));
 }).pipe(
   Effect.provide(
-    Layer.mergeAll(BusinessHoursResolver, RelationshipResolverNever, EvaluationIdLive),
+    Layer.mergeAll(BusinessHoursResolver, RelationshipResolverNever, DecisionHistoryUnknown, EvaluationIdLive),
   ),
 );
 ```

@@ -91,6 +91,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
   allOf,
@@ -152,6 +153,7 @@ const visibleFor = (row: PatientRecord) =>
         AttributeResolverNone,
         RelationshipResolverNever,
         EvaluationIdLive,
+        DecisionHistoryUnknown,
       ),
     ),
   );

@@ -110,6 +110,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -150,7 +151,7 @@ const subject = makeSubject({ id: "u-1", attributes: { accountAgeDays: 412 } });
 const program = decide(mayCloseThread, { resource: { id: "community-rust" } }).pipe(
   Effect.provide(currentSubjectLayer(subject)),
   Effect.provide(
-    Layer.mergeAll(StandingResolver, AttributeResolverNone, EvaluationIdLive),
+    Layer.mergeAll(StandingResolver, AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive),
   ),
 );
 ```

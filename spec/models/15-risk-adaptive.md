@@ -93,6 +93,7 @@ moderate-risk one a reduced view, a high-risk one nothing.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
+  DecisionHistoryUnknown,
   AttributeResolver,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -138,6 +139,7 @@ const services = Layer.mergeAll(
   RiskResolver,
   RelationshipResolverNever,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
 );
 
 declare const loadAccount: (

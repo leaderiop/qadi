@@ -87,6 +87,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -138,7 +139,7 @@ const program = check(canRead, {
 }).pipe(
   Effect.provide(currentSubjectLayer(makeSubject({ id: "u-1" }))),
   Effect.provide(
-    Layer.mergeAll(GrantTableResolver, AttributeResolverNone, EvaluationIdLive),
+    Layer.mergeAll(GrantTableResolver, AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive),
   ),
 );
 ```

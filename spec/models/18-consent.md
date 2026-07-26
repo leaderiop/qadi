@@ -115,6 +115,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolveError,
   RelationshipResolver,
@@ -176,6 +177,7 @@ const services = Layer.mergeAll(
   ConsentRegisterResolver,
   AttributeResolverNone,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
 );
 
 // `resource` must carry a string `id`; without one this fails with

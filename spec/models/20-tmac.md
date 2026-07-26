@@ -104,6 +104,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -154,7 +155,7 @@ const canReadRecord = anyOf([
 
 const program = check(canReadRecord, { resource: { id: "patient-42" } }).pipe(
   Effect.provide(currentSubjectLayer(makeSubject({ id: "u-nadia", roles: ["nurse"] }))),
-  Effect.provide(Layer.mergeAll(CareTeamResolver, AttributeResolverNone, EvaluationIdLive)),
+  Effect.provide(Layer.mergeAll(CareTeamResolver, AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive)),
 );
 ```
 

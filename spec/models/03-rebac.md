@@ -114,6 +114,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   anyOf,
   check,
@@ -139,6 +140,7 @@ const services = Layer.mergeAll(
   ]),
   AttributeResolverNone,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
 );
 
 const allowed = check(canReadDocument, { resource: { id: "doc-1" } }).pipe(

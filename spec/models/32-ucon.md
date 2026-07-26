@@ -122,6 +122,7 @@ what deployed usage-control systems actually do.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
+  DecisionHistoryUnknown,
   EvaluationIdLive, RelationshipResolverNever, allOf, attributeResolverFromRecord,
   currentSubjectLayer, enforce, eq, exists, gte, hasAttribute, hasResourceAttribute,
   hasRole, inArray, labeled, literal, makeSubject, not, subject, subjectId,
@@ -159,6 +160,7 @@ const program = openStream.pipe(
       }),
       RelationshipResolverNever,
       EvaluationIdLive,
+      DecisionHistoryUnknown,
     ),
   ),
 );

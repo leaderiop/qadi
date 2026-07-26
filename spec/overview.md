@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-OVERVIEW                                  |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -68,10 +68,20 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | ------ | ---- | ------ |
 | `Policy`, `FieldStrategy` | schema + type | `Policy.ts` |
 | `hasPermission`, `hasRole`, `hasAttribute`, `hasResourceAttribute`, `hasRelationship` | function | `Policy.ts` |
+| `hasAction` | function | `Policy.ts` |
+| `hasActed`, `hasNotActed` | function | `Policy.ts` |
 | `allOf`, `anyOf`, `not`, `labeled`, `anyOfRoles` | function | `Policy.ts` |
+| `obliged` | function | `Policy.ts` |
+| `rules`, `permitWhen`, `denyWhen` | function | `Policy.ts` |
+| `Combining`, `RuleEffect`, `Rule` | schema + type | `Policy.ts` |
 | `toJson`, `fromJson`, `toJsonValue`, `fromJsonValue`, `PolicyFromJson` | codec | `Policy.ts` |
 | `eq`, `neq`, `inArray`, `exists`, `gte`, `lt`, `contains`, `fieldMatch`, `someMatch`, `everyMatch`, `size` | function | `Matcher.ts` |
-| `subject`, `resource`, `literal` | function | `Matcher.ts` |
+| `dominates` | function | `Matcher.ts` |
+| `subject`, `subjectId`, `resource`, `action`, `literal` | function | `Matcher.ts` |
+| `SecurityLabel`, `LabelOrdering` | type | `SecurityLabel.ts` |
+| `isSecurityLabel`, `compareLabels`, `labelDominates` | function | `SecurityLabel.ts` |
+| `Obligation`, `ObligationOptions` | schema + type | `Obligation.ts` |
+| `obligation`, `unionObligations`, `bindingObligations` | function | `Obligation.ts` |
 
 ### Evaluation and enforcement
 
@@ -80,6 +90,11 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `evaluate` | function | `Evaluate.ts` |
 | `Decision`, `Allow`, `Deny`, `Trace`, `isAllowed`, `project` | type + function | `Decision.ts` |
 | `enforce`, `enforceProjected`, `check`, `decide`, `assert`, `filter` | function | `Qadi.ts` |
+| `EvaluateOptions`, `Resource` | type | `Evaluate.ts` |
+| `decideSubjects`, `filterSubjects` | function | `SubjectSet.ts` |
+| `SubjectDecision`, `SubjectSetServices` | type | `SubjectSet.ts` |
+| `toPredicate`, `evaluatePredicate` | function | `Predicate.ts` |
+| `Predicate`, `CompareOp`, `PredicateOptions`, `PredicateServices` | type | `Predicate.ts` |
 
 ### Services
 
@@ -88,14 +103,22 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `CurrentSubject`, `currentSubjectLayer`, `CurrentSubjectAnonymous` | service + layer | `CurrentSubject.ts` |
 | `AttributeResolver`, `AttributeResolverNone`, `attributeResolverFromRecord` | service + layer | `AttributeResolver.ts` |
 | `RelationshipResolver`, `RelationshipResolverNever`, `relationshipResolverFromEdges` | service + layer | `RelationshipResolver.ts` |
+| `DecisionHistory`, `DecisionHistoryUnknown`, `decisionHistoryFromEvents` | service + layer | `DecisionHistory.ts` |
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
+
+**Five services, not four.** `DecisionHistory` is the one added after the initial
+release, and it is the one whose default had to be **three-valued** — see
+[BEH-QD-042](behaviors/06-services.md) and
+[INV-QD-014](invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities).
 
 ### Errors
 
 `AccessDenied`, `AttributeResolveError`, `RelationshipResolveError`,
-`MissingResource`, `MissingResourceId`, `PolicyTooDeep`,
-`CircularRoleInheritance`, `InvalidPermissionSegment`, plus `ERROR_CODES` and
-`errorCode`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
+`MissingResource`, `MissingResourceId`, `MissingAction`, `PolicyTooDeep`,
+`CircularRoleInheritance`, `InvalidPermissionSegment`,
+`DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
+plus `ERROR_CODES` and `errorCode`. See
+[ADR-QD-008](decisions/008-error-taxonomy.md).
 
 ## Worked example
 
@@ -104,6 +127,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
   allOf,
@@ -128,6 +152,7 @@ const canReadTitle = allOf([
 const qadiServices = Layer.mergeAll(
   AttributeResolverNone,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 

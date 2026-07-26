@@ -89,6 +89,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -142,6 +143,7 @@ const environment = Layer.mergeAll(
   PolicyGraphResolver,
   AttributeResolverNone,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
 );
 
 const decision = check(canRead, { resource: { id: "o-budget-2026" } }).pipe(
