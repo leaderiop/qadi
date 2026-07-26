@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.10                                            |
+> | Revision       | 1.11                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -589,5 +589,45 @@ render as `undefined` in the middle of a sentence rather than throw. Node counts
 are compared directly.
 
 **Related**: [BEH-QD-137](behaviors/18-explanation.md), [BEH-QD-141](behaviors/18-explanation.md), [ADR-QD-027](decisions/027-policy-explanation.md).
+
+---
+
+## INV-QD-022: A hydrated decision belongs to the subject that hydrates it
+
+A server-rendered decision is seeded into a client registry only when the payload's
+subject id is the hydrating subject's.
+
+**Source**: `packages/react/src/Hydration.ts` — `hydrateDecisions` returns an empty
+seed list on a mismatch, and skips any entry whose policy does not decode.
+`dehydrateDecisions` drops entries whose decision belongs to a different subject
+than the payload claims.
+
+**Implication**: a hydration payload is **authorization state crossing a network**,
+and the failure mode is a page cached or reused across users — one subject's allows
+seeding another's registry. There is no lookup to catch that: the decision is
+already made, and seeding it is asserting it. This is the only place in the library
+where a decision enters the system without having been evaluated by it, which is
+why it is the only place that needs to check whose decision it is.
+
+**It fails closed by dropping, not by throwing.** A refused payload leaves every
+atom `Initial`, so the client asks the question properly and the page flashes —
+exactly what would have happened without hydration. Throwing would turn a cache
+misconfiguration into a blank page; trusting would turn it into a breach. Dropping
+is the only option that degrades to the pre-hydration behaviour.
+
+**Disclosure is the second half.** A `Trace` names every node's tag, its label and
+the sentence explaining why it refused, so shipping one describes the policy's
+internal structure and which branch this subject failed. It is withheld by default
+and disclosed only on request — [INV-QD-007](#inv-qd-007-defaults-fail-closed)'s
+reasoning applied to information rather than to decisions.
+
+**Enforcement**: `Hydration.test.ts` seeds one subject's payload into another
+subject's registry and asserts the second subject is **denied** — the hydrating
+subject deliberately holds no permissions, so a leak would surface as an `Allow`
+carrying the other subject's evaluation id. A malformed policy entry, a
+subject-mixing payload, and the absence of the denial reason in the serialized
+payload are each asserted directly.
+
+**Related**: [BEH-QD-146](behaviors/19-hydration.md), [BEH-QD-147](behaviors/19-hydration.md), [ADR-QD-028](decisions/028-decision-hydration.md).
 
 ---

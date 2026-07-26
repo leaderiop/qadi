@@ -83,3 +83,6 @@ entries:
   - id: "ADR-QD-027"
     file: "027-policy-explanation.md"
     title: "An explanation is a tree, and English is one rendering of it"
+  - id: "ADR-QD-028"
+    file: "028-decision-hydration.md"
+    title: "A hydrated decision is bound to a subject and carries no trace"

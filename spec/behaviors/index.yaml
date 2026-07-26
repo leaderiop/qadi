@@ -56,3 +56,6 @@ entries:
   - id: "BEH-QD-137"
     file: "18-explanation.md"
     title: "18 — Policy Explanation"
+  - id: "BEH-QD-145"
+    file: "19-hydration.md"
+    title: "19 — Decision Hydration"

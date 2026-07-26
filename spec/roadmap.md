@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.17                                           |
+> | Revision       | 1.19                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -26,15 +26,36 @@ review, predicate output, serialization, React integration and a test toolkit.
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 403 passing |
+| Unit and property tests | 419 passing |
 | Acceptance scenarios | 147 scenarios, 723 steps passing |
-| Coverage | 99.89% statements, 98.21% branches, 100% lines — thresholds enforced |
+| Coverage | 99.89% statements, 98.34% branches, 100% lines — thresholds enforced |
 | Doc examples compile | 68 blocks |
 | Specification integrity | 13 checks passing |
-| Mutation score | 90.03% on `packages/core`, break threshold 80 — enforced |
+| Mutation score | 90.10% on `packages/core`, break threshold 80 — enforced |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
+
+**Server-side rendering shipped**
+([ADR-QD-028](./decisions/028-decision-hydration.md)): `dehydrateDecisions` on the
+server and `hydrateDecisions` on the client seed `QadiProvider`'s `initialValues`,
+so the first client render already has the answers and no guarded control flashes.
+
+The roadmap entry described this as a hydration story and it turned out to be a
+**security** story. A payload is authorization state crossing a network, and it is
+the only place in the library where a decision enters without being evaluated by it
+— so nothing else would catch a page cached across users seeding one person's
+allows into another's session. The payload is bound to a subject id and refuses as a
+whole on a mismatch; it withholds the trace by default, because a trace names the
+policy's internal structure and which branch this subject failed. Both refusals
+**drop** rather than throw, degrading exactly to the pre-hydration behaviour.
+
+One thing the entry did not anticipate: this works only because `Atom.family` keys
+**structurally**. A policy re-parsed on the client is a different object and equal,
+so it maps to the same atom — which is why the payload can identify policies by
+their serialized form rather than by caller-supplied keys nothing could verify. The
+keying that BEH-QD-071 corrected as an incidental detail is what makes the feature
+expressible.
 
 **Policy explanation shipped**
 ([ADR-QD-027](./decisions/027-policy-explanation.md)): `explain` describes a
@@ -72,10 +93,20 @@ schedule cannot reach a decision rule at all.
 `pnpm check` and fails below 80%. It replaces five hand-run passes whose results
 were quoted into ADRs as prose — evidence nobody but its author could reproduce,
 which is the predecessor's failure mode in miniature. The first enforced run also
-measured where the suite is weakest, and the answer is uncomfortable:
-**`Evaluate.ts` scores 77.85%**, the lowest of any file that matters and the one
-where a surviving mutant is most likely to be an authorization defect. Recorded in
-the ADR and listed below rather than quietly fixed.
+measured where the suite is weakest, and the answer was uncomfortable:
+`Evaluate.ts` scored **77.85%**, below the threshold and the one file where a
+surviving mutant is most likely to be an authorization defect.
+
+*It now scores 81.25%*, and not because anyone set out to fix it — the property
+test written for concurrent evaluation kills evaluator mutants that nothing else
+reached. Every file is above the threshold and the aggregate is 90.10%.
+
+**What remains unanalysed, stated rather than closed**: 66 mutants still survive in
+`Evaluate.ts`, 39 in `Predicate.ts` and 10 in `Explanation.ts`. Nobody has read
+them. The plausible reading is that most are message strings and defensive arms
+where a survivor is the correct answer, but that is a guess, and the honest position
+is that the *threshold* is met while the *question* — which of those 115 survivors
+matters — has not been asked.
 
 **Phase 4 of the [model adoption matrix](./models/00-adoption-matrix.md) is
 complete**: all five additive enablers have shipped, each with an ADR settled
@@ -144,28 +175,9 @@ revisions; see [BEH-QD-071](./behaviors/09-react.md).
 
 ## Planned
 
-### Raise the evaluator's mutation score above 80%
-
-`Evaluate.ts` scores **77.85%** — 65 surviving mutants, 3 timeouts — against a
-global 89.22% and a threshold of 80. It is the largest file in the package and the
-one where a survivor is most likely to be a real authorization defect rather than a
-cosmetic one, so the aggregate passing is not much comfort.
-
-Deliberately a separate item rather than a fix folded into
-[ADR-QD-025](./decisions/025-mutation-testing.md). Killing 65 mutants is not a
-tidying pass: each one is a question about what the suite actually pins, and the
-useful outcome is the questions rather than the number. `Predicate.ts` (87.54%, 39
-survivors) is the same work at a smaller scale, and `Errors.ts` at 61.54% is mostly
-message strings, where a survivor may be the correct answer.
-
-Raising the threshold itself is a decision to take **after** this, not before.
-
-### Server-side rendering
-
-`QadiProvider` accepts `initialValues`, which is the hook a hydration story
-would use, but nothing yet encodes decisions on the server and seeds them on the
-client. Until it does, a server-rendered page shows its pending state and
-re-decides after mount.
+**Nothing.** Every item this roadmap committed to has shipped. What follows is the
+holding area for things that are genuinely undecided, and they are listed because
+they are undecided rather than because they are next.
 
 ## Under consideration
 

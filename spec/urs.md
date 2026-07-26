@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.12                                           |
+> | Revision       | 1.13                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -144,6 +144,19 @@ elements, from the same policy values.
 
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
+
+### URS-QD-024 — Render a guarded page without a flash
+
+A developer server-rendering a page must be able to ship the decisions the server
+already made, so the first client render shows the right controls rather than a
+pending state that resolves after mount.
+
+Rationale: without it every guarded control renders pending and then re-decides,
+which is both a visible flash and a round trip per policy whose answer the page
+already had. What makes this safe rather than merely faster is that the payload is
+bound to a subject: a page cached or reused across users would otherwise seed one
+person's permissions into another's session, and unlike every other decision in the
+library this one enters without being evaluated, so nothing else would catch it.
 
 ### URS-QD-023 — Read a policy without evaluating it
 
@@ -314,6 +327,7 @@ so the specification cannot drift from itself.
 | URS-QD-021 | [BEH-QD-121](./behaviors/16-predicates.md), [INV-QD-018](./invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows) | `Predicate.test.ts` (property), `@REQ-QD-016` |
 | URS-QD-022 | [BEH-QD-130](./behaviors/17-concurrency.md), [INV-QD-020](./invariants.md#inv-qd-020-concurrency-changes-lookups-never-decisions) | `Evaluate.test.ts` (property), `@REQ-QD-022` |
 | URS-QD-023 | [BEH-QD-137](./behaviors/18-explanation.md), [INV-QD-021](./invariants.md#inv-qd-021-every-policy-explains) | `Explanation.test.ts` (property), `@REQ-QD-023` |
+| URS-QD-024 | [BEH-QD-146](./behaviors/19-hydration.md), [INV-QD-022](./invariants.md#inv-qd-022-a-hydrated-decision-belongs-to-the-subject-that-hydrates-it) | `Hydration.test.ts` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |
