@@ -91,6 +91,7 @@ writeFileSync(
         noUnusedParameters: false,
         paths: {
           "@qadi/core": ["../packages/core/src/index.ts"],
+          "@qadi/promise": ["../packages/promise/src/index.ts"],
           "@qadi/react": ["../packages/react/src/index.ts"],
           "@qadi/testing": ["../packages/testing/src/index.ts"],
         },

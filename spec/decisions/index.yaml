@@ -95,3 +95,6 @@ entries:
   - id: "ADR-QD-031"
     file: "031-decision-cache.md"
     title: "A cache stores the trace, not the decision, and the key is the security boundary"
+  - id: "ADR-QD-032"
+    file: "032-promise-facade.md"
+    title: "A Promise facade with no evaluator in it"

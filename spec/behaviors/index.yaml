@@ -65,3 +65,6 @@ entries:
   - id: "BEH-QD-161"
     file: "21-decision-cache.md"
     title: "21 — Decision Cache"
+  - id: "BEH-QD-169"
+    file: "22-promise-facade.md"
+    title: "22 — The Promise Facade"

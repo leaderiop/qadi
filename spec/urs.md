@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.16                                           |
+> | Revision       | 1.17                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.16 (2026-07-26): URS-QD-027, the decision cache (CCR-QD-032)<br>1.15 (2026-07-26): URS-QD-026, simplification (CCR-QD-031)<br>1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.17 (2026-07-26): URS-QD-028, the Promise facade (CCR-QD-033)<br>1.16 (2026-07-26): URS-QD-027, the decision cache (CCR-QD-032)<br>1.15 (2026-07-26): URS-QD-026, simplification (CCR-QD-031)<br>1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -144,6 +144,18 @@ elements, from the same policy values.
 
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
+
+### URS-QD-028 — Use Qadi without adopting Effect
+
+A developer whose codebase does not use Effect must be able to ask an authorization
+question with `await`, and must get the same answer the Effect API would give.
+
+Rationale: every entry point returns an `Effect`, which for a team already using
+Effect is the feature and for everyone else is the reason they stop reading. The
+requirement is not merely a wrapper but a *thin* one: the predecessor shipped a second
+evaluation path for the same reason and it destroyed short-circuiting, made the
+asynchronous API unreachable, and rotted untested. And the boundary has to keep a
+denial and a failure apart, because the natural Promise idiom collapses them.
 
 ### URS-QD-027 — Ask the same question twice without paying twice
 
@@ -367,6 +379,7 @@ so the specification cannot drift from itself.
 | URS-QD-025 | [BEH-QD-103](./behaviors/13-labels.md), [INV-QD-023](./invariants.md#inv-qd-023-every-pair-of-labels-has-a-least-upper-and-a-greatest-lower-bound) | `Matcher.test.ts` (properties), `@REQ-QD-021` |
 | URS-QD-026 | [BEH-QD-154](./behaviors/20-simplification.md), [INV-QD-024](./invariants.md#inv-qd-024-simplification-changes-the-tree-and-nothing-a-caller-can-observe) | `Simplify.test.ts` (property over policies × subjects) |
 | URS-QD-027 | [BEH-QD-162](./behaviors/21-decision-cache.md), [INV-QD-025](./invariants.md#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity) | `DecisionCache.test.ts` |
+| URS-QD-028 | [BEH-QD-169](./behaviors/22-promise-facade.md), [INV-QD-026](./invariants.md#inv-qd-026-the-facade-answers-what-the-core-answers) | `packages/promise/test/facade.test.ts` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |

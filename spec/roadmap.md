@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.22                                           |
+> | Revision       | 1.23                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.22 (2026-07-26): Decision caching shipped (ADR-QD-031, CCR-QD-032)<br>1.21 (2026-07-26): Policy simplification shipped (ADR-QD-030, CCR-QD-031)<br>1.20 (2026-07-26): `join` and `meet` shipped; MLS to Shipped (ADR-QD-029, CCR-QD-030)<br>1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.23 (2026-07-26): The Promise facade shipped; Under consideration is now empty (ADR-QD-032, CCR-QD-033)<br>1.22 (2026-07-26): Decision caching shipped (ADR-QD-031, CCR-QD-032)<br>1.21 (2026-07-26): Policy simplification shipped (ADR-QD-030, CCR-QD-031)<br>1.20 (2026-07-26): `join` and `meet` shipped; MLS to Shipped (ADR-QD-029, CCR-QD-030)<br>1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -20,21 +20,34 @@ Version `0.0.0`, unpublished, under the `@qadi` scope with the `QD`
 specification infix. The core is complete and verified: fourteen policy variants,
 twelve matchers, five value references, obligations, a decision-history port, a
 label lattice, ordered rule tables, the evaluator, enforcement, subject-set
-review, predicate output, serialization, React integration and a test toolkit.
+review, predicate output, serialization, React integration, a Promise facade and a
+test toolkit — five packages.
 
 | Gate | Status |
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 450 passing |
+| Unit and property tests | 459 passing |
 | Acceptance scenarios | 150 scenarios, 735 steps passing |
 | Coverage | 99.9% statements, 98.37% branches, 100% lines — thresholds enforced |
-| Doc examples compile | 70 blocks |
+| Doc examples compile | 71 blocks |
 | Specification integrity | 13 checks passing |
 | Mutation score | ~90% on `packages/core`, break threshold 80 — enforced |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
+
+**A Promise facade shipped as its own package**
+([ADR-QD-032](./decisions/032-promise-facade.md)): `@qadi/promise` is one file in
+which every method is `runPromise` applied to a `@qadi/core` function, and no branch
+decides anything. That is what makes "never a second evaluator" checkable by reading
+rather than by trusting — the entry named the predecessor's `checkAsync` as the danger,
+and a facade that only forwards cannot repeat it.
+
+The boundary's one real design question is that a **denial resolves and a failure
+rejects**. `try { check() } catch { return false }` is the natural Promise idiom and
+it turns an attribute-store outage into a silent lockout, so the distinction
+INV-QD-006 keeps inside the library is asserted again at the edge.
 
 **Decision caching shipped, opt-in and caller-scoped**
 ([ADR-QD-031](./decisions/031-decision-cache.md)). The objection recorded here — that
@@ -211,27 +224,24 @@ revisions; see [BEH-QD-071](./behaviors/09-react.md).
 
 ## Planned
 
-**Nothing.** Every item this roadmap committed to has shipped. What follows is the
-holding area for things that are genuinely undecided, and they are listed because
-they are undecided rather than because they are next.
+**Nothing.** Every item this roadmap committed to has shipped.
 
 ## Under consideration
 
-These have real arguments on both sides and are not yet decided. **Policy
-simplification** left this section in CCR-QD-031: its objection — that rewriting the
+**Nothing.** All three items that stood here — policy simplification, decision
+caching and a non-Effect entry point — were built in CCR-QD-031 to CCR-QD-033, and in
+every case the *objection recorded here* turned out to be the design brief rather than
+a reason to stay away. That is the pattern worth keeping if this section fills again:
+an item is ready when its objection is sharp enough to build against.
+
+The section is retained rather than deleted, because "undecided" is a real state and
+having nowhere to record it is how undecided things become accidentally decided.
+
+**Policy simplification** left this section in CCR-QD-031: its objection — that rewriting the
 tree makes the trace diverge from the policy the author wrote — turned out to be
 exactly right, and naming it was what produced the design (opt-in, and nothing calls
 it). An item can leave here by being built *because of* its objection rather than in
 spite of it.
-
-### Non-Effect entry point
-
-A Promise-returning facade for consumers not using Effect. It would widen
-adoption considerably, and it would reintroduce exactly the dual-path shape
-that produced the predecessor's dead `checkAsync` API
-([ADR-QD-004](./decisions/004-single-effect-evaluator.md)). If it happens it
-should be a thin, separately-packaged wrapper over `ManagedRuntime`, never a
-second evaluator.
 
 ## Explicitly not planned
 

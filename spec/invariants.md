@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.14                                            |
+> | Revision       | 1.15                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -768,5 +768,38 @@ resource and the action each shown to split entries; a denial shown to cache; th
 per-evaluation trap asserted directly; and `concurrency` shown not to split an entry.
 
 **Related**: [BEH-QD-162](behaviors/21-decision-cache.md), [BEH-QD-163](behaviors/21-decision-cache.md), [ADR-QD-031](decisions/031-decision-cache.md).
+
+---
+
+## INV-QD-026: The facade answers what the core answers
+
+For every subject and policy, `@qadi/promise` resolves the value `@qadi/core`
+produces, and rejects exactly when the core fails.
+
+**Source**: `packages/promise/src/index.ts` — every method is `runPromise` applied to
+a core function. There is no branch in the package that decides an authorization
+outcome, which is what makes "never a second evaluator" checkable by reading rather
+than by trusting.
+
+**Implication**: this is the invariant that stops the predecessor's defect
+recurring. It shipped a synchronous `evaluate` beside an `evaluateAsync` that
+pre-resolved the whole tree, destroying short-circuiting and leaving the asynchronous
+relationship API unreachable — and the second path rotted because nothing exercised
+it ([ADR-QD-004](decisions/004-single-effect-evaluator.md)). Two evaluators means two
+sets of semantics, and the second is always the one nobody tests.
+
+**A denial resolves; a failure rejects.** That is
+[INV-QD-006](#inv-qd-006-failure-is-not-denial) crossing a boundary that invites
+breaking it: `try { check() } catch { return false }` is the natural Promise idiom and
+it turns an attribute-store outage into a silent lockout. A denial is an *answer*, so
+it is a value; a broken lookup is not an answer, so it is a rejection. `assert` is the
+deliberate exception, because there the caller has said "proceed only if permitted".
+
+**Enforcement**: a test runs both paths over the same subjects and policies and
+compares the boolean **and the whole trace** — the facade must not reshape an answer,
+only re-package it. Separately, a failing resolver is asserted to *reject* rather than
+resolve `false`, which is the assertion that would catch the idiom above.
+
+**Related**: [BEH-QD-169](behaviors/22-promise-facade.md), [BEH-QD-170](behaviors/22-promise-facade.md), [ADR-QD-032](decisions/032-promise-facade.md).
 
 ---
