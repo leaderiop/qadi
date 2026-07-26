@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -79,6 +79,8 @@ independent designs that each bolt a field onto `Policy`.
 
 ### E1 — Action dimension
 
+**Decided, not yet built: [ADR-QD-018](../decisions/018-action-dimension.md).**
+
 Today an action exists only *inside* a permission token, as the second segment of
 `resource:action` ([ADR-QD-007](../decisions/007-permission-token-representation.md)).
 It is never an input to evaluation. `EvaluateOptions` carries `{ resource?, maxDepth? }`
@@ -91,6 +93,12 @@ the reverse, and neither is expressible by a policy that cannot see the verb.
 
 Adding `action?: string` to `EvaluateOptions` and `MatcherContext` is a pure
 addition — no existing type changes and no serialized policy is invalidated.
+
+The ADR settles the two questions the model documents left open. A permission is
+a grant the subject holds; an action is a property of the request, and neither
+may be derived from the other. And an absent action is an **error**, not a
+denial — the same rule an absent resource already follows, because a missing
+caller input is a programming error rather than an authorization outcome.
 
 ### E2 — Obligations on `Decision`
 
@@ -384,9 +392,10 @@ Documentation is now complete. What follows is implementation, and none of it is
 required for the library to be correct.
 
 **Phase 4 — Additive enablers.** E1 first, and by a clear margin: it is additive,
-invalidates no serialized policy, and is the sole blocker for eight models. Then
-E2 (obligations, no wire-format change), then E5, E4, E6. Each is an ADR, a
-behaviour, an invariant and a scenario.
+invalidates no serialized policy, and is the sole blocker for eight models. Its
+ADR is written ([ADR-QD-018](../decisions/018-action-dimension.md), *Proposed*);
+what remains is the behaviour, the invariant, the scenario and the code. Then E2
+(obligations, no wire-format change), then E5, E4, E6.
 
 Two design questions must be settled by ADR *before* code, because both are
 silent-failure risks rather than matters of taste: the polarity of E5's default

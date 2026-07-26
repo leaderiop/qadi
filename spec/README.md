@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-00                                        |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification — Master Index        |
-> | Change History | 1.6 (2026-07-26): Span emission verified (CCR-QD-010)<br>1.5 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.4 (2026-07-26): Core-change and excluded model documents (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only model documents (CCR-QD-007)<br>1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.7 (2026-07-26): ADR-QD-018, the action dimension (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified (CCR-QD-010)<br>1.5 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.4 (2026-07-26): Core-change and excluded model documents (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only model documents (CCR-QD-007)<br>1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -29,7 +29,7 @@ link is broken. `scripts/check-doc-examples.mjs` compiles the runnable examples.
 | Document | Purpose |
 | -------- | ------- |
 | [Overview](./overview.md) | Mission, design philosophy, public API surface |
-| [User Requirements](./urs.md) | What users need, in their terms — and the two gaps that has surfaced |
+| [User Requirements](./urs.md) | What users need, in their terms — and the two gaps writing it surfaced, both now closed |
 | [Glossary](./glossary.md) | Terms of art, and where this codebase narrows an industry sense |
 | [Invariants](./invariants.md) | Properties that hold for every execution, and what enforces each |
 | [Traceability](./traceability.md) | Behavior → source → test → invariant → decision → scenario |
@@ -98,7 +98,7 @@ having verified one.
 
 ### Decisions
 
-Seventeen ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
+Eighteen ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 
 | ADR | Decision |
 | --- | -------- |
@@ -108,6 +108,12 @@ Seventeen ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 | [ADR-QD-011](./decisions/011-enforce-as-aspect.md) | `Qadi.enforce` is an Effect aspect |
 | [ADR-QD-014](./decisions/014-react-via-atoms.md) | React integrates through Effect atoms |
 | [ADR-QD-016](./decisions/016-gxp-out-of-scope.md) | GxP compliance is out of scope |
+| [ADR-QD-018](./decisions/018-action-dimension.md) | The action is an evaluation input, not a permission segment |
+
+Seventeen are **Accepted** and describe code that exists. ADR-QD-018 is
+**Proposed**: it records a decision whose implementation has not landed. The
+status is what tells the two apart, and nothing may cite a Proposed decision as
+evidence of behaviour.
 
 ### Appendices
 
@@ -175,3 +181,4 @@ Full rules in [the identifier scheme](./process/requirement-id-scheme.md).
 | CCR-QD-008 | 2026-07-26 | Model documents for the core-change and excluded models (MOD-QD-024–037); model set complete |
 | CCR-QD-009 | 2026-07-26 | Relationship short-circuit and resolver-failure coverage; URS-QD-010 known gap closed |
 | CCR-QD-010 | 2026-07-26 | Span emission verified with a collecting tracer; URS-QD-012 known gap closed |
+| CCR-QD-011 | 2026-07-26 | ADR-QD-018 decides the action dimension (E1); first *Proposed* decision in the set |

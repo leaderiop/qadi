@@ -53,3 +53,6 @@ entries:
   - id: "ADR-QD-017"
     file: "017-stale-decisions-are-not-decisions.md"
     title: "A decision being re-checked is not a decision"
+  - id: "ADR-QD-018"
+    file: "018-action-dimension.md"
+    title: "The action is an evaluation input, not a permission segment"
