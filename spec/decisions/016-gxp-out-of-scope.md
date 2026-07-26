@@ -1,4 +1,4 @@
-# ADR-EG-016: GxP compliance is out of scope
+# ADR-QD-016: GxP compliance is out of scope
 
 > **Status:** Accepted
 > **Date:** 2026-07-25
@@ -40,7 +40,7 @@ visibility.
 **Negative**:
 
 - Consumers in regulated environments must build audit durability themselves,
-  on the tracing pipeline (ADR-EG-009).
+  on the tracing pipeline (ADR-QD-009).
 
 **Trade-off accepted**: shipping unassembled compliance primitives and
 qualification evidence that asserts more than it tests is worse than shipping

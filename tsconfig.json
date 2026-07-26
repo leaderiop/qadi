@@ -1,9 +1,20 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/core" },
-    { "path": "packages/testing" },
-    { "path": "packages/react" },
-    { "path": "features" }
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/testing"
+    },
+    {
+      "path": "packages/promise"
+    },
+    {
+      "path": "packages/react"
+    },
+    {
+      "path": "features"
+    }
   ]
 }

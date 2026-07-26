@@ -1,4 +1,4 @@
-# Guard — Engineering Conventions
+# Qadi — Engineering Conventions
 
 Effect-native authorization library. **Effect v4.** These rules are not suggestions; code that violates them does not merge.
 
@@ -47,7 +47,7 @@ export interface AttributeResolverShape {
 export class AttributeResolver extends Context.Service<
   AttributeResolver,
   AttributeResolverShape
->()("guard/AttributeResolver") {
+>()("qadi/AttributeResolver") {
   // `use` requires its callback to RETURN an Effect — it is a one-step method
   // accessor, not an identity read.
   static resolve = (attribute: string) =>
@@ -55,7 +55,7 @@ export class AttributeResolver extends Context.Service<
 }
 ```
 
-Tag ids are namespaced: `"guard/AttributeResolver"`.
+Tag ids are namespaced: `"qadi/AttributeResolver"`.
 
 To obtain the whole service, `yield* AttributeResolver`. Note that alchemy's
 `static current = X.use((x) => x)` idiom **only typechecks when the service
@@ -91,7 +91,7 @@ tsc's variadic inference limit. Nest into groups.
 Not `Schema.TaggedErrorClass`. Namespaced tags.
 
 ```ts
-export class AccessDenied extends Data.TaggedError("guard/AccessDenied")<{
+export class AccessDenied extends Data.TaggedError("qadi/AccessDenied")<{
   readonly policyTag: string;
   readonly subjectId: string;
   readonly reason: string;
@@ -102,8 +102,8 @@ Handling — v4 uses the **array form**; there is no `catchTags({...})` object f
 
 ```ts
 // ✅
-Effect.catchTag("guard/AccessDenied", (e) => …)
-Effect.catchTag(["guard/AccessDenied", "guard/PolicyEvaluationError"], (e) => …)
+Effect.catchTag("qadi/AccessDenied", (e) => …)
+Effect.catchTag(["qadi/AccessDenied", "qadi/PolicyEvaluationError"], (e) => …)
 
 // ❌ structural checks on unknown
 if (Predicate.hasProperty(e, "_tag") && (e as { _tag: unknown })._tag === "X")
@@ -117,13 +117,55 @@ decision must never become a defect.
 Every effectful function is `Effect.fn(function* …)`. Name it when a span is wanted.
 
 ```ts
-export const evaluate = Effect.fn("guard.evaluate")(function* (policy: Policy) {
+export const evaluate = Effect.fn("qadi.evaluate")(function* (policy: Policy) {
   const subject = yield* CurrentSubject;
   // …
 });
 ```
 
 `Effect.gen` to construct; `.pipe` for the error/retry tail of a single expression.
+
+## 5a. Dispatch — `Match`, not `switch`
+
+Dispatching on a `_tag` uses `effect/Match`, never a `switch`.
+
+```ts
+import * as Match from "effect/Match";
+
+// A tagged union: `tagsExhaustive` returns the function, and a missing arm is a
+// compile error.
+export const referencesAction: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    Eq: (m) => m.ref._tag === "ActionRef",
+    FieldMatch: (m) => referencesAction(m.matcher),
+    In: () => false,
+    // …every remaining tag
+  }),
+);
+
+// A plain literal union has no `_tag`, so match the values.
+const compare = (op: CompareOp): string =>
+  Match.value(op).pipe(
+    Match.when("Eq", () => "="),
+    Match.when("Lt", () => "<"),
+    Match.exhaustive,
+  );
+```
+
+Recursive dispatchers annotate the const (`: (self: X) => Y`) — that breaks the
+inference cycle, and the handler bodies only run later, so referring to the const
+inside them is fine.
+
+`Match.type<T>()` builds the matcher **once**, at module scope. Prefer that shape;
+`Match.value(x)` rebuilds per call, which is fine for a translator invoked once
+per request and is worth avoiding on a per-node evaluation path.
+
+**Two hot-path switches remain unconverted**: `evaluateNode` in `Evaluate.ts` and
+`evaluateMatcher` in `Matcher.ts`. Both run once per policy node per evaluation —
+and in `filter` and `decideSubjects`, once per element on top of that — where
+their handlers close over per-call state so the matcher cannot be hoisted. They
+are a deliberate exception, not an oversight; converting them needs a benchmark
+first.
 
 ## 6. Forbidden
 
@@ -136,6 +178,7 @@ export const evaluate = Effect.fn("guard.evaluate")(function* (policy: Policy) {
 | `performance.now()` | `Effect.timed` |
 | `crypto.randomUUID()` | the `EvaluationId` service |
 | `Effect.either` / `effect/Either` | `Effect.result` + `Result.isSuccess/isFailure` |
+| `switch (x._tag)` | `Match.tagsExhaustive` — see §5a |
 | `as`, `as any`, `!`, `any` | fix the type |
 
 Sync CPU-only calls still get wrapped: `yield* Effect.sync(() => …)`.
@@ -149,7 +192,7 @@ evaluation trace untestable. Under `TestClock` ours are reproducible.
 Domain types are ordinarily **hand-written interfaces** with template-literal
 brands — that is the alchemy norm and it applies to `Permission`, `Role`, `AuthSubject`.
 
-**The Policy ADT is the deliberate exception** (ADR-EG-002). Policies cross a
+**The Policy ADT is the deliberate exception** (ADR-QD-002). Policies cross a
 trust boundary: they are persisted and re-parsed from untrusted JSON. Hand-written
 codecs are exactly what caused the data-loss defect this library was rewritten to
 fix. So the policy union is defined once as a Schema and the type is derived:
@@ -189,14 +232,14 @@ Coverage thresholds are enforced in config — a shortfall fails the run.
 `packages/core` is held at 95%, everything else at 90%.
 
 Every behavior in `spec/behaviors/` has tests; every `.feature` file is tagged
-`@REQ-EG-NNN` so BDD scenarios join the traceability chain.
+`@REQ-QD-NNN` so BDD scenarios join the traceability chain.
 
 ## 11. Specification
 
 `spec/` is normative. Code follows the spec, not the reverse. Changing public
 behavior means updating the behavior doc, the invariant, and the traceability
 matrix in the same change. TypeScript blocks in `spec/behaviors/*.md` are
-extracted and type-checked in CI — documentation that does not compile is a
+extracted and type-checked by the merge gate — documentation that does not compile is a
 build failure.
 
 ## 12. Specification code fences
@@ -219,23 +262,67 @@ errors in our own docs.
 
 ## 13. React
 
-`@guard/react` is a binding over `effect/unstable/reactivity`, not a
+`@qadi/react` is a binding over `effect/unstable/reactivity`, not a
 state-management layer of its own. The rules that keep it that way:
 
 - **No React state for decisions.** Decisions live in atoms. If you find
   yourself writing `useState` + `useEffect` to hold one, the atom graph is the
   place for it instead.
 - **No additional dependencies.** The React glue is one `useSyncExternalStore`
-  call in `GuardProvider.tsx`. `@effect/atom-react` supplies the same thing plus
+  call in `QadiProvider.tsx`. `@effect/atom-react` supplies the same thing plus
   features this package does not use, and was rejected on that basis
-  (ADR-EG-014).
+  (ADR-QD-014).
 - **Submodule imports, as everywhere else:**
   `import * as Atom from "effect/unstable/reactivity/Atom"`.
 - **Read decisions through `currentDecision`.** It is the single place the rule
-  "a decision being re-checked is not a decision" lives (ADR-EG-017). A new
+  "a decision being re-checked is not a decision" lives (ADR-QD-017). A new
   consumer that reads `AsyncResult.isSuccess` directly will report stale allows.
-- **Atoms are keyed by reference.** Policies and resources belong at module
-  scope or behind `useMemo`; anything built inline in render defeats sharing.
-- **Test the graph, not the DOM, where you can.** `GuardAtoms.test.ts` renders
+- **Atoms are keyed structurally.** `Atom.family` compares with `Equal.equals`,
+  so two separately built but equal policies share one atom and an inline policy
+  still shares. Hoist to module scope or `useMemo` anyway — the hash is cached
+  per object, so a fresh object each render re-walks the tree — but do not claim
+  inline "defeats sharing", because it does not.
+  `v4-reactivity-smoke.test.ts` pins the keying rule.
+- **Test the graph, not the DOM, where you can.** `QadiAtoms.test.ts` renders
   nothing — caching, sharing and invalidation are properties of the atoms, and
   proving them through components only makes the test slower and vaguer.
+
+## 14. `@qadi/promise`
+
+A Promise-returning facade for callers who do not use Effect. One rule, and it is
+the whole package:
+
+- **No branch in it may decide anything.** Every method is
+  `runtime.runPromise(coreFunction(...))`. The predecessor shipped a second
+  evaluation path and it destroyed short-circuiting, left the async relationship
+  API unreachable, and rotted untested (ADR-QD-004). A facade that only forwards
+  cannot repeat that; one that decides can. A review finding a conditional here
+  should treat it as a defect (ADR-QD-032).
+- **A denial resolves; a failure rejects.** `try { check() } catch { return false }`
+  is the natural Promise idiom and turns an attribute-store outage into a silent
+  lockout. `assert` is the deliberate exception, because there the caller has said
+  "proceed only if permitted".
+- **The subject travels per call**, so `CurrentSubject` stays out of the layer — as
+  in `@qadi/react`, and for the same reason.
+
+## 15. Documentation is gated, not remembered
+
+`spec/overview.md` must name every export of every public package.
+`scripts/check-api-surface.mjs` is merge gate 9 and fails otherwise; to leave an
+export out of the tables, put it in that document's "Not listed above" table with a
+reason. Omission is allowed, silent omission is not.
+
+This exists because the document drifted twice — see CCR-QD-025 and CCR-QD-034. Two
+occurrences is a property of the process rather than an oversight, and adding a
+gate was cheaper than remembering a third time.
+
+**CI runs `pnpm check` and nothing else** (`.github/workflows/check.yml`). That is
+deliberate: a workflow with its own list of steps would be a second definition of
+"done", and two definitions of one thing drifting apart is the defect this library
+was rewritten to remove. Adding a gate means editing `check` and the DoD table
+together, and CI follows for free.
+
+So a claim that CI does something is true exactly when that something is in
+`pnpm check`. Before CCR-QD-036 there was no CI at all and six documents said there
+was (CCR-QD-035) — check the workflow before writing the words, rather than the
+other way round.

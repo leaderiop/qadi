@@ -1,0 +1,78 @@
+# The merge gate, run by a machine.
+#
+# This workflow runs `pnpm check` and nothing else, deliberately. That command is
+# the gate `spec/process/definitions-of-done.md` documents, so a CI job running a
+# different set of steps would be a second definition of "done" — and two
+# definitions of one thing drifting apart is the defect this library was rewritten
+# to remove. Adding a gate means editing `check` and the DoD table together; CI
+# then follows for free.
+#
+# Every number in the specification was produced by someone running this by hand
+# until now.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A superseded run tells you nothing. Cancel it and keep the newest.
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Takes the version from `packageManager` in package.json, so the lockfile
+      # and the installer cannot disagree.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # The latest stable major, and the one development actually happens on.
+          # Pinned to the major rather than floating on `latest`: a gate whose
+          # toolchain changes underneath it reports failures that are not about
+          # the change under test.
+          #
+          # `engines` declares `>=20.19.0`, which CI does not exercise — that
+          # floor is derived from what the dependencies require (`vitest` accepts
+          # `^20 || ^22 || >=24` and excludes 23; `oxlint` needs `^20.19`), not
+          # measured. It is a declaration, and this workflow does not turn it into
+          # a verified claim.
+          node-version: "26"
+          cache: pnpm
+
+      - name: Install
+        # Frozen: CI must fail on a stale lockfile rather than quietly resolving
+        # something the author never ran.
+        run: pnpm install --frozen-lockfile
+
+      - name: Merge gate
+        run: pnpm check
+
+      # The mutation HTML report is the artefact you want when the score drops,
+      # and it is the one thing `pnpm check` produces that a log cannot show.
+      #
+      # `continue-on-error` because this is diagnostics, not a gate: if the gate
+      # passed, the build passed, and a transient upload failure should not turn
+      # that red. It also means a local `act` run is green — act cannot supply
+      # `ACTIONS_RUNTIME_TOKEN`, so this step can never succeed there.
+      - name: Upload mutation report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          if-no-files-found: ignore
+          retention-days: 14

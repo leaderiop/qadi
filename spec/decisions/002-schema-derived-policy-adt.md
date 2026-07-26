@@ -1,4 +1,4 @@
-# ADR-EG-002: The policy ADT is schema-derived
+# ADR-QD-002: The policy ADT is schema-derived
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

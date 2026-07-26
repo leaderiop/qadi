@@ -29,7 +29,7 @@ export interface AttributeResolverShape {
 export class AttributeResolver extends Context.Service<
   AttributeResolver,
   AttributeResolverShape
->()("guard/AttributeResolver") {
+>()("qadi/AttributeResolver") {
   /** One-step accessor. `use` requires its callback to return an Effect. */
   static readonly resolve = (subjectId: string, attribute: string) =>
     AttributeResolver.use((r) => r.resolve(subjectId, attribute));

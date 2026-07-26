@@ -7,7 +7,7 @@
  * components in `components.tsx` are written against these and contain no
  * subscription logic of their own.
  */
-import type { AuthSubject } from "@guard/core";
+import type { AuthSubject } from "@qadi/core";
 import type * as Atom from "effect/unstable/reactivity/Atom";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import {
@@ -19,24 +19,24 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import type { GuardAtoms } from "./GuardAtoms.ts";
+import type { QadiAtoms } from "./QadiAtoms.ts";
 
-export interface GuardContextValue {
-  readonly atoms: GuardAtoms;
+export interface QadiContextValue {
+  readonly atoms: QadiAtoms;
   readonly registry: AtomRegistry.AtomRegistry;
 }
 
-const GuardContext = createContext<GuardContextValue | null>(null);
+const QadiContext = createContext<QadiContextValue | null>(null);
 
 /** Raised when a hook is used outside a provider. */
-export class MissingGuardProviderError extends Error {
+export class MissingQadiProviderError extends Error {
   constructor(hookName: string) {
     super(
-      `${hookName} must be used inside <GuardProvider>. ` +
+      `${hookName} must be used inside <QadiProvider>. ` +
         `Without a provider there is no subject, and failing loudly is safer ` +
         `than silently denying every check.`,
     );
-    this.name = "MissingGuardProviderError";
+    this.name = "MissingQadiProviderError";
   }
 }
 
@@ -46,9 +46,9 @@ export class MissingGuardProviderError extends Error {
  * Exported because the hooks live in a separate module; not part of the
  * package's public surface.
  */
-export const useGuardContext = (hookName: string): GuardContextValue => {
-  const value = useContext(GuardContext);
-  if (value === null) throw new MissingGuardProviderError(hookName);
+export const useQadiContext = (hookName: string): QadiContextValue => {
+  const value = useContext(QadiContext);
+  if (value === null) throw new MissingQadiProviderError(hookName);
   return value;
 };
 
@@ -74,9 +74,9 @@ export const useAtomValue = <A,>(
 /** Seed values applied when the provider creates its registry. */
 export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;
 
-export interface GuardProviderProps {
-  /** The atom set for this authorization context, from `makeGuardAtoms`. */
-  readonly atoms: GuardAtoms;
+export interface QadiProviderProps {
+  /** The atom set for this authorization context, from `makeQadiAtoms`. */
+  readonly atoms: QadiAtoms;
   /** The authenticated subject, or `undefined` while it is still loading. */
   readonly subject: AuthSubject | undefined;
   /**
@@ -94,12 +94,12 @@ export interface GuardProviderProps {
  * cannot see each other's decisions. That is what makes a multi-tenant
  * application safe by construction rather than by convention.
  */
-export const GuardProvider = ({
+export const QadiProvider = ({
   atoms,
   subject,
   initialValues,
   children,
-}: GuardProviderProps): ReactNode => {
+}: QadiProviderProps): ReactNode => {
   // The subject is seeded at registry construction rather than written in an
   // effect, so the first render already has it. Writing it afterwards would
   // show every guarded control in its pending state for one frame.
@@ -134,6 +134,6 @@ export const GuardProvider = ({
   }, [registry, atoms, subject]);
 
   return (
-    <GuardContext.Provider value={{ atoms, registry }}>{children}</GuardContext.Provider>
+    <QadiContext.Provider value={{ atoms, registry }}>{children}</QadiContext.Provider>
   );
 };

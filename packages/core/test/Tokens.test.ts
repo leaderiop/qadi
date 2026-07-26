@@ -163,7 +163,7 @@ describe("Errors", () => {
   });
 
   it("errorCode derives from the tag", () => {
-    const e = { _tag: "guard/AccessDenied" } as const;
+    const e = { _tag: "qadi/AccessDenied" } as const;
     assert.strictEqual(errorCode(e as never), "ACL001");
   });
 });

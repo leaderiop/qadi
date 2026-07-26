@@ -5,19 +5,19 @@
  * or cancellation logic here — the registry does all of it, which is why two
  * components asking the same question cost one evaluation rather than two.
  */
-import type { AuthSubject, Decision, Policy, Resource } from "@guard/core";
-import { isAllowed, project } from "@guard/core";
+import type { AuthSubject, Decision, Policy, Resource } from "@qadi/core";
+import { isAllowed, project } from "@qadi/core";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import type * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import { useCallback, useEffect, useMemo } from "react";
-import type { DecisionResult } from "./GuardAtoms.ts";
-import { currentDecision } from "./GuardAtoms.ts";
-import { useAtomValue, useGuardContext } from "./GuardProvider.tsx";
+import type { DecisionResult } from "./QadiAtoms.ts";
+import { currentDecision } from "./QadiAtoms.ts";
+import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
 
 /** The subject under authorization, or `undefined` while it is still loading. */
 export const useSubject = (): AuthSubject | undefined => {
-  const { registry, atoms } = useGuardContext("useSubject");
+  const { registry, atoms } = useQadiContext("useSubject");
   return useAtomValue(registry, atoms.subject);
 };
 
@@ -29,7 +29,7 @@ export const useSubject = (): AuthSubject | undefined => {
  * could not be determined.
  */
 export const useDecision = (policy: Policy, resource?: Resource): DecisionResult => {
-  const { registry, atoms } = useGuardContext("useDecision");
+  const { registry, atoms } = useQadiContext("useDecision");
   const atom = useMemo(
     () =>
       resource === undefined ? atoms.decision(policy) : atoms.decisionFor(policy, resource),
@@ -58,7 +58,7 @@ export const useCan = (policy: Policy, resource?: Resource): boolean => {
  * as a hidden button.
  */
 export const useDecisionSuspense = (policy: Policy, resource?: Resource): Decision => {
-  const { registry, atoms } = useGuardContext("useDecisionSuspense");
+  const { registry, atoms } = useQadiContext("useDecisionSuspense");
   const atom = useMemo(
     () =>
       resource === undefined ? atoms.decision(policy) : atoms.decisionFor(policy, resource),
@@ -106,7 +106,7 @@ const settled = (
 export const usePolicies = (
   policies: Readonly<Record<string, Policy>>,
 ): Readonly<Record<string, DecisionResult>> => {
-  const { registry, atoms } = useGuardContext("usePolicies");
+  const { registry, atoms } = useQadiContext("usePolicies");
   const atom = useMemo(
     () =>
       Atom.make((get) => {
@@ -144,7 +144,7 @@ export const useProjected = <A extends Record<string, unknown>>(
  * are simply dropped.
  */
 export const useInvalidate = (): (() => void) => {
-  const { registry, atoms } = useGuardContext("useInvalidate");
+  const { registry, atoms } = useQadiContext("useInvalidate");
   useEffect(() => registry.mount(atoms.invalidate), [registry, atoms]);
   return useCallback(() => {
     registry.set(atoms.invalidate, undefined);

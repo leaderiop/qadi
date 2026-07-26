@@ -1,4 +1,4 @@
-@serialization @regression @REQ-EG-008
+@serialization @regression @REQ-QD-008
 Feature: Policy serialization fidelity
 
   A policy stored as JSON and reloaded must behave identically. The

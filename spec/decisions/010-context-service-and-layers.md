@@ -1,4 +1,4 @@
-# ADR-EG-010: `Context.Service` with standalone layer constants
+# ADR-QD-010: `Context.Service` with standalone layer constants
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

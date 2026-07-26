@@ -1,4 +1,4 @@
-@field-visibility @REQ-EG-007
+@field-visibility @REQ-QD-007
 Feature: Field-level visibility
 
   A policy decides not only whether a subject may read a record, but which

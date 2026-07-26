@@ -4,18 +4,18 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-APP-REACT                                |
-> | Revision       | 1.0                                            |
+> | Document ID    | QADI-APP-REACT                                 |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Appendix — Worked Example                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-EG-003) |
+> | Change History | 1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
 
 ---
 
 A worked integration, from wiring to testing. The normative API is
-[BEH-EG-065–071](../behaviors/09-react.md); this document shows it in use.
+[BEH-QD-065–071](../behaviors/09-react.md); this document shows it in use.
 
 Every `tsx` and `typescript` block below is extracted and type-checked by
 `scripts/check-doc-examples.mjs`. Blocks marked `ts` are fragments and are not.
@@ -23,7 +23,7 @@ Every `tsx` and `typescript` block below is extracted and type-checked by
 ## How the pieces fit
 
 ```
-        your layer                    makeGuardAtoms(layer)
+        your layer                    makeQadiAtoms(layer)
    AttributeResolver              ┌──────────────────────────┐
    RelationshipResolver  ────────▶│  subject   (writable)    │
    EvaluationId                   │  decision  (family)      │
@@ -31,7 +31,7 @@ Every `tsx` and `typescript` block below is extracted and type-checked by
                                   └────────────┬─────────────┘
                                                │ atoms
                                   ┌────────────▼─────────────┐
-       <GuardProvider> ──────────▶│  AtomRegistry            │  one per provider
+       <QadiProvider> ──────────▶│  AtomRegistry            │  one per provider
                                   │  computes · caches ·     │
                                   │  disposes                │
                                   └────────────┬─────────────┘
@@ -46,7 +46,7 @@ decisions and belongs to a mounted provider.
 
 ## 1. Wire the services
 
-Guard needs three things it cannot supply itself: somewhere to resolve
+Qadi needs three things it cannot supply itself: somewhere to resolve
 attributes, somewhere to resolve relationships, and a source of evaluation ids.
 
 ```typescript
@@ -54,7 +54,8 @@ import {
   AttributeResolver,
   EvaluationIdLive,
   RelationshipResolverNever,
-} from "@guard/core";
+  DecisionHistoryUnknown,
+} from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
@@ -64,9 +65,10 @@ const AttributeResolverHttp = Layer.succeed(AttributeResolver, {
     Effect.succeed(`${subjectId}/${attribute}`),
 });
 
-export const GuardLive = Layer.mergeAll(
+export const QadiLive = Layer.mergeAll(
   AttributeResolverHttp,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 ```
@@ -79,24 +81,32 @@ process.
 
 ## 2. Define the atoms and the policies
 
-Both at module scope. Atoms are keyed by policy *reference*, so a policy built
-inline in render is a new key on every render — a new atom, a new evaluation,
-and no sharing with any other component asking the same question.
+Both at module scope. Atoms are keyed *structurally*, so a policy built inline
+in render still shares an atom with an equal one built anywhere else — but the
+structural hash is cached per object, so a fresh object every render re-walks the
+whole policy tree to arrive at the atom it was always going to find. Hoisting is
+a performance habit here, not a correctness requirement.
 
 ```typescript
-import { allOf, hasPermission, hasRole, permission } from "@guard/core";
-import { makeGuardAtoms } from "@guard/react";
+import { allOf, hasPermission, hasRole, permission } from "@qadi/core";
+import { makeQadiAtoms } from "@qadi/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { AttributeResolver, EvaluationIdLive, RelationshipResolverNever } from "@guard/core";
+import {
+  AttributeResolver,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+} from "@qadi/core";
 
-const GuardLive = Layer.mergeAll(
+const QadiLive = Layer.mergeAll(
   Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 
-export const guard = makeGuardAtoms(GuardLive);
+export const qadi = makeQadiAtoms(QadiLive);
 
 // Module-level constants. This is the whole memoisation strategy.
 export const canReadDoc = hasPermission(permission("doc", "read"));
@@ -110,14 +120,24 @@ export const canPublish = allOf([hasRole("editor"), canEditDoc]);
 "still loading" and is a first-class state, not a placeholder.
 
 ```tsx
-import type { AuthSubject } from "@guard/core";
-import { GuardProvider, makeGuardAtoms } from "@guard/react";
-import { AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever } from "@guard/core";
+import type { AuthSubject } from "@qadi/core";
+import { QadiProvider, makeQadiAtoms } from "@qadi/react";
+import {
+  AttributeResolverNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+} from "@qadi/core";
 import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
 
-const guard = makeGuardAtoms(
-  Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+const qadi = makeQadiAtoms(
+  Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+  ),
 );
 
 export const App = ({
@@ -127,9 +147,9 @@ export const App = ({
   readonly subject: AuthSubject | undefined;
   readonly children: ReactNode;
 }) => (
-  <GuardProvider atoms={guard} subject={subject}>
+  <QadiProvider atoms={qadi} subject={subject}>
     {children}
-  </GuardProvider>
+  </QadiProvider>
 );
 ```
 
@@ -137,11 +157,11 @@ No `RegistryProvider`, no runtime prop, no `Suspense` boundary required. The
 provider creates its own registry, seeds the subject into it at construction —
 so the first render already has it — and disposes it on unmount.
 
-## 4. Guard the interface
+## 4. Gate the interface
 
 ```tsx
-import { Can, useCan } from "@guard/react";
-import { hasPermission, permission } from "@guard/core";
+import { Can, useCan } from "@qadi/react";
+import { hasPermission, permission } from "@qadi/core";
 
 const canEditDoc = hasPermission(permission("doc", "write"));
 
@@ -164,8 +184,8 @@ is hidden. When the difference matters, read the decision.
 ## 5. Read the whole decision
 
 ```tsx
-import { useDecision } from "@guard/react";
-import { isAllowed, hasPermission, permission } from "@guard/core";
+import { useDecision } from "@qadi/react";
+import { isAllowed, hasPermission, permission } from "@qadi/core";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 
 const canEditDoc = hasPermission(permission("doc", "write"));
@@ -194,8 +214,8 @@ Pass the resource. Atoms are keyed by policy *and* resource, so each row gets
 its own decision — and two rows showing the same document share one.
 
 ```tsx
-import { Can } from "@guard/react";
-import { eq, hasResourceAttribute, subjectId } from "@guard/core";
+import { Can } from "@qadi/react";
+import { eq, hasResourceAttribute, subjectId } from "@qadi/core";
 
 // A `type`, not an `interface`: `Resource` is `Record<string, unknown>`, and
 // interfaces have no implicit index signature, so they are not assignable to it.
@@ -233,8 +253,8 @@ The same policy decides both whether the record may be read and which of its
 fields come back.
 
 ```tsx
-import { useProjected } from "@guard/react";
-import { hasPermission, permission } from "@guard/core";
+import { useProjected } from "@qadi/react";
+import { hasPermission, permission } from "@qadi/core";
 
 const RECORD = { name: "Ada", email: "ada@example.com", salary: 120_000 };
 
@@ -266,7 +286,7 @@ Authority changes without identity changing. A role granted, a grant revoked, a
 document reassigned: same subject id, different powers.
 
 ```tsx
-import { useInvalidate } from "@guard/react";
+import { useInvalidate } from "@qadi/react";
 
 export const RoleEditor = ({ save }: { readonly save: () => Promise<void> }) => {
   const invalidate = useInvalidate();
@@ -288,7 +308,7 @@ mounted ones. Nothing else has to know it happened.
 
 While the re-check runs, decisions report as *pending*, not as their previous
 value — a decision being re-checked is not a decision
-([ADR-EG-017](../decisions/017-stale-decisions-are-not-decisions.md)). If that
+([ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md)). If that
 flash is unwelcome for a particular control, `useDecision` hands you the raw
 `AsyncResult` and its `waiting` flag, and the choice.
 
@@ -297,8 +317,8 @@ flash is unwelcome for a particular control, `useDecision` hands you the raw
 For interfaces that would rather not write pending branches by hand.
 
 ```tsx
-import { useDecisionSuspense } from "@guard/react";
-import { isAllowed, hasPermission, permission } from "@guard/core";
+import { useDecisionSuspense } from "@qadi/react";
+import { isAllowed, hasPermission, permission } from "@qadi/core";
 import { Suspense } from "react";
 
 const canReadDoc = hasPermission(permission("doc", "read"));
@@ -321,26 +341,32 @@ quietly hidden button.
 
 ## 10. Several authorization contexts
 
-One `makeGuardAtoms` call per context. The atoms are distinct objects and each
+One `makeQadiAtoms` call per context. The atoms are distinct objects and each
 provider owns its registry, so isolation is structural — there is no setting to
 forget.
 
 ```tsx
-import type { AuthSubject } from "@guard/core";
-import { AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever } from "@guard/core";
-import { GuardProvider, makeGuardAtoms } from "@guard/react";
+import type { AuthSubject } from "@qadi/core";
+import {
+  AttributeResolverNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+} from "@qadi/core";
+import { QadiProvider, makeQadiAtoms } from "@qadi/react";
 import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
 
 const base = Layer.mergeAll(
   AttributeResolverNone,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 
 const tenantAtoms = new Map([
-  ["acme", makeGuardAtoms(base)],
-  ["globex", makeGuardAtoms(base)],
+  ["acme", makeQadiAtoms(base)],
+  ["globex", makeQadiAtoms(base)],
 ]);
 
 export const TenantScope = ({
@@ -355,9 +381,9 @@ export const TenantScope = ({
   const atoms = tenantAtoms.get(tenant);
   if (atoms === undefined) throw new Error(`Unknown tenant: ${tenant}`);
   return (
-    <GuardProvider atoms={atoms} subject={subject}>
+    <QadiProvider atoms={atoms} subject={subject}>
       {children}
-    </GuardProvider>
+    </QadiProvider>
   );
 };
 ```
@@ -370,14 +396,27 @@ Two levels, and most tests want the first.
 graph. Proving them needs a registry, not a DOM.
 
 ```typescript
-import { AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever, hasRole, isAllowed, makeSubject } from "@guard/core";
-import { makeGuardAtoms } from "@guard/react";
+import {
+  AttributeResolverNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+  hasRole,
+  isAllowed,
+  makeSubject,
+} from "@qadi/core";
+import { makeQadiAtoms } from "@qadi/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 
-const atoms = makeGuardAtoms(
-  Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+const atoms = makeQadiAtoms(
+  Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+  ),
 );
 
 export const adminIsAllowed = Effect.gen(function* () {
@@ -400,20 +439,30 @@ test its own atoms if you want a cold cache, since atoms are module-scoped and
 their decisions outlive a single render.
 
 ```tsx
-import type { AuthSubject } from "@guard/core";
-import { GuardProvider, makeGuardAtoms } from "@guard/react";
-import { AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever } from "@guard/core";
+import type { AuthSubject } from "@qadi/core";
+import { QadiProvider, makeQadiAtoms } from "@qadi/react";
+import {
+  AttributeResolverNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+} from "@qadi/core";
 import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
 
-export const withGuard = (subject: AuthSubject | undefined, ui: ReactNode) => {
-  const atoms = makeGuardAtoms(
-    Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
+  const atoms = makeQadiAtoms(
+    Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+  ),
   );
   return (
-    <GuardProvider atoms={atoms} subject={subject}>
+    <QadiProvider atoms={atoms} subject={subject}>
       {ui}
-    </GuardProvider>
+    </QadiProvider>
   );
 };
 ```
@@ -422,14 +471,14 @@ export const withGuard = (subject: AuthSubject | undefined, ui: ReactNode) => {
 
 | Symptom | Cause | Fix |
 | ------- | ----- | --- |
-| Every render re-evaluates | Policy built inline; atoms key on reference | Hoist the policy to module scope |
-| A list re-evaluates per render | Resource objects rebuilt each render | Render from a stable array, or memoise |
+| Every render re-hashes the policy tree | Policy built inline; the structural hash is cached per object | Hoist the policy to module scope |
+| A list re-hashes per render | Resource objects rebuilt each render | Render from a stable array, or memoise |
 | Control flickers on refresh | `waiting` reads as pending by design | Use `useDecision` and decide for yourself |
-| Everything denied, nothing loading | No provider above the hook | The thrown `MissingGuardProviderError` names the hook |
+| Everything denied, nothing loading | No provider above the hook | The thrown `MissingQadiProviderError` names the hook |
 | `subject("id")` never matches | `subject(path)` reads attributes, not identity | Use `subjectId()` |
 | Outage looks like a denial | `useCan` collapses failure into `false` | Use `useDecision`, or give `Can` a `failure` node |
 | `interface Doc` rejected as a resource | Interfaces have no implicit index signature | Declare the resource type as a `type` alias |
 
 ---
 
-_Related: [09 — React Integration](../behaviors/09-react.md) · [ADR-EG-014](../decisions/014-react-via-atoms.md) · [ADR-EG-017](../decisions/017-stale-decisions-are-not-decisions.md)_
+_Related: [09 — React Integration](../behaviors/09-react.md) · [ADR-QD-014](../decisions/014-react-via-atoms.md) · [ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md)_

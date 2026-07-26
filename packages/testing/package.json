@@ -1,9 +1,9 @@
 {
-  "name": "@guard/testing",
+  "name": "@qadi/testing",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
-  "description": "Test layers, fixtures, conformance suites and matchers for @guard/core",
+  "description": "Test layers, fixtures, conformance suites and matchers for @qadi/core",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -24,7 +24,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@guard/core": "workspace:*",
+    "@qadi/core": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

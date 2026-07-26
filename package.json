@@ -1,5 +1,5 @@
 {
-  "name": "guard-monorepo",
+  "name": "qadi-monorepo",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:types": "vitest run --typecheck",
     "coverage": "vitest run --coverage",
-    "test:bdd": "pnpm --filter @guard/features test",
+    "mutation": "stryker run",
+    "test:bdd": "pnpm --filter @qadi/features test",
     "lint": "oxlint && node scripts/check-house-style.mjs",
     "lint:fix": "oxlint --fix",
     "lint:style": "node scripts/check-house-style.mjs",
@@ -22,23 +23,26 @@
     "format:check": "oxfmt --check packages features",
     "spec:verify": "bash spec/scripts/verify-traceability.sh",
     "spec:verify:strict": "bash spec/scripts/verify-traceability.sh --strict",
-    "check": "pnpm typecheck && pnpm lint && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict",
-    "spec:examples": "node scripts/check-doc-examples.mjs"
+    "check": "pnpm typecheck && pnpm lint && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict && pnpm spec:api && pnpm mutation",
+    "spec:examples": "node scripts/check-doc-examples.mjs",
+    "spec:api": "node scripts/check-api-surface.mjs"
   },
   "devDependencies": {
     "@effect/language-service": "^0.77.0",
     "@effect/vitest": "catalog:",
+    "@stryker-mutator/core": "9.6.1",
+    "@stryker-mutator/vitest-runner": "9.6.1",
     "@types/node": "^25.7.0",
     "@types/react": "catalog:",
-    "react": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "effect": "catalog:",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
+    "react": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.19.0"
   }
 }

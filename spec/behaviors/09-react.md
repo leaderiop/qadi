@@ -4,40 +4,40 @@
 >
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
-> | Document ID    | GUARD-BEH-09                                                 |
-> | Revision       | 2.0                                                          |
+> | Document ID    | QADI-BEH-09                                                  |
+> | Revision       | 2.1                                                          |
 > | Effective Date | 2026-07-26                                                   |
 > | Status         | Effective                                                    |
-> | Author         | Guard Engineering                                            |
+> | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-EG-003)<br>1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
-`@guard/react` is a binding over `effect/unstable/reactivity`. Decisions live in
+`@qadi/react` is a binding over `effect/unstable/reactivity`. Decisions live in
 atoms; React subscribes to them. See
-[ADR-EG-014](../decisions/014-react-via-atoms.md) for why, and
+[ADR-QD-014](../decisions/014-react-via-atoms.md) for why, and
 [the integration guide](../appendices/react-integration.md) for a worked
 application.
 
 The package depends on `effect` and `react`. Nothing else — the React glue is a
 single `useSyncExternalStore` call.
 
-## BEH-EG-065: The atom set
+## BEH-QD-065: The atom set
 
 ```ts
-export const makeGuardAtoms: (layer: GuardLayer) => GuardAtoms;
+export const makeQadiAtoms: (layer: QadiLayer) => QadiAtoms;
 
-export type GuardRuntimeServices = Exclude<EvaluationServices, CurrentSubject>;
+export type QadiRuntimeServices = Exclude<EvaluationServices, CurrentSubject>;
 
-export type GuardLayer = Layer.Layer<
-  GuardRuntimeServices,
+export type QadiLayer = Layer.Layer<
+  QadiRuntimeServices,
   never,
   AtomRegistry.AtomRegistry | Reactivity.Reactivity
 >;
 
-export interface GuardAtoms {
-  readonly runtime: Atom.AtomRuntime<GuardRuntimeServices>;
+export interface QadiAtoms {
+  readonly runtime: Atom.AtomRuntime<QadiRuntimeServices>;
   readonly subject: Atom.Writable<AuthSubject | undefined>;
   readonly decision: (policy: Policy) => Atom.Atom<DecisionResult>;
   readonly decisionFor: (policy: Policy, resource: Resource) => Atom.Atom<DecisionResult>;
@@ -64,7 +64,7 @@ REQUIREMENT: The layer MUST NOT be able to fail. A resolver that cannot be
              authorization problem for the life of the process.
 ```
 
-## BEH-EG-066: Decision state
+## BEH-QD-066: Decision state
 
 ```ts
 export type DecisionResult = AsyncResult.AsyncResult<Decision, EvaluationError>;
@@ -85,20 +85,20 @@ export const currentDecision: (result: DecisionResult) => Decision | undefined;
 ```
 REQUIREMENT: A `Failure` MUST NOT be reported as a denial. An attribute-backend
              outage must stay distinguishable from "not permitted".
-             See INV-EG-006.
+             See INV-QD-006.
 ```
 
 ```
 REQUIREMENT: A `waiting` result MUST be treated as not decided by every
              convenience API. A stale allow is a grant nobody authorised.
-             See ADR-EG-017.
+             See ADR-QD-017.
 ```
 
-## BEH-EG-067: Provider
+## BEH-QD-067: Provider
 
 ```ts
-export const GuardProvider: (props: {
-  readonly atoms: GuardAtoms;
+export const QadiProvider: (props: {
+  readonly atoms: QadiAtoms;
   readonly subject: AuthSubject | undefined;
   readonly initialValues?: Iterable<readonly [Atom.Atom<unknown>, unknown]>;
   readonly children: ReactNode;
@@ -118,7 +118,7 @@ REQUIREMENT: Each provider MUST own its registry, and MUST NOT dispose it
              across React's development-mode double mount.
 ```
 
-## BEH-EG-068: Hooks and components
+## BEH-QD-068: Hooks and components
 
 ```ts
 export const useSubject: () => AuthSubject | undefined;
@@ -173,7 +173,7 @@ RECOMMENDED: `Can` renders `failure ?? fallback`, so an interface with no
              to tell an outage from a denial.
 ```
 
-## BEH-EG-069: Invalidation
+## BEH-QD-069: Invalidation
 
 ```
 REQUIREMENT: `useInvalidate()` MUST discard every decision in its context and
@@ -182,12 +182,12 @@ REQUIREMENT: `useInvalidate()` MUST discard every decision in its context and
              server-side leaves the same subject id holding different powers.
 ```
 
-Invalidation is keyed through `Reactivity` under `guard/decisions`.
+Invalidation is keyed through `Reactivity` under `qadi/decisions`.
 
-## BEH-EG-070: Isolated contexts
+## BEH-QD-070: Isolated contexts
 
 ```
-REQUIREMENT: Two calls to `makeGuardAtoms` MUST produce disjoint decisions, and
+REQUIREMENT: Two calls to `makeQadiAtoms` MUST produce disjoint decisions, and
              two providers MUST NOT share a registry. Isolation is structural,
              not configured — a multi-tenant application cannot leak a decision
              between tenants by forgetting a setting.
@@ -196,18 +196,32 @@ REQUIREMENT: Two calls to `makeGuardAtoms` MUST produce disjoint decisions, and
 The predecessor achieved this with a 250-line clone of its hook module. There is
 now one implementation and no factory to keep in sync.
 
-## BEH-EG-071: Policy identity
+## BEH-QD-071: Policy identity
 
 ```
-REQUIREMENT: Build policies as module-level constants. Atoms are keyed by
-             policy reference, so a policy constructed inline in render is a new
-             key on every render: a new atom, a new evaluation, and no sharing
-             with any other component asking the same question.
+REQUIREMENT: Atoms MUST be keyed such that two equal policies share one
+             evaluation. `Atom.family` compares with `Equal.equals`, so keying
+             is structural: a policy constructed inline in render shares with
+             an equal one built anywhere else.
+```
+
+```
+REQUIREMENT: Policies SHOULD be built as module-level constants — a
+             recommendation, not a correctness rule. The structural hash is
+             cached per object, so a fresh object on every render re-walks the
+             whole policy tree to find the atom it was already going to find.
 ```
 
 The same applies to the `resource` argument and to the record passed to
 `usePolicies`. Hoist them, or memoise them.
 
+**This document said the opposite until revision 1.1**, and stated it as a
+requirement: that keying was by reference and an inline policy therefore got a
+new atom and no sharing. Writing the reactivity canary disproved it. The
+practical advice was unchanged by the correction, which is exactly why it
+survived three revisions unchallenged — the guidance was right and the reason
+was wrong.
+
 ---
 
-_Previous: [08 — Serialization](./08-serialization.md)_
+_Previous: [08 — Serialization](./08-serialization.md) | Next: [10 — The Action Dimension](./10-actions.md)_

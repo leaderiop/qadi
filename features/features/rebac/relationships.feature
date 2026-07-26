@@ -1,4 +1,4 @@
-@rebac @REQ-EG-005
+@rebac @REQ-QD-005
 Feature: Relationship-based access control
 
   Scenario: The owner of a resource is granted access

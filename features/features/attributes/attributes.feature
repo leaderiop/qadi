@@ -1,4 +1,4 @@
-@attributes @REQ-EG-004
+@attributes @REQ-QD-004
 Feature: Attribute-based access control
 
   Attributes already on the subject are used directly; anything else is

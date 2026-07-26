@@ -1,4 +1,4 @@
-# ADR-EG-001: Effect v4 is the effect system
+# ADR-QD-001: Effect v4 is the effect system
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

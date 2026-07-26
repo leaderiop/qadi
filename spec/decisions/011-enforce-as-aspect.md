@@ -1,4 +1,4 @@
-# ADR-EG-011: `Guard.enforce` is an Effect aspect
+# ADR-QD-011: `Qadi.enforce` is an Effect aspect
 
 > **Status:** Accepted
 > **Date:** 2026-07-25
@@ -14,10 +14,10 @@ you had to remember to call, and forgetting produced no signal.
 
 ## Decision
 
-`Guard.enforce(policy)` is a combinator that wraps an Effect:
+`Qadi.enforce(policy)` is a combinator that wraps an Effect:
 
 ```ts
-const handler = updateDocument(id).pipe(Guard.enforce(canEditDocument))
+const handler = updateDocument(id).pipe(Qadi.enforce(canEditDocument))
 ```
 
 The guarded effect runs only if the policy allows; otherwise the result fails
@@ -25,7 +25,7 @@ with `AccessDenied` and the protected work never starts. Subject, resolvers and
 identifier generator all travel in the environment, so the aspect takes one
 argument.
 
-`Guard.enforceProjected` additionally narrows the result to the fields the
+`Qadi.enforceProjected` additionally narrows the result to the fields the
 decision exposes, so a single pass answers both "may they read this?" and
 "which parts?".
 

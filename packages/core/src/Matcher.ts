@@ -8,7 +8,9 @@
  * subject or resource, or a nested structure. They are pure data: no closures,
  * so a matcher survives serialization.
  */
+import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
+import { isSecurityLabel, labelDominates } from "./SecurityLabel.ts";
 
 // ---------------------------------------------------------------------------
 // Value references
@@ -17,9 +19,16 @@ import * as Schema from "effect/Schema";
 const SubjectRef = Schema.TaggedStruct("SubjectRef", { path: Schema.String });
 const SubjectIdRef = Schema.TaggedStruct("SubjectIdRef", {});
 const ResourceRef = Schema.TaggedStruct("ResourceRef", { path: Schema.String });
+const ActionRef = Schema.TaggedStruct("ActionRef", {});
 const LiteralRef = Schema.TaggedStruct("LiteralRef", { value: Schema.Unknown });
 
-export const ValueRef = Schema.Union([SubjectRef, SubjectIdRef, ResourceRef, LiteralRef]);
+export const ValueRef = Schema.Union([
+  SubjectRef,
+  SubjectIdRef,
+  ResourceRef,
+  ActionRef,
+  LiteralRef,
+]);
 export type ValueRef = typeof ValueRef.Type;
 
 /**
@@ -39,6 +48,14 @@ export const subject = (path: string): ValueRef => ({ _tag: "SubjectRef", path }
 export const subjectId = (): ValueRef => ({ _tag: "SubjectIdRef" });
 /** References a field of the resource by dot-path. */
 export const resource = (path: string): ValueRef => ({ _tag: "ResourceRef", path });
+/**
+ * References the action the caller is performing.
+ *
+ * The action is a property of the *request*, not a grant the subject holds —
+ * it is never derived from a permission token's action segment, and comparing
+ * the two would conflate "may write" with "is writing" (ADR-QD-018).
+ */
+export const action = (): ValueRef => ({ _tag: "ActionRef" });
 /** A constant value. */
 export const literal = (value: unknown): ValueRef => ({ _tag: "LiteralRef", value });
 
@@ -49,6 +66,7 @@ export const literal = (value: unknown): ValueRef => ({ _tag: "LiteralRef", valu
 export type Matcher =
   | { readonly _tag: "Eq"; readonly ref: ValueRef }
   | { readonly _tag: "Neq"; readonly ref: ValueRef }
+  | { readonly _tag: "Dominates"; readonly ref: ValueRef }
   | { readonly _tag: "In"; readonly values: ReadonlyArray<unknown> }
   | { readonly _tag: "Exists" }
   | { readonly _tag: "Gte"; readonly value: number }
@@ -67,6 +85,7 @@ const MatcherRef = Schema.suspend((): Schema.Codec<Matcher> => Matcher);
 
 const Eq = Schema.TaggedStruct("Eq", { ref: ValueRef });
 const Neq = Schema.TaggedStruct("Neq", { ref: ValueRef });
+const Dominates = Schema.TaggedStruct("Dominates", { ref: ValueRef });
 const In = Schema.TaggedStruct("In", { values: Schema.Array(Schema.Unknown) });
 const Exists = Schema.TaggedStruct("Exists", {});
 const Gte = Schema.TaggedStruct("Gte", { value: Schema.Number });
@@ -83,6 +102,7 @@ const Size = Schema.TaggedStruct("Size", { matcher: MatcherRef });
 export const Matcher: Schema.Codec<Matcher> = Schema.Union([
   Eq,
   Neq,
+  Dominates,
   In,
   Exists,
   Gte,
@@ -102,6 +122,27 @@ export const Matcher: Schema.Codec<Matcher> = Schema.Union([
 export const eq = (ref: ValueRef): Matcher => ({ _tag: "Eq", ref });
 /** Attribute does not equal the referenced value. */
 export const neq = (ref: ValueRef): Matcher => ({ _tag: "Neq", ref });
+/**
+ * The attribute's security label **dominates** the referenced one — at least as
+ * high, and at least as broad.
+ *
+ * The first matcher beyond `eq`/`neq` to take a `ValueRef`, and that is the
+ * point: dominance relates two *live* values, which the numeric matchers cannot
+ * do because `gte` and `lt` take a plain number.
+ *
+ * Both rules of Bell–LaPadula are this one comparison with the operands
+ * exchanged — never a negation, which is why a boolean answer is safe here:
+ *
+ * ```ts
+ * hasAttribute("clearance", dominates(resource("label")))        // no read up
+ * hasResourceAttribute("label", dominates(subject("clearance"))) // no write down
+ * ```
+ *
+ * Denies when either side is not a `SecurityLabel`. That is resolved data
+ * behaving as resolved data always has — `gte(3)` on `undefined` is false too —
+ * and not the missing-caller-argument case that `MissingAction` covers.
+ */
+export const dominates = (ref: ValueRef): Matcher => ({ _tag: "Dominates", ref });
 /** Attribute is one of the listed values. */
 export const inArray = (values: ReadonlyArray<unknown>): Matcher => ({ _tag: "In", values });
 /** Attribute is present and not null. */
@@ -156,12 +197,14 @@ const containsValue = (value: unknown, needle: unknown): boolean => {
   return false;
 };
 
-/** The subject and resource a matcher may reference. */
+/** The subject, resource and action a matcher may reference. */
 export interface MatcherContext {
   /** The subject's attributes. Its identity is `subjectId`, kept separate. */
   readonly subject: Readonly<Record<string, unknown>>;
   readonly subjectId: string;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
+  /** What the caller is doing. `undefined` when none was supplied. */
+  readonly action: string | undefined;
 }
 
 const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
@@ -172,10 +215,64 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
       return context.subjectId;
     case "ResourceRef":
       return getByPath(context.resource, ref.path);
+    case "ActionRef":
+      return context.action;
     case "LiteralRef":
       return ref.value;
   }
 };
+
+/**
+ * True when a matcher reads the action anywhere within it.
+ *
+ * The evaluator asks this *before* running the matcher. `evaluateMatcher` is
+ * total — it cannot fail — so an absent action would otherwise resolve to
+ * `undefined`, match nothing, and be reported as a denial. A caller who forgot
+ * to pass the action would then read that as "not authorized" rather than as
+ * the wiring error it is (INV-QD-011).
+ */
+export const referencesAction: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    Eq: (m) => m.ref._tag === "ActionRef",
+    Neq: (m) => m.ref._tag === "ActionRef",
+    Dominates: (m) => m.ref._tag === "ActionRef",
+    FieldMatch: (m) => referencesAction(m.matcher),
+    SomeMatch: (m) => referencesAction(m.matcher),
+    EveryMatch: (m) => referencesAction(m.matcher),
+    Size: (m) => referencesAction(m.matcher),
+    In: () => false,
+    Exists: () => false,
+    Gte: () => false,
+    Lt: () => false,
+    Contains: () => false,
+  }),
+);
+
+/**
+ * True when a matcher reads the resource anywhere within it.
+ *
+ * Asked by the predicate translator rather than the evaluator, and for the
+ * mirror-image reason. A matcher that reads the resource compares against a
+ * *column*, and a translator that folded it against the absent resource would
+ * emit a filter built from `undefined` — a silent widening or narrowing with no
+ * error to announce it (ADR-QD-024).
+ */
+export const referencesResource: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    Eq: (m) => m.ref._tag === "ResourceRef",
+    Neq: (m) => m.ref._tag === "ResourceRef",
+    Dominates: (m) => m.ref._tag === "ResourceRef",
+    FieldMatch: (m) => referencesResource(m.matcher),
+    SomeMatch: (m) => referencesResource(m.matcher),
+    EveryMatch: (m) => referencesResource(m.matcher),
+    Size: (m) => referencesResource(m.matcher),
+    In: () => false,
+    Exists: () => false,
+    Gte: () => false,
+    Lt: () => false,
+    Contains: () => false,
+  }),
+);
 
 /**
  * Evaluates a matcher against a value.
@@ -193,6 +290,15 @@ export const evaluateMatcher = (
       return value === resolveRef(self.ref, context);
     case "Neq":
       return value !== resolveRef(self.ref, context);
+    case "Dominates": {
+      // Incomparable labels deny, which is what a dominance test means. The
+      // four-valued `compareLabels` exists for explaining that; a matcher only
+      // answers "did this match".
+      const other = resolveRef(self.ref, context);
+      return (
+        isSecurityLabel(value) && isSecurityLabel(other) && labelDominates(value, other)
+      );
+    }
     case "In":
       return self.values.includes(value);
     case "Exists":

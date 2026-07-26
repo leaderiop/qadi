@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as FastCheck from "effect/testing/FastCheck";
 import * as M from "../src/Matcher.ts";
+import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 
@@ -44,6 +45,44 @@ describe("Policy combinators", () => {
   it("not wraps a policy", () => {
     const policy = P.not(P.hasRole("suspended"));
     assert.strictEqual(policy._tag, "Not");
+  });
+
+  it("hasAction carries the verb and fields", () => {
+    const policy = P.hasAction("write", { fields: ["body"] });
+    if (policy._tag !== "HasAction") return;
+    assert.strictEqual(policy.action, "write");
+    assert.deepStrictEqual(policy.fields, ["body"]);
+  });
+
+  it("obliged wraps a policy with a duty", () => {
+    const policy = P.obliged(obligation("log-access", { level: "audit" }), P.hasRole("a"));
+    assert.strictEqual(policy._tag, "Obliged");
+    if (policy._tag !== "Obliged") return;
+    assert.strictEqual(policy.obligation.id, "log-access");
+    assert.deepStrictEqual(policy.obligation.attributes, { level: "audit" });
+    assert.isFalse(policy.obligation.advisory);
+  });
+
+  it("an obligation defaults to binding with no attributes", () => {
+    // The safe default: a duty binds unless its author says it may be ignored.
+    const o = obligation("notify");
+    assert.deepStrictEqual(o, { id: "notify", attributes: {}, advisory: false });
+    assert.isTrue(obligation("hint", {}, { advisory: true }).advisory);
+  });
+
+  it("history policies default to Resource scope", () => {
+    const acted = P.hasActed("raised");
+    const notActed = P.hasNotActed("raised", { scope: "Any" });
+    if (acted._tag !== "HasActed" || notActed._tag !== "HasNotActed") return;
+    assert.strictEqual(acted.scope, "Resource");
+    assert.strictEqual(notActed.scope, "Any");
+  });
+
+  it("hasNotActed is a distinct variant, not a Not wrapper", () => {
+    // If this ever becomes `not(hasActed(...))`, an unwired history port starts
+    // granting — ADR-QD-020. The schema is what holds the distinction.
+    assert.strictEqual(P.hasNotActed("raised")._tag, "HasNotActed");
+    assert.notStrictEqual(P.hasNotActed("raised")._tag, "Not");
   });
 
   it("hasRelationship carries depth and fields", () => {
@@ -90,6 +129,10 @@ describe("Policy serialization", () => {
                 P.hasAttribute("level", M.gte(3), { fields: ["a", "b"] }),
                 P.hasResourceAttribute("state", M.eq(M.literal("open"))),
                 P.hasRelationship("owner", { depth: 2 }),
+                P.hasAction("write", { fields: ["body"] }),
+                P.obliged(obligation("log", { who: "x" }), P.hasRole("auditor")),
+                P.hasActed("raised", { scope: "Any" }),
+                P.hasNotActed("approved", { fields: ["id"] }),
               ]),
             ),
           ),
@@ -108,6 +151,8 @@ describe("Policy serialization", () => {
         M.eq(M.subject("dept")),
         M.eq(M.subjectId()),
         M.eq(M.resource("owner")),
+        M.eq(M.action()),
+        M.dominates(M.subject("clearance")),
         M.neq(M.literal("x")),
         M.inArray([1, 2, 3]),
         M.exists(),
@@ -172,6 +217,27 @@ describe("Policy serialization", () => {
         ),
         FastCheck.string().map((s) => P.hasRole(s)),
         FastCheck.integer().map((n) => P.hasAttribute("lvl", M.gte(n))),
+        FastCheck.string().map((s) => P.hasAction(s)),
+        // A matcher carrying an ActionRef: the variant lives in ValueRef rather
+        // than in Policy, so a leaf that never nests one would leave it out of
+        // the round-trip property entirely.
+        FastCheck.constant(P.hasAttribute("op", M.eq(M.action()))),
+        FastCheck.string().map((path) =>
+          P.hasAttribute("clearance", M.dominates(M.resource(path))),
+        ),
+        // `Obligation` is a struct with a `Record(String, Unknown)` inside it,
+        // so the generator has to reach nested arbitrary JSON for the property
+        // to say anything about the obligation codec.
+        FastCheck.tuple(FastCheck.string(), FastCheck.boolean()).map(([id, advisory]) =>
+          P.obliged(obligation(id, { n: 1, deep: { s: "x" } }, { advisory }), P.hasRole(id)),
+        ),
+        FastCheck.tuple(
+          FastCheck.string(),
+          FastCheck.constantFrom("Resource" as const, "Any" as const),
+          FastCheck.boolean(),
+        ).map(([event, scope, negated]) =>
+          negated ? P.hasNotActed(event, { scope }) : P.hasActed(event, { scope }),
+        ),
       );
 
       const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
@@ -192,11 +258,30 @@ describe("Policy serialization", () => {
             }),
             FastCheck.constantFrom("Intersection" as const, "Union" as const, "First" as const),
           ).map(([ps, strategy]) => P.anyOf(ps, { fieldStrategy: strategy })),
+          // A rule's condition is a full policy tree, and `Rule` is the only
+          // untagged struct in the codec — INV-QD-003 is what makes this branch
+          // mandatory in the same change that added the variant.
+          FastCheck.tuple(
+            FastCheck.array(
+              FastCheck.tuple(
+                tie("node") as FastCheck.Arbitrary<P.Policy>,
+                FastCheck.boolean(),
+              ).map(([condition, permits]) =>
+                permits ? P.permitWhen(condition) : P.denyWhen(condition),
+              ),
+              { minLength: 1, maxLength: 3 },
+            ),
+            FastCheck.constantFrom(
+              "FirstApplicable" as const,
+              "DenyOverrides" as const,
+              "PermitOverrides" as const,
+            ),
+          ).map(([rs, combining]) => P.rules(rs, { combining })),
           (tie("node") as FastCheck.Arbitrary<P.Policy>).map(P.not),
         ),
       })).node;
 
-      const samples = FastCheck.sample(tree, 60);
+      const samples = FastCheck.sample(tree, { numRuns: 60, seed: 1002 });
       for (const policy of samples) {
         const restored = yield* Effect.flatMap(P.toJson(policy), P.fromJson);
         assert.deepStrictEqual(restored, policy);

@@ -1,5 +1,5 @@
 /**
- * Guard state as Effect atoms.
+ * Qadi state as Effect atoms.
  *
  * An authorization decision is asynchronous, shared between components, and
  * invalidated by events outside React — a login, a role change, a revoked
@@ -7,7 +7,7 @@
  * models one, so this package is a binding over it rather than a bespoke cache.
  *
  * The atoms defined here have no React dependency at all. React enters only in
- * `GuardProvider.tsx`, which subscribes to them. That split is deliberate: it
+ * `QadiProvider.tsx`, which subscribes to them. That split is deliberate: it
  * keeps the caching and lifetime rules testable without rendering anything, and
  * it is what makes one shared evaluation per policy possible — the predecessor
  * re-ran the whole evaluation in every component that asked the same question.
@@ -20,8 +20,8 @@ import type {
   EvaluationServices,
   Policy,
   Resource,
-} from "@guard/core";
-import { currentSubjectLayer, evaluate } from "@guard/core";
+} from "@qadi/core";
+import { currentSubjectLayer, evaluate } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
@@ -30,16 +30,16 @@ import type * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import * as Reactivity from "effect/unstable/reactivity/Reactivity";
 
 /**
- * The services a Guard runtime layer supplies.
+ * The services a Qadi runtime layer supplies.
  *
  * `CurrentSubject` is excluded on purpose. It changes per user, so it is
- * provided per evaluation from {@link GuardAtoms.subject} rather than baked
+ * provided per evaluation from {@link QadiAtoms.subject} rather than baked
  * into the runtime — a login must not rebuild the attribute resolver.
  */
-export type GuardRuntimeServices = Exclude<EvaluationServices, CurrentSubject>;
+export type QadiRuntimeServices = Exclude<EvaluationServices, CurrentSubject>;
 
 /**
- * The layer a Guard runtime is built from.
+ * The layer a Qadi runtime is built from.
  *
  * Construction must not fail. A resolver that cannot be built is a wiring
  * defect, and turning it into an error on every subsequent decision would
@@ -47,8 +47,8 @@ export type GuardRuntimeServices = Exclude<EvaluationServices, CurrentSubject>;
  * process. Callers with a fallible layer resolve it at startup, or use
  * `Layer.orDie`.
  */
-export type GuardLayer = Layer.Layer<
-  GuardRuntimeServices,
+export type QadiLayer = Layer.Layer<
+  QadiRuntimeServices,
   never,
   AtomRegistry.AtomRegistry | Reactivity.Reactivity
 >;
@@ -77,11 +77,11 @@ export const currentDecision = (result: DecisionResult): Decision | undefined =>
   AsyncResult.isSuccess(result) && !result.waiting ? result.value : undefined;
 
 /** The reactivity key every decision atom is registered under. */
-const DECISIONS_KEY = "guard/decisions";
+const DECISIONS_KEY = "qadi/decisions";
 
-export interface GuardAtoms {
+export interface QadiAtoms {
   /** The runtime the decision atoms evaluate in. */
-  readonly runtime: Atom.AtomRuntime<GuardRuntimeServices>;
+  readonly runtime: Atom.AtomRuntime<QadiRuntimeServices>;
   /** The subject under authorization. `undefined` means "not known yet". */
   readonly subject: Atom.Writable<AuthSubject | undefined>;
   /** The decision for a policy, with no resource in scope. */
@@ -99,7 +99,7 @@ export interface GuardAtoms {
  * several tenants in one process calls it once per tenant; the atoms are
  * distinct objects, so their decisions cannot be confused for one another.
  */
-export const makeGuardAtoms = (layer: GuardLayer): GuardAtoms => {
+export const makeQadiAtoms = (layer: QadiLayer): QadiAtoms => {
   const runtime = Atom.runtime(layer);
   const subject = Atom.make<AuthSubject | undefined>(undefined);
 
@@ -108,7 +108,7 @@ export const makeGuardAtoms = (layer: GuardLayer): GuardAtoms => {
     resource: Resource | undefined,
   ): Atom.Atom<DecisionResult> =>
     runtime
-      .atom((get): Effect.Effect<Decision, EvaluationError, GuardRuntimeServices> => {
+      .atom((get): Effect.Effect<Decision, EvaluationError, QadiRuntimeServices> => {
         const current = get(subject);
         // No subject yet is not a denial — it is an unanswerable question. An
         // effect that never settles leaves the atom `Initial`, which is exactly
@@ -122,8 +122,14 @@ export const makeGuardAtoms = (layer: GuardLayer): GuardAtoms => {
       .pipe(runtime.factory.withReactivity([DECISIONS_KEY]));
 
   // `Atom.family` memoises on the argument, so every component asking the same
-  // question shares one evaluation. Policies are compared by reference: build
-  // them as module-level constants.
+  // question shares one evaluation. It keys **structurally** — the family holds
+  // a `MutableHashMap`, which compares with `Equal.equals` — so two separately
+  // constructed but equal policies share one atom, and sharing survives a policy
+  // built inline in render. Hoisting to module scope is still worth doing, but
+  // for hashing cost rather than for correctness: the hash is cached per object,
+  // so a fresh object each render re-walks the whole policy tree.
+  // `v4-reactivity-smoke.test.ts` pins this; a bump to reference keying would
+  // silently stop inline policies sharing.
   const decision = Atom.family((policy: Policy) => decisionAtom(policy, undefined));
 
   const decisionByResource = Atom.family((policy: Policy) =>

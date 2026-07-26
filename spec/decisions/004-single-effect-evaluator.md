@@ -1,4 +1,4 @@
-# ADR-EG-004: One `Effect`-returning evaluator
+# ADR-QD-004: One `Effect`-returning evaluator
 
 > **Status:** Accepted
 > **Date:** 2026-07-25
@@ -37,7 +37,7 @@ service is a first-class implementation rather than an unreachable branch.
 **Negative**:
 
 - Callers who want a boolean must run an Effect; there is no pure synchronous
-  entry point, which costs React a little ceremony (see ADR-EG-014).
+  entry point, which costs React a little ceremony (see ADR-QD-014).
 
 **Trade-off accepted**: a synchronous fast path for RBAC-only policies would
 reintroduce exactly the fork that produced the dead `checkAsync` API. One path

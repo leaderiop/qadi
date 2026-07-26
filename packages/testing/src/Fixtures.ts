@@ -4,9 +4,9 @@
  * Deliberately small and boring: fixtures exist so a test can say what it is
  * about, not to model a realistic domain.
  */
-import { fromRoles, makeSubject, permission, role } from "@guard/core";
-import type { AuthSubject, Permission, Policy, Role } from "@guard/core";
-import { allOf, anyOf, hasPermission, hasRole } from "@guard/core";
+import { fromRoles, makeSubject, permission, role } from "@qadi/core";
+import type { AuthSubject, Permission, Policy, Role } from "@qadi/core";
+import { allOf, anyOf, hasPermission, hasRole } from "@qadi/core";
 
 export const permissions = {
   readDoc: permission("doc", "read"),

@@ -1,4 +1,4 @@
-@roles @REQ-EG-003
+@roles @REQ-QD-003
 Feature: Role-based access control
 
   Scenario: A subject holding the role is granted access

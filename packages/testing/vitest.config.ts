@@ -5,7 +5,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // Resolve workspace packages to source, matching tsconfig `paths`.
-      "@guard/core": fileURLToPath(new URL("../core/src/index.ts", import.meta.url)),
+      "@qadi/core": fileURLToPath(new URL("../core/src/index.ts", import.meta.url)),
     },
   },
   test: {

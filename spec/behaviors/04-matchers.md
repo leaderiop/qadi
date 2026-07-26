@@ -4,19 +4,19 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-BEH-04                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Document ID    | QADI-BEH-04                                    |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
-## BEH-EG-025: Matchers are data
+## BEH-QD-025: Matchers are data
 
-> **See:** [ADR-EG-002](../decisions/002-schema-derived-policy-adt.md)
+> **See:** [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)
 
 Matchers contain no closures, so they serialize with the policy that holds them.
 Like `Policy`, the union is schema-defined and the type is derived from it.
@@ -25,6 +25,7 @@ Like `Policy`, the union is schema-defined and the type is derived from it.
 export type Matcher =
   | { readonly _tag: "Eq"; readonly ref: ValueRef }
   | { readonly _tag: "Neq"; readonly ref: ValueRef }
+  | { readonly _tag: "Dominates"; readonly ref: ValueRef }
   | { readonly _tag: "In"; readonly values: ReadonlyArray<unknown> }
   | { readonly _tag: "Exists" }
   | { readonly _tag: "Gte"; readonly value: number }
@@ -36,18 +37,19 @@ export type Matcher =
   | { readonly _tag: "Size"; readonly matcher: Matcher };
 ```
 
-## BEH-EG-026: Value references
+## BEH-QD-026: Value references
 
 ```ts
 export const subject: (path: string) => ValueRef;   // subject attributes
 export const subjectId: () => ValueRef;             // the subject's own id
 export const resource: (path: string) => ValueRef;  // resource fields
+export const action: () => ValueRef;                // the request's verb
 export const literal: (value: unknown) => ValueRef; // a constant
 ```
 
 A comparison may target a constant, an attribute of the subject, the subject's
-identifier, or a field of the resource. Together these express relational rules
-such as "the document's owner is me":
+identifier, a field of the resource, or the action being performed. Together
+these express relational rules such as "the document's owner is me":
 
 ```ts
 hasResourceAttribute("owner", eq(subjectId()))
@@ -73,7 +75,7 @@ REQUIREMENT: Paths MUST be dot-separated and MUST yield `undefined` at any
              legitimate answer rather than a policy defect.
 ```
 
-## BEH-EG-027: Constructors and semantics
+## BEH-QD-027: Constructors and semantics
 
 ```ts
 export const eq: (ref: ValueRef) => Matcher;
@@ -106,7 +108,7 @@ REQUIREMENT: `contains` MUST apply to arrays and strings only.
              Any other input type MUST yield false, never an error.
 ```
 
-## BEH-EG-028: Evaluation is pure
+## BEH-QD-028: Evaluation is pure
 
 ```ts
 export const evaluateMatcher: (
@@ -120,7 +122,11 @@ export interface MatcherContext {
   readonly subject: Readonly<Record<string, unknown>>;
   readonly subjectId: string;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
+  /** What the caller is doing. `undefined` when none was supplied. */
+  readonly action: string | undefined;
 }
+
+export const referencesAction: (self: Matcher) => boolean;
 ```
 
 ```
@@ -128,6 +134,11 @@ REQUIREMENT: Matcher evaluation MUST be synchronous and total. Attribute
              *resolution* may perform I/O, but it completes before a matcher
              runs, so matchers need no Effect.
 ```
+
+Totality has a consequence the evaluator has to absorb. A matcher cannot report
+that it lacked an input, so anything a matcher *needs* must be checked before it
+runs. `referencesAction` is that check for the action; see
+[INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one).
 
 ---
 

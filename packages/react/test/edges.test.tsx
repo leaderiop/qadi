@@ -7,13 +7,14 @@ import {
   AttributeResolver,
   AttributeResolverNone,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
   RelationshipResolverNever,
   gte,
   hasAttribute,
   hasPermission,
   makeSubject,
   permission,
-} from "@guard/core";
+} from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Component, StrictMode, Suspense, type ReactNode } from "react";
@@ -22,8 +23,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import {
   Can,
   Cannot,
-  GuardProvider,
-  makeGuardAtoms,
+  QadiProvider,
+  makeQadiAtoms,
   useDecisionSuspense,
   useSubject,
 } from "../src/index.ts";
@@ -32,17 +33,23 @@ const needsClearance = hasAttribute("clearance", gte(1));
 const canRead = hasPermission(permission("doc", "read"));
 const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
 
-const working = makeGuardAtoms(
-  Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+const working = makeQadiAtoms(
+  Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+  ),
 );
 
-const broken = makeGuardAtoms(
+const broken = makeQadiAtoms(
   Layer.mergeAll(
     Layer.succeed(AttributeResolver, {
       resolve: (_id: string, attribute: string) =>
         Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
     }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   ),
 );
@@ -64,11 +71,11 @@ afterEach(() => {
 describe("failure rendering", () => {
   it("Can renders the failure node when one is given", async () => {
     render(
-      <GuardProvider atoms={broken} subject={reader}>
+      <QadiProvider atoms={broken} subject={reader}>
         <Can policy={needsClearance} fallback={<span>denied</span>} failure={<span>broken</span>}>
           allowed
         </Can>
-      </GuardProvider>,
+      </QadiProvider>,
     );
     // An outage and a denial are different facts, and an operator needs to be
     // able to tell which one hid the control.
@@ -77,11 +84,11 @@ describe("failure rendering", () => {
 
   it("Can falls back to the denial node when no failure node is given", async () => {
     render(
-      <GuardProvider atoms={broken} subject={reader}>
+      <QadiProvider atoms={broken} subject={reader}>
         <Can policy={needsClearance} fallback={<span>denied</span>}>
           allowed
         </Can>
-      </GuardProvider>,
+      </QadiProvider>,
     );
     // Lossy but closed: without somewhere to put the error, hiding is safer
     // than showing.
@@ -90,9 +97,9 @@ describe("failure rendering", () => {
 
   it("Cannot renders nothing on failure rather than the denial notice", async () => {
     render(
-      <GuardProvider atoms={broken} subject={reader}>
+      <QadiProvider atoms={broken} subject={reader}>
         <Cannot policy={needsClearance}>you may not edit this</Cannot>
-      </GuardProvider>,
+      </QadiProvider>,
     );
     // "We could not determine whether you may edit this" is not grounds for
     // telling the user they may not.
@@ -103,23 +110,24 @@ describe("failure rendering", () => {
 
   it("Cannot renders its pending node while the subject is loading", () => {
     render(
-      <GuardProvider atoms={working} subject={undefined}>
+      <QadiProvider atoms={working} subject={undefined}>
         <Cannot policy={canRead} pending={<span>wait</span>}>
           denied
         </Cannot>
-      </GuardProvider>,
+      </QadiProvider>,
     );
     expect(screen.getByText("wait")).toBeDefined();
   });
 });
 
 /** A resolver that answers on a later tick, so a decision is genuinely async. */
-const slow = makeGuardAtoms(
+const slow = makeQadiAtoms(
   Layer.mergeAll(
     Layer.succeed(AttributeResolver, {
       resolve: () => Effect.delay(Effect.succeed(0), "1 millis"),
     }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   ),
 );
@@ -128,11 +136,11 @@ describe("useDecisionSuspense", () => {
   it("shows the Suspense fallback before the decision settles", async () => {
     const Probe = () => <span>{`decided:${useDecisionSuspense(needsClearance)._tag}`}</span>;
     render(
-      <GuardProvider atoms={slow} subject={reader}>
+      <QadiProvider atoms={slow} subject={reader}>
         <Suspense fallback={<span>suspended</span>}>
           <Probe />
         </Suspense>
-      </GuardProvider>,
+      </QadiProvider>,
     );
     expect(screen.getByText("suspended")).toBeDefined();
     await waitFor(() => expect(screen.getByText("decided:Deny")).toBeDefined());
@@ -141,13 +149,13 @@ describe("useDecisionSuspense", () => {
   it("throws a failure to the error boundary rather than hiding it", async () => {
     const Probe = () => <span>{useDecisionSuspense(needsClearance)._tag}</span>;
     render(
-      <GuardProvider atoms={broken} subject={reader}>
+      <QadiProvider atoms={broken} subject={reader}>
         <Boundary>
           <Suspense fallback={<span>suspended</span>}>
             <Probe />
           </Suspense>
         </Boundary>
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("boundary")).toBeDefined());
   });
@@ -158,9 +166,9 @@ describe("provider lifetime", () => {
     const Probe = () => <span>{useSubject()?.id ?? "none"}</span>;
     render(
       <StrictMode>
-        <GuardProvider atoms={working} subject={reader}>
+        <QadiProvider atoms={working} subject={reader}>
           <Probe />
-        </GuardProvider>
+        </QadiProvider>
       </StrictMode>,
     );
     // Development-mode remounting must not dispose the live registry: every
@@ -171,9 +179,9 @@ describe("provider lifetime", () => {
   it("disposes its registry when unmounted", async () => {
     const Probe = () => <span>{useSubject()?.id ?? "none"}</span>;
     const { unmount } = render(
-      <GuardProvider atoms={working} subject={reader}>
+      <QadiProvider atoms={working} subject={reader}>
         <Probe />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("u1")).toBeDefined());
     unmount();

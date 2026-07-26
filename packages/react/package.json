@@ -1,9 +1,9 @@
 {
-  "name": "@guard/react",
+  "name": "@qadi/react",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
-  "description": "React integration for @guard/core — GuardProvider, hooks, Can/Cannot",
+  "description": "React integration for @qadi/core — QadiProvider, hooks, Can/Cannot",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -22,7 +22,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@guard/core": "workspace:*",
+    "@qadi/core": "workspace:*",
     "effect": "catalog:"
   },
   "peerDependencies": {

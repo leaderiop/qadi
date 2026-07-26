@@ -1,4 +1,4 @@
-# ADR-EG-017: A decision being re-checked is not a decision
+# ADR-QD-017: A decision being re-checked is not a decision
 
 > **Status:** Accepted
 > **Date:** 2026-07-26
@@ -25,7 +25,7 @@ no longer applies. A test caught this: after the subject was set back to
 
 ## Decision
 
-Every consumer in `@guard/react` treats a `waiting` result as *not decided*.
+Every consumer in `@qadi/react` treats a `waiting` result as *not decided*.
 `currentDecision` is the single place that rule lives:
 
 ```ts
@@ -63,6 +63,6 @@ invisible and is a grant nobody authorised. Where the flash matters — a contro
 that would jump on every refresh — `useDecision` gives the caller the raw
 result and the choice.
 
-**Related**: [INV-EG-007](../invariants.md#inv-eg-007-defaults-fail-closed)
+**Related**: [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed)
 makes the same argument about absent configuration. This is the same principle
 applied to absent *currency*: not knowing yet is never a grant.

@@ -1,4 +1,4 @@
-# ADR-EG-012: Time and identifiers come from services
+# ADR-QD-012: Time and identifiers come from services
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

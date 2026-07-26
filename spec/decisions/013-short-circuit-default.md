@@ -1,4 +1,4 @@
-# ADR-EG-013: Sequential short-circuit by default
+# ADR-QD-013: Sequential short-circuit by default
 
 > **Status:** Accepted
 > **Date:** 2026-07-25
@@ -18,9 +18,17 @@ The one exception is `fieldStrategy: "Union"` on an `anyOf`, which must see
 every child in order to merge their field sets. This is a semantic requirement
 of the strategy, not a performance choice, and is documented as such.
 
-There is currently **no** opt-out. Parallel evaluation is
-[planned](../roadmap.md#concurrent-evaluation) but unimplemented; until it is
-designed properly, this document does not pretend it exists.
+There is **an opt-out**, and it is opt-in:
+`EvaluateOptions.concurrency` ([ADR-QD-026](./026-concurrent-evaluation.md)).
+
+*Restated in CCR-QD-029.* This paragraph read "there is currently **no** opt-out.
+Parallel evaluation is planned but unimplemented; until it is designed properly,
+this document does not pretend it exists." It exists now, and the shape matters
+here more than elsewhere: supplying it changes which lookups happen and nothing
+else. The decision and the whole trace are identical either way, so this
+document's subject — that short-circuiting is the default — is unchanged, and
+[INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation) is scoped to
+the default rather than repealed.
 
 **`anyOf` honours an explicit `Intersection`** rather than silently downgrading
 it to `First`. The predecessor special-cased only `"union"` and treated every

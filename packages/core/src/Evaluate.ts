@@ -10,18 +10,31 @@
  */
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import type { Concurrency } from "effect/Types";
 import { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
+import type { ActedResult } from "./DecisionHistory.ts";
+import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
+import type { DecisionCacheKey } from "./DecisionCache.ts";
+import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
-import { MissingResource, MissingResourceId, PolicyTooDeep } from "./Errors.ts";
+import {
+  MissingAction,
+  MissingResource,
+  MissingResourceId,
+  PolicyTooDeep,
+} from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
 import type { MatcherContext } from "./Matcher.ts";
-import { evaluateMatcher } from "./Matcher.ts";
+import { evaluateMatcher, referencesAction } from "./Matcher.ts";
+import type { Obligation } from "./Obligation.ts";
+import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
-import type { FieldStrategy, Policy } from "./Policy.ts";
+import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 
 /** Arbitrary resource attributes a policy may inspect. */
@@ -31,10 +44,50 @@ export interface EvaluateOptions {
   /** The resource under consideration, if any. */
   readonly resource?: Resource;
   /**
+   * What the caller is doing — `"read"`, `"write"`, an OrBAC activity name.
+   *
+   * A property of the request, never a grant the subject holds (ADR-QD-018).
+   */
+  readonly action?: string;
+  /**
    * Maximum policy tree depth. Bounds recursion on hostile decoded input.
    * Defaults to 64.
    */
   readonly maxDepth?: number;
+  /**
+   * Evaluate the children of `allOf`, `anyOf` and `rules` concurrently.
+   *
+   * Absent — the default — evaluation is sequential and short-circuits, so a
+   * branch that is never reached performs no lookup
+   * ([INV-QD-005](../../../spec/invariants.md#inv-qd-005-short-circuit-preservation)).
+   * Supplying this **forfeits that** in exchange for latency: every child of a
+   * composite is evaluated, so a caller pays for speculative attribute and
+   * relationship lookups against their own store.
+   *
+   * What it does *not* change is the answer. The decision and its trace are
+   * identical either way, because both paths drive the same fold over children in
+   * declaration order — including discarding the trace of a child evaluated after
+   * the decisive one ([ADR-QD-026](../../../spec/decisions/026-concurrent-evaluation.md)).
+   */
+  readonly concurrency?: Concurrency;
+}
+
+/**
+ * Everything a recursive call passes through unchanged: the inputs a policy may
+ * read, plus the settings that govern how the walk is performed.
+ *
+ * Bundled rather than threaded as separate parameters, and `concurrency` is the
+ * clearest case for it. `Concurrency` is `number | "unbounded" | "inherit"`, so a
+ * positional slip between it, `depth` and `maxDepth` would **typecheck** — which
+ * is exactly the shape of bug this bundle exists to make impossible.
+ *
+ * `concurrency` is deliberately here and not in `MatcherContext`: it is a
+ * property of the evaluation, never a value a matcher can compare against.
+ */
+interface Evaluation {
+  readonly resource: Resource | undefined;
+  readonly action: string | undefined;
+  readonly concurrency: Concurrency | undefined;
 }
 
 const DEFAULT_MAX_DEPTH = 64;
@@ -44,13 +97,17 @@ export type EvaluationServices =
   | CurrentSubject
   | AttributeResolver
   | RelationshipResolver
+  | DecisionHistory
   | EvaluationId;
+
+const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
 
 const allow = (
   policyTag: Policy["_tag"],
   fields: ReadonlyArray<string> | undefined,
   children: ReadonlyArray<Trace> = [],
   label?: string,
+  obligations: ReadonlyArray<Obligation> = NO_OBLIGATIONS,
 ): Trace => ({
   policyTag,
   label,
@@ -58,6 +115,7 @@ const allow = (
   reason: undefined,
   children,
   visibleFields: fields,
+  obligations,
 });
 
 const deny = (
@@ -72,6 +130,8 @@ const deny = (
   reason,
   children,
   visibleFields: undefined,
+  // A denial permits nothing, so it conditions nothing.
+  obligations: NO_OBLIGATIONS,
 });
 
 /**
@@ -116,20 +176,23 @@ const mergeFields = (
 const evaluateNode = (
   policy: Policy,
   subject: AuthSubject,
-  resource: Resource | undefined,
+  request: Evaluation,
   depth: number,
   maxDepth: number,
 ): Effect.Effect<
   Trace,
   EvaluationError,
-  AttributeResolver | RelationshipResolver
+  AttributeResolver | RelationshipResolver | DecisionHistory
 > => {
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
+
+  const { action, resource } = request;
 
   const matcherContext: MatcherContext = {
     subject: subject.attributes,
     subjectId: subject.id,
     resource,
+    action,
   };
 
   switch (policy._tag) {
@@ -150,6 +213,9 @@ const evaluateNode = (
       );
 
     case "HasAttribute":
+      if (action === undefined && referencesAction(policy.matcher)) {
+        return Effect.fail(new MissingAction({ expected: undefined }));
+      }
       return Effect.map(readAttribute(subject, policy.attribute), (value) =>
         evaluateMatcher(policy.matcher, value, matcherContext)
           ? allow("HasAttribute", policy.fields)
@@ -159,6 +225,9 @@ const evaluateNode = (
     case "HasResourceAttribute": {
       if (resource === undefined) {
         return Effect.fail(new MissingResource({ attribute: policy.attribute }));
+      }
+      if (action === undefined && referencesAction(policy.matcher)) {
+        return Effect.fail(new MissingAction({ expected: undefined }));
       }
       const value = resource[policy.attribute];
       return Effect.succeed(
@@ -193,26 +262,89 @@ const evaluateNode = (
       );
     }
 
+    case "HasAction": {
+      // Absent input is a caller error, not a decision — the `MissingResource`
+      // precedent, and the reason `referencesAction` is checked above.
+      if (action === undefined) {
+        return Effect.fail(new MissingAction({ expected: policy.action }));
+      }
+      return Effect.succeed(
+        action === policy.action
+          ? allow("HasAction", policy.fields)
+          : deny("HasAction", `action is '${action}', not '${policy.action}'`),
+      );
+    }
+
+    case "HasActed":
+    case "HasNotActed": {
+      const scoped = policy.scope === "Resource";
+      const rawId = resource?.["id"];
+      if (scoped && typeof rawId !== "string") {
+        return Effect.fail(new MissingResourceId({ relation: policy.event }));
+      }
+      const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
+      return Effect.map(
+        DecisionHistory.hasActed({
+          subjectId: subject.id,
+          event: policy.event,
+          resourceId: scoped && typeof rawId === "string" ? rawId : undefined,
+        }),
+        (answer) =>
+          // `"Unknown"` matches neither, so both polarities deny under an
+          // unwired port. That is the whole reason the port is three-valued
+          // rather than boolean (ADR-QD-020).
+          answer === wanted
+            ? allow(policy._tag, policy.fields)
+            : deny(
+                policy._tag,
+                answer === "Unknown"
+                  ? `no history is available for '${policy.event}'`
+                  : `subject '${subject.id}' ${answer === "Acted" ? "has already" : "has not"} performed '${policy.event}'`,
+              ),
+      );
+    }
+
     case "AllOf":
-      return evaluateAllOf(policy, subject, resource, depth, maxDepth);
+      return evaluateAllOf(policy, subject, request, depth, maxDepth);
 
     case "AnyOf":
-      return evaluateAnyOf(policy, subject, resource, depth, maxDepth);
+      return evaluateAnyOf(policy, subject, request, depth, maxDepth);
+
+    case "Rules":
+      return evaluateRules(policy, subject, request, depth, maxDepth);
 
     case "Not":
       return Effect.map(
-        evaluateNode(policy.policy, subject, resource, depth + 1, maxDepth),
+        evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
         (child) =>
           child.allowed
             ? deny("Not", "negated policy allowed", [child])
             : // Negation carries no field visibility of its own: knowing a
               // policy did *not* hold says nothing about which fields are safe.
+              // It carries no obligations either, and needs no rule to say so:
+              // the child denied, so it contributed none (ADR-QD-019).
               allow("Not", undefined, [child]),
+      );
+
+    case "Obliged":
+      return Effect.map(
+        evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
+        (child) =>
+          child.allowed
+            ? // The duty attaches only to a permission that was granted.
+              allow(
+                "Obliged",
+                child.visibleFields,
+                [child],
+                undefined,
+                unionObligations([policy.obligation], child.obligations),
+              )
+            : deny("Obliged", child.reason ?? "the obliged policy denied", [child]),
       );
 
     case "Labeled":
       return Effect.map(
-        evaluateNode(policy.policy, subject, resource, depth + 1, maxDepth),
+        evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
         (child) => ({
           policyTag: "Labeled" as const,
           label: policy.label,
@@ -220,33 +352,148 @@ const evaluateNode = (
           reason: child.reason,
           children: [child],
           visibleFields: child.visibleFields,
+          obligations: child.obligations,
         }),
       );
   }
 };
 
 /** Short-circuits on the first denying child. */
-const evaluateAllOf = Effect.fn("guard.allOf")(function* (
+/**
+ * The accumulator both `AllOf` paths drive, and the reason concurrency cannot
+ * change an answer.
+ *
+ * The decision rules live in `stepAllOf`/`finishAllOf` and nowhere else. The
+ * sequential path steps one child at a time and stops evaluating the moment a
+ * step returns a verdict; the concurrent path evaluates every child and then
+ * steps over the results **in declaration order**, stopping at the same index.
+ * Same fold, same input order, same output — including the shape of
+ * `Trace.children`, which is public and is what a reviewer reads.
+ */
+interface AllOfFold {
+  readonly children: Array<Trace>;
+  readonly fieldSets: Array<ReadonlyArray<string> | undefined>;
+  obligations: ReadonlyArray<Obligation>;
+}
+
+const beginAllOf = (): AllOfFold => ({
+  children: [],
+  fieldSets: [],
+  obligations: NO_OBLIGATIONS,
+});
+
+/** Returns a verdict once one child settles the question, `undefined` while open. */
+const stepAllOf = (fold: AllOfFold, trace: Trace): Trace | undefined => {
+  fold.children.push(trace);
+  if (!trace.allowed) {
+    return deny("AllOf", trace.reason ?? "a required policy denied", fold.children);
+  }
+  fold.fieldSets.push(trace.visibleFields);
+  // Every child allowed, so every child's duties apply. Union, never
+  // intersection — dropping one a branch required would be a quiet grant.
+  fold.obligations = unionObligations(fold.obligations, trace.obligations);
+  return undefined;
+};
+
+const finishAllOf = (
+  policy: Extract<Policy, { _tag: "AllOf" }>,
+  fold: AllOfFold,
+): Trace =>
+  allow(
+    "AllOf",
+    mergeFields(policy.fieldStrategy, fold.fieldSets),
+    fold.children,
+    undefined,
+    fold.obligations,
+  );
+
+const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
   policy: Extract<Policy, { _tag: "AllOf" }>,
   subject: AuthSubject,
-  resource: Resource | undefined,
+  request: Evaluation,
   depth: number,
   maxDepth: number,
 ) {
-  const children: Array<Trace> = [];
-  const fieldSets: Array<ReadonlyArray<string> | undefined> = [];
+  const fold = beginAllOf();
 
-  for (const child of policy.policies) {
-    const trace = yield* evaluateNode(child, subject, resource, depth + 1, maxDepth);
-    children.push(trace);
-    if (!trace.allowed) {
-      return deny("AllOf", trace.reason ?? "a required policy denied", children);
+  if (request.concurrency === undefined) {
+    for (const child of policy.policies) {
+      const verdict = stepAllOf(
+        fold,
+        yield* evaluateNode(child, subject, request, depth + 1, maxDepth),
+      );
+      if (verdict !== undefined) return verdict;
     }
-    fieldSets.push(trace.visibleFields);
+  } else {
+    const traces = yield* Effect.forEach(
+      policy.policies,
+      (child) => evaluateNode(child, subject, request, depth + 1, maxDepth),
+      { concurrency: request.concurrency },
+    );
+    // Traces arrive in input order regardless of completion order, so the fold
+    // below is the sequential fold. Children after the decisive one are dropped:
+    // the work was speculative, and keeping it would make the trace depend on a
+    // performance switch (ADR-QD-026).
+    for (const trace of traces) {
+      const verdict = stepAllOf(fold, trace);
+      if (verdict !== undefined) return verdict;
+    }
   }
 
-  return allow("AllOf", mergeFields(policy.fieldStrategy, fieldSets), children);
+  return finishAllOf(policy, fold);
 });
+
+interface AnyOfFold {
+  readonly children: Array<Trace>;
+  readonly allowingFieldSets: Array<ReadonlyArray<string> | undefined>;
+  /** `First` may stop at the first allowing child; the others must see them all. */
+  readonly exhaustive: boolean;
+  obligations: ReadonlyArray<Obligation>;
+  lastReason: string | undefined;
+}
+
+const beginAnyOf = (policy: Extract<Policy, { _tag: "AnyOf" }>): AnyOfFold => ({
+  children: [],
+  allowingFieldSets: [],
+  exhaustive: policy.fieldStrategy !== "First",
+  obligations: NO_OBLIGATIONS,
+  lastReason: undefined,
+});
+
+const stepAnyOf = (fold: AnyOfFold, trace: Trace): Trace | undefined => {
+  fold.children.push(trace);
+
+  if (trace.allowed) {
+    fold.allowingFieldSets.push(trace.visibleFields);
+    fold.obligations = unionObligations(fold.obligations, trace.obligations);
+    if (!fold.exhaustive) {
+      // Under `First` the obligations are the winning branch's, so the set
+      // depends on the order the author wrote the branches in. Accepted, and
+      // stated: collecting from every branch would force exhaustive
+      // evaluation and repeal INV-QD-005 for any tree carrying a duty.
+      return allow("AnyOf", trace.visibleFields, fold.children, undefined, fold.obligations);
+    }
+  } else {
+    fold.lastReason = trace.reason;
+  }
+  return undefined;
+};
+
+const finishAnyOf = (
+  policy: Extract<Policy, { _tag: "AnyOf" }>,
+  fold: AnyOfFold,
+): Trace => {
+  if (fold.allowingFieldSets.length > 0) {
+    return allow(
+      "AnyOf",
+      mergeFields(policy.fieldStrategy, fold.allowingFieldSets),
+      fold.children,
+      undefined,
+      fold.obligations,
+    );
+  }
+  return deny("AnyOf", fold.lastReason ?? "no alternative policy allowed", fold.children);
+};
 
 /**
  * Short-circuits on the first allowing child — except under `Union`, which must
@@ -255,46 +502,154 @@ const evaluateAllOf = Effect.fn("guard.allOf")(function* (
  * `Intersection` on an `anyOf` is honoured rather than silently downgraded to
  * `First`, which is what the predecessor did.
  */
-const evaluateAnyOf = Effect.fn("guard.anyOf")(function* (
+const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
   policy: Extract<Policy, { _tag: "AnyOf" }>,
   subject: AuthSubject,
-  resource: Resource | undefined,
+  request: Evaluation,
+  depth: number,
+  maxDepth: number,
+) {
+  const fold = beginAnyOf(policy);
+
+  if (request.concurrency === undefined) {
+    for (const child of policy.policies) {
+      const verdict = stepAnyOf(
+        fold,
+        yield* evaluateNode(child, subject, request, depth + 1, maxDepth),
+      );
+      if (verdict !== undefined) return verdict;
+    }
+  } else {
+    const traces = yield* Effect.forEach(
+      policy.policies,
+      (child) => evaluateNode(child, subject, request, depth + 1, maxDepth),
+      { concurrency: request.concurrency },
+    );
+    for (const trace of traces) {
+      const verdict = stepAnyOf(fold, trace);
+      if (verdict !== undefined) return verdict;
+    }
+  }
+
+  return finishAnyOf(policy, fold);
+});
+
+/**
+ * Walks an ordered rule table.
+ *
+ * Exactly one rule decides, and the walk stops at the first rule that cannot be
+ * overridden (INV-QD-017). `FirstApplicable` stops at the first rule that
+ * applies at all; the overrides stop at the first rule carrying the effect
+ * nothing later can beat, and must otherwise ask every rule — which inverts the
+ * cost profile of the rest of the library, where allowing is the cheap outcome.
+ */
+const evaluateRules = Effect.fn("qadi.rules")(function* (
+  policy: Extract<Policy, { _tag: "Rules" }>,
+  subject: AuthSubject,
+  request: Evaluation,
   depth: number,
   maxDepth: number,
 ) {
   const children: Array<Trace> = [];
-  const allowingFieldSets: Array<ReadonlyArray<string> | undefined> = [];
-  const exhaustive = policy.fieldStrategy !== "First";
-  let lastReason: string | undefined;
 
-  for (const child of policy.policies) {
-    const trace = yield* evaluateNode(child, subject, resource, depth + 1, maxDepth);
+  /** The effect that ends the walk. `undefined` under `FirstApplicable`,
+   *  where the first rule to apply at all is already final. */
+  const decisive: RuleEffect | undefined =
+    policy.combining === "DenyOverrides"
+      ? "Deny"
+      : policy.combining === "PermitOverrides"
+        ? "Permit"
+        : undefined;
+
+  interface Applied {
+    readonly index: number;
+    readonly rule: Rule;
+    readonly trace: Trace;
+  }
+  let firstApplying: Applied | undefined;
+  let firstDecisive: Applied | undefined;
+
+  /**
+   * Folds one condition result at index `index`. Returns `true` when the walk is
+   * settled and no later rule can change the outcome.
+   *
+   * Shared by both paths so the **deciding rule** is selected identically. Under
+   * the overrides it is the first applying row of the winning effect *by index* —
+   * selecting by arrival would make two runs of the same table owe different
+   * duties, which is the constraint E3 contributed (ADR-QD-023).
+   */
+  const step = (index: number, trace: Trace): boolean => {
     children.push(trace);
+    if (!trace.allowed) return false;
 
-    if (trace.allowed) {
-      allowingFieldSets.push(trace.visibleFields);
-      if (!exhaustive) {
-        return allow("AnyOf", trace.visibleFields, children);
-      }
-    } else {
-      lastReason = trace.reason;
+    const rule = policy.rules[index]!;
+    const applied: Applied = { index, rule, trace };
+    firstApplying ??= applied;
+    if (decisive === undefined) return true;
+    if (rule.effect === decisive) {
+      firstDecisive = applied;
+      return true;
+    }
+    return false;
+  };
+
+  if (request.concurrency === undefined) {
+    for (let index = 0; index < policy.rules.length; index += 1) {
+      // The condition answers *does this rule apply*, never *is this permitted*.
+      const trace = yield* evaluateNode(
+        policy.rules[index]!.condition,
+        subject,
+        request,
+        depth + 1,
+        maxDepth,
+      );
+      if (step(index, trace)) break;
+    }
+  } else {
+    const traces = yield* Effect.forEach(
+      policy.rules,
+      (rule) => evaluateNode(rule.condition, subject, request, depth + 1, maxDepth),
+      { concurrency: request.concurrency },
+    );
+    for (let index = 0; index < traces.length; index += 1) {
+      if (step(index, traces[index]!)) break;
     }
   }
 
-  if (allowingFieldSets.length > 0) {
-    return allow("AnyOf", mergeFields(policy.fieldStrategy, allowingFieldSets), children);
+  // Under the overrides, an applying rule of the other effect decides only
+  // because nothing decisive was found — which is knowable solely by asking all.
+  const deciding = firstDecisive ?? firstApplying;
+
+  if (deciding === undefined) {
+    return deny("Rules", "no rule applied", children);
   }
 
-  return deny("AnyOf", lastReason ?? "no alternative policy allowed", children);
+  if (deciding.rule.effect === "Deny") {
+    // `Not`'s rule: a refusal permits nothing, so it carries neither fields nor
+    // obligations — whatever its own condition's trace holds (ADR-QD-023).
+    return deny("Rules", `rules[${deciding.index}] denied`, children);
+  }
+
+  return {
+    policyTag: "Rules" as const,
+    allowed: true,
+    // The only allowing node in the library that carries a reason. A rule
+    // table's first question is *which row hit*, and it is asked in both
+    // directions.
+    reason: `rules[${deciding.index}] permitted`,
+    children,
+    visibleFields: deciding.trace.visibleFields,
+    obligations: deciding.trace.obligations,
+  };
 });
 
 /**
  * Evaluates a policy against the current subject.
  *
- * Emits a `guard.evaluate` span carrying the decision, so authorization shows up
+ * Emits a `qadi.evaluate` span carrying the decision, so authorization shows up
  * in tracing without a bespoke audit port.
  */
-export const evaluate = Effect.fn("guard.evaluate")(function* (
+export const evaluate = Effect.fn("qadi.evaluate")(function* (
   policy: Policy,
   options?: EvaluateOptions,
 ) {
@@ -302,13 +657,43 @@ export const evaluate = Effect.fn("guard.evaluate")(function* (
   const evaluationId = yield* EvaluationId.next;
   const startedAt = yield* Clock.currentTimeMillis;
 
-  const trace = yield* evaluateNode(
+  // Optional by construction: `serviceOption` adds nothing to the requirements, so
+  // `EvaluationServices` is unchanged and an application that never provides a cache
+  // behaves exactly as it did (ADR-QD-031).
+  const cache = yield* Effect.serviceOption(DecisionCache);
+  const cacheKey: DecisionCacheKey = {
+    subjectId: subject.id,
     policy,
-    subject,
-    options?.resource,
-    0,
-    options?.maxDepth ?? DEFAULT_MAX_DEPTH,
-  );
+    resource: options?.resource,
+    action: options?.action,
+  };
+
+  const cached = Option.isSome(cache)
+    ? yield* cache.value.lookup(cacheKey)
+    : undefined;
+
+  // The TRACE is cached, never the `Decision`. A cached decision would carry a
+  // duplicate `evaluationId`, so two log lines would claim to be the same event and
+  // correlation — the one thing the identifier exists for — would stop working. The
+  // id and the duration below are stamped per call, hit or miss, so a hit is
+  // indistinguishable from a fresh evaluation except that it was faster.
+  const trace =
+    cached ??
+    (yield* evaluateNode(
+      policy,
+      subject,
+      {
+        resource: options?.resource,
+        action: options?.action,
+        concurrency: options?.concurrency,
+      },
+      0,
+      options?.maxDepth ?? DEFAULT_MAX_DEPTH,
+    ));
+
+  if (cached === undefined && Option.isSome(cache)) {
+    yield* cache.value.remember(cacheKey, trace);
+  }
 
   const durationMillis = (yield* Clock.currentTimeMillis) - startedAt;
 
@@ -319,6 +704,7 @@ export const evaluate = Effect.fn("guard.evaluate")(function* (
         durationMillis,
         trace,
         visibleFields: trace.visibleFields,
+        obligations: trace.obligations,
       })
     : new Deny({
         evaluationId,
@@ -329,10 +715,19 @@ export const evaluate = Effect.fn("guard.evaluate")(function* (
       });
 
   yield* Effect.annotateCurrentSpan({
-    "guard.decision": decision._tag,
-    "guard.subject_id": subject.id,
-    "guard.evaluation_id": evaluationId,
-    "guard.policy_tag": policy._tag,
+    "qadi.decision": decision._tag,
+    "qadi.subject_id": subject.id,
+    "qadi.evaluation_id": evaluationId,
+    "qadi.policy_tag": policy._tag,
+    // Only when supplied: an absent action must not become the string
+    // "undefined" in a trace viewer, and adding a key unconditionally would
+    // change every existing span.
+    ...(options?.action === undefined ? {} : { "qadi.action": options.action }),
+    // Obligations are reported, never run. Present only when there are some, so
+    // an evaluation that carries none looks exactly as it did before E2.
+    ...(decision._tag === "Allow" && decision.obligations.length > 0
+      ? { "qadi.obligations": decision.obligations.map((o) => o.id).join(",") }
+      : {}),
   });
 
   return decision;

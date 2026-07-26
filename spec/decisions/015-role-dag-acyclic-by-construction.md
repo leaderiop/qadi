@@ -1,4 +1,4 @@
-# ADR-EG-015: The role DAG is acyclic by construction
+# ADR-QD-015: The role DAG is acyclic by construction
 
 > **Status:** Accepted
 > **Date:** 2026-07-25

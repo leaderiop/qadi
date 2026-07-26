@@ -88,7 +88,7 @@ export interface RoleDefinition {
  * an error: partial role catalogues are a normal deployment state, and failing
  * closed here would deny every request rather than merely granting less.
  */
-export const resolveRoleGraph = Effect.fn("guard.resolveRoleGraph")(function* (
+export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
   definitions: ReadonlyArray<RoleDefinition>,
 ) {
   const byName = new Map(definitions.map((d) => [d.name, d]));

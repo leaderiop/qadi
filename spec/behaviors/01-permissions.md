@@ -4,20 +4,20 @@
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | GUARD-BEH-01                                   |
+> | Document ID    | QADI-BEH-01                                    |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
-> | Author         | Guard Engineering                              |
+> | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-EG-001) |
+> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
-## BEH-EG-001: Permission representation
+## BEH-QD-001: Permission representation
 
-> **Invariant:** [INV-EG-001](../invariants.md#inv-eg-001-permission-key-uniqueness)
-> **See:** [ADR-EG-007](../decisions/007-permission-token-representation.md)
+> **Invariant:** [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness)
+> **See:** [ADR-QD-007](../decisions/007-permission-token-representation.md)
 
 A permission names a `resource` and an `action`. Literal type parameters are
 preserved so that two permissions differing in either segment are structurally
@@ -48,9 +48,9 @@ const read = permission("doc", "read");
 //    ^? Permission<"doc", "read">
 ```
 
-## BEH-EG-002: The runtime lookup key
+## BEH-QD-002: The runtime lookup key
 
-> **Invariant:** [INV-EG-001](../invariants.md#inv-eg-001-permission-key-uniqueness)
+> **Invariant:** [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness)
 
 A subject carries a pre-flattened `ReadonlySet` of permission keys, so a
 permission check is a set membership test rather than a graph walk.
@@ -69,9 +69,9 @@ REQUIREMENT: `permissionKey` MUST format a permission as `resource:action`.
              silently grants the other.
 ```
 
-## BEH-EG-003: Segment validation at the trust boundary
+## BEH-QD-003: Segment validation at the trust boundary
 
-> **See:** [ADR-EG-007](../decisions/007-permission-token-representation.md)
+> **See:** [ADR-QD-007](../decisions/007-permission-token-representation.md)
 
 `permission()` is total — a literal written in source gets its guarantee from
 the type system. Validation applies where values arrive from outside:
@@ -90,9 +90,9 @@ REQUIREMENT: Decoding a permission whose resource or action is empty or
              contains `:` MUST fail. The pattern `/^[^:]+$/` enforces both.
 ```
 
-## BEH-EG-004: Wire format
+## BEH-QD-004: Wire format
 
-> **See:** [ADR-EG-007](../decisions/007-permission-token-representation.md)
+> **See:** [ADR-QD-007](../decisions/007-permission-token-representation.md)
 
 ```
 REQUIREMENT: A permission MUST encode as the struct `{ resource, action }`,
@@ -104,7 +104,7 @@ REQUIREMENT: A permission MUST encode as the struct `{ resource, action }`,
 { "_tag": "HasPermission", "permission": { "resource": "doc", "action": "read" } }
 ```
 
-## BEH-EG-005: Type-level inspection
+## BEH-QD-005: Type-level inspection
 
 ```ts
 export type InferResource<P extends Permission> =
@@ -117,10 +117,10 @@ export type InferKey<P extends Permission> =
   P extends Permission<infer R, infer A> ? PermissionKey<R, A> : never;
 ```
 
-## BEH-EG-006: Worked example
+## BEH-QD-006: Worked example
 
 ```typescript
-import { permission, permissionKey, isValidSegment } from "@guard/core";
+import { permission, permissionKey, isValidSegment } from "@qadi/core";
 
 const read = permission("doc", "read");
 

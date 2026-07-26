@@ -1,4 +1,4 @@
-@attributes @identity @REQ-EG-009
+@attributes @identity @REQ-QD-009
 Feature: Ownership by subject identity
 
   "The resource's owner is me" is the archetypal relational rule. It compares a

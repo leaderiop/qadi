@@ -1,0 +1,271 @@
+# 13 — The Label Lattice
+
+> **Document Control**
+>
+> | Property       | Value                                          |
+> | -------------- | ---------------------------------------------- |
+> | Document ID    | QADI-BEH-13                                    |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-07-26                                     |
+> | Status         | Effective                                      |
+> | Author         | Qadi Engineering                               |
+> | Classification | Functional Specification                       |
+> | Change History | 1.2 (2026-07-26): BEH-QD-103 and 104, the lattice bounds; BEH-QD-100 withdrawn (CCR-QD-030)<br>1.1 (2026-07-26): BEH-QD-102, the order laws (CCR-QD-024)<br>1.0 (2026-07-26): Initial release (CCR-QD-017) |
+
+_Previous: [12 — Decision History](./12-history.md)_
+
+---
+
+## BEH-QD-097: Labels are runtime data, not policy data
+
+> **See:** [ADR-QD-021](../decisions/021-label-lattice.md)
+
+```ts
+export interface SecurityLabel {
+  readonly level: number;
+  readonly compartments: ReadonlyArray<string>;
+}
+
+export const isSecurityLabel: (value: unknown) => value is SecurityLabel;
+```
+
+```
+REQUIREMENT: A label MUST NOT appear inside a policy. The `Dominates` matcher
+             carries a `ValueRef` and no label, so both operands are read at
+             evaluation time from subject or resource data.
+```
+
+A hand-written interface, which is the ordinary rule — [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)
+makes the *policy ADT* the deliberate exception, not the norm. Nothing about a
+label crosses a trust boundary that was not already crossed: what arrives is
+whatever the caller put in an attribute, and that was always `unknown`.
+
+```
+REQUIREMENT: `compartments` MUST be an array, not a `Set`. Labels arrive as
+             JSON, every operation here is subset-based, and a set would cost a
+             canonical encoding — two spellings of one label that compare
+             unequal is the defect class this library was rewritten to prevent.
+```
+
+```
+REQUIREMENT: There MUST be no lattice declaration. Dominance on
+             `(level, compartments)` is computable from two labels with nothing
+             else in scope: no service to provide, no unwired-service denial
+             path, and no policy whose meaning depends on its environment.
+```
+
+## BEH-QD-098: Four values
+
+> **Invariant:** [INV-QD-015](../invariants.md#inv-qd-015-incomparable-labels-deny-in-both-directions)
+
+```ts
+export type LabelOrdering = "Equal" | "Dominates" | "DominatedBy" | "Incomparable";
+
+export const compareLabels: (a: SecurityLabel, b: SecurityLabel) => LabelOrdering;
+export const labelDominates: (a: SecurityLabel, b: SecurityLabel) => boolean;
+```
+
+```
+REQUIREMENT: `compareLabels` MUST distinguish all four cases. Dominance is a
+             *partial* order: `(Secret, {CRYPTO})` and `(Secret, {BIO})` are
+             incomparable, and `Equal` is distinguishable from `Dominates`.
+```
+
+```
+REQUIREMENT: `labelDominates` MUST be defined in terms of `compareLabels`, and
+             MUST admit only `"Equal"` and `"Dominates"`.
+```
+
+The boolean is derived rather than primitive. `Incomparable` collapsing into
+`false` is right for a *test* and wrong for an *explanation* — and Qadi's answer
+to "why was this denied" is that the information exists rather than has to be
+inferred.
+
+Dominance is **reflexive**: a label dominates itself, so acting at your own level
+is permitted, which is what Bell–LaPadula requires.
+
+## BEH-QD-099: The matcher
+
+```ts
+export const dominates: (ref: ValueRef) => Matcher;
+```
+
+The first matcher beyond `eq`/`neq` to take a `ValueRef`, and that is the point:
+dominance relates two *live* values, which `gte` and `lt` cannot do because they
+take a plain number.
+
+```
+REQUIREMENT: Both rules of Bell–LaPadula MUST be expressible as this one
+             comparison with the operands exchanged, never by negating it.
+```
+
+| Rule | Written as |
+| ---- | ---------- |
+| No read up | `hasAttribute("clearance", dominates(resource("label")))` |
+| No write down | `hasResourceAttribute("label", dominates(subject("clearance")))` |
+
+That the question is asked by swapping rather than negating is why a boolean
+matcher is safe here, and why this differs from
+[BEH-QD-091](./12-history.md) — where `hasNotActed` had to be its own variant
+precisely because negation was the only other route.
+
+```
+REQUIREMENT: The matcher MUST deny when either side is not a `SecurityLabel`.
+```
+
+This deliberately does **not** follow the `MissingAction` precedent, and the
+difference is worth stating because it looks inconsistent.
+[INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one)
+makes a missing action an *error* because the action is a caller argument — a
+forgotten parameter at the call site. A label is *resolved data*, and absent or
+malformed resolved data has always denied: `gte(3)` on `undefined` is false, and
+that is the mechanism [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed)
+relies on.
+
+```
+REQUIREMENT: `referencesAction` MUST account for `Dominates`, since it takes a
+             `ValueRef` and that reference may be `action()`.
+```
+
+## BEH-QD-100: What is not provided
+
+> **Withdrawn in CCR-QD-030.** Superseded by
+> [BEH-QD-103](#beh-qd-103-the-lattice-bounds) and
+> [BEH-QD-104](#beh-qd-104-deriving-a-label-is-still-not-a-decision). The
+> requirement below is reproduced as written, because its reasoning survived and
+> only its conclusion did not.
+
+```
+REQUIREMENT: There MUST be no `join` or `meet`. A least upper bound answers
+             "what class does this combined document belong to", which is
+             computing a label rather than deciding an access.
+```
+
+Qadi decides. A caller that needs to classify a derived document has the label
+type and can compute it, and in doing so is doing data classification — a
+different job with a different audit story.
+
+*What changed, and what did not.* The distinction this requirement draws is
+correct and is now BEH-QD-104: computing a label is not deciding an access, and
+nothing in the evaluator may do it. What was wrong was the inference from there to
+*not exporting the function*. Those are two decisions and only the first had an
+argument.
+
+The sentence that undid it is "a caller **can** compute it". It can, and
+[MOD-QD-029](../models/29-mls.md) named exactly how it gets it wrong: take the
+higher level, carry *its* compartments, and the derived object is labelled below
+its own contents. That failure is silent, because the wrong label is then compared
+correctly ([ADR-QD-029](../decisions/029-lattice-join-and-meet.md)).
+
+## BEH-QD-101: Worked example
+
+Bell–LaPadula as a single stored policy. Before E1 and E4 this took `n × 2^c`
+transcribed rungs whose ordering was itself a trap: the permitted sets *shrink*
+as clearance rises, so descending rungs are correct for reads and wrong for
+writes.
+
+```typescript
+import {
+  allOf,
+  anyOf,
+  dominates,
+  hasAction,
+  hasAttribute,
+  hasResourceAttribute,
+  resource,
+  subject,
+  type Policy,
+  type SecurityLabel,
+} from "@qadi/core";
+
+const bellLaPadula: Policy = anyOf([
+  // no read up
+  allOf([hasAction("read"), hasAttribute("clearance", dominates(resource("label")))]),
+  // no write down
+  allOf([
+    hasAction("write"),
+    hasResourceAttribute("label", dominates(subject("clearance"))),
+  ]),
+]);
+
+// A clearance and a classification, as they arrive from JSON.
+const clearance: SecurityLabel = { level: 2, compartments: ["CRYPTO"] };
+const classification: SecurityLabel = { level: 2, compartments: ["BIO"] };
+// `clearance` neither dominates nor is dominated by `classification`: the two
+// are incomparable, so both the read and the write are refused. Compared as
+// scalars they are both `2`, and each would reach the other.
+```
+
+## BEH-QD-102: Dominance is a partial order
+
+> **Invariant:** [INV-QD-019](../invariants.md#inv-qd-019-dominance-is-a-partial-order)
+
+```
+REQUIREMENT: `labelDominates` MUST be reflexive, antisymmetric and transitive
+             over every pair and triple of labels.
+```
+
+```
+REQUIREMENT: Antisymmetry MUST mean that mutual dominance forces equality — the
+             same level and the same compartment set, compared as sets.
+```
+
+[BEH-QD-098](#beh-qd-098-four-values) states reflexivity, which is one law of
+three, and it is the only one an example-based test naturally reaches. The other
+two are why the model composes:
+
+```
+REQUIREMENT: No sequence of a permitted read followed by a permitted write MUST
+             move information to a label that does not dominate its origin.
+```
+
+That last is not a separate rule for the evaluator to enforce. It is transitivity
+restated in the terms the model uses, and it holds *because* dominance composes —
+which is the whole reason this requirement is written down rather than assumed.
+
+## BEH-QD-103: The lattice bounds
+
+> **Invariant:** [INV-QD-023](../invariants.md#inv-qd-023-every-pair-of-labels-has-a-least-upper-and-a-greatest-lower-bound)
+>
+> **See:** [ADR-QD-029](../decisions/029-lattice-join-and-meet.md)
+
+```ts
+export const join: (a: SecurityLabel, b: SecurityLabel) => SecurityLabel;
+export const meet: (a: SecurityLabel, b: SecurityLabel) => SecurityLabel;
+```
+
+```
+REQUIREMENT: `join` MUST take the MAXIMUM of the levels and the UNION of the
+             compartments. `meet` MUST take the minimum and the intersection.
+```
+
+```
+REQUIREMENT: Both MUST satisfy the absorption laws — `join(a, meet(a, b))` and
+             `meet(a, join(a, b))` both equal `a`.
+```
+
+Absorption is what makes this a lattice rather than two functions that happen to
+return bounds, and it is the first law a configurable compartment hierarchy would
+break.
+
+## BEH-QD-104: Deriving a label is still not a decision
+
+```
+REQUIREMENT: No `Policy` variant, no `Matcher` and no evaluator path MAY compute a
+             label. `Evaluate.ts` MUST NOT import `join` or `meet`.
+```
+
+The functions exist for the caller who must label a derived object *before* asking
+about it. [BEH-QD-097](#beh-qd-097-labels-are-runtime-data-not-policy-data) is
+unchanged: a label reaches a policy as resolved data, and nothing in the tree
+constructs one.
+
+The reason to export them anyway is that the arithmetic fails silently. Taking the
+higher level and carrying *its* compartments yields a label the correct one
+dominates — so the derived object is under-classified, and a reader lacking the
+dropped compartment reads material they are not cleared for while every comparison
+behaves correctly.
+
+---
+
+_Previous: [12 — Decision History](./12-history.md) | Next: [14 — Subject Sets](./14-subject-sets.md)_

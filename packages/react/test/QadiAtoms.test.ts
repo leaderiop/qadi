@@ -9,6 +9,7 @@ import {
   AttributeResolver,
   AttributeResolverNone,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
   RelationshipResolverNever,
   gte,
   hasAttribute,
@@ -17,13 +18,13 @@ import {
   isAllowed,
   makeSubject,
   permission,
-} from "@guard/core";
+} from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import { afterEach, describe, expect, it } from "vitest";
-import { makeGuardAtoms } from "../src/GuardAtoms.ts";
+import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
@@ -35,6 +36,7 @@ const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
 const baseLayer = Layer.mergeAll(
   AttributeResolverNone,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 
@@ -49,6 +51,7 @@ const countingLayer = (counter: { count: number }) =>
         }),
     }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   );
 
@@ -66,16 +69,16 @@ afterEach(() => {
 /** Resolves once the decision leaves `Initial`. */
 const settle = (
   registry: AtomRegistry.AtomRegistry,
-  atoms: ReturnType<typeof makeGuardAtoms>,
-  policy: Parameters<ReturnType<typeof makeGuardAtoms>["decision"]>[0],
+  atoms: ReturnType<typeof makeQadiAtoms>,
+  policy: Parameters<ReturnType<typeof makeQadiAtoms>["decision"]>[0],
 ) =>
   Effect.runPromise(
     AtomRegistry.getResult(registry, atoms.decision(policy), { suspendOnWaiting: true }),
   );
 
-describe("makeGuardAtoms", () => {
+describe("makeQadiAtoms", () => {
   it("stays Initial until a subject is known", () => {
-    const atoms = makeGuardAtoms(baseLayer);
+    const atoms = makeQadiAtoms(baseLayer);
     const registry = makeRegistry();
     const unmount = registry.mount(atoms.decision(canRead));
 
@@ -86,7 +89,7 @@ describe("makeGuardAtoms", () => {
   });
 
   it("decides once the subject arrives", async () => {
-    const atoms = makeGuardAtoms(baseLayer);
+    const atoms = makeQadiAtoms(baseLayer);
     const registry = makeRegistry();
     registry.set(atoms.subject, reader);
 
@@ -95,7 +98,7 @@ describe("makeGuardAtoms", () => {
   });
 
   it("re-decides when the subject changes", async () => {
-    const atoms = makeGuardAtoms(baseLayer);
+    const atoms = makeQadiAtoms(baseLayer);
     const registry = makeRegistry();
     registry.set(atoms.subject, reader);
     expect(isAllowed(await settle(registry, atoms, isAdmin))).toBe(false);
@@ -105,13 +108,38 @@ describe("makeGuardAtoms", () => {
   });
 
   it("returns the same atom for the same policy", () => {
-    const atoms = makeGuardAtoms(baseLayer);
+    const atoms = makeQadiAtoms(baseLayer);
     expect(atoms.decision(canRead)).toBe(atoms.decision(canRead));
     expect(atoms.decision(canRead)).not.toBe(atoms.decision(isAdmin));
   });
 
+  it("shares one atom between two equal policies built independently", () => {
+    // BEH-QD-071. `Atom.family` keys structurally, so sharing does not depend on
+    // the caller holding one reference — a policy built inline in render still
+    // shares with an equal one built anywhere else.
+    //
+    // This document and this package both claimed the opposite until the
+    // reactivity canary disproved it. The practical advice (hoist to module
+    // scope) was unaffected, which is why the wrong reason went unchallenged.
+    const atoms = makeQadiAtoms(baseLayer);
+
+    expect(atoms.decision(hasRole("admin"))).toBe(atoms.decision(hasRole("admin")));
+    expect(atoms.decision(hasRole("admin"))).not.toBe(atoms.decision(hasRole("editor")));
+
+    // Nested structure, not just a flat leaf: the comparison has to walk in.
+    const a = hasPermission(permission("doc", "read"));
+    const b = hasPermission(permission("doc", "read"));
+    const c = hasPermission(permission("doc", "write"));
+    expect(atoms.decision(a)).toBe(atoms.decision(b));
+    expect(atoms.decision(a)).not.toBe(atoms.decision(c));
+
+    // And for the resource key, which is keyed the same way.
+    expect(atoms.decisionFor(a, { id: "d1" })).toBe(atoms.decisionFor(b, { id: "d1" }));
+    expect(atoms.decisionFor(a, { id: "d1" })).not.toBe(atoms.decisionFor(a, { id: "d2" }));
+  });
+
   it("keys resource-scoped decisions by policy and resource together", () => {
-    const atoms = makeGuardAtoms(baseLayer);
+    const atoms = makeQadiAtoms(baseLayer);
     const doc = { id: "d1" };
     const other = { id: "d2" };
     expect(atoms.decisionFor(canRead, doc)).toBe(atoms.decisionFor(canRead, doc));
@@ -126,7 +154,7 @@ describe("makeGuardAtoms", () => {
     // subject alone would never call the resolver, and the count would prove
     // nothing.
     const counter = { count: 0 };
-    const atoms = makeGuardAtoms(countingLayer(counter));
+    const atoms = makeQadiAtoms(countingLayer(counter));
     const registry = makeRegistry();
     registry.set(atoms.subject, reader);
 
@@ -141,7 +169,7 @@ describe("makeGuardAtoms", () => {
 
   it("re-evaluates when invalidated", async () => {
     const counter = { count: 0 };
-    const atoms = makeGuardAtoms(countingLayer(counter));
+    const atoms = makeQadiAtoms(countingLayer(counter));
     const registry = makeRegistry();
     registry.set(atoms.subject, reader);
     registry.mount(atoms.invalidate);
@@ -162,8 +190,8 @@ describe("makeGuardAtoms", () => {
   });
 
   it("keeps two contexts from seeing each other's decisions", async () => {
-    const tenantA = makeGuardAtoms(baseLayer);
-    const tenantB = makeGuardAtoms(baseLayer);
+    const tenantA = makeQadiAtoms(baseLayer);
+    const tenantB = makeQadiAtoms(baseLayer);
     const registry = makeRegistry();
 
     registry.set(tenantA.subject, reader);

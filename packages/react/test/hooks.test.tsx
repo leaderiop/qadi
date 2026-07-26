@@ -2,6 +2,7 @@ import {
   AttributeResolveError,
   AttributeResolver,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
   RelationshipResolverNever,
   eq,
   gte,
@@ -12,7 +13,7 @@ import {
   makeSubject,
   permission,
   subjectId,
-} from "@guard/core";
+} from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
@@ -20,9 +21,9 @@ import { Suspense } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import {
-  GuardProvider,
+  QadiProvider,
   currentDecision,
-  makeGuardAtoms,
+  makeQadiAtoms,
   useDecision,
   useDecisionSuspense,
   useInvalidate,
@@ -34,22 +35,24 @@ const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
 const needsClearance = hasAttribute("clearance", gte(1));
 
-const working = makeGuardAtoms(
+const working = makeQadiAtoms(
   Layer.mergeAll(
     Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   ),
 );
 
 /** A context whose attribute lookups always fail. */
-const broken = makeGuardAtoms(
+const broken = makeQadiAtoms(
   Layer.mergeAll(
     Layer.succeed(AttributeResolver, {
       resolve: (_id: string, attribute: string) =>
         Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
     }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   ),
 );
@@ -72,18 +75,18 @@ describe("useDecision", () => {
     // A broken attribute backend must stay distinguishable from "not
     // permitted", otherwise an outage sends an engineer to audit permissions.
     render(
-      <GuardProvider atoms={broken} subject={reader}>
+      <QadiProvider atoms={broken} subject={reader}>
         <Probe />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("errored")).toBeDefined());
   });
 
   it("reports a plain denial as a decision", async () => {
     render(
-      <GuardProvider atoms={working} subject={reader}>
+      <QadiProvider atoms={working} subject={reader}>
         <Probe />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("allowed=false")).toBeDefined());
   });
@@ -98,16 +101,16 @@ describe("useDecision", () => {
     };
 
     const { rerender } = render(
-      <GuardProvider atoms={working} subject={reader}>
+      <QadiProvider atoms={working} subject={reader}>
         <Decided />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("Allow")).toBeDefined());
 
     rerender(
-      <GuardProvider atoms={working} subject={undefined}>
+      <QadiProvider atoms={working} subject={undefined}>
         <Decided />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("pending")).toBeDefined());
   });
@@ -121,9 +124,9 @@ describe("useDecision", () => {
     };
 
     render(
-      <GuardProvider atoms={working} subject={makeSubject({ id: "u1" })}>
+      <QadiProvider atoms={working} subject={makeSubject({ id: "u1" })}>
         <Probe2 owner="u1" />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("Allow")).toBeDefined());
   });
@@ -144,18 +147,18 @@ describe("usePolicies", () => {
 
   it("evaluates every named policy", async () => {
     render(
-      <GuardProvider atoms={working} subject={reader}>
+      <QadiProvider atoms={working} subject={reader}>
         <Probe />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("read=true admin=false")).toBeDefined());
   });
 
   it("stays pending while the subject is loading", () => {
     render(
-      <GuardProvider atoms={working} subject={undefined}>
+      <QadiProvider atoms={working} subject={undefined}>
         <Probe />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     expect(screen.getByText("read=? admin=?")).toBeDefined();
   });
@@ -172,18 +175,18 @@ describe("useProjected", () => {
 
   it("narrows the record to the fields the policy exposes", async () => {
     render(
-      <GuardProvider atoms={working} subject={reader}>
+      <QadiProvider atoms={working} subject={reader}>
         <Probe />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("fields=title")).toBeDefined());
   });
 
   it("exposes nothing when the policy denies", async () => {
     render(
-      <GuardProvider atoms={working} subject={makeSubject({ id: "u9" })}>
+      <QadiProvider atoms={working} subject={makeSubject({ id: "u9" })}>
         <Probe />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("fields=none")).toBeDefined());
   });
@@ -194,11 +197,11 @@ describe("useDecisionSuspense", () => {
 
   it("suspends until the decision is known, then renders it", async () => {
     render(
-      <GuardProvider atoms={working} subject={reader}>
+      <QadiProvider atoms={working} subject={reader}>
         <Suspense fallback={<span>suspended</span>}>
           <Probe />
         </Suspense>
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined());
   });
@@ -209,10 +212,11 @@ describe("useInvalidate", () => {
     // The subject object never changes here. Only the resolver's answer does —
     // exactly what happens when a grant is edited by someone else.
     let clearance = 0;
-    const shifting = makeGuardAtoms(
+    const shifting = makeQadiAtoms(
       Layer.mergeAll(
         Layer.succeed(AttributeResolver, { resolve: () => Effect.sync(() => clearance) }),
         RelationshipResolverNever,
+    DecisionHistoryUnknown,
         EvaluationIdLive,
       ),
     );
@@ -228,9 +232,9 @@ describe("useInvalidate", () => {
     };
 
     render(
-      <GuardProvider atoms={shifting} subject={reader}>
+      <QadiProvider atoms={shifting} subject={reader}>
         <Probe />
-      </GuardProvider>,
+      </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("Deny")).toBeDefined());
 
