@@ -44,10 +44,10 @@ for obligations, the one part of XACML with no substitute in this matrix.
 | -------- | ----- |
 | Status | **Breaking** |
 | Priority | **P2** |
-| Enablers required | ~~**E1** (action dimension)~~ **shipped**; **E2** (obligations on `Decision`), **E3** (combining algorithms) |
+| Enablers required | ~~**E1** (action dimension)~~ and ~~**E2** (obligations)~~ **shipped**; **E3** (combining algorithms) outstanding |
 | Breaking change | Yes — E3 changes what `AllOf` and `AnyOf` mean |
 
-E1 and E2 are additive; only E3 makes this row breaking. A useful subset of
+E1 and E2 were additive; only E3 makes this row breaking. A useful subset of
 parity therefore lands without a breaking change, and the recommendation below
 turns on exactly that split. E1 has since shipped
 ([ADR-QD-018](../decisions/018-action-dimension.md)) — on its own merits, as the
@@ -66,7 +66,7 @@ verb, the obligation and the combinator.
 | Rule `<Target>` | Approximated by a leading conjunct in `allOf` | **Approximated** |
 | Action | `hasAction`, `action()` | **Shipped** — E1 |
 | Environment attributes | Resolved attributes ([MOD-QD-012](./12-context-aware.md)) | **Partial** |
-| Obligations and advice | — | **Missing** — E2 |
+| Obligations and advice | `obliged`, `Allow.obligations`, `advisory` | **Shipped** — E2 |
 | Combining algorithms | `allOf` / `anyOf`, fixed and unordered | **Missing** — E3 |
 | Decision point (PDP) | The evaluator — `decide`, `check`, `enforce` | **Shipped** |
 | Information point (PIP) | `AttributeResolver`, `RelationshipResolver` | **Shipped** |
@@ -126,8 +126,9 @@ const program = decide(labeled("cardiology-access", allOf([target, condition])),
 );
 ```
 
-That rule cannot attach "and write an access record" to the allow. That is E2.
-It *can* now say which operation is attempted: E1 shipped.
+That rule can now say which operation is attempted (E1) and attach "and write an
+access record" to the allow (E2). Both have shipped. What remains is only the
+combining algorithm.
 
 ## Proposed API design
 
@@ -253,7 +254,7 @@ lands there rather than propose a second, XACML-flavoured spelling of it.
 | Enabler | Nature | Work |
 | ------- | ------ | ---- |
 | ~~**E1**~~ **shipped** | Additive | `action` on `EvaluateOptions` and `MatcherContext`; an `ActionRef` across schema, type, constructor and generator — plus a `referencesAction` pre-check this table did not anticipate |
-| **E2** | Additive to `Decision`, **codec change** for `Policy` | An `Obligation` type, an `Obliged` node — four coordinated edits plus the round-trip generator — a union function beside `mergeFields`, and `UndischargedObligation`. The ADR for `Not` is written: [ADR-QD-019](../decisions/019-obligations.md) |
+| ~~**E2**~~ **shipped** | Additive to `Decision`, codec change for `Policy` | Landed as scoped, plus one thing this table did not anticipate: the refusal belongs to `assert` and `filter` too, not only `enforce`. [ADR-QD-019](../decisions/019-obligations.md) |
 | **E3** | Breaking | Deferred to [MOD-QD-025](./25-rubac.md) |
 
 Invariants at risk: [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness)
@@ -269,9 +270,10 @@ collection must not force exhaustive evaluation) and
 
 E1 was worth building because a policy that cannot see the verb cannot express
 read-down or write-up, which blocked a whole family of models; it has shipped on
-that argument alone. E2 is worth
-building because obligations have no substitute anywhere in this matrix. E3 is
-worth building because ordered rule lists are how people write rules.
+that argument alone. E2 was worth
+building because obligations have no substitute anywhere in this matrix, and has
+also shipped. E3 is worth building because ordered rule lists are how people
+write rules, and is the only one of the three still open.
 
 Each is worth building **on its own merits** — none because XACML has it. Three
 things should be declined outright: the XML dialect and its request/response

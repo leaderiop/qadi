@@ -98,3 +98,7 @@ Given(
 Given("the caller is performing {string}", function (this: QadiWorld, verb: string) {
   this.action = verb;
 });
+
+Given("an obligation handler is supplied", function (this: QadiWorld) {
+  this.handlesObligations = true;
+});

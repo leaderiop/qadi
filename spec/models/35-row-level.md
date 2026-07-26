@@ -72,6 +72,7 @@ import {
   subject,
   subjectId,
   type EvaluationError,
+  type UndischargedObligation,
 } from "@qadi/core";
 
 // A row must be a `type`: `filter` constrains its element to
@@ -102,8 +103,13 @@ const services = Layer.mergeAll(
 // The cost: every candidate row crosses the wire before any can be judged, and
 // `visible` runs once per row — O(n) rows and O(n) evaluations for a result set
 // that may be one row. `LIMIT` composes wrongly too.
-const page: Effect.Effect<ReadonlyArray<Invoice>, EvaluationError> =
-  loadInvoices.pipe(Effect.flatMap((rows) => filter(visible, rows)), Effect.provide(services));
+const page: Effect.Effect<
+  ReadonlyArray<Invoice>,
+  EvaluationError | UndischargedObligation
+> = loadInvoices.pipe(
+  Effect.flatMap((rows) => filter(visible, rows)),
+  Effect.provide(services),
+);
 ```
 
 This works, it is shipped, and it is correct. It does not scale to large tables,

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -145,6 +145,17 @@ elements, from the same policy values.
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
 
+### URS-QD-016 — Attach a duty to a permission
+
+A developer must be able to write "allow, provided the access is logged" as one
+policy, and be certain that the guarded work does not run when the duty has not
+been discharged.
+
+Rationale: purpose limitation, consent and risk-adaptive control all have a
+middle answer between yes and no. Without one, the record that makes a decision
+accountable lives in application code beside the call, where nothing connects it
+to the rule that required it — and nothing notices when it is forgotten.
+
 ### URS-QD-015 — State a rule that depends on what the caller is doing
 
 A developer must be able to write one policy that permits reading and refuses
@@ -214,6 +225,7 @@ so the specification cannot drift from itself.
 | URS-QD-013 | [BEH-QD-067](./behaviors/09-react.md), [BEH-QD-068](./behaviors/09-react.md) | `QadiProvider.test.tsx`, `hooks.test.tsx` |
 | URS-QD-014 | [BEH-QD-070](./behaviors/09-react.md) | `QadiAtoms.test.ts`, `QadiProvider.test.tsx` |
 | URS-QD-015 | [BEH-QD-073](./behaviors/10-actions.md) | `Evaluate.test.ts`, `@REQ-QD-010` |
+| URS-QD-016 | [BEH-QD-081](./behaviors/11-obligations.md) | `Evaluate.test.ts`, `Qadi.test.ts`, `@REQ-QD-011` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |

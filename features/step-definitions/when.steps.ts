@@ -14,6 +14,8 @@ import {
   literal,
   lt,
   not,
+  obligation,
+  obliged,
   permission,
   subjectId,
 } from "@qadi/core";
@@ -152,3 +154,50 @@ When(
     this.run(this.restored);
   },
 );
+
+// ---------------------------------------------------------------------------
+// Obligations
+// ---------------------------------------------------------------------------
+
+const logAccess = obligation("log-access", { channel: "audit" });
+const notifyDpo = obligation("notify-dpo");
+
+/** "auditor may act, provided the access is logged" — the archetypal duty. */
+const auditedRole = (): Policy => obliged(logAccess, hasRole("auditor"));
+
+When("they must hold role {string} and log the access", function (
+  this: QadiWorld,
+  name: string,
+) {
+  this.run(obliged(logAccess, hasRole(name)));
+});
+
+When(
+  "they must not hold role {string}, where holding it would log the access",
+  function (this: QadiWorld, name: string) {
+    this.run(not(obliged(logAccess, hasRole(name))));
+  },
+);
+
+When("they must satisfy both audited requirements", function (this: QadiWorld) {
+  this.run(
+    allOf([
+      auditedRole(),
+      obliged(notifyDpo, hasPermission(permission("doc", "read"))),
+    ]),
+  );
+});
+
+When("both requirements log the same access", function (this: QadiWorld) {
+  // Identity is the whole obligation, so one duty reached twice is owed once.
+  this.run(
+    allOf([
+      auditedRole(),
+      obliged(logAccess, hasPermission(permission("doc", "read"))),
+    ]),
+  );
+});
+
+When("the guarded work runs under an audited requirement", function (this: QadiWorld) {
+  this.runGuarded(auditedRole());
+});

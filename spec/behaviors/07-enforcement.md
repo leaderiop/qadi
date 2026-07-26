@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-07                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -41,7 +41,7 @@ REQUIREMENT: When the policy denies, the guarded effect MUST NOT run. It is not
 ```ts
 export const decide: (policy: Policy, options?: EvaluateOptions) => Effect.Effect<Decision, ...>;
 export const check: (policy: Policy, options?: EvaluateOptions) => Effect.Effect<boolean, ...>;
-export const assert: (policy: Policy, options?: EvaluateOptions) => Effect.Effect<void, ...>;
+export const assert: (policy: Policy, options?: EnforceOptions) => Effect.Effect<void, ...>;
 export const filter: <A extends Record<string, unknown>>(
   policy: Policy,
   items: ReadonlyArray<A>,

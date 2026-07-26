@@ -1,6 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as M from "../src/Matcher.ts";
 import * as Qadi from "../src/Qadi.ts";
+import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
@@ -118,4 +120,184 @@ describe("Qadi.filter", () => {
       const kept = yield* Qadi.filter(P.hasRole("nobody"), [{ id: "a" }]);
       assert.strictEqual(kept.length, 0);
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
+});
+
+describe("Qadi obligations", () => {
+  // `enforce` returns the guarded effect's value, not the decision, so an
+  // obligation would otherwise be computed and thrown away while the caller ran
+  // the protected work believing the permission was unconditional — ADR-QD-019.
+  const logIt = obligation("log-access", { channel: "audit" });
+  const advice = obligation("prefer-redacted", {}, { advisory: true });
+  const audited = P.obliged(logIt, canRead);
+  const advised = P.obliged(advice, canRead);
+
+  const reader = subjectWith({ permissions: ["doc:read"] });
+
+  it.effect("decide reports obligations without enforcing them", () =>
+    Effect.gen(function* () {
+      const d = yield* Qadi.decide(audited);
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, [logIt]);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("enforce refuses a binding obligation it cannot discharge", () =>
+    Effect.gen(function* () {
+      let started = false;
+      const guarded = Effect.sync(() => {
+        started = true;
+        return "payload";
+      }).pipe(Qadi.enforce(audited));
+
+      const r = yield* Effect.result(guarded);
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/UndischargedObligation");
+      if (r.failure._tag !== "qadi/UndischargedObligation") return;
+      assert.deepStrictEqual(r.failure.obligationIds, ["log-access"]);
+      // Refusing after running the work would be no protection at all.
+      assert.isFalse(started);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("a handler discharges the obligation and the effect runs", () =>
+    Effect.gen(function* () {
+      const discharged: Array<string> = [];
+      const result = yield* Effect.succeed("payload").pipe(
+        Qadi.enforce(audited, {
+          onObligations: (obligations) =>
+            Effect.sync(() => {
+              for (const o of obligations) discharged.push(o.id);
+            }),
+        }),
+      );
+      assert.strictEqual(result, "payload");
+      assert.deepStrictEqual(discharged, ["log-access"]);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("the handler runs before the guarded effect, not after", () =>
+    Effect.gen(function* () {
+      // An obligation is a condition on the permission, not a follow-up to it.
+      const order: Array<string> = [];
+      yield* Effect.sync(() => order.push("work")).pipe(
+        Qadi.enforce(audited, {
+          onObligations: () => Effect.sync(() => order.push("obligation")),
+        }),
+      );
+      assert.deepStrictEqual(order, ["obligation", "work"]);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("a failing handler stops the guarded effect", () =>
+    Effect.gen(function* () {
+      let started = false;
+      const r = yield* Effect.result(
+        Effect.sync(() => {
+          started = true;
+        }).pipe(
+          Qadi.enforce(audited, {
+            onObligations: () => Effect.fail(new Error("audit log unreachable")),
+          }),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      assert.isFalse(started);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("an advisory obligation never blocks", () =>
+    Effect.gen(function* () {
+      // XACML's advice: the caller may ignore it, so it is reported and does
+      // not stand between the subject and their permission.
+      const result = yield* Effect.succeed("payload").pipe(Qadi.enforce(advised));
+      assert.strictEqual(result, "payload");
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("a handler still sees advisory obligations", () =>
+    Effect.gen(function* () {
+      const seen: Array<string> = [];
+      yield* Effect.succeed("x").pipe(
+        Qadi.enforce(advised, {
+          onObligations: (obligations) =>
+            Effect.sync(() => {
+              for (const o of obligations) seen.push(o.id);
+            }),
+        }),
+      );
+      assert.deepStrictEqual(seen, ["prefer-redacted"]);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("a denial reports AccessDenied, not an undischarged obligation", () =>
+    Effect.gen(function* () {
+      // The obligation never attached, because the wrapped policy denied.
+      const r = yield* Effect.result(Effect.succeed("x").pipe(Qadi.enforce(audited)));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/AccessDenied");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("assert refuses a binding obligation too", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(Qadi.assert(audited));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/UndischargedObligation");
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("enforceProjected refuses one as well, and still projects when handled", () =>
+    Effect.gen(function* () {
+      const row = { id: "1", title: "T", secret: "S" };
+      const policy = P.obliged(logIt, P.hasPermission(read, { fields: ["title"] }));
+
+      const refused = yield* Effect.result(
+        Effect.succeed(row).pipe(Qadi.enforceProjected(policy)),
+      );
+      assert.strictEqual(refused._tag, "Failure");
+
+      const projected = yield* Effect.succeed(row).pipe(
+        Qadi.enforceProjected(policy, { onObligations: () => Effect.void }),
+      );
+      assert.deepStrictEqual(projected, { title: "T" });
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("filter refuses rather than silently dropping an obliged element", () =>
+    Effect.gen(function* () {
+      // Dropping it would report a wiring mistake as a denial — INV-QD-006.
+      // `filter` hands back data, so it enforces rather than reports.
+      const r = yield* Effect.result(Qadi.filter(audited, [{ id: "a" }, { id: "b" }]));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/UndischargedObligation");
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("filter discharges per allowed element when handled", () =>
+    Effect.gen(function* () {
+      const discharged: Array<string> = [];
+      const policy = P.obliged(
+        logIt,
+        P.hasResourceAttribute("state", M.eq(M.literal("open"))),
+      );
+
+      const kept = yield* Qadi.filter(
+        policy,
+        [
+          { id: "a", state: "open" },
+          { id: "b", state: "closed" },
+          { id: "c", state: "open" },
+        ],
+        {
+          onObligations: (obligations) =>
+            Effect.sync(() => {
+              for (const o of obligations) discharged.push(o.id);
+            }),
+        },
+      );
+
+      assert.deepStrictEqual(kept.map((k) => k["id"]), ["a", "c"]);
+      // Once per *allowed* element: a denied row owes nothing.
+      assert.deepStrictEqual(discharged, ["log-access", "log-access"]);
+    }).pipe(Effect.provide(testLayer(reader))));
+
+  it.effect("check reports the boolean and leaves the obligation to the caller", () =>
+    Effect.gen(function* () {
+      // `check` runs nothing and hands back nothing, so there is no protected
+      // work an undischarged duty could guard. Documented, not overlooked.
+      assert.isTrue(yield* Qadi.check(audited));
+    }).pipe(Effect.provide(testLayer(reader))));
 });

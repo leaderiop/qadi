@@ -32,3 +32,6 @@ entries:
   - id: "BEH-QD-073"
     file: "10-actions.md"
     title: "10 — The Action Dimension"
+  - id: "BEH-QD-081"
+    file: "11-obligations.md"
+    title: "11 — Obligations"

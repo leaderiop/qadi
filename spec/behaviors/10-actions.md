@@ -153,4 +153,4 @@ const performsRequiredOperation: Policy = hasResourceAttribute(
 
 ---
 
-_Previous: [09 — React Integration](./09-react.md)_
+_Previous: [09 — React Integration](./09-react.md) | Next: [11 — Obligations](./11-obligations.md)_

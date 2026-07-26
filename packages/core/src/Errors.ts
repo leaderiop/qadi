@@ -70,6 +70,21 @@ export class AccessDenied extends Data.TaggedError("qadi/AccessDenied")<{
   readonly reason: string;
 }> {}
 
+/**
+ * Enforcement met an obligation it could not discharge.
+ *
+ * `enforce` returns the guarded effect's value, not the decision, so an
+ * obligation would otherwise be computed and thrown away while the caller ran
+ * the protected work believing the policy permitted it unconditionally. Failing
+ * is the only honest option: the permission had a condition nobody met.
+ */
+export class UndischargedObligation extends Data.TaggedError(
+  "qadi/UndischargedObligation",
+)<{
+  readonly subjectId: string;
+  readonly obligationIds: ReadonlyArray<string>;
+}> {}
+
 /** Every error this library can produce during evaluation. */
 export type EvaluationError =
   | AttributeResolveError
@@ -83,6 +98,7 @@ export type EvaluationError =
 export type QadiError =
   | EvaluationError
   | AccessDenied
+  | UndischargedObligation
   | CircularRoleInheritance
   | InvalidPermissionSegment;
 
@@ -103,6 +119,7 @@ export const ERROR_CODES = {
   "qadi/CircularRoleInheritance": "ACL007",
   "qadi/InvalidPermissionSegment": "ACL008",
   "qadi/MissingAction": "ACL009",
+  "qadi/UndischargedObligation": "ACL010",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as FastCheck from "effect/testing/FastCheck";
 import * as M from "../src/Matcher.ts";
+import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 
@@ -53,6 +54,22 @@ describe("Policy combinators", () => {
     assert.deepStrictEqual(policy.fields, ["body"]);
   });
 
+  it("obliged wraps a policy with a duty", () => {
+    const policy = P.obliged(obligation("log-access", { level: "audit" }), P.hasRole("a"));
+    assert.strictEqual(policy._tag, "Obliged");
+    if (policy._tag !== "Obliged") return;
+    assert.strictEqual(policy.obligation.id, "log-access");
+    assert.deepStrictEqual(policy.obligation.attributes, { level: "audit" });
+    assert.isFalse(policy.obligation.advisory);
+  });
+
+  it("an obligation defaults to binding with no attributes", () => {
+    // The safe default: a duty binds unless its author says it may be ignored.
+    const o = obligation("notify");
+    assert.deepStrictEqual(o, { id: "notify", attributes: {}, advisory: false });
+    assert.isTrue(obligation("hint", {}, { advisory: true }).advisory);
+  });
+
   it("hasRelationship carries depth and fields", () => {
     const policy = P.hasRelationship("owner", { depth: 3, fields: ["title"] });
     if (policy._tag !== "HasRelationship") return;
@@ -98,6 +115,7 @@ describe("Policy serialization", () => {
                 P.hasResourceAttribute("state", M.eq(M.literal("open"))),
                 P.hasRelationship("owner", { depth: 2 }),
                 P.hasAction("write", { fields: ["body"] }),
+                P.obliged(obligation("log", { who: "x" }), P.hasRole("auditor")),
               ]),
             ),
           ),
@@ -186,6 +204,12 @@ describe("Policy serialization", () => {
         // than in Policy, so a leaf that never nests one would leave it out of
         // the round-trip property entirely.
         FastCheck.constant(P.hasAttribute("op", M.eq(M.action()))),
+        // `Obligation` is a struct with a `Record(String, Unknown)` inside it,
+        // so the generator has to reach nested arbitrary JSON for the property
+        // to say anything about the obligation codec.
+        FastCheck.tuple(FastCheck.string(), FastCheck.boolean()).map(([id, advisory]) =>
+          P.obliged(obligation(id, { n: 1, deep: { s: "x" } }, { advisory }), P.hasRole(id)),
+        ),
       );
 
       const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({

@@ -1,6 +1,6 @@
 # ADR-QD-019: An obligation is a condition on permission, carried by the allow that granted it
 
-> **Status:** Proposed
+> **Status:** Accepted
 > **Date:** 2026-07-26
 
 ## Context
@@ -215,8 +215,32 @@ storage is beyond anything this library will claim. That limit is the same one
 [17 — Purpose](../models/17-purpose.md) states about declared purposes, and it
 should be quoted to anyone who reads an obligation as a guarantee.
 
-**Not yet implemented.** This records a decision, not a shipped capability, and
-is marked *Proposed* for the reason [ADR-QD-018](./018-action-dimension.md) was:
-every Accepted decision here describes code that exists. Nothing may cite it as
-evidence of behaviour until it acquires a behaviour, an invariant and a scenario
-— see the [Definitions of Done](../process/definitions-of-done.md).
+**Implemented**, with the evidence the
+[Definitions of Done](../process/definitions-of-done.md) require:
+[11 — Obligations](../behaviors/11-obligations.md),
+[INV-QD-012](../invariants.md#inv-qd-012-obligations-are-never-narrowed),
+[INV-QD-013](../invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation),
+`@REQ-QD-011`.
+
+Three things building it added to what is written above.
+
+**The refusal extends past `enforce` and `enforceProjected`.** `assert` and
+`filter` enforce by the same test — one runs work as a precondition, the other
+hands back data — so both refuse too. Leaving `filter` alone would have left a
+hole precisely where obligations matter most: a row-level policy attaching "log
+this access" to each visible row. It fails rather than dropping the row, because
+dropping would report a wiring mistake as a denial
+([INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)). All four route
+through one internal `permitted`, which is what makes INV-QD-013 an invariant
+rather than four independent habits.
+
+**`Trace.obligations` is required, not optional.** An optional field would have
+meant a `?? []` at every read that no execution could take — visible in the
+coverage report as branches nothing reaches. Every trace node has a set; empty is
+the common case, like `children`.
+
+**The `Not` claim is mechanically demonstrable, not merely argued.** Mutating the
+evaluator to propagate `child.obligations` through `Not` kills no test — the
+mutant is *equivalent*, because that expression is provably `[]` at that point.
+"Needs no rule" and "any rule would be unobservable" turn out to be the same
+statement, which is a stronger result than this ADR claimed.

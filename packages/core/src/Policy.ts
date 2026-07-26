@@ -16,6 +16,7 @@
  */
 import * as Schema from "effect/Schema";
 import { Matcher } from "./Matcher.ts";
+import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import { PermissionSchema } from "./Permission.ts";
 
@@ -50,6 +51,7 @@ export type Policy =
   | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "Not"; readonly policy: Policy }
+  | { readonly _tag: "Obliged"; readonly obligation: Obligation; readonly policy: Policy }
   | { readonly _tag: "Labeled"; readonly label: string; readonly policy: Policy };
 
 /** Single suspended self-reference shared by every recursive position. */
@@ -99,6 +101,11 @@ const AnyOf = Schema.TaggedStruct("AnyOf", {
 
 const Not = Schema.TaggedStruct("Not", { policy: PolicyRef });
 
+const Obliged = Schema.TaggedStruct("Obliged", {
+  obligation: Obligation,
+  policy: PolicyRef,
+});
+
 const Labeled = Schema.TaggedStruct("Labeled", {
   label: Schema.String,
   policy: PolicyRef,
@@ -114,6 +121,7 @@ export const Policy: Schema.Codec<Policy> = Schema.Union([
   AllOf,
   AnyOf,
   Not,
+  Obliged,
   Labeled,
 ]);
 
@@ -240,6 +248,25 @@ export const anyOf = (
 
 /** Inverts a decision. Carries no field visibility of its own. */
 export const not = (policy: Policy): Policy => ({ _tag: "Not", policy });
+
+/**
+ * Attaches a duty the caller must discharge if this policy allows.
+ *
+ * "Permit, provided the access is logged" — the thing `fields` cannot say,
+ * because it restricts what comes back rather than what the caller owes.
+ *
+ * The obligation reaches the decision only when the wrapped policy **allows**.
+ * That single rule is why `not` needs no special case: negating an obliged
+ * policy either denies (permitting nothing, so conditioning nothing) or allows
+ * because the inner policy denied (contributing no obligation either way). The
+ * discarded obligation is still on the trace node it arose from
+ * ([ADR-QD-019](../../../spec/decisions/019-obligations.md)).
+ */
+export const obliged = (obligation: Obligation, policy: Policy): Policy => ({
+  _tag: "Obliged",
+  obligation,
+  policy,
+});
 
 /** Attaches a human-readable label, surfaced in the evaluation trace. */
 export const labeled = (label: string, policy: Policy): Policy => ({

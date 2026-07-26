@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-03                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-07-26): `HasAction` is the tenth variant (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.2 (2026-07-26): `Obliged` is the eleventh variant (CCR-QD-015)<br>1.1 (2026-07-26): `HasAction` is the tenth variant (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [02 — Roles and Inheritance](./02-roles.md)_
 
@@ -21,7 +21,7 @@ _Previous: [02 — Roles and Inheritance](./02-roles.md)_
 > **Invariant:** [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity)
 > **See:** [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md), [ADR-QD-003](../decisions/003-tag-discriminant.md)
 
-Ten variants, discriminated on `_tag`. The union is defined once as a Schema;
+Eleven variants, discriminated on `_tag`. The union is defined once as a Schema;
 the TypeScript type and the JSON codec are both derived from it.
 
 | `_tag` | Meaning |
@@ -35,6 +35,7 @@ the TypeScript type and the JSON codec are both derived from it.
 | `AllOf` | Every child allows |
 | `AnyOf` | At least one child allows |
 | `Not` | Inverts a decision |
+| `Obliged` | Attaches a duty the caller must discharge if the policy allows |
 | `Labeled` | Names a policy; surfaced in the trace |
 
 `HasAction` is the odd one out and deliberately so: every other leaf asks about
@@ -43,7 +44,7 @@ the subject or the resource, and this one asks about the *request*. See
 
 ```ts
 export const Policy: Schema.Codec<Policy>;
-export type Policy = /* the ten-variant union above */;
+export type Policy = /* the eleven-variant union above */;
 ```
 
 ```
@@ -89,6 +90,7 @@ export const hasRelationship: (relation: string, options?: FieldOptions & { dept
 export const allOf: (policies: ReadonlyArray<Policy>, options?: CombinatorOptions) => Policy;
 export const anyOf: (policies: ReadonlyArray<Policy>, options?: CombinatorOptions) => Policy;
 export const not: (policy: Policy) => Policy;
+export const obliged: (obligation: Obligation, policy: Policy) => Policy;
 export const labeled: (label: string, policy: Policy) => Policy;
 export const anyOfRoles: (roles: ReadonlyArray<string>) => Policy;
 ```

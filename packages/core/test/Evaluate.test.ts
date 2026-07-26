@@ -7,6 +7,7 @@ import { isAllowed } from "../src/Decision.ts";
 import { AttributeResolveError, RelationshipResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
+import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import {
@@ -607,6 +608,194 @@ describe("the action dimension", () => {
     }));
 });
 
+describe("obligations", () => {
+  // An obligation is a condition on permission, so a decision carries those
+  // contributed by the allow it returned — ADR-QD-019. Every rule below follows
+  // from that one sentence, including `Not`, which needs no rule.
+  const logIt = obligation("log-access", { channel: "audit" });
+  const notify = obligation("notify-dpo");
+  const advice = obligation("prefer-redacted", {}, { advisory: true });
+
+  const holder = subjectWith({ id: "u1", roles: ["auditor"], permissions: ["doc:read"] });
+
+  it.effect("an allow carries the obligation attached to it", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.obliged(logIt, P.hasRole("auditor")));
+      assert.isTrue(isAllowed(d));
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, [logIt]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("a denial carries none — it permits nothing, so it conditions nothing", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.obliged(logIt, P.hasRole("nobody")));
+      assert.isFalse(isAllowed(d));
+      // `Deny` has no obligations field at all. The trace node records none
+      // either, because the inner policy never allowed.
+      assert.deepStrictEqual(d.trace.obligations, []);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("an evaluation with no obligation reports an empty set, not undefined", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasRole("auditor"));
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, []);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("AllOf unions every child's obligations", () =>
+    Effect.gen(function* () {
+      const policy = P.allOf([
+        P.obliged(logIt, P.hasRole("auditor")),
+        P.obliged(notify, P.hasPermission(read)),
+      ]);
+      const d = yield* evaluate(policy);
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, [logIt, notify]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("the same obligation reached twice appears once", () =>
+    Effect.gen(function* () {
+      // Identity is the whole value, not the id — a diamond must not double a
+      // duty. Two duties sharing an id with different attributes are two duties
+      // and both survive; that is the next assertion.
+      const policy = P.allOf([
+        P.obliged(logIt, P.hasRole("auditor")),
+        P.obliged(logIt, P.hasPermission(read)),
+      ]);
+      const d = yield* evaluate(policy);
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, [logIt]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("two duties sharing an id but not their attributes both survive", () =>
+    Effect.gen(function* () {
+      const toAudit = obligation("log", { channel: "audit" });
+      const toSiem = obligation("log", { channel: "siem" });
+      const policy = P.allOf([
+        P.obliged(toAudit, P.hasRole("auditor")),
+        P.obliged(toSiem, P.hasPermission(read)),
+      ]);
+      const d = yield* evaluate(policy);
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, [toAudit, toSiem]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("AllOf that denies carries none", () =>
+    Effect.gen(function* () {
+      const policy = P.allOf([
+        P.obliged(logIt, P.hasRole("auditor")),
+        P.hasRole("nobody"),
+      ]);
+      const d = yield* evaluate(policy);
+      assert.isFalse(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("AnyOf/First takes the winning branch's obligations only", () =>
+    Effect.gen(function* () {
+      // Order-dependent by design: collecting from every branch would force
+      // exhaustive evaluation and repeal INV-QD-005 for any tree with a duty.
+      const policy = P.anyOf([
+        P.obliged(logIt, P.hasRole("auditor")),
+        P.obliged(notify, P.hasPermission(read)),
+      ]);
+      const d = yield* evaluate(policy);
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, [logIt]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("AnyOf/Union takes every allowing branch's obligations", () =>
+    Effect.gen(function* () {
+      const policy = P.anyOf(
+        [
+          P.obliged(logIt, P.hasRole("auditor")),
+          P.obliged(notify, P.hasPermission(read)),
+          P.obliged(advice, P.hasRole("nobody")),
+        ],
+        { fieldStrategy: "Union" },
+      );
+      const d = yield* evaluate(policy);
+      if (d._tag !== "Allow") return;
+      // The third branch denied, so its duty never attached.
+      assert.deepStrictEqual(d.obligations, [logIt, notify]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("Not carries no obligation in either direction", () =>
+    Effect.gen(function* () {
+      // The question three model documents called undecidable. It needs no rule:
+      // the inner policy denied, so it contributed nothing to negate.
+      const d = yield* evaluate(P.not(P.obliged(logIt, P.hasRole("nobody"))));
+      assert.isTrue(isAllowed(d));
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, []);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("a negated obligation is discarded from the decision but kept in the trace", () =>
+    Effect.gen(function* () {
+      // This is what makes dropping defensible rather than silent. The reviewer
+      // asking "was there a duty on that branch?" reads the trace.
+      const d = yield* evaluate(P.not(P.obliged(logIt, P.hasRole("auditor"))));
+      assert.isFalse(isAllowed(d));
+      assert.deepStrictEqual(d.trace.obligations, []);
+      assert.deepStrictEqual(d.trace.children[0]?.obligations, [logIt]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("Labeled passes its child's obligations through", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.labeled("audited", P.obliged(logIt, P.hasRole("auditor"))));
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, [logIt]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("Obliged passes its child's field visibility through", () =>
+    Effect.gen(function* () {
+      // A duty restricts nothing on its own; it must not silently widen or
+      // narrow what the wrapped policy exposes.
+      const d = yield* evaluate(
+        P.obliged(logIt, P.hasPermission(read, { fields: ["title"] })),
+      );
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.visibleFields, ["title"]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("an obligation survives a round trip through JSON", () =>
+    Effect.gen(function* () {
+      const policy = P.obliged(logIt, P.hasRole("auditor"));
+      const restored = yield* Effect.flatMap(P.toJson(policy), P.fromJson);
+      const d = yield* evaluate(restored);
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, [logIt]);
+    }).pipe(Effect.provide(testLayer(holder))));
+
+  it.effect("an unevaluated obliged branch performs no lookup", () =>
+    Effect.gen(function* () {
+      // Obligations must not quietly force exhaustive evaluation.
+      const calls: Array<string> = [];
+      const policy = P.anyOf([
+        P.hasRole("auditor"),
+        P.obliged(notify, P.hasRelationship("owner")),
+      ]);
+
+      const d = yield* evaluate(policy, { resource: { id: "doc-1" } }).pipe(
+        Effect.provide(
+          testLayer(holder, {
+            relationships: Layer.succeed(RelationshipResolver, {
+              check: (request) =>
+                Effect.sync(() => {
+                  calls.push(request.relation);
+                  return true;
+                }),
+            }),
+          }),
+        ),
+      );
+
+      assert.isTrue(isAllowed(d));
+      assert.deepStrictEqual(calls, []);
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.obligations, []);
+    }));
+});
+
 describe("observability", () => {
   /**
    * Collects the spans an evaluation emits.
@@ -712,6 +901,46 @@ describe("observability", () => {
       assert.isDefined(span);
       if (span === undefined) return;
       assert.notProperty(Object.fromEntries(span.attributes), "qadi.action");
+    }));
+
+  it.effect("obligations are reported on the span, by id, only when present", () =>
+    Effect.gen(function* () {
+      // Reported, never run. The evaluator invoking an obligation would give
+      // evaluation side effects and INV-QD-009 would be gone.
+      const spans: Array<Tracer.Span> = [];
+
+      const policy = P.allOf([
+        P.obliged(obligation("log-access"), P.hasRole("auditor")),
+        P.obliged(obligation("notify-dpo"), P.hasRole("auditor")),
+      ]);
+
+      yield* evaluate(policy).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["auditor"] }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      const span = named(spans, "qadi.evaluate");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.strictEqual(
+        Object.fromEntries(span.attributes)["qadi.obligations"],
+        "log-access,notify-dpo",
+      );
+    }));
+
+  it.effect("an evaluation owing nothing carries no obligations attribute", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasRole("editor")).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      const span = named(spans, "qadi.evaluate");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.notProperty(Object.fromEntries(span.attributes), "qadi.obligations");
     }));
 
   it.effect("combinators emit their own spans beneath the evaluation", () =>

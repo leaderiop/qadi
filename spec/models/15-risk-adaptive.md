@@ -154,17 +154,25 @@ const program = Effect.gen(function* () {
 
 ## What is missing
 
-**Step-up is the real limitation.** RAdAC's characteristic response to elevated
-risk is not "deny" but "allow, subject to an obligation" — re-authenticate,
-notify the account holder, queue the access for review, watermark the export.
-Qadi's `Decision` is `Allow | Deny` with no channel for a duty the caller must
-discharge. That is enabler **E2** in the [matrix](./00-adoption-matrix.md),
-*additive* rather than breaking — `Allow` and `Deny` have no `Schema`, so adding
-a field cannot reproduce the round-trip defect — but unbuilt.
+**~~Step-up is the real limitation.~~ Closed.** RAdAC's characteristic response
+to elevated risk is not "deny" but "allow, subject to an obligation" —
+re-authenticate, notify the account holder, queue the access for review,
+watermark the export. `Decision` was `Allow | Deny` with no channel for a duty
+the caller must discharge. That was enabler **E2** in the
+[matrix](./00-adoption-matrix.md), and it has shipped
+([ADR-QD-019](../decisions/019-obligations.md)):
 
-Until it exists there are two honest options. Deny, and let the caller read the
+```ts
+obliged(obligation("step-up", { method: "webauthn" }), elevatedRiskBranch)
+```
+
+`enforce` refuses to run the guarded work until the step-up is discharged, so
+the middle answer is now a decision rather than an interpretation.
+
+The two options this document previously listed remain available and are still
+worth knowing, because neither needs a handler. Deny, and let the caller read the
 denial reason and mount its own step-up flow; that works, but the interpretation
-now lives outside the policy. Or allow with reduced field visibility, as above —
+lives outside the policy. Or allow with reduced field visibility, as above —
 genuinely useful, entirely within shipped capability
 ([MOD-QD-007](./07-field-level.md)), and honest about being a narrower grant
 rather than a deferred one. What must not be done is to smuggle a step-up

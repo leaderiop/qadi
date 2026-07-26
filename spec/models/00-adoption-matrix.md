@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.10                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -70,7 +70,7 @@ independent designs that each bolt a field onto `Policy`.
 | Id | Enabler | Nature | Unlocks |
 | -- | ------- | ------ | ------- |
 | **E1** | Action dimension | **Shipped** | Bell–LaPadula, Biba, MLS, RuBAC, XACML parity, UCON, NGAC, OrBAC, type enforcement |
-| **E2** | Obligations on `Decision` | Additive | XACML parity, UCON, purpose-based, consent-based, break-glass |
+| **E2** | Obligations on `Decision` | **Shipped** | XACML parity, UCON, purpose-based, consent-based, break-glass |
 | **E3** | Combining algorithms | Breaking | RuBAC, XACML parity |
 | **E4** | Label lattice | Additive | Bell–LaPadula, Biba, MLS, label-based |
 | **E5** | Decision history port | Additive | Chinese Wall, history-based, dynamic separation of duty, UCON |
@@ -121,15 +121,33 @@ That check is INV-QD-011, and it is the only non-obvious part of the work.
 codec change and cannot reproduce the round-trip defect that motivated the
 rewrite.
 
-**Decided, not yet built: [ADR-QD-019](../decisions/019-obligations.md).**
+**Shipped: [ADR-QD-019](../decisions/019-obligations.md),
+[11 — Obligations](../behaviors/11-obligations.md),
+[INV-QD-012](../invariants.md#inv-qd-012-obligations-are-never-narrowed),
+[INV-QD-013](../invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation),
+`@REQ-QD-011`.**
 
-The work is in the evaluator, not the type: `mergeFields` is the only place
+What landed:
+
+| Addition | Where |
+| -------- | ----- |
+| `Obligation`, `obligation(id, attributes?, options?)` | a new `Obligation.ts` |
+| `obliged(obligation, policy)` → `Obliged` | the policy union, eleventh variant |
+| `obligations: ReadonlyArray<Obligation>` | `Allow`, and every `Trace` node |
+| `unionObligations` | the merge rule, beside `mergeFields` |
+| `onObligations` handler | `EnforceOptions` |
+| `UndischargedObligation` (`ACL010`) | the error taxonomy |
+| `qadi.obligations` | the `qadi.evaluate` span, when any are owed |
+
+The work was in the evaluator, not the type: `mergeFields` is the only place
 sibling results combine, so obligations need an analogue beside it. `Not` was
 the hard case — negating a policy that carries an obligation is not obviously
-meaningful — and the ADR dissolves it rather than choosing among the three
+meaningful — and the ADR dissolved it rather than choosing among the three
 candidates the model documents offered. An obligation is a condition on
 permission, so the obligations on a decision are those contributed by the allow
-that was returned; `Not` is handed a set in neither of its two cases.
+that was returned; `Not` is handed a set in neither of its two cases. Building it
+made that mechanical: mutating `Not` to propagate its child's obligations kills
+no test, because the mutant is *equivalent*.
 
 It corrects two things this matrix and [26 — XACML](./26-xacml.md) had assumed.
 Obligations **union and never intersect** — they are the opposite lattice to
@@ -138,9 +156,11 @@ field visibility, where narrowing is safe and here it is a quiet grant — so
 `Obliged` *is* a codec change: adding a field to `Allow` is not, but the new
 policy node is, with the same four coordinated edits any variant costs.
 
-The ADR also settles a question the model documents never asked: `enforce` must
+The ADR also settled a question the model documents never asked: `enforce` must
 **fail** on an `Allow` carrying a non-advisory obligation it cannot discharge,
-rather than run the guarded effect while the condition goes unmet.
+rather than run the guarded effect while the condition goes unmet. In building it
+the same test extended the rule to `assert` and `filter` — everything that runs
+work or hands back data enforces; `decide` and `check` only report.
 
 ### E3 — Combining algorithms
 
@@ -226,9 +246,9 @@ writes, because the data behind it is theirs. Grouped by the service they extend
 | Context-aware (CBAC) | [MOD-QD-012](./12-context-aware.md) | `AttributeResolver` | Device, network, posture as resolved attributes |
 | Temporal (TRBAC) | [MOD-QD-013](./13-temporal.md) | `AttributeResolver` + `Clock` | Must read `Clock`, never `Date.now` — [ADR-QD-012](../decisions/012-deterministic-time-and-ids.md) |
 | Spatial (GEO-RBAC) | [MOD-QD-014](./14-spatial.md) | `AttributeResolver` | Geofence test belongs in the resolver, not a matcher |
-| Risk-adaptive (RAdAC) | [MOD-QD-015](./15-risk-adaptive.md) | `AttributeResolver` | Risk score in, threshold compared by `lt`; step-up needs E2 |
+| Risk-adaptive (RAdAC) | [MOD-QD-015](./15-risk-adaptive.md) | `AttributeResolver` | Risk score in, threshold compared by `lt`; step-up uses `obliged` (E2) |
 | Trust / reputation | [MOD-QD-016](./16-trust.md) | `AttributeResolver` | As RAdAC, different provenance and incentive |
-| Purpose-based | [MOD-QD-017](./17-purpose.md) | `AttributeResolver` | Purpose as a declared attribute; enforcing the *declaration* needs E2 |
+| Purpose-based | [MOD-QD-017](./17-purpose.md) | `AttributeResolver` | Purpose as a declared attribute; recording the *declaration* uses `obliged` (E2) |
 | Consent-based | [MOD-QD-018](./18-consent.md) | `RelationshipResolver` | Consent is a relation; the data subject collapses into the resource |
 | Hierarchical resource scoping | [MOD-QD-019](./19-hierarchy.md) | `RelationshipResolver` | Tenant trees; exceptions to an inherited grant need E3 |
 | Team-based (TMAC) | [MOD-QD-020](./20-tmac.md) | `RelationshipResolver` | Membership is a relation; role ∧ team is the recipe |
@@ -267,10 +287,10 @@ uncompiled fences, because it does not exist.
 | ----- | -------- | ------ | -------- | -------- |
 | Separation of duty (RBAC₂), static | [MOD-QD-024](./24-separation-of-duty.md) | Additive | — | P2 |
 | Separation of duty, dynamic | [MOD-QD-024](./24-separation-of-duty.md) | Additive | E5 | P3 |
-| Purpose enforcement with obligations | [MOD-QD-017](./17-purpose.md) | Additive | E2 | P2 |
-| XACML parity | [MOD-QD-026](./26-xacml.md) | Breaking | E2, E3 | P2 |
+| Purpose enforcement with obligations | [MOD-QD-017](./17-purpose.md) | **Shipped** | — | P2 |
+| XACML parity | [MOD-QD-026](./26-xacml.md) | Breaking | E3 | P2 |
 | Rule-based (RuBAC), ordered | [MOD-QD-025](./25-rubac.md) | Breaking | E3 | P2 |
-| Usage control (UCON) | [MOD-QD-032](./32-ucon.md) | Breaking | E2, E5 | P3 |
+| Usage control (UCON) | [MOD-QD-032](./32-ucon.md) | Breaking | E5 | P3 |
 | Task-based (TBAC) | [MOD-QD-033](./33-tbac.md) | Additive | E5 | P3 |
 | Bell–LaPadula | [MOD-QD-027](./27-bell-lapadula.md) | Additive | E4 | P3 |
 | Biba, strict | [MOD-QD-028](./28-biba.md) | Additive | E4 | P3 |
@@ -432,11 +452,15 @@ building: matchers are total, so a matcher reading an absent action would have
 *denied* rather than failed, and a `referencesAction` pre-check was needed to
 hold the rule. That is the shape to expect from the rest of these.
 
-Next: **E2**, whose ADR is now written
-([ADR-QD-019](../decisions/019-obligations.md), *Proposed*) — additive for
-`Decision`, a codec change for `Policy`, and carrying one behavioural
-consequence beyond the type: `enforce` must refuse an allow whose obligation it
-cannot discharge. Then E5, E4, E6.
+✔ **E2 (CCR-QD-015).** Additive for `Decision`, a codec change for `Policy`, and
+carrying one behavioural consequence beyond the type: `enforce` refuses an allow
+whose obligation it cannot discharge. Like E1, it surfaced something the ADR had
+not written down — the refusal belongs to `assert` and `filter` too.
+
+Next: E5, E4, E6. Both remaining design questions still stand and are still
+ADR-before-code: the polarity of E5's default layer (§3.3 — the obvious
+implementation fails open), and whether E4's dominance comparison is two- or
+three-valued.
 
 Two design questions must be settled by ADR *before* code, because both are
 silent-failure risks rather than matters of taste: the polarity of E5's default
@@ -464,7 +488,7 @@ the enablers that touch it.
 | [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) | E5 | A history store that is down is a failure, not a denial. Highest-risk pairing in this table |
 | [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) | E5 | An unwired history port must deny. **This row previously said the same of an absent action, and that was wrong**: INV-QD-007 governs information a resolver could not supply, whereas a missing action is input the caller never provided. [ADR-QD-018](../decisions/018-action-dimension.md) routed it to [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) instead, and the rule is now [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one) |
 | [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) | E5 | History makes evaluation stateful. Reproducibility must be restated as *given the same history*, or the invariant weakens silently |
-| [INV-QD-009](../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied) | E2 | Obligations must not become a channel that runs work before the decision is final |
+| [INV-QD-009](../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied) | E2 — **held** | Obligations must not become a channel that runs work before the decision is final. They are data; the evaluator invokes nothing, and a caller's handler runs after the decision and before the guarded effect ([INV-QD-013](../invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation)) |
 | [INV-QD-010](../invariants.md#inv-qd-010-error-codes-are-injective) | all | Mechanically enforced — `ERROR_CODES` is `satisfies Record<QadiError["_tag"], …>`, so a new error without a code fails compilation |
 
 ### 6.1 Wire-format compatibility

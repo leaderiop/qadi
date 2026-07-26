@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -210,5 +210,57 @@ denies because the *system* could not answer, whereas a missing action means the
 matcher whose `action()` is nested inside another matcher.
 
 **Related**: [BEH-QD-076](behaviors/10-actions.md), [ADR-QD-018](decisions/018-action-dimension.md).
+
+---
+
+## INV-QD-012: Obligations are never narrowed
+
+Combining two allowing branches never yields fewer duties than either required.
+
+**Source**: `packages/core/src/Obligation.ts` — `unionObligations` is the only
+combinator, and nothing selects an alternative. `FieldStrategy` governs field
+sets and is not consulted here.
+
+This is the mirror image of
+[INV-QD-004](#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top)
+and the asymmetry is deliberate. An absent field set is the *top* of its
+lattice, so narrowing discloses less and is safe. An absent obligation set is
+the *bottom* of this one, so narrowing lets a caller discharge fewer duties than
+an allowing branch demanded — a grant nobody authorised, arrived at by a merge
+rule.
+
+**Implication**: there is no strategy to configure. An option whose other
+settings are unsafe is not an option.
+
+**Enforcement**: tests assert the union across `AllOf` and `AnyOf`, that a
+duplicate collapses and that two duties sharing an `id` do not.
+
+**Related**: [BEH-QD-082](behaviors/11-obligations.md), [ADR-QD-019](decisions/019-obligations.md).
+
+---
+
+## INV-QD-013: Enforcement never proceeds on an undischarged obligation
+
+An entry point that runs work or hands back data refuses an allow whose binding
+obligation nobody has met.
+
+**Source**: `packages/core/src/Qadi.ts` — `assert`, `enforce`,
+`enforceProjected` and `filter` all route through one internal `permitted`,
+which evaluates, refuses a denial, and discharges. None of them can implement
+half the rule, because none of them implements it.
+
+`decide` and `check` deliberately do not: they run nothing and hand back
+nothing, so there is no protected work an undischarged duty could guard.
+
+**Implication**: forgetting `onObligations` produces a failure rather than a
+deployment that believes it holds an audit record and does not. `enforce`
+returns the guarded effect's value, not the decision, so without this the
+obligation would be computed and thrown away in silence.
+
+**Enforcement**: tests assert the refusal for each enforcing entry point, that
+the guarded effect never starts, that a handler runs *before* it, and that a
+failing handler stops it.
+
+**Related**: [BEH-QD-085](behaviors/11-obligations.md), [ADR-QD-019](decisions/019-obligations.md).
 
 ---

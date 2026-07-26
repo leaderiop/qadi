@@ -41,15 +41,26 @@ modelling them as roles produces a role per purpose per department.
 | -------- | ----- |
 | Status | **Wiring** |
 | Priority | **P1** |
-| Enablers required | **E2 recommended**, not required; decided, unbuilt |
+| Enablers required | ~~**E2**~~ **shipped**; none outstanding |
 | Breaking change | No |
 
-Qadi decides on purpose today with no core change. Recording *what was declared*
-— the half of purpose limitation that makes it accountable — is enabler **E2**,
-whose design is settled in [ADR-QD-019](../decisions/019-obligations.md) and not
-yet built. Read its closing trade-off alongside this document's: an obligation
-obliges the caller, and neither Qadi nor this model can verify that the record
-was actually written.
+Qadi decides on purpose with no core change, and since
+[E2](./00-adoption-matrix.md#e2--obligations-on-decision) /
+[ADR-QD-019](../decisions/019-obligations.md) it can also carry the record that
+makes purpose limitation accountable:
+
+```ts
+obliged(
+  obligation("log-purpose", { purpose: "treatment" }),
+  purposeView("treatment", "clinician", ["id", "name", "diagnosis"]),
+)
+```
+
+`enforce` refuses to run the guarded read unless that duty is discharged, so the
+record cannot be forgotten at a call site. Read the ADR's closing trade-off
+alongside this document's, because they are the same one: an obligation obliges
+the *caller*, and neither Qadi nor this model can verify that the record was
+actually written.
 
 ## How Qadi expresses it
 
@@ -187,7 +198,8 @@ const researchRead = loadRecord("p-1").pipe(
 
 ## What is missing
 
-**A request-scoped channel for the purpose.** E1 has since shipped, and it does
+**A request-scoped channel for the purpose** — the one gap that remains. E1 has
+since shipped, and it does
 *not* close this gap — a point worth stating precisely, because the shape is so
 nearly right. `EvaluateOptions.action` is request-scoped, but it names the verb,
 and a purpose is not a verb: `"read"` and `"treatment"` answer different
@@ -210,10 +222,11 @@ the consequence of having declared falsely, not from the check.
 Which makes the *record* the load-bearing part, and the record is an obligation:
 "allow, and log the declared purpose". `Decision` has no obligation channel —
 `Allow` and `Deny` carry a subject id, a reason, a trace and a visible-field set,
-and nothing the caller is obliged to do. Adding one is enabler **E2**, whose
-design is [ADR-QD-019](../decisions/019-obligations.md) — additive for `Decision`,
-which has no codec, though the `Obliged` policy node is a codec change like any
-other variant ([the matrix](./00-adoption-matrix.md#e2--obligations-on-decision)).
+and nothing the caller was obliged to do. That was enabler **E2**, and it has
+shipped: [ADR-QD-019](../decisions/019-obligations.md) added `obliged`,
+`Allow.obligations` and the refusal in `enforce`, so "allow, and record the
+declared purpose" is now one policy rather than a convention beside the call
+([the matrix](./00-adoption-matrix.md#e2--obligations-on-decision)).
 Until then the nearest substitute is the span: `evaluate` runs inside
 `qadi.evaluate`, annotated with the decision, subject id, evaluation id and
 policy tag ([ADR-QD-009](../decisions/009-observability-via-effect.md)), and

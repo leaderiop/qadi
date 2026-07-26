@@ -25,6 +25,8 @@ import {
 import { EvaluationId } from "./EvaluationId.ts";
 import type { MatcherContext } from "./Matcher.ts";
 import { evaluateMatcher, referencesAction } from "./Matcher.ts";
+import type { Obligation } from "./Obligation.ts";
+import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
 import type { FieldStrategy, Policy } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
@@ -69,11 +71,14 @@ export type EvaluationServices =
   | RelationshipResolver
   | EvaluationId;
 
+const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
+
 const allow = (
   policyTag: Policy["_tag"],
   fields: ReadonlyArray<string> | undefined,
   children: ReadonlyArray<Trace> = [],
   label?: string,
+  obligations: ReadonlyArray<Obligation> = NO_OBLIGATIONS,
 ): Trace => ({
   policyTag,
   label,
@@ -81,6 +86,7 @@ const allow = (
   reason: undefined,
   children,
   visibleFields: fields,
+  obligations,
 });
 
 const deny = (
@@ -95,6 +101,8 @@ const deny = (
   reason,
   children,
   visibleFields: undefined,
+  // A denial permits nothing, so it conditions nothing.
+  obligations: NO_OBLIGATIONS,
 });
 
 /**
@@ -252,7 +260,25 @@ const evaluateNode = (
             ? deny("Not", "negated policy allowed", [child])
             : // Negation carries no field visibility of its own: knowing a
               // policy did *not* hold says nothing about which fields are safe.
+              // It carries no obligations either, and needs no rule to say so:
+              // the child denied, so it contributed none (ADR-QD-019).
               allow("Not", undefined, [child]),
+      );
+
+    case "Obliged":
+      return Effect.map(
+        evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
+        (child) =>
+          child.allowed
+            ? // The duty attaches only to a permission that was granted.
+              allow(
+                "Obliged",
+                child.visibleFields,
+                [child],
+                undefined,
+                unionObligations([policy.obligation], child.obligations),
+              )
+            : deny("Obliged", child.reason ?? "the obliged policy denied", [child]),
       );
 
     case "Labeled":
@@ -265,6 +291,7 @@ const evaluateNode = (
           reason: child.reason,
           children: [child],
           visibleFields: child.visibleFields,
+          obligations: child.obligations,
         }),
       );
   }
@@ -280,6 +307,7 @@ const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
 ) {
   const children: Array<Trace> = [];
   const fieldSets: Array<ReadonlyArray<string> | undefined> = [];
+  let obligations: ReadonlyArray<Obligation> = NO_OBLIGATIONS;
 
   for (const child of policy.policies) {
     const trace = yield* evaluateNode(child, subject, request, depth + 1, maxDepth);
@@ -288,9 +316,18 @@ const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
       return deny("AllOf", trace.reason ?? "a required policy denied", children);
     }
     fieldSets.push(trace.visibleFields);
+    // Every child allowed, so every child's duties apply. Union, never
+    // intersection — dropping one a branch required would be a quiet grant.
+    obligations = unionObligations(obligations, trace.obligations);
   }
 
-  return allow("AllOf", mergeFields(policy.fieldStrategy, fieldSets), children);
+  return allow(
+    "AllOf",
+    mergeFields(policy.fieldStrategy, fieldSets),
+    children,
+    undefined,
+    obligations,
+  );
 });
 
 /**
@@ -310,6 +347,7 @@ const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
   const children: Array<Trace> = [];
   const allowingFieldSets: Array<ReadonlyArray<string> | undefined> = [];
   const exhaustive = policy.fieldStrategy !== "First";
+  let obligations: ReadonlyArray<Obligation> = NO_OBLIGATIONS;
   let lastReason: string | undefined;
 
   for (const child of policy.policies) {
@@ -318,8 +356,13 @@ const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
 
     if (trace.allowed) {
       allowingFieldSets.push(trace.visibleFields);
+      obligations = unionObligations(obligations, trace.obligations);
       if (!exhaustive) {
-        return allow("AnyOf", trace.visibleFields, children);
+        // Under `First` the obligations are the winning branch's, so the set
+        // depends on the order the author wrote the branches in. Accepted, and
+        // stated: collecting from every branch would force exhaustive
+        // evaluation and repeal INV-QD-005 for any tree carrying a duty.
+        return allow("AnyOf", trace.visibleFields, children, undefined, obligations);
       }
     } else {
       lastReason = trace.reason;
@@ -327,7 +370,13 @@ const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
   }
 
   if (allowingFieldSets.length > 0) {
-    return allow("AnyOf", mergeFields(policy.fieldStrategy, allowingFieldSets), children);
+    return allow(
+      "AnyOf",
+      mergeFields(policy.fieldStrategy, allowingFieldSets),
+      children,
+      undefined,
+      obligations,
+    );
   }
 
   return deny("AnyOf", lastReason ?? "no alternative policy allowed", children);
@@ -364,6 +413,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
         durationMillis,
         trace,
         visibleFields: trace.visibleFields,
+        obligations: trace.obligations,
       })
     : new Deny({
         evaluationId,
@@ -382,6 +432,11 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     // "undefined" in a trace viewer, and adding a key unconditionally would
     // change every existing span.
     ...(options?.action === undefined ? {} : { "qadi.action": options.action }),
+    // Obligations are reported, never run. Present only when there are some, so
+    // an evaluation that carries none looks exactly as it did before E2.
+    ...(decision._tag === "Allow" && decision.obligations.length > 0
+      ? { "qadi.obligations": decision.obligations.map((o) => o.id).join(",") }
+      : {}),
   });
 
   return decision;

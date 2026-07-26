@@ -113,6 +113,7 @@ import {
   size,
   someMatch,
   type EvaluationError,
+  type UndischargedObligation,
 } from "@qadi/core";
 import { qadiTestLayer, subjectWith } from "@qadi/testing";
 
@@ -155,7 +156,15 @@ declare const loadOrders: Effect.Effect<ReadonlyArray<Order>>;
 
 // Many resources, also already loaded: the same policy once per row, each row
 // supplied as its own `resource`.
-const many: Effect.Effect<ReadonlyArray<Order>, EvaluationError> = loadOrders.pipe(
+//
+// `filter` hands back data, so it enforces rather than reports: an allowed row
+// whose policy carries a binding obligation fails the call rather than being
+// dropped (ADR-QD-019), which is why `UndischargedObligation` is in the channel
+// even though this policy carries no duty.
+const many: Effect.Effect<
+  ReadonlyArray<Order>,
+  EvaluationError | UndischargedObligation
+> = loadOrders.pipe(
   Effect.flatMap((orders) => filter(approvable, orders)),
   Effect.provide(services),
 );

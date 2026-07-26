@@ -46,7 +46,7 @@ counter — which is the part this document recommends pursuing.
 | -------- | ----- |
 | Status | **Breaking** |
 | Priority | **P3** |
-| Enablers required | ~~**E1**~~ **shipped**; **E2, E5** outstanding |
+| Enablers required | ~~**E1, E2**~~ **shipped**; **E5** outstanding |
 | Breaking change | Yes |
 
 ### Why this is the deepest mismatch in the matrix
@@ -100,7 +100,7 @@ ordinary pieces of work and one that is out of scope:
 | ------------ | ---- | ------- |
 | Authorisations (pre) | Shipped | — |
 | Conditions (environmental) | Shipped, via `AttributeResolver` | — |
-| Obligations (pre) | Missing | **E2** |
+| Obligations (pre) | `obliged`, discharged before the guarded effect | **E2 — shipped** |
 | Attribute mutability | Missing | **E5** + a write path |
 | Continuity / ongoing enforcement | **Architecturally absent** | Not an enabler |
 
@@ -263,13 +263,13 @@ decision shapes, and the reasoning applies with more force.
 | Part | Verdict |
 | ---- | ------- |
 | **E1** — action dimension | **Done.** Additive and cheap, as forecast; shipped on the argument that it unlocks seven models |
-| **E2** — obligations | **Pursue**, driven by [XACML parity](./26-xacml.md) and purpose-based control, not by UCON |
+| **E2** — obligations | **Done.** Built on the argument from [XACML parity](./26-xacml.md) and purpose-based control, not from UCON |
 | **E5** — decision history port | **Pursue**, driven by [Chinese Wall](./30-chinese-wall.md) and [history-based control](./31-hbac.md) |
 | Write path / `postUpdate` | **Pursue conditionally** — only once E5 exists, and only as a caller-invoked journal |
 | Continuity / `onUpdate` | **Decline.** Not an enabler, not on the [roadmap](../roadmap.md), not a gap to close |
 
-**The recommendation is that Qadi never targets UCON.** It should build E2 and
-E5 — having built E1 — because other models justify each independently, and state
+**The recommendation is that Qadi never targets UCON.** It should build E5 —
+having built E1 and E2 — because other models justify it independently, and state
 —
 here, once — that continuous enforcement is out of scope. An application needing
 it should terminate sessions at the layer that owns them, consulting Qadi for the

@@ -163,8 +163,9 @@ describe("project", () => {
       evaluationId: "e",
       subjectId: "u",
       durationMillis: 0,
-      trace: { policyTag: "HasRole", allowed: true, children: [] },
+      trace: { policyTag: "HasRole", allowed: true, children: [], obligations: [] },
       visibleFields: fields,
+      obligations: [],
     });
 
   it("a denial exposes nothing", () => {
@@ -172,7 +173,7 @@ describe("project", () => {
       evaluationId: "e",
       subjectId: "u",
       durationMillis: 0,
-      trace: { policyTag: "HasRole", allowed: false, children: [] },
+      trace: { policyTag: "HasRole", allowed: false, children: [], obligations: [] },
       reason: "no",
     });
     assert.deepStrictEqual(project(deny, data), {});

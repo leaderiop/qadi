@@ -1,7 +1,13 @@
 import { World } from "@cucumber/cucumber";
 import type { IWorldOptions } from "@cucumber/cucumber";
-import type { AuthSubject, Decision, EvaluateOptions, Policy } from "@qadi/core";
-import { evaluate, isAllowed, makeSubject, toJson, fromJson } from "@qadi/core";
+import type {
+  AuthSubject,
+  Decision,
+  EvaluateOptions,
+  Obligation,
+  Policy,
+} from "@qadi/core";
+import { enforce, evaluate, isAllowed, makeSubject, toJson, fromJson } from "@qadi/core";
 import { qadiTestLayer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 
@@ -12,6 +18,9 @@ export interface Outcome {
   readonly errored: boolean;
   readonly reason: string | undefined;
   readonly visibleFields: ReadonlyArray<string> | undefined;
+  readonly obligations: ReadonlyArray<string>;
+  /** The `_tag` of the error enforcement produced, when it produced one. */
+  readonly failure: string | undefined;
 }
 
 const NO_OUTCOME: Outcome = {
@@ -20,6 +29,8 @@ const NO_OUTCOME: Outcome = {
   errored: false,
   reason: undefined,
   visibleFields: undefined,
+  obligations: [],
+  failure: undefined,
 };
 
 /**
@@ -38,6 +49,12 @@ export class QadiWorld extends World {
   relationships: Array<readonly [string, string, string]> = [];
   resource: Record<string, unknown> | undefined = undefined;
   action: string | undefined = undefined;
+  /** Set when a scenario supplies a handler for the duties a decision carries. */
+  handlesObligations = false;
+  /** What a supplied handler was actually asked to discharge. */
+  discharged: Array<string> = [];
+  /** Whether the effect behind `enforce` was started. */
+  workRan = false;
 
   outcome: Outcome = NO_OUTCOME;
   /** Set by serialization scenarios. */
@@ -57,6 +74,9 @@ export class QadiWorld extends World {
     this.relationships = [];
     this.resource = undefined;
     this.action = undefined;
+    this.handlesObligations = false;
+    this.discharged = [];
+    this.workRan = false;
     this.outcome = NO_OUTCOME;
     this.serialized = undefined;
     this.restored = undefined;
@@ -100,6 +120,35 @@ export class QadiWorld extends World {
     this.outcome = toOutcome(result.value);
   }
 
+  /**
+   * Runs a policy as a guard over some work, recording whether the work ran.
+   *
+   * Distinct from `run` because obligations are where reporting and enforcing
+   * diverge: `evaluate` hands the duty back, `enforce` refuses to proceed on
+   * one nobody discharged.
+   */
+  runGuarded(policy: Policy): void {
+    const work = Effect.sync(() => {
+      this.workRan = true;
+    });
+
+    const handler = (obligations: ReadonlyArray<Obligation>) =>
+      Effect.sync(() => {
+        for (const o of obligations) this.discharged.push(o.id);
+      });
+
+    const guarded = work.pipe(
+      enforce(policy, this.handlesObligations ? { onObligations: handler } : {}),
+      Effect.provide(qadiTestLayer(this.subject, {})),
+    );
+
+    const result = Effect.runSync(Effect.result(guarded));
+    this.outcome =
+      result._tag === "Failure"
+        ? { ...NO_OUTCOME, errored: true, failure: result.failure._tag }
+        : { ...NO_OUTCOME, allowed: true };
+  }
+
   /** Serializes then deserializes a policy, recording both sides. */
   roundTrip(policy: Policy): void {
     const json = Effect.runSync(toJson(policy));
@@ -114,4 +163,7 @@ const toOutcome = (decision: Decision): Outcome => ({
   errored: false,
   reason: decision._tag === "Deny" ? decision.reason : undefined,
   visibleFields: decision._tag === "Allow" ? decision.visibleFields : undefined,
+  obligations:
+    decision._tag === "Allow" ? decision.obligations.map((o) => o.id) : [],
+  failure: undefined,
 });

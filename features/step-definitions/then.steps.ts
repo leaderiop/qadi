@@ -36,6 +36,33 @@ Then("all fields are visible", function (this: QadiWorld) {
   assert.equal(this.outcome.visibleFields, undefined);
 });
 
+Then("the decision owes {string}", function (this: QadiWorld, expected: string) {
+  const want = expected.split(",").map((s) => s.trim()).sort();
+  assert.deepEqual([...this.outcome.obligations].sort(), want);
+});
+
+Then("the decision owes nothing", function (this: QadiWorld) {
+  assert.deepEqual(this.outcome.obligations, []);
+});
+
+Then("the guarded work runs", function (this: QadiWorld) {
+  assert.equal(this.workRan, true, "expected the guarded work to have run");
+});
+
+Then("the guarded work does not run", function (this: QadiWorld) {
+  // Not merely discarded — never started. That is the whole point of an aspect.
+  assert.equal(this.workRan, false, "the guarded work ran when it should not have");
+});
+
+Then("enforcement fails with an undischarged obligation", function (this: QadiWorld) {
+  assert.equal(this.outcome.failure, "qadi/UndischargedObligation");
+});
+
+Then("the handler discharged {string}", function (this: QadiWorld, expected: string) {
+  const want = expected.split(",").map((s) => s.trim()).sort();
+  assert.deepEqual([...this.discharged].sort(), want);
+});
+
 const describe = (world: QadiWorld): string =>
   JSON.stringify({
     allowed: world.outcome.allowed,

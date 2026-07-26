@@ -196,12 +196,15 @@ two gaps, has shipped —
 [ADR-QD-018](../decisions/018-action-dimension.md). A rule treating reads and
 writes asymmetrically is now expressible in one stored policy.
 
-**No obligations (E2).** A decision is `Allow | Deny` and nothing else. XACML's
-ABAC may return "permit, provided the access is logged" or "permit, provided the
-record is redacted". Qadi expresses the redaction — `fields` and `fieldStrategy`
-are exactly that — but cannot attach a duty the caller must discharge.
+**~~No obligations (E2).~~ Closed.** A decision was `Allow | Deny` and nothing
+else, so XACML's "permit, provided the access is logged" had no expression —
+Qadi could say the redaction, since `fields` and `fieldStrategy` are exactly
+that, but not the duty.
+[E2](./00-adoption-matrix.md#e2--obligations-on-decision) /
+[ADR-QD-019](../decisions/019-obligations.md) has shipped, and `obliged` carries
+it.
 
-**XACML parity needs E2 and E3.** Beyond obligations, `deny-overrides`,
+**XACML parity needs E3.** Beyond obligations, now shipped, `deny-overrides`,
 `permit-overrides` and `first-applicable` have no representation:
 `FieldStrategy` governs field-set merging only, and the allow/deny rule is
 hard-coded in `AllOf` and `AnyOf`. E3 is breaking because the honest fix changes
