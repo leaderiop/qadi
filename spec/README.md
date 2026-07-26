@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-00                                        |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification — Master Index        |
-> | Change History | 1.3 (2026-07-26): Wiring-only model documents (CCR-QD-007)<br>1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.4 (2026-07-26): Core-change and excluded model documents (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only model documents (CCR-QD-007)<br>1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -63,6 +63,20 @@ link is broken. `scripts/check-doc-examples.mjs` compiles the runnable examples.
 | [21 — Organisation-Based Access Control](./models/21-orbac.md) | Multi-tenant rule catalogues; activity has no home yet |
 | [22 — Type Enforcement](./models/22-type-enforcement.md) | SELinux-shaped domain/type matrices, and why it is not MAC |
 | [23 — Label-Based Access Control](./models/23-label-based.md) | Clearances and classifications; dominance needs an enabler |
+| [24 — Separation of Duty](./models/24-separation-of-duty.md) | Static, dynamic and object-based SoD; the last already works |
+| [25 — Rule-Based Access Control](./models/25-rubac.md) | Ordered first-match rule lists; needs combining algorithms |
+| [26 — XACML Parity](./models/26-xacml.md) | What parity would take, and why not to chase completeness |
+| [27 — Bell–LaPadula](./models/27-bell-lapadula.md) | No read up, no write down; why a scalar approximation is wrong |
+| [28 — Biba](./models/28-biba.md) | The integrity dual; low-water-mark needs history |
+| [29 — Multi-Level Security](./models/29-mls.md) | The Denning lattice; dominance is a partial order |
+| [30 — Chinese Wall](./models/30-chinese-wall.md) | Conflict of interest; the wall is built by the first access |
+| [31 — History-Based Access Control](./models/31-hbac.md) | Rate limits and quotas; the port must not become a database |
+| [32 — Usage Control](./models/32-ucon.md) | UCON's ABC model; continuity is a deliberate non-goal |
+| [33 — Task-Based Access Control](./models/33-tbac.md) | Workflow authorizations; only the once-ness is missing |
+| [34 — Next Generation Access Control](./models/34-ngac.md) | Policy as a graph; treat it as a resolver, not a rewrite |
+| [35 — Row-Level Security](./models/35-row-level.md) | Predicates instead of decisions; the largest departure |
+| [36 — Cell-Level Security](./models/36-cell-level.md) | Per-value visibility; more of it ships than expected |
+| [37 — Models Qadi Does Not Implement](./models/37-excluded.md) | The boundary, and what pairs with Qadi instead |
 
 Model documents are planning records, not specification. They carry `MOD-QD-NNN`
 identifiers precisely so that describing a capability cannot be mistaken for
@@ -158,3 +172,4 @@ Full rules in [the identifier scheme](./process/requirement-id-scheme.md).
 | CCR-QD-005 | 2026-07-26 | Library renamed Guard → Qadi; scope `@guard/*` → `@qadi/*`; infix `EG` → `QD`; service tags, span names and document ids follow |
 | CCR-QD-006 | 2026-07-26 | Model documents for the seven shipped access control models (MOD-QD-001–007) |
 | CCR-QD-007 | 2026-07-26 | Model documents for the sixteen wiring-only models (MOD-QD-008–023) |
+| CCR-QD-008 | 2026-07-26 | Model documents for the core-change and excluded models (MOD-QD-024–037); model set complete |

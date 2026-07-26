@@ -1,0 +1,303 @@
+# 26 — XACML Parity
+
+> **Document Control**
+>
+> | Property       | Value                                          |
+> | -------------- | ---------------------------------------------- |
+> | Document ID    | QADI-MOD-26                                    |
+> | Revision       | 1.0                                            |
+> | Effective Date | 2026-07-26                                     |
+> | Status         | Effective                                      |
+> | Author         | Qadi Engineering                               |
+> | Classification | Planning — Model Adoption                      |
+> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+
+---
+
+## What it is
+
+XACML — the OASIS eXtensible Access Control Markup Language — is two things
+wearing one name. It is a **policy language**: rules carrying a target and a
+condition over subject, resource, action and environment attributes, combined by
+named algorithms. And it is an **architecture**: an enforcement point (PEP) asks
+a decision point (PDP), which pulls attributes from information points (PIP) and
+evaluates policies published by an administration point (PAP).
+
+*Parity* here means expressing what a XACML policy expresses. It does not mean
+implementing the XML dialect, which nobody should want — the JSON profile that
+displaced it in practice is the same shape with fewer angle brackets. What is
+interesting about XACML is how it decomposes an authorisation question, not how
+it serialises one.
+
+## Who asks for it
+
+Organisations with an existing XACML deployment they would rather not rewrite:
+enterprise IAM suites, and the government, defence and healthcare procurement
+that names the standard in a requirements document. A larger and quieter group
+asks without saying so — anyone wanting attribute rules that also *require
+something of the caller* (log this, mask that, re-authenticate first) is asking
+for obligations, the one part of XACML with no substitute in this matrix.
+
+## Status
+
+| Property | Value |
+| -------- | ----- |
+| Status | **Breaking** |
+| Priority | **P2** |
+| Enablers required | **E1** (action dimension), **E2** (obligations on `Decision`), **E3** (combining algorithms) |
+| Breaking change | Yes — E3 changes what `AllOf` and `AnyOf` mean |
+
+E1 and E2 are additive; only E3 makes this row breaking. A useful subset of
+parity therefore lands without a breaking change, and the recommendation below
+turns on exactly that split.
+
+## What Qadi can express today
+
+More than the standard's reputation suggests: the attribute machinery, the
+condition language and the decision point are shipped. What is missing is the
+verb, the obligation and the combinator.
+
+| XACML concept | Qadi | Status |
+| ------------- | ---- | ------ |
+| Subject and resource attributes | `hasAttribute`, `hasResourceAttribute` | **Shipped** ([MOD-QD-002](./02-abac.md)) |
+| Rule `<Condition>` | The `Matcher` algebra | **Shipped** |
+| Rule `<Target>` | Approximated by a leading conjunct in `allOf` | **Approximated** |
+| Action | — | **Missing** — E1 |
+| Environment attributes | Resolved attributes ([MOD-QD-012](./12-context-aware.md)) | **Partial** |
+| Obligations and advice | — | **Missing** — E2 |
+| Combining algorithms | `allOf` / `anyOf`, fixed and unordered | **Missing** — E3 |
+| Decision point (PDP) | The evaluator — `decide`, `check`, `enforce` | **Shipped** |
+| Information point (PIP) | `AttributeResolver`, `RelationshipResolver` | **Shipped** |
+| Administration and enforcement points | The caller's; Qadi neither administers nor enforces | Out of scope ([URS](../urs.md)) |
+| `Indeterminate` | A typed error in the error channel | **Stronger** |
+
+Target versus condition is an optimisation, not a semantic: XACML separates them
+so a PDP can index policies by target and skip subtrees wholesale. Qadi has one
+tree evaluated left to right, so a target is the first conjunct of an `allOf`,
+and short-circuiting ([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation))
+means a non-matching one costs nothing further. What is lost is indexing
+*across* policies, which matters at PDP scale, not library scale.
+
+Indeterminate is where Qadi is straightforwardly better. XACML makes it a fourth
+value in the same channel as Permit and Deny, so a PIP timeout and a considered
+refusal reach the PEP by the same path. Here a failed lookup is an
+`AttributeResolveError` or `RelationshipResolveError` in the error channel: it
+cannot be pattern-matched as a `Deny`, nor silently coerced into one — which is
+[INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial).
+
+The example below is a XACML rule with nothing left over — target, condition,
+subject attributes, resource attributes — against the shipped API.
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import {
+  AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever,
+  allOf, anyOf, currentSubjectLayer, decide, eq, gte, hasAttribute,
+  hasResourceAttribute, hasRole, inArray, isAllowed, labeled, makeSubject,
+  subjectId,
+} from "@qadi/core";
+
+// XACML <Target>: the rule applies to cardiology records. Qadi has no target
+// slot, so it becomes the first conjunct — evaluated, not indexed.
+const target = hasResourceAttribute("unit", inArray(["cardiology", "cardiac-icu"]));
+
+// XACML <Condition>: the attending clinician, or a senior enough supervisor.
+// Labels survive into the trace, so a denial names the branch that failed.
+const condition = anyOf([
+  labeled("attending", hasResourceAttribute("attendingId", eq(subjectId()))),
+  labeled("supervisor", allOf([hasRole("supervisor"), hasAttribute("seniority", gte(3))])),
+]);
+
+const program = decide(labeled("cardiology-access", allOf([target, condition])), {
+  resource: { id: "rec-88", unit: "cardiology", attendingId: "u-7" },
+}).pipe(
+  Effect.map(isAllowed),
+  Effect.provide(
+    currentSubjectLayer(
+      makeSubject({ id: "u-9", roles: ["supervisor"], attributes: { seniority: 4 } }),
+    ),
+  ),
+  Effect.provide(
+    Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+  ),
+);
+```
+
+What that rule cannot say is *which operation* is attempted, and it cannot
+attach "and write an access record" to the allow. Those are E1 and E2.
+
+## Proposed API design
+
+Unshipped. These fences are signatures, not examples.
+
+### E1 — the action dimension
+
+```ts
+interface EvaluateOptions {
+  readonly resource?: Resource;
+  readonly action?: string;
+  readonly maxDepth?: number;
+}
+
+interface MatcherContext {
+  readonly subject: Readonly<Record<string, unknown>>;
+  readonly subjectId: string;
+  readonly resource: Resource | undefined;
+  readonly action: string | undefined;
+}
+
+/** A value reference, so an action compares like any other value. */
+const action: () => ValueRef;
+```
+
+`MatcherContext` is built per evaluation and never serialised, so widening it
+costs no wire compatibility; an `ActionRef` variant of `ValueRef` does touch a
+codec. An **absent** action must deny any policy inspecting one, and the action
+must stay disjoint from permission tokens, whose `resource:action` keys already
+encode a verb ([ADR-QD-007](../decisions/007-permission-token-representation.md)).
+
+### E2 — obligations on the decision
+
+The substantive half of parity, and the half with no workaround. `Allow` and
+`Deny` are `Data.TaggedClass` values with **no `Schema`**, unlike `Policy` and
+`Matcher`, so adding a field is not a codec change, cannot invalidate a
+serialised policy, and cannot reproduce the round-trip defect this library was
+rewritten to fix. The types are the easy part:
+
+```ts
+interface Obligation {
+  readonly id: string;
+  readonly attributes: Readonly<Record<string, unknown>>;
+  /** XACML `advice` is an obligation the PEP may ignore. */
+  readonly advisory: boolean;
+}
+
+/** An obligation is carried by a node, not by a new leaf type. */
+const obliged: (obligation: Obligation, policy: Policy) => Policy;
+
+class Allow extends Data.TaggedClass("Allow")<{
+  // …existing fields…
+  readonly obligations: ReadonlyArray<Obligation>;
+}> {}
+```
+
+The hard question is **composition**, in three parts:
+
+- **`AllOf`** — easy. Every child allowed, so every child's obligations apply
+  and the result is their concatenation, modulo a rule for two obligations
+  sharing an `id` with different attributes: a merge policy of exactly the kind
+  `FieldStrategy` already encodes for fields.
+- **`AnyOf`** — harder, because of short-circuiting. Under the default `First`
+  strategy evaluation stops at the first allowing child, so the obligation set
+  depends on order. Defensible — that branch is what justified the decision —
+  but it must be *stated*, because collecting from every allowing branch instead
+  forces exhaustive evaluation and would quietly repeal
+  [INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation) for any
+  tree containing an obligation.
+- **`Not`** — no obvious answer at all. Negating "allow, and log this" yields a
+  denial; an obligation on a decision that did not happen is meaningless, yet
+  dropping it silently loses something a reviewer may rely on. Three candidates
+  exist — drop, propagate as advisory, or reject `obliged` inside `Not` at
+  construction — and each reads differently in the trace. **That belongs in an
+  ADR**, decided before any code.
+
+`mergeFields` in `Evaluate.ts` is the only place sibling results combine today,
+and it is the shape the obligation analogue should take: one function called
+from `evaluateAllOf` and `evaluateAnyOf`, strategy named rather than implied.
+One constraint bounds the whole design — an obligation is **data returned with a
+decision**, never a callback the evaluator invokes, because the moment
+obligations execute, evaluation acquires side effects and
+[INV-QD-009](../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied)
+is gone. Reporting them belongs on the existing span
+([ADR-QD-009](../decisions/009-observability-via-effect.md)), not a new port.
+
+### E3 — combining algorithms
+
+XACML defines `deny-overrides`, `permit-overrides`, `first-applicable`,
+`only-one-applicable` and their ordered variants; Qadi has `allOf` and `anyOf`,
+unordered, with the allow/deny rule hard-coded in the evaluator. This document
+does **not** design that mechanism. Ordered first-match is the same problem in a
+more common vocabulary, and it is designed in
+[25 — Rule-Based Access Control](./25-rubac.md); parity should consume whatever
+lands there rather than propose a second, XACML-flavoured spelling of it.
+
+## What it would cost
+
+| Enabler | Nature | Work |
+| ------- | ------ | ---- |
+| **E1** | Additive | `action` on `EvaluateOptions` and `MatcherContext`; an `ActionRef` across schema, type, constructor and generator |
+| **E2** | Additive | An `Obligation` type, a node carrying it, a merge function beside `mergeFields`, and an ADR for `Not` |
+| **E3** | Breaking | Deferred to [MOD-QD-025](./25-rubac.md) |
+
+Invariants at risk: [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness)
+(the action must not alias permission segments),
+[INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) (a new `ValueRef`
+lands in four places at once),
+[INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation) (obligation
+collection must not force exhaustive evaluation) and
+[INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) (an absent action
+denies).
+
+### The recommendation: do not pursue full parity
+
+E1 is worth building because a policy that cannot see the verb cannot express
+read-down or write-up, which blocks a whole family of models. E2 is worth
+building because obligations have no substitute anywhere in this matrix. E3 is
+worth building because ordered rule lists are how people write rules.
+
+Each is worth building **on its own merits** — none because XACML has it. Three
+things should be declined outright: the XML dialect and its request/response
+profile, a translation layer anyone can write over `decide` without the library
+growing a parser; the four-value decision algebra, below; and the full combining
+catalogue, since two algorithms cover the demand and the rest exist to close the
+standard under its own composition rules. The reason is plain — **parity with a
+standard is not a goal; expressiveness is.** A feature justified by "the
+standard has it" is a feature with no user behind it, and this library exists
+because its predecessor shipped compliance primitives that were never assembled
+([ADR-QD-016](../decisions/016-gxp-out-of-scope.md)).
+
+### On the four values
+
+XACML returns Permit, Deny, NotApplicable or Indeterminate; Qadi returns
+`Allow | Deny` with failures in the error channel. Both extra values collapse,
+and to something better rather than merely different — which is why no
+recommended subset of parity adopts them.
+
+**NotApplicable is a denial.** Under fail-closed defaults
+([INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed)) a policy that
+does not apply is a policy that did not permit, and every safe enforcement point
+maps it to Deny anyway. Keeping it as a return value preserves a distinction the
+PEP is obliged to erase, while adding a third case every caller must handle in
+which the unsafe handling is also the shortest to write. Qadi keeps the
+distinction in the trace, which records whether the policy denied or never
+matched without letting that difference change the decision.
+
+**Indeterminate as a return value is the confusion itself.** It places "the
+attribute store timed out" in the same channel as "this subject may not read
+this record", and every mishandling of that fails open or closed by accident.
+The error channel makes it unmistakable: an `AttributeResolveError` cannot be
+read as a decision, and a caller who ignores it gets a propagated failure rather
+than a denial. Adopting the four-value algebra would mean weakening
+[INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) to match a table
+in a specification. This document does not propose it.
+
+## Verification
+
+Nothing here is built. This document claims nothing about the current library
+beyond the example above, which uses only shipped API and is type-checked in CI.
+
+Parity in the recommended sense would need three ADRs — the action dimension,
+obligation composition under `Not`, and whatever [MOD-QD-025](./25-rubac.md)
+settles for combining — plus, per enabler, a behaviour document, an invariant
+and a scenario tagged with a newly allocated `REQ-QD` identifier. E1 and E2 both
+add cases to the FastCheck generator in `packages/core/test/Policy.test.ts` in
+the same change that adds them to the schema, and E2 needs the span-emission
+collector [the roadmap](../roadmap.md) already lists as open: obligations are
+reported through the span, so asserting them means being able to read one. Until
+then the honest status is that the attribute half of XACML is shipped and
+tested, and the rest is a plan.
+
+---
+
+_Related: [00 — Adoption Matrix](./00-adoption-matrix.md) · [25 — Rule-Based Access Control](./25-rubac.md) · [02 — Attribute-Based Access Control](./02-abac.md) · [ADR-QD-009](../decisions/009-observability-via-effect.md)_

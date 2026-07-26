@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -63,13 +63,13 @@ application asks for it and it needs an evaluation dimension Qadi does not have.
 
 ## 2. Enablers
 
-Thirteen unshipped models reduce to **seven** pieces of core capability. Planning
-by enabler rather than by model is what keeps this from becoming thirteen
+The sixteen models in §3.3 reduce to **seven** pieces of core capability.
+Planning by enabler rather than by model is what keeps this from becoming sixteen
 independent designs that each bolt a field onto `Policy`.
 
 | Id | Enabler | Nature | Unlocks |
 | -- | ------- | ------ | ------- |
-| **E1** | Action dimension | Additive | Bell–LaPadula, Biba, MLS, RuBAC, XACML parity, UCON, NGAC |
+| **E1** | Action dimension | Additive | Bell–LaPadula, Biba, MLS, RuBAC, XACML parity, UCON, NGAC, OrBAC, type enforcement |
 | **E2** | Obligations on `Decision` | Additive | XACML parity, UCON, purpose-based, consent-based, break-glass |
 | **E3** | Combining algorithms | Breaking | RuBAC, XACML parity |
 | **E4** | Label lattice | Additive | Bell–LaPadula, Biba, MLS, label-based |
@@ -222,29 +222,84 @@ label-based and type-enforcement models alike.
 
 ### 3.3 Core change — P2 and P3
 
-| Model | Status | Enablers | Priority |
-| ----- | ------ | -------- | -------- |
-| Separation of duty (RBAC₂), static | Additive | — | P2 |
-| Separation of duty, dynamic | Additive | E5 | P3 |
-| Purpose enforcement with obligations | Additive | E2 | P2 |
-| XACML parity | Breaking | E1, E2, E3 | P2 |
-| Rule-based (RuBAC), ordered | Breaking | E3 | P2 |
-| Usage control (UCON) | Breaking | E1, E2, E5 | P3 |
-| Task-based (TBAC) | Additive | E5 | P3 |
-| Bell–LaPadula | Additive | E1, E4 | P3 |
-| Biba | Additive | E1, E4 | P3 |
-| Multi-level security / Denning lattice | Additive | E1, E4 | P3 |
-| Chinese Wall (Brewer–Nash) | Additive | E5 | P3 |
-| History-based (HBAC) | Additive | E5 | P3 |
-| Next Generation Access Control (NGAC) | Additive | E1, E6 | P3 |
-| Row-level security | Breaking | E7 | P3 |
-| Cell-level security | Breaking | E7 | P3 |
+Documented. Each carries one compiled example of the closest thing expressible
+today, so the gap is demonstrated rather than asserted; all proposed API is in
+uncompiled fences, because it does not exist.
+
+| Model | Document | Status | Enablers | Priority |
+| ----- | -------- | ------ | -------- | -------- |
+| Separation of duty (RBAC₂), static | [MOD-QD-024](./24-separation-of-duty.md) | Additive | — | P2 |
+| Separation of duty, dynamic | [MOD-QD-024](./24-separation-of-duty.md) | Additive | E5 | P3 |
+| Purpose enforcement with obligations | [MOD-QD-017](./17-purpose.md) | Additive | E2 | P2 |
+| XACML parity | [MOD-QD-026](./26-xacml.md) | Breaking | E1, E2, E3 | P2 |
+| Rule-based (RuBAC), ordered | [MOD-QD-025](./25-rubac.md) | Breaking | E3 | P2 |
+| Usage control (UCON) | [MOD-QD-032](./32-ucon.md) | Breaking | E1, E2, E5 | P3 |
+| Task-based (TBAC) | [MOD-QD-033](./33-tbac.md) | Additive | E5 | P3 |
+| Bell–LaPadula | [MOD-QD-027](./27-bell-lapadula.md) | Additive | E1, E4 | P3 |
+| Biba, strict | [MOD-QD-028](./28-biba.md) | Additive | E1, E4 | P3 |
+| Biba, low-water-mark | [MOD-QD-028](./28-biba.md) | Additive | E1, E4, **E5** | P3 |
+| Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | Additive | E1, E4 | P3 |
+| Chinese Wall (Brewer–Nash) | [MOD-QD-030](./30-chinese-wall.md) | Additive | E5 | P3 |
+| History-based (HBAC) | [MOD-QD-031](./31-hbac.md) | Additive | E5 | P3 |
+| Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | Additive | E1, E6 | P3 |
+| Row-level security | [MOD-QD-035](./35-row-level.md) | Breaking | E7 | P3 |
+| Cell-level security | [MOD-QD-036](./36-cell-level.md) | Breaking | E7 | P3 |
+
+#### What the P2/P3 documents corrected here
+
+**Low-water-mark Biba needs E5.** This table previously listed Biba as needing
+E1 and E4 alone. Strict Biba does; the low-water-mark relaxation drops the
+subject's effective integrity to that of the lowest object it has read, which is
+history. Ring policies remain E1 + E4, because nothing is remembered.
+
+**E1 is the highest-leverage enabler, and this table understated it.** Three
+models — OrBAC's *activity*, type enforcement's *operation*, and NGAC's
+*operation sets* — are each blocked on the action dimension alone, on top of the
+five listed against E1 in §2. It is additive, it invalidates no serialized
+policy, and it unblocks more than any other single change.
+
+**A negated port inverts the fail-closed default.** `RelationshipResolverNever`
+fails closed by answering `false` because `hasRelationship` is positive. E5's
+natural node is *negative* — "has this subject not already acted?" — so a
+`false`-answering default layer would **grant**. The obvious implementation of
+E5's default breaches [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed).
+Four documents depend on E5, so this belongs here and not only in
+[MOD-QD-024](./24-separation-of-duty.md), which found it.
+
+**Dominance is a partial order, and a boolean matcher loses that.**
+`(Secret, {CRYPTO})` and `(Secret, {BIO})` are incomparable. A `Dominates`
+matcher returning `boolean` collapses "incomparable" into "false" — correct as a
+dominance *test*, wrong for anything needing to distinguish the two. E4's design
+should define the boolean in terms of a three-valued comparison.
+
+**The three E5 sketches do not agree, and that is the point of writing them.**
+[MOD-QD-024](./24-separation-of-duty.md) proposes `hasActed` keyed by resource;
+[MOD-QD-030](./30-chinese-wall.md) proposes an `engagement` read returning three
+cases *plus* a write member; [MOD-QD-031](./31-hbac.md) settles a general
+`hasActed` with an optional resource key and argues the write is not an
+evaluation service at all. [MOD-QD-033](./33-tbac.md) spells the policy node's
+parameter `action` where 024 spells it `relation`. These are four independent
+attempts at one interface and they diverge on: whether the read returns a boolean
+or a value, whether the port also writes, and what the parameter is called.
+
+The divergence is useful rather than embarrassing — it is what a design review
+would have surfaced, arrived at cheaply. E5's ADR must settle all four points
+before any code, and the safest default remains the one from §3.3 above: the
+fail-closed polarity inverts for a negative node.
+
+**A write path would cost more than the read.** Chinese Wall needs an access
+*recorded* for the wall to exist. If Qadi's evaluator writes, it is no longer
+pure and [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible)
+weakens from "reproducible" to "reproducible given identical prior writes". The
+recommendation across the E5 documents is consistent and worth stating once here:
+the port reads, the caller writes after acting on a decision.
 
 ### 3.4 Excluded — P4
 
-Qadi decides. It does not authenticate, persist, or administer. These models are
-enforced by a mechanism Qadi is not, and the honest answer is a boundary plus a
-pointer to what pairs with it.
+Documented in [MOD-QD-037](./37-excluded.md). Qadi decides. It does not
+authenticate, persist, or administer. These models are enforced by a mechanism
+Qadi is not, and the honest answer is a boundary plus a pointer to what pairs
+with it.
 
 | Model | Enforced by | Pairs with Qadi how |
 | ----- | ----------- | -------------------- |
@@ -312,21 +367,36 @@ library to be correct.
 open: close the relationship short-circuit coverage gap. Neither is model work;
 both get more expensive once model documents exist.
 
-**Phase 1 — Record what is shipped.** Seven P0 documents. No code. These are the
-template proof: if the format does not work for a model Qadi already implements,
-it will not work for one it does not.
+**Phase 1 — Record what is shipped.** ✔ Seven P0 documents (CCR-QD-006). The
+template proof: it corrected three API claims this document had wrong, which is
+what it was for.
 
-**Phase 2 — Recipes.** Sixteen P1 documents plus the resolver adapters worth
-shipping. The highest-value work in this plan, because it converts documented
-capability into usable capability without touching the evaluator.
+**Phase 2 — Recipes.** ✔ Sixteen P1 documents (CCR-QD-007). Established the two
+expressiveness limits in §3.2. The resolver adapters themselves remain undecided
+— documenting the recipe and shipping the adapter are separate commitments.
 
-**Phase 3 — Additive enablers.** E1, E2, E4, E5, E6. Each is an ADR, a behaviour,
-an invariant and a scenario. E1 and E2 first — they unlock the most and break the
-least.
+**Phase 3 — Record what is not built.** ✔ Fourteen P2/P3/P4 documents
+(CCR-QD-008), completing the set at thirty-eight. Corrected four further claims,
+recorded in §3.3.
 
-**Phase 4 — Breaking enablers.** E3 and E7, and the models that need them. Both
+Documentation is now complete. What follows is implementation, and none of it is
+required for the library to be correct.
+
+**Phase 4 — Additive enablers.** E1 first, and by a clear margin: it is additive,
+invalidates no serialized policy, and is the sole blocker for eight models. Then
+E2 (obligations, no wire-format change), then E5, E4, E6. Each is an ADR, a
+behaviour, an invariant and a scenario.
+
+Two design questions must be settled by ADR *before* code, because both are
+silent-failure risks rather than matters of taste: the polarity of E5's default
+layer (§3.3 — the obvious implementation fails open), and whether E4's dominance
+comparison is two- or three-valued.
+
+**Phase 5 — Breaking enablers.** E3 and E7, and the models that need them. Both
 change what existing constructs mean. Both should land before `1.0.0` or not at
-all.
+all. E7 should be pursued only as an abstract predicate over an explicitly
+translatable subset of the ADT, per [MOD-QD-035](./35-row-level.md) — or not at
+all, since a database's own row security is usually the better answer.
 
 ## 6. Compatibility validation
 
