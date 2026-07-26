@@ -13,6 +13,7 @@ features/reports/
 !.env.example
 
 .doc-examples/
+.package-check/
 reports/
 .stryker-tmp/
 

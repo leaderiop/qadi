@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.15                                            |
+> | Revision       | 1.16                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -801,5 +801,36 @@ only re-package it. Separately, a failing resolver is asserted to *reject* rathe
 resolve `false`, which is the assertion that would catch the idiom above.
 
 **Related**: [BEH-QD-169](behaviors/22-promise-facade.md), [BEH-QD-170](behaviors/22-promise-facade.md), [ADR-QD-032](decisions/032-promise-facade.md).
+
+---
+
+## INV-QD-027: The published package decides what the sources decide
+
+The package a consumer installs answers as the sources do. A permission the subject
+holds allows, one it does not holds denies, and both entry points agree — through the
+published `exports` map, against the shipped declarations, outside this repository.
+
+**Source**: `tsconfig.build.json` emits every public package, and `pnpm pack` resolves
+the workspace-time dependency protocols that `npm pack` copies through verbatim. Both
+are conditions on the artifact rather than on the code, which is why neither could be
+established by reading it.
+
+**Implication**: the artifact cannot pass while the sources fail, nor the reverse. It
+was the reverse that occurred: `@qadi/promise` type-checked, tested and mutation-tested
+green for six commits while `pnpm build` emitted nothing for it, because a *different*
+project graph — the typecheck one — included the package and left a `lib/` behind that
+looked like a build product. Ten gates read the sources and agreed, and the tarball
+would have shipped empty.
+
+**Enforcement**: step 10 of `pnpm check`. `scripts/check-package-install.mjs` reads the
+build graph, packs each public package with `pnpm`, extracts the tarballs into a sandbox
+resolving `effect` and `react` from this workspace, and compiles and runs a TypeScript
+consumer against the shipped `.d.ts`. Its first check is static because it is the only
+one a stale `lib/` cannot fool. Verified against five deliberate breaks: packing with
+`npm`, an `exports` path with no file behind it, a renamed declaration, an
+allow-turned-deny in the built evaluator, and the promise package removed from the build
+graph *with its stale output left in place*.
+
+**Related**: [INV-QD-006](#inv-qd-006-failure-is-not-denial), [INV-QD-026](#inv-qd-026-the-facade-answers-what-the-core-answers), [ADR-QD-033](decisions/033-the-packed-artifact-is-the-product.md).
 
 ---

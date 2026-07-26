@@ -47,8 +47,9 @@ pnpm test:bdd      # Cucumber acceptance scenarios
 pnpm spec:examples # compile every runnable example in spec/
 pnpm spec:verify:strict  # specification internal consistency
 pnpm spec:api      # the documented API surface matches the real one
+pnpm spec:package  # the packed packages install, resolve and authorize
 pnpm mutation      # Stryker, breaking below 80% on packages/core
-pnpm check         # all ten gates, in order
+pnpm check         # all eleven gates, in order
 ```
 
 `pnpm check` is the merge gate, and [CI](./.github/workflows/check.yml) runs that

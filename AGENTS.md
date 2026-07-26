@@ -327,7 +327,27 @@ So a claim that CI does something is true exactly when that something is in
 was (CCR-QD-035) — check the workflow before writing the words, rather than the
 other way round.
 
-## 16. Formatting is deliberately not enforced
+## 16. Publish with `pnpm`, never `npm`
+
+`scripts/check-package-install.mjs` is merge gate 10: it packs each public package,
+installs it into a sandbox and makes a TypeScript consumer authorize through the
+published `exports` map. Two rules come out of it, and both are checked rather than
+remembered.
+
+**`pnpm publish`, never `npm publish`.** Dependencies use pnpm's workspace-time
+protocols — `"effect": "catalog:"` everywhere, `"@qadi/core": "workspace:*"` in three
+packages. `pnpm` resolves them when packing; `npm` copies them into the tarball
+verbatim and the result cannot be installed at all (`EUNSUPPORTEDPROTOCOL`). The gate
+fails if either protocol reaches a tarball, so this cannot rot into folklore.
+
+**A new public package goes in `tsconfig.build.json`.** It is a *different* project
+graph from `tsconfig.json`: the latter includes tests and the acceptance suite and is
+what `pnpm typecheck` uses, the former is what ships. `@qadi/promise` was missing from
+it from the day the facade landed and nobody noticed for six commits, because
+`tsc -b` on the typecheck graph emits the same `lib/` and left something on disk that
+looked like a build product (ADR-QD-033). Adding a package means editing both.
+
+## 17. Formatting is deliberately not enforced
 
 `oxfmt` is available (`pnpm format`, `pnpm format:check`) and is **not** a merge
 gate. `pnpm format:check` reports 147 of 169 files, and running the formatter

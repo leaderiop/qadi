@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-025                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-026) |
+> | Change History | 1.1 (2026-07-26): Named the step by position rather than index — it said "step 9" while the gate table had it at 10, and a new gate has since made it 11 (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-026) |
 
 ---
 
@@ -41,7 +41,7 @@ exercised.
 
 ## Decision
 
-**Stryker runs on `packages/core` as step 9 of `pnpm check`, breaking below 80%.**
+**Stryker runs on `packages/core` as the last step of `pnpm check`, breaking below 80%.**
 
 Three parts, each with a reason that is not obvious from the config file:
 

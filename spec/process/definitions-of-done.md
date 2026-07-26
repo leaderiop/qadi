@@ -31,7 +31,8 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 7 | `node scripts/check-doc-examples.mjs` | Every runnable example in `spec/` compiles |
 | 8 | `bash spec/scripts/verify-traceability.sh --strict` | Specification is internally consistent |
 | 9 | `node scripts/check-api-surface.mjs` | `spec/overview.md` names every export of every public package |
-| 10 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
+| 10 | `node scripts/check-package-install.mjs` | The packed packages install, resolve and authorize |
+| 11 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
 
 Step 7 was absent from this table until CCR-QD-026 while `pnpm check` had been
 running it for some time — the documented gate was *weaker* than the real one,
@@ -54,10 +55,25 @@ oversight but a property of the process — nothing connected an export to its
 documentation, so the connection survived only as long as someone remembered it. The
 third fix is a gate rather than an edit.
 
-It runs before step 10 deliberately: it takes milliseconds and mutation testing takes
+It runs before step 11 deliberately: it takes milliseconds and mutation testing takes
 ninety seconds, so a drifted document fails fast.
 
-Step 10 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
+Step 10 is new in CCR-QD-038, and it is the first gate that looks at the package rather
+than the sources. Every test in this repository imports `src/` by relative path, so
+nothing had ever resolved a `@qadi/*` specifier through a published `exports` map.
+Checking by hand found two defects in an hour: `npm pack` copies pnpm's `catalog:` and
+`workspace:` protocols into the tarball verbatim, making it uninstallable, so these
+packages are publishable with `pnpm` and not with `npm`; and `tsconfig.build.json` had
+omitted `@qadi/promise` since the day the facade landed, so `pnpm build` emitted nothing
+for it and publishing would have shipped that package empty.
+
+The second defect explains the shape of the gate. It survived ten green gates because
+`pnpm typecheck` uses a *different* project graph, one that does include the package,
+and `tsc -b` emits — so a `lib/` was always on disk looking like a build product. The
+gate's first check therefore reads `tsconfig.build.json` statically, because it is the
+only check here that a stale directory cannot fool. See ADR-QD-033.
+
+Step 11 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
 which lines executed, not which assertions mean anything, and every enabler in
 this library was signed off with a mutation pass **run by hand and quoted into an
 ADR**. Quoted evidence nobody else can reproduce is the predecessor's failure mode

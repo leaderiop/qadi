@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-032                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.1 (2026-07-26): Signature listing corrected — it omitted the `subject` parameter that the section below it insists on (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 ---
 
@@ -39,10 +39,10 @@ unreachable, and the second path rotted because nothing exercised it.
 export const makeQadi: (layer: QadiLayer) => Qadi;
 
 interface Qadi {
-  readonly check: (policy: Policy, options?: EvaluateOptions) => Promise<boolean>;
-  readonly decide: (policy: Policy, options?: EvaluateOptions) => Promise<Decision>;
-  readonly assert: (policy: Policy, options?: EvaluateOptions) => Promise<void>;
-  readonly filter: <A>(items: ReadonlyArray<A>, …) => Promise<ReadonlyArray<A>>;
+  readonly check: (subject: AuthSubject, policy: Policy, options?: EvaluateOptions) => Promise<boolean>;
+  readonly decide: (subject: AuthSubject, policy: Policy, options?: EvaluateOptions) => Promise<Decision>;
+  readonly assert: (subject: AuthSubject, policy: Policy, options?: EvaluateOptions) => Promise<void>;
+  readonly filter: <A>(subject: AuthSubject, policy: Policy, items: ReadonlyArray<A>) => Promise<ReadonlyArray<A>>;
   readonly dispose: () => Promise<void>;
 }
 ```

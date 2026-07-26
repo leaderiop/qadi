@@ -98,3 +98,6 @@ entries:
   - id: "ADR-QD-032"
     file: "032-promise-facade.md"
     title: "A Promise facade with no evaluator in it"
+  - id: "ADR-QD-033"
+    file: "033-the-packed-artifact-is-the-product.md"
+    title: "The packed artifact is the product, so a gate installs it"
