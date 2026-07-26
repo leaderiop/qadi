@@ -316,6 +316,13 @@ This exists because the document drifted twice — see CCR-QD-025 and CCR-QD-034
 occurrences is a property of the process rather than an oversight, and adding a
 gate was cheaper than remembering a third time.
 
-**There is no CI.** `pnpm check` runs all ten gates and runs where someone runs it.
-Do not write "in CI" in this repository: six documents claimed it and none of it was
-true (CCR-QD-035).
+**CI runs `pnpm check` and nothing else** (`.github/workflows/check.yml`). That is
+deliberate: a workflow with its own list of steps would be a second definition of
+"done", and two definitions of one thing drifting apart is the defect this library
+was rewritten to remove. Adding a gate means editing `check` and the DoD table
+together, and CI follows for free.
+
+So a claim that CI does something is true exactly when that something is in
+`pnpm check`. Before CCR-QD-036 there was no CI at all and six documents said there
+was (CCR-QD-035) — check the workflow before writing the words, rather than the
+other way round.

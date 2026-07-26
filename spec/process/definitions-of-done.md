@@ -37,6 +37,15 @@ Step 7 was absent from this table until CCR-QD-026 while `pnpm check` had been
 running it for some time — the documented gate was *weaker* than the real one,
 which is the safe direction and still a defect in a normative document.
 
+**CI runs this command and nothing else** — `.github/workflows/check.yml`, added in
+CCR-QD-036. A workflow enumerating its own steps would be a second definition of
+"done", and this table would drift from it exactly as `spec/overview.md` drifted from
+the exports. Adding a gate means editing `pnpm check` and this table together.
+
+Note what that costs: CI is only as complete as `check`. `pnpm format:check` is *not*
+in it and fails on 127 of 145 files, which is a pre-existing state nobody has decided
+about — recorded here rather than left for someone to discover.
+
 Step 9 is new in CCR-QD-034, and it exists because the document it checks drifted
 **twice**. CCR-QD-025 found `spec/overview.md` still describing the library as it stood
 before any of the seven enablers shipped; six commits later it was missing ten more

@@ -51,9 +51,9 @@ pnpm mutation      # Stryker, breaking below 80% on packages/core
 pnpm check         # all ten gates, in order
 ```
 
-**There is no CI.** `pnpm check` is the merge gate and it runs where someone runs
-it — every number in the specification was produced that way. The gates exist so
-that a machine *can* run them; wiring one up is the outstanding task.
+`pnpm check` is the merge gate, and [CI](./.github/workflows/check.yml) runs that
+one command — not its own list of steps, so the two cannot drift apart. Every number
+in the specification up to CCR-QD-035 was produced by a person running it by hand.
 
 Conventions are in [`AGENTS.md`](./AGENTS.md) and are enforced, not merely
 documented: `scripts/check-house-style.mjs` fails the build on `async`/`await`,
