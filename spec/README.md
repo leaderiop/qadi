@@ -101,10 +101,11 @@ having verified one.
 | [13 — The Label Lattice](./behaviors/13-labels.md) | BEH-QD-097–101 |
 | [14 — Subject Sets](./behaviors/14-subject-sets.md) | BEH-QD-105–109 |
 | [15 — Rule Tables](./behaviors/15-rules.md) | BEH-QD-111–117 |
+| [16 — Predicate Output](./behaviors/16-predicates.md) | BEH-QD-121–128 |
 
 ### Decisions
 
-Twenty-three ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
+Twenty-four ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 
 | ADR | Decision |
 | --- | -------- |
@@ -120,9 +121,10 @@ Twenty-three ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones
 | [ADR-QD-021](./decisions/021-label-lattice.md) | Dominance is four-valued; the label never enters the policy |
 | [ADR-QD-022](./decisions/022-subject-set-evaluation.md) | A subject set is asked by nobody, and reports rather than enforces |
 | [ADR-QD-023](./decisions/023-combining-algorithms.md) | A rule list stops at the first rule that cannot be overridden |
+| [ADR-QD-024](./decisions/024-predicate-output.md) | A predicate is a second interpreter, shipped with its reference semantics |
 
-All twenty-three are **Accepted** and describe code that exists. ADR-QD-018
-through ADR-QD-023 were each written *Proposed* first — recording a
+All twenty-four are **Accepted** and describe code that exists. ADR-QD-018
+through ADR-QD-024 were each written *Proposed* first — recording a
 decision whose implementation had not landed — and moved to Accepted when the
 capability shipped with its behaviour, invariant and scenario. That is the path a
 Proposed decision takes, and for ADR-QD-020 and ADR-QD-021 it was mandatory: the

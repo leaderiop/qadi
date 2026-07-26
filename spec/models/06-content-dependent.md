@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-06                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-006) |
+> | Change History | 1.1 (2026-07-26): Row-level security shipped as E7; cell-level declined (CCR-QD-020)<br>1.0 (2026-07-26): Initial release (CCR-QD-006) |
 
 ---
 
@@ -176,23 +176,31 @@ Nothing, for the model as scoped. What is missing is the model people ask for
 next, and the boundary is worth stating precisely because the two are easy to
 conflate.
 
-**Row-level security (E7).** Content-dependent control decides about *one
-resource you have already loaded*. Row-level security decides about *rows you
-have not loaded*, by producing a predicate pushed down into the query so that
-unauthorised rows are never fetched. Qadi's evaluator returns `Allow | Deny`;
-returning a filter is a different return type and a different contract, and it is
-the single largest departure from the current design in the
-[matrix](./00-adoption-matrix.md#e7--predicate-output). It would also need a
-target dialect — a predicate is useful only if something compiles it to SQL, to a
-document query, or to an ORM's `where` clause — and choosing that target is a
-scope decision Qadi has not taken.
+**~~Row-level security (E7).~~ Shipped (CCR-QD-020).** Content-dependent control
+decides about *one resource you have already loaded*. Row-level security decides
+about *rows you have not loaded*, by producing a predicate pushed down into the
+query so that unauthorised rows are never fetched. `toPredicate` does that now
+([16 — Predicate Output](../behaviors/16-predicates.md)); returning a filter is
+indeed a different return type and a different contract, so it is a second entry
+point rather than a change to `evaluate`.
 
-**Cell-level security (E7).** The same enabler applied to columns. Qadi already
-redacts *after* loading: `fields` and `fieldStrategy` project a record down to
-what the decision makes visible
+*One thing this section got right and one it got wrong.* The dialect question was
+real and it was answered by **not** taking the scope decision: Qadi emits an
+abstract `Predicate` and the caller compiles it, so there is no target dialect and
+no database dependency. But "a predicate is useful only if something compiles it"
+understates what shipped — `evaluatePredicate` is a reference interpreter, so the
+predicate is executable in Qadi's own terms before anyone compiles anything, and
+that is what makes a caller's compiler testable
+([INV-QD-018](../invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows)).
+
+**Cell-level security (E7).** The same enabler applied to columns, and the half
+that was **declined** rather than shipped. Qadi already redacts *after* loading:
+`fields` and `fieldStrategy` project a record down to what the decision makes
+visible
 ([INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top)).
-Cell-level security means the column is never read, which is again a predicate
-pushed into the query.
+Cell-level security means the column is never read, and `toPredicate` refuses a
+policy carrying a `fields` restriction rather than returning a row filter that
+silently drops it — see [36 — Cell-Level Security](./36-cell-level.md).
 
 **`filter` is the honest middle ground, and it does not scale.**
 `filter(policy, items)` evaluates the policy once per item, each item as its own
@@ -202,7 +210,8 @@ cannot be more than that, because the rows must be fetched before they can be
 judged: over a large table it reads everything to discard most of it, and `LIMIT`
 composes wrongly with it — twenty rows fetched may yield three allowed. Say so
 plainly rather than letting a caller discover it at production volume. Pushing
-the predicate down is E7, and no version of `filter` becomes it.
+the predicate down is E7, and no version of `filter` becomes it — which is why
+E7 shipped as `toPredicate` beside `filter` rather than as a change to it.
 
 ## Verification
 

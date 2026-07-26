@@ -47,3 +47,6 @@ entries:
   - id: "BEH-QD-111"
     file: "15-rules.md"
     title: "15 — Rule Tables"
+  - id: "BEH-QD-121"
+    file: "16-predicates.md"
+    title: "16 — Predicate Output"

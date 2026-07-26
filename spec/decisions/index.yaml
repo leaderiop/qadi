@@ -71,3 +71,6 @@ entries:
   - id: "ADR-QD-023"
     file: "023-combining-algorithms.md"
     title: "A rule list stops at the first rule that cannot be overridden"
+  - id: "ADR-QD-024"
+    file: "024-predicate-output.md"
+    title: "A predicate is a second interpreter, and it ships with the reference that proves it agrees"

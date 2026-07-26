@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-35                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): Shipped as E7, in the recommended form (CCR-QD-020)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -33,10 +33,28 @@ capabilities in this matrix, which is why the honesty of the answer matters.
 
 | Property | Value |
 | -------- | ----- |
-| Status | **Breaking** |
+| Status | **Shipped** — in the recommended form only |
 | Priority | **P3** |
-| Enablers required | **E7** |
-| Breaking change | Yes |
+| Enablers required | ~~**E7**~~ **shipped** |
+| Breaking change | Yes — a second entry point with a different return type over the same ADT |
+
+**Shipped: [ADR-QD-024](../decisions/024-predicate-output.md),
+[16 — Predicate Output](../behaviors/16-predicates.md),
+[INV-QD-018](../invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows),
+`@REQ-QD-016`.**
+
+| Addition | Where |
+| -------- | ----- |
+| `Predicate`, `CompareOp` | a new `Predicate.ts` |
+| `toPredicate(policy, options?)` | the translator |
+| `evaluatePredicate(predicate, row)` | the **reference semantics** — see below |
+| `PredicateServices`, `PredicateOptions` | narrower than `EvaluationServices` |
+| `referencesResource` | `Matcher.ts`, beside `referencesAction` |
+| `PolicyNotTranslatable` (`ACL012`) | the error taxonomy |
+
+It shipped in exactly the form the recommendation below insists on, and nothing
+wider. What this document did **not** anticipate is the answer to its own sharpest
+objection, which is the next section.
 
 ### The shape mismatch, precisely
 
@@ -200,6 +218,17 @@ field sets to one answer, but under a predicate there is no one answer, because
 visibility may differ per row — and resolving that means reading the rows, which
 is [cell-level security](./36-cell-level.md) and the same enabler again.
 
+*Settled by refusing, and more strictly than this section contemplated.* A
+predicate answers **which rows**, never which columns, so **a policy carrying a
+`fields` restriction anywhere in the tree does not translate at all**. Returning
+the row filter and dropping the column restriction would let a caller run
+`SELECT *` and receive columns the policy withheld — which is the silent widening
+this document names as the one unacceptable failure, arriving by a route it did
+not consider. The check is deliberately conservative: any `fields` in the tree,
+including on a branch whose set the evaluator would have discarded, because a
+precise check means reproducing `mergeFields` in the translator and that is a
+third implementation of a rule two already share.
+
 **3. Dialect.** Emitting SQL means owning a dialect: quoting, binding, null
 semantics, one grammar per engine. **Emit the abstract predicate and let the
 caller compile it.** Qadi has no database dependency today, and acquiring one is
@@ -212,6 +241,22 @@ returning no rows explains nothing — "zero results" is indistinguishable from
 That is a real loss; the most on offer is the predicate itself as a diagnostic,
 explaining the *rule* but never why a given row fell outside it.
 
+*Accepted as stated, permanently.* It shipped as a recorded consequence rather
+than a solved problem, and it is the strongest argument for using `filter` where
+the page is small enough to load.
+
+**5. The subset moved, because four enablers landed after this was written.**
+`hasAction` folds — the action is a property of the request. `hasActed` **splits
+on scope**: `"Any"` asks about the subject and folds, `"Resource"` asks per row
+and cannot, which is the same distinction that decides everything else here.
+`Obliged` is untranslatable, because a predicate has no channel to carry a duty
+and rows selected by one would be handed over with a condition nobody was told
+about — [INV-QD-013](../invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation)
+reaching a construct it could not otherwise reach. And **`Rules` translates**,
+which was not foreseeable when this was written because E3 did not exist:
+`DenyOverrides` over a tenancy column is the exact shape this document says every
+multi-tenant application asks for.
+
 ### The recommendation
 
 Pursue E7 only as an abstract predicate with an explicitly translatable subset
@@ -219,19 +264,37 @@ and a loud failure outside it — or not at all; a partial translator that quiet
 approximates is worse than no feature. Until then, push tenancy into the query
 by hand and use Qadi for the decisions it already makes well.
 
+*Followed exactly, and one thing added that this document asked for without
+naming it as API.* Under **Verification** below it demands "above all, the
+agreement property — over a generated table, `toPredicate` admits exactly the rows
+`evaluate` allows", and calls it "the only evidence that would make a second
+interpreter trustworthy". That property is **unobtainable unless the predicate is
+executable**, so `evaluatePredicate` shipped alongside `toPredicate` as the
+reference semantics. It turned out to be the more valuable of the two exports:
+a caller compiling to SQL otherwise has nothing saying their SQL means what Qadi
+meant, and now they have something to differential-test against. The invariant is
+[INV-QD-018](../invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows).
+
+The advice about scale stands unchanged. A predicate is the right answer for a
+large table; `filter` is still the right answer for a page already loaded, and a
+database's own row security is still often better than either.
+
 ## Verification
 
-Nothing verifies this model, because nothing implements it. E7 is unstarted and
-every construct under *Proposed API design* is a sketch; the compiled example is
-the only shipped API here, and it shows `filter`, not row-level security.
+**This model is built.** `packages/core/test/Predicate.test.ts` covers it and
+eight scenarios are tagged `@REQ-QD-016`.
 
-Adopting it means an ADR for the predicate form and the dialect boundary, a
-behaviour, an invariant, and newly allocated `REQ-QD` scenarios covering at
-minimum: a translatable policy producing the expected predicate; an
-untranslatable node failing rather than widening; and, above all, the agreement
-property — over a generated table, `toPredicate` admits exactly the rows
-`evaluate` allows. That last is the only evidence that would make a second
-interpreter trustworthy.
+The plan set out here was followed in full: an ADR for the predicate form and the
+dialect boundary ([ADR-QD-024](../decisions/024-predicate-output.md)), a behaviour
+([16](../behaviors/16-predicates.md)), an invariant
+([INV-QD-018](../invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows)),
+and scenarios covering a translatable policy producing the expected predicate, an
+untranslatable node failing rather than widening, and the agreement property.
+
+That last is a `FastCheck` property over 120 generated policies across twelve
+generated rows — 1,440 comparisons — and it includes rows **missing a column**,
+because `undefined` has to read the same way on both sides or the two interpreters
+diverge exactly where nobody looks.
 
 ---
 

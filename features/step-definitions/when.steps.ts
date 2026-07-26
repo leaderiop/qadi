@@ -252,6 +252,60 @@ When("Bell-LaPadula is enforced", function (this: QadiWorld) {
 });
 
 // ---------------------------------------------------------------------------
+// Predicate output
+// ---------------------------------------------------------------------------
+
+/** "rows of my tenant" — the sentence every multi-tenant application asks. */
+export const tenancy = (): Policy =>
+  hasResourceAttribute("tenantId", eq(subject("tenantId")));
+
+/**
+ * A rule table with a refusal row on top of the tenancy conjunct.
+ *
+ * The catch-all permit row is load-bearing and easy to forget: no row applying
+ * is a denial, so a table of nothing but `Deny` rows never permits anything.
+ * Written without it, this fixture refused every row — and the predicate agreed
+ * with the evaluator that it did, which is the property working.
+ */
+export const sealedRows = (): Policy =>
+  allOf([
+    tenancy(),
+    rules(
+      [denyWhen(hasResourceAttribute("sealed", eq(literal(true)))), permitWhen(allOf([]))],
+      { combining: "DenyOverrides" },
+    ),
+  ]);
+
+When("the tenancy policy is compiled to a predicate", function (this: QadiWorld) {
+  this.compile(tenancy());
+});
+
+When("the audited tenancy policy is compiled to a predicate", function (this: QadiWorld) {
+  // The role folds to a constant, so whether it survives says which half of the
+  // policy reached the query.
+  this.compile(allOf([hasRole("auditor"), tenancy()]));
+});
+
+When(
+  "the ownership relationship policy is compiled to a predicate",
+  function (this: QadiWorld) {
+    this.compile(hasRelationship("owner"));
+  },
+);
+
+When("the audited-with-duty policy is compiled to a predicate", function (this: QadiWorld) {
+  this.compile(obliged(logAccess, hasRole("auditor")));
+});
+
+When("the field-restricted policy is compiled to a predicate", function (this: QadiWorld) {
+  this.compile(hasPermission(permission("doc", "read"), { fields: ["id"] }));
+});
+
+When("the sealed-rows rule table is compiled to a predicate", function (this: QadiWorld) {
+  this.compile(sealedRows());
+});
+
+// ---------------------------------------------------------------------------
 // Rule tables
 // ---------------------------------------------------------------------------
 

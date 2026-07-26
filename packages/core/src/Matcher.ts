@@ -8,6 +8,7 @@
  * subject or resource, or a nested structure. They are pure data: no closures,
  * so a matcher survives serialization.
  */
+import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import { isSecurityLabel, labelDominates } from "./SecurityLabel.ts";
 
@@ -230,25 +231,48 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
  * to pass the action would then read that as "not authorized" rather than as
  * the wiring error it is (INV-QD-011).
  */
-export const referencesAction = (self: Matcher): boolean => {
-  switch (self._tag) {
-    case "Eq":
-    case "Neq":
-    case "Dominates":
-      return self.ref._tag === "ActionRef";
-    case "FieldMatch":
-    case "SomeMatch":
-    case "EveryMatch":
-    case "Size":
-      return referencesAction(self.matcher);
-    case "In":
-    case "Exists":
-    case "Gte":
-    case "Lt":
-    case "Contains":
-      return false;
-  }
-};
+export const referencesAction: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    Eq: (m) => m.ref._tag === "ActionRef",
+    Neq: (m) => m.ref._tag === "ActionRef",
+    Dominates: (m) => m.ref._tag === "ActionRef",
+    FieldMatch: (m) => referencesAction(m.matcher),
+    SomeMatch: (m) => referencesAction(m.matcher),
+    EveryMatch: (m) => referencesAction(m.matcher),
+    Size: (m) => referencesAction(m.matcher),
+    In: () => false,
+    Exists: () => false,
+    Gte: () => false,
+    Lt: () => false,
+    Contains: () => false,
+  }),
+);
+
+/**
+ * True when a matcher reads the resource anywhere within it.
+ *
+ * Asked by the predicate translator rather than the evaluator, and for the
+ * mirror-image reason. A matcher that reads the resource compares against a
+ * *column*, and a translator that folded it against the absent resource would
+ * emit a filter built from `undefined` — a silent widening or narrowing with no
+ * error to announce it (ADR-QD-024).
+ */
+export const referencesResource: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    Eq: (m) => m.ref._tag === "ResourceRef",
+    Neq: (m) => m.ref._tag === "ResourceRef",
+    Dominates: (m) => m.ref._tag === "ResourceRef",
+    FieldMatch: (m) => referencesResource(m.matcher),
+    SomeMatch: (m) => referencesResource(m.matcher),
+    EveryMatch: (m) => referencesResource(m.matcher),
+    Size: (m) => referencesResource(m.matcher),
+    In: () => false,
+    Exists: () => false,
+    Gte: () => false,
+    Lt: () => false,
+    Contains: () => false,
+  }),
+);
 
 /**
  * Evaluates a matcher against a value.

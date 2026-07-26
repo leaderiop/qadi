@@ -5,7 +5,7 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-34                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
@@ -270,14 +270,22 @@ expression tree cannot be inverted into a set: `hasResourceAttribute` and
 `hasRelationship` are *predicates over a resource in hand*, and asking which
 resources satisfy them is a query, not a decision. The honest shape for that is
 **E7 — predicate output**, where the evaluator returns a filter to push into the
-caller's query — the same enabler [row-level security](./00-adoption-matrix.md)
-needs, and marked **Breaking**. Partial review is achievable; full review is not,
-and no amount of additive work makes it so.
+caller's query — the same enabler [row-level security](./35-row-level.md) needs.
 
-**Prohibitions need E3.** Combining a prohibition with an association is
-order-sensitive in exactly the way `AllOf` and `AnyOf` are not. That is the same
-obstruction, with the same analysis, as
-[25 — Rule-Based Access Control](./25-rubac.md), and it is not re-derived here.
+*This was right, and E7 shipped exactly that shape.* One correction: the
+asymmetry it treats as a single gap is two, and only one closed.
+`toPredicate` gives the **object** direction, because a policy inverts into a
+filter over rows. The **user** direction does not follow, because the translator
+folds the subject to a constant — the opposite of inverting it — and
+`hasRelationship` is untranslatable precisely because it is keyed per row. Partial
+review is achievable, object-space review now is, and user-space review still is
+not.
+
+**~~Prohibitions need E3.~~ Shipped (CCR-QD-019).** Combining a prohibition with
+an association is order-sensitive in exactly the way `AllOf` and `AnyOf` are not.
+That was the same obstruction, with the same analysis, as
+[25 — Rule-Based Access Control](./25-rubac.md), and it is not re-derived here; a
+prohibition is now a `denyWhen` row in a `rules` table.
 The resolver above sidesteps it by evaluating prohibitions *inside* the
 traversal, before the association search — which is correct, and is also the
 general answer: a deny that lives behind the port never reaches the combining

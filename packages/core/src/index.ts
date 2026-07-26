@@ -10,6 +10,7 @@ export * from "./Matcher.ts";
 export * from "./Obligation.ts";
 export * from "./Permission.ts";
 export * from "./Policy.ts";
+export * from "./Predicate.ts";
 export * from "./Qadi.ts";
 export * from "./RelationshipResolver.ts";
 export * from "./Role.ts";

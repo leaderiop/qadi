@@ -234,6 +234,48 @@ describe("referencesAction", () => {
   });
 });
 
+describe("referencesResource", () => {
+  // The mirror image, asked by the predicate translator rather than the
+  // evaluator: a matcher reading the resource compares against a *column*, and
+  // folding it against the absent resource would build a filter out of
+  // `undefined` with no error to announce it (ADR-QD-024).
+  it("sees a bare resource reference under every comparison", () => {
+    assert.isTrue(M.referencesResource(M.eq(M.resource("owner"))));
+    assert.isTrue(M.referencesResource(M.neq(M.resource("owner"))));
+    assert.isTrue(M.referencesResource(M.dominates(M.resource("label"))));
+  });
+
+  it("sees one nested at any depth", () => {
+    assert.isTrue(M.referencesResource(M.fieldMatch("a", M.eq(M.resource("x")))));
+    assert.isTrue(M.referencesResource(M.someMatch(M.neq(M.resource("x")))));
+    assert.isTrue(M.referencesResource(M.everyMatch(M.eq(M.resource("x")))));
+    assert.isTrue(M.referencesResource(M.size(M.eq(M.resource("x")))));
+  });
+
+  it("is false for every matcher that cannot name it", () => {
+    // Every arm, not a sample: `Match.tagsExhaustive` makes each arm its own
+    // function, so an unexercised one is visible as a coverage gap rather than
+    // hidden inside a single switch.
+    const withoutResource: ReadonlyArray<M.Matcher> = [
+      M.eq(M.subjectId()),
+      M.neq(M.subject("tenantId")),
+      M.dominates(M.subject("clearance")),
+      M.inArray([1]),
+      M.exists(),
+      M.gte(1),
+      M.lt(1),
+      M.contains("a"),
+      M.fieldMatch("x", M.exists()),
+      M.someMatch(M.gte(1)),
+      M.everyMatch(M.lt(1)),
+      M.size(M.contains("a")),
+    ];
+    for (const matcher of withoutResource) {
+      assert.isFalse(M.referencesResource(matcher), matcher._tag);
+    }
+  });
+});
+
 describe("getByPath", () => {
   it("returns the input for an empty path", () => {
     assert.deepStrictEqual(M.getByPath({ a: 1 }, ""), { a: 1 });

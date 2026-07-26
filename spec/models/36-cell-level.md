@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-36                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): E7 shipped without the cell-level half, as argued here (CCR-QD-020)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -48,18 +48,35 @@ be per-record field projection — which is shipped.
 
 | Property | Value |
 | -------- | ----- |
-| Status | **Breaking** |
+| Status | **Shipped, in part** — the per-record half; the rest is declined |
 | Priority | **P3** |
-| Enablers required | **E7** |
-| Breaking change | Yes |
+| Enablers required | ~~**E7**~~ shipped, **without** the cell-level projection |
+| Breaking change | Yes, for the half that was declined |
 
 The status is a split, and the table above records the harder half only.
 
 | Capability | Status |
 | ---------- | ------ |
 | Per-record, value-dependent field visibility — the field set derived from the row in hand | **Shipped.** No core change |
-| Per-cell filtering across a *result set* the caller has not loaded | **Breaking**, needs **E7** |
+| Per-cell filtering across a *result set* the caller has not loaded | **Declined**, not deferred — see below |
 | Visibility labels stored *with* the data, enforced at scan time | **Out of scope.** Qadi has no storage layer |
+
+**E7 shipped and this half did not, on this document's own argument.**
+[ADR-QD-024](../decisions/024-predicate-output.md) took the recommendation below
+literally: *an application-level authorization library is the wrong layer for
+high-cardinality cell labels and the right layer for per-record field
+projection.* So `toPredicate` answers **which rows**, never which columns, and
+`CellVisibility` below stays a sketch.
+
+The refusal is stricter than a mere omission. A policy carrying a `fields`
+restriction **anywhere** in the tree does not translate at all, because returning
+the row filter and dropping the column restriction would let a caller run
+`SELECT *` and receive columns the policy withheld. The shipped split is:
+`toPredicate` narrows the page, and `decide` with `project` judges the columns on
+it — which is what this document said Qadi should keep.
+
+**"Shipped, in part" is the ceiling for this row.** The remaining half is declined
+on a combinatorial argument, not waiting on an enabler.
 
 ## What Qadi can express today
 
@@ -161,6 +178,9 @@ and scan-time enforcement are theirs.
 E7 is designed in [35](./35-row-level.md). Only one thing is specific to per-cell
 granularity: the field set stops being a constant on the result.
 
+Unshipped, and now deliberately so. These fences are a sketch of the half that
+was declined.
+
 ```ts
 // Row-level output is one predicate for the query. Cell-level cannot be, because
 // the visible columns differ per row — so the field dimension is a function OF
@@ -233,11 +253,16 @@ differing only in a classification column yield two different field sets. That i
 one scenario against shipped API, costing a newly allocated `REQ-QD` identifier,
 and it is the cheapest verification work in this phase.
 
-**The E7 half is unbuilt.** No predicate output exists, `CellVisibility` above is a
-sketch, and no test, behaviour or invariant touches any of it. Adopting it means E7
-first, then an ADR for the per-row projection, then scenarios — and the
-combinatorial argument should be settled before any of that, because the honest
-outcome may be that this half is never built.
+**The E7 half is declined.** Predicate output now exists
+([16 — Predicate Output](../behaviors/16-predicates.md)), and it carries no column
+dimension: `CellVisibility` above remains a sketch and no test, behaviour or
+invariant touches it. The combinatorial argument was to be settled before anything
+was built, and it was — in the direction this document predicted. *"The honest
+outcome may be that this half is never built"* is the outcome.
+
+What did change is that a policy restricting fields is now **refused** by
+`toPredicate` rather than silently narrowed, so the boundary between the two
+halves is enforced by the type's absence *and* by an error, not by documentation.
 
 ---
 

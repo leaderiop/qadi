@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -143,6 +143,35 @@ How a rule table resolves the rows that applied: `FirstApplicable`,
 `DenyOverrides` or `PermitOverrides`. Exactly one row decides under each, and it
 supplies the decision's field set and obligations.
 See [BEH-QD-112](behaviors/15-rules.md).
+
+## Predicate
+
+A policy compiled into a filter over rows the caller has not loaded — abstract,
+with no SQL and no dialect, so the caller compiles it for their own engine.
+Answers **which rows**, never which columns.
+See [BEH-QD-121](behaviors/16-predicates.md) and [ADR-QD-024](decisions/024-predicate-output.md).
+
+## Folding
+
+Reducing a policy node to a constant at compile time, because it asks about the
+subject rather than the row. Roles, permissions, the action and subject
+attributes all fold; a relationship cannot, being keyed by the row's id.
+See [BEH-QD-123](behaviors/16-predicates.md).
+
+## Translatable subset
+
+The part of the policy ADT that has a predicate form. Anything outside it fails
+with `PolicyNotTranslatable` rather than being approximated — a node quietly
+rendered as `True` would return rows the policy denies.
+See [BEH-QD-123](behaviors/16-predicates.md).
+
+## Reference interpreter
+
+`evaluatePredicate` — the executable semantics of a predicate, applied to one
+row. What makes a second interpreter over the policy tree trustworthy rather
+than merely plausible, and what a caller differential-tests their SQL compiler
+against.
+See [BEH-QD-122](behaviors/16-predicates.md) and [INV-QD-018](invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows).
 
 ## Resolver
 

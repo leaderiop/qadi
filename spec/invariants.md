@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -410,5 +410,48 @@ made twice by independent means. A mutation running every rule under
 rule of either effect kills five.
 
 **Related**: [BEH-QD-115](behaviors/15-rules.md), [ADR-QD-023](decisions/023-combining-algorithms.md).
+
+---
+
+## INV-QD-018: A predicate admits exactly the rows the evaluator allows
+
+For every translatable policy and every row, the compiled predicate and the
+evaluator give the same answer.
+
+**Source**: `packages/core/src/Predicate.ts` — `toPredicate` and
+`evaluatePredicate`. Nothing structural forces the agreement; the predicate being
+**executable** is what makes it checkable, and the check is what holds it.
+
+**Implication**: this is the only invariant in the library asserted by comparing
+two independent implementations of the same semantics rather than by inspecting
+one. A divergence is an authorisation defect that no round-trip or coverage test
+could catch — the predicate would simply return the wrong rows, silently, from a
+query Qadi never sees.
+
+**It is also the caller's tool.** A predicate compiled to SQL by the caller has
+nothing saying their SQL means what Qadi meant. `evaluatePredicate` is the
+reference semantics they differential-test against, so this invariant extends past
+the library boundary in a way no other one does.
+
+**Enforcement**: a `FastCheck` property samples 120 generated policies across
+twelve generated rows — 1,440 comparisons. Only translatable shapes are
+generated, because an untranslatable one has nothing to compare; everything
+outside the subset is covered by the failure tests instead
+([BEH-QD-123](behaviors/16-predicates.md)).
+
+**The generators are the invariant's weak point, and mutation testing proved
+it.** A row whose columns are all well-typed never reaches the place two
+interpreters diverge. Ten mutations were run against the translator and nine died
+immediately; the survivor **coerced** the ordered comparison —
+`Number(value) >= Number(against)` instead of requiring both to be numbers. It
+survived because every generated `level` was an integer and the one hand-written
+non-number case was `"red"`, which is refused by coercion too. A **numeric
+string** is the discriminator: a text column holding `"3"` is admitted by
+coercion and refused by the matcher. The row generator now produces integers,
+numeric strings and `null` for that column, and the property kills the mutant.
+Rows missing a column entirely are generated for the same reason: `undefined`
+must read identically on both sides.
+
+**Related**: [BEH-QD-127](behaviors/16-predicates.md), [ADR-QD-024](decisions/024-predicate-output.md).
 
 ---

@@ -125,6 +125,48 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (policy: Policy) {
 
 `Effect.gen` to construct; `.pipe` for the error/retry tail of a single expression.
 
+## 5a. Dispatch — `Match`, not `switch`
+
+Dispatching on a `_tag` uses `effect/Match`, never a `switch`.
+
+```ts
+import * as Match from "effect/Match";
+
+// A tagged union: `tagsExhaustive` returns the function, and a missing arm is a
+// compile error.
+export const referencesAction: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    Eq: (m) => m.ref._tag === "ActionRef",
+    FieldMatch: (m) => referencesAction(m.matcher),
+    In: () => false,
+    // …every remaining tag
+  }),
+);
+
+// A plain literal union has no `_tag`, so match the values.
+const compare = (op: CompareOp): string =>
+  Match.value(op).pipe(
+    Match.when("Eq", () => "="),
+    Match.when("Lt", () => "<"),
+    Match.exhaustive,
+  );
+```
+
+Recursive dispatchers annotate the const (`: (self: X) => Y`) — that breaks the
+inference cycle, and the handler bodies only run later, so referring to the const
+inside them is fine.
+
+`Match.type<T>()` builds the matcher **once**, at module scope. Prefer that shape;
+`Match.value(x)` rebuilds per call, which is fine for a translator invoked once
+per request and is worth avoiding on a per-node evaluation path.
+
+**Two hot-path switches remain unconverted**: `evaluateNode` in `Evaluate.ts` and
+`evaluateMatcher` in `Matcher.ts`. Both run once per policy node per evaluation —
+and in `filter` and `decideSubjects`, once per element on top of that — where
+their handlers close over per-call state so the matcher cannot be hoisted. They
+are a deliberate exception, not an oversight; converting them needs a benchmark
+first.
+
 ## 6. Forbidden
 
 | Don't | Do |
@@ -136,6 +178,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (policy: Policy) {
 | `performance.now()` | `Effect.timed` |
 | `crypto.randomUUID()` | the `EvaluationId` service |
 | `Effect.either` / `effect/Either` | `Effect.result` + `Result.isSuccess/isFailure` |
+| `switch (x._tag)` | `Match.tagsExhaustive` — see §5a |
 | `as`, `as any`, `!`, `any` | fix the type |
 
 Sync CPU-only calls still get wrapped: `yield* Effect.sync(() => …)`.

@@ -101,6 +101,21 @@ export class UndischargedObligation extends Data.TaggedError(
   readonly obligationIds: ReadonlyArray<string>;
 }> {}
 
+/**
+ * A policy could not be translated into a row predicate.
+ *
+ * Raised rather than approximated. A node outside the translatable subset
+ * rendered as "true" would return rows the policy denies, which is the one
+ * failure mode that makes predicate output worse than its absence
+ * (ADR-QD-024).
+ */
+export class PolicyNotTranslatable extends Data.TaggedError(
+  "qadi/PolicyNotTranslatable",
+)<{
+  readonly policyTag: string;
+  readonly reason: string;
+}> {}
+
 /** Every error this library can produce during evaluation. */
 export type EvaluationError =
   | AttributeResolveError
@@ -114,6 +129,7 @@ export type EvaluationError =
 /** Every error this library can produce, including enforcement and construction. */
 export type QadiError =
   | EvaluationError
+  | PolicyNotTranslatable
   | AccessDenied
   | UndischargedObligation
   | CircularRoleInheritance
@@ -138,6 +154,7 @@ export const ERROR_CODES = {
   "qadi/MissingAction": "ACL009",
   "qadi/UndischargedObligation": "ACL010",
   "qadi/DecisionHistoryUnavailable": "ACL011",
+  "qadi/PolicyNotTranslatable": "ACL012",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

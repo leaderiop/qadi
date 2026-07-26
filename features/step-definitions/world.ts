@@ -6,6 +6,7 @@ import type {
   EvaluateOptions,
   Obligation,
   Policy,
+  Predicate,
 } from "@qadi/core";
 import {
   DecisionHistory,
@@ -14,7 +15,9 @@ import {
   filterSubjects,
   enforce,
   evaluate,
+  evaluatePredicate,
   isAllowed,
+  toPredicate,
   makeSubject,
   toJson,
   fromJson,
@@ -100,6 +103,10 @@ export class QadiWorld extends World {
   review: Array<Reviewed> = [];
   /** The candidates `filterSubjects` kept, in order. */
   answer: Array<string> = [];
+  /** The filter a policy compiled to, when it compiled. */
+  predicate: Predicate | undefined = undefined;
+  /** The policy tag compilation refused, when it refused. */
+  refusedTag: string | undefined = undefined;
   /** Set by serialization scenarios. */
   serialized: string | undefined = undefined;
   restored: Policy | undefined = undefined;
@@ -126,6 +133,8 @@ export class QadiWorld extends World {
     this.candidates = [];
     this.review = [];
     this.answer = [];
+    this.predicate = undefined;
+    this.refusedTag = undefined;
     this.serialized = undefined;
     this.restored = undefined;
   }
@@ -237,6 +246,52 @@ export class QadiWorld extends World {
         decision._tag === "Allow" ? decision.obligations.map((o) => o.id) : [],
     }));
     this.answer = kept.map((s) => s.id);
+  }
+
+  /**
+   * Compiles a policy into a row filter, recording the predicate or the refusal.
+   *
+   * Note the environment: no `EvaluationId`, because no decision is produced.
+   * Translation reads the subject and folds; it never sees a row.
+   */
+  compile(policy: Policy): void {
+    const program = toPredicate(policy).pipe(
+      Effect.provide(qadiTestLayer(this.subject, { attributes: this.resolvedAttributes })),
+    );
+
+    const result = Effect.runSync(Effect.result(program));
+
+    if (result._tag === "Failure") {
+      this.predicate = undefined;
+      this.refusedTag =
+        result.failure._tag === "qadi/PolicyNotTranslatable"
+          ? result.failure.policyTag
+          : result.failure._tag;
+      return;
+    }
+    this.predicate = result.success;
+    this.refusedTag = undefined;
+  }
+
+  /**
+   * Runs the compiled filter and the evaluator over the same rows.
+   *
+   * INV-QD-018 as a scenario: two interpreters over one tree, compared rather
+   * than argued about.
+   */
+  agreesWith(policy: Policy, rows: ReadonlyArray<Record<string, unknown>>): boolean {
+    if (this.predicate === undefined) throw new Error("nothing was compiled");
+    const compiled = this.predicate;
+    return rows.every((row) => {
+      const decision = Effect.runSync(
+        evaluate(policy, { resource: row }).pipe(
+          Effect.provide(
+            qadiTestLayer(this.subject, { attributes: this.resolvedAttributes }),
+          ),
+        ),
+      );
+      return evaluatePredicate(compiled, row) === isAllowed(decision);
+    });
   }
 
   /** Serializes then deserializes a policy, recording both sides. */

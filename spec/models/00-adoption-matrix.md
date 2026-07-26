@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.14                                           |
+> | Revision       | 1.15                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.14 (2026-07-26): E3 shipped; ADR-QD-023 Accepted; two §3.3 claims corrected (CCR-QD-019)<br>1.13 (2026-07-26): E6 shipped; ADR-QD-022 Accepted; phase 4 complete (CCR-QD-018)<br>1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.15 (2026-07-26): E7 shipped; ADR-QD-024 Accepted; phase 5 complete; every enabler shipped (CCR-QD-020)<br>1.14 (2026-07-26): E3 shipped; ADR-QD-023 Accepted; two §3.3 claims corrected (CCR-QD-019)<br>1.13 (2026-07-26): E6 shipped; ADR-QD-022 Accepted; phase 4 complete (CCR-QD-018)<br>1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -75,7 +75,7 @@ independent designs that each bolt a field onto `Policy`.
 | **E4** | Label lattice | **Shipped** | Bell–LaPadula, Biba, MLS, label-based |
 | **E5** | Decision history port | **Shipped** | Chinese Wall, history-based, dynamic separation of duty, UCON |
 | **E6** | Subject-set evaluation | **Shipped** | NGAC, administrative review tooling |
-| **E7** | Predicate output | Breaking | Row-level security, cell-level security |
+| **E7** | Predicate output | **Shipped** | Row-level security; cell-level security declined |
 
 ### E1 — Action dimension
 
@@ -325,11 +325,53 @@ candidate for accesses that never happened.
 
 ### E7 — Predicate output
 
+**Shipped: [ADR-QD-024](../decisions/024-predicate-output.md),
+[16 — Predicate Output](../behaviors/16-predicates.md),
+[INV-QD-018](../invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows),
+`@REQ-QD-016`.**
+
 Row-level security cannot be expressed as a decision about one resource; it is a
 decision that *produces a filter* to push into a query. Qadi's evaluator returns
 `Allow | Deny`. Returning a predicate is a different return type and a different
-contract, and it is the single largest departure from the current design in this
-document.
+contract, and this document called it the single largest departure from the
+current design. That assessment holds: E7 is the only enabler that added a
+**second interpreter over the policy tree** rather than a new thing to say in a
+policy or a second way to call the one interpreter there was.
+
+| Addition | Where |
+| -------- | ----- |
+| `Predicate`, `CompareOp` | a new `Predicate.ts` |
+| `toPredicate(policy, options?)` | the translator — folds the subject, emits columns |
+| `evaluatePredicate(predicate, row)` | the reference semantics |
+| `PredicateServices`, `PredicateOptions` | narrower than `EvaluationServices` |
+| `referencesResource` | `Matcher.ts`, beside `referencesAction` |
+| `PolicyNotTranslatable` (`ACL012`) | the error taxonomy |
+
+**The risk this enabler carried was different in kind from every other one, and
+the answer is the reference interpreter.** [MOD-QD-035](./35-row-level.md) named
+it: *"two interpreters over one tree must agree, and nothing enforces that they
+do — a divergence is an authorisation defect no round-trip test catches."* Every
+other enabler could be verified by asserting what the one evaluator did. This one
+cannot, and the answer is that the predicate is **executable**: `evaluatePredicate`
+makes the agreement a property that can be *run*
+([INV-QD-018](../invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows)),
+and it makes the caller's own SQL compiler testable, which is the part of this
+feature that would otherwise be unverifiable in principle. 35 demanded the
+property and did not notice it was unobtainable without that export.
+
+**It ships answering which rows, never which columns**, and refuses rather than
+approximates: a policy carrying a `fields` restriction anywhere in the tree does
+not translate, because a row filter alone would let a caller select columns the
+policy withheld. That refusal is stricter than 35 contemplated and it is what
+keeps [36 — Cell-Level Security](./36-cell-level.md)'s declined half declined.
+`Obliged` is refused for the parallel reason — a predicate has no channel to carry
+a duty.
+
+**E3 composes into it.** A rule table translates: the overrides are one formula
+each, and `FirstApplicable` costs O(n²) conjuncts because every `Permit` row must
+exclude every row above it. `DenyOverrides` over a tenancy column is the shape
+[35](./35-row-level.md) says every multi-tenant application asks for, and before
+E3 it could not be written at all.
 
 ## 3. The matrix
 
@@ -425,9 +467,9 @@ uncompiled fences, because it does not exist.
 | Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | **Shipped** | — | P3 |
 | Chinese Wall (Brewer–Nash) | [MOD-QD-030](./30-chinese-wall.md) | **Shipped** | — | P3 |
 | History-based (HBAC) | [MOD-QD-031](./31-hbac.md) | **Shipped** | — | P3 |
-| Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | **Shipped, in part** | E7 — full review only | P3 |
-| Row-level security | [MOD-QD-035](./35-row-level.md) | Breaking | E7 | P3 |
-| Cell-level security | [MOD-QD-036](./36-cell-level.md) | Breaking | E7 | P3 |
+| Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | **Shipped, in part** | — (user-space review is out of reach) | P3 |
+| Row-level security | [MOD-QD-035](./35-row-level.md) | **Shipped** | — | P3 |
+| Cell-level security | [MOD-QD-036](./36-cell-level.md) | **Shipped, in part** | — (the cell half is declined) | P3 |
 
 #### What the P2/P3 documents corrected here
 
@@ -446,12 +488,16 @@ one requirement lighter.
 **NGAC ships in part, and the part is the one worth having.** Both enablers it
 named have landed, so the shape [MOD-QD-034](./34-ngac.md) actually recommends —
 the policy graph behind a `RelationshipResolver`, the operation carried by
-`hasAction`, review queries in both directions — is now fully expressible. What
-is still out of reach is what that document already said plainly: review over the
-whole user or object space, which needs a subject store Qadi does not have and an
-inversion of the expression tree that only **E7** could give. The graph itself
-was declined, not deferred. "Shipped, in part" is therefore the ceiling for this
-row, not a stage on the way to "Shipped".
+`hasAction`, review queries in both directions — is fully expressible. The graph
+itself was declined, not deferred, so "Shipped, in part" is the ceiling for this
+row rather than a stage on the way to "Shipped".
+
+*E7 narrowed the remaining gap to exactly one half.* This paragraph treated
+"review over the whole user or object space" as one item; it is two, and they are
+not symmetric. `toPredicate` inverts a policy into a filter over **rows**, which is
+object-space review. User-space review does not follow and never will: the
+translator **folds** the subject to constants, which is the opposite of inverting
+it, and it would need the subject store [the URS](../urs.md) forbids.
 
 **A negated port inverts the fail-closed default.** `RelationshipResolverNever`
 fails closed by answering `false` because `hasRelationship` is positive. E5's
@@ -633,7 +679,7 @@ and whether E4's dominance comparison is two- or three-valued — were the two
 where the building found the least to correct, which is the argument for the
 rule.
 
-**Phase 5 — Breaking enablers.** ✔ **E3 (CCR-QD-019).** This phase was framed as
+**Phase 5 — Breaking enablers.** ✔ Complete. **E3 (CCR-QD-019).** This phase was framed as
 "both change what existing constructs mean", and for E3 that was wrong: the
 honest fix was a new variant, and `AllOf`, `AnyOf` and every serialized policy
 kept the meaning they had. What is breaking is the wire format in one direction —
@@ -643,12 +689,24 @@ something the ADR had not written down: `Rules` is the first node whose
 *allowing* trace carries a reason, because a rule table's first question is which
 row hit and it is asked as often of a grant as of a refusal.
 
-What remains is **E7**, predicate output, which the framing does fit: it is a
-second interpreter over the same tree, returning a different type under a
-different contract. It should be pursued only as an abstract predicate over an
-explicitly translatable subset of the ADT, per
-[MOD-QD-035](./35-row-level.md) — or not at all, since a database's own row
-security is usually the better answer.
+✔ **E7 (CCR-QD-020).** The one enabler the phase framing did fit: a second
+interpreter over the same tree, returning a different type under a different
+contract. It shipped in the form [MOD-QD-035](./35-row-level.md) insisted on and
+no wider — an abstract predicate over an explicitly translatable subset, failing
+loudly outside it — because *a partial translator that quietly approximates is
+worse than no feature*. Its finding is the one that generalises furthest: where
+every earlier enabler could be verified by asserting what the single evaluator
+did, this one needed the predicate to be **executable** so that the agreement
+between two interpreters could be run as a property rather than argued for. That
+export turned out to be the more valuable of the two.
+
+**Every enabler in this document has now shipped**, and every one of them
+surfaced something its ADR had not written down. Two of the seven shipped
+*narrower* than designed (E5's port, E3's rule node), two shipped *wider* (E4's
+four-valued comparison, E7's reference interpreter), and one — E6 — removed a
+service from the public requirement set rather than adding one. The rule that
+produced that record is the one worth keeping: the ADR is written first, and it is
+allowed to be wrong in writing.
 
 ## 6. Compatibility validation
 
@@ -660,13 +718,22 @@ the enablers that touch it.
 | [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness) | E1 — **held** | An action dimension parallel to permission actions could create two spellings of one concept. [ADR-QD-018](../decisions/018-action-dimension.md) made "never derived from or compared against permission segments" the decision itself; nothing in the shipped API relates the two |
 | [INV-QD-002](../invariants.md#inv-qd-002-role-graph-acyclicity) | — | Untouched. No enabler alters role construction |
 | [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) | E1, E3 — **held**; E4 | Any new `Policy` variant must be added in four places at once. This is the invariant the rewrite exists to protect. E1 added two variants (`HasAction`, `ActionRef`) and both are in the round-trip property's generator; the `ActionRef` case had to be nested deliberately, since a leaf generator producing only policies would never reach a `ValueRef`. E3 added `Rules`, whose `Rule` is the only *untagged* struct in the codec, and it entered the generator in the same change |
-| [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top) | E3 — **held**; E7 | This row expected combining to interact with field merging. It does not: exactly one rule decides, so a rule table merges nothing and carries no `fieldStrategy`. `undefined` remains *top*, and a `Deny` row contributes no set at all — `Not`'s rule, in the first place where the subtree beneath it may have *allowed* |
+| [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top) | E3, E7 — **held** | This row expected combining to interact with field merging. It does not: exactly one rule decides, so a rule table merges nothing and carries no `fieldStrategy`. `undefined` remains *top*, and a `Deny` row contributes no set at all — `Not`'s rule, in the first place where the subtree beneath it may have *allowed*. E7 held it by **refusing**: a predicate carries no field dimension, so a policy restricting fields does not translate rather than translating and losing the restriction |
 | [INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation) | E3, E5 — **held** | Ordered combining changes evaluation order, and rather than gain a third clause the invariant hands the question to [INV-QD-017](../invariants.md#inv-qd-017-a-rule-list-stops-at-the-first-rule-that-cannot-be-overridden): stopping is a property of a boolean operator there and of the *algorithm* here. An invariant true by listing has stopped constraining anything |
 | [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) | E5 | A history store that is down is a failure, not a denial. Highest-risk pairing in this table |
 | [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) | E5 | An unwired history port must deny. **This row previously said the same of an absent action, and that was wrong**: INV-QD-007 governs information a resolver could not supply, whereas a missing action is input the caller never provided. [ADR-QD-018](../decisions/018-action-dimension.md) routed it to [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) instead, and the rule is now [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one) |
 | [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | E5 | History makes evaluation stateful. Reproducibility must be restated as *given the same history*, or the invariant weakens silently |
 | [INV-QD-009](../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied) | E2 — **held** | Obligations must not become a channel that runs work before the decision is final. They are data; the evaluator invokes nothing, and a caller's handler runs after the decision and before the guarded effect ([INV-QD-013](../invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation)) |
-| [INV-QD-010](../invariants.md#inv-qd-010-error-codes-are-injective) | all | Mechanically enforced — `ERROR_CODES` is `satisfies Record<QadiError["_tag"], …>`, so a new error without a code fails compilation |
+| [INV-QD-010](../invariants.md#inv-qd-010-error-codes-are-injective) | all — **held** | Mechanically enforced — `ERROR_CODES` is `satisfies Record<QadiError["_tag"], …>`, so a new error without a code fails compilation. Three enablers added one each: `MissingAction` (ACL009), `UndischargedObligation` (ACL010), `DecisionHistoryUnavailable` (ACL011), `PolicyNotTranslatable` (ACL012) |
+
+**E7 is assessed here rather than in a row of its own, because it touches no
+invariant by changing one.** It has its own —
+[INV-QD-018](../invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows) —
+and it is the only invariant in the set asserted by comparing **two independent
+implementations** of the same semantics rather than by inspecting one. Every other
+invariant here names a mechanism inside a single code path; this one names an
+agreement between two, and the mechanism that holds it is a property test rather
+than a type.
 
 **E3 is the first enabler to make an existing invariant defer rather than
 extend.** E1, E2, E4 and E5 each either held a rule unchanged or added one beside
