@@ -44,7 +44,7 @@ redeemed once, a cooling-off period between a password change and a payout.
 | -------- | ----- |
 | Status | **Additive** |
 | Priority | **P3** |
-| Enablers required | **E5** — decision history port |
+| Enablers required | ~~**E5**~~ **shipped** |
 | Breaking change | No |
 
 P3 states demand and cost together: the demand is real but is usually met
@@ -135,6 +135,15 @@ limits stay with the caller until a count is designed on purpose.
 
 ### The port
 
+> **Superseded by [ADR-QD-020](../decisions/020-decision-history-port.md).** The
+> port shipped, and it is not quite the shape sketched below. Two differences
+> matter: it returns `"Acted" | "NotActed" | "Unknown"` rather than a boolean,
+> because no boolean default is fail-closed for *both* polarities — the trap this
+> document was first to spot turned out to have no boolean solution; and the
+> query field is named `event`, not `relation` or `action`, to keep it apart from
+> `hasAction` (E1) and `hasRelationship`. The sketch is left as written, because
+> the reasoning that led here is worth more than a tidy record.
+
 ```ts
 export interface ActedQuery {
   readonly subjectId: string;
@@ -184,6 +193,10 @@ export const decisionHistoryFromEvents: (
 ```
 
 **Three documents now sketch this service and there must be exactly one of it.**
+That requirement was met: [ADR-QD-020](../decisions/020-decision-history-port.md)
+reconciles them into a single one-member port, and the paragraph below is the
+reasoning it built on.
+
 [24](./24-separation-of-duty.md) uses `hasActed` keyed by resource;
 [30](./30-chinese-wall.md) needs a read returning *which* member of a conflict
 class the subject is engaged with, and adds a `record` write. Reconciling them
@@ -222,7 +235,7 @@ constructors. The variant is the expensive half: per
 places in one change — schema union, derived type, evaluator, and the FastCheck
 generator behind the JSON round-trip property.
 
-**[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) must be
+**[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) must be
 restated.** It holds today that an evaluation is reproducible given the same
 subject, policy and services. History makes evaluation depend on time-varying
 external state, so a second call may legitimately differ with all three

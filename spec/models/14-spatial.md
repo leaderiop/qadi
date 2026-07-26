@@ -117,7 +117,8 @@ address, so it belongs in the policy as the separate attribute it is.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolver, EvaluationIdLive, RelationshipResolverNever, allOf, anyOf,
+  AttributeResolver, DecisionHistoryUnknown, EvaluationIdLive,
+  RelationshipResolverNever, allOf, anyOf,
   check, currentSubjectLayer, eq, hasAttribute, hasResourceAttribute, inArray,
   literal, lt, makeSubject, type AttributeResolveError, type EvaluationError,
 } from "@qadi/core";
@@ -156,6 +157,7 @@ const services = Layer.mergeAll(
   currentSubjectLayer(makeSubject({ id: "u-9", roles: ["engineer"] })),
   PlacementResolver,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 

@@ -59,3 +59,6 @@ entries:
   - id: "ADR-QD-019"
     file: "019-obligations.md"
     title: "An obligation is a condition on permission, carried by the allow that granted it"
+  - id: "ADR-QD-020"
+    file: "020-decision-history-port.md"
+    title: "History is a three-valued port, because a boolean cannot fail closed under negation"

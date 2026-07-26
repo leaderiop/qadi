@@ -4,7 +4,16 @@ import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
-import { AttributeResolveError, RelationshipResolveError } from "../src/Errors.ts";
+import {
+  DecisionHistory,
+  DecisionHistoryUnknown,
+  decisionHistoryFromEvents,
+} from "../src/DecisionHistory.ts";
+import {
+  AttributeResolveError,
+  DecisionHistoryUnavailable,
+  RelationshipResolveError,
+} from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -606,6 +615,169 @@ describe("the action dimension", () => {
       assert.isTrue(isAllowed(d));
       assert.deepStrictEqual(calls, []);
     }));
+});
+
+describe("decision history", () => {
+  // The port is three-valued because a boolean cannot fail closed under
+  // negation: whichever way an unwired default answers, it grants under one of
+  // `hasActed`/`hasNotActed`. ADR-QD-020.
+  const clerk = subjectWith({ id: "u1" });
+  const invoice = { resource: { id: "inv-1" } };
+
+  const raisedIt = decisionHistoryFromEvents([["u1", "raised", "inv-1"]]);
+
+  it.effect("hasActed allows when the event is recorded", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasActed("raised"), invoice).pipe(
+        Effect.provide(testLayer(clerk, { history: raisedIt })),
+      );
+      assert.isTrue(isAllowed(d));
+    }));
+
+  it.effect("hasNotActed denies when the event is recorded", () =>
+    Effect.gen(function* () {
+      // "approve this invoice, unless you raised it" — the whole of dynamic
+      // separation of duty.
+      const d = yield* evaluate(P.hasNotActed("raised"), invoice).pipe(
+        Effect.provide(testLayer(clerk, { history: raisedIt })),
+      );
+      assert.isFalse(isAllowed(d));
+    }));
+
+  it.effect("hasNotActed allows when a closed store says it did not happen", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasNotActed("raised"), {
+        resource: { id: "inv-2" },
+      }).pipe(Effect.provide(testLayer(clerk, { history: raisedIt })));
+      assert.isTrue(isAllowed(d));
+    }));
+
+  it.effect("BOTH polarities deny under an unwired port", () =>
+    Effect.gen(function* () {
+      // The trap the matrix recorded, and the reason for the third value. A
+      // boolean default grants under one of these whichever way it answers.
+      const acted = yield* evaluate(P.hasActed("raised"), invoice);
+      const notActed = yield* evaluate(P.hasNotActed("raised"), invoice);
+      assert.isFalse(isAllowed(acted));
+      assert.isFalse(isAllowed(notActed));
+      if (notActed._tag !== "Deny") return;
+      assert.include(notActed.reason, "no history is available");
+    }).pipe(Effect.provide(testLayer(clerk, { history: DecisionHistoryUnknown }))));
+
+  it.effect("hasNotActed is NOT not(hasActed) — the difference is a grant", () =>
+    Effect.gen(function* () {
+      // The single most important assertion about this port. `not` inverts a
+      // decision, so under an unwired port — where `hasActed` denies —
+      // `not(hasActed(e))` ALLOWS. `hasNotActed` denies. Anyone "simplifying"
+      // one into the other opens the door this enabler exists to close.
+      const viaNot = yield* evaluate(P.not(P.hasActed("raised")), invoice);
+      const viaVariant = yield* evaluate(P.hasNotActed("raised"), invoice);
+
+      assert.isTrue(isAllowed(viaNot), "not(hasActed) allows under an unwired port");
+      assert.isFalse(isAllowed(viaVariant), "hasNotActed denies under an unwired port");
+    }).pipe(Effect.provide(testLayer(clerk))));
+
+  it.effect("scope Any asks without a resource and needs none", () =>
+    Effect.gen(function* () {
+      const everRaised = decisionHistoryFromEvents([["u1", "raised", "inv-9"]]);
+      const d = yield* evaluate(P.hasActed("raised", { scope: "Any" })).pipe(
+        Effect.provide(testLayer(clerk, { history: everRaised })),
+      );
+      assert.isTrue(isAllowed(d));
+    }));
+
+  it.effect("scope Resource without resource.id is an error, not a denial", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(evaluate(P.hasActed("raised")));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/MissingResourceId");
+    }).pipe(Effect.provide(testLayer(clerk, { history: raisedIt }))));
+
+  it.effect("an unreachable store is an error, not a denial", () =>
+    Effect.gen(function* () {
+      // The strongest temptation in the library: for a separation-of-duty check
+      // a denial *feels* safe. It makes an outage look like "you raised this".
+      const failing = Layer.succeed(DecisionHistory, {
+        hasActed: (query) =>
+          Effect.fail(
+            new DecisionHistoryUnavailable({ event: query.event, cause: "boom" }),
+          ),
+      });
+      const r = yield* Effect.result(
+        evaluate(P.hasNotActed("raised"), invoice).pipe(
+          Effect.provide(testLayer(clerk, { history: failing })),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/DecisionHistoryUnavailable");
+    }));
+
+  it.effect("an unevaluated history branch performs no lookup", () =>
+    Effect.gen(function* () {
+      const calls: Array<string> = [];
+      const recording = Layer.succeed(DecisionHistory, {
+        hasActed: (query) =>
+          Effect.sync(() => {
+            calls.push(query.event);
+            return "NotActed";
+          }),
+      });
+
+      const policy = P.allOf([P.hasRole("nobody"), P.hasNotActed("raised")]);
+      const d = yield* evaluate(policy, invoice).pipe(
+        Effect.provide(testLayer(clerk, { history: recording })),
+      );
+
+      assert.isFalse(isAllowed(d));
+      assert.deepStrictEqual(calls, []);
+    }));
+
+  it.effect("a history policy survives a round trip", () =>
+    Effect.gen(function* () {
+      const policy = P.hasNotActed("raised", { scope: "Any", fields: ["id"] });
+      const restored = yield* Effect.flatMap(P.toJson(policy), P.fromJson);
+      assert.deepStrictEqual(restored, policy);
+    }));
+
+  it.effect("Chinese Wall is expressible without a bespoke port", () =>
+    Effect.gen(function* () {
+      // Brewer-Nash from two questions the boolean-shaped port already answers.
+      // 30 — Chinese Wall proposed an `Engagement` tagged union for this; it
+      // turns out not to be needed.
+      const withinWall = (conflictClass: string) =>
+        P.anyOf([
+          P.hasNotActed(conflictClass, { scope: "Any" }),
+          P.hasActed(conflictClass, { scope: "Resource" }),
+        ]);
+
+      const engagedWithShell = decisionHistoryFromEvents([["u1", "oil", "shell"]]);
+      const wall = withinWall("oil");
+      const provide = Effect.provide(testLayer(clerk, { history: engagedWithShell }));
+
+      // Same company: allowed. Competitor: refused.
+      assert.isTrue(isAllowed(yield* evaluate(wall, { resource: { id: "shell" } }).pipe(provide)));
+      assert.isFalse(isAllowed(yield* evaluate(wall, { resource: { id: "bp" } }).pipe(provide)));
+
+      // An analyst with no engagement anywhere may take a free first access.
+      const fresh = Effect.provide(
+        testLayer(clerk, { history: decisionHistoryFromEvents([]) }),
+      );
+      assert.isTrue(isAllowed(yield* evaluate(wall, { resource: { id: "bp" } }).pipe(fresh)));
+    }));
+
+  it.effect("an unwired port seals every wall rather than opening it", () =>
+    Effect.gen(function* () {
+      // The failure `not(hasActed(...))` would have produced: with no store,
+      // the first branch would allow and the analyst would reach every company.
+      const withinWall = P.anyOf([
+        P.hasNotActed("oil", { scope: "Any" }),
+        P.hasActed("oil", { scope: "Resource" }),
+      ]);
+      const d = yield* evaluate(withinWall, { resource: { id: "bp" } });
+      assert.isFalse(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(clerk))));
 });
 
 describe("obligations", () => {

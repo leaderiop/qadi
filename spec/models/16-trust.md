@@ -177,7 +177,7 @@ it is a recipe, not a shipped feature. The mechanics it rests on are proven:
 relationship evaluation by `REQ-QD-005`, attribute evaluation and numeric
 strictness by `REQ-QD-004`, the fail-closed default by
 [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed), reproducible
-traces by [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible).
+traces by [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history).
 
 Nothing verifies the *advice*: that a threshold is paired, that decay is
 applied, that reputation does not solely gate a destructive action are review

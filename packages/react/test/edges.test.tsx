@@ -7,6 +7,7 @@ import {
   AttributeResolver,
   AttributeResolverNone,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
   RelationshipResolverNever,
   gte,
   hasAttribute,
@@ -33,7 +34,12 @@ const canRead = hasPermission(permission("doc", "read"));
 const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
 
 const working = makeQadiAtoms(
-  Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+  Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+  ),
 );
 
 const broken = makeQadiAtoms(
@@ -43,6 +49,7 @@ const broken = makeQadiAtoms(
         Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
     }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   ),
 );
@@ -120,6 +127,7 @@ const slow = makeQadiAtoms(
       resolve: () => Effect.delay(Effect.succeed(0), "1 millis"),
     }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   ),
 );

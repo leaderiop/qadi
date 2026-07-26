@@ -2,6 +2,7 @@ import {
   AttributeResolveError,
   AttributeResolver,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
   RelationshipResolverNever,
   eq,
   gte,
@@ -38,6 +39,7 @@ const working = makeQadiAtoms(
   Layer.mergeAll(
     Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   ),
 );
@@ -50,6 +52,7 @@ const broken = makeQadiAtoms(
         Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
     }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   ),
 );
@@ -213,6 +216,7 @@ describe("useInvalidate", () => {
       Layer.mergeAll(
         Layer.succeed(AttributeResolver, { resolve: () => Effect.sync(() => clearance) }),
         RelationshipResolverNever,
+    DecisionHistoryUnknown,
         EvaluationIdLive,
       ),
     );

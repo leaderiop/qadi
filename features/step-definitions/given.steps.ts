@@ -102,3 +102,18 @@ Given("the caller is performing {string}", function (this: QadiWorld, verb: stri
 Given("an obligation handler is supplied", function (this: QadiWorld) {
   this.handlesObligations = true;
 });
+
+// ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+
+Given(
+  "the history records that {string} raised {string}",
+  function (this: QadiWorld, subjectId: string, resourceId: string) {
+    this.events = [...(this.events ?? []), [subjectId, "raised", resourceId]];
+  },
+);
+
+Given("the history store is unreachable", function (this: QadiWorld) {
+  this.historyUnreachable = true;
+});

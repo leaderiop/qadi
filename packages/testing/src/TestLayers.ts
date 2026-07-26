@@ -9,6 +9,8 @@ import {
   AttributeResolver,
   AttributeResolverNone,
   CurrentSubject,
+  DecisionHistory,
+  DecisionHistoryUnknown,
   EvaluationId,
   RelationshipResolver,
   RelationshipResolverNever,
@@ -24,6 +26,7 @@ export type QadiTestServices =
   | CurrentSubject
   | AttributeResolver
   | RelationshipResolver
+  | DecisionHistory
   | EvaluationId;
 
 export interface TestLayerOptions {
@@ -31,6 +34,8 @@ export interface TestLayerOptions {
   readonly attributes?: Readonly<Record<string, unknown>>;
   /** Relationship edges as `[subjectId, relation, resourceId]`. */
   readonly relationships?: ReadonlyArray<readonly [string, string, string]>;
+  /** Past events as `[subjectId, event, resourceId]`. */
+  readonly history?: ReadonlyArray<readonly [string, string, string]>;
   /** Prefix for the deterministic evaluation ids. Defaults to `eval`. */
   readonly idPrefix?: string;
   /**
@@ -43,6 +48,8 @@ export interface TestLayerOptions {
   readonly attributeResolver?: Layer.Layer<AttributeResolver>;
   /** Supplies the relationship layer directly, taking precedence over `relationships`. */
   readonly relationshipResolver?: Layer.Layer<RelationshipResolver>;
+  /** Supplies the history port directly, taking precedence over `history`. */
+  readonly decisionHistory?: Layer.Layer<DecisionHistory>;
 }
 
 /**
@@ -65,6 +72,10 @@ export const qadiTestLayer = (
       (options?.relationships === undefined
         ? RelationshipResolverNever
         : edgeRelationshipResolver(options.relationships).layer),
+    options?.decisionHistory ??
+      (options?.history === undefined
+        ? DecisionHistoryUnknown
+        : eventDecisionHistory(options.history).layer),
     evaluationIdSequential(options?.idPrefix ?? "eval"),
   );
 
@@ -110,6 +121,39 @@ export const edgeRelationshipResolver = (
           const key = `${request.subjectId} ${request.relation} ${request.resourceId}`;
           calls.push(key);
           return index.has(key);
+        }),
+    }),
+  };
+};
+
+/**
+ * A history port over a static event list, recording its queries.
+ *
+ * A closed world: anything not listed is `"NotActed"`. `DecisionHistoryUnknown`
+ * is the layer that says *nobody can say*, and it denies both polarities.
+ */
+export const eventDecisionHistory = (
+  events: ReadonlyArray<readonly [string, string, string]>,
+): {
+  readonly layer: Layer.Layer<DecisionHistory>;
+  readonly calls: ReadonlyArray<string>;
+} => {
+  const keyed = new Set(events.map(([s, e, r]) => `${s} ${e} ${r}`));
+  const anywhere = new Set(events.map(([s, e]) => `${s} ${e}`));
+  const calls: Array<string> = [];
+  return {
+    calls,
+    layer: Layer.succeed(DecisionHistory, {
+      hasActed: (query) =>
+        Effect.sync(() => {
+          const key =
+            query.resourceId === undefined
+              ? `${query.subjectId} ${query.event}`
+              : `${query.subjectId} ${query.event} ${query.resourceId}`;
+          calls.push(key);
+          const found =
+            query.resourceId === undefined ? anywhere.has(key) : keyed.has(key);
+          return found ? "Acted" : "NotActed";
         }),
     }),
   };

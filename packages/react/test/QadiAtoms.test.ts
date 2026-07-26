@@ -9,6 +9,7 @@ import {
   AttributeResolver,
   AttributeResolverNone,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
   RelationshipResolverNever,
   gte,
   hasAttribute,
@@ -35,6 +36,7 @@ const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
 const baseLayer = Layer.mergeAll(
   AttributeResolverNone,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 
@@ -49,6 +51,7 @@ const countingLayer = (counter: { count: number }) =>
         }),
     }),
     RelationshipResolverNever,
+    DecisionHistoryUnknown,
     EvaluationIdLive,
   );
 

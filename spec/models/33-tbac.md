@@ -38,7 +38,7 @@ wants authorisation to follow the workflow rather than run alongside it.
 | -------- | ----- |
 | Status | **Additive** |
 | Priority | **P3** |
-| Enablers required | **E5** — decision history port |
+| Enablers required | ~~**E5**~~ **shipped**; none outstanding |
 | Breaking change | No |
 
 **The distinction from every model documented so far** is what makes this
@@ -158,9 +158,12 @@ raised the invoice is a column on the invoice, not history.
 
 ## Proposed API design
 
-One question is missing, and E5 already answers it. The port itself — service,
-error and default layer — is designed in
-[31 — History-Based Access Control](./31-hbac.md); TBAC adds nothing to it.
+One question is missing, and E5 answers it. The port itself — service, error and
+default layer — is settled in
+[ADR-QD-020](../decisions/020-decision-history-port.md) and has shipped; TBAC
+added nothing to it. One detail below is out of date: the parameter is `event`,
+not `action`, precisely because of the naming hazard this document recorded — see
+[what it would cost](#what-it-would-cost).
 
 ```ts
 /** Has this subject already performed `action` against this resource? Denies
@@ -187,7 +190,7 @@ The costs are therefore E5's, argued in full in
 [24](./24-separation-of-duty.md) and [31](./31-hbac.md) and inherited without
 amendment: [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) — an
 unreachable history store is an error, not a denial;
-[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) — restated
+[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) — restated
 as reproducible *given the same history*, a consumable permission being by
 definition one whose second evaluation differs;
 [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) — a negative

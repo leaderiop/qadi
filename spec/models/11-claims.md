@@ -123,6 +123,7 @@ import {
   AttributeResolverNone,
   EvaluationIdLive,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   allOf,
   check,
   currentSubjectLayer,
@@ -171,7 +172,12 @@ const decideFor = (token: VerifiedToken): Effect.Effect<boolean, EvaluationError
   check(canPublishReport).pipe(
     Effect.provide(currentSubjectLayer(toSubject(token))),
     Effect.provide(
-      Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+      Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+  ),
     ),
   );
 ```

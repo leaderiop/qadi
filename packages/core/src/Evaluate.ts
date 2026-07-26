@@ -12,6 +12,8 @@ import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
+import type { ActedResult } from "./DecisionHistory.ts";
+import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
@@ -69,6 +71,7 @@ export type EvaluationServices =
   | CurrentSubject
   | AttributeResolver
   | RelationshipResolver
+  | DecisionHistory
   | EvaluationId;
 
 const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
@@ -153,7 +156,7 @@ const evaluateNode = (
 ): Effect.Effect<
   Trace,
   EvaluationError,
-  AttributeResolver | RelationshipResolver
+  AttributeResolver | RelationshipResolver | DecisionHistory
 > => {
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
 
@@ -243,6 +246,35 @@ const evaluateNode = (
         action === policy.action
           ? allow("HasAction", policy.fields)
           : deny("HasAction", `action is '${action}', not '${policy.action}'`),
+      );
+    }
+
+    case "HasActed":
+    case "HasNotActed": {
+      const scoped = policy.scope === "Resource";
+      const rawId = resource?.["id"];
+      if (scoped && typeof rawId !== "string") {
+        return Effect.fail(new MissingResourceId({ relation: policy.event }));
+      }
+      const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
+      return Effect.map(
+        DecisionHistory.hasActed({
+          subjectId: subject.id,
+          event: policy.event,
+          resourceId: scoped && typeof rawId === "string" ? rawId : undefined,
+        }),
+        (answer) =>
+          // `"Unknown"` matches neither, so both polarities deny under an
+          // unwired port. That is the whole reason the port is three-valued
+          // rather than boolean (ADR-QD-020).
+          answer === wanted
+            ? allow(policy._tag, policy.fields)
+            : deny(
+                policy._tag,
+                answer === "Unknown"
+                  ? `no history is available for '${policy.event}'`
+                  : `subject '${subject.id}' ${answer === "Acted" ? "has already" : "has not"} performed '${policy.event}'`,
+              ),
       );
     }
 

@@ -201,6 +201,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
   allOf,
@@ -235,6 +236,7 @@ const services = Layer.mergeAll(
   ),
   AttributeResolverNone,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 
@@ -258,4 +260,4 @@ of scope.
 
 ---
 
-_Previous: [10 — The Action Dimension](./10-actions.md)_
+_Previous: [10 — The Action Dimension](./10-actions.md) | Next: [12 — Decision History](./12-history.md)_

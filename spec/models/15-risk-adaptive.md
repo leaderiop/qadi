@@ -190,7 +190,7 @@ legitimate refusals and the on-call engineer goes hunting a permissions bug.
 Both convert a fault into a decision.
 
 **Determinism.** A score that moves between evaluations makes decisions
-irreproducible. [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible)
+irreproducible. [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history)
 holds *given the same subject, policy and services*, so a fixed test resolver
 restores it completely. In production it does not hold, and that is inherent to
 the model rather than a gap to close. The consequence is that the **trace is the

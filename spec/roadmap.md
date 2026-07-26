@@ -5,43 +5,48 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
 ## Current state
 
 Version `0.0.0`, unpublished, under the `@qadi` scope with the `QD`
-specification infix. The core is complete and verified: eleven policy variants,
-eleven matchers, five value references, obligations, the evaluator, enforcement,
-serialization, React integration and a test toolkit.
+specification infix. The core is complete and verified: thirteen policy variants,
+eleven matchers, five value references, obligations, a decision-history port, the
+evaluator, enforcement, serialization, React integration and a test toolkit.
 
 | Gate | Status |
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 235 passing |
-| Acceptance scenarios | 46 scenarios, 200 steps passing |
-| Coverage | 99.6% statements, 96.5% branches — thresholds enforced |
-| Doc examples compile | 56 blocks |
+| Unit and property tests | 253 passing |
+| Acceptance scenarios | 54 scenarios, 236 steps passing |
+| Coverage | 99.6% statements, 96.8% branches — thresholds enforced |
+| Doc examples compile | 58 blocks |
 | Specification integrity | 13 checks passing |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
 
-Two enablers from the [model adoption matrix](./models/00-adoption-matrix.md)
+Three enablers from the [model adoption matrix](./models/00-adoption-matrix.md)
 have shipped. **E1, the action dimension**
 ([ADR-QD-018](./decisions/018-action-dimension.md)): a policy can say what the
 caller is doing, which is what read-down/write-up rules need and what eight
 documented models were waiting on. **E2, obligations**
 ([ADR-QD-019](./decisions/019-obligations.md)): a policy can say "allow,
 provided the access is logged", and enforcement refuses to proceed on a duty
-nobody has discharged.
+nobody has discharged. **E5, the decision-history port**
+([ADR-QD-020](./decisions/020-decision-history-port.md)): a policy can say
+"approve, unless you raised it", reading the record from the caller's own store.
+E5 carried the matrix's one genuine safety trap, and settling it changed the
+design — the port is three-valued, because no boolean default can fail closed
+under a negative policy.
 
 Nothing below is required for the library to be correct. These are gaps in
 confidence, ergonomics or reach.

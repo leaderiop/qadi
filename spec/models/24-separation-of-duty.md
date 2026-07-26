@@ -41,7 +41,7 @@ who will ask, of one record, whether the same person did both.
 | -------- | ---------- | ----------- |
 | Status | **Additive** | **Additive** |
 | Priority | **P2** | **P3** |
-| Enablers required | None | **E5** — decision history port |
+| Enablers required | None | ~~**E5**~~ **shipped** |
 | Breaking change | No | No |
 
 Static SoD needs no enabler, because the part of it that matters is not a Qadi
@@ -123,6 +123,15 @@ are the same shape. Neither is planned.
 
 ## Proposed API design
 
+> **Superseded by [ADR-QD-020](../decisions/020-decision-history-port.md).** The
+> port shipped, and it is not quite the shape sketched below. Two differences
+> matter: it returns `"Acted" | "NotActed" | "Unknown"` rather than a boolean,
+> because no boolean default is fail-closed for *both* polarities — the trap this
+> document was first to spot turned out to have no boolean solution; and the
+> query field is named `event`, not `relation` or `action`, to keep it apart from
+> `hasAction` (E1) and `hasRelationship`. The sketch is left as written, because
+> the reasoning that led here is worth more than a tidy record.
+
 Dynamic SoD asks a question no shipped service can answer: *has this subject
 already acted on this object?* The missing thing is **history**, not roles —
 roles are already fully visible to the evaluator. E5 supplies it, and it must be
@@ -192,7 +201,7 @@ implementation and makes an outage indistinguishable from a policy result. The
 temptation is stronger here than for relationships, because for a
 separation-of-duty check a denial *feels* like the safe answer.
 
-**[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) — history
+**[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) — history
 makes evaluation stateful.** Today the same subject, policy and resource yield
 the same decision forever; with a history port the second call legitimately
 differs from the first. The invariant must be restated as reproducible *given

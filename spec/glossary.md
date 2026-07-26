@@ -103,7 +103,7 @@ visible field set. See [BEH-QD-039](behaviors/05-evaluator.md).
 The tree of per-node results produced by every evaluation, so a denial can
 always answer "why". Durations come from Effect's `Clock`, which is what makes
 traces assertable in tests rather than merely printable.
-See [INV-QD-008](invariants.md#inv-qd-008-evaluation-is-reproducible).
+See [INV-QD-008](invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history).
 
 ## Short-circuiting
 

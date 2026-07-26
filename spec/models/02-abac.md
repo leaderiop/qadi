@@ -137,6 +137,7 @@ import * as Layer from "effect/Layer";
 import {
   EvaluationIdLive,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   allOf,
   attributeResolverFromRecord,
   check,
@@ -167,6 +168,7 @@ const services = Layer.mergeAll(
   currentSubjectLayer(makeSubject({ id: "u-42", attributes: { site: "lyon" } })),
   attributeResolverFromRecord({ clearance: 5 }),
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 

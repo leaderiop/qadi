@@ -1,6 +1,7 @@
 import {
   AttributeResolverNone,
   EvaluationIdLive,
+  DecisionHistoryUnknown,
   RelationshipResolverNever,
   hasPermission,
   hasRole,
@@ -25,7 +26,12 @@ const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
 
 const atoms = makeQadiAtoms(
-  Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+  Layer.mergeAll(
+      AttributeResolverNone,
+      RelationshipResolverNever,
+      DecisionHistoryUnknown,
+      EvaluationIdLive,
+    ),
 );
 
 const reader: AuthSubject = makeSubject({ id: "u1", permissions: ["doc:read"] });
@@ -123,7 +129,12 @@ describe("isolated contexts", () => {
     // Two atom sets, two registries. A tenant cannot observe another tenant's
     // decisions even when both providers are mounted in the same tree.
     const tenant = makeQadiAtoms(
-      Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+      Layer.mergeAll(
+      AttributeResolverNone,
+      RelationshipResolverNever,
+      DecisionHistoryUnknown,
+      EvaluationIdLive,
+    ),
     );
 
     const Inner = () => <span>{`isolated:${useCan(isAdmin)}`}</span>;

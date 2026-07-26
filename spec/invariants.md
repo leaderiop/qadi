@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -137,15 +137,29 @@ silent breach.
 
 ---
 
-## INV-QD-008: Evaluation is reproducible
+## INV-QD-008: Evaluation is reproducible given the same history
 
-Given the same subject, policy and services, an evaluation produces the same
-decision, identifier and duration.
+Given the same subject, policy, services **and history**, an evaluation produces
+the same decision, identifier and duration.
 
 **Source**: durations come from Effect's `Clock`, identifiers from the
 `EvaluationId` service. `scripts/check-house-style.mjs` fails the build on
 ambient `Date.now()`, `performance.now()` or `crypto.randomUUID()` anywhere
 except `EvaluationId.ts`, which is the one recorded exemption.
+
+**The qualifier was added when `DecisionHistory` shipped** and it is a genuine
+weakening, recorded rather than absorbed. Before E5 the same inputs produced the
+same decision forever; a history port means a second call may legitimately differ
+from the first, because the world moved between them. Four model documents
+insisted this be restated in the change that landed the port, on the grounds that
+left alone it would not become false loudly — it would weaken silently, and
+everything citing it would go on citing it.
+
+What is *not* weakened: Qadi still writes nothing. Evaluation reads history and
+never records it, so no evaluation changes the answer to the next one. The
+non-determinism is entirely the caller's store moving, and under a fixed store —
+`decisionHistoryFromEvents`, or the default — reproducibility is exactly what it
+was.
 
 **Implication**: traces can be asserted exactly. The predecessor built a trace
 feature whose contents no test could predict.
@@ -262,5 +276,31 @@ the guarded effect never starts, that a handler runs *before* it, and that a
 failing handler stops it.
 
 **Related**: [BEH-QD-085](behaviors/11-obligations.md), [ADR-QD-019](decisions/019-obligations.md).
+
+---
+
+## INV-QD-014: An unwired history port denies both polarities
+
+`hasActed` and `hasNotActed` both deny when no history store is wired.
+
+**Source**: `packages/core/src/DecisionHistory.ts` — the port is three-valued,
+and `DecisionHistoryUnknown` answers `"Unknown"`, which satisfies neither.
+
+This is [INV-QD-007](#inv-qd-007-defaults-fail-closed) surviving contact with a
+*negative* policy, and a boolean could not have managed it.
+`RelationshipResolverNever` fails closed by answering `false` only because
+`hasRelationship` has one polarity; a `false`-answering history default would
+grant under `hasNotActed`, and a `true`-answering one would grant under
+`hasActed`. There is no safe boolean, so there is a third value.
+
+**Implication**: `hasNotActed(e)` is **not** `not(hasActed(e))`. `not` inverts a
+decision, so under `"Unknown"` it turns the denial into an allow — from a port
+nobody wired. The two are separate `Policy` variants precisely so that the
+distinction is held by the schema rather than by a comment.
+
+**Enforcement**: tests assert both polarities deny under the default layer, and
+assert directly that `not(hasActed(e))` allows where `hasNotActed(e)` denies.
+
+**Related**: [BEH-QD-090](behaviors/12-history.md), [BEH-QD-091](behaviors/12-history.md), [ADR-QD-020](decisions/020-decision-history-port.md).
 
 ---

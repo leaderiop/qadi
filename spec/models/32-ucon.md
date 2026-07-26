@@ -80,7 +80,7 @@ UCON's attribute updates mean evaluation **writes**. Qadi's evaluator reads: the
 subject from `CurrentSubject`, the resource from `EvaluateOptions`, resolved
 attributes from `AttributeResolver`, producing a `Decision` and a `Trace`.
 Nothing it touches changes as a result, and
-[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) depends on
+[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) depends on
 that. Under mutability, evaluating one policy against one subject twice is
 *supposed* to differ, because the first evaluation spent the quota the second
 checks.

@@ -104,6 +104,7 @@ import {
   AttributeResolverNone,
   EvaluationIdLive,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   anyOf,
   check,
   currentSubjectLayer,
@@ -130,6 +131,7 @@ const services = Layer.mergeAll(
   currentSubjectLayer(makeSubject({ id: "u-42" })),
   AttributeResolverNone,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 

@@ -37,6 +37,20 @@ import { PermissionSchema } from "./Permission.ts";
 export const FieldStrategy = Schema.Literals(["Intersection", "Union", "First"]);
 export type FieldStrategy = typeof FieldStrategy.Type;
 
+/**
+ * Which past events a history policy asks about.
+ *
+ * - `Resource` — this subject, this event, *this resource*. Needs `resource.id`.
+ * - `Any` — this subject, this event, ever, whatever the resource.
+ *
+ * Required rather than optional for the reason `fieldStrategy` is: an omitted
+ * optional field is exactly what went missing in the predecessor, and the
+ * difference between the two here is the difference between "you approved this
+ * invoice" and "you have ever approved anything".
+ */
+export const HistoryScope = Schema.Literals(["Resource", "Any"]);
+export type HistoryScope = typeof HistoryScope.Type;
+
 // ---------------------------------------------------------------------------
 // The policy union
 // ---------------------------------------------------------------------------
@@ -48,6 +62,8 @@ export type Policy =
   | { readonly _tag: "HasResourceAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasRelationship"; readonly relation: string; readonly depth?: number | undefined; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasAction"; readonly action: string; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasNotActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "Not"; readonly policy: Policy }
@@ -89,6 +105,18 @@ const HasAction = Schema.TaggedStruct("HasAction", {
   fields: Fields,
 });
 
+const HasActed = Schema.TaggedStruct("HasActed", {
+  event: Schema.String,
+  scope: HistoryScope,
+  fields: Fields,
+});
+
+const HasNotActed = Schema.TaggedStruct("HasNotActed", {
+  event: Schema.String,
+  scope: HistoryScope,
+  fields: Fields,
+});
+
 const AllOf = Schema.TaggedStruct("AllOf", {
   policies: Schema.Array(PolicyRef),
   fieldStrategy: FieldStrategy,
@@ -118,6 +146,8 @@ export const Policy: Schema.Codec<Policy> = Schema.Union([
   HasResourceAttribute,
   HasRelationship,
   HasAction,
+  HasActed,
+  HasNotActed,
   AllOf,
   AnyOf,
   Not,
@@ -212,6 +242,41 @@ export const hasRelationship = (
 export const hasAction = (action: string, options?: FieldOptions): Policy => ({
   _tag: "HasAction",
   action,
+  ...optionalKey("fields", options?.fields),
+});
+
+export interface HistoryOptions extends FieldOptions {
+  /** Defaults to `"Resource"`. */
+  readonly scope?: HistoryScope;
+}
+
+/**
+ * The subject has already performed the named event.
+ *
+ * Reads the caller's history through `DecisionHistory`. An unwired port answers
+ * `"Unknown"`, and this denies.
+ */
+export const hasActed = (event: string, options?: HistoryOptions): Policy => ({
+  _tag: "HasActed",
+  event,
+  scope: options?.scope ?? "Resource",
+  ...optionalKey("fields", options?.fields),
+});
+
+/**
+ * The subject has **not** performed the named event — "approve, unless you
+ * raised it".
+ *
+ * **This is not `not(hasActed(e))`, and the difference is a security one.** The
+ * port is three-valued: an unwired one answers `"Unknown"`, under which
+ * `hasActed` denies — so `not(hasActed(e))` *allows*. This denies. Anyone
+ * tempted to collapse the two should read
+ * [ADR-QD-020](../../../spec/decisions/020-decision-history-port.md) first.
+ */
+export const hasNotActed = (event: string, options?: HistoryOptions): Policy => ({
+  _tag: "HasNotActed",
+  event,
+  scope: options?.scope ?? "Resource",
   ...optionalKey("fields", options?.fields),
 });
 

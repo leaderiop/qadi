@@ -144,7 +144,7 @@ const program = Effect.gen(function* () {
   together. **Needs E5, the decision history port** ([00 §2](./00-adoption-matrix.md)),
   since the answer depends on what the subject has already done. It also forces
   a restatement of
-  [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) —
+  [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) —
   reproducibility becomes *given the same history* — and that weakening must be
   explicit rather than silent.
 - *Cardinality* and *prerequisite roles* — administrative constraints over

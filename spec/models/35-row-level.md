@@ -61,6 +61,7 @@ import {
   AttributeResolverNone,
   EvaluationIdLive,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   allOf,
   anyOf,
   currentSubjectLayer,
@@ -97,6 +98,7 @@ const services = Layer.mergeAll(
   ),
   AttributeResolverNone,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 

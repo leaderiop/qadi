@@ -217,7 +217,7 @@ it, and all of what follows is E4's.
 | --------- | ---- |
 | [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) | **The one that matters.** `Dominates` is a new codec variant, and `SecurityLabel` carries a `ReadonlySet` |
 | [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one) | Settled: an absent `action` **fails**; it neither denies nor matches every branch |
-| [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) | Unaffected — dominance is pure, and a lattice is data, not state |
+| [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | Unaffected — dominance is pure, and a lattice is data, not state |
 
 A `ReadonlySet` is not directly serializable, so the wire form has to be an
 array — and that is not a formality. Encode and decode must compose to an exact

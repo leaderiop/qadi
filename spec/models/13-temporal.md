@@ -56,7 +56,7 @@ The reason is not purity. A resolver that reads the wall clock makes every
 decision depending on it untestable — the predecessor's evaluator did exactly
 that, which is why [ADR-QD-012](../decisions/012-deterministic-time-and-ids.md)
 exists and why
-[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) can hold at
+[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) can hold at
 all. Under a test clock a temporal policy is reproducible; under `Date.now()` it
 is not.
 

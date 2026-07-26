@@ -13,6 +13,8 @@ import {
   eq,
   literal,
   lt,
+  hasActed,
+  hasNotActed,
   not,
   obligation,
   obliged,
@@ -200,4 +202,24 @@ When("both requirements log the same access", function (this: QadiWorld) {
 
 When("the guarded work runs under an audited requirement", function (this: QadiWorld) {
   this.runGuarded(auditedRole());
+});
+
+// ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+
+When("they must not have raised the resource", function (this: QadiWorld) {
+  this.run(hasNotActed("raised"));
+});
+
+When("they must have raised the resource", function (this: QadiWorld) {
+  this.run(hasActed("raised"));
+});
+
+/**
+ * The distinction ADR-QD-020 exists to hold: `not(hasActed(e))` is not
+ * `hasNotActed(e)`. Under an unwired port the first ALLOWS and the second denies.
+ */
+When("the negation of having raised the resource is evaluated", function (this: QadiWorld) {
+  this.run(not(hasActed("raised")));
 });

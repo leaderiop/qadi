@@ -35,3 +35,6 @@ entries:
   - id: "BEH-QD-081"
     file: "11-obligations.md"
     title: "11 — Obligations"
+  - id: "BEH-QD-089"
+    file: "12-history.md"
+    title: "12 — Decision History"

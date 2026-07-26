@@ -279,7 +279,7 @@ skipped is the whole cost of the decision.
 Were E6 built, its scenario would need a newly allocated `REQ-QD` identifier and
 would have to assert the property the naive implementation loses first: that a
 subject's decision in a batch is identical to that subject's decision alone, per
-[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible).
+[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history).
 
 ---
 

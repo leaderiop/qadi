@@ -70,6 +70,21 @@ describe("Policy combinators", () => {
     assert.isTrue(obligation("hint", {}, { advisory: true }).advisory);
   });
 
+  it("history policies default to Resource scope", () => {
+    const acted = P.hasActed("raised");
+    const notActed = P.hasNotActed("raised", { scope: "Any" });
+    if (acted._tag !== "HasActed" || notActed._tag !== "HasNotActed") return;
+    assert.strictEqual(acted.scope, "Resource");
+    assert.strictEqual(notActed.scope, "Any");
+  });
+
+  it("hasNotActed is a distinct variant, not a Not wrapper", () => {
+    // If this ever becomes `not(hasActed(...))`, an unwired history port starts
+    // granting — ADR-QD-020. The schema is what holds the distinction.
+    assert.strictEqual(P.hasNotActed("raised")._tag, "HasNotActed");
+    assert.notStrictEqual(P.hasNotActed("raised")._tag, "Not");
+  });
+
   it("hasRelationship carries depth and fields", () => {
     const policy = P.hasRelationship("owner", { depth: 3, fields: ["title"] });
     if (policy._tag !== "HasRelationship") return;
@@ -116,6 +131,8 @@ describe("Policy serialization", () => {
                 P.hasRelationship("owner", { depth: 2 }),
                 P.hasAction("write", { fields: ["body"] }),
                 P.obliged(obligation("log", { who: "x" }), P.hasRole("auditor")),
+                P.hasActed("raised", { scope: "Any" }),
+                P.hasNotActed("approved", { fields: ["id"] }),
               ]),
             ),
           ),
@@ -209,6 +226,13 @@ describe("Policy serialization", () => {
         // to say anything about the obligation codec.
         FastCheck.tuple(FastCheck.string(), FastCheck.boolean()).map(([id, advisory]) =>
           P.obliged(obligation(id, { n: 1, deep: { s: "x" } }, { advisory }), P.hasRole(id)),
+        ),
+        FastCheck.tuple(
+          FastCheck.string(),
+          FastCheck.constantFrom("Resource" as const, "Any" as const),
+          FastCheck.boolean(),
+        ).map(([event, scope, negated]) =>
+          negated ? P.hasNotActed(event, { scope }) : P.hasActed(event, { scope }),
         ),
       );
 

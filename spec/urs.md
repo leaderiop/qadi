@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -145,6 +145,16 @@ elements, from the same policy values.
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
 
+### URS-QD-017 — Decide on what the subject has already done
+
+A developer must be able to write "approve this, unless you raised it" as one
+policy, reading the record of past actions from the application's own store.
+
+Rationale: separation of duty, Chinese Wall and once-only approvals are all the
+same rule about the past, and none is expressible from the subject and the
+resource alone. The history must stay in the caller's system — Qadi decides, it
+does not remember.
+
 ### URS-QD-016 — Attach a duty to a permission
 
 A developer must be able to write "allow, provided the access is logged" as one
@@ -226,7 +236,8 @@ so the specification cannot drift from itself.
 | URS-QD-014 | [BEH-QD-070](./behaviors/09-react.md) | `QadiAtoms.test.ts`, `QadiProvider.test.tsx` |
 | URS-QD-015 | [BEH-QD-073](./behaviors/10-actions.md) | `Evaluate.test.ts`, `@REQ-QD-010` |
 | URS-QD-016 | [BEH-QD-081](./behaviors/11-obligations.md) | `Evaluate.test.ts`, `Qadi.test.ts`, `@REQ-QD-011` |
-| NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible) | `Evaluate.test.ts` |
+| URS-QD-017 | [BEH-QD-089](./behaviors/12-history.md) | `Evaluate.test.ts`, `TestLayers.test.ts`, `@REQ-QD-012` |
+| NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |
 | NFR-QD-004 | — | `scripts/check-doc-examples.mjs` |

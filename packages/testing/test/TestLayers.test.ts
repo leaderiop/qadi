@@ -1,9 +1,20 @@
 import { assert, describe, it } from "@effect/vitest";
-import { evaluate, hasAttribute, hasRelationship, isAllowed, gte, anyOf, hasRole } from "@qadi/core";
+import {
+  anyOf,
+  evaluate,
+  gte,
+  hasActed,
+  hasAttribute,
+  hasNotActed,
+  hasRelationship,
+  hasRole,
+  isAllowed,
+} from "@qadi/core";
 import * as Effect from "effect/Effect";
 import {
   administrator,
   edgeRelationshipResolver,
+  eventDecisionHistory,
   failingAttributeResolver,
   qadiTestLayer,
   nobody,
@@ -109,6 +120,56 @@ describe("recording resolvers", () => {
       );
       assert.strictEqual(r._tag, "Failure");
     }));
+});
+
+describe("eventDecisionHistory", () => {
+  const clerk = subjectWith({ id: "u1" });
+
+  it.effect("records its queries and answers a keyed question", () =>
+    Effect.gen(function* () {
+      const history = eventDecisionHistory([["u1", "raised", "inv-1"]]);
+
+      const own = yield* evaluate(hasNotActed("raised"), {
+        resource: { id: "inv-1" },
+      }).pipe(Effect.provide(qadiTestLayer(clerk, { decisionHistory: history.layer })));
+      const other = yield* evaluate(hasNotActed("raised"), {
+        resource: { id: "inv-2" },
+      }).pipe(Effect.provide(qadiTestLayer(clerk, { decisionHistory: history.layer })));
+
+      assert.isFalse(isAllowed(own));
+      assert.isTrue(isAllowed(other));
+      assert.deepStrictEqual(
+        [...history.calls],
+        ["u1 raised inv-1", "u1 raised inv-2"],
+      );
+    }));
+
+  it.effect("answers 'ever, at all' when the query carries no resource", () =>
+    Effect.gen(function* () {
+      const history = eventDecisionHistory([["u1", "raised", "inv-9"]]);
+      const d = yield* evaluate(hasActed("raised", { scope: "Any" })).pipe(
+        Effect.provide(qadiTestLayer(clerk, { decisionHistory: history.layer })),
+      );
+      assert.isTrue(isAllowed(d));
+      assert.deepStrictEqual([...history.calls], ["u1 raised"]);
+    }));
+
+  it.effect("the `history` shorthand wires the same layer", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(hasActed("raised"), { resource: { id: "inv-1" } });
+      assert.isTrue(isAllowed(d));
+    }).pipe(
+      Effect.provide(qadiTestLayer(clerk, { history: [["u1", "raised", "inv-1"]] })),
+    ));
+
+  it.effect("the default port knows nothing, so both polarities deny", () =>
+    Effect.gen(function* () {
+      // A closed event list says "NotActed"; the *default* says "Unknown", and
+      // the two are different answers — ADR-QD-020.
+      const resource = { resource: { id: "inv-1" } };
+      assert.isFalse(isAllowed(yield* evaluate(hasActed("raised"), resource)));
+      assert.isFalse(isAllowed(yield* evaluate(hasNotActed("raised"), resource)));
+    }).pipe(Effect.provide(qadiTestLayer(clerk))));
 });
 
 describe("fixture policies", () => {

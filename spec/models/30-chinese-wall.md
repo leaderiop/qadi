@@ -46,7 +46,7 @@ asked for far less often than its prominence in the literature suggests, hence P
 | -------- | ----- |
 | Status | **Additive** |
 | Priority | **P3** |
-| Enablers required | **E5** — decision history port |
+| Enablers required | ~~**E5**~~ **shipped**; none outstanding |
 | Breaking change | No |
 
 Additive because nothing existing changes shape — a new service, a new policy
@@ -115,6 +115,23 @@ the wrong answer. No arrangement of shipped constructors fixes it, because the
 missing ingredient is not a matcher but the record of what this subject did last.
 
 ## Proposed API design
+
+> **Superseded by [ADR-QD-020](../decisions/020-decision-history-port.md), and
+> this document's proposal was declined.** Neither the `Engagement` union nor the
+> `record` write shipped — and Chinese Wall does not need them. Brewer–Nash is
+> two questions the one-member port already answers:
+>
+> ```ts
+> anyOf([
+>   hasNotActed(conflictClass, { scope: "Any" }),   // free first access
+>   hasActed(conflictClass, { scope: "Resource" }), // or this very company
+> ])
+> ```
+>
+> That equivalence is asserted by test rather than argued. The `record` write was
+> declined on *this document's own* reasoning, quoted below: an evaluator that
+> writes is not reproducible, and a write member on an evaluation service is one
+> the evaluator must be trusted never to call. The sketch is left as written.
 
 The port answers one question — *what is this subject's engagement within this
 conflict class?* A tagged union rather than a boolean is deliberate: a boolean port
@@ -192,7 +209,7 @@ const openObject = (object: WalledObject) =>
 ```
 
 An evaluator that writes is no longer reproducible, and
-[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) is worth more
+[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) is worth more
 than the saved line. It is also no longer safe to call speculatively, and Qadi is
 called speculatively all the time: `filter` evaluates one policy across a list and
 would wall the analyst off from every candidate it merely *considered*; the React
@@ -226,7 +243,7 @@ property to hold on to when implementing E5. `DecisionHistoryUnavailable` reache
 the caller on the error channel — never collapsed to `Deny`, which would make an
 outage indistinguishable from a policy result, and never to `Unengaged`.
 
-**[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) must be
+**[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) must be
 restated as reproducible *given the same history*.** With a history port the same
 subject, policy and resource legitimately yield different answers on the second
 call; that is the model working. Unrestated, the invariant does not become false

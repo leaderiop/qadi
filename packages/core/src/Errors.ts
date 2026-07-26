@@ -37,9 +37,25 @@ export class RelationshipResolveError extends Data.TaggedError(
   readonly cause: unknown;
 }> {}
 
-/** A `HasRelationship` policy was evaluated without `resource.id` in context. */
+/**
+ * A policy needing `resource.id` was evaluated without one.
+ *
+ * Raised by `HasRelationship`, and by `HasActed`/`HasNotActed` under
+ * `scope: "resource"`. One error rather than two: it is the same failure with
+ * the same diagnosis, and a second code meaning the same thing would be worse
+ * than a field named for the more general case.
+ */
 export class MissingResourceId extends Data.TaggedError("qadi/MissingResourceId")<{
+  /** The relation or event the policy asked about. */
   readonly relation: string;
+}> {}
+
+/** A wired history store could not be reached. Distinct from it saying "Unknown". */
+export class DecisionHistoryUnavailable extends Data.TaggedError(
+  "qadi/DecisionHistoryUnavailable",
+)<{
+  readonly event: string;
+  readonly cause: unknown;
 }> {}
 
 /** The policy tree is deeper than the configured limit. Guards against cyclic input. */
@@ -89,6 +105,7 @@ export class UndischargedObligation extends Data.TaggedError(
 export type EvaluationError =
   | AttributeResolveError
   | RelationshipResolveError
+  | DecisionHistoryUnavailable
   | MissingAction
   | MissingResource
   | MissingResourceId
@@ -120,6 +137,7 @@ export const ERROR_CODES = {
   "qadi/InvalidPermissionSegment": "ACL008",
   "qadi/MissingAction": "ACL009",
   "qadi/UndischargedObligation": "ACL010",
+  "qadi/DecisionHistoryUnavailable": "ACL011",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

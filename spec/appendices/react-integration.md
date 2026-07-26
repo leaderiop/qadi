@@ -54,6 +54,7 @@ import {
   AttributeResolver,
   EvaluationIdLive,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -67,6 +68,7 @@ const AttributeResolverHttp = Layer.succeed(AttributeResolver, {
 export const QadiLive = Layer.mergeAll(
   AttributeResolverHttp,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 ```
@@ -90,11 +92,17 @@ import { allOf, hasPermission, hasRole, permission } from "@qadi/core";
 import { makeQadiAtoms } from "@qadi/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { AttributeResolver, EvaluationIdLive, RelationshipResolverNever } from "@qadi/core";
+import {
+  AttributeResolver,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+} from "@qadi/core";
 
 const QadiLive = Layer.mergeAll(
   Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 
@@ -114,12 +122,22 @@ export const canPublish = allOf([hasRole("editor"), canEditDoc]);
 ```tsx
 import type { AuthSubject } from "@qadi/core";
 import { QadiProvider, makeQadiAtoms } from "@qadi/react";
-import { AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever } from "@qadi/core";
+import {
+  AttributeResolverNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+} from "@qadi/core";
 import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
 
 const qadi = makeQadiAtoms(
-  Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+  Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+  ),
 );
 
 export const App = ({
@@ -329,7 +347,12 @@ forget.
 
 ```tsx
 import type { AuthSubject } from "@qadi/core";
-import { AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever } from "@qadi/core";
+import {
+  AttributeResolverNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+} from "@qadi/core";
 import { QadiProvider, makeQadiAtoms } from "@qadi/react";
 import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
@@ -337,6 +360,7 @@ import type { ReactNode } from "react";
 const base = Layer.mergeAll(
   AttributeResolverNone,
   RelationshipResolverNever,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 
@@ -372,14 +396,27 @@ Two levels, and most tests want the first.
 graph. Proving them needs a registry, not a DOM.
 
 ```typescript
-import { AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever, hasRole, isAllowed, makeSubject } from "@qadi/core";
+import {
+  AttributeResolverNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+  hasRole,
+  isAllowed,
+  makeSubject,
+} from "@qadi/core";
 import { makeQadiAtoms } from "@qadi/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 
 const atoms = makeQadiAtoms(
-  Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+  Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+  ),
 );
 
 export const adminIsAllowed = Effect.gen(function* () {
@@ -404,13 +441,23 @@ their decisions outlive a single render.
 ```tsx
 import type { AuthSubject } from "@qadi/core";
 import { QadiProvider, makeQadiAtoms } from "@qadi/react";
-import { AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever } from "@qadi/core";
+import {
+  AttributeResolverNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+} from "@qadi/core";
 import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
 
 export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
   const atoms = makeQadiAtoms(
-    Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, EvaluationIdLive),
+    Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+  ),
   );
   return (
     <QadiProvider atoms={atoms} subject={subject}>

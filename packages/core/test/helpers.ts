@@ -3,6 +3,7 @@ import { AttributeResolver, AttributeResolverNone } from "../src/AttributeResolv
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { CurrentSubject, currentSubjectLayer } from "../src/CurrentSubject.ts";
+import { DecisionHistory, DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
 import { EvaluationId, evaluationIdSequential } from "../src/EvaluationId.ts";
 import {
   RelationshipResolver,
@@ -13,6 +14,7 @@ export type QadiServices =
   | CurrentSubject
   | AttributeResolver
   | RelationshipResolver
+  | DecisionHistory
   | EvaluationId;
 
 /**
@@ -25,12 +27,14 @@ export const testLayer = (
   overrides?: {
     readonly attributes?: Layer.Layer<AttributeResolver>;
     readonly relationships?: Layer.Layer<RelationshipResolver>;
+    readonly history?: Layer.Layer<DecisionHistory>;
   },
 ): Layer.Layer<QadiServices> =>
   Layer.mergeAll(
     currentSubjectLayer(subject),
     overrides?.attributes ?? AttributeResolverNone,
     overrides?.relationships ?? RelationshipResolverNever,
+    overrides?.history ?? DecisionHistoryUnknown,
     evaluationIdSequential(),
   );
 

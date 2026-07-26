@@ -7,7 +7,17 @@ import type {
   Obligation,
   Policy,
 } from "@qadi/core";
-import { enforce, evaluate, isAllowed, makeSubject, toJson, fromJson } from "@qadi/core";
+import {
+  DecisionHistory,
+  DecisionHistoryUnavailable,
+  enforce,
+  evaluate,
+  isAllowed,
+  makeSubject,
+  toJson,
+  fromJson,
+} from "@qadi/core";
+import * as Layer from "effect/Layer";
 import { qadiTestLayer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 
@@ -55,6 +65,10 @@ export class QadiWorld extends World {
   discharged: Array<string> = [];
   /** Whether the effect behind `enforce` was started. */
   workRan = false;
+  /** Past events as `[subjectId, event, resourceId]`. Undefined means unwired. */
+  events: Array<readonly [string, string, string]> | undefined = undefined;
+  /** Set when a scenario wants the history store to be down rather than absent. */
+  historyUnreachable = false;
 
   outcome: Outcome = NO_OUTCOME;
   /** Set by serialization scenarios. */
@@ -77,6 +91,8 @@ export class QadiWorld extends World {
     this.handlesObligations = false;
     this.discharged = [];
     this.workRan = false;
+    this.events = undefined;
+    this.historyUnreachable = false;
     this.outcome = NO_OUTCOME;
     this.serialized = undefined;
     this.restored = undefined;
@@ -106,6 +122,13 @@ export class QadiWorld extends World {
         qadiTestLayer(this.subject, {
           attributes: this.resolvedAttributes,
           relationships: this.relationships,
+          // A store that is *down* and a port that is *unwired* are different
+          // answers, and only one of them is a denial.
+          ...(this.historyUnreachable
+            ? { decisionHistory: unreachableHistory }
+            : this.events === undefined
+              ? {}
+              : { history: this.events }),
         }),
       ),
     );
@@ -156,6 +179,11 @@ export class QadiWorld extends World {
     this.restored = Effect.runSync(fromJson(json));
   }
 }
+
+const unreachableHistory = Layer.succeed(DecisionHistory, {
+  hasActed: (query) =>
+    Effect.fail(new DecisionHistoryUnavailable({ event: query.event, cause: "down" })),
+});
 
 const toOutcome = (decision: Decision): Outcome => ({
   allowed: isAllowed(decision),
