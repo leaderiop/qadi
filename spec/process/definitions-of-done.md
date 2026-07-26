@@ -28,7 +28,20 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 4 | `node scripts/check-house-style.mjs` | House rules the linter cannot express |
 | 5 | `vitest run --coverage` | Tests pass; thresholds met |
 | 6 | `pnpm --filter @qadi/features test` | Acceptance scenarios pass |
-| 7 | `bash spec/scripts/verify-traceability.sh --strict` | Specification is internally consistent |
+| 7 | `node scripts/check-doc-examples.mjs` | Every runnable example in `spec/` compiles |
+| 8 | `bash spec/scripts/verify-traceability.sh --strict` | Specification is internally consistent |
+| 9 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
+
+Step 7 was absent from this table until CCR-QD-026 while `pnpm check` had been
+running it for some time — the documented gate was *weaker* than the real one,
+which is the safe direction and still a defect in a normative document.
+
+Step 9 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
+which lines executed, not which assertions mean anything, and every enabler in
+this library was signed off with a mutation pass **run by hand and quoted into an
+ADR**. Quoted evidence nobody else can reproduce is the predecessor's failure mode
+in miniature. It adds about 75 seconds to `pnpm check`, which is the price of the
+gate being real rather than described.
 
 ## Per-change checklist
 

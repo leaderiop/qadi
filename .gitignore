@@ -13,3 +13,5 @@ features/reports/
 !.env.example
 
 .doc-examples/
+reports/
+.stryker-tmp/

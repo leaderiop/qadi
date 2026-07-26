@@ -74,3 +74,6 @@ entries:
   - id: "ADR-QD-024"
     file: "024-predicate-output.md"
     title: "A predicate is a second interpreter, and it ships with the reference that proves it agrees"
+  - id: "ADR-QD-025"
+    file: "025-mutation-testing.md"
+    title: "Mutation testing is a merge gate, and its evidence must be reproducible by someone else"
