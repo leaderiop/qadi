@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -331,5 +331,37 @@ level and end to end through a Bell–LaPadula policy, plus a Gherkin scenario
 under `@REQ-QD-013`. A mutation that drops the compartment test kills five.
 
 **Related**: [BEH-QD-098](behaviors/13-labels.md), [ADR-QD-021](decisions/021-label-lattice.md).
+
+---
+
+## INV-QD-016: A batch decision is the decision made alone
+
+Evaluating a policy over a set of subjects gives each element exactly the
+decision it would have received on its own.
+
+**Source**: `packages/core/src/SubjectSet.ts` — each element is evaluated by
+`Effect.provideService(evaluate(…), CurrentSubject, subject)`. Nothing is
+memoised across elements and the batch holds no state of its own, so there is no
+carrier for one subject's answer to reach the next.
+
+**Implication**: the attribute resolver's `subjectId` parameter becomes
+load-bearing here in a way it was not before. With one subject per environment, a
+resolver that ignored that argument was merely redundant; over a batch it hands
+one subject another's attributes, and the result is a grant nobody wrote. Qadi
+cannot enforce a port implementation, but the signature makes a correct one
+writable and this invariant says which one is correct.
+
+**A stronger relative of [INV-QD-008](#inv-qd-008-evaluation-is-reproducible-given-the-same-history)**:
+reproducibility says the same inputs give the same answer twice; this says
+neighbouring evaluations are not inputs to each other.
+
+**Enforcement**: a test evaluates a five-subject batch and compares each element
+against the same policy run under `currentSubjectLayer` alone, trace tree
+included; another asserts the resolver is asked about the subject in hand. A
+mutation evaluating every element as the first subject kills eleven tests, and
+dropping the `provideService` does not compile — `SubjectSetServices` excludes
+`CurrentSubject`, so the ambient one is unreachable.
+
+**Related**: [BEH-QD-106](behaviors/14-subject-sets.md), [ADR-QD-022](decisions/022-subject-set-evaluation.md).
 
 ---

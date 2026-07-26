@@ -65,3 +65,6 @@ entries:
   - id: "ADR-QD-021"
     file: "021-label-lattice.md"
     title: "Dominance is a four-valued comparison, and the label never enters the policy"
+  - id: "ADR-QD-022"
+    file: "022-subject-set-evaluation.md"
+    title: "A subject set is asked by nobody, and the answer reports rather than enforces"

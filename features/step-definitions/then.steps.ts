@@ -63,6 +63,42 @@ Then("the handler discharged {string}", function (this: QadiWorld, expected: str
   assert.deepEqual([...this.discharged].sort(), want);
 });
 
+Then("the answer is {string}", function (this: QadiWorld, expected: string) {
+  const want = expected.split(",").map((s) => s.trim());
+  // Order is asserted, not sorted: a review is read beside the list it was
+  // asked about, so position is the join key.
+  assert.deepEqual(this.answer, want);
+});
+
+Then("the answer is empty", function (this: QadiWorld) {
+  assert.deepEqual(this.answer, []);
+});
+
+Then("the review covers {string}", function (this: QadiWorld, expected: string) {
+  const want = expected.split(",").map((s) => s.trim());
+  assert.deepEqual(this.review.map((r) => r.id), want);
+});
+
+Then(
+  "{string} was refused because of {string}",
+  function (this: QadiWorld, id: string, text: string) {
+    const row = this.review.find((r) => r.id === id);
+    assert.ok(row !== undefined, `no review row for ${id}`);
+    assert.equal(row.allowed, false, `${id} was not refused`);
+    assert.ok(
+      row.reason?.includes(text) === true,
+      `reason ${JSON.stringify(row.reason)} does not mention ${JSON.stringify(text)}`,
+    );
+  },
+);
+
+Then("{string} owes {string}", function (this: QadiWorld, id: string, expected: string) {
+  const want = expected.split(",").map((s) => s.trim()).sort();
+  const row = this.review.find((r) => r.id === id);
+  assert.ok(row !== undefined, `no review row for ${id}`);
+  assert.deepEqual([...row.obligations].sort(), want);
+});
+
 const describe = (world: QadiWorld): string =>
   JSON.stringify({
     allowed: world.outcome.allowed,

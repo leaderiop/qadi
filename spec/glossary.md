@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-GLOSSARY                                  |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -206,6 +206,33 @@ The `CurrentSubject` service — the subject for the request being evaluated.
 Provided per request via `currentSubjectLayer`. Named that way rather than as a
 static `of`, because `Context.Service` already defines `of` as the service
 constructor. See [BEH-QD-044](behaviors/06-services.md).
+
+Subject-set evaluation is the one place there is none: `decideSubjects` supplies
+each element as the subject for its own evaluation, which discharges the
+requirement. See [review query](#review-query).
+
+## Subject set
+
+A list of subjects one policy is evaluated across —
+`decideSubjects(policy, subjects)`. The transpose of `Qadi.filter`, which
+evaluates one policy across a list of resources.
+
+Each element is decided exactly as it would have been alone
+([INV-QD-016](invariants.md#inv-qd-016-a-batch-decision-is-the-decision-made-alone));
+the elements are neighbours, never inputs to one another.
+
+## Review query
+
+An authorization question asked *about* people rather than *by* one: "who can
+reach this?" for a sharing dialog or a leak investigation, "what can this person
+reach?" for an access review.
+
+Narrower here than in ordinary use, in one respect that matters. A review query
+**reports**: it hands identities to an administrator, so nobody is being granted
+access and no obligation is discharged. That is what separates
+`filterSubjects` from `filter`, which hands over the resources themselves and
+must therefore refuse an allow nobody has met.
+See [BEH-QD-107](behaviors/14-subject-sets.md).
 
 ## Aspect
 

@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -145,6 +145,16 @@ elements, from the same policy values.
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
 
+### URS-QD-019 — Ask who can reach a resource
+
+An administrator must be able to evaluate one policy across a set of subjects and
+see, per subject, whether it allows and why — without being one of them.
+
+Rationale: access reviews, sharing dialogs and leak investigations all ask the
+transpose of the question `filter` answers. Approximating it by looping over
+`check` means constructing a current subject per iteration, and a batch job at
+midnight has no requesting subject to construct one from.
+
 ### URS-QD-018 — Compare a clearance against a classification
 
 A developer must be able to write "may read only what your clearance covers" as
@@ -248,6 +258,7 @@ so the specification cannot drift from itself.
 | URS-QD-016 | [BEH-QD-081](./behaviors/11-obligations.md) | `Evaluate.test.ts`, `Qadi.test.ts`, `@REQ-QD-011` |
 | URS-QD-017 | [BEH-QD-089](./behaviors/12-history.md) | `Evaluate.test.ts`, `TestLayers.test.ts`, `@REQ-QD-012` |
 | URS-QD-018 | [BEH-QD-097](./behaviors/13-labels.md) | `Matcher.test.ts`, `Evaluate.test.ts`, `@REQ-QD-013` |
+| URS-QD-019 | [BEH-QD-105](./behaviors/14-subject-sets.md) | `SubjectSet.test.ts`, `@REQ-QD-014` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |

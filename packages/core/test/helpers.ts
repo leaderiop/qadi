@@ -38,6 +38,25 @@ export const testLayer = (
     evaluationIdSequential(),
   );
 
+/**
+ * The same environment with **no** current subject.
+ *
+ * Subject-set evaluation supplies its own per element, so requiring one here
+ * would let a test pass while the public signature asked for a value that could
+ * not affect any answer (ADR-QD-022).
+ */
+export const subjectSetLayer = (overrides?: {
+  readonly attributes?: Layer.Layer<AttributeResolver>;
+  readonly relationships?: Layer.Layer<RelationshipResolver>;
+  readonly history?: Layer.Layer<DecisionHistory>;
+}): Layer.Layer<Exclude<QadiServices, CurrentSubject>> =>
+  Layer.mergeAll(
+    overrides?.attributes ?? AttributeResolverNone,
+    overrides?.relationships ?? RelationshipResolverNever,
+    overrides?.history ?? DecisionHistoryUnknown,
+    evaluationIdSequential(),
+  );
+
 export const subjectWith = (config: {
   readonly id?: string;
   readonly roles?: ReadonlyArray<string>;

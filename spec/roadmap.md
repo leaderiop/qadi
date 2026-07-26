@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.10                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -19,24 +19,25 @@
 Version `0.0.0`, unpublished, under the `@qadi` scope with the `QD`
 specification infix. The core is complete and verified: thirteen policy variants,
 twelve matchers, five value references, obligations, a decision-history port, a
-label lattice, the evaluator, enforcement, serialization, React integration and a
-test toolkit.
+label lattice, the evaluator, enforcement, subject-set review, serialization,
+React integration and a test toolkit.
 
 | Gate | Status |
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 271 passing |
-| Acceptance scenarios | 63 scenarios, 281 steps passing |
+| Unit and property tests | 295 passing |
+| Acceptance scenarios | 72 scenarios, 320 steps passing |
 | Coverage | 99.7% statements, 97.1% branches — thresholds enforced |
-| Doc examples compile | 59 blocks |
+| Doc examples compile | 60 blocks |
 | Specification integrity | 13 checks passing |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
 
-Four enablers from the [model adoption matrix](./models/00-adoption-matrix.md)
-have shipped. **E1, the action dimension**
+**Phase 4 of the [model adoption matrix](./models/00-adoption-matrix.md) is
+complete**: all five additive enablers have shipped, each with an ADR settled
+before its code. **E1, the action dimension**
 ([ADR-QD-018](./decisions/018-action-dimension.md)): a policy can say what the
 caller is doing, which is what read-down/write-up rules need and what eight
 documented models were waiting on. **E2, obligations**
@@ -51,6 +52,14 @@ under a negative policy. **E4, the label lattice**
 ([ADR-QD-021](./decisions/021-label-lattice.md)): a policy can compare a
 clearance against a classification, compartments included, so Bell–LaPadula,
 Biba and MLS are one policy each rather than `n × 2^c` transcribed rungs.
+**E6, subject-set evaluation** ([ADR-QD-022](./decisions/022-subject-set-evaluation.md)):
+one policy across many subjects, answering "who can reach this?" — and answerable
+by nobody, since the subject travels as a parameter and the ambient one is
+replaced rather than read.
+
+What remains from the matrix is **phase 5**: E3, combining algorithms, and E7,
+predicate output. Both change what an existing construct means, so both should
+land before `1.0.0` or not at all.
 
 Nothing below is required for the library to be correct. These are gaps in
 confidence, ergonomics or reach.
@@ -85,6 +94,12 @@ interacts with both short-circuiting (which it forfeits) and field-set merging
 (where the order of allowing children currently determines the `First` result).
 Those interactions need designing, not bolting on.
 
+**Subject sets are the separable half of this**, and they shipped sequential
+(CCR-QD-018). Elements of a batch do not combine, so no combining algorithm has
+to be settled first; what stopped concurrency there was that a batch multiplies
+the load on the caller's store by its own length. Bounding that fan-out is the
+design question for `decideSubjects`, and it is not the one above.
+
 Two ADRs previously stated this option *existed*. They have been corrected —
 see [ADR-QD-005](./decisions/005-lazy-attribute-resolution.md) and
 [ADR-QD-013](./decisions/013-short-circuit-default.md).
@@ -103,13 +118,6 @@ rule say", which is a different question and the one a security reviewer asks.
 would use, but nothing yet encodes decisions on the server and seeds them on the
 client. Until it does, a server-rendered page shows its pending state and
 re-decides after mount.
-
-### Batch subject evaluation
-
-`Qadi.filter` evaluates one policy against many resources. The transpose —
-one policy against many subjects, for "who can see this?" — is a distinct
-access pattern that the current shape does not serve well, since the subject
-comes from the environment rather than a parameter.
 
 ### Mutation testing
 

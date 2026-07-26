@@ -62,8 +62,24 @@ export const qadiTestLayer = (
   subject: AuthSubject,
   options?: TestLayerOptions,
 ): Layer.Layer<QadiTestServices> =>
+  Layer.mergeAll(currentSubjectLayer(subject), qadiReviewLayer(options));
+
+/**
+ * The same environment with no current subject.
+ *
+ * For `decideSubjects` and `filterSubjects`, which supply their own subject per
+ * element and so must not require an ambient one (ADR-QD-022). A review query is
+ * asked by nobody, and a fixture that made one up would be the first thing later
+ * mistaken for a real requester.
+ *
+ * `qadiTestLayer` is this plus a subject rather than a parallel copy: two
+ * bodies resolving the same options would eventually disagree about a default,
+ * and a fixture that fails *open* in one of them is not a failure anyone reads.
+ */
+export const qadiReviewLayer = (
+  options?: TestLayerOptions,
+): Layer.Layer<Exclude<QadiTestServices, CurrentSubject>> =>
   Layer.mergeAll(
-    currentSubjectLayer(subject),
     options?.attributeResolver ??
       (options?.attributes === undefined
         ? AttributeResolverNone
@@ -84,6 +100,12 @@ export const qadiTestLayer = (
  *
  * Lets a test assert not just the decision but the work done to reach it —
  * which is how short-circuiting is verified.
+ *
+ * **Subject-blind on purpose, and therefore not a fixture for subject sets.**
+ * One flat table answers every subject, which is exactly the resolver shape
+ * INV-QD-016 warns about: harmless while an environment names one subject,
+ * a cross-subject leak the moment a batch runs over it. Tests that care wire
+ * their own keyed resolver.
  */
 export const recordingAttributeResolver = (
   table: Readonly<Record<string, unknown>> = {},

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-00                                        |
-> | Revision       | 1.13                                           |
+> | Revision       | 1.14                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification — Master Index        |
-> | Change History | 1.13 (2026-07-26): Label lattice built; behaviour 13 and INV-QD-015 added (CCR-QD-017)<br>1.12 (2026-07-26): Decision history built; behaviour 12 and INV-QD-014 added; INV-QD-008 restated (CCR-QD-016)<br>1.11 (2026-07-26): Obligations built; behaviour 11, INV-QD-012 and INV-QD-013 added (CCR-QD-015)<br>1.10 (2026-07-26): ADR-QD-019, obligations (CCR-QD-014)<br>1.9 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.8 (2026-07-26): Action dimension built; behaviour 10 and INV-QD-011 added (CCR-QD-012)<br>1.7 (2026-07-26): ADR-QD-018, the action dimension (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified (CCR-QD-010)<br>1.5 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.4 (2026-07-26): Core-change and excluded model documents (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only model documents (CCR-QD-007)<br>1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.14 (2026-07-26): Subject sets built; behaviour 14 and INV-QD-016 added (CCR-QD-018)<br>1.13 (2026-07-26): Label lattice built; behaviour 13 and INV-QD-015 added (CCR-QD-017)<br>1.12 (2026-07-26): Decision history built; behaviour 12 and INV-QD-014 added; INV-QD-008 restated (CCR-QD-016)<br>1.11 (2026-07-26): Obligations built; behaviour 11, INV-QD-012 and INV-QD-013 added (CCR-QD-015)<br>1.10 (2026-07-26): ADR-QD-019, obligations (CCR-QD-014)<br>1.9 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.8 (2026-07-26): Action dimension built; behaviour 10 and INV-QD-011 added (CCR-QD-012)<br>1.7 (2026-07-26): ADR-QD-018, the action dimension (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified (CCR-QD-010)<br>1.5 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.4 (2026-07-26): Core-change and excluded model documents (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only model documents (CCR-QD-007)<br>1.2 (2026-07-26): Shipped-model documents (CCR-QD-006)<br>1.1 (2026-07-26): Models index; renamed to Qadi (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -99,10 +99,11 @@ having verified one.
 | [11 — Obligations](./behaviors/11-obligations.md) | BEH-QD-081–087 |
 | [12 — Decision History](./behaviors/12-history.md) | BEH-QD-089–095 |
 | [13 — The Label Lattice](./behaviors/13-labels.md) | BEH-QD-097–101 |
+| [14 — Subject Sets](./behaviors/14-subject-sets.md) | BEH-QD-105–109 |
 
 ### Decisions
 
-Twenty-one ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
+Twenty-two ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 
 | ADR | Decision |
 | --- | -------- |
@@ -116,13 +117,16 @@ Twenty-one ADRs, [indexed here](./decisions/index.yaml). The load-bearing ones:
 | [ADR-QD-019](./decisions/019-obligations.md) | An obligation is a condition on permission |
 | [ADR-QD-020](./decisions/020-decision-history-port.md) | History is a three-valued port — a boolean cannot fail closed under negation |
 | [ADR-QD-021](./decisions/021-label-lattice.md) | Dominance is four-valued; the label never enters the policy |
+| [ADR-QD-022](./decisions/022-subject-set-evaluation.md) | A subject set is asked by nobody, and reports rather than enforces |
 
-All twenty-one are **Accepted** and describe code that exists. ADR-QD-018
-through ADR-QD-021 were each written *Proposed* first — recording a
+All twenty-two are **Accepted** and describe code that exists. ADR-QD-018
+through ADR-QD-022 were each written *Proposed* first — recording a
 decision whose implementation had not landed — and moved to Accepted when the
 capability shipped with its behaviour, invariant and scenario. That is the path a
 Proposed decision takes, and for ADR-QD-020 and ADR-QD-021 it was mandatory: the
-matrix required each of their design questions settled before any code. The
+matrix required each of their design questions settled before any code — and
+ADR-QD-022 was written the same way for a question the matrix said did not
+exist. The
 status is what tells the two apart, and nothing may cite a Proposed decision as
 evidence of behaviour.
 

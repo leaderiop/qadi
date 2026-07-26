@@ -247,3 +247,31 @@ When("Bell-LaPadula is enforced", function (this: QadiWorld) {
     ]),
   );
 });
+
+// ---------------------------------------------------------------------------
+// Subject sets
+// ---------------------------------------------------------------------------
+
+When("it is asked who holds role {string}", function (this: QadiWorld, name: string) {
+  this.runSubjectSet(hasRole(name));
+});
+
+When("the review asks who holds role {string}", function (this: QadiWorld, name: string) {
+  this.runSubjectSet(hasRole(name));
+});
+
+When("it is asked who owns the resource", function (this: QadiWorld) {
+  this.runSubjectSet(hasResourceAttribute("owner", eq(subjectId())));
+});
+
+/**
+ * Reporting, not enforcing. `filter` would refuse an allow nobody discharged;
+ * this hands back identities to an administrator, so no permission is being
+ * exercised and there is no duty to condition (ADR-QD-022).
+ */
+When(
+  "it is asked who holds role {string}, where holding it would log the access",
+  function (this: QadiWorld, name: string) {
+    this.runSubjectSet(obliged(logAccess, hasRole(name)));
+  },
+);

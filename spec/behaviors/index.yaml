@@ -41,3 +41,6 @@ entries:
   - id: "BEH-QD-097"
     file: "13-labels.md"
     title: "13 — The Label Lattice"
+  - id: "BEH-QD-105"
+    file: "14-subject-sets.md"
+    title: "14 — Subject Sets"

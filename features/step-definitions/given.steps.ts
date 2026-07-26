@@ -164,3 +164,29 @@ Given(
     this.resource = { id, label: label(level, compartment) };
   },
 );
+
+// ---------------------------------------------------------------------------
+// Subject sets
+// ---------------------------------------------------------------------------
+
+Given("the candidate {string}", function (this: QadiWorld, id: string) {
+  this.candidates.push({ id, roles: [], permissions: [] });
+});
+
+Given(
+  "the candidate {string} with role {string}",
+  function (this: QadiWorld, id: string, name: string) {
+    this.candidates.push({ id, roles: [name], permissions: [] });
+  },
+);
+
+Given(
+  "the candidate {string} with permission {string}",
+  function (this: QadiWorld, id: string, key: string) {
+    const [resource, action] = key.split(":");
+    if (resource === undefined || action === undefined) {
+      throw new Error(`malformed permission key: ${key}`);
+    }
+    this.candidates.push({ id, roles: [], permissions: [`${resource}:${action}`] });
+  },
+);

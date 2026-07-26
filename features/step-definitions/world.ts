@@ -10,6 +10,8 @@ import type {
 import {
   DecisionHistory,
   DecisionHistoryUnavailable,
+  decideSubjects,
+  filterSubjects,
   enforce,
   evaluate,
   isAllowed,
@@ -18,8 +20,16 @@ import {
   fromJson,
 } from "@qadi/core";
 import * as Layer from "effect/Layer";
-import { qadiTestLayer } from "@qadi/testing";
+import { qadiReviewLayer, qadiTestLayer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
+
+/** One row of a subject-set review. */
+export interface Reviewed {
+  readonly id: string;
+  readonly allowed: boolean;
+  readonly reason: string | undefined;
+  readonly obligations: ReadonlyArray<string>;
+}
 
 /** What a Then step can assert on. */
 export interface Outcome {
@@ -71,6 +81,16 @@ export class QadiWorld extends World {
   historyUnreachable = false;
 
   outcome: Outcome = NO_OUTCOME;
+  /** Candidates for a subject-set review, in the order they were given. */
+  candidates: Array<{
+    readonly id: string;
+    readonly roles: ReadonlyArray<string>;
+    readonly permissions: ReadonlyArray<`${string}:${string}`>;
+  }> = [];
+  /** Every candidate and the decision it received. */
+  review: Array<Reviewed> = [];
+  /** The candidates `filterSubjects` kept, in order. */
+  answer: Array<string> = [];
   /** Set by serialization scenarios. */
   serialized: string | undefined = undefined;
   restored: Policy | undefined = undefined;
@@ -94,6 +114,9 @@ export class QadiWorld extends World {
     this.events = undefined;
     this.historyUnreachable = false;
     this.outcome = NO_OUTCOME;
+    this.candidates = [];
+    this.review = [];
+    this.answer = [];
     this.serialized = undefined;
     this.restored = undefined;
   }
@@ -170,6 +193,41 @@ export class QadiWorld extends World {
       result._tag === "Failure"
         ? { ...NO_OUTCOME, errored: true, failure: result.failure._tag }
         : { ...NO_OUTCOME, allowed: true };
+  }
+
+  /**
+   * Runs a policy across every candidate, recording the whole review.
+   *
+   * Note what is *not* provided: no current subject. A review query is asked by
+   * nobody, and requiring one would mean wiring a value that could not affect
+   * any answer (ADR-QD-022).
+   */
+  runSubjectSet(policy: Policy): void {
+    const options: EvaluateOptions =
+      this.resource === undefined ? {} : { resource: this.resource };
+
+    const subjects = this.candidates.map((c) =>
+      makeSubject({ id: c.id, roles: c.roles, permissions: c.permissions }),
+    );
+
+    // Both entry points, every scenario. `filterSubjects` is derived from
+    // `decideSubjects`, so running the pair here means every scenario also
+    // asserts they agree.
+    const program = Effect.all([
+      decideSubjects(policy, subjects, options),
+      filterSubjects(policy, subjects, options),
+    ]).pipe(Effect.provide(qadiReviewLayer()));
+
+    const [reviewed, kept] = Effect.runSync(program);
+
+    this.review = reviewed.map(({ subject, decision }) => ({
+      id: subject.id,
+      allowed: isAllowed(decision),
+      reason: decision._tag === "Deny" ? decision.reason : undefined,
+      obligations:
+        decision._tag === "Allow" ? decision.obligations.map((o) => o.id) : [],
+    }));
+    this.answer = kept.map((s) => s.id);
   }
 
   /** Serializes then deserializes a policy, recording both sides. */

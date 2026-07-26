@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.12                                           |
+> | Revision       | 1.13                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.13 (2026-07-26): E6 shipped; ADR-QD-022 Accepted; phase 4 complete (CCR-QD-018)<br>1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -74,7 +74,7 @@ independent designs that each bolt a field onto `Policy`.
 | **E3** | Combining algorithms | Breaking | RuBAC, XACML parity |
 | **E4** | Label lattice | **Shipped** | Bell–LaPadula, Biba, MLS, label-based |
 | **E5** | Decision history port | **Shipped** | Chinese Wall, history-based, dynamic separation of duty, UCON |
-| **E6** | Subject-set evaluation | Additive | NGAC, administrative review tooling |
+| **E6** | Subject-set evaluation | **Shipped** | NGAC, administrative review tooling |
 | **E7** | Predicate output | Breaking | Row-level security, cell-level security |
 
 ### E1 — Action dimension
@@ -251,9 +251,41 @@ asserted by test, not by argument.
 
 ### E6 — Subject-set evaluation
 
+**Shipped: [ADR-QD-022](../decisions/022-subject-set-evaluation.md),
+[14 — Subject Sets](../behaviors/14-subject-sets.md),
+[INV-QD-016](../invariants.md#inv-qd-016-a-batch-decision-is-the-decision-made-alone),
+`@REQ-QD-014`.**
+
 The transpose of `Qadi.filter`: one policy against many subjects, answering
-"who can see this?". Already on the [roadmap](../roadmap.md) as *Batch subject
-evaluation*; listed here because NGAC's review queries depend on it.
+"who can see this?". Long on the [roadmap](../roadmap.md) as *Batch subject
+evaluation*, and listed here because NGAC's review queries depend on it.
+
+| Addition | Where |
+| -------- | ----- |
+| `decideSubjects`, `filterSubjects` | `SubjectSet.ts`, a new module |
+| `SubjectDecision` | one subject paired with its decision |
+| `SubjectSetServices` | `Exclude<EvaluationServices, CurrentSubject>` |
+| `qadiReviewLayer` | `@qadi/testing` — the environment with no subject in it |
+
+The first enabler to touch neither `Policy` nor the codec, and the first to add
+no error: it is a second way to call the evaluator, not a new thing to say in a
+policy.
+
+This document recorded E6 as carrying **no design question**. That was very
+nearly right, and the one it missed changes the public type. The roadmap's own
+phrasing — *"the subject comes from the environment rather than a parameter"* —
+was read here as an inconvenience to work around. It is instead the answer: each
+element is *provided* as the subject for its own evaluation, which discharges the
+requirement, so these are the only entry points in the library that do not ask
+for a `CurrentSubject`. **A review query is asked by nobody**, and before this
+there was nowhere in Qadi that could be true.
+
+The second consequence is that subject sets **report** rather than enforce. The
+resemblance to `filter` — both return a list — is misleading: `filter` hands
+back resources, and these hand back *identities*, to an administrator rather than
+to the subjects named. Nobody is being given access, so there is no permission
+for an obligation to condition, and discharging would fire every duty once per
+candidate for accesses that never happened.
 
 ### E7 — Predicate output
 
@@ -357,7 +389,7 @@ uncompiled fences, because it does not exist.
 | Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | **Shipped** | — | P3 |
 | Chinese Wall (Brewer–Nash) | [MOD-QD-030](./30-chinese-wall.md) | **Shipped** | — | P3 |
 | History-based (HBAC) | [MOD-QD-031](./31-hbac.md) | **Shipped** | — | P3 |
-| Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | Additive | E6 | P3 |
+| Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | **Shipped, in part** | E7 — full review only | P3 |
 | Row-level security | [MOD-QD-035](./35-row-level.md) | Breaking | E7 | P3 |
 | Cell-level security | [MOD-QD-036](./36-cell-level.md) | Breaking | E7 | P3 |
 
@@ -374,6 +406,16 @@ models — OrBAC's *activity*, type enforcement's *operation*, and NGAC's
 five listed against E1 in §2. That is why it went first. It has shipped; the
 enabler column above no longer lists it, and the models that named it are each
 one requirement lighter.
+
+**NGAC ships in part, and the part is the one worth having.** Both enablers it
+named have landed, so the shape [MOD-QD-034](./34-ngac.md) actually recommends —
+the policy graph behind a `RelationshipResolver`, the operation carried by
+`hasAction`, review queries in both directions — is now fully expressible. What
+is still out of reach is what that document already said plainly: review over the
+whole user or object space, which needs a subject store Qadi does not have and an
+inversion of the expression tree that only **E7** could give. The graph itself
+was declined, not deferred. "Shipped, in part" is therefore the ceiling for this
+row, not a stage on the way to "Shipped".
 
 **A negated port inverts the fail-closed default.** `RelationshipResolverNever`
 fails closed by answering `false` because `hasRelationship` is positive. E5's
@@ -454,7 +496,7 @@ with model adoption, and one — the package scope — was resolved by it.
 | Decide the package scope | **Resolved.** See §4.1 |
 | Extend short-circuit coverage to relationships | **Closed** (CCR-QD-009). Was a prerequisite for P1, since every P1 model adds relationship lookups; the proof now exists |
 | Verify span emission | **Closed** (CCR-QD-010). Was a prerequisite for E2, since obligations report through the span; the collector it needed now exists |
-| Batch subject evaluation | **Is E6.** Same work, listed twice; the roadmap entry is the authority |
+| Batch subject evaluation | **Closed** (CCR-QD-018). Was E6; the roadmap entry was the authority and named the design question this document said did not exist |
 | Concurrent evaluation | **Blocked by E3.** Combining algorithms and evaluation order are the same design question, and settling concurrency first would fix the answer |
 
 Both entries in [Known gaps](../urs.md) were verification gaps rather than
@@ -540,13 +582,20 @@ required, and the answer widened rather than narrowed: four values, not three.
 Building it also cost *less* than forecast, because the label turned out never to
 enter a policy.
 
-Next: **E6** — subject-set evaluation — which is the last additive enabler and
-carries no recorded design question. Then phase 5.
+✔ **E6 (CCR-QD-018).** Recorded here as carrying no design question, which was
+wrong in a way worth keeping. The roadmap had already named it in one clause,
+which this document read as an inconvenience to work around rather than as the
+answer. Replacing the ambient subject rather than
+reading it is what makes a review query askable by nobody, and it removes a
+service from the public requirement set rather than adding one.
 
-Two design questions must be settled by ADR *before* code, because both are
-silent-failure risks rather than matters of taste: the polarity of E5's default
-layer (§3.3 — the obvious implementation fails open), and whether E4's dominance
-comparison is two- or three-valued.
+**Phase 4 is complete.** All five additive enablers have shipped, each with an
+ADR settled before its code, and every one of them surfaced something its ADR had
+not written down. The two that were *required* to be decided in advance — the
+polarity of E5's default layer, which fails open in its obvious implementation,
+and whether E4's dominance comparison is two- or three-valued — were the two
+where the building found the least to correct, which is the argument for the
+rule.
 
 **Phase 5 — Breaking enablers.** E3 and E7, and the models that need them. Both
 change what existing constructs mean. Both should land before `1.0.0` or not at
@@ -571,6 +620,15 @@ the enablers that touch it.
 | [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | E5 | History makes evaluation stateful. Reproducibility must be restated as *given the same history*, or the invariant weakens silently |
 | [INV-QD-009](../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied) | E2 — **held** | Obligations must not become a channel that runs work before the decision is final. They are data; the evaluator invokes nothing, and a caller's handler runs after the decision and before the guarded effect ([INV-QD-013](../invariants.md#inv-qd-013-enforcement-never-proceeds-on-an-undischarged-obligation)) |
 | [INV-QD-010](../invariants.md#inv-qd-010-error-codes-are-injective) | all | Mechanically enforced — `ERROR_CODES` is `satisfies Record<QadiError["_tag"], …>`, so a new error without a code fails compilation |
+
+**E6 appears in no row, and that is the assessment.** It added no policy variant,
+no matcher, no error and no field, so §6.1 below does not engage: there is
+nothing for the round-trip property to have missed. It added one invariant of its
+own instead —
+[INV-QD-016](../invariants.md#inv-qd-016-a-batch-decision-is-the-decision-made-alone),
+that a batch decision equals the decision made alone — because evaluating many
+subjects in sequence creates a way for one answer to reach the next that did not
+previously exist.
 
 ### 6.1 Wire-format compatibility
 

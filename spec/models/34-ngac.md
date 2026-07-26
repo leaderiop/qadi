@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-34                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): E6 shipped; status now partial (CCR-QD-018)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -58,14 +58,22 @@ seriously.
 
 | Property | Value |
 | -------- | ----- |
-| Status | **Additive** |
+| Status | **Shipped, in part** |
 | Priority | **P3** |
-| Enablers required | ~~**E1**~~ **shipped**; **E6** outstanding |
+| Enablers required | ~~**E1**~~ **shipped**; ~~**E6**~~ **shipped** |
 | Breaking change | No |
 
 P3 describes the model as a whole, not its parts. Implementing NGAC is not
 recommended at any priority; the two enablers it names are worth building for
-their own sake, and that is the conclusion this document argues to.
+their own sake, and that is the conclusion this document argues to. Both have
+since been built on exactly those terms.
+
+"Shipped, in part" is the ceiling for this row rather than a stage on the way to
+"Shipped". The recommended shape — the graph behind a resolver, the operation in
+`hasAction`, review queries in both directions — is now fully expressible. Review
+over the whole user or object space is not, for the reason given below: it needs
+a store Qadi does not have and an inversion only **E7** could provide. The graph
+was declined, not deferred.
 
 ## What Qadi can express today
 
@@ -88,6 +96,7 @@ import {
   check,
   currentSubjectLayer,
   filter,
+  filterSubjects,
   hasRelationship,
   hasRole,
   makeSubject,
@@ -139,13 +148,22 @@ const decision = check(canRead, { resource: { id: "o-budget-2026" } }).pipe(
   Effect.provide(environment),
 );
 
-// The closest Qadi comes to review today: one policy over a candidate list the
-// *caller* enumerates. Note what it is not — an answer over the whole object
-// space, which is the review query NGAC actually offers.
+// Review in both directions, over candidate lists the *caller* enumerates.
+// Note what this is not — an answer over the whole object or user space, which
+// is the review query NGAC actually offers.
 type Document = { readonly id: string; readonly kind: string };
 declare const documentsInScope: ReadonlyArray<Document>;
 
+// "What can this user reach?"
 const visible = filter(canRead, documentsInScope).pipe(Effect.provide(environment));
+
+// "Who can reach this object?" — the transpose, since E6. The subject travels
+// as a parameter here, so the environment's own subject decides nothing.
+const whoCanRead = filterSubjects(
+  canRead,
+  [makeSubject({ id: "u-alice" }), makeSubject({ id: "u-bob" })],
+  { resource: { id: "o-budget-2026" } },
+).pipe(Effect.provide(environment));
 ```
 
 This decides correctly, and it is the recommended shape. What it does not do is
@@ -224,12 +242,24 @@ decision itself. The pattern was the argument:
 document for *operation sets*. Three models, three vocabularies, one missing
 input — and none of it depended on anyone wanting NGAC.
 
-**E6 — subject-set evaluation.** Additive, and the design work is in the
-environment rather than the type. `CurrentSubject` is provided as a layer, so N
-subjects means N environments, and the naive implementation rebuilds the layer
-per element. It also multiplies resolver calls by N, which under the traversal
-above is the most expensive thing an evaluation does — a batch API that fans out
-unboundedly is a denial-of-service surface reached through a review screen.
+**E6 — subject-set evaluation. Shipped.**
+[ADR-QD-022](../decisions/022-subject-set-evaluation.md),
+[14 — Subject Sets](../behaviors/14-subject-sets.md),
+[INV-QD-016](../invariants.md#inv-qd-016-a-batch-decision-is-the-decision-made-alone),
+`@REQ-QD-014`. This paragraph forecast it correctly on both counts and was wrong
+about one mechanism, which is worth keeping on the record.
+
+It was right that the design work is in the environment rather than the type, and
+right that the fan-out is the danger — *"a batch API that fans out unboundedly is
+a denial-of-service surface reached through a review screen"* is why the shipped
+implementation is sequential, and why concurrency, if ever added, belongs as a
+bounded option rather than a change of default.
+
+It was wrong that N subjects means N environments. `Effect.provideService` supplies
+one service into an existing environment, so nothing is rebuilt per element — and
+because that discharges the requirement, the batch entry points end up needing
+*fewer* services than `evaluate` does, not more. `SubjectSetServices` is
+`Exclude<EvaluationServices, CurrentSubject>`: a review query is asked by nobody.
 
 **Full review queries stay out of reach, and that should be said plainly.** E6
 answers "who, of *these* subjects, can access this object?" — the caller
@@ -254,8 +284,8 @@ general answer: a deny that lives behind the port never reaches the combining
 rule.
 
 **The recommendation is not to implement NGAC.** E1 was built because three
-other models and one roadmap item wanted it, not because this one did; build E6
-on the same terms. Treat an
+other models and one roadmap item wanted it, not because this one did; E6 was
+built on the same terms. Treat an
 NGAC-shaped deployment as a **resolver integration**, in the manner of
 [10 — Zanzibar-Style Relationship Stores](./10-zanzibar.md) — a close analogy
 rather than a loose one, since both are reachability engines behind a port, both
@@ -276,10 +306,14 @@ Short-circuiting *is* proven for relationships
 matters more here than usual: under a full graph traversal, the branch that gets
 skipped is the whole cost of the decision.
 
-Were E6 built, its scenario would need a newly allocated `REQ-QD` identifier and
-would have to assert the property the naive implementation loses first: that a
-subject's decision in a batch is identical to that subject's decision alone, per
-[INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history).
+E6 is now verified, and this paragraph named the right property before it was
+built: *a subject's decision in a batch is identical to that subject's decision
+alone.* It became
+[INV-QD-016](../invariants.md#inv-qd-016-a-batch-decision-is-the-decision-made-alone)
+rather than a case of INV-QD-008, because reproducibility says the same inputs
+give the same answer twice while this says neighbouring evaluations are not
+inputs to each other — a stronger claim, and the one a batch can break.
+`@REQ-QD-014` and `packages/core/test/SubjectSet.test.ts` carry it.
 
 ---
 
