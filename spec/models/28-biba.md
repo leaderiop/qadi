@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-28                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.1 (2026-07-26): Shipped and verified as `@REQ-QD-020`; the E5 forecast corrected — a water mark is an aggregate the port cannot supply; the shadowing hazard recorded; the proposed API promoted to the shipped form; revisions absorbed by CCR-QD-012 and CCR-QD-017 without a bump now recorded (CCR-QD-023)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -62,108 +62,160 @@ name:
 
 ## Status
 
-| Variant | Status | Priority | Enablers required | Breaking change |
-| ------- | ------ | -------- | ----------------- | --------------- |
-| **Strict Biba** | **Shipped** | P3 | ~~E1, E4~~ | No |
-| **Low-water-mark Biba** | **Shipped** | P3 | ~~E1, E4, E5~~ | No |
+| Property | Strict Biba | Low-water-mark Biba |
+| -------- | ----------- | ------------------- |
+| Status | **Shipped** | **Shipped** |
+| Priority | **P3** | **P3** |
+| Enablers required | ~~**E1, E4**~~ **shipped**; none outstanding | ~~**E1, E4**~~ **shipped**; none outstanding |
+| Breaking change | No | No |
 
-The second row is a finding this document contributes. The
-[matrix](./00-adoption-matrix.md) records Biba as `E1, E4`, which holds for the
-strict model only. Low-water-mark Biba lowers the subject's integrity to that of
-the lowest object it has read, so the decision depends on what has already been
-read — it is **stateful**, and state about prior access is precisely what the
-decision history port (**E5**) supplies. Ring policies, permitting reads down
-while still forbidding writes up, stay at `E4` alone because nothing is
-remembered. (E1 has since shipped, so every row here is one enabler lighter than
-written; the finding about E5 is unaffected.)
-A relaxation that looks like a mild loosening of the rule needs a whole enabler
-the strict model does not, and it is the relaxation anyone would deploy.
+**Shipped: [ADR-QD-021](../decisions/021-label-lattice.md),
+[ADR-QD-018](../decisions/018-action-dimension.md),
+[BEH-QD-098–099](../behaviors/13-labels.md),
+[INV-QD-015](../invariants.md#inv-qd-015-incomparable-labels-deny-in-both-directions),
+`@REQ-QD-020`,
+`packages/core/test/Evaluate.test.ts`.** Nothing was built for this model.
+Bell–LaPadula's machinery is Biba's machinery with the two operands exchanged, so
+adoption was scenarios and this document.
 
-## What Qadi can express today
+**Low-water-mark, shipped by a different route than this document forecast:
+[ADR-QD-005](../decisions/005-lazy-attribute-resolution.md),
+[BEH-QD-034](../behaviors/05-evaluator.md), `@REQ-QD-020`.** See below.
 
-The compartment-free, totally ordered case — for integrity the common one, since
-integrity tiers are almost always a simple ladder. A build agent publishes a
-release manifest: no-write-up as a floor on the subject, no-read-down as an
-enumerated band on the input's provenance.
+### The E5 forecast was wrong
+
+Revision 1.0 contributed a finding, and the [matrix](./00-adoption-matrix.md)
+adopted it: low-water-mark Biba lowers the subject's integrity to that of the
+lowest object it has read, so the decision depends on what has already been read
+— it is **stateful**, and state about prior access is what the decision history
+port (**E5**) supplies.
+
+The first half holds. The second does not. `hasActed` answers a **membership
+question about one named event** and returns no value
+([ADR-QD-020](../decisions/020-decision-history-port.md)); a water mark is a
+**minimum over the set of everything read**. The port cannot compute it, and was
+deliberately built not to. Encoding each rung into an event name —
+`hasNotActed("read-below-2")` — would work and is the route this document would
+have taken, at the cost of enumerating the ladder: exactly the defect it complains
+about two sections below.
+
+What the model actually needs is for the caller to maintain the mark and Qadi to
+resolve it live, which is `AttributeResolver` and therefore **E4 alone**. The
+mistake is worth naming precisely, because it is the one this whole document set
+is prone to: *stateful* was read as *needs the state service*, when the state in
+question was never a set of past decisions but a single derived number.
+
+That also settles the question [What it cost](#what-it-cost) raised — whether
+evaluation *mutates* the subject's effective level — with no new ADR. Qadi never
+writes, because ADR-QD-020 declined the `record` write on
+[MOD-QD-030](./30-chinese-wall.md)'s argument, so Qadi never mutates. The caller
+mutates its own store between evaluations, and each evaluation stays reproducible
+given the same resolved attributes (INV-QD-008). The ADR this document asked for
+had already been written; it just was not numbered 025.
+
+Ring policies, permitting reads down while still forbidding writes up, need
+nothing remembered at all. All three variants land on `E4`.
+
+## The shape it took
+
+The whole model, as one stored policy. `dominates` carries a `ValueRef`, so both
+operands are runtime data and neither side is pinned to a rung of the ladder.
 
 ```typescript
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
   allOf,
+  anyOf,
   check,
   currentSubjectLayer,
-  gte,
+  dominates,
+  hasAction,
   hasAttribute,
-  hasPermission,
   hasResourceAttribute,
-  inArray,
   labeled,
   makeSubject,
-  permission,
+  resource,
+  subject,
 } from "@qadi/core";
 
-// Integrity rungs: 0 anonymous < 1 community < 2 reviewed < 3 system. Both
-// thresholds are literals because `gte` takes a number, not a reference — there
-// is no `gte(resource("integrity"))`, so neither side can name the other.
-const mayPublishManifest = allOf([
-  hasPermission(permission("manifest", "publish")),
-  // No write up: the manifest sits at 3, so the writer must already be at 3.
-  labeled("no-write-up", hasAttribute("integrity", gte(3))),
-  // No read down: the artefact consumed must sit at 3 as well, enumerated.
-  labeled("no-read-down", hasResourceAttribute("sourceIntegrity", inArray([3]))),
+// Bell-LaPadula: subject dominates object to read, object dominates subject to write.
+// Biba:          object dominates subject to read, subject dominates object to write.
+const biba = anyOf([
+  allOf([
+    hasAction("read"),
+    labeled("no-read-down", hasResourceAttribute("label", dominates(subject("integrity")))),
+  ]),
+  allOf([
+    hasAction("write"),
+    labeled("no-write-up", hasAttribute("integrity", dominates(resource("label")))),
+  ]),
 ]);
 
-// The build agent is trusted, but its input came from a reviewed (2) source,
-// not a system (3) one. Strict Biba denies — the trusted subject may not read
-// down. That is the rule that bites.
+// A trusted build agent whose input came from a reviewed source, not a system one.
+// Strict Biba denies the READ — the trusted subject may not read down. That is the
+// rule that bites, and the reason nobody deploys this unrelaxed.
 const agent = makeSubject({
   id: "build-agent",
-  permissions: ["manifest:publish"],
-  attributes: { integrity: 3 },
+  attributes: { integrity: { level: 3, compartments: [] } },
 });
 
-const program = check(mayPublishManifest, {
-  resource: { id: "manifest-1", sourceIntegrity: 2 },
+const program = check(biba, {
+  action: "read",
+  resource: { id: "vendored-dependency", label: { level: 1, compartments: [] } },
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
       currentSubjectLayer(agent),
       AttributeResolverNone,
       RelationshipResolverNever,
+      DecisionHistoryUnknown,
       EvaluationIdLive,
     ),
   ),
 );
 ```
 
-The limit is the one [23](./23-label-based.md) records: `gte` and `lt` take a
-plain number, so the subject's level cannot be compared against the resource's,
-and a policy written this way is pinned to one rung of the ladder rather than
-expressing the rule in general.
+A ring policy — reads down permitted, writes up still refused — is this tree with
+the read arm's comparison dropped, so `hasAction("read")` stands alone. That is
+the entire relaxation, and it is what Windows Mandatory Integrity Control
+enforces.
 
-## Proposed API design
+### Low-water-mark, and the attribute that must not exist
 
-The machinery is the machinery proposed in [27](./27-bell-lapadula.md) —
-`SecurityLabel`, the `Dominates` matcher, `action` on `EvaluateOptions` and
-`MatcherContext`, and the four coordinated edits any new variant costs. Nothing
-new is proposed here; two things differ.
+The mark is an aggregate, so the caller computes it and Qadi resolves it. The
+attribute name is load-bearing:
 
-**The comparison direction inverts.** Same predicate, operands swapped:
+```typescript
+import {
+  allOf,
+  dominates,
+  hasAction,
+  hasAttribute,
+  labeled,
+  resource,
+} from "@qadi/core";
 
-```ts
-// Bell–LaPadula: subject dominates object to read, object dominates subject to write.
-// Biba:          object dominates subject to read, subject dominates object to write.
-anyOf([
-  allOf([hasAction("read"), hasResourceAttribute("label", dominates(subject("integrity")))]),
-  allOf([hasAction("write"), hasAttribute("integrity", dominates(resource("label")))]),
+// `effectiveIntegrity`, NOT `integrity` — and the subject must not carry it.
+//
+// Per BEH-QD-034 `HasAttribute` reads the subject's own attributes first and calls
+// `AttributeResolver` only on a miss. A caller who maintains a water mark AND
+// carries the attribute naming it on the subject gets the static value, the
+// resolver is never asked, and every write the mark should have refused is
+// granted. It fails open and raises nothing.
+const lowWaterMark = allOf([
+  hasAction("write"),
+  labeled("lwm.no-write-up", hasAttribute("effectiveIntegrity", dominates(resource("label")))),
 ]);
 ```
 
-**Two lattices coexist.** A system needing both confidentiality and integrity
+### Two lattices coexist
+
+A system needing both confidentiality and integrity
 carries two independent lattices, and a subject's position in one says nothing
 about its position in the other — a Top Secret analyst may be a low-integrity
 producer. Composition needs no further design:
@@ -177,37 +229,61 @@ carries two labels kept accurate by two different processes. That administrative
 burden, not any technical obstacle, is why dual-lattice systems are rare outside
 defence.
 
-## What it would cost
+## What it cost
 
-The same as [27](./27-bell-lapadula.md), plus one thing. E1 and E4 are shared
-outright — E1 has shipped, and if Bell–LaPadula follows, Biba is a second policy
-shape over machinery already present, with the increment being tests plus this
-document becoming a recipe.
+Nothing but scenarios and this document. E1 and E4 were shared outright with
+[27](./27-bell-lapadula.md), so Biba was a second reading of machinery already
+present — twelve scenarios, four unit tests, and the forecast that this document
+would "become a recipe" is the one thing it got exactly right.
 
-Low-water-mark adds **E5**, which the [matrix](./00-adoption-matrix.md) already
-flags as the enabler most at risk of violating scope: it must be a *port* over
-the caller's store, exactly as `RelationshipResolver` is, or Qadi starts
-persisting, which [the URS](../urs.md) forbids. It also raises a question
-Bell–LaPadula never does — whether an evaluation *mutates* the subject's
-effective level for later evaluations. If it does, evaluation has a side effect,
-a larger departure than adding a matcher. Settle that in an ADR first.
+What the forecast got wrong:
+
+- **The E5 dependency.** Corrected above. A water mark is an aggregate, not a set
+  of past decisions, and `AttributeResolver` was always the mechanism.
+- **"Settle that in an ADR first."** The ADR existed. ADR-QD-020 declined the
+  `record` write, so no evaluation mutates anything and the side-effect question
+  never arises.
+- **"If Bell–LaPadula follows."** It did not need to. The machinery shipped as
+  E4, independent of whether 27's own scenarios were ever written — and at the
+  time of writing they were not.
+- **The scalar projection.** Revision 1.0's example enumerated one rung with
+  `gte` and `inArray` and explained that "neither side can name the other".
+  `dominates` takes a `ValueRef`, so both sides name each other, and the general
+  rule is one policy.
+
+One cost this document never anticipated, because it belongs to a later enabler:
+**a Biba policy does not compile to a database predicate.** `Dominates` is among
+the matchers `toPredicate` refuses, so label-based row filtering is out of reach —
+see [35](./35-row-level.md) and [36](./36-cell-level.md).
 
 ## Verification
 
-Every enabler this model named has now shipped — E1, E4 and E5 — so nothing
-blocks it. What is still true is that nothing verifies *Biba specifically*: the
-mechanics are proven by [27](./27-bell-lapadula.md)'s ★-property tests and by
-`@REQ-QD-013`, and Biba is those tests with the operands exchanged. Adopting it
-means writing that exchange down as scenarios, which is now an afternoon rather
-than three enablers. The compiled example proves its signatures are current, not that Biba is
-enforced — its constant thresholds are a projection of the rule onto one rung.
+Every scenario revision 1.0 asked for exists, and two it did not.
 
-Adopting the model means newly allocated `REQ-QD` scenarios covering at minimum:
-a write downwards allowed; a write upwards denied; a read downwards denied under
-the strict rule and permitted under a ring policy; and, if low-water-mark ships,
-a subject whose level has dropped being denied a write it would have been allowed
-before reading. That last is the only test exercising E5, and the one that would
-be skipped.
+| Claim | Evidence |
+| ----- | -------- |
+| A write downwards is permitted | `@REQ-QD-020`, `Evaluate.test.ts` |
+| A write upwards is refused, attributed to `no-write-up` | `@REQ-QD-020` |
+| A read downwards is refused — the rule that bites | `@REQ-QD-020`, `Evaluate.test.ts` |
+| A read upwards is permitted, where Bell–LaPadula refuses | `@REQ-QD-020`, `Evaluate.test.ts` |
+| Acting at your own level is permitted; dominance is reflexive | `@REQ-QD-020`, BEH-QD-098 |
+| Incomparable compartments refuse a write a scalar would allow | `@REQ-QD-020`, INV-QD-015 |
+| A producer with no integrity label is denied, not errored | `@REQ-QD-020`, ADR-QD-021 |
+| A ring policy permits reads down and still refuses writes up | `@REQ-QD-020` (two scenarios) |
+| A lowered water mark refuses the write an intact one allows | `@REQ-QD-020`, `Evaluate.test.ts` |
+| The whole tree survives a round trip through JSON | `Evaluate.test.ts` |
+| **A static attribute shadows the mark and the write is granted** | `@REQ-QD-020`, `Evaluate.test.ts` — asserted **as a hazard**; the grant is the defect |
+| **A Biba policy does not compile to a row predicate** | `Predicate.test.ts` — stated as a limit, not a gap |
+
+Two of these were not in the 1.0 list. The shadowing hazard is a consequence of
+BEH-QD-034 that no document had drawn out, and it is the dangerous direction: the
+mark is silently ignored and nothing is raised. The unit test carries the half BDD
+cannot — that the resolver is **not called at all** — because that is what proves
+why the grant happens rather than merely that it does.
+
+The compiled examples are now the general rule rather than a projection onto one
+rung, so `pnpm spec:examples` proves the model as written, not only that its
+signatures are current.
 
 ---
 

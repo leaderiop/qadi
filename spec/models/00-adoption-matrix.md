@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.17                                           |
+> | Revision       | 1.18                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.17 (2026-07-26): Chinese Wall and TBAC verified; HBAC corrected to Shipped, in part; the §3.3 fence claim and the four-sketch note corrected (CCR-QD-022)<br>1.16 (2026-07-26): Static separation of duty verified; the §3.3 static row corrected to Shipped, in part (CCR-QD-021)<br>1.15 (2026-07-26): E7 shipped; ADR-QD-024 Accepted; phase 5 complete; every enabler shipped (CCR-QD-020)<br>1.14 (2026-07-26): E3 shipped; ADR-QD-023 Accepted; two §3.3 claims corrected (CCR-QD-019)<br>1.13 (2026-07-26): E6 shipped; ADR-QD-022 Accepted; phase 4 complete (CCR-QD-018)<br>1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.18 (2026-07-26): Both Biba variants verified as `@REQ-QD-020`; the low-water-mark E5 finding withdrawn — the original E1/E4 answer was right; `Shipped, in part` added to the §1.1 legend; the Bell–LaPadula and MLS status disagreement recorded as open (CCR-QD-023)<br>1.17 (2026-07-26): Chinese Wall and TBAC verified; HBAC corrected to Shipped, in part; the §3.3 fence claim and the four-sketch note corrected (CCR-QD-022)<br>1.16 (2026-07-26): Static separation of duty verified; the §3.3 static row corrected to Shipped, in part (CCR-QD-021)<br>1.15 (2026-07-26): E7 shipped; ADR-QD-024 Accepted; phase 5 complete; every enabler shipped (CCR-QD-020)<br>1.14 (2026-07-26): E3 shipped; ADR-QD-023 Accepted; two §3.3 claims corrected (CCR-QD-019)<br>1.13 (2026-07-26): E6 shipped; ADR-QD-022 Accepted; phase 4 complete (CCR-QD-018)<br>1.12 (2026-07-26): E4 shipped; ADR-QD-021 Accepted; the §3.3 dominance note resolved (CCR-QD-017)<br>1.11 (2026-07-26): E5 shipped; ADR-QD-020 Accepted; the §3.3 trap resolved (CCR-QD-016)<br>1.10 (2026-07-26): E2 shipped; ADR-QD-019 Accepted (CCR-QD-015)<br>1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -42,6 +42,7 @@ REQUIREMENT: A model document MUST NOT allocate BEH-QD, INV-QD or REQ-QD
 | Status | Meaning |
 | ------ | ------- |
 | **Shipped** | Expressible today with the current ADT and services. Covered by tests. |
+| **Shipped, in part** | Some variants of the model are Shipped and the rest are named. Each use says whether the remainder is a **stage** on the way to Shipped or a **ceiling** — a declined variant and a deferred one both land here, and the distinction is not recoverable from the status alone. |
 | **Wiring** | Expressible today, but requires a resolver implementation the library does not ship. No core change. |
 | **Additive** | Requires new core capability that does not change any existing type or wire format. |
 | **Breaking** | Requires changing an existing type, evaluator rule or wire format. |
@@ -476,10 +477,32 @@ masquerade as API.
 
 #### What the P2/P3 documents corrected here
 
-**Low-water-mark Biba needs E5.** This table previously listed Biba as needing
-E1 and E4 alone. Strict Biba does; the low-water-mark relaxation drops the
-subject's effective integrity to that of the lowest object it has read, which is
-history. Ring policies need no history, because nothing is remembered.
+**~~Low-water-mark Biba needs E5.~~ Withdrawn.** This table previously listed
+Biba as needing E1 and E4 alone. Strict Biba does; the low-water-mark relaxation
+drops the subject's effective integrity to that of the lowest object it has read,
+which is history. Ring policies need no history, because nothing is remembered.
+
+*Corrected in CCR-QD-023.* The relaxation is stateful — that much was right — but
+E5 is not the mechanism and E1/E4 alone was the correct answer after all.
+`hasActed` answers a membership question about one named event and returns no
+value; a water mark is a **minimum over the set of everything read**, so the port
+cannot supply it and was deliberately built not to. The caller maintains the mark
+and `AttributeResolver` resolves it live. All three Biba variants land on E4, and
+[MOD-QD-028](./28-biba.md) records both the rejected event-encoding route and the
+hazard the resolver route carries: per BEH-QD-034 a static attribute of the same
+name **shadows** the mark and fails open. This is the one correction in this
+section where the original table was right and the model document talked it out
+of being right.
+
+**Open: two rows above are unearned, in the other direction.** Both Biba rows read
+**Shipped** and, as of CCR-QD-023, are covered by `@REQ-QD-020`. The
+Bell–LaPadula and MLS rows also read **Shipped**, applied by the same commit that
+built E4 — but [MOD-QD-027](./27-bell-lapadula.md) and
+[MOD-QD-029](./29-mls.md) still say **Additive** in their own Status sections, so
+document and table disagree. By the definition in §1.1 the word requires tests:
+27 is covered in substance by `@REQ-QD-013`, whose feature file is titled for it;
+29 is not covered by anything. Audited and corrected under a CCR of its own, not
+this one.
 
 **E1 was the highest-leverage enabler, and this table understated it.** Three
 models — OrBAC's *activity*, type enforcement's *operation*, and NGAC's

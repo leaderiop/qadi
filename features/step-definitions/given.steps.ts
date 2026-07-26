@@ -211,6 +211,69 @@ Given(
 );
 
 // ---------------------------------------------------------------------------
+// Integrity labels
+// ---------------------------------------------------------------------------
+
+// Biba is an integrity model, so it says `integrity` rather than `clearance` and
+// `artefact` rather than `document`. The same lattice underneath — these reuse
+// `label` above — but the vocabulary is the model's own, and the attribute name
+// is load-bearing: the clearance steps write `attributes["clearance"]`, which no
+// Biba policy reads.
+
+Given(
+  "a producer {string} at integrity level {int}",
+  function (this: QadiWorld, id: string, level: number) {
+    this.subjectId = id;
+    this.attributes["integrity"] = label(level, "");
+  },
+);
+
+Given(
+  "a producer {string} at integrity level {int} in compartment {string}",
+  function (this: QadiWorld, id: string, level: number, compartment: string) {
+    this.subjectId = id;
+    this.attributes["integrity"] = label(level, compartment);
+  },
+);
+
+Given(
+  "the artefact {string} at integrity level {int}",
+  function (this: QadiWorld, id: string, level: number) {
+    this.resource = { id, label: label(level, "") };
+  },
+);
+
+Given(
+  "the artefact {string} at integrity level {int} in compartment {string}",
+  function (this: QadiWorld, id: string, level: number, compartment: string) {
+    this.resource = { id, label: label(level, compartment) };
+  },
+);
+
+/**
+ * The low-water mark, which is the caller's to maintain.
+ *
+ * Deliberately a *resolved* attribute and not a subject one. A static attribute
+ * cannot change between evaluations, and per BEH-QD-034 it would shadow this one
+ * entirely — `HasAttribute` reads the subject first and calls the resolver only
+ * on a miss.
+ */
+Given(
+  "the attribute service resolves the effective integrity to level {int}",
+  function (this: QadiWorld, level: number) {
+    this.resolvedAttributes["effectiveIntegrity"] = label(level, "");
+  },
+);
+
+/** The misconfiguration BEH-QD-034 makes possible. Used by one scenario, to fail. */
+Given(
+  "the producer also carries a static effective integrity of level {int}",
+  function (this: QadiWorld, level: number) {
+    this.attributes["effectiveIntegrity"] = label(level, "");
+  },
+);
+
+// ---------------------------------------------------------------------------
 // Subject sets
 // ---------------------------------------------------------------------------
 

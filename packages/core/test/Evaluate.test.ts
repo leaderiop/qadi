@@ -721,6 +721,163 @@ describe("the label lattice", () => {
     }));
 });
 
+describe("the integrity lattice", () => {
+  // Biba, which is the block above with both operands exchanged and nothing else
+  // added. Reading is the interesting direction: strict Biba forbids reading DOWN,
+  // which is the ordinary case rather than the exceptional one.
+  const label = (level: number, ...compartments: ReadonlyArray<string>) => ({
+    level,
+    compartments,
+  });
+
+  const biba = P.anyOf([
+    P.allOf([
+      P.hasAction("read"),
+      // The object dominates the subject, not the other way round.
+      P.hasResourceAttribute("label", M.dominates(M.subject("integrity"))),
+    ]),
+    P.allOf([
+      P.hasAction("write"),
+      P.hasAttribute("integrity", M.dominates(M.resource("label"))),
+    ]),
+  ]);
+
+  const decide = (
+    subjectLabel: ReturnType<typeof label>,
+    action: string,
+    resourceLabel: ReturnType<typeof label>,
+  ) =>
+    evaluate(biba, { action, resource: { id: "artefact", label: resourceLabel } }).pipe(
+      Effect.provide(
+        testLayer(subjectWith({ id: "u1", attributes: { integrity: subjectLabel } })),
+      ),
+      Effect.map(isAllowed),
+    );
+
+  it.effect("the dual: the same two labels reverse both answers", () =>
+    Effect.gen(function* () {
+      // Bell-LaPadula above reads (2, 1) and refuses (1, 2). Biba does the
+      // reverse, from one matcher. If either assertion here passed alongside the
+      // corresponding one in the block above, the operands would not be exchanged.
+      assert.isFalse(yield* decide(label(2), "read", label(1)));
+      assert.isTrue(yield* decide(label(1), "read", label(2)));
+
+      assert.isTrue(yield* decide(label(2), "write", label(1)));
+      assert.isFalse(yield* decide(label(1), "write", label(2)));
+    }));
+
+  it.effect("dominance is reflexive, so acting at your own level is permitted", () =>
+    Effect.gen(function* () {
+      assert.isTrue(yield* decide(label(2), "read", label(2)));
+      assert.isTrue(yield* decide(label(2), "write", label(2)));
+    }));
+
+  it.effect("incomparable compartments refuse a write a scalar would allow", () =>
+    Effect.gen(function* () {
+      assert.isFalse(yield* decide(label(3, "CRYPTO"), "write", label(2, "BIO")));
+      assert.isTrue(yield* decide(label(3, "CRYPTO"), "write", label(2, "CRYPTO")));
+    }));
+
+  it.effect("the whole rule survives a round trip through JSON", () =>
+    Effect.gen(function* () {
+      const restored = yield* Effect.flatMap(P.toJson(biba), P.fromJson);
+      assert.deepStrictEqual(restored, biba);
+
+      const d = yield* evaluate(restored, {
+        action: "read",
+        resource: { id: "artefact", label: label(2) },
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1", attributes: { integrity: label(1) } })),
+        ),
+      );
+      assert.isTrue(isAllowed(d));
+    }));
+
+  // Low-water-mark Biba. MOD-QD-028 forecast this needed the decision history port
+  // (E5); it does not. `hasActed` answers a membership question about one named
+  // event and returns no value, and a water mark is a MINIMUM over everything read.
+  // The aggregate is the caller's, resolved live, which is E4 alone.
+  const lowWaterMark = P.allOf([
+    P.hasAction("write"),
+    P.hasAttribute("effectiveIntegrity", M.dominates(M.resource("label"))),
+  ]);
+
+  const resolvingMark = (calls: Array<string>, mark: ReturnType<typeof label>) =>
+    Layer.succeed(AttributeResolver, {
+      resolve: (_id: string, attribute: string) =>
+        Effect.sync(() => {
+          calls.push(attribute);
+          return mark;
+        }),
+    });
+
+  it.effect("a lowered mark refuses the write an intact one allows", () =>
+    Effect.gen(function* () {
+      const write = (mark: ReturnType<typeof label>) =>
+        evaluate(lowWaterMark, {
+          action: "write",
+          resource: { id: "manifest", label: label(3) },
+        }).pipe(
+          Effect.provide(
+            testLayer(subjectWith({ id: "u1", attributes: { integrity: label(3) } }), {
+              attributes: resolvingMark([], mark),
+            }),
+          ),
+          Effect.map(isAllowed),
+        );
+
+      assert.isTrue(yield* write(label(3)));
+      assert.isFalse(yield* write(label(1)));
+    }));
+
+  it.effect("a static attribute shadows the mark, and the refusal becomes a grant", () =>
+    Effect.gen(function* () {
+      // BEH-QD-034 in its dangerous reading. `HasAttribute` reads the subject's
+      // own attributes first and calls the resolver ONLY on a miss, so a caller
+      // who maintains a water mark and also carries the attribute on the subject
+      // gets the static value — and the resolver is never asked at all.
+      //
+      // BDD cannot express the second half: that the lookup does not happen is
+      // invisible in a decision, and it is the half that proves WHY the grant
+      // occurs rather than merely that it does.
+      const shadowed: Array<string> = [];
+      const granted = yield* evaluate(lowWaterMark, {
+        action: "write",
+        resource: { id: "manifest", label: label(3) },
+      }).pipe(
+        Effect.provide(
+          testLayer(
+            subjectWith({
+              id: "u1",
+              attributes: { integrity: label(3), effectiveIntegrity: label(3) },
+            }),
+            { attributes: resolvingMark(shadowed, label(1)) },
+          ),
+        ),
+      );
+
+      assert.isTrue(isAllowed(granted));
+      assert.deepStrictEqual(shadowed, []);
+
+      // Naming an attribute the subject does not carry is the whole of the fix.
+      const consulted: Array<string> = [];
+      const denied = yield* evaluate(lowWaterMark, {
+        action: "write",
+        resource: { id: "manifest", label: label(3) },
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1", attributes: { integrity: label(3) } }), {
+            attributes: resolvingMark(consulted, label(1)),
+          }),
+        ),
+      );
+
+      assert.isFalse(isAllowed(denied));
+      assert.deepStrictEqual(consulted, ["effectiveIntegrity"]);
+    }));
+});
+
 describe("decision history", () => {
   // The port is three-valued because a boolean cannot fail closed under
   // negation: whichever way an unwired default answers, it grants under one of

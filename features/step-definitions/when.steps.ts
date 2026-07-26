@@ -368,6 +368,78 @@ When("Bell-LaPadula is enforced", function (this: QadiWorld) {
 });
 
 // ---------------------------------------------------------------------------
+// Integrity, the other direction
+// ---------------------------------------------------------------------------
+
+/**
+ * Biba: no read down, no write up. The same two comparisons as Bell-LaPadula
+ * above with the operands exchanged, which is the entire content of "integrity
+ * dual" — one lattice, one matcher, two readings of it.
+ *
+ * `labeled` where Bell-LaPadula's step has none, so a refusal can be attributed
+ * to the arm that produced it.
+ */
+const biba = (): Policy =>
+  anyOf([
+    allOf([
+      hasAction("read"),
+      // The object must dominate the subject: read only at or above your level.
+      labeled("no-read-down", hasResourceAttribute("label", dominates(subject("integrity")))),
+    ]),
+    allOf([
+      hasAction("write"),
+      // The subject must dominate the object: write only at or below your level.
+      labeled("no-write-up", hasAttribute("integrity", dominates(resource("label")))),
+    ]),
+  ]);
+
+When("Biba is enforced", function (this: QadiWorld) {
+  this.run(biba());
+});
+
+/**
+ * A ring policy: reads down are permitted, writes up are still refused.
+ *
+ * The relaxation everyone actually deploys, and the reason strict Biba is rarely
+ * asked for by name — reading downwards is what software does all day. Dropping
+ * the read arm's comparison is the whole of it, so the bare `hasAction("read")`
+ * is the policy, not a placeholder.
+ */
+When("the ring policy is enforced", function (this: QadiWorld) {
+  this.run(
+    anyOf([
+      hasAction("read"),
+      allOf([
+        hasAction("write"),
+        labeled("ring.no-write-up", hasAttribute("integrity", dominates(resource("label")))),
+      ]),
+    ]),
+  );
+});
+
+/**
+ * Low-water-mark Biba: the same no-write-up rule against the subject's *effective*
+ * level rather than its assigned one.
+ *
+ * `effectiveIntegrity`, not `integrity`, and that is the design. The mark is an
+ * aggregate — the minimum over everything read — so it is the caller's to compute
+ * and Qadi's to resolve. MOD-QD-028 forecast this needed E5; the history port
+ * answers membership questions about one event and returns no value, so it cannot
+ * supply a minimum.
+ */
+When("the low-water-mark policy is enforced", function (this: QadiWorld) {
+  this.run(
+    allOf([
+      hasAction("write"),
+      labeled(
+        "lwm.no-write-up",
+        hasAttribute("effectiveIntegrity", dominates(resource("label"))),
+      ),
+    ]),
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Predicate output
 // ---------------------------------------------------------------------------
 

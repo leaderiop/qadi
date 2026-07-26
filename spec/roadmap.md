@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.12                                           |
+> | Revision       | 1.13                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -26,10 +26,10 @@ review, predicate output, serialization, React integration and a test toolkit.
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 364 passing |
-| Acceptance scenarios | 91 scenarios, 402 steps passing |
-| Coverage | 99.7% statements, 97.1% branches — thresholds enforced |
-| Doc examples compile | 63 blocks |
+| Unit and property tests | 377 passing |
+| Acceptance scenarios | 125 scenarios, 622 steps passing |
+| Coverage | 99.76% statements, 97.58% branches, 100% lines — thresholds enforced |
+| Doc examples compile | 65 blocks |
 | Specification integrity | 13 checks passing |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
