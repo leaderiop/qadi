@@ -89,10 +89,16 @@ revoking marketing leaves the treatment edge standing, and no policy changes.
 register at decision time, so a withdrawn consent denies on the next evaluation —
 nothing to invalidate, because nothing was retained. Validity periods work the
 same way, decided by the register against `Clock` rather than `Date.now`
-([ADR-QD-012](../decisions/012-deterministic-time-and-ids.md)). Caching gives
-this up, and is listed *Under consideration* on the
-[roadmap](../roadmap.md#caching-decisions) with exactly this hazard recorded: a
+([ADR-QD-012](../decisions/012-deterministic-time-and-ids.md)). Caching gives this up, and the hazard for *this* model is the sharpest form of it: a
 cached allow is processing the data subject has already withdrawn permission for.
+
+*Updated in CCR-QD-034.* A cache shipped in
+[ADR-QD-031](../decisions/031-decision-cache.md), and it does not change this
+paragraph's advice. It is **off by default**, its lifetime is the caller's, and the
+decision to scope it to a request rather than to give it a TTL was taken for exactly
+the reason stated here — a consent register answers *now*, and any staleness window is
+a window in which withdrawn consent still reads as granted. A processor under GDPR
+should either not cache this policy or scope the cache to a single request.
 
 **Consent and purpose compose.** Consent answers *may you*;
 [purpose](./17-purpose.md) answers *why are you asking*. Both must hold, so they
