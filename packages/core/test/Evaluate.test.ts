@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Tracer from "effect/Tracer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { AttributeResolveError, RelationshipResolveError } from "../src/Errors.ts";
@@ -458,4 +459,108 @@ describe("subject identity references", () => {
         testLayer(subjectWith({ id: "u1", attributes: { id: "from-attribute" } })),
       ),
     ));
+});
+
+describe("observability", () => {
+  /**
+   * Collects the spans an evaluation emits.
+   *
+   * `Tracer.Tracer` is a `Context.Reference`, so substituting it captures every
+   * span without an exporter or a network. Until this existed, URS-QD-012 was
+   * satisfied by inspection only: `evaluate` annotated a span and nothing
+   * asserted that it did, which is exactly the kind of claim this project is
+   * meant not to make.
+   */
+  const collectingTracer = (spans: Array<Tracer.Span>) =>
+    Layer.succeed(
+      Tracer.Tracer,
+      Tracer.make({
+        span: (options) => {
+          const span = new Tracer.NativeSpan(options);
+          spans.push(span);
+          return span;
+        },
+      }),
+    );
+
+  const named = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
+    spans.find((s) => s.name === name);
+
+  it.effect("an allow annotates qadi.evaluate with the whole decision", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasRole("editor")).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      const span = named(spans, "qadi.evaluate");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      // The identifier is deterministic because EvaluationId is a service —
+      // ADR-QD-012. Under crypto.randomUUID this assertion could not exist.
+      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
+        "qadi.decision": "Allow",
+        "qadi.subject_id": "u1",
+        "qadi.evaluation_id": "eval-1",
+        "qadi.policy_tag": "HasRole",
+      });
+    }));
+
+  it.effect("a denial is reported as Deny, not as an absent span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasPermission(write)).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u2" }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      const span = named(spans, "qadi.evaluate");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
+        "qadi.decision": "Deny",
+        "qadi.subject_id": "u2",
+        "qadi.evaluation_id": "eval-1",
+        "qadi.policy_tag": "HasPermission",
+      });
+    }));
+
+  it.effect("combinators emit their own spans beneath the evaluation", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      const policy = P.allOf([P.hasRole("a"), P.anyOf([P.hasRole("b"), P.hasRole("c")])]);
+      yield* evaluate(policy).pipe(
+        Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      // Named spans exist so a slow branch is attributable in a trace viewer,
+      // not merely a slow evaluation overall.
+      assert.isDefined(named(spans, "qadi.evaluate"));
+      assert.isDefined(named(spans, "qadi.allOf"));
+      assert.isDefined(named(spans, "qadi.anyOf"));
+    }));
+
+  it.effect("a failed evaluation still ends its span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      // A missing resource.id is an error, not a denial — INV-QD-006. The span
+      // must close regardless, or a failing dependency would leave traces open.
+      yield* Effect.result(
+        evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
+          Effect.provide(testLayer(subjectWith({}))),
+          Effect.provide(collectingTracer(spans)),
+        ),
+      );
+
+      const span = named(spans, "qadi.evaluate");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.notStrictEqual(span.status._tag, "Started");
+    }));
 });

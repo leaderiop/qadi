@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -200,7 +200,7 @@ so the specification cannot drift from itself.
 | URS-QD-009 | [BEH-QD-039](./behaviors/05-evaluator.md) | `Evaluate.test.ts` |
 | URS-QD-010 | [BEH-QD-034](./behaviors/05-evaluator.md), [BEH-QD-065](./behaviors/09-react.md), [INV-QD-005](./invariants.md#inv-qd-005-short-circuit-preservation) | `Evaluate.test.ts` (attribute and relationship call counts), `QadiAtoms.test.ts` |
 | URS-QD-011 | [BEH-QD-041](./behaviors/06-services.md), [BEH-QD-042](./behaviors/06-services.md) | `Layers.test.ts`, `TestLayers.test.ts` |
-| URS-QD-012 | [ADR-QD-009](./decisions/009-observability-via-effect.md) | — see [§7](#7-known-gaps) |
+| URS-QD-012 | [ADR-QD-009](./decisions/009-observability-via-effect.md) | `Evaluate.test.ts` (span collector) |
 | URS-QD-013 | [BEH-QD-067](./behaviors/09-react.md), [BEH-QD-068](./behaviors/09-react.md) | `QadiProvider.test.tsx`, `hooks.test.tsx` |
 | URS-QD-014 | [BEH-QD-070](./behaviors/09-react.md) | `QadiAtoms.test.ts`, `QadiProvider.test.tsx` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible) | `Evaluate.test.ts` |
@@ -212,12 +212,21 @@ so the specification cannot drift from itself.
 ## 7. Known gaps
 
 Writing this document surfaced two requirements that were asserted rather than
-verified. They are recorded here instead of being quietly dropped. One remains.
+verified. They are recorded here instead of being quietly dropped. **Both are
+now closed**, and the record is kept because how they were found matters more
+than that they are fixed: both were discovered by writing the requirement down,
+not by writing code.
 
-**URS-QD-012 has no test.** `evaluate` annotates a `qadi.evaluate` span, but
-nothing asserts that the span is emitted or that its attributes are correct. The
-requirement is satisfied by inspection only. Tracked on the
-[roadmap](./roadmap.md#verify-span-emission).
+**URS-QD-012 had no test. Closed (CCR-QD-010).** `evaluate` annotated a
+`qadi.evaluate` span and nothing asserted that it did. `Tracer.Tracer` is a
+`Context.Reference`, so a substituted tracer collects every span without an
+exporter. `Evaluate.test.ts` now asserts the span is emitted, that its four
+attributes carry the decision, subject, evaluation identifier and policy tag,
+that combinators emit their own child spans, and that the span still closes when
+evaluation fails.
+
+The evaluation identifier is assertable at all only because it comes from a
+service rather than `crypto.randomUUID` ([ADR-QD-012](./decisions/012-deterministic-time-and-ids.md)).
 
 **URS-QD-010 was verified only for attribute resolution. Closed (CCR-QD-009).**
 The call-count tests covered `AttributeResolver` alone; nothing proved that an

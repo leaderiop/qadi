@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -321,7 +321,7 @@ with model adoption, and one — the package scope — was resolved by it.
 | ------------ | ----------- |
 | Decide the package scope | **Resolved.** See §4.1 |
 | Extend short-circuit coverage to relationships | **Closed** (CCR-QD-009). Was a prerequisite for P1, since every P1 model adds relationship lookups; the proof now exists |
-| Verify span emission | **Prerequisite for E2.** Obligations are reported through the span; asserting them requires the span collector this item already needs |
+| Verify span emission | **Closed** (CCR-QD-010). Was a prerequisite for E2, since obligations report through the span; the collector it needed now exists |
 | Batch subject evaluation | **Is E6.** Same work, listed twice; the roadmap entry is the authority |
 | Concurrent evaluation | **Blocked by E3.** Combining algorithms and evaluation order are the same design question, and settling concurrency first would fix the answer |
 

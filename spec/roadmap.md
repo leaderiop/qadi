@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -25,11 +25,14 @@ and a test toolkit.
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 170 passing |
+| Unit and property tests | 174 passing |
 | Acceptance scenarios | 31 scenarios, 128 steps passing |
 | Coverage | 99.6% statements, 96.1% branches — thresholds enforced |
 | Doc examples compile | 53 blocks |
 | Specification integrity | 13 checks passing |
+
+Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
+records both gaps that writing it surfaced, and both are closed.
 
 Nothing below is required for the library to be correct. These are gaps in
 confidence, ergonomics or reach.
@@ -47,16 +50,6 @@ in `QadiProvider.tsx` — but there is no canary for it yet. The core package ha
 `v4-api-smoke.test.ts` pinning the APIs it relies on; the reactivity APIs
 deserve the same, so a beta bump fails loudly in one place rather than
 mysteriously across the React suite.
-
-### Verify span emission
-
-`URS-QD-012` — decisions appear in tracing — is satisfied by inspection only.
-`evaluate` annotates a `qadi.evaluate` span, but no test asserts that the span
-is emitted or that its attributes are what the specification claims.
-
-This is the one requirement in the URS with no verification behind it, which
-makes it exactly the kind of claim this project exists not to make. A test using
-a span collector layer would close it.
 
 ## Planned
 

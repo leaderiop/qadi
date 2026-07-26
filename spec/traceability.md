@@ -87,7 +87,7 @@ contract.
 | `packages/core/test/Tokens.test.ts` | BEH-QD-001–012, INV-QD-001, INV-QD-002, INV-QD-010 |
 | `packages/core/test/Policy.test.ts` | BEH-QD-017–019, BEH-QD-057–059, INV-QD-003 |
 | `packages/core/test/Matcher.test.ts` | BEH-QD-025–028, INV-QD-004 |
-| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–039, INV-QD-005, INV-QD-006, INV-QD-008 |
+| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–039, INV-QD-005, INV-QD-006, INV-QD-008, ADR-QD-009 |
 | `packages/core/test/Layers.test.ts` | BEH-QD-041–044, INV-QD-007 |
 | `packages/core/test/Qadi.test.ts` | BEH-QD-049–052, INV-QD-009 |
 | `packages/testing/test/TestLayers.test.ts` | Test fixtures and layers |
