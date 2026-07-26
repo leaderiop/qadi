@@ -46,6 +46,13 @@ describe("Policy combinators", () => {
     assert.strictEqual(policy._tag, "Not");
   });
 
+  it("hasAction carries the verb and fields", () => {
+    const policy = P.hasAction("write", { fields: ["body"] });
+    if (policy._tag !== "HasAction") return;
+    assert.strictEqual(policy.action, "write");
+    assert.deepStrictEqual(policy.fields, ["body"]);
+  });
+
   it("hasRelationship carries depth and fields", () => {
     const policy = P.hasRelationship("owner", { depth: 3, fields: ["title"] });
     if (policy._tag !== "HasRelationship") return;
@@ -90,6 +97,7 @@ describe("Policy serialization", () => {
                 P.hasAttribute("level", M.gte(3), { fields: ["a", "b"] }),
                 P.hasResourceAttribute("state", M.eq(M.literal("open"))),
                 P.hasRelationship("owner", { depth: 2 }),
+                P.hasAction("write", { fields: ["body"] }),
               ]),
             ),
           ),
@@ -108,6 +116,7 @@ describe("Policy serialization", () => {
         M.eq(M.subject("dept")),
         M.eq(M.subjectId()),
         M.eq(M.resource("owner")),
+        M.eq(M.action()),
         M.neq(M.literal("x")),
         M.inArray([1, 2, 3]),
         M.exists(),
@@ -172,6 +181,11 @@ describe("Policy serialization", () => {
         ),
         FastCheck.string().map((s) => P.hasRole(s)),
         FastCheck.integer().map((n) => P.hasAttribute("lvl", M.gte(n))),
+        FastCheck.string().map((s) => P.hasAction(s)),
+        // A matcher carrying an ActionRef: the variant lives in ValueRef rather
+        // than in Policy, so a leaf that never nests one would leave it out of
+        // the round-trip property entirely.
+        FastCheck.constant(P.hasAttribute("op", M.eq(M.action()))),
       );
 
       const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({

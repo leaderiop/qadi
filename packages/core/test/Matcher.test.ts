@@ -12,6 +12,7 @@ const ctx: M.MatcherContext = {
   subject: { dept: "eng", nested: { deep: 7 } },
   subjectId: "u1",
   resource: { owner: "eng", tags: ["a", "b"] },
+  action: "write",
 };
 
 const run = (matcher: M.Matcher, value: unknown) => M.evaluateMatcher(matcher, value, ctx);
@@ -28,6 +29,11 @@ describe("matchers", () => {
 
   it("eq resolves a resource reference", () => {
     assert.isTrue(run(M.eq(M.resource("owner")), "eng"));
+  });
+
+  it("eq resolves the action reference", () => {
+    assert.isTrue(run(M.eq(M.action()), "write"));
+    assert.isFalse(run(M.eq(M.action()), "read"));
   });
 
   it("neq inverts eq", () => {
@@ -79,6 +85,42 @@ describe("matchers", () => {
     assert.isTrue(run(M.size(M.gte(2)), ["a", "b"]));
     assert.isTrue(run(M.size(M.gte(2)), "ab"));
     assert.isFalse(run(M.size(M.gte(2)), 42));
+  });
+});
+
+describe("referencesAction", () => {
+  // The evaluator asks this before running a matcher, because the matcher
+  // itself cannot fail: an absent action would resolve to undefined, match
+  // nothing, and be reported as a denial rather than as the caller's mistake.
+  it("sees a bare action reference under eq and neq", () => {
+    assert.isTrue(M.referencesAction(M.eq(M.action())));
+    assert.isTrue(M.referencesAction(M.neq(M.action())));
+  });
+
+  it("sees one nested at any depth", () => {
+    assert.isTrue(M.referencesAction(M.fieldMatch("op", M.eq(M.action()))));
+    assert.isTrue(M.referencesAction(M.someMatch(M.eq(M.action()))));
+    assert.isTrue(M.referencesAction(M.everyMatch(M.neq(M.action()))));
+    assert.isTrue(M.referencesAction(M.size(M.eq(M.action()))));
+  });
+
+  it("is false for every matcher that cannot name it", () => {
+    const withoutAction: ReadonlyArray<M.Matcher> = [
+      M.eq(M.subjectId()),
+      M.neq(M.resource("owner")),
+      M.inArray([1]),
+      M.exists(),
+      M.gte(1),
+      M.lt(1),
+      M.contains("a"),
+      M.fieldMatch("x", M.exists()),
+      M.someMatch(M.gte(1)),
+      M.everyMatch(M.lt(1)),
+      M.size(M.gte(1)),
+    ];
+    for (const matcher of withoutAction) {
+      assert.isFalse(M.referencesAction(matcher), matcher._tag);
+    }
   });
 });
 

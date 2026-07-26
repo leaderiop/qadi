@@ -47,7 +47,7 @@ P3, behind sixteen recipes costing nothing but a resolver.
 | -------- | ----- |
 | Status | **Additive** |
 | Priority | **P3** |
-| Enablers required | **E1, E4** |
+| Enablers required | ~~**E1**~~ **shipped**; **E4** outstanding |
 | Breaking change | No |
 
 ## What Qadi can express today
@@ -126,6 +126,11 @@ knowing that `a` dominates `b` says nothing until you know which of read or writ
 was attempted; with **E1 and no E4** the verb is known, but labels can only be
 compared as scalars — the wrong answer the moment compartments exist.
 
+That second case is now the live one. E1 shipped
+([ADR-QD-018](../decisions/018-action-dimension.md)), so this model is exactly
+one enabler away, and it is the enabler carrying the design question rather than
+the mechanical work.
+
 ```ts
 export interface SecurityLabel {
   readonly level: number;
@@ -161,6 +166,7 @@ with the operands exchanged. The action rides on the evaluation options.
 hasAttribute("clearance", dominates(resource("label")));        // no read up
 hasResourceAttribute("label", dominates(subject("clearance"))); // no write down
 
+// Shipped, as sketched:
 export interface EvaluateOptions {
   readonly resource?: Resource;
   readonly maxDepth?: number;
@@ -203,13 +209,14 @@ standing between this library and the defect that motivated the rewrite.
 
 ## What it would cost
 
-E1 and E4, both additive. E1 is the cheaper half and unlocks six other models;
-E4 is the half with a real design question in it.
+E4 alone, now that E1 has shipped — the cheaper half went first, on the argument
+that it unlocked six other models. E4 is the half with a real design question in
+it, and all of what follows is E4's.
 
 | Invariant | Risk |
 | --------- | ---- |
 | [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) | **The one that matters.** `Dominates` is a new codec variant, and `SecurityLabel` carries a `ReadonlySet` |
-| [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) | An absent `action` must deny, not match every branch |
+| [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one) | Settled: an absent `action` **fails**; it neither denies nor matches every branch |
 | [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) | Unaffected — dominance is pure, and a lattice is data, not state |
 
 A `ReadonlySet` is not directly serializable, so the wire form has to be an
@@ -236,8 +243,9 @@ already given it up.
 
 ## Verification
 
-Nothing verifies this model. It is unbuilt: E1 and E4 are both unstarted, and no
-part of this document beyond the compiled example describes shipped API.
+Nothing verifies this model. E1 has shipped, but E4 has not, so no part of this
+document beyond the compiled example and the action dimension describes shipped
+API — and without dominance there is no rule to test.
 
 Bell–LaPadula is, however, unusually testable, and that is worth noting while the
 design is open. The two rules are small, total and mutually constraining, and

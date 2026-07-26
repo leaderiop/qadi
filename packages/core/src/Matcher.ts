@@ -17,9 +17,16 @@ import * as Schema from "effect/Schema";
 const SubjectRef = Schema.TaggedStruct("SubjectRef", { path: Schema.String });
 const SubjectIdRef = Schema.TaggedStruct("SubjectIdRef", {});
 const ResourceRef = Schema.TaggedStruct("ResourceRef", { path: Schema.String });
+const ActionRef = Schema.TaggedStruct("ActionRef", {});
 const LiteralRef = Schema.TaggedStruct("LiteralRef", { value: Schema.Unknown });
 
-export const ValueRef = Schema.Union([SubjectRef, SubjectIdRef, ResourceRef, LiteralRef]);
+export const ValueRef = Schema.Union([
+  SubjectRef,
+  SubjectIdRef,
+  ResourceRef,
+  ActionRef,
+  LiteralRef,
+]);
 export type ValueRef = typeof ValueRef.Type;
 
 /**
@@ -39,6 +46,14 @@ export const subject = (path: string): ValueRef => ({ _tag: "SubjectRef", path }
 export const subjectId = (): ValueRef => ({ _tag: "SubjectIdRef" });
 /** References a field of the resource by dot-path. */
 export const resource = (path: string): ValueRef => ({ _tag: "ResourceRef", path });
+/**
+ * References the action the caller is performing.
+ *
+ * The action is a property of the *request*, not a grant the subject holds —
+ * it is never derived from a permission token's action segment, and comparing
+ * the two would conflate "may write" with "is writing" (ADR-QD-018).
+ */
+export const action = (): ValueRef => ({ _tag: "ActionRef" });
 /** A constant value. */
 export const literal = (value: unknown): ValueRef => ({ _tag: "LiteralRef", value });
 
@@ -156,12 +171,14 @@ const containsValue = (value: unknown, needle: unknown): boolean => {
   return false;
 };
 
-/** The subject and resource a matcher may reference. */
+/** The subject, resource and action a matcher may reference. */
 export interface MatcherContext {
   /** The subject's attributes. Its identity is `subjectId`, kept separate. */
   readonly subject: Readonly<Record<string, unknown>>;
   readonly subjectId: string;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
+  /** What the caller is doing. `undefined` when none was supplied. */
+  readonly action: string | undefined;
 }
 
 const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
@@ -172,8 +189,38 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
       return context.subjectId;
     case "ResourceRef":
       return getByPath(context.resource, ref.path);
+    case "ActionRef":
+      return context.action;
     case "LiteralRef":
       return ref.value;
+  }
+};
+
+/**
+ * True when a matcher reads the action anywhere within it.
+ *
+ * The evaluator asks this *before* running the matcher. `evaluateMatcher` is
+ * total — it cannot fail — so an absent action would otherwise resolve to
+ * `undefined`, match nothing, and be reported as a denial. A caller who forgot
+ * to pass the action would then read that as "not authorized" rather than as
+ * the wiring error it is (INV-QD-011).
+ */
+export const referencesAction = (self: Matcher): boolean => {
+  switch (self._tag) {
+    case "Eq":
+    case "Neq":
+      return self.ref._tag === "ActionRef";
+    case "FieldMatch":
+    case "SomeMatch":
+    case "EveryMatch":
+    case "Size":
+      return referencesAction(self.matcher);
+    case "In":
+    case "Exists":
+    case "Gte":
+    case "Lt":
+    case "Contains":
+      return false;
   }
 };
 

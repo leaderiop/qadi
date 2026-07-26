@@ -210,4 +210,4 @@ The same applies to the `resource` argument and to the record passed to
 
 ---
 
-_Previous: [08 — Serialization](./08-serialization.md)_
+_Previous: [08 — Serialization](./08-serialization.md) | Next: [10 — The Action Dimension](./10-actions.md)_

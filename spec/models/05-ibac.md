@@ -85,6 +85,7 @@ export interface MatcherContext {
   readonly subject: Readonly<Record<string, unknown>>;
   readonly subjectId: string;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
+  readonly action: string | undefined;
 }
 ```
 

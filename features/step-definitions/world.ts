@@ -1,6 +1,6 @@
 import { World } from "@cucumber/cucumber";
 import type { IWorldOptions } from "@cucumber/cucumber";
-import type { AuthSubject, Decision, Policy } from "@qadi/core";
+import type { AuthSubject, Decision, EvaluateOptions, Policy } from "@qadi/core";
 import { evaluate, isAllowed, makeSubject, toJson, fromJson } from "@qadi/core";
 import { qadiTestLayer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
@@ -37,6 +37,7 @@ export class QadiWorld extends World {
   resolvedAttributes: Record<string, unknown> = {};
   relationships: Array<readonly [string, string, string]> = [];
   resource: Record<string, unknown> | undefined = undefined;
+  action: string | undefined = undefined;
 
   outcome: Outcome = NO_OUTCOME;
   /** Set by serialization scenarios. */
@@ -55,6 +56,7 @@ export class QadiWorld extends World {
     this.resolvedAttributes = {};
     this.relationships = [];
     this.resource = undefined;
+    this.action = undefined;
     this.outcome = NO_OUTCOME;
     this.serialized = undefined;
     this.restored = undefined;
@@ -71,8 +73,13 @@ export class QadiWorld extends World {
 
   /** Runs a policy and records the outcome for the Then steps. */
   run(policy: Policy): void {
-    const options =
-      this.resource === undefined ? undefined : { resource: this.resource };
+    // Keys are omitted rather than set to undefined, so a scenario that never
+    // mentions a resource or an action evaluates exactly as it did before
+    // either existed.
+    const options: EvaluateOptions = {
+      ...(this.resource === undefined ? {} : { resource: this.resource }),
+      ...(this.action === undefined ? {} : { action: this.action }),
+    };
 
     const program = evaluate(policy, options).pipe(
       Effect.provide(

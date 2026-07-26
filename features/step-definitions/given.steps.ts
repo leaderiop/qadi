@@ -83,3 +83,18 @@ Given(
     this.resource = { id, owner };
   },
 );
+
+Given(
+  "the resource {string} at level {int}",
+  function (this: QadiWorld, id: string, level: number) {
+    this.resource = { id, level };
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Request
+// ---------------------------------------------------------------------------
+
+Given("the caller is performing {string}", function (this: QadiWorld, verb: string) {
+  this.action = verb;
+});

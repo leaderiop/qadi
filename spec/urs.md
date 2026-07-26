@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -145,6 +145,16 @@ elements, from the same policy values.
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
 
+### URS-QD-015 — State a rule that depends on what the caller is doing
+
+A developer must be able to write one policy that permits reading and refuses
+writing — or the reverse — rather than two policies chosen in application code.
+
+Rationale: "read from anywhere, write only on site" is one rule as a person says
+it. Splitting it in TypeScript means the stored policy no longer expresses the
+whole rule, and the half that decides which branch applies is in code nobody
+reviews as a policy.
+
 ## 4. Non-functional requirements
 
 ### NFR-QD-001 — Deterministic evaluation
@@ -203,6 +213,7 @@ so the specification cannot drift from itself.
 | URS-QD-012 | [ADR-QD-009](./decisions/009-observability-via-effect.md) | `Evaluate.test.ts` (span collector) |
 | URS-QD-013 | [BEH-QD-067](./behaviors/09-react.md), [BEH-QD-068](./behaviors/09-react.md) | `QadiProvider.test.tsx`, `hooks.test.tsx` |
 | URS-QD-014 | [BEH-QD-070](./behaviors/09-react.md) | `QadiAtoms.test.ts`, `QadiProvider.test.tsx` |
+| URS-QD-015 | [BEH-QD-073](./behaviors/10-actions.md) | `Evaluate.test.ts`, `@REQ-QD-010` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |

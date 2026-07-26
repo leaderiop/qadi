@@ -39,12 +39,13 @@ vocabulary second.
 | -------- | ----- |
 | Status | **Wiring** |
 | Priority | **P1** |
-| Enablers required | E1 recommended, not required |
+| Enablers required | E1 shipped; none outstanding |
 | Breaking change | No |
 
-Qadi expresses the organisation, the role and the view today with no core
-change. It expresses the *activity* only by encoding it, which is the gap
-[E1](./00-adoption-matrix.md#e1--action-dimension) would close.
+Qadi expresses the organisation, the role and the view with no core change, and
+the *activity* since [E1](./00-adoption-matrix.md#e1--action-dimension) shipped.
+The abstraction OrBAC exists to provide — a rule written about an activity rather
+than about any one operation implementing it — is what `hasAction` now carries.
 
 ## How Qadi expresses it
 
@@ -164,14 +165,17 @@ const program = Effect.gen(function* () {
 **The activity, which is the point of the model.** OrBAC exists to abstract the
 action: `consult`, `prescribe` and `archive` are activities that several
 concrete operations implement, and a rule is written about the activity rather
-than any one of them. Qadi's action exists only as the second segment of a
-permission token, `resource:action`
-([ADR-QD-007](../decisions/007-permission-token-representation.md)); it is never
-an input to evaluation. That is
-[E1](./00-adoption-matrix.md#e1--action-dimension): additive, cheap, unbuilt.
+than any one of them.
 
-So an activity must be encoded, by one of two routes, and both lose the
-abstraction OrBAC exists to provide. **As a permission token**,
+[E1](./00-adoption-matrix.md#e1--action-dimension) /
+[ADR-QD-018](../decisions/018-action-dimension.md) has shipped, so
+`hasAction("consult")` says this directly and the two encodings below are now
+historical — recorded because they remain the shape of anything decoded from a
+policy store written before E1, and because the reasoning explains why the
+activity belongs on the request rather than on the subject.
+
+Encoded, an activity took one of two routes, and both lost the abstraction OrBAC
+exists to provide. **As a permission token**,
 `hasPermission("record:consult")` names the activity, but as a grant the subject
 holds rather than as something the organisation defined — the
 activity-to-operation mapping then lives wherever tokens are minted, usually the
@@ -211,9 +215,9 @@ easy to omit and is the important one: a subject from organisation A, evaluated
 against a resource belonging to organisation B, denied — for **every** policy in
 the catalogue, not only the one A authored. Tenant isolation is a property of
 the whole catalogue, and a per-policy test will not catch the entry that forgot
-its `inSameOrganisation` branch. If an activity dimension ever ships under E1,
-this document changes substantially and its worked example with it; until then
-the mapping table above is honest for three of the four abstractions.
+its `inSameOrganisation` branch. The activity dimension has since shipped under
+E1, so the mapping table above is now honest for all four abstractions; the
+worked example still encodes its activity and should be read as the pre-E1 form.
 
 ---
 

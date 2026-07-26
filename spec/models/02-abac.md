@@ -82,12 +82,13 @@ are eleven.
 Nothing coerces and nothing throws: a type mismatch is false, never an error.
 
 `eq` and `neq` compare against a *reference*, which is what lifts ABAC beyond
-constant comparison into relational rules. There are four.
+constant comparison into relational rules. There are five.
 
 ```ts
 export const subject: (path: string) => ValueRef;   // a subject attribute, dot-path
 export const subjectId: () => ValueRef;             // the subject's own identifier
 export const resource: (path: string) => ValueRef;  // a resource field, dot-path
+export const action: () => ValueRef;                // the verb of the request
 export const literal: (value: unknown) => ValueRef; // a constant
 ```
 
@@ -176,28 +177,31 @@ const program: Effect.Effect<boolean, EvaluationError> = check(canWorkCase, {
 
 ## What is missing
 
-Qadi's ABAC has two of the three dimensions the literature assumes. Neither gap
-is a defect in what ships; both are the boundary of what a policy can say.
+Qadi's ABAC has three of the four dimensions the literature assumes. Neither gap
+below is a defect in what ships; both are the boundary of what a policy can say.
 
-**No environment or action dimension (E1).** `EvaluateOptions` is
-`{ resource?, maxDepth? }` and `MatcherContext` is
-`{ subject, subjectId, resource }`. Neither knows whether the caller is reading
-or writing, nor what time it is. Environment attributes have a stand-in — the
+**No environment dimension.** `EvaluateOptions` is
+`{ resource?, action?, maxDepth? }` and `MatcherContext` is
+`{ subject, subjectId, resource, action }`. Neither knows what time it is, nor
+where the request came from. Environment attributes have a stand-in — the
 temporal, spatial and context-aware rows of the
 [matrix](./00-adoption-matrix.md) route them through `AttributeResolver`, so
-"current hour" or "device posture" is a resolved subject attribute. The action
-has none: it exists only inside a permission token, as the second segment of
-`resource:action`
-([ADR-QD-007](../decisions/007-permission-token-representation.md)), and is
-never an input to evaluation. Every rule treating reads and writes
-asymmetrically is blocked on E1.
+"current hour" or "device posture" is a resolved subject attribute. It is a
+stand-in and the spatial document says why it is an uncomfortable one: a subject
+does not *have* a country, a request does.
+
+The action dimension, which this document previously listed as the larger of the
+two gaps, has shipped —
+[E1](./00-adoption-matrix.md#e1--action-dimension) /
+[ADR-QD-018](../decisions/018-action-dimension.md). A rule treating reads and
+writes asymmetrically is now expressible in one stored policy.
 
 **No obligations (E2).** A decision is `Allow | Deny` and nothing else. XACML's
 ABAC may return "permit, provided the access is logged" or "permit, provided the
 record is redacted". Qadi expresses the redaction — `fields` and `fieldStrategy`
 are exactly that — but cannot attach a duty the caller must discharge.
 
-**XACML parity needs E1, E2 and E3.** Beyond those two, `deny-overrides`,
+**XACML parity needs E2 and E3.** Beyond obligations, `deny-overrides`,
 `permit-overrides` and `first-applicable` have no representation:
 `FieldStrategy` governs field-set merging only, and the allow/deny rule is
 hard-coded in `AllOf` and `AnyOf`. E3 is breaking because the honest fix changes

@@ -202,8 +202,11 @@ The one cost specific to TBAC is a *naming* decision. The history port's
 ([ADR-QD-007](../decisions/007-permission-token-representation.md)) are
 different concepts that will be spelled alike in every workflow application —
 `"approve"` the step versus `invoice:approve` the permission. The hazard
-recorded against E1 in [00 §6](./00-adoption-matrix.md) applies verbatim: the
-two must never be derived from or compared against each other.
+recorded against E1 in [00 §6](./00-adoption-matrix.md) applies verbatim, and
+[ADR-QD-018](../decisions/018-action-dimension.md) has since settled it for the
+action dimension in the same terms: the two must never be derived from or
+compared against each other. A history port naming its field `action` inherits
+that rule; it does not get to relitigate it.
 
 ## Verification
 

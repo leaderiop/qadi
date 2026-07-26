@@ -41,9 +41,12 @@ role is a named bundle of tokens, flattened at subject construction by
 
 Enabler **E1** ([action dimension](./00-adoption-matrix.md#e1--action-dimension))
 does *not* apply: a permission's action is a segment of the token the subject
-holds, not an input describing what the caller is attempting, and
-[INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness) records
-keeping the two apart as a compatibility risk against E1.
+holds, not an input describing what the caller is attempting. This document
+flagged keeping the two apart as a compatibility risk against E1;
+[ADR-QD-018](../decisions/018-action-dimension.md) settled it by refusing to
+derive either from the other, so
+[INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness) is unaffected
+by E1 having shipped.
 
 ## How Qadi expresses it
 

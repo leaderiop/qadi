@@ -170,7 +170,8 @@ window closes mid-request, work already authorised continues to completion —
 Qadi is not in the path after `enforce` has let the effect run
 ([INV-QD-009](../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied)
 governs the *denied* case only). Continuous re-evaluation during use is usage
-control, which needs E5 and E1 and is P3 in [the matrix](./00-adoption-matrix.md).
+control, which needs E5 — E1 having shipped — and is P3 in
+[the matrix](./00-adoption-matrix.md).
 
 **Clock skew and calendars are the caller's.** Qadi compares whatever `Clock`
 reports against whatever the resource carries, so a window is only as sharp as

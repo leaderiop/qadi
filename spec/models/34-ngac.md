@@ -60,7 +60,7 @@ seriously.
 | -------- | ----- |
 | Status | **Additive** |
 | Priority | **P3** |
-| Enablers required | **E1, E6** |
+| Enablers required | ~~**E1**~~ **shipped**; **E6** outstanding |
 | Breaking change | No |
 
 P3 describes the model as a whole, not its parts. Implementing NGAC is not
@@ -72,7 +72,9 @@ their own sake, and that is the conclusion this document argues to.
 A graph is a reachability engine, and Qadi already has a port for one. The caller
 keeps the graph — assignments, associations, prohibitions — and the resolver
 answers the single question the evaluator asks. The operation travels in the
-relation name, which is the compromise E1 exists to remove.
+relation name below, which is the compromise E1 existed to remove; E1 has since
+shipped, so `hasAction` beside the relationship check is the better spelling and
+the example is left as written only because it predates it.
 
 ```typescript
 import * as Effect from "effect/Effect";
@@ -179,17 +181,17 @@ const decideSubjects: (
 >;
 ```
 
-**E1 — the action dimension**, and, beside it, the thing this document
-deliberately declines to propose: the graph. Today the operation is smuggled
-into the relation string, as above. That works, and it conflates two dimensions
-— a policy cannot say "this subtree is about `write`" without restating it in
-every relation name.
+**E1 — the action dimension**, now shipped, and beside it the thing this
+document deliberately declines to propose: the graph. Before E1 the operation was
+smuggled into the relation string, as above; that worked, and it conflated two
+dimensions — a policy could not say "this subtree is about `write`" without
+restating it in every relation name.
 
 ```ts
 interface EvaluateOptions {
   readonly resource?: Resource;
   readonly maxDepth?: number;
-  readonly action?: string; // E1 — proposed
+  readonly action?: string; // E1 — shipped
 }
 
 // NOT proposed. No node type, no assignment edge, no association, no policy
@@ -211,15 +213,16 @@ beside the store the caller already runs.
 
 ## What it would cost
 
-**E1 — action dimension.** Additive and cheap: `action?: string` on
-`EvaluateOptions` and `MatcherContext`, with the constraint recorded against
-[INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness) that it must
-not be derived from permission segments. Note the pattern:
-[21 — OrBAC](./21-orbac.md) is blocked on it for *activity*,
+**E1 — action dimension. Shipped.** Additive and cheap, as forecast: `action?:
+string` on `EvaluateOptions` and `MatcherContext`, with the constraint recorded
+against [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness) that
+it must not be derived from permission segments —
+[ADR-QD-018](../decisions/018-action-dimension.md) made that constraint the
+decision itself. The pattern was the argument:
+[21 — OrBAC](./21-orbac.md) was blocked on it for *activity*,
 [22 — Type Enforcement](./22-type-enforcement.md) for *operation*, and this
 document for *operation sets*. Three models, three vocabularies, one missing
-input. That is the argument for E1's priority, and it does not depend on anyone
-wanting NGAC.
+input — and none of it depended on anyone wanting NGAC.
 
 **E6 — subject-set evaluation.** Additive, and the design work is in the
 environment rather than the type. `CurrentSubject` is provided as a layer, so N
@@ -250,8 +253,9 @@ traversal, before the association search — which is correct, and is also the
 general answer: a deny that lives behind the port never reaches the combining
 rule.
 
-**The recommendation is not to implement NGAC.** Build E1 and E6 because three
-other models and one roadmap item want them, not because this one does. Treat an
+**The recommendation is not to implement NGAC.** E1 was built because three
+other models and one roadmap item wanted it, not because this one did; build E6
+on the same terms. Treat an
 NGAC-shaped deployment as a **resolver integration**, in the manner of
 [10 — Zanzibar-Style Relationship Stores](./10-zanzibar.md) — a close analogy
 rather than a loose one, since both are reachability engines behind a port, both

@@ -12,6 +12,16 @@ export class MissingResource extends Data.TaggedError("qadi/MissingResource")<{
   readonly attribute: string;
 }> {}
 
+/**
+ * A policy read the action but the caller supplied none.
+ *
+ * `expected` is the action the policy required, when it named one; a matcher
+ * referencing `action()` compares rather than requires, so it names nothing.
+ */
+export class MissingAction extends Data.TaggedError("qadi/MissingAction")<{
+  readonly expected: string | undefined;
+}> {}
+
 /** Resolving a subject or resource attribute failed. */
 export class AttributeResolveError extends Data.TaggedError("qadi/AttributeResolveError")<{
   readonly attribute: string;
@@ -64,6 +74,7 @@ export class AccessDenied extends Data.TaggedError("qadi/AccessDenied")<{
 export type EvaluationError =
   | AttributeResolveError
   | RelationshipResolveError
+  | MissingAction
   | MissingResource
   | MissingResourceId
   | PolicyTooDeep;
@@ -91,6 +102,7 @@ export const ERROR_CODES = {
   "qadi/PolicyTooDeep": "ACL006",
   "qadi/CircularRoleInheritance": "ACL007",
   "qadi/InvalidPermissionSegment": "ACL008",
+  "qadi/MissingAction": "ACL009",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

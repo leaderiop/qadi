@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-04                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -42,12 +42,13 @@ export type Matcher =
 export const subject: (path: string) => ValueRef;   // subject attributes
 export const subjectId: () => ValueRef;             // the subject's own id
 export const resource: (path: string) => ValueRef;  // resource fields
+export const action: () => ValueRef;                // the request's verb
 export const literal: (value: unknown) => ValueRef; // a constant
 ```
 
 A comparison may target a constant, an attribute of the subject, the subject's
-identifier, or a field of the resource. Together these express relational rules
-such as "the document's owner is me":
+identifier, a field of the resource, or the action being performed. Together
+these express relational rules such as "the document's owner is me":
 
 ```ts
 hasResourceAttribute("owner", eq(subjectId()))
@@ -120,7 +121,11 @@ export interface MatcherContext {
   readonly subject: Readonly<Record<string, unknown>>;
   readonly subjectId: string;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
+  /** What the caller is doing. `undefined` when none was supplied. */
+  readonly action: string | undefined;
 }
+
+export const referencesAction: (self: Matcher) => boolean;
 ```
 
 ```
@@ -128,6 +133,11 @@ REQUIREMENT: Matcher evaluation MUST be synchronous and total. Attribute
              *resolution* may perform I/O, but it completes before a matcher
              runs, so matchers need no Effect.
 ```
+
+Totality has a consequence the evaluator has to absorb. A matcher cannot report
+that it lacked an input, so anything a matcher *needs* must be checked before it
+runs. `referencesAction` is that check for the action; see
+[INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one).
 
 ---
 

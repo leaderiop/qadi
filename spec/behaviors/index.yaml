@@ -29,3 +29,6 @@ entries:
   - id: "BEH-QD-065"
     file: "09-react.md"
     title: "09 — React Integration"
+  - id: "BEH-QD-073"
+    file: "10-actions.md"
+    title: "10 — The Action Dimension"

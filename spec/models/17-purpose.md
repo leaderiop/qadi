@@ -56,9 +56,10 @@ anything request-scoped beyond the resource:
 ```ts
 interface EvaluateOptions {
   readonly resource?: Resource;
+  readonly action?: string;
   readonly maxDepth?: number;
 }
-// MatcherContext is { subject, subjectId, resource } — no purpose, no action.
+// MatcherContext is { subject, subjectId, resource, action } — a verb, but no purpose.
 ```
 
 So the declared purpose rides on the **subject**, attached per request rather
@@ -67,10 +68,11 @@ than per session: `withAttributes(session, { purpose: "treatment" })`.
 That works, and it is a workaround. A subject describes *who is asking*; a
 purpose describes *why*, and putting the second inside the first means the
 subject must be rebuilt for every call and can never be shared across them. The
-natural home is a request-scoped channel — enabler **E1** in the
-[matrix](./00-adoption-matrix.md#e1--action-dimension), whose action dimension
-would give purpose somewhere to live. This is the weak point of the recipe and
-should be read as one.
+natural home is a request-scoped channel. Enabler **E1** in the
+[matrix](./00-adoption-matrix.md#e1--action-dimension) has since built one, but
+it carries the *action* — the verb, not the reason — and the two must not be
+conflated. See [what is missing](#what-is-missing) below. This is the weak point
+of the recipe and should be read as one.
 
 ### Field visibility is what makes the model useful
 
@@ -181,8 +183,16 @@ const researchRead = loadRecord("p-1").pipe(
 
 ## What is missing
 
-**A request-scoped channel**, as above: purpose travels on the subject because
-there is nowhere else to put it, and E1 is where that is fixed.
+**A request-scoped channel for the purpose.** E1 has since shipped, and it does
+*not* close this gap — a point worth stating precisely, because the shape is so
+nearly right. `EvaluateOptions.action` is request-scoped, but it names the verb,
+and a purpose is not a verb: `"read"` and `"treatment"` answer different
+questions, and one field cannot carry both. Overloading `action` with a purpose
+would reproduce, one level up, exactly the conflation
+[ADR-QD-018](../decisions/018-action-dimension.md) refused between a grant and a
+request. So purpose still travels on the subject. What E1 established is the
+*precedent*: a second request-scoped field is now an additive change of a shape
+the library has already accepted, rather than a new idea.
 
 **The declared purpose is an assertion, not a fact.** Nothing in this recipe —
 and nothing that could be added to it — stops a caller declaring `treatment` and

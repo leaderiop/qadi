@@ -461,6 +461,152 @@ describe("subject identity references", () => {
     ));
 });
 
+describe("the action dimension", () => {
+  // A permission is a grant the subject holds; an action is a property of the
+  // request. `doc:write` means "may write"; action "write" means "is writing".
+  // Read-down/write-up rules need both, and ADR-QD-018 refuses to derive one
+  // from the other.
+  const anyone = subjectWith({ id: "u1" });
+
+  it.effect("HasAction allows when the caller is performing it", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasAction("write"), { action: "write" });
+      assert.isTrue(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(anyone))));
+
+  it.effect("HasAction denies a different action, naming both", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasAction("write"), { action: "read" });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.include(d.reason, "'read'");
+      assert.include(d.reason, "'write'");
+    }).pipe(Effect.provide(testLayer(anyone))));
+
+  it.effect("holding the permission is not performing the action", () =>
+    Effect.gen(function* () {
+      // The whole point of the separation: a subject who may write is not
+      // thereby writing. If these ever collapsed into one notion, this
+      // evaluation would allow.
+      const d = yield* evaluate(P.hasAction("write"), { action: "read" });
+      assert.isFalse(isAllowed(d));
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ id: "u1", permissions: ["doc:write"] }))),
+    ));
+
+  it.effect("an absent action is an error, not a denial", () =>
+    Effect.gen(function* () {
+      // The MissingResource precedent. Reporting a forgotten argument as "not
+      // authorized" sends an engineer to audit permissions — INV-QD-011.
+      const r = yield* Effect.result(evaluate(P.hasAction("write")));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/MissingAction");
+      if (r.failure._tag !== "qadi/MissingAction") return;
+      assert.strictEqual(r.failure.expected, "write");
+    }).pipe(Effect.provide(testLayer(anyone))));
+
+  it.effect("a matcher may compare the action against subject data", () =>
+    Effect.gen(function* () {
+      // Bell-LaPadula in miniature: the verb decides which comparison runs.
+      const policy = P.hasAttribute("allowedOps", M.contains("write"));
+      const d = yield* evaluate(policy, { action: "write" });
+      assert.isTrue(isAllowed(d));
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ id: "u1", attributes: { allowedOps: ["write"] } }))),
+    ));
+
+  it.effect("action() resolves inside a matcher", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute("requiredOp", M.eq(M.action()));
+      const d = yield* evaluate(policy, {
+        resource: { requiredOp: "approve" },
+        action: "approve",
+      });
+      assert.isTrue(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(anyone))));
+
+  it.effect("a matcher referencing action() without one fails rather than denying", () =>
+    Effect.gen(function* () {
+      // `evaluateMatcher` is total, so without the pre-check the reference
+      // would resolve to undefined, compare false, and read as a denial.
+      const policy = P.hasResourceAttribute("requiredOp", M.eq(M.action()));
+      const r = yield* Effect.result(evaluate(policy, { resource: { requiredOp: "approve" } }));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/MissingAction");
+      // Nothing was required, only compared, so there is no expected verb.
+      if (r.failure._tag !== "qadi/MissingAction") return;
+      assert.isUndefined(r.failure.expected);
+    }).pipe(Effect.provide(testLayer(anyone))));
+
+  it.effect("the same rule holds for a subject attribute matcher", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(
+        evaluate(P.hasAttribute("op", M.eq(M.action()))),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "qadi/MissingAction");
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1", attributes: { op: "x" } })))));
+
+  it.effect("the action reaches every depth of the tree", () =>
+    Effect.gen(function* () {
+      const policy = P.allOf([P.hasRole("editor"), P.not(P.hasAction("delete"))]);
+      const d = yield* evaluate(policy, { action: "write" });
+      assert.isTrue(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] })))));
+
+  it.effect("read-down and write-up are expressible in one stored policy", () =>
+    Effect.gen(function* () {
+      // The rule eight models were blocked on: the verb selects the comparison,
+      // and both arms live in a single serializable tree.
+      const readDown = P.allOf([
+        P.hasAction("read"),
+        P.hasResourceAttribute("level", M.lt(3)),
+      ]);
+      const writeUp = P.allOf([
+        P.hasAction("write"),
+        P.hasResourceAttribute("level", M.gte(3)),
+      ]);
+      const starProperty = P.anyOf([readDown, writeUp]);
+
+      const restored = yield* Effect.flatMap(P.toJson(starProperty), P.fromJson);
+
+      const reading = yield* evaluate(restored, { action: "read", resource: { level: 1 } });
+      const writingUp = yield* evaluate(restored, { action: "write", resource: { level: 5 } });
+      const writingDown = yield* evaluate(restored, { action: "write", resource: { level: 1 } });
+
+      assert.isTrue(isAllowed(reading));
+      assert.isTrue(isAllowed(writingUp));
+      assert.isFalse(isAllowed(writingDown));
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
+
+  it.effect("an unevaluated action branch is still not consulted", () =>
+    Effect.gen(function* () {
+      // HasAction is cheap, but it sits in trees beside lookups that are not.
+      const calls: Array<string> = [];
+      const policy = P.anyOf([P.hasAction("read"), P.hasRelationship("owner")]);
+
+      const d = yield* evaluate(policy, { action: "read", resource: { id: "doc-1" } }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            relationships: Layer.succeed(RelationshipResolver, {
+              check: (request) =>
+                Effect.sync(() => {
+                  calls.push(request.relation);
+                  return true;
+                }),
+            }),
+          }),
+        ),
+      );
+
+      assert.isTrue(isAllowed(d));
+      assert.deepStrictEqual(calls, []);
+    }));
+});
+
 describe("observability", () => {
   /**
    * Collects the spans an evaluation emits.
@@ -526,6 +672,46 @@ describe("observability", () => {
         "qadi.evaluation_id": "eval-1",
         "qadi.policy_tag": "HasPermission",
       });
+    }));
+
+  it.effect("the action appears on the span only when one was supplied", () =>
+    Effect.gen(function* () {
+      // Two evaluations of the same policy differing only in what the caller
+      // was doing were indistinguishable in a trace until this existed.
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasAction("write"), { action: "write" }).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1" }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      const span = named(spans, "qadi.evaluate");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
+        "qadi.decision": "Allow",
+        "qadi.subject_id": "u1",
+        "qadi.evaluation_id": "eval-1",
+        "qadi.policy_tag": "HasAction",
+        "qadi.action": "write",
+      });
+    }));
+
+  it.effect("an evaluation with no action carries no action attribute", () =>
+    Effect.gen(function* () {
+      // Absence must stay absent rather than becoming the string "undefined",
+      // and every span predating the action dimension must be unchanged.
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasRole("editor")).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      const span = named(spans, "qadi.evaluate");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.notProperty(Object.fromEntries(span.attributes), "qadi.action");
     }));
 
   it.effect("combinators emit their own spans beneath the evaluation", () =>

@@ -16,10 +16,15 @@ import { CurrentSubject } from "./CurrentSubject.ts";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
-import { MissingResource, MissingResourceId, PolicyTooDeep } from "./Errors.ts";
+import {
+  MissingAction,
+  MissingResource,
+  MissingResourceId,
+  PolicyTooDeep,
+} from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
 import type { MatcherContext } from "./Matcher.ts";
-import { evaluateMatcher } from "./Matcher.ts";
+import { evaluateMatcher, referencesAction } from "./Matcher.ts";
 import { permissionKey } from "./Permission.ts";
 import type { FieldStrategy, Policy } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
@@ -31,10 +36,28 @@ export interface EvaluateOptions {
   /** The resource under consideration, if any. */
   readonly resource?: Resource;
   /**
+   * What the caller is doing — `"read"`, `"write"`, an OrBAC activity name.
+   *
+   * A property of the request, never a grant the subject holds (ADR-QD-018).
+   */
+  readonly action?: string;
+  /**
    * Maximum policy tree depth. Bounds recursion on hostile decoded input.
    * Defaults to 64.
    */
   readonly maxDepth?: number;
+}
+
+/**
+ * The request-scoped inputs a policy may read.
+ *
+ * Bundled rather than threaded as separate parameters: every recursive call
+ * passes them unchanged, and a third positional `string | undefined` beside
+ * `depth` and `maxDepth` is exactly the shape an argument-order slip hides in.
+ */
+interface Request {
+  readonly resource: Resource | undefined;
+  readonly action: string | undefined;
 }
 
 const DEFAULT_MAX_DEPTH = 64;
@@ -116,7 +139,7 @@ const mergeFields = (
 const evaluateNode = (
   policy: Policy,
   subject: AuthSubject,
-  resource: Resource | undefined,
+  request: Request,
   depth: number,
   maxDepth: number,
 ): Effect.Effect<
@@ -126,10 +149,13 @@ const evaluateNode = (
 > => {
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
 
+  const { action, resource } = request;
+
   const matcherContext: MatcherContext = {
     subject: subject.attributes,
     subjectId: subject.id,
     resource,
+    action,
   };
 
   switch (policy._tag) {
@@ -150,6 +176,9 @@ const evaluateNode = (
       );
 
     case "HasAttribute":
+      if (action === undefined && referencesAction(policy.matcher)) {
+        return Effect.fail(new MissingAction({ expected: undefined }));
+      }
       return Effect.map(readAttribute(subject, policy.attribute), (value) =>
         evaluateMatcher(policy.matcher, value, matcherContext)
           ? allow("HasAttribute", policy.fields)
@@ -159,6 +188,9 @@ const evaluateNode = (
     case "HasResourceAttribute": {
       if (resource === undefined) {
         return Effect.fail(new MissingResource({ attribute: policy.attribute }));
+      }
+      if (action === undefined && referencesAction(policy.matcher)) {
+        return Effect.fail(new MissingAction({ expected: undefined }));
       }
       const value = resource[policy.attribute];
       return Effect.succeed(
@@ -193,15 +225,28 @@ const evaluateNode = (
       );
     }
 
+    case "HasAction": {
+      // Absent input is a caller error, not a decision — the `MissingResource`
+      // precedent, and the reason `referencesAction` is checked above.
+      if (action === undefined) {
+        return Effect.fail(new MissingAction({ expected: policy.action }));
+      }
+      return Effect.succeed(
+        action === policy.action
+          ? allow("HasAction", policy.fields)
+          : deny("HasAction", `action is '${action}', not '${policy.action}'`),
+      );
+    }
+
     case "AllOf":
-      return evaluateAllOf(policy, subject, resource, depth, maxDepth);
+      return evaluateAllOf(policy, subject, request, depth, maxDepth);
 
     case "AnyOf":
-      return evaluateAnyOf(policy, subject, resource, depth, maxDepth);
+      return evaluateAnyOf(policy, subject, request, depth, maxDepth);
 
     case "Not":
       return Effect.map(
-        evaluateNode(policy.policy, subject, resource, depth + 1, maxDepth),
+        evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
         (child) =>
           child.allowed
             ? deny("Not", "negated policy allowed", [child])
@@ -212,7 +257,7 @@ const evaluateNode = (
 
     case "Labeled":
       return Effect.map(
-        evaluateNode(policy.policy, subject, resource, depth + 1, maxDepth),
+        evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
         (child) => ({
           policyTag: "Labeled" as const,
           label: policy.label,
@@ -229,7 +274,7 @@ const evaluateNode = (
 const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
   policy: Extract<Policy, { _tag: "AllOf" }>,
   subject: AuthSubject,
-  resource: Resource | undefined,
+  request: Request,
   depth: number,
   maxDepth: number,
 ) {
@@ -237,7 +282,7 @@ const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
   const fieldSets: Array<ReadonlyArray<string> | undefined> = [];
 
   for (const child of policy.policies) {
-    const trace = yield* evaluateNode(child, subject, resource, depth + 1, maxDepth);
+    const trace = yield* evaluateNode(child, subject, request, depth + 1, maxDepth);
     children.push(trace);
     if (!trace.allowed) {
       return deny("AllOf", trace.reason ?? "a required policy denied", children);
@@ -258,7 +303,7 @@ const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
 const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
   policy: Extract<Policy, { _tag: "AnyOf" }>,
   subject: AuthSubject,
-  resource: Resource | undefined,
+  request: Request,
   depth: number,
   maxDepth: number,
 ) {
@@ -268,7 +313,7 @@ const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
   let lastReason: string | undefined;
 
   for (const child of policy.policies) {
-    const trace = yield* evaluateNode(child, subject, resource, depth + 1, maxDepth);
+    const trace = yield* evaluateNode(child, subject, request, depth + 1, maxDepth);
     children.push(trace);
 
     if (trace.allowed) {
@@ -305,7 +350,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   const trace = yield* evaluateNode(
     policy,
     subject,
-    options?.resource,
+    { resource: options?.resource, action: options?.action },
     0,
     options?.maxDepth ?? DEFAULT_MAX_DEPTH,
   );
@@ -333,6 +378,10 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     "qadi.subject_id": subject.id,
     "qadi.evaluation_id": evaluationId,
     "qadi.policy_tag": policy._tag,
+    // Only when supplied: an absent action must not become the string
+    // "undefined" in a trace viewer, and adding a key unconditionally would
+    // change every existing span.
+    ...(options?.action === undefined ? {} : { "qadi.action": options.action }),
   });
 
   return decision;

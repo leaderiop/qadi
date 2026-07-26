@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -183,5 +183,32 @@ failures, as the predecessor's duplicated `ACL007` did.
 **Enforcement**: a test asserts the code set has no duplicates.
 
 **Related**: [ADR-QD-008](decisions/008-error-taxonomy.md).
+
+---
+
+## INV-QD-011: A policy that reads the action cannot be evaluated without one
+
+Reading the action while none was supplied fails; it never denies.
+
+**Source**: `packages/core/src/Evaluate.ts` — `HasAction` fails with
+`MissingAction` when the action is absent, and `HasAttribute` and
+`HasResourceAttribute` ask `referencesAction` **before** running their matcher.
+
+The pre-check is what makes this an invariant rather than a hope.
+`evaluateMatcher` is total by design (BEH-QD-028): it cannot fail, so an
+unguarded `action()` would resolve to `undefined`, satisfy nothing, and return
+`false` — a denial indistinguishable from a real one.
+
+**Implication**: forgetting `{ action }` at a call site produces an incident,
+not a quiet refusal. This is [INV-QD-006](#inv-qd-006-failure-is-not-denial)
+applied to caller input rather than to a resolver, and it is the opposite of
+[INV-QD-007](#inv-qd-007-defaults-fail-closed) on purpose: an unwired resolver
+denies because the *system* could not answer, whereas a missing action means the
+*caller* never asked a complete question.
+
+**Enforcement**: tests assert `MissingAction` for both paths — the leaf, and a
+matcher whose `action()` is nested inside another matcher.
+
+**Related**: [BEH-QD-076](behaviors/10-actions.md), [ADR-QD-018](decisions/018-action-dimension.md).
 
 ---

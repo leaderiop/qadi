@@ -44,11 +44,14 @@ users rarely want it: the unit of authority is the domain, not the identity.
 | -------- | ----- |
 | Status | **Wiring** |
 | Priority | **P1** |
-| Enablers required | None; [E1](./00-adoption-matrix.md#e1--action-dimension) recommended |
+| Enablers required | None; [E1](./00-adoption-matrix.md#e1--action-dimension) shipped |
 | Breaking change | No |
 
-E1 is *recommended* rather than *required* because the model survives without it,
-but only by paying for it elsewhere — see [What is missing](#what-is-missing).
+E1 was *recommended* rather than *required* because the model survived without
+it, but only by paying for it elsewhere. It has since shipped
+([ADR-QD-018](../decisions/018-action-dimension.md)), so the operation — a third
+of the rule — now has a home the evaluator can see. See
+[What is missing](#what-is-missing).
 
 ## How Qadi expresses it
 
@@ -165,17 +168,26 @@ const program: Effect.Effect<boolean, EvaluationError> = check(mayPerform("read"
 
 ## What is missing
 
-**The operation — a third of the rule (E1).** `EvaluateOptions` carries
-`{ resource?, maxDepth? }` and `MatcherContext` carries
-`{ subject, subjectId, resource }`; neither knows whether the caller is reading
-or writing. Without [E1](./00-adoption-matrix.md#e1--action-dimension) the triple
-collapses to a pair and the operation has to be smuggled in — into the attribute
-key, as above; into the second segment of a permission token
-([ADR-QD-007](../decisions/007-permission-token-representation.md)); or into
-which policy the call site evaluates. This limitation is more serious here than
-for any other P1 model and the document will not soften it: elsewhere the missing
-action costs an awkward encoding, but here the operation is a third of the rule,
-and every workaround puts it where the evaluator cannot see it.
+**~~The operation — a third of the rule (E1).~~ Closed.** This was the sharpest
+limitation recorded against any P1 model: the `(domain, type, operation)` triple
+collapsed to a pair, and the operation had to be smuggled into the attribute key,
+into a permission token's second segment, or into which policy the call site
+chose — every route putting a third of the rule where the evaluator could not see
+it. [E1](./00-adoption-matrix.md#e1--action-dimension) /
+[ADR-QD-018](../decisions/018-action-dimension.md) has shipped and the triple is
+whole:
+
+```ts
+allOf([
+  hasAttribute("domain", eq(literal("web_app_t"))),
+  hasResourceAttribute("type", eq(literal("log_file_t"))),
+  hasAction("append"),
+])
+```
+
+The recipe above still writes the operation into the attribute key, because that
+is what a matrix row loaded from a registry looks like; `hasAction` is the better
+choice for a rule authored by hand.
 
 **Administration of the matrix.** Qadi reads a matrix; it does not hold, version
 or validate one, and cannot tell you whether a proposed row grants more than

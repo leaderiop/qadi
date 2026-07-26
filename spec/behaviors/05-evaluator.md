@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-05                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -83,6 +83,10 @@ REQUIREMENT: A `HasResourceAttribute` or `HasRelationship` policy evaluated
              without the resource it needs MUST fail with `MissingResource` or
              `MissingResourceId`. It is a wiring error, not a decision.
 ```
+
+The same rule governs a missing action, with one extra step because matchers are
+total — see [BEH-QD-076](./10-actions.md) and
+[INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one).
 
 ## BEH-QD-037: Determinism
 

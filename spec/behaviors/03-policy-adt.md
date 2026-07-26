@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-03                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-07-26): `HasAction` is the tenth variant (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [02 — Roles and Inheritance](./02-roles.md)_
 
@@ -21,7 +21,7 @@ _Previous: [02 — Roles and Inheritance](./02-roles.md)_
 > **Invariant:** [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity)
 > **See:** [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md), [ADR-QD-003](../decisions/003-tag-discriminant.md)
 
-Nine variants, discriminated on `_tag`. The union is defined once as a Schema;
+Ten variants, discriminated on `_tag`. The union is defined once as a Schema;
 the TypeScript type and the JSON codec are both derived from it.
 
 | `_tag` | Meaning |
@@ -31,14 +31,19 @@ the TypeScript type and the JSON codec are both derived from it.
 | `HasAttribute` | A subject attribute satisfies a matcher |
 | `HasResourceAttribute` | A resource attribute satisfies a matcher |
 | `HasRelationship` | The subject has a named relation to the resource |
+| `HasAction` | The call being authorized is the named action |
 | `AllOf` | Every child allows |
 | `AnyOf` | At least one child allows |
 | `Not` | Inverts a decision |
 | `Labeled` | Names a policy; surfaced in the trace |
 
+`HasAction` is the odd one out and deliberately so: every other leaf asks about
+the subject or the resource, and this one asks about the *request*. See
+[10 — The Action Dimension](./10-actions.md).
+
 ```ts
 export const Policy: Schema.Codec<Policy>;
-export type Policy = /* the nine-variant union above */;
+export type Policy = /* the ten-variant union above */;
 ```
 
 ```

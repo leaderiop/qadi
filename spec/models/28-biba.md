@@ -64,8 +64,8 @@ name:
 
 | Variant | Status | Priority | Enablers required | Breaking change |
 | ------- | ------ | -------- | ----------------- | --------------- |
-| **Strict Biba** | Additive | P3 | E1, E4 | No |
-| **Low-water-mark Biba** | Additive | P3 | E1, E4, **E5** | No |
+| **Strict Biba** | Additive | P3 | ~~E1~~, E4 | No |
+| **Low-water-mark Biba** | Additive | P3 | ~~E1~~, E4, **E5** | No |
 
 The second row is a finding this document contributes. The
 [matrix](./00-adoption-matrix.md) records Biba as `E1, E4`, which holds for the
@@ -73,7 +73,9 @@ strict model only. Low-water-mark Biba lowers the subject's integrity to that of
 the lowest object it has read, so the decision depends on what has already been
 read — it is **stateful**, and state about prior access is precisely what the
 decision history port (**E5**) supplies. Ring policies, permitting reads down
-while still forbidding writes up, stay at `E1, E4` because nothing is remembered.
+while still forbidding writes up, stay at `E4` alone because nothing is
+remembered. (E1 has since shipped, so every row here is one enabler lighter than
+written; the finding about E5 is unaffected.)
 A relaxation that looks like a mild loosening of the rule needs a whole enabler
 the strict model does not, and it is the relaxation anyone would deploy.
 
@@ -178,8 +180,9 @@ defence.
 ## What it would cost
 
 The same as [27](./27-bell-lapadula.md), plus one thing. E1 and E4 are shared
-outright — if Bell–LaPadula ships, Biba is a second policy shape over machinery
-already present, and the increment is tests plus this document becoming a recipe.
+outright — E1 has shipped, and if Bell–LaPadula follows, Biba is a second policy
+shape over machinery already present, with the increment being tests plus this
+document becoming a recipe.
 
 Low-water-mark adds **E5**, which the [matrix](./00-adoption-matrix.md) already
 flags as the enabler most at risk of violating scope: it must be a *port* over
@@ -191,9 +194,9 @@ a larger departure than adding a matcher. Settle that in an ADR first.
 
 ## Verification
 
-Nothing verifies this model, and nothing can: E1, E4 and E5 are all unbuilt, so
-there is no dominance relation, no action dimension and no history port to test
-against. The compiled example proves its signatures are current, not that Biba is
+Nothing verifies this model, and nothing can: E4 and E5 are unbuilt, so there is
+no dominance relation and no history port to test against. E1 has shipped, so the
+verb is no longer among the missing pieces. The compiled example proves its signatures are current, not that Biba is
 enforced — its constant thresholds are a projection of the rule onto one rung.
 
 Adopting the model means newly allocated `REQ-QD` scenarios covering at minimum:

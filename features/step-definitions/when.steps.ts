@@ -4,6 +4,7 @@ import {
   allOf,
   anyOf,
   gte,
+  hasAction,
   hasAttribute,
   hasPermission,
   hasRelationship,
@@ -11,6 +12,7 @@ import {
   hasRole,
   eq,
   literal,
+  lt,
   not,
   permission,
   subjectId,
@@ -65,6 +67,24 @@ When(
 
 When("they must be {string} of the resource", function (this: QadiWorld, relation: string) {
   this.run(hasRelationship(relation));
+});
+
+When("they must be performing {string}", function (this: QadiWorld, verb: string) {
+  this.run(hasAction(verb));
+});
+
+/**
+ * Bell-LaPadula's two rules as one stored policy: read what is below you, write
+ * only at or above you. Inexpressible until the action became an input, because
+ * both arms have to sit in the same tree and disagree about the verb.
+ */
+When("read-down and write-up are enforced", function (this: QadiWorld) {
+  this.run(
+    anyOf([
+      allOf([hasAction("read"), hasResourceAttribute("level", lt(3))]),
+      allOf([hasAction("write"), hasResourceAttribute("level", gte(3))]),
+    ]),
+  );
 });
 
 /** "the resource's owner is me" — the archetypal relational rule. */

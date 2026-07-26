@@ -46,7 +46,7 @@ counter — which is the part this document recommends pursuing.
 | -------- | ----- |
 | Status | **Breaking** |
 | Priority | **P3** |
-| Enablers required | **E1, E2, E5** |
+| Enablers required | ~~**E1**~~ **shipped**; **E2, E5** outstanding |
 | Breaking change | Yes |
 
 ### Why this is the deepest mismatch in the matrix
@@ -104,12 +104,14 @@ ordinary pieces of work and one that is out of scope:
 | Attribute mutability | Missing | **E5** + a write path |
 | Continuity / ongoing enforcement | **Architecturally absent** | Not an enabler |
 
-The first row understates one gap. A UCON authorisation is a predicate over
-`(subject, object, right)`, and Qadi cannot see the right: the verb exists only
-inside a permission token and never reaches evaluation. Choosing a policy per
-verb, as the example below does, is a convention the caller may forget rather
-than a rule the library enforces. That is **E1**, shared with six other models
-and the cheapest of the three.
+The first row understated one gap, since closed. A UCON authorisation is a
+predicate over `(subject, object, right)`, and Qadi could not see the right: the
+verb existed only inside a permission token and never reached evaluation, so
+choosing a policy per verb — as the example below still does — was a convention
+the caller could forget rather than a rule the library enforced. That was **E1**,
+shared with six other models, the cheapest of the three, and now shipped
+([ADR-QD-018](../decisions/018-action-dimension.md)). The example below predates
+it; `hasAction` is the current spelling.
 
 ## What Qadi can express today
 
@@ -257,14 +259,15 @@ decision shapes, and the reasoning applies with more force.
 
 | Part | Verdict |
 | ---- | ------- |
-| **E1** — action dimension | **Pursue.** Additive, cheap, unlocks seven models |
+| **E1** — action dimension | **Done.** Additive and cheap, as forecast; shipped on the argument that it unlocks seven models |
 | **E2** — obligations | **Pursue**, driven by [XACML parity](./26-xacml.md) and purpose-based control, not by UCON |
 | **E5** — decision history port | **Pursue**, driven by [Chinese Wall](./30-chinese-wall.md) and [history-based control](./31-hbac.md) |
 | Write path / `postUpdate` | **Pursue conditionally** — only once E5 exists, and only as a caller-invoked journal |
 | Continuity / `onUpdate` | **Decline.** Not an enabler, not on the [roadmap](../roadmap.md), not a gap to close |
 
-**The recommendation is that Qadi never targets UCON.** It should build E1, E2
-and E5 because three other models each justify them independently, and state —
+**The recommendation is that Qadi never targets UCON.** It should build E2 and
+E5 — having built E1 — because other models justify each independently, and state
+—
 here, once — that continuous enforcement is out of scope. An application needing
 it should terminate sessions at the layer that owns them, consulting Qadi for the
 decision each time it re-checks.

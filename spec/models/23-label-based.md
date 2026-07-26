@@ -66,7 +66,7 @@ Three things get called "label-based", and they cost very different amounts:
 | ---- | ----- | ------------- |
 | **Label comparison** | Label as a value; a total order or a small fixed set | Nothing. Expressible today — this document |
 | **Lattice dominance** | `(level, compartments)` ordered by dominance | **E4** — additive, P3 |
-| **Bell–LaPadula, Biba** | Dominance *plus* read-down / write-up asymmetry | **E1 + E4** — additive, P3 |
+| **Bell–LaPadula, Biba** | Dominance *plus* read-down / write-up asymmetry | **E4** — additive, P3; E1 shipped |
 
 Comparison suffices more often than it looks, because most real schemes are
 **totally ordered** — Public < Internal < Confidential < Secret — and a total
@@ -189,10 +189,12 @@ system that is subtly wrong is worse than one that is absent, because it produce
 a confident allow on the data it was installed to protect. Do not approximate
 this: wait for E4, or enumerate a finite label set and use `inArray`.
 
-**Bell–LaPadula and Biba — E1 and E4.** No-read-up with no-write-down, and its
+**Bell–LaPadula and Biba — E4.** No-read-up with no-write-down, and its
 integrity mirror, need dominance *and* an action dimension, because the rule for
-reading is not the rule for writing and the evaluator cannot see the verb. Both
-are P3 in the [matrix](./00-adoption-matrix.md) and get their own documents.
+reading is not the rule for writing. The action half has shipped
+([E1](./00-adoption-matrix.md#e1--action-dimension)); dominance has not, and it
+is the half that carries the safety trap. Both models are P3 in the
+[matrix](./00-adoption-matrix.md) and get their own documents.
 
 **Row-level enforcement — enabler E7.** In a database, label-based control
 usually means the label *filters rows* before they are returned: the predicate is

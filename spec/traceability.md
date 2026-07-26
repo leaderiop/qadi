@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RTM                                       |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Verification Record                            |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -41,6 +41,7 @@ contract.
 | [07 — Enforcement](behaviors/07-enforcement.md) | BEH-QD-049–052 | `packages/core/src/Qadi.ts` |
 | [08 — Serialization](behaviors/08-serialization.md) | BEH-QD-057–059 | `packages/core/src/Policy.ts` |
 | [09 — React Integration](behaviors/09-react.md) | BEH-QD-065–071 | `packages/react/src/QadiAtoms.ts`, `QadiProvider.tsx`, `hooks.ts`, `components.tsx` |
+| [10 — The Action Dimension](behaviors/10-actions.md) | BEH-QD-073–078 | `packages/core/src/Evaluate.ts`, `Policy.ts`, `Matcher.ts`, `Errors.ts` |
 
 ## §2 Invariant traceability
 
@@ -56,6 +57,7 @@ contract.
 | [INV-QD-008](invariants.md#inv-qd-008-evaluation-is-reproducible) | Evaluation is reproducible | `Clock` + `EvaluationId` | `Evaluate.test.ts` |
 | [INV-QD-009](invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied) | Guarded effects do not run | `flatMap` after assert | `Qadi.test.ts` |
 | [INV-QD-010](invariants.md#inv-qd-010-error-codes-are-injective) | Error codes are injective | `satisfies Record<Tag, …>` | `Tokens.test.ts` |
+| [INV-QD-011](invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one) | Reading an absent action fails | `referencesAction` pre-check | `Evaluate.test.ts`, `Matcher.test.ts` |
 
 ## §3 Decision traceability
 
@@ -78,7 +80,7 @@ contract.
 | [ADR-QD-015](decisions/015-role-dag-acyclic-by-construction.md) | Role DAG acyclic by construction | INV-QD-002 |
 | [ADR-QD-016](decisions/016-gxp-out-of-scope.md) | GxP out of scope | — |
 | [ADR-QD-017](decisions/017-stale-decisions-are-not-decisions.md) | A decision being re-checked is not a decision | INV-QD-007 |
-| [ADR-QD-018](decisions/018-action-dimension.md) | The action is an evaluation input, not a permission segment | INV-QD-001, INV-QD-006 |
+| [ADR-QD-018](decisions/018-action-dimension.md) | The action is an evaluation input, not a permission segment | INV-QD-001, INV-QD-006, INV-QD-011 |
 
 ## §4 Test file map
 
@@ -86,9 +88,9 @@ contract.
 | --------- | ------ |
 | `packages/core/test/v4-api-smoke.test.ts` | Effect v4 API canary |
 | `packages/core/test/Tokens.test.ts` | BEH-QD-001–012, INV-QD-001, INV-QD-002, INV-QD-010 |
-| `packages/core/test/Policy.test.ts` | BEH-QD-017–019, BEH-QD-057–059, INV-QD-003 |
-| `packages/core/test/Matcher.test.ts` | BEH-QD-025–028, INV-QD-004 |
-| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–039, INV-QD-005, INV-QD-006, INV-QD-008, ADR-QD-009 |
+| `packages/core/test/Policy.test.ts` | BEH-QD-017–019, BEH-QD-057–059, BEH-QD-074, INV-QD-003 |
+| `packages/core/test/Matcher.test.ts` | BEH-QD-025–028, BEH-QD-075, INV-QD-004, INV-QD-011 |
+| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–039, BEH-QD-073–078, INV-QD-005, INV-QD-006, INV-QD-008, INV-QD-011, ADR-QD-009 |
 | `packages/core/test/Layers.test.ts` | BEH-QD-041–044, INV-QD-007 |
 | `packages/core/test/Qadi.test.ts` | BEH-QD-049–052, INV-QD-009 |
 | `packages/testing/test/TestLayers.test.ts` | Test fixtures and layers |
@@ -110,6 +112,7 @@ contract.
 | REQ-QD-007 | `features/features/field-visibility/field-visibility.feature` | BEH-QD-018 |
 | REQ-QD-008 | `features/features/serialization/round-trip.feature` | BEH-QD-058, INV-QD-003 |
 | REQ-QD-009 | `features/features/attributes/ownership.feature` | BEH-QD-026, BEH-QD-036 |
+| REQ-QD-010 | `features/features/actions/actions.feature` | BEH-QD-073–076, INV-QD-011 |
 
 ## §6 Coverage targets
 

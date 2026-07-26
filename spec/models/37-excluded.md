@@ -134,7 +134,7 @@ The contrast with [27 — Bell–LaPadula](./27-bell-lapadula.md) is the sharpes
 line here, because BLP *is* on the roadmap. BLP is a rule about individual
 accesses: given this clearance and this classification, may this read or this
 write proceed? That is a decision, it takes bounded inputs, and enablers **E1**
-and **E4** are what it costs. IFC is a rule about a trajectory: given everything
+and **E4** are what it costs — E1 having since shipped. IFC is a rule about a trajectory: given everything
 this process has touched, where may this datum travel? Deciding is in scope.
 Following is not.
 

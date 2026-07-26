@@ -46,10 +46,11 @@ for the context to come from, and there are exactly two places.
 ## How Qadi expresses it
 
 There is no environment channel. `EvaluateOptions` carries
-`{ resource?, maxDepth? }` and `MatcherContext` carries
-`{ subject, subjectId, resource }` — neither has a slot for the circumstances of
-the request. Context therefore arrives as a **subject attribute**, by one of two
-routes:
+`{ resource?, action?, maxDepth? }` and `MatcherContext` carries
+`{ subject, subjectId, resource, action }` — the verb has a slot since
+[E1](./00-adoption-matrix.md#e1--action-dimension), but the *circumstances* of
+the request do not. Context therefore arrives as a **subject attribute**, by one
+of two routes:
 
 ```ts
 // 1. On the subject. Cheap, synchronous, cannot fail — but a snapshot, fixed
@@ -150,36 +151,29 @@ const program: Effect.Effect<boolean, EvaluationError> = check(canExport, {
 
 ## What is missing
 
-**Half of the context. There is no action dimension.** Environment attributes are
-one of the two things XACML means by context; the other is the *action* — read,
-write, export, delete — and Qadi has none at evaluation level. An action exists
-only inside a permission token, as the second segment of `resource:action`
-([ADR-QD-007](../decisions/007-permission-token-representation.md)), never as an
-input to evaluation. This is enabler **E1** in the
-[matrix](./00-adoption-matrix.md#e1--action-dimension): additive, cheap, unbuilt.
-
-"Allow writes only from a managed device, but allow reads from anywhere" is one
-rule in prose and cannot be written as one policy here. Today it is two, selected
-by the caller:
+**The environment, which is the half that remains.** Environment attributes are
+one of the two things XACML means by context; the other is the *action*, and that
+half has shipped — [E1](./00-adoption-matrix.md#e1--action-dimension) /
+[ADR-QD-018](../decisions/018-action-dimension.md). "Allow writes only from a
+managed device, but allow reads from anywhere" is now one policy rather than a
+branch in TypeScript:
 
 ```ts
-const readAnywhere = hasPermission("ledger:read");
-
-const writeFromManagedDevice = allOf([
-  hasPermission("ledger:write"),
-  hasAttribute("deviceManaged", eq(literal(true))),
+const rule = anyOf([
+  allOf([hasAction("read"), hasPermission("ledger:read")]),
+  allOf([
+    hasAction("write"),
+    hasPermission("ledger:write"),
+    hasAttribute("deviceManaged", eq(literal(true))),
+  ]),
 ]);
-
-// The verb lives at the call site, not in the policy.
-const policyFor = (action: "read" | "write") =>
-  action === "read" ? readAnywhere : writeFromManagedDevice;
 ```
 
-That works, and is often the clearer design anyway. What it costs is the ability
-to *ship* the rule as data: a policy stored as JSON no longer expresses the whole
-rule, because the branch choosing between the two lives in TypeScript. Encoding
-the verb into the resource keeps one policy but corrupts the resource into a
-request descriptor, and is not recommended.
+What has not changed is where `deviceManaged` comes from. It is still a subject
+attribute standing in for a property of the request, for want of an environment
+channel — and the verb having acquired one does not give the environment one.
+Encoding circumstances into the resource keeps a single policy but corrupts the
+resource into a request descriptor, and is still not recommended.
 
 **Failure is not denial, and context is where this bites.**
 [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) holds everywhere,

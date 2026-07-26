@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -51,7 +51,7 @@ REQUIREMENT: A model document MUST NOT allocate BEH-QD, INV-QD or REQ-QD
 
 Priority is assigned on demand and cost, not on academic prominence. Bell–LaPadula
 is the most cited model in the literature and sits at P3 here, because almost no
-application asks for it and it needs an evaluation dimension Qadi does not have.
+application asks for it and it needs a label lattice Qadi does not have.
 
 | Priority | Criterion |
 | -------- | --------- |
@@ -69,7 +69,7 @@ independent designs that each bolt a field onto `Policy`.
 
 | Id | Enabler | Nature | Unlocks |
 | -- | ------- | ------ | ------- |
-| **E1** | Action dimension | Additive | Bell–LaPadula, Biba, MLS, RuBAC, XACML parity, UCON, NGAC, OrBAC, type enforcement |
+| **E1** | Action dimension | **Shipped** | Bell–LaPadula, Biba, MLS, RuBAC, XACML parity, UCON, NGAC, OrBAC, type enforcement |
 | **E2** | Obligations on `Decision` | Additive | XACML parity, UCON, purpose-based, consent-based, break-glass |
 | **E3** | Combining algorithms | Breaking | RuBAC, XACML parity |
 | **E4** | Label lattice | Additive | Bell–LaPadula, Biba, MLS, label-based |
@@ -79,26 +79,40 @@ independent designs that each bolt a field onto `Policy`.
 
 ### E1 — Action dimension
 
-**Decided, not yet built: [ADR-QD-018](../decisions/018-action-dimension.md).**
+**Shipped: [ADR-QD-018](../decisions/018-action-dimension.md),
+[10 — The Action Dimension](../behaviors/10-actions.md),
+[INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one),
+`@REQ-QD-010`.**
 
-Today an action exists only *inside* a permission token, as the second segment of
-`resource:action` ([ADR-QD-007](../decisions/007-permission-token-representation.md)).
-It is never an input to evaluation. `EvaluateOptions` carries `{ resource?, maxDepth? }`
-and `MatcherContext` carries `{ subject, subjectId, resource }` — neither knows
-whether the caller is reading or writing.
+Before this, an action existed only *inside* a permission token, as the second
+segment of `resource:action`
+([ADR-QD-007](../decisions/007-permission-token-representation.md)), and was
+never an input to evaluation — so no policy could treat reads and writes
+differently. That blocked a large family: Bell–LaPadula permits read-down and
+write-up, Biba does the reverse, and neither is expressible by a policy that
+cannot see the verb.
 
-Every model that treats reads and writes asymmetrically is blocked on this, and
-that is a large family: Bell–LaPadula permits read-down and write-up, Biba does
-the reverse, and neither is expressible by a policy that cannot see the verb.
+What landed:
 
-Adding `action?: string` to `EvaluateOptions` and `MatcherContext` is a pure
-addition — no existing type changes and no serialized policy is invalidated.
+| Addition | Where |
+| -------- | ----- |
+| `action?: string` | `EvaluateOptions` |
+| `action: string \| undefined` | `MatcherContext` |
+| `hasAction(action, options?)` → `HasAction` | the policy union, tenth variant |
+| `action()` → `ActionRef` | the `ValueRef` union, fifth variant |
+| `MissingAction` (`ACL009`) | the error taxonomy |
+| `qadi.action` | the `qadi.evaluate` span, when supplied |
 
-The ADR settles the two questions the model documents left open. A permission is
-a grant the subject holds; an action is a property of the request, and neither
-may be derived from the other. And an absent action is an **error**, not a
-denial — the same rule an absent resource already follows, because a missing
-caller input is a programming error rather than an authorization outcome.
+Purely additive, as forecast: no existing type changed and no serialized policy
+was invalidated. The ADR settles the two questions the model documents left
+open. A permission is a grant the subject holds; an action is a property of the
+request, and neither may be derived from the other. And an absent action is an
+**error**, not a denial — the same rule an absent resource already follows.
+
+One thing the ADR did not foresee: because `evaluateMatcher` is total, a matcher
+holding `action()` without one would have resolved to `undefined` and *denied*.
+The evaluator therefore checks `referencesAction` before running any matcher.
+That check is INV-QD-011, and it is the only non-obvious part of the work.
 
 ### E2 — Obligations on `Decision`
 
@@ -203,8 +217,8 @@ writes, because the data behind it is theirs. Grouped by the service they extend
 | Consent-based | [MOD-QD-018](./18-consent.md) | `RelationshipResolver` | Consent is a relation; the data subject collapses into the resource |
 | Hierarchical resource scoping | [MOD-QD-019](./19-hierarchy.md) | `RelationshipResolver` | Tenant trees; exceptions to an inherited grant need E3 |
 | Team-based (TMAC) | [MOD-QD-020](./20-tmac.md) | `RelationshipResolver` | Membership is a relation; role ∧ team is the recipe |
-| Organisation-based (OrBAC) | [MOD-QD-021](./21-orbac.md) | `AttributeResolver` | Organisation and view map cleanly; *activity* needs E1 |
-| Type enforcement | [MOD-QD-022](./22-type-enforcement.md) | `AttributeResolver` | Domain–type pairs; the *operation* needs E1 |
+| Organisation-based (OrBAC) | [MOD-QD-021](./21-orbac.md) | `AttributeResolver` | Organisation and view map cleanly; *activity* uses `hasAction` (E1) |
+| Type enforcement | [MOD-QD-022](./22-type-enforcement.md) | `AttributeResolver` | Domain–type pairs; the *operation* uses `hasAction` (E1) |
 | Label-based | [MOD-QD-023](./23-label-based.md) | `AttributeResolver` | Comparison only; *dominance* needs E4 |
 
 #### Two constraints the P1 documents established
@@ -239,17 +253,17 @@ uncompiled fences, because it does not exist.
 | Separation of duty (RBAC₂), static | [MOD-QD-024](./24-separation-of-duty.md) | Additive | — | P2 |
 | Separation of duty, dynamic | [MOD-QD-024](./24-separation-of-duty.md) | Additive | E5 | P3 |
 | Purpose enforcement with obligations | [MOD-QD-017](./17-purpose.md) | Additive | E2 | P2 |
-| XACML parity | [MOD-QD-026](./26-xacml.md) | Breaking | E1, E2, E3 | P2 |
+| XACML parity | [MOD-QD-026](./26-xacml.md) | Breaking | E2, E3 | P2 |
 | Rule-based (RuBAC), ordered | [MOD-QD-025](./25-rubac.md) | Breaking | E3 | P2 |
-| Usage control (UCON) | [MOD-QD-032](./32-ucon.md) | Breaking | E1, E2, E5 | P3 |
+| Usage control (UCON) | [MOD-QD-032](./32-ucon.md) | Breaking | E2, E5 | P3 |
 | Task-based (TBAC) | [MOD-QD-033](./33-tbac.md) | Additive | E5 | P3 |
-| Bell–LaPadula | [MOD-QD-027](./27-bell-lapadula.md) | Additive | E1, E4 | P3 |
-| Biba, strict | [MOD-QD-028](./28-biba.md) | Additive | E1, E4 | P3 |
-| Biba, low-water-mark | [MOD-QD-028](./28-biba.md) | Additive | E1, E4, **E5** | P3 |
-| Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | Additive | E1, E4 | P3 |
+| Bell–LaPadula | [MOD-QD-027](./27-bell-lapadula.md) | Additive | E4 | P3 |
+| Biba, strict | [MOD-QD-028](./28-biba.md) | Additive | E4 | P3 |
+| Biba, low-water-mark | [MOD-QD-028](./28-biba.md) | Additive | E4, **E5** | P3 |
+| Multi-level security / Denning lattice | [MOD-QD-029](./29-mls.md) | Additive | E4 | P3 |
 | Chinese Wall (Brewer–Nash) | [MOD-QD-030](./30-chinese-wall.md) | Additive | E5 | P3 |
 | History-based (HBAC) | [MOD-QD-031](./31-hbac.md) | Additive | E5 | P3 |
-| Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | Additive | E1, E6 | P3 |
+| Next Generation Access Control (NGAC) | [MOD-QD-034](./34-ngac.md) | Additive | E6 | P3 |
 | Row-level security | [MOD-QD-035](./35-row-level.md) | Breaking | E7 | P3 |
 | Cell-level security | [MOD-QD-036](./36-cell-level.md) | Breaking | E7 | P3 |
 
@@ -258,13 +272,14 @@ uncompiled fences, because it does not exist.
 **Low-water-mark Biba needs E5.** This table previously listed Biba as needing
 E1 and E4 alone. Strict Biba does; the low-water-mark relaxation drops the
 subject's effective integrity to that of the lowest object it has read, which is
-history. Ring policies remain E1 + E4, because nothing is remembered.
+history. Ring policies need no history, because nothing is remembered.
 
-**E1 is the highest-leverage enabler, and this table understated it.** Three
+**E1 was the highest-leverage enabler, and this table understated it.** Three
 models — OrBAC's *activity*, type enforcement's *operation*, and NGAC's
-*operation sets* — are each blocked on the action dimension alone, on top of the
-five listed against E1 in §2. It is additive, it invalidates no serialized
-policy, and it unblocks more than any other single change.
+*operation sets* — were each blocked on the action dimension alone, on top of the
+five listed against E1 in §2. That is why it went first. It has shipped; the
+enabler column above no longer lists it, and the models that named it are each
+one requirement lighter.
 
 **A negated port inverts the fail-closed default.** `RelationshipResolverNever`
 fails closed by answering `false` because `hasRelationship` is positive. E5's
@@ -391,11 +406,18 @@ recorded in §3.3.
 Documentation is now complete. What follows is implementation, and none of it is
 required for the library to be correct.
 
-**Phase 4 — Additive enablers.** E1 first, and by a clear margin: it is additive,
-invalidates no serialized policy, and is the sole blocker for eight models. Its
-ADR is written ([ADR-QD-018](../decisions/018-action-dimension.md), *Proposed*);
-what remains is the behaviour, the invariant, the scenario and the code. Then E2
-(obligations, no wire-format change), then E5, E4, E6.
+**Phase 4 — Additive enablers.** ✔ **E1 (CCR-QD-012).** It went first and by a
+clear margin: additive, invalidating no serialized policy, and the sole blocker
+for eight models. It shipped complete —
+[ADR-QD-018](../decisions/018-action-dimension.md) (now *Accepted*),
+[10 — The Action Dimension](../behaviors/10-actions.md),
+[INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one),
+`@REQ-QD-010`, and the code. One thing the ADR had not foreseen surfaced in the
+building: matchers are total, so a matcher reading an absent action would have
+*denied* rather than failed, and a `referencesAction` pre-check was needed to
+hold the rule. That is the shape to expect from the rest of these.
+
+Next: E2 (obligations, no wire-format change), then E5, E4, E6.
 
 Two design questions must be settled by ADR *before* code, because both are
 silent-failure risks rather than matters of taste: the polarity of E5's default
@@ -415,13 +437,13 @@ the enablers that touch it.
 
 | Invariant | Risk | Assessment |
 | --------- | ---- | ---------- |
-| [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness) | E1 | An action dimension parallel to permission actions could create two spellings of one concept. The action input MUST NOT be derived from or compared against permission segments |
+| [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness) | E1 — **held** | An action dimension parallel to permission actions could create two spellings of one concept. [ADR-QD-018](../decisions/018-action-dimension.md) made "never derived from or compared against permission segments" the decision itself; nothing in the shipped API relates the two |
 | [INV-QD-002](../invariants.md#inv-qd-002-role-graph-acyclicity) | — | Untouched. No enabler alters role construction |
-| [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) | E1, E3, E4 | Any new `Policy` variant must be added in four places at once. This is the invariant the rewrite exists to protect |
+| [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) | E1 — **held**; E3, E4 | Any new `Policy` variant must be added in four places at once. This is the invariant the rewrite exists to protect. E1 added two variants (`HasAction`, `ActionRef`) and both are in the round-trip property's generator; the `ActionRef` case had to be nested deliberately, since a leaf generator producing only policies would never reach a `ValueRef` |
 | [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top) | E3, E7 | Combining algorithms and predicate output both interact with field merging. `undefined` must remain *top* |
 | [INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation) | E3, E5 | Ordered combining changes evaluation order; a history port adds a lookup that must not be eager |
 | [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) | E5 | A history store that is down is a failure, not a denial. Highest-risk pairing in this table |
-| [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) | E1, E5 | An absent action and an unwired history port must both deny |
+| [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) | E5 | An unwired history port must deny. **This row previously said the same of an absent action, and that was wrong**: INV-QD-007 governs information a resolver could not supply, whereas a missing action is input the caller never provided. [ADR-QD-018](../decisions/018-action-dimension.md) routed it to [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) instead, and the rule is now [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one) |
 | [INV-QD-008](../invariants.md#inv-qd-008-evaluation-is-reproducible) | E5 | History makes evaluation stateful. Reproducibility must be restated as *given the same history*, or the invariant weakens silently |
 | [INV-QD-009](../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied) | E2 | Obligations must not become a channel that runs work before the decision is final |
 | [INV-QD-010](../invariants.md#inv-qd-010-error-codes-are-injective) | all | Mechanically enforced — `ERROR_CODES` is `satisfies Record<QadiError["_tag"], …>`, so a new error without a code fails compilation |

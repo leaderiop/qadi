@@ -167,15 +167,24 @@ const program: Effect.Effect<boolean, EvaluationError> = check(
 
 ## What is missing
 
-**No action dimension (E1).** The same gap
-[context-aware control](./12-context-aware.md) records, and spatial rules hit it
-hardest, because the canonical spatial requirement is asymmetric: *read from
-anywhere, write only on site*. `EvaluateOptions` is `{ resource?, maxDepth? }`
-and `MatcherContext` is `{ subject, subjectId, resource }`; neither knows the
-verb, so that requirement is two policies chosen by the caller at the call site.
-Honest, but it puts half the rule in application code where no serialised policy
-records it. E1 is additive and scheduled in
-[phase 3](./00-adoption-matrix.md).
+**~~No action dimension (E1).~~ Closed.** This document's sharpest complaint was
+that the canonical spatial requirement is asymmetric — *read from anywhere,
+write only on site* — and that a policy which could not see the verb had to be
+split into two chosen by the caller, putting half the rule in application code
+where no serialised policy recorded it.
+[E1](./00-adoption-matrix.md#e1--action-dimension) /
+[ADR-QD-018](../decisions/018-action-dimension.md) has shipped, and the
+requirement is now one policy:
+
+```ts
+anyOf([
+  hasAction("read"),
+  allOf([hasAction("write"), hasAttribute("site", eq(resource("site")))]),
+])
+```
+
+What remains is the second gap below, and it is the one that actually limits
+this model.
 
 **Location is a subject attribute, which it is not.** A subject does not *have*
 a country; a request does. `resolve` receives only the subject id, so either the

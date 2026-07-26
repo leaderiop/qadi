@@ -5,34 +5,40 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
 ## Current state
 
 Version `0.0.0`, unpublished, under the `@qadi` scope with the `QD`
-specification infix. The core is complete and verified: nine policy variants,
-eleven matchers, the evaluator, enforcement, serialization, React integration
-and a test toolkit.
+specification infix. The core is complete and verified: ten policy variants,
+eleven matchers, five value references, the evaluator, enforcement,
+serialization, React integration and a test toolkit.
 
 | Gate | Status |
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 174 passing |
-| Acceptance scenarios | 31 scenarios, 128 steps passing |
-| Coverage | 99.6% statements, 96.1% branches — thresholds enforced |
-| Doc examples compile | 53 blocks |
+| Unit and property tests | 192 passing |
+| Acceptance scenarios | 38 scenarios, 159 steps passing |
+| Coverage | 99.6% statements, 96.6% branches — thresholds enforced |
+| Doc examples compile | 55 blocks |
 | Specification integrity | 13 checks passing |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
+
+The first enabler from the [model adoption matrix](./models/00-adoption-matrix.md)
+has shipped: **E1, the action dimension**
+([ADR-QD-018](./decisions/018-action-dimension.md)). A policy can now say what
+the caller is doing, which is what read-down/write-up rules need and what eight
+documented models were waiting on.
 
 Nothing below is required for the library to be correct. These are gaps in
 confidence, ergonomics or reach.

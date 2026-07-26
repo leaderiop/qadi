@@ -1,6 +1,6 @@
 # ADR-QD-018: The action is an evaluation input, not a permission segment
 
-> **Status:** Proposed
+> **Status:** Accepted
 > **Date:** 2026-07-26
 
 ## Context
@@ -109,11 +109,22 @@ present, so existing span assertions are unaffected.
   writing `hasAction(permissionKey(p))`; only naming and review do. The risk is
   real and this document is the record of it.
 - A new `Policy` variant and a new `ValueRef` variant are eight coordinated
-  edits across the two schemas, plus both `FastCheck` generators in
-  `Policy.test.ts` and `Matcher.test.ts`. A variant absent from a generator is
-  untested by the round-trip property, which is the guard standing between this
-  library and the defect it was rewritten to fix
-  ([INV-QD-003](../invariants.md#inv-qd-003-codectype-identity)).
+  edits across the two schemas, plus the leaf generator of the round-trip
+  property in `Policy.test.ts`. A variant absent from that generator is untested
+  by the property, which is the guard standing between this library and the
+  defect it was rewritten to fix
+  ([INV-QD-003](../invariants.md#inv-qd-003-codectype-identity)). The
+  `ActionRef` case is the trap: it lives in `ValueRef`, so a leaf generator
+  producing only policies would never reach it. One leaf therefore nests it
+  deliberately.
+- Matcher totality forces a pre-check, which was not foreseen when this decision
+  was written. `evaluateMatcher` cannot fail (BEH-QD-028), so a matcher holding
+  `action()` with no action supplied would resolve to `undefined`, satisfy
+  nothing and return `false` — a denial, which is exactly what this decision
+  forbids. The evaluator therefore asks `referencesAction` before running any
+  matcher. That is a traversal per attribute node, and it is the price of
+  keeping matchers pure. It is recorded as
+  [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one).
 - `MissingAction` widens the error surface. `ERROR_CODES` is
   `satisfies Record<QadiError["_tag"], …>`, so it cannot be forgotten — the
   build fails until it has a code
@@ -131,9 +142,11 @@ alternative — one notion serving both — is cheaper to describe and produces 
 model in which "may write" and "is writing" cannot be told apart, which is
 precisely the confusion Bell–LaPadula exists to prevent.
 
-**Not yet implemented.** This ADR records a decision, not a shipped capability.
-It is marked *Proposed* rather than *Accepted* because every other decision in
-this directory describes code that exists, and a reader must be able to tell the
-difference. Nothing may cite it as evidence of behaviour until it acquires a
-behaviour, an invariant and a scenario in the ordinary way — see the
-[Definitions of Done](../process/definitions-of-done.md).
+**Implemented.** This ADR was written as *Proposed* — the only one that ever
+has been — because at the time it described nothing that existed, and every
+other decision here describes code that does. It became *Accepted* when the
+capability arrived with the evidence the
+[Definitions of Done](../process/definitions-of-done.md) require:
+[10 — The Action Dimension](../behaviors/10-actions.md) for the behaviour,
+[INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one)
+for the invariant, and `@REQ-QD-010` for the scenarios.

@@ -54,13 +54,15 @@ designed twice and differently.
 | -------- | ----- |
 | Status | **Additive** |
 | Priority | **P3** |
-| Enablers required | **E1, E4** |
+| Enablers required | ~~**E1**~~ **shipped**; **E4** outstanding |
 | Breaking change | No |
 
 E4 supplies dominance; E1 supplies the action dimension the two instances need
-to tell a read from a write. The lattice alone needs only E4 —
-[27](./27-bell-lapadula.md) and [28](./28-biba.md) are the E1 + E4 documents —
-and is listed with both because a lattice with no flow rule decides nothing.
+to tell a read from a write, and E1 has shipped
+([ADR-QD-018](../decisions/018-action-dimension.md)). The lattice alone needs
+only E4 — [27](./27-bell-lapadula.md) and [28](./28-biba.md) are the documents
+that need both — and this row was listed with both because a lattice with no flow
+rule decides nothing.
 
 ## What Qadi can express today
 

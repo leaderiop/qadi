@@ -46,6 +46,7 @@ export type Policy =
   | { readonly _tag: "HasAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasResourceAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasRelationship"; readonly relation: string; readonly depth?: number | undefined; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasAction"; readonly action: string; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "Not"; readonly policy: Policy }
@@ -81,6 +82,11 @@ const HasRelationship = Schema.TaggedStruct("HasRelationship", {
   fields: Fields,
 });
 
+const HasAction = Schema.TaggedStruct("HasAction", {
+  action: Schema.String,
+  fields: Fields,
+});
+
 const AllOf = Schema.TaggedStruct("AllOf", {
   policies: Schema.Array(PolicyRef),
   fieldStrategy: FieldStrategy,
@@ -104,6 +110,7 @@ export const Policy: Schema.Codec<Policy> = Schema.Union([
   HasAttribute,
   HasResourceAttribute,
   HasRelationship,
+  HasAction,
   AllOf,
   AnyOf,
   Not,
@@ -183,6 +190,20 @@ export const hasRelationship = (
   _tag: "HasRelationship",
   relation,
   ...optionalKey("depth", options?.depth),
+  ...optionalKey("fields", options?.fields),
+});
+
+/**
+ * The call being authorized is the named action.
+ *
+ * This is the *request's* verb, not a grant: `hasAction("write")` asks whether
+ * the caller is writing, where `hasPermission(permission("doc", "write"))` asks
+ * whether they are allowed to. Read-down/write-up rules need both, and
+ * conflating them is the failure ADR-QD-018 refuses.
+ */
+export const hasAction = (action: string, options?: FieldOptions): Policy => ({
+  _tag: "HasAction",
+  action,
   ...optionalKey("fields", options?.fields),
 });
 
