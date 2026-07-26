@@ -647,3 +647,15 @@ When("the rule table is described", function (this: QadiWorld) {
     }),
   );
 });
+
+/**
+ * The flow rule in the reading direction: information flows FROM the resource TO
+ * the subject, so the subject must dominate the resource.
+ *
+ * The mirror of `information flows to the resource`, and needed because a derived
+ * document is something one READS — the join question is "may this reader reach
+ * the combination", not "may this combination reach the reader".
+ */
+When("information flows from the resource to the subject", function (this: QadiWorld) {
+  this.run(labeled("flow", hasAttribute("clearance", dominates(resource("label")))));
+});

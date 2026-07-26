@@ -11,7 +11,9 @@ import * as M from "../src/Matcher.ts";
 import {
   compareLabels,
   isSecurityLabel,
+  join,
   labelDominates,
+  meet,
   type SecurityLabel,
 } from "../src/SecurityLabel.ts";
 
@@ -254,6 +256,93 @@ describe("security labels", () => {
       }
     }
     assert.isAbove(flows, 80);
+  });
+
+  it("join is the label of something derived from both", () => {
+    // The worked case from ADR-QD-029: max of the levels, UNION of the
+    // compartments.
+    assert.deepStrictEqual(join(label(3, "CRYPTO"), label(1, "BIO")), {
+      level: 3,
+      compartments: ["CRYPTO", "BIO"],
+    });
+    // Idempotent, commutative on content, and duplicate-free.
+    assert.deepStrictEqual(join(label(2, "A"), label(2, "A")), { level: 2, compartments: ["A"] });
+  });
+
+  it("THE MISTAKE join exists to prevent under-classifies", () => {
+    // Taking the higher level and carrying ITS compartments is the natural error.
+    const wrong = { level: 3, compartments: ["CRYPTO"] };
+    const right = join(label(3, "CRYPTO"), label(1, "BIO"));
+
+    // The correct label strictly dominates the mistaken one, which is what makes
+    // the mistake dangerous rather than merely wrong: the derived document is
+    // labelled LOWER than its contents.
+    assert.strictEqual(compareLabels(right, wrong), "Dominates");
+
+    // And here is the consequence, spelled out. A reader cleared for
+    // (3, {CRYPTO}) may read the mistakenly-labelled document, and may not read
+    // the correctly-labelled one — while every comparison behaves correctly.
+    const reader = label(3, "CRYPTO");
+    assert.isTrue(labelDominates(reader, wrong));
+    assert.isFalse(labelDominates(reader, right));
+  });
+
+  it("meet is the most that two labels both admit", () => {
+    assert.deepStrictEqual(meet(label(3, "CRYPTO", "BIO"), label(1, "BIO")), {
+      level: 1,
+      compartments: ["BIO"],
+    });
+    assert.deepStrictEqual(meet(label(2, "A"), label(2, "B")), { level: 2, compartments: [] });
+  });
+
+  it("PROPERTY: join is the LEAST upper bound", () => {
+    // MOD-QD-029's Verification rows 4 and 5, unstatable until now.
+    for (const [a, b, c] of FastCheck.sample(
+      FastCheck.tuple(labels, labels, labels),
+      600,
+    )) {
+      const j = join(a, b);
+      assert.isTrue(labelDominates(j, a), `not an upper bound of a: ${JSON.stringify([a, b])}`);
+      assert.isTrue(labelDominates(j, b), `not an upper bound of b: ${JSON.stringify([a, b])}`);
+
+      // Least: anything above both is above the join.
+      if (labelDominates(c, a) && labelDominates(c, b)) {
+        assert.isTrue(labelDominates(c, j), `not least: ${JSON.stringify([a, b, c])}`);
+      }
+    }
+  });
+
+  it("PROPERTY: meet is the GREATEST lower bound", () => {
+    for (const [a, b, c] of FastCheck.sample(
+      FastCheck.tuple(labels, labels, labels),
+      600,
+    )) {
+      const m = meet(a, b);
+      assert.isTrue(labelDominates(a, m), `not a lower bound of a: ${JSON.stringify([a, b])}`);
+      assert.isTrue(labelDominates(b, m), `not a lower bound of b: ${JSON.stringify([a, b])}`);
+
+      if (labelDominates(a, c) && labelDominates(b, c)) {
+        assert.isTrue(labelDominates(m, c), `not greatest: ${JSON.stringify([a, b, c])}`);
+      }
+    }
+  });
+
+  it("PROPERTY: the absorption laws hold, so this is a lattice and not two functions", () => {
+    // join(a, meet(a, b)) = a and meet(a, join(a, b)) = a. The pair of laws that
+    // distinguishes a lattice from any two operators that happen to produce
+    // bounds — and the ones a future compartment hierarchy would break first.
+    for (const [a, b] of FastCheck.sample(FastCheck.tuple(labels, labels), 400)) {
+      assert.strictEqual(
+        compareLabels(join(a, meet(a, b)), a),
+        "Equal",
+        `absorption failed: ${JSON.stringify([a, b])}`,
+      );
+      assert.strictEqual(
+        compareLabels(meet(a, join(a, b)), a),
+        "Equal",
+        `absorption failed: ${JSON.stringify([a, b])}`,
+      );
+    }
   });
 
   it("PROPERTY: compareLabels is total, and its two strict values mirror", () => {

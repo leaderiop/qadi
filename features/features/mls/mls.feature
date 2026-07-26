@@ -67,3 +67,31 @@ Feature: Multi-level security, the Denning lattice
     And the resource "report" classified at level 2
     When information flows to the resource
     Then access is denied
+
+  Scenario: A derived document is classified at the join of its sources
+    # The lattice doing the job it exists for. A report assembled from a
+    # (2,{CRYPTO}) source and a (1,{BIO}) source is (2,{CRYPTO,BIO}) — the maximum
+    # of the levels and the UNION of the compartments.
+    #
+    # A reader cleared for the higher source alone may NOT read it, which is the
+    # whole safety property: the derived object is no easier to reach than the
+    # hardest thing in it.
+    Given a subject "u-1" cleared at level 2 in compartment "CRYPTO"
+    And the resource "report" derived from level 2 in compartments "CRYPTO" and level 1 in compartments "BIO"
+    When information flows from the resource to the subject
+    Then access is denied
+
+  Scenario: A reader cleared for both sources may read the derived document
+    Given a subject "u-1" cleared at level 2 in compartments "CRYPTO,BIO"
+    And the resource "report" derived from level 2 in compartments "CRYPTO" and level 1 in compartments "BIO"
+    When information flows from the resource to the subject
+    Then access is granted
+
+  Scenario: The join adds nothing when one source already dominates the other
+    # `join` is idempotent up the order: joining with something below changes
+    # nothing, so a caller cannot accidentally over-classify by combining a
+    # document with a subset of itself.
+    Given a subject "u-1" cleared at level 2 in compartment "CRYPTO"
+    And the resource "report" derived from level 2 in compartments "CRYPTO" and level 1 in compartments "CRYPTO"
+    When information flows from the resource to the subject
+    Then access is granted

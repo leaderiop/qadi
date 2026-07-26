@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.11                                            |
+> | Revision       | 1.12                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -629,5 +629,49 @@ subject-mixing payload, and the absence of the denial reason in the serialized
 payload are each asserted directly.
 
 **Related**: [BEH-QD-146](behaviors/19-hydration.md), [BEH-QD-147](behaviors/19-hydration.md), [ADR-QD-028](decisions/028-decision-hydration.md).
+
+---
+
+## INV-QD-023: Every pair of labels has a least upper and a greatest lower bound
+
+`join(a, b)` dominates both operands and is dominated by everything that dominates
+both. `meet(a, b)` is dominated by both and dominates everything both dominate.
+
+**Source**: `packages/core/src/SecurityLabel.ts` — `join` takes the maximum of the
+levels and the union of the compartments; `meet` takes the minimum and the
+intersection. Both are pure and neither is reachable from the evaluator.
+
+**Implication**: this is what makes the structure a **lattice** rather than merely a
+partial order, and it closes a contradiction the specification carried from E4 until
+CCR-QD-030. [MOD-QD-029](models/29-mls.md) defines a lattice as "a partial order
+with joins"; ADR-QD-021 shipped the order and declined the joins, so by that
+document's own definition what shipped was not the thing it was named for. Two of
+the seven laws in its Verification table were recorded as *Void — declined* rather
+than unmet.
+
+**The security reason it exists, which is not the algebra.** A caller labelling a
+document derived from two sources has to compute the join, and the natural mistake —
+take the higher level, carry *its* compartments — produces a label the correct one
+**dominates**. So the derived object is labelled *lower* than its contents, and a
+reader without the missing compartment reads material they have no clearance for
+while every comparison in the system behaves correctly. The wrong label is compared
+correctly, which is why no other invariant catches it and why a prose warning in a
+model document could not.
+
+**It does not move ADR-QD-021's boundary.** Deriving a label is still not a decision:
+no policy variant computes one, no matcher constructs one, and `Evaluate.ts` does not
+import either function. If it ever does, the line has been crossed and
+[ADR-QD-029](decisions/029-lattice-join-and-meet.md) needs revisiting rather than
+extending.
+
+**Enforcement**: `FastCheck` properties over sampled triples assert both bound laws
+in both directions, plus the two **absorption** laws — `join(a, meet(a, b)) = a` and
+`meet(a, join(a, b)) = a`. Absorption is what distinguishes a lattice from any two
+functions that happen to return bounds, and it is the law a compartment hierarchy
+would break first. The under-classification mistake is asserted directly: the
+correct join strictly dominates the mistaken one, and a reader who may read the
+mistaken label may not read the correct one.
+
+**Related**: [BEH-QD-103](behaviors/13-labels.md), [INV-QD-019](#inv-qd-019-dominance-is-a-partial-order), [ADR-QD-029](decisions/029-lattice-join-and-meet.md).
 
 ---

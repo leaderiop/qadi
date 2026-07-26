@@ -86,3 +86,43 @@ export const labelDominates = (a: SecurityLabel, b: SecurityLabel): boolean => {
   const ordering = compareLabels(a, b);
   return ordering === "Equal" || ordering === "Dominates";
 };
+
+/**
+ * The least upper bound: the label of something derived from both.
+ *
+ * A document assembled from a `(Secret, {CRYPTO})` source and a
+ * `(Confidential, {BIO})` source is `(Secret, {CRYPTO, BIO})` — the **maximum** of
+ * the levels and the **union** of the compartments.
+ *
+ * Exported because the arithmetic is easy to get wrong in a way nothing catches
+ * ([ADR-QD-029](../../../spec/decisions/029-lattice-join-and-meet.md)). The natural
+ * mistake is to take the higher level and carry *its* compartments, which yields a
+ * label the correct one dominates — so the result **under-classifies**, and a
+ * reader without the `BIO` clearance reads `BIO` material while every comparison
+ * in the system behaves correctly. The wrong label is compared correctly.
+ *
+ * Qadi never calls this. Deriving a label is not a decision (ADR-QD-021), so no
+ * policy variant, matcher or evaluator path touches it; it exists for the caller
+ * who has to label a derived object before asking about it. If `Evaluate.ts` ever
+ * imports this, that boundary has been crossed.
+ */
+export const join = (a: SecurityLabel, b: SecurityLabel): SecurityLabel => ({
+  level: Math.max(a.level, b.level),
+  compartments: [...new Set([...a.compartments, ...b.compartments])],
+});
+
+/**
+ * The greatest lower bound: the most that two labels both admit.
+ *
+ * The minimum of the levels and the **intersection** of the compartments. Getting
+ * this wrong over-restricts rather than under-classifies, so it fails visibly as a
+ * refusal — it ships for symmetry and because the lattice laws come in dual pairs,
+ * not because it carries the same hazard as `join`.
+ */
+export const meet = (a: SecurityLabel, b: SecurityLabel): SecurityLabel => {
+  const inB = new Set(b.compartments);
+  return {
+    level: Math.min(a.level, b.level),
+    compartments: [...new Set(a.compartments.filter((c) => inB.has(c)))],
+  };
+};

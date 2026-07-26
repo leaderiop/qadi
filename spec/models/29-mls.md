@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-29                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.1 (2026-07-26): Status corrected to Shipped, in part — a ceiling, since `join` and `meet` were declined; verified as `@REQ-QD-021`; the order laws proven (INV-QD-019, BEH-QD-102); three Verification criteria recorded as void rather than pending; the irregular-lattice ceiling recorded; two prior revisions absorbed without a bump (CCR-QD-012, CCR-QD-017) now recorded (CCR-QD-024)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.2 (2026-07-26): `join` and `meet` shipped (ADR-QD-029); Status to Shipped; the two join laws proven; the definitional contradiction closed (CCR-QD-030)<br>1.1 (2026-07-26): Status corrected to Shipped, in part — a ceiling, since `join` and `meet` were declined; verified as `@REQ-QD-021`; the order laws proven (INV-QD-019, BEH-QD-102); three Verification criteria recorded as void rather than pending; the irregular-lattice ceiling recorded; two prior revisions absorbed without a bump (CCR-QD-012, CCR-QD-017) now recorded (CCR-QD-024)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -37,11 +37,12 @@ That last row is the distinction most often lost. Comparing a clearance against
 a label is an ordering on one axis, and ships today; a lattice is a partial
 order with joins, and is enabler **E4**.
 
-*One correction, and it decides this document's status.* E4 shipped the partial
-order and **not** the joins, so by the definition in that last sentence what
-shipped is not a lattice. The definition is stronger than the model needs —
-deciding a flow uses the order alone — but it is the reason the Status below reads
-*Shipped, in part*. See [below](#by-the-definition-above-what-shipped-is-not-a-lattice).
+*One correction, twice.* E4 shipped the partial order and **not** the joins, so
+from CCR-QD-017 to CCR-QD-030 the definition in that last sentence was not satisfied
+by what shipped — which CCR-QD-024 recorded by setting the Status to *Shipped, in
+part*. `join` and `meet` shipped in CCR-QD-030, so the definition now holds as
+written and the Status is plain **Shipped**. See
+[below](#by-the-definition-above-what-shipped-is-now-a-lattice).
 
 ## Who asks for it
 
@@ -58,7 +59,7 @@ designed twice and differently.
 
 | Property | Value |
 | -------- | ----- |
-| Status | **Shipped, in part** |
+| Status | **Shipped** |
 | Priority | **P3** |
 | Enablers required | ~~**E1, E4**~~ **shipped**; none outstanding |
 | Breaking change | No |
@@ -69,11 +70,18 @@ designed twice and differently.
 [INV-QD-019](../invariants.md#inv-qd-019-dominance-is-a-partial-order),
 `@REQ-QD-021`, `packages/core/test/Matcher.test.ts`.**
 
-**Not shipped, and declined rather than deferred: `join` and `meet`.** *Shipped,
-in part* is therefore the **ceiling** for this row and not a stage on the way to
-*Shipped* — the inverse of [31](./31-hbac.md), whose deferrals are staged. A
-second ceiling, never previously recorded: a genuinely **irregular** lattice still
-has to be hand-enumerated, as [below](#what-it-cost).
+~~**Not shipped, and declined rather than deferred: `join` and `meet`.**~~
+**Shipped in CCR-QD-030** ([ADR-QD-029](../decisions/029-lattice-join-and-meet.md)).
+This row read *Shipped, in part* from CCR-QD-024 until then, naming the two
+operators as a **ceiling**. The ceiling was wrong: the argument this document made
+for exporting them was never answered, and re-reading it was enough to reverse the
+decline.
+
+One ceiling remains, and it is the one this document recorded rather than the one
+the matrix did: a genuinely **irregular** lattice still has to be hand-enumerated,
+as [below](#what-it-cost). It does not reduce the status, because an irregular
+lattice is outside the standard `(level, compartments)` form the model is defined
+over.
 
 E4 supplies dominance; E1 supplies the action dimension the two instances need
 to tell a read from a write, and both have shipped
@@ -85,29 +93,28 @@ rule decides nothing. `@REQ-QD-021` is the evidence for that claim: every scenar
 under it is one comparison with **no `hasAction`**, which no other label suite in
 the repository does.
 
-### By the definition above, what shipped is not a lattice
+### By the definition above, what shipped is now a lattice
 
 `## What it is` closes with *"a lattice is a partial order with joins, and is
-enabler E4"*. E4 shipped the partial order and **no joins** — `join` and `meet`
-appear nowhere in `SecurityLabel.ts`. Taken together those two sentences say the
-model did not ship, which is why this row cannot read a plain **Shipped** however
-the enabler column reads.
+enabler E4"*. From E4 until CCR-QD-030 that sentence and the matrix row contradicted
+each other: the order shipped and the joins did not, so by this document's own
+definition the thing named after the model was not the model.
 
-The resolution is that the definition was too strong for what the model is *used
-for*. Every deployment of MLS this document names decides one flow at a time, and
-deciding a flow needs the order alone; the join is needed to **compute a label for
-a derived object** — the classification of a document assembled from two sources —
-which is an operation on data the caller owns and Qadi never sees. So the order
-shipped, the algebra did not, and the honest status is partial rather than either
-extreme.
+`join` and `meet` shipped in
+[ADR-QD-029](../decisions/029-lattice-join-and-meet.md), and the definition is now
+satisfied literally. The argument that got them there is the one below under
+[What it cost](#what-it-cost) — *"the join must be expressible even though Qadi will
+not compute it"* — which ADR-QD-021 declined without answering, and which was still
+unanswered when CCR-QD-024 recorded it as a ceiling.
 
-That does not dispose of the argument under [What it cost](#what-it-cost) —
-*"the join must be expressible even though Qadi will not compute it"* — which this
-document still holds and which ADR-QD-021 did not refute: a caller made
-to reimplement `join` takes the maximum of the levels and forgets the union of the
-compartments, under-classifying the result invisibly. Reopening it is a new
-decision with a real alternative and needs its own ADR — it is not a row that can
-be ticked in a Verification table.
+**The distinction ADR-QD-021 drew was right; the inference from it was not.**
+Deriving a label is not deciding an access, and nothing in the evaluator computes
+one — that is now [BEH-QD-104](../behaviors/13-labels.md) and it is unchanged. But
+"Qadi does not compute a label during evaluation" and "Qadi does not export the
+function a caller needs" are two decisions, and only the first had an argument
+behind it. What settled it was noticing that the original requirement's own
+reasoning — *"a caller ... can compute it"* — is the premise of the counter-case:
+it can, and this document had already written down exactly how it gets it wrong.
 
 ## What Qadi could express before E4
 
@@ -228,13 +235,18 @@ const join: (a: SecurityLabel, b: SecurityLabel) => SecurityLabel; // lub
 const meet: (a: SecurityLabel, b: SecurityLabel) => SecurityLabel; // glb
 ```
 
-> **Partly declined.** `compare` shipped as `compareLabels` with **four** values,
-> not three: `Equal` is named rather than folded into `Dominates`, because a caller
-> asking why a decision went the way it did wants to know which. `undefined` for
-> incomparable became the explicit `"Incomparable"`. The predicate shipped as
-> **`labelDominates`** — this document proposed that it share the name `dominates`
-> with the matcher constructor, and ADR-QD-021 rejected that as "close enough to
-> confuse". **`join` and `meet` did not ship at all**; see the Status section.
+> **Partly renamed, and now fully shipped.** `compare` shipped as `compareLabels`
+> with **four** values, not three: `Equal` is named rather than folded into
+> `Dominates`, because a caller asking why a decision went the way it did wants to
+> know which. `undefined` for incomparable became the explicit `"Incomparable"`. The
+> predicate shipped as **`labelDominates`** — this document proposed that it share
+> the name `dominates` with the matcher constructor, and ADR-QD-021 rejected that as
+> "close enough to confuse".
+>
+> **`join` and `meet` shipped in CCR-QD-030 under exactly these names and
+> signatures** ([ADR-QD-029](../decisions/029-lattice-join-and-meet.md)) — declined
+> by ADR-QD-021 and reinstated on this document's own argument. The sketch above is
+> the only part of it that needed no correction at all.
 
 A `Matcher` variant, so dominance can be asserted inside a policy. This is the
 part that shipped verbatim:
@@ -350,9 +362,14 @@ property-test material, and `FastCheck` was already present so an arbitrary
 now asserted, in `packages/core/test/Matcher.test.ts` under
 [INV-QD-019](../invariants.md#inv-qd-019-dominance-is-a-partial-order).
 
-**Three of the seven laws below could not be discharged as written**, so this
-table is rewritten rather than ticked off — a Verification section whose criteria
-are partly unsatisfiable is worse than one that admits it.
+**One of the seven laws below cannot be discharged as written**, so this table is
+rewritten rather than ticked off — a Verification section whose criteria are partly
+unsatisfiable is worse than one that admits it.
+
+Three were unsatisfiable when CCR-QD-024 rewrote it. Two of those — both join rows —
+became provable in CCR-QD-030 when the operators shipped, which is the more useful
+reading of a *Void* row: it records that a criterion has no subject **yet**, and
+says nothing about whether it should.
 
 | Law | Status | Evidence |
 | --- | ------ | -------- |
@@ -360,8 +377,8 @@ are partly unsatisfiable is worse than one that admits it.
 | Antisymmetry | **Proven** | Property, asserted as the *implication* — mutual dominance forces equal level and equal compartment set |
 | Transitivity | **Proven** | Property over sampled triples, with a witness count so the antecedent cannot go unfired |
 | Incomparability | **Proven** | INV-QD-015; `@REQ-QD-021` covers the case that was missing — **overlapping** sets, not merely disjoint ones |
-| Join is an upper bound | **Void — declined** | No `join` shipped (ADR-QD-021). Not pending |
-| Join is *least* | **Void — declined** | As above |
+| Join is an upper bound | **Proven** | Property over sampled triples; INV-QD-023 |
+| Join is *least* | **Proven** | Property: anything dominating both dominates the join |
 | Round trip | **Void — inapplicable** | There is no label codec, because a label never enters a policy. The property it asks for has no subject |
 
 Two additions the 1.0 table did not contain, both from
@@ -369,6 +386,8 @@ Two additions the 1.0 table did not contain, both from
 
 | Law | Status | Evidence |
 | --- | ------ | -------- |
+| Absorption — `join(a, meet(a, b)) = a`, and its dual | **Proven** | Property; what makes this a lattice rather than two functions returning bounds |
+| The under-classification mistake is dominated by the correct join | **Proven** | `Matcher.test.ts`; the reason `join` is exported at all |
 | No permitted read-then-write moves information downwards | **Proven** | Property; it reduces to transitivity, which is the finding |
 | `compareLabels` is total, and swapping operands mirrors the answer | **Proven** | Property — both rules of every label model are asked by swapping operands, so an asymmetry here would make one direction silently wrong |
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-13                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-017) |
+> | Change History | 1.2 (2026-07-26): BEH-QD-103 and 104, the lattice bounds; BEH-QD-100 withdrawn (CCR-QD-030)<br>1.1 (2026-07-26): BEH-QD-102, the order laws (CCR-QD-024)<br>1.0 (2026-07-26): Initial release (CCR-QD-017) |
 
 _Previous: [12 — Decision History](./12-history.md)_
 
@@ -129,6 +129,12 @@ REQUIREMENT: `referencesAction` MUST account for `Dominates`, since it takes a
 
 ## BEH-QD-100: What is not provided
 
+> **Withdrawn in CCR-QD-030.** Superseded by
+> [BEH-QD-103](#beh-qd-103-the-lattice-bounds) and
+> [BEH-QD-104](#beh-qd-104-deriving-a-label-is-still-not-a-decision). The
+> requirement below is reproduced as written, because its reasoning survived and
+> only its conclusion did not.
+
 ```
 REQUIREMENT: There MUST be no `join` or `meet`. A least upper bound answers
              "what class does this combined document belong to", which is
@@ -138,6 +144,18 @@ REQUIREMENT: There MUST be no `join` or `meet`. A least upper bound answers
 Qadi decides. A caller that needs to classify a derived document has the label
 type and can compute it, and in doing so is doing data classification — a
 different job with a different audit story.
+
+*What changed, and what did not.* The distinction this requirement draws is
+correct and is now BEH-QD-104: computing a label is not deciding an access, and
+nothing in the evaluator may do it. What was wrong was the inference from there to
+*not exporting the function*. Those are two decisions and only the first had an
+argument.
+
+The sentence that undid it is "a caller **can** compute it". It can, and
+[MOD-QD-029](../models/29-mls.md) named exactly how it gets it wrong: take the
+higher level, carry *its* compartments, and the derived object is labelled below
+its own contents. That failure is silent, because the wrong label is then compared
+correctly ([ADR-QD-029](../decisions/029-lattice-join-and-meet.md)).
 
 ## BEH-QD-101: Worked example
 
@@ -204,6 +222,49 @@ REQUIREMENT: No sequence of a permitted read followed by a permitted write MUST
 That last is not a separate rule for the evaluator to enforce. It is transitivity
 restated in the terms the model uses, and it holds *because* dominance composes —
 which is the whole reason this requirement is written down rather than assumed.
+
+## BEH-QD-103: The lattice bounds
+
+> **Invariant:** [INV-QD-023](../invariants.md#inv-qd-023-every-pair-of-labels-has-a-least-upper-and-a-greatest-lower-bound)
+>
+> **See:** [ADR-QD-029](../decisions/029-lattice-join-and-meet.md)
+
+```ts
+export const join: (a: SecurityLabel, b: SecurityLabel) => SecurityLabel;
+export const meet: (a: SecurityLabel, b: SecurityLabel) => SecurityLabel;
+```
+
+```
+REQUIREMENT: `join` MUST take the MAXIMUM of the levels and the UNION of the
+             compartments. `meet` MUST take the minimum and the intersection.
+```
+
+```
+REQUIREMENT: Both MUST satisfy the absorption laws — `join(a, meet(a, b))` and
+             `meet(a, join(a, b))` both equal `a`.
+```
+
+Absorption is what makes this a lattice rather than two functions that happen to
+return bounds, and it is the first law a configurable compartment hierarchy would
+break.
+
+## BEH-QD-104: Deriving a label is still not a decision
+
+```
+REQUIREMENT: No `Policy` variant, no `Matcher` and no evaluator path MAY compute a
+             label. `Evaluate.ts` MUST NOT import `join` or `meet`.
+```
+
+The functions exist for the caller who must label a derived object *before* asking
+about it. [BEH-QD-097](#beh-qd-097-labels-are-runtime-data-not-policy-data) is
+unchanged: a label reaches a policy as resolved data, and nothing in the tree
+constructs one.
+
+The reason to export them anyway is that the arithmetic fails silently. Taking the
+higher level and carrying *its* compartments yields a label the correct one
+dominates — so the derived object is under-classified, and a reader lacking the
+dropped compartment reads material they are not cleared for while every comparison
+behaves correctly.
 
 ---
 

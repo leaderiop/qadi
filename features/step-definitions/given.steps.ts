@@ -1,4 +1,5 @@
 import { Given, setWorldConstructor, Before } from "@cucumber/cucumber";
+import { join } from "@qadi/core";
 import { QadiWorld } from "./world.ts";
 
 setWorldConstructor(QadiWorld);
@@ -217,6 +218,30 @@ Given(
   "the resource {string} classified at level {int} in compartments {string}",
   function (this: QadiWorld, id: string, level: number, compartments: string) {
     this.resource = { id, label: label(level, compartments) };
+  },
+);
+
+/**
+ * The resource labelled with the JOIN of two sources.
+ *
+ * The whole point of exporting `join`: a document derived from two sources is
+ * classified at their least upper bound, and computing that by hand is where a
+ * caller under-classifies (ADR-QD-029).
+ */
+Given(
+  "the resource {string} derived from level {int} in compartments {string} and level {int} in compartments {string}",
+  function (
+    this: QadiWorld,
+    id: string,
+    levelA: number,
+    compartmentsA: string,
+    levelB: number,
+    compartmentsB: string,
+  ) {
+    this.resource = {
+      id,
+      label: join(label(levelA, compartmentsA), label(levelB, compartmentsB)),
+    };
   },
 );
 

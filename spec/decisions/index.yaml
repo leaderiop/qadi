@@ -86,3 +86,6 @@ entries:
   - id: "ADR-QD-028"
     file: "028-decision-hydration.md"
     title: "A hydrated decision is bound to a subject and carries no trace"
+  - id: "ADR-QD-029"
+    file: "029-lattice-join-and-meet.md"
+    title: "join and meet ship as utilities, and the evaluator still never derives a label"
