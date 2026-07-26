@@ -219,7 +219,7 @@ package would be inventing one.
 ## Verification
 
 Nothing verifies this model today, and this document does not claim otherwise —
-it is a recipe, not a shipped feature. The worked example compiles in CI, which
+it is a recipe, not a shipped feature. The worked example compiles under the merge gate, which
 proves the mapping type-checks against the real port and nothing more.
 
 Adopting it means a resolver in the caller's codebase, tested against the store's

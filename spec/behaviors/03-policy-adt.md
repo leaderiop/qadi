@@ -46,7 +46,7 @@ the subject or the resource, and this one asks about the *request*. See
 
 ```ts
 export const Policy: Schema.Codec<Policy>;
-export type Policy = /* the thirteen-variant union above */;
+export type Policy = /* the fourteen-variant union above */;
 ```
 
 ```

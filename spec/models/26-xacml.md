@@ -349,7 +349,7 @@ in a specification. This document does not propose it.
 ## Verification
 
 Nothing here is built. This document claims nothing about the current library
-beyond the example above, which uses only shipped API and is type-checked in CI.
+beyond the example above, which uses only shipped API and is type-checked by the merge gate.
 
 Parity in the recommended sense would need three ADRs — the action dimension,
 obligation composition under `Not`, and whatever [MOD-QD-025](./25-rubac.md)

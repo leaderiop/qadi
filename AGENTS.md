@@ -239,7 +239,7 @@ Every behavior in `spec/behaviors/` has tests; every `.feature` file is tagged
 `spec/` is normative. Code follows the spec, not the reverse. Changing public
 behavior means updating the behavior doc, the invariant, and the traceability
 matrix in the same change. TypeScript blocks in `spec/behaviors/*.md` are
-extracted and type-checked in CI — documentation that does not compile is a
+extracted and type-checked by the merge gate — documentation that does not compile is a
 build failure.
 
 ## 12. Specification code fences
@@ -286,3 +286,36 @@ state-management layer of its own. The rules that keep it that way:
 - **Test the graph, not the DOM, where you can.** `QadiAtoms.test.ts` renders
   nothing — caching, sharing and invalidation are properties of the atoms, and
   proving them through components only makes the test slower and vaguer.
+
+## 14. `@qadi/promise`
+
+A Promise-returning facade for callers who do not use Effect. One rule, and it is
+the whole package:
+
+- **No branch in it may decide anything.** Every method is
+  `runtime.runPromise(coreFunction(...))`. The predecessor shipped a second
+  evaluation path and it destroyed short-circuiting, left the async relationship
+  API unreachable, and rotted untested (ADR-QD-004). A facade that only forwards
+  cannot repeat that; one that decides can. A review finding a conditional here
+  should treat it as a defect (ADR-QD-032).
+- **A denial resolves; a failure rejects.** `try { check() } catch { return false }`
+  is the natural Promise idiom and turns an attribute-store outage into a silent
+  lockout. `assert` is the deliberate exception, because there the caller has said
+  "proceed only if permitted".
+- **The subject travels per call**, so `CurrentSubject` stays out of the layer — as
+  in `@qadi/react`, and for the same reason.
+
+## 15. Documentation is gated, not remembered
+
+`spec/overview.md` must name every export of every public package.
+`scripts/check-api-surface.mjs` is merge gate 9 and fails otherwise; to leave an
+export out of the tables, put it in that document's "Not listed above" table with a
+reason. Omission is allowed, silent omission is not.
+
+This exists because the document drifted twice — see CCR-QD-025 and CCR-QD-034. Two
+occurrences is a property of the process rather than an oversight, and adding a
+gate was cheaper than remembering a third time.
+
+**There is no CI.** `pnpm check` runs all ten gates and runs where someone runs it.
+Do not write "in CI" in this repository: six documents claimed it and none of it was
+true (CCR-QD-035).

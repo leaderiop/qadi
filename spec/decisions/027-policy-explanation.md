@@ -86,7 +86,7 @@ made yet; it is a description of the output, not a decision about the type.
 explanation could be a trace of a policy evaluated against a null subject.
 Rejected: it would require inventing a subject that satisfies nothing, every leaf
 would report "denied", and the output would describe an evaluation rather than a
-rule. It also could not run without the five services.
+rule. It also could not run without the five services `EvaluationServices` names.
 
 **A `Schema` for `Explanation`, so it round-trips.** Rejected. An explanation is
 derived, never stored — the policy is the artefact that crosses trust boundaries

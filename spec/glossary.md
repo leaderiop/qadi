@@ -338,6 +338,44 @@ Policies cross one — they are persisted and reloaded — which is the reason t
 policy ADT is schema-derived while ordinary domain types are hand-written
 interfaces. See [ADR-QD-002](decisions/002-schema-derived-policy-adt.md).
 
+## Explanation
+
+What a policy *says*, as a tree — as opposed to a **trace**, which is what one
+evaluation *did*. Produced by `explain`, rendered to English by
+`renderExplanation`, and computed without a subject: an explanation that varied by
+viewer would be a trace, and showing one would leak whether the viewer satisfies a
+policy they are only meant to read (ADR-QD-027).
+
+## Simplification
+
+An opt-in rewrite of a policy tree to an equivalent smaller one. Preserves the
+verdict, the visible fields and the obligations; does **not** preserve the trace,
+which is why nothing in the library applies it (ADR-QD-030). Note that
+`not(not(p))` is *not* `p` here — a negation carries no field set and no
+obligations by design.
+
+## Join and meet
+
+The least upper bound and greatest lower bound of two security labels: `join`
+takes the maximum level and the **union** of the compartments, `meet` the minimum
+and the intersection. Qadi never calls either — deriving a label is not deciding an
+access — but they are exported because computing a join by hand under-classifies
+silently (ADR-QD-029).
+
+## Hydration
+
+Carrying decisions the server already made into a client registry, so the first
+render has answers instead of a pending state. A payload is bound to a subject id
+and refused whole on a mismatch, and carries no trace by default (ADR-QD-028).
+
+## Concurrency, in evaluation
+
+An opt-in `EvaluateOptions.concurrency` that evaluates the children of a composite
+in parallel. It changes which lookups happen and how long they take, and nothing
+else: the decision and the whole trace are identical, because both paths drive the
+same fold in declaration order (ADR-QD-026). It forfeits **short-circuiting**,
+which is why it is opt-in.
+
 ---
 
 _Related: [Overview](./overview.md) · [Invariants](./invariants.md) · [User Requirements](./urs.md)_

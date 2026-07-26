@@ -328,7 +328,7 @@ reported.
 
 ### NFR-QD-004 — Documentation that compiles
 
-Runnable examples in the specification must be extracted and type-checked in CI.
+Runnable examples in the specification must be extracted and type-checked by the merge gate.
 
 Rationale: every example in the predecessor's README called a signature that no
 longer existed. Documentation that does not compile is worse than none, because

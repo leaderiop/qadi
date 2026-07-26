@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RTM                                       |
-> | Revision       | 1.21                                           |
+> | Revision       | 1.22                                           |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Verification Record                            |
-> | Change History | 1.21 (2026-07-26): `DecisionCache.ts` added to the services row (CCR-QD-034)<br>1.20 (2026-07-26): The Promise facade; behaviour 22, INV-QD-026, ADR-QD-032 (CCR-QD-033)<br>1.19 (2026-07-26): The decision cache; behaviour 21, INV-QD-025, ADR-QD-031 (CCR-QD-032)<br>1.18 (2026-07-26): Policy simplification; behaviour 20, INV-QD-024, ADR-QD-030 (CCR-QD-031)<br>1.17 (2026-07-26): `join` and `meet`; INV-QD-023, ADR-QD-029; MLS to Shipped (CCR-QD-030)<br>1.16 (2026-07-26): Decision hydration; behaviour 19, INV-QD-022, ADR-QD-028 (CCR-QD-029)<br>1.15 (2026-07-26): Policy explanation; behaviour 18, INV-QD-021, ADR-QD-027, `@REQ-QD-023` (CCR-QD-028)<br>1.14 (2026-07-26): Concurrent evaluation; behaviour 17, INV-QD-020, ADR-QD-026, `@REQ-QD-022` (CCR-QD-027)<br>1.13 (2026-07-26): ADR-QD-025, mutation testing as a merge gate (CCR-QD-026)<br>1.12 (2026-07-26): MLS verified; INV-QD-019 and BEH-QD-102, the order laws (CCR-QD-024)<br>1.11 (2026-07-26): Biba verified, both variants (CCR-QD-023)<br>1.10 (2026-07-26): Chinese Wall and task-based control verified (CCR-QD-022)<br>1.9 (2026-07-26): Separation of duty verified (CCR-QD-021)<br>1.8 (2026-07-26): Predicate output built (CCR-QD-020)<br>1.7 (2026-07-26): Rule tables built (CCR-QD-019)<br>1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.22 (2026-07-26): Four §1 ranges corrected — behaviour files 01, 03, 05 and 07 had gained identifiers the matrix never followed (CCR-QD-035)<br>1.21 (2026-07-26): `DecisionCache.ts` added to the services row (CCR-QD-034)<br>1.20 (2026-07-26): The Promise facade; behaviour 22, INV-QD-026, ADR-QD-032 (CCR-QD-033)<br>1.19 (2026-07-26): The decision cache; behaviour 21, INV-QD-025, ADR-QD-031 (CCR-QD-032)<br>1.18 (2026-07-26): Policy simplification; behaviour 20, INV-QD-024, ADR-QD-030 (CCR-QD-031)<br>1.17 (2026-07-26): `join` and `meet`; INV-QD-023, ADR-QD-029; MLS to Shipped (CCR-QD-030)<br>1.16 (2026-07-26): Decision hydration; behaviour 19, INV-QD-022, ADR-QD-028 (CCR-QD-029)<br>1.15 (2026-07-26): Policy explanation; behaviour 18, INV-QD-021, ADR-QD-027, `@REQ-QD-023` (CCR-QD-028)<br>1.14 (2026-07-26): Concurrent evaluation; behaviour 17, INV-QD-020, ADR-QD-026, `@REQ-QD-022` (CCR-QD-027)<br>1.13 (2026-07-26): ADR-QD-025, mutation testing as a merge gate (CCR-QD-026)<br>1.12 (2026-07-26): MLS verified; INV-QD-019 and BEH-QD-102, the order laws (CCR-QD-024)<br>1.11 (2026-07-26): Biba verified, both variants (CCR-QD-023)<br>1.10 (2026-07-26): Chinese Wall and task-based control verified (CCR-QD-022)<br>1.9 (2026-07-26): Separation of duty verified (CCR-QD-021)<br>1.8 (2026-07-26): Predicate output built (CCR-QD-020)<br>1.7 (2026-07-26): Rule tables built (CCR-QD-019)<br>1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -32,13 +32,13 @@ contract.
 
 | Behavior file | Range | Source module |
 | ------------- | ----- | ------------- |
-| [01 — Permission Tokens](behaviors/01-permissions.md) | BEH-QD-001–005 | `packages/core/src/Permission.ts` |
+| [01 — Permission Tokens](behaviors/01-permissions.md) | BEH-QD-001–006 | `packages/core/src/Permission.ts` |
 | [02 — Roles and Inheritance](behaviors/02-roles.md) | BEH-QD-009–012 | `packages/core/src/Role.ts`, `AuthSubject.ts` |
-| [03 — Policy ADT](behaviors/03-policy-adt.md) | BEH-QD-017–019 | `packages/core/src/Policy.ts` |
+| [03 — Policy ADT](behaviors/03-policy-adt.md) | BEH-QD-017–020 | `packages/core/src/Policy.ts` |
 | [04 — Matcher DSL](behaviors/04-matchers.md) | BEH-QD-025–028 | `packages/core/src/Matcher.ts` |
-| [05 — Evaluator](behaviors/05-evaluator.md) | BEH-QD-033–039 | `packages/core/src/Evaluate.ts`, `Decision.ts` |
+| [05 — Evaluator](behaviors/05-evaluator.md) | BEH-QD-033–040 | `packages/core/src/Evaluate.ts`, `Decision.ts` |
 | [06 — Services and Layers](behaviors/06-services.md) | BEH-QD-041–044 | `packages/core/src/{CurrentSubject,AttributeResolver,RelationshipResolver,DecisionHistory,DecisionCache,EvaluationId}.ts` |
-| [07 — Enforcement](behaviors/07-enforcement.md) | BEH-QD-049–052 | `packages/core/src/Qadi.ts` |
+| [07 — Enforcement](behaviors/07-enforcement.md) | BEH-QD-049–053 | `packages/core/src/Qadi.ts` |
 | [08 — Serialization](behaviors/08-serialization.md) | BEH-QD-057–059 | `packages/core/src/Policy.ts` |
 | [09 — React Integration](behaviors/09-react.md) | BEH-QD-065–071 | `packages/react/src/QadiAtoms.ts`, `QadiProvider.tsx`, `hooks.ts`, `components.tsx` |
 | [10 — The Action Dimension](behaviors/10-actions.md) | BEH-QD-073–078 | `packages/core/src/Evaluate.ts`, `Policy.ts`, `Matcher.ts`, `Errors.ts` |
@@ -132,7 +132,7 @@ contract.
 | `packages/core/test/Tokens.test.ts` | BEH-QD-001–012, INV-QD-001, INV-QD-002, INV-QD-010 |
 | `packages/core/test/Policy.test.ts` | BEH-QD-017–019, BEH-QD-057–059, BEH-QD-074, BEH-QD-081, BEH-QD-091–092, INV-QD-003 |
 | `packages/core/test/Matcher.test.ts` | BEH-QD-025–028, BEH-QD-075, BEH-QD-097–104, INV-QD-004, INV-QD-011, INV-QD-015, INV-QD-019, INV-QD-023 |
-| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–039, BEH-QD-073–078, BEH-QD-081–086, BEH-QD-089–095, BEH-QD-098–101, INV-QD-005, INV-QD-006, INV-QD-008, INV-QD-011, INV-QD-012, INV-QD-014, INV-QD-015, ADR-QD-009 |
+| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–040, BEH-QD-073–078, BEH-QD-081–086, BEH-QD-089–095, BEH-QD-098–101, INV-QD-005, INV-QD-006, INV-QD-008, INV-QD-011, INV-QD-012, INV-QD-014, INV-QD-015, ADR-QD-009 |
 | `packages/core/test/SubjectSet.test.ts` | BEH-QD-105–109, INV-QD-006, INV-QD-016 |
 | `packages/core/test/Rules.test.ts` | BEH-QD-111–117, INV-QD-004, INV-QD-006, INV-QD-017 |
 | `packages/core/test/Predicate.test.ts` | BEH-QD-121–128, INV-QD-006, INV-QD-011, INV-QD-018 |
@@ -142,7 +142,7 @@ contract.
 | `packages/core/test/DecisionCache.test.ts` | BEH-QD-161–165, INV-QD-025 |
 | `packages/promise/test/facade.test.ts` | BEH-QD-169–173, INV-QD-006, INV-QD-026 |
 | `packages/core/test/Layers.test.ts` | BEH-QD-041–044, INV-QD-007 |
-| `packages/core/test/Qadi.test.ts` | BEH-QD-049–052, BEH-QD-085, INV-QD-009, INV-QD-013 |
+| `packages/core/test/Qadi.test.ts` | BEH-QD-049–053, BEH-QD-085, INV-QD-009, INV-QD-013 |
 | `packages/testing/test/TestLayers.test.ts` | Test fixtures and layers, INV-QD-014 |
 | `packages/react/test/QadiAtoms.test.ts` | BEH-QD-065, BEH-QD-069, BEH-QD-070, BEH-QD-071 |
 | `packages/react/test/QadiProvider.test.tsx` | BEH-QD-067, BEH-QD-068, BEH-QD-070 |

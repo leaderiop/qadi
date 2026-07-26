@@ -225,7 +225,7 @@ Its mechanics are proven independently: subject and resource attributes by
 and [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top),
 denial of a label matching no rung by
 [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed). The worked
-example compiles in CI, so its signatures are current even though its behaviour
+example compiles under the merge gate, so its signatures are current even though its behaviour
 is unasserted. Adopting the model means a newly allocated `REQ-QD` scenario
 covering at minimum a clearance above the label allowing with full fields, a
 clearance below it allowing with narrowed fields, and a label covered by **no**

@@ -7,7 +7,7 @@
 # Every check here exists to make one class of drift impossible to merge.
 #
 # Usage: bash spec/scripts/verify-traceability.sh [--strict]
-#   --strict  treat SKIP as FAIL (used in CI once the spec is complete)
+#   --strict  treat SKIP as FAIL (the merge gate always passes it)
 
 set -uo pipefail
 
