@@ -191,14 +191,17 @@ class Allow extends Data.TaggedClass("Allow")<{
 }> {}
 ```
 
-Composition is the open question, and `mergeFields` is the only place sibling
-results combine today, so obligations need an analogue beside it. `AllOf`
-concatenates, with a rule for two obligations sharing an `id`. `AnyOf` under the
-default `First` strategy takes the obligations of the branch that justified the
-decision, which must be *stated*, because collecting from every allowing branch
-requires exhaustive evaluation and would repeal
-[INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation). `Not` has
-no defensible answer, which is why it belongs in an ADR.
+Composition is settled by [ADR-QD-019](../decisions/019-obligations.md).
+Obligations are a condition on permission, so a decision carries those
+contributed by the allow it returned: `AllOf` unions its children's, `AnyOf`
+unions its allowing children's, and anything that denies carries none. `AnyOf`
+under the default `First` strategy takes the obligations of the branch that
+justified the decision, which the ADR *states* rather than leaves implicit,
+because collecting from every allowing branch requires exhaustive evaluation and
+would repeal
+[INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation). `Not`
+turned out to need no rule at all — it is handed an obligation set in neither of
+its cases.
 
 One constraint is absolute, and matters more here than in XACML because UCON's
 obligations are *actions*: an obligation is **data returned with a decision**,

@@ -81,6 +81,7 @@ contract.
 | [ADR-QD-016](decisions/016-gxp-out-of-scope.md) | GxP out of scope | — |
 | [ADR-QD-017](decisions/017-stale-decisions-are-not-decisions.md) | A decision being re-checked is not a decision | INV-QD-007 |
 | [ADR-QD-018](decisions/018-action-dimension.md) | The action is an evaluation input, not a permission segment | INV-QD-001, INV-QD-006, INV-QD-011 |
+| [ADR-QD-019](decisions/019-obligations.md) | Obligations are a condition on permission (*Proposed*) | INV-QD-003, INV-QD-005, INV-QD-007, INV-QD-009 |
 
 ## §4 Test file map
 

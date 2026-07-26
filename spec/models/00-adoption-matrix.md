@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-00                                    |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
+> | Change History | 1.9 (2026-07-26): E2 decided in ADR-QD-019; two further claims corrected (CCR-QD-014)<br>1.8 (2026-07-26): E1 shipped; ADR-QD-018 Accepted; two claims corrected in §3.4 and §6 (CCR-QD-012)<br>1.7 (2026-07-26): E1 decided in ADR-QD-018 (CCR-QD-011)<br>1.6 (2026-07-26): Span emission verified, unblocking E2 (CCR-QD-010)<br>1.5 (2026-07-26): Phase 0 complete; relationship short-circuit gap closed (CCR-QD-009)<br>1.4 (2026-07-26): Model set complete at thirty-eight; four further claims corrected (CCR-QD-008)<br>1.3 (2026-07-26): Wiring-only models documented; two expressiveness limits recorded (CCR-QD-007)<br>1.2 (2026-07-26): Shipped models documented; three API claims corrected (CCR-QD-006)<br>1.1 (2026-07-26): Package-scope conflict resolved (CCR-QD-005)<br>1.0 (2026-07-26): Initial release (CCR-QD-004) |
 
 ---
 
@@ -121,11 +121,26 @@ That check is INV-QD-011, and it is the only non-obvious part of the work.
 codec change and cannot reproduce the round-trip defect that motivated the
 rewrite.
 
+**Decided, not yet built: [ADR-QD-019](../decisions/019-obligations.md).**
+
 The work is in the evaluator, not the type: `mergeFields` is the only place
-sibling results combine, so obligations need an analogue beside it, with a
-defined rule for what `AllOf`, `AnyOf` and `Not` do to an obligation set. `Not`
-is the hard case — negating a policy that carries an obligation is not obviously
-meaningful, and the answer should be an ADR, not an implementation detail.
+sibling results combine, so obligations need an analogue beside it. `Not` was
+the hard case — negating a policy that carries an obligation is not obviously
+meaningful — and the ADR dissolves it rather than choosing among the three
+candidates the model documents offered. An obligation is a condition on
+permission, so the obligations on a decision are those contributed by the allow
+that was returned; `Not` is handed a set in neither of its two cases.
+
+It corrects two things this matrix and [26 — XACML](./26-xacml.md) had assumed.
+Obligations **union and never intersect** — they are the opposite lattice to
+field visibility, where narrowing is safe and here it is a quiet grant — so
+`FieldStrategy` must not govern them and there is no strategy to configure. And
+`Obliged` *is* a codec change: adding a field to `Allow` is not, but the new
+policy node is, with the same four coordinated edits any variant costs.
+
+The ADR also settles a question the model documents never asked: `enforce` must
+**fail** on an `Allow` carrying a non-advisory obligation it cannot discharge,
+rather than run the guarded effect while the condition goes unmet.
 
 ### E3 — Combining algorithms
 
@@ -417,7 +432,11 @@ building: matchers are total, so a matcher reading an absent action would have
 *denied* rather than failed, and a `referencesAction` pre-check was needed to
 hold the rule. That is the shape to expect from the rest of these.
 
-Next: E2 (obligations, no wire-format change), then E5, E4, E6.
+Next: **E2**, whose ADR is now written
+([ADR-QD-019](../decisions/019-obligations.md), *Proposed*) — additive for
+`Decision`, a codec change for `Policy`, and carrying one behavioural
+consequence beyond the type: `enforce` must refuse an allow whose obligation it
+cannot discharge. Then E5, E4, E6.
 
 Two design questions must be settled by ADR *before* code, because both are
 silent-failure risks rather than matters of taste: the polarity of E5's default

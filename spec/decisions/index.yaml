@@ -56,3 +56,6 @@ entries:
   - id: "ADR-QD-018"
     file: "018-action-dimension.md"
     title: "The action is an evaluation input, not a permission segment"
+  - id: "ADR-QD-019"
+    file: "019-obligations.md"
+    title: "An obligation is a condition on permission, carried by the allow that granted it"

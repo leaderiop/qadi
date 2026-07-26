@@ -41,11 +41,15 @@ modelling them as roles produces a role per purpose per department.
 | -------- | ----- |
 | Status | **Wiring** |
 | Priority | **P1** |
-| Enablers required | **E2 recommended**, not required |
+| Enablers required | **E2 recommended**, not required; decided, unbuilt |
 | Breaking change | No |
 
 Qadi decides on purpose today with no core change. Recording *what was declared*
-— the half of purpose limitation that makes it accountable — is enabler **E2**.
+— the half of purpose limitation that makes it accountable — is enabler **E2**,
+whose design is settled in [ADR-QD-019](../decisions/019-obligations.md) and not
+yet built. Read its closing trade-off alongside this document's: an obligation
+obliges the caller, and neither Qadi nor this model can verify that the record
+was actually written.
 
 ## How Qadi expresses it
 
@@ -206,8 +210,10 @@ the consequence of having declared falsely, not from the check.
 Which makes the *record* the load-bearing part, and the record is an obligation:
 "allow, and log the declared purpose". `Decision` has no obligation channel —
 `Allow` and `Deny` carry a subject id, a reason, a trace and a visible-field set,
-and nothing the caller is obliged to do. Adding one is enabler **E2**, additive
-because decisions have no codec ([the matrix](./00-adoption-matrix.md#e2--obligations-on-decision)).
+and nothing the caller is obliged to do. Adding one is enabler **E2**, whose
+design is [ADR-QD-019](../decisions/019-obligations.md) — additive for `Decision`,
+which has no codec, though the `Obliged` policy node is a codec change like any
+other variant ([the matrix](./00-adoption-matrix.md#e2--obligations-on-decision)).
 Until then the nearest substitute is the span: `evaluate` runs inside
 `qadi.evaluate`, annotated with the decision, subject id, evaluation id and
 policy tag ([ADR-QD-009](../decisions/009-observability-via-effect.md)), and

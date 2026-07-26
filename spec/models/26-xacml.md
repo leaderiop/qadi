@@ -215,6 +215,19 @@ The hard question is **composition**, in three parts:
   construction — and each reads differently in the trace. **That belongs in an
   ADR**, decided before any code.
 
+**Settled by [ADR-QD-019](../decisions/019-obligations.md), and none of the three
+candidates won.** Obligations are a condition on permission, so a decision
+carries those contributed by the allow it returned; `Not` is handed an obligation
+set in neither of its cases and needs no rule. The objection that dropping is
+silent is answered by the trace, which records the node the obligation arose on
+whether or not a negation discarded it.
+
+The ADR also contradicts the `AllOf` bullet above. **A merge policy of the kind
+`FieldStrategy` encodes is exactly the wrong shape**: field sets intersect
+because narrowing disclosure is safe, whereas narrowing a duty lets a caller
+discharge less than an allowing branch required. Obligations union, always, and
+there is no strategy to configure.
+
 `mergeFields` in `Evaluate.ts` is the only place sibling results combine today,
 and it is the shape the obligation analogue should take: one function called
 from `evaluateAllOf` and `evaluateAnyOf`, strategy named rather than implied.
@@ -240,7 +253,7 @@ lands there rather than propose a second, XACML-flavoured spelling of it.
 | Enabler | Nature | Work |
 | ------- | ------ | ---- |
 | ~~**E1**~~ **shipped** | Additive | `action` on `EvaluateOptions` and `MatcherContext`; an `ActionRef` across schema, type, constructor and generator — plus a `referencesAction` pre-check this table did not anticipate |
-| **E2** | Additive | An `Obligation` type, a node carrying it, a merge function beside `mergeFields`, and an ADR for `Not` |
+| **E2** | Additive to `Decision`, **codec change** for `Policy` | An `Obligation` type, an `Obliged` node — four coordinated edits plus the round-trip generator — a union function beside `mergeFields`, and `UndischargedObligation`. The ADR for `Not` is written: [ADR-QD-019](../decisions/019-obligations.md) |
 | **E3** | Breaking | Deferred to [MOD-QD-025](./25-rubac.md) |
 
 Invariants at risk: [INV-QD-001](../invariants.md#inv-qd-001-permission-key-uniqueness)
