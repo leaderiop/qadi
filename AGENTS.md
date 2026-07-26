@@ -326,3 +326,19 @@ So a claim that CI does something is true exactly when that something is in
 `pnpm check`. Before CCR-QD-036 there was no CI at all and six documents said there
 was (CCR-QD-035) — check the workflow before writing the words, rather than the
 other way round.
+
+## 16. Formatting is deliberately not enforced
+
+`oxfmt` is available (`pnpm format`, `pnpm format:check`) and is **not** a merge
+gate. `pnpm format:check` reports 147 of 169 files, and running the formatter
+rewrites 56 of them — almost entirely by *un*wrapping lines this codebase wraps by
+hand at about ninety columns. Setting `lineWidth` in `.oxfmtrc.json` cut the count
+to 55 but did not stop it producing 92-column lines, so its width is not the whole
+disagreement.
+
+That is a genuine conflict of opinion, not an oversight, and it is recorded here so
+nobody has to rediscover it: **do not add `format:check` to `pnpm check` without
+first settling whether the formatter or the hand-wrapping wins.** A script that
+always fails and gates nothing is the shape this repository has spent several
+changes removing; leaving it undecided and undocumented would be the same defect in
+a smaller form.

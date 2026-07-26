@@ -15,3 +15,9 @@ features/reports/
 .doc-examples/
 reports/
 .stryker-tmp/
+
+# Compiled test output, which once got committed beside its source
+packages/*/test/**/*.js
+packages/*/test/**/*.js.map
+packages/*/test/**/*.d.ts
+packages/*/test/**/*.d.ts.map
