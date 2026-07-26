@@ -53,3 +53,6 @@ entries:
   - id: "BEH-QD-129"
     file: "17-concurrency.md"
     title: "17 — Concurrent Evaluation"
+  - id: "BEH-QD-137"
+    file: "18-explanation.md"
+    title: "18 — Policy Explanation"

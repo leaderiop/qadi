@@ -17,7 +17,9 @@ import {
   enforce,
   evaluate,
   evaluatePredicate,
+  explain,
   isAllowed,
+  renderExplanation,
   toPredicate,
   makeSubject,
   toJson,
@@ -131,6 +133,8 @@ export class QadiWorld extends World {
   predicate: Predicate | undefined = undefined;
   /** The policy tag compilation refused, when it refused. */
   refusedTag: string | undefined = undefined;
+  /** The English rendering of a policy, for the explanation scenarios. */
+  explanation: string | undefined = undefined;
   /** Set by serialization scenarios. */
   serialized: string | undefined = undefined;
   restored: Policy | undefined = undefined;
@@ -154,6 +158,7 @@ export class QadiWorld extends World {
     this.events = undefined;
     this.historyUnreachable = false;
     this.concurrency = undefined;
+    this.explanation = undefined;
     this.outcome = NO_OUTCOME;
     this.candidates = [];
     this.review = [];
@@ -171,6 +176,17 @@ export class QadiWorld extends World {
       permissions: this.permissions,
       attributes: this.attributes,
     });
+  }
+
+  /**
+   * Describes a policy without evaluating it.
+   *
+   * No layer, no runtime, no subject — the absence of all three is the point
+   * (ADR-QD-027), and this method taking no services is where that shows in the
+   * test suite rather than only in the type.
+   */
+  describe(policy: Policy): void {
+    this.explanation = renderExplanation(explain(policy));
   }
 
   /** Runs a policy and records the outcome for the Then steps. */

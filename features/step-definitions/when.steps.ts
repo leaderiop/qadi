@@ -604,3 +604,46 @@ When(
     this.runSubjectSet(obliged(logAccess, hasRole(name)));
   },
 );
+
+// ---------------------------------------------------------------------------
+// Policy explanation
+// ---------------------------------------------------------------------------
+
+/**
+ * The publishing policy, described rather than decided.
+ *
+ * `describe` takes no subject and provides no layer — an explanation that varied
+ * by who was looking would be a trace (ADR-QD-027), and these steps are where
+ * that shows as an absence rather than a type.
+ */
+When("the publishing policy is described", function (this: QadiWorld) {
+  this.describe(
+    allOf([
+      hasRole("editor"),
+      obliged(
+        obligation("audit.log"),
+        hasPermission(permission("doc", "publish"), { fields: ["id", "title"] }),
+      ),
+    ]),
+  );
+});
+
+When("an empty conjunction is described", function (this: QadiWorld) {
+  this.describe(allOf([]));
+});
+
+When("an empty disjunction is described", function (this: QadiWorld) {
+  this.describe(anyOf([]));
+});
+
+When("the invoice approval policy is described", function (this: QadiWorld) {
+  this.describe(canApproveInvoice());
+});
+
+When("the rule table is described", function (this: QadiWorld) {
+  this.describe(
+    rules([denyWhen(hasRole("suspended")), permitWhen(hasRole("editor"))], {
+      combining: "DenyOverrides",
+    }),
+  );
+});

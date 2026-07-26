@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.16                                           |
+> | Revision       | 1.17                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -26,15 +26,30 @@ review, predicate output, serialization, React integration and a test toolkit.
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 382 passing |
-| Acceptance scenarios | 132 scenarios, 652 steps passing |
-| Coverage | 99.76% statements, 97.58% branches, 100% lines — thresholds enforced |
-| Doc examples compile | 66 blocks |
+| Unit and property tests | 403 passing |
+| Acceptance scenarios | 147 scenarios, 723 steps passing |
+| Coverage | 99.89% statements, 98.21% branches, 100% lines — thresholds enforced |
+| Doc examples compile | 68 blocks |
 | Specification integrity | 13 checks passing |
-| Mutation score | 89.22% on `packages/core`, break threshold 80 — enforced |
+| Mutation score | 90.03% on `packages/core`, break threshold 80 — enforced |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
+
+**Policy explanation shipped**
+([ADR-QD-027](./decisions/027-policy-explanation.md)): `explain` describes a
+policy without evaluating it, and `renderExplanation` turns the result into
+English. The roadmap entry asked for a string; it got a **tree**, for the reason
+E7 established — Qadi owns no dialect, and an administrative interface renders a
+role as a link rather than as prose Qadi chose.
+
+The entry was written before that argument existed, which is why it described the
+output rather than deciding the type. Two things it did not anticipate: an
+explanation must state **restrictions** as well as requirements, since describing
+`hasPermission(read, { fields: ["id"] })` as "requires permission doc:read"
+overstates the grant; and it takes **no subject**, which is not an optimisation but
+the whole distinction from a trace — an explanation that varied by viewer would leak
+whether they satisfy a policy they are only meant to read.
 
 **Concurrent evaluation shipped**
 ([ADR-QD-026](./decisions/026-concurrent-evaluation.md)):
@@ -144,14 +159,6 @@ survivors) is the same work at a smaller scale, and `Errors.ts` at 61.54% is mos
 message strings, where a survivor may be the correct answer.
 
 Raising the threshold itself is a decision to take **after** this, not before.
-
-### Policy explanation
-
-A human-readable rendering of a policy — "requires role `editor` **and**
-permission `doc:write`" — for administrative interfaces and review.
-
-The trace already answers "why was this denied". This answers "what does this
-rule say", which is a different question and the one a security reviewer asks.
 
 ### Server-side rendering
 

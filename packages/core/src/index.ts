@@ -6,6 +6,7 @@ export * from "./DecisionHistory.ts";
 export * from "./Errors.ts";
 export * from "./Evaluate.ts";
 export * from "./EvaluationId.ts";
+export * from "./Explanation.ts";
 export * from "./Matcher.ts";
 export * from "./Obligation.ts";
 export * from "./Permission.ts";

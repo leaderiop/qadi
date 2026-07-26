@@ -80,3 +80,6 @@ entries:
   - id: "ADR-QD-026"
     file: "026-concurrent-evaluation.md"
     title: "Concurrency changes what is looked up, never what is decided"
+  - id: "ADR-QD-027"
+    file: "027-policy-explanation.md"
+    title: "An explanation is a tree, and English is one rendering of it"

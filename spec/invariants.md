@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.10                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -550,5 +550,44 @@ than the sequential one and asserts that count is non-trivial. INV-QD-018 cost t
 lesson once; it is cheaper to apply it than to relearn it.
 
 **Related**: [BEH-QD-130](behaviors/17-concurrency.md), [INV-QD-005](#inv-qd-005-short-circuit-preservation), [ADR-QD-026](decisions/026-concurrent-evaluation.md).
+
+---
+
+## INV-QD-021: Every policy explains
+
+`explain` returns a non-empty explanation for every policy, and the explanation
+has exactly one node per policy node.
+
+**Source**: `packages/core/src/Explanation.ts` — `explain`, `matcherText` and
+`refText` are each a `Match.tagsExhaustive` over their union, so a variant added
+without an arm fails to compile. `explain` has no error channel and no services in
+its signature.
+
+**Implication**: an unexplained node would render as `undefined` inside an
+otherwise fluent sentence — the worst failure mode available here, because it reads
+as prose and a reviewer would not notice a requirement had gone missing. Totality
+is what makes the output safe to put in front of someone making a decision.
+
+**This is the one interpreter with no agreement property**, and that is a real
+difference from [INV-QD-018](#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows).
+A predicate is a second way of *deciding*, so it can be compared against the
+evaluator row by row. An explanation is prose *about* a policy: there is nothing to
+compare it to, and no test can establish that a sentence means what a tree says.
+So what is asserted instead is the structural correspondence — one explanation node
+per policy node — because a composite that silently dropped a child would still
+render fluently.
+
+**Not symmetrical with `toPredicate`, deliberately.** That refuses what it cannot
+translate ([BEH-QD-123](behaviors/16-predicates.md)); this refuses nothing. A
+partial translation returns wrong rows, so refusing is safe; a partial explanation
+is an incomplete description, and no description at all is worse.
+
+**Enforcement**: a `FastCheck` property over 200 generated trees asserts every
+rendering is non-empty and contains neither `"undefined"` nor `"[object"`. Every
+matcher and every value reference has an explicit case, because a missing arm would
+render as `undefined` in the middle of a sentence rather than throw. Node counts
+are compared directly.
+
+**Related**: [BEH-QD-137](behaviors/18-explanation.md), [BEH-QD-141](behaviors/18-explanation.md), [ADR-QD-027](decisions/027-policy-explanation.md).
 
 ---

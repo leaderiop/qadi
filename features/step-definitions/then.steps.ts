@@ -214,3 +214,14 @@ Then("the predicate and the evaluator agree on every row", function (this: QadiW
   ];
   assert.ok(this.agreesWith(sealedRows(), rows), "the two interpreters disagreed");
 });
+
+Then("the description reads {string}", function (this: QadiWorld, expected: string) {
+  assert.equal(this.explanation, expected);
+});
+
+Then("the description mentions {string}", function (this: QadiWorld, expected: string) {
+  assert.ok(
+    this.explanation !== undefined && this.explanation.includes(expected),
+    `description ${JSON.stringify(this.explanation)} omits ${JSON.stringify(expected)}`,
+  );
+});
