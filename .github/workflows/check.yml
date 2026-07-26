@@ -62,8 +62,14 @@ jobs:
 
       # The mutation HTML report is the artefact you want when the score drops,
       # and it is the one thing `pnpm check` produces that a log cannot show.
+      #
+      # `continue-on-error` because this is diagnostics, not a gate: if the gate
+      # passed, the build passed, and a transient upload failure should not turn
+      # that red. It also means a local `act` run is green — act cannot supply
+      # `ACTIONS_RUNTIME_TOKEN`, so this step can never succeed there.
       - name: Upload mutation report
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: mutation-report
