@@ -66,4 +66,4 @@ test fails first.
 
 ## License
 
-MIT, declared in every package manifest. A `LICENSE` file has not been added yet.
+MIT — see [LICENSE](./LICENSE). Copyright (c) 2026 Mohammad AL Mechkor.

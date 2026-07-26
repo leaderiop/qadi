@@ -3,6 +3,12 @@
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
+  "author": "Mohammad AL Mechkor",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/leaderiop/qadi.git",
+    "directory": "packages/testing"
+  },
   "description": "Test layers, fixtures, conformance suites and matchers for @qadi/core",
   "sideEffects": false,
   "exports": {
@@ -17,7 +23,10 @@
       "import": "./lib/*.js"
     }
   },
-  "files": ["lib", "src"],
+  "files": [
+    "lib",
+    "src"
+  ],
   "scripts": {
     "build": "tsc -b tsconfig.json",
     "typecheck": "tsc -b tsconfig.json",

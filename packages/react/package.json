@@ -3,6 +3,12 @@
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
+  "author": "Mohammad AL Mechkor",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/leaderiop/qadi.git",
+    "directory": "packages/react"
+  },
   "description": "React integration for @qadi/core — QadiProvider, hooks, Can/Cannot",
   "sideEffects": false,
   "exports": {

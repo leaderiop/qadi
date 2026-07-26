@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "license": "MIT",
+  "author": "Mohammad AL Mechkor",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/leaderiop/qadi.git"
+  },
   "packageManager": "pnpm@10.17.1",
   "description": "Effect-native authorization: permission tokens, role DAG, schema-derived policy ADT, Effect evaluator",
   "scripts": {
