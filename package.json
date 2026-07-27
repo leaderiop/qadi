@@ -19,6 +19,7 @@
     "test:watch": "vitest",
     "test:types": "vitest run --typecheck",
     "coverage": "vitest run --coverage",
+    "bench": "vitest bench --run",
     "mutation": "stryker run",
     "test:bdd": "pnpm --filter @qadi/features test",
     "lint": "oxlint && node scripts/check-house-style.mjs",

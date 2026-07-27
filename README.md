@@ -48,6 +48,7 @@ pnpm spec:examples # compile every runnable example in spec/
 pnpm spec:verify:strict  # specification internal consistency
 pnpm spec:api      # the documented API surface matches the real one
 pnpm spec:package  # the packed packages install, resolve and authorize
+pnpm bench         # dispatch and evaluation throughput (measurement, not a gate)
 pnpm mutation      # Stryker, breaking below 80% on packages/core
 pnpm check         # all eleven gates, in order
 ```

@@ -219,6 +219,16 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
       return context.action;
     case "LiteralRef":
       return ref.value;
+    default: {
+      // Unreachable, and not decoration. The return type is `unknown` — a
+      // resolved attribute may legitimately be `undefined` — so an unhandled tag
+      // would compile and silently resolve to `undefined`, which every matcher
+      // then compares against and denies. This is the only thing standing where
+      // `Match.tagsExhaustive` would stand, and it costs nothing at runtime
+      // (ADR-QD-034). A tag was added here once already: `ActionRef`.
+      const exhaustive: never = ref;
+      return exhaustive;
+    }
   }
 };
 

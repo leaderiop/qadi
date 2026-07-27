@@ -170,6 +170,15 @@ const mergeFields = (
     }
     case "First":
       return sets.length === 0 ? undefined : sets[0];
+    default: {
+      // Unreachable, and load-bearing for the same reason as `resolveRef`'s: the
+      // return type already includes `undefined`, so a fourth strategy would
+      // compile and silently merge to "all fields" — the *top* of the field
+      // lattice, which widens visibility rather than narrowing it. That is the
+      // one direction a field-strategy bug must never fail in (ADR-QD-034).
+      const exhaustive: never = strategy;
+      return exhaustive;
+    }
   }
 };
 

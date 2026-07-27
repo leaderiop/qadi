@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.base.json",
-  "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx", "packages/*/test/**/*.ts", "packages/*/test/**/*.tsx"],
+  "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx", "packages/*/test/**/*.ts", "packages/*/test/**/*.tsx", "packages/*/bench/**/*.ts"],
   "compilerOptions": {
     "noEmit": true,
     "composite": false,

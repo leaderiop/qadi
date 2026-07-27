@@ -173,10 +173,26 @@ file and its exact count, and gate 4 fails on any deviation.
 
 All four run once per policy node or matcher node per evaluation — and in `filter`
 and `decideSubjects`, once per element on top of that — where their handlers close
-over per-call state so the matcher cannot be hoisted to module scope. They are a
-deliberate exception, not an oversight; converting them needs a benchmark first.
-**No benchmark exists yet**, so the cost is unmeasured, and that is the honest
-reason the exception stands rather than a claim that a switch is faster.
+over per-call state so the matcher cannot be hoisted to module scope.
+
+**Now measured** (`pnpm bench`, ADR-QD-034). At the dispatch site a `switch` is
+**1.6–2.4×** faster than a hoisted `Match` whose arms return a closure, and
+**3.5–7.7×** faster than `Match.value` rebuilt per call — which is the form a
+naive conversion produces. End to end that is about **2–4%** on a matcher-heavy
+policy and **under 1%** on a simple one. Ranges, not figures: absolute throughput
+on a development machine moves by ~30% between runs, so only the direction
+transfers. Small, then, but not noise — and not worth paying for style on an
+authorization hot path.
+
+**Each of these switches must remain exhaustive by construction.** Two of the four
+were not, and they were the two this section had failed to declare: `resolveRef`
+returns `unknown` and `mergeFields` returns `… | undefined`, so a new tag compiled
+and returned `undefined` silently. `resolveRef` would then deny everything;
+`mergeFields` would merge to the **top** of the field lattice and *widen*
+visibility. Both now carry a `default` arm assigning the scrutinee to `never`,
+which is free at runtime and makes a new tag the same compile error
+`Match.tagsExhaustive` gives. A switch whose return type cannot absorb `undefined`
+— `evaluateNode` and `evaluateMatcher` — already gets TS2366 and needs no guard.
 
 The budget is an exact count and not a per-file pass, deliberately: a blanket
 exemption would let the next `switch` into these two files unnoticed, and they are

@@ -101,3 +101,6 @@ entries:
   - id: "ADR-QD-033"
     file: "033-the-packed-artifact-is-the-product.md"
     title: "The packed artifact is the product, so a gate installs it"
+  - id: "ADR-QD-034"
+    file: "034-the-switch-exception-is-measured.md"
+    title: "The switch exception is measured, and two of the four were unguarded"

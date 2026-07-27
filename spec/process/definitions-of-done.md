@@ -86,6 +86,12 @@ ADR**. Quoted evidence nobody else can reproduce is the predecessor's failure mo
 in miniature. It adds about 75 seconds to `pnpm check`, which is the price of the
 gate being real rather than described.
 
+`pnpm bench` is **not** a gate and is not in `pnpm check` (ADR-QD-034). A timing
+threshold on a shared runner fails for reasons unrelated to the change under test — the
+same property that made the mutation artefact upload `continue-on-error`. Benchmarks are
+a tool for arguing about a regression, with `vitest bench --compare`, and
+`packages/*/bench` is type-checked so one cannot rot away from the API it measures.
+
 ## Per-change checklist
 
 - [ ] Behaviour change is reflected in the relevant `behaviors/*.md`.
