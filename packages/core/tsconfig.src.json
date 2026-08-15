@@ -8,7 +8,7 @@
     "noEmit": false,
     "outDir": "./lib",
     "rootDir": "./src",
-    "tsBuildInfoFile": "./lib/.tsbuildinfo",
+    "tsBuildInfoFile": "./.tsbuildinfo",
     "paths": {
       "@/*": [
         "./src/*"
