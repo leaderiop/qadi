@@ -11,3 +11,7 @@ catalog:
   react-dom: 19.2.8
   typescript: ^7.0.0
   vitest: 4.1.10
+
+onlyBuiltDependencies:
+  - esbuild
+  - msgpackr-extract
