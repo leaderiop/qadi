@@ -16,6 +16,7 @@ features/reports/
 .package-check/
 reports/
 .stryker-tmp/
+.scratch/
 
 # Compiled test output, which once got committed beside its source
 packages/*/test/**/*.js
