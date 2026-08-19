@@ -111,7 +111,7 @@ export const makeQadi = (layer: QadiLayer): Qadi => {
     subject: AuthSubject,
     effect: Effect.Effect<A, E, EvaluationServices>,
   ): Promise<A> =>
-    runtime.runPromise(Effect.provide(effect, currentSubjectLayer(subject))) as Promise<A>;
+    runtime.runPromise(Effect.provide(effect, currentSubjectLayer(subject)));
 
   return {
     check: (subject, policy, options) => run(subject, checkCore(policy, options)),

@@ -191,7 +191,7 @@ export const hydrateDecisions = (
     // `AsyncResult.success` with no `waiting`, so `currentDecision` returns it
     // rather than reading it as stale (ADR-QD-017).
     const value: DecisionResult = AsyncResult.success(rebuild(entry, subject.id));
-    seeded.push([atom as Atom.Atom<unknown>, value] as const);
+    seeded.push([atom, value]);
   }
 
   return seeded;

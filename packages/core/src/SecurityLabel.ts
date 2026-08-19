@@ -37,6 +37,15 @@ const isStringArray = (value: unknown): value is ReadonlyArray<string> =>
   Array.isArray(value) && value.every((c) => typeof c === "string");
 
 /**
+ * `key in value` narrows `value` to carry that key without a cast — the
+ * standard TS idiom for "does this `object` have this property" once `value`
+ * is already past `typeof value === "object" && value !== null`, which is as
+ * far as `typeof`/`Array.isArray` narrowing can take an `unknown` on its own.
+ */
+const hasProp = <K extends string>(value: object, key: K): value is Record<K, unknown> =>
+  key in value;
+
+/**
  * Recognises a label in untrusted data.
  *
  * Total, like everything a matcher can reach: anything that is not a label is
@@ -45,8 +54,10 @@ const isStringArray = (value: unknown): value is ReadonlyArray<string> =>
 export const isSecurityLabel = (value: unknown): value is SecurityLabel =>
   typeof value === "object" &&
   value !== null &&
-  typeof (value as { level?: unknown }).level === "number" &&
-  isStringArray((value as { compartments?: unknown }).compartments);
+  hasProp(value, "level") &&
+  typeof value.level === "number" &&
+  hasProp(value, "compartments") &&
+  isStringArray(value.compartments);
 
 const covers = (
   wider: ReadonlyArray<string>,

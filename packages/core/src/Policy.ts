@@ -229,12 +229,21 @@ export interface CombinatorOptions {
  * would make a constructed policy structurally different from the same policy
  * after a round trip — and `deepStrictEqual` would see the difference. Omitting
  * keeps encode/decode an exact identity.
+ *
+ * One monomorphic helper per key rather than a single one generic over the key
+ * name: a generic computed property `{ [key]: value }` only ever type-checks
+ * as an index signature, `{ [x: string]: V }`, not the precise `Record<K, V>`
+ * — closing that gap needs either a cast or a same-shaped but untyped
+ * implementation signature underneath the generic, and both just move the
+ * unsoundness rather than remove it. Two ordinary, fully-typed functions have
+ * no such gap to close.
  */
-const optionalKey = <K extends string, V>(
-  key: K,
-  value: V | undefined,
-): Readonly<Record<K, V>> | Record<string, never> =>
-  value === undefined ? {} : ({ [key]: value } as Readonly<Record<K, V>>);
+const fieldsKey = (
+  fields: ReadonlyArray<string> | undefined,
+): Readonly<{ fields?: ReadonlyArray<string> }> => (fields === undefined ? {} : { fields });
+
+const depthKey = (depth: number | undefined): Readonly<{ depth?: number }> =>
+  depth === undefined ? {} : { depth };
 
 export const hasPermission = (
   permission: Permission,
@@ -242,7 +251,7 @@ export const hasPermission = (
 ): Policy => ({
   _tag: "HasPermission",
   permission,
-  ...optionalKey("fields", options?.fields),
+  ...fieldsKey(options?.fields),
 });
 
 /** The subject holds the given role, directly or by inheritance. */
@@ -257,7 +266,7 @@ export const hasAttribute = (
   _tag: "HasAttribute",
   attribute,
   matcher,
-  ...optionalKey("fields", options?.fields),
+  ...fieldsKey(options?.fields),
 });
 
 /** A resource attribute satisfies the matcher. */
@@ -269,7 +278,7 @@ export const hasResourceAttribute = (
   _tag: "HasResourceAttribute",
   attribute,
   matcher,
-  ...optionalKey("fields", options?.fields),
+  ...fieldsKey(options?.fields),
 });
 
 /** The subject has the named relationship to the resource. */
@@ -279,8 +288,8 @@ export const hasRelationship = (
 ): Policy => ({
   _tag: "HasRelationship",
   relation,
-  ...optionalKey("depth", options?.depth),
-  ...optionalKey("fields", options?.fields),
+  ...depthKey(options?.depth),
+  ...fieldsKey(options?.fields),
 });
 
 /**
@@ -294,7 +303,7 @@ export const hasRelationship = (
 export const hasAction = (action: string, options?: FieldOptions): Policy => ({
   _tag: "HasAction",
   action,
-  ...optionalKey("fields", options?.fields),
+  ...fieldsKey(options?.fields),
 });
 
 export interface HistoryOptions extends FieldOptions {
@@ -312,7 +321,7 @@ export const hasActed = (event: string, options?: HistoryOptions): Policy => ({
   _tag: "HasActed",
   event,
   scope: options?.scope ?? "Resource",
-  ...optionalKey("fields", options?.fields),
+  ...fieldsKey(options?.fields),
 });
 
 /**
@@ -329,7 +338,7 @@ export const hasNotActed = (event: string, options?: HistoryOptions): Policy => 
   _tag: "HasNotActed",
   event,
   scope: options?.scope ?? "Resource",
-  ...optionalKey("fields", options?.fields),
+  ...fieldsKey(options?.fields),
 });
 
 /**

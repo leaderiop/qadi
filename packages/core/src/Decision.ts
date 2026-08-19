@@ -73,6 +73,18 @@ export type Decision = Allow | Deny;
 export const isAllowed = (self: Decision): self is Allow => self._tag === "Allow";
 
 /**
+ * A runtime field name is a member of `A`'s keys exactly when `data` actually
+ * has it — that fact lives at runtime, not in `A`'s type, so a user-defined
+ * type predicate is what turns it into a compile-time one. This is the single
+ * place the boundary between "`visibleFields` is a `ReadonlyArray<string>`"
+ * and "`A`'s keys" gets crossed; everywhere downstream of it is fully typed.
+ */
+const isFieldOf = <A extends Record<string, unknown>>(
+  data: A,
+  field: string,
+): field is keyof A & string => Object.hasOwn(data, field);
+
+/**
  * Projects a record down to the fields the decision makes visible.
  *
  * A denial exposes nothing. An allow with no field restriction exposes
@@ -85,10 +97,16 @@ export const project = <A extends Record<string, unknown>>(
   if (!isAllowed(decision)) return {};
   if (decision.visibleFields === undefined) return data;
 
+  // Not a write through `out[field] = …` — TS permits reading a
+  // generic-indexed type but not writing through one (TS2862) — but also not
+  // a fresh `{ ...out, [field]: … }` literal per field, which is the same
+  // restriction worked around at O(n²) instead of O(1) per step.
+  // `Object.assign` mutates `out` directly without ever indexing it by a
+  // generic key, so it sidesteps TS2862 at O(1) amortized per field.
   const out: Partial<A> = {};
   for (const field of decision.visibleFields) {
-    if (Object.hasOwn(data, field)) {
-      out[field as keyof A] = data[field as keyof A];
+    if (isFieldOf(data, field)) {
+      Object.assign(out, { [field]: data[field] });
     }
   }
   return out;

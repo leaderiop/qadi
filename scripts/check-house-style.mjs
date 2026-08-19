@@ -45,7 +45,15 @@ const RULES = [
   },
   {
     id: "no-type-assertion",
-    re: /\bas\s+(?:any|unknown|never)\b/,
+    // Matches any `as <Type>` assertion, `as const` excepted — AGENTS.md §6 bans
+    // `as` outright, not just the any/unknown/never forms. `{`/`[` catch a cast
+    // to an inline object or tuple type (`as { id: string }`, `as [string,
+    // number]`), which a named-identifier-only class would silently miss.
+    // Import/export rename clauses (`import { assert as assertCore } from
+    // "..."`) use the same `as` keyword for something else entirely, so they're
+    // exempted below rather than matched here — this regex alone can't tell the
+    // two apart.
+    re: /\bas\s+(?!const\b)(?:[A-Za-z_$]|[([{])/,
     message: "No type assertions — fix the underlying type.",
   },
   {
@@ -106,6 +114,37 @@ const SWITCH_BUDGET = {
 
 const SWITCH = /\bswitch\s*\(/;
 
+// `import { assert as assertCore } from "..."` reuses the `as` keyword for
+// renaming, not type assertion, and a multi-line named-import list puts the
+// rename on a continuation line the start-of-statement regex never sees. So
+// this is tracked as a small span, like the block-comment state below: once a
+// line opens an import or re-export-from clause, every line up to and
+// including the one closing it is exempt from no-type-assertion specifically
+// — every other rule still applies as normal.
+//
+// Deliberately narrower than "starts with `export`": `export interface`,
+// `export const`, `export class` etc. never carry a `from` clause, so a naive
+// `/^\s*(?:import|export)\b/` start test never closes on those declarations
+// and silently exempts everything after the first one in the file — caught by
+// hand while writing this rule. Only the forms that can legitimately end in
+// `from "..."` open the span.
+//
+// Closing tracks brace depth, not a line count: a first version capped the
+// span at a fixed line count as a backstop against a from-less local rename
+// (`export { X as Y };`, which cannot be told apart from a real multi-line
+// import by the start pattern alone) — but `packages/testing/src/TestLayers.ts`
+// has a genuine 13-line named import, one line past that cap, so the backstop
+// closed the exemption a line before the real `from` and would have
+// unexempted a rename landing on that last line. Braces close exactly when the
+// statement does, for both shapes, at any length, so depth tracking has no
+// such boundary to misjudge — `from` closes it in the normal case, and depth
+// returning to zero without ever seeing `from` closes it in the rename case.
+// IMPORT_MAX_LINES is a last-resort backstop only, for a file too malformed to
+// balance its own braces; it is not the mechanism doing the real work anymore.
+const IMPORT_START = /^\s*(?:import\b|export\s+(?:\*|\{|type\s*\{))/;
+const IMPORT_END = /\bfrom\s+["']/;
+const IMPORT_MAX_LINES = 200;
+
 /** Recursively collect .ts/.tsx files under a directory. */
 const collect = (dir) => {
   /** @type {string[]} */
@@ -150,6 +189,9 @@ for (const file of sources) {
   const exempt = EXEMPTIONS[rel] ?? [];
   const lines = readFileSync(file, "utf8").split("\n");
   let inBlockComment = false;
+  let inImport = false;
+  let importSpan = 0;
+  let importBraceDepth = 0;
 
   lines.forEach((raw, index) => {
     // Track multi-line comments so prose in doc blocks never trips a rule.
@@ -162,6 +204,30 @@ for (const file of sources) {
     const line = strip(raw);
     if (line.trim() === "" || line.trimStart().startsWith("*")) return;
 
+    // A new import/export-from clause always starts its own span, even when it
+    // follows another one with no blank line between — otherwise back-to-back
+    // clauses share one accumulating brace depth and the second closes on the
+    // first's leftover balance instead of its own.
+    const startsImport = IMPORT_START.test(line);
+    if (startsImport) {
+      importBraceDepth = 0;
+      importSpan = 0;
+    }
+    const importActive = inImport || startsImport;
+    if (importActive) {
+      importSpan += 1;
+      const braceOpens = (line.match(/\{/g) ?? []).length;
+      const braceCloses = (line.match(/\}/g) ?? []).length;
+      importBraceDepth += braceOpens - braceCloses;
+      const sawFrom = IMPORT_END.test(line);
+      // Closes on `from` (the normal case) or on the statement's own braces
+      // balancing back to zero without ever seeing one (the from-less local
+      // rename case) — whichever this particular line actually is.
+      inImport = !sawFrom && importBraceDepth > 0 && importSpan < IMPORT_MAX_LINES;
+    } else {
+      importSpan = 0;
+    }
+
     if (SWITCH.test(line)) {
       const found = switchLines.get(rel) ?? [];
       found.push(index + 1);
@@ -170,6 +236,7 @@ for (const file of sources) {
 
     for (const rule of RULES) {
       if (exempt.includes(rule.id)) continue;
+      if (rule.id === "no-type-assertion" && importActive) continue;
       if (rule.re.test(rule.raw === true ? raw : line)) {
         failures += 1;
         console.error(
