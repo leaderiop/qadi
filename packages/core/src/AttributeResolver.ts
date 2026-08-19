@@ -10,6 +10,7 @@
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import type * as Schedule from "effect/Schedule";
 import type { AttributeResolveError } from "./Errors.ts";
 
 export interface AttributeResolverShape {
@@ -53,3 +54,28 @@ export const attributeResolverFromRecord = (
   Layer.succeed(AttributeResolver, {
     resolve: (_subjectId, attribute) => Effect.succeed(table[attribute]),
   });
+
+/**
+ * Wraps a resolver layer so every `resolve` call retries on
+ * `AttributeResolveError` under the given schedule before surfacing it.
+ *
+ * Additive, not a change to {@link AttributeResolverShape}: a schedule that
+ * exhausts still surfaces the same `AttributeResolveError` it always would,
+ * just after retrying. Every shipped resolver here is a static in-memory
+ * fixture and never fails this way, so nothing needs this today — it exists
+ * for the resolver this module's own doc comment anticipates, "backed by a
+ * graph database or a remote service", which does.
+ */
+export const attributeResolverRetrying =
+  (schedule: Schedule.Schedule<unknown, AttributeResolveError>) =>
+  (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver> =>
+    Layer.effect(
+      AttributeResolver,
+      Effect.map(Layer.build(layer), (context) => {
+        const inner = Context.get(context, AttributeResolver);
+        return {
+          resolve: (subjectId: string, attribute: string) =>
+            inner.resolve(subjectId, attribute).pipe(Effect.retry(schedule)),
+        };
+      }),
+    );
