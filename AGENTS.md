@@ -2,10 +2,22 @@
 
 Effect-native authorization library. **Effect v4.** These rules are not suggestions; code that violates them does not merge.
 
+New here? `CONTRIBUTING.md` is a short index into the section below that
+governs whichever change you're making — read that first rather than this
+file end to end.
+
 Style reference projects (read them when in doubt):
 
 - `/Users/u1070457/Projects/Sanofi/alchemy` — Effect v4 beta, `AGENTS.md` is its authority
 - `/Users/u1070457/Projects/Sanofi/effect` — the Effect v4 source itself
+
+**Doc-comment shape**: lead with a one-line summary of what the export is or
+does; put the *why* — predecessor history, ADR citations, invariant
+cross-references — in the paragraph(s) after it, not folded into the first
+sentence. A reader skimming for "what does this do" gets it from line one; a
+reviewer who needs the rationale reads on. This is already how most of this
+codebase's comments are written (see `Evaluate.ts`, `Qadi.ts`) — stated here
+so it stays the default rather than drifting file by file.
 
 ---
 
@@ -98,7 +110,11 @@ export class AccessDenied extends Data.TaggedError("AccessDenied")<{
 }> {}
 ```
 
-Handling — v4 uses the **array form**; there is no `catchTags({...})` object form:
+Handling — use the **array form**, never `catchTags({...})`. (The installed
+`effect@4.0.0-rc.110` still ships `Effect.catchTags` with an object-form
+signature, so this is a house-style choice enforced by
+`scripts/check-house-style.mjs`'s `no-catchtags-object-form` rule, not
+something the API's absence makes moot — a stray call compiles cleanly.)
 
 ```ts
 // ✅
@@ -383,18 +399,18 @@ it from the day the facade landed and nobody noticed for six commits, because
 `tsc -b` on the typecheck graph emits the same `lib/` and left something on disk that
 looked like a build product (ADR-QD-033). Adding a package means editing both.
 
-## 17. Formatting is deliberately not enforced
+## 17. Formatting: hand-wrapping wins, `oxfmt` stays out of the gate
 
 `oxfmt` is available (`pnpm format`, `pnpm format:check`) and is **not** a merge
-gate. `pnpm format:check` reports 147 of 169 files, and running the formatter
-rewrites 56 of them — almost entirely by *un*wrapping lines this codebase wraps by
-hand at about ninety columns. Setting `lineWidth` in `.oxfmtrc.json` cut the count
-to 55 but did not stop it producing 92-column lines, so its width is not the whole
-disagreement.
+gate — this is now a settled choice, not an open question. `pnpm format:check`
+reports 147 of 169 files, and running the formatter rewrites 56 of them — almost
+entirely by *un*wrapping lines this codebase wraps by hand at about ninety
+columns. Setting `lineWidth` in `.oxfmtrc.json` cut the count to 55 but did not
+stop it producing 92-column lines, so its width was never the whole disagreement.
 
-That is a genuine conflict of opinion, not an oversight, and it is recorded here so
-nobody has to rediscover it: **do not add `format:check` to `pnpm check` without
-first settling whether the formatter or the hand-wrapping wins.** A script that
-always fails and gates nothing is the shape this repository has spent several
-changes removing; leaving it undecided and undocumented would be the same defect in
-a smaller form.
+Hand-wrapping wins: it is already what 113 of 169 files do, nothing in this
+codebase's review history has flagged the wrapping style as a problem, and
+reformatting the other 56 to match `oxfmt` would be a large, purely cosmetic
+diff with no correctness or readability payoff. **`oxfmt` does not go in
+`pnpm check`.** If a future change wants to revisit this, it needs a reason
+beyond taste — this section existing is not license to reopen it without one.
