@@ -109,6 +109,31 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `intersectFields`, `unionFields` | function | `Decision.ts` |
 | `EnforceOptions`, `EnforcementError`, `ObligationHandler` | type | `Qadi.ts` |
 
+#### Which of the six to call
+
+`Qadi.ts`'s own header names the line that actually divides these six: **reporting
+versus enforcing**. `decide` and `check` report — they hand back an answer and run
+nothing, so any obligation is the caller's to read off the decision. `assert`,
+`enforce`, `enforceProjected` and `filter` enforce — each either runs work or hands
+over data, so each refuses an allow whose obligation nobody has discharged
+([ADR-QD-019](decisions/019-obligations.md)).
+
+| Call | Use when | Returns | On denial |
+| ---- | -------- | ------- | --------- |
+| `decide` | You need the full decision — trace, visible fields, obligations — to inspect, log, or hand to `@qadi/react`'s hydration. | `Decision` (`Allow \| Deny`) | Carried in the `Decision`, never thrown |
+| `check` | You need a plain yes/no gate, **and the policy carries no obligation**. A boolean has no room to represent one, so an obligation on an `Allow` a caller reaches through `check` is silently never discharged — reach for `decide` (or an enforcing call) the moment a policy might carry one. | `boolean` | `false` |
+| `assert` | You have no `Effect` to wrap — a standalone precondition before a block of otherwise-imperative code. | `void` | Fails with `AccessDenied` |
+| `enforce` | You have one `Effect` to guard, and its result should pass through unchanged. | `A`, the wrapped effect's own result | Fails with `AccessDenied`; the wrapped effect never runs |
+| `enforceProjected` | You have one `Effect` returning a record, and the caller on the other side of it should see only the fields the policy allows — an API response, a UI prop, anything crossing a trust boundary. | `Partial<A>` | Fails with `AccessDenied`; the wrapped effect never runs |
+| `filter` | You have a list of items to authorize one at a time, each as the evaluation's `resource`, and want back only the ones allowed. | `ReadonlyArray<A>` | Denied items are dropped from the result, not surfaced individually |
+
+The closest pair is `check` and `decide`: both report, so the choice is purely
+about how much of the decision the caller needs — reach for `decide` by default and
+drop to `check` only once it's clear the policy in question never carries an
+obligation. The other close pair is `enforce` and `enforceProjected`: identical
+enforcement behavior, differing only in whether the wrapped effect's result is a
+record whose fields the policy should filter on the way out.
+
 ### Services
 
 | Export | Kind | Source |
