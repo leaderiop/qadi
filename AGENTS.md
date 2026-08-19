@@ -88,7 +88,7 @@ tsc's variadic inference limit. Nest into groups.
 
 ## 4. Errors — `Data.TaggedError`
 
-Not `Schema.TaggedErrorClass`. Namespaced tags.
+Not `Schema.TaggedErrorClass`. Plain, unprefixed tags — unlike service ids (§2's `"qadi/AttributeResolver"`), error `_tag`s deliberately dropped the `qadi/` prefix.
 
 ```ts
 export class AccessDenied extends Data.TaggedError("AccessDenied")<{
@@ -103,7 +103,7 @@ Handling — v4 uses the **array form**; there is no `catchTags({...})` object f
 ```ts
 // ✅
 Effect.catchTag("AccessDenied", (e) => …)
-Effect.catchTag(["AccessDenied", "qadi/PolicyEvaluationError"], (e) => …)
+Effect.catchTag(["AccessDenied", "PolicyEvaluationError"], (e) => …)
 
 // ❌ structural checks on unknown
 if (Predicate.hasProperty(e, "_tag") && (e as { _tag: unknown })._tag === "X")

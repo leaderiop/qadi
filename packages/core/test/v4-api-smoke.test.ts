@@ -37,7 +37,7 @@ const GreeterLive = Layer.effect(
 );
 
 // ---------------------------------------------------------------------------
-// Errors: Data.TaggedError with namespaced tags
+// Errors: Data.TaggedError, and the array form of catchTag
 // ---------------------------------------------------------------------------
 
 class Boom extends Data.TaggedError("smoke/Boom")<{ readonly why: string }> {}
