@@ -17,7 +17,7 @@
  * definition.
  */
 import * as Match from "effect/Match";
-import type { Policy } from "./Policy.ts";
+import type { FieldStrategy, Policy } from "./Policy.ts";
 
 /**
  * Whether a composite's children can be absorbed into a parent of the same tag.
@@ -40,14 +40,14 @@ import type { Policy } from "./Policy.ts";
 const absorbable = (
   child: Policy,
   tag: "AllOf" | "AnyOf",
-  fieldStrategy: string,
+  fieldStrategy: FieldStrategy,
 ): child is Extract<Policy, { _tag: "AllOf" | "AnyOf" }> =>
   child._tag === tag && child.fieldStrategy === fieldStrategy;
 
 const flatten = (
   policies: ReadonlyArray<Policy>,
   tag: "AllOf" | "AnyOf",
-  fieldStrategy: string,
+  fieldStrategy: FieldStrategy,
 ): ReadonlyArray<Policy> =>
   policies.flatMap((child) =>
     absorbable(child, tag, fieldStrategy) ? child.policies : [child],

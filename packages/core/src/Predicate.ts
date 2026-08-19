@@ -19,7 +19,7 @@ import type { AuthSubject } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import { DecisionHistory } from "./DecisionHistory.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
-import type { EvaluationError } from "./Errors.ts";
+import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import { MissingAction, PolicyNotTranslatable, PolicyTooDeep } from "./Errors.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import {
@@ -250,6 +250,15 @@ const restrictsFields: (policy: Policy) => boolean = Match.type<Policy>().pipe(
   }),
 );
 
+/**
+ * The subset of {@link EvaluationError} `translateNode`/`toPredicate` can
+ * actually raise — a `HasRelationship` node always short-circuits to
+ * `PolicyNotTranslatable` before touching `RelationshipResolver`, and a
+ * predicate translation never carries a resource, so `MissingResource` and
+ * `MissingResourceId` cannot occur here by construction.
+ */
+type PredicateError = AttributeResolveError | DecisionHistoryUnavailable | MissingAction | PolicyTooDeep;
+
 const translateNode = (
   policy: Policy,
   subject: AuthSubject,
@@ -258,7 +267,7 @@ const translateNode = (
   maxDepth: number,
 ): Effect.Effect<
   Predicate,
-  PolicyNotTranslatable | EvaluationError,
+  PolicyNotTranslatable | PredicateError,
   AttributeResolver | DecisionHistory
 > => {
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
@@ -385,12 +394,12 @@ const translateRules = (
     p: Policy,
   ) => Effect.Effect<
     Predicate,
-    PolicyNotTranslatable | EvaluationError,
+    PolicyNotTranslatable | PredicateError,
     AttributeResolver | DecisionHistory
   >,
 ): Effect.Effect<
   Predicate,
-  PolicyNotTranslatable | EvaluationError,
+  PolicyNotTranslatable | PredicateError,
   AttributeResolver | DecisionHistory
 > =>
   Effect.map(

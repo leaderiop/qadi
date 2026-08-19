@@ -30,10 +30,18 @@ import type { Combining, FieldStrategy, Policy } from "./Policy.ts";
  * grammar rather than a policy and rendering it structurally would double the
  * size of this union for no reader's benefit.
  */
+/** What kind of leaf a {@link Requirement} came from. */
+export type RequirementKind =
+  | "permission"
+  | "role"
+  | "attribute"
+  | "relationship"
+  | "action"
+  | "history";
+
 export interface Requirement {
   readonly _tag: "Requirement";
-  /** `"permission"`, `"role"`, `"attribute"`, `"relationship"`, `"action"`, `"history"`. */
-  readonly kind: string;
+  readonly kind: RequirementKind;
   readonly detail: string;
   /**
    * Present when the leaf narrows what is visible.
@@ -136,7 +144,7 @@ const matcherText: (self: Matcher) => string = Match.type<Matcher>().pipe(
 // ---------------------------------------------------------------------------
 
 const requirement = (
-  kind: string,
+  kind: RequirementKind,
   detail: string,
   fields?: ReadonlyArray<string>,
 ): Requirement => ({ _tag: "Requirement", kind, detail, fields });
