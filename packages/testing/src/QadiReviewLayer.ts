@@ -9,24 +9,27 @@ import {
   AttributeResolverNone,
   DecisionHistory,
   DecisionHistoryUnknown,
-  EvaluationId,
   RelationshipResolver,
   RelationshipResolverNever,
   evaluationIdSequential,
 } from "@qadi/core";
-import type { CurrentSubject } from "@qadi/core";
+import type { CurrentSubject, EvaluationServices } from "@qadi/core";
 import * as Layer from "effect/Layer";
 import { edgeRelationshipResolver } from "./EdgeRelationshipResolver.ts";
 import { recordingAttributeResolver } from "./RecordingAttributeResolver.ts";
 import { eventDecisionHistory } from "./EventDecisionHistory.ts";
 
-/** Everything an evaluation needs. */
-export type QadiTestServices =
-  | CurrentSubject
-  | AttributeResolver
-  | RelationshipResolver
-  | DecisionHistory
-  | EvaluationId;
+/**
+ * Everything an evaluation needs.
+ *
+ * A re-export of `EvaluationServices`, not a parallel copy — a hand-copied
+ * union here would silently stop matching the evaluator's if that one ever
+ * gained a service, and a requirement set drifting out of sync with the
+ * evaluator's is a worse defect than a type needing one hop to read
+ * (the same reasoning `SubjectSet.ts`'s own `Exclude<EvaluationServices, …>`
+ * is built on).
+ */
+export type QadiTestServices = EvaluationServices;
 
 export interface TestLayerOptions {
   /** Attributes resolved on a subject miss. */

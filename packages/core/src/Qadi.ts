@@ -20,7 +20,7 @@ import type { Allow, Decision } from "./Decision.ts";
 import { isAllowed, project } from "./Decision.ts";
 import { AccessDenied, UndischargedObligation } from "./Errors.ts";
 import type { EvaluationError } from "./Errors.ts";
-import type { EvaluateOptions, EvaluationServices } from "./Evaluate.ts";
+import type { EvaluateOptions, EvaluationServices, Resource } from "./Evaluate.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { Obligation } from "./Obligation.ts";
 import { bindingObligations } from "./Obligation.ts";
@@ -154,7 +154,7 @@ export const enforce =
  */
 export const enforceProjected =
   <EO = never, RO = never>(policy: Policy, options?: EnforceOptions<EO, RO>) =>
-  <A extends Record<string, unknown>, E, R>(
+  <A extends Resource, E, R>(
     self: Effect.Effect<A, E, R>,
   ): Effect.Effect<
     Partial<A>,
@@ -173,7 +173,7 @@ export const enforceProjected =
  * dropped: dropping it would report a wiring mistake as a denial, which
  * [INV-QD-006] exists to prevent.
  */
-export const filter = <A extends Record<string, unknown>, EO = never, RO = never>(
+export const filter = <A extends Resource, EO = never, RO = never>(
   policy: Policy,
   items: ReadonlyArray<A>,
   options?: EnforceOptions<EO, RO>,

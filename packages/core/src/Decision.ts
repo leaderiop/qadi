@@ -7,6 +7,7 @@
  * could not be asserted on at all.
  */
 import * as Data from "effect/Data";
+import type { Resource } from "./Evaluate.ts";
 import type { Obligation } from "./Obligation.ts";
 import type { Policy } from "./Policy.ts";
 
@@ -79,7 +80,7 @@ export const isAllowed = (self: Decision): self is Allow => self._tag === "Allow
  * place the boundary between "`visibleFields` is a `ReadonlyArray<string>`"
  * and "`A`'s keys" gets crossed; everywhere downstream of it is fully typed.
  */
-const isFieldOf = <A extends Record<string, unknown>>(
+const isFieldOf = <A extends Resource>(
   data: A,
   field: string,
 ): field is keyof A & string => Object.hasOwn(data, field);
@@ -90,7 +91,7 @@ const isFieldOf = <A extends Record<string, unknown>>(
  * A denial exposes nothing. An allow with no field restriction exposes
  * everything, since `undefined` is the top of the visibility lattice.
  */
-export const project = <A extends Record<string, unknown>>(
+export const project = <A extends Resource>(
   decision: Decision,
   data: A,
 ): Partial<A> => {

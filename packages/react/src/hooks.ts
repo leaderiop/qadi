@@ -128,7 +128,7 @@ export const usePolicies = (
  * is deciding about. Pending and denied both project to `{}` — use
  * {@link useDecision} to tell them apart.
  */
-export const useProjected = <A extends Record<string, unknown>>(
+export const useProjected = <A extends Resource>(
   policy: Policy,
   data: A,
 ): Partial<A> => {

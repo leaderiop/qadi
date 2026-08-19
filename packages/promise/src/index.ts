@@ -24,6 +24,7 @@ import type {
   EvaluateOptions,
   EvaluationServices,
   Policy,
+  Resource,
 } from "@qadi/core";
 import {
   assert as assertCore,
@@ -80,7 +81,7 @@ export interface Qadi {
   ) => Promise<void>;
 
   /** The items the policy admits, in order. */
-  readonly filter: <A extends Record<string, unknown>>(
+  readonly filter: <A extends Resource>(
     subject: AuthSubject,
     policy: Policy,
     items: ReadonlyArray<A>,
