@@ -103,6 +103,21 @@ describe("evaluatePredicate — the reference semantics", () => {
     assert.isFalse(evaluatePredicate(gte, { level: 5 }));
     assert.isFalse(evaluatePredicate(lt, { level: 5 }));
   });
+
+  it("the target's typeof guard is load-bearing, not redundant with the operator itself", () => {
+    // The test above's "not-a-number" target coerces to NaN either way, so
+    // `value >= NaN`/`value < NaN` are false regardless of whether the guard
+    // ran — a mutant that deletes the guard survives it. A target that
+    // coerces to something the raw operator would accept is the case that
+    // actually needs the guard: `5 >= ""` is `true` under native `>=`
+    // (`""` coerces to `0`), and `5 < "10"` is `true` under native `<`
+    // (`"10"` coerces to `10`) — both must still read as `false` here,
+    // since neither target is typeof `"number"`.
+    const gte: Predicate = { _tag: "Compare", column: "level", op: "Gte", value: "" };
+    const lt: Predicate = { _tag: "Compare", column: "level", op: "Lt", value: "10" };
+    assert.isFalse(evaluatePredicate(gte, { level: 5 }));
+    assert.isFalse(evaluatePredicate(lt, { level: 5 }));
+  });
 });
 
 describe("the subject side folds to a constant", () => {

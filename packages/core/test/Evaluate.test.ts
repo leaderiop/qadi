@@ -1186,6 +1186,29 @@ describe("decision history", () => {
       assert.isTrue(isAllowed(d));
     }));
 
+  it.effect("scope Any strips resourceId from the query even when a resource IS present", () =>
+    Effect.gen(function* () {
+      // The test above proves `scope: "Any"` needs no resource; this proves
+      // the stronger claim — that it ignores one it's given. A request
+      // carrying a resource but asking "Any" must still ask the port an
+      // unscoped question, or "ever, at all" silently narrows to "at this
+      // resource" the moment a caller happens to have one in context.
+      const queries: Array<string | undefined> = [];
+      const recording = Layer.succeed(DecisionHistory, {
+        hasActed: (query) =>
+          Effect.sync(() => {
+            queries.push(query.resourceId);
+            return "NotActed";
+          }),
+      });
+
+      yield* evaluate(P.hasActed("raised", { scope: "Any" }), invoice).pipe(
+        Effect.provide(testLayer(clerk, { history: recording })),
+      );
+
+      assert.deepStrictEqual(queries, [undefined]);
+    }));
+
   it.effect("scope Resource without resource.id is an error, not a denial", () =>
     Effect.gen(function* () {
       const r = yield* Effect.result(evaluate(P.hasActed("raised")));
@@ -1981,6 +2004,53 @@ describe("concurrent evaluation", () => {
       const concurrent = yield* run(policy, "unbounded");
 
       // `hasRole` denies from the subject in hand, so sequential asks nothing.
+      assert.deepStrictEqual(sequential.calls, []);
+      assert.deepStrictEqual(concurrent.calls.toSorted(), ["attr:riskScore", "rel:owner"]);
+      assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
+    }));
+
+  it.effect("AnyOf: concurrency performs MORE lookups, or it is doing nothing", () =>
+    Effect.gen(function* () {
+      // Mirrors the AllOf test above, but AnyOf short-circuits on the first
+      // ALLOWING child rather than the first denying one: `hasRole` allows
+      // from the subject already in hand, so sequential evaluation never asks
+      // the relationship/attribute resolvers at all. Concurrency evaluates
+      // every child before folding — under `First` the fold still settles on
+      // the same winning child and trace (`beginAnyOf`/`stepAnyOf`'s own
+      // header comment), so only `calls` should differ, not the decision.
+      const policy = P.anyOf([
+        P.hasRole("editor"),
+        P.hasRelationship("owner"),
+        P.hasAttribute("riskScore", M.gte(1)),
+      ]);
+
+      const sequential = yield* run(policy, undefined);
+      const concurrent = yield* run(policy, "unbounded");
+
+      assert.isTrue(isAllowed(sequential.decision));
+      assert.isTrue(isAllowed(concurrent.decision));
+      assert.deepStrictEqual(sequential.calls, []);
+      assert.deepStrictEqual(concurrent.calls.toSorted(), ["attr:riskScore", "rel:owner"]);
+      assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
+    }));
+
+  it.effect("Rules: concurrency performs MORE lookups, or it is doing nothing", () =>
+    Effect.gen(function* () {
+      // Same shape again for `Rules` under the default `FirstApplicable`
+      // combining: the walk stops at the first rule whose condition applies
+      // at all, so a `hasRole` row the subject already satisfies means
+      // sequential evaluation never reaches the later rows' resolvers.
+      const policy = P.rules([
+        P.permitWhen(P.hasRole("editor")),
+        P.permitWhen(P.hasRelationship("owner")),
+        P.permitWhen(P.hasAttribute("riskScore", M.gte(1))),
+      ]);
+
+      const sequential = yield* run(policy, undefined);
+      const concurrent = yield* run(policy, "unbounded");
+
+      assert.isTrue(isAllowed(sequential.decision));
+      assert.isTrue(isAllowed(concurrent.decision));
       assert.deepStrictEqual(sequential.calls, []);
       assert.deepStrictEqual(concurrent.calls.toSorted(), ["attr:riskScore", "rel:owner"]);
       assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
