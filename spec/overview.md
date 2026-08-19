@@ -71,8 +71,10 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | Export | Kind | Source |
 | ------ | ---- | ------ |
 | `Policy`, `FieldStrategy` | schema + type | `Policy.ts` |
+| `DEFAULT_MAX_DEPTH` | constant | `Policy.ts` |
 | `PolicyEncoded`, `RuleEncoded` | type | `Policy.ts` |
 | `RoleName`, `ActionName`, `EventName`, `RelationName`, `LabelName` | schema + type | `Policy.ts` |
+| `makeRoleName` | function | `Policy.ts` |
 | `hasPermission`, `hasRole`, `hasAttribute`, `hasResourceAttribute`, `hasRelationship` | function | `Policy.ts` |
 | `hasAction` | function | `Policy.ts` |
 | `hasActed`, `hasNotActed` | function | `Policy.ts` |
@@ -150,7 +152,11 @@ record whose fields the policy should filter on the way out.
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |
 | `AttributeResolverShape`, `RelationshipResolverShape`, `RelationshipCheck` | type | resolver modules |
+| `RelationshipEdgeInput` | type | `RelationshipResolver.ts` |
+| `RelationshipEdge` | value class | `RelationshipResolver.ts` |
 | `DecisionHistoryShape`, `ActedQuery`, `ActedResult` | type | `DecisionHistory.ts` |
+| `ActedEventInput`, `ActedAnywhereInput` | type | `DecisionHistory.ts` |
+| `ActedEvent`, `ActedAnywhere` | value class | `DecisionHistory.ts` |
 | `EvaluationIdShape`, `DecisionCacheShape`, `DecisionCacheKey` | type | service modules |
 
 **Six services, and only five are required.** `DecisionHistory` was the one added

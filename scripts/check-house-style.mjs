@@ -68,13 +68,18 @@ const RULES = [
   },
   {
     id: "no-non-null-assertion",
-    // `x!` — a value or a closing `)`/`]` immediately followed by `!` and then
-    // whatever can legally follow an expression (`;`, `.`, `)`, `]`, `,`, a
-    // newline, or nothing). Excludes `!=`/`!==` (the char after `!` there is
-    // `=`, which none of these alternatives are) and a leading unary `!x`
-    // (there is no operand-ending character before it for this pattern to
-    // anchor on).
-    re: /[A-Za-z0-9_)\]]!(\s*[;.)\],:]|\s*$)/,
+    // `x!` — an identifier or a closing `)`/`]` immediately followed by `!`,
+    // not itself followed by `=` (which rules out `!=`/`!==`, tokenized as one
+    // operator, never a non-null assertion in that position). A leading unary
+    // `!x` never matches: there is no operand-ending character immediately
+    // before it for the lookbehind to anchor on.
+    //
+    // Deliberately NOT an allow-list of what can follow `!` (`;`, `.`, `)`,
+    // end of line, …): a non-null assertion can be followed by *any* binary
+    // operator too — `x! + 1`, `x! && y`, `x! < 5` — and an allow-list that
+    // enumerates punctuation misses exactly those, silently passing the gate
+    // this rule exists to close (found by code review, not by symptom).
+    re: /(?<=[A-Za-z0-9_)\]])!(?!=)/,
     message: "No non-null assertions — fix the type (AGENTS.md §6).",
   },
   {
