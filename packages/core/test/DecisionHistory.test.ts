@@ -7,13 +7,19 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { DecisionHistory, DecisionHistoryUnknown, decisionHistoryFromEvents } from "../src/DecisionHistory.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 
 const query = (
   layer: Layer.Layer<DecisionHistory>,
   event: string,
   resourceId: string | undefined,
   subjectId = "u1",
-) => DecisionHistory.hasActed({ subjectId, event, resourceId }).pipe(Effect.provide(layer));
+) =>
+  DecisionHistory.hasActed({
+    subjectId: makeSubjectId(subjectId),
+    event,
+    resourceId: resourceId === undefined ? undefined : makeResourceId(resourceId),
+  }).pipe(Effect.provide(layer));
 
 describe("DecisionHistory", () => {
   describe("DecisionHistoryUnknown", () => {

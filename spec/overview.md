@@ -65,6 +65,8 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `makeSubject`, `fromRoles`, `withAttributes`, `anonymous` | function | `AuthSubject.ts` |
 | `AuthSubject` | type | `AuthSubject.ts` |
 | `Role`, `RoleDefinition` | type | `Role.ts` |
+| `SubjectId`, `ResourceId` | type | `Identity.ts` |
+| `makeSubjectId`, `makeResourceId` | function | `Identity.ts` |
 
 ### Policy
 

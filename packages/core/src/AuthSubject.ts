@@ -5,6 +5,8 @@
  * `HasPermission` check is O(1) and needs no role traversal at evaluation time.
  * Role inheritance is resolved once, when the subject is built.
  */
+import { makeSubjectId } from "./Identity.ts";
+import type { SubjectId } from "./Identity.ts";
 import type { PermissionKey } from "./Permission.ts";
 import { permissionKey } from "./Permission.ts";
 import type { Permission } from "./Permission.ts";
@@ -26,7 +28,7 @@ import { flattenAll, roleNames } from "./Role.ts";
 // supplies plain strings, and this conversion never fails.
 
 export interface AuthSubject {
-  readonly id: string;
+  readonly id: SubjectId;
   /** Every role name the subject holds, including inherited ones. */
   readonly roles: ReadonlySet<RoleName>;
   /** Pre-flattened `"resource:action"` keys. */
@@ -41,7 +43,7 @@ export const makeSubject = (config: {
   readonly permissions?: Iterable<PermissionKey>;
   readonly attributes?: Readonly<Record<string, unknown>>;
 }): AuthSubject => ({
-  id: config.id,
+  id: makeSubjectId(config.id),
   roles: new Set([...(config.roles ?? [])].map(makeRoleName)),
   permissions: new Set(config.permissions ?? []),
   attributes: config.attributes ?? {},
@@ -66,7 +68,7 @@ export const fromRoles = (config: {
   for (const p of config.permissions ?? []) keys.add(permissionKey(p));
 
   return {
-    id: config.id,
+    id: makeSubjectId(config.id),
     roles: names,
     permissions: keys,
     attributes: config.attributes ?? {},
@@ -75,7 +77,7 @@ export const fromRoles = (config: {
 
 /** An unauthenticated subject holding nothing. */
 export const anonymous: AuthSubject = {
-  id: "anonymous",
+  id: makeSubjectId("anonymous"),
   roles: new Set(),
   permissions: new Set(),
   attributes: {},

@@ -14,7 +14,7 @@
  * **carries no trace** by default, and every entry it cannot verify is
  * **dropped** rather than trusted.
  */
-import type { AuthSubject, Decision, Policy, Resource, Trace } from "@qadi/core";
+import type { AuthSubject, Decision, Policy, Resource, SubjectId, Trace } from "@qadi/core";
 import { Allow, Deny, Policy as PolicySchema } from "@qadi/core";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -127,7 +127,7 @@ export const dehydrateDecisions = (
   };
 };
 
-const rebuild = (entry: DehydratedEntry, subjectId: string): Decision => {
+const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): Decision => {
   const trace = entry.trace ?? {
     policyTag: "AllOf" as const,
     allowed: entry.allowed,

@@ -8,6 +8,7 @@ export * from "./Errors.ts";
 export * from "./Evaluate.ts";
 export * from "./EvaluationId.ts";
 export * from "./Explanation.ts";
+export * from "./Identity.ts";
 export * from "./Matcher.ts";
 export * from "./Obligation.ts";
 export * from "./Permission.ts";

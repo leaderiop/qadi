@@ -29,6 +29,7 @@ import {
   PolicyTooDeep,
 } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
+import { makeResourceId } from "./Identity.ts";
 import type { MatcherContext } from "./Matcher.ts";
 import { evaluateMatcher, referencesAction } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
@@ -203,7 +204,7 @@ const evaluateActed = Effect.fn("qadi.acted")(function* (
   const answer = yield* DecisionHistory.hasActed({
     subjectId: subject.id,
     event: policy.event,
-    resourceId: scoped && typeof rawId === "string" ? rawId : undefined,
+    resourceId: scoped && typeof rawId === "string" ? makeResourceId(rawId) : undefined,
   });
   // `"Unknown"` matches neither, so both polarities deny under an unwired
   // port. That is the whole reason the port is three-valued rather than
@@ -231,7 +232,7 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
   const related = yield* RelationshipResolver.check({
     subjectId: subject.id,
     relation: policy.relation,
-    resourceId: rawId,
+    resourceId: makeResourceId(rawId),
     depth: policy.depth,
   });
   return related

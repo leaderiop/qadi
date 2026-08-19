@@ -8,20 +8,38 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
 import { RelationshipResolveError } from "../src/Errors.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import {
   RelationshipResolver,
   RelationshipResolverNever,
   relationshipResolverFromEdges,
   relationshipResolverRetrying,
 } from "../src/RelationshipResolver.ts";
-import type { RelationshipCheck } from "../src/RelationshipResolver.ts";
 
-/** `depth` defaults to `undefined` — the field is required, its value optional. */
+/**
+ * `depth` defaults to `undefined` — the field is required, its value optional.
+ *
+ * Takes plain strings, not `RelationshipCheck` directly: `subjectId`/`resourceId`
+ * are branded on the real service boundary, but every test in this file only
+ * cares about the plain identifiers, so this is the one place that converts —
+ * matching the "plain input, branded internal shape" split `AuthSubject.makeSubject`
+ * already uses.
+ */
 const check = (
   layer: Layer.Layer<RelationshipResolver>,
-  request: Omit<RelationshipCheck, "depth"> & { readonly depth?: number },
+  request: {
+    readonly subjectId: string;
+    readonly relation: string;
+    readonly resourceId: string;
+    readonly depth?: number;
+  },
 ) =>
-  RelationshipResolver.check({ depth: undefined, ...request }).pipe(Effect.provide(layer));
+  RelationshipResolver.check({
+    subjectId: makeSubjectId(request.subjectId),
+    relation: request.relation,
+    resourceId: makeResourceId(request.resourceId),
+    depth: request.depth,
+  }).pipe(Effect.provide(layer));
 
 describe("RelationshipResolver", () => {
   describe("RelationshipResolverNever", () => {

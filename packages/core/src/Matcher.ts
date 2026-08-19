@@ -10,6 +10,7 @@
  */
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
+import type { SubjectId } from "./Identity.ts";
 import { isSecurityLabel, labelDominates } from "./SecurityLabel.ts";
 
 // ---------------------------------------------------------------------------
@@ -201,7 +202,7 @@ const containsValue = (value: unknown, needle: unknown): boolean => {
 export interface MatcherContext {
   /** The subject's attributes. Its identity is `subjectId`, kept separate. */
   readonly subject: Readonly<Record<string, unknown>>;
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
   /** What the caller is doing. `undefined` when none was supplied. */
   readonly action: string | undefined;

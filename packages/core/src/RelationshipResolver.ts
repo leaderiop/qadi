@@ -14,12 +14,13 @@ import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
 import type { RelationshipResolveError } from "./Errors.ts";
+import type { ResourceId, SubjectId } from "./Identity.ts";
 import { wrapService } from "./RetryingLayer.ts";
 
 export interface RelationshipCheck {
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   readonly relation: string;
-  readonly resourceId: string;
+  readonly resourceId: ResourceId;
   /** Maximum traversal depth. Undefined means the resolver decides. */
   readonly depth: number | undefined;
 }

@@ -6,6 +6,7 @@
  * failures — the defect that produced ACL007 collisions in the predecessor.
  */
 import * as Data from "effect/Data";
+import type { ResourceId, SubjectId } from "./Identity.ts";
 
 /** A policy referenced a resource attribute but no resource was in context. */
 export class MissingResource extends Data.TaggedError("MissingResource")<{
@@ -33,7 +34,7 @@ export class RelationshipResolveError extends Data.TaggedError(
   "RelationshipResolveError",
 )<{
   readonly relation: string;
-  readonly resourceId: string;
+  readonly resourceId: ResourceId;
   readonly cause: unknown;
 }> {}
 
@@ -81,7 +82,7 @@ export class InvalidPermissionSegment extends Data.TaggedError(
 
 /** Enforcement denied access. Carries the decision so callers can inspect the trace. */
 export class AccessDenied extends Data.TaggedError("AccessDenied")<{
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   readonly policyTag: string;
   readonly reason: string;
 }> {}
@@ -97,7 +98,7 @@ export class AccessDenied extends Data.TaggedError("AccessDenied")<{
 export class UndischargedObligation extends Data.TaggedError(
   "UndischargedObligation",
 )<{
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   readonly obligationIds: ReadonlyArray<string>;
 }> {}
 

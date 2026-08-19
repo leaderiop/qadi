@@ -10,6 +10,7 @@ import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
@@ -266,7 +267,12 @@ describe("DecisionCache", () => {
           }
         }
         const roles = new CountingRoles([P.makeRoleName("admin")]);
-        const subject: AuthSubject = { id: "u1", roles, permissions: new Set(), attributes: {} };
+        const subject: AuthSubject = {
+          id: makeSubjectId("u1"),
+          roles,
+          permissions: new Set(),
+          attributes: {},
+        };
 
         yield* Effect.gen(function* () {
           yield* evaluate(P.hasRole("admin")); // miss: evaluateNode runs, roles.has called once

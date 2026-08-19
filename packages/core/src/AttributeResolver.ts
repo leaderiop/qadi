@@ -12,6 +12,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
 import type { AttributeResolveError } from "./Errors.ts";
+import type { SubjectId } from "./Identity.ts";
 import { wrapService } from "./RetryingLayer.ts";
 
 export interface AttributeResolverShape {
@@ -23,7 +24,7 @@ export interface AttributeResolverShape {
    * broke, which propagates as an evaluation error rather than a denial.
    */
   readonly resolve: (
-    subjectId: string,
+    subjectId: SubjectId,
     attribute: string,
   ) => Effect.Effect<unknown, AttributeResolveError>;
 }
@@ -33,7 +34,7 @@ export class AttributeResolver extends Context.Service<
   AttributeResolverShape
 >()("qadi/AttributeResolver") {
   /** One-step accessor. `use` requires its callback to return an Effect. */
-  static readonly resolve = (subjectId: string, attribute: string) =>
+  static readonly resolve = (subjectId: SubjectId, attribute: string) =>
     AttributeResolver.use((r) => r.resolve(subjectId, attribute));
 }
 

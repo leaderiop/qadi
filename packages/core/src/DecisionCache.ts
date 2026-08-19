@@ -23,12 +23,13 @@ import type { AttributeResolver } from "./AttributeResolver.ts";
 import type { Trace } from "./Decision.ts";
 import type { DecisionHistory } from "./DecisionHistory.ts";
 import type { EvaluationError } from "./Errors.ts";
+import type { SubjectId } from "./Identity.ts";
 import type { Policy } from "./Policy.ts";
 import type { RelationshipResolver } from "./RelationshipResolver.ts";
 
 /** Everything that can change an answer. */
 export interface DecisionCacheKey {
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   readonly policy: Policy;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
   readonly action: string | undefined;

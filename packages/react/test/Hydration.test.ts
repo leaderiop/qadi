@@ -14,6 +14,7 @@ import {
   hasPermission,
   hasRole,
   makeSubject,
+  makeSubjectId,
   obligation,
   permission,
 } from "@qadi/core";
@@ -43,7 +44,7 @@ const atoms = makeQadiAtoms(
 const serverAllow = (subjectId: string) =>
   new Allow({
     evaluationId: "eval-1",
-    subjectId,
+    subjectId: makeSubjectId(subjectId),
     durationMillis: 3,
     trace: {
       policyTag: "HasPermission",
@@ -59,7 +60,7 @@ const serverAllow = (subjectId: string) =>
 const serverDeny = (subjectId: string) =>
   new Deny({
     evaluationId: "eval-2",
-    subjectId,
+    subjectId: makeSubjectId(subjectId),
     durationMillis: 4,
     trace: {
       policyTag: "HasRole",
@@ -243,7 +244,7 @@ describe("hydrateDecisions", () => {
     // the difference between an unrestricted allow and one that exposes nothing.
     const unrestricted = new Allow({
       evaluationId: "eval-3",
-      subjectId: "u1",
+      subjectId: makeSubjectId("u1"),
       durationMillis: 1,
       trace: {
         policyTag: "HasPermission",

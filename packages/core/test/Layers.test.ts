@@ -10,6 +10,7 @@ import { CurrentSubject, CurrentSubjectAnonymous } from "../src/CurrentSubject.t
 import { isAllowed } from "../src/Decision.ts";
 import { EvaluationId, EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import * as P from "../src/Policy.ts";
 import {
@@ -22,22 +23,22 @@ import { subjectWith, testLayer } from "./helpers.ts";
 describe("default layers", () => {
   it.effect("AttributeResolverNone resolves to undefined", () =>
     Effect.gen(function* () {
-      const value = yield* AttributeResolver.resolve("u", "anything");
+      const value = yield* AttributeResolver.resolve(makeSubjectId("u"), "anything");
       assert.isUndefined(value);
     }).pipe(Effect.provide(AttributeResolverNone)));
 
   it.effect("attributeResolverFromRecord reads a static table", () =>
     Effect.gen(function* () {
-      assert.strictEqual(yield* AttributeResolver.resolve("u", "tier"), "gold");
-      assert.isUndefined(yield* AttributeResolver.resolve("u", "absent"));
+      assert.strictEqual(yield* AttributeResolver.resolve(makeSubjectId("u"), "tier"), "gold");
+      assert.isUndefined(yield* AttributeResolver.resolve(makeSubjectId("u"), "absent"));
     }).pipe(Effect.provide(attributeResolverFromRecord({ tier: "gold" }))));
 
   it.effect("RelationshipResolverNever denies everything", () =>
     Effect.gen(function* () {
       const related = yield* RelationshipResolver.check({
-        subjectId: "u",
+        subjectId: makeSubjectId("u"),
         relation: "owner",
-        resourceId: "d",
+        resourceId: makeResourceId("d"),
         depth: undefined,
       });
       assert.isFalse(related);
@@ -49,15 +50,15 @@ describe("default layers", () => {
         { subjectId: "u", relation: "owner", resourceId: "d" },
       ]);
       const hit = yield* RelationshipResolver.check({
-        subjectId: "u",
+        subjectId: makeSubjectId("u"),
         relation: "owner",
-        resourceId: "d",
+        resourceId: makeResourceId("d"),
         depth: 5,
       }).pipe(Effect.provide(layer));
       const miss = yield* RelationshipResolver.check({
-        subjectId: "u",
+        subjectId: makeSubjectId("u"),
         relation: "editor",
-        resourceId: "d",
+        resourceId: makeResourceId("d"),
         depth: undefined,
       }).pipe(Effect.provide(layer));
       assert.isTrue(hit);

@@ -7,6 +7,7 @@ import {
   Allow,
   Deny,
 } from "../src/Decision.ts";
+import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import {
   compareLabels,
@@ -19,7 +20,7 @@ import {
 
 const ctx: M.MatcherContext = {
   subject: { dept: "eng", nested: { deep: 7 } },
-  subjectId: "u1",
+  subjectId: makeSubjectId("u1"),
   resource: { owner: "eng", tags: ["a", "b"] },
   action: "write",
 };
@@ -418,7 +419,7 @@ describe("the dominates matcher", () => {
   const ctxWith = (
     subject: Readonly<Record<string, unknown>>,
     resource: Readonly<Record<string, unknown>> | undefined,
-  ): M.MatcherContext => ({ subject, subjectId: "u1", resource, action: undefined });
+  ): M.MatcherContext => ({ subject, subjectId: makeSubjectId("u1"), resource, action: undefined });
 
   const secret = { level: 2, compartments: ["CRYPTO"] };
   const internal = { level: 1, compartments: [] };
@@ -576,7 +577,7 @@ describe("project", () => {
   const allow = (fields: ReadonlyArray<string> | undefined) =>
     new Allow({
       evaluationId: "e",
-      subjectId: "u",
+      subjectId: makeSubjectId("u"),
       durationMillis: 0,
       trace: { policyTag: "HasRole", allowed: true, children: [], obligations: [] },
       visibleFields: fields,
@@ -586,7 +587,7 @@ describe("project", () => {
   it("a denial exposes nothing", () => {
     const deny = new Deny({
       evaluationId: "e",
-      subjectId: "u",
+      subjectId: makeSubjectId("u"),
       durationMillis: 0,
       trace: { policyTag: "HasRole", allowed: false, children: [], obligations: [] },
       reason: "no",

@@ -10,6 +10,7 @@ import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
 import { AttributeResolveError } from "../src/Errors.ts";
 import { AttributeResolver, attributeResolverRetrying } from "../src/AttributeResolver.ts";
+import { makeSubjectId } from "../src/Identity.ts";
 
 /** A resolver that fails `failures` times, then succeeds, counting attempts via `attempts`. */
 const flakyLayer = (failures: number, attempts: Ref.Ref<number>): Layer.Layer<AttributeResolver> =>
@@ -30,7 +31,9 @@ describe("attributeResolverRetrying", () => {
       const attempts = yield* Ref.make(0);
       const retrying = attributeResolverRetrying(Schedule.recurs(5))(flakyLayer(2, attempts));
 
-      const result = yield* AttributeResolver.resolve("u1", "dept").pipe(Effect.provide(retrying));
+      const result = yield* AttributeResolver.resolve(makeSubjectId("u1"), "dept").pipe(
+        Effect.provide(retrying),
+      );
 
       assert.strictEqual(result, "resolved");
       assert.strictEqual(yield* Ref.get(attempts), 3);
@@ -43,7 +46,7 @@ describe("attributeResolverRetrying", () => {
       const retrying = attributeResolverRetrying(Schedule.recurs(2))(flakyLayer(999, attempts));
 
       const result = yield* Effect.result(
-        AttributeResolver.resolve("u1", "dept").pipe(Effect.provide(retrying)),
+        AttributeResolver.resolve(makeSubjectId("u1"), "dept").pipe(Effect.provide(retrying)),
       );
 
       assert.strictEqual(result._tag, "Failure");

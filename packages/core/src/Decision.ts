@@ -8,6 +8,7 @@
  */
 import * as Data from "effect/Data";
 import type { Resource } from "./Evaluate.ts";
+import type { SubjectId } from "./Identity.ts";
 import type { Obligation } from "./Obligation.ts";
 import type { Policy } from "./Policy.ts";
 
@@ -47,7 +48,7 @@ export interface Trace {
 
 export class Allow extends Data.TaggedClass("Allow")<{
   readonly evaluationId: string;
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   readonly durationMillis: number;
   readonly trace: Trace;
   readonly visibleFields: ReadonlyArray<string> | undefined;
@@ -62,7 +63,7 @@ export class Allow extends Data.TaggedClass("Allow")<{
 
 export class Deny extends Data.TaggedClass("Deny")<{
   readonly evaluationId: string;
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   readonly durationMillis: number;
   readonly trace: Trace;
   readonly reason: string;

@@ -10,6 +10,7 @@ import {
   PolicyTooDeep,
   RelationshipResolveError,
 } from "../src/Errors.ts";
+import { makeResourceId } from "../src/Identity.ts";
 import {
   isValidSegment,
   permission,
@@ -246,7 +247,7 @@ describe("Errors", () => {
     const cause = new Error("resolver unreachable");
     const e = new RelationshipResolveError({
       relation: "owner",
-      resourceId: "doc-1",
+      resourceId: makeResourceId("doc-1"),
       cause,
     });
     assert.strictEqual(e._tag, "RelationshipResolveError");
