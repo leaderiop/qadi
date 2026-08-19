@@ -209,10 +209,13 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 
 | Export | Kind | Source |
 | ------ | ---- | ------ |
-| `qadiTestLayer`, `qadiReviewLayer` | layer | `TestLayers.ts` |
-| `recordingAttributeResolver`, `edgeRelationshipResolver`, `eventDecisionHistory` | layer | `TestLayers.ts` |
-| `failingAttributeResolver` | layer | `TestLayers.ts` |
-| `QadiTestServices`, `TestLayerOptions` | type | `TestLayers.ts` |
+| `qadiTestLayer` | layer | `QadiTestLayer.ts` |
+| `qadiReviewLayer` | layer | `QadiReviewLayer.ts` |
+| `recordingAttributeResolver` | layer | `RecordingAttributeResolver.ts` |
+| `edgeRelationshipResolver` | layer | `EdgeRelationshipResolver.ts` |
+| `eventDecisionHistory` | layer | `EventDecisionHistory.ts` |
+| `failingAttributeResolver` | layer | `FailingAttributeResolver.ts` |
+| `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` |
 | `subjectWith`, `permissions`, `roles`, `policies` | fixture | `Fixtures.ts` |
 | `nobody`, `viewer`, `administrator` | fixture | `Fixtures.ts` |
 
