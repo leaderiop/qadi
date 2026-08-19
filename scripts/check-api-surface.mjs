@@ -68,10 +68,13 @@ const packages = readdirSync(join(ROOT, "packages"))
 /** Reads a module and returns the names it exports. */
 const exportsOf = (file) => {
   // `readFileSync` rather than a shell tool on purpose. `RelationshipResolver.ts`
-  // contains literal NUL bytes — deliberate key separators in
-  // `relationshipResolverFromEdges` — which make `grep` treat it as binary and emit
-  // nothing at all. A grep-driven version of this check would lose that module's five
-  // exports and still report success.
+  // used to contain literal NUL bytes as `relationshipResolverFromEdges`'s key
+  // separator (CCR-QD-034), which made `grep` treat it as binary and emit nothing
+  // at all — a grep-driven version of this check would have lost that module's
+  // exports and still reported success. The NUL bytes are gone (the collision the
+  // separator was defending against is now closed structurally, via `Data.Class` +
+  // `HashSet`, not by choice of delimiter), but `readFileSync` stays: nothing about
+  // this checker should depend on what any other file's bytes happen to be.
   const source = readFileSync(file, "utf8");
   const names = new Set();
 

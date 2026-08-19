@@ -37,9 +37,11 @@ import { permission } from "../src/Permission.ts";
 import { allOf, anyOf, hasAttribute, hasPermission, not } from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
 import { filter } from "../src/Qadi.ts";
-// `RelationshipResolver.ts` contains literal NUL bytes, so `grep` treats it as
-// binary and finds nothing in it — the finding that made gate 9 read files with
-// `readFileSync` rather than shelling out (CCR-QD-034).
+// `RelationshipResolver.ts` used to contain literal NUL bytes as a key
+// separator, which made `grep` treat it as binary and find nothing in it — the
+// finding that made gate 9 read files with `readFileSync` rather than shelling
+// out (CCR-QD-034). The NUL bytes are gone (see check-api-surface.mjs's
+// `exportsOf`), but the `readFileSync` choice there stands regardless.
 import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
 import { role } from "../src/Role.ts";
 

@@ -14,7 +14,9 @@
  * record accesses that never happened.
  */
 import * as Context from "effect/Context";
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 import type { DecisionHistoryUnavailable } from "./Errors.ts";
 
@@ -74,6 +76,25 @@ export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory> = Layer.succee
 );
 
 /**
+ * One `(subjectId, event, resourceId)` triple and one `(subjectId, event)`
+ * pair, compared structurally rather than by a joined string key — a naive
+ * `${a} ${b} ${c}` join collides whenever a segment itself contains the
+ * delimiter. `Data.Class` gives per-field `Equal`/`Hash`, so `HashSet`
+ * membership compares each field independently and the collision is
+ * unrepresentable, not just harder to hit.
+ */
+class ActedEvent extends Data.Class<{
+  readonly subjectId: string;
+  readonly event: string;
+  readonly resourceId: string;
+}> {}
+
+class ActedAnywhere extends Data.Class<{
+  readonly subjectId: string;
+  readonly event: string;
+}> {}
+
+/**
  * Resolves against a static event list of `[subjectId, event, resourceId]`.
  *
  * A closed world: anything not listed is `"NotActed"` rather than `"Unknown"`,
@@ -83,16 +104,31 @@ export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory> = Layer.succee
 export const decisionHistoryFromEvents = (
   events: ReadonlyArray<readonly [string, string, string]>,
 ): Layer.Layer<DecisionHistory> => {
-  const keyed = new Set(events.map(([s, e, r]) => `${s} ${e} ${r}`));
-  const anywhere = new Set(events.map(([s, e]) => `${s} ${e}`));
+  const keyed = HashSet.fromIterable(
+    events.map(([subjectId, event, resourceId]) =>
+      new ActedEvent({ subjectId, event, resourceId })),
+  );
+  const anywhere = HashSet.fromIterable(
+    events.map(([subjectId, event]) => new ActedAnywhere({ subjectId, event })),
+  );
 
   return Layer.succeed(DecisionHistory, {
     hasActed: (query) =>
       Effect.succeed(
         (
           query.resourceId === undefined
-            ? anywhere.has(`${query.subjectId} ${query.event}`)
-            : keyed.has(`${query.subjectId} ${query.event} ${query.resourceId}`)
+            ? HashSet.has(
+                anywhere,
+                new ActedAnywhere({ subjectId: query.subjectId, event: query.event }),
+              )
+            : HashSet.has(
+                keyed,
+                new ActedEvent({
+                  subjectId: query.subjectId,
+                  event: query.event,
+                  resourceId: query.resourceId,
+                }),
+              )
         )
           ? "Acted"
           : "NotActed",

@@ -5,10 +5,14 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Ref from "effect/Ref";
+import * as Schedule from "effect/Schedule";
+import { RelationshipResolveError } from "../src/Errors.ts";
 import {
   RelationshipResolver,
   RelationshipResolverNever,
   relationshipResolverFromEdges,
+  relationshipResolverRetrying,
 } from "../src/RelationshipResolver.ts";
 import type { RelationshipCheck } from "../src/RelationshipResolver.ts";
 
@@ -95,30 +99,95 @@ describe("RelationshipResolver", () => {
       }));
 
     it.effect(
-      "THE INDEX SEPARATOR IS A NUL BYTE, NOT A SPACE — an id containing a space does not collide across a triple",
+      "collision-immune regardless of what a segment contains, not just what the old key delimiter was",
       () =>
         Effect.gen(function* () {
-          // Worth an assertion rather than a doc comment, matching the trap tests in
-          // DecisionCache.test.ts — and a genuine trap here for a reader, not the
-          // resolver: `relationshipResolverFromEdges`'s composite key reads as
-          // `${s} ${rel} ${r}` in every editor and in this file, but the actual
-          // separator between the interpolated values is `\0`, not a literal space
-          // (scripts/check-api-surface.mjs's `exportsOf` and
-          // packages/core/bench/Evaluate.bench.ts both call this out explicitly,
-          // which is how it was confirmed deliberate here rather than "fixed" back
-          // to a real space — a real space is exactly the character most likely to
-          // appear in an app-controlled id, which is what makes NUL the safer
-          // choice of the two). This test is the property that choice buys: a
-          // subject/relation split that *would* collide under a space-joined key
-          // does not collide under this one.
-          const collidable = relationshipResolverFromEdges([["a b", "owner", "c"]]);
-          const wouldCollideOnSpace = yield* check(collidable, {
-            subjectId: "a",
-            relation: "b owner",
-            resourceId: "c",
-          });
-          assert.isFalse(wouldCollideOnSpace);
+          // `relationshipResolverFromEdges` used to join `${subjectId} ${relation}
+          // ${resourceId}` into an index key — literally with a NUL byte, not a
+          // space, specifically because a real id is far more likely to contain a
+          // space than a NUL byte (CCR-QD-034; see scripts/check-api-surface.mjs's
+          // `exportsOf` and packages/core/bench/Evaluate.bench.ts, both of which
+          // call the NUL bytes out explicitly). That was a real, deliberate, tested
+          // mitigation for the common case — but a segment containing an actual NUL
+          // byte could still collide under it.
+          //
+          // The current implementation has no key to collide on at all: HashSet
+          // membership over a Data.Class compares subjectId/relation/resourceId as
+          // independent structural fields, so neither character — nor any other —
+          // is special. Both cases below are covered: the one the old mitigation
+          // already handled, and the one it didn't.
+          const spaceCollidable = relationshipResolverFromEdges([["a b", "owner", "c"]]);
+          assert.isFalse(
+            yield* check(spaceCollidable, {
+              subjectId: "a",
+              relation: "b owner",
+              resourceId: "c",
+            }),
+          );
+
+          const nulCollidable = relationshipResolverFromEdges([["a\0b", "owner", "c"]]);
+          assert.isFalse(
+            yield* check(nulCollidable, {
+              subjectId: "a",
+              relation: "b\0owner",
+              resourceId: "c",
+            }),
+          );
         }),
     );
+  });
+
+  describe("relationshipResolverRetrying", () => {
+    /** A resolver that fails `failures` times, then succeeds, counting attempts via `attempts`. */
+    const flakyLayer = (
+      failures: number,
+      attempts: Ref.Ref<number>,
+    ): Layer.Layer<RelationshipResolver> =>
+      Layer.succeed(RelationshipResolver, {
+        check: (request) =>
+          Ref.updateAndGet(attempts, (n) => n + 1).pipe(
+            Effect.flatMap((n) =>
+              n <= failures
+                ? Effect.fail(
+                    new RelationshipResolveError({
+                      relation: request.relation,
+                      resourceId: request.resourceId,
+                      cause: "flaky",
+                    }),
+                  )
+                : Effect.succeed(true),
+            ),
+          ),
+      });
+
+    it.effect("eventually succeeds once the schedule outlasts the failures", () =>
+      Effect.gen(function* () {
+        const attempts = yield* Ref.make(0);
+        const retrying = relationshipResolverRetrying(Schedule.recurs(5))(flakyLayer(2, attempts));
+
+        const result = yield* check(retrying, {
+          subjectId: "alice",
+          relation: "owner",
+          resourceId: "doc-1",
+        });
+
+        assert.isTrue(result);
+        assert.strictEqual(yield* Ref.get(attempts), 3);
+      }));
+
+    it.effect("surfaces the original error once the schedule is exhausted", () =>
+      Effect.gen(function* () {
+        const attempts = yield* Ref.make(0);
+        const retrying = relationshipResolverRetrying(Schedule.recurs(2))(
+          flakyLayer(999, attempts),
+        );
+
+        const result = yield* Effect.result(
+          check(retrying, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
+        );
+
+        assert.strictEqual(result._tag, "Failure");
+        assert.strictEqual(yield* Ref.get(attempts), 3);
+      }));
   });
 });
