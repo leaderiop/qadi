@@ -182,6 +182,67 @@ const mergeFields = (
   }
 };
 
+/**
+ * `HasActed`/`HasNotActed` share every line but the wanted `ActedResult` — the
+ * `_tag` itself supplies that, so there is nothing left for the two case labels
+ * in `evaluateNode` to differ on. Extracted for the same reason `evaluateAllOf`
+ * and friends are: `switch (policy._tag)` keeps dispatching in one glance, and
+ * the twenty-odd lines of what a given tag actually *does* move to a name
+ * instead of living inline in the arm.
+ */
+const evaluateActed = Effect.fn("qadi.acted")(function* (
+  policy: Extract<Policy, { _tag: "HasActed" | "HasNotActed" }>,
+  subject: AuthSubject,
+  resource: Resource | undefined,
+) {
+  const scoped = policy.scope === "Resource";
+  const rawId = resource?.["id"];
+  if (scoped && typeof rawId !== "string") {
+    return yield* Effect.fail(new MissingResourceId({ relation: policy.event }));
+  }
+  const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
+  const answer = yield* DecisionHistory.hasActed({
+    subjectId: subject.id,
+    event: policy.event,
+    resourceId: scoped && typeof rawId === "string" ? rawId : undefined,
+  });
+  // `"Unknown"` matches neither, so both polarities deny under an unwired
+  // port. That is the whole reason the port is three-valued rather than
+  // boolean (ADR-QD-020).
+  return answer === wanted
+    ? allow(policy._tag, policy.fields)
+    : deny(
+        policy._tag,
+        answer === "Unknown"
+          ? `no history is available for '${policy.event}'`
+          : `subject '${subject.id}' ${answer === "Acted" ? "has already" : "has not"} performed '${policy.event}'`,
+      );
+});
+
+/** `HasRelationship`'s arm, extracted for the same reason `evaluateActed` is. */
+const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
+  policy: Extract<Policy, { _tag: "HasRelationship" }>,
+  subject: AuthSubject,
+  resource: Resource | undefined,
+) {
+  const rawId = resource?.["id"];
+  if (typeof rawId !== "string") {
+    return yield* Effect.fail(new MissingResourceId({ relation: policy.relation }));
+  }
+  const related = yield* RelationshipResolver.check({
+    subjectId: subject.id,
+    relation: policy.relation,
+    resourceId: rawId,
+    depth: policy.depth,
+  });
+  return related
+    ? allow("HasRelationship", policy.fields)
+    : deny(
+        "HasRelationship",
+        `subject '${subject.id}' has no '${policy.relation}' relation to '${rawId}'`,
+      );
+});
+
 const evaluateNode = (
   policy: Policy,
   subject: AuthSubject,
@@ -249,27 +310,8 @@ const evaluateNode = (
       );
     }
 
-    case "HasRelationship": {
-      const rawId = resource?.["id"];
-      if (typeof rawId !== "string") {
-        return Effect.fail(new MissingResourceId({ relation: policy.relation }));
-      }
-      return Effect.map(
-        RelationshipResolver.check({
-          subjectId: subject.id,
-          relation: policy.relation,
-          resourceId: rawId,
-          depth: policy.depth,
-        }),
-        (related) =>
-          related
-            ? allow("HasRelationship", policy.fields)
-            : deny(
-                "HasRelationship",
-                `subject '${subject.id}' has no '${policy.relation}' relation to '${rawId}'`,
-              ),
-      );
-    }
+    case "HasRelationship":
+      return evaluateHasRelationship(policy, subject, resource);
 
     case "HasAction": {
       // Absent input is a caller error, not a decision — the `MissingResource`
@@ -285,33 +327,8 @@ const evaluateNode = (
     }
 
     case "HasActed":
-    case "HasNotActed": {
-      const scoped = policy.scope === "Resource";
-      const rawId = resource?.["id"];
-      if (scoped && typeof rawId !== "string") {
-        return Effect.fail(new MissingResourceId({ relation: policy.event }));
-      }
-      const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
-      return Effect.map(
-        DecisionHistory.hasActed({
-          subjectId: subject.id,
-          event: policy.event,
-          resourceId: scoped && typeof rawId === "string" ? rawId : undefined,
-        }),
-        (answer) =>
-          // `"Unknown"` matches neither, so both polarities deny under an
-          // unwired port. That is the whole reason the port is three-valued
-          // rather than boolean (ADR-QD-020).
-          answer === wanted
-            ? allow(policy._tag, policy.fields)
-            : deny(
-                policy._tag,
-                answer === "Unknown"
-                  ? `no history is available for '${policy.event}'`
-                  : `subject '${subject.id}' ${answer === "Acted" ? "has already" : "has not"} performed '${policy.event}'`,
-              ),
-      );
-    }
+    case "HasNotActed":
+      return evaluateActed(policy, subject, resource);
 
     case "AllOf":
       return evaluateAllOf(policy, subject, request, depth, maxDepth);
@@ -367,7 +384,6 @@ const evaluateNode = (
   }
 };
 
-/** Short-circuits on the first denying child. */
 /**
  * The accumulator both `AllOf` paths drive, and the reason concurrency cannot
  * change an answer.
@@ -391,7 +407,11 @@ const beginAllOf = (): AllOfFold => ({
   obligations: NO_OBLIGATIONS,
 });
 
-/** Returns a verdict once one child settles the question, `undefined` while open. */
+/**
+ * Returns a verdict once one child settles the question, `undefined` while
+ * open. Short-circuits on the first *denying* child — `AllOf` needs every
+ * child to allow, so one denial already decides it and nothing later runs.
+ */
 const stepAllOf = (fold: AllOfFold, trace: Trace): Trace | undefined => {
   fold.children.push(trace);
   if (!trace.allowed) {
@@ -452,6 +472,17 @@ const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
   return finishAllOf(policy, fold);
 });
 
+/**
+ * `AnyOf`'s counterpart to `AllOfFold` — same contract, mirrored: the decision
+ * rules live in `stepAnyOf`/`finishAnyOf` and nowhere else, the sequential path
+ * stops at the first step that returns a verdict, and the concurrent path
+ * evaluates every child before folding the results **in declaration order**,
+ * stopping at the same index. What differs from `AllOf` is *which* child
+ * settles it — an allowing one, not a denying one — and that `exhaustive`
+ * exists at all: `First` can return the instant it has a winner, but `Union`
+ * and `Intersection` must see every allowing child to merge their field sets,
+ * so the fold cannot short-circuit under those two the way `AllOf`'s always can.
+ */
 interface AnyOfFold {
   readonly children: Array<Trace>;
   readonly allowingFieldSets: Array<ReadonlyArray<string> | undefined>;
@@ -469,6 +500,13 @@ const beginAnyOf = (policy: Extract<Policy, { _tag: "AnyOf" }>): AnyOfFold => ({
   lastReason: undefined,
 });
 
+/**
+ * Returns a verdict once one child settles the question, `undefined` while
+ * open. Short-circuits on the first *allowing* child under `First`
+ * (`!fold.exhaustive`) — `AnyOf` needs only one child to allow, so a winner
+ * already decides it there; `Union`/`Intersection` never return early here and
+ * settle only in `finishAnyOf`, once every child has been folded in.
+ */
 const stepAnyOf = (fold: AnyOfFold, trace: Trace): Trace | undefined => {
   fold.children.push(trace);
 
