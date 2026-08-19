@@ -81,15 +81,27 @@ export const simplify: (policy: Policy) => Policy = Match.type<Policy>().pipe(
       const children = flatten(p.policies.map(simplify), "AllOf", p.fieldStrategy);
       // One child means the merge has one input, so every strategy yields that
       // child's own field set and the wrapper carries nothing.
-      return children.length === 1
-        ? children[0]!
+      //
+      // Deliberately `[only, ...rest]`, not `children[0]` plus a length check:
+      // TS can't correlate "`children.length === 1`" with "`children[0]` is
+      // defined" (`noUncheckedIndexedAccess` types the latter as possibly
+      // `undefined` regardless), so any form that re-derives "exactly one"
+      // from a length comparison alone leaves one arm unreachable-but-not-
+      // provably-so — which mutation testing confirmed twice, turning a real
+      // check into dead code no test could distinguish from its mutant.
+      // Destructuring keeps `only`'s definedness and "there was exactly one"
+      // tied to the same fact, at the cost of one small discarded array.
+      const [only, ...rest] = children;
+      return only !== undefined && rest.length === 0
+        ? only
         : { ...p, policies: children };
     },
 
     AnyOf: (p): Policy => {
       const children = flatten(p.policies.map(simplify), "AnyOf", p.fieldStrategy);
-      return children.length === 1
-        ? children[0]!
+      const [only, ...rest] = children;
+      return only !== undefined && rest.length === 0
+        ? only
         : { ...p, policies: children };
     },
 

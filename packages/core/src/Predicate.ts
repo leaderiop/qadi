@@ -82,8 +82,9 @@ const and = (predicates: ReadonlyArray<Predicate>): Predicate => {
     if (p._tag === "True") continue;
     kept.push(p);
   }
-  if (kept.length === 0) return TRUE;
-  return kept.length === 1 ? kept[0]! : { _tag: "And", predicates: kept };
+  const first = kept[0];
+  if (first === undefined) return TRUE;
+  return kept.length === 1 ? first : { _tag: "And", predicates: kept };
 };
 
 const or = (predicates: ReadonlyArray<Predicate>): Predicate => {
@@ -93,8 +94,9 @@ const or = (predicates: ReadonlyArray<Predicate>): Predicate => {
     if (p._tag === "False") continue;
     kept.push(p);
   }
-  if (kept.length === 0) return FALSE;
-  return kept.length === 1 ? kept[0]! : { _tag: "Or", predicates: kept };
+  const first = kept[0];
+  if (first === undefined) return FALSE;
+  return kept.length === 1 ? first : { _tag: "Or", predicates: kept };
 };
 
 const negate = (predicate: Predicate): Predicate => {
@@ -392,10 +394,19 @@ const translateRules = (
   AttributeResolver | DecisionHistory
 > =>
   Effect.map(
-    Effect.forEach(policy.rules, (rule: Rule) => child(rule.condition)),
-    (conditions) => {
-      const permits = conditions.filter((_, i) => policy.rules[i]!.effect === "Permit");
-      const denies = conditions.filter((_, i) => policy.rules[i]!.effect === "Deny");
+    Effect.forEach(policy.rules, (rule: Rule) =>
+      Effect.map(child(rule.condition), (condition) => ({ rule, condition })),
+    ),
+    (translated) => {
+      // Carrying `rule` and `condition` together, rather than indexing two
+      // parallel arrays back into alignment, makes a reorder-one-without-the-
+      // other bug unrepresentable rather than merely unlikely.
+      const permits = translated
+        .filter(({ rule }) => rule.effect === "Permit")
+        .map(({ condition }) => condition);
+      const denies = translated
+        .filter(({ rule }) => rule.effect === "Deny")
+        .map(({ condition }) => condition);
 
       return Match.value(policy.combining).pipe(
         // A Permit anywhere decides; otherwise a Deny does, or nothing applied.
@@ -404,9 +415,12 @@ const translateRules = (
         Match.when("DenyOverrides", () => and([negate(or(denies)), or(permits)])),
         Match.when("FirstApplicable", () =>
           or(
-            conditions.map((condition, index) =>
-              policy.rules[index]!.effect === "Permit"
-                ? and([...conditions.slice(0, index).map(negate), condition])
+            translated.map(({ rule, condition }, index) =>
+              rule.effect === "Permit"
+                ? and([
+                    ...translated.slice(0, index).map(({ condition: c }) => negate(c)),
+                    condition,
+                  ])
                 : FALSE,
             ),
           ),

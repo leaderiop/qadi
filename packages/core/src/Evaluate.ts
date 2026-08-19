@@ -625,11 +625,16 @@ const evaluateRules = Effect.fn("qadi.rules")(function* (
    * selecting by arrival would make two runs of the same table owe different
    * duties, which is the constraint E3 contributed (ADR-QD-023).
    */
-  const step = (index: number, trace: Trace): boolean => {
+  // Takes `rule` alongside `index` rather than looking it up by indexing
+  // `policy.rules[index]` — under `noUncheckedIndexedAccess` that access types
+  // as possibly-`undefined` no matter how provably in-bounds the loop is, and
+  // AGENTS.md §6 bans asserting past that with `!`. Both call sites below
+  // already have `rule` in hand from iterating the array directly, so passing
+  // it through costs nothing.
+  const step = (index: number, rule: Rule, trace: Trace): boolean => {
     children.push(trace);
     if (!trace.allowed) return false;
 
-    const rule = policy.rules[index]!;
     const applied: Applied = { index, rule, trace };
     firstApplying ??= applied;
     if (decisive === undefined) return true;
@@ -641,25 +646,26 @@ const evaluateRules = Effect.fn("qadi.rules")(function* (
   };
 
   if (request.concurrency === undefined) {
-    for (let index = 0; index < policy.rules.length; index += 1) {
+    for (const [index, rule] of policy.rules.entries()) {
       // The condition answers *does this rule apply*, never *is this permitted*.
-      const trace = yield* evaluateNode(
-        policy.rules[index]!.condition,
-        subject,
-        request,
-        depth + 1,
-        maxDepth,
-      );
-      if (step(index, trace)) break;
+      const trace = yield* evaluateNode(rule.condition, subject, request, depth + 1, maxDepth);
+      if (step(index, rule, trace)) break;
     }
   } else {
-    const traces = yield* Effect.forEach(
+    // `rule` and `index` travel with the trace from the same `forEach` that
+    // produced it, rather than being re-associated afterward by indexing a
+    // second array — the same reasoning as `translateRules` in Predicate.ts.
+    const results = yield* Effect.forEach(
       policy.rules,
-      (rule) => evaluateNode(rule.condition, subject, request, depth + 1, maxDepth),
+      (rule, index) =>
+        Effect.map(
+          evaluateNode(rule.condition, subject, request, depth + 1, maxDepth),
+          (trace) => ({ index, rule, trace }),
+        ),
       { concurrency: request.concurrency },
     );
-    for (let index = 0; index < traces.length; index += 1) {
-      if (step(index, traces[index]!)) break;
+    for (const { index, rule, trace } of results) {
+      if (step(index, rule, trace)) break;
     }
   }
 
