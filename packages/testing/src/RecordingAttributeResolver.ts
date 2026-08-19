@@ -13,6 +13,7 @@
 import { AttributeResolver } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import { makeCallRecorder } from "./CallRecorder.ts";
 
 export const recordingAttributeResolver = (
   table: Readonly<Record<string, unknown>> = {},
@@ -20,13 +21,15 @@ export const recordingAttributeResolver = (
   readonly layer: Layer.Layer<AttributeResolver>;
   readonly calls: ReadonlyArray<string>;
 } => {
-  const calls: Array<string> = [];
+  const recorder = makeCallRecorder();
   return {
-    calls,
+    get calls() {
+      return recorder.calls;
+    },
     layer: Layer.succeed(AttributeResolver, {
       resolve: (_subjectId, attribute) =>
         Effect.sync(() => {
-          calls.push(attribute);
+          recorder.record(attribute);
           return table[attribute];
         }),
     }),

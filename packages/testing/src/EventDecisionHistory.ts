@@ -9,6 +9,7 @@ import type { ActedEventInput } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
+import { makeCallRecorder } from "./CallRecorder.ts";
 
 export const eventDecisionHistory = (
   events: ReadonlyArray<ActedEventInput>,
@@ -20,13 +21,15 @@ export const eventDecisionHistory = (
   const anywhere = HashSet.fromIterable(
     events.map(({ subjectId, event }) => new ActedAnywhere({ subjectId, event })),
   );
-  const calls: Array<string> = [];
+  const recorder = makeCallRecorder();
   return {
-    calls,
+    get calls() {
+      return recorder.calls;
+    },
     layer: Layer.succeed(DecisionHistory, {
       hasActed: (query) =>
         Effect.sync(() => {
-          calls.push(
+          recorder.record(
             query.resourceId === undefined
               ? `${query.subjectId} ${query.event}`
               : `${query.subjectId} ${query.event} ${query.resourceId}`,

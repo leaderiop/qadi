@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import { makeCallRecorder } from "../src/CallRecorder.ts";
 import {
   anyOf,
   evaluate,
@@ -228,4 +229,36 @@ describe("qadiReviewLayer", () => {
       const allowed = yield* filterSubjects(hasAttribute("tier", gte(3)), [nobody]);
       assert.deepStrictEqual(allowed.map((s) => s.id), [nobody.id]);
     }).pipe(Effect.provide(qadiReviewLayer({ attributes: { tier: 5 } }))));
+});
+
+describe("CallRecorder", () => {
+  it("starts empty", () => {
+    const recorder = makeCallRecorder();
+    assert.deepStrictEqual([...recorder.calls], []);
+  });
+
+  it("calls is live — it reflects records made after the property was first read", () => {
+    const recorder = makeCallRecorder();
+    const before = recorder.calls;
+    recorder.record("a");
+    recorder.record("b");
+    assert.deepStrictEqual([...before], []);
+    assert.deepStrictEqual([...recorder.calls], ["a", "b"]);
+  });
+
+  it("preserves record order, including a repeated entry", () => {
+    const recorder = makeCallRecorder();
+    recorder.record("x");
+    recorder.record("y");
+    recorder.record("x");
+    assert.deepStrictEqual([...recorder.calls], ["x", "y", "x"]);
+  });
+
+  it("two recorders never share state", () => {
+    const a = makeCallRecorder();
+    const b = makeCallRecorder();
+    a.record("only a");
+    assert.deepStrictEqual([...a.calls], ["only a"]);
+    assert.deepStrictEqual([...b.calls], []);
+  });
 });
