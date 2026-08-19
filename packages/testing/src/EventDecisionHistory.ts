@@ -4,39 +4,21 @@
  * A closed world: anything not listed is `"NotActed"`. `DecisionHistoryUnknown`
  * is the layer that says *nobody can say*, and it denies both polarities.
  */
-import { DecisionHistory } from "@qadi/core";
-import * as Data from "effect/Data";
+import { ActedAnywhere, ActedEvent, DecisionHistory } from "@qadi/core";
+import type { ActedEventInput } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 
-/**
- * Compared structurally, not by a joined string key — see the identical
- * classes in `@qadi/core`'s `DecisionHistory.ts` for why.
- */
-class ActedEvent extends Data.Class<{
-  readonly subjectId: string;
-  readonly event: string;
-  readonly resourceId: string;
-}> {}
-
-class ActedAnywhere extends Data.Class<{
-  readonly subjectId: string;
-  readonly event: string;
-}> {}
-
 export const eventDecisionHistory = (
-  events: ReadonlyArray<readonly [string, string, string]>,
+  events: ReadonlyArray<ActedEventInput>,
 ): {
   readonly layer: Layer.Layer<DecisionHistory>;
   readonly calls: ReadonlyArray<string>;
 } => {
-  const keyed = HashSet.fromIterable(
-    events.map(([subjectId, event, resourceId]) =>
-      new ActedEvent({ subjectId, event, resourceId })),
-  );
+  const keyed = HashSet.fromIterable(events.map((event) => new ActedEvent(event)));
   const anywhere = HashSet.fromIterable(
-    events.map(([subjectId, event]) => new ActedAnywhere({ subjectId, event })),
+    events.map(({ subjectId, event }) => new ActedAnywhere({ subjectId, event })),
   );
   const calls: Array<string> = [];
   return {

@@ -45,7 +45,9 @@ describe("default layers", () => {
 
   it.effect("relationshipResolverFromEdges matches direct edges only", () =>
     Effect.gen(function* () {
-      const layer = relationshipResolverFromEdges([["u", "owner", "d"]]);
+      const layer = relationshipResolverFromEdges([
+        { subjectId: "u", relation: "owner", resourceId: "d" },
+      ]);
       const hit = yield* RelationshipResolver.check({
         subjectId: "u",
         relation: "owner",

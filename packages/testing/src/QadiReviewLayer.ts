@@ -13,7 +13,12 @@ import {
   RelationshipResolverNever,
   evaluationIdSequential,
 } from "@qadi/core";
-import type { CurrentSubject, EvaluationServices } from "@qadi/core";
+import type {
+  ActedEventInput,
+  CurrentSubject,
+  EvaluationServices,
+  RelationshipEdgeInput,
+} from "@qadi/core";
 import * as Layer from "effect/Layer";
 import { edgeRelationshipResolver } from "./EdgeRelationshipResolver.ts";
 import { recordingAttributeResolver } from "./RecordingAttributeResolver.ts";
@@ -34,10 +39,10 @@ export type QadiTestServices = EvaluationServices;
 export interface TestLayerOptions {
   /** Attributes resolved on a subject miss. */
   readonly attributes?: Readonly<Record<string, unknown>>;
-  /** Relationship edges as `[subjectId, relation, resourceId]`. */
-  readonly relationships?: ReadonlyArray<readonly [string, string, string]>;
-  /** Past events as `[subjectId, event, resourceId]`. */
-  readonly history?: ReadonlyArray<readonly [string, string, string]>;
+  /** Relationship edges. */
+  readonly relationships?: ReadonlyArray<RelationshipEdgeInput>;
+  /** Past events. */
+  readonly history?: ReadonlyArray<ActedEventInput>;
   /** Prefix for the deterministic evaluation ids. Defaults to `eval`. */
   readonly idPrefix?: string;
   /**

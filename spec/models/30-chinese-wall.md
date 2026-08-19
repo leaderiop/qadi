@@ -89,7 +89,9 @@ const withinWall = (conflictClass: string) =>
 const canRead = allOf([hasRole("analyst"), withinWall("oil")]);
 
 // The caller's store, behind the port. `an-1` is engaged with Shell.
-const engaged = decisionHistoryFromEvents([["an-1", "oil", "shell"]]);
+const engaged = decisionHistoryFromEvents([
+  { subjectId: "an-1", event: "oil", resourceId: "shell" },
+]);
 
 const services = Layer.mergeAll(
   currentSubjectLayer(makeSubject({ id: "an-1", roles: ["analyst"] })),
@@ -154,7 +156,9 @@ const analyst = makeSubject({
 });
 const services = Layer.mergeAll(
   AttributeResolverNone,
-  relationshipResolverFromEdges([["an-1", "engaged-with", "obj-b1"]]),
+  relationshipResolverFromEdges([
+    { subjectId: "an-1", relation: "engaged-with", resourceId: "obj-b1" },
+  ]),
   // Present even though no branch reads history: `EvaluationServices` requires
   // the port unconditionally, and omitting it leaves a residual requirement that
   // only surfaces when something runs the program.

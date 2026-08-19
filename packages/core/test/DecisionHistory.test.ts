@@ -26,8 +26,8 @@ describe("DecisionHistory", () => {
 
   describe("decisionHistoryFromEvents", () => {
     const history = decisionHistoryFromEvents([
-      ["alice", "raised", "inv-1"],
-      ["bob", "approved", "inv-2"],
+      { subjectId: "alice", event: "raised", resourceId: "inv-1" },
+      { subjectId: "bob", event: "approved", resourceId: "inv-2" },
     ]);
 
     it.effect("Acted for an exact (subject, event, resource) match", () =>
@@ -58,10 +58,14 @@ describe("DecisionHistory", () => {
           // event="b c"` both joined to `"a b c"`. HashSet membership over a
           // Data.Class compares subjectId/event/resourceId as independent
           // structural fields, so no character is a delimiter anymore.
-          const collidable = decisionHistoryFromEvents([["a b", "raised", "c"]]);
+          const collidable = decisionHistoryFromEvents([
+            { subjectId: "a b", event: "raised", resourceId: "c" },
+          ]);
           assert.strictEqual(yield* query(collidable, "b raised", "c", "a"), "NotActed");
 
-          const collidableAnywhere = decisionHistoryFromEvents([["a b", "raised", "c"]]);
+          const collidableAnywhere = decisionHistoryFromEvents([
+            { subjectId: "a b", event: "raised", resourceId: "c" },
+          ]);
           assert.strictEqual(
             yield* query(collidableAnywhere, "b raised", undefined, "a"),
             "NotActed",

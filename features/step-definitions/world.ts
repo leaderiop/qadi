@@ -1,12 +1,14 @@
 import { World } from "@cucumber/cucumber";
 import type { IWorldOptions } from "@cucumber/cucumber";
 import type {
+  ActedEventInput,
   AuthSubject,
   Decision,
   EvaluateOptions,
   Obligation,
   Policy,
   Predicate,
+  RelationshipEdgeInput,
   Trace,
 } from "@qadi/core";
 import {
@@ -96,7 +98,7 @@ export class QadiWorld extends World {
   permissions: Array<`${string}:${string}`> = [];
   attributes: Record<string, unknown> = {};
   resolvedAttributes: Record<string, unknown> = {};
-  relationships: Array<readonly [string, string, string]> = [];
+  relationships: Array<RelationshipEdgeInput> = [];
   resource: Record<string, unknown> | undefined = undefined;
   action: string | undefined = undefined;
   /** Set when a scenario supplies a handler for the duties a decision carries. */
@@ -105,8 +107,8 @@ export class QadiWorld extends World {
   discharged: Array<string> = [];
   /** Whether the effect behind `enforce` was started. */
   workRan = false;
-  /** Past events as `[subjectId, event, resourceId]`. Undefined means unwired. */
-  events: Array<readonly [string, string, string]> | undefined = undefined;
+  /** Past events. Undefined means unwired. */
+  events: Array<ActedEventInput> | undefined = undefined;
   /** Set when a scenario wants the history store to be down rather than absent. */
   historyUnreachable = false;
   /**

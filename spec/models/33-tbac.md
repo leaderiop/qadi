@@ -114,7 +114,7 @@ import * as Layer from "effect/Layer";
 // The workflow engine owns the task table. Qadi never writes to it; it reads
 // the state the engine maintains — here, one edge per active assignment.
 const TaskAssignments = relationshipResolverFromEdges([
-  ["u-amina", "assigned-task", "invoice-1041"],
+  { subjectId: "u-amina", relation: "assigned-task", resourceId: "invoice-1041" },
 ]);
 
 // A workflow-step authorisation, entirely in shipped capability. Each branch is
@@ -158,7 +158,11 @@ const program = Effect.gen(function* () {
   const afterApproving = yield* check(canApproveInvoice, {
     resource: { id: "invoice-1041", state: "awaiting-approval", raisedBy: "u-clerk" },
   }).pipe(
-    Effect.provide(decisionHistoryFromEvents([["u-amina", "approved", "invoice-1041"]])),
+    Effect.provide(
+      decisionHistoryFromEvents([
+        { subjectId: "u-amina", event: "approved", resourceId: "invoice-1041" },
+      ]),
+    ),
   );
 
   return { whileOpen, afterAdvance, afterApproving };
@@ -170,7 +174,9 @@ const program = Effect.gen(function* () {
       AttributeResolverNone,
       // An approval on a *different* invoice, so the first two calls allow and
       // deny on their own terms and the keyed question is demonstrated.
-      decisionHistoryFromEvents([["u-amina", "approved", "invoice-1040"]]),
+      decisionHistoryFromEvents([
+        { subjectId: "u-amina", event: "approved", resourceId: "invoice-1040" },
+      ]),
       EvaluationIdLive,
     ),
   ),

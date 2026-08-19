@@ -49,31 +49,47 @@ export const RelationshipResolverNever: Layer.Layer<RelationshipResolver> = Laye
 );
 
 /**
+ * One edge to seed {@link relationshipResolverFromEdges} with.
+ *
+ * A named struct, not a `readonly [string, string, string]` positional
+ * tuple: a tuple's field order is convention only, so
+ * `edges.map(([a, b, c]) => ...)` called with the fields transposed — a
+ * subject id where a relation belongs, say — type-checks cleanly and
+ * silently grants or denies against the wrong identity. A struct makes that
+ * a compile error instead.
+ */
+export interface RelationshipEdgeInput {
+  readonly subjectId: string;
+  readonly relation: string;
+  readonly resourceId: string;
+}
+
+/**
  * One edge, compared structurally rather than by a joined string key —
  * `subjectId`/`relation`/`resourceId` collide onto the same key under naive
  * string-joining whenever a segment itself contains the delimiter. `Data.Class`
  * gives per-field `Equal`/`Hash`, so `HashSet` membership compares each field
  * independently and the collision is unrepresentable, not just harder to hit.
+ *
+ * Exported so `@qadi/testing`'s `edgeRelationshipResolver` can reuse this
+ * exact class instead of pasting an identical one: a value class with no
+ * behavior beyond structural equality has nothing sensitive to leak by being
+ * public, and a future change to its equality semantics now has one
+ * definition to reach, not two that could silently drift apart in the exact
+ * area (key-collision avoidance) a real bug once lived.
  */
-class RelationshipEdge extends Data.Class<{
-  readonly subjectId: string;
-  readonly relation: string;
-  readonly resourceId: string;
-}> {}
+export class RelationshipEdge extends Data.Class<RelationshipEdgeInput> {}
 
 /**
- * Resolves against a static edge list of `[subjectId, relation, resourceId]`.
+ * Resolves against a static edge list.
  *
  * Direct edges only — `depth` is ignored, since a flat list has no graph to
  * traverse. Suitable for tests and small fixed policies.
  */
 export const relationshipResolverFromEdges = (
-  edges: ReadonlyArray<readonly [string, string, string]>,
+  edges: ReadonlyArray<RelationshipEdgeInput>,
 ): Layer.Layer<RelationshipResolver> => {
-  const index = HashSet.fromIterable(
-    edges.map(([subjectId, relation, resourceId]) =>
-      new RelationshipEdge({ subjectId, relation, resourceId })),
-  );
+  const index = HashSet.fromIterable(edges.map((edge) => new RelationshipEdge(edge)));
   return Layer.succeed(RelationshipResolver, {
     check: (request) =>
       Effect.succeed(

@@ -1,30 +1,17 @@
 /** A relationship resolver over a static edge list, recording its queries. */
-import { RelationshipResolver } from "@qadi/core";
-import * as Data from "effect/Data";
+import { RelationshipEdge, RelationshipResolver } from "@qadi/core";
+import type { RelationshipEdgeInput } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 
-/**
- * Compared structurally, not by a joined string key — see the identical class
- * in `@qadi/core`'s `RelationshipResolver.ts` for why.
- */
-class RelationshipEdge extends Data.Class<{
-  readonly subjectId: string;
-  readonly relation: string;
-  readonly resourceId: string;
-}> {}
-
 export const edgeRelationshipResolver = (
-  edges: ReadonlyArray<readonly [string, string, string]>,
+  edges: ReadonlyArray<RelationshipEdgeInput>,
 ): {
   readonly layer: Layer.Layer<RelationshipResolver>;
   readonly calls: ReadonlyArray<string>;
 } => {
-  const index = HashSet.fromIterable(
-    edges.map(([subjectId, relation, resourceId]) =>
-      new RelationshipEdge({ subjectId, relation, resourceId })),
-  );
+  const index = HashSet.fromIterable(edges.map((edge) => new RelationshipEdge(edge)));
   const calls: Array<string> = [];
   return {
     calls,

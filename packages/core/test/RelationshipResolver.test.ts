@@ -35,9 +35,9 @@ describe("RelationshipResolver", () => {
 
   describe("relationshipResolverFromEdges", () => {
     const owns = relationshipResolverFromEdges([
-      ["alice", "owner", "doc-1"],
-      ["alice", "owner", "doc-2"],
-      ["bob", "editor", "doc-1"],
+      { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
+      { subjectId: "alice", relation: "owner", resourceId: "doc-2" },
+      { subjectId: "bob", relation: "editor", resourceId: "doc-1" },
     ]);
 
     it.effect("matches an exact edge", () =>
@@ -90,8 +90,8 @@ describe("RelationshipResolver", () => {
     it.effect("a duplicated edge collapses without changing the result", () =>
       Effect.gen(function* () {
         const duped = relationshipResolverFromEdges([
-          ["alice", "owner", "doc-1"],
-          ["alice", "owner", "doc-1"],
+          { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
+          { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
         ]);
         assert.isTrue(
           yield* check(duped, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
@@ -116,7 +116,9 @@ describe("RelationshipResolver", () => {
           // independent structural fields, so neither character — nor any other —
           // is special. Both cases below are covered: the one the old mitigation
           // already handled, and the one it didn't.
-          const spaceCollidable = relationshipResolverFromEdges([["a b", "owner", "c"]]);
+          const spaceCollidable = relationshipResolverFromEdges([
+            { subjectId: "a b", relation: "owner", resourceId: "c" },
+          ]);
           assert.isFalse(
             yield* check(spaceCollidable, {
               subjectId: "a",
@@ -125,7 +127,9 @@ describe("RelationshipResolver", () => {
             }),
           );
 
-          const nulCollidable = relationshipResolverFromEdges([["a\0b", "owner", "c"]]);
+          const nulCollidable = relationshipResolverFromEdges([
+            { subjectId: "a\0b", relation: "owner", resourceId: "c" },
+          ]);
           assert.isFalse(
             yield* check(nulCollidable, {
               subjectId: "a",

@@ -121,7 +121,9 @@ const program = Effect.gen(function* () {
       RelationshipResolverNever,
       // A claim on a DIFFERENT offer, so this allows — and the keyed question is
       // demonstrated rather than asserted.
-      decisionHistoryFromEvents([["u-1", "claimed", "offer-8"]]),
+      decisionHistoryFromEvents([
+        { subjectId: "u-1", event: "claimed", resourceId: "offer-8" },
+      ]),
       EvaluationIdLive,
     ),
   ),
@@ -226,9 +228,9 @@ export const hasNotActed: (relation: string, options?: …) => Policy;
 /** Fail-closed default: assumes the subject has acted, so `hasNotActed` denies. */
 export const DecisionHistoryAssumeActed: Layer.Layer<DecisionHistory>;
 
-/** Deterministic layer over fixed `[subjectId, relation, resourceId]` events. */
+/** Deterministic layer over fixed `{ subjectId, event, resourceId }` entries. */
 export const decisionHistoryFromEvents: (
-  events: ReadonlyArray<readonly [string, string, string]>,
+  events: ReadonlyArray<ActedEventInput>,
 ) => Layer.Layer<DecisionHistory>;
 ```
 

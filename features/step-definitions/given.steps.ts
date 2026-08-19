@@ -63,7 +63,7 @@ Given(
 Given(
   "the subject is {string} of resource {string}",
   function (this: QadiWorld, relation: string, resourceId: string) {
-    this.relationships.push([this.subjectId, relation, resourceId]);
+    this.relationships.push({ subjectId: this.subjectId, relation, resourceId });
   },
 );
 
@@ -135,7 +135,7 @@ Given("an obligation handler is supplied", function (this: QadiWorld) {
 Given(
   "the history records that {string} raised {string}",
   function (this: QadiWorld, subjectId: string, resourceId: string) {
-    this.events = [...(this.events ?? []), [subjectId, "raised", resourceId]];
+    this.events = [...(this.events ?? []), { subjectId, event: "raised", resourceId }];
   },
 );
 
@@ -149,14 +149,17 @@ Given(
 Given(
   "the history records that {string} accessed {string} in the {string} class",
   function (this: QadiWorld, subjectId: string, company: string, conflictClass: string) {
-    this.events = [...(this.events ?? []), [subjectId, conflictClass, company]];
+    this.events = [
+      ...(this.events ?? []),
+      { subjectId, event: conflictClass, resourceId: company },
+    ];
   },
 );
 
 Given(
   "the history records that {string} approved {string}",
   function (this: QadiWorld, subjectId: string, resourceId: string) {
-    this.events = [...(this.events ?? []), [subjectId, "approved", resourceId]];
+    this.events = [...(this.events ?? []), { subjectId, event: "approved", resourceId }];
   },
 );
 

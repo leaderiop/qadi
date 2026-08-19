@@ -176,9 +176,15 @@ REQUIREMENT: The first branch MUST be `hasNotActed`, never `not(hasActed(…))`.
 ## BEH-QD-095: Layers
 
 ```ts
+export interface ActedEventInput {
+  readonly subjectId: string;
+  readonly event: string;
+  readonly resourceId: string;
+}
+
 export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory>;
 export const decisionHistoryFromEvents: (
-  events: ReadonlyArray<readonly [string, string, string]>,
+  events: ReadonlyArray<ActedEventInput>,
 ) => Layer.Layer<DecisionHistory>;
 ```
 

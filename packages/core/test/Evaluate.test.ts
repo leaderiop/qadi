@@ -124,7 +124,9 @@ describe("leaf policies", () => {
     }).pipe(
       Effect.provide(
         testLayer(subjectWith({ id: "u1" }), {
-          relationships: relationshipResolverFromEdges([["u1", "owner", "doc-1"]]),
+          relationships: relationshipResolverFromEdges([
+            { subjectId: "u1", relation: "owner", resourceId: "doc-1" },
+          ]),
         }),
       ),
     ));
@@ -141,7 +143,9 @@ describe("leaf policies", () => {
     }).pipe(
       Effect.provide(
         testLayer(subjectWith({ id: "u1" }), {
-          relationships: relationshipResolverFromEdges([["u1", "owner", "doc-1"]]),
+          relationships: relationshipResolverFromEdges([
+            { subjectId: "u1", relation: "owner", resourceId: "doc-1" },
+          ]),
         }),
       ),
     ));
@@ -1092,7 +1096,9 @@ describe("decision history", () => {
   const clerk = subjectWith({ id: "u1" });
   const invoice = { resource: { id: "inv-1" } };
 
-  const raisedIt = decisionHistoryFromEvents([["u1", "raised", "inv-1"]]);
+  const raisedIt = decisionHistoryFromEvents([
+    { subjectId: "u1", event: "raised", resourceId: "inv-1" },
+  ]);
 
   it.effect("hasActed allows when the event is recorded", () =>
     Effect.gen(function* () {
@@ -1171,7 +1177,9 @@ describe("decision history", () => {
 
   it.effect("scope Any asks without a resource and needs none", () =>
     Effect.gen(function* () {
-      const everRaised = decisionHistoryFromEvents([["u1", "raised", "inv-9"]]);
+      const everRaised = decisionHistoryFromEvents([
+        { subjectId: "u1", event: "raised", resourceId: "inv-9" },
+      ]);
       const d = yield* evaluate(P.hasActed("raised", { scope: "Any" })).pipe(
         Effect.provide(testLayer(clerk, { history: everRaised })),
       );
@@ -1246,7 +1254,9 @@ describe("decision history", () => {
           P.hasActed(conflictClass, { scope: "Resource" }),
         ]);
 
-      const engagedWithShell = decisionHistoryFromEvents([["u1", "oil", "shell"]]);
+      const engagedWithShell = decisionHistoryFromEvents([
+        { subjectId: "u1", event: "oil", resourceId: "shell" },
+      ]);
       const wall = withinWall("oil");
       const provide = Effect.provide(testLayer(clerk, { history: engagedWithShell }));
 
@@ -1375,7 +1385,7 @@ describe("task-based access control", () => {
   };
 
   const assigned = relationshipResolverFromEdges([
-    ["u-amina", "assigned-task", "invoice-1041"],
+    { subjectId: "u-amina", relation: "assigned-task", resourceId: "invoice-1041" },
   ]);
 
   const canApprove = P.allOf([
@@ -1401,11 +1411,15 @@ describe("task-based access control", () => {
       // event differs, which is the whole of "transient and consumable".
       const unspent = testLayer(approver, {
         relationships: assigned,
-        history: decisionHistoryFromEvents([["u-amina", "approved", "invoice-1040"]]),
+        history: decisionHistoryFromEvents([
+          { subjectId: "u-amina", event: "approved", resourceId: "invoice-1040" },
+        ]),
       });
       const spent = testLayer(approver, {
         relationships: assigned,
-        history: decisionHistoryFromEvents([["u-amina", "approved", "invoice-1041"]]),
+        history: decisionHistoryFromEvents([
+          { subjectId: "u-amina", event: "approved", resourceId: "invoice-1041" },
+        ]),
       });
 
       assert.isTrue(

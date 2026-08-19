@@ -84,8 +84,14 @@ Two layers ship. Neither is a graph store.
 
 ```ts
 export const RelationshipResolverNever: Layer.Layer<RelationshipResolver>;
+export interface RelationshipEdgeInput {
+  readonly subjectId: string;
+  readonly relation: string;
+  readonly resourceId: string;
+}
+
 export const relationshipResolverFromEdges: (
-  edges: ReadonlyArray<readonly [string, string, string]>,
+  edges: ReadonlyArray<RelationshipEdgeInput>,
 ) => Layer.Layer<RelationshipResolver>;
 ```
 
@@ -94,7 +100,7 @@ port must not grant access, so a wiring omission surfaces as denials in testing
 rather than as a silent breach in production
 ([INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed),
 [BEH-QD-043](../behaviors/06-services.md)). `relationshipResolverFromEdges`
-matches direct `[subjectId, relation, resourceId]` tuples only — a flat list has
+matches direct `RelationshipEdgeInput` edges only — a flat list has
 no graph, so it ignores `depth`.
 
 **A relationship check without a resource is an error, not a denial.** A
@@ -135,8 +141,8 @@ const canReadDocument = anyOf([
 const services = Layer.mergeAll(
   currentSubjectLayer(makeSubject({ id: "u-olivia" })),
   relationshipResolverFromEdges([
-    ["u-olivia", "owner", "doc-1"],
-    ["u-peggy", "member", "doc-1"],
+    { subjectId: "u-olivia", relation: "owner", resourceId: "doc-1" },
+    { subjectId: "u-peggy", relation: "member", resourceId: "doc-1" },
   ]),
   AttributeResolverNone,
   EvaluationIdLive,

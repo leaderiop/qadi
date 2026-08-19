@@ -76,40 +76,55 @@ export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory> = Layer.succee
 );
 
 /**
+ * One event to seed {@link decisionHistoryFromEvents} with.
+ *
+ * A named struct, not a `readonly [string, string, string]` positional
+ * tuple — see {@link RelationshipEdgeInput} in `RelationshipResolver.ts` for
+ * why: a tuple's field order is convention only, and a transposed call
+ * type-checks cleanly while silently answering about the wrong subject or
+ * event.
+ */
+export interface ActedEventInput {
+  readonly subjectId: string;
+  readonly event: string;
+  readonly resourceId: string;
+}
+
+/** `(subjectId, event)` only — no resource, for an "ever, at all" question. */
+export interface ActedAnywhereInput {
+  readonly subjectId: string;
+  readonly event: string;
+}
+
+/**
  * One `(subjectId, event, resourceId)` triple and one `(subjectId, event)`
  * pair, compared structurally rather than by a joined string key — a naive
  * `${a} ${b} ${c}` join collides whenever a segment itself contains the
  * delimiter. `Data.Class` gives per-field `Equal`/`Hash`, so `HashSet`
  * membership compares each field independently and the collision is
  * unrepresentable, not just harder to hit.
+ *
+ * Exported so `@qadi/testing`'s `eventDecisionHistory` can reuse these exact
+ * classes instead of pasting identical ones — see `RelationshipEdge` in
+ * `RelationshipResolver.ts` for the same reasoning.
  */
-class ActedEvent extends Data.Class<{
-  readonly subjectId: string;
-  readonly event: string;
-  readonly resourceId: string;
-}> {}
+export class ActedEvent extends Data.Class<ActedEventInput> {}
 
-class ActedAnywhere extends Data.Class<{
-  readonly subjectId: string;
-  readonly event: string;
-}> {}
+export class ActedAnywhere extends Data.Class<ActedAnywhereInput> {}
 
 /**
- * Resolves against a static event list of `[subjectId, event, resourceId]`.
+ * Resolves against a static event list.
  *
  * A closed world: anything not listed is `"NotActed"` rather than `"Unknown"`,
  * because this layer *is* the store and it does know. Suitable for tests and
  * small fixed policies.
  */
 export const decisionHistoryFromEvents = (
-  events: ReadonlyArray<readonly [string, string, string]>,
+  events: ReadonlyArray<ActedEventInput>,
 ): Layer.Layer<DecisionHistory> => {
-  const keyed = HashSet.fromIterable(
-    events.map(([subjectId, event, resourceId]) =>
-      new ActedEvent({ subjectId, event, resourceId })),
-  );
+  const keyed = HashSet.fromIterable(events.map((event) => new ActedEvent(event)));
   const anywhere = HashSet.fromIterable(
-    events.map(([subjectId, event]) => new ActedAnywhere({ subjectId, event })),
+    events.map(({ subjectId, event }) => new ActedAnywhere({ subjectId, event })),
   );
 
   return Layer.succeed(DecisionHistory, {

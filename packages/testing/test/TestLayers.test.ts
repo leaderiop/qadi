@@ -82,7 +82,7 @@ describe("qadiTestLayer", () => {
     }).pipe(
       Effect.provide(
         qadiTestLayer(subjectWith({ id: "u1" }), {
-          relationships: [["u1", "owner", "d1"]],
+          relationships: [{ subjectId: "u1", relation: "owner", resourceId: "d1" }],
         }),
       ),
     ));
@@ -104,7 +104,9 @@ describe("recording resolvers", () => {
 
   it.effect("records relationship queries", () =>
     Effect.gen(function* () {
-      const resolver = edgeRelationshipResolver([["u1", "owner", "d1"]]);
+      const resolver = edgeRelationshipResolver([
+        { subjectId: "u1", relation: "owner", resourceId: "d1" },
+      ]);
       yield* evaluate(hasRelationship("owner"), { resource: { id: "d1" } }).pipe(
         Effect.provide(
           qadiTestLayer(subjectWith({ id: "u1" }), {
@@ -133,7 +135,9 @@ describe("eventDecisionHistory", () => {
 
   it.effect("records its queries and answers a keyed question", () =>
     Effect.gen(function* () {
-      const history = eventDecisionHistory([["u1", "raised", "inv-1"]]);
+      const history = eventDecisionHistory([
+        { subjectId: "u1", event: "raised", resourceId: "inv-1" },
+      ]);
 
       const own = yield* evaluate(hasNotActed("raised"), {
         resource: { id: "inv-1" },
@@ -152,7 +156,9 @@ describe("eventDecisionHistory", () => {
 
   it.effect("answers 'ever, at all' when the query carries no resource", () =>
     Effect.gen(function* () {
-      const history = eventDecisionHistory([["u1", "raised", "inv-9"]]);
+      const history = eventDecisionHistory([
+        { subjectId: "u1", event: "raised", resourceId: "inv-9" },
+      ]);
       const d = yield* evaluate(hasActed("raised", { scope: "Any" })).pipe(
         Effect.provide(qadiTestLayer(clerk, { decisionHistory: history.layer })),
       );
@@ -165,7 +171,11 @@ describe("eventDecisionHistory", () => {
       const d = yield* evaluate(hasActed("raised"), { resource: { id: "inv-1" } });
       assert.isTrue(isAllowed(d));
     }).pipe(
-      Effect.provide(qadiTestLayer(clerk, { history: [["u1", "raised", "inv-1"]] })),
+      Effect.provide(
+        qadiTestLayer(clerk, {
+          history: [{ subjectId: "u1", event: "raised", resourceId: "inv-1" }],
+        }),
+      ),
     ));
 
   it.effect("the default port knows nothing, so both polarities deny", () =>
