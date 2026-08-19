@@ -14,10 +14,16 @@
  * policy across every component that asks.
  */
 import * as Context from "effect/Context";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Ref from "effect/Ref";
+import type { AttributeResolver } from "./AttributeResolver.ts";
 import type { Trace } from "./Decision.ts";
+import type { DecisionHistory } from "./DecisionHistory.ts";
+import type { EvaluationError } from "./Errors.ts";
 import type { Policy } from "./Policy.ts";
+import type { RelationshipResolver } from "./RelationshipResolver.ts";
 
 /** Everything that can change an answer. */
 export interface DecisionCacheKey {
@@ -27,11 +33,33 @@ export interface DecisionCacheKey {
   readonly action: string | undefined;
 }
 
+/**
+ * What `getOrCompute`'s `compute` argument — always `evaluateNode` — can
+ * need or raise.
+ */
+type EvaluationRequirements = AttributeResolver | RelationshipResolver | DecisionHistory;
+
 export interface DecisionCacheShape {
-  /** The trace for this exact question, if it has been asked. */
-  readonly lookup: (key: DecisionCacheKey) => Effect.Effect<Trace | undefined>;
-  readonly remember: (key: DecisionCacheKey, trace: Trace) => Effect.Effect<void>;
-  /** How many entries are held. For tests and for a caller reporting hit rates. */
+  /**
+   * The trace for this exact question — from a prior call's completed
+   * `compute`, from another fiber's currently-running `compute`, or freshly
+   * computed by running `compute` here.
+   *
+   * Concurrent calls for the **same key** share one `compute` run: the first
+   * caller runs it, every other caller concurrently asking the same question
+   * awaits that caller's result instead of running its own — a genuine
+   * failure included, per the fail-shared design of `DecisionCache.test.ts`'s
+   * concurrency tests. `compute` failing does not poison the cache: the next
+   * call for that key, once nothing is in flight for it, runs fresh.
+   */
+  readonly getOrCompute: (
+    key: DecisionCacheKey,
+    compute: Effect.Effect<Trace, EvaluationError, EvaluationRequirements>,
+  ) => Effect.Effect<Trace, EvaluationError, EvaluationRequirements>;
+  /**
+   * How many completed entries are held. For tests and for a caller
+   * reporting hit rates.
+   */
   readonly size: Effect.Effect<number>;
 }
 
@@ -101,15 +129,49 @@ const keyOf = (key: DecisionCacheKey): string =>
 export const decisionCacheLayer = (): Layer.Layer<DecisionCache> =>
   Layer.effect(
     DecisionCache,
-    Effect.sync(() => {
+    Effect.gen(function* () {
       const entries = new Map<string, Trace>();
-      return {
-        lookup: (key) => Effect.sync(() => entries.get(keyOf(key))),
-        remember: (key, trace) =>
-          Effect.sync(() => {
-            entries.set(keyOf(key), trace);
-          }),
-        size: Effect.sync(() => entries.size),
-      };
+      // Keys with a `compute` currently running, so a second concurrent ask for
+      // the same question awaits the first's result instead of starting its own.
+      const inFlight = yield* Ref.make(
+        new Map<string, Deferred.Deferred<Trace, EvaluationError>>(),
+      );
+
+      const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, compute) =>
+        Effect.gen(function* () {
+          const k = keyOf(key);
+          const cached = entries.get(k);
+          if (cached !== undefined) return cached;
+
+          const claim = yield* Deferred.make<Trace, EvaluationError>();
+          const owner = yield* Ref.modify(inFlight, (map) => {
+            const existing = map.get(k);
+            if (existing !== undefined) return [existing, map] as const;
+            const claimed = new Map(map);
+            claimed.set(k, claim);
+            return [claim, claimed] as const;
+          });
+
+          // Someone else already claimed this key — share their result,
+          // success or failure, rather than compute a second time.
+          if (owner !== claim) return yield* Deferred.await(owner);
+
+          const exit = yield* Effect.exit(compute);
+          if (exit._tag === "Success") entries.set(k, exit.value);
+          // Resolve waiters (and, on failure, share the same failure with all
+          // of them) *before* clearing the claim — a fiber arriving in the
+          // gap between the two either sees the finished entry or awaits an
+          // already-resolved Deferred, never starts a redundant third compute.
+          yield* Deferred.done(claim, exit);
+          yield* Ref.update(inFlight, (map) => {
+            const cleared = new Map(map);
+            cleared.delete(k);
+            return cleared;
+          });
+
+          return yield* Deferred.await(claim);
+        });
+
+      return { getOrCompute, size: Effect.sync(() => entries.size) };
     }),
   );

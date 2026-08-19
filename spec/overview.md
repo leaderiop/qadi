@@ -60,6 +60,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `permission`, `permissionKey`, `isValidSegment` | function | `Permission.ts` |
 | `Permission`, `PermissionKey`, `InferResource`, `InferAction`, `InferKey` | type | `Permission.ts` |
 | `PermissionSchema` | schema | `Permission.ts` |
+| `SEGMENT_PATTERN` | constant | `Permission.ts` |
 | `role`, `flattenPermissions`, `flattenAll`, `roleNames`, `resolveRoleGraph` | function | `Role.ts` |
 | `makeSubject`, `fromRoles`, `withAttributes`, `anonymous` | function | `AuthSubject.ts` |
 | `AuthSubject` | type | `AuthSubject.ts` |
@@ -70,6 +71,8 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | Export | Kind | Source |
 | ------ | ---- | ------ |
 | `Policy`, `FieldStrategy` | schema + type | `Policy.ts` |
+| `PolicyEncoded`, `RuleEncoded` | type | `Policy.ts` |
+| `RoleName`, `ActionName`, `EventName`, `RelationName`, `LabelName` | schema + type | `Policy.ts` |
 | `hasPermission`, `hasRole`, `hasAttribute`, `hasResourceAttribute`, `hasRelationship` | function | `Policy.ts` |
 | `hasAction` | function | `Policy.ts` |
 | `hasActed`, `hasNotActed` | function | `Policy.ts` |
@@ -91,7 +94,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `evaluateMatcher`, `referencesAction`, `referencesResource`, `getByPath` | function | `Matcher.ts` |
 | `simplify` | function | `Simplify.ts` |
 | `explain`, `renderExplanation` | function | `Explanation.ts` |
-| `Explanation`, `RenderOptions` | type | `Explanation.ts` |
+| `Explanation`, `RenderOptions`, `RequirementKind` | type | `Explanation.ts` |
 
 ### Evaluation and enforcement
 
@@ -140,7 +143,9 @@ record whose fields the policy should filter on the way out.
 | ------ | ---- | ------ |
 | `CurrentSubject`, `currentSubjectLayer`, `CurrentSubjectAnonymous` | service + layer | `CurrentSubject.ts` |
 | `AttributeResolver`, `AttributeResolverNone`, `attributeResolverFromRecord` | service + layer | `AttributeResolver.ts` |
+| `attributeResolverRetrying` | layer combinator | `AttributeResolver.ts` |
 | `RelationshipResolver`, `RelationshipResolverNever`, `relationshipResolverFromEdges` | service + layer | `RelationshipResolver.ts` |
+| `relationshipResolverRetrying` | layer combinator | `RelationshipResolver.ts` |
 | `DecisionHistory`, `DecisionHistoryUnknown`, `decisionHistoryFromEvents` | service + layer | `DecisionHistory.ts` |
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |

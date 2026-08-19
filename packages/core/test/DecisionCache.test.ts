@@ -1,15 +1,34 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
+import * as Ref from "effect/Ref";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { isAllowed } from "../src/Decision.ts";
+import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
+
+/**
+ * Forks `count` copies of `effect`, yields enough scheduler turns for every
+ * fork to actually run up to whatever it is blocked on, then returns the
+ * fibers — still running, not yet joined. The caller opens whatever gate
+ * they are blocked on and joins them afterward.
+ */
+const forkAllAndSettle = <A, E, R>(effect: Effect.Effect<A, E, R>, count: number) =>
+  Effect.gen(function* () {
+    const fibers = yield* Effect.forEach(Array.from({ length: count }, () => effect), (e) =>
+      Effect.forkChild(e),
+    );
+    for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+    return fibers;
+  });
 
 describe("DecisionCache", () => {
   /** Answerable only through the resolver, so lookups are countable. */
@@ -249,4 +268,110 @@ describe("DecisionCache", () => {
       assert.deepStrictEqual(concurrent.trace, sequential.trace);
       assert.deepStrictEqual(calls, ["u-1:clearance", "u-1:other"]);
     }));
+
+  it.effect(
+    "N concurrent identical asks coalesce into one compute — the resolver is invoked once",
+    () =>
+      Effect.gen(function* () {
+        const invocations = yield* Ref.make(0);
+        const gate = yield* Deferred.make<void>();
+        // Blocks every caller on the same gate, so all N asks are genuinely
+        // in flight together rather than finishing one at a time.
+        const blockingResolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.update(invocations, (n) => n + 1).pipe(
+              Effect.flatMap(() => Deferred.await(gate)),
+              Effect.as(5),
+            ),
+        });
+
+        const decisions = yield* Effect.gen(function* () {
+          const fibers = yield* forkAllAndSettle(evaluate(needsLookup), 5);
+          // Every fiber is now blocked inside the resolver, on the gate — if
+          // coalescing worked, that's one fiber, not five.
+          assert.strictEqual(
+            yield* Ref.get(invocations),
+            1,
+            "only the fiber that claimed the key should have reached the resolver",
+          );
+          yield* Deferred.succeed(gate, undefined);
+          return yield* Effect.forEach(fibers, Fiber.join);
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: blockingResolver })),
+          Effect.provide(decisionCacheLayer()),
+        );
+
+        for (const decision of decisions) assert.isTrue(isAllowed(decision));
+        assert.strictEqual(yield* Ref.get(invocations), 1);
+      }),
+  );
+
+  it.effect("a failed compute is not cached — the next ask, once nothing is in flight, retries", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const alwaysFails = Layer.succeed(AttributeResolver, {
+        resolve: (_id, attribute) =>
+          Ref.updateAndGet(invocations, (n) => n + 1).pipe(
+            Effect.flatMap((n) =>
+              Effect.fail(new AttributeResolveError({ attribute, cause: `down (attempt ${n})` })),
+            ),
+          ),
+      });
+
+      const [first, second, size] = yield* Effect.gen(function* () {
+        const a = yield* Effect.result(evaluate(needsLookup));
+        const b = yield* Effect.result(evaluate(needsLookup));
+        return [a, b, yield* DecisionCache.use((c) => c.size)] as const;
+      }).pipe(
+        Effect.provide(testLayer(alice, { attributes: alwaysFails })),
+        Effect.provide(decisionCacheLayer()),
+      );
+
+      assert.strictEqual(first._tag, "Failure");
+      assert.strictEqual(second._tag, "Failure");
+      // Not memoized: the second ask re-ran the resolver rather than replaying
+      // the first ask's failure from a stale entry.
+      assert.strictEqual(yield* Ref.get(invocations), 2);
+      // And nothing failed ever becomes a completed entry.
+      assert.strictEqual(size, 0);
+    }));
+
+  it.effect(
+    "N concurrent identical asks share a genuine failure — the resolver is invoked once",
+    () =>
+      Effect.gen(function* () {
+        const invocations = yield* Ref.make(0);
+        const gate = yield* Deferred.make<void>();
+        const failingResolver = Layer.succeed(AttributeResolver, {
+          resolve: (_id, attribute) =>
+            Ref.update(invocations, (n) => n + 1).pipe(
+              Effect.flatMap(() => Deferred.await(gate)),
+              Effect.flatMap(() =>
+                Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+              ),
+            ),
+        });
+
+        const results = yield* Effect.gen(function* () {
+          const fibers = yield* forkAllAndSettle(evaluate(needsLookup), 5);
+          assert.strictEqual(
+            yield* Ref.get(invocations),
+            1,
+            "only the fiber that claimed the key should have reached the resolver",
+          );
+          yield* Deferred.succeed(gate, undefined);
+          return yield* Effect.forEach(fibers, (f) => Effect.result(Fiber.join(f)));
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: failingResolver })),
+          Effect.provide(decisionCacheLayer()),
+        );
+
+        for (const result of results) assert.strictEqual(result._tag, "Failure");
+        assert.strictEqual(
+          yield* Ref.get(invocations),
+          1,
+          "the failure was shared, not independently retried by each waiter",
+        );
+      }),
+  );
 });

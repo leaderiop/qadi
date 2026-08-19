@@ -721,32 +721,31 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     action: options?.action,
   };
 
-  const cached = Option.isSome(cache)
-    ? yield* cache.value.lookup(cacheKey)
-    : undefined;
+  const compute = evaluateNode(
+    policy,
+    subject,
+    {
+      resource: options?.resource,
+      action: options?.action,
+      concurrency: options?.concurrency,
+    },
+    0,
+    options?.maxDepth ?? DEFAULT_MAX_DEPTH,
+  );
 
   // The TRACE is cached, never the `Decision`. A cached decision would carry a
   // duplicate `evaluationId`, so two log lines would claim to be the same event and
   // correlation — the one thing the identifier exists for — would stop working. The
   // id and the duration below are stamped per call, hit or miss, so a hit is
   // indistinguishable from a fresh evaluation except that it was faster.
-  const trace =
-    cached ??
-    (yield* evaluateNode(
-      policy,
-      subject,
-      {
-        resource: options?.resource,
-        action: options?.action,
-        concurrency: options?.concurrency,
-      },
-      0,
-      options?.maxDepth ?? DEFAULT_MAX_DEPTH,
-    ));
-
-  if (cached === undefined && Option.isSome(cache)) {
-    yield* cache.value.remember(cacheKey, trace);
-  }
+  //
+  // `getOrCompute` also coalesces concurrent identical asks into one `compute`
+  // run — including sharing a genuine failure with every waiter — rather than
+  // each racing its own (ADR-QD-031's follow-up: absence is still free, since
+  // this is still read through `serviceOption`).
+  const trace = Option.isSome(cache)
+    ? yield* cache.value.getOrCompute(cacheKey, compute)
+    : yield* compute;
 
   const durationMillis = (yield* Clock.currentTimeMillis) - startedAt;
 
