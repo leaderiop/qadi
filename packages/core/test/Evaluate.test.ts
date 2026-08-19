@@ -3,6 +3,9 @@ import * as Effect from "effect/Effect";
 import * as FastCheck from "effect/testing/FastCheck";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
+import * as Metric from "effect/Metric";
+import * as References from "effect/References";
 import * as Tracer from "effect/Tracer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
@@ -25,7 +28,7 @@ import {
   RelationshipResolver,
   relationshipResolverFromEdges,
 } from "../src/RelationshipResolver.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -1918,6 +1921,146 @@ describe("observability", () => {
       assert.isDefined(span);
       if (span === undefined) return;
       assert.notStrictEqual(span.status._tag, "Started");
+    }));
+});
+
+describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
+  const counterOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, attributes: Record<string, string>) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Counter" }> =>
+        s.type === "Counter" &&
+        s.id === "qadi_decisions_total" &&
+        Object.entries(attributes).every(([k, v]) => s.attributes?.[k] === v),
+    );
+
+  const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> => s.type === "Frequency" && s.id === id,
+    );
+
+  it.effect("tags an allow and a deny under separate outcome series", () =>
+    Effect.gen(function* () {
+      // Two allows, one deny — deliberately asymmetric. Equal counts (one of
+      // each) would still read as "correct" even if `evaluate` attributed
+      // outcomes to the wrong series entirely, as long as it did so
+      // consistently; only different counts prove which series is which.
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          yield* evaluate(P.hasRole("editor")).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+          );
+          yield* evaluate(P.hasRole("editor")).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+          );
+          yield* evaluate(P.hasPermission(write)).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u2" }))),
+          );
+          return yield* Metric.snapshot;
+        }),
+      );
+
+      const allow = counterOf(snapshots, { outcome: "allow" });
+      const deny = counterOf(snapshots, { outcome: "deny" });
+      assert.isDefined(allow);
+      assert.isDefined(deny);
+      assert.strictEqual(allow?.state.count, 2);
+      assert.strictEqual(deny?.state.count, 1);
+    }));
+
+  it.effect("does not count a failed evaluation as either outcome", () =>
+    Effect.gen(function* () {
+      // A missing resource.id is an error, not a decision (INV-QD-006) — it
+      // must not inflate either series.
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          yield* Effect.result(
+            evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
+              Effect.provide(testLayer(subjectWith({}))),
+            ),
+          );
+          return yield* Metric.snapshot;
+        }),
+      );
+
+      assert.isUndefined(counterOf(snapshots, { outcome: "allow" }));
+      assert.isUndefined(counterOf(snapshots, { outcome: "deny" }));
+    }));
+
+  it.effect("records the denying node's policy tag in the frequency", () =>
+    Effect.gen(function* () {
+      // Not the free-text reason: `evaluateActed`/`evaluateHasRelationship`
+      // both build theirs from caller-supplied identifiers, which would make
+      // a frequency keyed on the raw sentence grow one entry per distinct
+      // (subject, resource) pair ever denied — see the doc comment on
+      // `denialsByPolicyTagTotal` in `Evaluate.ts`.
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasPermission(write))
+          .pipe(Effect.provide(testLayer(subjectWith({ id: "u2" }))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const denials = frequencyOf(snapshots, "qadi_denials_by_policy_tag_total");
+      assert.isDefined(denials);
+      assert.strictEqual(denials?.state.occurrences.get("HasPermission"), 1);
+    }));
+
+  it.effect("an allow adds nothing to the denial frequency", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasRole("editor"))
+          .pipe(Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      assert.isUndefined(frequencyOf(snapshots, "qadi_denials_by_policy_tag_total"));
+    }));
+});
+
+describe("qadi.evaluate Debug log on denial", () => {
+  const collectingLogger = (
+    logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }>,
+  ) =>
+    Logger.layer([
+      Logger.make((options) => {
+        logs.push({
+          message: options.message,
+          annotations: options.fiber.getRef(References.CurrentLogAnnotations),
+        });
+      }),
+    ]);
+
+  it.effect("logs the policy tag, subject and reason", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }> = [];
+
+      yield* evaluate(P.hasPermission(write)).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u2" }))),
+        Effect.provideService(References.MinimumLogLevel, "Debug"),
+        Effect.provide(collectingLogger(logs)),
+      );
+
+      assert.strictEqual(logs.length, 1);
+      // `Effect.log*` is variadic (`...message`), so a single-argument call
+      // still arrives as a one-element array.
+      assert.deepStrictEqual(logs[0]?.message, ["qadi: policy denied"]);
+      assert.deepStrictEqual(logs[0]?.annotations, {
+        "qadi.policy_tag": "HasPermission",
+        "qadi.subject_id": "u2",
+        "qadi.reason": "subject lacks permission 'doc:write'",
+      });
+    }));
+
+  it.effect("an allow logs nothing", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }> = [];
+
+      yield* evaluate(P.hasRole("editor")).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+        Effect.provideService(References.MinimumLogLevel, "Debug"),
+        Effect.provide(collectingLogger(logs)),
+      );
+
+      assert.strictEqual(logs.length, 0);
     }));
 });
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                             |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-032). 1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added. |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -25,7 +25,9 @@ export class DecisionCache extends Context.Service<DecisionCache, DecisionCacheS
   "qadi/DecisionCache",
 ) {}
 
-export const decisionCacheLayer: () => Layer.Layer<DecisionCache>;
+export const decisionCacheLayer: (options?: {
+  readonly capacity?: number;
+}) => Layer.Layer<DecisionCache>;
 ```
 
 ```
@@ -116,6 +118,34 @@ const handleRequest = Effect.gen(function* () {
   return [first.evaluationId, second.evaluationId] as const;
 }).pipe(Effect.provide(decisionCacheLayer()));
 ```
+
+## BEH-QD-166: `capacity` bounds the cache, validated at construction
+
+> **See:** [ADR-QD-031, capacity addendum](../decisions/031-decision-cache.md#an-optional-capacity-evicted-fifo--not-the-ttl-rejected-below)
+
+```
+REQUIREMENT: `decisionCacheLayer`'s `capacity` option, when given, MUST be a
+             non-negative integer. Any other value MUST fail the layer at
+             construction, before any evaluation runs.
+```
+
+A negative `capacity` would make the eviction loop's own exit condition
+(`size(entries) > capacity`) unsatisfiable once `entries` empties out — an
+infinite loop, not a small cache. A `NaN` capacity would make that same
+comparison always `false`, silently turning "bounded" into unbounded instead
+of failing loudly. Both are caller misconfiguration, not a runtime condition
+to recover from, so this fails as a defect rather than a typed error.
+
+```
+REQUIREMENT: Once the number of completed entries exceeds `capacity`, the
+             oldest-inserted entry MUST be evicted — never an entry whose
+             `compute` is still in flight.
+```
+
+Eviction is FIFO (insertion order), not least-recently-used: recording an
+access on every hit would cost every lookup something to buy a policy this
+cache has no stated need for. `capacity` is unset by default — every behaviour
+above this section holds unchanged when it is absent.
 
 ---
 

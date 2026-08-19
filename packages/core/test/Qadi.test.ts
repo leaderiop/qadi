@@ -1,5 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as Layer from "effect/Layer";
+import * as Ref from "effect/Ref";
+import { AttributeResolver } from "../src/AttributeResolver.ts";
 import * as M from "../src/Matcher.ts";
 import * as Qadi from "../src/Qadi.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -315,4 +320,100 @@ describe("Qadi obligations", () => {
       // work an undischarged duty could guard. Documented, not overlooked.
       assert.isTrue(yield* Qadi.check(audited));
     }).pipe(Effect.provide(testLayer(reader))));
+});
+
+describe("Qadi.filter — concurrency across items", () => {
+  // The claim: `filter`'s outer fan-out over `items`, not just each item's own
+  // `allOf`/`anyOf` tree, now honours `options.concurrency`. Proven the same
+  // way `DecisionCache.test.ts`'s coalescing tests are — a resolver that
+  // blocks on a shared gate, so "how many lookups are in flight when the gate
+  // is still shut" is directly observable rather than inferred from timing.
+  // A subject attribute, not a resource one: `HasResourceAttribute` reads
+  // straight from the resource in hand, but `HasAttribute` goes through
+  // `AttributeResolver` — the call this test needs to observe.
+  const policy = P.hasAttribute("clearance", M.gte(1));
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  const blockingResolver = (invocations: Ref.Ref<number>, gate: Deferred.Deferred<void>) =>
+    Layer.succeed(AttributeResolver, {
+      resolve: () =>
+        Ref.update(invocations, (n) => n + 1).pipe(
+          Effect.flatMap(() => Deferred.await(gate)),
+          Effect.as(5),
+        ),
+    });
+
+  it.effect("without a concurrency option, one item's lookup is in flight at a time", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(Qadi.filter(policy, items));
+        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+        assert.strictEqual(
+          yield* Ref.get(invocations),
+          1,
+          "sequential filter should never have more than one item's lookup in flight",
+        );
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
+
+  it.effect("with concurrency: 'unbounded', every item's lookup is in flight at once", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(
+          Qadi.filter(policy, items, { concurrency: "unbounded" }),
+        );
+        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+        assert.strictEqual(
+          yield* Ref.get(invocations),
+          items.length,
+          "concurrent filter should have every item's lookup in flight before any completes",
+        );
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
+
+  it.effect("concurrency changes overlap, never which items are kept", () =>
+    Effect.gen(function* () {
+      const openItems = [
+        { id: "a", state: "open" },
+        { id: "b", state: "closed" },
+        { id: "c", state: "open" },
+      ];
+      const statePolicy = P.hasResourceAttribute(
+        "state",
+        { _tag: "Eq", ref: { _tag: "LiteralRef", value: "open" } },
+      );
+
+      const [sequential, concurrent] = yield* Effect.gen(function* () {
+        const s = yield* Qadi.filter(statePolicy, openItems);
+        const c = yield* Qadi.filter(statePolicy, openItems, { concurrency: "unbounded" });
+        return [s, c] as const;
+      }).pipe(Effect.provide(testLayer(subjectWith({}))));
+
+      assert.deepStrictEqual(
+        sequential.map((i) => i.id),
+        ["a", "c"],
+      );
+      assert.deepStrictEqual(
+        concurrent.map((i) => i.id),
+        ["a", "c"],
+      );
+    }));
 });

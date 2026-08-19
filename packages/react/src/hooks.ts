@@ -84,6 +84,10 @@ const settled = (
 ): Promise<void> => {
   const existing = pending.get(atom);
   if (existing !== undefined) return existing;
+  // React's throw-to-suspend contract is defined in terms of a thrown
+  // Promise, not an Effect — this is the one framework boundary AGENTS.md
+  // §6's async ban cannot reach through, hence this file's
+  // `no-raw-promise` exemption in check-house-style.mjs.
   const promise = new Promise<void>((resolve) => {
     const unsubscribe = registry.subscribe(atom, (result) => {
       if (AsyncResult.isInitial(result) || result.waiting) return;

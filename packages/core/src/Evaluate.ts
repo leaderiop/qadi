@@ -10,6 +10,7 @@
  */
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import type { Concurrency } from "effect/Types";
 import { AttributeResolver } from "./AttributeResolver.ts";
@@ -38,9 +39,48 @@ import { permissionKey } from "./Permission.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
+import type { Resource } from "./Resource.ts";
 
-/** Arbitrary resource attributes a policy may inspect. */
-export type Resource = Readonly<Record<string, unknown>>;
+/**
+ * Every decision `evaluate` reaches, tagged by outcome.
+ *
+ * The one metric every deployment of this library can use unconditionally:
+ * no wiring beyond providing a `Metric.MetricRegistry` (or an exporter built
+ * on one) is needed to see the allow/deny rate ADR-QD-009 asks observability
+ * to answer.
+ *
+ * Two fixed, module-scope taggings — `Metric.withAttributes(decisionsTotal,
+ * {...})` built fresh per call, the shape Effect's own docs show — rather
+ * than one, deliberately: `Metric`'s untagged fast path caches a metric's
+ * resolved hooks on the metric object itself, for the process's lifetime,
+ * the first time it is touched (`Object.keys(extraAttributes).length === 0`
+ * in `effect/Metric`'s `hook`) — cheap for a singleton reused across every
+ * call, defeated by rebuilding the tagged wrapper on every `evaluate`
+ * instead.
+ */
+const decisionsTotal = Metric.counter("qadi_decisions_total", {
+  description: "Authorization decisions reached by `evaluate`, tagged by outcome.",
+});
+const decisionsAllowedTotal = Metric.withAttributes(decisionsTotal, { outcome: "allow" });
+const decisionsDeniedTotal = Metric.withAttributes(decisionsTotal, { outcome: "deny" });
+
+/**
+ * Denials, by the top-level policy tag `evaluate` was asked to decide.
+ *
+ * Keyed on `policy._tag` — a closed, small union — rather than `decision.reason`,
+ * which was tried first and reverted: `evaluateActed` and `evaluateHasRelationship`
+ * both build their denial reason from caller-supplied identifiers (`subject.id`, a
+ * resource id), so a frequency keyed on the raw sentence would grow one permanent
+ * entry per distinct (subject, resource) pair ever denied — unbounded, in a
+ * structure this cache-free service holds in memory for the life of the registry.
+ * `policy._tag` answers a coarser but still useful question ("which *kind* of
+ * policy is denying") with a cardinality bounded by the ADT itself. The full,
+ * caller-specific reason is still available — on the `Effect.logDebug` line below,
+ * which a log pipeline retains and rotates rather than accumulating in-process.
+ */
+const denialsByPolicyTagTotal = Metric.frequency("qadi_denials_by_policy_tag_total", {
+  description: "Denials, keyed by the top-level policy tag evaluate was asked to decide.",
+});
 
 export interface EvaluateOptions {
   /** The resource under consideration, if any. */
@@ -793,6 +833,19 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
       ? { "qadi.obligations": decision.obligations.map((o) => o.id).join(",") }
       : {}),
   });
+
+  yield* Metric.update(decision._tag === "Allow" ? decisionsAllowedTotal : decisionsDeniedTotal, 1);
+
+  if (decision._tag === "Deny") {
+    yield* Metric.update(denialsByPolicyTagTotal, policy._tag);
+    yield* Effect.logDebug("qadi: policy denied").pipe(
+      Effect.annotateLogs({
+        "qadi.policy_tag": policy._tag,
+        "qadi.subject_id": subject.id,
+        "qadi.reason": decision.reason,
+      }),
+    );
+  }
 
   return decision;
 });

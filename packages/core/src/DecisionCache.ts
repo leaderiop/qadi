@@ -18,6 +18,7 @@ import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import type { AttributeResolver } from "./AttributeResolver.ts";
 import type { Trace } from "./Decision.ts";
@@ -96,6 +97,20 @@ const keyOf = (key: DecisionCacheKey): string =>
   JSON.stringify([key.subjectId, key.policy, key.resource ?? null, key.action ?? null]);
 
 /**
+ * Every `getOrCompute` lookup, by which of the cache's three documented paths
+ * it took: `hit` (an already-completed entry), `coalesced` (joined another
+ * fiber's in-flight `compute`), or `miss` (this fiber ran `compute` itself).
+ *
+ * The metric a caller needs to answer "is this cache earning its keep" —
+ * `hit / (hit + coalesced + miss)` — without instrumenting their own call
+ * sites, and the closest thing to the "production cache hit rate" this
+ * library could not previously report at all.
+ */
+const cacheLookupsTotal = Metric.frequency("qadi_decision_cache_lookups_total", {
+  description: "DecisionCache.getOrCompute lookups, by outcome (hit / coalesced / miss).",
+});
+
+/**
  * A fresh cache, held for as long as the layer it is provided through.
  *
  * A **function**, not a constant, and deliberately: `decisionCacheLayer()` at a call
@@ -127,11 +142,51 @@ const keyOf = (key: DecisionCacheKey): string =>
  * ```
  *
  * `DecisionCache.test.ts` asserts the trap as well as the correct shape.
+ *
+ * **Unbounded by default** — `entries` is never evicted unless `capacity` is
+ * given. That matches every behaviour this doc comment already describes: a
+ * cache scoped to one request's lifetime never grows large enough for it to
+ * matter, and inventing a default limit for the one caller who *does* provide
+ * this at a longer-lived scope would be a behaviour change nobody asked for.
+ * A caller who provides it at application scope — this file already warns
+ * that is staleness, not a leak, since the key includes the subject — should
+ * pass `capacity` so unboundedness is a choice made at that call site rather
+ * than an absence noticed later, in production, as memory growth.
+ *
+ * Eviction, when `capacity` is set, is **insertion order (FIFO)**, not
+ * least-recently-used: recording an access on every hit would cost every
+ * lookup something to buy a policy this cache has no stated need for, since
+ * nothing here claims "recently used" predicts "will be asked again" better
+ * than "recently completed" does.
+ *
+ * `capacity`, when given, must be a non-negative integer. A negative one
+ * would make the eviction loop's own exit condition (`size(entries) >
+ * capacity`) unsatisfiable once `entries` empties out — an infinite loop, not
+ * a small cache. A `NaN` one would make that same comparison always `false`,
+ * silently turning "bounded" into unbounded instead of failing loudly. This
+ * is checked here, at construction, rather than left to fail in whichever of
+ * those two ways at the first eviction.
  */
-export const decisionCacheLayer = (): Layer.Layer<DecisionCache> =>
+export const decisionCacheLayer = (options?: {
+  /**
+   * The most completed entries `entries` holds at once. Once exceeded, the
+   * oldest completed entry is evicted — never an entry with a `compute` still
+   * in flight, since eviction only ever runs after a `compute` settles.
+   */
+  readonly capacity?: number;
+}): Layer.Layer<DecisionCache> =>
   Layer.effect(
     DecisionCache,
     Effect.sync(() => {
+      if (
+        options?.capacity !== undefined &&
+        !(Number.isInteger(options.capacity) && options.capacity >= 0)
+      ) {
+        throw new Error(
+          `decisionCacheLayer: capacity must be a non-negative integer, got ${options.capacity}`,
+        );
+      }
+
       let entries = HashMap.empty<string, Trace>();
       // Keys with a `compute` currently running, so a second concurrent ask for
       // the same question awaits the first's result instead of starting its own.
@@ -142,12 +197,22 @@ export const decisionCacheLayer = (): Layer.Layer<DecisionCache> =>
       // so a direct reassignment inside `Effect.sync` is exactly as atomic as
       // `Ref.modify` would be here.
       let inFlight = HashMap.empty<string, Deferred.Deferred<Trace, EvaluationError>>();
+      // Parallel to `entries`, in insertion order, so a bounded cache knows what
+      // to evict without walking `entries` itself — a `HashMap` has no order to
+      // walk. Only ever grows where `entries` does, and only ever shrinks by
+      // eviction, so it can never hold a key `entries` does not. Left empty and
+      // unwritten-to when `capacity` is unset — the common case, per this file's
+      // own doc comment — since nothing would ever read it.
+      const insertionOrder: Array<string> = [];
 
       const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, compute) =>
         Effect.gen(function* () {
           const k = keyOf(key);
           const cached = HashMap.get(entries, k);
-          if (Option.isSome(cached)) return cached.value;
+          if (Option.isSome(cached)) {
+            yield* Metric.update(cacheLookupsTotal, "hit");
+            return cached.value;
+          }
 
           // `Deferred.makeUnsafe` inside the same synchronous check as the
           // claim itself, not `yield* Deferred.make` before it: allocating a
@@ -172,7 +237,11 @@ export const decisionCacheLayer = (): Layer.Layer<DecisionCache> =>
 
           // Someone else already claimed this key — share their result,
           // success or failure, rather than compute a second time.
-          if (!claimed.owned) return yield* Deferred.await(claimed.claim);
+          if (!claimed.owned) {
+            yield* Metric.update(cacheLookupsTotal, "coalesced");
+            return yield* Deferred.await(claimed.claim);
+          }
+          yield* Metric.update(cacheLookupsTotal, "miss");
           const claim = claimed.claim;
 
           // `Effect.onExit`, not a plain `yield* Effect.exit(compute)` followed
@@ -194,7 +263,34 @@ export const decisionCacheLayer = (): Layer.Layer<DecisionCache> =>
           return yield* compute.pipe(
             Effect.onExit((exit) =>
               Effect.sync(() => {
-                if (exit._tag === "Success") entries = HashMap.set(entries, k, exit.value);
+                if (exit._tag === "Success") {
+                  entries = HashMap.set(entries, k, exit.value);
+                  // Recorded, and evicted from, only when `capacity` was given —
+                  // the unbounded default (the common case, per this file's own
+                  // doc comment) has nothing that will ever read this array, so
+                  // it stays empty rather than growing in lockstep with `entries`
+                  // for the life of the cache.
+                  if (options?.capacity === undefined) return;
+                  insertionOrder.push(k);
+                  // FIFO eviction: a `while` rather than an `if` because a caller
+                  // who lowers `capacity` between two `decisionCacheLayer()`
+                  // calls is not a case this loop should special-case to "evict
+                  // one" and leave still over budget. Always terminates:
+                  // `capacity` is validated non-negative-integer at construction,
+                  // so `size(entries)` — a non-negative integer that strictly
+                  // decreases each iteration — reaches it in finitely many steps.
+                  while (HashMap.size(entries) > options.capacity) {
+                    // `insertionOrder.length === HashMap.size(entries)` always —
+                    // every push here has exactly one corresponding `entries`
+                    // insert, and eviction always removes one of each — so this
+                    // loop's own condition (`size(entries) > capacity >= 0`)
+                    // guarantees `insertionOrder` is non-empty. The `undefined`
+                    // guard exists for `noUncheckedIndexedAccess`, not because
+                    // this can happen.
+                    const oldest = insertionOrder.shift();
+                    if (oldest !== undefined) entries = HashMap.remove(entries, oldest);
+                  }
+                }
               }).pipe(
                 Effect.flatMap(() => Deferred.done(claim, exit)),
                 Effect.flatMap(() =>

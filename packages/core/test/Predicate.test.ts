@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import * as FastCheck from "effect/testing/FastCheck";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
@@ -13,7 +14,7 @@ import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import type { Predicate } from "../src/Predicate.ts";
 import { evaluatePredicate, toPredicate } from "../src/Predicate.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 const tenant = subjectWith({
   id: "u-1",
@@ -805,5 +806,37 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
           );
         }
       }
+    }));
+});
+
+describe("qadi_predicates_translated_total", () => {
+  it.effect("counts a successful translation", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        translate(P.hasRole("editor")).pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const counter = snapshots.find(
+        (s): s is Extract<Metric.Metric.Snapshot, { type: "Counter" }> =>
+          s.type === "Counter" && s.id === "qadi_predicates_translated_total",
+      );
+      assert.isDefined(counter);
+      assert.strictEqual(counter?.state.count, 1);
+    }));
+
+  it.effect("does not count a translation that fails", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          yield* Effect.result(translate(P.hasPermission(permission("doc", "read"), { fields: ["id"] })));
+          return yield* Metric.snapshot;
+        }),
+      );
+
+      const counter = snapshots.find(
+        (s): s is Extract<Metric.Metric.Snapshot, { type: "Counter" }> =>
+          s.type === "Counter" && s.id === "qadi_predicates_translated_total",
+      );
+      assert.isUndefined(counter);
     }));
 });

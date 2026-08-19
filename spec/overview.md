@@ -107,7 +107,8 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `evaluate` | function | `Evaluate.ts` |
 | `Decision`, `Allow`, `Deny`, `Trace`, `isAllowed`, `project` | type + function | `Decision.ts` |
 | `enforce`, `enforceProjected`, `check`, `decide`, `assert`, `filter` | function | `Qadi.ts` |
-| `EvaluateOptions`, `Resource` | type | `Evaluate.ts` |
+| `EvaluateOptions` | type | `Evaluate.ts` |
+| `Resource` | type | `Resource.ts` |
 | `decideSubjects`, `filterSubjects` | function | `SubjectSet.ts` |
 | `SubjectDecision`, `SubjectSetServices` | type | `SubjectSet.ts` |
 | `toPredicate`, `evaluatePredicate` | function | `Predicate.ts` |

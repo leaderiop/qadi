@@ -16,6 +16,7 @@ export * from "./Policy.ts";
 export * from "./Predicate.ts";
 export * from "./Qadi.ts";
 export * from "./RelationshipResolver.ts";
+export * from "./Resource.ts";
 export * from "./Role.ts";
 export * from "./SecurityLabel.ts";
 export * from "./Simplify.ts";

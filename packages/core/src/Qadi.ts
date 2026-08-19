@@ -20,11 +20,12 @@ import type { Allow, Decision } from "./Decision.ts";
 import { isAllowed, project } from "./Decision.ts";
 import { AccessDenied, UndischargedObligation } from "./Errors.ts";
 import type { EvaluationError } from "./Errors.ts";
-import type { EvaluateOptions, EvaluationServices, Resource } from "./Evaluate.ts";
+import type { EvaluateOptions, EvaluationServices } from "./Evaluate.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { Obligation } from "./Obligation.ts";
 import { bindingObligations } from "./Obligation.ts";
 import type { Policy } from "./Policy.ts";
+import type { Resource } from "./Resource.ts";
 
 /**
  * Discharges the obligations attached to an allow.
@@ -172,6 +173,14 @@ export const enforceProjected =
  * allow carries a binding obligation fails the call rather than being silently
  * dropped: dropping it would report a wiring mistake as a denial, which
  * [INV-QD-006] exists to prevent.
+ *
+ * `options.concurrency` does double duty here, deliberately: it still governs
+ * each item's own `allOf`/`anyOf`/`rules` fan-out exactly as `EvaluateOptions`
+ * documents, and it now also governs the fan-out **across items**. The two are
+ * safe to share one knob because, unlike a composite's children, the items
+ * have no short-circuit relationship — nothing here ever depends on which
+ * item finished first, so there is no INV-QD-005-shaped invariant a second,
+ * independent option would need to preserve.
  */
 export const filter = <A extends Resource, EO = never, RO = never>(
   policy: Policy,
@@ -183,23 +192,26 @@ export const filter = <A extends Resource, EO = never, RO = never>(
   EvaluationServices | RO
 > =>
   Effect.map(
-    Effect.forEach(items, (item) =>
-      Effect.flatMap(
-        evaluate(policy, { ...options, resource: item }),
-        (
-          decision,
-        ): Effect.Effect<
-          { readonly item: A; readonly allowed: boolean },
-          UndischargedObligation | EO,
-          RO
-        > =>
-          isAllowed(decision)
-            ? Effect.as(discharge(decision, options?.onObligations), {
-                item,
-                allowed: true,
-              })
-            : Effect.succeed({ item, allowed: false }),
-      ),
+    Effect.forEach(
+      items,
+      (item) =>
+        Effect.flatMap(
+          evaluate(policy, { ...options, resource: item }),
+          (
+            decision,
+          ): Effect.Effect<
+            { readonly item: A; readonly allowed: boolean },
+            UndischargedObligation | EO,
+            RO
+          > =>
+            isAllowed(decision)
+              ? Effect.as(discharge(decision, options?.onObligations), {
+                  item,
+                  allowed: true,
+                })
+              : Effect.succeed({ item, allowed: false }),
+        ),
+      { concurrency: options?.concurrency },
     ),
     (results) => results.filter((r) => r.allowed).map((r) => r.item),
   );

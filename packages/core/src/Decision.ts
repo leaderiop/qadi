@@ -7,10 +7,10 @@
  * could not be asserted on at all.
  */
 import * as Data from "effect/Data";
-import type { Resource } from "./Evaluate.ts";
 import type { SubjectId } from "./Identity.ts";
 import type { Obligation } from "./Obligation.ts";
 import type { Policy } from "./Policy.ts";
+import type { Resource } from "./Resource.ts";
 
 /** One node of the evaluation tree. */
 export interface Trace {

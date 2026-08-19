@@ -1,8 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import * as Ref from "effect/Ref";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import type { AuthSubject } from "../src/AuthSubject.ts";
@@ -15,7 +17,7 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 /**
  * Forks `count` copies of `effect`, yields enough scheduler turns for every
@@ -470,4 +472,179 @@ describe("DecisionCache", () => {
         );
       }),
   );
+
+  describe("capacity", () => {
+    it.effect("rejects a negative capacity rather than looping forever", () =>
+      Effect.gen(function* () {
+        // Regression: a negative capacity used to make the eviction loop's own
+        // exit condition unsatisfiable once `entries` ran dry — an infinite
+        // loop inside `Effect.sync`, not a small cache.
+        const exit = yield* Effect.exit(
+          evaluate(needsLookup).pipe(
+            Effect.provide(testLayer(alice, { attributes: counting([]) })),
+            Effect.provide(decisionCacheLayer({ capacity: -1 })),
+          ),
+        );
+        assert.strictEqual(exit._tag, "Failure");
+        if (exit._tag !== "Failure") return;
+        const defect = Cause.squash(exit.cause);
+        assert.instanceOf(defect, Error);
+        if (!(defect instanceof Error)) return;
+        assert.match(defect.message, /capacity/i);
+      }));
+
+    it.effect("rejects a fractional or NaN capacity rather than silently disabling eviction", () =>
+      Effect.gen(function* () {
+        // Regression: `size(entries) > NaN` is always false, so an unvalidated
+        // NaN capacity made eviction a silent no-op — "bounded" in name only.
+        const exit = yield* Effect.exit(
+          evaluate(needsLookup).pipe(
+            Effect.provide(testLayer(alice, { attributes: counting([]) })),
+            Effect.provide(decisionCacheLayer({ capacity: Number.NaN })),
+          ),
+        );
+        assert.strictEqual(exit._tag, "Failure");
+      }));
+
+    it.effect("capacity: 0 is a legal, degenerate cache that retains nothing", () =>
+      Effect.gen(function* () {
+        const calls: Array<string> = [];
+        yield* Effect.gen(function* () {
+          yield* evaluate(needsLookup);
+          yield* evaluate(needsLookup);
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+          Effect.provide(decisionCacheLayer({ capacity: 0 })),
+        );
+
+        assert.deepStrictEqual(calls, ["u-1:clearance", "u-1:clearance"]);
+      }));
+
+    it.effect("unset, still unbounded — the existing behaviour every prior test assumes", () =>
+      Effect.gen(function* () {
+        const held = yield* Effect.gen(function* () {
+          yield* evaluate(needsLookup, { resource: { id: "doc-1" } });
+          yield* evaluate(needsLookup, { resource: { id: "doc-2" } });
+          yield* evaluate(needsLookup, { resource: { id: "doc-3" } });
+          return yield* DecisionCache.use((c) => c.size);
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: counting([]) })),
+          Effect.provide(decisionCacheLayer()),
+        );
+
+        assert.strictEqual(held, 3);
+      }));
+
+    it.effect("evicts the oldest completed entry once exceeded, insertion order (FIFO)", () =>
+      Effect.gen(function* () {
+        const calls: Array<string> = [];
+        const ask = (id: string) => evaluate(needsLookup, { resource: { id } });
+
+        yield* Effect.gen(function* () {
+          yield* ask("doc-1");
+          yield* ask("doc-2");
+          // Capacity 2: inserting doc-3 pushes size to 3, so doc-1 — the
+          // oldest — is evicted immediately after.
+          yield* ask("doc-3");
+          const afterThird = yield* DecisionCache.use((c) => c.size);
+          assert.strictEqual(afterThird, 2, "capacity must never be exceeded, not even transiently");
+
+          yield* ask("doc-2"); // still held — a hit, no resolver call
+          yield* ask("doc-1"); // evicted — a miss, one more resolver call
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+          Effect.provide(decisionCacheLayer({ capacity: 2 })),
+        );
+
+        assert.deepStrictEqual(calls, [
+          "u-1:clearance", // doc-1: miss
+          "u-1:clearance", // doc-2: miss
+          "u-1:clearance", // doc-3: miss, evicts doc-1
+          "u-1:clearance", // doc-1 again: miss — it was evicted
+        ]);
+      }));
+
+    it.effect("never evicts a key with a compute still in flight", () =>
+      Effect.gen(function* () {
+        // A capacity of 1 under two genuinely concurrent, DIFFERENT questions
+        // is the case eviction must not touch: neither claim is a completed
+        // entry yet, so there is nothing eviction is entitled to remove.
+        const gate = yield* Deferred.make<void>();
+        const blockingResolver = Layer.succeed(AttributeResolver, {
+          resolve: () => Deferred.await(gate).pipe(Effect.as(5)),
+        });
+
+        const [first, second] = yield* Effect.gen(function* () {
+          const fiberA = yield* Effect.forkChild(evaluate(needsLookup, { resource: { id: "doc-1" } }));
+          const fiberB = yield* Effect.forkChild(evaluate(needsLookup, { resource: { id: "doc-2" } }));
+          for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+          yield* Deferred.succeed(gate, undefined);
+          return [yield* Fiber.join(fiberA), yield* Fiber.join(fiberB)] as const;
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: blockingResolver })),
+          Effect.provide(decisionCacheLayer({ capacity: 1 })),
+        );
+
+        assert.isTrue(isAllowed(first));
+        assert.isTrue(isAllowed(second));
+      }));
+  });
+
+  describe("qadi_decision_cache_lookups_total", () => {
+    const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
+      snapshots.find(
+        (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
+          s.type === "Frequency" && s.id === "qadi_decision_cache_lookups_total",
+      );
+
+    it.effect("counts a miss, then a hit, under separate outcomes", () =>
+      Effect.gen(function* () {
+        const snapshots = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            yield* evaluate(needsLookup);
+            yield* evaluate(needsLookup);
+            return yield* Metric.snapshot;
+          }).pipe(
+            Effect.provide(testLayer(alice, { attributes: counting([]) })),
+            Effect.provide(decisionCacheLayer()),
+          ),
+        );
+
+        const lookups = frequencyOf(snapshots);
+        assert.isDefined(lookups);
+        assert.strictEqual(lookups?.state.occurrences.get("miss"), 1);
+        assert.strictEqual(lookups?.state.occurrences.get("hit"), 1);
+        assert.isUndefined(lookups?.state.occurrences.get("coalesced"));
+      }));
+
+    it.effect("counts a coalesced join separately from the claiming miss", () =>
+      Effect.gen(function* () {
+        const invocations = yield* Ref.make(0);
+        const gate = yield* Deferred.make<void>();
+        const blockingResolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.update(invocations, (n) => n + 1).pipe(
+              Effect.flatMap(() => Deferred.await(gate)),
+              Effect.as(5),
+            ),
+        });
+
+        const snapshots = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            const fibers = yield* forkAllAndSettle(evaluate(needsLookup), 2);
+            yield* Deferred.succeed(gate, undefined);
+            yield* Effect.forEach(fibers, Fiber.join);
+            return yield* Metric.snapshot;
+          }).pipe(
+            Effect.provide(testLayer(alice, { attributes: blockingResolver })),
+            Effect.provide(decisionCacheLayer()),
+          ),
+        );
+
+        const lookups = frequencyOf(snapshots);
+        assert.isDefined(lookups);
+        assert.strictEqual(lookups?.state.occurrences.get("miss"), 1);
+        assert.strictEqual(lookups?.state.occurrences.get("coalesced"), 1);
+      }));
+  });
 });
