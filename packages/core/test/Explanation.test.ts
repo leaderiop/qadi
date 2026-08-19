@@ -1,10 +1,24 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "effect/testing/FastCheck";
 import { explain, renderExplanation } from "../src/Explanation.ts";
+import type { Requirement } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
+
+/**
+ * Narrows an `Explanation` to a `Requirement`, asserting the tag along the way.
+ * A leaf policy always explains to a `Requirement`, so a mismatch here is
+ * itself a failing assertion rather than a silently-`undefined` `.kind` read.
+ */
+const asRequirement = (explanation: ReturnType<typeof explain>): Requirement => {
+  assert.strictEqual(explanation._tag, "Requirement");
+  if (explanation._tag !== "Requirement") {
+    throw new Error(`expected a Requirement, got ${explanation._tag}`);
+  }
+  return explanation;
+};
 
 describe("explain", () => {
   it("renders the sentence the roadmap asked for", () => {
@@ -84,6 +98,59 @@ describe("explain", () => {
       renderExplanation(explain(P.hasActed("raised", { scope: "Any" }))),
       "has raised anything",
     );
+  });
+
+  it("gives HasAttribute the exact kind and detail sentence", () => {
+    // The property test only checks non-emptiness; a mutant blanking `kind` or
+    // the detail sentence would survive that. Assert both exactly.
+    const requirement = asRequirement(explain(P.hasAttribute("age", M.gte(3))));
+    assert.strictEqual(requirement.kind, "attribute");
+    assert.strictEqual(requirement.detail, "the subject's age is at least 3");
+  });
+
+  it("gives HasResourceAttribute the exact kind and detail sentence", () => {
+    const requirement = asRequirement(
+      explain(P.hasResourceAttribute("status", M.eq(M.literal("open")))),
+    );
+    assert.strictEqual(requirement.kind, "attribute");
+    assert.strictEqual(requirement.detail, 'the resource\'s status equals "open"');
+  });
+
+  it("gives HasRelationship the exact kind and detail sentence", () => {
+    const requirement = asRequirement(explain(P.hasRelationship("owner")));
+    assert.strictEqual(requirement.kind, "relationship");
+    assert.strictEqual(requirement.detail, "the subject is owner of the resource");
+  });
+
+  it("gives HasAction the exact kind and detail sentence", () => {
+    const requirement = asRequirement(explain(P.hasAction("read")));
+    assert.strictEqual(requirement.kind, "action");
+    assert.strictEqual(requirement.detail, "read");
+  });
+
+  it("gives HasActed the exact kind and detail sentence", () => {
+    const requirement = asRequirement(explain(P.hasActed("raised")));
+    assert.strictEqual(requirement.kind, "history");
+    assert.strictEqual(requirement.detail, "the subject has raised this resource");
+  });
+
+  it("gives HasNotActed the exact kind and detail sentence", () => {
+    const requirement = asRequirement(explain(P.hasNotActed("approved")));
+    assert.strictEqual(requirement.kind, "history");
+    assert.strictEqual(requirement.detail, "the subject has not approved this resource");
+  });
+
+  it("joins a non-empty anyOf's parts with \" or \", unlike a single-part one", () => {
+    // A mutant that treats every `anyOf` as zero-part would render "never
+    // allows" here instead; a mutant that blanks the " or " join text would
+    // glue the two parts together with nothing between them.
+    const multiPart = renderExplanation(explain(P.anyOf([P.hasRole("a"), P.hasRole("b")])));
+    assert.strictEqual(multiPart, "either requires role `a` or requires role `b`");
+    assert.include(multiPart, " or ");
+
+    const singlePart = renderExplanation(explain(P.anyOf([P.hasRole("a")])));
+    assert.strictEqual(singlePart, "either requires role `a`");
+    assert.notInclude(singlePart, " or ");
   });
 
   it("renders a rule table with its combining algorithm and row indices", () => {

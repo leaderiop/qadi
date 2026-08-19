@@ -201,6 +201,21 @@ describe("Qadi obligations", () => {
       assert.isFalse(started);
     }).pipe(Effect.provide(testLayer(reader))));
 
+  it.effect("onObligations is never invoked when the decision carries no obligation", () =>
+    Effect.gen(function* () {
+      // `canRead` (unlike `audited`/`advised`) is not wrapped in `obliged`, so
+      // an allow for it carries an empty obligations array. The handler exists
+      // to discharge duties, not to run unconditionally on every allow.
+      let called = false;
+      const result = yield* Effect.succeed("payload").pipe(
+        Qadi.enforce(canRead, {
+          onObligations: () => Effect.sync(() => { called = true; }),
+        }),
+      );
+      assert.strictEqual(result, "payload");
+      assert.isFalse(called);
+    }).pipe(Effect.provide(testLayer(reader))));
+
   it.effect("an advisory obligation never blocks", () =>
     Effect.gen(function* () {
       // XACML's advice: the caller may ignore it, so it is reported and does

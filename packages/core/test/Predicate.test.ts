@@ -93,6 +93,16 @@ describe("evaluatePredicate — the reference semantics", () => {
       evaluatePredicate({ _tag: "Compare", column: "nope", op: "Neq", value: "x" }, row),
     );
   });
+
+  it("an ordered comparison is false when the target is not a number, even though the row value is", () => {
+    // The test above falsifies the first `typeof` guard by giving a non-number
+    // row value; this falsifies the second by giving a non-number target while
+    // the row value is a genuine number.
+    const gte: Predicate = { _tag: "Compare", column: "level", op: "Gte", value: "not-a-number" };
+    const lt: Predicate = { _tag: "Compare", column: "level", op: "Lt", value: "not-a-number" };
+    assert.isFalse(evaluatePredicate(gte, { level: 5 }));
+    assert.isFalse(evaluatePredicate(lt, { level: 5 }));
+  });
 });
 
 describe("the subject side folds to a constant", () => {
@@ -130,6 +140,12 @@ describe("the subject side folds to a constant", () => {
       assert.strictEqual(p._tag, "True");
     }));
 
+  it.effect("a mismatched action folds to False, not to an unconditional True", () =>
+    Effect.gen(function* () {
+      const p = yield* translate(P.hasAction("write"), { action: "read" });
+      assert.strictEqual(p._tag, "False");
+    }));
+
   it.effect("a history question scoped to Any folds", () =>
     Effect.gen(function* () {
       // The scope is what decides this: `Any` asks about the subject.
@@ -137,6 +153,26 @@ describe("the subject side folds to a constant", () => {
       assert.strictEqual(p._tag, "True");
       const n = yield* translate(P.hasNotActed("onboarded", { scope: "Any" }));
       assert.strictEqual(n._tag, "False");
+    }));
+
+  it.effect("HasNotActed folds to True when the subject truly has not acted", () =>
+    Effect.gen(function* () {
+      // The test above only ever sees `NotActed` fold to `False`; this is the
+      // other side, where the answer actually agrees with what was asked.
+      const p = yield* translate(P.hasNotActed("unrelated-event", { scope: "Any" }));
+      assert.strictEqual(p._tag, "True");
+    }));
+
+  it.effect("HasAttribute's matcher folds against a supplied action rather than failing", () =>
+    Effect.gen(function* () {
+      const matches = yield* translate(P.hasAttribute("tenantId", M.eq(M.action())), {
+        action: "t-1",
+      });
+      assert.strictEqual(matches._tag, "True");
+      const mismatches = yield* translate(P.hasAttribute("tenantId", M.eq(M.action())), {
+        action: "t-2",
+      });
+      assert.strictEqual(mismatches._tag, "False");
     }));
 });
 
@@ -213,6 +249,14 @@ describe("untranslatable fails loudly and never widens", () => {
     Effect.gen(function* () {
       const f = yield* reasonFor(P.hasActed("raised"));
       assert.strictEqual(f?.policyTag, "HasActed");
+    }));
+
+  it.effect("a resource-scoped HasNotActed cannot fold either", () =>
+    Effect.gen(function* () {
+      // `hasNotActed` defaults to `Resource` scope too, and had zero coverage
+      // of its own — only `HasActed`'s resource-scoped path was exercised.
+      const f = yield* reasonFor(P.hasNotActed("raised"));
+      assert.strictEqual(f?.policyTag, "HasNotActed");
     }));
 
   it.effect("an obligation has no channel in a predicate", () =>
@@ -329,6 +373,16 @@ describe("untranslatable fails loudly and never widens", () => {
       }
     }));
 
+  it.effect("HasAction's MissingAction carries the action it named", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(translate(P.hasAction("publish")));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "MissingAction");
+      if (r.failure._tag !== "MissingAction") return;
+      assert.strictEqual(r.failure.expected, "publish");
+    }));
+
   it.effect("a tree deeper than the bound fails", () =>
     Effect.gen(function* () {
       let policy: P.Policy = P.hasRole("editor");
@@ -337,6 +391,153 @@ describe("untranslatable fails loudly and never widens", () => {
         toPredicate(policy, { maxDepth: 3 }).pipe(Effect.provide(layer)),
       );
       assert.strictEqual(r._tag, "Failure");
+    }));
+
+  it.effect("a tree exactly as deep as the bound still translates", () =>
+    Effect.gen(function* () {
+      // Only the "too deep" side was ever tested; this pins the boundary
+      // itself, `depth === maxDepth`, as the last depth that still succeeds.
+      let policy: P.Policy = P.hasRole("editor");
+      for (let i = 0; i < 3; i += 1) policy = P.not(policy);
+      const p = yield* toPredicate(policy, { maxDepth: 3 }).pipe(Effect.provide(layer));
+      // hasRole("editor") folds to True for this tenant; three negations flip
+      // it three times: True -> False -> True -> False.
+      assert.deepStrictEqual(p, { _tag: "False" });
+    }));
+
+  it.effect("one node past the bound fails, unlike the exact boundary, and carries it", () =>
+    Effect.gen(function* () {
+      let policy: P.Policy = P.hasRole("editor");
+      for (let i = 0; i < 4; i += 1) policy = P.not(policy);
+      const r = yield* Effect.result(
+        toPredicate(policy, { maxDepth: 3 }).pipe(Effect.provide(layer)),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "PolicyTooDeep");
+      if (r.failure._tag !== "PolicyTooDeep") return;
+      assert.strictEqual(r.failure.maxDepth, 3);
+    }));
+});
+
+describe("restrictsFields protects every tag, not just HasPermission and Not", () => {
+  it.effect("HasAttribute", () =>
+    Effect.gen(function* () {
+      const f = yield* failure(
+        P.hasAttribute("seniority", M.gte(3), { fields: ["seniority"] }),
+      );
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
+      assert.include(f.reason, "restricts visible fields");
+    }));
+
+  it.effect("HasResourceAttribute", () =>
+    Effect.gen(function* () {
+      const f = yield* failure(
+        P.hasResourceAttribute("tenantId", M.eq(M.literal("t-1")), { fields: ["tenantId"] }),
+      );
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
+      assert.include(f.reason, "restricts visible fields");
+    }));
+
+  it.effect("HasRelationship — the boolean is fully invertible", () =>
+    Effect.gen(function* () {
+      // Without `fields`, HasRelationship is untranslatable for an entirely
+      // different reason (it cannot fold at all, regardless of fields). The
+      // reason text is what pins the exact boolean rather than merely "it
+      // failed" — a mutant flipping the condition either way changes which
+      // reason comes back.
+      const unrestricted = yield* failure(P.hasRelationship("owner"));
+      assert.strictEqual(unrestricted?._tag, "PolicyNotTranslatable");
+      if (unrestricted?._tag !== "PolicyNotTranslatable") return;
+      assert.include(unrestricted.reason, "keyed by the row's id");
+
+      const restricted = yield* failure(
+        P.hasRelationship("owner", { fields: ["owner"] }),
+      );
+      assert.strictEqual(restricted?._tag, "PolicyNotTranslatable");
+      if (restricted?._tag !== "PolicyNotTranslatable") return;
+      assert.include(restricted.reason, "restricts visible fields");
+    }));
+
+  it.effect("HasAction", () =>
+    Effect.gen(function* () {
+      const f = yield* failure(P.hasAction("read", { fields: ["id"] }));
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
+      assert.include(f.reason, "restricts visible fields");
+    }));
+
+  it.effect("HasActed", () =>
+    Effect.gen(function* () {
+      const f = yield* failure(
+        P.hasActed("onboarded", { scope: "Any", fields: ["id"] }),
+      );
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
+      assert.include(f.reason, "restricts visible fields");
+    }));
+
+  it.effect("HasNotActed", () =>
+    Effect.gen(function* () {
+      const f = yield* failure(
+        P.hasNotActed("onboarded", { scope: "Any", fields: ["id"] }),
+      );
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
+      assert.include(f.reason, "restricts visible fields");
+    }));
+
+  it.effect("AnyOf — only AllOf was tested before", () =>
+    Effect.gen(function* () {
+      const f = yield* failure(
+        P.anyOf([
+          P.hasRole("editor"),
+          P.hasPermission(permission("doc", "read"), { fields: ["id"] }),
+        ]),
+      );
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
+      assert.include(f.reason, "restricts visible fields");
+    }));
+
+  it.effect("Rules — a restricted rule condition propagates up", () =>
+    Effect.gen(function* () {
+      const f = yield* failure(
+        P.rules([
+          P.permitWhen(P.hasPermission(permission("doc", "read"), { fields: ["id"] })),
+        ]),
+      );
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
+      assert.include(f.reason, "restricts visible fields");
+    }));
+
+  it.effect("Obliged", () =>
+    Effect.gen(function* () {
+      // Obliged is untranslatable on its own regardless of fields (INV-QD-013),
+      // so the reason is what tells the two apart: this one must read as a
+      // fields restriction, not "cannot carry an obligation".
+      const f = yield* failure(
+        P.obliged(
+          obligation("log"),
+          P.hasPermission(permission("doc", "read"), { fields: ["id"] }),
+        ),
+      );
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
+      assert.include(f.reason, "restricts visible fields");
+    }));
+
+  it.effect("Labeled", () =>
+    Effect.gen(function* () {
+      const f = yield* failure(
+        P.labeled("x", P.hasPermission(permission("doc", "read"), { fields: ["id"] })),
+      );
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
+      assert.include(f.reason, "restricts visible fields");
     }));
 });
 

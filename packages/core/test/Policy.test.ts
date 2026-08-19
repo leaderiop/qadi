@@ -1,8 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 import * as FastCheck from "effect/testing/FastCheck";
 import * as M from "../src/Matcher.ts";
-import { obligation } from "../src/Obligation.ts";
+import { Obligation, obligation, unionObligations } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 
@@ -93,6 +94,58 @@ describe("Policy combinators", () => {
   });
 });
 
+describe("Obligation", () => {
+  it.effect("the Obligation schema rejects a malformed payload via decode", () =>
+    Effect.gen(function* () {
+      // CONFIRMED (empirically, against this Effect version): the *real*
+      // `Schema.Struct({ id, attributes, advisory })` correctly rejects
+      // malformed input on every case below. The passthrough ticket 02
+      // described is a property of the *mutant* — `Schema.Struct({})`, the
+      // empty struct a Stryker mutation substitutes for it — which does
+      // accept anything object-shaped; the real schema does not. See the
+      // "Answer" section of issue 15 for the full empirical trace.
+      const missingId = yield* Effect.result(
+        Schema.decodeUnknownEffect(Obligation)({ attributes: {}, advisory: false }),
+      );
+      assert.strictEqual(missingId._tag, "Failure");
+
+      const wrongTypes = yield* Effect.result(
+        Schema.decodeUnknownEffect(Obligation)({
+          id: 123,
+          attributes: "not a record",
+          advisory: "yes",
+        }),
+      );
+      assert.strictEqual(wrongTypes._tag, "Failure");
+
+      const empty = yield* Effect.result(Schema.decodeUnknownEffect(Obligation)({}));
+      assert.strictEqual(empty._tag, "Failure");
+
+      // The positive control: a well-formed payload still decodes.
+      const ok = yield* Effect.result(
+        Schema.decodeUnknownEffect(Obligation)({ id: "x", attributes: {}, advisory: false }),
+      );
+      assert.strictEqual(ok._tag, "Success");
+    }));
+
+  it("unionObligations dedups by value across multi-element sets, not just 0-or-1-element ones", () => {
+    // `out.some(...)` vs `out.every(...)` only disagree once `out` holds more
+    // than one element with mixed match results — every existing exercise of
+    // this merge (directly or through `AllOf`) used sets of size <= 1, where
+    // `some` and `every` coincide.
+    const p = obligation("p");
+    const q = obligation("q");
+    const r = obligation("r");
+
+    // `q` is reached through both sides — a diamond — and must appear once.
+    assert.deepStrictEqual(unionObligations([p, q], [q, r]), [p, q, r]);
+
+    // Order matters for the same reason: `a`'s elements come first, and only
+    // genuinely new elements of `b` are appended, in `b`'s order.
+    assert.deepStrictEqual(unionObligations([r, q], [p, q]), [r, q, p]);
+  });
+});
+
 describe("Policy serialization", () => {
   const roundTrip = (policy: P.Policy) =>
     Effect.flatMap(P.toJson(policy), (json) => P.fromJson(json));
@@ -142,6 +195,53 @@ describe("Policy serialization", () => {
       );
 
       assert.deepStrictEqual(yield* roundTrip(policy), policy);
+    }));
+
+  it.effect("round-trips a Rules table, including each row's condition and effect", () =>
+    Effect.gen(function* () {
+      // `RuleStruct` is the codec's one untagged struct (a `Rule` is a row, not
+      // a policy variant), and unlike every other node's fields it had no
+      // direct round-trip test — only the property generator reached it, by
+      // chance rather than by name.
+      const policy = P.rules(
+        [
+          P.denyWhen(P.hasRole("suspended")),
+          P.permitWhen(P.hasPermission(permission("doc", "read"))),
+        ],
+        { combining: "DenyOverrides" },
+      );
+
+      const restored = yield* roundTrip(policy);
+      assert.deepStrictEqual(restored, policy);
+      if (restored._tag !== "Rules") return;
+      assert.strictEqual(restored.rules.length, 2);
+      assert.strictEqual(restored.rules[0]?.effect, "Deny");
+      assert.deepStrictEqual(restored.rules[0]?.condition, P.hasRole("suspended"));
+      assert.strictEqual(restored.rules[1]?.effect, "Permit");
+      assert.deepStrictEqual(
+        restored.rules[1]?.condition,
+        P.hasPermission(permission("doc", "read")),
+      );
+    }));
+
+  it.effect("hasRelationship omits depth — not `depth: undefined` — when none is given, and it survives either way through JSON", () =>
+    Effect.gen(function* () {
+      // The `fieldsKey` case (below, via `hasAction("write", { fields:
+      // ["body"] })` elsewhere in this file) already gets a round trip; the
+      // analogous `depthKey` omission never did. `depthKey`'s ternary
+      // condition, mutated to always take the "else" branch, would spread
+      // `{ depth: undefined }` into every `HasRelationship` unconditionally —
+      // an own property present with value `undefined`, not an absent key.
+      const withoutDepth = P.hasRelationship("owner");
+      if (withoutDepth._tag !== "HasRelationship") return;
+      assert.isFalse(Object.hasOwn(withoutDepth, "depth"));
+      assert.deepStrictEqual(yield* roundTrip(withoutDepth), withoutDepth);
+
+      const withDepth = P.hasRelationship("owner", { depth: 2 });
+      if (withDepth._tag !== "HasRelationship") return;
+      assert.isTrue(Object.hasOwn(withDepth, "depth"));
+      assert.strictEqual(withDepth.depth, 2);
+      assert.deepStrictEqual(yield* roundTrip(withDepth), withDepth);
     }));
 
   it.effect("round-trips every matcher variant", () =>
@@ -237,6 +337,13 @@ describe("Policy serialization", () => {
           FastCheck.boolean(),
         ).map(([event, scope, negated]) =>
           negated ? P.hasNotActed(event, { scope }) : P.hasActed(event, { scope }),
+        ),
+        // `depthKey`'s omission is the same shape of invariant as
+        // `fieldsKey`'s: generating both "no depth given" and "depth given"
+        // sends the property through both branches of the ternary.
+        FastCheck.tuple(FastCheck.string(), FastCheck.option(FastCheck.integer())).map(
+          ([relation, depth]) =>
+            P.hasRelationship(relation, depth === null ? undefined : { depth }),
         ),
       );
 

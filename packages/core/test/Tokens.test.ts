@@ -1,12 +1,21 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import { anonymous, fromRoles, makeSubject, withAttributes } from "../src/AuthSubject.ts";
-import { errorCode, ERROR_CODES } from "../src/Errors.ts";
+import {
+  CircularRoleInheritance,
+  errorCode,
+  ERROR_CODES,
+  InvalidPermissionSegment,
+  MissingResource,
+  PolicyTooDeep,
+  RelationshipResolveError,
+} from "../src/Errors.ts";
 import {
   isValidSegment,
   permission,
   permissionKey,
 } from "../src/Permission.ts";
+import type { Role as RoleType } from "../src/Role.ts";
 import { flattenAll, flattenPermissions, resolveRoleGraph, role, roleNames } from "../src/Role.ts";
 
 const read = permission("doc", "read");
@@ -68,6 +77,38 @@ describe("Role", () => {
   it("a role with no permissions or parents yields nothing", () => {
     assert.strictEqual(flattenPermissions(role({ name: "empty" })).size, 0);
   });
+
+  it("the diamond-once guards are a performance property, not a correctness one — a diamond gives the same result either way because `keys`/`names` are Sets", () => {
+    // `flattenPermissions`'s `seen` guard and `roleNames`'s `names` guard skip a
+    // role once already visited. For a diamond (no cycle), the sets that
+    // `visit` writes into (`keys`, `names`) are themselves deduplicating, so
+    // revisiting the shared ancestor a second time would just re-insert the
+    // same keys — same result, more work. The diamond tests above
+    // ("walks a diamond once...") already pin the *counts* that would matter if
+    // work weren't idempotent; here the point is the *output* is unaffected.
+    const base = role({ name: "base", permissions: [read] });
+    const left = role({ name: "left", inherits: [base] });
+    const right = role({ name: "right", inherits: [base] });
+    const top = role({ name: "top", inherits: [left, right] });
+    assert.deepStrictEqual([...flattenPermissions(top)], ["doc:read"]);
+    assert.deepStrictEqual([...roleNames(top)].sort(), ["base", "left", "right", "top"]);
+  });
+
+  it("the seen/names guards are load-bearing where a diamond can't show it: a manually constructed cycle", () => {
+    // A cycle can't arise from the `role()` builder — parents are held by
+    // value, so a role can't reference one that doesn't exist yet — but the
+    // `Role` shape itself doesn't forbid it: nothing stops a caller building one
+    // by hand and mutating a still-mutable backing array before treating it as
+    // `Role`. Without the guard, `visit` would recurse on this input forever;
+    // with it, `flattenPermissions`/`roleNames` are what the module doc claims
+    // they are — total.
+    const inherits: Array<RoleType> = [];
+    const cyclic: RoleType = { name: "cyclic", permissions: [read], inherits };
+    inherits.push(cyclic);
+
+    assert.deepStrictEqual([...flattenPermissions(cyclic)], ["doc:read"]);
+    assert.deepStrictEqual([...roleNames(cyclic)], ["cyclic"]);
+  });
 });
 
 describe("resolveRoleGraph", () => {
@@ -95,6 +136,15 @@ describe("resolveRoleGraph", () => {
         ]),
       );
       assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      // The payload, not just "a failure occurred": `roleName` is the role
+      // whose own name reappears on its own ancestor stack, and `cycle` is that
+      // stack with the closing name appended — the diagnostic a caller reads to
+      // fix a malformed catalogue.
+      assert.strictEqual(r.failure._tag, "CircularRoleInheritance");
+      if (r.failure._tag !== "CircularRoleInheritance") return;
+      assert.strictEqual(r.failure.roleName, "a");
+      assert.deepStrictEqual(r.failure.cycle, ["a", "b", "a"]);
     }));
 
   it.effect("resolves a shared ancestor once, via the memo", () =>
@@ -154,6 +204,21 @@ describe("AuthSubject", () => {
     assert.deepStrictEqual(t.attributes, { a: 1, b: 2 });
     assert.deepStrictEqual(s.attributes, { a: 1 });
   });
+
+  it("makeSubject defaults roles to an empty set when none are given", () => {
+    const s = makeSubject({ id: "u" });
+    assert.strictEqual(s.roles.size, 0);
+  });
+
+  it("makeSubject defaults permissions to an empty set when none are given", () => {
+    const s = makeSubject({ id: "u" });
+    assert.strictEqual(s.permissions.size, 0);
+  });
+
+  it("fromRoles carries the attributes it was given, not an empty object", () => {
+    const s = fromRoles({ id: "u", roles: [], attributes: { level: 5 } });
+    assert.deepStrictEqual(s.attributes, { level: 5 });
+  });
 });
 
 describe("Errors", () => {
@@ -165,5 +230,48 @@ describe("Errors", () => {
   it("errorCode derives from the tag", () => {
     const e = { _tag: "AccessDenied" } as const;
     assert.strictEqual(errorCode(e as never), "ACL001");
+  });
+
+  // The five classes below are only ever exercised through `Effect.result`'s
+  // own "Failure" wrapper elsewhere in the suite, so their own `_tag` — the
+  // real `Effect.catchTag` dispatch discriminant, unlike a `Context.Service`
+  // tag id — and payload never got asserted directly against the real class.
+  it("MissingResource carries the attribute and its own tag", () => {
+    const e = new MissingResource({ attribute: "clearance" });
+    assert.strictEqual(e._tag, "MissingResource");
+    assert.strictEqual(e.attribute, "clearance");
+  });
+
+  it("RelationshipResolveError carries relation, resourceId, cause and its own tag", () => {
+    const cause = new Error("resolver unreachable");
+    const e = new RelationshipResolveError({
+      relation: "owner",
+      resourceId: "doc-1",
+      cause,
+    });
+    assert.strictEqual(e._tag, "RelationshipResolveError");
+    assert.strictEqual(e.relation, "owner");
+    assert.strictEqual(e.resourceId, "doc-1");
+    assert.strictEqual(e.cause, cause);
+  });
+
+  it("PolicyTooDeep carries the configured maxDepth and its own tag", () => {
+    const e = new PolicyTooDeep({ maxDepth: 25 });
+    assert.strictEqual(e._tag, "PolicyTooDeep");
+    assert.strictEqual(e.maxDepth, 25);
+  });
+
+  it("CircularRoleInheritance carries roleName, cycle and its own tag", () => {
+    const e = new CircularRoleInheritance({ roleName: "a", cycle: ["a", "b", "a"] });
+    assert.strictEqual(e._tag, "CircularRoleInheritance");
+    assert.strictEqual(e.roleName, "a");
+    assert.deepStrictEqual(e.cycle, ["a", "b", "a"]);
+  });
+
+  it("InvalidPermissionSegment carries the offending segment and value, and its own tag", () => {
+    const e = new InvalidPermissionSegment({ segment: "resource", value: "a:b" });
+    assert.strictEqual(e._tag, "InvalidPermissionSegment");
+    assert.strictEqual(e.segment, "resource");
+    assert.strictEqual(e.value, "a:b");
   });
 });

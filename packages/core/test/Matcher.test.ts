@@ -110,6 +110,40 @@ describe("matchers", () => {
     assert.isTrue(run(M.size(M.gte(2)), "ab"));
     assert.isFalse(run(M.size(M.gte(2)), 42));
   });
+
+  it("size denies rather than throwing against null or undefined", () => {
+    // `lengthOf` reads `.length` off arrays and strings only; `null`/`undefined`
+    // have neither, and unlike `42` (which merely has no `.length`, so reading
+    // it is `undefined` without throwing) they throw on property access if the
+    // `Array.isArray`/`typeof ... === "string"` guards are ever bypassed.
+    assert.isFalse(run(M.size(M.gte(2)), null));
+    assert.isFalse(run(M.size(M.gte(2)), undefined));
+  });
+
+  it("size short-circuits on an unmeasurable value rather than running the child matcher against `undefined`", () => {
+    // `M.eq(M.literal(undefined))` is a child matcher that is TRUE against
+    // `undefined` — the one value `Size` must never hand it. `gte`/`lt` can't
+    // demonstrate this: every number comparison against `undefined` is false
+    // regardless of whether the short-circuit runs, which is exactly why this
+    // survived as a mutant on `length !== undefined && …`.
+    const trueOnUndefined = M.eq(M.literal(undefined));
+    assert.isTrue(run(trueOnUndefined, undefined));
+    assert.isFalse(run(M.size(trueOnUndefined), 42));
+  });
+});
+
+describe("isObject / getByPath against null", () => {
+  it("getByPath denies rather than throwing when the root is null", () => {
+    // `isObject`'s guard is `typeof v === "object" && v !== null` — `typeof
+    // null` is itself `"object"`, so the `v !== null` half is the only thing
+    // standing between this and indexing into `null`.
+    assert.isUndefined(M.getByPath(null, "a"));
+    assert.isUndefined(M.getByPath(null, "a.b"));
+  });
+
+  it("fieldMatch denies rather than throwing when the value is null", () => {
+    assert.isFalse(run(M.fieldMatch("x", M.gte(1)), null));
+  });
 });
 
 describe("security labels", () => {

@@ -75,6 +75,16 @@ describe("simplify", () => {
     );
   });
 
+  it("flattens a composite nested in the same composite — AnyOf", () => {
+    // The `AllOf` case above and this one share the same `flatten` helper and
+    // the same `absorbable` condition, but `AnyOf` had no direct unit test of
+    // its own — only ever exercised incidentally via property tests.
+    assert.deepStrictEqual(
+      simplify(P.anyOf([P.hasRole("a"), P.anyOf([P.hasRole("b"), P.hasRole("c")])])),
+      P.anyOf([P.hasRole("a"), P.hasRole("b"), P.hasRole("c")]),
+    );
+  });
+
   it("REFUSES to flatten across different field strategies", () => {
     // The correctness argument in one assertion. Both trees reach the same verdict
     // and expose DIFFERENT fields, so flattening unconditionally would be

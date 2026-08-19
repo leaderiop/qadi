@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as FastCheck from "effect/testing/FastCheck";
+import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
@@ -30,18 +31,22 @@ const read = permission("doc", "read");
 const write = permission("doc", "write");
 
 describe("leaf policies", () => {
-  it.effect("HasPermission allows when the key is present", () =>
+  it.effect("HasPermission allows when the key is present, with an empty trace", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasPermission(read));
       assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasPermission");
+      assert.deepStrictEqual(d.trace.children, []);
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
-  it.effect("HasPermission denies with a reason naming the key", () =>
+  it.effect("HasPermission denies with a reason naming the key, and an empty trace", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasPermission(write));
       assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasPermission");
+      assert.deepStrictEqual(d.trace.children, []);
       if (d._tag !== "Deny") return;
-      assert.include(d.reason, "doc:write");
+      assert.strictEqual(d.reason, "subject lacks permission 'doc:write'");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
   it.effect("HasRole matches inherited role names", () =>
@@ -54,13 +59,48 @@ describe("leaf policies", () => {
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasAttribute("level", M.gte(3)));
       assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasAttribute");
+      assert.deepStrictEqual(d.trace.children, []);
     }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { level: 5 } })))));
+
+  it.effect("HasAttribute denies with a reason naming the attribute", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasAttribute("level", M.gte(3)));
+      assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasAttribute");
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject attribute 'level' did not match");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { level: 1 } })))));
+
+  it.effect("a matcher referencing action() allows once an action is supplied", () =>
+    Effect.gen(function* () {
+      // The positive half of `action === undefined && referencesAction(...)`:
+      // supplying an action must actually let evaluation proceed to the match,
+      // not merely avoid the MissingAction failure.
+      const policy = P.hasAttribute("allowedOp", M.eq(M.action()));
+      const d = yield* evaluate(policy, { action: "approve" });
+      assert.isTrue(isAllowed(d));
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ attributes: { allowedOp: "approve" } }))),
+    ));
 
   it.effect("HasResourceAttribute matches against the resource", () =>
     Effect.gen(function* () {
       const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
       const d = yield* evaluate(policy, { resource: { state: "open" } });
       assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasResourceAttribute");
+      assert.deepStrictEqual(d.trace.children, []);
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("HasResourceAttribute denies with a reason naming the attribute", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
+      const d = yield* evaluate(policy, { resource: { state: "closed" } });
+      assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasResourceAttribute");
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "resource attribute 'state' did not match");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
   it.effect("HasResourceAttribute fails when no resource is in context", () =>
@@ -68,6 +108,10 @@ describe("leaf policies", () => {
       const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
       const r = yield* Effect.result(evaluate(policy));
       assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "MissingResource");
+      if (r.failure._tag !== "MissingResource") return;
+      assert.strictEqual(r.failure.attribute, "state");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
   it.effect("HasRelationship consults the resolver", () =>
@@ -76,6 +120,7 @@ describe("leaf policies", () => {
         resource: { id: "doc-1" },
       });
       assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasRelationship");
     }).pipe(
       Effect.provide(
         testLayer(subjectWith({ id: "u1" }), {
@@ -90,6 +135,9 @@ describe("leaf policies", () => {
         resource: { id: "doc-2" },
       });
       assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasRelationship");
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject 'u1' has no 'owner' relation to 'doc-2'");
     }).pipe(
       Effect.provide(
         testLayer(subjectWith({ id: "u1" }), {
@@ -98,12 +146,26 @@ describe("leaf policies", () => {
       ),
     ));
 
-  it.effect("HasRelationship fails without resource.id", () =>
+  it.effect("HasRelationship fails without resource.id, naming the relation", () =>
     Effect.gen(function* () {
       const r = yield* Effect.result(
         evaluate(P.hasRelationship("owner"), { resource: { name: "x" } }),
       );
       assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "MissingResourceId");
+      if (r.failure._tag !== "MissingResourceId") return;
+      assert.strictEqual(r.failure.relation, "owner");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("HasRelationship fails when there is no resource at all", () =>
+    Effect.gen(function* () {
+      // `resource?.["id"]` (not `resource["id"]`): a policy with no resource in
+      // context at all must fail typed, not throw on an unguarded index.
+      const r = yield* Effect.result(evaluate(P.hasRelationship("owner")));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "MissingResourceId");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
   it.effect("the default relationship resolver fails closed", () =>
@@ -123,46 +185,156 @@ describe("composites", () => {
     Effect.gen(function* () {
       const d = yield* evaluate(P.allOf([allow, denyP]));
       assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "AllOf");
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a"] })))));
+
+  it.effect("AllOf allows when every child allows", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.allOf([allow, P.hasRole("b")]));
+      assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "AllOf");
+      assert.strictEqual(d.trace.children.length, 2);
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] })))));
 
   it.effect("AnyOf allows if any child allows", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.anyOf([denyP, allow]));
       assert.isTrue(isAllowed(d));
+      // The winning child allowed under `First`, so this is `stepAnyOf`'s early
+      // return, not `finishAnyOf`'s.
+      assert.strictEqual(d.trace.policyTag, "AnyOf");
+      assert.strictEqual(d.trace.children.length, 2);
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a"] })))));
 
-  it.effect("AnyOf denies when every child denies", () =>
+  it.effect("AnyOf denies when every child denies, with the last child's reason", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.anyOf([denyP, P.hasRole("yyy")]));
       assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "AnyOf");
+      assert.strictEqual(d.trace.children.length, 2);
+      if (d._tag !== "Deny") return;
+      // The exact denial reason, not the generic "no alternative policy
+      // allowed" fallback — that text is only for an AnyOf with NO children at
+      // all (see the empty-AnyOf test below). A `?? -> &&` swap on the
+      // fallback would replace this with the generic text even though the
+      // last child's own reason is present.
+      assert.strictEqual(d.reason, "subject lacks role 'yyy'");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
-  it.effect("Not inverts a denial into an allow", () =>
+  it.effect("an AnyOf with no children denies with the generic fallback reason", () =>
+    Effect.gen(function* () {
+      // Here there is no child to supply a reason, so the fallback text is the
+      // real behavior rather than a mutant swapping away a real one.
+      const d = yield* evaluate(P.anyOf([]));
+      assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "AnyOf");
+      assert.deepStrictEqual(d.trace.children, []);
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "no alternative policy allowed");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("Not inverts a denial into an allow, keeping the child in its trace", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.not(denyP));
       assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "Not");
+      assert.strictEqual(d.trace.children.length, 1);
+      assert.strictEqual(d.trace.children[0]?.policyTag, "HasRole");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
-  it.effect("Not inverts an allow into a denial", () =>
+  it.effect("Not inverts an allow into a denial, keeping the child in its trace", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.not(allow));
       assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "Not");
+      assert.strictEqual(d.trace.children.length, 1);
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a"] })))));
 
-  it.effect("Labeled surfaces its label in the trace", () =>
+  it.effect("Labeled surfaces its label in the trace, and keeps the child", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.labeled("four-eyes", allow));
       assert.strictEqual(d.trace.label, "four-eyes");
       assert.strictEqual(d.trace.policyTag, "Labeled");
+      assert.strictEqual(d.trace.children.length, 1);
+      assert.strictEqual(d.trace.children[0]?.policyTag, "HasRole");
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a"] })))));
 
-  it.effect("rejects a tree deeper than maxDepth", () =>
+  it.effect("rejects a tree deeper than maxDepth, carrying the configured limit", () =>
     Effect.gen(function* () {
       let policy: P.Policy = P.hasRole("a");
       for (let i = 0; i < 10; i++) policy = P.not(policy);
       const r = yield* Effect.result(evaluate(policy, { maxDepth: 3 }));
       assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "PolicyTooDeep");
+      if (r.failure._tag !== "PolicyTooDeep") return;
+      assert.strictEqual(r.failure.maxDepth, 3);
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a"] })))));
+
+  /**
+   * `depth + 1` is threaded through every recursive call in `evaluateNode` —
+   * `Not`, `Obliged`, `Labeled`, and both the sequential and concurrent paths of
+   * `AllOf`/`AnyOf`/`Rules`. A mutant turning any one of those into `depth - 1`
+   * makes recursion effectively unbounded through that combinator: not a
+   * cosmetic gap but a stack-overflow/DoS exposure, so every combinator that
+   * recurses gets its own exact-boundary check here rather than relying on the
+   * `Not`-chain case above to stand in for all of them.
+   */
+  const depthLimitCombinators: ReadonlyArray<{
+    readonly name: string;
+    readonly wrap: (child: P.Policy) => P.Policy;
+    readonly concurrency?: "unbounded";
+  }> = [
+    { name: "Not", wrap: P.not },
+    { name: "Obliged", wrap: (child) => P.obliged(obligation("o"), child) },
+    { name: "Labeled", wrap: (child) => P.labeled("l", child) },
+    { name: "AllOf (sequential)", wrap: (child) => P.allOf([child]) },
+    {
+      name: "AllOf (concurrent)",
+      wrap: (child) => P.allOf([child]),
+      concurrency: "unbounded",
+    },
+    { name: "AnyOf (sequential)", wrap: (child) => P.anyOf([child]) },
+    {
+      name: "AnyOf (concurrent)",
+      wrap: (child) => P.anyOf([child]),
+      concurrency: "unbounded",
+    },
+    { name: "Rules (sequential)", wrap: (child) => P.rules([P.permitWhen(child)]) },
+    {
+      name: "Rules (concurrent)",
+      wrap: (child) => P.rules([P.permitWhen(child)]),
+      concurrency: "unbounded",
+    },
+  ];
+
+  for (const { name, wrap, concurrency } of depthLimitCombinators) {
+    it.effect(`${name} evaluates at exactly maxDepth and fails one level deeper`, () =>
+      Effect.gen(function* () {
+        // The check is success-vs-failure, not the resulting allow/deny — the
+        // boundary is about depth counting, not about which polarity `Not`
+        // leaves the leaf at.
+        const nest = (levels: number): P.Policy => {
+          let policy: P.Policy = P.hasRole("a");
+          for (let i = 0; i < levels; i++) policy = wrap(policy);
+          return policy;
+        };
+        const options = (maxDepth: number) => ({
+          maxDepth,
+          ...(concurrency === undefined ? {} : { concurrency }),
+        });
+
+        const atLimit = yield* Effect.result(evaluate(nest(2), options(2)));
+        assert.strictEqual(atLimit._tag, "Success");
+
+        const overLimit = yield* Effect.result(evaluate(nest(3), options(2)));
+        assert.strictEqual(overLimit._tag, "Failure");
+        if (overLimit._tag !== "Failure") return;
+        assert.strictEqual(overLimit.failure._tag, "PolicyTooDeep");
+        if (overLimit.failure._tag !== "PolicyTooDeep") return;
+        assert.strictEqual(overLimit.failure.maxDepth, 2);
+      }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a"] })))));
+  }
 });
 
 describe("short-circuiting", () => {
@@ -370,6 +542,10 @@ describe("field visibility", () => {
         { fieldStrategy: "Union" },
       );
       const d = yield* evaluate(policy);
+      // `Union` cannot short-circuit on the first allowing child (unlike
+      // `First`), so this exercises `finishAnyOf`'s allow branch rather than
+      // `stepAnyOf`'s early return.
+      assert.strictEqual(d.trace.policyTag, "AnyOf");
       if (d._tag !== "Allow") return;
       assert.deepStrictEqual([...(d.visibleFields ?? [])].sort(), ["author", "title"]);
     }).pipe(
@@ -437,6 +613,34 @@ describe("decision metadata", () => {
       const d = yield* evaluate(P.allOf([P.hasRole("a"), P.hasRole("b")]));
       assert.strictEqual(d.trace.children.length, 2);
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] })))));
+
+  it.effect("durationMillis is the clock's actual elapsed time, not a sum", () =>
+    Effect.gen(function* () {
+      // The existing "at least 0" assertion above cannot distinguish
+      // `end - startedAt` from `end + startedAt` when `TestClock` starts at 0:
+      // `startedAt` is 0 either way, so `end - 0` and `end + 0` are the same
+      // value — `+` survived exactly this way the first time this test was
+      // written. Advancing the clock *before* `evaluate` runs, not just
+      // during it, makes `startedAt` nonzero, so the two arithmetic mutants
+      // genuinely diverge: `-` reads the 10ms actually elapsed during
+      // resolution; `+` would read `startedAt` (1000) plus `end` (1010) = 2010.
+      yield* TestClock.adjust("1 second");
+
+      const slow = Layer.succeed(AttributeResolver, {
+        resolve: () =>
+          Effect.gen(function* () {
+            yield* TestClock.adjust("10 millis");
+            return 5;
+          }),
+      });
+
+      const d = yield* evaluate(P.hasAttribute("x", M.gte(1))).pipe(
+        Effect.provide(testLayer(subjectWith({}), { attributes: slow })),
+      );
+
+      assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.durationMillis, 10);
+    }));
 });
 
 describe("subject identity references", () => {
@@ -483,12 +687,14 @@ describe("the action dimension", () => {
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasAction("write"), { action: "write" });
       assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasAction");
     }).pipe(Effect.provide(testLayer(anyone))));
 
   it.effect("HasAction denies a different action, naming both", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasAction("write"), { action: "read" });
       assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasAction");
       if (d._tag !== "Deny") return;
       assert.include(d.reason, "'read'");
       assert.include(d.reason, "'write'");
@@ -894,6 +1100,21 @@ describe("decision history", () => {
         Effect.provide(testLayer(clerk, { history: raisedIt })),
       );
       assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasActed");
+    }));
+
+  it.effect("hasActed denies with a reason naming the event, when it was not", () =>
+    Effect.gen(function* () {
+      // The "has not" half of the reason sentence — distinct from the
+      // "no history is available" branch below, which fires only under an
+      // unwired (`Unknown`-answering) port.
+      const d = yield* evaluate(P.hasActed("approved"), invoice).pipe(
+        Effect.provide(testLayer(clerk, { history: raisedIt })),
+      );
+      assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasActed");
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject 'u1' has not performed 'approved'");
     }));
 
   it.effect("hasNotActed denies when the event is recorded", () =>
@@ -904,6 +1125,9 @@ describe("decision history", () => {
         Effect.provide(testLayer(clerk, { history: raisedIt })),
       );
       assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasNotActed");
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject 'u1' has already performed 'raised'");
     }));
 
   it.effect("hasNotActed allows when a closed store says it did not happen", () =>
@@ -912,6 +1136,7 @@ describe("decision history", () => {
         resource: { id: "inv-2" },
       }).pipe(Effect.provide(testLayer(clerk, { history: raisedIt })));
       assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasNotActed");
     }));
 
   it.effect("BOTH polarities deny under an unwired port", () =>
@@ -922,8 +1147,13 @@ describe("decision history", () => {
       const notActed = yield* evaluate(P.hasNotActed("raised"), invoice);
       assert.isFalse(isAllowed(acted));
       assert.isFalse(isAllowed(notActed));
-      if (notActed._tag !== "Deny") return;
-      assert.include(notActed.reason, "no history is available");
+      assert.strictEqual(acted.trace.policyTag, "HasActed");
+      assert.strictEqual(notActed.trace.policyTag, "HasNotActed");
+      if (acted._tag !== "Deny" || notActed._tag !== "Deny") return;
+      // Exact text, and identical for both polarities — the mismatch is what
+      // makes "Unknown" three-valued rather than boolean.
+      assert.strictEqual(acted.reason, "no history is available for 'raised'");
+      assert.strictEqual(notActed.reason, "no history is available for 'raised'");
     }).pipe(Effect.provide(testLayer(clerk, { history: DecisionHistoryUnknown }))));
 
   it.effect("hasNotActed is NOT not(hasActed) — the difference is a grant", () =>
@@ -954,6 +1184,8 @@ describe("decision history", () => {
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
       assert.strictEqual(r.failure._tag, "MissingResourceId");
+      if (r.failure._tag !== "MissingResourceId") return;
+      assert.strictEqual(r.failure.relation, "raised");
     }).pipe(Effect.provide(testLayer(clerk, { history: raisedIt }))));
 
   it.effect("an unreachable store is an error, not a denial", () =>
@@ -1222,6 +1454,52 @@ describe("task-based access control", () => {
     }));
 });
 
+describe("rule tables", () => {
+  // `evaluateRules`'s two denial arms — "no rule applied" and "rules[N]
+  // denied" — are covered elsewhere for their reason text (via the concurrent
+  // evaluation tests' `rules[0] permitted`) but not for `trace.policyTag`,
+  // which every other combinator gets a dedicated check for above.
+  it.effect("denies with 'no rule applied' when no rule's condition holds", () =>
+    Effect.gen(function* () {
+      const policy = P.rules([P.permitWhen(P.hasRole("nobody"))]);
+      const d = yield* evaluate(policy);
+      assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "Rules");
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "no rule applied");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("an empty rule table denies with 'no rule applied'", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.rules([]));
+      assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "Rules");
+      assert.deepStrictEqual(d.trace.children, []);
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("denies naming the deciding row under DenyOverrides", () =>
+    Effect.gen(function* () {
+      const policy = P.rules(
+        [P.permitWhen(P.hasRole("editor")), P.denyWhen(P.hasRole("suspended"))],
+        { combining: "DenyOverrides" },
+      );
+      const d = yield* evaluate(policy);
+      assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "Rules");
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "rules[1] denied");
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor", "suspended"] })))));
+
+  it.effect("allows naming the deciding row", () =>
+    Effect.gen(function* () {
+      const policy = P.rules([P.permitWhen(P.hasRole("editor"))]);
+      const d = yield* evaluate(policy);
+      assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "Rules");
+      assert.strictEqual(d.trace.reason, "rules[0] permitted");
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));
+});
+
 describe("obligations", () => {
   // An obligation is a condition on permission, so a decision carries those
   // contributed by the allow it returned — ADR-QD-019. Every rule below follows
@@ -1236,6 +1514,9 @@ describe("obligations", () => {
     Effect.gen(function* () {
       const d = yield* evaluate(P.obliged(logIt, P.hasRole("auditor")));
       assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "Obliged");
+      assert.strictEqual(d.trace.children.length, 1);
+      assert.strictEqual(d.trace.children[0]?.policyTag, "HasRole");
       if (d._tag !== "Allow") return;
       assert.deepStrictEqual(d.obligations, [logIt]);
     }).pipe(Effect.provide(testLayer(holder))));
@@ -1244,9 +1525,18 @@ describe("obligations", () => {
     Effect.gen(function* () {
       const d = yield* evaluate(P.obliged(logIt, P.hasRole("nobody")));
       assert.isFalse(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "Obliged");
+      assert.strictEqual(d.trace.children.length, 1);
       // `Deny` has no obligations field at all. The trace node records none
       // either, because the inner policy never allowed.
       assert.deepStrictEqual(d.trace.obligations, []);
+      // The exact denial reason must be the child's own — `child.reason ??
+      // "the obliged policy denied"` — never the generic fallback, which only
+      // applies when the child carries no reason at all (it always does).
+      // A `?? -> &&` swap here would silently replace this with the fallback
+      // text even though `child.reason` is present.
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject lacks role 'nobody'");
     }).pipe(Effect.provide(testLayer(holder))));
 
   it.effect("an evaluation with no obligation reports an empty set, not undefined", () =>
