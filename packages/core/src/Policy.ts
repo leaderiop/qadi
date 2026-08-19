@@ -128,29 +128,23 @@ export interface Rule {
  * attribute names (a `:`-containing namespaced key, say) for no real safety
  * gain. Left as plain `string` on purpose, not by omission.
  */
-export const RoleName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
-  Schema.brand("RoleName"),
-);
+/** The wrapping every brand below shares — only the tag differs. */
+const segmentBrand = <Tag extends string>(tag: Tag) =>
+  Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(Schema.brand(tag));
+
+export const RoleName = segmentBrand("RoleName");
 export type RoleName = typeof RoleName.Type;
 
-export const ActionName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
-  Schema.brand("ActionName"),
-);
+export const ActionName = segmentBrand("ActionName");
 export type ActionName = typeof ActionName.Type;
 
-export const EventName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
-  Schema.brand("EventName"),
-);
+export const EventName = segmentBrand("EventName");
 export type EventName = typeof EventName.Type;
 
-export const RelationName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
-  Schema.brand("RelationName"),
-);
+export const RelationName = segmentBrand("RelationName");
 export type RelationName = typeof RelationName.Type;
 
-export const LabelName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
-  Schema.brand("LabelName"),
-);
+export const LabelName = segmentBrand("LabelName");
 export type LabelName = typeof LabelName.Type;
 
 /**
