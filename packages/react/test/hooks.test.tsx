@@ -190,6 +190,17 @@ describe("useProjected", () => {
     );
     await waitFor(() => expect(screen.getByText("fields=none")).toBeDefined());
   });
+
+  it("exposes nothing while the decision is still pending", () => {
+    // No subject yet, so `useDecision` has nothing to resolve — `currentDecision`
+    // reads `undefined` and `useProjected` must not call `project` on it.
+    render(
+      <QadiProvider atoms={working} subject={undefined}>
+        <Probe />
+      </QadiProvider>,
+    );
+    expect(screen.getByText("fields=none")).toBeDefined();
+  });
 });
 
 describe("useDecisionSuspense", () => {
@@ -203,6 +214,65 @@ describe("useDecisionSuspense", () => {
         </Suspense>
       </QadiProvider>,
     );
+    await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined());
+  });
+
+  it("evaluates against a resource when one is given", async () => {
+    const ownsIt = hasResourceAttribute("owner", eq(subjectId()));
+    const WithResource = () => (
+      <span>{`decided:${useDecisionSuspense(ownsIt, { owner: "u1" })._tag}`}</span>
+    );
+
+    render(
+      <QadiProvider atoms={working} subject={makeSubject({ id: "u1" })}>
+        <Suspense fallback={<span>suspended</span>}>
+          <WithResource />
+        </Suspense>
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined());
+  });
+
+  it("stays suspended through an intermediate still-pending notification", async () => {
+    // A resolver held open under the test's own control, rather than a real
+    // timer, gives the registry a deterministic gap between "evaluation
+    // started" and "evaluation resolved" — a real-clock delay hit this same
+    // branch in isolation but was flaky under full-suite load, since it raced
+    // wall-clock time against `waitFor`'s polling instead of an explicit
+    // handoff. This exercises `settled`'s "still Initial/waiting, keep
+    // waiting" branch, not just its "done" one, without timing dependence.
+    let resolveAttribute: (() => void) | undefined;
+    const controlled = makeQadiAtoms(
+      Layer.mergeAll(
+        Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.promise(
+              () =>
+                new Promise<number>((resolve) => {
+                  resolveAttribute = () => resolve(1);
+                }),
+            ),
+        }),
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+      ),
+    );
+    const SlowProbe = () => (
+      <span>{`decided:${useDecisionSuspense(needsClearance)._tag}`}</span>
+    );
+
+    render(
+      <QadiProvider atoms={controlled} subject={reader}>
+        <Suspense fallback={<span>suspended</span>}>
+          <SlowProbe />
+        </Suspense>
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(resolveAttribute).toBeDefined());
+    expect(screen.getByText("suspended")).toBeDefined();
+
+    act(() => resolveAttribute?.());
     await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined());
   });
 });

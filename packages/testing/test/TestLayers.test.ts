@@ -43,6 +43,10 @@ describe("fixtures", () => {
   it("nobody holds nothing", () => {
     assert.strictEqual(nobody.permissions.size, 0);
   });
+
+  it("subjectWith defaults its id when none is given", () => {
+    assert.strictEqual(subjectWith({}).id, "test-subject");
+  });
 });
 
 describe("qadiTestLayer", () => {
