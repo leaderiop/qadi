@@ -14,6 +14,7 @@ import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
 import type { RelationshipResolveError } from "./Errors.ts";
+import { wrapService } from "./RetryingLayer.ts";
 
 export interface RelationshipCheck {
   readonly subjectId: string;
@@ -116,12 +117,6 @@ export const relationshipResolverFromEdges = (
 export const relationshipResolverRetrying =
   (schedule: Schedule.Schedule<unknown, RelationshipResolveError>) =>
   (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver> =>
-    Layer.effect(
-      RelationshipResolver,
-      Effect.map(Layer.build(layer), (context) => {
-        const inner = Context.get(context, RelationshipResolver);
-        return {
-          check: (request: RelationshipCheck) => inner.check(request).pipe(Effect.retry(schedule)),
-        };
-      }),
-    );
+    wrapService(RelationshipResolver, layer, (inner) => ({
+      check: (request) => inner.check(request).pipe(Effect.retry(schedule)),
+    }));

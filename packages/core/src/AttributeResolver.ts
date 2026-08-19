@@ -12,6 +12,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
 import type { AttributeResolveError } from "./Errors.ts";
+import { wrapService } from "./RetryingLayer.ts";
 
 export interface AttributeResolverShape {
   /**
@@ -69,13 +70,7 @@ export const attributeResolverFromRecord = (
 export const attributeResolverRetrying =
   (schedule: Schedule.Schedule<unknown, AttributeResolveError>) =>
   (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver> =>
-    Layer.effect(
-      AttributeResolver,
-      Effect.map(Layer.build(layer), (context) => {
-        const inner = Context.get(context, AttributeResolver);
-        return {
-          resolve: (subjectId: string, attribute: string) =>
-            inner.resolve(subjectId, attribute).pipe(Effect.retry(schedule)),
-        };
-      }),
-    );
+    wrapService(AttributeResolver, layer, (inner) => ({
+      resolve: (subjectId, attribute) =>
+        inner.resolve(subjectId, attribute).pipe(Effect.retry(schedule)),
+    }));
