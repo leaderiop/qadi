@@ -185,11 +185,19 @@ const SWITCH_BUDGET = {
 
 const SWITCH = /\bswitch\s*\(/;
 
-// `import { assert as assertCore } from "..."` reuses the `as` keyword for
-// renaming, not type assertion, and a multi-line named-import list puts the
-// rename on a continuation line the start-of-statement regex never sees. So
-// this is tracked as a small span, like the block-comment state below: once a
-// line opens an import or re-export-from clause, every line up to and
+// This is not a narrow edge case: `import * as Effect from "effect/Effect"`
+// — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
+// this script scans — reuses the identical `as` keyword for namespacing, not
+// type assertion. Disable this exemption and the gate fails on its own
+// codebase's house style, every file, immediately (verified directly: it did
+// — 86 violations, most of them `import * as X from "..."` lines). The
+// second, narrower case this also covers — `import { assert as assertCore }
+// from "..."` renaming, where a multi-line named-import list can put the
+// rename on a continuation line the start-of-statement regex never sees on
+// its own — is real too (`Policy as PolicySchema` in
+// `packages/react/src/Hydration.ts`), just far less visible than the first.
+// So this is tracked as a small span, like the block-comment state below:
+// once a line opens an import or re-export-from clause, every line up to and
 // including the one closing it is exempt from no-type-assertion specifically
 // — every other rule still applies as normal.
 //
