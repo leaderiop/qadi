@@ -7,7 +7,16 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       include: ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"],
-      exclude: ["packages/*/src/**/index.ts", "**/*.test-d.ts"],
+      // Named explicitly, not `packages/*/src/**/index.ts`: `@qadi/promise`'s
+      // index.ts is deliberately the whole implementation (ADR-QD-032), not a
+      // barrel, and a blanket pattern excluded its real logic from measurement
+      // entirely — its 90% gate was passing vacuously with zero files in scope.
+      exclude: [
+        "packages/core/src/index.ts",
+        "packages/react/src/index.ts",
+        "packages/testing/src/index.ts",
+        "**/*.test-d.ts",
+      ],
       // A shortfall is a failure, not a report.
       thresholds: {
         lines: 90,

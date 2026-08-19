@@ -66,6 +66,72 @@ const RULES = [
     re: /crypto\.randomUUID\s*\(/,
     message: "No ambient UUIDs — use the EvaluationId service.",
   },
+  {
+    id: "no-non-null-assertion",
+    // `x!` — a value or a closing `)`/`]` immediately followed by `!` and then
+    // whatever can legally follow an expression (`;`, `.`, `)`, `]`, `,`, a
+    // newline, or nothing). Excludes `!=`/`!==` (the char after `!` there is
+    // `=`, which none of these alternatives are) and a leading unary `!x`
+    // (there is no operand-ending character before it for this pattern to
+    // anchor on).
+    re: /[A-Za-z0-9_)\]]!(\s*[;.)\],:]|\s*$)/,
+    message: "No non-null assertions — fix the type (AGENTS.md §6).",
+  },
+  {
+    id: "no-named-effect-submodule-import",
+    // `import type { X } from "effect/Y"` is exempt: "type " between `import`
+    // and `{` means `\s+\{` never matches right after `import`, so a type-only
+    // named import — which carries no runtime module-shape concern — passes.
+    re: /^\s*import\s+\{[^}]*\}\s+from\s+["']effect\/[^"']+["']/,
+    message: 'Namespace-import effect submodules: import * as X from "effect/X".',
+    raw: true,
+  },
+  {
+    id: "no-extensionless-relative-import",
+    re: /from\s+["']\.\.?\/[^"']*(?<!\.ts)(?<!\.tsx)["']/,
+    message: "Relative imports need an explicit .ts/.tsx extension.",
+    raw: true,
+  },
+  {
+    id: "no-legacy-service-api",
+    re: /\bContext\.(?:Tag|GenericTag|Reference)\b|\bEffect\.Service\b/,
+    message: "Use Context.Service, never Effect.Service/Context.Tag/GenericTag/Reference.",
+  },
+  {
+    id: "no-static-layer-or-default",
+    re: /\bstatic\s+layer\b|\.Default\b/,
+    message: 'No "static layer" or ".Default" on a service — layers are standalone consts.',
+  },
+  {
+    id: "no-schema-tagged-error-class",
+    re: /\bTaggedErrorClass\b/,
+    message: "Use Data.TaggedError, not Schema.TaggedErrorClass.",
+  },
+  // no-prefixed-error-tag lives outside this array, as a whole-file regex —
+  // see below. A per-line rule here would miss a tag string on the line after
+  // `Data.TaggedError(`, which is how most of Errors.ts is actually formatted.
+  {
+    id: "no-catchtags-object-form",
+    re: /\.catchTags\s*\(\s*\{/,
+    message: "Effect.catchTag array form only — there is no catchTags({...}) here.",
+  },
+  {
+    id: "no-effect-ordie",
+    re: /\bEffect\.orDie\b/,
+    message: "Never Effect.orDie in evaluation/enforcement paths — a decision must not become a defect.",
+  },
+  {
+    id: "no-node-fs-import",
+    re: /from\s+["']node:fs["']/,
+    message: "Use the FileSystem service, not node:fs directly.",
+    raw: true,
+  },
+  {
+    id: "no-effect-either",
+    re: /from\s+["']effect\/Either["']|\bEffect\.either\b/,
+    message: "Use Effect.result + Result.isSuccess/isFailure, not Effect.either/effect/Either.",
+    raw: true,
+  },
 ];
 
 /**
@@ -132,10 +198,12 @@ const SWITCH = /\bswitch\s*\(/;
 // Closing tracks brace depth, not a line count: a first version capped the
 // span at a fixed line count as a backstop against a from-less local rename
 // (`export { X as Y };`, which cannot be told apart from a real multi-line
-// import by the start pattern alone) — but `packages/testing/src/TestLayers.ts`
-// has a genuine 13-line named import, one line past that cap, so the backstop
-// closed the exemption a line before the real `from` and would have
-// unexempted a rename landing on that last line. Braces close exactly when the
+// import by the start pattern alone) — but this codebase has had a genuine
+// 13-line named import, one line past that cap, so the backstop closed the
+// exemption a line before the real `from` and would have unexempted a rename
+// landing on that last line (that import has since been split up, but a
+// future one just as long is exactly the case this had to hold for). Braces
+// close exactly when the
 // statement does, for both shapes, at any length, so depth tracking has no
 // such boundary to misjudge — `from` closes it in the normal case, and depth
 // returning to zero without ever seeing `from` closes it in the rename case.
@@ -278,6 +346,65 @@ for (const [rel, found] of switchLines) {
     `${rel}:${found.join(", ")}  [no-switch] Dispatch with effect/Match, not switch — AGENTS.md §5a.\n` +
       `    A hot path that genuinely needs one is declared in SWITCH_BUDGET with its reason.`,
   );
+}
+
+// ---------------------------------------------------------------------------
+// §4 — Data.TaggedError tags carry no "qadi/" prefix, checked across line
+// breaks. A per-line regex here would miss `Data.TaggedError(\n  "qadi/X",\n)`
+// — most of Errors.ts's classes are written exactly that way — so this reads
+// each file's full text with a dotAll regex instead of scanning line by line.
+// ---------------------------------------------------------------------------
+
+const TAGGED_ERROR_TAG = /Data\.TaggedError\(\s*["'`]([^"'`]*)["'`]/gs;
+
+for (const file of sources) {
+  const rel = relative(ROOT, file);
+  const content = readFileSync(file, "utf8");
+  for (const m of content.matchAll(TAGGED_ERROR_TAG)) {
+    if (m[1].startsWith("qadi/")) {
+      failures += 1;
+      console.error(
+        `${rel}  [no-prefixed-error-tag] Error tags are unprefixed — no "qadi/" ` +
+          `(that's for service ids).\n    ${m[0].replace(/\s+/g, " ")}`,
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// §9 — barrel `export * from` lines are alphabetical (case-sensitive ASCII).
+// Only checked on files that are *purely* a barrel: `packages/promise/src/index.ts`
+// is deliberately the implementation itself (ADR-QD-032), not a re-export list, so
+// it is not one and is skipped.
+// ---------------------------------------------------------------------------
+
+const BARREL_LINE = /^export \* from ["'](\.\/[^"']+)["'];?$/;
+
+// A leading doc comment (AGENTS.md's own "one-line summary" guidance
+// encourages exactly this) must not silently disable the check for the rest
+// of the file — only actual code lines decide whether this is a pure barrel.
+const COMMENT_LINE = /^(\/\/|\/\*|\*\/|\*)/;
+
+for (const rel of sources
+  .map((file) => relative(ROOT, file))
+  .filter((rel) => /(^|\/)index\.tsx?$/.test(rel))) {
+  const lines = readFileSync(join(ROOT, rel), "utf8")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l !== "" && !COMMENT_LINE.test(l));
+  const specifiers = lines.map((line) => BARREL_LINE.exec(line)?.[1]);
+  if (specifiers.some((s) => s === undefined)) continue; // not a pure barrel — skip
+
+  for (let i = 1; i < specifiers.length; i += 1) {
+    if (specifiers[i - 1] > specifiers[i]) {
+      failures += 1;
+      console.error(
+        `${rel}  [barrel-order] "${specifiers[i]}" sorts before "${specifiers[i - 1]}" — ` +
+          "keep barrel exports alphabetical (AGENTS.md §9).",
+      );
+      break;
+    }
+  }
 }
 
 if (failures > 0) {

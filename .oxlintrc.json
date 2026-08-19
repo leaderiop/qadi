@@ -2,7 +2,8 @@
   "rules": {
     "require-yield": "off",
     "no-misused-new": "off",
-    "no-non-null-asserted-optional-chain": "off"
+    "no-non-null-asserted-optional-chain": "off",
+    "no-explicit-any": "error"
   },
   "ignorePatterns": ["**/lib/**", "**/lib-test/**", "**/node_modules/**"]
 }
