@@ -21,6 +21,17 @@ import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import { PermissionSchema, SEGMENT_PATTERN } from "./Permission.ts";
 
+/**
+ * The default recursion bound for walking a `Policy` tree, shared by both
+ * interpreters — `Evaluate.ts`'s `evaluateNode` and `Predicate.ts`'s
+ * `translateNode` — rather than each declaring its own copy of the same
+ * literal. `Predicate.ts`'s own header comment calls "the two interpreters
+ * must agree" load-bearing (INV-QD-018); a `maxDepth` default that could
+ * silently drift between them would be exactly the kind of disagreement
+ * that property is meant to rule out.
+ */
+export const DEFAULT_MAX_DEPTH = 64;
+
 // ---------------------------------------------------------------------------
 // Field visibility strategy
 // ---------------------------------------------------------------------------
@@ -105,6 +116,17 @@ export interface Rule {
  *
  * `Schema.brand` adds no runtime check by itself — the `.check` before it is
  * what makes this real validation, not just a compile-time tag.
+ *
+ * `HasAttribute`/`HasResourceAttribute`'s `attribute` is **deliberately not
+ * branded here**, unlike its five siblings above. Each of those names a
+ * closed-ish, policy-authored vocabulary — a fixed set of roles, actions,
+ * events, relations, labels a deployment defines — so nominal, colon-free
+ * validation genuinely constrains it. `attribute` names a key into an open,
+ * caller-defined namespace resolved through `AttributeResolver` or a
+ * resource's own record; qadi has no basis for judging one attribute name
+ * valid and another not, so `SEGMENT_PATTERN` would reject legitimate
+ * attribute names (a `:`-containing namespaced key, say) for no real safety
+ * gain. Left as plain `string` on purpose, not by omission.
  */
 export const RoleName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
   Schema.brand("RoleName"),
@@ -142,7 +164,18 @@ export type LabelName = typeof LabelName.Type;
  * keep. Real validation still happens, just only at the `Schema` decode
  * boundary these brands are also wired into above.
  */
-const mkRoleName = Brand.nominal<RoleName>();
+/**
+ * Exported — unlike its four siblings below — because `AuthSubject.ts` needs
+ * the identical total, non-validating conversion: `subject.roles.has(policy.role)`
+ * (`Evaluate.ts`) only type-checks as a comparison of the same brand on both
+ * sides if subject role names are constructed the same way `hasRole` builds
+ * `policy.role`. A second, independent `Brand.nominal<RoleName>()` call in
+ * `AuthSubject.ts` would behave identically today (the constructor performs
+ * no validation, so there is nothing for two calls to disagree on) but would
+ * give a future change to how `RoleName` is constructed no compiler-enforced
+ * reason to reach both call sites.
+ */
+export const makeRoleName = Brand.nominal<RoleName>();
 const mkActionName = Brand.nominal<ActionName>();
 const mkEventName = Brand.nominal<EventName>();
 const mkRelationName = Brand.nominal<RelationName>();
@@ -347,7 +380,7 @@ export const hasPermission = (
 });
 
 /** The subject holds the given role, directly or by inheritance. */
-export const hasRole = (role: string): Policy => ({ _tag: "HasRole", role: mkRoleName(role) });
+export const hasRole = (role: string): Policy => ({ _tag: "HasRole", role: makeRoleName(role) });
 
 /** A subject attribute satisfies the matcher. */
 export const hasAttribute = (

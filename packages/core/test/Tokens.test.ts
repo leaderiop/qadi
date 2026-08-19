@@ -177,7 +177,7 @@ describe("AuthSubject", () => {
   it("makeSubject stores explicit keys", () => {
     const s = makeSubject({ id: "u", permissions: ["doc:read"], roles: ["r"] });
     assert.isTrue(s.permissions.has("doc:read"));
-    assert.isTrue(s.roles.has("r"));
+    assert.isTrue([...s.roles].some((role) => role === "r"));
   });
 
   it("fromRoles flattens both permissions and role names", () => {

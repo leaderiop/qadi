@@ -29,6 +29,7 @@ import {
   referencesResource,
 } from "./Matcher.ts";
 import { permissionKey } from "./Permission.ts";
+import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import type { Policy, Rule } from "./Policy.ts";
 
 // ---------------------------------------------------------------------------
@@ -168,8 +169,6 @@ export interface PredicateOptions {
   /** Maximum policy tree depth. Bounds recursion on hostile decoded input. */
   readonly maxDepth?: number;
 }
-
-const DEFAULT_MAX_DEPTH = 64;
 
 const untranslatable = (
   policyTag: string,
