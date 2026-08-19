@@ -32,8 +32,12 @@ export interface Permission<
  *
  * Non-empty and colon-free in a single constraint — an empty segment would make
  * `":read"` and `"doc:"` valid keys, and a colon would make the key ambiguous.
+ *
+ * Exported so other domain strings needing the same shape of constraint — a
+ * `Policy`-ADT field branded via `Schema.brand`, say — validate against the
+ * same rule rather than a hand-copied one that could drift from it.
  */
-const SEGMENT_PATTERN = /^[^:]+$/;
+export const SEGMENT_PATTERN = /^[^:]+$/;
 
 /** True when a segment is usable as half of a permission key. */
 export const isValidSegment = (value: string): boolean => SEGMENT_PATTERN.test(value);

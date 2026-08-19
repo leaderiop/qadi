@@ -14,11 +14,12 @@
  * `fieldStrategy` is therefore **required**, not optional — an omitted optional
  * field is exactly what went missing before.
  */
+import * as Brand from "effect/Brand";
 import * as Schema from "effect/Schema";
 import { Matcher } from "./Matcher.ts";
 import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
-import { PermissionSchema } from "./Permission.ts";
+import { PermissionSchema, SEGMENT_PATTERN } from "./Permission.ts";
 
 // ---------------------------------------------------------------------------
 // Field visibility strategy
@@ -91,10 +92,101 @@ export interface Rule {
 }
 
 // ---------------------------------------------------------------------------
+// Branded domain strings
+// ---------------------------------------------------------------------------
+
+/**
+ * `role`, `event`, `relation`, `action`, and `label` were plain, mutually
+ * interchangeable `string`s — `hasRole("doc:write")` type-checked. `Permission`
+ * alone was structured. Each gets its own brand here, validated the same way
+ * `Permission`'s segments are (non-empty, no `:` — {@link SEGMENT_PATTERN}),
+ * so a malformed value is rejected when a `Policy` is decoded from untrusted
+ * JSON, not just when one is hand-constructed in already-typechecked source.
+ *
+ * `Schema.brand` adds no runtime check by itself — the `.check` before it is
+ * what makes this real validation, not just a compile-time tag.
+ */
+export const RoleName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
+  Schema.brand("RoleName"),
+);
+export type RoleName = typeof RoleName.Type;
+
+export const ActionName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
+  Schema.brand("ActionName"),
+);
+export type ActionName = typeof ActionName.Type;
+
+export const EventName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
+  Schema.brand("EventName"),
+);
+export type EventName = typeof EventName.Type;
+
+export const RelationName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
+  Schema.brand("RelationName"),
+);
+export type RelationName = typeof RelationName.Type;
+
+export const LabelName = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(
+  Schema.brand("LabelName"),
+);
+export type LabelName = typeof LabelName.Type;
+
+/**
+ * Every smart constructor below (`hasRole`, `hasAction`, …) stays **total**,
+ * exactly like `permission()` in `Permission.ts`: it accepts a plain `string`
+ * and never fails. `Schema`'s own `.make()` on a checked-and-branded schema
+ * *does* run the check and can throw — confirmed empirically, not assumed —
+ * so it is the wrong tool for a constructor that must not throw.
+ * `Brand.nominal` is: it performs no validation at all and just tags the
+ * value, which is exactly the guarantee a smart constructor calling it can
+ * keep. Real validation still happens, just only at the `Schema` decode
+ * boundary these brands are also wired into above.
+ */
+const mkRoleName = Brand.nominal<RoleName>();
+const mkActionName = Brand.nominal<ActionName>();
+const mkEventName = Brand.nominal<EventName>();
+const mkRelationName = Brand.nominal<RelationName>();
+const mkLabelName = Brand.nominal<LabelName>();
+
+// ---------------------------------------------------------------------------
 // The policy union
 // ---------------------------------------------------------------------------
 
 export type Policy =
+  | { readonly _tag: "HasPermission"; readonly permission: Permission; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasRole"; readonly role: RoleName }
+  | { readonly _tag: "HasAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasResourceAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasRelationship"; readonly relation: RelationName; readonly depth?: number | undefined; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasAction"; readonly action: ActionName; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasActed"; readonly event: EventName; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasNotActed"; readonly event: EventName; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
+  | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
+  | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<Rule>; readonly combining: Combining }
+  | { readonly _tag: "Not"; readonly policy: Policy }
+  | { readonly _tag: "Obliged"; readonly obligation: Obligation; readonly policy: Policy }
+  | { readonly _tag: "Labeled"; readonly label: LabelName; readonly policy: Policy };
+
+/**
+ * The wire shape of a {@link Rule} — `condition` is a {@link PolicyEncoded},
+ * not a `Policy`, for the same reason `PolicyEncoded` exists at all.
+ */
+export interface RuleEncoded {
+  readonly condition: PolicyEncoded;
+  readonly effect: RuleEffect;
+}
+
+/**
+ * {@link Policy}'s JSON wire shape — identical except that `role`, `event`,
+ * `relation`, `action`, and `label` are plain `string`, not the branded types
+ * `Policy` carries in memory. A brand is compile-time-only type metadata; it
+ * cannot and does not survive a JSON round trip, so `Schema.Codec`'s encoded
+ * type parameter has to say so explicitly rather than claim (wrongly) that
+ * decoding a `Policy` back out of JSON produces the exact same type as the
+ * one that was encoded.
+ */
+export type PolicyEncoded =
   | { readonly _tag: "HasPermission"; readonly permission: Permission; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasRole"; readonly role: string }
   | { readonly _tag: "HasAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
@@ -103,15 +195,15 @@ export type Policy =
   | { readonly _tag: "HasAction"; readonly action: string; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasNotActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
-  | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
-  | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<Rule>; readonly combining: Combining }
-  | { readonly _tag: "Not"; readonly policy: Policy }
-  | { readonly _tag: "Obliged"; readonly obligation: Obligation; readonly policy: Policy }
-  | { readonly _tag: "Labeled"; readonly label: string; readonly policy: Policy };
+  | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<PolicyEncoded>; readonly fieldStrategy: FieldStrategy }
+  | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<PolicyEncoded>; readonly fieldStrategy: FieldStrategy }
+  | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<RuleEncoded>; readonly combining: Combining }
+  | { readonly _tag: "Not"; readonly policy: PolicyEncoded }
+  | { readonly _tag: "Obliged"; readonly obligation: Obligation; readonly policy: PolicyEncoded }
+  | { readonly _tag: "Labeled"; readonly label: string; readonly policy: PolicyEncoded };
 
 /** Single suspended self-reference shared by every recursive position. */
-const PolicyRef = Schema.suspend((): Schema.Codec<Policy> => Policy);
+const PolicyRef = Schema.suspend((): Schema.Codec<Policy, PolicyEncoded> => Policy);
 
 const Fields = Schema.optional(Schema.Array(Schema.String));
 
@@ -120,7 +212,7 @@ const HasPermission = Schema.TaggedStruct("HasPermission", {
   fields: Fields,
 });
 
-const HasRole = Schema.TaggedStruct("HasRole", { role: Schema.String });
+const HasRole = Schema.TaggedStruct("HasRole", { role: RoleName });
 
 const HasAttribute = Schema.TaggedStruct("HasAttribute", {
   attribute: Schema.String,
@@ -135,24 +227,24 @@ const HasResourceAttribute = Schema.TaggedStruct("HasResourceAttribute", {
 });
 
 const HasRelationship = Schema.TaggedStruct("HasRelationship", {
-  relation: Schema.String,
+  relation: RelationName,
   depth: Schema.optional(Schema.Number),
   fields: Fields,
 });
 
 const HasAction = Schema.TaggedStruct("HasAction", {
-  action: Schema.String,
+  action: ActionName,
   fields: Fields,
 });
 
 const HasActed = Schema.TaggedStruct("HasActed", {
-  event: Schema.String,
+  event: EventName,
   scope: HistoryScope,
   fields: Fields,
 });
 
 const HasNotActed = Schema.TaggedStruct("HasNotActed", {
-  event: Schema.String,
+  event: EventName,
   scope: HistoryScope,
   fields: Fields,
 });
@@ -186,11 +278,11 @@ const Obliged = Schema.TaggedStruct("Obliged", {
 });
 
 const Labeled = Schema.TaggedStruct("Labeled", {
-  label: Schema.String,
+  label: LabelName,
   policy: PolicyRef,
 });
 
-export const Policy: Schema.Codec<Policy> = Schema.Union([
+export const Policy: Schema.Codec<Policy, PolicyEncoded> = Schema.Union([
   HasPermission,
   HasRole,
   HasAttribute,
@@ -255,7 +347,7 @@ export const hasPermission = (
 });
 
 /** The subject holds the given role, directly or by inheritance. */
-export const hasRole = (role: string): Policy => ({ _tag: "HasRole", role });
+export const hasRole = (role: string): Policy => ({ _tag: "HasRole", role: mkRoleName(role) });
 
 /** A subject attribute satisfies the matcher. */
 export const hasAttribute = (
@@ -287,7 +379,7 @@ export const hasRelationship = (
   options?: FieldOptions & { readonly depth?: number },
 ): Policy => ({
   _tag: "HasRelationship",
-  relation,
+  relation: mkRelationName(relation),
   ...depthKey(options?.depth),
   ...fieldsKey(options?.fields),
 });
@@ -302,7 +394,7 @@ export const hasRelationship = (
  */
 export const hasAction = (action: string, options?: FieldOptions): Policy => ({
   _tag: "HasAction",
-  action,
+  action: mkActionName(action),
   ...fieldsKey(options?.fields),
 });
 
@@ -319,7 +411,7 @@ export interface HistoryOptions extends FieldOptions {
  */
 export const hasActed = (event: string, options?: HistoryOptions): Policy => ({
   _tag: "HasActed",
-  event,
+  event: mkEventName(event),
   scope: options?.scope ?? "Resource",
   ...fieldsKey(options?.fields),
 });
@@ -336,7 +428,7 @@ export const hasActed = (event: string, options?: HistoryOptions): Policy => ({
  */
 export const hasNotActed = (event: string, options?: HistoryOptions): Policy => ({
   _tag: "HasNotActed",
-  event,
+  event: mkEventName(event),
   scope: options?.scope ?? "Resource",
   ...fieldsKey(options?.fields),
 });
@@ -428,7 +520,7 @@ export const obliged = (obligation: Obligation, policy: Policy): Policy => ({
 /** Attaches a human-readable label, surfaced in the evaluation trace. */
 export const labeled = (label: string, policy: Policy): Policy => ({
   _tag: "Labeled",
-  label,
+  label: mkLabelName(label),
   policy,
 });
 

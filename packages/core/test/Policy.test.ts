@@ -300,6 +300,44 @@ describe("Policy serialization", () => {
       assert.strictEqual(result._tag, "Failure");
     }));
 
+  describe("branded ADT strings — role/event/relation/action/label", () => {
+    // Every one of these five fields shares Permission's SEGMENT_PATTERN: not
+    // empty, no `:`. One malformed-each-way pair per field is enough to prove
+    // decode actually enforces the brand, not just tags the type.
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      ['{"_tag":"HasRole","role":""}', "empty role"],
+      ['{"_tag":"HasRole","role":"a:b"}', "role containing ':'"],
+      ['{"_tag":"HasAction","action":""}', "empty action"],
+      ['{"_tag":"HasAction","action":"a:b"}', "action containing ':'"],
+      ['{"_tag":"HasRelationship","relation":""}', "empty relation"],
+      [
+        '{"_tag":"HasRelationship","relation":"a:b"}',
+        "relation containing ':'",
+      ],
+      ['{"_tag":"HasActed","event":"","scope":"Resource"}', "empty event"],
+      [
+        '{"_tag":"HasActed","event":"a:b","scope":"Resource"}',
+        "event containing ':'",
+      ],
+      [
+        '{"_tag":"Labeled","label":"","policy":{"_tag":"HasRole","role":"x"}}',
+        "empty label",
+      ],
+      [
+        '{"_tag":"Labeled","label":"a:b","policy":{"_tag":"HasRole","role":"x"}}',
+        "label containing ':'",
+      ],
+    ];
+
+    for (const [json, description] of cases) {
+      it.effect(`rejects ${description}`, () =>
+        Effect.gen(function* () {
+          const result = yield* Effect.result(P.fromJson(json));
+          assert.strictEqual(result._tag, "Failure");
+        }));
+    }
+  });
+
   it.effect("round-trips through a plain JSON value", () =>
     Effect.gen(function* () {
       const policy = P.hasRole("admin");
@@ -311,13 +349,22 @@ describe("Policy serialization", () => {
     Effect.gen(function* () {
       // Generates arbitrary trees rather than the shapes we happened to think
       // of. This is the standing guard against codec drift.
+      //
+      // `segment` matches Policy.ts's own `SEGMENT_PATTERN` (via Permission.ts):
+      // non-empty, no `:`. `role`/`event`/`relation`/`action`/`label` are now
+      // branded and validated against exactly that pattern, so a generator
+      // feeding one of them an arbitrary, unconstrained string would fail the
+      // round trip on the shape the brand is *supposed* to reject — same
+      // sanitization `permission`'s own generator below already needed.
+      const segment = (s: string) => s.replace(/:/g, "") || "x";
+
       const leaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
         FastCheck.record({ r: FastCheck.string(), a: FastCheck.string() }).map(({ r, a }) =>
-          P.hasPermission(permission(r.replace(/:/g, "") || "r", a.replace(/:/g, "") || "a")),
+          P.hasPermission(permission(segment(r), segment(a))),
         ),
-        FastCheck.string().map((s) => P.hasRole(s)),
+        FastCheck.string().map((s) => P.hasRole(segment(s))),
         FastCheck.integer().map((n) => P.hasAttribute("lvl", M.gte(n))),
-        FastCheck.string().map((s) => P.hasAction(s)),
+        FastCheck.string().map((s) => P.hasAction(segment(s))),
         // A matcher carrying an ActionRef: the variant lives in ValueRef rather
         // than in Policy, so a leaf that never nests one would leave it out of
         // the round-trip property entirely.
@@ -329,21 +376,26 @@ describe("Policy serialization", () => {
         // so the generator has to reach nested arbitrary JSON for the property
         // to say anything about the obligation codec.
         FastCheck.tuple(FastCheck.string(), FastCheck.boolean()).map(([id, advisory]) =>
-          P.obliged(obligation(id, { n: 1, deep: { s: "x" } }, { advisory }), P.hasRole(id)),
+          P.obliged(
+            obligation(id, { n: 1, deep: { s: "x" } }, { advisory }),
+            P.hasRole(segment(id)),
+          ),
         ),
         FastCheck.tuple(
           FastCheck.string(),
           FastCheck.constantFrom("Resource" as const, "Any" as const),
           FastCheck.boolean(),
         ).map(([event, scope, negated]) =>
-          negated ? P.hasNotActed(event, { scope }) : P.hasActed(event, { scope }),
+          negated
+            ? P.hasNotActed(segment(event), { scope })
+            : P.hasActed(segment(event), { scope }),
         ),
         // `depthKey`'s omission is the same shape of invariant as
         // `fieldsKey`'s: generating both "no depth given" and "depth given"
         // sends the property through both branches of the ternary.
         FastCheck.tuple(FastCheck.string(), FastCheck.option(FastCheck.integer())).map(
           ([relation, depth]) =>
-            P.hasRelationship(relation, depth === null ? undefined : { depth }),
+            P.hasRelationship(segment(relation), depth === null ? undefined : { depth }),
         ),
       );
 
