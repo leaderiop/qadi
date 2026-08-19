@@ -16,8 +16,9 @@
 import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
-import * as Ref from "effect/Ref";
+import * as Option from "effect/Option";
 import type { AttributeResolver } from "./AttributeResolver.ts";
 import type { Trace } from "./Decision.ts";
 import type { DecisionHistory } from "./DecisionHistory.ts";
@@ -129,49 +130,82 @@ const keyOf = (key: DecisionCacheKey): string =>
 export const decisionCacheLayer = (): Layer.Layer<DecisionCache> =>
   Layer.effect(
     DecisionCache,
-    Effect.gen(function* () {
-      const entries = new Map<string, Trace>();
+    Effect.sync(() => {
+      let entries = HashMap.empty<string, Trace>();
       // Keys with a `compute` currently running, so a second concurrent ask for
       // the same question awaits the first's result instead of starting its own.
-      const inFlight = yield* Ref.make(
-        new Map<string, Deferred.Deferred<Trace, EvaluationError>>(),
-      );
+      //
+      // A plain, directly-reassigned `HashMap`, not `Ref`-wrapped: both this and
+      // `entries` live inside this one `Layer.effect` closure, and Effect only
+      // reorders fiber execution at `yield*` boundaries — never mid-callback —
+      // so a direct reassignment inside `Effect.sync` is exactly as atomic as
+      // `Ref.modify` would be here.
+      let inFlight = HashMap.empty<string, Deferred.Deferred<Trace, EvaluationError>>();
 
       const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, compute) =>
         Effect.gen(function* () {
           const k = keyOf(key);
-          const cached = entries.get(k);
-          if (cached !== undefined) return cached;
+          const cached = HashMap.get(entries, k);
+          if (Option.isSome(cached)) return cached.value;
 
-          const claim = yield* Deferred.make<Trace, EvaluationError>();
-          const owner = yield* Ref.modify(inFlight, (map) => {
-            const existing = map.get(k);
-            if (existing !== undefined) return [existing, map] as const;
-            const claimed = new Map(map);
-            claimed.set(k, claim);
-            return [claim, claimed] as const;
+          // `Deferred.makeUnsafe` inside the same synchronous check as the
+          // claim itself, not `yield* Deferred.make` before it: allocating a
+          // Deferred is only useful for whichever fiber actually becomes the
+          // owner, so it happens *inside* the "nobody has claimed this key
+          // yet" branch — a follower, the common case on the concurrent-ask
+          // path this cache exists for, never allocates one it will discard.
+          // `Deferred.make` is a synchronous allocation under the hood
+          // regardless (`effect/Deferred`'s own source defines it as
+          // `Effect.sync(() => makeUnsafe())`); `makeUnsafe` just lets that
+          // allocation stay inside the one atomic check instead of paying for
+          // it up front on every ask.
+          const claimed = yield* Effect.sync(():
+            | { readonly owned: true; readonly claim: Deferred.Deferred<Trace, EvaluationError> }
+            | { readonly owned: false; readonly claim: Deferred.Deferred<Trace, EvaluationError> } => {
+            const existing = HashMap.get(inFlight, k);
+            if (Option.isSome(existing)) return { owned: false, claim: existing.value };
+            const claim = Deferred.makeUnsafe<Trace, EvaluationError>();
+            inFlight = HashMap.set(inFlight, k, claim);
+            return { owned: true, claim };
           });
 
           // Someone else already claimed this key — share their result,
           // success or failure, rather than compute a second time.
-          if (owner !== claim) return yield* Deferred.await(owner);
+          if (!claimed.owned) return yield* Deferred.await(claimed.claim);
+          const claim = claimed.claim;
 
-          const exit = yield* Effect.exit(compute);
-          if (exit._tag === "Success") entries.set(k, exit.value);
-          // Resolve waiters (and, on failure, share the same failure with all
-          // of them) *before* clearing the claim — a fiber arriving in the
-          // gap between the two either sees the finished entry or awaits an
-          // already-resolved Deferred, never starts a redundant third compute.
-          yield* Deferred.done(claim, exit);
-          yield* Ref.update(inFlight, (map) => {
-            const cleared = new Map(map);
-            cleared.delete(k);
-            return cleared;
-          });
-
-          return yield* Deferred.await(claim);
+          // `Effect.onExit`, not a plain `yield* Effect.exit(compute)` followed
+          // by more steps: a fiber interrupted while `compute` is running does
+          // not return control to the surrounding generator at all — confirmed
+          // empirically, not assumed — so any settle-and-clear logic placed
+          // *after* an `Effect.exit(compute)` yield, even wrapped in
+          // `Effect.uninterruptible`, silently never runs, leaving `claim`
+          // permanently unresolved and its key permanently stuck in
+          // `inFlight`. `Effect.onExit`'s finalizer is different: it is
+          // guaranteed to run on every path `compute` can end on, interruption
+          // included, which is exactly the guarantee this needs. Settling the
+          // claim (and, on failure, sharing that same failure with every
+          // waiter) *before* clearing it from `inFlight` is still the order
+          // that matters inside the finalizer: a fiber arriving in the gap
+          // between the two either sees the finished entry or awaits an
+          // already-resolved `Deferred`, never starts a redundant third
+          // compute.
+          return yield* compute.pipe(
+            Effect.onExit((exit) =>
+              Effect.sync(() => {
+                if (exit._tag === "Success") entries = HashMap.set(entries, k, exit.value);
+              }).pipe(
+                Effect.flatMap(() => Deferred.done(claim, exit)),
+                Effect.flatMap(() =>
+                  Effect.sync(() => {
+                    inFlight = HashMap.remove(inFlight, k);
+                  }),
+                ),
+              ),
+            ),
+          );
         });
 
-      return { getOrCompute, size: Effect.sync(() => entries.size) };
+      return { getOrCompute, size: Effect.sync(() => HashMap.size(entries)) };
     }),
   );

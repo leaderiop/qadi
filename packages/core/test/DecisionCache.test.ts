@@ -5,6 +5,7 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
+import type { AuthSubject } from "../src/AuthSubject.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
@@ -249,6 +250,37 @@ describe("DecisionCache", () => {
       assert.strictEqual(held, 2);
     }));
 
+  it.effect(
+    "a cache hit never runs evaluateNode at all, not even the leaf-level synchronous work",
+    () =>
+      Effect.gen(function* () {
+        // `HasRole` decides via `subject.roles.has(...)` synchronously, inline
+        // in evaluateNode's own switch — not deferred behind an Effect the
+        // way HasAttribute's resolver call is. A `Set` subclass that counts
+        // `.has()` calls makes that synchronous work observable from outside.
+        class CountingRoles extends Set<P.RoleName> {
+          hasCalls = 0;
+          override has(value: P.RoleName): boolean {
+            this.hasCalls++;
+            return super.has(value);
+          }
+        }
+        const roles = new CountingRoles([P.makeRoleName("admin")]);
+        const subject: AuthSubject = { id: "u1", roles, permissions: new Set(), attributes: {} };
+
+        yield* Effect.gen(function* () {
+          yield* evaluate(P.hasRole("admin")); // miss: evaluateNode runs, roles.has called once
+          yield* evaluate(P.hasRole("admin")); // hit: must not call roles.has again
+        }).pipe(Effect.provide(testLayer(subject)), Effect.provide(decisionCacheLayer()));
+
+        assert.strictEqual(
+          roles.hasCalls,
+          1,
+          "the cache hit re-ran evaluateNode's synchronous leaf work instead of skipping it",
+        );
+      }),
+  );
+
   it.effect("concurrency and the cache compose without either changing the answer", () =>
     Effect.gen(function* () {
       const policy = P.allOf([needsLookup, P.hasAttribute("other", M.gte(1))]);
@@ -371,6 +403,64 @@ describe("DecisionCache", () => {
           yield* Ref.get(invocations),
           1,
           "the failure was shared, not independently retried by each waiter",
+        );
+      }),
+  );
+
+  it.effect(
+    "an interrupted claimant still resolves the shared claim — a later ask does not hang forever",
+    () =>
+      Effect.gen(function* () {
+        const started = yield* Deferred.make<void>();
+        const release = yield* Deferred.make<void>();
+        const invocations = yield* Ref.make(0);
+        // Only the FIRST call blocks (and signals `started` once it's inside
+        // the block, so the test knows the claimant genuinely holds the claim
+        // before interrupting it). Every later call answers immediately, so a
+        // correctly-cleared claim resolves fast and a stuck one times out.
+        const resolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.updateAndGet(invocations, (n) => n + 1).pipe(
+              Effect.flatMap((n) =>
+                n === 1
+                  ? Deferred.succeed(started, undefined).pipe(
+                      Effect.flatMap(() => Deferred.await(release)),
+                      Effect.as(5),
+                    )
+                  : Effect.succeed(5),
+              ),
+            ),
+        });
+
+        const outcome = yield* Effect.gen(function* () {
+          const claimant = yield* Effect.forkChild(evaluate(needsLookup));
+          // Wait until the claimant is genuinely holding the claim, blocked
+          // inside `compute` — not merely forked.
+          yield* Deferred.await(started);
+          // `Fiber.interrupt` waits for the target fiber to fully settle, but
+          // that is not enough on its own — confirmed empirically, not
+          // assumed: a fiber interrupted while suspended inside `compute`
+          // never returns control to code sequenced *after* an
+          // `Effect.exit(compute)` yield at all, even code wrapped in
+          // `Effect.uninterruptible`. Only a finalizer attached via
+          // `Effect.onExit` (what `getOrCompute` actually uses) is guaranteed
+          // to run on every path `compute` can end on, interruption included.
+          yield* Fiber.interrupt(claimant);
+
+          // A later ask for the exact same question. Under the bug, the
+          // claimant's Deferred was never resolved and its key was never
+          // cleared from `inFlight`, so this would await a Deferred that can
+          // never complete — a permanent hang, not just a slow answer.
+          return yield* Effect.timeoutOption(500)(Effect.exit(evaluate(needsLookup)));
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: resolver })),
+          Effect.provide(decisionCacheLayer()),
+        );
+
+        assert.strictEqual(
+          outcome._tag,
+          "Some",
+          "the later ask timed out — the interrupted claimant's entry was left stuck in DecisionCache",
         );
       }),
   );

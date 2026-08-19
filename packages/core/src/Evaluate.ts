@@ -34,6 +34,7 @@ import { evaluateMatcher, referencesAction } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
+import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 
@@ -89,8 +90,6 @@ interface Evaluation {
   readonly action: string | undefined;
   readonly concurrency: Concurrency | undefined;
 }
-
-const DEFAULT_MAX_DEPTH = 64;
 
 /** Services an evaluation needs. */
 export type EvaluationServices =
@@ -721,16 +720,28 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     action: options?.action,
   };
 
-  const compute = evaluateNode(
-    policy,
-    subject,
-    {
-      resource: options?.resource,
-      action: options?.action,
-      concurrency: options?.concurrency,
-    },
-    0,
-    options?.maxDepth ?? DEFAULT_MAX_DEPTH,
+  // `Effect.suspend`, not a direct call: `evaluateNode` is a plain switch, not
+  // an `Effect.gen`, so for a leaf tag (HasRole, HasPermission, …) calling it
+  // does the real comparison — `subject.roles.has(...)`, `evaluateMatcher` —
+  // immediately, as part of building the `Effect.succeed(...)` it returns,
+  // not lazily when that Effect later runs. Calling it here, unconditionally,
+  // before the cache-hit check below, would pay that cost on every ask
+  // whether or not the cache already had the answer — exactly the "resolving
+  // forty fields forty times" cost `DecisionCache`'s own doc comment exists
+  // to avoid. `Effect.suspend` defers the call itself to when `compute` is
+  // actually run, so a cache hit never invokes `evaluateNode` at all.
+  const compute = Effect.suspend(() =>
+    evaluateNode(
+      policy,
+      subject,
+      {
+        resource: options?.resource,
+        action: options?.action,
+        concurrency: options?.concurrency,
+      },
+      0,
+      options?.maxDepth ?? DEFAULT_MAX_DEPTH,
+    ),
   );
 
   // The TRACE is cached, never the `Decision`. A cached decision would carry a
