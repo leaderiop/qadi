@@ -306,7 +306,7 @@ export class QadiWorld extends World {
     if (result._tag === "Failure") {
       this.predicate = undefined;
       this.refusedTag =
-        result.failure._tag === "qadi/PolicyNotTranslatable"
+        result.failure._tag === "PolicyNotTranslatable"
           ? result.failure.policyTag
           : result.failure._tag;
       return;

@@ -81,7 +81,7 @@ REQUIREMENT: `action()` MUST resolve to the supplied action within any matcher
 > **Invariant:** [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one)
 
 ```ts
-export class MissingAction extends Data.TaggedError("qadi/MissingAction")<{
+export class MissingAction extends Data.TaggedError("MissingAction")<{
   readonly expected: string | undefined;
 }> {}
 ```

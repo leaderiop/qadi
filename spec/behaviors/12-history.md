@@ -124,7 +124,7 @@ REQUIREMENT: `scope: "Resource"` without `resource.id` MUST fail with
 
 ```ts
 export class DecisionHistoryUnavailable extends Data.TaggedError(
-  "qadi/DecisionHistoryUnavailable",
+  "DecisionHistoryUnavailable",
 )<{
   readonly event: string;
   readonly cause: unknown;

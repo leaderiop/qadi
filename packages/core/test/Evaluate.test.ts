@@ -512,8 +512,8 @@ describe("the action dimension", () => {
       const r = yield* Effect.result(evaluate(P.hasAction("write")));
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/MissingAction");
-      if (r.failure._tag !== "qadi/MissingAction") return;
+      assert.strictEqual(r.failure._tag, "MissingAction");
+      if (r.failure._tag !== "MissingAction") return;
       assert.strictEqual(r.failure.expected, "write");
     }).pipe(Effect.provide(testLayer(anyone))));
 
@@ -545,9 +545,9 @@ describe("the action dimension", () => {
       const r = yield* Effect.result(evaluate(policy, { resource: { requiredOp: "approve" } }));
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/MissingAction");
+      assert.strictEqual(r.failure._tag, "MissingAction");
       // Nothing was required, only compared, so there is no expected verb.
-      if (r.failure._tag !== "qadi/MissingAction") return;
+      if (r.failure._tag !== "MissingAction") return;
       assert.isUndefined(r.failure.expected);
     }).pipe(Effect.provide(testLayer(anyone))));
 
@@ -558,7 +558,7 @@ describe("the action dimension", () => {
       );
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/MissingAction");
+      assert.strictEqual(r.failure._tag, "MissingAction");
     }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1", attributes: { op: "x" } })))));
 
   it.effect("the action reaches every depth of the tree", () =>
@@ -718,7 +718,7 @@ describe("the label lattice", () => {
       );
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/MissingAction");
+      assert.strictEqual(r.failure._tag, "MissingAction");
     }));
 });
 
@@ -953,7 +953,7 @@ describe("decision history", () => {
       const r = yield* Effect.result(evaluate(P.hasActed("raised")));
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/MissingResourceId");
+      assert.strictEqual(r.failure._tag, "MissingResourceId");
     }).pipe(Effect.provide(testLayer(clerk, { history: raisedIt }))));
 
   it.effect("an unreachable store is an error, not a denial", () =>
@@ -973,7 +973,7 @@ describe("decision history", () => {
       );
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/DecisionHistoryUnavailable");
+      assert.strictEqual(r.failure._tag, "DecisionHistoryUnavailable");
     }));
 
   it.effect("an unevaluated history branch performs no lookup", () =>

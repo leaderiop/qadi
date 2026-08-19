@@ -57,7 +57,7 @@ Then("the guarded work does not run", function (this: QadiWorld) {
 });
 
 Then("enforcement fails with an undischarged obligation", function (this: QadiWorld) {
-  assert.equal(this.outcome.failure, "qadi/UndischargedObligation");
+  assert.equal(this.outcome.failure, "UndischargedObligation");
 });
 
 Then("the handler discharged {string}", function (this: QadiWorld, expected: string) {

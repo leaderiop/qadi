@@ -156,7 +156,7 @@ export type Predicate =
   | { readonly _tag: "Or"; readonly predicates: ReadonlyArray<Predicate> }
   | { readonly _tag: "Negate"; readonly predicate: Predicate };
 
-export class PolicyNotTranslatable extends Data.TaggedError("qadi/PolicyNotTranslatable")<{
+export class PolicyNotTranslatable extends Data.TaggedError("PolicyNotTranslatable")<{
   readonly policyTag: Policy["_tag"];
   readonly reason: string;
 }> {}

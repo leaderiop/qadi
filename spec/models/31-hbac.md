@@ -208,7 +208,7 @@ export class DecisionHistory extends Context.Service<
 }
 
 export class DecisionHistoryUnavailable extends Data.TaggedError(
-  "qadi/DecisionHistoryUnavailable",
+  "DecisionHistoryUnavailable",
 )<{ readonly relation: string; readonly cause: unknown }> {}
 ```
 

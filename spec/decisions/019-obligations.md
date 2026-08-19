@@ -118,7 +118,7 @@ So:
 
 ```ts
 export class UndischargedObligation extends Data.TaggedError(
-  "qadi/UndischargedObligation",
+  "UndischargedObligation",
 )<{
   readonly subjectId: string;
   readonly obligationIds: ReadonlyArray<string>;

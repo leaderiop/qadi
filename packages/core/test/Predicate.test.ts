@@ -197,8 +197,8 @@ describe("the resource side becomes a column", () => {
 describe("untranslatable fails loudly and never widens", () => {
   const reasonFor = (policy: P.Policy) =>
     Effect.map(failure(policy), (f) => {
-      assert.strictEqual(f?._tag, "qadi/PolicyNotTranslatable");
-      return f?._tag === "qadi/PolicyNotTranslatable" ? f : undefined;
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      return f?._tag === "PolicyNotTranslatable" ? f : undefined;
     });
 
   it.effect("a relationship cannot fold", () =>
@@ -266,7 +266,7 @@ describe("untranslatable fails loudly and never widens", () => {
           P.hasRelationship("owner"),
         ]),
       );
-      assert.strictEqual(f?._tag, "qadi/PolicyNotTranslatable");
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
     }));
 
   it.effect("a fields restriction anywhere in the tree is refused", () =>
@@ -278,8 +278,8 @@ describe("untranslatable fails loudly and never widens", () => {
           P.hasPermission(permission("doc", "read"), { fields: ["id"] }),
         ]),
       );
-      assert.strictEqual(f?._tag, "qadi/PolicyNotTranslatable");
-      if (f?._tag !== "qadi/PolicyNotTranslatable") return;
+      assert.strictEqual(f?._tag, "PolicyNotTranslatable");
+      if (f?._tag !== "PolicyNotTranslatable") return;
       assert.include(f.reason, "restricts visible fields");
     }));
 
@@ -293,7 +293,7 @@ describe("untranslatable fails loudly and never widens", () => {
       const g = yield* failure(
         P.not(P.hasPermission(permission("doc", "read"), { fields: ["id"] })),
       );
-      assert.strictEqual(g?._tag, "qadi/PolicyNotTranslatable");
+      assert.strictEqual(g?._tag, "PolicyNotTranslatable");
     }));
 
   it.effect("INV-QD-006: a broken lookup fails rather than folding to False", () =>
@@ -309,7 +309,7 @@ describe("untranslatable fails loudly and never widens", () => {
       );
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/AttributeResolveError");
+      assert.strictEqual(r.failure._tag, "AttributeResolveError");
     }));
 
   it.effect("INV-QD-011: reading an absent action fails", () =>
@@ -325,7 +325,7 @@ describe("untranslatable fails loudly and never widens", () => {
         const r = yield* Effect.result(translate(policy));
         assert.strictEqual(r._tag, "Failure", policy._tag);
         if (r._tag !== "Failure") return;
-        assert.strictEqual(r.failure._tag, "qadi/MissingAction");
+        assert.strictEqual(r.failure._tag, "MissingAction");
       }
     }));
 

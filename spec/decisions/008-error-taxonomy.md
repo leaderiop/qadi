@@ -13,7 +13,7 @@ aggregation keyed on the code conflated two unrelated failures.
 ## Decision
 
 Every error is a `Data.TaggedError` with a namespaced tag such as
-`"qadi/AccessDenied"`. The `_tag` is the identity.
+`"AccessDenied"`. The `_tag` is the identity.
 
 Stable numeric codes are derived from the tag by a single map declared
 `satisfies Record<QadiError["_tag"], ...>`, so an error without a code is a

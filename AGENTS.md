@@ -91,7 +91,7 @@ tsc's variadic inference limit. Nest into groups.
 Not `Schema.TaggedErrorClass`. Namespaced tags.
 
 ```ts
-export class AccessDenied extends Data.TaggedError("qadi/AccessDenied")<{
+export class AccessDenied extends Data.TaggedError("AccessDenied")<{
   readonly policyTag: string;
   readonly subjectId: string;
   readonly reason: string;
@@ -102,8 +102,8 @@ Handling — v4 uses the **array form**; there is no `catchTags({...})` object f
 
 ```ts
 // ✅
-Effect.catchTag("qadi/AccessDenied", (e) => …)
-Effect.catchTag(["qadi/AccessDenied", "qadi/PolicyEvaluationError"], (e) => …)
+Effect.catchTag("AccessDenied", (e) => …)
+Effect.catchTag(["AccessDenied", "qadi/PolicyEvaluationError"], (e) => …)
 
 // ❌ structural checks on unknown
 if (Predicate.hasProperty(e, "_tag") && (e as { _tag: unknown })._tag === "X")

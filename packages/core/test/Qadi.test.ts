@@ -49,7 +49,7 @@ describe("Qadi.enforce", () => {
     Effect.gen(function* () {
       const recovered = yield* Effect.succeed("x").pipe(
         Qadi.enforce(canRead),
-        Effect.catchTag("qadi/AccessDenied", (e) =>
+        Effect.catchTag("AccessDenied", (e) =>
           Effect.succeed(`${e.subjectId}|${e.policyTag}|${e.reason}`),
         ),
       );
@@ -151,8 +151,8 @@ describe("Qadi obligations", () => {
       const r = yield* Effect.result(guarded);
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/UndischargedObligation");
-      if (r.failure._tag !== "qadi/UndischargedObligation") return;
+      assert.strictEqual(r.failure._tag, "UndischargedObligation");
+      if (r.failure._tag !== "UndischargedObligation") return;
       assert.deepStrictEqual(r.failure.obligationIds, ["log-access"]);
       // Refusing after running the work would be no protection at all.
       assert.isFalse(started);
@@ -229,7 +229,7 @@ describe("Qadi obligations", () => {
       const r = yield* Effect.result(Effect.succeed("x").pipe(Qadi.enforce(audited)));
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/AccessDenied");
+      assert.strictEqual(r.failure._tag, "AccessDenied");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
   it.effect("assert refuses a binding obligation too", () =>
@@ -237,7 +237,7 @@ describe("Qadi obligations", () => {
       const r = yield* Effect.result(Qadi.assert(audited));
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/UndischargedObligation");
+      assert.strictEqual(r.failure._tag, "UndischargedObligation");
     }).pipe(Effect.provide(testLayer(reader))));
 
   it.effect("enforceProjected refuses one as well, and still projects when handled", () =>
@@ -263,7 +263,7 @@ describe("Qadi obligations", () => {
       const r = yield* Effect.result(Qadi.filter(audited, [{ id: "a" }, { id: "b" }]));
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
-      assert.strictEqual(r.failure._tag, "qadi/UndischargedObligation");
+      assert.strictEqual(r.failure._tag, "UndischargedObligation");
     }).pipe(Effect.provide(testLayer(reader))));
 
   it.effect("filter discharges per allowed element when handled", () =>

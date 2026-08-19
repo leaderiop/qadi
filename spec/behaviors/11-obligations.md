@@ -139,7 +139,7 @@ export interface EnforceOptions<E = never, R = never> extends EvaluateOptions {
 }
 
 export class UndischargedObligation extends Data.TaggedError(
-  "qadi/UndischargedObligation",
+  "UndischargedObligation",
 )<{
   readonly subjectId: string;
   readonly obligationIds: ReadonlyArray<string>;

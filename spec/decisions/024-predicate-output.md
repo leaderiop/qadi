@@ -90,7 +90,7 @@ is a precondition of the recommendation rather than an extra.
 ### Untranslatable fails loudly; nothing is approximated
 
 ```ts
-export class PolicyNotTranslatable extends Data.TaggedError("qadi/PolicyNotTranslatable")<{
+export class PolicyNotTranslatable extends Data.TaggedError("PolicyNotTranslatable")<{
   readonly policyTag: string;
   readonly reason: string;
 }> {}

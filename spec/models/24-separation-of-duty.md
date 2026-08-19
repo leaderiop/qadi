@@ -235,7 +235,7 @@ export class DecisionHistory extends Context.Service<DecisionHistory, DecisionHi
   static readonly hasActed = (query: ActedQuery) => DecisionHistory.use((h) => h.hasActed(query));
 }
 
-export class DecisionHistoryUnavailable extends Data.TaggedError("qadi/DecisionHistoryUnavailable")<{
+export class DecisionHistoryUnavailable extends Data.TaggedError("DecisionHistoryUnavailable")<{
   readonly relation: string;
   readonly resourceId: string;
   readonly cause: unknown;

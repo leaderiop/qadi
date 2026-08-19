@@ -228,7 +228,7 @@ export interface EngagementQuery { readonly subjectId: string; readonly scope: s
 export interface AccessEvent extends EngagementQuery { readonly member: string }
 
 export class DecisionHistoryUnavailable extends Data.TaggedError(
-  "qadi/DecisionHistoryUnavailable",
+  "DecisionHistoryUnavailable",
 )<{ readonly subjectId: string; readonly scope: string; readonly cause: unknown }> {}
 
 export interface DecisionHistoryShape {

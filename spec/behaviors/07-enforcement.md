@@ -79,7 +79,7 @@ REQUIREMENT: A denial MUST project to the empty object.
 ## BEH-QD-052: Denial carries its reason
 
 ```ts
-export class AccessDenied extends Data.TaggedError("qadi/AccessDenied")<{
+export class AccessDenied extends Data.TaggedError("AccessDenied")<{
   readonly subjectId: string;
   readonly policyTag: string;
   readonly reason: string;
