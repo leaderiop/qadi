@@ -4,6 +4,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
+import * as Stream from "effect/Stream";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import * as M from "../src/Matcher.ts";
 import * as Qadi from "../src/Qadi.ts";
@@ -100,6 +101,60 @@ describe("Qadi.enforceProjected", () => {
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 });
 
+describe("Qadi.guard", () => {
+  const write = permission("doc", "write");
+  const canWrite = P.hasPermission(write);
+  const doc = { id: "1" };
+
+  it.effect("hands the handler a witness carrying the exact permission checked", () =>
+    Effect.gen(function* () {
+      const out = yield* Qadi.guard(
+        read,
+        canRead,
+      )(doc, (authorized, resource) => Effect.succeed({ permission: authorized.permission, resource }));
+      assert.deepStrictEqual(out.permission, read);
+      assert.deepStrictEqual(out.resource, doc);
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+
+  it.effect("fails with AccessDenied and never starts the handler when denied", () =>
+    Effect.gen(function* () {
+      let started = false;
+      const guarded = Qadi.guard(
+        write,
+        canWrite,
+      )(doc, () =>
+        Effect.sync(() => {
+          started = true;
+          return "payload";
+        }),
+      );
+
+      const r = yield* Effect.result(guarded);
+      assert.strictEqual(r._tag, "Failure");
+      // Same property `enforce` guarantees: refusing after running the
+      // handler would be no protection at all.
+      assert.isFalse(started);
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("fails with UndischargedObligation the same way enforce does", () =>
+    Effect.gen(function* () {
+      const logIt = obligation("log-write", { channel: "audit" });
+      const audited = P.obliged(logIt, canWrite);
+
+      const r = yield* Effect.result(
+        Qadi.guard(write, audited)(doc, () => Effect.succeed("payload")),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "UndischargedObligation");
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:write"] })))));
+
+  // The type-level guarantee that a witness for one permission cannot
+  // satisfy a position typed for a different permission's is pinned in
+  // `Qadi.tst.ts` (`tstyche`) rather than here — a real assertion instead of
+  // an `it()` that only type-checks and never runs.
+});
+
 describe("Qadi.filter", () => {
   it.effect("keeps only the items the policy allows", () =>
     Effect.gen(function* () {
@@ -125,6 +180,130 @@ describe("Qadi.filter", () => {
       const kept = yield* Qadi.filter(P.hasRole("nobody"), [{ id: "a" }]);
       assert.strictEqual(kept.length, 0);
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
+});
+
+describe("Qadi.filterStream", () => {
+  it.effect("keeps only the items the policy allows, same as filter", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute(
+        "state",
+        { _tag: "Eq", ref: { _tag: "LiteralRef", value: "open" } },
+      );
+      const items = [
+        { id: "a", state: "open" },
+        { id: "b", state: "closed" },
+        { id: "c", state: "open" },
+      ];
+      const kept = yield* Stream.runCollect(Qadi.filterStream(policy, Stream.fromIterable(items)));
+      assert.deepStrictEqual(
+        kept.map((i) => i["id"]),
+        ["a", "c"],
+      );
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("returns an empty stream when nothing qualifies", () =>
+    Effect.gen(function* () {
+      const kept = yield* Stream.runCollect(
+        Qadi.filterStream(P.hasRole("nobody"), Stream.fromIterable([{ id: "a" }])),
+      );
+      assert.strictEqual(kept.length, 0);
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("discharges per allowed element, and refuses rather than silently dropping an obliged one", () =>
+    Effect.gen(function* () {
+      const logIt = obligation("log-access", { channel: "audit" });
+      const discharged: Array<string> = [];
+      const policy = P.obliged(logIt, P.hasResourceAttribute("state", M.eq(M.literal("open"))));
+      const items = [
+        { id: "a", state: "open" },
+        { id: "b", state: "closed" },
+        { id: "c", state: "open" },
+      ];
+
+      const kept = yield* Stream.runCollect(
+        Qadi.filterStream(policy, Stream.fromIterable(items), {
+          onObligations: (obligations) =>
+            Effect.sync(() => {
+              for (const o of obligations) discharged.push(o.id);
+            }),
+        }),
+      );
+      assert.deepStrictEqual(kept.map((k) => k["id"]), ["a", "c"]);
+      assert.deepStrictEqual(discharged, ["log-access", "log-access"]);
+
+      const refused = yield* Effect.result(
+        Stream.runCollect(Qadi.filterStream(policy, Stream.fromIterable(items))),
+      );
+      assert.strictEqual(refused._tag, "Failure");
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+});
+
+describe("Qadi.filterStream — concurrency across items", () => {
+  // Mirrors "Qadi.filter — concurrency across items" below: `options.concurrency`
+  // has to reach `Stream.mapEffect`'s own options, not just get threaded into each
+  // item's `evaluate` call. Proven the same way — a resolver blocking on a shared
+  // gate, so "how many lookups are in flight" is observed directly, not inferred.
+  const policy = P.hasAttribute("clearance", M.gte(1));
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  const blockingResolver = (invocations: Ref.Ref<number>, gate: Deferred.Deferred<void>) =>
+    Layer.succeed(AttributeResolver, {
+      resolve: () =>
+        Ref.update(invocations, (n) => n + 1).pipe(
+          Effect.flatMap(() => Deferred.await(gate)),
+          Effect.as(5),
+        ),
+    });
+
+  it.effect("without a concurrency option, one item's lookup is in flight at a time", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(
+          Stream.runCollect(Qadi.filterStream(policy, Stream.fromIterable(items))),
+        );
+        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+        assert.strictEqual(
+          yield* Ref.get(invocations),
+          1,
+          "sequential filterStream should never have more than one item's lookup in flight",
+        );
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
+
+  it.effect("with concurrency: 'unbounded', every item's lookup is in flight at once", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(
+          Stream.runCollect(
+            Qadi.filterStream(policy, Stream.fromIterable(items), { concurrency: "unbounded" }),
+          ),
+        );
+        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+        assert.strictEqual(
+          yield* Ref.get(invocations),
+          items.length,
+          "concurrent filterStream should have every item's lookup in flight before any completes",
+        );
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
 });
 
 describe("Qadi obligations", () => {

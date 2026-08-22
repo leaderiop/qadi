@@ -26,15 +26,27 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 2 | `tsc -p tsconfig.test.json` | Tests compile |
 | 3 | `oxlint` | Lint clean |
 | 4 | `node scripts/check-house-style.mjs` | House rules the linter cannot express |
-| 5 | `vitest run --coverage` | Tests pass; thresholds met |
-| 6 | `pnpm --filter @qadi/features test` | Acceptance scenarios pass |
-| 7 | `node scripts/check-doc-examples.mjs` | Every runnable example in `spec/` compiles |
-| 8 | `bash spec/scripts/verify-traceability.sh --strict` | Specification is internally consistent |
-| 9 | `node scripts/check-api-surface.mjs` | `spec/overview.md` names every export of every public package |
-| 10 | `node scripts/check-package-install.mjs` | The packed packages install, resolve and authorize |
-| 11 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
+| 5 | `madge --circular --extensions ts,tsx packages/*/src` | No circular imports across any package's sources |
+| 6 | `tstyche` | Type-level tests pass (`*.tst.ts`) |
+| 7 | `vitest run --coverage` | Tests pass; thresholds met |
+| 8 | `pnpm --filter @qadi/features test` | Acceptance scenarios pass |
+| 9 | `node scripts/check-doc-examples.mjs` | Every runnable example in `spec/` compiles |
+| 10 | `bash spec/scripts/verify-traceability.sh --strict` | Specification is internally consistent |
+| 11 | `node scripts/check-api-surface.mjs` | `spec/overview.md` names every export of every public package |
+| 12 | `node scripts/check-package-install.mjs` | The packed packages install, resolve and authorize |
+| 13 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
 
-Step 7 was absent from this table until CCR-QD-026 while `pnpm check` had been
+Steps 5 and 6 are new in CCR-QD-048 ([ADR-QD-037](../decisions/037-circular-imports-and-type-level-tests-are-gates.md)).
+Both are placed here — after the lint family, before the slower runtime
+suite — for the same reason step 9 (then step 7) already sits ahead of
+mutation testing: each takes under two seconds combined, so a regression in
+either fails before anything slower even starts. Step 6 depends on
+`tstyche.json` pinning a specific TypeScript version (`6.0.3`, the newest
+`tstyche` currently supports) rather than the workspace's own
+`typescript@^7.0.0` — a real, standing gap the ADR records rather than
+hides; a `.tst.ts` assertion passing is not the same claim `tsc -b` makes.
+
+Step 9 was absent from this table until CCR-QD-026 while `pnpm check` had been
 running it for some time — the documented gate was *weaker* than the real one,
 which is the safe direction and still a defect in a normative document.
 
@@ -53,7 +65,7 @@ Step 4 gained a `SWITCH_BUDGET` in CCR-QD-039. AGENTS.md §5a bans dispatching o
 budget declares each file and its exact number and fails in both directions, so a new
 switch needs a written reason and a converted one needs the document updated.
 
-Step 9 is new in CCR-QD-034, and it exists because the document it checks drifted
+Step 11 is new in CCR-QD-034, and it exists because the document it checks drifted
 **twice**. CCR-QD-025 found `spec/overview.md` still describing the library as it stood
 before any of the seven enablers shipped; six commits later it was missing ten more
 exports and a whole package. Two occurrences in one working session is not an
@@ -61,10 +73,10 @@ oversight but a property of the process — nothing connected an export to its
 documentation, so the connection survived only as long as someone remembered it. The
 third fix is a gate rather than an edit.
 
-It runs before step 11 deliberately: it takes milliseconds and mutation testing takes
+It runs before step 13 deliberately: it takes milliseconds and mutation testing takes
 ninety seconds, so a drifted document fails fast.
 
-Step 10 is new in CCR-QD-038, and it is the first gate that looks at the package rather
+Step 12 is new in CCR-QD-038, and it is the first gate that looks at the package rather
 than the sources. Every test in this repository imports `src/` by relative path, so
 nothing had ever resolved a `@qadi/*` specifier through a published `exports` map.
 Checking by hand found two defects in an hour: `npm pack` copies pnpm's `catalog:` and
@@ -79,7 +91,7 @@ and `tsc -b` emits — so a `lib/` was always on disk looking like a build produ
 gate's first check therefore reads `tsconfig.build.json` statically, because it is the
 only check here that a stale directory cannot fool. See ADR-QD-033.
 
-Step 11 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
+Step 13 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
 which lines executed, not which assertions mean anything, and every enabler in
 this library was signed off with a mutation pass **run by hand and quoted into an
 ADR**. Quoted evidence nobody else can reproduce is the predecessor's failure mode

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.23                                           |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.25                                           |
+> | Effective Date | 2026-08-22                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.23 (2026-07-26): The Promise facade shipped; Under consideration is now empty (ADR-QD-032, CCR-QD-033)<br>1.22 (2026-07-26): Decision caching shipped (ADR-QD-031, CCR-QD-032)<br>1.21 (2026-07-26): Policy simplification shipped (ADR-QD-030, CCR-QD-031)<br>1.20 (2026-07-26): `join` and `meet` shipped; MLS to Shipped (ADR-QD-029, CCR-QD-030)<br>1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.25 (2026-08-22): Two new merge gates (`madge`, `tstyche`) and changesets adopted; gate table updated (ADR-QD-037, ADR-QD-038, CCR-QD-051)<br>1.24 (2026-08-22): The witness/`guard` primitive and `@qadi/http` shipped; gate figures refreshed (ADR-QD-035, ADR-QD-036, CCR-QD-047)<br>1.23 (2026-07-26): The Promise facade shipped; Under consideration is now empty (ADR-QD-032, CCR-QD-033)<br>1.22 (2026-07-26): Decision caching shipped (ADR-QD-031, CCR-QD-032)<br>1.21 (2026-07-26): Policy simplification shipped (ADR-QD-030, CCR-QD-031)<br>1.20 (2026-07-26): `join` and `meet` shipped; MLS to Shipped (ADR-QD-029, CCR-QD-030)<br>1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -20,22 +20,58 @@ Version `0.0.0`, unpublished, under the `@qadi` scope with the `QD`
 specification infix. The core is complete and verified: fourteen policy variants,
 twelve matchers, five value references, obligations, a decision-history port, a
 label lattice, ordered rule tables, the evaluator, enforcement, subject-set
-review, predicate output, serialization, React integration, a Promise facade and a
-test toolkit — five packages.
+review, predicate output, serialization, React integration, a Promise facade,
+HTTP framework bindings and a test toolkit — six packages.
 
 | Gate | Status |
 | ---- | ------ |
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
-| Unit and property tests | 459 passing |
+| Circular imports (`madge`) | none found, across every package's `src/` |
+| Type-level tests (`tstyche`) | 8 assertions passing |
+| Unit and property tests | 617 passing |
 | Acceptance scenarios | 150 scenarios, 735 steps passing |
-| Coverage | 99.9% statements, 98.37% branches, 100% lines — thresholds enforced |
+| Coverage | 99.6% statements, 98.5% branches, 100% functions, 99.63% lines — thresholds enforced |
 | Doc examples compile | 71 blocks |
 | Specification integrity | 13 checks passing |
-| Mutation score | ~90% on `packages/core`, break threshold 80 — enforced |
+| Mutation score | 96.67% on `packages/core`, break threshold 80 — enforced |
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
+
+**A framework-independent authorization witness shipped in `@qadi/core`, and
+a new `@qadi/http` package bound it to both of Effect v4's HTTP surfaces**
+([ADR-QD-035](./decisions/035-witness-guard-primitive.md),
+[ADR-QD-036](./decisions/036-qadi-http-package-shape.md)). `guard` produces
+`Authorized<P>` — a branded value proving a specific `Policy` check succeeded
+against a specific resource — so a handler typed to require one cannot be
+called without going through enforcement first, the same guarantee `enforce`
+gives an `Effect` extended to a value a type signature can demand. `@qadi/http`
+wraps it twice: `RequirePermission` for `effect/unstable/httpapi`'s
+declarative `HttpApi`, `guardRoute`/`addGuardedRoute` for bare
+`effect/unstable/http`'s `HttpRouter` — both thin adapters over the same
+`guard`, and a `PermissionRegistry` answering "which permission does which
+endpoint require" across a mix of both surfaces at a single `/__permissions`
+route.
+
+The one part of the design that did not survive contact with the compiler
+was `requiresPermission`'s original shape — a `.pipe()`-composable
+combinator, `endpoint.pipe(requiresPermission({ permission, policy }))`.
+Reviewing it in isolation looked sound; the first real end-to-end HTTP test
+found it made every endpoint it touched **unimplementable** through
+`HttpApiBuilder.group`'s own type-checked handler builder, because
+`HttpApiEndpoint` has no self-referential type member letting a reusable
+wrapper function preserve an endpoint's literal identity. The shipped shape
+gives up the one-step `.pipe()` composition — a real, recorded ergonomic
+cost — for a form that is both type-sound and actually usable: the
+permission requirement's *check* is reusable, but the type-preserving
+`.annotate()` call itself has to be written inline at each endpoint's
+definition, the one place TypeScript recovers the literal type. Two further
+type-only bugs — `HttpApiEndpoint.Top`/`HttpApi.Top` not being supertypes of
+a plain endpoint or API, and a `CurrentSubject` requirement `GuardRoute.ts`
+declared its handler still needed after it was actually discharged — surfaced
+the same way, and are recorded in ADR-QD-036 revision 1.2 rather than folded
+in as if the design had been right from the start.
 
 **A Promise facade shipped as its own package**
 ([ADR-QD-032](./decisions/032-promise-facade.md)): `@qadi/promise` is one file in
