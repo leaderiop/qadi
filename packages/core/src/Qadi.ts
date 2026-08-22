@@ -15,7 +15,10 @@
  * work or hands over data, so each must refuse an allow whose obligation nobody
  * has met (ADR-QD-019).
  */
+import * as Brand from "effect/Brand";
 import * as Effect from "effect/Effect";
+import * as Stream from "effect/Stream";
+import type { Authorized } from "./Authorized.ts";
 import type { Allow, Decision } from "./Decision.ts";
 import { isAllowed, project } from "./Decision.ts";
 import { AccessDenied, UndischargedObligation } from "./Errors.ts";
@@ -24,6 +27,7 @@ import type { EvaluateOptions, EvaluationServices } from "./Evaluate.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { Obligation } from "./Obligation.ts";
 import { bindingObligations } from "./Obligation.ts";
+import type { Permission } from "./Permission.ts";
 import type { Policy } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
 
@@ -167,6 +171,35 @@ export const enforceProjected =
     );
 
 /**
+ * Guards a resource-scoped handler with a policy, and hands the handler a
+ * witness that the check succeeded.
+ *
+ * Built on `enforce`, not a parallel evaluation path — the same obligation
+ * discharge and denial handling every enforcing entry point in this file
+ * shares. Differs from `enforce` in shape: rather than wrapping an existing
+ * effect, it takes a resource and a handler *function*, and passes the
+ * resulting witness to the handler as a value rather than through the
+ * environment. Per-permission distinctness falls out of `permission` being a
+ * real field on {@link Authorized}, not out of `Context`'s runtime tag
+ * identity — a per-permission `Context.Service` registry was tried first and
+ * rejected for needing an unsound cast at retrieval (ADR-QD-035).
+ */
+export const guard =
+  <P extends Permission, EO = never, RO = never>(
+    permission: P,
+    policy: Policy,
+    options?: EnforceOptions<EO, RO>,
+  ) =>
+  <A extends Resource, B, E, R>(
+    resource: A,
+    handler: (authorized: Authorized<P>, resource: A) => Effect.Effect<B, E, R>,
+  ): Effect.Effect<B, E | EnforcementError | EO, R | EvaluationServices | RO> =>
+    enforce(
+      policy,
+      options,
+    )(handler(Brand.nominal<Authorized<P>>()({ permission }), resource));
+
+/**
  * Keeps only the elements a policy allows, evaluated per element as resource.
  *
  * Enforces rather than reports, because it hands back data. An element whose
@@ -182,6 +215,30 @@ export const enforceProjected =
  * item finished first, so there is no INV-QD-005-shaped invariant a second,
  * independent option would need to preserve.
  */
+interface FilterVerdict<A> {
+  readonly item: A;
+  readonly allowed: boolean;
+}
+
+/**
+ * Evaluates one item against `policy` and discharges its obligations if it
+ * allows. The one place `filter` and `filterStream` share this logic, so an
+ * item's fate can't be decided one way for the array form and another for the
+ * streamed one.
+ */
+const decideOne = <A extends Resource, EO, RO>(
+  policy: Policy,
+  item: A,
+  options: EnforceOptions<EO, RO> | undefined,
+): Effect.Effect<FilterVerdict<A>, EvaluationError | UndischargedObligation | EO, EvaluationServices | RO> =>
+  Effect.flatMap(
+    evaluate(policy, { ...options, resource: item }),
+    (decision): Effect.Effect<FilterVerdict<A>, UndischargedObligation | EO, RO> =>
+      isAllowed(decision)
+        ? Effect.as(discharge(decision, options?.onObligations), { item, allowed: true })
+        : Effect.succeed({ item, allowed: false }),
+  );
+
 export const filter = <A extends Resource, EO = never, RO = never>(
   policy: Policy,
   items: ReadonlyArray<A>,
@@ -192,26 +249,43 @@ export const filter = <A extends Resource, EO = never, RO = never>(
   EvaluationServices | RO
 > =>
   Effect.map(
-    Effect.forEach(
-      items,
-      (item) =>
-        Effect.flatMap(
-          evaluate(policy, { ...options, resource: item }),
-          (
-            decision,
-          ): Effect.Effect<
-            { readonly item: A; readonly allowed: boolean },
-            UndischargedObligation | EO,
-            RO
-          > =>
-            isAllowed(decision)
-              ? Effect.as(discharge(decision, options?.onObligations), {
-                  item,
-                  allowed: true,
-                })
-              : Effect.succeed({ item, allowed: false }),
-        ),
-      { concurrency: options?.concurrency },
-    ),
+    Effect.forEach(items, (item) => decideOne(policy, item, options), {
+      concurrency: options?.concurrency,
+    }),
     (results) => results.filter((r) => r.allowed).map((r) => r.item),
+  );
+
+/**
+ * The streamed sibling of `filter`, for a collection too large to hold in
+ * memory as a `ReadonlyArray` — or too large to wait on in full before the
+ * first admitted item can be used.
+ *
+ * Additive: `filter` is unchanged and stays the default, least-surprising
+ * entry point for the common case of "a collection I already have in hand".
+ * Reach for this one when `items` is itself a stream — paginated rows from a
+ * database, say — and the caller wants to start consuming admitted items as
+ * they're decided rather than after every one has been.
+ *
+ * Shares `decideOne` with `filter`, so the two can never disagree about who
+ * passes. `options.concurrency` does the same double duty documented on
+ * `filter` — bounding both this stream's own fan-out and each item's
+ * `allOf`/`anyOf`/`rules` fan-out — for the same reason: nothing here depends
+ * on which item is decided first, so there is no short-circuit invariant a
+ * second, independent knob would need to preserve.
+ */
+export const filterStream = <A extends Resource, E2 = never, R2 = never, EO = never, RO = never>(
+  policy: Policy,
+  items: Stream.Stream<A, E2, R2>,
+  options?: EnforceOptions<EO, RO>,
+): Stream.Stream<
+  A,
+  EvaluationError | UndischargedObligation | EO | E2,
+  EvaluationServices | RO | R2
+> =>
+  items.pipe(
+    Stream.mapEffect((item) => decideOne(policy, item, options), {
+      concurrency: options?.concurrency,
+    }),
+    Stream.filter((r) => r.allowed),
+    Stream.map((r) => r.item),
   );

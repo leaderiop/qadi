@@ -15,6 +15,7 @@ export default defineConfig({
         "packages/core/src/index.ts",
         "packages/react/src/index.ts",
         "packages/testing/src/index.ts",
+        "packages/http/src/index.ts",
         "**/*.test-d.ts",
       ],
       // A shortfall is a failure, not a report.

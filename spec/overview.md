@@ -49,6 +49,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `@qadi/testing` | Fixtures, deterministic layers, recording resolvers |
 | `@qadi/react` | `QadiProvider`, hooks, `Can`/`Cannot` |
 | `@qadi/promise` | A Promise facade for callers who do not use Effect |
+| `@qadi/http` | `effect/unstable/http`/`httpapi` bindings — enforcement middleware, subject extraction, permission registry |
 | `@qadi/features` | Cucumber acceptance suite (private) |
 
 ## Public API surface
@@ -106,16 +107,17 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | ------ | ---- | ------ |
 | `evaluate` | function | `Evaluate.ts` |
 | `Decision`, `Allow`, `Deny`, `Trace`, `isAllowed`, `project` | type + function | `Decision.ts` |
-| `enforce`, `enforceProjected`, `check`, `decide`, `assert`, `filter` | function | `Qadi.ts` |
+| `enforce`, `enforceProjected`, `check`, `decide`, `assert`, `filter`, `filterStream`, `guard` | function | `Qadi.ts` |
 | `EvaluateOptions` | type | `Evaluate.ts` |
 | `Resource` | type | `Resource.ts` |
-| `decideSubjects`, `filterSubjects` | function | `SubjectSet.ts` |
+| `decideSubjects`, `filterSubjects`, `decideSubjectsStream`, `filterSubjectsStream` | function | `SubjectSet.ts` |
 | `SubjectDecision`, `SubjectSetServices` | type | `SubjectSet.ts` |
 | `toPredicate`, `evaluatePredicate` | function | `Predicate.ts` |
 | `Predicate`, `CompareOp`, `PredicateOptions`, `PredicateServices` | type | `Predicate.ts` |
 | `EvaluationServices` | type | `Evaluate.ts` |
 | `intersectFields`, `unionFields` | function | `Decision.ts` |
 | `EnforceOptions`, `EnforcementError`, `ObligationHandler` | type | `Qadi.ts` |
+| `Authorized` | type | `Authorized.ts` |
 
 #### Which of the six to call
 
@@ -142,15 +144,32 @@ obligation. The other close pair is `enforce` and `enforceProjected`: identical
 enforcement behavior, differing only in whether the wrapped effect's result is a
 record whose fields the policy should filter on the way out.
 
+`filterStream`, `decideSubjectsStream` and `filterSubjectsStream` are streamed
+siblings of `filter`, `decideSubjects` and `filterSubjects` respectively — same
+per-item decision, `Stream.Stream` in and out instead of `ReadonlyArray`. Reach
+for one only when the collection itself is a stream (paginated rows, say) or too
+large to hold in memory as an array; `filter`/`decideSubjects`/`filterSubjects`
+stay the default for the common case of a collection already in hand.
+
+`guard` doesn't fit the report-versus-enforce split the six above are built
+from — built on `enforce`, but shaped differently: rather than wrapping an
+existing `Effect`, it takes a resource and a handler function,
+`guard(permission, policy)(resource, handler)`, and hands the handler an
+`Authorized<P>` witness that the check succeeded, as a value rather than
+through the environment. Reach for it when downstream code needs proof, not
+just an unblocked effect — a handler typed to require `Authorized<typeof
+writeDocument>` cannot be called without going through `guard` first, which
+`enforce` alone cannot express. See [ADR-QD-035](decisions/035-witness-guard-primitive.md).
+
 ### Services
 
 | Export | Kind | Source |
 | ------ | ---- | ------ |
 | `CurrentSubject`, `currentSubjectLayer`, `CurrentSubjectAnonymous` | service + layer | `CurrentSubject.ts` |
 | `AttributeResolver`, `AttributeResolverNone`, `attributeResolverFromRecord` | service + layer | `AttributeResolver.ts` |
-| `attributeResolverRetrying` | layer combinator | `AttributeResolver.ts` |
+| `attributeResolverRetrying`, `attributeResolverBounded` | layer combinator | `AttributeResolver.ts` |
 | `RelationshipResolver`, `RelationshipResolverNever`, `relationshipResolverFromEdges` | service + layer | `RelationshipResolver.ts` |
-| `relationshipResolverRetrying` | layer combinator | `RelationshipResolver.ts` |
+| `relationshipResolverRetrying`, `relationshipResolverBounded` | layer combinator | `RelationshipResolver.ts` |
 | `DecisionHistory`, `DecisionHistoryUnknown`, `decisionHistoryFromEvents` | service + layer | `DecisionHistory.ts` |
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |
@@ -218,6 +237,46 @@ reading `AsyncResult.isSuccess` directly will report stale allows.
 
 Three exports, and the package is one file with no evaluation logic in it — every
 method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
+
+### `@qadi/http`
+
+| Export | Kind | Source |
+| ------ | ---- | ------ |
+| `requiresPermission`, `AnnotatedEndpoint` | function + type | `RequirePermission.ts` |
+| `RequiredPermission`, `PermissionRequirement` | service + type | `RequirePermission.ts` |
+| `RequirePermission`, `RequirePermissionLive` | middleware + layer | `RequirePermission.ts` |
+| `guardRoute` | function | `GuardRoute.ts` |
+| `addGuardedRoute` | function | `PermissionRegistry.ts` |
+| `PermissionRegistry`, `PermissionRegistryLive` | service + layer | `PermissionRegistry.ts` |
+| `registerApi`, `PermissionRegistryRoute` | function + layer | `PermissionRegistry.ts` |
+| `EndpointDescriptor`, `PermissionRegistryData`, `PermissionRegistryShape` | type | `PermissionRegistry.ts` |
+| `ENFORCEMENT_ERROR_TAGS`, `toResponse` | const + function | `QadiHttpError.ts` |
+| `SubjectExtractor`, `subjectExtractorBearer` | service + layer | `SubjectExtractor.ts` |
+| `SubjectExtractorShape` | type | `SubjectExtractor.ts` |
+
+Two framework adapters over one enforcement path — `RequirePermission` for
+`effect/unstable/httpapi`'s declarative `HttpApi`, `guardRoute`/
+`addGuardedRoute` for bare `effect/unstable/http`'s `HttpRouter` — both thin
+wrappers over `@qadi/core`'s `guard`, never a second enforcement
+implementation. `requiresPermission` is not `.pipe()`-composable: TypeScript
+only preserves an `HttpApiEndpoint`'s literal type through an inline,
+unannotated callback passed directly to `.pipe()`, so the canonical usage is
+
+```ts
+HttpApiEndpoint.get("read", "/documents").pipe((endpoint) =>
+  endpoint.annotate(
+    RequiredPermission,
+    requiresPermission(endpoint, { permission: readPermission, policy: readPolicy }),
+  ),
+)
+```
+
+not a one-step `.pipe(requiresPermission({...}))`. `PermissionRegistry`
+answers "which permission does which endpoint require" for a mix of both
+surfaces — seed it from an `HttpApi` with `registerApi`, from `HttpRouter`
+routes by using `addGuardedRoute` in place of a bare `HttpRouter.add`, and
+mount `PermissionRegistryRoute` to expose the result at `/__permissions`.
+See [ADR-QD-036](decisions/036-qadi-http-package-shape.md).
 
 ### `@qadi/testing`
 
