@@ -2016,6 +2016,49 @@ describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
     }));
 });
 
+describe("qadi_evaluation_duration_millis", () => {
+  const histogramOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Histogram" }> =>
+        s.type === "Histogram" && s.id === "qadi_evaluation_duration_millis",
+    );
+
+  it.effect("records one observation per evaluate call, allow or deny alike", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          yield* evaluate(P.hasRole("editor")).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+          );
+          yield* evaluate(P.hasPermission(write)).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u2" }))),
+          );
+          return yield* Metric.snapshot;
+        }),
+      );
+
+      const duration = histogramOf(snapshots);
+      assert.isDefined(duration);
+      assert.strictEqual(duration?.state.count, 2, "one allow and one deny both contribute a sample");
+    }));
+
+  it.effect("does not record a sample for a failed evaluation", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          yield* Effect.result(
+            evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
+              Effect.provide(testLayer(subjectWith({}))),
+            ),
+          );
+          return yield* Metric.snapshot;
+        }),
+      );
+
+      assert.isUndefined(histogramOf(snapshots));
+    }));
+});
+
 describe("qadi.evaluate Debug log on denial", () => {
   const collectingLogger = (
     logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }>,

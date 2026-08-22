@@ -3,7 +3,9 @@
  * `RelationshipResolver`'s own depth, matching `DecisionCache.test.ts`.
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
@@ -12,6 +14,7 @@ import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import {
   RelationshipResolver,
   RelationshipResolverNever,
+  relationshipResolverBounded,
   relationshipResolverFromEdges,
   relationshipResolverRetrying,
 } from "../src/RelationshipResolver.ts";
@@ -210,6 +213,65 @@ describe("RelationshipResolver", () => {
 
         assert.strictEqual(result._tag, "Failure");
         assert.strictEqual(yield* Ref.get(attempts), 3);
+      }));
+  });
+
+  describe("relationshipResolverBounded", () => {
+    it.effect("never runs more than `permits` calls at once", () =>
+      Effect.gen(function* () {
+        const inFlight = yield* Ref.make(0);
+        const peak = yield* Ref.make(0);
+        const gate = yield* Deferred.make<void>();
+
+        const blocking: Layer.Layer<RelationshipResolver> = Layer.succeed(RelationshipResolver, {
+          check: () =>
+            Effect.gen(function* () {
+              const current = yield* Ref.updateAndGet(inFlight, (n) => n + 1);
+              yield* Ref.update(peak, (max) => Math.max(max, current));
+              yield* Deferred.await(gate);
+              yield* Ref.update(inFlight, (n) => n - 1);
+              return true;
+            }),
+        });
+
+        const bounded = relationshipResolverBounded(2)(blocking);
+
+        // Provided once around the whole batch — see the equivalent comment
+        // in AttributeResolver.test.ts for why per-asker `Effect.provide`
+        // would give each its own independent semaphore.
+        const results = yield* Effect.gen(function* () {
+          const fibers = yield* Effect.forEach(Array.from({ length: 5 }, (_, i) => i), (i) =>
+            Effect.forkChild(
+              RelationshipResolver.check({
+                subjectId: makeSubjectId(`u${i}`),
+                relation: "owner",
+                resourceId: makeResourceId("d"),
+                depth: undefined,
+              }),
+            ),
+          );
+          for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+          assert.strictEqual(yield* Ref.get(inFlight), 2);
+          assert.strictEqual(yield* Ref.get(peak), 2);
+          yield* Deferred.succeed(gate, undefined);
+          return yield* Effect.forEach(fibers, (f) => Effect.result(Fiber.join(f)));
+        }).pipe(Effect.provide(bounded));
+
+        for (const result of results) assert.strictEqual(result._tag, "Success");
+        assert.strictEqual(yield* Ref.get(inFlight), 0);
+      }));
+
+    it.effect("forwards the checked value transparently", () =>
+      Effect.gen(function* () {
+        const bounded = relationshipResolverBounded(1)(relationshipResolverFromEdges([
+          { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
+        ]));
+        assert.isTrue(
+          yield* check(bounded, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
+        );
+        assert.isFalse(
+          yield* check(bounded, { subjectId: "bob", relation: "owner", resourceId: "doc-1" }),
+        );
       }));
   });
 });

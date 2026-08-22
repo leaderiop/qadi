@@ -82,6 +82,21 @@ const denialsByPolicyTagTotal = Metric.frequency("qadi_denials_by_policy_tag_tot
   description: "Denials, keyed by the top-level policy tag evaluate was asked to decide.",
 });
 
+/**
+ * The distribution of `evaluate`'s own duration, in milliseconds.
+ *
+ * `durationMillis` was already computed for every `Decision` — this exports it
+ * as an aggregate a deployment can alert or graph on without instrumenting its
+ * own call site. Exponential boundaries because evaluation latency is the
+ * usual case for one: sub-millisecond for an uncached, resolver-free policy,
+ * seconds for one waiting on a slow attribute or relationship store, with
+ * nothing meaningful in between to resolve at linear width.
+ */
+const evaluationDurationMillis = Metric.histogram("qadi_evaluation_duration_millis", {
+  description: "Distribution of evaluate's wall-clock duration, in milliseconds.",
+  boundaries: Metric.exponentialBoundaries({ start: 1, factor: 2, count: 15 }),
+});
+
 export interface EvaluateOptions {
   /** The resource under consideration, if any. */
   readonly resource?: Resource;
@@ -835,6 +850,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   });
 
   yield* Metric.update(decision._tag === "Allow" ? decisionsAllowedTotal : decisionsDeniedTotal, 1);
+  yield* Metric.update(evaluationDurationMillis, durationMillis);
 
   if (decision._tag === "Deny") {
     yield* Metric.update(denialsByPolicyTagTotal, policy._tag);

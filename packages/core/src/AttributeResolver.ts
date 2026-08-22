@@ -11,6 +11,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
+import * as Semaphore from "effect/Semaphore";
 import type { AttributeResolveError } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
 import { wrapService } from "./RetryingLayer.ts";
@@ -75,3 +76,41 @@ export const attributeResolverRetrying =
       resolve: (subjectId, attribute) =>
         inner.resolve(subjectId, attribute).pipe(Effect.retry(schedule)),
     }));
+
+/**
+ * Wraps a resolver layer so no more than `permits` calls to `resolve` run at
+ * once, queuing the rest.
+ *
+ * `Qadi.filter`'s `concurrency` option bounds how many *policy evaluations*
+ * run in parallel; it says nothing about how many of those evaluations reach
+ * this resolver at the same instant, since a single composite policy can fire
+ * several `resolve` calls per item. A caller passing `concurrency: "unbounded"`
+ * to `filter` over a large collection has no way, short of this, to keep that
+ * fan-out from overwhelming whatever store `resolve` is backed by.
+ *
+ * Built on `effect/Semaphore` rather than a request-rate limiter: the problem
+ * this solves is concurrent in-flight calls, not calls-per-second, and a
+ * permit-based bound is the stable, direct tool for that — `effect/Semaphore`
+ * is the concurrency primitive; there is no top-level stable rate limiter to
+ * reach for instead (`effect/unstable/persistence/RateLimiter` exists, but is
+ * unstable and shaped for distributed, cross-process quotas, not this).
+ *
+ * Additive, like {@link attributeResolverRetrying}: a caller who does not
+ * reach for this sees no change.
+ */
+export const attributeResolverBounded =
+  (permits: number) =>
+  (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver> =>
+    Layer.effect(
+      AttributeResolver,
+      Effect.gen(function* () {
+        const semaphore = yield* Semaphore.make(permits);
+        const inner = yield* Layer.build(layer).pipe(
+          Effect.map((context) => Context.get(context, AttributeResolver)),
+        );
+        return {
+          resolve: (subjectId, attribute) =>
+            Semaphore.withPermit(semaphore)(inner.resolve(subjectId, attribute)),
+        };
+      }),
+    );

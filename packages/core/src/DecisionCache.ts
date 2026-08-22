@@ -13,6 +13,7 @@
  * `@qadi/react` does not need it: the atom graph already shares one evaluation per
  * policy across every component that asks.
  */
+import * as Chunk from "effect/Chunk";
 import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -203,7 +204,14 @@ export const decisionCacheLayer = (options?: {
       // eviction, so it can never hold a key `entries` does not. Left empty and
       // unwritten-to when `capacity` is unset — the common case, per this file's
       // own doc comment — since nothing would ever read it.
-      const insertionOrder: Array<string> = [];
+      //
+      // A `Chunk`, not an `Array`: eviction pops from the front on every entry
+      // over capacity, and `Array.prototype.shift` is O(n) — it re-indexes every
+      // remaining element. `Chunk.drop(chunk, 1)` is O(1) amortized for this
+      // access pattern (push at the tail, drop from the head), so eviction under
+      // sustained pressure stays proportional to how much was evicted, not to
+      // how large the cache is.
+      let insertionOrder: Chunk.Chunk<string> = Chunk.empty();
 
       const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, compute) =>
         Effect.gen(function* () {
@@ -271,7 +279,7 @@ export const decisionCacheLayer = (options?: {
                   // it stays empty rather than growing in lockstep with `entries`
                   // for the life of the cache.
                   if (options?.capacity === undefined) return;
-                  insertionOrder.push(k);
+                  insertionOrder = Chunk.append(insertionOrder, k);
                   // FIFO eviction: a `while` rather than an `if` because a caller
                   // who lowers `capacity` between two `decisionCacheLayer()`
                   // calls is not a case this loop should special-case to "evict
@@ -280,15 +288,17 @@ export const decisionCacheLayer = (options?: {
                   // so `size(entries)` — a non-negative integer that strictly
                   // decreases each iteration — reaches it in finitely many steps.
                   while (HashMap.size(entries) > options.capacity) {
-                    // `insertionOrder.length === HashMap.size(entries)` always —
-                    // every push here has exactly one corresponding `entries`
-                    // insert, and eviction always removes one of each — so this
-                    // loop's own condition (`size(entries) > capacity >= 0`)
-                    // guarantees `insertionOrder` is non-empty. The `undefined`
-                    // guard exists for `noUncheckedIndexedAccess`, not because
-                    // this can happen.
-                    const oldest = insertionOrder.shift();
-                    if (oldest !== undefined) entries = HashMap.remove(entries, oldest);
+                    // `Chunk.size(insertionOrder) === HashMap.size(entries)`
+                    // always — every append here has exactly one corresponding
+                    // `entries` insert, and eviction always removes one of each —
+                    // so this loop's own condition (`size(entries) > capacity >=
+                    // 0`) guarantees `insertionOrder` is non-empty. The `Option`
+                    // check exists for that same reason `noUncheckedIndexedAccess`
+                    // forced a guard on the old `Array` version, not because this
+                    // can happen.
+                    const oldest = Chunk.head(insertionOrder);
+                    insertionOrder = Chunk.drop(insertionOrder, 1);
+                    if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value);
                   }
                 }
               }).pipe(

@@ -13,6 +13,7 @@ import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
+import * as Semaphore from "effect/Semaphore";
 import type { RelationshipResolveError } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { wrapService } from "./RetryingLayer.ts";
@@ -121,3 +122,31 @@ export const relationshipResolverRetrying =
     wrapService(RelationshipResolver, layer, (inner) => ({
       check: (request) => inner.check(request).pipe(Effect.retry(schedule)),
     }));
+
+/**
+ * Wraps a resolver layer so no more than `permits` calls to `check` run at
+ * once, queuing the rest.
+ *
+ * The sibling of `attributeResolverBounded` in `AttributeResolver.ts` — see
+ * that doc comment for why this exists and why `effect/Semaphore` rather than
+ * a rate limiter. `Qadi.filter`'s `concurrency` bounds fan-out across policy
+ * evaluations, not calls into this specific resolver, so a `HasRelationship`-
+ * heavy policy evaluated over a large collection under `concurrency:
+ * "unbounded"` has nothing else standing between it and this resolver's
+ * backing store.
+ */
+export const relationshipResolverBounded =
+  (permits: number) =>
+  (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver> =>
+    Layer.effect(
+      RelationshipResolver,
+      Effect.gen(function* () {
+        const semaphore = yield* Semaphore.make(permits);
+        const inner = yield* Layer.build(layer).pipe(
+          Effect.map((context) => Context.get(context, RelationshipResolver)),
+        );
+        return {
+          check: (request) => Semaphore.withPermit(semaphore)(inner.check(request)),
+        };
+      }),
+    );
