@@ -5,18 +5,21 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.2 (draft)                                    |
+> | Revision       | 0.3 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
-Each screen below carries a **Gap** note where it asks for something the library
-cannot yet supply. Those are the implementation backlog, in preference to
-discovering them one at a time. See
+Each screen below states what the library now supplies, and carries a **Gap**
+note only where something genuinely remains. Six gaps recorded in revision 0.2
+were closed in code rather than left as a backlog — see
+[behaviour 25](../behaviors/25-inspection.md). What remains is listed honestly:
+obligation discharge state, resolver-call recording, a policy registry, per-gate
+enumeration, and cache TTL. See
 [00-overview.md](./00-overview.md#feature-set-v1-by-what-its-data-plane-can-supply)
 for the summary table.
 
@@ -72,15 +75,17 @@ policy zipped against the trace, which the same record makes possible.
 > no way to know which obligations were discharged. The panel can list them and
 > state the rule; it cannot show discharged/pending.
 
-> **Gap — the Trace panel.** None of its three contents exist.
-> **Resolver calls**: `readAttribute` is a plain function, not an `Effect.fn`, so
-> it has no span, and nothing records that an attribute was resolved.
-> **Cache hit/miss**: `getOrCompute` returns a bare `Trace` and `Evaluate.ts`
-> states a hit is deliberately "indistinguishable from a fresh evaluation except
-> that it was faster"; the only signal is a process-global frequency metric.
-> **History touches**: `qadi.acted` and `qadi.hasRelationship` are spans carrying
-> no attributes, so a consumer sees that one happened and how long it took, not
-> for whom or what it returned.
+**Cache hit/miss is now per decision.** A `DecisionRecord` carries `cache`:
+`"hit"`, `"coalesced"`, `"miss"`, or absent when no cache was consulted at all
+([BEH-QD-189](../behaviors/25-inspection.md)). It was a process-global frequency
+shared by every cache in the process.
+
+> **Gap — resolver calls and history touches.** `readAttribute` is a plain
+> function, not an `Effect.fn`, so it has no span and nothing records that an
+> attribute was resolved. `qadi.acted` and `qadi.hasRelationship` are spans
+> carrying no attributes, so a consumer sees that one happened and how long it
+> took, not for whom or what it returned. Closing this means annotating those
+> spans, which is evaluator-adjacent work with its own review.
 
 ## 3. Policy explorer
 
@@ -103,9 +108,11 @@ explicit action (never automatic) and previews rewrites before applying.
 > composite collapse, and same-tag/same-strategy flattening. The preview must
 > show those.
 
-> **Gap — maxDepth "on the root".** `maxDepth` is an evaluation *input*
-> defaulting to 64, not a property of a policy, and no function computes a given
-> policy's actual depth.
+**Depth is now measurable.** `policyDepth(policy)` counts the way the evaluator
+counts, so `policyDepth(p) <= n` is exactly the condition under which
+`evaluate(p, { maxDepth: n })` will not raise
+([BEH-QD-191](../behaviors/25-inspection.md), INV-QD-037). The root card shows the
+policy's own depth beside the bound it would be evaluated under.
 
 ## 4. Role DAG viewer
 
@@ -115,15 +122,23 @@ surfaces the cycle-check result). Clicking a node shows its **flattened
 permission set** with provenance: own permissions tinted, inherited ones gray
 with the path ("via viewer").
 
-> **Gap — provenance is computed and thrown away.** `flattenPermissions` returns
-> `ReadonlySet<PermissionKey>`; its `visit` closure holds the granting role's
-> name and does not record it. This is the cheapest gap on the list to close.
+**Provenance is now available.** `permissionProvenance(role)` returns each
+permission with the role that granted it and the path walked to reach it, so
+"own" is a single-element path and anything longer reads as "via …"
+([BEH-QD-192](../behaviors/25-inspection.md)). It reports exactly the set
+`flattenPermissions` returns (INV-QD-038), so the screen cannot show a different
+set from the one that decides.
 
-> **Correction — the cycle check.** There is no positive "acyclic ✓" to display
-> for the common case. A by-value `Role` **cannot represent a cycle**, so the
-> check is vacuous there; `resolveRoleGraph` applies only to the
-> name-referenced `RoleDefinition[]` path, and that path silently drops an
-> unknown parent name rather than reporting it.
+**An unknown parent is now reported.** `resolveRoleGraph` still drops it — a
+partial catalogue is a normal deployment state and failing closed would deny
+everything — but says so, at warning level or through `onUnknownParent`
+([BEH-QD-193](../behaviors/25-inspection.md)). The screen surfaces that as a
+warning on the graph.
+
+> **Correction — the cycle check.** There is still no positive "acyclic ✓" for
+> the common case: a by-value `Role` **cannot represent a cycle**, so the check
+> is vacuous there and applies only to the name-referenced `RoleDefinition[]`
+> path. That is a property of the type, not a gap to close.
 
 ## 5. Subject simulator / what-if
 
@@ -135,9 +150,11 @@ and the node that flipped it.
 
 Runs on `@qadi/testing` layers; never against live resolvers.
 
-> **Gap — "the node that flipped it".** No trace diff exists anywhere in the
-> library. `isMismatch` compares two decisions by *verdict only*, returns a
-> boolean, and names no node.
+**"The node that flipped it" is now answerable.** `flippedAt(before, after)`
+returns the outermost node whose verdict changed, and `diffTraces` returns every
+difference — verdict, reason, fields, obligations — each addressed by a path from
+the root ([BEH-QD-194](../behaviors/25-inspection.md)). An empty diff is the
+check a replay wants: stronger than "the verdicts match".
 
 > **Gap — reproducible durations.** `@qadi/testing` wires deterministic ids but
 > **no clock**. A simulator in a browser must wire `TestClock` itself.
@@ -163,17 +180,18 @@ three-valued default (denies `hasActed` and `hasNotActed` alike,
 > permit stats. The `.calls` recorders are `@qadi/testing` fixtures recording a
 > bare string per call.
 
-> **Correction — the cache card.** Revision 0.1 asked for "hit rate, entry count,
-> ttl, flush". Entry count exists (`size`). Hit rate exists only as a
-> **process-global** frequency shared by every `decisionCacheLayer()` in the
-> process, so a per-request cache cannot be separated from an app-scoped one.
-> **There is no TTL concept** — the bound is `capacity`, evicted FIFO, not by
-> age. **There is no flush** — the shape is `getOrCompute` and `size`, and the
-> only way to empty it is to discard the layer scope. `useInvalidate` invalidates
-> *atoms*, not the cache.
->
-> `decisionSinkRing` does have `clear`, so the **record log** is flushable even
-> though the cache is not; the card must not conflate them.
+**Flush now exists** — `DecisionCacheShape.clear` discards every completed entry
+and leaves in-flight work alone ([BEH-QD-190](../behaviors/25-inspection.md)).
+Entry count exists (`size`), and per-decision hit/miss now comes off the record
+rather than off a process-global metric.
+
+> **Correction — TTL.** There is still **no TTL concept**: the bound is
+> `capacity`, evicted FIFO by insertion rather than by age, and the card must not
+> offer one. Adding time-based eviction is a cache design change, not a display
+> change.
+
+`decisionSinkRing` has its own `clear` for the **record log**; the card must not
+conflate the two.
 
 ## 7. React panel (client only)
 

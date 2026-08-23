@@ -185,6 +185,7 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `ActedEvent`, `ActedAnywhere` | value class | `DecisionHistory.ts` |
 | `EvaluationIdShape`, `DecisionCacheShape`, `DecisionCacheKey` | type | service modules |
 | `DecisionSinkShape`, `DecisionRecord`, `DecisionOutcome`, `StoredRecord` | type | sink modules |
+| `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |
 | `Decided`, `Failed` | value class | `DecisionRecord.ts` |
 
 **Seven services, and only five are required.** `DecisionHistory` was the one added
@@ -203,6 +204,24 @@ other service appears in.
 **write-only** port: `evaluate` hands it every completed evaluation and reads
 nothing back, and whatever happens to it — a failure or a defect — cannot change
 the decision ([INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)).
+
+#### Inspecting a policy, a role graph and two traces
+
+| Export | Kind | Source |
+| ------ | ---- | ------ |
+| `policyDepth` | function | `Policy.ts` |
+| `permissionProvenance`, `PermissionGrant` | function + type | `Role.ts` |
+| `diffTraces`, `flippedAt` | function | `TraceDiff.ts` |
+| `TraceDifference`, `TracePath` | type | `TraceDiff.ts` |
+| `VerdictChanged`, `ReasonChanged`, `ChildCountChanged`, `FieldsChanged`, `ObligationsChanged` | type | `TraceDiff.ts` |
+
+Each answers a question the library could pose but not answer. `policyDepth`
+counts the way the evaluator counts, so `policyDepth(p) <= n` is exactly the
+condition under which `evaluate(p, { maxDepth: n })` will not raise
+([BEH-QD-191](behaviors/25-inspection.md)). `permissionProvenance` returns the
+granting role and path that `flattenPermissions` computes and discards.
+`diffTraces` names *which node* changed between two evaluations — the comparison
+a what-if needs and that `isMismatch`, which compares verdicts alone, cannot give.
 
 ### Errors
 

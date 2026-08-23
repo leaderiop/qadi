@@ -744,3 +744,47 @@ describe("hydration mismatch", () => {
     registry.dispose();
   });
 });
+
+describe("a re-check continues the server's evaluation", () => {
+  it("carries the seeded evaluation id into the client's own answer", async () => {
+    // The claim the unified-stream draft made and could not keep: the payload
+    // carried an id, the client minted a fresh one, and nothing joined them.
+    const registry = AtomRegistry.make({
+      initialValues: hydrateDecisions(
+        atoms,
+        dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]),
+        alice,
+      ),
+    });
+    registry.set(atoms.subject, alice);
+
+    const decision = atoms.decision(canRead);
+    await vi.waitFor(() => {
+      const result = registry.get(decision);
+      expect(AsyncResult.isSuccess(result) && !result.waiting).toBe(true);
+    });
+
+    const answered = currentDecision(registry.get(decision));
+    expect(answered).toBeDefined();
+    // The client re-evaluated for itself — this is not the seed being returned,
+    // which INV-QD-028 requires — and still reports the server's id, so the two
+    // halves are one story.
+    expect(answered?.evaluationId).toBe("eval-1");
+  });
+
+  it("mints its own id when there is no seed to continue", async () => {
+    const registry = AtomRegistry.make();
+    registry.set(atoms.subject, alice);
+
+    const decision = atoms.decision(canRead);
+    await vi.waitFor(() => {
+      const result = registry.get(decision);
+      expect(AsyncResult.isSuccess(result) && !result.waiting).toBe(true);
+    });
+
+    // Nothing to correlate with, so the default stands: a fresh id, which
+    // `EvaluationIdLive` makes a uuid rather than the server's "eval-1".
+    const answered = currentDecision(registry.get(decision));
+    expect(answered?.evaluationId).not.toBe("eval-1");
+  });
+});

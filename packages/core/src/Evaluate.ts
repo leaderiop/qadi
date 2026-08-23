@@ -19,7 +19,7 @@ import type { AuthSubject } from "./AuthSubject.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
-import type { DecisionCacheKey } from "./DecisionCache.ts";
+import type { CacheOutcome, DecisionCacheKey } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
@@ -117,6 +117,12 @@ const evaluationDurationMillis = Metric.histogram("qadi_evaluation_duration_mill
 const evaluationErrorsTotal = Metric.frequency("qadi_evaluation_errors_total", {
   description: "Evaluations that failed instead of deciding, keyed by error tag.",
 });
+
+/** A trace plus how it was obtained — `undefined` when no cache was consulted. */
+interface EvaluationLookup {
+  readonly trace: Trace;
+  readonly outcome: CacheOutcome | undefined;
+}
 
 export interface EvaluateOptions {
   /** The resource under consideration, if any. */
@@ -930,9 +936,24 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   // cannot see failures reports a broken attribute store as an absence of
   // traffic, or — worse, if it infers one — as a denial, which is the exact
   // confusion INV-QD-006 exists to prevent.
-  const trace = yield* (
-    Option.isSome(cache) ? cache.value.getOrCompute(cacheKey, compute) : compute
-  ).pipe(
+  //
+  // `cacheOutcome` is `undefined` when no cache is wired at all, which is a
+  // different statement from `"miss"` and is kept distinct on the record: a
+  // reader seeing "miss" learns the cache was consulted and did not have it,
+  // where absence means there was nothing to consult.
+  //
+  // Annotated rather than inferred: the two branches are `Effect<CacheLookup>`
+  // and `Effect<{trace, outcome: undefined}>`, and TypeScript unions the two
+  // `Effect`s rather than widening `outcome`, which then has no common `.pipe`.
+  const lookupEffect: Effect.Effect<
+    EvaluationLookup,
+    EvaluationError,
+    AttributeResolver | RelationshipResolver | DecisionHistory
+  > = Option.isSome(cache)
+    ? cache.value.getOrCompute(cacheKey, compute)
+    : Effect.map(compute, (trace) => ({ trace, outcome: undefined }));
+
+  const lookup = yield* lookupEffect.pipe(
     Effect.tapError((error) =>
       Effect.gen(function* () {
         yield* Metric.update(evaluationErrorsTotal, error._tag);
@@ -952,6 +973,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     ),
   );
 
+  const trace = lookup.trace;
   const durationMillis = (yield* Clock.currentTimeMillis) - startedAt;
 
   const decision: Decision = trace.allowed
@@ -1010,6 +1032,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     policy,
     resource: options?.resource,
     action: options?.action,
+    cache: lookup.outcome,
     outcome: new Decided({ decision }),
   });
 

@@ -1167,3 +1167,57 @@ the original, and asserts `at` is the `TestClock` start time across two ordered
 evaluations.
 
 **Related**: [BEH-QD-181](behaviors/24-decision-sink.md), [BEH-QD-183](behaviors/24-decision-sink.md), [ADR-QD-044](decisions/044-an-optional-decision-sink.md).
+
+## INV-QD-037: A measured depth agrees with the evaluated bound
+
+`policyDepth(p) <= n` holds exactly when `evaluate(p, { maxDepth: n })` does not
+raise `PolicyTooDeep`.
+
+**Source**: `packages/core/src/Policy.ts` — `policyDepth` counts a leaf as 0 and
+adds one at each recursive position, which is how `evaluateNode` counts.
+
+**Implication**: a second walk of the policy tree is a second interpreter of the
+same rule, and this document already treats interpreter disagreement as the
+defect worth naming ([INV-QD-018](#inv-qd-018-the-two-interpreters-agree)). Here
+the disagreement has a direction that matters: a depth **under**-reported by one
+declares a policy safe that the evaluator then refuses, so a caller bounding
+untrusted decoded input would admit exactly the input it meant to reject.
+
+The function exists because `maxDepth` is an evaluation input, not a property of
+a policy — nothing recorded how deep a policy actually was, so every caller
+needing to know had to write this walk and guess at the convention.
+
+**Enforcement**: `packages/core/test/RolesAndDepth.test.ts` asserts the agreement
+against `evaluate` itself, in both directions, over five shapes: at the reported
+depth it evaluates, and one below it raises. A `FastCheck` property pins a
+right-leaning spine of arbitrary length.
+
+**Related**: [BEH-QD-191](behaviors/25-inspection.md), [INV-QD-018](#inv-qd-018-the-two-interpreters-agree).
+
+---
+
+## INV-QD-038: Provenance and flattening agree
+
+The permissions `permissionProvenance` reports are exactly the set
+`flattenPermissions` returns.
+
+**Source**: `packages/core/src/Role.ts` — both walk depth-first with a
+name-keyed visited set, so a diamond is walked once by each and the first path
+wins in both.
+
+**Implication**: two functions answering one question is the shape this codebase
+has already been bitten by, so the agreement is stated rather than assumed. The
+consequence of drift is specific: a screen showing "who granted this" built on
+provenance would display a different permission set from the one that decides,
+and a reviewer comparing them would trust the wrong one.
+
+They are kept separate rather than one derived from the other because
+`flattenPermissions` runs inside `makeSubject` — once per subject, so per request
+on a server — and building a path array per permission there would charge every
+caller for what only an explorer wants.
+
+**Enforcement**: `packages/core/test/RolesAndDepth.test.ts` compares the two
+sets directly over an inheritance chain, and asserts a diamond yields one grant
+rather than two.
+
+**Related**: [BEH-QD-192](behaviors/25-inspection.md), [ADR-QD-015](decisions/015-role-dag-acyclic-by-construction.md).

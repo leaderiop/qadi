@@ -74,3 +74,6 @@ entries:
   - id: "BEH-QD-181"
     file: "24-decision-sink.md"
     title: "24 — The Decision Sink"
+  - id: "BEH-QD-189"
+    file: "25-inspection.md"
+    title: "25 — Inspection"

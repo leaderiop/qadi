@@ -5,6 +5,7 @@ import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
+import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import type { DecisionRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { DEFAULT_RING_CAPACITY, decisionSinkRing } from "../src/DecisionSinkRing.ts";
@@ -421,5 +422,85 @@ describe("decisionSinkRing", () => {
 
       assert.strictEqual(before.length, 1);
       assert.strictEqual((yield* ring.snapshot).length, 2);
+    }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("the cache is visible per decision, and flushable", () => {
+  it.effect("a record says whether the cache answered", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+      const policy = P.hasPermission(read);
+
+      yield* Effect.gen(function* () {
+        yield* evaluate(policy);
+        yield* evaluate(policy);
+      }).pipe(Effect.provide(Layer.merge(sink.layer, decisionCacheLayer())));
+
+      // Answerable per decision for the first time. It was previously a
+      // process-global frequency, so an operator could see a hit *rate* across
+      // every cache in the process and never learn about the one decision in
+      // front of them.
+      assert.strictEqual(sink.seen[0]?.cache, "miss");
+      assert.strictEqual(sink.seen[1]?.cache, "hit");
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("no cache wired is absent, which is not the same as a miss", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      yield* evaluate(P.hasPermission(read)).pipe(Effect.provide(sink.layer));
+
+      // "miss" says the cache was consulted and did not have it; absence says
+      // there was nothing to consult.
+      assert.isUndefined(sink.seen[0]?.cache);
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a hit still decides identically to a miss (INV-QD-025)", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+      const policy = P.allOf([P.hasPermission(read), P.hasRole("editor")]);
+
+      yield* Effect.gen(function* () {
+        yield* evaluate(policy);
+        yield* evaluate(policy);
+      }).pipe(Effect.provide(Layer.merge(sink.layer, decisionCacheLayer())));
+
+      const first = sink.seen[0]?.outcome;
+      const second = sink.seen[1]?.outcome;
+      assert.strictEqual(first?._tag, "Decided");
+      assert.strictEqual(second?._tag, "Decided");
+      if (first?._tag === "Decided" && second?._tag === "Decided") {
+        // Reporting HOW the answer was reached must not change WHAT it was.
+        assert.deepStrictEqual(first.decision.trace, second.decision.trace);
+      }
+    }).pipe(
+      Effect.provide(
+        testLayer(subjectWith({ permissions: ["doc:read"], roles: ["editor"] })),
+      ),
+    ));
+
+  it.effect("clear empties the cache, so the next ask recomputes", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+      const policy = P.hasPermission(read);
+
+      yield* Effect.gen(function* () {
+        const cache = yield* DecisionCache;
+        yield* evaluate(policy);
+        yield* evaluate(policy);
+        assert.strictEqual(yield* cache.size, 1);
+
+        yield* cache.clear;
+        assert.strictEqual(yield* cache.size, 0);
+
+        yield* evaluate(policy);
+      }).pipe(Effect.provide(Layer.merge(sink.layer, decisionCacheLayer())));
+
+      // There was no way to empty a cache short of discarding its layer scope,
+      // which a tool running inside that scope cannot do.
+      assert.deepStrictEqual(
+        sink.seen.map((r) => r.cache),
+        ["miss", "hit", "miss"],
+      );
     }).pipe(Effect.provide(testLayer(allowed))));
 });

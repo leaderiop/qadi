@@ -15,6 +15,7 @@
  * field is exactly what went missing before.
  */
 import * as Brand from "effect/Brand";
+import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import { Matcher } from "./Matcher.ts";
 import { Obligation } from "./Obligation.ts";
@@ -573,3 +574,49 @@ export const toJsonValue = Schema.encodeEffect(Policy);
 
 /** Decodes a policy from an untrusted plain JSON value. */
 export const fromJsonValue = Schema.decodeUnknownEffect(Policy);
+
+// ---------------------------------------------------------------------------
+// Structural queries
+// ---------------------------------------------------------------------------
+
+/**
+ * How deeply a policy nests, counted the way the evaluator counts.
+ *
+ * A leaf is `0`; each recursive position adds one. So `policyDepth(p) <= n` is
+ * exactly the condition under which `evaluate(p, { maxDepth: n })` will not
+ * raise `PolicyTooDeep`, and `Policy.test.ts` asserts that agreement in both
+ * directions rather than asserting a number.
+ *
+ * That agreement is the whole point, and the reason this lives beside the ADT
+ * rather than in a caller. `maxDepth` is an evaluation *input* with a default of
+ * {@link DEFAULT_MAX_DEPTH}; nothing on a `Policy` records how deep it actually
+ * is, so a caller wanting to know — a tool rendering a tree, or one deciding
+ * whether a decoded policy will evaluate at all — had to walk it themselves and
+ * guess at the convention. A second walk that miscounted by one would report a
+ * policy as safe that the evaluator then refuses.
+ *
+ * An empty `allOf`, `anyOf` or `rules` is depth `0`, not `1`: it has no
+ * children, so the evaluator never descends, and the bound is about descent.
+ */
+export const policyDepth: (self: Policy) => number = Match.type<Policy>().pipe(
+  Match.tagsExhaustive({
+    HasPermission: () => 0,
+    HasRole: () => 0,
+    HasAttribute: () => 0,
+    HasResourceAttribute: () => 0,
+    HasRelationship: () => 0,
+    HasAction: () => 0,
+    HasActed: () => 0,
+    HasNotActed: () => 0,
+    AllOf: (p) => deepest(p.policies),
+    AnyOf: (p) => deepest(p.policies),
+    Rules: (p) => deepest(p.rules.map((r) => r.condition)),
+    Not: (p) => 1 + policyDepth(p.policy),
+    Obliged: (p) => 1 + policyDepth(p.policy),
+    Labeled: (p) => 1 + policyDepth(p.policy),
+  }),
+);
+
+/** `1 + the deepest child`, or `0` when there are none. */
+const deepest = (children: ReadonlyArray<Policy>): number =>
+  children.length === 0 ? 0 : 1 + Math.max(...children.map(policyDepth));

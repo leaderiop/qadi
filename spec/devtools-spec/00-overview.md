@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-00                                    |
-> | Revision       | 0.2 (draft)                                    |
+> | Revision       | 0.3 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -106,11 +106,11 @@ remaining gaps are listed here rather than discovered during implementation.
 | # | Screen | Data status |
 | - | ------ | ----------- |
 | 1 | Decision log | **Ready.** A record carries every column, including the `resource` and timestamp a `Decision` never had. |
-| 2 | Decision inspector | **Ready for explanation, fields, obligations.** `explain()` is reachable because a record carries its `Policy`. Two gaps: obligation *discharged/pending* state is unobservable, and per-decision cache hit/miss is not exposed (`getOrCompute` returns a bare `Trace`). |
-| 3 | Policy explorer | **Partial.** The ADT, `toJson`/`fromJson` and `simplify` all exist. Nothing enumerates "all named policies" — a policy is a value the app holds — so the left rail has no source yet. |
-| 4 | Role DAG viewer | **Partial.** The graph is walkable. `flattenPermissions` returns a bare `Set`: the provenance is computed and discarded, so "via viewer" needs it preserved first. |
-| 5 | Subject simulator | **Partial.** Re-evaluation works. "The node that flipped it" needs a trace diff, which does not exist. |
-| 6 | Services & cache | **Partial.** Cache `size` and the lookup frequency exist. Which *implementation* is wired is not obtainable from inside the program; there are no per-port call counts or retry stats; and there is **no TTL concept and no flush** — the cache is bounded by capacity, evicted FIFO. |
+| 2 | Decision inspector | **Ready**, including per-decision cache outcome. Remaining: obligation *discharged/pending* state is unobservable, and resolver calls are not recorded. |
+| 3 | Policy explorer | **Partial.** The ADT, codec, `simplify` and now `policyDepth` all exist. Nothing enumerates "all named policies" — a policy is a value the app holds — so the left rail still has no source. |
+| 4 | Role DAG viewer | **Ready.** `permissionProvenance` supplies the granting role and path, in agreement with `flattenPermissions`; an unknown parent is now reported rather than silently dropped. |
+| 5 | Subject simulator | **Ready.** `flippedAt` names the outermost node whose verdict changed; `diffTraces` gives every difference by path. |
+| 6 | Services & cache | **Partial.** `size`, per-decision hit/miss and `clear` now exist. Remaining: which *implementation* is wired is not obtainable from inside the program, there are no per-port call counts or retry stats, and there is **no TTL** — the cache is bounded by capacity, evicted FIFO. |
 | 7 | React panel | **Rescope required.** `Atom.family` keys structurally, so ten `<Can>` on one policy are **one atom**. Per-instance enumeration and DOM highlighting are not merely unimplemented; the current architecture makes them unobtainable without an instance registry. Hydration counts other than mismatches are likewise not retained. |
 
 ## Vocabulary rules the UI must respect

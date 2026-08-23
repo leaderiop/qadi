@@ -20,6 +20,7 @@
  */
 import * as Data from "effect/Data";
 import type { Decision } from "./Decision.ts";
+import type { CacheOutcome } from "./DecisionCache.ts";
 import type { EvaluationError } from "./Errors.ts";
 import type { Policy } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
@@ -68,5 +69,17 @@ export interface DecisionRecord {
   readonly resource?: Resource | undefined;
   /** What the caller was doing, if it said. */
   readonly action?: string | undefined;
+  /**
+   * How the decision cache answered, when one was wired.
+   *
+   * **Absent means no cache was consulted at all**, which is a different fact
+   * from `"miss"` — that one says the cache was asked and did not have it. A
+   * single optional field keeps the two apart without a third tag.
+   *
+   * Observability only. A hit still produces the same verdict, trace and fields
+   * as a miss ([INV-QD-025](../../../spec/invariants.md)); this reports how the
+   * answer was reached, in the same category as `durationMillis`.
+   */
+  readonly cache?: CacheOutcome | undefined;
   readonly outcome: DecisionOutcome;
 }

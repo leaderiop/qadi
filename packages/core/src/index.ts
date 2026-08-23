@@ -25,3 +25,4 @@ export * from "./Role.ts";
 export * from "./SecurityLabel.ts";
 export * from "./Simplify.ts";
 export * from "./SubjectSet.ts";
+export * from "./TraceDiff.ts";

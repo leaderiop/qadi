@@ -157,6 +157,10 @@ export const makeQadiAtoms = (
     policy: Policy,
     resource: Resource | undefined,
   ): SeededDecision => {
+    // Declared before `computed`, which reads it with `get.once` to carry the
+    // server's evaluation id into the re-check.
+    const seed = Atom.make<Decision | undefined>(undefined);
+
     const computed = runtime
       .atom((get): Effect.Effect<Decision, EvaluationError, QadiRuntimeServices> => {
         const current = get(subject);
@@ -165,13 +169,23 @@ export const makeQadiAtoms = (
         // "still loading". Returning a Deny here would render every guarded
         // control as forbidden for the first frame after a page load.
         if (current === undefined) return Effect.never;
-        return evaluate(policy, resource === undefined ? undefined : { resource }).pipe(
-          Effect.provide(currentSubjectLayer(current)),
-        );
+        // A re-check continues the server's evaluation rather than starting an
+        // unrelated one, so it carries that evaluation's id. Without this the
+        // two halves of a hydrated decision cannot be joined by anything: the
+        // payload carries an id, the client minted a fresh one, and nothing
+        // related them (BEH-QD-186).
+        //
+        // `get.once`, not `get`: reading the seed reactively would make every
+        // re-evaluation depend on the seed atom, so a seed set or cleared after
+        // mount would re-run a computation whose answer it cannot change. The id
+        // is correlation metadata, not an input to the decision.
+        const seeded = get.once(seed);
+        return evaluate(policy, {
+          ...(resource === undefined ? {} : { resource }),
+          ...(seeded === undefined ? {} : { evaluationId: seeded.evaluationId }),
+        }).pipe(Effect.provide(currentSubjectLayer(current)));
       })
       .pipe(runtime.factory.withReactivity([DECISIONS_KEY]));
-
-    const seed = Atom.make<Decision | undefined>(undefined);
 
     // Announced once per question, the first time this client answers it for
     // itself. A closure flag rather than a read of the atom's own previous

@@ -76,11 +76,38 @@ export interface DecisionCacheKey {
  */
 type EvaluationRequirements = AttributeResolver | RelationshipResolver | DecisionHistory;
 
+/**
+ * Which of the cache's three documented paths a lookup took.
+ *
+ * `hit` — an already-completed entry. `coalesced` — joined another fiber's
+ * in-flight `compute`. `miss` — this fiber ran `compute` itself.
+ */
+export type CacheOutcome = "hit" | "coalesced" | "miss";
+
+/** A trace, and how the cache came by it. */
+export interface CacheLookup {
+  readonly trace: Trace;
+  readonly outcome: CacheOutcome;
+}
+
 export interface DecisionCacheShape {
   /**
    * The trace for this exact question — from a prior call's completed
    * `compute`, from another fiber's currently-running `compute`, or freshly
    * computed by running `compute` here.
+   *
+   * Returns the {@link CacheOutcome} alongside it. It used to return a bare
+   * `Trace`, which made "was this decision cached?" answerable only as a
+   * process-global frequency metric — so an operator could see a hit *rate*
+   * across every cache in the process and never learn whether the one decision
+   * in front of them had been recomputed.
+   *
+   * **This does not weaken [INV-QD-025](../../../spec/invariants.md).** That
+   * invariant is about the *decision*: a hit must produce the same verdict,
+   * trace and fields as a miss, and it still does. What differs is what an
+   * observer is told about how the answer was obtained — the same category as
+   * `durationMillis` and the evaluation id, which already differ between a hit
+   * and a miss by design.
    *
    * Concurrent calls for the **same key** share one `compute` run: the first
    * caller runs it, every other caller concurrently asking the same question
@@ -92,12 +119,28 @@ export interface DecisionCacheShape {
   readonly getOrCompute: (
     key: DecisionCacheKey,
     compute: Effect.Effect<Trace, EvaluationError, EvaluationRequirements>,
-  ) => Effect.Effect<Trace, EvaluationError, EvaluationRequirements>;
+  ) => Effect.Effect<CacheLookup, EvaluationError, EvaluationRequirements>;
   /**
    * How many completed entries are held. For tests and for a caller
    * reporting hit rates.
    */
   readonly size: Effect.Effect<number>;
+  /**
+   * Discards every completed entry.
+   *
+   * There was no way to empty a cache short of discarding the layer scope,
+   * which a tool running *inside* that scope cannot do — so "flush" was
+   * unofferable to an operator who could see a stale decision and knew exactly
+   * why it was stale. `useInvalidate` in `@qadi/react` is not this: it
+   * invalidates *atoms*, and an invalidated atom that re-evaluates through a
+   * warm cache gets the same cached trace back.
+   *
+   * Entries only. A `compute` already in flight keeps its claim and still
+   * settles for the fibers awaiting it — cancelling those would turn a
+   * housekeeping action into a source of failures, and they are answering
+   * questions asked before the flush.
+   */
+  readonly clear: Effect.Effect<void>;
 }
 
 /**
@@ -243,7 +286,7 @@ export const decisionCacheLayer = (options?: {
           const cached = HashMap.get(entries, key);
           if (Option.isSome(cached)) {
             yield* Metric.update(cacheLookupsTotal, "hit");
-            return cached.value;
+            return { trace: cached.value, outcome: "hit" };
           }
 
           // `Deferred.makeUnsafe` inside the same synchronous check as the
@@ -271,7 +314,10 @@ export const decisionCacheLayer = (options?: {
           // success or failure, rather than compute a second time.
           if (!claimed.owned) {
             yield* Metric.update(cacheLookupsTotal, "coalesced");
-            return yield* Deferred.await(claimed.claim);
+            return {
+              trace: yield* Deferred.await(claimed.claim),
+              outcome: "coalesced",
+            };
           }
           yield* Metric.update(cacheLookupsTotal, "miss");
           const claim = claimed.claim;
@@ -334,9 +380,21 @@ export const decisionCacheLayer = (options?: {
                 ),
               ),
             ),
+            // After `onExit`, deliberately: the finalizer stores the raw `Trace`
+            // in `entries` and settles the claim with it, so it must run on the
+            // un-wrapped value. Mapping first would cache a `CacheLookup` and
+            // hand every coalescing waiter one whose `outcome` said "miss".
+            Effect.map((trace): CacheLookup => ({ trace, outcome: "miss" })),
           );
         });
 
-      return { getOrCompute, size: Effect.sync(() => HashMap.size(entries)) };
+      return {
+        getOrCompute,
+        size: Effect.sync(() => HashMap.size(entries)),
+        clear: Effect.sync(() => {
+          entries = HashMap.empty<DecisionCacheKey, Trace>();
+          insertionOrder = Chunk.empty();
+        }),
+      };
     }),
   );
