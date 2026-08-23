@@ -50,7 +50,7 @@ describe("toResponse", () => {
       [new MissingAction({ expected: "read" }), 500],
       [new MissingResource({ attribute: "clearance" }), 500],
       [new MissingResourceId({ relation: "owner" }), 500],
-      [new PolicyTooDeep({ maxDepth: 64 }), 400],
+      [new PolicyTooDeep({ maxDepth: 64 }), 500],
     ];
 
     for (const [error, status] of cases) {

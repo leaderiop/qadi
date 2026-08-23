@@ -44,7 +44,13 @@ export const toResponse: (error: EnforcementError) => HttpServerResponse.HttpSer
     MissingAction: () => HttpServerResponse.empty({ status: 500 }),
     MissingResource: () => HttpServerResponse.empty({ status: 500 }),
     MissingResourceId: () => HttpServerResponse.empty({ status: 500 }),
-    // The policy tree itself was malformed or hostile.
-    PolicyTooDeep: () => HttpServerResponse.empty({ status: 400 }),
+    // Also a wiring mistake in this service, and 500 for that reason. No path
+    // in this package lets a *request* supply a policy — the middleware reads
+    // it from a compile-time endpoint annotation, and `guardRoute` takes it as
+    // a layer-construction argument — so "malformed or hostile input", which is
+    // what this arm's 400 asserted, cannot reach it here. A 400 is classified
+    // non-retryable client error by SDKs and dashboards, so an operator whose
+    // own policy tree is too deep would never have been paged for it.
+    PolicyTooDeep: () => HttpServerResponse.empty({ status: 500 }),
   }),
 );

@@ -11,7 +11,7 @@
  */
 import * as Effect from "effect/Effect";
 import type * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import type * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import type { Authorized, CurrentSubject, EvaluationServices, Permission, Policy, Resource } from "@qadi/core";
 import { currentSubjectLayer, guard } from "@qadi/core";
 import { ENFORCEMENT_ERROR_TAGS, toResponse } from "./QadiHttpError.ts";
@@ -69,4 +69,14 @@ export const guardRoute =
       return yield* guard(permission, policy)(resource, handler).pipe(
         Effect.provide(currentSubjectLayer(subject)),
       );
-    }).pipe(Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))));
+    }).pipe(
+      Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))),
+      // The credential store broke — an outage, not a denial, so 502 rather
+      // than 403 (INV-QD-006). The `never` error channel this route declares is
+      // what forced this arm to exist rather than letting the failure escape.
+      Effect.catchTag("SubjectExtractionFailed", (error) =>
+        Effect.logError(`qadi/http: subject extraction failed — ${error.reason}`).pipe(
+          Effect.as(HttpServerResponse.empty({ status: 502 })),
+        ),
+      ),
+    );

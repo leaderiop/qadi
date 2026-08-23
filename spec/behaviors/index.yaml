@@ -68,3 +68,6 @@ entries:
   - id: "BEH-QD-169"
     file: "22-promise-facade.md"
     title: "22 — The Promise Facade"
+  - id: "BEH-QD-174"
+    file: "23-http.md"
+    title: "23 — HTTP Enforcement"

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-036                                   |
-> | Revision       | 1.2                                             |
-> | Effective Date | 2026-08-22                                     |
+> | Revision       | 1.3                                             |
+> | Effective Date | 2026-08-23                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.2 (2026-08-22): Three corrections found by the first real HTTP round-trip test — `requiresPermission` is no longer `.pipe()`-composable at all (the widened return type it shipped with in 1.1 breaks `HttpApiBuilder.group`'s handler exhaustiveness for the whole group, not just later `.pipe()` chaining); its parameter type is a minimal structural `AnnotatedEndpoint`, not `HttpApiEndpoint.Top` (a param-less endpoint isn't actually assignable to `Top`); `GuardRoute.ts`'s `guardRoute` under-excluded `CurrentSubject` from its declared return type (CCR-QD-046)<br>1.1 (2026-08-22): `requiresPermission`'s type-preservation claim corrected — it does not survive a reusable generic wrapper; the shipped signature returns the widened `HttpApiEndpoint.Top` instead (CCR-QD-045)<br>1.0 (2026-08-22): Initial release (CCR-QD-042) |
+> | Change History | 1.3 (2026-08-23): The code is brought in line with this ADR's own Alternatives section — "annotate-and-forget" was rejected here and shipped anyway; an unannotated endpoint now refuses and `publicEndpoint(reason)` is the opt-out. `SubjectExtractorShape.extract` gains an error channel, the Bearer scheme is matched case-insensitively, and `PolicyTooDeep` maps to 500. Behaviour 23 written, the document this package shipped without (CCR-QD-059)<br>1.2 (2026-08-22): Three corrections found by the first real HTTP round-trip test — `requiresPermission` is no longer `.pipe()`-composable at all (the widened return type it shipped with in 1.1 breaks `HttpApiBuilder.group`'s handler exhaustiveness for the whole group, not just later `.pipe()` chaining); its parameter type is a minimal structural `AnnotatedEndpoint`, not `HttpApiEndpoint.Top` (a param-less endpoint isn't actually assignable to `Top`); `GuardRoute.ts`'s `guardRoute` under-excluded `CurrentSubject` from its declared return type (CCR-QD-046)<br>1.1 (2026-08-22): `requiresPermission`'s type-preservation claim corrected — it does not survive a reusable generic wrapper; the shipped signature returns the widened `HttpApiEndpoint.Top` instead (CCR-QD-045)<br>1.0 (2026-08-22): Initial release (CCR-QD-042) |
 
 ---
 
@@ -215,6 +215,16 @@ inverts this library's fail-closed posture (`CurrentSubjectAnonymous`,
 `RelationshipResolverNever`, `AttributeResolverNone` all deny by default) by
 making the *absence* of a permission requirement mean "unguarded" rather than
 "guarded by whatever policy the endpoint's other layers already impose."
+
+> **And then it shipped, in revisions 1.0 through 1.2 (corrected in 1.3).**
+> `RequirePermissionLive` returned the endpoint's effect untouched when no
+> annotation was present, and a test asserted that as correct behaviour. The
+> rejection above was written, reviewed and merged; nothing checked that the code
+> agreed with it, because the package had no behaviour document to check against.
+> An unannotated endpoint now refuses with 500, and `publicEndpoint(reason)` is
+> the deliberate opt-out
+> ([INV-QD-034](../invariants.md#inv-qd-034-an-endpoints-authorization-is-declared-not-inferred),
+> [BEH-QD-174](../behaviors/23-http.md)).
 
 **Silent overwrite or automatic `allOf` composition on a duplicate
 `requiresPermission` call.** Overwrite risks a silent security narrowing — a

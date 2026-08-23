@@ -1061,3 +1061,42 @@ is correct.
 **Related**: [BEH-QD-168](behaviors/21-decision-cache.md), [INV-QD-030](#inv-qd-030-cache-key-uniqueness), [ADR-QD-043](decisions/043-a-decision-is-computed-from-its-inputs.md), [ADR-QD-031](decisions/031-decision-cache.md).
 
 ---
+
+## INV-QD-034: An endpoint's authorization is declared, not inferred
+
+An HTTP endpoint that declares neither a permission requirement nor an explicit
+public marker is refused.
+
+**Source**: `packages/http/src/RequirePermission.ts` — `RequirePermissionLive`
+serves an endpoint only when it carries `RequiredPermission` (enforce) or
+`PublicEndpoint` (pass through). Neither is a 500, logged with the endpoint's
+identifier.
+
+**Implication**: the reverse shipped, and
+[ADR-QD-036](decisions/036-qadi-http-package-shape.md) had **already rejected
+it by name** — "annotate-and-forget, where an unannotated route silently passes
+through enforcement … Rejected: it inverts this library's fail-closed posture …
+by making the *absence* of a permission requirement mean 'unguarded'". The code
+implemented the rejected alternative, and a test asserted it was correct. Adding
+an endpoint to a guarded group and forgetting one annotation published it, with
+no signal at build time, layer-build time, or request time.
+
+This is the only invariant in this document whose violation was **written down
+as a rejected design before it was built**. The package had no behaviour
+document ([23 — HTTP Enforcement](behaviors/23-http.md) was written after the
+audit that found this), so nothing normative sat between the ADR's prose and the
+code, and nothing checked that they agreed.
+
+500 rather than 403 is part of the invariant. A missing declaration is a wiring
+mistake in the service, and reporting it as a permissions decision sends an
+operator to audit the wrong system — the same reasoning that puts `MissingAction`
+and `MissingResource` in the 500 group
+([BEH-QD-177](behaviors/23-http.md)).
+
+**Enforcement**: `packages/http/test/http.test.ts` serves an endpoint declaring
+neither and asserts 500, beside one declared public asserting 204 — so the fix
+cannot pass by refusing everything.
+
+**Related**: [BEH-QD-174](behaviors/23-http.md), [ADR-QD-036](decisions/036-qadi-http-package-shape.md), [INV-QD-007](#inv-qd-007-defaults-fail-closed).
+
+---

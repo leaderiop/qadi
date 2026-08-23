@@ -248,6 +248,7 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `requiresPermission`, `AnnotatedEndpoint` | function + type | `RequirePermission.ts` |
 | `RequiredPermission`, `PermissionRequirement` | service + type | `RequirePermission.ts` |
 | `RequirePermission`, `RequirePermissionLive` | middleware + layer | `RequirePermission.ts` |
+| `PublicEndpoint`, `publicEndpoint`, `PublicDeclaration` | service + function + type | `RequirePermission.ts` |
 | `guardRoute` | function | `GuardRoute.ts` |
 | `addGuardedRoute` | function | `PermissionRegistry.ts` |
 | `PermissionRegistry`, `PermissionRegistryLive` | service + layer | `PermissionRegistry.ts` |
@@ -256,6 +257,7 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `ENFORCEMENT_ERROR_TAGS`, `toResponse` | const + function | `QadiHttpError.ts` |
 | `SubjectExtractor`, `subjectExtractorBearer` | service + layer | `SubjectExtractor.ts` |
 | `SubjectExtractorShape` | type | `SubjectExtractor.ts` |
+| `SubjectExtractionFailed` | error | `SubjectExtractor.ts` |
 
 Two framework adapters over one enforcement path — `RequirePermission` for
 `effect/unstable/httpapi`'s declarative `HttpApi`, `guardRoute`/

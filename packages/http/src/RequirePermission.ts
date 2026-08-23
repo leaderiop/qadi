@@ -14,6 +14,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as HttpApiMiddleware from "effect/unstable/httpapi/HttpApiMiddleware";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import type {
   AttributeResolver,
   DecisionHistory,
@@ -35,6 +36,37 @@ export interface PermissionRequirement {
 export class RequiredPermission extends Context.Service<RequiredPermission, PermissionRequirement>()(
   "qadi/http/RequiredPermission",
 ) {}
+
+/** Why an endpoint is reachable without authorization. */
+export interface PublicDeclaration {
+  readonly reason: string;
+}
+
+export class PublicEndpoint extends Context.Service<PublicEndpoint, PublicDeclaration>()(
+  "qadi/http/PublicEndpoint",
+) {}
+
+/**
+ * Declares an endpoint deliberately reachable without authorization.
+ *
+ * ```ts
+ * HttpApiEndpoint.get("health", "/health").pipe((e) =>
+ *   e.annotate(PublicEndpoint, publicEndpoint("liveness probe, no subject exists yet")),
+ * )
+ * ```
+ *
+ * The `reason` is required and unused by the middleware, which is the point: it
+ * is read by whoever reviews the endpoint later, and a field that must be filled
+ * in is a decision someone made rather than one they defaulted into.
+ *
+ * This exists because the absence of a requirement used to mean "unguarded".
+ * ADR-QD-036 rejected precisely that — "it inverts this library's fail-closed
+ * posture ... by making the *absence* of a permission requirement mean
+ * 'unguarded'" — and the code shipped the rejected alternative anyway, with a
+ * test pinning it as correct. An unannotated endpoint now refuses; being public
+ * has to be said out loud.
+ */
+export const publicEndpoint = (reason: string): PublicDeclaration => ({ reason });
 
 /**
  * The resource `RequirePermission` checks against: an empty one. This
@@ -145,7 +177,21 @@ export const RequirePermissionLive: Layer.Layer<RequirePermission, never, Subjec
 
     return (httpEffect, { endpoint }) => {
       const required = Context.getOption(endpoint.annotations, RequiredPermission);
-      if (Option.isNone(required)) return httpEffect;
+      if (Option.isNone(required)) {
+        // Absence is refusal, not permission. An endpoint reachable without
+        // authorization says so with `publicEndpoint`; one that says nothing is
+        // a wiring mistake, and a wiring mistake on an authorization path must
+        // not resolve to "allowed" (ADR-QD-036, INV-QD-034).
+        if (Option.isSome(Context.getOption(endpoint.annotations, PublicEndpoint))) {
+          return httpEffect;
+        }
+        return Effect.logError(
+          `qadi/http: endpoint "${endpoint.identifier}" declares neither a permission ` +
+            "requirement nor `publicEndpoint(...)`, so it is refused. Annotate it with " +
+            "RequiredPermission, or with PublicEndpoint if it is meant to be reachable " +
+            "without authorization.",
+        ).pipe(Effect.as(HttpServerResponse.empty({ status: 500 })));
+      }
 
       const { permission, policy } = required.value;
 
@@ -155,7 +201,16 @@ export const RequirePermissionLive: Layer.Layer<RequirePermission, never, Subjec
         return yield* guard(permission, policy)(NO_RESOURCE, () => httpEffect).pipe(
           Effect.provide(currentSubjectLayer(subject)),
         );
-      }).pipe(Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))));
+      }).pipe(
+        Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))),
+        // A credential store that broke is an outage, not a denial — 502, the
+        // same status a broken AttributeResolver gets (INV-QD-006).
+        Effect.catchTag("SubjectExtractionFailed", (error) =>
+          Effect.logError(`qadi/http: subject extraction failed — ${error.reason}`).pipe(
+            Effect.as(HttpServerResponse.empty({ status: 502 })),
+          ),
+        ),
+      );
     };
   }),
 );

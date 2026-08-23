@@ -39,10 +39,13 @@ import {
   ENFORCEMENT_ERROR_TAGS,
   PermissionRegistryLive,
   PermissionRegistryRoute,
+  PublicEndpoint,
   RequiredPermission,
   RequirePermission,
   RequirePermissionLive,
+  SubjectExtractionFailed,
   addGuardedRoute,
+  publicEndpoint,
   registerApi,
   requiresPermission,
   subjectExtractorBearer,
@@ -74,16 +77,24 @@ const DocumentsGroup = HttpApiGroup.make("documents").add(
       requiresPermission(endpoint, { permission: readPermission, policy: readPolicy }),
     ),
   ),
-  // Deliberately unannotated — a public endpoint needing no permission,
-  // exercising `RequirePermissionLive`'s pass-through and `registerApi`'s
-  // skip-when-absent path, per issue 13's worked example.
-  HttpApiEndpoint.get("list", "/documents/public"),
+  // Declared public, which is now something you have to say. It exercises
+  // `RequirePermissionLive`'s pass-through and `registerApi`'s
+  // skip-when-absent path.
+  HttpApiEndpoint.get("list", "/documents/public").pipe((endpoint) =>
+    endpoint.annotate(PublicEndpoint, publicEndpoint("the public document index")),
+  ),
+  // Annotated with NEITHER, which is the wiring mistake that used to serve the
+  // endpoint unguarded.
+  HttpApiEndpoint.get("forgotten", "/documents/forgotten"),
 );
 
 const Api = HttpApi.make("test").add(DocumentsGroup).middleware(RequirePermission);
 
 const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
-  handlers.handle("read", () => Effect.void).handle("list", () => Effect.void),
+  handlers
+    .handle("read", () => Effect.void)
+    .handle("list", () => Effect.void)
+    .handle("forgotten", () => Effect.void),
 );
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
@@ -169,11 +180,27 @@ describe("@qadi/http", () => {
       assert.strictEqual(response.status, 204);
     }));
 
-  it.effect("an endpoint with no permission requirement passes through unenforced", () =>
+  it.effect("an endpoint DECLARED public passes through unenforced", () =>
     Effect.gen(function* () {
       const { handler } = HttpRouter.toWebHandler(AppLayer);
       const response = yield* Effect.promise(() => handler(new Request("http://localhost/documents/public")));
       assert.strictEqual(response.status, 204);
+    }));
+
+  it.effect("AN ENDPOINT DECLARING NEITHER IS REFUSED, not served", () =>
+    Effect.gen(function* () {
+      // This used to be a 204. ADR-QD-036 rejected "annotate-and-forget" in as
+      // many words — "it inverts this library's fail-closed posture ... by
+      // making the *absence* of a permission requirement mean 'unguarded'" —
+      // and the code shipped it anyway, with a test asserting it was correct.
+      // Absence is now refusal; being public has to be said out loud.
+      const { handler } = HttpRouter.toWebHandler(AppLayer);
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/documents/forgotten", { headers: bearer(ALICE_TOKEN) })),
+      );
+      // 500, not 403: this is a wiring mistake in the service, and reporting it
+      // as a permissions problem would send someone to audit the wrong thing.
+      assert.strictEqual(response.status, 500);
     }));
 
   it.effect("a denied request never reaches the handler, and gets 403", () =>
@@ -240,6 +267,62 @@ describe("@qadi/http", () => {
       // One evaluation for addGuardedRoute's own guard call, then a cache hit
       // for the handler's re-check — not a second full evaluation.
       assert.deepStrictEqual(attributeResolverCalls, ["alice:clearance"]);
+    }));
+
+  it.effect("A CREDENTIAL STORE OUTAGE IS 502, NOT 403", () =>
+    Effect.gen(function* () {
+      // INV-QD-006 at the boundary that had no way to express it. `extract`
+      // returned `Effect<AuthSubject>` with a `never` error channel, so an
+      // implementor could only `Effect.die` — escaping the middleware's
+      // catchTag entirely, and turning an authorization path into a defect —
+      // or degrade to `anonymous`, which renders an outage as a denial and
+      // sends an operator to audit permissions during an incident.
+      const brokenStore = subjectExtractorBearer(() =>
+        Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
+      );
+      const app = WithRegistry.pipe(
+        Layer.provideMerge(brokenStore),
+        Layer.provideMerge(EvaluationServicesTest),
+        Layer.provideMerge(decisionCacheLayer()),
+        Layer.provideMerge(HttpServer.layerServices),
+      );
+      const { handler } = HttpRouter.toWebHandler(app);
+
+      // Through the HttpApi middleware...
+      const viaMiddleware = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/documents", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(viaMiddleware.status, 502);
+
+      // ...and through the bare-router adapter, which declares a `never` error
+      // channel and so had to grow the same arm.
+      const viaRoute = yield* Effect.promise(() =>
+        handler(
+          new Request("http://localhost/documents/write", {
+            method: "POST",
+            headers: bearer(ALICE_TOKEN),
+          }),
+        ),
+      );
+      assert.strictEqual(viaRoute.status, 502);
+    }));
+
+  it.effect("a lowercase bearer scheme is a credential, not an anonymous request", () =>
+    Effect.gen(function* () {
+      // RFC 7235 §2.1 makes auth-scheme a case-insensitive token. The prefix
+      // was compared with `startsWith("Bearer ")`, so a legal `bearer …` had
+      // its credential silently discarded and was served as anonymous — which
+      // denied, so it looked like a permissions problem rather than a parsing
+      // one.
+      const { handler } = HttpRouter.toWebHandler(AppLayer);
+      const response = yield* Effect.promise(() =>
+        handler(
+          new Request("http://localhost/documents", {
+            headers: { authorization: `bearer ${ALICE_TOKEN}` },
+          }),
+        ),
+      );
+      assert.strictEqual(response.status, 204);
     }));
 
   it("requiresPermission throws at construction time on a duplicate requirement", () => {
