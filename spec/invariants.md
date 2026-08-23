@@ -1100,3 +1100,70 @@ cannot pass by refusing everything.
 **Related**: [BEH-QD-174](behaviors/23-http.md), [ADR-QD-036](decisions/036-qadi-http-package-shape.md), [INV-QD-007](#inv-qd-007-defaults-fail-closed).
 
 ---
+
+## INV-QD-035: A sink cannot change a decision
+
+An observer of an evaluation cannot alter its outcome. Neither a `DecisionSink`
+that fails nor one that raises a defect may change the verdict, the trace, or the
+error the caller receives.
+
+**Source**: `packages/core/src/DecisionSink.ts` — `record` returns
+`Effect<void>`, a `never` error channel. `packages/core/src/Evaluate.ts` — the
+call site wraps it in `Effect.catchCause`, so a defect is swallowed too.
+
+**Implication**: enforced twice, because the type closes only part of the gap.
+It closes more than expected — `Effect.fail` is not assignable to
+`Effect<void>`, so a sink that *reports* failure cannot be written at all — but
+a **defect** still is, both as `Effect.die` and as any body that throws inside
+`Effect.sync`. That is exactly the subversion
+[BEH-QD-175](behaviors/23-http.md) recorded on
+`SubjectExtractorShape.extract`, where a `never` channel drove implementors to
+`Effect.die` instead. The difference is direction, and it is why `never` is right
+here and wrong there: an extractor that cannot reach its store *must* change the
+answer; a sink must never be able to.
+
+The `catchCause` at the call site is the **inverse** of the `Effect.orDie` that
+[AGENTS.md §4](../AGENTS.md) forbids on evaluation paths, not an instance of it.
+`orDie` turns a failure into a defect; this stops a bystander's defect from
+becoming an authorization outcome. An observer must never be able to deny.
+
+**Enforcement**: `packages/core/test/DecisionSink.test.ts` runs a **throwing**
+sink and a **dying** sink against a no-sink baseline and asserts the trace is
+identical, and asserts that a sink dying on the *failure* path leaves the
+original `EvaluationError` intact rather than replacing it.
+`packages/core/test/DecisionSink.tst.ts` pins the half the type carries: a
+failing sink is not assignable, a dying one is.
+
+**Related**: [BEH-QD-182](behaviors/24-decision-sink.md), [ADR-QD-044](decisions/044-an-optional-decision-sink.md), [INV-QD-006](#inv-qd-006-failure-is-not-denial).
+
+---
+
+## INV-QD-036: A decision record is complete
+
+A record identifies the policy, resource, action and start time of the
+evaluation it describes. No consumer needs a side channel to interpret one.
+
+**Source**: `packages/core/src/DecisionRecord.ts` — `DecisionRecord` carries
+`policy`, `resource`, `action`, `at` and `evaluationId` beside the outcome.
+
+**Implication**: a `Decision` alone cannot be interpreted, and the most damaging
+gap was the policy. `explain` takes a `Policy`; a `Decision` carries
+`trace.policyTag`, a string — so **the explanation of a denial was unreachable
+from the denial**, which is the failure this library was rewritten to fix. The
+action and resource were `EvaluateOptions` inputs consumed and dropped, so the
+question asked could not be reconstructed; the start time was read from `Clock`,
+used for one subtraction, and discarded, so records could not be ordered.
+
+`at` comes from `Clock`, never `Date.now()`, so a record is reproducible under
+`TestClock` ([ADR-QD-012](decisions/012-deterministic-time-and-ids.md)).
+
+A record deliberately carries **no environment**. Core cannot know whether it
+runs in a browser, on a server, or at an edge; the sink implementation stamps it.
+A field the evaluator would have to guess at is a field that is wrong somewhere.
+
+**Enforcement**: `packages/core/test/DecisionSink.test.ts` asserts a record's
+policy round-trips through `explain`/`renderExplanation` to the same rendering as
+the original, and asserts `at` is the `TestClock` start time across two ordered
+evaluations.
+
+**Related**: [BEH-QD-181](behaviors/24-decision-sink.md), [BEH-QD-183](behaviors/24-decision-sink.md), [ADR-QD-044](decisions/044-an-optional-decision-sink.md).

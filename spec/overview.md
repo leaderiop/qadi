@@ -175,6 +175,8 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `DecisionHistory`, `DecisionHistoryUnknown`, `decisionHistoryFromEvents` | service + layer | `DecisionHistory.ts` |
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |
+| `DecisionSink` | service | `DecisionSink.ts` |
+| `decisionSinkRing`, `DEFAULT_RING_CAPACITY` | layer factory + constant | `DecisionSinkRing.ts` |
 | `AttributeResolverShape`, `RelationshipResolverShape`, `RelationshipCheck` | type | resolver modules |
 | `RelatedResult`, `RelationshipEdgeInput` | type | `RelationshipResolver.ts` |
 | `RelationshipEdge` | value class | `RelationshipResolver.ts` |
@@ -182,8 +184,10 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `ActedEventInput`, `ActedAnywhereInput` | type | `DecisionHistory.ts` |
 | `ActedEvent`, `ActedAnywhere` | value class | `DecisionHistory.ts` |
 | `EvaluationIdShape`, `DecisionCacheShape`, `DecisionCacheKey` | type | service modules |
+| `DecisionSinkShape`, `DecisionRecord`, `DecisionOutcome`, `StoredRecord` | type | sink modules |
+| `Decided`, `Failed` | value class | `DecisionRecord.ts` |
 
-**Six services, and only five are required.** `DecisionHistory` was the one added
+**Seven services, and only five are required.** `DecisionHistory` was the one added
 after the initial release, and the one whose default had to be **three-valued** — see
 [BEH-QD-042](behaviors/06-services.md) and
 [INV-QD-014](invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities).
@@ -193,6 +197,12 @@ after the initial release, and the one whose default had to be **three-valued** 
 never provides it is unaffected ([ADR-QD-031](decisions/031-decision-cache.md)). That
 is also why it was missed — it is a service that does not appear in the type every
 other service appears in.
+
+`DecisionSink` is the seventh and is optional on the same terms
+([ADR-QD-044](decisions/044-an-optional-decision-sink.md)). It is the only
+**write-only** port: `evaluate` hands it every completed evaluation and reads
+nothing back, and whatever happens to it — a failure or a defect — cannot change
+the decision ([INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)).
 
 ### Errors
 

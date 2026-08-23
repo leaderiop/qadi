@@ -71,3 +71,6 @@ entries:
   - id: "BEH-QD-174"
     file: "23-http.md"
     title: "23 — HTTP Enforcement"
+  - id: "BEH-QD-181"
+    file: "24-decision-sink.md"
+    title: "24 — The Decision Sink"

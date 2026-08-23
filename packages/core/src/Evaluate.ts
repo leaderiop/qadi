@@ -23,6 +23,9 @@ import type { DecisionCacheKey } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
+import type { DecisionRecord } from "./DecisionRecord.ts";
+import { Decided, Failed } from "./DecisionRecord.ts";
+import { DecisionSink } from "./DecisionSink.ts";
 import type { EvaluationError } from "./Errors.ts";
 import {
   MissingAction,
@@ -98,6 +101,23 @@ const evaluationDurationMillis = Metric.histogram("qadi_evaluation_duration_mill
   boundaries: Metric.exponentialBoundaries({ start: 1, factor: 2, count: 15 }),
 });
 
+/**
+ * Evaluations that raised instead of deciding, by error tag.
+ *
+ * An `EvaluationError` reached **no** observer before this: it left through the
+ * error channel with no span attribute, no metric and no log. So a deployment
+ * watching `qadi_decisions_total` saw an attribute-store outage as a *drop in
+ * traffic* rather than as a fault — the one reading that sends an operator
+ * somewhere other than the broken dependency.
+ *
+ * Keyed on `_tag` for the cardinality reason `denialsByPolicyTagTotal` gives:
+ * the tag union is closed and small, while the errors themselves carry
+ * caller-supplied identifiers.
+ */
+const evaluationErrorsTotal = Metric.frequency("qadi_evaluation_errors_total", {
+  description: "Evaluations that failed instead of deciding, keyed by error tag.",
+});
+
 export interface EvaluateOptions {
   /** The resource under consideration, if any. */
   readonly resource?: Resource;
@@ -128,6 +148,26 @@ export interface EvaluateOptions {
    * the decisive one ([ADR-QD-026](../../../spec/decisions/026-concurrent-evaluation.md)).
    */
   readonly concurrency?: Concurrency;
+  /**
+   * Correlate this evaluation with one already made elsewhere.
+   *
+   * Absent — the default, and unchanged — every call mints a fresh id, hit or
+   * miss, for the reason stated where the cache is read below: two log lines
+   * claiming to be the same event would break the one thing the identifier
+   * exists for.
+   *
+   * That default is right for a *repeat* of a question and wrong for a
+   * *continuation* of one. A decision made on the server, dehydrated, and
+   * re-checked on the client is one story told in two places; with a fresh id
+   * at each end there is nothing to join them by, and the re-check appears as
+   * an unrelated evaluation. Supplying the server's id makes the pair
+   * expressible without any new correlation protocol.
+   *
+   * Opt-in, so it can only ever be a caller stating a relationship it knows
+   * about. Qadi cannot infer one — see
+   * [ADR-QD-012](../../../spec/decisions/012-deterministic-time-and-ids.md).
+   */
+  readonly evaluationId?: string;
 }
 
 /**
@@ -804,13 +844,41 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   options?: EvaluateOptions,
 ) {
   const subject = yield* CurrentSubject;
-  const evaluationId = yield* EvaluationId.next;
+  // A caller-supplied id names a continuation of an evaluation made elsewhere;
+  // its absence — the default — mints a fresh one. `EvaluationId.next` is still
+  // read either way rather than skipped, so which branch runs cannot change how
+  // many ids a sequential generator has issued, and a test's expectations do not
+  // depend on whether some *other* call happened to correlate.
+  const mintedId = yield* EvaluationId.next;
+  const evaluationId = options?.evaluationId ?? mintedId;
   const startedAt = yield* Clock.currentTimeMillis;
 
   // Optional by construction: `serviceOption` adds nothing to the requirements, so
   // `EvaluationServices` is unchanged and an application that never provides a cache
   // behaves exactly as it did (ADR-QD-031).
   const cache = yield* Effect.serviceOption(DecisionCache);
+  // The same construction, for the same reason, and deliberately not a new kind
+  // of dependency: ADR-QD-009 deleted four always-on observability ports, and an
+  // optional one that is absent unless wired is not a return to them.
+  const sink = yield* Effect.serviceOption(DecisionSink);
+
+  /**
+   * Hands one record to the sink, if there is one, and swallows everything.
+   *
+   * `catchCause` rather than `catchAll` because the shape's `never` error
+   * channel is not on its own enough — BEH-QD-175 recorded exactly how that gets
+   * subverted, by `Effect.die`, and a dying sink would otherwise take the
+   * decision with it.
+   *
+   * This is the inverse of the `Effect.orDie` AGENTS.md §4 forbids on this path,
+   * not an instance of it: that turns a failure into a defect, this stops a
+   * *bystander's* defect from becoming an authorization outcome. An observer
+   * must never be able to deny.
+   */
+  const emit = (record: DecisionRecord): Effect.Effect<void> =>
+    Option.isSome(sink)
+      ? Effect.catchCause(sink.value.record(record), () => Effect.void)
+      : Effect.void;
   const cacheKey: DecisionCacheKey = {
     // The whole subject, not `subject.id`: two tokens for one user carry the
     // same id and different grants, and the id-only key served the first
@@ -855,9 +923,34 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   // run — including sharing a genuine failure with every waiter — rather than
   // each racing its own (ADR-QD-031's follow-up: absence is still free, since
   // this is still read through `serviceOption`).
-  const trace = Option.isSome(cache)
-    ? yield* cache.value.getOrCompute(cacheKey, compute)
-    : yield* compute;
+  //
+  // `tapError`, so a failure is recorded and then propagates **unchanged**. This
+  // is the only place an `EvaluationError` was ever observable from, and it was
+  // not observable at all: no span attribute, no metric, no log. A consumer that
+  // cannot see failures reports a broken attribute store as an absence of
+  // traffic, or — worse, if it infers one — as a denial, which is the exact
+  // confusion INV-QD-006 exists to prevent.
+  const trace = yield* (
+    Option.isSome(cache) ? cache.value.getOrCompute(cacheKey, compute) : compute
+  ).pipe(
+    Effect.tapError((error) =>
+      Effect.gen(function* () {
+        yield* Metric.update(evaluationErrorsTotal, error._tag);
+        yield* Effect.annotateCurrentSpan({
+          "qadi.outcome": "Failed",
+          "qadi.error_tag": error._tag,
+        });
+        yield* emit({
+          evaluationId,
+          at: startedAt,
+          policy,
+          resource: options?.resource,
+          action: options?.action,
+          outcome: new Failed({ error }),
+        });
+      }),
+    ),
+  );
 
   const durationMillis = (yield* Clock.currentTimeMillis) - startedAt;
 
@@ -907,6 +1000,18 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
       }),
     );
   }
+
+  // Last, after every other emission, so a sink cannot observe a decision the
+  // metrics and span have not yet recorded — and so that nothing below it could
+  // be skipped were the sink to misbehave.
+  yield* emit({
+    evaluationId,
+    at: startedAt,
+    policy,
+    resource: options?.resource,
+    action: options?.action,
+    outcome: new Decided({ decision }),
+  });
 
   return decision;
 });
