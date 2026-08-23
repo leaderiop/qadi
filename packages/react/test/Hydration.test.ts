@@ -125,6 +125,75 @@ describe("dehydrateDecisions", () => {
     expect(payload.entries).toHaveLength(1);
   });
 
+  it("SAYS WHAT IT DROPPED, rather than shipping a short payload in silence", () => {
+    // The drop is correct (BEH-QD-146); the silence was not. A server that
+    // accidentally mixes subjects shipped one row where it meant to ship a
+    // thousand and saw nothing — the last quiet failure left in hydration.
+    const dropped: Array<ReadonlyArray<unknown>> = [];
+    const payload = dehydrateDecisions(
+      [
+        { policy: canRead, decision: serverAllow("u1") },
+        { policy: isAdmin, decision: serverDeny("u2") },
+        { policy: canRead, decision: serverAllow("u3") },
+      ],
+      { onDropped: (d) => dropped.push(d) },
+    );
+
+    expect(payload.entries).toHaveLength(1);
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0]).toHaveLength(2);
+  });
+
+  it("says nothing when nothing was dropped", () => {
+    const dropped: Array<ReadonlyArray<unknown>> = [];
+    dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }], {
+      onDropped: (d) => dropped.push(d),
+    });
+    expect(dropped).toEqual([]);
+  });
+
+  it("warns on the console when no reporter is supplied", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      dehydrateDecisions([
+        { policy: canRead, decision: serverAllow("u1") },
+        { policy: isAdmin, decision: serverDeny("u2") },
+      ]);
+      expect(warn).toHaveBeenCalledTimes(1);
+      const message = String(warn.mock.calls[0]?.[0]);
+      expect(message).toContain("dropped 1 decision(s)");
+      // NAMES NO SUBJECT AND NO POLICY. A dropped decision belongs to another
+      // user, so printing it would be the disclosure the drop exists to prevent.
+      expect(message).not.toContain("u2");
+      expect(message).not.toContain("admin");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("says nothing in a production build unless a reporter was supplied", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const mixed = [
+        { policy: canRead, decision: serverAllow("u1") },
+        { policy: isAdmin, decision: serverDeny("u2") },
+      ];
+      dehydrateDecisions(mixed);
+      expect(warn).not.toHaveBeenCalled();
+
+      // But an explicit reporter still runs — a payload mixing subjects is a
+      // server-side bug worth alerting on in production.
+      const dropped: Array<ReadonlyArray<unknown>> = [];
+      dehydrateDecisions(mixed, { onDropped: (d) => dropped.push(d) });
+      expect(dropped).toHaveLength(1);
+    } finally {
+      process.env.NODE_ENV = previous;
+      warn.mockRestore();
+    }
+  });
+
   it("an empty entry list yields an empty payload, not a crash", () => {
     // `entries[0]?.decision.subjectId ?? ""` — a server that evaluated nothing is
     // an ordinary case (a page with no guarded controls), not an error.

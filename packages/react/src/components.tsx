@@ -1,3 +1,4 @@
+"use client";
 /**
  * Declarative guards.
  *

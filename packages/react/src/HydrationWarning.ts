@@ -52,7 +52,7 @@ export const isMismatch = (seeded: Decision, decided: Decision): boolean =>
  * `typeof` guard is what keeps unbundled ESM from throwing `ReferenceError` in
  * a browser, where `process` does not exist at all.
  */
-const isDevelopment = (): boolean =>
+export const isDevelopment = (): boolean =>
   typeof process !== "undefined" && process.env.NODE_ENV !== "production";
 
 const verdict = (decision: Decision): string =>
@@ -87,3 +87,35 @@ export const hydrationMismatchReporter = (
   supplied: HydrationMismatchReporter | undefined,
 ): HydrationMismatchReporter | undefined =>
   supplied ?? (isDevelopment() ? warnMismatch : undefined);
+
+/**
+ * Told which entries a payload discarded.
+ *
+ * Generic in the element, so this module needs no import from `Hydration.ts` —
+ * which would be a cycle, and a needless one: nothing here reads an entry. The
+ * default reporter counts them and says nothing about their contents, because a
+ * dropped decision belongs to *another subject* and printing it would be the
+ * disclosure the drop exists to prevent.
+ */
+export type DroppedEntriesReporter<A> = (dropped: ReadonlyArray<A>) => void;
+
+const warnDropped = (dropped: ReadonlyArray<unknown>): void => {
+  console.warn(
+    `[qadi] dehydrateDecisions dropped ${dropped.length} decision(s) belonging to a ` +
+      `different subject than the payload's. A payload mixing subjects has no safe ` +
+      `reading, so the others were discarded — check what fed this call.`,
+  );
+};
+
+/**
+ * The reporter `dehydrateDecisions` will use, or `undefined` for none.
+ *
+ * The sibling of {@link hydrationMismatchReporter}, deliberately the same shape:
+ * a development-mode warning by default, replaced outright by a supplied
+ * callback, which then runs in production too. A payload mixing subjects is a
+ * cache-key bug on the server, and worth alerting on rather than only logging.
+ */
+export const droppedEntriesReporter = <A,>(
+  supplied: DroppedEntriesReporter<A> | undefined,
+): DroppedEntriesReporter<A> | undefined =>
+  supplied ?? (isDevelopment() ? warnDropped : undefined);

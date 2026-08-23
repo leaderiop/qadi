@@ -29,7 +29,28 @@ import type { SubjectId } from "./Identity.ts";
 import type { Policy } from "./Policy.ts";
 import type { RelationshipResolver } from "./RelationshipResolver.ts";
 
-/** Everything that can change an answer. */
+/**
+ * The question a cached decision answers — everything that can change an answer.
+ *
+ * **The subject is in it, and that is a security boundary.** A cache keyed on the
+ * policy alone would serve one subject's allow to another — the same class of
+ * defect as an unbound hydration payload, and worth stating twice: a decision is
+ * *about* a subject, so any structure holding decisions holds the subject too.
+ *
+ * Used as a `HashMap` key **directly**, with no serialization step
+ * ([INV-QD-030](../../../spec/invariants.md#inv-qd-030-cache-key-uniqueness)).
+ * Effect's `Equal`/`Hash` compare plain objects structurally, nested included —
+ * the same property `Atom.family` relies on in `@qadi/react` — so two equal
+ * questions hit however their properties were ordered, and two different ones
+ * cannot collide.
+ *
+ * The predecessor of this was `JSON.stringify`, whose own doc comment claimed
+ * property-order misses were the price of having "no chance of colliding". It
+ * had that backwards. `stringify` maps a `Date` onto its ISO string, drops
+ * `undefined`-valued and function-valued properties, and renders `NaN` as
+ * `null` — so `{d: new Date(0)}` and `{d: "1970-01-01T00:00:00.000Z"}` produced
+ * one key for two questions, and the second caller received the first's verdict.
+ */
 export interface DecisionCacheKey {
   readonly subjectId: SubjectId;
   readonly policy: Policy;
@@ -80,22 +101,6 @@ export class DecisionCache extends Context.Service<
   DecisionCache,
   DecisionCacheShape
 >()("qadi/DecisionCache") {}
-
-/**
- * Builds the cache key.
- *
- * **The subject is in the key, and that is a security boundary.** A cache keyed on
- * the policy alone would serve one subject's allow to another — the same class of
- * defect as an unbound hydration payload, and worth stating twice: a decision is
- * *about* a subject, so any structure holding decisions holds the subject too.
- *
- * Stringifying means two structurally equal resources with different property order
- * **miss** rather than hit. That is the safe direction — a miss costs an evaluation,
- * a wrong hit costs an authorization — and it is left as it is rather than optimised
- * into something with a chance of colliding.
- */
-const keyOf = (key: DecisionCacheKey): string =>
-  JSON.stringify([key.subjectId, key.policy, key.resource ?? null, key.action ?? null]);
 
 /**
  * Every `getOrCompute` lookup, by which of the cache's three documented paths
@@ -188,7 +193,7 @@ export const decisionCacheLayer = (options?: {
         );
       }
 
-      let entries = HashMap.empty<string, Trace>();
+      let entries = HashMap.empty<DecisionCacheKey, Trace>();
       // Keys with a `compute` currently running, so a second concurrent ask for
       // the same question awaits the first's result instead of starting its own.
       //
@@ -197,7 +202,7 @@ export const decisionCacheLayer = (options?: {
       // reorders fiber execution at `yield*` boundaries — never mid-callback —
       // so a direct reassignment inside `Effect.sync` is exactly as atomic as
       // `Ref.modify` would be here.
-      let inFlight = HashMap.empty<string, Deferred.Deferred<Trace, EvaluationError>>();
+      let inFlight = HashMap.empty<DecisionCacheKey, Deferred.Deferred<Trace, EvaluationError>>();
       // Parallel to `entries`, in insertion order, so a bounded cache knows what
       // to evict without walking `entries` itself — a `HashMap` has no order to
       // walk. Only ever grows where `entries` does, and only ever shrinks by
@@ -211,12 +216,11 @@ export const decisionCacheLayer = (options?: {
       // access pattern (push at the tail, drop from the head), so eviction under
       // sustained pressure stays proportional to how much was evicted, not to
       // how large the cache is.
-      let insertionOrder: Chunk.Chunk<string> = Chunk.empty();
+      let insertionOrder: Chunk.Chunk<DecisionCacheKey> = Chunk.empty();
 
       const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, compute) =>
         Effect.gen(function* () {
-          const k = keyOf(key);
-          const cached = HashMap.get(entries, k);
+          const cached = HashMap.get(entries, key);
           if (Option.isSome(cached)) {
             yield* Metric.update(cacheLookupsTotal, "hit");
             return cached.value;
@@ -236,10 +240,10 @@ export const decisionCacheLayer = (options?: {
           const claimed = yield* Effect.sync(():
             | { readonly owned: true; readonly claim: Deferred.Deferred<Trace, EvaluationError> }
             | { readonly owned: false; readonly claim: Deferred.Deferred<Trace, EvaluationError> } => {
-            const existing = HashMap.get(inFlight, k);
+            const existing = HashMap.get(inFlight, key);
             if (Option.isSome(existing)) return { owned: false, claim: existing.value };
             const claim = Deferred.makeUnsafe<Trace, EvaluationError>();
-            inFlight = HashMap.set(inFlight, k, claim);
+            inFlight = HashMap.set(inFlight, key, claim);
             return { owned: true, claim };
           });
 
@@ -272,14 +276,14 @@ export const decisionCacheLayer = (options?: {
             Effect.onExit((exit) =>
               Effect.sync(() => {
                 if (exit._tag === "Success") {
-                  entries = HashMap.set(entries, k, exit.value);
+                  entries = HashMap.set(entries, key, exit.value);
                   // Recorded, and evicted from, only when `capacity` was given —
                   // the unbounded default (the common case, per this file's own
                   // doc comment) has nothing that will ever read this array, so
                   // it stays empty rather than growing in lockstep with `entries`
                   // for the life of the cache.
                   if (options?.capacity === undefined) return;
-                  insertionOrder = Chunk.append(insertionOrder, k);
+                  insertionOrder = Chunk.append(insertionOrder, key);
                   // FIFO eviction: a `while` rather than an `if` because a caller
                   // who lowers `capacity` between two `decisionCacheLayer()`
                   // calls is not a case this loop should special-case to "evict
@@ -305,7 +309,7 @@ export const decisionCacheLayer = (options?: {
                 Effect.flatMap(() => Deferred.done(claim, exit)),
                 Effect.flatMap(() =>
                   Effect.sync(() => {
-                    inFlight = HashMap.remove(inFlight, k);
+                    inFlight = HashMap.remove(inFlight, key);
                   }),
                 ),
               ),

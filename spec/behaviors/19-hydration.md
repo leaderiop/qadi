@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-19                                    |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-08-23                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
+> | Change History | 1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
 
 _Previous: [18 — Policy Explanation](./18-explanation.md)_
 
@@ -77,6 +77,29 @@ REQUIREMENT: `hydrateDecisions` MUST drop any entry whose policy does not decode
 
 The payload is untrusted input on the client, so a malformed entry gets the same
 treatment as a mismatched subject.
+
+```
+REQUIREMENT: `dehydrateDecisions` MUST report what it dropped.
+```
+
+The drop is right; the silence was not. A server that accidentally mixes
+subjects — a cache key that lost its user, a batch assembled from two requests —
+shipped a payload of one row where it meant to ship a thousand, and saw nothing
+wrong with it. This was the last quiet failure left in hydration, the mismatch
+reporter having covered the other one
+([BEH-QD-152](#beh-qd-152-a-superseded-seed-is-announced)).
+
+`DehydrateOptions.onDropped` takes the same shape and for the same reasons: a
+development-mode `console.warn` by default, replaced outright by a supplied
+callback which then runs in production too, because a payload mixing subjects is
+a server-side bug worth alerting on rather than only logging.
+
+The default message **names no subject and no policy**, only a count. A dropped
+decision belongs to another user, so printing it would be precisely the
+disclosure the drop exists to prevent. A caller who supplies `onDropped` receives
+the entries and decides for themselves.
+
+It observes; it cannot change the outcome. The entries are dropped either way.
 
 ## BEH-QD-147: The trace is withheld by default
 

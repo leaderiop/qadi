@@ -222,10 +222,12 @@ describe("DecisionCache", () => {
       );
     }));
 
-  it.effect("a resource whose keys differ in order MISSES rather than hits wrongly", () =>
+  it.effect("a resource whose keys differ in order is the SAME question", () =>
     Effect.gen(function* () {
-      // Stringifying the key means property order matters. A miss costs an
-      // evaluation; a wrong hit costs an authorization. Documented, not optimised.
+      // It used to miss, and that was defended as the safe direction of a
+      // stringified key. The key is now the struct itself, compared with
+      // Effect's structural `Equal`/`Hash`, so property order is not a
+      // property of the question and this hits.
       const calls: Array<string> = [];
       yield* Effect.gen(function* () {
         yield* evaluate(needsLookup, { resource: { a: 1, b: 2 } });
@@ -235,7 +237,43 @@ describe("DecisionCache", () => {
         Effect.provide(decisionCacheLayer()),
       );
 
-      assert.strictEqual(calls.length, 2, "the reordered resource missed, as documented");
+      assert.strictEqual(calls.length, 1, "same question, one evaluation");
+    }));
+
+  it.effect("TWO DIFFERENT QUESTIONS NEVER SHARE A KEY", () =>
+    Effect.gen(function* () {
+      // The defect the reordering test's old comment claimed was impossible.
+      // `JSON.stringify` maps a Date onto its ISO string, so these two resources
+      // produced one key — and the second caller was handed the first's verdict.
+      // A collision serves one question's decision as another's answer, which is
+      // INV-QD-025 broken, not merely a cache inefficiency.
+      const calls: Array<string> = [];
+      yield* Effect.gen(function* () {
+        yield* evaluate(needsLookup, { resource: { d: new Date(0) } });
+        yield* evaluate(needsLookup, { resource: { d: "1970-01-01T00:00:00.000Z" } });
+      }).pipe(
+        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+        Effect.provide(decisionCacheLayer()),
+      );
+
+      assert.strictEqual(calls.length, 2, "a Date is not its ISO string");
+    }));
+
+  it.effect("an undefined-valued property is not an absent one", () =>
+    Effect.gen(function* () {
+      // The second stringify collision: `JSON.stringify` drops
+      // `undefined`-valued properties outright, so `{a: 1, b: undefined}` and
+      // `{a: 1}` produced one key.
+      const calls: Array<string> = [];
+      yield* Effect.gen(function* () {
+        yield* evaluate(needsLookup, { resource: { a: 1, b: undefined } });
+        yield* evaluate(needsLookup, { resource: { a: 1 } });
+      }).pipe(
+        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+        Effect.provide(decisionCacheLayer()),
+      );
+
+      assert.strictEqual(calls.length, 2, "an explicit undefined is part of the question");
     }));
 
   it.effect("size reports what is held, so a caller can measure its own hit rate", () =>

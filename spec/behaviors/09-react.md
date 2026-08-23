@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 2.3                                                          |
+> | Revision       | 2.4                                                          |
 > | Effective Date | 2026-08-23                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -125,6 +125,34 @@ REQUIREMENT: The subject MUST be seeded when the registry is constructed, not
 REQUIREMENT: Each provider MUST own its registry, and MUST NOT dispose it
              across React's development-mode double mount.
 ```
+
+### Server rendering
+
+```
+REQUIREMENT: Every module using React state MUST carry a `"use client"`
+             directive. `Hydration.ts` and the barrel MUST NOT.
+```
+
+`"use client"` marks a bundler boundary; it does **not** disable server
+rendering. A Client Component is still rendered to HTML on the first request and
+hydrated afterwards, which is exactly what these components must do.
+
+What a blanket directive would break is narrower and real: exports of a
+`"use client"` module become client references, so a Server Component could no
+longer **call** `dehydrateDecisions` — which exists to be called during server
+rendering. Per-file directives keep both halves working through one entry point,
+and a server module re-exporting from a client one is well-defined.
+
+```
+REQUIREMENT: `QadiProvider` and the guards MUST render under `renderToString`.
+```
+
+`useAtomValue` passes a `getServerSnapshot` — the third argument to
+`useSyncExternalStore`, without which React throws on the server. A policy that
+needs no resolver decides during the server pass; one that reaches a resolver
+cannot, however fast that resolver is, because `renderToString` is a single
+synchronous pass. The second case renders `pending`, and is precisely the gap a
+hydration seed covers ([BEH-QD-152](./19-hydration.md)).
 
 ## BEH-QD-068: Hooks and components
 

@@ -20,6 +20,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import type * as Atom from "effect/unstable/reactivity/Atom";
 import { hydrationSeedFor } from "./HydrationSeed.ts";
+import { droppedEntriesReporter } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 import type { InitialValues } from "./QadiProvider.tsx";
 
@@ -91,6 +92,19 @@ export interface DehydrateOptions {
    * failed, readable by anyone with developer tools and by any script on the page.
    */
   readonly includeTrace?: boolean;
+  /**
+   * Called with the entries discarded for belonging to another subject.
+   *
+   * Supplying this replaces the development-mode console warning and runs in
+   * production, exactly as `onHydrationMismatch` does — a payload mixing
+   * subjects means something upstream fed this call two users' decisions, which
+   * is a bug worth alerting on rather than only logging.
+   *
+   * It observes; it cannot change the outcome. The entries are dropped either
+   * way ([BEH-QD-146](../../../spec/behaviors/19-hydration.md)) — the only safe
+   * reading of a mixed payload is to trust none of it.
+   */
+  readonly onDropped?: (dropped: ReadonlyArray<DecisionEntry>) => void;
 }
 
 /**
@@ -107,10 +121,21 @@ export const dehydrateDecisions = (
   const subjectId = entries[0]?.decision.subjectId ?? "";
   const includeTrace = options?.includeTrace ?? false;
 
+  const kept = entries.filter((e) => e.decision.subjectId === subjectId);
+
+  // Said, not merely done. Dropping is correct and specified; doing it in
+  // silence is what let a server ship one row where it meant to ship a thousand
+  // and see nothing wrong. This was the last quiet failure left in hydration.
+  if (kept.length !== entries.length) {
+    const report = droppedEntriesReporter(options?.onDropped);
+    if (report !== undefined) {
+      report(entries.filter((e) => e.decision.subjectId !== subjectId));
+    }
+  }
+
   return {
     subjectId,
-    entries: entries
-      .filter((e) => e.decision.subjectId === subjectId)
+    entries: kept
       .map((e): DehydratedEntry => ({
         policy: encodePolicy(e.policy),
         resource: e.resource,

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.1                                             |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-08-23                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-032). 1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added. |
+> | Change History | 1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -146,6 +146,43 @@ Eviction is FIFO (insertion order), not least-recently-used: recording an
 access on every hit would cost every lookup something to buy a policy this
 cache has no stated need for. `capacity` is unset by default — every behaviour
 above this section holds unchanged when it is absent.
+
+## BEH-QD-167: Two different questions never share an entry
+
+> **Invariant:** [INV-QD-030](../invariants.md#inv-qd-030-cache-key-uniqueness)
+> **See:** [ADR-QD-042](../decisions/042-a-projection-is-not-an-identity.md)
+
+```
+REQUIREMENT: The key MUST identify the question structurally. Two distinct
+             `DecisionCacheKey` values MUST NOT resolve to one entry.
+```
+
+```
+REQUIREMENT: Two equal questions MUST hit regardless of the order their
+             properties were written in.
+```
+
+The key is the `DecisionCacheKey` itself, held in the `HashMap` with no
+serialization step. Effect's `Equal`/`Hash` compare plain objects structurally,
+nested included, so equality of keys is equality of questions and neither
+requirement above needs anything else to hold.
+
+This replaces a `JSON.stringify` key. The first requirement is the one that
+matters: `stringify` maps a `Date` onto its ISO string, drops
+`undefined`-valued and function-valued properties, and renders `NaN` as `null`,
+so `{d: new Date(0)}` and `{d: "1970-01-01T00:00:00.000Z"}` were **one entry for
+two questions** — and the second caller was handed the first's verdict.
+
+That is not a cache inefficiency. It breaks
+[BEH-QD-162](#beh-qd-162-the-trace-is-cached-never-the-decision)'s premise that
+what is cached answers *this* question, and it makes
+[INV-QD-025](../invariants.md#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity)
+false — a colliding hit differs from a miss in verdict, not only in speed and
+identity.
+
+The second requirement was previously a documented **miss**, defended as the
+safe direction of a stringified key. It is now a hit, and safely: the comparison
+is real structural equality rather than a serialization that happens to agree.
 
 ---
 

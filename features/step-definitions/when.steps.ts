@@ -628,6 +628,22 @@ When("the publishing policy is described", function (this: QadiWorld) {
   );
 });
 
+/**
+ * The two groupings that used to render identically.
+ *
+ * Not equivalent: the first admits a lone `admin`, the second requires `onCall`
+ * of everyone. Rendered without parentheses both read "either requires role
+ * admin or requires role editor and requires role onCall" — one sentence for two
+ * policies, which is what INV-QD-031 forbids.
+ */
+When("the {string} policy is described", function (this: QadiWorld, name: string) {
+  this.describe(
+    name === "admin-or-both"
+      ? anyOf([hasRole("admin"), allOf([hasRole("editor"), hasRole("onCall")])])
+      : allOf([anyOf([hasRole("admin"), hasRole("editor")]), hasRole("onCall")]),
+  );
+});
+
 When("an empty conjunction is described", function (this: QadiWorld) {
   this.describe(allOf([]));
 });

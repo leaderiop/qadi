@@ -243,8 +243,38 @@ const combiningText: (self: Combining) => string = (self) =>
   );
 
 /**
+ * Whether this node reads as one unit and so needs no parentheses as a child.
+ *
+ * A `Requirement` is a single clause. The three empty composites render fixed
+ * sentences — "always allows (an empty conjunction)" — that no following word
+ * can attach to. Everything else spans several clauses, and a reader has no way
+ * to see where it ends.
+ *
+ * Hoisted to module scope, per AGENTS.md §5a's preferred form: unlike the
+ * dispatchers inside {@link renderExplanation}, this one closes over nothing.
+ */
+const isAtomic: (self: Explanation) => boolean = Match.type<Explanation>().pipe(
+  Match.tagsExhaustive({
+    Requirement: () => true,
+    All: (e) => e.parts.length === 0,
+    Any: (e) => e.parts.length === 0,
+    Table: (e) => e.rows.length === 0,
+    Negated: () => false,
+    Named: () => false,
+    Owing: () => false,
+  }),
+);
+
+/**
  * One English rendering. Deliberately the only place in the library where prose
  * about a policy is assembled.
+ *
+ * **A rendering denotes exactly one policy** (INV-QD-031). Composite children
+ * are parenthesised, because joining them bare loses the tree: `anyOf([a,
+ * allOf([b, c])])` and `allOf([anyOf([a, b]), c])` produced a byte-identical
+ * sentence, and they are not the same policy — the first admits a lone `a` and
+ * the second does not. Prose a reviewer cannot map back to a policy is worse
+ * than no prose, which is the argument this library was built on.
  */
 export const renderExplanation = (
   explanation: Explanation,
@@ -266,19 +296,22 @@ export const renderExplanation = (
         All: (e) =>
           e.parts.length === 0
             ? "always allows (an empty conjunction)"
-            : e.parts.map(go).join(" and "),
+            : e.parts.map(embed).join(" and "),
 
+        // "either" opens a disjunction but nothing closes it, so a following
+        // " and …" reads as part of the last alternative rather than as a
+        // sibling of the whole. That is the collision this fixes.
         Any: (e) =>
           e.parts.length === 0
             ? "never allows (an empty disjunction)"
-            : `either ${e.parts.map(go).join(" or ")}`,
+            : `either ${e.parts.map(embed).join(" or ")}`,
 
-        Negated: (e) => `does not hold that ${go(e.part)}`,
+        Negated: (e) => `does not hold that ${embed(e.part)}`,
 
-        Named: (e) => `${go(e.part)} (${term(e.label)})`,
+        Named: (e) => `${embed(e.part)} (${term(e.label)})`,
 
         Owing: (e) =>
-          `${go(e.part)}, and owes ${term(e.obligation.id)}${
+          `${embed(e.part)}, and owes ${term(e.obligation.id)}${
             e.obligation.advisory ? " (advisory)" : ""
           }`,
 
@@ -286,10 +319,22 @@ export const renderExplanation = (
           e.rows.length === 0
             ? "never allows (an empty rule table)"
             : `a rule table where ${combiningText(e.combining)}: ${e.rows
-                .map((r, i) => `[${i}] ${r.effect.toLowerCase()} when ${go(r.condition)}`)
+                .map((r, i) => `[${i}] ${r.effect.toLowerCase()} when ${embed(r.condition)}`)
                 .join("; ")}`,
       }),
     );
 
+  /**
+   * A child, parenthesised unless it reads as one unit.
+   *
+   * Every position that embeds a child goes through here — the alternative is
+   * remembering to do it at seven call sites, and the one forgotten site is the
+   * ambiguity.
+   */
+  const embed = (self: Explanation): string =>
+    isAtomic(self) ? go(self) : `(${go(self)})`;
+
+  // The top level is never wrapped: nothing follows it, so there is nothing for
+  // it to run into. `go`, not `embed`.
   return go(explanation);
 };

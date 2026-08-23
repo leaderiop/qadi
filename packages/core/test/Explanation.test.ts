@@ -153,6 +153,110 @@ describe("explain", () => {
     assert.notInclude(singlePart, " or ");
   });
 
+  it("A RENDERING DENOTES EXACTLY ONE POLICY", () => {
+    // The defect this replaced. `a or (b and c)` and `(a or b) and c` are not
+    // the same policy — the first admits a lone `a` — and they rendered to a
+    // byte-identical sentence, because nothing parenthesised a composite child.
+    // Prose a reviewer cannot map back to a policy is worse than no prose.
+    const admin = P.hasRole("admin");
+    const both = P.allOf([P.hasRole("editor"), P.hasRole("onCall")]);
+    const a = renderExplanation(explain(P.anyOf([admin, both])));
+    const b = renderExplanation(
+      explain(P.allOf([P.anyOf([admin, P.hasRole("editor")]), P.hasRole("onCall")])),
+    );
+
+    assert.strictEqual(
+      a,
+      "either requires role `admin` or (requires role `editor` and requires role `onCall`)",
+    );
+    assert.strictEqual(
+      b,
+      "(either requires role `admin` or requires role `editor`) and requires role `onCall`",
+    );
+    assert.notStrictEqual(a, b);
+  });
+
+  it("parenthesises a composite in every position that embeds one", () => {
+    // One case per call site of `embed`. A site that reverted to `go` would
+    // reintroduce the ambiguity only for its own shape, which no single
+    // end-to-end assertion would catch.
+    const both = P.allOf([P.hasRole("a"), P.hasRole("b")]);
+
+    assert.strictEqual(
+      renderExplanation(explain(P.not(both))),
+      "does not hold that (requires role `a` and requires role `b`)",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.labeled("pair", both))),
+      "(requires role `a` and requires role `b`) (`pair`)",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.obliged(obligation("audit.log"), both))),
+      "(requires role `a` and requires role `b`), and owes `audit.log`",
+    );
+    assert.include(
+      renderExplanation(explain(P.rules([P.permitWhen(both)]))),
+      "[0] permit when (requires role `a` and requires role `b`)",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.anyOf([both, P.hasRole("c")]))),
+      "either (requires role `a` and requires role `b`) or requires role `c`",
+    );
+  });
+
+  it("treats every non-atomic node as non-atomic WHEN IT IS THE CHILD", () => {
+    // The mirror of the test above, and the one it does not imply. That one
+    // embeds a composite inside `Negated`/`Named`/`Owing`/`Table` and so
+    // exercises those nodes' *use* of `embed`; this one embeds each of them as
+    // a child, which is the only thing that consults `isAtomic` about them.
+    // Mutation caught the gap: `Negated: () => true` survived the whole suite.
+    const b = P.hasRole("b");
+
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf([P.not(P.hasRole("a")), b]))),
+      "(does not hold that requires role `a`) and requires role `b`",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf([P.labeled("l", P.hasRole("a")), b]))),
+      "(requires role `a` (`l`)) and requires role `b`",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf([P.obliged(obligation("o"), P.hasRole("a")), b]))),
+      "(requires role `a`, and owes `o`) and requires role `b`",
+    );
+    // A NON-EMPTY table, unlike the empty one below: an empty table renders a
+    // fixed sentence and is atomic, a populated one spans clauses and is not.
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf([P.rules([P.permitWhen(P.hasRole("a"))]), b]))),
+      "(a rule table where the first row that applies decides: " +
+        "[0] permit when requires role `a`) and requires role `b`",
+    );
+  });
+
+  it("LEAVES ATOMS BARE, so ordinary policies read as they always did", () => {
+    // The other direction, and the one that keeps this from being a
+    // readability regression. A requirement needs no parentheses, and neither
+    // does an empty composite — those render fixed sentences that no following
+    // word can attach to. A mutant calling `isAtomic` always-false would wrap
+    // every one of these.
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf([P.hasRole("a"), P.hasRole("b")]))),
+      "requires role `a` and requires role `b`",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf([P.allOf([]), P.hasRole("b")]))),
+      "always allows (an empty conjunction) and requires role `b`",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf([P.anyOf([]), P.hasRole("b")]))),
+      "never allows (an empty disjunction) and requires role `b`",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf([P.rules([]), P.hasRole("b")]))),
+      "never allows (an empty rule table) and requires role `b`",
+    );
+  });
+
   it("renders a rule table with its combining algorithm and row indices", () => {
     const policy = P.rules(
       [P.denyWhen(P.hasRole("suspended")), P.permitWhen(P.hasRole("editor"))],

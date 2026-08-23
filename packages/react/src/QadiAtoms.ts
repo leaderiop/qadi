@@ -1,3 +1,4 @@
+"use client";
 /**
  * Qadi state as Effect atoms.
  *

@@ -125,3 +125,6 @@ entries:
   - id: "ADR-QD-041"
     file: "041-a-mismatch-is-announced.md"
     title: "A hydration mismatch is announced, not resolved"
+  - id: "ADR-QD-042"
+    file: "042-a-projection-is-not-an-identity.md"
+    title: "A lossy projection is not an identity, in prose or in a cache key"

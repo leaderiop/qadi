@@ -912,3 +912,80 @@ is how this survived to be found by reading.
 **Related**: [BEH-QD-045](behaviors/06-services.md), [BEH-QD-043](behaviors/06-services.md), [ADR-QD-040](decisions/040-an-unwired-port-names-its-absence.md), [ADR-QD-020](decisions/020-decision-history-port.md), [INV-QD-014](#inv-qd-014-an-unwired-history-port-denies-both-polarities).
 
 ---
+
+## INV-QD-030: Cache key uniqueness
+
+Two distinct questions never produce the same cache entry.
+
+**Source**: `packages/core/src/DecisionCache.ts` — `DecisionCacheKey` is used as
+a `HashMap` key directly, with no serialization step. Effect's `Equal`/`Hash`
+compare plain objects structurally, nested included, so equality of keys is
+equality of questions.
+
+**Implication**: the reverse held, and it was a serving defect rather than a
+performance one. `keyOf` was `JSON.stringify`, which maps a `Date` onto its ISO
+string, drops `undefined`-valued and function-valued properties, and renders
+`NaN` as `null` — so `{d: new Date(0)}` and `{d: "1970-01-01T00:00:00.000Z"}`
+were one key for two questions, and the second caller received the first's
+verdict.
+
+This is [INV-QD-001](#inv-qd-001-permission-key-uniqueness) one layer down, and
+the wording deliberately matches it. A permission key and a cache key are the
+same kind of object — a projection used as an identity — and the same rule has
+to hold of both.
+
+Note what this repairs rather than adds.
+[INV-QD-025](#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity)
+says a hit differs from a miss only in speed and identity; under a colliding key
+a hit differed in **verdict**, so that invariant was false and is now true. The
+function's own doc comment had claimed the opposite property — that stringifying
+was the option with "no chance of colliding" — which is why nothing looked.
+
+A second consequence, not the point: two structurally equal resources whose
+properties were written in a different order now **hit**. That was previously
+documented as a deliberate miss, and it is safe to drop precisely because the
+comparison is now real structural equality rather than a stringification that
+happens to agree.
+
+**Enforcement**: `packages/core/test/DecisionCache.test.ts` counts resolver
+invocations for the two collision shapes — a `Date` beside its ISO string, an
+`undefined`-valued property beside an absent one — and asserts two evaluations,
+not one.
+
+**Related**: [BEH-QD-167](behaviors/21-decision-cache.md), [INV-QD-001](#inv-qd-001-permission-key-uniqueness), [INV-QD-025](#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity), [ADR-QD-042](decisions/042-a-projection-is-not-an-identity.md).
+
+---
+
+## INV-QD-031: A rendered explanation denotes exactly one policy
+
+Two policies that are not equivalent never render to the same sentence.
+
+**Source**: `packages/core/src/Explanation.ts` — `renderExplanation` embeds every
+child through one `embed` helper, which parenthesises anything that is not
+atomic. Only a `Requirement` and the empty `All`/`Any`/`Table` render bare, the
+latter because their fixed sentences have no loose end for a following word to
+attach to.
+
+**Implication**: the reverse shipped. `anyOf([a, allOf([b, c])])` and
+`allOf([anyOf([a, b]), c])` produced a byte-identical sentence, and they are not
+the same policy — the first admits a lone `a`. The rendering is the only thing an
+administrative screen shows ([ADR-QD-027](decisions/027-policy-explanation.md)
+made it the one place English is assembled), so a reviewer had no way to recover
+which policy they were reading.
+
+The same flattening left an obligation ambiguous: `allOf([x, obliged(o, y)])`
+read as though the whole policy owed `o`, when only the second branch does.
+
+**The top level is deliberately never wrapped.** Nothing follows it, so there is
+nothing to run into, and wrapping it would put brackets around every sentence in
+the library for no gain.
+
+**Enforcement**: `packages/core/test/Explanation.test.ts` pins the two policies
+above and asserts their renderings differ, one case per embedding position so a
+site that reverted to bare joining fails on its own shape, and the atomic cases
+in the other direction so parentheses cannot spread to ordinary sentences.
+`features/features/explanation/explanation.feature` carries the pair as scenarios.
+
+**Related**: [BEH-QD-137](behaviors/18-explanation.md), [ADR-QD-042](decisions/042-a-projection-is-not-an-identity.md), [ADR-QD-027](decisions/027-policy-explanation.md).
+
+---

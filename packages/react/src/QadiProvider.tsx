@@ -1,3 +1,4 @@
+"use client";
 /**
  * The React binding.
  *
