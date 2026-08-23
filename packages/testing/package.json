@@ -9,7 +9,7 @@
     "url": "git+ssh://git@github.com/leaderiop/qadi.git",
     "directory": "packages/testing"
   },
-  "description": "Test layers, fixtures, conformance suites and matchers for @qadi/core",
+  "description": "Fixtures, deterministic layers and recording resolvers for @qadi/core",
   "sideEffects": false,
   "exports": {
     ".": {

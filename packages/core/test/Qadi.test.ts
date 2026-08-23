@@ -4,8 +4,10 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
+import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { renderTrace } from "../src/Decision.ts";
 import * as M from "../src/Matcher.ts";
 import * as Qadi from "../src/Qadi.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -62,6 +64,30 @@ describe("Qadi.enforce", () => {
       assert.include(recovered, "u1|HasPermission|");
       assert.include(recovered, "doc:read");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("AccessDenied CARRIES THE TRACE, not only the root sentence", () =>
+    Effect.gen(function* () {
+      // `Errors.ts` promised this in a doc comment long before the field
+      // existed. The whole subtree was built and then discarded at the one place
+      // most callers meet a denial.
+      const nested = P.allOf([P.hasRole("admin"), canRead]);
+      const result = yield* Effect.result(Effect.succeed("x").pipe(Qadi.enforce(nested)));
+
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      const failure = result.failure;
+      assert.strictEqual(failure._tag, "AccessDenied");
+      if (failure._tag !== "AccessDenied") return;
+
+      // The root's own sentence is all `reason` ever had.
+      assert.strictEqual(failure.reason, failure.trace.reason);
+
+      // The tree beneath it is what `reason` cannot say: which branch refused.
+      const rendered = renderTrace(failure.trace);
+      assert.include(rendered, "✗ AllOf");
+      assert.include(rendered, "✗ HasRole");
+      assert.isAbove(failure.trace.children.length, 0);
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
   it.effect("assert succeeds silently when allowed", () =>
     Effect.gen(function* () {

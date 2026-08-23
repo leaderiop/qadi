@@ -126,7 +126,7 @@ const TenancyTreeResolver: Layer.Layer<RelationshipResolver> = Layer.succeed(
         const inScope =
           request.depth === undefined ? path : path.slice(-(request.depth + 1));
         const granted = yield* directGrants(request.subjectId, request.relation);
-        return inScope.some((node) => granted.has(node));
+        return inScope.some((node) => granted.has(node)) ? "Related" : "Unrelated";
       }),
   },
 );

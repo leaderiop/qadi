@@ -11,6 +11,7 @@ import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
 import { RelationshipResolveError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
+import type { RelatedResult } from "../src/RelationshipResolver.ts";
 import {
   RelationshipResolver,
   RelationshipResolverNever,
@@ -44,13 +45,32 @@ const check = (
     depth: request.depth,
   }).pipe(Effect.provide(layer));
 
+/**
+ * Typed assertions, replacing the `assert.isTrue`/`isFalse` pairs these call
+ * sites used while `check` returned a boolean.
+ *
+ * Worth the three functions: `assert.isTrue` takes `unknown`, so when the port
+ * became three-valued the compiler had nothing to say and every one of these
+ * sites failed only at run time — and `isFalse` cannot tell `"Unrelated"` from
+ * `"Unknown"`, which is the distinction the whole change exists to draw.
+ */
+const assertRelated = (result: RelatedResult): void =>
+  assert.strictEqual(result, "Related");
+const assertUnrelated = (result: RelatedResult): void =>
+  assert.strictEqual(result, "Unrelated");
+const assertUnknown = (result: RelatedResult): void =>
+  assert.strictEqual(result, "Unknown");
+
 describe("RelationshipResolver", () => {
   describe("RelationshipResolverNever", () => {
-    it.effect("denies every relationship, at any depth", () =>
+    it.effect("ANSWERS Unknown at any depth — it never looked", () =>
       Effect.gen(function* () {
+        // Not "Unrelated". Both deny, so no verdict changes; what changes is
+        // the denial's sentence, which used to describe a store this layer has
+        // never had (INV-QD-029).
         const request = { subjectId: "u", relation: "owner", resourceId: "d" };
-        assert.isFalse(yield* check(RelationshipResolverNever, request));
-        assert.isFalse(yield* check(RelationshipResolverNever, { ...request, depth: 50 }));
+        assertUnknown(yield* check(RelationshipResolverNever, request));
+        assertUnknown(yield* check(RelationshipResolverNever, { ...request, depth: 50 }));
       }));
   });
 
@@ -63,28 +83,28 @@ describe("RelationshipResolver", () => {
 
     it.effect("matches an exact edge", () =>
       Effect.gen(function* () {
-        assert.isTrue(
+        assertRelated(
           yield* check(owns, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
         );
       }));
 
     it.effect("denies when the subject differs", () =>
       Effect.gen(function* () {
-        assert.isFalse(
+        assertUnrelated(
           yield* check(owns, { subjectId: "mallory", relation: "owner", resourceId: "doc-1" }),
         );
       }));
 
     it.effect("denies when the relation differs, even for the same subject and resource", () =>
       Effect.gen(function* () {
-        assert.isFalse(
+        assertUnrelated(
           yield* check(owns, { subjectId: "alice", relation: "editor", resourceId: "doc-1" }),
         );
       }));
 
     it.effect("denies when the resource differs", () =>
       Effect.gen(function* () {
-        assert.isFalse(
+        assertUnrelated(
           yield* check(owns, { subjectId: "alice", relation: "owner", resourceId: "doc-3" }),
         );
       }));
@@ -92,7 +112,7 @@ describe("RelationshipResolver", () => {
     it.effect("an empty edge list denies everything", () =>
       Effect.gen(function* () {
         const empty = relationshipResolverFromEdges([]);
-        assert.isFalse(
+        assertUnrelated(
           yield* check(empty, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
         );
       }));
@@ -102,9 +122,9 @@ describe("RelationshipResolver", () => {
       () =>
         Effect.gen(function* () {
           const request = { subjectId: "alice", relation: "owner", resourceId: "doc-1" };
-          assert.isTrue(yield* check(owns, { ...request, depth: 0 }));
-          assert.isTrue(yield* check(owns, { ...request, depth: 50 }));
-          assert.isTrue(yield* check(owns, request));
+          assertRelated(yield* check(owns, { ...request, depth: 0 }));
+          assertRelated(yield* check(owns, { ...request, depth: 50 }));
+          assertRelated(yield* check(owns, request));
         }),
     );
 
@@ -114,7 +134,7 @@ describe("RelationshipResolver", () => {
           { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
           { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
         ]);
-        assert.isTrue(
+        assertRelated(
           yield* check(duped, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
         );
       }));
@@ -140,7 +160,7 @@ describe("RelationshipResolver", () => {
           const spaceCollidable = relationshipResolverFromEdges([
             { subjectId: "a b", relation: "owner", resourceId: "c" },
           ]);
-          assert.isFalse(
+          assertUnrelated(
             yield* check(spaceCollidable, {
               subjectId: "a",
               relation: "b owner",
@@ -151,7 +171,7 @@ describe("RelationshipResolver", () => {
           const nulCollidable = relationshipResolverFromEdges([
             { subjectId: "a\0b", relation: "owner", resourceId: "c" },
           ]);
-          assert.isFalse(
+          assertUnrelated(
             yield* check(nulCollidable, {
               subjectId: "a",
               relation: "b\0owner",
@@ -180,7 +200,7 @@ describe("RelationshipResolver", () => {
                       cause: "flaky",
                     }),
                   )
-                : Effect.succeed(true),
+                : Effect.succeed("Related"),
             ),
           ),
       });
@@ -196,7 +216,7 @@ describe("RelationshipResolver", () => {
           resourceId: "doc-1",
         });
 
-        assert.isTrue(result);
+        assert.strictEqual(result, "Related");
         assert.strictEqual(yield* Ref.get(attempts), 3);
       }));
 
@@ -230,7 +250,10 @@ describe("RelationshipResolver", () => {
               yield* Ref.update(peak, (max) => Math.max(max, current));
               yield* Deferred.await(gate);
               yield* Ref.update(inFlight, (n) => n - 1);
-              return true;
+              // `Effect.gen` infers from the generator's return, so the literal
+              // needs pinning — the object literal's contextual type does not
+              // reach inside.
+              return "Related" as const;
             }),
         });
 
@@ -266,10 +289,10 @@ describe("RelationshipResolver", () => {
         const bounded = relationshipResolverBounded(1)(relationshipResolverFromEdges([
           { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
         ]));
-        assert.isTrue(
+        assertRelated(
           yield* check(bounded, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
         );
-        assert.isFalse(
+        assertUnrelated(
           yield* check(bounded, { subjectId: "bob", relation: "owner", resourceId: "doc-1" }),
         );
       }));

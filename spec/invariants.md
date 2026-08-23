@@ -142,9 +142,9 @@ sending an engineer to audit permissions.
 
 Every default layer denies rather than grants.
 
-**Source**: `RelationshipResolverNever` returns `false`;
-`CurrentSubjectAnonymous` holds no roles or permissions; `AttributeResolverNone`
-resolves to `undefined`, which satisfies no matcher.
+**Source**: `RelationshipResolverNever` returns `"Unknown"`, which matches
+neither branch; `CurrentSubjectAnonymous` holds no roles or permissions;
+`AttributeResolverNone` resolves to `undefined`, which satisfies no matcher.
 
 **Implication**: forgetting to wire a resolver produces denials, which surface
 immediately in testing. A default that granted would turn an omission into a
@@ -832,5 +832,83 @@ allow-turned-deny in the built evaluator, and the promise package removed from t
 graph *with its stale output left in place*.
 
 **Related**: [INV-QD-006](#inv-qd-006-failure-is-not-denial), [INV-QD-026](#inv-qd-026-the-facade-answers-what-the-core-answers), [ADR-QD-033](decisions/033-the-packed-artifact-is-the-product.md).
+
+---
+
+## INV-QD-028: A seed never outlives the client's own answer
+
+A server-rendered decision covers only the frames before this client has decided
+for itself. Once it has — allow, deny or failure — that answer is what every
+consumer reads, and the seed is never read again.
+
+**Source**: `packages/react/src/QadiAtoms.ts` — the seed is a separate atom from
+the decision, and the atom a consumer reads is a derivation that consults the seed
+only while the computed result is `Initial`. `Initial` is the one state meaning
+"this client has never answered", so the precedence is a property of the
+expression rather than of when an effect settles.
+
+**Implication**: the reverse is what occurred. Seeding the decision atom directly
+put the seed under `AtomRegistry`'s `preserveInitialValueOnBuild`, which keeps a
+seeded value over the one the node computes. An asynchronous evaluation escaped it
+by publishing through `setSelf` on a later turn; a **synchronous** one published by
+returning, and was discarded. Every policy needing no resolver evaluates
+synchronously, so a subject held a server-issued allow they no longer qualified
+for, for the life of the page.
+
+Note the relationship to [INV-QD-022](#inv-qd-022-a-hydrated-decision-belongs-to-the-subject-that-hydrates-it)
+and to [ADR-QD-017](decisions/017-stale-decisions-are-not-decisions.md): the
+bypassed value was bound to the right subject, and was not `waiting`, so
+`currentDecision` returned it and every consumer was correct. **ADR-QD-017 guards
+the `waiting` flag; this failure never set it.** An invariant about staleness that
+speaks only of the flag does not reach a value that was never marked stale.
+
+**Enforcement**: `packages/react/test/Hydration.test.ts` seeds an allow for a
+policy the subject fails and asserts the read is a denial, both immediately and
+after every scheduled turn has run — the shape of assertion the suite previously
+had none of, because every test read the registry on the tick it was built and so
+could only observe that a seed was *present*.
+
+**Related**: [BEH-QD-151](behaviors/19-hydration.md), [INV-QD-022](#inv-qd-022-a-hydrated-decision-belongs-to-the-subject-that-hydrates-it), [ADR-QD-039](decisions/039-a-seed-is-not-an-authority.md), [ADR-QD-028](decisions/028-decision-hydration.md).
+
+---
+
+## INV-QD-029: A denial names only what was consulted
+
+A denial's reason never asserts a fact about a store that was not consulted.
+
+**Source**: `packages/core/src/RelationshipResolver.ts` — the port is
+three-valued, so `RelationshipResolverNever` answers `"Unknown"` rather than
+`"Unrelated"` and `evaluateHasRelationship` has a distinct arm for it.
+`packages/core/src/Evaluate.ts` — `attributeReason` says "has no value" for an
+unresolved attribute and "did not match" only for one that was resolved and
+compared.
+
+**Implication**: the reverse is what shipped. An unwired relationship resolver
+denied with `subject 'u1' has no 'owner' relation to 'doc-1'`, which is a claim
+about the contents of a graph that had never been connected. That sentence
+reaches an `AccessDenied` handler, a `renderTrace` line and a `Can` fallback, and
+it sends the reader to audit their edges when the fix is in their layer wiring.
+The unwired state is also the state every ReBAC integration starts in, so this
+was the first sentence most readers ever saw.
+
+Note what this invariant does **not** claim. The verdicts are identical either
+way — both arms deny, [INV-QD-007](#inv-qd-007-defaults-fail-closed) is untouched,
+and no decision anywhere moves. This is an invariant about diagnosis, and it is
+worth stating precisely because nothing in a verdict-shaped test could have
+caught its violation.
+
+The attribute half is milder and is included for the same reason. `did not match`
+is *true* of an unresolved attribute — every matcher fails `undefined` — so
+nothing was false there; the diagnosis was merely withheld, and a misconfigured
+`AttributeResolver` produces that case exclusively.
+
+**Enforcement**: `packages/core/test/Evaluate.test.ts` pins both sentences
+against each other — an unwired resolver beside a wired store that looked and
+found nothing, an absent attribute beside a present one that compares wrong. A
+single sentence for both cases passes any test asserting only the verdict, which
+is how this survived to be found by reading.
+`features/features/rebac/relationships.feature` carries the same pair.
+
+**Related**: [BEH-QD-045](behaviors/06-services.md), [BEH-QD-043](behaviors/06-services.md), [ADR-QD-040](decisions/040-an-unwired-port-names-its-absence.md), [ADR-QD-020](decisions/020-decision-history-port.md), [INV-QD-014](#inv-qd-014-an-unwired-history-port-denies-both-polarities).
 
 ---

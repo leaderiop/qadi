@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-07                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-08-23                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -80,9 +80,10 @@ REQUIREMENT: A denial MUST project to the empty object.
 
 ```ts
 export class AccessDenied extends Data.TaggedError("AccessDenied")<{
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   readonly policyTag: string;
   readonly reason: string;
+  readonly trace: Trace;
 }> {}
 ```
 
@@ -90,6 +91,8 @@ export class AccessDenied extends Data.TaggedError("AccessDenied")<{
 REQUIREMENT: `AccessDenied` MUST be catchable by tag and MUST carry the subject,
              the policy tag and a human-readable reason.
 ```
+
+The `trace` field is [BEH-QD-054](#beh-qd-054-a-denial-carries-the-tree-not-only-the-sentence).
 
 ## BEH-QD-053: Worked example
 
@@ -115,6 +118,50 @@ const remove = deleteDocument("doc-1").pipe(enforce(hasPermission(readDoc)));
 // Allowed: only the exposed fields come back.
 const read = loadDocument("doc-1").pipe(
   enforceProjected(hasPermission(readDoc, { fields: ["id", "title"] })),
+);
+```
+
+## BEH-QD-054: A denial carries the tree, not only the sentence
+
+> **See:** [ADR-QD-039](../decisions/039-a-seed-is-not-an-authority.md),
+> [BEH-QD-144](./18-explanation.md)
+
+```
+REQUIREMENT: `AccessDenied` MUST carry the denied decision's `trace`, and its
+             `reason` MUST be that trace's root reason.
+```
+
+Enforcement is where most callers meet a denial: `assert`, `enforce`,
+`enforceProjected` and `guard` all fail with this value, `@qadi/promise` rejects
+with it, and `@qadi/http` maps it to a status. It was also the one path that
+built the whole trace and then dropped it, keeping a single sentence — the root
+node's — so the question "which branch refused?" could only be answered by
+re-evaluating with `decide`, which means dismantling the enforcement wiring in
+order to debug it.
+
+`reason` is retained rather than replaced. It is the summary a log line wants,
+and the invariant that it equals `trace.reason` is what stops the two drifting.
+
+Note the disclosure boundary this does **not** cross. A trace names every node's
+tag, its label and the sentence explaining why it refused, so it belongs in a log,
+a thrown error or a test failure — not in a response body.
+`toResponse` continues to return an empty body for every enforcement tag, and
+`@qadi/react`'s hydration continues to withhold the trace by default
+([BEH-QD-147](./19-hydration.md)).
+
+```typescript
+import * as Effect from "effect/Effect";
+import { enforce, hasPermission, permission, renderTrace } from "@qadi/core";
+
+declare const deleteDocument: (id: string) => Effect.Effect<void>;
+
+const guarded = deleteDocument("doc-1").pipe(
+  enforce(hasPermission(permission("doc", "delete"))),
+  Effect.tapError((error) =>
+    error._tag === "AccessDenied"
+      ? Effect.logDebug(renderTrace(error.trace))
+      : Effect.void,
+  ),
 );
 ```
 

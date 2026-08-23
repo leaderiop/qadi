@@ -29,9 +29,7 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const OVERVIEW = join(ROOT, "spec", "overview.md");
 
 /**
- * Declaration forms this parser understands. Verified exhaustive for this repo: there
- * is no `export { … }`, no `export type { … }`, no `export default` and no
- * `export * as` in any package source, so a line-anchored match captures everything.
+ * Declaration forms this parser understands.
  */
 const DECLARATION = /^export (?:const|class|interface|type|function) ([A-Za-z_$][\w$]*)/;
 
@@ -39,10 +37,32 @@ const DECLARATION = /^export (?:const|class|interface|type|function) ([A-Za-z_$]
 const BARREL = /^export \* from "\.\/([^"]+)"/;
 
 /**
+ * A named re-export **from another module**: `export type { A, B } from "./C.ts"`.
+ *
+ * Understood rather than rejected, because the names are on the line — no module
+ * resolution is needed to know what this adds to the surface. The form appears
+ * where a module is deliberately out of the barrel and only its types are public
+ * (`HydrationWarning.ts`, whose ambient-global boundary is not a public surface).
+ *
+ * The `from` clause is required. `export { foo }` with no source is a different
+ * thing — it can publish a locally-declared name that carries no `export`
+ * keyword of its own, so `DECLARATION` would never have seen it — and stays
+ * unsupported below.
+ */
+const REEXPORT_FROM = /^export (?:type )?\{([^}]*)\} from "/;
+
+/** One clause of such a list. A rename publishes the name after `as`. */
+const REEXPORT_NAME = /^(?:type\s+)?[A-Za-z_$][\w$]*(?:\s+as\s+([A-Za-z_$][\w$]*))?$/;
+
+/**
  * Forms that would make this parser under-report. Encountering one is a hard error
  * rather than a silent miss: a parser that quietly skips an export makes the gate
  * weaker while still printing success, which is the failure mode the gate exists to
  * prevent.
+ *
+ * `export {` and `export type {` are listed, and `REEXPORT_FROM` is tried first —
+ * so only the source-less form, and any list this parser cannot decompose, reaches
+ * here.
  */
 const UNSUPPORTED = /^export (?:\{|type \{|default\b|\* as\b)/;
 
@@ -79,6 +99,23 @@ const exportsOf = (file) => {
   const names = new Set();
 
   for (const [index, line] of source.split("\n").entries()) {
+    const reexport = REEXPORT_FROM.exec(line);
+    if (reexport) {
+      const clauses = reexport[1]
+        .split(",")
+        .map((clause) => clause.trim())
+        .filter((clause) => clause !== "");
+      // A clause this regex cannot decompose falls through to UNSUPPORTED
+      // below rather than being dropped — under-reporting is the one outcome
+      // this parser must not have.
+      const parsed = clauses.map((clause) => REEXPORT_NAME.exec(clause));
+      if (parsed.every((m) => m !== null)) {
+        for (const [i, m] of parsed.entries()) {
+          names.add(m[1] ?? clauses[i].replace(/^type\s+/, ""));
+        }
+        continue;
+      }
+    }
     if (UNSUPPORTED.test(line)) {
       fail(
         `${relative(ROOT, file)}:${index + 1}`,

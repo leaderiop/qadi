@@ -121,7 +121,9 @@ const GrantTableResolver: Layer.Layer<RelationshipResolver> = Layer.succeed(
             (g) =>
               g.subjectId === request.subjectId &&
               g.relation === request.relation,
-          ),
+          )
+            ? "Related"
+            : "Unrelated",
         ),
       ),
   },

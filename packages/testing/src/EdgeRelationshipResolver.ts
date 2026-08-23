@@ -27,7 +27,9 @@ export const edgeRelationshipResolver = (
             resourceId: request.resourceId,
           });
           recorder.record(`${request.subjectId} ${request.relation} ${request.resourceId}`);
-          return HashSet.has(index, edge);
+          // A closed world, like `relationshipResolverFromEdges`: this fixture
+          // is the store, so a missing edge is "Unrelated" and never "Unknown".
+          return HashSet.has(index, edge) ? "Related" : "Unrelated";
         }),
     }),
   };

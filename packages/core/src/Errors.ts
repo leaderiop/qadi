@@ -6,6 +6,7 @@
  * failures — the defect that produced ACL007 collisions in the predecessor.
  */
 import * as Data from "effect/Data";
+import type { Trace } from "./Decision.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 
 /** A policy referenced a resource attribute but no resource was in context. */
@@ -80,11 +81,26 @@ export class InvalidPermissionSegment extends Data.TaggedError(
   readonly value: string;
 }> {}
 
-/** Enforcement denied access. Carries the decision so callers can inspect the trace. */
+/**
+ * Enforcement denied access.
+ *
+ * `reason` is the root node's sentence; `trace` is the tree behind it, so a
+ * caller can answer "why" without re-evaluating. Render it with `renderTrace`.
+ *
+ * The trace is carried rather than summarised because enforcement is where a
+ * denial usually surfaces — `assert`, `enforce`, `enforceProjected` and `guard`
+ * all fail with this value, `@qadi/promise` rejects with it and `@qadi/http`
+ * maps it — and it was the one path that built the whole tree and then dropped
+ * it. Note what that means for disclosure: a trace names every node's tag, its
+ * label and the sentence explaining why it refused, so it belongs in a log or a
+ * test failure, not in a response body. `toResponse` returns an empty body for
+ * exactly that reason.
+ */
 export class AccessDenied extends Data.TaggedError("AccessDenied")<{
   readonly subjectId: SubjectId;
   readonly policyTag: string;
   readonly reason: string;
+  readonly trace: Trace;
 }> {}
 
 /**

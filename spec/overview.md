@@ -116,6 +116,8 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `Predicate`, `CompareOp`, `PredicateOptions`, `PredicateServices` | type | `Predicate.ts` |
 | `EvaluationServices` | type | `Evaluate.ts` |
 | `intersectFields`, `unionFields` | function | `Decision.ts` |
+| `renderTrace` | function | `Decision.ts` |
+| `RenderTraceOptions` | type | `Decision.ts` |
 | `EnforceOptions`, `EnforcementError`, `ObligationHandler` | type | `Qadi.ts` |
 | `Authorized` | type | `Authorized.ts` |
 
@@ -174,7 +176,7 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |
 | `AttributeResolverShape`, `RelationshipResolverShape`, `RelationshipCheck` | type | resolver modules |
-| `RelationshipEdgeInput` | type | `RelationshipResolver.ts` |
+| `RelatedResult`, `RelationshipEdgeInput` | type | `RelationshipResolver.ts` |
 | `RelationshipEdge` | value class | `RelationshipResolver.ts` |
 | `DecisionHistoryShape`, `ActedQuery`, `ActedResult` | type | `DecisionHistory.ts` |
 | `ActedEventInput`, `ActedAnywhereInput` | type | `DecisionHistory.ts` |
@@ -216,8 +218,9 @@ because this section is called the *public API surface*, and a reader looking fo
 | `MissingQadiProviderError` | class | `QadiProvider.tsx` |
 | `makeQadiAtoms`, `currentDecision` | function | `QadiAtoms.ts` |
 | `QadiAtoms`, `QadiLayer`, `QadiRuntimeServices`, `DecisionResult` | type | `QadiAtoms.ts` |
+| `QadiAtomsOptions`, `HydrationMismatch`, `HydrationMismatchReporter` | type | `QadiAtoms.ts` |
 | `Can`, `Cannot` | component | `components.tsx` |
-| `CanProps`, `CannotProps` | type | `components.tsx` |
+| `CanProps`, `CannotProps`, `DeniedNode` | type | `components.tsx` |
 | `useSubject`, `useDecision`, `useCan`, `useDecisionSuspense` | hook | `hooks.ts` |
 | `usePolicies`, `useProjected`, `useInvalidate` | hook | `hooks.ts` |
 | `dehydrateDecisions`, `hydrateDecisions` | function | `Hydration.ts` |

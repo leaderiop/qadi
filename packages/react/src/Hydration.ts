@@ -18,9 +18,9 @@ import type { AuthSubject, Decision, Policy, Resource, SubjectId, Trace } from "
 import { Allow, Deny, Policy as PolicySchema } from "@qadi/core";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import type * as Atom from "effect/unstable/reactivity/Atom";
-import type { DecisionResult, QadiAtoms } from "./QadiAtoms.ts";
+import { hydrationSeedFor } from "./HydrationSeed.ts";
+import type { QadiAtoms } from "./QadiAtoms.ts";
 import type { InitialValues } from "./QadiProvider.tsx";
 
 /** Encoding a typed policy cannot fail, so this side is sync and total. */
@@ -176,6 +176,17 @@ export const hydrateDecisions = (
   // id is a property of the payload, so one wrong id means the wrong page.
   if (dehydrated.subjectId !== subject.id) return [];
 
+  // Written to the seed atom, never to the decision atom. Seeding the decision
+  // atom directly is what let a server allow outlive the client's own denial:
+  // `AtomRegistry` preserves a seeded value over the one the node computes, and
+  // a policy that evaluates synchronously has its computed answer discarded. See
+  // `SeededDecision` in `QadiAtoms.ts`.
+  const seedFor = hydrationSeedFor(atoms);
+  // An atom set this module did not build has no seed to write to. Seeding
+  // nothing leaves every atom `Initial`, so the client asks the question
+  // properly — the same fail-closed outcome a dropped entry gets.
+  if (seedFor === undefined) return [];
+
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
 
   for (const entry of dehydrated.entries) {
@@ -183,15 +194,7 @@ export const hydrateDecisions = (
     if (!Option.isSome(decoded)) continue;
     const policy = decoded.value;
 
-    const atom =
-      entry.resource === undefined
-        ? atoms.decision(policy)
-        : atoms.decisionFor(policy, entry.resource);
-
-    // `AsyncResult.success` with no `waiting`, so `currentDecision` returns it
-    // rather than reading it as stale (ADR-QD-017).
-    const value: DecisionResult = AsyncResult.success(rebuild(entry, subject.id));
-    seeded.push([atom, value]);
+    seeded.push([seedFor(policy, entry.resource), rebuild(entry, subject.id)]);
   }
 
   return seeded;

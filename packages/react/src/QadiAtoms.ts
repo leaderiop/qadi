@@ -28,6 +28,13 @@ import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import type * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import * as Reactivity from "effect/unstable/reactivity/Reactivity";
+import { registerHydrationSeeds } from "./HydrationSeed.ts";
+import type { HydrationMismatchReporter } from "./HydrationWarning.ts";
+import { hydrationMismatchReporter, isMismatch } from "./HydrationWarning.ts";
+
+// `HydrationWarning.ts` is out of the barrel — its ambient-global boundary is
+// not a public surface — so the two types callers name are re-exported here.
+export type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationWarning.ts";
 
 /**
  * The services a Qadi runtime layer supplies.
@@ -99,15 +106,57 @@ export interface QadiAtoms {
  * several tenants in one process calls it once per tenant; the atoms are
  * distinct objects, so their decisions cannot be confused for one another.
  */
-export const makeQadiAtoms = (layer: QadiLayer): QadiAtoms => {
+/**
+ * A decision, and the server-rendered seed that covers its first frames.
+ *
+ * They are **separate atoms**, and that separation is the whole of INV-QD-028.
+ * A seed written directly into the decision atom is *preserved over the value
+ * that atom computes*: `AtomRegistry` sets `preserveInitialValueOnBuild` for a
+ * seeded node and, when the build finishes with the node still awaiting a
+ * value, keeps the seed and throws the computed value away. An effect that
+ * settles asynchronously escapes that, because it publishes through `setSelf`
+ * on a later turn — but one that settles **synchronously** returns its value
+ * straight out of the read, and the seed wins permanently. Every policy that
+ * needs no resolver settles synchronously, so that was the common case, and it
+ * left a subject holding a server-issued allow they no longer qualified for.
+ *
+ * Keeping the two apart makes the precedence explicit and one-directional
+ * instead of a consequence of when an effect happens to settle.
+ */
+interface SeededDecision {
+  readonly seed: Atom.Writable<Decision | undefined>;
+  readonly combined: Atom.Atom<DecisionResult>;
+}
+
+export interface QadiAtomsOptions {
+  /**
+   * Called when this client's own answer disagrees with the server's seed.
+   *
+   * Supplying this replaces the development-mode console warning. It runs in
+   * production too, which is the point of exposing it: a server and a client
+   * disagreeing about an authorization question is signal worth reporting, and
+   * it usually means one of the two is wired differently from the other.
+   *
+   * Called at most once per question, when this client first answers it. It
+   * observes; it cannot change the outcome — the client's answer is already the
+   * one in effect by the time this runs ([INV-QD-028](../../../spec/invariants.md)).
+   */
+  readonly onHydrationMismatch?: HydrationMismatchReporter;
+}
+
+export const makeQadiAtoms = (
+  layer: QadiLayer,
+  options?: QadiAtomsOptions,
+): QadiAtoms => {
   const runtime = Atom.runtime(layer);
   const subject = Atom.make<AuthSubject | undefined>(undefined);
+  const report = hydrationMismatchReporter(options?.onHydrationMismatch);
 
-  const decisionAtom = (
+  const seededDecision = (
     policy: Policy,
     resource: Resource | undefined,
-  ): Atom.Atom<DecisionResult> =>
-    runtime
+  ): SeededDecision => {
+    const computed = runtime
       .atom((get): Effect.Effect<Decision, EvaluationError, QadiRuntimeServices> => {
         const current = get(subject);
         // No subject yet is not a denial — it is an unanswerable question. An
@@ -121,6 +170,49 @@ export const makeQadiAtoms = (layer: QadiLayer): QadiAtoms => {
       })
       .pipe(runtime.factory.withReactivity([DECISIONS_KEY]));
 
+    const seed = Atom.make<Decision | undefined>(undefined);
+
+    // Announced once per question, the first time this client answers it for
+    // itself. A closure flag rather than a read of the atom's own previous
+    // value: `seededDecision` runs once per `Atom.family` key, so the flag
+    // outlives every read of `combined` — and it absorbs StrictMode's double
+    // render, which a value comparison would report twice.
+    let announced = false;
+
+    const combined = Atom.readable((get): DecisionResult => {
+      const result = get(computed);
+      // `Initial` is the only state in which this client has never answered for
+      // itself. The moment it has — allow, deny or failure — that answer is
+      // authoritative and the seed is spent. That includes while a *later*
+      // re-check is in flight: a re-checking result already carries its own
+      // previous decision, and falling back to the seed there would resurrect
+      // something older still.
+      if (!AsyncResult.isInitial(result)) {
+        // Guarded on `report` so an atom set with no reporter reads exactly the
+        // atoms it read before — no reporter, no added dependency, no change.
+        if (!announced && report !== undefined) {
+          announced = true;
+          const seeded = get(seed);
+          // A failure is not a disagreement. The client could not answer, so
+          // there is nothing for the server's answer to disagree with, and
+          // reporting one would be INV-QD-006 in reverse.
+          if (
+            seeded !== undefined &&
+            AsyncResult.isSuccess(result) &&
+            isMismatch(seeded, result.value)
+          ) {
+            report({ policy, resource, seeded, decided: result.value });
+          }
+        }
+        return result;
+      }
+      const seeded = get(seed);
+      return seeded === undefined ? result : AsyncResult.success(seeded);
+    });
+
+    return { seed, combined };
+  };
+
   // `Atom.family` memoises on the argument, so every component asking the same
   // question shares one evaluation. It keys **structurally** — the family holds
   // a `MutableHashMap`, which compares with `Equal.equals` — so two separately
@@ -130,19 +222,25 @@ export const makeQadiAtoms = (layer: QadiLayer): QadiAtoms => {
   // so a fresh object each render re-walks the whole policy tree.
   // `v4-reactivity-smoke.test.ts` pins this; a bump to reference keying would
   // silently stop inline policies sharing.
-  const decision = Atom.family((policy: Policy) => decisionAtom(policy, undefined));
+  const bare = Atom.family((policy: Policy) => seededDecision(policy, undefined));
 
-  const decisionByResource = Atom.family((policy: Policy) =>
-    Atom.family((resource: Resource) => decisionAtom(policy, resource)),
+  const byResource = Atom.family((policy: Policy) =>
+    Atom.family((resource: Resource) => seededDecision(policy, resource)),
   );
 
   const invalidate = runtime.fn((_: void) => Reactivity.invalidate([DECISIONS_KEY]));
 
-  return {
+  const atoms: QadiAtoms = {
     runtime,
     subject,
-    decision,
-    decisionFor: (policy, resource) => decisionByResource(policy)(resource),
+    decision: (policy) => bare(policy).combined,
+    decisionFor: (policy, resource) => byResource(policy)(resource).combined,
     invalidate,
   };
+
+  registerHydrationSeeds(atoms, (policy, resource) =>
+    resource === undefined ? bare(policy).seed : byResource(policy)(resource).seed,
+  );
+
+  return atoms;
 };

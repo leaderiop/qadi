@@ -118,6 +118,28 @@ describe("recording resolvers", () => {
       assert.deepStrictEqual([...resolver.calls], ["u1 owner d1"]);
     }));
 
+  it.effect("ANSWERS Unrelated for an edge it does not hold, never Unknown", () =>
+    Effect.gen(function* () {
+      // A fixture edge list is the store, so a miss is a closed-world "no" and
+      // the denial should name the missing edge. `"Unknown"` is reserved for a
+      // resolver that was never wired (INV-QD-029), which this one plainly was.
+      const resolver = edgeRelationshipResolver([
+        { subjectId: "u1", relation: "owner", resourceId: "d1" },
+      ]);
+      const d = yield* evaluate(hasRelationship("owner"), {
+        resource: { id: "d2" },
+      }).pipe(
+        Effect.provide(
+          qadiTestLayer(subjectWith({ id: "u1" }), {
+            relationshipResolver: resolver.layer,
+          }),
+        ),
+      );
+      assert.strictEqual(d._tag, "Deny");
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject 'u1' has no 'owner' relation to 'd2'");
+    }));
+
   it.effect("failingAttributeResolver surfaces an error, not a denial", () =>
     Effect.gen(function* () {
       const r = yield* Effect.result(

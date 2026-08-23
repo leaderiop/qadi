@@ -139,7 +139,9 @@ const CareTeamResolver: Layer.Layer<RelationshipResolver> = Layer.succeed(
               m.subjectId === request.subjectId &&
               (request.relation === "care-team" ||
                 request.relation === `care-team:${m.teamRole}`),
-          ),
+          )
+            ? "Related"
+            : "Unrelated",
         ),
       ),
   },

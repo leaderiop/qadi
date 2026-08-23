@@ -33,15 +33,18 @@ describe("default layers", () => {
       assert.isUndefined(yield* AttributeResolver.resolve(makeSubjectId("u"), "absent"));
     }).pipe(Effect.provide(attributeResolverFromRecord({ tier: "gold" }))));
 
-  it.effect("RelationshipResolverNever denies everything", () =>
+  it.effect("RelationshipResolverNever answers Unknown, not Unrelated", () =>
     Effect.gen(function* () {
+      // Both deny, so the difference never reaches a verdict — it reaches the
+      // denial's sentence. "Unrelated" is what a wired store says when it looked
+      // and found nothing; this layer never looked (INV-QD-029).
       const related = yield* RelationshipResolver.check({
         subjectId: makeSubjectId("u"),
         relation: "owner",
         resourceId: makeResourceId("d"),
         depth: undefined,
       });
-      assert.isFalse(related);
+      assert.strictEqual(related, "Unknown");
     }).pipe(Effect.provide(RelationshipResolverNever)));
 
   it.effect("relationshipResolverFromEdges matches direct edges only", () =>
@@ -61,8 +64,10 @@ describe("default layers", () => {
         resourceId: makeResourceId("d"),
         depth: undefined,
       }).pipe(Effect.provide(layer));
-      assert.isTrue(hit);
-      assert.isFalse(miss);
+      assert.strictEqual(hit, "Related");
+      // A static edge list *is* the store, so a missing edge is "Unrelated" —
+      // the closed world `decisionHistoryFromEvents` also assumes.
+      assert.strictEqual(miss, "Unrelated");
     }));
 
   it.effect("CurrentSubjectAnonymous fails closed", () =>

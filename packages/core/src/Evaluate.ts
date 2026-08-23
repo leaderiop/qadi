@@ -10,6 +10,7 @@
  */
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import type { Concurrency } from "effect/Types";
@@ -203,6 +204,30 @@ const readAttribute = (
     ? Effect.succeed(subject.attributes[attribute])
     : AttributeResolver.resolve(subject.id, attribute);
 
+/**
+ * Why an attribute policy refused.
+ *
+ * Two sentences rather than one, because an absent attribute and a present one
+ * that compares wrong are different problems with the same fix rate of roughly
+ * zero when they are reported identically. "did not match" is *true* of
+ * `undefined` — every matcher fails it — which is why this was never a defect,
+ * only a diagnosis withheld. An unwired or misconfigured `AttributeResolver`
+ * produces the absent case exclusively, so naming it points at the wiring
+ * (INV-QD-029, and the mirror of what `"Unknown"` does for relationships).
+ *
+ * The value itself is still never printed. The attribute *name* was already in
+ * the sentence; its contents are the subject's data and stay out of a reason
+ * that reaches logs and, through `AccessDenied`, error handlers.
+ */
+const attributeReason = (
+  side: "subject" | "resource",
+  attribute: string,
+  value: unknown,
+): string =>
+  value === undefined
+    ? `${side} attribute '${attribute}' has no value`
+    : `${side} attribute '${attribute}' did not match`;
+
 const mergeFields = (
   strategy: FieldStrategy,
   sets: ReadonlyArray<ReadonlyArray<string> | undefined>,
@@ -290,12 +315,29 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
     resourceId: makeResourceId(rawId),
     depth: policy.depth,
   });
-  return related
-    ? allow("HasRelationship", policy.fields)
-    : deny(
+  // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
+  // the arms close over `policy`, `subject` and `rawId`, so there is nothing to
+  // hoist. The rebuild is also noise against the service call above, which may
+  // be a graph traversal or a network round trip.
+  return Match.value(related).pipe(
+    Match.when("Related", () => allow("HasRelationship", policy.fields)),
+    Match.when("Unrelated", () =>
+      deny(
         "HasRelationship",
         `subject '${subject.id}' has no '${policy.relation}' relation to '${rawId}'`,
-      );
+      ),
+    ),
+    // Not "has no relation": nothing looked. Naming the absent resolver is the
+    // whole of INV-QD-029 — the sentence above would send a reader to audit a
+    // graph they had never connected.
+    Match.when("Unknown", () =>
+      deny(
+        "HasRelationship",
+        `no relationship resolver is wired, so no '${policy.relation}' relation to '${rawId}' can be confirmed`,
+      ),
+    ),
+    Match.exhaustive,
+  );
 });
 
 const evaluateNode = (
@@ -344,7 +386,7 @@ const evaluateNode = (
       return Effect.map(readAttribute(subject, policy.attribute), (value) =>
         evaluateMatcher(policy.matcher, value, matcherContext)
           ? allow("HasAttribute", policy.fields)
-          : deny("HasAttribute", `subject attribute '${policy.attribute}' did not match`),
+          : deny("HasAttribute", attributeReason("subject", policy.attribute, value)),
       );
 
     case "HasResourceAttribute": {
@@ -360,7 +402,7 @@ const evaluateNode = (
           ? allow("HasResourceAttribute", policy.fields)
           : deny(
               "HasResourceAttribute",
-              `resource attribute '${policy.attribute}' did not match`,
+              attributeReason("resource", policy.attribute, value),
             ),
       );
     }

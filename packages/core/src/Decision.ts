@@ -142,3 +142,79 @@ export const unionFields = (
   if (a === undefined || b === undefined) return undefined;
   return [...new Set([...a, ...b])];
 };
+
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
+
+export interface RenderTraceOptions {
+  /**
+   * Wraps a caller-supplied name — a label, a field, an obligation id — for
+   * emphasis. Defaults to backticks, as `renderExplanation` does.
+   *
+   * Policy tags are deliberately left bare: they are structural, not names the
+   * caller chose.
+   */
+  readonly term?: (text: string) => string;
+  /** What one level of depth prepends. Defaults to two spaces. */
+  readonly indent?: string;
+}
+
+/**
+ * One plain-text rendering of an evaluation tree.
+ *
+ * The counterpart to `renderExplanation`, and the distinction between them is
+ * the one [ADR-QD-027](../../../spec/decisions/027-policy-explanation.md) draws:
+ * an explanation says what a *rule* requires and takes no subject; a trace says
+ * what *happened* to one subject and is meaningless without them. This renders
+ * the second.
+ *
+ * It exists because a denial reaches most callers as one sentence — the root
+ * node's `reason`, on `AccessDenied` — while the subtree that explains it is
+ * already built and, until now, discarded. A string reaches every environment
+ * this library runs in: a log line, a thrown error, a test failure, an HTTP
+ * body. That is why the trace is rendered here rather than shown in a tool.
+ *
+ * **A rendered trace shows what was evaluated, not what was asked.** Children
+ * after the decisive one are absent from `children` rather than marked, because
+ * the evaluator discards them
+ * ([INV-QD-020](../../../spec/invariants.md)) so a trace cannot depend on a
+ * performance switch. Recovering "which branches were never reached" needs the
+ * `Policy` alongside the trace, which this function deliberately does not take.
+ */
+export const renderTrace = (
+  trace: Trace,
+  options?: RenderTraceOptions,
+): string => {
+  const term = options?.term ?? ((t: string) => `\`${t}\``);
+  const indent = options?.indent ?? "  ";
+
+  const fieldsText = (fields: ReadonlyArray<string> | undefined): string =>
+    // `undefined` is the top of the lattice — every field — so it renders as
+    // nothing rather than as an empty list, which would invert the meaning
+    // (INV-QD-004).
+    fields === undefined ? "" : `, exposing only ${fields.map(term).join(", ")}`;
+
+  const obligationsText = (owed: ReadonlyArray<Obligation>): string =>
+    owed.length === 0
+      ? ""
+      : `, owing ${owed
+          .map((o) => `${term(o.id)}${o.advisory ? " (advisory)" : ""}`)
+          .join(", ")}`;
+
+  const go = (node: Trace, depth: number): ReadonlyArray<string> => {
+    const mark = node.allowed ? "✓" : "✗";
+    const named =
+      node.label === undefined
+        ? node.policyTag
+        : `${node.policyTag} (${term(node.label)})`;
+    const because = node.reason === undefined ? "" : ` — ${node.reason}`;
+    const head = `${indent.repeat(depth)}${mark} ${named}${because}${fieldsText(
+      node.visibleFields,
+    )}${obligationsText(node.obligations)}`;
+
+    return [head, ...node.children.flatMap((child) => go(child, depth + 1))];
+  };
+
+  return go(trace, 0).join("\n");
+};

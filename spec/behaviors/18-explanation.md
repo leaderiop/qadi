@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-18                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-08-23                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-028) |
+> | Change History | 1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
 
 _Previous: [17 — Concurrent Evaluation](./17-concurrency.md)_
 
@@ -153,6 +153,58 @@ const sentence: string = renderExplanation(explain(canPublish));
 // The tree is the point. An admin interface walks it and renders a role as a link.
 const tree = explain(canPublish);
 const isConjunction: boolean = tree._tag === "All";
+```
+
+## BEH-QD-144: A decision renders too, and it is a different rendering
+
+> **See:** [ADR-QD-039](../decisions/039-a-seed-is-not-an-authority.md),
+> [ADR-QD-027](../decisions/027-policy-explanation.md)
+
+```ts
+export const renderTrace: (trace: Trace, options?: RenderTraceOptions) => string;
+```
+
+```
+REQUIREMENT: `renderTrace` MUST mark every node with its verdict, and MUST
+             render a node's `reason` where it has one.
+```
+
+```
+REQUIREMENT: It MUST render an `undefined` `visibleFields` as no restriction,
+             never as an empty set.
+```
+
+`renderExplanation` says what a *rule* requires and takes no subject.
+`renderTrace` says what *happened* to one subject and is meaningless without
+them. Keeping the two apart is [ADR-QD-027](../decisions/027-policy-explanation.md)'s
+central distinction, and having both renderings in one document is the clearest
+place to see it: they take different arguments, answer different questions, and
+neither can be derived from the other.
+
+The second requirement is [INV-QD-004](../invariants.md) restated at the
+rendering layer. `undefined` is the **top** of the visibility lattice — every
+field — so printing it as an empty list would say the opposite of what it means,
+and a reader would conclude an allow exposed nothing.
+
+**A rendered trace shows what was evaluated, not what was asked.** Children after
+the decisive one are absent from `children` rather than marked, because the
+evaluator discards them ([INV-QD-020](../invariants.md)) so that a trace cannot
+depend on a performance switch. Recovering "which branches were never reached"
+requires the `Policy` alongside the trace; `renderTrace` deliberately does not
+take one, so it never claims a count it cannot support.
+
+```typescript
+import { renderTrace, type Decision } from "@qadi/core";
+
+declare const decision: Decision;
+
+// ✗ AllOf — subject lacks role `editor`
+//   ✓ HasPermission
+//   ✗ HasRole — subject lacks role `editor`
+const why: string = renderTrace(decision.trace);
+
+// The same tree with the caller's own emphasis, for a terminal that has none.
+const plain: string = renderTrace(decision.trace, { term: (t) => t });
 ```
 
 ---

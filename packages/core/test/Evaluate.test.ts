@@ -75,6 +75,39 @@ describe("leaf policies", () => {
       assert.strictEqual(d.reason, "subject attribute 'level' did not match");
     }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { level: 1 } })))));
 
+  it.effect("AN ABSENT ATTRIBUTE SAYS SO, rather than 'did not match'", () =>
+    Effect.gen(function* () {
+      // "did not match" is *true* of an unresolved attribute — every matcher
+      // fails `undefined` — so this was never a wrong answer, only a withheld
+      // diagnosis. A misconfigured or unwired `AttributeResolver` produces this
+      // case exclusively, and the two sentences are what tell them apart.
+      const d = yield* evaluate(P.hasAttribute("level", M.gte(3)));
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject attribute 'level' has no value");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: {} })))));
+
+  it.effect("an absent resource attribute says so too", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
+      const d = yield* evaluate(policy, { resource: { id: "doc-1" } });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "resource attribute 'state' has no value");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("A PRESENT-BUT-UNDEFINED VALUE IS STILL 'has no value'", () =>
+    Effect.gen(function* () {
+      // `readAttribute` consults `Object.hasOwn` first, so this path reaches the
+      // matcher without touching the resolver — and the sentence has to be true
+      // of it too. "has no value" covers both readings; "is not set" would have
+      // been a claim about the record's shape, which this is not.
+      const d = yield* evaluate(P.hasAttribute("level", M.exists()));
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject attribute 'level' has no value");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { level: undefined } })))));
+
   it.effect("a matcher referencing action() allows once an action is supplied", () =>
     Effect.gen(function* () {
       // The positive half of `action === undefined && referencesAction(...)`:
@@ -142,6 +175,8 @@ describe("leaf policies", () => {
       assert.isFalse(isAllowed(d));
       assert.strictEqual(d.trace.policyTag, "HasRelationship");
       if (d._tag !== "Deny") return;
+      // A *wired* store looked and found nothing, so naming the missing edge is
+      // correct here. The unwired case gets a different sentence — see below.
       assert.strictEqual(d.reason, "subject 'u1' has no 'owner' relation to 'doc-2'");
     }).pipe(
       Effect.provide(
@@ -152,6 +187,28 @@ describe("leaf policies", () => {
         }),
       ),
     ));
+
+  it.effect("AN UNWIRED RESOLVER NAMES ITSELF rather than the missing edge", () =>
+    Effect.gen(function* () {
+      // The defect this replaced: under `RelationshipResolverNever` the denial
+      // read "subject 'u1' has no 'owner' relation to 'doc-1'" — a claim about
+      // the contents of a graph nobody had connected, which sends a reader to
+      // audit their edges instead of their wiring (INV-QD-029).
+      const d = yield* evaluate(P.hasRelationship("owner"), {
+        resource: { id: "doc-1" },
+      });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(
+        d.reason,
+        "no relationship resolver is wired, so no 'owner' relation to 'doc-1' can be confirmed",
+      );
+      // Still a denial, not an error: an unwired port is a structural absence,
+      // and INV-QD-007 has it fail closed rather than fail loud.
+      assert.strictEqual(d.trace.policyTag, "HasRelationship");
+      // `testLayer` defaults to RelationshipResolverNever, which is the point —
+      // this is what a caller who wired nothing actually gets.
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
 
   it.effect("HasRelationship fails without resource.id, naming the relation", () =>
     Effect.gen(function* () {
@@ -440,7 +497,7 @@ describe("short-circuiting", () => {
       check: (request) =>
         Effect.sync(() => {
           calls.push(`${request.subjectId} ${request.relation} ${request.resourceId}`);
-          return request.relation === "owner";
+          return request.relation === "owner" ? "Related" : "Unrelated";
         }),
     });
 
@@ -819,7 +876,7 @@ describe("the action dimension", () => {
               check: (request) =>
                 Effect.sync(() => {
                   calls.push(request.relation);
-                  return true;
+                  return "Related";
                 }),
             }),
           }),
@@ -1468,7 +1525,7 @@ describe("task-based access control", () => {
         check: (request) =>
           Effect.sync(() => {
             edges.push(request.relation);
-            return true;
+            return "Related";
           }),
       });
       const recordingEvents = Layer.succeed(DecisionHistory, {
@@ -1726,7 +1783,7 @@ describe("obligations", () => {
               check: (request) =>
                 Effect.sync(() => {
                   calls.push(request.relation);
-                  return true;
+                  return "Related";
                 }),
             }),
           }),
@@ -2137,7 +2194,7 @@ describe("concurrent evaluation", () => {
       check: (request: { readonly relation: string }) =>
         Effect.sync(() => {
           calls.push(`rel:${request.relation}`);
-          return request.relation === "owner";
+          return request.relation === "owner" ? "Related" : "Unrelated";
         }),
     }),
   });

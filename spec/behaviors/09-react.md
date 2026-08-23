@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 2.1                                                          |
-> | Effective Date | 2026-07-26                                                   |
+> | Revision       | 2.3                                                          |
+> | Effective Date | 2026-08-23                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -26,7 +26,15 @@ single `useSyncExternalStore` call.
 ## BEH-QD-065: The atom set
 
 ```ts
-export const makeQadiAtoms: (layer: QadiLayer) => QadiAtoms;
+export const makeQadiAtoms: (
+  layer: QadiLayer,
+  options?: QadiAtomsOptions,
+) => QadiAtoms;
+
+export interface QadiAtomsOptions {
+  /** Replaces the development-mode warning — see [BEH-QD-152](./19-hydration.md). */
+  readonly onHydrationMismatch?: HydrationMismatchReporter;
+}
 
 export type QadiRuntimeServices = Exclude<EvaluationServices, CurrentSubject>;
 
@@ -134,10 +142,12 @@ export const useProjected: <A extends Record<string, unknown>>(
 ) => Partial<A>;
 export const useInvalidate: () => () => void;
 
+export type DeniedNode = ReactNode | ((decision: Deny) => ReactNode);
+
 export const Can: (props: {
   readonly policy: Policy;
   readonly resource?: Resource;
-  readonly fallback?: ReactNode;
+  readonly fallback?: DeniedNode;
   readonly pending?: ReactNode;
   readonly failure?: ReactNode;
   readonly children: ReactNode;
@@ -148,7 +158,7 @@ export const Cannot: (props: {
   readonly resource?: Resource;
   readonly pending?: ReactNode;
   readonly failure?: ReactNode;
-  readonly children: ReactNode;
+  readonly children: DeniedNode;
 }) => ReactNode;
 ```
 
@@ -172,6 +182,37 @@ RECOMMENDED: `Can` renders `failure ?? fallback`, so an interface with no
              `failure` node fails closed. Supply one wherever an operator needs
              to tell an outage from a denial.
 ```
+
+## BEH-QD-072: A guard hands its denial to the node that replaces it
+
+> **See:** [BEH-QD-054](./07-enforcement.md), [BEH-QD-144](./18-explanation.md)
+
+```
+REQUIREMENT: Where `Can`'s `fallback` and `Cannot`'s `children` are functions,
+             they MUST be called with the `Deny` that produced them.
+```
+
+```
+REQUIREMENT: A function `fallback` MUST NOT be used for the failure branch.
+```
+
+A guard is already holding the `Deny` — with its reason and its whole trace — at
+the moment it decides to render nothing, and used to discard it. So "why is this
+control not here?" was the one question the declarative API could not answer,
+while the answer sat one argument away. It is the same defect as
+[BEH-QD-054](./07-enforcement.md) at a different surface: a value in scope,
+thrown away at the point it was most wanted.
+
+A plain node stays the common case. Most fallbacks say nothing about the denial
+and should not have to take one, so `DeniedNode` is a union rather than a
+required function.
+
+The second requirement is [INV-QD-006](../invariants.md) at the component layer.
+`failure` still defaults to `fallback`, but a **function** fallback is written to
+explain a refusal, and during an outage no refusal happened — calling it would
+describe one that does not exist, which is exactly the confusion "failure is not
+denial" exists to prevent. A function fallback with no `failure` renders nothing,
+which is still closed.
 
 ## BEH-QD-069: Invalidation
 

@@ -98,7 +98,13 @@ export class QadiWorld extends World {
   permissions: Array<`${string}:${string}`> = [];
   attributes: Record<string, unknown> = {};
   resolvedAttributes: Record<string, unknown> = {};
-  relationships: Array<RelationshipEdgeInput> = [];
+  /**
+   * Known edges. Defaults to a wired but **empty** store, not to an unwired
+   * port — every scenario that adds no edge still expects a store that looked
+   * and found nothing. `undefined` means unwired, as it does for `events`, and
+   * the two produce different denials.
+   */
+  relationships: Array<RelationshipEdgeInput> | undefined = [];
   resource: Record<string, unknown> | undefined = undefined;
   action: string | undefined = undefined;
   /** Set when a scenario supplies a handler for the duties a decision carries. */
@@ -206,7 +212,7 @@ export class QadiWorld extends World {
       Effect.provide(
         qadiTestLayer(this.subject, {
           attributes: this.resolvedAttributes,
-          relationships: this.relationships,
+          ...(this.relationships === undefined ? {} : { relationships: this.relationships }),
           // A store that is *down* and a port that is *unwired* are different
           // answers, and only one of them is a denial.
           ...(this.historyUnreachable

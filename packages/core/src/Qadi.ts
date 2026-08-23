@@ -93,6 +93,7 @@ const permitted = <E = never, R = never>(
               subjectId: decision.subjectId,
               policyTag: policy._tag,
               reason: decision.reason,
+              trace: decision.trace,
             }),
           ),
   );

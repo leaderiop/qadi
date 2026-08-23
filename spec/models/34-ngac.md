@@ -125,13 +125,15 @@ const PolicyGraphResolver: Layer.Layer<RelationshipResolver> = Layer.succeed(
     check: (request: RelationshipCheck) =>
       Effect.gen(function* () {
         const { relation, resourceId, subjectId } = request;
-        if (yield* isProhibited(subjectId, resourceId, relation)) return false;
+        // "Unrelated", not "Unknown": a prohibition is something this resolver
+        // positively knows, and the denial should say so.
+        if (yield* isProhibited(subjectId, resourceId, relation)) return "Unrelated";
         const userSide = yield* attributesOf(subjectId);
         const objectSide = yield* attributesOf(resourceId);
         const grants = yield* Effect.forEach(userSide, (ua) =>
           Effect.forEach(objectSide, (oa) => associationGrants(ua, oa, relation)),
         );
-        return grants.some((row) => row.includes(true));
+        return grants.some((row) => row.includes(true)) ? "Related" : "Unrelated";
       }),
   },
 );

@@ -26,10 +26,32 @@ export interface RelationshipCheck {
   readonly depth: number | undefined;
 }
 
+/**
+ * What the port can say about a relationship.
+ *
+ * Three values, mirroring `ActedResult` in `DecisionHistory.ts`.
+ * [ADR-QD-020](../../../spec/decisions/020-decision-history-port.md) named
+ * `RelationshipResolverNever` answering `false` "the exact counterpart" of
+ * `"Unknown"` and left this port boolean, because `hasRelationship` is a
+ * positive test and `false` already fails closed. That is still true — the
+ * third value buys nothing here for *safety*.
+ *
+ * It buys the denial's sentence. A boolean cannot tell the evaluator which of
+ * two answers it is holding, so an unwired port denied with
+ * `subject 'u1' has no 'owner' relation to 'doc-1'` — a claim about the
+ * contents of a store nobody had wired
+ * ([INV-QD-029](../../../spec/invariants.md#inv-qd-029-a-denial-names-only-what-was-consulted)).
+ *
+ * `"Unknown"` means *nobody can say* — no resolver is wired. A resolver that is
+ * wired and unreachable is a `RelationshipResolveError`, which is an error, not
+ * an answer.
+ */
+export type RelatedResult = "Related" | "Unrelated" | "Unknown";
+
 export interface RelationshipResolverShape {
   readonly check: (
     request: RelationshipCheck,
-  ) => Effect.Effect<boolean, RelationshipResolveError>;
+  ) => Effect.Effect<RelatedResult, RelationshipResolveError>;
 }
 
 export class RelationshipResolver extends Context.Service<
@@ -41,14 +63,20 @@ export class RelationshipResolver extends Context.Service<
 }
 
 /**
- * Denies every relationship.
+ * Knows nothing, so every relationship policy denies.
  *
  * The default, and deliberately fail-closed: an unwired resolver must not grant
- * access. A `HasRelationship` policy under this layer always denies.
+ * access. A `HasRelationship` policy under this layer always denies — the name
+ * is still accurate in outcome, which is why it kept it.
+ *
+ * It answers `"Unknown"` rather than `"Unrelated"`, and the difference is only
+ * ever visible in the denial's reason. `"Unrelated"` is what a wired store says
+ * when it looked and found no edge; this layer never looked, and a denial that
+ * claimed otherwise sent developers to audit a graph they had not connected.
  */
 export const RelationshipResolverNever: Layer.Layer<RelationshipResolver> = Layer.succeed(
   RelationshipResolver,
-  { check: () => Effect.succeed(false) },
+  { check: () => Effect.succeed("Unknown") },
 );
 
 /**
@@ -88,6 +116,10 @@ export class RelationshipEdge extends Data.Class<RelationshipEdgeInput> {}
  *
  * Direct edges only — `depth` is ignored, since a flat list has no graph to
  * traverse. Suitable for tests and small fixed policies.
+ *
+ * A closed world: an edge not listed is `"Unrelated"` rather than `"Unknown"`,
+ * because this layer *is* the store and it does know — the same distinction
+ * `decisionHistoryFromEvents` draws.
  */
 export const relationshipResolverFromEdges = (
   edges: ReadonlyArray<RelationshipEdgeInput>,
@@ -103,7 +135,9 @@ export const relationshipResolverFromEdges = (
             relation: request.relation,
             resourceId: request.resourceId,
           }),
-        ),
+        )
+          ? "Related"
+          : "Unrelated",
       ),
   });
 };

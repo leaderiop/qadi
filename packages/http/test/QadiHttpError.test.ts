@@ -28,7 +28,21 @@ describe("toResponse", () => {
     const subjectId = makeSubjectId("u-1");
     const resourceId = makeResourceId("doc-1");
     const cases: ReadonlyArray<readonly [Parameters<typeof toResponse>[0], number]> = [
-      [new AccessDenied({ subjectId, policyTag: "HasPermission", reason: "denied" }), 403],
+      [
+        new AccessDenied({
+          subjectId,
+          policyTag: "HasPermission",
+          reason: "denied",
+          trace: {
+            policyTag: "HasPermission",
+            allowed: false,
+            reason: "denied",
+            children: [],
+            obligations: [],
+          },
+        }),
+        403,
+      ],
       [new UndischargedObligation({ subjectId, obligationIds: ["ob-1"] }), 403],
       [new AttributeResolveError({ attribute: "clearance", cause: "down" }), 502],
       [new RelationshipResolveError({ relation: "owner", resourceId, cause: "down" }), 502],
