@@ -128,3 +128,6 @@ entries:
   - id: "ADR-QD-042"
     file: "042-a-projection-is-not-an-identity.md"
     title: "A lossy projection is not an identity, in prose or in a cache key"
+  - id: "ADR-QD-043"
+    file: "043-a-decision-is-computed-from-its-inputs.md"
+    title: "A decision is computed from the inputs it claims, not from a proxy for them"

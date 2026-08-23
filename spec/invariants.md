@@ -989,3 +989,75 @@ in the other direction so parentheses cannot spread to ordinary sentences.
 **Related**: [BEH-QD-137](behaviors/18-explanation.md), [ADR-QD-042](decisions/042-a-projection-is-not-an-identity.md), [ADR-QD-027](decisions/027-policy-explanation.md).
 
 ---
+
+## INV-QD-032: A guarded resource is the evaluated resource
+
+The resource `guard` is given is the resource the policy is evaluated against.
+
+**Source**: `packages/core/src/Qadi.ts` — `guard` calls
+`enforce(policy, { ...options, resource })`, so the positional resource reaches
+evaluation and overrides any `options.resource`.
+
+**Implication**: the reverse shipped, and it was fail-open rather than
+fail-closed. The resource was passed only to the handler; the policy was
+evaluated with `options.resource`, which no caller set. An absent resource does
+**not** deny — `resolveRef` yields `undefined` for a `ResourceRef` with no
+resource, and `neq` on `undefined` is `true` — so a policy written to refuse a
+mismatched tenant allowed one, and the handler received an `Authorized<P>`
+witness asserting a check that never ran.
+
+`@qadi/http`'s `guardRoute` loads a resource per request and passes it here, so
+its central parameter was authorization-inert. The defect survived because that
+package's fixture uses a subject-only policy, against which an empty resource and
+a correct one are indistinguishable.
+
+A second consequence, now correct: an **empty** resource reaches the evaluator
+and denies a resource-scoped policy, where no resource at all fails with
+`MissingResource`. That is the difference between a 403 and a 500 in
+`@qadi/http`, and `NO_RESOURCE`'s comment had described the former while the code
+did the latter.
+
+**Enforcement**: `packages/core/test/Qadi.test.ts` guards a resource that should
+be refused and asserts `AccessDenied` with the handler never started, guards one
+that should pass so the test cannot succeed by denying everything, pins the empty
+resource as a denial rather than an error, and pins the positional resource
+winning over `options.resource`.
+
+**Related**: [BEH-QD-055](behaviors/07-enforcement.md), [ADR-QD-043](decisions/043-a-decision-is-computed-from-its-inputs.md), [ADR-QD-035](decisions/035-witness-guard-primitive.md), [INV-QD-006](#inv-qd-006-failure-is-not-denial).
+
+---
+
+## INV-QD-033: A cached decision belongs to the grants that earned it
+
+Two subjects with different grants never share a cache entry, whatever their ids.
+
+**Source**: `packages/core/src/Evaluate.ts` — the `DecisionCacheKey` carries the
+whole `AuthSubject`, not `subject.id`. `AuthSubject` compares structurally,
+`HashSet` roles and permissions included.
+
+**Implication**: the key was `subject.id`, and an id is a sound proxy for a
+subject only if it determines that subject's grants. It does not.
+`@qadi/http`'s `SubjectExtractor` rebuilds an `AuthSubject` per request from a
+bearer token, so a scoped token and a full token for one user share an id and
+hold different permissions. Under an application-scoped cache — which
+`DecisionCache.ts` documents as a supported choice — the first verdict for a
+given id won permanently, in both directions: a scoped token receiving a full
+token's allow, and a full token receiving a scoped token's denial.
+
+This narrows staleness rather than removing it, and the boundary is the useful
+part. A grant revoked in the **subject** changes the key, so the next request
+re-evaluates. A grant revoked only in a **store the evaluation consults** — an
+attribute value, a relationship edge, a history event — is invisible to the key
+and stays cached. Application scope is safe against token downgrade and unsafe
+against backend revocation; per-request scope is safe against both.
+
+**Enforcement**: `packages/core/test/DecisionCache.test.ts` runs two tokens for
+one id through one application-scoped cache in both orders and asserts each gets
+its own verdict; a control asserts that two structurally equal subjects still
+hit, so the fix cannot pass by disabling the cache. Verified by falsification —
+erasing the grants from the key reproduces `[true, true]` where `[true, false]`
+is correct.
+
+**Related**: [BEH-QD-168](behaviors/21-decision-cache.md), [INV-QD-030](#inv-qd-030-cache-key-uniqueness), [ADR-QD-043](decisions/043-a-decision-is-computed-from-its-inputs.md), [ADR-QD-031](decisions/031-decision-cache.md).
+
+---

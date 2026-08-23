@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-07                                    |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-08-23                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -164,6 +164,47 @@ const guarded = deleteDocument("doc-1").pipe(
   ),
 );
 ```
+
+## BEH-QD-055: A guarded resource is the evaluated resource
+
+> **Invariant:** [INV-QD-032](../invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)
+> **See:** [ADR-QD-043](../decisions/043-a-decision-is-computed-from-its-inputs.md),
+> [ADR-QD-035](../decisions/035-witness-guard-primitive.md)
+
+```ts
+export const guard: <P extends Permission>(
+  permission: P,
+  policy: Policy,
+  options?: EnforceOptions,
+) => <A extends Resource, B, E, R>(
+  resource: A,
+  handler: (authorized: Authorized<P>, resource: A) => Effect.Effect<B, E, R>,
+) => Effect.Effect<B, E | EnforcementError, R | EvaluationServices>;
+```
+
+```
+REQUIREMENT: The policy MUST be evaluated against `resource`. A `resource`
+             supplied in `options` MUST NOT override it.
+```
+
+The first requirement `guard` has carried. It was written after the reverse
+shipped: `resource` reached only the handler, and the policy was evaluated with
+`options.resource`, which no caller set.
+
+That direction is **fail-open**, which is why it needs an invariant rather than a
+note. An absent resource does not deny — a `ResourceRef` resolves to `undefined`
+and `neq` against `undefined` is `true` — so a policy written to refuse a
+mismatched tenant allowed one, and the handler was handed an `Authorized<P>`
+witness for a check that had not happened.
+
+```
+REQUIREMENT: An empty resource MUST deny a resource-scoped policy, not fail.
+```
+
+The distinction between `{}` and absent is the distinction between a 403 and a
+500 at an HTTP boundary. `@qadi/http`'s `RequirePermission` guards with `{}`
+before any resource is loaded, precisely so that an endpoint-level policy
+touching a resource attribute refuses rather than erroring.
 
 ---
 

@@ -812,7 +812,10 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   // behaves exactly as it did (ADR-QD-031).
   const cache = yield* Effect.serviceOption(DecisionCache);
   const cacheKey: DecisionCacheKey = {
-    subjectId: subject.id,
+    // The whole subject, not `subject.id`: two tokens for one user carry the
+    // same id and different grants, and the id-only key served the first
+    // verdict to both (INV-QD-033).
+    subject,
     policy,
     resource: options?.resource,
     action: options?.action,

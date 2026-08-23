@@ -37,8 +37,8 @@ Qadi.guard(...)(...); })` — the assertion is that a line marked
 comment a future edit can delete without anything noticing, and it says
 nothing about *why* a type fails to compile — only that it does.
 
-The `packages/http` investigation ([issue 16](../../.scratch/qadi-http/issues/16-http-integration-tests.md))
-found real, load-bearing type-level bugs by reaching for a dedicated
+The `packages/http` investigation (`packages/http/test/http.test.ts` and the
+`.tst.ts` files beside it) found real, load-bearing type-level bugs by reaching for a dedicated
 type-testing tool, `tstyche`, ad hoc — installed mid-investigation, on
 request, to root-cause a `Layer`/`Effect` type-inference question the
 `@ts-expect-error` technique has no way to express (`does this `Exclude`
@@ -93,7 +93,6 @@ permanent files:
 | `packages/http/test/RequirePermission.tst.ts` | `requiresPermission`/`registerApi` accept a plain, options-less `HttpApiEndpoint`/`HttpApi`; the inline `.annotate()` pattern keeps an endpoint's literal identifier |
 
 Every one of these pins a finding from
-[issue 16](../../.scratch/qadi-http/issues/16-http-integration-tests.md) and
 [ADR-QD-036](./036-qadi-http-package-shape.md) revision 1.2 — a real, already-shipped-once
 bug, not a hypothetical one written to give the new tool something to do.
 

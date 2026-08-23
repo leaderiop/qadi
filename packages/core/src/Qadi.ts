@@ -184,6 +184,18 @@ export const enforceProjected =
  * real field on {@link Authorized}, not out of `Context`'s runtime tag
  * identity — a per-permission `Context.Service` registry was tried first and
  * rejected for needing an unsound cast at retrieval (ADR-QD-035).
+ *
+ * **`resource` is what the policy is evaluated against**, as well as what the
+ * handler receives. It was previously only the latter: `enforce(policy,
+ * options)` ran with `options.resource`, which every caller left unset, so a
+ * resource-scoped policy was evaluated with no resource at all. A matcher
+ * comparing against an absent resource does not deny — `neq` on `undefined` is
+ * *true* — so a policy written to refuse a mismatched tenant allowed one
+ * ([INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)).
+ *
+ * An explicit `options.resource` is overridden rather than merged. Two
+ * channels for one value is what caused this; the handler, the witness and the
+ * evaluation now cannot disagree about which resource was checked.
  */
 export const guard =
   <P extends Permission, EO = never, RO = never>(
@@ -195,10 +207,9 @@ export const guard =
     resource: A,
     handler: (authorized: Authorized<P>, resource: A) => Effect.Effect<B, E, R>,
   ): Effect.Effect<B, E | EnforcementError | EO, R | EvaluationServices | RO> =>
-    enforce(
-      policy,
-      options,
-    )(handler(Brand.nominal<Authorized<P>>()({ permission }), resource));
+    enforce(policy, { ...options, resource })(
+      handler(Brand.nominal<Authorized<P>>()({ permission }), resource),
+    );
 
 /**
  * Keeps only the elements a policy allows, evaluated per element as resource.

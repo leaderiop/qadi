@@ -172,8 +172,17 @@ fi
 # Links inside fenced code blocks are illustrative syntax examples, not real
 # references, and are skipped — otherwise every doc that documents the link
 # format reports itself as broken.
+#
+# A target that exists but is **gitignored** counts as broken, and that is not
+# a refinement — it is the whole reason this check was insufficient. Three
+# links into `.scratch/` shipped in ADR-QD-036 and ADR-QD-037 and resolved
+# perfectly on the author's machine while failing on every clone, so CI was red
+# for five commits with nothing local to show for it. `-e` alone asks "can *I*
+# read this", which is the wrong question for a document other people have to
+# read.
 # ---------------------------------------------------------------------------
 broken=""
+untracked=""
 checked=0
 while IFS= read -r md; do
   dir="$(dirname "$md")"
@@ -185,15 +194,21 @@ while IFS= read -r md; do
     path="${target%%#*}"
     [[ -z "$path" ]] && continue
     checked=$((checked + 1))
-    [[ -e "$dir/$path" ]] || broken="${broken} $(basename "$md")->${path}"
+    if [[ ! -e "$dir/$path" ]]; then
+      broken="${broken} $(basename "$md")->${path}"
+    elif git -C "$ROOT_DIR" check-ignore -q "$dir/$path" 2>/dev/null; then
+      untracked="${untracked} $(basename "$md")->${path}"
+    fi
   done < <(awk '/^[[:space:]]*```/ { fence = !fence; next } !fence' "$md" \
     | grep -oE '\]\([^)]+\)' | sed -E 's/^\]\((.*)\)$/\1/')
 done < <(find "$SPEC_DIR" -name '*.md' -type f)
 
 if [[ -n "$broken" ]]; then
   report FAIL "relative link integrity" "broken:${broken}"
+elif [[ -n "$untracked" ]]; then
+  report FAIL "relative link integrity" "gitignored, so broken for everyone else:${untracked}"
 else
-  report PASS "relative link integrity" "$checked link(s) resolve"
+  report PASS "relative link integrity" "$checked link(s) resolve, none gitignored"
 fi
 
 # ---------------------------------------------------------------------------

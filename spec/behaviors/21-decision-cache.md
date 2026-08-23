@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-08-23                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -63,6 +63,11 @@ REQUIREMENT: The cache key MUST comprise the subject id, the policy, the resourc
              and the action.
 ```
 
+> **Amended in CCR-QD-058.** "the subject id" is now **the subject** — see
+> [BEH-QD-168](#beh-qd-168-the-key-carries-the-subject-not-the-subjects-id). An
+> id identifies a subject only if it determines that subject's grants, which is
+> false wherever a subject is rebuilt per request from a token.
+
 A cache keyed on the policy alone would serve one subject's allow to another — the
 same class of defect as an unbound hydration payload
 ([BEH-QD-146](./19-hydration.md)). A decision is *about* a subject, so any structure
@@ -82,6 +87,11 @@ REQUIREMENT: Two structurally equal resources with different property order MAY
 
 A miss costs an evaluation; a wrong hit costs an authorization.
 
+> **Superseded in CCR-QD-057.** The permission is spent: they now **hit**, per
+> [BEH-QD-167](#beh-qd-167-two-different-questions-never-share-an-entry). The
+> second clause was the load-bearing one and it was the one that failed — the
+> stringified key this permission existed to excuse could collide.
+
 ## BEH-QD-164: The lifetime is the caller's
 
 ```
@@ -91,7 +101,15 @@ REQUIREMENT: `decisionCacheLayer` MUST be a function returning a fresh cache, ne
 
 Provided per request the cache dies with the request; provided once at application
 scope it lives for the process — not a leak across subjects, since the key includes
-the subject, but staleness: a revoked grant stays granted.
+the subject.
+
+> **Narrowed in CCR-QD-058.** "a revoked grant stays granted" is now only half
+> true, and the half that matters is which. A grant revoked in the **subject**
+> changes the key, so an application-scoped cache re-evaluates rather than
+> serving the old allow. A grant revoked only in a **store the evaluation
+> consults** stays cached. Application scope is safe against token downgrade and
+> unsafe against backend revocation; per-request scope is safe against both
+> ([BEH-QD-168](#beh-qd-168-the-key-carries-the-subject-not-the-subjects-id)).
 
 ```
 REQUIREMENT: The cache MUST be provided around the unit of work, not around each
@@ -183,6 +201,47 @@ identity.
 The second requirement was previously a documented **miss**, defended as the
 safe direction of a stringified key. It is now a hit, and safely: the comparison
 is real structural equality rather than a serialization that happens to agree.
+
+## BEH-QD-168: The key carries the subject, not the subject's id
+
+> **Invariant:** [INV-QD-033](../invariants.md#inv-qd-033-a-cached-decision-belongs-to-the-grants-that-earned-it)
+> **See:** [ADR-QD-043](../decisions/043-a-decision-is-computed-from-its-inputs.md)
+
+```ts
+export interface DecisionCacheKey {
+  readonly subject: AuthSubject;
+  readonly policy: Policy;
+  readonly resource: Readonly<Record<string, unknown>> | undefined;
+  readonly action: string | undefined;
+}
+```
+
+```
+REQUIREMENT: Two subjects with different grants MUST NOT share an entry,
+             whatever their ids.
+```
+
+This amends [BEH-QD-163](#beh-qd-163-the-key-includes-the-subject), which
+required "the subject id". An id identifies a subject only if it determines that
+subject's grants, and in an HTTP application it does not: a `SubjectExtractor`
+rebuilds an `AuthSubject` per request from a token, so a scoped token and a full
+token for one user share an id and hold different permissions. Under an
+application-scoped cache the first verdict won permanently — an allow leaking to
+a downgraded token, or a denial trapping a full one.
+
+```
+REQUIREMENT: Two structurally equal subjects MUST still hit.
+```
+
+Stated because the fix would otherwise be indistinguishable from disabling the
+cache. `AuthSubject` compares structurally, `HashSet` grants included, so a
+subject rebuilt per request from the same token is the same key.
+
+Staleness is narrower than BEH-QD-164 implies and the boundary is worth stating:
+a grant revoked in the **subject** changes the key and is picked up on the next
+request; a grant revoked only in a **store the evaluation consults** is invisible
+to the key and stays cached. Application scope is safe against token downgrade
+and unsafe against backend revocation; per-request scope is safe against both.
 
 ---
 

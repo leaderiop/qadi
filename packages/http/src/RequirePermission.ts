@@ -37,10 +37,17 @@ export class RequiredPermission extends Context.Service<RequiredPermission, Perm
 ) {}
 
 /**
- * The resource `RequirePermission` checks against: none. This middleware
- * enforces the contract-level requirement an endpoint declares, before any
- * resource has been loaded — a resource-scoped re-check belongs in the
- * handler, via `@qadi/core`'s `guard` directly, as defense in depth.
+ * The resource `RequirePermission` checks against: an empty one. This
+ * middleware enforces the contract-level requirement an endpoint declares,
+ * before any resource has been loaded — a resource-scoped re-check belongs in
+ * the handler, via `@qadi/core`'s `guard` directly, as defense in depth.
+ *
+ * Empty, deliberately, rather than absent. A policy reading a resource
+ * attribute here finds nothing and **denies** (403); the same policy evaluated
+ * with no resource at all *fails* with `MissingResource` (500), reporting a
+ * caller's request as a server fault. This comment described the former while
+ * `guard` did the latter, because the resource never reached evaluation — see
+ * `guard` in `@qadi/core`.
  */
 const NO_RESOURCE: Resource = {};
 

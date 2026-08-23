@@ -22,20 +22,32 @@ import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import type { AttributeResolver } from "./AttributeResolver.ts";
+import type { AuthSubject } from "./AuthSubject.ts";
 import type { Trace } from "./Decision.ts";
 import type { DecisionHistory } from "./DecisionHistory.ts";
 import type { EvaluationError } from "./Errors.ts";
-import type { SubjectId } from "./Identity.ts";
 import type { Policy } from "./Policy.ts";
 import type { RelationshipResolver } from "./RelationshipResolver.ts";
 
 /**
  * The question a cached decision answers — everything that can change an answer.
  *
- * **The subject is in it, and that is a security boundary.** A cache keyed on the
- * policy alone would serve one subject's allow to another — the same class of
- * defect as an unbound hydration payload, and worth stating twice: a decision is
- * *about* a subject, so any structure holding decisions holds the subject too.
+ * **The whole subject is in it, and that is a security boundary.** A cache keyed
+ * on the policy alone would serve one subject's allow to another — the same
+ * class of defect as an unbound hydration payload, and worth stating twice: a
+ * decision is *about* a subject, so any structure holding decisions holds the
+ * subject too.
+ *
+ * The **subject**, not the subject's id, and the difference is a privilege
+ * escalation. An id was enough only if it determined the subject's grants, and
+ * it does not: `@qadi/http`'s `SubjectExtractor` rebuilds an `AuthSubject` per
+ * request from a token, so a scoped token and a full token for one user share
+ * an id and hold different permissions. Under an application-scoped cache —
+ * which this module documents as a supported choice — the first verdict for a
+ * given id won, permanently, in whichever direction it happened to be asked
+ * first ([INV-QD-033](../../../spec/invariants.md#inv-qd-033-a-cached-decision-belongs-to-the-grants-that-earned-it)).
+ * `AuthSubject` compares structurally, `HashSet` grants included, so the key
+ * now covers everything a decision can depend on.
  *
  * Used as a `HashMap` key **directly**, with no serialization step
  * ([INV-QD-030](../../../spec/invariants.md#inv-qd-030-cache-key-uniqueness)).
@@ -52,7 +64,7 @@ import type { RelationshipResolver } from "./RelationshipResolver.ts";
  * one key for two questions, and the second caller received the first's verdict.
  */
 export interface DecisionCacheKey {
-  readonly subjectId: SubjectId;
+  readonly subject: AuthSubject;
   readonly policy: Policy;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
   readonly action: string | undefined;
@@ -125,8 +137,16 @@ const cacheLookupsTotal = Metric.frequency("qadi_decision_cache_lookups_total", 
  *
  * Provide it **per request** and the cache dies with the request. Provide it once at
  * application scope and it lives for the process — which is not a leak across
- * subjects, since the key includes the subject, but *is* staleness: a revoked grant
- * stays granted until the process restarts.
+ * subjects, since the key includes the whole subject.
+ *
+ * Staleness is narrower than it used to be stated here, and the boundary is worth
+ * knowing. A grant revoked in the **subject** changes the key, so the next request
+ * carrying the reduced subject misses and re-evaluates — it does not inherit the
+ * old allow. A grant revoked only in a **store this evaluation consults** —
+ * an `AttributeResolver` value, a relationship edge, a history event — is invisible
+ * to the key, so that decision does stay cached until the cache is discarded. An
+ * application-scoped cache is therefore safe against token downgrade and unsafe
+ * against backend revocation; per-request scope is safe against both.
  *
  * Qadi cannot choose this. It has no notion of a request boundary, and inventing one
  * would be inventing a framework.

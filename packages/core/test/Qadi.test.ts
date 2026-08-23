@@ -142,6 +142,76 @@ describe("Qadi.guard", () => {
       assert.deepStrictEqual(out.resource, doc);
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
+  it.effect("EVALUATES THE POLICY AGAINST THE GUARDED RESOURCE", () =>
+    Effect.gen(function* () {
+      // The resource used to reach only the handler. `enforce` ran with
+      // `options.resource`, which nothing set, so a resource-scoped policy was
+      // evaluated against no resource — and an absent resource does not deny:
+      // `neq` on `undefined` is true. A rule written to refuse a mismatched
+      // tenant therefore allowed one (INV-QD-032).
+      const sameTenant = P.hasAttribute("homeTenant", M.neq(M.resource("tenant")));
+      let leaked = false;
+
+      const r = yield* Effect.result(
+        Qadi.guard(read, sameTenant)({ id: "d1", tenant: "evil" }, () =>
+          Effect.sync(() => {
+            leaked = true;
+            return "payload";
+          }),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "AccessDenied");
+      assert.isFalse(leaked);
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ attributes: { homeTenant: "evil" } }))),
+    ));
+
+  it.effect("allows when the guarded resource satisfies the policy", () =>
+    Effect.gen(function* () {
+      // The other direction, so the test above cannot pass by denying
+      // everything — which a `guard` that simply refused resource-scoped
+      // policies would also do.
+      const otherTenant = P.hasAttribute("homeTenant", M.neq(M.resource("tenant")));
+      const out = yield* Qadi.guard(read, otherTenant)(
+        { id: "d1", tenant: "acme" },
+        (_authorized, resource) => Effect.succeed(resource.id),
+      );
+      assert.strictEqual(out, "d1");
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ attributes: { homeTenant: "evil" } }))),
+    ));
+
+  it.effect("an empty resource DENIES a resource policy rather than erroring", () =>
+    Effect.gen(function* () {
+      // What `@qadi/http`'s RequirePermission relies on: it guards with `{}`
+      // before any resource is loaded. `{}` reaches the evaluator and the
+      // attribute is simply absent, so this is a denial. Evaluated with no
+      // resource at all it would fail with MissingResource — a 500 where a 403
+      // belongs.
+      const ownedByMe = P.hasResourceAttribute("ownerId", M.eq(M.subjectId()));
+      const r = yield* Effect.result(
+        Qadi.guard(read, ownedByMe)({}, () => Effect.succeed("payload")),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "AccessDenied");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("the guarded resource overrides one passed in options", () =>
+    Effect.gen(function* () {
+      // Two channels for one value is what caused the defect. The positional
+      // resource is the one the handler and the witness describe, so it is the
+      // one evaluated — anything else lets the three disagree.
+      const ownedByMe = P.hasResourceAttribute("ownerId", M.eq(M.subjectId()));
+      const out = yield* Qadi.guard(read, ownedByMe, {
+        resource: { ownerId: "someone-else" },
+      })({ ownerId: "u1" }, (_a, resource) => Effect.succeed(resource.ownerId));
+      assert.strictEqual(out, "u1");
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
+
   it.effect("fails with AccessDenied and never starts the handler when denied", () =>
     Effect.gen(function* () {
       let started = false;

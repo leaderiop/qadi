@@ -240,6 +240,55 @@ describe("DecisionCache", () => {
       assert.strictEqual(calls.length, 1, "same question, one evaluation");
     }));
 
+  it.effect("TWO TOKENS FOR ONE USER ARE TWO QUESTIONS", () =>
+    Effect.gen(function* () {
+      // The key held `subject.id` alone, which is enough only if an id
+      // determines the subject's grants. It does not: @qadi/http rebuilds an
+      // AuthSubject per request from a token, so a scoped token and a full
+      // token for one user share an id and hold different permissions. Under
+      // an application-scoped cache the first verdict won, permanently, in
+      // whichever direction it happened to be asked first (INV-QD-033).
+      const canRead = P.hasPermission(permission("doc", "read"));
+      const full: AuthSubject = subjectWith({ id: "alice", permissions: ["doc:read"] });
+      const scoped: AuthSubject = subjectWith({ id: "alice" });
+
+      const both = (first: AuthSubject, second: AuthSubject) =>
+        Effect.gen(function* () {
+          const a = yield* evaluate(canRead).pipe(
+            Effect.provide(testLayer(first)),
+          );
+          const b = yield* evaluate(canRead).pipe(
+            Effect.provide(testLayer(second)),
+          );
+          return [isAllowed(a), isAllowed(b)] as const;
+        }).pipe(Effect.provide(decisionCacheLayer()));
+
+      // Escalation: the scoped token used to inherit the full token's allow.
+      assert.deepStrictEqual(yield* both(full, scoped), [true, false]);
+      // And the mirror: the full token used to inherit the scoped denial.
+      assert.deepStrictEqual(yield* both(scoped, full), [false, true]);
+    }));
+
+  it.effect("the same subject still hits, so the cache still caches", () =>
+    Effect.gen(function* () {
+      // The control. Keying on the whole subject would be worthless if two
+      // requests carrying equal subjects missed — `AuthSubject` compares
+      // structurally, HashSet grants included, so a subject rebuilt per
+      // request from the same token is the same key.
+      const calls: Array<string> = [];
+      const rebuilt = () => subjectWith({ id: "alice", attributes: { tier: "gold" } });
+
+      yield* Effect.gen(function* () {
+        yield* evaluate(needsLookup).pipe(Effect.provide(testLayer(rebuilt())));
+        yield* evaluate(needsLookup).pipe(Effect.provide(testLayer(rebuilt())));
+      }).pipe(
+        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+        Effect.provide(decisionCacheLayer()),
+      );
+
+      assert.strictEqual(calls.length, 0, "resolved from the subject, never the resolver");
+    }));
+
   it.effect("TWO DIFFERENT QUESTIONS NEVER SHARE A KEY", () =>
     Effect.gen(function* () {
       // The defect the reordering test's old comment claimed was impossible.

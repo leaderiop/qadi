@@ -62,7 +62,7 @@ HttpApiEndpoint.Top) => ...` wrapper, called as `.pipe(requiresPermission(
 requirement))`) as a "real, understood cost" — believing the only casualty
 was type precision in a `.pipe()` chain continuing *after* the call, which
 nothing in this design does. **That assessment was incomplete, found only by
-the first real HTTP round-trip test** ([issue 16](../../.scratch/qadi-http/issues/16-http-integration-tests.md)),
+the first real HTTP round-trip test** (`packages/http/test/http.test.ts`),
 not by reviewing the 1.1 code: every `.handle()` call in an `HttpApiBuilder.group`
 build callback for a group containing an endpoint that had passed through
 that wrapper failed to typecheck, for *every* identifier, with no way to
