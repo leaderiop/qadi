@@ -86,3 +86,6 @@ entries:
   - id: "BEH-QD-211"
     file: "28-devtools-screens.md"
     title: "28 — The Devtools Screens"
+  - id: "BEH-QD-219"
+    file: "29-devtools-simulator.md"
+    title: "29 — The Subject Simulator"

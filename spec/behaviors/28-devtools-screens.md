@@ -294,3 +294,7 @@ The distinctions each empty state must keep:
 ---
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
+
+---
+
+_Next: [29 — The Subject Simulator](./29-devtools-simulator.md)_

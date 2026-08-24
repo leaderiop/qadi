@@ -149,3 +149,6 @@ entries:
   - id: "ADR-QD-049"
     file: "049-the-second-shell-is-a-cli.md"
     title: "The second shell is a CLI, not a served page"
+  - id: "ADR-QD-050"
+    file: "050-a-simulation-is-sealed.md"
+    title: "A simulation is sealed, and it answers from one of three sources"

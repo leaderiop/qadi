@@ -104,8 +104,10 @@ dock survived and the dual-lane shell did not.
 ## Data modes
 
 Live streaming plus replay: any logged record can be replayed in the subject
-simulator, seeded from its entry, and what-if edits re-evaluate against
-`@qadi/testing` layers.
+simulator, seeded from its entry, and what-if edits re-evaluate against one of
+three sources — typed fixtures, a captured snapshot, or the application's own
+resolvers where the host opted in (ADR-QD-050). Not `@qadi/testing`'s layers:
+everything needed is already public in `@qadi/core`.
 
 One correction to revision 0.1, which claimed "clock and evaluation ids
 reproducible, per ADR-QD-012". Ids were: `evaluationIdSequential` is wired by
@@ -131,7 +133,7 @@ remaining gaps are listed here rather than discovered during implementation.
 | 2 | Decision inspector | **Ready**, including per-decision cache outcome. Remaining: obligation *discharged/pending* state is unobservable, and resolver calls are not recorded. |
 | 3 | Policy explorer | **Partial.** The ADT, codec, `simplify` and now `policyDepth` all exist. Nothing enumerates "all named policies" — a policy is a value the app holds — so the left rail still has no source. |
 | 4 | Role DAG viewer | **Ready.** `permissionProvenance` supplies the granting role and path, in agreement with `flattenPermissions`; an unknown parent is now reported rather than silently dropped. |
-| 5 | Subject simulator | **Ready.** `flippedAt` names the outermost node whose verdict changed; `diffTraces` gives every difference by path. |
+| 5 | Subject simulator | **Built** (CCR-QD-070). Sealed in every mode; three answer sources; what-if in both directions; replay checked against the logged trace. |
 | 6 | Services & cache | **Partial.** `size`, per-decision hit/miss and `clear` now exist. Remaining: which *implementation* is wired is not obtainable from inside the program, there are no per-port call counts or retry stats, and there is **no TTL** — the cache is bounded by capacity, evicted FIFO. |
 | 7 | React panel | **Rescope required.** `Atom.family` keys structurally, so ten `<Can>` on one policy are **one atom**. Per-instance enumeration and DOM highlighting are not merely unimplemented; the current architecture makes them unobtainable without an instance registry. Hydration counts other than mismatches are likewise not retained. |
 

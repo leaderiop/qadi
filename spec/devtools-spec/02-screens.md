@@ -5,18 +5,21 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.5 (draft)                                    |
+> | Revision       | 0.6 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
-**Screens 1, 2, 3, 4, 6 and 7 are built.** Only screen 5, the simulator, is not
-— it *runs* evaluations rather than reading records, which is a different risk
-class, and `@qadi/testing` still wires no clock.
+**All seven screens are built.** Screen 5 came last because it *runs*
+evaluations rather than reading records, which is a different risk class — and
+the class turned out to name the design: `Effect.provide` cannot remove a service
+from a context, so a simulator that supplied only what it needed would write a
+fabricated audit row per run wherever a real sink is wired
+([INV-QD-042](../invariants.md), [ADR-QD-050](../decisions/050-a-simulation-is-sealed.md)).
 
 A caution about the Gap notes below, learned by auditing them: **three of the
 five recorded against screens 4, 6 and 7 had already closed** in increments that
@@ -179,13 +182,43 @@ warning on the graph.
 
 ## 5. Subject simulator / what-if
 
-Two input cards — **Subject** (id, roles, attributes as removable chips) and
-**Check** (action, resource) — plus **Evaluate**. Results card shows the verdict,
-a comparison to the seeding baseline when replaying a logged record ("matches
-baseline e-91"), and what-if rows: a single edited input, the flipped verdict,
-and the node that flipped it.
+**Built** (CCR-QD-070). Three input cards, not two, and the third is why: without
+**Fixtures** — resolver attributes, relationship edges and past events — a policy
+using `hasRelationship`, `hasActed` or a resource attribute denies for want of a
+fixture rather than because the rule says so. So the cards are **Subject** (id,
+roles, permissions and attributes as removable chips), **Check** (action,
+resource) and **Fixtures**, plus a source selector, a clock selector, `run` and
+`what if`.
 
-Runs on `@qadi/testing` layers; never against live resolvers.
+The results card shows the verdict, the requirement tree, the visible fields, the
+duties, and the duration labelled with the clock that measured it. When the form
+was seeded from a logged row a **baseline** card says whether the reconstruction
+reproduces it, and a **what-if** table lists one row per variation with the node
+that flipped, if one did.
+
+Two corrections to this section, both found by re-deriving it from the code
+([ADR-QD-050](../decisions/050-a-simulation-is-sealed.md)):
+
+**It does not run on `@qadi/testing` layers.** Everything it needs is already
+public in `@qadi/core` — `attributeResolverFromRecord`,
+`relationshipResolverFromEdges`, `decisionHistoryFromEvents`,
+`evaluationIdSequential` — and shipping test fixtures into an application's
+production bundle to power a debug panel would be a strange trade.
+
+**"Never against live resolvers" was the wrong rule.** A reviewer investigating a
+real denial wants the answers the real ports gave, so `Live` exists — opt-in by
+the application author, who passes a `ports` layer to the dock, and never
+reachable from the input type. `Snapshot` captures those answers once and
+replays them, which is the mode a sweep should use: N edits against `Live` is N
+live sweeps, against a snapshot it is one live run plus N in-memory folds. What
+*is* absolute is the seal — no mode can reach `CurrentSubject`, write a record,
+or touch the application's cache ([INV-QD-042](../invariants.md)).
+
+**What-if runs in both directions.** Dropping each grant answers the question a
+reviewer holding an *allow* has and is silent for one holding a **denial**, since
+no removal turns a denial into an allow — so the sweep also reads the policy for
+what it asks for, including attribute values derived backwards out of the matcher
+that demands them.
 
 **"The node that flipped it" is now answerable.** `flippedAt(before, after)`
 returns the outermost node whose verdict changed, and `diffTraces` returns every

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.17                                           |
+> | Revision       | 1.18                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.17 (2026-07-26): URS-QD-028, the Promise facade (CCR-QD-033)<br>1.16 (2026-07-26): URS-QD-027, the decision cache (CCR-QD-032)<br>1.15 (2026-07-26): URS-QD-026, simplification (CCR-QD-031)<br>1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.18 (2026-08-24): URS-QD-031, the subject simulator (CCR-QD-070)<br>1.17 (2026-07-26): URS-QD-028, the Promise facade (CCR-QD-033)<br>1.16 (2026-07-26): URS-QD-027, the decision cache (CCR-QD-032)<br>1.15 (2026-07-26): URS-QD-026, simplification (CCR-QD-031)<br>1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -159,6 +159,28 @@ consulted*. The last is two facts that present identically — a store that is
 wired but never asked and one that is not wired at all both look like an empty
 screen — and the first must not borrow a verdict from an evaluation that never
 ran, which would say a rule was rejected when it was simply never used.
+
+### URS-QD-031 — Ask what would happen, and check the answer against what did
+
+A developer must be able to run a policy against a subject they describe rather
+than one who exists, vary that description a grant at a time to find which grant
+the answer turns on, and — starting from a decision the application actually made
+— check whether a reconstruction reproduces it.
+
+Rationale: every other devtools screen answers "what happened", and the question
+a reviewer arrives with is usually the counterfactual. *Was it the `editor` role,
+or the `doc:read` permission?* A trace cannot answer that: it says which nodes
+were consulted, not which grant would have been missed if it were gone, and
+`anyOf` makes the gap concrete — two grants both satisfying one branch means
+neither is load-bearing, and the trace shows only the first.
+
+The mirror question is the one a **denial** raises: *what would fix it?* Dropping
+grants can never turn a denial into an allow, so a screen offering only
+weakenings is silent exactly where a reviewer needs it.
+
+Both must be answerable without touching what the application recorded. A panel
+that fabricated audit rows while answering a hypothetical would corrupt the
+evidence the reviewer came to read.
 
 ### URS-QD-029 — See what was decided, across every process that decided it
 
@@ -413,6 +435,7 @@ so the specification cannot drift from itself.
 | URS-QD-028 | [BEH-QD-169](./behaviors/22-promise-facade.md), [INV-QD-026](./invariants.md#inv-qd-026-the-facade-answers-what-the-core-answers) | `packages/promise/test/facade.test.ts` |
 | URS-QD-029 | [BEH-QD-203](./behaviors/27-devtools-timeline.md), [INV-QD-039](./invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival), [INV-QD-040](./invariants.md#inv-qd-040-the-inspector-never-claims-more-than-the-trace-does) | `packages/devtools/test/model/*.test.ts`, `@REQ-QD-024` |
 | URS-QD-030 | [BEH-QD-211](./behaviors/28-devtools-screens.md), [INV-QD-041](./invariants.md#inv-qd-041-a-structural-view-states-no-verdict) | `Catalogue.test.ts`, `RoleTree.test.ts`, `Wiring.test.ts`, `@REQ-QD-025` |
+| URS-QD-031 | [BEH-QD-219](./behaviors/29-devtools-simulator.md), [INV-QD-042](./invariants.md#inv-qd-042-a-simulation-reaches-no-port-it-was-not-given-and-records-nothing), [INV-QD-043](./invariants.md#inv-qd-043-a-snapshot-answers-what-the-live-layer-answered) | `Simulation.test.ts`, `WhatIf.test.ts`, `Replay.test.ts`, `@REQ-QD-026` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |

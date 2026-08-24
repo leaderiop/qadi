@@ -1328,3 +1328,80 @@ verdict marks anywhere on the screen; `DevtoolsDock.test.tsx` asserts the same
 policy carries a status in the inspector and none in the explorer.
 
 **Related**: [BEH-QD-212](behaviors/28-devtools-screens.md), [ADR-QD-047](decisions/047-a-headless-devtools-model.md).
+
+## INV-QD-042: A simulation reaches no port it was not given, and records nothing
+
+A simulated evaluation resolves every attribute, relationship and history
+question through the source it was given, writes no `DecisionRecord`, and
+neither reads from nor writes to the application's decision cache — in **all
+three** source modes, `Live` included.
+
+**Source**: `packages/devtools/src/model/Simulation.ts` — `simulationLayer`
+supplies `CurrentSubject`, the three ports, `EvaluationId`, and shadows
+`DecisionSink` and `DecisionCache`.
+
+**Implication**: the seal is **shadowing, not omission**, and the distinction is
+the whole property. `Effect.provide` adds to a context and cannot remove from
+one, so providing the five services `evaluate` requires does not stop it finding
+an optional one already in scope — and it reads two optionally. Left unshadowed,
+a what-if sweep of eight edits writes **eight fabricated decisions into the real
+log** and eight entries into the real cache, indistinguishable on screen from
+decisions somebody actually asked for. Fabricating audit rows from a debug panel
+is a defect rather than a trade-off, which is why the shadowing is unconditional
+rather than a mode.
+
+`CurrentSubject` is never taken from a supplied layer even in `Live` mode: the
+subject is the thing being simulated, so a layer able to supply one could change
+*what is being asked* rather than merely how it is answered. That exclusion lives
+in the type — `LiveSource` carries
+`Layer<Exclude<EvaluationServices, CurrentSubject | EvaluationId>>` — rather than
+in a convention.
+
+**Enforcement**: `packages/devtools/test/model/Simulation.test.ts` runs a
+simulation beside a real `decisionSinkRing` and asserts the ring is empty, and
+beside a layer whose every port dies and asserts the simulation still decides;
+`Sources.test.ts` repeats both for `Snapshot` and `Live`;
+`WhatIf.test.ts` asserts the same of a sweep of more than twenty rows.
+
+**Related**: [BEH-QD-219](behaviors/29-devtools-simulator.md), [ADR-QD-050](decisions/050-a-simulation-is-sealed.md).
+
+## INV-QD-043: A snapshot answers what the live layer answered
+
+Replaying a captured set of answers produces the same trace the run that
+captured them produced, including its failures.
+
+**Source**: `packages/devtools/src/model/Capture.ts` — `capturing` wraps a layer
+and records each `(query → answer)`; `replayLayer` answers from that record.
+
+**Implication**: this is an **agreement property** in the family of INV-QD-018
+and INV-QD-038 — two paths answering one question — and it drifts the way those
+do. Three things keep it from drifting:
+
+A capture records **answers, not calls**. `@qadi/testing`'s
+`recordingAttributeResolver` records the attribute *name*, which answers "was
+this consulted" and cannot answer "with what".
+
+A captured **failure replays as a failure**. Turning an outage into a miss would
+make a snapshot disagree with the run that produced it in exactly the direction
+that matters: fail-closed defaults deny, and so a replayed outage would look like
+a correctly-denying policy rather than a broken port ([INV-QD-006](#inv-qd-006-a-failure-is-not-a-denial)).
+
+The **keys are written once** and called from both sides. Two functions deriving
+one key would make this invariant fail in a way no single test of either side
+could see. Every key includes the subject, because the subject is the axis a
+what-if sweep varies: a capture taken for `alice` must not answer a question
+asked about `bob` after her `editor` role was dropped.
+
+A query the capture never saw answers the **fail-closed default** — `undefined`
+for an attribute, `Unknown` for a relationship and for history — which is what a
+real deployment gets from an unwired port ([INV-QD-007](#inv-qd-007-fail-closed)),
+so a sweep that wanders outside the captured set denies for a reason a
+deployment would rather than for one peculiar to this panel.
+
+**Enforcement**: `packages/devtools/test/model/Capture.test.ts` captures against
+a fixture layer, replays, and asserts `diffTraces` between the two runs is empty;
+it asserts a captured failure replays as the same error class with the same
+cause, that two queries to one port are keyed apart, and that a relationship
+keyed by `(subject, relation, resource)` does not collapse to the relation alone.
+
+**Related**: [BEH-QD-221](behaviors/29-devtools-simulator.md), [ADR-QD-050](decisions/050-a-simulation-is-sealed.md).
