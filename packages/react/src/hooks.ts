@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import type { DecisionResult } from "./QadiAtoms.ts";
 import { currentDecision } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
+import { useGate } from "./useGate.ts";
 
 /** The subject under authorization, or `undefined` while it is still loading. */
 export const useSubject = (): AuthSubject | undefined => {
@@ -29,15 +30,8 @@ export const useSubject = (): AuthSubject | undefined => {
  * hook that keeps all three outcomes apart: not known yet, decided, and
  * could not be determined.
  */
-export const useDecision = (policy: Policy, resource?: Resource): DecisionResult => {
-  const { registry, atoms } = useQadiContext("useDecision");
-  const atom = useMemo(
-    () =>
-      resource === undefined ? atoms.decision(policy) : atoms.decisionFor(policy, resource),
-    [atoms, policy, resource],
-  );
-  return useAtomValue(registry, atom);
-};
+export const useDecision = (policy: Policy, resource?: Resource): DecisionResult =>
+  useGate("useDecision", policy, resource).result;
 
 /**
  * Whether the subject satisfies the policy.
@@ -47,7 +41,10 @@ export const useDecision = (policy: Policy, resource?: Resource): DecisionResult
  * Reach for {@link useDecision} when the difference matters.
  */
 export const useCan = (policy: Policy, resource?: Resource): boolean => {
-  const decision = currentDecision(useDecision(policy, resource));
+  // `useGate` directly rather than through `useDecision`, so this instance
+  // registers **once**, as itself. Nesting the two would report one `useCan`
+  // as two instances, the inner one labelled `useDecision`.
+  const decision = currentDecision(useGate("useCan", policy, resource).result);
   return decision !== undefined && isAllowed(decision);
 };
 
@@ -65,7 +62,10 @@ export const useDecisionSuspense = (policy: Policy, resource?: Resource): Decisi
       resource === undefined ? atoms.decision(policy) : atoms.decisionFor(policy, resource),
     [atoms, policy, resource],
   );
-  const result = useAtomValue(registry, atom);
+  // The atom is needed here in its own right — `settled` subscribes to it — so
+  // this one reads through `useGate` for the registration and keeps the atom it
+  // already had. Both reads hit the same registry entry.
+  const result = useGate("useDecisionSuspense", policy, resource).result;
   if (AsyncResult.isInitial(result) || result.waiting) throw settled(registry, atom);
   return AsyncResult.getOrThrow(result);
 };

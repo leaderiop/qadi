@@ -1,3 +1,4 @@
+export * from "./GateRegistry.ts";
 export * from "./Hydration.ts";
 export * from "./QadiAtoms.ts";
 export * from "./QadiProvider.tsx";

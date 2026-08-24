@@ -16,6 +16,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useSyncExternalStore,
   type ReactNode,
@@ -25,6 +26,15 @@ import type { QadiAtoms } from "./QadiAtoms.ts";
 export interface QadiContextValue {
   readonly atoms: QadiAtoms;
   readonly registry: AtomRegistry.AtomRegistry;
+  /**
+   * Whether guards in this subtree record that they exist.
+   *
+   * Carried on the context rather than read from a global, so it is per
+   * authorization context — a multi-tenant application can instrument one
+   * provider without instrumenting the others — and so a test can turn it on
+   * without touching process state.
+   */
+  readonly instrument: boolean;
 }
 
 const QadiContext = createContext<QadiContextValue | null>(null);
@@ -85,6 +95,24 @@ export interface QadiProviderProps {
    * decisions and for tests that want to assert on a settled state.
    */
   readonly initialValues?: InitialValues;
+  /**
+   * Let `@qadi/devtools` enumerate and locate the guards in this subtree.
+   *
+   * **Off by default, and off means absent**: no guard registers, no marker
+   * element is rendered, and the DOM is byte for byte what it was. A production
+   * bundle that never passes this ships nothing extra.
+   *
+   * On, each `<Can>` and `<Cannot>` wraps its children in a `display: contents`
+   * span — which generates no box, so it changes no layout — and every guard
+   * records its policy, its resource and what it rendered. That is what the
+   * React panel's per-instance list and its highlight lens read
+   * ([ADR-QD-053](../../../spec/decisions/053-a-gate-can-be-found.md)).
+   *
+   * Guard it the way you guard the dock itself. It is a debug affordance, and
+   * on a production page it hands any script a list of what the current user
+   * may and may not do.
+   */
+  readonly instrument?: boolean;
   readonly children: ReactNode;
 }
 
@@ -99,6 +127,7 @@ export const QadiProvider = ({
   atoms,
   subject,
   initialValues,
+  instrument = false,
   children,
 }: QadiProviderProps): ReactNode => {
   // The subject is seeded at registry construction rather than written in an
@@ -134,7 +163,12 @@ export const QadiProvider = ({
     }
   }, [registry, atoms, subject]);
 
-  return (
-    <QadiContext.Provider value={{ atoms, registry }}>{children}</QadiContext.Provider>
+  // Memoised, or every render of the provider gives every consumer a new
+  // context value and re-renders the whole guarded subtree.
+  const value = useMemo(
+    () => ({ atoms, registry, instrument }),
+    [atoms, registry, instrument],
   );
+
+  return <QadiContext.Provider value={value}>{children}</QadiContext.Provider>;
 };
