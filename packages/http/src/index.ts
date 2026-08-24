@@ -3,6 +3,7 @@
  *
  * See ADR-QD-036.
  */
+export * from "./DecisionStreamRoute.ts";
 export * from "./GuardRoute.ts";
 export * from "./PermissionRegistry.ts";
 export * from "./QadiHttpError.ts";

@@ -77,3 +77,6 @@ entries:
   - id: "BEH-QD-189"
     file: "25-inspection.md"
     title: "25 — Inspection"
+  - id: "BEH-QD-201"
+    file: "26-decision-stream.md"
+    title: "26 — The Decision Stream"

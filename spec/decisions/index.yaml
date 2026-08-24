@@ -137,3 +137,6 @@ entries:
   - id: "ADR-QD-045"
     file: "045-the-topology-is-a-choice-of-sink.md"
     title: "The topology is a choice of sink, and core ships only the seam"
+  - id: "ADR-QD-046"
+    file: "046-a-decision-feed-is-sse-and-guarded.md"
+    title: "A decision feed is Server-Sent Events, and it is guarded like any other route"

@@ -7,6 +7,7 @@ export * from "./DecisionCache.ts";
 export * from "./DecisionHistory.ts";
 export * from "./DecisionRecord.ts";
 export * from "./DecisionSink.ts";
+export * from "./DecisionSinkFeed.ts";
 export * from "./DecisionSinkForwarding.ts";
 export * from "./DecisionSinkRing.ts";
 export * from "./Errors.ts";

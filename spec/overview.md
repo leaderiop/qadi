@@ -178,6 +178,7 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `DecisionSink` | service | `DecisionSink.ts` |
 | `decisionSinkRing`, `DEFAULT_RING_CAPACITY` | layer factory + constant | `DecisionSinkRing.ts` |
 | `decisionSinkForwarding`, `decisionSinkAll` | layer factory | `DecisionSinkForwarding.ts` |
+| `decisionSinkFeed`, `DEFAULT_FEED_CAPACITY` | layer factory + constant | `DecisionSinkFeed.ts` |
 | `AttributeResolverShape`, `RelationshipResolverShape`, `RelationshipCheck` | type | resolver modules |
 | `RelatedResult`, `RelationshipEdgeInput` | type | `RelationshipResolver.ts` |
 | `RelationshipEdge` | value class | `RelationshipResolver.ts` |
@@ -286,6 +287,7 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `addGuardedRoute` | function | `PermissionRegistry.ts` |
 | `PermissionRegistry`, `PermissionRegistryLive` | service + layer | `PermissionRegistry.ts` |
 | `registerApi`, `permissionRegistryRoute`, `permissionRegistryRouteUnguarded` | function + layer | `PermissionRegistry.ts` |
+| `decisionStreamRoute` | layer factory | `DecisionStreamRoute.ts` |
 | `EndpointDescriptor`, `PermissionRegistryData`, `PermissionRegistryShape` | type | `PermissionRegistry.ts` |
 | `ENFORCEMENT_ERROR_TAGS`, `toResponse` | const + function | `QadiHttpError.ts` |
 | `SubjectExtractor`, `subjectExtractorBearer` | service + layer | `SubjectExtractor.ts` |
