@@ -368,6 +368,16 @@ is (CCR-QD-067).
 | `Filters` | type | `model/Filters.ts` |
 | `noFilters` | constant | `model/Filters.ts` |
 | `isUnfiltered`, `applyFilters`, `environmentsOf`, `searchTextOf` | function | `model/Filters.ts` |
+| `SimulatedSubject`, `SimulationInput`, `EvaluationPorts`, `EvaluationPortsLayer` | type | `model/SimulationInput.ts` |
+| `subjectOf` | function | `model/SimulationInput.ts` |
+| `SimulationClock`, `SimulationOptions` | type | `model/Simulation.ts` |
+| `simulate`, `simulationLayer` | function | `model/Simulation.ts` |
+| `SimulationSource`, `FixtureSource`, `SnapshotSource`, `LiveSource` | type | `model/Sources.ts` |
+| `fixtures`, `snapshot`, `live`, `causesIO`, `portsOf` | function | `model/Sources.ts` |
+| `Answer`, `CapturedAnswers` | type | `model/Capture.ts` |
+| `emptyAnswers` | constant | `model/Capture.ts` |
+| `capturing`, `replayLayer`, `answerCount` | function | `model/Capture.ts` |
+| `attributeKey`, `relationshipKey`, `historyKey` | function | `model/Capture.ts` |
 | `Selection` | type | `model/Selection.ts` |
 | `NoSelection`, `Selected`, `Evicted` | class | `model/Selection.ts` |
 | `selectionOf` | function | `model/Selection.ts` |
