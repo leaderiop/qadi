@@ -5,14 +5,32 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.4 (draft)                                    |
+> | Revision       | 0.5 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
+
+**Screens 1, 2, 3, 4, 6 and 7 are built.** Only screen 5, the simulator, is not
+— it *runs* evaluations rather than reading records, which is a different risk
+class, and `@qadi/testing` still wires no clock.
+
+A caution about the Gap notes below, learned by auditing them: **three of the
+five recorded against screens 4, 6 and 7 had already closed** in increments that
+never came back to mark it. `permissionProvenance` returns paths, four port
+shapes carry `name?`, `PortMetrics` exists, `DecisionCache` has `size` and
+`clear`, and `QadiAtoms.asked()` was built precisely so screen 7 could be keyed
+by question. What was actually left was one gap shared by screens 3 and 4 —
+nothing enumerated named policies or roles — and
+[ADR-QD-048](../decisions/048-an-observed-catalogue.md) closes it by observing
+the timeline rather than by adding a registry.
+
+The normative rules for these screens are
+[behaviour 28](../behaviors/28-devtools-screens.md); where this document and that
+one disagree, that one wins.
 
 Each screen below states what the library now supplies, and carries a **Gap**
 note only where something genuinely remains. Six gaps recorded in revision 0.2
@@ -114,10 +132,11 @@ policy. **Simplify** runs
 [ADR-QD-030](../decisions/030-policy-simplification.md) simplification as an
 explicit action (never automatic) and previews rewrites before applying.
 
-> **Gap — the left rail has no source.** Nothing enumerates named policies; a
-> policy is a value the app holds. The `Labeled` variant carries a label but is
-> findable only by walking a policy you already have. Either the devtools is
-> handed a policy map by the app, or a registry is designed.
+**Closed — the rail is observed.** Every `DecisionRecord` carries the `Policy` it
+evaluated, so the policies an application uses are already in the log;
+`policiesSeen` groups them by `Equal.equals` and counts their verdicts. An
+optional `catalogue` prop adds names and the policies that have not run. No
+registry, no registration call sites (ADR-QD-048, BEH-QD-211).
 
 > **Correction — the Simplify example.** Revision 0.1 illustrated this with
 > `not(not(x)) → x`, which is **the one rewrite `simplify` refuses**:
@@ -186,17 +205,17 @@ fail-closed consequence when defaulted. DecisionHistory's card names the
 three-valued default (denies `hasActed` and `hasNotActed` alike,
 [ADR-QD-020](../decisions/020-decision-history-port.md)).
 
-> **Gap — "which implementation is wired" is not obtainable.** A service value is
-> an anonymous object literal with no name, tag or brand. The only way to tell
-> `AttributeResolverNone` from a real resolver is to call it and observe the
-> answer. Note also that "unwired" is a misnomer for five of the seven services:
-> they are in `EvaluationServices`, so a program cannot run without them, and
-> what the card really reports is *defaulted to a fail-closed implementation*.
+**Closed — `name?` exists on four port shapes**, and wrappers compose it
+(`"fromRecord (retrying)"`). The card reports the name, or *wired, unnamed* — and
+never "unwired" for a required port, because the misnomer this note identified
+is real: five of the seven are in `EvaluationServices`, so what the card reports
+is *defaulted to a fail-closed implementation* (BEH-QD-215).
 
-> **Gap — call counts and retry stats do not exist.** No counter on any port; the
-> retrying and bounded wrappers keep no attempt log and the semaphore exposes no
-> permit stats. The `.calls` recorders are `@qadi/testing` fixtures recording a
-> bare string per call.
+**Closed — `PortMetrics` counts both**, and `portActivity` reads them with zero
+wiring. That answers the question `name` cannot: a store that is wired but never
+consulted and one that is not wired at all are opposite problems with the same
+symptom. The counts are process-wide aggregates and the panel says so
+(BEH-QD-216).
 
 **Flush now exists** — `DecisionCacheShape.clear` discards every completed entry
 and leaves in-flight work alone ([BEH-QD-190](../behaviors/25-inspection.md)).
@@ -220,6 +239,12 @@ conflate the two.
   has a "highlight" → lens.
 - **Hydration** — dehydrated entry count, re-checked count, mismatch count (a
   mismatch = the server allow no longer holds client-side), and "Invalidate all".
+
+**Rescoped and built**, exactly as this note proposed: the panel is keyed by
+**question**, and says so on screen because a reader counting rows against their
+component tree would otherwise think it broken. `QadiAtoms.asked()` records the
+questions in the atom layer (BEH-QD-217). The original note, kept because its
+reasoning is the design:
 
 > **Gap — this screen needs rescoping, not implementing.** `Atom.family` keys
 > **structurally**, so ten `<Can policy={isAdmin}>` in different places in the

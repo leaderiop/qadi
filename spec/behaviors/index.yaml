@@ -83,3 +83,6 @@ entries:
   - id: "BEH-QD-203"
     file: "27-devtools-timeline.md"
     title: "27 — The Devtools Timeline"
+  - id: "BEH-QD-211"
+    file: "28-devtools-screens.md"
+    title: "28 — The Devtools Screens"

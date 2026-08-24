@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/leaderiop/qadi/issues"
   },
-  "description": "Devtools for @qadi/core — a headless decision timeline, and a React dock that renders it",
+  "description": "Devtools for @qadi/core \u2014 a headless decision timeline, and a React dock that renders it",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@qadi/testing": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

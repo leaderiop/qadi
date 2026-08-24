@@ -1293,3 +1293,38 @@ would prove only that the zip agrees with what the test author assumed — and
 `test/react/DevtoolsDock.test.tsx` asserts the rendered wording.
 
 **Related**: [BEH-QD-208](behaviors/27-devtools-timeline.md), [ADR-QD-027](decisions/027-policy-explanation.md).
+
+## INV-QD-041: A structural view states no verdict
+
+A policy rendered without an evaluation carries no verdict mark, no status and
+no reason.
+
+**Source**: `packages/devtools/src/react/PolicyTree.tsx` — one component renders
+the requirement tree for both the inspector and the policy explorer, and
+`showStatus` is what separates them.
+
+**Implication**: `inspect(policy, undefined)` marks every node `NeverResolved`,
+and that value means two different things depending on why the trace is absent.
+In the *inspector* it is truthful and load-bearing: the branch was
+short-circuited, and saying so is
+[INV-QD-040](#inv-qd-040-the-inspector-never-claims-more-than-the-trace-does).
+In a screen describing a rule nobody has run, the same value would say a policy
+was skipped when it was never evaluated at all — a claim about an evaluation
+that did not happen.
+
+So `showStatus` is not a display preference. It is the difference between
+reporting an evaluation and describing a rule, and both screens go through one
+component precisely so the difference cannot drift into two.
+
+A field restriction is the exception, and deliberately: `hasPermission(read,
+{ fields: [...] })` narrows what the *rule* grants, so it belongs in a
+structural view. Describing a field-narrowed permission as a bare requirement
+overstates the grant, which is the direction of error a reviewer acts on
+([INV-QD-004](#inv-qd-004-the-field-lattice)).
+
+**Enforcement**: `packages/devtools/test/react/PolicyExplorer.test.tsx` asserts
+no `data-status` attribute, no `never resolved` text and none of the three
+verdict marks anywhere on the screen; `DevtoolsDock.test.tsx` asserts the same
+policy carries a status in the inspector and none in the explorer.
+
+**Related**: [BEH-QD-212](behaviors/28-devtools-screens.md), [ADR-QD-047](decisions/047-a-headless-devtools-model.md).

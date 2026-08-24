@@ -180,6 +180,7 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `decisionSinkRing`, `DEFAULT_RING_CAPACITY` | layer factory + constant | `DecisionSinkRing.ts` |
 | `decisionSinkForwarding`, `decisionSinkAll` | layer factory | `DecisionSinkForwarding.ts` |
 | `decisionSinkFeed`, `DEFAULT_FEED_CAPACITY` | layer factory + constant | `DecisionSinkFeed.ts` |
+| `portCallsTotal`, `portRetriesTotal` | metric | `PortMetrics.ts` |
 | `AttributeResolverShape`, `RelationshipResolverShape`, `RelationshipCheck` | type | resolver modules |
 | `RelatedResult`, `RelationshipEdgeInput` | type | `RelationshipResolver.ts` |
 | `RelationshipEdge` | value class | `RelationshipResolver.ts` |
@@ -370,11 +371,22 @@ is (CCR-QD-067).
 | `Selection` | type | `model/Selection.ts` |
 | `NoSelection`, `Selected`, `Evicted` | class | `model/Selection.ts` |
 | `selectionOf` | function | `model/Selection.ts` |
+| `Catalogue`, `PolicySighting` | type | `model/Catalogue.ts` |
+| `policyLabel`, `policiesSeen`, `catalogueOf` | function | `model/Catalogue.ts` |
+| `RoleNode`, `RoleSummary` | type | `model/RoleTree.ts` |
+| `roleSummary`, `grantPath`, `decidingSet` | function | `model/RoleTree.ts` |
+| `PortReport`, `CacheReport`, `WiringReport`, `PortActivity` | type | `model/Wiring.ts` |
+| `wiringReport`, `portActivity` | effect | `model/Wiring.ts` |
 | `useTimeline`, `useTimelineStore`, `UseTimeline` | hook + type | `react/useTimeline.ts` |
 | `DevtoolsDock`, `DevtoolsDockProps` | component + type | `react/DevtoolsDock.tsx` |
 | `DecisionLog`, `DecisionLogProps` | component + type | `react/DecisionLog.tsx` |
 | `Inspector` | component | `react/Inspector.tsx` |
 | `VerdictTag`, `EnvironmentTag` | component | `react/VerdictTag.tsx` |
+| `PolicyTree`, `PolicyTreeProps` | component + type | `react/PolicyTree.tsx` |
+| `PolicyExplorer`, `PolicyExplorerProps` | component + type | `react/PolicyExplorer.tsx` |
+| `RoleViewer`, `RoleViewerProps` | component + type | `react/RoleViewer.tsx` |
+| `ServicesPanel`, `ServicesPanelProps` | component + type | `react/ServicesPanel.tsx` |
+| `QuestionsPanel`, `QuestionsPanelProps`, `AskedQuestionLike` | component + type | `react/QuestionsPanel.tsx` |
 
 ## Not listed above
 

@@ -18,6 +18,7 @@ import type { Selection } from "../model/Selection.ts";
 import type { TimelineDecision, TimelineEntry } from "../model/Timeline.ts";
 import { verdictOf } from "../model/Verdict.ts";
 import { colors, font, muted } from "./theme.ts";
+import { PolicyTree } from "./PolicyTree.tsx";
 import { EnvironmentTag, VerdictTag } from "./VerdictTag.tsx";
 
 /**
@@ -158,7 +159,7 @@ const ExplanationPanel: FC<{ readonly tree: InspectNode }> = ({ tree }) => (
         payload that did not carry one.
       </p>
     ) : null}
-    <Node node={tree} depth={0} />
+    <PolicyTree node={tree} showStatus />
   </section>
 );
 
@@ -175,53 +176,6 @@ const isTruncated = (tree: InspectNode): boolean =>
   tree.status !== "NeverResolved" &&
   tree.children.length > 0 &&
   tree.children.every((child) => child.status === "NeverResolved");
-
-const statusMark: Record<InspectNode["status"], string> = {
-  Allowed: "✓",
-  Denied: "✗",
-  NeverResolved: "·",
-};
-
-const statusColor: Record<InspectNode["status"], string> = {
-  Allowed: colors.allow,
-  Denied: colors.error,
-  NeverResolved: colors.textMuted,
-};
-
-const Node: FC<{ readonly node: InspectNode; readonly depth: number }> = ({ node, depth }) => (
-  <div data-testid="qadi-node" data-path={node.path} data-status={node.status}>
-    <div
-      style={{
-        paddingLeft: depth * 14,
-        // A node nobody evaluated is dimmed and dotted, never struck through or
-        // marked with a cross: it was not rejected, it was not reached.
-        opacity: node.status === "NeverResolved" ? 0.55 : 1,
-      }}
-    >
-      <span style={{ color: statusColor[node.status], marginRight: 6 }}>
-        {statusMark[node.status]}
-      </span>
-      {node.effect === undefined ? null : (
-        <span style={{ ...muted, marginRight: 6 }}>{node.effect.toLowerCase()} when</span>
-      )}
-      <span>{node.label}</span>
-      {node.detail === undefined ? null : (
-        <span style={{ ...muted, marginLeft: 6 }}>({node.detail})</span>
-      )}
-      {node.status === "NeverResolved" ? (
-        <span style={{ ...muted, marginLeft: 6 }} data-testid="qadi-never-resolved">
-          never resolved
-        </span>
-      ) : null}
-      {node.reason === undefined ? null : (
-        <span style={{ ...muted, marginLeft: 6 }}>— {node.reason}</span>
-      )}
-    </div>
-    {node.children.map((child) => (
-      <Node key={child.path} node={child} depth={depth + 1} />
-    ))}
-  </div>
-);
 
 /**
  * `undefined` is the **top** of the field lattice and means every field.

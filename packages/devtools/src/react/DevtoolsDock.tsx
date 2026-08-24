@@ -13,7 +13,7 @@
  * a backend-only service, a serverless function, a replicated server. Their
  * decisions are reachable at `/__decisions`; what renders them is not this.
  */
-import { useCallback, useMemo, useState, type FC } from "react";
+import { useCallback, useMemo, useState, type FC, type ReactNode } from "react";
 import {
   applyFilters,
   environmentsOf,
@@ -24,8 +24,17 @@ import { pairedEntries } from "../model/Pairing.ts";
 import { selectionOf } from "../model/Selection.ts";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import { countsOf, type Verdict } from "../model/Verdict.ts";
+import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
+import type { PortActivity, WiringReport } from "../model/Wiring.ts";
+import type { PairedEntry } from "../model/Pairing.ts";
+import type { Selection } from "../model/Selection.ts";
+import type { Role } from "@qadi/core";
 import { DecisionLog } from "./DecisionLog.tsx";
 import { Inspector } from "./Inspector.tsx";
+import { PolicyExplorer } from "./PolicyExplorer.tsx";
+import { QuestionsPanel, type AskedQuestionLike } from "./QuestionsPanel.tsx";
+import { RoleViewer } from "./RoleViewer.tsx";
+import { ServicesPanel } from "./ServicesPanel.tsx";
 import { useTimeline } from "./useTimeline.ts";
 import { body, button, colors, dock, font, input, muted, toolbar } from "./theme.ts";
 
@@ -36,14 +45,16 @@ import { body, button, colors, dock, font, input, muted, toolbar } from "./theme
 const nothing: Source = sourceFromRecords([]);
 
 /**
- * Data-driven rather than a hard-coded pair.
- *
- * Screens 3 to 6 are later increments, and a tab model that assumed two would
- * have to be rewritten to admit the third.
+ * Data-driven, which is what made growing from two screens to six an entry in
+ * this list rather than a rewrite. A seventh is the same.
  */
 const TABS = [
   { id: "log", label: "Log" },
   { id: "inspector", label: "Inspector" },
+  { id: "policies", label: "Policies" },
+  { id: "roles", label: "Roles" },
+  { id: "services", label: "Services" },
+  { id: "questions", label: "React" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -55,9 +66,39 @@ export interface DevtoolsDockProps {
   readonly source?: Source;
   /** How many rows to keep. Defaults to the timeline's own bound. */
   readonly capacity?: number;
+  /**
+   * Policies and roles the application names.
+   *
+   * Optional because the policy rail is built from what the log has **seen** —
+   * every record carries its policy — so this adds only what has not run yet,
+   * plus the names. Roles are not observable at all and come only from here.
+   */
+  readonly catalogue?: Catalogue;
+  /** Read with `wiringReport` provided the application's layer. */
+  readonly wiring?: WiringReport;
+  /** Read with `portActivity`, which needs no wiring at all. */
+  readonly activity?: ReadonlyArray<PortActivity>;
+  /** Usually `atoms.asked()` from `@qadi/react`. */
+  readonly questions?: ReadonlyArray<AskedQuestionLike>;
+  /** Parent names `resolveRoleGraph` dropped. */
+  readonly unknownParents?: ReadonlyArray<string>;
+  /** Verdict disagreements counted by an `onHydrationMismatch` reporter. */
+  readonly hydrationMismatches?: number;
+  /** Usually `useInvalidate()`. */
+  readonly onInvalidate?: () => void;
 }
 
-export const DevtoolsDock: FC<DevtoolsDockProps> = ({ source = nothing, capacity }) => {
+export const DevtoolsDock: FC<DevtoolsDockProps> = ({
+  source = nothing,
+  capacity,
+  catalogue,
+  wiring,
+  activity = [],
+  questions,
+  unknownParents,
+  hydrationMismatches,
+  onInvalidate,
+}) => {
   const { timeline, paused, setPaused, clear } = useTimeline(
     source,
     capacity === undefined ? undefined : { capacity },
@@ -79,6 +120,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ source = nothing, capacity
   const counts = useMemo(() => countsOf(timeline.entries), [timeline]);
   const environments = useMemo(() => environmentsOf(timeline.entries), [timeline]);
   const selection = useMemo(() => selectionOf(timeline, selectedKey), [timeline, selectedKey]);
+  const sightings = useMemo(() => catalogueOf(timeline, catalogue), [timeline, catalogue]);
 
   const select = useCallback((key: string) => {
     setSelectedKey(key);
@@ -145,11 +187,21 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ source = nothing, capacity
       </div>
 
       <div style={body}>
-        {tab === "log" ? (
-          <DecisionLog rows={rows} selectedKey={selectedKey} onSelect={select} />
-        ) : (
-          <Inspector selection={selection} />
-        )}
+        <Screen
+          tab={tab}
+          rows={rows}
+          selectedKey={selectedKey}
+          onSelect={select}
+          selection={selection}
+          sightings={sightings}
+          roles={catalogue?.roles ?? []}
+          {...(unknownParents === undefined ? {} : { unknownParents })}
+          wiring={wiring}
+          activity={activity}
+          questions={questions}
+          {...(hydrationMismatches === undefined ? {} : { hydrationMismatches })}
+          {...(onInvalidate === undefined ? {} : { onInvalidate })}
+        />
       </div>
     </section>
   );
@@ -182,3 +234,52 @@ const Segment: FC<{
 /** Narrows a segment's string back to the closed union it came from. */
 const asVerdict = (value: string | undefined): Verdict | undefined =>
   VERDICTS.find((verdict) => verdict === value);
+
+/**
+ * One tab's body.
+ *
+ * A lookup rather than a chain of ternaries, so adding a seventh screen is an
+ * entry rather than a rewrite — and so the tab model stays the data-driven one
+ * `TABS` already is.
+ */
+const Screen: FC<{
+  readonly tab: TabId;
+  readonly rows: ReadonlyArray<PairedEntry>;
+  readonly selectedKey: string | undefined;
+  readonly onSelect: (key: string) => void;
+  readonly selection: Selection;
+  readonly sightings: ReadonlyArray<PolicySighting>;
+  readonly roles: ReadonlyArray<Role>;
+  readonly unknownParents?: ReadonlyArray<string>;
+  readonly wiring: WiringReport | undefined;
+  readonly activity: ReadonlyArray<PortActivity>;
+  readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
+  readonly hydrationMismatches?: number;
+  readonly onInvalidate?: () => void;
+}> = (props) => {
+  const screens: Record<TabId, () => ReactNode> = {
+    log: () => (
+      <DecisionLog rows={props.rows} selectedKey={props.selectedKey} onSelect={props.onSelect} />
+    ),
+    inspector: () => <Inspector selection={props.selection} />,
+    policies: () => <PolicyExplorer sightings={props.sightings} />,
+    roles: () => (
+      <RoleViewer
+        roles={props.roles}
+        {...(props.unknownParents === undefined ? {} : { unknownParents: props.unknownParents })}
+      />
+    ),
+    services: () => <ServicesPanel wiring={props.wiring} activity={props.activity} />,
+    questions: () => (
+      <QuestionsPanel
+        questions={props.questions}
+        {...(props.hydrationMismatches === undefined
+          ? {}
+          : { hydrationMismatches: props.hydrationMismatches })}
+        {...(props.onInvalidate === undefined ? {} : { onInvalidate: props.onInvalidate })}
+      />
+    ),
+  };
+
+  return <>{screens[props.tab]()}</>;
+};

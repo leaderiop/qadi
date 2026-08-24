@@ -5,9 +5,9 @@
   "private": true,
   "description": "Cucumber BDD acceptance tests for @qadi/core",
   "scripts": {
-    "test": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts",
-    "test:dry": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts --dry-run",
-    "test:tags": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts --tags",
+    "test": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts -i step-definitions/devtools-screens.steps.ts",
+    "test:dry": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts -i step-definitions/devtools-screens.steps.ts --dry-run",
+    "test:tags": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts -i step-definitions/devtools-screens.steps.ts --tags",
     "typecheck": "tsc -b tsconfig.json"
   },
   "dependencies": {

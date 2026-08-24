@@ -143,6 +143,9 @@ importers:
       '@effect/vitest':
         specifier: 'catalog:'
         version: 4.0.0-rc.110(effect@4.0.0-rc.110)(vitest@4.1.10)
+      '@qadi/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

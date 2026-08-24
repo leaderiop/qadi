@@ -740,3 +740,196 @@ describe("screen 2 — the inspector", () => {
 const fail = (): never => {
   throw new Error("expected an element");
 };
+
+/**
+ * JOB 6 ledger — E6.1 … E6.4.
+ *
+ * Six screens, four of them new, and every new prop optional. A dock mounted
+ * with none of them still renders all six tabs — each empty state saying *why*
+ * it is empty rather than leaving a reader to guess.
+ */
+describe("the six screens", () => {
+  const tabs = ["Log", "Inspector", "Policies", "Roles", "Services", "React"];
+
+  /**
+   * E6.2 and E6.4 together.
+   *
+   * Every tab resolves to a screen, asserted by the testid each one owns —
+   * which is also what makes a seventh an addition rather than a rewrite: the
+   * tab list and the screen lookup are both keyed by `TabId`, so adding an
+   * entry to one without the other is a compile error, and this checks the six
+   * that exist all resolve.
+   */
+  it("offers every tab, and each one renders its own screen", async () => {
+    await mount([decisionRecord({ evaluationId: "a", at: 100 })]);
+
+    const owns: Record<string, string> = {
+      Log: "qadi-log",
+      Inspector: "qadi-inspector-empty",
+      Policies: "qadi-policies",
+      Roles: "qadi-roles-empty",
+      Services: "qadi-services",
+      React: "qadi-questions",
+    };
+
+    for (const label of tabs) {
+      await click(screen.getByRole("button", { name: label }));
+      assert.strictEqual(
+        screen.getByRole("button", { name: label }).getAttribute("aria-pressed"),
+        "true",
+        label,
+      );
+      assert.isNotNull(screen.getByTestId(owns[label] ?? ""), label);
+    }
+  });
+
+  // E6.2's second half: a re-render must not send the reader back to the log.
+  it("the selected tab survives a re-render", async () => {
+    const view = render(<DevtoolsDock />);
+    await act(async () => {});
+
+    await click(screen.getByRole("button", { name: "Services" }));
+    assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
+
+    view.rerender(<DevtoolsDock activity={[{ port: "AttributeResolver", calls: 1, retries: 0 }]} />);
+    await act(async () => {});
+
+    // Still on Services. A dock that reset its tab whenever a prop changed
+    // would be unusable against a live feed, which changes props constantly.
+    assert.strictEqual(
+      screen.getByRole("button", { name: "Services" }).getAttribute("aria-pressed"),
+      "true",
+    );
+  });
+
+  // E6.1 — the whole point of every new prop being optional.
+  it("with no new props, all four new screens explain their own emptiness", async () => {
+    render(<DevtoolsDock />);
+    await act(async () => {});
+
+    await click(screen.getByRole("button", { name: "Policies" }));
+    assert.isNotNull(screen.getByTestId("qadi-policies-empty"));
+
+    await click(screen.getByRole("button", { name: "Roles" }));
+    assert.isNotNull(screen.getByTestId("qadi-roles-empty"));
+
+    await click(screen.getByRole("button", { name: "Services" }));
+    assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
+
+    await click(screen.getByRole("button", { name: "React" }));
+    assert.isNotNull(screen.getByTestId("qadi-questions-absent"));
+  });
+
+  /**
+   * The catalogue needs no prop at all — every record carries its policy, so
+   * the rail fills itself from the log. That is the whole reason this screen
+   * did not need a registry in core.
+   */
+  it("the policy rail fills from the log alone", async () => {
+    await mount([
+      decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read) }),
+      decisionRecord({ evaluationId: "b", at: 200, policy: hasPermission(read) }),
+    ]);
+    await click(screen.getByRole("button", { name: "Policies" }));
+
+    const items = screen.getAllByTestId("qadi-policy-rail-item");
+    assert.strictEqual(items.length, 1);
+    assert.include(items[0]?.textContent ?? "", "2 decisions");
+  });
+
+  it("a declared catalogue adds names and unrun policies", async () => {
+    render(
+      <DevtoolsDock
+        source={sourceFromRecords([
+          decisionRecord({ evaluationId: "a", at: 100, policy: hasPermission(read) }),
+        ])}
+        catalogue={{ policies: { canRead: hasPermission(read), canWrite: hasPermission(write) } }}
+      />,
+    );
+    await screen.findAllByTestId("qadi-log-row");
+    await click(screen.getByRole("button", { name: "Policies" }));
+
+    const items = screen.getAllByTestId("qadi-policy-rail-item").map((i) => i.textContent ?? "");
+    assert.strictEqual(items.length, 2);
+    assert.include(items[0] ?? "", "canRead");
+    assert.include(items[1] ?? "", "never evaluated");
+  });
+
+  it("roles come only from the catalogue, because the log cannot observe them", async () => {
+    render(<DevtoolsDock catalogue={{ roles: [role({ name: "editor", permissions: [read] })] }} />);
+    await act(async () => {});
+    await click(screen.getByRole("button", { name: "Roles" }));
+
+    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "editor");
+  });
+
+  it("threads wiring, activity, questions and the invalidate handler", async () => {
+    let invalidated = 0;
+    render(
+      <DevtoolsDock
+        wiring={{
+          ports: [
+            {
+              port: "AttributeResolver",
+              name: "fromRecord",
+              required: true,
+              present: true,
+              consequence: "denies",
+            },
+          ],
+          cache: { present: true, size: 3 },
+        }}
+        activity={[{ port: "AttributeResolver", calls: 5, retries: 0 }]}
+        questions={[{ policy: hasPermission(read) }]}
+        hydrationMismatches={1}
+        onInvalidate={() => (invalidated += 1)}
+      />,
+    );
+    await act(async () => {});
+
+    await click(screen.getByRole("button", { name: "Services" }));
+    assert.include(screen.getByTestId("qadi-port-state").textContent ?? "", "fromRecord");
+    assert.include(screen.getByTestId("qadi-port-activity").textContent ?? "", "5 calls");
+    assert.strictEqual(screen.getByTestId("qadi-cache-size").textContent, "3 completed entries");
+
+    await click(screen.getByRole("button", { name: "React" }));
+    assert.strictEqual(screen.getAllByTestId("qadi-question").length, 1);
+    assert.include(screen.getByTestId("qadi-hydration-mismatches").textContent ?? "", "1 mismatch");
+
+    await click(screen.getByTestId("qadi-invalidate"));
+    assert.strictEqual(invalidated, 1);
+  });
+
+  it("surfaces a dropped parent name on the roles screen", async () => {
+    render(
+      <DevtoolsDock
+        catalogue={{ roles: [role({ name: "editor", permissions: [read] })] }}
+        unknownParents={["reviewer"]}
+      />,
+    );
+    await act(async () => {});
+    await click(screen.getByRole("button", { name: "Roles" }));
+
+    assert.include(screen.getByTestId("qadi-unknown-parents").textContent ?? "", "reviewer");
+  });
+
+  // E6.3 — the extraction of `PolicyTree` must not have changed screen 2.
+  it("the inspector still shows verdicts where the explorer shows none", async () => {
+    const policy = allOf([hasPermission(read), hasPermission(write)]);
+    const decision = await decide(policy);
+
+    await mount([
+      decisionRecord({ evaluationId: "a", at: 100, policy, outcome: new Decided({ decision }) }),
+    ]);
+
+    await click(rows()[0] ?? fail());
+    assert.isTrue(
+      screen.getAllByTestId("qadi-node").every((n) => n.getAttribute("data-status") !== null),
+    );
+
+    await click(screen.getByRole("button", { name: "Policies" }));
+    assert.isTrue(
+      screen.getAllByTestId("qadi-node").every((n) => n.getAttribute("data-status") === null),
+    );
+  });
+});

@@ -145,6 +145,21 @@ elements, from the same policy values.
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
 
+### URS-QD-030 — Read the rules, not only the decisions
+
+A developer must be able to see what a policy *requires* and where a role's
+permissions come from, without supplying a subject and without the answer
+depending on who is looking — and must be able to tell which implementation is
+behind each port from whether anything ever reached it.
+
+Rationale: every other devtools screen answers "what happened". The questions
+that precede a decision are different ones: *what does this rule say*, *why does
+this role have that permission*, and *is my attribute store actually being
+consulted*. The last is two facts that present identically — a store that is
+wired but never asked and one that is not wired at all both look like an empty
+screen — and the first must not borrow a verdict from an evaluation that never
+ran, which would say a rule was rejected when it was simply never used.
+
 ### URS-QD-029 — See what was decided, across every process that decided it
 
 A developer must be able to read the authorization decisions their application
@@ -397,6 +412,7 @@ so the specification cannot drift from itself.
 | URS-QD-027 | [BEH-QD-162](./behaviors/21-decision-cache.md), [INV-QD-025](./invariants.md#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity) | `DecisionCache.test.ts` |
 | URS-QD-028 | [BEH-QD-169](./behaviors/22-promise-facade.md), [INV-QD-026](./invariants.md#inv-qd-026-the-facade-answers-what-the-core-answers) | `packages/promise/test/facade.test.ts` |
 | URS-QD-029 | [BEH-QD-203](./behaviors/27-devtools-timeline.md), [INV-QD-039](./invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival), [INV-QD-040](./invariants.md#inv-qd-040-the-inspector-never-claims-more-than-the-trace-does) | `packages/devtools/test/model/*.test.ts`, `@REQ-QD-024` |
+| URS-QD-030 | [BEH-QD-211](./behaviors/28-devtools-screens.md), [INV-QD-041](./invariants.md#inv-qd-041-a-structural-view-states-no-verdict) | `Catalogue.test.ts`, `RoleTree.test.ts`, `Wiring.test.ts`, `@REQ-QD-025` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |
