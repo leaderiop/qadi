@@ -52,11 +52,17 @@ No BEH/ADR numbers are allocated to the documents in this folder. Identifiers
 are permanent (QADI-PROC-01), so allocation waits for the CCR that accepts them;
 the withdrawn draft never received one and never will.
 
-**Next increment is the transport** — carrying server records to a UI — which is
-where the backend-only, cross-origin and multi-process topologies get decided.
-`effect/unstable/devtools` (`DevToolsSchema`, `layerWebSocket`) is prior art
-worth reading first.
+**The data plane and the transport are built.** Records carry a wire form, a
+sink can forward, a feed buffers without blocking evaluation, and
+`/__decisions` serves the result as guarded Server-Sent Events — so all six
+topologies are reachable (ADR-QD-045, ADR-QD-046).
+
+**Next increment is the surface**: something that renders a merged timeline. That
+is where this repository's total absence of frontend tooling has to be
+confronted, and it is a set of decisions rather than a task.
 
 The repository has **no frontend build tooling at all** — no bundler, no CSS
-pipeline, no dev server, no example app — so a UI increment must confront that
-before it confronts a screen.
+pipeline, no dev server, no example app — and `@qadi/react` declares
+`"sideEffects": false` with no `react-dom` peer, so a bundler could legally
+tree-shake away an overlay that self-mounts on import. A UI increment must
+confront all of that before it confronts a screen.

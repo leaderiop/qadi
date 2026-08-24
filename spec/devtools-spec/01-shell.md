@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-01                                    |
-> | Revision       | 0.2 (draft)                                    |
+> | Revision       | 0.3 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                    |
-> | Change History | 0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.3 (2026-08-24): The non-page topologies now have a data path, though still no surface (CCR-QD-066)<br>0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -24,10 +24,13 @@ application, plus an **element-picking lens** merged into its toolbar.
 running the host application, and
 [00-overview.md](./00-overview.md#environments--one-ui-several-topologies)
 records three deployments where that does not hold — a backend-only service, a
-serverless function, a replicated server. Those need a served dev UI, a CLI, or
-an exporter, and none of this document applies to them. What survives across all
-of them is the **data plane** (`DecisionSink`) and the vocabulary rules; the
-dock is the presentation for the topologies that have a page.
+serverless function, a replicated server. Their decisions are now *reachable* —
+`/__decisions` serves them and `ingest` merges several processes into one
+timeline — but a dock has nowhere to run, so they need a served dev UI, a CLI, or
+an exporter. None of this document applies to those. What survives across all of
+them is the **data plane** (`DecisionSink`, the wire form, the feed) and the
+vocabulary rules; the dock is the presentation for the topologies that have a
+page.
 
 Rejected shells (kept as wireframes for the record):
 - *Spine* — persistent timeline left, feature canvas right;

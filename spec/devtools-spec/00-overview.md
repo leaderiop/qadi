@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-00                                    |
-> | Revision       | 0.3 (draft)                                    |
+> | Revision       | 0.4 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -51,35 +51,48 @@ The consequence is a requirement on this document rather than a footnote:
 a sink layer at runtime construction. There is no way to make a devtools appear
 in an application that has not asked for one, and there should not be.
 
+**Records also travel.** `decisionSinkForwarding` hands each record to a
+caller-supplied `send`, `decisionSinkFeed` buffers without ever blocking the
+evaluation, and `decisionStreamRoute` serves the result as Server-Sent Events at
+`/__decisions` — guarded by a policy, with no unguarded variant and no
+environment-variable gate
+([ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md)). A
+`decisionSinkRing`'s `ingest` is the receiving half, so several processes can
+merge into one timeline.
+
+The client is a producer on the same terms: a `DecisionSink` provided in the
+layer `makeQadiAtoms` is built from records browser-side decisions, which is what
+makes the SRV/CLI pairing real rather than aspirational.
+
 ## Environments — one UI, several topologies
 
 Qadi runs on the server (`@qadi/http` over Effect HTTP) and on the client
 (`@qadi/react`). Revision 0.1 recognised one deployment shape — an in-page
-overlay beside a client-side runtime — and assumed a server transport that does
-not exist. The real spread:
+overlay beside a client-side runtime — and assumed a server transport that did
+not then exist. The real spread, and where each now stands:
 
-| Topology | Decisions made | A page to host an overlay? | v1 |
-| -------- | -------------- | -------------------------- | -- |
-| SPA, client-only | browser | yes | ✅ |
-| SSR / hydration (Next.js) | both | yes, after hydration | ✅ |
-| Backend-only service | server | **no** | ✅ needs a non-overlay surface |
-| SPA + separate API origin | both, two processes | yes | ✅ needs an origin story |
-| Serverless / edge | server, ephemeral | no | ⚠️ no process outlives the request |
-| Replicated server (n instances) | server, n processes | no | ⚠️ which replica answered? |
+| Topology | Decisions made | A page to host an overlay? | Data plane |
+| -------- | -------------- | -------------------------- | ---------- |
+| SPA, client-only | browser | yes | ✅ in-process ring |
+| SSR / hydration (Next.js) | both | yes, after hydration | ✅ ring + seeded pairing |
+| Backend-only service | server | **no** | ✅ SSE feed; still needs a surface to render it |
+| SPA + separate API origin | both, two processes | yes | ✅ forward + ingest |
+| Serverless / edge | server, ephemeral | no | ✅ forward before the process ends |
+| Replicated server (n instances) | server, n processes | no | ✅ forward + ingest, merged by one aggregator |
 
-Three consequences the design must absorb:
+**The data plane now reaches all six** ([ADR-QD-045](../decisions/045-the-topology-is-a-choice-of-sink.md)).
+Three consequences the *presentation* still has to absorb:
 
 - **The overlay is not the only surface.** A backend-only service is a
-  first-class Qadi deployment and an in-page dock cannot serve it. It needs a
-  served dev UI, a CLI, or an exporter.
-- **An in-memory record log is per-process.** `decisionSinkRing` is exactly that.
-  Under replicas or serverless it shows whichever process served the devtools
-  request, which is generally not the one that served the decision being
-  debugged. An out-of-process sink is the answer, and the port shape already
-  permits one — the topology is a choice of sink implementation, not a change to
-  the evaluator.
-- **A cross-origin BFF needs an explicit, opt-in dev origin.** Revision 0.1's
-  "dev-only transport" had no origin story because it had no transport.
+  first-class Qadi deployment and an in-page dock cannot serve it. Its decisions
+  are reachable at `/__decisions`; what renders them is not built.
+- **An in-memory record log is per-process.** `decisionSinkRing` is exactly that,
+  so under replicas or serverless a reader must go to an aggregator rather than
+  to whichever instance answered — `decisionSinkForwarding` plus `ingest` is that
+  path, and choosing it is a choice of sink, not a change to the evaluator.
+- **A cross-origin BFF needs an explicit dev origin.** The transport exists now,
+  but nothing in it decides CORS; that is the deployment's call and this document
+  does not invent one.
 
 Merging the streams is a property of the **data** — the pair
 ([draft](./adr-draft-unified-stream.md)) — not of the layout, which is why the

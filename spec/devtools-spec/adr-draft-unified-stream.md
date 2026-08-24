@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-0XX (unallocated)                     |
-> | Revision       | 0.2                                            |
+> | Revision       | 0.3                                            |
 > | Effective Date | 2026-08-24                                     |
-> | Status         | Draft — **partly implementable as of ADR-QD-044**; allocation still pending CCR |
+> | Status         | Draft — **implementable**; allocation still pending CCR |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record (draft)           |
-> | Change History | 0.2 (2026-08-24): The pairing mechanism corrected — it did not exist when this was written, and half of it exists now (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.3 (2026-08-24): Two of the four remaining gaps are closed — the id is threaded and a transport exists (CCR-QD-066)<br>0.2 (2026-08-24): The pairing mechanism corrected — it did not exist when this was written, and half of it exists now (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -66,20 +66,32 @@ or at an edge.
 
 ## What is still missing
 
-Naming these so the draft cannot again claim more than it has:
+Naming these so the draft cannot again claim more than it has.
 
-- **`@qadi/react` does not thread the id.** `QadiAtoms` calls `evaluate` without
-  passing the seed's `evaluationId`, so in practice the halves still do not
-  correlate. The mechanism exists; the wiring does not.
-- **`hydrationSeedFor` is deliberately out of the barrel** as a security
-  property, so the seed's id is not reachable from outside the package. Threading
-  it is an internal change, not a new public export — and must stay that way.
+**Closed since revision 0.2:**
+
+- **`@qadi/react` threads the id.** `QadiAtoms` reads the seed with `get.once` —
+  non-reactively, since the id is correlation metadata and not an input to the
+  decision — and passes it as `EvaluateOptions.evaluationId`. A hydrated decision
+  and its client re-check now carry one id, and `Hydration.test.ts` asserts both
+  that and the no-seed case minting a fresh one. `hydrationSeedFor` stayed out of
+  the barrel: threading was an internal change, as this draft required.
+- **A transport exists.** `decisionSinkForwarding` + `decisionSinkFeed` +
+  `decisionStreamRoute` carry server decisions to a reader over guarded SSE, and
+  `ingest` merges several processes into one timeline
+  ([ADR-QD-045](../decisions/045-the-topology-is-a-choice-of-sink.md),
+  [ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md)).
+
+**Still open:**
+
 - **The server half is near-empty by default.** `dehydrateDecisions` ships a
   reduced trace unless `includeTrace: true`, the rebuild fallback hardcodes
   `policyTag: "AllOf"`, and a denial's reason becomes the literal `"hydrated"`.
   A paired row's explanation panel will render nothing until a payload opts in.
-- **No transport carries server decisions to the page.** That is increment 2 and
-  is where the backend-only and multi-process topologies are decided.
+  That is a disclosure boundary rather than a defect, so the fix is for the UI to
+  say "trace not disclosed" rather than for the payload to loosen.
+- **Nothing renders any of it.** The pair is expressible and reachable; the
+  timeline that would show it is increment 3.
 
 ## Alternatives considered
 
