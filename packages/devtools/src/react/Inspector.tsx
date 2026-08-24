@@ -13,7 +13,7 @@
 import type { CSSProperties, FC } from "react";
 import { isAllowed } from "@qadi/core";
 import type { Allow, Obligation } from "@qadi/core";
-import { inspectEntry, type InspectNode } from "../model/Inspect.ts";
+import { inspectEntry, isTruncated, type InspectNode } from "../model/Inspect.ts";
 import type { Selection } from "../model/Selection.ts";
 import type { TimelineDecision, TimelineEntry } from "../model/Timeline.ts";
 import { verdictOf } from "../model/Verdict.ts";
@@ -162,20 +162,6 @@ const ExplanationPanel: FC<{ readonly tree: InspectNode }> = ({ tree }) => (
     <PolicyTree node={tree} showStatus />
   </section>
 );
-
-/**
- * A trace that stops at the root.
- *
- * Distinguishable from short-circuiting, and the distinction is the whole point
- * of saying it: a composite that short-circuits always evaluates at least its
- * first child, so a root that *was* resolved while **every** child was not can
- * only mean the trace was truncated before it reached the reader. Wording that
- * as "never resolved" would blame the evaluator for a disclosure decision.
- */
-const isTruncated = (tree: InspectNode): boolean =>
-  tree.status !== "NeverResolved" &&
-  tree.children.length > 0 &&
-  tree.children.every((child) => child.status === "NeverResolved");
 
 /**
  * `undefined` is the **top** of the field lattice and means every field.

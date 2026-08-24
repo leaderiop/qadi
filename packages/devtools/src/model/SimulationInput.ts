@@ -15,6 +15,7 @@ import type {
   ActedEventInput,
   AuthSubject,
   CurrentSubject,
+  EvaluateOptions,
   EvaluationId,
   EvaluationServices,
   PermissionKey,
@@ -80,3 +81,21 @@ export const subjectOf = (self: SimulatedSubject): AuthSubject =>
     permissions: self.permissions ?? [],
     attributes: self.attributes ?? {},
   });
+
+/**
+ * The *question* half of an input, in the shape `evaluate` takes.
+ *
+ * `subjectOf`'s sibling: between them they are the whole translation from the
+ * form's vocabulary into the evaluator's — who is asking, and what they are
+ * asking about.
+ *
+ * A key the input does not carry is **omitted**, never set to `undefined`.
+ * `evaluate` reads `options?.action` and cannot tell the two apart, but
+ * `exactOptionalPropertyTypes` can and so can anything that enumerates the
+ * object — including a panel deciding whether to render a control for a
+ * question the caller never asked.
+ */
+export const evaluationOptionsOf = (self: SimulationInput): EvaluateOptions => ({
+  ...(self.resource === undefined ? {} : { resource: self.resource }),
+  ...(self.action === undefined ? {} : { action: self.action }),
+});

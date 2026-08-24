@@ -39,7 +39,13 @@ import {
   rules,
 } from "@qadi/core";
 import type { Decision, Policy, Trace } from "@qadi/core";
-import { flattenTree, inspect, inspectEntry, isNeverResolved } from "../../src/model/Inspect.ts";
+import {
+  flattenTree,
+  inspect,
+  inspectEntry,
+  isNeverResolved,
+  isTruncated,
+} from "../../src/model/Inspect.ts";
 import type { InspectNode } from "../../src/model/Inspect.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
 import { decisionRecord, failedRecord, obligationRecord } from "../helpers.ts";
@@ -167,6 +173,43 @@ describe("status", () => {
     // policy rejected something it never looked at.
     assert.strictEqual(tree.children[1]?.status, "NeverResolved");
     assert.isTrue(isNeverResolved(tree.children[1] ?? tree));
+  });
+
+  /**
+   * JOB 5's E5.7, pinned where the function lives.
+   *
+   * `dehydrateDecisions` ships a reduced trace unless `includeTrace` is set, so
+   * a hydrated decision arrives with a root and no children — a **disclosure
+   * boundary**, not an evaluation that stopped. It is distinguishable from
+   * short-circuiting because a composite that short-circuits always evaluates
+   * at least its first child, and the three cases below are exactly the ones a
+   * looser predicate would confuse it with.
+   */
+  it("tells a truncated trace from every other shape that has unresolved children", async () => {
+    const policy = allOf([hasPermission(read), hasPermission(read)]);
+
+    // Root resolved, every child unexamined: only truncation produces this.
+    assert.isTrue(
+      isTruncated(
+        inspect(policy, {
+          policyTag: "AllOf",
+          allowed: true,
+          children: [],
+          obligations: [],
+        }),
+      ),
+    );
+
+    // A failed evaluation has no trace at all, so the *root* is unresolved too.
+    // Calling that undisclosed would blame a disclosure decision for an outage.
+    assert.isFalse(isTruncated(inspect(policy, undefined)));
+
+    // A leaf has no children to disclose, and warning on every
+    // single-requirement policy in the log would be worse than saying nothing.
+    assert.isFalse(isTruncated(await treeOf(hasPermission(read))));
+
+    // Short-circuiting leaves the *first* child resolved.
+    assert.isFalse(isTruncated(await treeOf(allOf([hasPermission(write), hasPermission(read)]))));
   });
 
   it("anyOf short-circuits after the first allow", async () => {

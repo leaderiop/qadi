@@ -123,6 +123,31 @@ export const inspectEntry = (entry: TimelineEntry): InspectNode | undefined => {
 /** True when nothing in this subtree was evaluated. */
 export const isNeverResolved = (node: InspectNode): boolean => node.status === "NeverResolved";
 
+/**
+ * A trace that stops at the root.
+ *
+ * Distinguishable from short-circuiting, and the distinction is the whole point
+ * of saying it: a composite that short-circuits always evaluates at least its
+ * first child, so a root that *was* resolved while **every** child was not can
+ * only mean the trace was truncated before it reached the reader.
+ * `dehydrateDecisions` ships a reduced trace unless `includeTrace` is set, so
+ * this is a disclosure boundary rather than a defect — and wording it as "never
+ * resolved" would blame the evaluator for somebody's disclosure decision.
+ *
+ * It takes an `InspectNode` rather than a `Trace` because a `Trace` alone
+ * cannot answer it: a node with no children might be a truncated composite or
+ * an ordinary leaf, and only the policy beside it distinguishes the two.
+ *
+ * Lives here rather than in the inspector because a replay needs the same
+ * judgement — a baseline whose trace was truncated cannot be compared against,
+ * and must say so rather than reporting a difference the reader would read as
+ * behavioural.
+ */
+export const isTruncated = (node: InspectNode): boolean =>
+  node.status !== "NeverResolved" &&
+  node.children.length > 0 &&
+  node.children.every(isNeverResolved);
+
 /** Every node of the tree, parents before children. */
 export const flattenTree = (node: InspectNode): ReadonlyArray<InspectNode> => [
   node,

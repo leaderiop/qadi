@@ -364,12 +364,12 @@ is (CCR-QD-067).
 | `PairRole`, `PairedEntry` | type | `model/Pairing.ts` |
 | `pairedEntries`, `pairsOf` | function | `model/Pairing.ts` |
 | `NodeStatus`, `InspectKind`, `InspectNode` | type | `model/Inspect.ts` |
-| `inspect`, `inspectEntry`, `isNeverResolved`, `flattenTree` | function | `model/Inspect.ts` |
+| `inspect`, `inspectEntry`, `isNeverResolved`, `isTruncated`, `flattenTree` | function | `model/Inspect.ts` |
 | `Filters` | type | `model/Filters.ts` |
 | `noFilters` | constant | `model/Filters.ts` |
 | `isUnfiltered`, `applyFilters`, `environmentsOf`, `searchTextOf` | function | `model/Filters.ts` |
 | `SimulatedSubject`, `SimulationInput`, `EvaluationPorts`, `EvaluationPortsLayer` | type | `model/SimulationInput.ts` |
-| `subjectOf` | function | `model/SimulationInput.ts` |
+| `subjectOf`, `evaluationOptionsOf` | function | `model/SimulationInput.ts` |
 | `SimulationClock`, `SimulationOptions` | type | `model/Simulation.ts` |
 | `simulate`, `simulationLayer` | function | `model/Simulation.ts` |
 | `SimulationSource`, `FixtureSource`, `SnapshotSource`, `LiveSource` | type | `model/Sources.ts` |
@@ -386,6 +386,9 @@ is (CCR-QD-067).
 | `Synthesised`, `SkippedRemedy`, `RemedySweep` | type | `model/Remedies.ts` |
 | `remedyEdits`, `satisfyingValue` | function | `model/Remedies.ts` |
 | `Comparison`, `Compared`, `BecameError`, `Recovered`, `StillFailed` | type | `model/WhatIf.ts` |
+| `UnseededField`, `Replay`, `BaselineCaveat`, `Baseline` | type | `model/Replay.ts` |
+| `unseededByReplay` | constant | `model/Replay.ts` |
+| `replayInput`, `baselineDiff`, `matchesBaseline` | function | `model/Replay.ts` |
 | `WhatIfOptions`, `SweepPlan`, `WhatIfRow`, `WhatIfReport` | type | `model/WhatIf.ts` |
 | `compareOutcomes`, `isChanged`, `sweepPlan`, `whatIf`, `changedRows` | function | `model/WhatIf.ts` |
 | `Selection` | type | `model/Selection.ts` |

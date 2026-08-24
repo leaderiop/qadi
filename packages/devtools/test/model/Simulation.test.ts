@@ -37,7 +37,11 @@ import {
 } from "@qadi/core";
 import type { Decision, DecisionOutcome } from "@qadi/core";
 import { simulate, simulationLayer } from "../../src/model/Simulation.ts";
-import { subjectOf, type SimulationInput } from "../../src/model/SimulationInput.ts";
+import {
+  evaluationOptionsOf,
+  subjectOf,
+  type SimulationInput,
+} from "../../src/model/SimulationInput.ts";
 import { live } from "../../src/model/Sources.ts";
 
 const read = permission("doc", "read");
@@ -349,6 +353,42 @@ describe("simulate", () => {
     assert.deepStrictEqual([...built.roles], ["editor"]);
     assert.deepStrictEqual([...built.permissions], ["doc:read"]);
     assert.deepStrictEqual(built.attributes, { dept: "eng" });
+  });
+
+  /**
+   * `subjectOf`'s sibling, and the same reason to assert it directly: what
+   * matters is the *shape* of the options, not just the verdict they produce.
+   *
+   * A key present with the value `undefined` decides identically — `evaluate`
+   * reads `options?.action` either way — so no test that only checks a verdict
+   * can tell the two apart. `exactOptionalPropertyTypes` is switched on across
+   * this repository precisely because the difference is real to everything that
+   * enumerates the object.
+   */
+  it("carries the question a form asked, and omits the parts it did not", () => {
+    assert.deepStrictEqual(
+      evaluationOptionsOf({
+        subject: { id: "alice" },
+        action: "read",
+        resource: { id: "doc-1" },
+      }),
+      { action: "read", resource: { id: "doc-1" } },
+    );
+
+    const bare = evaluationOptionsOf({ subject: { id: "alice" } });
+    assert.isFalse(Object.hasOwn(bare, "action"));
+    assert.isFalse(Object.hasOwn(bare, "resource"));
+
+    const actionOnly = evaluationOptionsOf({ subject: { id: "alice" }, action: "read" });
+    assert.isTrue(Object.hasOwn(actionOnly, "action"));
+    assert.isFalse(Object.hasOwn(actionOnly, "resource"));
+
+    const resourceOnly = evaluationOptionsOf({
+      subject: { id: "alice" },
+      resource: { id: "doc-1" },
+    });
+    assert.isFalse(Object.hasOwn(resourceOnly, "action"));
+    assert.isTrue(Object.hasOwn(resourceOnly, "resource"));
   });
 
   it.effect("a failure carries the error it failed with", () =>

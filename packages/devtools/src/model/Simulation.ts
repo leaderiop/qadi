@@ -31,7 +31,7 @@ import {
   Failed,
 } from "@qadi/core";
 import type { DecisionOutcome, Policy } from "@qadi/core";
-import { subjectOf, type SimulationInput } from "./SimulationInput.ts";
+import { evaluationOptionsOf, subjectOf, type SimulationInput } from "./SimulationInput.ts";
 import { portsOf, type SimulationSource } from "./Sources.ts";
 
 /**
@@ -66,10 +66,7 @@ export const simulate = (
   input: SimulationInput,
   options?: SimulationOptions,
 ): Effect.Effect<DecisionOutcome> =>
-  evaluate(policy, {
-    ...(input.resource === undefined ? {} : { resource: input.resource }),
-    ...(input.action === undefined ? {} : { action: input.action }),
-  }).pipe(
+  evaluate(policy, evaluationOptionsOf(input)).pipe(
     Effect.provide(simulationLayer(input, options)),
     Effect.result,
     Effect.map((outcome) =>
