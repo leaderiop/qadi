@@ -29,6 +29,7 @@ import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import type * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import * as Reactivity from "effect/unstable/reactivity/Reactivity";
+import { countRecheck } from "./HydrationCounts.ts";
 import { registerHydrationSeeds } from "./HydrationSeed.ts";
 import type { HydrationMismatchReporter } from "./HydrationWarning.ts";
 import { hydrationMismatchReporter, isMismatch } from "./HydrationWarning.ts";
@@ -230,20 +231,28 @@ export const makeQadiAtoms = (
       // previous decision, and falling back to the seed there would resurrect
       // something older still.
       if (!AsyncResult.isInitial(result)) {
-        // Guarded on `report` so an atom set with no reporter reads exactly the
-        // atoms it read before — no reporter, no added dependency, no change.
-        if (!announced && report !== undefined) {
+        if (!announced) {
           announced = true;
-          const seeded = get(seed);
-          // A failure is not a disagreement. The client could not answer, so
-          // there is nothing for the server's answer to disagree with, and
-          // reporting one would be INV-QD-006 in reverse.
-          if (
-            seeded !== undefined &&
-            AsyncResult.isSuccess(result) &&
-            isMismatch(seeded, result.value)
-          ) {
-            report({ policy, resource, seeded, decided: result.value });
+          // `get.once`, not `get`. This block previously ran only when a
+          // reporter was wired, and was guarded that way so an atom set without
+          // one "reads exactly the atoms it read before — no reporter, no added
+          // dependency, no change". Counting must happen whether or not a
+          // reporter is wired, so the guard could not stay; `get.once` keeps the
+          // promise it was protecting, because it registers no dependency. It is
+          // also the honest read here: the seed is already spent in this branch,
+          // so re-running on a later seed change could not change the answer.
+          const seeded = get.once(seed);
+          if (seeded !== undefined) {
+            // A failure is not a disagreement. The client could not answer, so
+            // there is nothing for the server's answer to disagree with, and
+            // reporting one would be INV-QD-006 in reverse. It is still a
+            // re-check: the question was seeded and has now been asked again.
+            const mismatched =
+              AsyncResult.isSuccess(result) && isMismatch(seeded, result.value);
+            countRecheck(mismatched);
+            if (mismatched && report !== undefined && AsyncResult.isSuccess(result)) {
+              report({ policy, resource, seeded, decided: result.value });
+            }
           }
         }
         return result;

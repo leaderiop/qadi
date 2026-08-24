@@ -19,10 +19,18 @@ import { Allow, Deny, Policy as PolicySchema } from "@qadi/core";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import type * as Atom from "effect/unstable/reactivity/Atom";
+import { countDehydrated, countDropped, countSeeded } from "./HydrationCounts.ts";
 import { hydrationSeedFor } from "./HydrationSeed.ts";
-import { droppedEntriesReporter } from "./HydrationWarning.ts";
+import type { HydrationDropReporter } from "./HydrationWarning.ts";
+import { droppedEntriesReporter, hydrationDropReporter } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 import type { InitialValues } from "./QadiProvider.tsx";
+
+// Named explicitly rather than reached through the barrel: `HydrationWarning.ts`
+// stays out of it (AGENTS.md §9), and `.d.ts` emission has to be able to name
+// what `HydrateOptions` refers to (TS2883). The same re-export `QadiAtoms.ts`
+// makes for `HydrationMismatch`, for the same reason.
+export type { HydrationDrop, HydrationDropReporter } from "./HydrationWarning.ts";
 
 /** Encoding a typed policy cannot fail, so this side is sync and total. */
 const encodePolicy = Schema.encodeSync(PolicySchema);
@@ -125,13 +133,19 @@ export const dehydrateDecisions = (
 
   // Said, not merely done. Dropping is correct and specified; doing it in
   // silence is what let a server ship one row where it meant to ship a thousand
-  // and see nothing wrong. This was the last quiet failure left in hydration.
+  // and see nothing wrong.
   if (kept.length !== entries.length) {
+    countDropped("ForeignSubject", entries.length - kept.length);
     const report = droppedEntriesReporter(options?.onDropped);
     if (report !== undefined) {
       report(entries.filter((e) => e.decision.subjectId !== subjectId));
     }
   }
+
+  // Counted here rather than left to the caller. A count is what makes the
+  // *other* end legible: `qadi_hydration_seeded_total` next to this one is the
+  // difference between "hydration ran" and "hydration ran and did nothing".
+  countDehydrated(kept.length);
 
   return {
     subjectId,
@@ -179,6 +193,27 @@ const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): Decision => {
       });
 };
 
+export interface HydrateOptions {
+  /**
+   * Called with the entries this client refused to seed, and why.
+   *
+   * The sibling of {@link DehydrateOptions.onDropped}, and it carries a reason
+   * because the three ways a payload fails to seed have three different causes:
+   * the payload naming another subject is a cache-key bug, an unregistered atom
+   * set is a wiring mistake, and an undecodable policy is version skew. A bare
+   * count cannot tell them apart, and each wants a different fix.
+   *
+   * Supplying this replaces the development-mode console warning and runs in
+   * production, exactly as {@link DehydrateOptions.onDropped} and
+   * `onHydrationMismatch` do.
+   *
+   * It observes; it cannot change the outcome. The entries are not seeded either
+   * way — the only safe reading of a payload that cannot be verified is to ask
+   * the questions again.
+   */
+  readonly onDropped?: HydrationDropReporter<DehydratedEntry>;
+}
+
 /**
  * Turns a payload into `initialValues` for `QadiProvider`.
  *
@@ -191,15 +226,29 @@ const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): Decision => {
  * Not throwing is deliberate: a cache serving one user's page to another is a
  * misconfiguration, and turning it into a blank page would be a worse outcome than
  * re-deciding. Trusting it would be a breach.
+ *
+ * Every one of those exits is **announced and counted**. They were all three
+ * silent, which made a page that re-decided everything from scratch
+ * indistinguishable from one that had nothing to hydrate.
  */
 export const hydrateDecisions = (
   atoms: QadiAtoms,
   dehydrated: DehydratedDecisions,
   subject: AuthSubject,
+  options?: HydrateOptions,
 ): InitialValues => {
+  const report = hydrationDropReporter(options?.onDropped);
+
   // The whole payload is rejected on a subject mismatch, not entry by entry: the
   // id is a property of the payload, so one wrong id means the wrong page.
-  if (dehydrated.subjectId !== subject.id) return [];
+  if (dehydrated.subjectId !== subject.id) {
+    countDropped("PayloadSubjectMismatch", dehydrated.entries.length);
+    // The entries are handed back whole. Unlike the dehydrate side this
+    // discloses nothing new — they are the caller's own argument, returned to
+    // them — so only the *default* reporter withholds them.
+    report?.({ reason: "PayloadSubjectMismatch", entries: dehydrated.entries });
+    return [];
+  }
 
   // Written to the seed atom, never to the decision atom. Seeding the decision
   // atom directly is what let a server allow outlive the client's own denial:
@@ -210,17 +259,35 @@ export const hydrateDecisions = (
   // An atom set this module did not build has no seed to write to. Seeding
   // nothing leaves every atom `Initial`, so the client asks the question
   // properly — the same fail-closed outcome a dropped entry gets.
-  if (seedFor === undefined) return [];
+  if (seedFor === undefined) {
+    countDropped("UnregisteredAtoms", dehydrated.entries.length);
+    report?.({ reason: "UnregisteredAtoms", entries: dehydrated.entries });
+    return [];
+  }
 
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
+  const undecodable: Array<DehydratedEntry> = [];
 
   for (const entry of dehydrated.entries) {
     const decoded = decodePolicy(entry.policy);
-    if (!Option.isSome(decoded)) continue;
+    // Collected rather than reported one at a time: a version skew makes *every*
+    // entry of a shape undecodable, and one warning per entry would bury the
+    // page's other output under a payload's worth of identical lines.
+    if (!Option.isSome(decoded)) {
+      undecodable.push(entry);
+      continue;
+    }
     const policy = decoded.value;
 
     seeded.push([seedFor(policy, entry.resource), rebuild(entry, subject.id)]);
   }
+
+  if (undecodable.length > 0) {
+    countDropped("UndecodablePolicy", undecodable.length);
+    report?.({ reason: "UndecodablePolicy", entries: undecodable });
+  }
+
+  countSeeded(seeded.length);
 
   return seeded;
 };

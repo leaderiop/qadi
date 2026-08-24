@@ -14,8 +14,9 @@
  * rather than dissolving into convention
  * ([ADR-QD-041](../../../spec/decisions/041-a-mismatch-is-announced.md)).
  */
-import type { Decision, Policy, Resource } from "@qadi/core";
+import type { ClientHydrationDropReason, Decision, Policy, Resource } from "@qadi/core";
 import { isAllowed } from "@qadi/core";
+import * as Match from "effect/Match";
 
 /** A server seed and this client's own answer, disagreeing about one question. */
 export interface HydrationMismatch {
@@ -119,3 +120,87 @@ export const droppedEntriesReporter = <A,>(
   supplied: DroppedEntriesReporter<A> | undefined,
 ): DroppedEntriesReporter<A> | undefined =>
   supplied ?? (isDevelopment() ? warnDropped : undefined);
+
+/**
+ * Entries a client refused to seed, and why.
+ *
+ * Generic in the element for the reason {@link DroppedEntriesReporter} is: the
+ * entry type lives in `Hydration.ts`, which imports this module, and nothing
+ * here reads an entry.
+ *
+ * The reason is carried because the three cases have three different causes and
+ * three different fixes, and a bare count cannot tell them apart. Two of them
+ * reject the payload whole, so `entries` is then every entry in it.
+ */
+export interface HydrationDrop<A> {
+  readonly reason: ClientHydrationDropReason;
+  readonly entries: ReadonlyArray<A>;
+}
+
+export type HydrationDropReporter<A> = (drop: HydrationDrop<A>) => void;
+
+/**
+ * What to say about each way a payload fails to seed.
+ *
+ * Built once at module scope (AGENTS.md §5a) and exhaustive, so a fourth reason
+ * is a compile error here rather than a payload that fails quietly in a new way
+ * — which is the defect this whole reporter exists to remove.
+ *
+ * Each sentence names the **fix**, not just the fact. A developer meeting one of
+ * these is looking at a page that re-decided everything from scratch and has no
+ * other clue why.
+ */
+const explain: (reason: ClientHydrationDropReason) => string = Match.type<
+  ClientHydrationDropReason
+>().pipe(
+  Match.when(
+    "PayloadSubjectMismatch",
+    () =>
+      "the payload names a different subject than this client's. Nothing was seeded, " +
+      "and nothing should have been — check that the page and its payload were " +
+      "rendered for the same user, and that no cache is serving one user's page to another",
+  ),
+  Match.when(
+    "UnregisteredAtoms",
+    () =>
+      "the atom set was not built by makeQadiAtoms, so it has no seed to write to. " +
+      "A wrapper, a proxy or a test double is not registered — pass the atom set " +
+      "itself",
+  ),
+  Match.when(
+    "UndecodablePolicy",
+    () =>
+      "their policies did not decode. The usual cause is version skew: the server " +
+      "encoded a policy shape this client's schema does not know",
+  ),
+  Match.exhaustive,
+);
+
+const warnHydrationDrop = (drop: HydrationDrop<unknown>): void => {
+  // The count and the reason, never the entries. A `PayloadSubjectMismatch`
+  // payload belongs to another subject, and printing it would be the disclosure
+  // the drop exists to prevent — the rule `warnDropped` already follows. A
+  // caller that needs the entries supplies a reporter and already holds them.
+  console.warn(
+    `[qadi] hydrateDecisions did not seed ${drop.entries.length} decision(s): ` +
+      `${explain(drop.reason)}. Those questions will be asked again from scratch.`,
+  );
+};
+
+/**
+ * The reporter `hydrateDecisions` will use, or `undefined` for none.
+ *
+ * The third of this module's three, deliberately the same shape as the other
+ * two: a development-mode warning by default, replaced outright by a supplied
+ * callback, which then runs in production.
+ *
+ * It exists because hydration had **three** silent exits and this file had
+ * closed only the one on the dehydrate side. A payload could name the wrong
+ * subject, reach an unregistered atom set, or carry entries that would not
+ * decode, and in every case `hydrateDecisions` returned and said nothing — so
+ * "hydration isn't working" had no signal attached to it at all.
+ */
+export const hydrationDropReporter = <A,>(
+  supplied: HydrationDropReporter<A> | undefined,
+): HydrationDropReporter<A> | undefined =>
+  supplied ?? (isDevelopment() ? warnHydrationDrop : undefined);
