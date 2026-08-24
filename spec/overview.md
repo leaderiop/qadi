@@ -186,6 +186,8 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `EvaluationIdShape`, `DecisionCacheShape`, `DecisionCacheKey` | type | service modules |
 | `DecisionSinkShape`, `DecisionRecord`, `DecisionOutcome`, `StoredRecord` | type | sink modules |
 | `ObligationRecord`, `ObligationOutcome`, `SinkRecord`, `Stamped` | type | sink modules |
+| `SinkRecordWire` | schema + type | `SinkCodec.ts` |
+| `toWire`, `fromWire`, `encodeRecord`, `decodeRecord`, `decodeRecordWire` | codec | `SinkCodec.ts` |
 | `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |
 | `Decided`, `Failed` | value class | `DecisionRecord.ts` |
 

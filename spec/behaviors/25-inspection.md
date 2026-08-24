@@ -5,18 +5,18 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
 ---
 
-Ten questions this library could pose and could not answer. Each was found the
+Twelve questions this library could pose and could not answer. Each was found the
 same way — by auditing a devtools design against the code and finding the data
 computed and discarded, or never computed at all — and each is a fact about
 authorization rather than a feature of a tool, which is why they live in
@@ -319,6 +319,80 @@ Recorded in the atom layer rather than by components registering themselves.
 `useSyncExternalStore` call and decisions out of React state; an instance
 registry would breach both, and DOM highlighting — which needs one — is dropped
 rather than bought at that price.
+
+## BEH-QD-199: A record has a wire form, decoded as untrusted
+
+```ts
+export const SinkRecordWire: Schema.Codec<…>;
+export const toWire: (record: SinkRecord) => SinkRecordWire;
+export const fromWire: (wire: SinkRecordWire) => SinkRecord;
+export const decodeRecord: (input: unknown) => Effect<SinkRecord, SchemaIssue>;
+```
+
+```
+REQUIREMENT: `decodeRecord` MUST validate untrusted input, and MUST NOT produce
+             a half-built record.
+```
+
+An in-memory sink hands a consumer real objects. Anything crossing a process
+boundary — a socket to a devtools page, a replica forwarding to a shared store, a
+serverless function shipping its log before it dies — needs a form that survives
+JSON and rebuilds on the far side.
+
+**A record crossing a process boundary crosses a trust boundary**, which is
+exactly the reasoning [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)
+applies to policies. So the wire form is a Schema and decoding validates rather
+than casts: a payload naming a policy shape the ADT does not have is refused,
+not walked.
+
+The wire shape lives beside the record it describes rather than inside whichever
+transport carries it first, because it is a contract two processes agree on, not
+a transport detail.
+
+```
+REQUIREMENT: An `EvaluationError` MUST cross carrying its tag and its stable
+             code, and MUST be rebuilt from the **tag**.
+```
+
+`ERROR_CODES` exists, by its own comment, "for logging and cross-process
+correlation"; this is that use. The code is written and then **ignored on
+decode** — trusting a sender's code to choose a class would let it name one
+error and receive another.
+
+The mapping is hand-written, and that is forced: [AGENTS.md §4](../../AGENTS.md)
+requires `Data.TaggedError` and explicitly not `Schema.TaggedErrorClass`, so the
+errors cannot be Schema-derived where they are defined. A hand-written codec
+drifting from its type is the defect this library was rewritten to remove, so a
+**round-trip property over generated policies** stands in for the gate the policy
+codec gets.
+
+## BEH-QD-200: What the wire cannot carry, it says so
+
+```
+REQUIREMENT: An error's `cause` MUST be rendered to a string.
+```
+
+`cause` is `unknown` — whatever a caller's resolver threw — so it may be an
+`Error`, a circular object, or a function, none of which survive JSON. Rendering
+it keeps the diagnostic and puts the loss in the type instead of at the first
+unserializable value. An `Error` keeps its message; a value whose `toString`
+throws yields a fixed marker, because the encoder a transport calls must never be
+able to break the thing it observes.
+
+```
+REQUIREMENT: A decision record naming neither outcome MUST decode to a `Failed`
+             that says so.
+```
+
+Unreachable for anything this library encodes, but the wire is untrusted. A row
+reading "the sender sent neither outcome" beats a silently dropped record, and it
+can never be mistaken for a decision — which is the same reason `DecisionOutcome`
+is a closed two-tag union in the first place.
+
+**Optional fields normalise.** `Schema.optional` drops an absent key on decode,
+so a field written as explicitly `undefined` arrives absent. Both read as
+`undefined`, so nothing downstream can tell; it is stated here because a test
+comparing structurally can.
 
 ---
 

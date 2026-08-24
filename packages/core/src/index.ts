@@ -24,5 +24,6 @@ export * from "./Resource.ts";
 export * from "./Role.ts";
 export * from "./SecurityLabel.ts";
 export * from "./Simplify.ts";
+export * from "./SinkCodec.ts";
 export * from "./SubjectSet.ts";
 export * from "./TraceDiff.ts";
