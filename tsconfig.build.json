@@ -5,6 +5,7 @@
     { "path": "packages/testing/tsconfig.src.json" },
     { "path": "packages/promise/tsconfig.src.json" },
     { "path": "packages/react/tsconfig.src.json" },
-    { "path": "packages/http/tsconfig.src.json" }
+    { "path": "packages/http/tsconfig.src.json" },
+    { "path": "packages/devtools/tsconfig.src.json" }
   ]
 }

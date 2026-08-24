@@ -16,6 +16,10 @@ export default defineConfig({
         "packages/react/src/index.ts",
         "packages/testing/src/index.ts",
         "packages/http/src/index.ts",
+        // Two barrels, because `@qadi/devtools` ships two entry points: the
+        // headless model and the React dock that renders it.
+        "packages/devtools/src/index.ts",
+        "packages/devtools/src/react/index.ts",
         "**/*.test-d.ts",
       ],
       // A shortfall is a failure, not a report.
@@ -26,6 +30,17 @@ export default defineConfig({
         statements: 90,
         // Core is pure logic; hold it higher.
         "packages/core/src/**": {
+          lines: 95,
+          functions: 95,
+          branches: 95,
+          statements: 95,
+        },
+        // The devtools *model* is pure logic too, and a defect in it is not an
+        // ergonomics one: a merge or pairing bug shows the wrong verdict beside
+        // the wrong subject, and a reviewer acts on what the tool says. Held at
+        // core's bar. The React shell under `src/react/` stays at the 90%
+        // default — it renders what the model computed and decides nothing.
+        "packages/devtools/src/model/**": {
           lines: 95,
           functions: 95,
           branches: 95,

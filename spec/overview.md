@@ -50,6 +50,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `@qadi/react` | `QadiProvider`, hooks, `Can`/`Cannot` |
 | `@qadi/promise` | A Promise facade for callers who do not use Effect |
 | `@qadi/http` | `effect/unstable/http`/`httpapi` bindings — enforcement middleware, subject extraction, permission registry |
+| `@qadi/devtools` | A headless decision timeline, and a React dock that renders it |
 | `@qadi/features` | Cucumber acceptance suite (private) |
 
 ## Public API surface
@@ -335,6 +336,29 @@ See [ADR-QD-036](decisions/036-qadi-http-package-shape.md).
 | `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` |
 | `subjectWith`, `permissions`, `roles`, `policies` | fixture | `Fixtures.ts` |
 | `nobody`, `viewer`, `administrator` | fixture | `Fixtures.ts` |
+
+### `@qadi/devtools`
+
+Two entry points. `@qadi/devtools` is the headless model — decoding, merging,
+ordering and pairing, with no React in it — and `@qadi/devtools/react` renders
+that model and computes nothing. `react` is an **optional** peer dependency, so
+a server-side aggregator can consume the model without a UI.
+
+The `bun` condition of every entry point in a package's `exports` map is read by
+gate 9, so a second entry point's surface is checked exactly as the first one's
+is (CCR-QD-067).
+
+| Export | Kind | Source |
+| ------ | ---- | ------ |
+| `Source`, `DecisionEventSource`, `MalformedReason` | type | `model/Source.ts` |
+| `sourceFromRecords`, `sourceFromFeed`, `sourceFromEventSource` | constructor | `model/Source.ts` |
+| `Timeline`, `TimelineEntry` | type | `model/Timeline.ts` |
+| `TimelineDecision`, `TimelineOrphan` | class | `model/Timeline.ts` |
+| `emptyTimeline`, `ingest`, `ingestAll` | function | `model/Timeline.ts` |
+| `DEFAULT_TIMELINE_CAPACITY` | constant | `model/Timeline.ts` |
+| `TimelineStore` | type | `model/TimelineStore.ts` |
+| `makeTimelineStore`, `runSource` | function | `model/TimelineStore.ts` |
+| `useTimeline`, `useTimelineStore`, `UseTimeline` | hook + type | `react/useTimeline.ts` |
 
 ## Not listed above
 

@@ -23,7 +23,7 @@
  * this file, where a reviewer would never look for it.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const OVERVIEW = join(ROOT, "spec", "overview.md");
@@ -131,24 +131,64 @@ const exportsOf = (file) => {
 };
 
 /**
- * The export set of one package.
+ * Every source file a package publishes as an entry point.
+ *
+ * Read off the `exports` map's `bun` condition, which is the one that points at
+ * source rather than at `lib/`. Assuming `src/index.ts` was the only entry point
+ * held for four packages and stopped holding at `@qadi/devtools`, which ships a
+ * headless model at `.` and a React dock at `./react`; the dock's exports would
+ * have been invisible to this checker and could have drifted indefinitely — the
+ * silent omission §15 exists to forbid.
+ *
+ * A wildcard subpath (`@qadi/http`'s `./*`) names no single file, so it is
+ * skipped: it re-exports modules the root barrel already reaches.
+ */
+const entryPointsOf = ({ dir }) => {
+  const packageDir = join(ROOT, "packages", dir);
+  const src = join(packageDir, "src");
+  const { exports: map } = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
+
+  const entries = new Set();
+  for (const target of collectSourceTargets(map ?? {})) {
+    const file = join(packageDir, target);
+    if (existsSync(file)) entries.add(file);
+  }
+  // Every package has one whether or not its manifest spells it out.
+  entries.add(join(src, "index.ts"));
+  return [...entries];
+};
+
+/** The `bun` condition of every non-wildcard subpath in an `exports` map. */
+const collectSourceTargets = (map) =>
+  Object.entries(map).flatMap(([subpath, condition]) =>
+    subpath.includes("*") || condition === null || typeof condition !== "object"
+      ? []
+      : typeof condition.bun === "string"
+        ? [condition.bun]
+        : [],
+  );
+
+/**
+ * The export set of one package, across all of its entry points.
  *
  * Handles both shapes. `@qadi/core` and friends have a barrel of `export * from`
  * lines; `@qadi/promise`'s index *is* the implementation, so a resolver that assumed a
  * barrel would report zero exports for it and pass.
  */
-const surfaceOf = ({ dir }) => {
-  const src = join(ROOT, "packages", dir, "src");
-  const index = join(src, "index.ts");
-  const barrel = readFileSync(index, "utf8")
-    .split("\n")
-    .map((line) => BARREL.exec(line)?.[1])
-    .filter((specifier) => specifier !== undefined);
-
-  const modules = barrel.length > 0 ? barrel.map((f) => join(src, f)) : [index];
+const surfaceOf = (pkg) => {
   const names = new Map();
-  for (const file of modules) {
-    for (const name of exportsOf(file)) names.set(name, relative(ROOT, file));
+
+  for (const index of entryPointsOf(pkg)) {
+    const barrel = readFileSync(index, "utf8")
+      .split("\n")
+      .map((line) => BARREL.exec(line)?.[1])
+      .filter((specifier) => specifier !== undefined);
+
+    const from = dirname(index);
+    const modules = barrel.length > 0 ? barrel.map((f) => join(from, f)) : [index];
+    for (const file of modules) {
+      for (const name of exportsOf(file)) names.set(name, relative(ROOT, file));
+    }
   }
   return names;
 };
