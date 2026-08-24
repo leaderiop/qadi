@@ -360,7 +360,7 @@ is (CCR-QD-067).
 | `TimelineStore` | type | `model/TimelineStore.ts` |
 | `makeTimelineStore`, `runSource` | function | `model/TimelineStore.ts` |
 | `Verdict`, `Counts` | type | `model/Verdict.ts` |
-| `verdictOf`, `countsOf` | function | `model/Verdict.ts` |
+| `verdictOf`, `verdictOfOutcome`, `countsOf` | function | `model/Verdict.ts` |
 | `PairRole`, `PairedEntry` | type | `model/Pairing.ts` |
 | `pairedEntries`, `pairsOf` | function | `model/Pairing.ts` |
 | `NodeStatus`, `InspectKind`, `InspectNode` | type | `model/Inspect.ts` |
@@ -378,6 +378,16 @@ is (CCR-QD-067).
 | `emptyAnswers` | constant | `model/Capture.ts` |
 | `capturing`, `replayLayer`, `answerCount` | function | `model/Capture.ts` |
 | `attributeKey`, `relationshipKey`, `historyKey` | function | `model/Capture.ts` |
+| `EditDirection`, `EditKind`, `SimulationEdit` | type | `model/SimulationEdit.ts` |
+| `composeEdits`, `applyEdits`, `editParts` | function | `model/SimulationEdit.ts` |
+| `PairSweep` | type | `model/Edits.ts` |
+| `DEFAULT_MAX_PAIRS` | constant | `model/Edits.ts` |
+| `singleEdits`, `pairEdits`, `sameEdge`, `sameEvent` | function | `model/Edits.ts` |
+| `Synthesised`, `SkippedRemedy`, `RemedySweep` | type | `model/Remedies.ts` |
+| `remedyEdits`, `satisfyingValue` | function | `model/Remedies.ts` |
+| `Comparison`, `Compared`, `BecameError`, `Recovered`, `StillFailed` | type | `model/WhatIf.ts` |
+| `WhatIfOptions`, `SweepPlan`, `WhatIfRow`, `WhatIfReport` | type | `model/WhatIf.ts` |
+| `compareOutcomes`, `isChanged`, `sweepPlan`, `whatIf`, `changedRows` | function | `model/WhatIf.ts` |
 | `Selection` | type | `model/Selection.ts` |
 | `NoSelection`, `Selected`, `Evicted` | class | `model/Selection.ts` |
 | `selectionOf` | function | `model/Selection.ts` |

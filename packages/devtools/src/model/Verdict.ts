@@ -22,11 +22,18 @@ import type { TimelineEntry } from "./Timeline.ts";
  */
 export type Verdict = "Allow" | "Deny" | "Error" | "Unknown";
 
-// `as const` on each arm because `Match.tagsExhaustive` widens a bare literal to
-// `string`, and the annotation on the const would then reject the whole matcher
-// rather than the arm that widened. The same shape `SinkCodec`'s `encodeError`
-// uses.
-const outcomeVerdict: (outcome: DecisionOutcome) => Verdict = Match.type<DecisionOutcome>().pipe(
+/**
+ * The verdict of an outcome that is in hand — a simulated one, say, which
+ * belongs to no timeline row.
+ *
+ * `as const` on each arm because `Match.tagsExhaustive` widens a bare literal to
+ * `string`, and the annotation on the const would then reject the whole matcher
+ * rather than the arm that widened. The same shape `SinkCodec`'s `encodeError`
+ * uses.
+ */
+export const verdictOfOutcome: (outcome: DecisionOutcome) => Verdict = Match.type<
+  DecisionOutcome
+>().pipe(
   Match.tagsExhaustive({
     Decided: (o) => (isAllowed(o.decision) ? ("Allow" as const) : ("Deny" as const)),
     Failed: () => "Error" as const,
@@ -35,7 +42,7 @@ const outcomeVerdict: (outcome: DecisionOutcome) => Verdict = Match.type<Decisio
 
 export const verdictOf: (entry: TimelineEntry) => Verdict = Match.type<TimelineEntry>().pipe(
   Match.tagsExhaustive({
-    TimelineDecision: (entry) => outcomeVerdict(entry.decision.outcome),
+    TimelineDecision: (entry) => verdictOfOutcome(entry.decision.outcome),
     TimelineOrphan: () => "Unknown" as const,
   }),
 );
