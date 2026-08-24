@@ -371,6 +371,10 @@ is (CCR-QD-067).
 | `NoSelection`, `Selected`, `Evicted` | class | `model/Selection.ts` |
 | `selectionOf` | function | `model/Selection.ts` |
 | `useTimeline`, `useTimelineStore`, `UseTimeline` | hook + type | `react/useTimeline.ts` |
+| `DevtoolsDock`, `DevtoolsDockProps` | component + type | `react/DevtoolsDock.tsx` |
+| `DecisionLog`, `DecisionLogProps` | component + type | `react/DecisionLog.tsx` |
+| `Inspector` | component | `react/Inspector.tsx` |
+| `VerdictTag`, `EnvironmentTag` | component | `react/VerdictTag.tsx` |
 
 ## Not listed above
 
