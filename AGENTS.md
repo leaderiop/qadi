@@ -319,7 +319,8 @@ state-management layer of its own. The rules that keep it that way:
 
 - **No React state for decisions.** Decisions live in atoms. If you find
   yourself writing `useState` + `useEffect` to hold one, the atom graph is the
-  place for it instead.
+  place for it instead. This is the rule the instance registry below does **not**
+  bend: it holds who is asking, never what the answer was.
 - **No additional dependencies.** The React glue is one `useSyncExternalStore`
   call in `QadiProvider.tsx`. `@effect/atom-react` supplies the same thing plus
   features this package does not use, and was rejected on that basis
@@ -338,6 +339,34 @@ state-management layer of its own. The rules that keep it that way:
 - **Test the graph, not the DOM, where you can.** `QadiAtoms.test.ts` renders
   nothing — caching, sharing and invalidation are properties of the atoms, and
   proving them through components only makes the test slower and vaguer.
+- **A guard may record that it exists, and may record nothing else**
+  (ADR-QD-053). `GateRegistry.ts` is a module-scope map a guard writes to from an
+  effect — the shape `HydrationSeed.ts` already uses — carrying its policy, its
+  resource, what it rendered, and a ref React filled in. Nothing re-renders
+  because a guard registered, and nothing in that file can affect what one
+  renders.
+
+  This section previously read as forbidding it, and `@qadi/devtools`'s React
+  panel said so on screen: *"an instance registry would breach AGENTS.md §13
+  twice over."* It would not, and the two rules it was said to breach are both
+  still intact. Decisions are still not in React state. The React glue is still
+  **one** `useSyncExternalStore` call in `QadiProvider.tsx` — the registry
+  exposes `subscribe`/`snapshot` and it is `@qadi/devtools`, a DOM package
+  already, that subscribes.
+
+  What the argument actually established is that the **atom layer** cannot see
+  instances, which is true and is why the panel is still keyed by question. A
+  component knows perfectly well that it exists; nothing was asking it.
+- **Instrumentation is opt-in, and off means absent.** `QadiProvider`'s
+  `instrument` defaults to `false`, and with it off no guard registers and no
+  marker element is rendered — not a wrapper that does nothing, no wrapper. A
+  consumer's DOM must not change because they upgraded this package. The
+  assertion that keeps this honest is that the React suite's existing tests pass
+  untouched.
+- **`@qadi/react` calls no DOM API.** It renders a `display: contents` span and
+  holds the ref React fills in; measuring, drawing and hit-testing are
+  `@qadi/devtools`'s `react/Lens.ts`, which is the only file in either package
+  that touches `document`.
 
 ## 14. `@qadi/promise`
 

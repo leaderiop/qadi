@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.19                                           |
+> | Revision       | 1.20                                           |
 > | Effective Date | 2026-07-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.19 (2026-08-24): URS-QD-032, what the ports were asked (CCR-QD-071)<br>1.18 (2026-08-24): URS-QD-031, the subject simulator (CCR-QD-070)<br>1.17 (2026-07-26): URS-QD-028, the Promise facade (CCR-QD-033)<br>1.16 (2026-07-26): URS-QD-027, the decision cache (CCR-QD-032)<br>1.15 (2026-07-26): URS-QD-026, simplification (CCR-QD-031)<br>1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.20 (2026-08-24): URS-QD-033, finding the component behind a missing control (CCR-QD-073)<br>1.19 (2026-08-24): URS-QD-032, what the ports were asked (CCR-QD-071)<br>1.18 (2026-08-24): URS-QD-031, the subject simulator (CCR-QD-070)<br>1.17 (2026-07-26): URS-QD-028, the Promise facade (CCR-QD-033)<br>1.16 (2026-07-26): URS-QD-027, the decision cache (CCR-QD-032)<br>1.15 (2026-07-26): URS-QD-026, simplification (CCR-QD-031)<br>1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -194,6 +194,21 @@ wrong attribute from one consulted about the right one and answering nothing,
 and those have different fixes. The value itself is the one part that must not
 travel: it is arbitrary data, it reaches whatever tracing backend is wired, and
 the library cannot know whether it is a clearance level or a patient identifier.
+
+### URS-QD-033 — Find the component a missing control belongs to
+
+A developer looking at a page where a control is absent must be able to see which
+guards are mounted, what each of them decided, and **where on the page** each one
+sits — including the ones rendering nothing.
+
+Rationale: the panel could say which questions had been asked and could not say
+who was asking, which is a list that never contains the reader's actual question.
+"Why is this button missing" is answered by pointing at the place the button is
+not, and that requires a component to be enumerable and locatable — neither of
+which the atom layer can provide, because it deliberately shares one atom between
+every component asking the same thing. The recording is off by default because on
+a production page a list of what the current user may and may not do is worth as
+much to an attacker as to a developer.
 
 ### URS-QD-029 — See what was decided, across every process that decided it
 

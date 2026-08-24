@@ -264,6 +264,8 @@ because this section is called the *public API surface*, and a reader looking fo
 | `useSubject`, `useDecision`, `useCan`, `useDecisionSuspense` | hook | `hooks.ts` |
 | `usePolicies`, `useProjected`, `useInvalidate` | hook | `hooks.ts` |
 | `dehydrateDecisions`, `hydrateDecisions` | function | `Hydration.ts` |
+| `gateInstances`, `subscribeGates`, `registerGate`, `clearGatesUnsafe` | function | `GateRegistry.ts` |
+| `GateInstance`, `GateKind`, `GateRenderState` | type | `GateRegistry.ts` |
 | `DehydratedDecisions`, `DehydratedEntry`, `DecisionEntry`, `DehydrateOptions` | type | `Hydration.ts` |
 | `HydrateOptions`, `HydrationDrop`, `HydrationDropReporter` | type | `Hydration.ts` |
 
@@ -409,6 +411,9 @@ is (CCR-QD-067).
 | `roleSummary`, `grantPath`, `decidingSet` | function | `model/RoleTree.ts` |
 | `PortReport`, `CacheReport`, `WiringReport`, `PortActivity` | type | `model/Wiring.ts` |
 | `wiringReport`, `portActivity` | effect | `model/Wiring.ts` |
+| `GateInstanceLike`, `GateGroup`, `GateStateCount` | type | `model/Gates.ts` |
+| `gateGroups`, `isLocatable`, `locatableIds`, `instancesAsking` | function | `model/Gates.ts` |
+| `GATE_STATES` | constant | `model/Gates.ts` |
 | `HydrationActivity`, `HydrationDrops` | type | `model/Hydration.ts` |
 | `hydrationActivity` | effect | `model/Hydration.ts` |
 | `unaccountedEntries`, `hasHydrated` | function | `model/Hydration.ts` |
@@ -425,6 +430,9 @@ is (CCR-QD-067).
 | `RoleViewer`, `RoleViewerProps` | component + type | `react/RoleViewer.tsx` |
 | `ServicesPanel`, `ServicesPanelProps` | component + type | `react/ServicesPanel.tsx` |
 | `QuestionsPanel`, `QuestionsPanelProps`, `AskedQuestionLike` | component + type | `react/QuestionsPanel.tsx` |
+| `GateBox` | type | `react/Lens.ts` |
+| `isMeasurable`, `boxOf`, `boxesOf`, `drawLens`, `clearLens`, `gateIdAt` | function | `react/Lens.ts` |
+| `useLens`, `Lens` | hook + type | `react/useLens.ts` |
 
 ## Not listed above
 

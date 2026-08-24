@@ -158,3 +158,6 @@ entries:
   - id: "ADR-QD-052"
     file: "052-hydration-is-counted-where-both-ends-can-see-it.md"
     title: "Hydration is counted, and the counter is declared where both ends can see it"
+  - id: "ADR-QD-053"
+    file: "053-a-gate-can-be-found.md"
+    title: "A guard can say that it exists, and be found on the page"

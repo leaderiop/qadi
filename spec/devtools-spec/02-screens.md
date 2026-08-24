@@ -307,20 +307,35 @@ conflate the two.
 ## 7. React panel (client only)
 
 - **Gates & hooks in tree** — every `<Can>`/`<Cannot>`/`useCan`/
-  `useDecisionSuspense` instance with its render state; hydrated entries show
-  their pair id; stale entries show `stale — re-checking` (never the old verdict,
-  [ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md)); each gate
-  has a "highlight" → lens.
+  `useDecisionSuspense` instance with its render state; stale entries show
+  `Rechecking` rather than the old verdict
+  ([ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md)); each
+  question has a "highlight" → lens, and the page can be picked from. **Built**,
+  behind `QadiProvider`'s `instrument`. Hydrated entries do not show a pair id:
+  a seed is superseded the moment the client answers (BEH-QD-151), so an instance
+  row would be showing the client's own decision and calling it the server's.
 - **Hydration** — dehydrated and seeded entry counts, re-checked count, mismatch
   count (a mismatch = the server allow no longer holds client-side), one row per
   drop reason that fired, and "Invalidate all". **Built**, read passively with
   `hydrationActivity`.
 
-**Rescoped and built**, exactly as this note proposed: the panel is keyed by
-**question**, and says so on screen because a reader counting rows against their
-component tree would otherwise think it broken. `QadiAtoms.asked()` records the
-questions in the atom layer (BEH-QD-217). The original note, kept because its
-reasoning is the design:
+**Rescoped, built, and then built the rest of the way.** The panel is keyed by
+**question** and says so on screen, because a reader counting rows against their
+component tree would otherwise think it broken — `QadiAtoms.asked()` records the
+questions in the atom layer (BEH-QD-217), and that half is unchanged.
+
+The other half was declared **unobtainable** below and was not
+([ADR-QD-053](../decisions/053-a-gate-can-be-found.md)). The premise is true —
+`Atom.family` keys structurally, so the atom layer genuinely cannot tell ten
+`<Can>` apart — and the conclusion does not follow from it. A component knows
+perfectly well that it exists; nothing was asking it. `gateInstances()` now
+lists them under their question, with what each rendered, and the lens points at
+them in **both** directions: highlight from the panel, pick from the page. The
+claim that an instance registry "would breach AGENTS.md §13 twice over" was also
+wrong, and §13 now says why neither rule is breached.
+
+The original note, kept because half of its reasoning is still the design and the
+other half is the correction:
 
 > **Gap — this screen needs rescoping, not implementing.** `Atom.family` keys
 > **structurally**, so ten `<Can policy={isAdmin}>` in different places in the

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -240,21 +240,38 @@ by age. A TTL control would imply a cache design the library does not have. The
 cache card must also not be confused with the record log — `decisionSinkRing`
 has its own `clear`.
 
-## BEH-QD-217: The React panel is keyed by question, not by instance
+## BEH-QD-217: The React panel is keyed by question
+
+> **Revised in CCR-QD-073.** This section's first requirement read *"One row per
+> question. A per-instance count MUST NOT be claimed."* The prohibition is
+> withdrawn; the keying requirement it was attached to stands unchanged, and is
+> restated below. See [ADR-QD-053](../decisions/053-a-gate-can-be-found.md) and
+> [BEH-QD-233](#beh-qd-233-a-guard-may-record-that-it-exists).
 
 ```
-REQUIREMENT: One row per question. A per-instance count MUST NOT be claimed.
+REQUIREMENT: One row per question. A question's row MUST NOT be split by the
+             components asking it.
 ```
 
 `Atom.family` compares with `Equal.equals`, so ten `<Can policy={isAdmin}>` in
-different places in the tree are **one atom**. The library cannot tell them
-apart, and a panel showing ten rows would invent a distinction the architecture
-does not have. `QadiAtoms.asked()` records the questions in the atom layer
-rather than by components registering themselves — an instance registry would
-breach AGENTS.md §13 twice over.
+different places in the tree are **one atom**. That is what the evaluator sees,
+and a panel showing ten *questions* would invent a distinction the architecture
+does not have. `gateGroups` groups through the same `Equal.equals`, so a group is
+exactly an atom.
 
 The screen says this in words, because a reader counting rows against their
-component tree would otherwise conclude the panel is broken.
+component tree would otherwise conclude the panel is broken — and it now has to
+say both halves, since the guards asking each question are listed underneath it.
+
+**Why the prohibition was wrong.** The argument above establishes that the *atom
+layer* cannot distinguish instances. It was read as establishing that nothing
+can, and the original note went further still: *"an instance registry would
+breach AGENTS.md §13 twice over."* It breaches neither. Decisions stay out of
+React state — the registry holds who is asking, never what the answer was — and
+the React glue is still one `useSyncExternalStore` call in `QadiProvider.tsx`,
+because it is `@qadi/devtools` that subscribes.
+
+A component knows perfectly well that it exists. Nothing was asking it.
 
 ```
 REQUIREMENT: The same policy with and without a resource MUST be two rows.
@@ -266,10 +283,13 @@ They are two questions.
 REQUIREMENT: Hydration counts that are not obtainable MUST be named as such.
 ```
 
-Only a verdict **disagreement** is reported, once per question:
-`hydrateDecisions` returns its entries and does not retain them, and nothing
-counts re-evaluations. No reporter wired shows *no reporter*, never zero — zero
-would claim there were no mismatches when there is simply nobody counting.
+> **Superseded in CCR-QD-072.** All four counts are obtainable now, read
+> passively from metrics `@qadi/core` declares
+> ([BEH-QD-231](./19-hydration.md)). The rule survives as its general form —
+> *name what cannot be shown rather than leaving a blank* — which is what
+> BEH-QD-218 states for every screen. No reporter wired still shows *no
+> reporter*, never zero: zero would claim there were no mismatches when there is
+> simply nobody counting.
 
 ## BEH-QD-218: Every screen degrades to an explanation
 
@@ -290,6 +310,129 @@ The distinctions each empty state must keep:
 | Roles | roles are not observable; they come from `catalogue` | — |
 | Services | no layer was handed to the dock | metrics still render |
 | React | no atom set was handed to the dock | an atom set asked nothing yet |
+
+## BEH-QD-233: A guard may record that it exists
+
+> **Invariant:** [INV-QD-046](../invariants.md#inv-qd-046-instrumentation-never-changes-what-a-guard-renders)
+
+```ts
+export const gateInstances: () => ReadonlyArray<GateInstance>;
+export const subscribeGates: (listener: () => void) => () => void;
+```
+
+```
+REQUIREMENT: Instrumentation MUST be opt-in, and MUST be off by default.
+```
+
+`QadiProvider`'s `instrument`. It is a debug affordance, and on a production page
+it hands any script a list of what the current user may and may not do — so it is
+guarded the way the dock itself is.
+
+```
+REQUIREMENT: With it off, no guard MUST register and no marker element MUST be
+             rendered.
+```
+
+Off means **absent**, not inert. Not a wrapper that does nothing — no wrapper. A
+consumer's DOM must not change because they upgraded this package, and the
+assertion that keeps that honest is that the React suite's existing tests pass
+untouched.
+
+```
+REQUIREMENT: One instance MUST register exactly once, under the surface its
+             author wrote.
+```
+
+The five surfaces nest: `Can` reads a decision the way `useDecision` does. All of
+them go through one internal `useGate` naming themselves, because registering in
+the primitive *and* in its callers reports one component as two instances with
+the inner one labelled a hook nobody called.
+
+```
+REQUIREMENT: A guard's recorded state MUST be what it rendered, including
+             `Rechecking` and `Pending` as distinct.
+```
+
+Read off the same `AsyncResult` the component branches on, in the same order, so
+the panel cannot disagree with the screen. The two waiting states stay apart
+because they are separate facts: one has never had an answer, the other has one it
+no longer trusts. Neither carries the previous verdict
+([ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md)).
+
+```
+REQUIREMENT: An instance MUST be dropped when it unmounts.
+```
+
+An entry holds a DOM element, so a leaked one keeps a detached subtree alive.
+
+## BEH-QD-234: The lens points at a guard, in both directions
+
+```ts
+export const boxesOf: (instances: ReadonlyArray<{ id: string; element?: unknown }>) => ReadonlyArray<GateBox>;
+export const drawLens: (target: Document, boxes: ReadonlyArray<GateBox>) => void;
+export const gateIdAt: (target: Document, x: number, y: number, instances: …) => string | undefined;
+```
+
+```
+REQUIREMENT: The marker MUST NOT change the host's layout.
+```
+
+`display: contents` generates **no box**, so children lay out exactly as if it
+were not there — no flex, grid, margin or adjacency selector changes. It is the
+only way to put a handle in the tree without putting a box in it.
+
+```
+REQUIREMENT: A guard MUST be measured by its contents, never by the marker.
+```
+
+The consequence of the rule above: an element with no box has no rect, so
+`marker.getBoundingClientRect()` is zeros and a lens built on it would draw every
+overlay in the top-left corner. A `Range` over the contents measures what is
+actually there, text nodes included.
+
+```
+REQUIREMENT: A guard that rendered nothing MUST be reported, not filtered.
+```
+
+A zero-area rect is a **place with no thing in it**, and pointing at it is the
+answer to "why is this button missing" — the question this screen exists for. It
+gets a caret and its own colour rather than a 0×0 box, which would draw nothing
+and report success.
+
+```
+REQUIREMENT: An instance the lens cannot point at MUST be named as such, and MUST
+             NOT be offered a highlight.
+```
+
+A hook has no node of its own: enumerable, and not locatable. The control is
+disabled and carries the reason, because a button that silently does nothing is
+worse than an absent one.
+
+```
+REQUIREMENT: The lens MUST NOT intercept the page's own input, except on a pick
+             that found a guard.
+```
+
+Overlays are `pointer-events: none`. Picking swallows the click only where a
+guard was actually found — so picking a guarded button does not also press it,
+and the dock's own controls keep working while the mode is on.
+
+```
+REQUIREMENT: Picking MUST have an exit that does not require a reload.
+```
+
+Three: the pick, `Escape`, and unmount. Unmount also removes every overlay — a
+dock that left them behind would deface the page it was debugging.
+
+```
+REQUIREMENT: A guard MUST be found by element identity, never by a selector.
+```
+
+The `data-qadi-gate` attribute exists for a person reading the DOM in a browser
+inspector. Making it the lookup would put a string contract between two packages
+that do not import each other, which is the silent-failure shape
+[ADR-QD-052](../decisions/052-hydration-is-counted-where-both-ends-can-see-it.md)
+was written about. An identity comparison cannot drift.
 
 ---
 

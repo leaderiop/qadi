@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.17                                            |
+> | Revision       | 1.18                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -1486,3 +1486,41 @@ bin — a working system must not report a fault on every request that happened 
 ask no questions.
 
 **Related**: [BEH-QD-230](behaviors/19-hydration.md), [BEH-QD-231](behaviors/19-hydration.md), [ADR-QD-052](decisions/052-hydration-is-counted-where-both-ends-can-see-it.md).
+
+## INV-QD-046: Instrumentation never changes what a guard renders
+
+With `instrument` off, no guard registers and no marker element exists. With it
+on, a guard renders the same node it rendered before, wrapped in an element that
+generates no box.
+
+**Source**: `packages/react/src/useGate.ts` and `components.tsx` — the branching
+that chooses what to render is untouched by the flag, and the marker's
+`display: contents` generates no layout box.
+
+**Implication**: an observability feature that changed the thing it observes is
+worse than no observability, because the reader trusts what it shows. Two
+different failures are prevented here and they are not the same one.
+
+**A DOM that changes on upgrade.** Off has to mean *absent*, not inert. A wrapper
+rendered unconditionally with a no-op style would still break a consumer's
+snapshot tests, their `:first-child` selectors, and any query counting immediate
+children — on a version bump, for a feature they never asked for.
+
+**A layout that changes when the panel is opened.** `display: contents` is what
+makes the marker affordable at all: it generates no box, so flex and grid
+children, margin collapsing and adjacency selectors all behave exactly as they
+did. A `<span>` with default styling would reflow a flex row the moment somebody
+started debugging it — and the bug would move.
+
+**The flag is not a feature switch on behaviour.** It gates *recording*, never
+deciding. `useGate` reads its decision and branches identically either way, and
+the hooks below the check run unconditionally, because the rules of hooks do not
+bend for a debug feature.
+
+**Enforcement**: `packages/react/test/GateRegistry.test.tsx` asserts that an
+uninstrumented tree registers nothing and renders no wrapper at all, and that an
+instrumented marker carries `display: contents`. The stronger evidence is
+indirect and worth more: the **127 tests that existed before this feature pass
+untouched**, none of them instrumented.
+
+**Related**: [BEH-QD-233](behaviors/28-devtools-screens.md), [BEH-QD-234](behaviors/28-devtools-screens.md), [ADR-QD-053](decisions/053-a-gate-can-be-found.md).
