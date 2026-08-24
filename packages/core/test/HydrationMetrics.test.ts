@@ -123,10 +123,6 @@ describe("HydrationMetrics", () => {
   });
 
   describe("writing off a fiber", () => {
-    // The property the whole design rests on. `dehydrateDecisions` runs on a
-    // server rendering a page and `hydrateDecisions` during a client's first
-    // render; neither has an Effect runtime, so `Metric.update` is unavailable
-    // to them and `updateUnsafe` is the only form there is.
     // An off-fiber `updateUnsafe` and an on-fiber `Metric.value` meeting is the
     // property the whole design rests on: `dehydrateDecisions` runs on a server
     // rendering a page and `hydrateDecisions` during a client's first render,
@@ -154,13 +150,31 @@ describe("HydrationMetrics", () => {
       }),
     );
 
+    // The reasons are written out rather than read from `hydrationDropReasons`,
+    // and that is the whole point of this assertion. An earlier version looped
+    // over the constant to check the constant, so emptying the array made the
+    // loop run zero times and pass — five surviving mutants, all of them this
+    // one mistake. A test may not use the thing it is verifying as its oracle.
+    const REASONS = [
+      "ForeignSubject",
+      "PayloadSubjectMismatch",
+      "UnregisteredAtoms",
+      "UndecodablePolicy",
+    ] as const;
+
+    it.effect("names every drop reason, in order", () =>
+      Effect.gen(function* () {
+        assert.deepStrictEqual([...hydrationDropReasons], [...REASONS]);
+      }),
+    );
+
     it.effect("every reason is in the snapshot before this suite raises any", () =>
       Effect.gen(function* () {
         const state = hydrationDroppedTotal.valueUnsafe(registry);
         // Pre-registered, so a reader gets the closed key set off the metric and
         // an unraised reason reads as *did not happen* rather than *not known*.
         // Asserted as presence, not as zero: the suite may already have run.
-        for (const reason of hydrationDropReasons) {
+        for (const reason of REASONS) {
           assert.notStrictEqual(state.occurrences.get(reason), undefined, reason);
         }
       }),
