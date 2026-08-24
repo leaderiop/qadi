@@ -362,6 +362,10 @@ is (CCR-QD-067).
 | `Verdict`, `Counts` | type | `model/Verdict.ts` |
 | `verdictOf`, `verdictOfOutcome`, `countsOf` | function | `model/Verdict.ts` |
 | `PairRole`, `PairedEntry` | type | `model/Pairing.ts` |
+| `PortCallPort`, `AttributeCall`, `ActedCall`, `RelationshipCall`, `PortCall` | type | `model/PortCalls.ts` |
+| `PortCallLog`, `PortCallCollector` | type | `model/PortCalls.ts` |
+| `DEFAULT_PORT_CALL_CAPACITY` | constant | `model/PortCalls.ts` |
+| `collectPortCalls` | function | `model/PortCalls.ts` |
 | `pairedEntries`, `pairsOf` | function | `model/Pairing.ts` |
 | `NodeStatus`, `InspectKind`, `InspectNode` | type | `model/Inspect.ts` |
 | `inspect`, `inspectEntry`, `isNeverResolved`, `isTruncated`, `flattenTree` | function | `model/Inspect.ts` |

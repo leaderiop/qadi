@@ -15,6 +15,7 @@ export * from "./model/Edits.ts";
 export * from "./model/Filters.ts";
 export * from "./model/Inspect.ts";
 export * from "./model/Pairing.ts";
+export * from "./model/PortCalls.ts";
 export * from "./model/Remedies.ts";
 export * from "./model/Replay.ts";
 export * from "./model/RoleTree.ts";
