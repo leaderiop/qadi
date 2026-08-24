@@ -78,10 +78,26 @@ describe("hydrationActivity", () => {
 
       // A healthy system and a build that has lost a reason must not look the
       // same. It is the reasons at zero that tell a reader they are watched for.
+      // In declaration order, which pre-registration fixes — so two readings can
+      // be put side by side.
       assert.deepStrictEqual(
-        read.drops.map((drop) => drop.reason),
+        read.drops.slice(0, hydrationDropReasons.length).map((drop) => drop.reason),
         [...hydrationDropReasons],
       );
+    }));
+
+  it.effect("reports a key it does not recognise rather than hiding it", () =>
+    Effect.gen(function* () {
+      // Nothing stops another module writing into this frequency, and a count
+      // nobody can explain is still a count — dropping it would make the totals
+      // stop adding up, which is worse than an unexplained row.
+      hydrationDroppedTotal.updateUnsafe("SomethingElse", registry);
+      const read = yield* hydrationActivity;
+
+      const foreign = read.drops.find((drop) => drop.reason === "SomethingElse");
+      assert.isDefined(foreign);
+      assert.isTrue((foreign?.count ?? 0) >= 1);
+      assert.include(foreign?.meaning ?? "", "not a reason this build knows");
     }));
 
   it.effect("gives every reason a distinct sentence", () =>
@@ -152,9 +168,20 @@ describe("hasHydrated", () => {
   });
 
   it("is false for a process that only dropped", () => {
-    // Deliberate: a drop count with no hydration at all means a payload arrived
-    // and was refused entire, which is a different screen's story. Reporting
-    // "has hydrated" for it would be a claim nothing supports.
-    assert.isFalse(hasHydrated(activity({ mismatched: 3 })));
+    // Deliberate: drops with no hydration at all is a payload that arrived and
+    // was refused entire. Reporting "has hydrated" for it would be a claim
+    // nothing supports.
+    //
+    // Asserted with a *drop*, not with `mismatched: 3`. A mismatch implies a
+    // re-check implies a seed, so a reading carrying one and no re-checks is a
+    // state the writer cannot produce — and a test whose input cannot occur
+    // pins nothing.
+    assert.isFalse(
+      hasHydrated(
+        activity({
+          drops: [{ reason: "PayloadSubjectMismatch", count: 3, meaning: "wrong client" }],
+        }),
+      ),
+    );
   });
 });

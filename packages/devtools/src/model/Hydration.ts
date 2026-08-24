@@ -30,7 +30,16 @@ import type { HydrationDropReason } from "@qadi/core";
 
 /** Entries lost for one reason, with the sentence explaining it. */
 export interface HydrationDrops {
-  readonly reason: HydrationDropReason;
+  /**
+   * The frequency key, as the registry holds it.
+   *
+   * `string` rather than `HydrationDropReason`, for the reason `PortCalls.ts`
+   * gives about span attributes: this package reads a structure it does not own,
+   * and any module in the process can write a word into it. A key outside the
+   * closed set is reported rather than hidden — a count nobody can explain is
+   * still a count, and dropping it would make the total stop adding up.
+   */
+  readonly reason: string;
   readonly count: number;
   /** What a reader should do about it. Constant per reason. */
   readonly meaning: string;
@@ -67,6 +76,13 @@ const MEANINGS: Record<HydrationDropReason, string> = {
   UndecodablePolicy: "a policy shape the client's schema does not know — usually version skew",
 };
 
+const UNRECOGNISED = "not a reason this build knows — something else writes to this metric";
+
+const isReason = (word: string): word is HydrationDropReason =>
+  hydrationDropReasons.some((one) => one === word);
+
+const meaningOf = (word: string): string => (isReason(word) ? MEANINGS[word] : UNRECOGNISED);
+
 /**
  * Reads the hydration counts, **passively**.
  *
@@ -87,13 +103,17 @@ export const hydrationActivity: Effect.Effect<HydrationActivity> = Effect.gen(fu
     seeded: seeded.count,
     rechecked: rechecked.count,
     mismatched: mismatched.count,
-    drops: hydrationDropReasons.map((reason) => ({
+    // The metric's **own** keys, rather than a walk of `hydrationDropReasons`
+    // defaulting each miss to zero. Pre-registration is exactly what makes that
+    // walk unnecessary: it puts all four in the map at zero when the hooks are
+    // created, so a reader that also defaulted would be a second mechanism doing
+    // the first one's job — and its default could never fire, which is how the
+    // mutation gate found it. Insertion order is the order `hydrationDropReasons`
+    // declares, so the rows stay stable and any foreign key sorts after them.
+    drops: [...drops.occurrences].map(([reason, count]) => ({
       reason,
-      // Defaulted even though the metric pre-registers every reason: this
-      // package reads a map it does not own, and a missing key must read as
-      // nothing happened rather than as `undefined` reaching the panel.
-      count: drops.occurrences.get(reason) ?? 0,
-      meaning: MEANINGS[reason],
+      count,
+      meaning: meaningOf(reason),
     })),
   };
 });
