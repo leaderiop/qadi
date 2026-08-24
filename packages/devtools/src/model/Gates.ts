@@ -121,31 +121,43 @@ const countsOf = (instances: ReadonlyArray<GateInstanceLike>): ReadonlyArray<Gat
  * Order is the order they registered, which is mount order — so a group does
  * not jump around the panel as unrelated components re-render.
  */
+/**
+ * A group under construction, carrying its first member **beside** the list.
+ *
+ * The shape is the point. Written as a bare `Array<GateInstanceLike>` this
+ * needed `group[0] !== undefined` to satisfy `noUncheckedIndexedAccess`, and a
+ * second such check when reading the head back out — two conditions that can
+ * never be false, because a group is only ever created as `[instance]`. The
+ * mutation gate found both: negating either changed nothing, and the `return []`
+ * behind the second was unreachable code.
+ *
+ * Naming the invariant instead of asserting it makes it the type's job. There is
+ * no index access here and so nothing to guard.
+ */
+interface Grouping {
+  readonly first: GateInstanceLike;
+  readonly members: Array<GateInstanceLike>;
+}
+
 export const gateGroups = (
   instances: ReadonlyArray<GateInstanceLike>,
 ): ReadonlyArray<GateGroup> => {
-  const groups: Array<Array<GateInstanceLike>> = [];
+  const groups: Array<Grouping> = [];
 
   for (const instance of instances) {
-    const existing = groups.find((group) => group[0] !== undefined && sameQuestion(group[0], instance));
-    if (existing === undefined) groups.push([instance]);
-    else existing.push(instance);
+    const existing = groups.find((group) => sameQuestion(group.first, instance));
+    if (existing === undefined) groups.push({ first: instance, members: [instance] });
+    else existing.members.push(instance);
   }
 
-  return groups.flatMap((group) => {
-    const first = group[0];
-    if (first === undefined) return [];
-    return [
-      {
-        policy: first.policy,
-        resource: first.resource,
-        label: policyLabel(first.policy),
-        instances: group,
-        counts: countsOf(group),
-        locatable: group.filter(isLocatable).length,
-      },
-    ];
-  });
+  return groups.map((group) => ({
+    policy: group.first.policy,
+    resource: group.first.resource,
+    label: policyLabel(group.first.policy),
+    instances: group.members,
+    counts: countsOf(group.members),
+    locatable: group.members.filter(isLocatable).length,
+  }));
 };
 
 /**
