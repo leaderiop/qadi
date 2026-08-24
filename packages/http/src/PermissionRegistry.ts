@@ -155,16 +155,75 @@ export const addGuardedRoute =
     );
 
 /**
- * The `/__permissions` introspection route: every permission this
- * application enforces, and the routes that require it.
+ * The introspection payload: every permission this application enforces, and
+ * the routes that require it.
+ *
+ * `jsonUnsafe` rather than `json`, and safely: every value here is a string this
+ * module put in the registry itself — a permission key, a method, a path, a
+ * group — so there is nothing unserializable to fail on, and the fallible
+ * encoder would only add an error channel the routes below then have to answer
+ * for.
  */
-export const PermissionRegistryRoute = HttpRouter.add(
-  "GET",
-  "/__permissions",
-  Effect.gen(function* () {
-    const data = yield* PermissionRegistry.snapshot;
-    return yield* HttpServerResponse.json(
-      HashMap.toEntries(data).map(([permission, endpoints]) => ({ permission, endpoints })),
-    );
-  }),
+const snapshotResponse = Effect.map(PermissionRegistry.snapshot, (data) =>
+  HttpServerResponse.jsonUnsafe(
+    HashMap.toEntries(data).map(([permission, endpoints]) => ({ permission, endpoints })),
+  ),
 );
+
+/**
+ * The `/__permissions` introspection route, **behind a policy**.
+ *
+ * This route publishes the application's entire authorization topology: every
+ * guarded path, and the permission each one requires. That is a map of what to
+ * attack and where, and it previously shipped as a bare `PermissionRegistryRoute`
+ * constant with no guard of its own — so mounting it, which the overview
+ * presented as ordinary wiring, served that map to anonymous callers.
+ *
+ * A route describing authorization that is not itself authorized inverts the
+ * posture the rest of this package is built on, so the guard is not optional. A
+ * caller who genuinely wants it open says so with
+ * {@link permissionRegistryRouteUnguarded}, which is the same
+ * declare-do-not-infer rule [BEH-QD-174](../../../spec/behaviors/23-http.md)
+ * applies to endpoints.
+ *
+ * Enforced through `guardRoute`, so a denial is a 403 and a broken attribute
+ * store is a 502 — the introspection route obeys the same status mapping every
+ * other guarded route does rather than inventing one.
+ */
+export const permissionRegistryRoute = <P extends Permission>(permission: P, policy: Policy) =>
+  HttpRouter.add(
+    "GET",
+    "/__permissions",
+    Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest;
+      return yield* guardRoute(
+        permission,
+        policy,
+        () => Effect.succeed({}),
+      )(() => snapshotResponse)(request);
+    }),
+  );
+
+/**
+ * The `/__permissions` route with **no** guard, which must be chosen explicitly.
+ *
+ * The `reason` is never read. It exists so that publishing the authorization
+ * topology unauthenticated is something a reviewer can see somebody decided —
+ * the same role `publicEndpoint(reason)` plays for an endpoint.
+ *
+ * Logged at warning level on every request, not once at construction: a local
+ * development choice that reaches production should be visible in the logs of
+ * the environment it is wrong in, not only in the one where it was made.
+ */
+export const permissionRegistryRouteUnguarded = (reason: string) =>
+  HttpRouter.add(
+    "GET",
+    "/__permissions",
+    Effect.gen(function* () {
+      yield* Effect.logWarning(
+        "qadi/http: serving /__permissions unguarded — the full authorization " +
+          `topology is public. Reason given: ${reason}`,
+      );
+      return yield* snapshotResponse;
+    }),
+  );

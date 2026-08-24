@@ -201,3 +201,45 @@ describe("makeQadiAtoms", () => {
     expect(isAllowed(await settle(registry, tenantB, canRead))).toBe(false);
   });
 });
+
+describe("asked()", () => {
+  it("records each distinct question once, in the order first asked", () => {
+    // The honest basis for a devtools panel. `Atom.family` keys structurally, so
+    // several `<Can>` on one policy are ONE atom — a panel keyed by component
+    // instance would be inventing a distinction the architecture does not have.
+    const set = makeQadiAtoms(baseLayer);
+
+    set.decision(canRead);
+    set.decision(canRead);
+    set.decision(isAdmin);
+    set.decisionFor(canRead, { id: "doc-1" });
+
+    const asked = set.asked();
+    expect(asked.length).toBe(3);
+    expect(asked[0]).toEqual({ policy: canRead });
+    expect(asked[1]).toEqual({ policy: isAdmin });
+    expect(asked[2]).toEqual({ policy: canRead, resource: { id: "doc-1" } });
+  });
+
+  it("counts a structurally equal policy as the same question", () => {
+    const set = makeQadiAtoms(baseLayer);
+
+    set.decision(hasRole("admin"));
+    set.decision(hasRole("admin"));
+
+    // Structural keying is the property `v4-reactivity-smoke.test.ts` pins; this
+    // asserts the panel agrees with it rather than double-counting.
+    expect(set.asked().length).toBe(1);
+  });
+
+  it("hands back a copy", () => {
+    const set = makeQadiAtoms(baseLayer);
+    set.decision(canRead);
+
+    const first = set.asked();
+    set.decision(isAdmin);
+
+    expect(first.length).toBe(1);
+    expect(set.asked().length).toBe(2);
+  });
+});

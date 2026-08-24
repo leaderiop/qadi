@@ -98,6 +98,33 @@ export interface QadiAtoms {
   readonly decisionFor: (policy: Policy, resource: Resource) => Atom.Atom<DecisionResult>;
   /** Writing to this discards every decision and re-evaluates the mounted ones. */
   readonly invalidate: Atom.AtomResultFn<void, void>;
+  /**
+   * Every question this atom set has been asked, in the order first asked.
+   *
+   * The honest version of a devtools "gates in tree" panel, and the reason that
+   * screen is keyed by **question** rather than by component instance.
+   * `Atom.family` keys structurally, so ten `<Can policy={isAdmin}>` in
+   * different places in the tree are **one atom** — the library cannot tell them
+   * apart, and a panel listing ten rows would be inventing a distinction the
+   * architecture does not have.
+   *
+   * Recorded here, in the atom layer, rather than by components registering
+   * themselves: [AGENTS.md §13](../../../AGENTS.md) keeps the React glue to one
+   * `useSyncExternalStore` call and decisions out of React state, and an
+   * instance registry would breach both.
+   *
+   * Read the current verdict for each with `decision`/`decisionFor` — that is
+   * what keeps a stale entry rendering as re-checking rather than as its old
+   * answer (ADR-QD-017).
+   */
+  readonly asked: () => ReadonlyArray<AskedQuestion>;
+}
+
+/** One question an atom set has been asked. */
+export interface AskedQuestion {
+  readonly policy: Policy;
+  /** Absent when the question was asked with no resource in scope. */
+  readonly resource?: Resource | undefined;
 }
 
 /**
@@ -237,10 +264,21 @@ export const makeQadiAtoms = (
   // so a fresh object each render re-walks the whole policy tree.
   // `v4-reactivity-smoke.test.ts` pins this; a bump to reference keying would
   // silently stop inline policies sharing.
-  const bare = Atom.family((policy: Policy) => seededDecision(policy, undefined));
+  // Appended as each family key is first built, which is exactly once per
+  // distinct question — `Atom.family` memoises, so a repeat ask does not run the
+  // constructor again and cannot double-count.
+  const asked: Array<AskedQuestion> = [];
+
+  const bare = Atom.family((policy: Policy) => {
+    asked.push({ policy });
+    return seededDecision(policy, undefined);
+  });
 
   const byResource = Atom.family((policy: Policy) =>
-    Atom.family((resource: Resource) => seededDecision(policy, resource)),
+    Atom.family((resource: Resource) => {
+      asked.push({ policy, resource });
+      return seededDecision(policy, resource);
+    }),
   );
 
   const invalidate = runtime.fn((_: void) => Reactivity.invalidate([DECISIONS_KEY]));
@@ -251,6 +289,9 @@ export const makeQadiAtoms = (
     decision: (policy) => bare(policy).combined,
     decisionFor: (policy, resource) => byResource(policy)(resource).combined,
     invalidate,
+    // A copy, so a reader cannot mutate the atom set's own record of what it
+    // has been asked.
+    asked: () => [...asked],
   };
 
   registerHydrationSeeds(atoms, (policy, resource) =>

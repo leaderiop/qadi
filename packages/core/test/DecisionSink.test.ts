@@ -6,11 +6,17 @@ import * as TestClock from "effect/testing/TestClock";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
-import type { DecisionRecord } from "../src/DecisionRecord.ts";
+import type {
+  DecisionRecord,
+  ObligationRecord,
+  SinkRecord,
+} from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { DEFAULT_RING_CAPACITY, decisionSinkRing } from "../src/DecisionSinkRing.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { obligation } from "../src/Obligation.ts";
+import { decide, enforce } from "../src/Qadi.ts";
 import { explain, renderExplanation } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
@@ -22,12 +28,17 @@ const read = permission("doc", "read");
 /** Collects into a plain array, so a test can assert on order and arity. */
 const collecting = (): {
   readonly layer: Layer.Layer<DecisionSink>;
+  readonly all: ReadonlyArray<SinkRecord>;
   readonly seen: ReadonlyArray<DecisionRecord>;
 } => {
-  const records: Array<DecisionRecord> = [];
+  const records: Array<SinkRecord> = [];
   return {
-    get seen() {
+    get all() {
       return records;
+    },
+    /** Decisions only — most assertions here are about those. */
+    get seen() {
+      return records.filter((r): r is DecisionRecord => r._tag === "Decision");
     },
     layer: Layer.succeed(DecisionSink, {
       record: (record) =>
@@ -316,8 +327,12 @@ describe("decisionSinkRing", () => {
 
       const stored = yield* ring.snapshot;
       assert.strictEqual(stored.length, 1);
-      assert.strictEqual(stored[0]?.environment, "Server");
-      assert.strictEqual(stored[0]?.outcome._tag, "Decided");
+      const first = stored[0];
+      assert.strictEqual(first?.environment, "Server");
+      // Narrowed on `_tag` — a stored record is now a decision OR an obligation
+      // event, and a reader must say which it expects.
+      assert.strictEqual(first?._tag, "Decision");
+      if (first?._tag === "Decision") assert.strictEqual(first.outcome._tag, "Decided");
     }).pipe(Effect.provide(testLayer(allowed))));
 
   it.effect("drops the oldest once capacity is reached", () =>
@@ -386,7 +401,9 @@ describe("decisionSinkRing", () => {
       );
 
       const stored = yield* ring.snapshot;
-      assert.strictEqual(stored[0]?.outcome._tag, "Failed");
+      const first = stored[0];
+      assert.strictEqual(first?._tag, "Decision");
+      if (first?._tag === "Decision") assert.strictEqual(first.outcome._tag, "Failed");
     }).pipe(
       Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes })),
     ));
@@ -502,5 +519,138 @@ describe("the cache is visible per decision, and flushable", () => {
         sink.seen.map((r) => r.cache),
         ["miss", "hit", "miss"],
       );
+    }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("the obligation gate is recorded", () => {
+  const audited = P.obliged(obligation("audit.log"), P.hasPermission(read));
+  const advised = P.obliged(
+    obligation("notify.owner", {}, { advisory: true }),
+    P.hasPermission(read),
+  );
+
+  const obligationsOf = (records: ReadonlyArray<SinkRecord>): ReadonlyArray<ObligationRecord> =>
+    records.filter((r): r is ObligationRecord => r._tag === "Obligations");
+
+  it.effect("a discharged obligation is recorded as Discharged", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      yield* enforce(audited, { onObligations: () => Effect.void })(Effect.succeed(1)).pipe(
+        Effect.provide(sink.layer),
+      );
+
+      const events = obligationsOf(sink.all);
+      assert.strictEqual(events.length, 1);
+      assert.strictEqual(events[0]?.outcome, "Discharged");
+      // Paired with the decision it came from — the two rows are one story.
+      assert.strictEqual(events[0]?.evaluationId, sink.seen[0]?.evaluationId);
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("an undischarged binding obligation is recorded as Refused", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      const result = yield* Effect.result(
+        enforce(audited)(Effect.succeed(1)).pipe(Effect.provide(sink.layer)),
+      );
+
+      // The gap this closes: the decision was an ALLOW and the caller got an
+      // error, so a log showing only decisions reported the request as permitted.
+      assert.strictEqual(result._tag, "Failure");
+      assert.strictEqual(sink.seen[0]?.outcome._tag, "Decided");
+
+      const events = obligationsOf(sink.all);
+      assert.strictEqual(events[0]?.outcome, "Refused");
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("an advisory-only obligation with no handler is NotRequired", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      yield* enforce(advised)(Effect.succeed(1)).pipe(Effect.provide(sink.layer));
+
+      const events = obligationsOf(sink.all);
+      assert.strictEqual(
+        events[0]?.outcome,
+        "NotRequired",
+      );
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a handler that fails is HandlerFailed, and its error survives", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      const result = yield* Effect.result(
+        enforce(audited, { onObligations: () => Effect.fail("logger down" as const) })(
+          Effect.succeed(1),
+        ).pipe(Effect.provide(sink.layer)),
+      );
+
+      const events = obligationsOf(sink.all);
+      assert.strictEqual(
+        events[0]?.outcome,
+        "HandlerFailed",
+      );
+      // Reporting must not convert the caller's failure into anything else.
+      assert.strictEqual(result._tag, "Failure");
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("an allow carrying no obligations emits no obligation record", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      yield* enforce(P.hasPermission(read))(Effect.succeed(1)).pipe(
+        Effect.provide(sink.layer),
+      );
+
+      // The common case costs exactly what it did before this existed.
+      assert.deepStrictEqual(obligationsOf(sink.all), []);
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a decision that only reports never reaches the gate", () =>
+    Effect.gen(function* () {
+      const sink = collecting();
+
+      // `decide` reports; obligations are the caller's to read off the decision,
+      // and nothing here discharges them.
+      yield* decide(audited).pipe(Effect.provide(sink.layer));
+
+      assert.deepStrictEqual(obligationsOf(sink.all), []);
+    }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("the obligation emit cannot change enforcement either", () => {
+  it.effect("a sink that dies at the obligation gate leaves the refusal intact", () =>
+    Effect.gen(function* () {
+      // INV-QD-035 covers the decision path; the obligation emit is a second
+      // place a sink is called, and it needs the same guarantee.
+      const dying = Layer.succeed(DecisionSink, {
+        record: () => Effect.die(new Error("sink defect")),
+      });
+
+      const result = yield* Effect.result(
+        enforce(P.obliged(obligation("audit.log"), P.hasPermission(read)))(
+          Effect.succeed(1),
+        ).pipe(Effect.provide(dying)),
+      );
+
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") {
+        assert.include(JSON.stringify(result.failure), "UndischargedObligation");
+      }
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a sink that dies does not stop a discharged allow proceeding", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(DecisionSink, {
+        record: () => Effect.die(new Error("sink defect")),
+      });
+
+      const out = yield* enforce(P.obliged(obligation("audit.log"), P.hasPermission(read)), {
+        onObligations: () => Effect.void,
+      })(Effect.succeed("ran")).pipe(Effect.provide(dying));
+
+      assert.strictEqual(out, "ran");
     }).pipe(Effect.provide(testLayer(allowed))));
 });

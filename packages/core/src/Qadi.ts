@@ -16,11 +16,15 @@
  * has met (ADR-QD-019).
  */
 import * as Brand from "effect/Brand";
+import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
 import type { Authorized } from "./Authorized.ts";
 import type { Allow, Decision } from "./Decision.ts";
 import { isAllowed, project } from "./Decision.ts";
+import type { ObligationOutcome } from "./DecisionRecord.ts";
+import { DecisionSink } from "./DecisionSink.ts";
 import { AccessDenied, UndischargedObligation } from "./Errors.ts";
 import type { EvaluationError } from "./Errors.ts";
 import type { EvaluateOptions, EvaluationServices } from "./Evaluate.ts";
@@ -56,22 +60,61 @@ export type EnforcementError = EvaluationError | AccessDenied | UndischargedObli
 const discharge = <E, R>(
   decision: Allow,
   handler: ObligationHandler<E, R> | undefined,
-): Effect.Effect<void, UndischargedObligation | E, R> => {
-  if (decision.obligations.length === 0) return Effect.void;
-  // The handler sees advisory obligations too: advice is information the caller
-  // may act on, and only its *binding* siblings can block.
-  if (handler !== undefined) return handler(decision.obligations);
+): Effect.Effect<void, UndischargedObligation | E, R> =>
+  Effect.gen(function* () {
+    // Nothing to discharge and nothing to report, so an allow carrying no duties
+    // costs exactly what it did before this existed.
+    if (decision.obligations.length === 0) return;
 
-  const binding = bindingObligations(decision.obligations);
-  return binding.length === 0
-    ? Effect.void
-    : Effect.fail(
-        new UndischargedObligation({
-          subjectId: decision.subjectId,
-          obligationIds: binding.map((o) => o.id),
-        }),
+    // Read the same way `evaluate` reads it: optional, contributing nothing to
+    // the requirements, and unable to change the outcome (INV-QD-035).
+    const sink = yield* Effect.serviceOption(DecisionSink);
+    const at = yield* Clock.currentTimeMillis;
+    const obligationIds = decision.obligations.map((o) => o.id);
+
+    const emit = (outcome: ObligationOutcome): Effect.Effect<void> =>
+      Option.isSome(sink)
+        ? Effect.catchCause(
+            sink.value.record({
+              _tag: "Obligations",
+              evaluationId: decision.evaluationId,
+              at,
+              outcome,
+              obligationIds,
+            }),
+            () => Effect.void,
+          )
+        : Effect.void;
+
+    // The handler sees advisory obligations too: advice is information the caller
+    // may act on, and only its *binding* siblings can block.
+    if (handler !== undefined) {
+      return yield* handler(decision.obligations).pipe(
+        // `tapError` before `tap`, so a handler that fails reports
+        // `HandlerFailed` and then fails unchanged — the sink cannot convert a
+        // caller's error into a success or vice versa.
+        Effect.tapError(() => emit("HandlerFailed")),
+        Effect.tap(() => emit("Discharged")),
       );
-};
+    }
+
+    const binding = bindingObligations(decision.obligations);
+    if (binding.length === 0) {
+      // Advisory only, so nothing blocked — distinct from having been met.
+      yield* emit("NotRequired");
+      return;
+    }
+
+    // The case the decision log could not show: this request was recorded as an
+    // ALLOW and the caller received an error.
+    yield* emit("Refused");
+    return yield* Effect.fail(
+      new UndischargedObligation({
+        subjectId: decision.subjectId,
+        obligationIds: binding.map((o) => o.id),
+      }),
+    );
+  });
 
 /**
  * Evaluates, refuses a denial, and discharges what the allow obliges.

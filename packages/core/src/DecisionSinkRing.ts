@@ -15,11 +15,11 @@
 import * as Chunk from "effect/Chunk";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import type { DecisionRecord } from "./DecisionRecord.ts";
+import type { SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 
-/** A record as this sink stores it: what `evaluate` reported, plus where it ran. */
-export interface StoredRecord extends DecisionRecord {
+/** Where an evaluation ran. Stamped by the sink, never claimed by core. */
+export interface Stamped {
   /**
    * Where this evaluation happened — `"Server"`, `"Client"`, whatever a caller
    * names its runtime.
@@ -32,6 +32,16 @@ export interface StoredRecord extends DecisionRecord {
    */
   readonly environment: string;
 }
+
+/**
+ * A record as this sink stores it: whatever core reported, plus where it ran.
+ *
+ * An intersection over the tagged union rather than one flat interface, so a
+ * consumer still narrows on `_tag` and gets `policy` on a `Decision` and
+ * `obligationIds` on an `Obligations` — a widened struct carrying both as
+ * optional would hand every reader a "cannot happen" branch.
+ */
+export type StoredRecord = SinkRecord & Stamped;
 
 export const DEFAULT_RING_CAPACITY = 500;
 

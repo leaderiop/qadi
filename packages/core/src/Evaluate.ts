@@ -40,6 +40,7 @@ import { evaluateMatcher, referencesAction } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
+import { portCallsTotal } from "./PortMetrics.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
@@ -248,7 +249,9 @@ const readAttribute = (
 ): Effect.Effect<unknown, EvaluationError, AttributeResolver> =>
   Object.hasOwn(subject.attributes, attribute)
     ? Effect.succeed(subject.attributes[attribute])
-    : AttributeResolver.resolve(subject.id, attribute);
+    : Metric.update(portCallsTotal, "AttributeResolver").pipe(
+        Effect.andThen(AttributeResolver.resolve(subject.id, attribute)),
+      );
 
 /**
  * Why an attribute policy refused.
@@ -327,6 +330,7 @@ const evaluateActed = Effect.fn("qadi.acted")(function* (
     return yield* Effect.fail(new MissingResourceId({ relation: policy.event }));
   }
   const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
+  yield* Metric.update(portCallsTotal, "DecisionHistory");
   const answer = yield* DecisionHistory.hasActed({
     subjectId: subject.id,
     event: policy.event,
@@ -355,6 +359,7 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
   if (typeof rawId !== "string") {
     return yield* Effect.fail(new MissingResourceId({ relation: policy.relation }));
   }
+  yield* Metric.update(portCallsTotal, "RelationshipResolver");
   const related = yield* RelationshipResolver.check({
     subjectId: subject.id,
     relation: policy.relation,
@@ -962,6 +967,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
           "qadi.error_tag": error._tag,
         });
         yield* emit({
+          _tag: "Decision",
           evaluationId,
           at: startedAt,
           policy,
@@ -1027,6 +1033,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   // metrics and span have not yet recorded — and so that nothing below it could
   // be skipped were the sink to misbehave.
   yield* emit({
+    _tag: "Decision",
     evaluationId,
     at: startedAt,
     policy,

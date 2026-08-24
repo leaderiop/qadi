@@ -50,6 +50,8 @@ export interface ActedQuery {
 }
 
 export interface DecisionHistoryShape {
+  /** Which implementation this is. A label only — see `AttributeResolverShape`. */
+  readonly name?: string | undefined;
   readonly hasActed: (
     query: ActedQuery,
   ) => Effect.Effect<ActedResult, DecisionHistoryUnavailable>;
@@ -73,7 +75,7 @@ export class DecisionHistory extends Context.Service<
  */
 export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory> = Layer.succeed(
   DecisionHistory,
-  { hasActed: () => Effect.succeed("Unknown") },
+  { name: "DecisionHistoryUnknown", hasActed: () => Effect.succeed("Unknown") },
 );
 
 /**
@@ -129,6 +131,7 @@ export const decisionHistoryFromEvents = (
   );
 
   return Layer.succeed(DecisionHistory, {
+    name: "decisionHistoryFromEvents",
     hasActed: (query) =>
       Effect.succeed(
         (

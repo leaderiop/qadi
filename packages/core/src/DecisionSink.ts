@@ -19,10 +19,17 @@
  * **Write-only by design.** Reading back is a property of an implementation, not
  * of this contract — that is what lets an out-of-process sink serve a replicated
  * or serverless deployment without core learning anything about transports.
+ *
+ * **One method taking a tagged union**, rather than a method per event. A
+ * decision is recorded by `evaluate`; what happened at the obligation gate is
+ * known only later, in `Qadi.ts`'s enforcing entry points, after `evaluate` has
+ * returned. A second method would make every sink implement two, and a sink
+ * wanting both in order would have to re-interleave them. `Match.tagsExhaustive`
+ * makes a new tag a compile error at every consumer.
  */
 import * as Context from "effect/Context";
 import type * as Effect from "effect/Effect";
-import type { DecisionRecord } from "./DecisionRecord.ts";
+import type { SinkRecord } from "./DecisionRecord.ts";
 
 export interface DecisionSinkShape {
   /**
@@ -40,7 +47,7 @@ export interface DecisionSinkShape {
    * gets subverted, by `Effect.die` — so `evaluate` also catches defects at the
    * call site. Both, because one was already proven not to be enough.
    */
-  readonly record: (record: DecisionRecord) => Effect.Effect<void>;
+  readonly record: (record: SinkRecord) => Effect.Effect<void>;
 }
 
 /**

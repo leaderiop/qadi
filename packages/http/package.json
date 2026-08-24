@@ -9,6 +9,10 @@
     "url": "git+ssh://git@github.com/leaderiop/qadi.git",
     "directory": "packages/http"
   },
+  "homepage": "https://github.com/leaderiop/qadi/tree/main/packages/http#readme",
+  "bugs": {
+    "url": "https://github.com/leaderiop/qadi/issues"
+  },
   "description": "Effect V4 HTTP bindings for @qadi/core — HttpApi/HttpApiMiddleware and HttpRouter enforcement, subject extraction, permission registry",
   "sideEffects": false,
   "exports": {
@@ -25,7 +29,8 @@
   },
   "files": [
     "lib",
-    "src"
+    "src",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b tsconfig.json",
@@ -47,5 +52,8 @@
     "httpapi",
     "effect",
     "qadi"
-  ]
+  ],
+  "engines": {
+    "node": ">=20"
+  }
 }

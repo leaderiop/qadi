@@ -10,6 +10,8 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
 export interface EvaluationIdShape {
+  /** Which implementation this is. A label only — see `AttributeResolverShape`. */
+  readonly name?: string | undefined;
   readonly next: Effect.Effect<string>;
 }
 
@@ -21,6 +23,7 @@ export class EvaluationId extends Context.Service<EvaluationId, EvaluationIdShap
 
 /** Random identifiers. The production default. */
 export const EvaluationIdLive: Layer.Layer<EvaluationId> = Layer.succeed(EvaluationId, {
+  name: "EvaluationIdLive",
   next: Effect.sync(() => crypto.randomUUID()),
 });
 
@@ -29,6 +32,7 @@ export const evaluationIdSequential = (prefix = "eval"): Layer.Layer<EvaluationI
   Layer.sync(EvaluationId, () => {
     let counter = 0;
     return {
+      name: `evaluationIdSequential(${prefix})`,
       next: Effect.sync(() => {
         counter += 1;
         return `${prefix}-${counter}`;

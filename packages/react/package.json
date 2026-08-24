@@ -9,6 +9,10 @@
     "url": "git+ssh://git@github.com/leaderiop/qadi.git",
     "directory": "packages/react"
   },
+  "homepage": "https://github.com/leaderiop/qadi/tree/main/packages/react#readme",
+  "bugs": {
+    "url": "https://github.com/leaderiop/qadi/issues"
+  },
   "description": "React integration for @qadi/core — QadiProvider, hooks, Can/Cannot",
   "sideEffects": false,
   "exports": {
@@ -20,7 +24,8 @@
   },
   "files": [
     "lib",
-    "src"
+    "src",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b tsconfig.json",
@@ -44,5 +49,16 @@
     "react-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "keywords": [
+    "effect",
+    "authorization",
+    "react",
+    "hooks",
+    "rbac",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=20"
   }
 }

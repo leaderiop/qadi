@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-23                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-23                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-23): Initial release (CCR-QD-059) |
+> | Change History | 1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
 
 _Previous: [22 — The Promise Facade](./22-promise-facade.md)_
 
@@ -174,7 +174,8 @@ one endpoint are written as one `allOf([...])` policy.
 
 ```ts
 export const registerApi: (api: HttpApi.Any) => Layer.Layer<never, never, PermissionRegistry>;
-export const PermissionRegistryRoute: Layer.Layer<HttpRouter.HttpRouter>;
+export const permissionRegistryRoute: (permission: Permission, policy: Policy) => Layer<…>;
+export const permissionRegistryRouteUnguarded: (reason: string) => Layer<…>;
 ```
 
 ```
@@ -198,11 +199,33 @@ does not decide anything — `guard` stamps it into the witness and evaluates th
 **policy**. Two endpoints reporting the same permission may enforce unrelated
 rules, and the registry cannot list what is *un*guarded at all.
 
-> **Open, and deliberately not resolved here.** `PermissionRegistryRoute` mounts
-> `/__permissions` with no guard of its own, so an anonymous caller receives every
-> guarded path and permission name. Whether it should require a permission,
-> ship behind a flag, or be removed is a decision the ADR never made and this
-> document does not invent. Until then, do not mount it on a public surface.
+```
+REQUIREMENT: The `/__permissions` route MUST be guarded by a policy, and an
+             unguarded one MUST be chosen explicitly and named.
+```
+
+**Resolved as of CCR-QD-062**, having been recorded here as open. The route
+publishes every guarded path and the permission each requires — a map of what to
+attack and where — and it shipped as a bare `PermissionRegistryRoute` constant
+with no guard, while the overview presented mounting it as ordinary wiring.
+
+A route describing authorization that is not itself authorized inverts this
+package's posture, so `permissionRegistryRoute(permission, policy)` is the only
+way to get it guarded and `permissionRegistryRouteUnguarded(reason)` is the only
+way to get it open. That is the same declare-do-not-infer rule
+[BEH-QD-174](#beh-qd-174-authorization-is-declared-never-inferred) applies to
+endpoints, and the `reason` plays the same role as `publicEndpoint`'s.
+
+The unguarded form logs a warning on **every request**, not once at
+construction: a local development choice that reaches production should be
+visible in the logs of the environment it is wrong in.
+
+Enforcement runs through `guardRoute`, so a denial is 403 and a broken subject
+store is 502 — the introspection route obeys the same mapping as every other
+guarded route rather than inventing one.
+
+The other caveat stands: the registry records the **permission**, and the
+permission does not decide anything.
 
 ---
 

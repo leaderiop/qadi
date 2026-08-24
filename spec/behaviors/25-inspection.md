@@ -5,18 +5,18 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
 ---
 
-Six questions this library could pose and could not answer. Each was found the
+Ten questions this library could pose and could not answer. Each was found the
 same way — by auditing a devtools design against the code and finding the data
 computed and discarded, or never computed at all — and each is a fact about
 authorization rather than a feature of a tool, which is why they live in
@@ -206,6 +206,119 @@ has no node 3.
 `undefined` and `[]` never compare equal as field sets: they are opposite ends of
 the lattice — every field versus none — and treating them as equal would hide a
 total loss of visibility ([INV-QD-004](../invariants.md)).
+
+## BEH-QD-195: The obligation gate reports what happened
+
+```ts
+export type ObligationOutcome = "Discharged" | "HandlerFailed" | "Refused" | "NotRequired";
+```
+
+```
+REQUIREMENT: An allow carrying obligations MUST produce an `ObligationRecord`
+             naming the outcome, paired to the decision by evaluation id.
+```
+
+```
+REQUIREMENT: An allow carrying none MUST produce nothing.
+```
+
+The gap this closes is a fidelity gap in the log, not a decoration: a binding
+obligation nobody discharges turns an **allow** into a refusal at the
+enforcement boundary, so a log of decisions alone showed such a request as
+`ALLOW` while the caller received `UndischargedObligation`.
+
+**Per decision, not per obligation, and that limit is honest.**
+`ObligationHandler` receives the whole array and returns `void`, so the library
+observes that a set was presented and that the handler succeeded or failed —
+never which individual duty was met. Reporting per-obligation state would mean
+changing the handler contract, and a handler reporting falsely would still be
+unverifiable. The four outcomes are what can actually be known.
+
+Reporting must not change the outcome: a handler that fails reports
+`HandlerFailed` and then fails **unchanged**, so a sink can no more rewrite an
+enforcement result than it can a decision
+([INV-QD-035](../invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)).
+
+`decide` and `check` never reach this gate — they report rather than enforce, so
+obligations are the caller's to read off the decision.
+
+## BEH-QD-196: A port says which implementation it is
+
+```
+REQUIREMENT: Every port Shape MUST carry an optional `name`, and every
+             implementation shipped here MUST set it.
+```
+
+```
+REQUIREMENT: A wrapper MUST name itself around what it wrapped.
+```
+
+A service value is an anonymous object literal, so the only way to distinguish a
+fail-closed default from a real store was to call it and infer from the answer.
+An operator seeing "everything denies" could not see that `AttributeResolverNone`
+was wired — which is the single most likely cause of exactly that symptom.
+
+`name` is **optional**, so no caller's implementation breaks, and **nothing
+branches on it**. It is a label a reader sees, in the same category as
+`StoredRecord.environment`, never an input to a decision. A wrapper composes —
+`"attributeResolverFromRecord (retrying)"` — because losing the base
+implementation's identity is losing the part that matters.
+
+## BEH-QD-197: Port activity is counted
+
+```
+REQUIREMENT: `qadi_port_calls_total` MUST count calls the evaluator makes into a
+             port, keyed by port.
+```
+
+```
+REQUIREMENT: An attribute already present on the subject MUST count nothing.
+```
+
+Nothing counted port calls, so an attribute store answering normally and one no
+policy ever consulted looked identical — opposite problems with the same
+symptom.
+
+The second requirement is the short-circuit guarantee
+([INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation)) visible
+as an absence: the evaluator consults the subject first and calls the port only
+on a miss. A counter that fired regardless would make a resolver look busy when
+it was never reached.
+
+`qadi_port_retries_total` counts failed attempts inside a retrying wrapper.
+Paired with the call count, that is a store *degrading* — the reading neither
+number gives alone.
+
+**Metrics rather than the sink, deliberately.** `Metric.MetricRegistry`'s default
+is memoised on the reference, so these are readable with **zero wiring** — the
+one Effect signal that can be. Correlating calls to a single evaluation would
+mean threading a collector through `evaluateNode`, risking the short-circuit
+guarantee for a debug view, so the Services screen gets aggregates and the
+decision inspector does without.
+
+## BEH-QD-198: An atom set records the questions it was asked
+
+```ts
+readonly asked: () => ReadonlyArray<AskedQuestion>;
+```
+
+```
+REQUIREMENT: `asked` MUST record each distinct question once, in the order first
+             asked, and MUST count a structurally equal policy as the same
+             question.
+```
+
+This is the honest basis for a "gates in the tree" panel, and the reason that
+screen is keyed by **question** rather than by component instance. `Atom.family`
+keys structurally, so ten `<Can policy={isAdmin}>` in different places are **one
+atom**: the library cannot tell them apart, and a panel listing ten rows would
+invent a distinction the architecture does not have.
+
+Recorded in the atom layer rather than by components registering themselves.
+[AGENTS.md §13](../../AGENTS.md) keeps the React glue to one
+`useSyncExternalStore` call and decisions out of React state; an instance
+registry would breach both, and DOM highlighting — which needs one — is dropped
+rather than bought at that price.
 
 ---
 

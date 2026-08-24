@@ -38,7 +38,7 @@ import { assert, describe, it } from "@effect/vitest";
 import {
   ENFORCEMENT_ERROR_TAGS,
   PermissionRegistryLive,
-  PermissionRegistryRoute,
+  permissionRegistryRoute,
   PublicEndpoint,
   RequiredPermission,
   RequirePermission,
@@ -161,7 +161,15 @@ const EvaluationServicesTest = Layer.mergeAll(
 // infer `any` for the whole thing (no diagnostic — just every downstream
 // usage losing its type), an instantiation-depth failure mode particular to
 // this shape of long `.pipe()` chain, not anything wrong with any one step.
-const RoutesLayer = Layer.mergeAll(ApiRoutes, WriteRoute, WriteRoute2, PermissionRegistryRoute);
+// Guarded, because the route is no longer offered any other way: it publishes
+// every guarded path and the permission each requires, which is a map of what
+// to attack and where.
+const RoutesLayer = Layer.mergeAll(
+  ApiRoutes,
+  WriteRoute,
+  WriteRoute2,
+  permissionRegistryRoute(readPermission, readPolicy),
+);
 const WithRegistry = RoutesLayer.pipe(Layer.provideMerge(RegistryLayer));
 const WithSubjects = WithRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
 const WithEvaluation = WithSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
@@ -219,10 +227,35 @@ describe("@qadi/http", () => {
       assert.strictEqual(response.status, 403);
     }));
 
+  it.effect("the registry route refuses an anonymous caller", () =>
+    Effect.gen(function* () {
+      // The topology — every guarded path and the permission it needs — is a map
+      // of what to attack and where. It shipped unguarded, and mounting it was
+      // presented as ordinary wiring.
+      const { handler } = HttpRouter.toWebHandler(AppLayer);
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/__permissions")),
+      );
+      assert.strictEqual(response.status, 403);
+    }));
+
+  it.effect("the registry route refuses a subject without the permission", () =>
+    Effect.gen(function* () {
+      // Bob authenticates and still cannot read it — so the guard is a policy
+      // decision, not merely a credential check.
+      const { handler } = HttpRouter.toWebHandler(AppLayer);
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/__permissions", { headers: bearer(BOB_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+    }));
+
   it.effect("the registry reflects both the HttpApi endpoint and the HttpRouter route", () =>
     Effect.gen(function* () {
       const { handler } = HttpRouter.toWebHandler(AppLayer);
-      const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/__permissions", { headers: bearer(ALICE_TOKEN) })),
+      );
       assert.strictEqual(response.status, 200);
       const body = (yield* Effect.promise(() => response.json())) as ReadonlyArray<{
         readonly permission: string;

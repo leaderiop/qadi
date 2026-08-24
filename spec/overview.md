@@ -185,6 +185,7 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `ActedEvent`, `ActedAnywhere` | value class | `DecisionHistory.ts` |
 | `EvaluationIdShape`, `DecisionCacheShape`, `DecisionCacheKey` | type | service modules |
 | `DecisionSinkShape`, `DecisionRecord`, `DecisionOutcome`, `StoredRecord` | type | sink modules |
+| `ObligationRecord`, `ObligationOutcome`, `SinkRecord`, `Stamped` | type | sink modules |
 | `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |
 | `Decided`, `Failed` | value class | `DecisionRecord.ts` |
 
@@ -246,7 +247,7 @@ because this section is called the *public API surface*, and a reader looking fo
 | `QadiProviderProps`, `QadiContextValue`, `InitialValues` | type | `QadiProvider.tsx` |
 | `MissingQadiProviderError` | class | `QadiProvider.tsx` |
 | `makeQadiAtoms`, `currentDecision` | function | `QadiAtoms.ts` |
-| `QadiAtoms`, `QadiLayer`, `QadiRuntimeServices`, `DecisionResult` | type | `QadiAtoms.ts` |
+| `QadiAtoms`, `QadiLayer`, `QadiRuntimeServices`, `DecisionResult`, `AskedQuestion` | type | `QadiAtoms.ts` |
 | `QadiAtomsOptions`, `HydrationMismatch`, `HydrationMismatchReporter` | type | `QadiAtoms.ts` |
 | `Can`, `Cannot` | component | `components.tsx` |
 | `CanProps`, `CannotProps`, `DeniedNode` | type | `components.tsx` |
@@ -281,7 +282,7 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `guardRoute` | function | `GuardRoute.ts` |
 | `addGuardedRoute` | function | `PermissionRegistry.ts` |
 | `PermissionRegistry`, `PermissionRegistryLive` | service + layer | `PermissionRegistry.ts` |
-| `registerApi`, `PermissionRegistryRoute` | function + layer | `PermissionRegistry.ts` |
+| `registerApi`, `permissionRegistryRoute`, `permissionRegistryRouteUnguarded` | function + layer | `PermissionRegistry.ts` |
 | `EndpointDescriptor`, `PermissionRegistryData`, `PermissionRegistryShape` | type | `PermissionRegistry.ts` |
 | `ENFORCEMENT_ERROR_TAGS`, `toResponse` | const + function | `QadiHttpError.ts` |
 | `SubjectExtractor`, `subjectExtractorBearer` | service + layer | `SubjectExtractor.ts` |
@@ -309,7 +310,11 @@ not a one-step `.pipe(requiresPermission({...}))`. `PermissionRegistry`
 answers "which permission does which endpoint require" for a mix of both
 surfaces — seed it from an `HttpApi` with `registerApi`, from `HttpRouter`
 routes by using `addGuardedRoute` in place of a bare `HttpRouter.add`, and
-mount `PermissionRegistryRoute` to expose the result at `/__permissions`.
+mount `permissionRegistryRoute(permission, policy)` to expose the result at
+`/__permissions`, **behind that policy**. The route publishes every guarded path
+and the permission each requires, so it is guarded by default;
+`permissionRegistryRouteUnguarded(reason)` is the explicit opt-out and warns on
+every request.
 See [ADR-QD-036](decisions/036-qadi-http-package-shape.md).
 
 ### `@qadi/testing`

@@ -54,6 +54,7 @@ export class Failed extends Data.TaggedClass("Failed")<{
 export type DecisionOutcome = Decided | Failed;
 
 export interface DecisionRecord {
+  readonly _tag: "Decision";
   readonly evaluationId: string;
   /**
    * When evaluation started, in epoch millis, from `Clock`.
@@ -83,3 +84,47 @@ export interface DecisionRecord {
   readonly cache?: CacheOutcome | undefined;
   readonly outcome: DecisionOutcome;
 }
+
+/**
+ * What happened at the obligation gate, for an allow that carried duties.
+ *
+ * **Per decision, not per obligation, and that is the honest limit.**
+ * `ObligationHandler` receives the whole array and returns `void`, so the
+ * library observes that a set was presented to a handler and that the handler
+ * succeeded or failed — never which individual duty was met. Reporting
+ * per-obligation state would mean changing the handler contract, and a handler
+ * that reported falsely would still be unverifiable.
+ *
+ * Emitted only when the allow carried obligations, so a decision with none adds
+ * no traffic.
+ *
+ * It closes a real gap in the log rather than decorating one: a binding
+ * obligation nobody discharges turns an **allow** into a refusal at the
+ * enforcement boundary, and until this the log showed such a request as `ALLOW`
+ * while the caller received an error.
+ */
+export interface ObligationRecord {
+  readonly _tag: "Obligations";
+  /** The decision these duties came from, so the two rows pair. */
+  readonly evaluationId: string;
+  readonly at: number;
+  readonly outcome: ObligationOutcome;
+  readonly obligationIds: ReadonlyArray<string>;
+}
+
+/**
+ * `Discharged` — a handler ran and succeeded.
+ * `HandlerFailed` — a handler ran and failed with its own error.
+ * `Refused` — no handler, and a binding obligation was present, so enforcement
+ * refused with `UndischargedObligation`.
+ * `NotRequired` — no handler, and every obligation was advisory, so nothing
+ * blocked.
+ */
+export type ObligationOutcome =
+  | "Discharged"
+  | "HandlerFailed"
+  | "Refused"
+  | "NotRequired";
+
+/** Anything `evaluate` or an enforcing entry point hands a sink. */
+export type SinkRecord = DecisionRecord | ObligationRecord;

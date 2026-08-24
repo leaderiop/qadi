@@ -9,6 +9,10 @@
     "url": "git+ssh://git@github.com/leaderiop/qadi.git",
     "directory": "packages/promise"
   },
+  "homepage": "https://github.com/leaderiop/qadi/tree/main/packages/promise#readme",
+  "bugs": {
+    "url": "https://github.com/leaderiop/qadi/issues"
+  },
   "description": "A Promise-returning facade over @qadi/core, for callers who do not use Effect",
   "sideEffects": false,
   "exports": {
@@ -25,7 +29,8 @@
   },
   "files": [
     "lib",
-    "src"
+    "src",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b tsconfig.json",
@@ -46,5 +51,8 @@
     "promise",
     "async",
     "qadi"
-  ]
+  ],
+  "engines": {
+    "node": ">=20"
+  }
 }

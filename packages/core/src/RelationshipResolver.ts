@@ -12,10 +12,12 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import type { RelationshipResolveError } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
+import { portRetriesTotal } from "./PortMetrics.ts";
 import { wrapService } from "./RetryingLayer.ts";
 
 export interface RelationshipCheck {
@@ -49,6 +51,8 @@ export interface RelationshipCheck {
 export type RelatedResult = "Related" | "Unrelated" | "Unknown";
 
 export interface RelationshipResolverShape {
+  /** Which implementation this is. A label only — see `AttributeResolverShape`. */
+  readonly name?: string | undefined;
   readonly check: (
     request: RelationshipCheck,
   ) => Effect.Effect<RelatedResult, RelationshipResolveError>;
@@ -76,7 +80,7 @@ export class RelationshipResolver extends Context.Service<
  */
 export const RelationshipResolverNever: Layer.Layer<RelationshipResolver> = Layer.succeed(
   RelationshipResolver,
-  { check: () => Effect.succeed("Unknown") },
+  { name: "RelationshipResolverNever", check: () => Effect.succeed("Unknown") },
 );
 
 /**
@@ -126,6 +130,7 @@ export const relationshipResolverFromEdges = (
 ): Layer.Layer<RelationshipResolver> => {
   const index = HashSet.fromIterable(edges.map((edge) => new RelationshipEdge(edge)));
   return Layer.succeed(RelationshipResolver, {
+    name: "relationshipResolverFromEdges",
     check: (request) =>
       Effect.succeed(
         HashSet.has(
@@ -154,7 +159,14 @@ export const relationshipResolverRetrying =
   (schedule: Schedule.Schedule<unknown, RelationshipResolveError>) =>
   (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver> =>
     wrapService(RelationshipResolver, layer, (inner) => ({
-      check: (request) => inner.check(request).pipe(Effect.retry(schedule)),
+      name: `${inner.name ?? "?"} (retrying)`,
+      check: (request) =>
+        inner
+          .check(request)
+          .pipe(
+            Effect.tapError(() => Metric.update(portRetriesTotal, "RelationshipResolver")),
+            Effect.retry(schedule),
+          ),
     }));
 
 /**
@@ -180,6 +192,7 @@ export const relationshipResolverBounded =
           Effect.map((context) => Context.get(context, RelationshipResolver)),
         );
         return {
+          name: `${inner.name ?? "?"} (bounded ${permits})`,
           check: (request) => Semaphore.withPermit(semaphore)(inner.check(request)),
         };
       }),
