@@ -80,3 +80,6 @@ entries:
   - id: "BEH-QD-201"
     file: "26-decision-stream.md"
     title: "26 — The Decision Stream"
+  - id: "BEH-QD-203"
+    file: "27-devtools-timeline.md"
+    title: "27 — The Devtools Timeline"

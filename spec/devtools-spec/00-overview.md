@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-00                                    |
-> | Revision       | 0.4 (draft)                                    |
+> | Revision       | 0.5 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -71,21 +71,24 @@ Qadi runs on the server (`@qadi/http` over Effect HTTP) and on the client
 overlay beside a client-side runtime — and assumed a server transport that did
 not then exist. The real spread, and where each now stands:
 
-| Topology | Decisions made | A page to host an overlay? | Data plane |
-| -------- | -------------- | -------------------------- | ---------- |
-| SPA, client-only | browser | yes | ✅ in-process ring |
-| SSR / hydration (Next.js) | both | yes, after hydration | ✅ ring + seeded pairing |
-| Backend-only service | server | **no** | ✅ SSE feed; still needs a surface to render it |
-| SPA + separate API origin | both, two processes | yes | ✅ forward + ingest |
-| Serverless / edge | server, ephemeral | no | ✅ forward before the process ends |
-| Replicated server (n instances) | server, n processes | no | ✅ forward + ingest, merged by one aggregator |
+| Topology | Decisions made | A page to host an overlay? | Data plane | Surface |
+| -------- | -------------- | -------------------------- | ---------- | ------- |
+| SPA, client-only | browser | yes | ✅ in-process ring | ✅ the dock |
+| SSR / hydration (Next.js) | both | yes, after hydration | ✅ ring + seeded pairing | ✅ the dock, pairs shown |
+| Backend-only service | server | **no** | ✅ SSE feed | ❌ reachable, not presentable |
+| SPA + separate API origin | both, two processes | yes | ✅ forward + ingest | ✅ the dock, over SSE |
+| Serverless / edge | server, ephemeral | no | ✅ forward before the process ends | ❌ needs an aggregator's page |
+| Replicated server (n instances) | server, n processes | no | ✅ forward + ingest, merged by one aggregator | ❌ needs an aggregator's page |
 
-**The data plane now reaches all six** ([ADR-QD-045](../decisions/045-the-topology-is-a-choice-of-sink.md)).
-Three consequences the *presentation* still has to absorb:
+**The data plane reaches all six** ([ADR-QD-045](../decisions/045-the-topology-is-a-choice-of-sink.md)); **the dock reaches three**
+([ADR-QD-047](../decisions/047-a-headless-devtools-model.md)). Three consequences,
+of which the first is now the open one:
 
 - **The overlay is not the only surface.** A backend-only service is a
   first-class Qadi deployment and an in-page dock cannot serve it. Its decisions
-  are reachable at `/__decisions`; what renders them is not built.
+  are reachable at `/__decisions` and the model that merges them imports no
+  React, so a served page or a CLI is a second *shell* rather than a second
+  implementation — but neither is written.
 - **An in-memory record log is per-process.** `decisionSinkRing` is exactly that,
   so under replicas or serverless a reader must go to an aggregator rather than
   to whichever instance answered — `decisionSinkForwarding` plus `ingest` is that

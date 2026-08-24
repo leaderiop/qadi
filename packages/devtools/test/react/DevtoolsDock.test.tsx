@@ -165,6 +165,45 @@ describe("the dock", () => {
     // package self-mounted, the body would not be empty before `render`.
     assert.strictEqual(document.body.innerHTML, "");
   });
+
+  // E6.5 — two open panels must not steal records from one another. The feed
+  // guarantees it per subscriber; this checks the dock does not undo it.
+  it("two docks mounted at once each render their own timeline", async () => {
+    render(
+      <>
+        <DevtoolsDock source={sourceFromRecords([decisionRecord({ evaluationId: "a", at: 100 })])} />
+        <DevtoolsDock
+          source={sourceFromRecords([
+            decisionRecord({ evaluationId: "b", at: 100 }),
+            decisionRecord({ evaluationId: "c", at: 200 }),
+          ])}
+        />
+      </>,
+    );
+    await screen.findAllByTestId("qadi-log-row");
+
+    const docks = screen.getAllByTestId("qadi-devtools");
+    assert.strictEqual(docks.length, 2);
+    assert.strictEqual(within(docks[0] ?? fail()).getAllByTestId("qadi-log-row").length, 1);
+    assert.strictEqual(within(docks[1] ?? fail()).getAllByTestId("qadi-log-row").length, 2);
+  });
+
+  /**
+   * E6.6 — the dock carries its own appearance.
+   *
+   * A host page's stylesheet inherits into anything that does not set its own
+   * font, colour and background, and an overlay that picked those up would be
+   * unreadable on half the applications it is mounted in. There is no
+   * stylesheet to fall back on, so every one of them is set inline.
+   */
+  it("carries its own typography and colours rather than inheriting the host's", async () => {
+    await mount([decisionRecord({ evaluationId: "a", at: 100 })]);
+    const style = screen.getByTestId("qadi-devtools").getAttribute("style") ?? "";
+
+    for (const property of ["font-family", "font-size", "color", "background"]) {
+      assert.include(style, property, `the dock sets ${property} itself`);
+    }
+  });
 });
 
 describe("screen 1 — the decision log", () => {
@@ -379,6 +418,26 @@ describe("screen 1 — the decision log", () => {
   it("an unpaired row shows no badge at all", async () => {
     await mount([decisionRecord({ evaluationId: "solo", at: 100 })]);
     assert.deepStrictEqual(screen.queryAllByTestId("qadi-pair"), []);
+  });
+
+  /**
+   * E7.3 — a subject id or a resource path can be arbitrarily long, and one
+   * long cell must not widen the table past the viewport and push the verdict
+   * column off the side of the dock.
+   */
+  it("contains a long value instead of letting it widen the table", async () => {
+    await mount([
+      decisionRecord({
+        evaluationId: "a",
+        at: 100,
+        resource: { id: "urn:acme:tenant:0123456789:invoice:9876543210:revision:42" },
+      }),
+    ]);
+
+    const cells = within(rows()[0] ?? fail()).getAllByRole("cell");
+    const style = cells[3]?.getAttribute("style") ?? "";
+    assert.include(style, "text-overflow: ellipsis");
+    assert.include(style, "max-width");
   });
 
   // E7.6 — bounded by the timeline, so the DOM is bounded too.
@@ -628,6 +687,28 @@ describe("screen 2 — the inspector", () => {
     await click(rows()[0] ?? fail());
 
     assert.include(screen.getByTestId("qadi-orphan").textContent ?? "", "never did");
+  });
+
+  /**
+   * E5.7 — the partner of a filtered-out row stays reachable.
+   *
+   * The filter narrows the *table*; it does not narrow pairing, which is
+   * computed over the whole timeline, and it does not narrow the selection. So
+   * a reader filtered to one environment can still follow a pair badge into the
+   * other one — which is the whole point of the badge.
+   */
+  it("a pair badge reaches a partner the filter has hidden", async () => {
+    await mount([
+      decisionRecord({ evaluationId: "ev-7", at: 100, environment: "Server" }),
+      decisionRecord({ evaluationId: "ev-7", at: 200, environment: "Client" }),
+    ]);
+
+    await click(screen.getByRole("button", { name: "Server" }));
+    assert.strictEqual(rows().length, 1);
+
+    // The badge is still there, and still points at the hidden partner.
+    await click(screen.getAllByTestId("qadi-pair")[0] ?? fail());
+    assert.include(screen.getByTestId("qadi-inspector").textContent ?? "", "Client");
   });
 
   // E5.6

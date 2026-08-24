@@ -48,21 +48,29 @@ dialect — a design artifact, not runnable code and not part of any build.
 
 ## Status
 
-No BEH/ADR numbers are allocated to the documents in this folder. Identifiers
+No BEH/ADR numbers are allocated to the documents in **this folder**. Identifiers
 are permanent (QADI-PROC-01), so allocation waits for the CCR that accepts them;
-the withdrawn draft never received one and never will.
+the withdrawn draft never received one and never will. The *implementation* is
+specified normatively elsewhere — see
+[behaviour 27](../behaviors/27-devtools-timeline.md) and
+[ADR-QD-047](../decisions/047-a-headless-devtools-model.md) — and where these
+documents and those disagree, those win.
 
-**The data plane and the transport are built.** Records carry a wire form, a
-sink can forward, a feed buffers without blocking evaluation, and
-`/__decisions` serves the result as guarded Server-Sent Events — so all six
-topologies are reachable (ADR-QD-045, ADR-QD-046).
+**Built.** The data plane (ADR-QD-044), the transport (ADR-QD-045, ADR-QD-046),
+and now the surface: `@qadi/devtools` ships a headless model — sources,
+timeline, verdicts, pairing, the policy/trace zip, filters, selection — and
+`@qadi/devtools/react` renders **screens 1 and 2**, the decision log and the
+inspector, in a dock the host mounts.
 
-**Next increment is the surface**: something that renders a merged timeline. That
-is where this repository's total absence of frontend tooling has to be
-confronted, and it is a set of decisions rather than a task.
+**Not built.** Screens 3 to 6, each waiting on the gap named against it below.
+Screen 7 needs rescoping rather than implementing. And the three topologies with
+no browser page still have no rendered surface: their decisions are reachable at
+`/__decisions` and the model that merges them is framework-free, so a served dev
+UI or a CLI is a second shell over the same model — but it is not written.
 
-The repository has **no frontend build tooling at all** — no bundler, no CSS
-pipeline, no dev server, no example app — and `@qadi/react` declares
-`"sideEffects": false` with no `react-dom` peer, so a bundler could legally
-tree-shake away an overlay that self-mounts on import. A UI increment must
-confront all of that before it confronts a screen.
+The repository still has **no frontend build tooling** — no bundler, no CSS
+pipeline, no dev server, no example app — and the dock is built to need none:
+`tsc` only, styles as inline objects, and nothing that runs on import. That last
+point is a constraint rather than a preference, because `@qadi/devtools`
+declares `"sideEffects": false` and a bundler may drop a module whose only job
+is a side effect.

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-01                                    |
-> | Revision       | 0.3 (draft)                                    |
+> | Revision       | 0.4 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                    |
-> | Change History | 0.3 (2026-08-24): The non-page topologies now have a data path, though still no surface (CCR-QD-066)<br>0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.4 (2026-08-24): The dock is built; its normative rules are BEH-QD-210 (CCR-QD-067)<br>0.3 (2026-08-24): The non-page topologies now have a data path, though still no surface (CCR-QD-066)<br>0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -19,6 +19,15 @@
 
 An **in-page overlay dock** sliding up from the bottom of the host
 application, plus an **element-picking lens** merged into its toolbar.
+
+**Built**, apart from the lens: `DevtoolsDock` in `@qadi/devtools/react` is the
+dock, and [BEH-QD-210](../behaviors/27-devtools-timeline.md) is where its rules
+are normative. Two of them are worth repeating here because they constrain the
+form: the dock **does not mount itself** — the host renders it, since a module
+whose only job is a side effect may be dropped by a bundler under
+`"sideEffects": false` — and its styling is **inline objects**, because this
+repository has no CSS pipeline and an injected `<style>` would need exactly the
+import-time side effect the first rule forbids.
 
 **This is one surface, not the only one.** The dock presupposes a browser page
 running the host application, and
@@ -47,6 +56,8 @@ a mode, not a shell.
 - **Toolbar**: product mark, SRV/CLI legend, live/paused indicator,
   element-pick (lens) toggle, clear.
 - **Tabs**: Log · Inspector · Policies · Roles · Simulate · Services · React.
+  Log and Inspector are built; the tab model is data-driven so the rest are
+  additions rather than a rewrite.
 - **Body**: the active screen (02-screens.md).
 
 ## Lens mode

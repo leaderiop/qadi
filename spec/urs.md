@@ -145,6 +145,22 @@ elements, from the same policy values.
 An application serving several tenants in one process must be able to keep their
 authorization contexts separate.
 
+### URS-QD-029 — See what was decided, across every process that decided it
+
+A developer must be able to read the authorization decisions their application
+made, in one chronological view, whichever process made them — and must be able
+to tell a refusal apart from a failure, and a branch that was rejected apart
+from one that was never examined.
+
+Rationale: the library's whole diagnostic story assumed one process and one
+reader. In practice a decision is made on a server, dehydrated, and re-checked
+in a browser; or made by whichever of five replicas answered. A per-process view
+shows a third of the story and gives no sign that the rest exists. The three
+distinctions matter more than the view does: an `EvaluationError` rendered as a
+denial tells a reviewer their policy is working when it never ran, and a
+short-circuited node rendered as denied tells them it rejected something it
+never looked at. Both are conclusions someone acts on.
+
 ### URS-QD-028 — Use Qadi without adopting Effect
 
 A developer whose codebase does not use Effect must be able to ask an authorization
@@ -380,6 +396,7 @@ so the specification cannot drift from itself.
 | URS-QD-026 | [BEH-QD-154](./behaviors/20-simplification.md), [INV-QD-024](./invariants.md#inv-qd-024-simplification-changes-the-tree-and-nothing-a-caller-can-observe) | `Simplify.test.ts` (property over policies × subjects) |
 | URS-QD-027 | [BEH-QD-162](./behaviors/21-decision-cache.md), [INV-QD-025](./invariants.md#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity) | `DecisionCache.test.ts` |
 | URS-QD-028 | [BEH-QD-169](./behaviors/22-promise-facade.md), [INV-QD-026](./invariants.md#inv-qd-026-the-facade-answers-what-the-core-answers) | `packages/promise/test/facade.test.ts` |
+| URS-QD-029 | [BEH-QD-203](./behaviors/27-devtools-timeline.md), [INV-QD-039](./invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival), [INV-QD-040](./invariants.md#inv-qd-040-the-inspector-never-claims-more-than-the-trace-does) | `packages/devtools/test/model/*.test.ts`, `@REQ-QD-024` |
 | NFR-QD-001 | [INV-QD-008](./invariants.md#inv-qd-008-evaluation-is-reproducible-given-the-same-history) | `Evaluate.test.ts` |
 | NFR-QD-002 | — | `scripts/check-house-style.mjs` |
 | NFR-QD-003 | — | `vitest.config.ts` thresholds |

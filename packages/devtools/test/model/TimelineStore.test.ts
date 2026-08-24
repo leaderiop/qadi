@@ -260,4 +260,28 @@ describe("runSource", () => {
       yield* runSource(store, sourceFromRecords([]));
       assert.deepStrictEqual(store.getSnapshot().entries, []);
     }));
+
+  /**
+   * E1.6 — the ordinary shape of a reconnecting reader.
+   *
+   * A feed built with `replay` hands a joining subscriber recent records, and a
+   * ring paired through `decisionSinkAll` holds the same ones. So the backlog
+   * and the live stream overlap by construction, and the timeline's identity
+   * rule is what keeps that from doubling every row on screen.
+   */
+  it.effect("a record in both the backlog and the live stream is one row", () =>
+    Effect.gen(function* () {
+      const store = makeTimelineStore();
+      const shared = decisionRecord({ evaluationId: "replayed", at: 100 });
+
+      yield* runSource(store, {
+        backlog: Effect.succeed([shared]),
+        live: Stream.fromArray([shared, decisionRecord({ evaluationId: "fresh", at: 200 })]),
+      });
+
+      assert.deepStrictEqual(
+        store.getSnapshot().entries.map((e) => e.evaluationId),
+        ["replayed", "fresh"],
+      );
+    }));
 });

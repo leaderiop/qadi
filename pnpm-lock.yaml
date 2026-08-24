@@ -92,6 +92,9 @@ importers:
       '@qadi/core':
         specifier: workspace:*
         version: link:../packages/core
+      '@qadi/devtools':
+        specifier: workspace:*
+        version: link:../packages/devtools
       '@qadi/testing':
         specifier: workspace:*
         version: link:../packages/testing

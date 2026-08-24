@@ -1221,3 +1221,75 @@ sets directly over an inheritance chain, and asserts a diamond yields one grant
 rather than two.
 
 **Related**: [BEH-QD-192](behaviors/25-inspection.md), [ADR-QD-015](decisions/015-role-dag-acyclic-by-construction.md).
+
+## INV-QD-039: The timeline is ordered, unique, and independent of arrival
+
+The entries a `Timeline` holds are a function of the *set* of records folded
+into it, not of the order they arrived in or how often each was delivered.
+
+**Source**: `packages/devtools/src/model/Timeline.ts` — `ingest` places each
+record by a total order over `at`, identifies it by
+`(_tag, environment, evaluationId, at)`, and returns the identical timeline for
+a repeat.
+
+**Implication**: everything downstream — pairing, filters, both screens — reads
+entries and may assume they are ordered, unique and joined, so exactly one
+module absorbs a feed that promises none of that. It has to: `EventSource`
+reconnects on its own and a feed may be replaying, so a record arrives twice; a
+merge interleaves two processes' clocks, so records arrive out of order; and an
+obligation outcome is emitted after `evaluate` returned, so the two halves of
+one story can arrive backwards.
+
+The identity is deliberately **not** the evaluation id alone. A server decision
+and its client re-check share one — that is the whole pairing story
+([BEH-QD-186](behaviors/24-decision-sink.md)) — and collapsing them would erase
+what the tool exists to show.
+
+*Identical* rather than merely equal is load-bearing rather than an
+optimisation: `useSyncExternalStore` compares snapshots by identity, so a
+rebuilt-but-equal timeline would re-render the panel on every replayed frame.
+
+**Enforcement**: `packages/devtools/test/model/Timeline.test.ts` folds a closed
+product of record shapes forward, reversed and twice over, and asserts the same
+entries each time; `TimelineStore.test.ts` asserts the identity property
+directly.
+
+**Related**: [BEH-QD-205](behaviors/27-devtools-timeline.md), [ADR-QD-047](decisions/047-a-headless-devtools-model.md).
+
+## INV-QD-040: The inspector never claims more than the trace does
+
+Every node the inspector renders as decided has a trace node behind it, and
+every node without one renders as unexamined.
+
+**Source**: `packages/devtools/src/model/Inspect.ts` — `inspect` walks
+`explain(policy)` against the `Trace` by index, and a part with no child trace
+at its index yields `NeverResolved`, recursively.
+
+**Implication**: this is the one place where a *rendering* defect becomes a
+security misreading, which is why it is an invariant rather than a style rule.
+[INV-QD-005](#inv-qd-005-short-circuit-preservation) says a branch that is never
+reached performs no lookup; a reviewer who reads such a node as "denied"
+concludes their policy rejected something it never examined, and acts on it.
+
+Two neighbouring cases fall out of the same rule. A `Failed` outcome has no
+trace at all, so `inspectEntry` yields **nothing** rather than a tree of
+unexamined nodes — an empty requirement tree reads as *no requirements*, which
+reads as *allowed*, which is the inversion
+[INV-QD-006](#inv-qd-006-failure-is-not-denial) exists to prevent. And a trace
+truncated below the root — what `dehydrateDecisions` ships without
+`includeTrace` — is reported as *not disclosed* rather than as unexamined,
+because a composite that short-circuits always evaluates its first child, so the
+two shapes are distinguishable and blaming the evaluator for a disclosure
+decision would mislead.
+
+The alignment by index is sound by construction rather than by convention:
+`evaluateNode` emits one trace node per policy node in declaration order, every
+wrapper produces a single child, and the composites push one child per element
+they evaluated.
+
+**Enforcement**: `packages/devtools/test/model/Inspect.test.ts` drives every
+tree from a real `evaluate` rather than a hand-built trace — a hand-built one
+would prove only that the zip agrees with what the test author assumed — and
+`test/react/DevtoolsDock.test.tsx` asserts the rendered wording.
+
+**Related**: [BEH-QD-208](behaviors/27-devtools-timeline.md), [ADR-QD-027](decisions/027-policy-explanation.md).

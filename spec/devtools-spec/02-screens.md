@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.3 (draft)                                    |
+> | Revision       | 0.4 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -39,7 +39,15 @@ Rules:
   `⇅ hydrated`, `⇅ recheck`); the client half of a pair is tinted;
 - row click opens the inspector on that evaluation.
 
-**Ready.** A `DecisionRecord` supplies every column: `action` and `resource` were
+**Built** — `DecisionLog` in `@qadi/devtools/react`, specified normatively by
+[BEH-QD-205–207](../behaviors/27-devtools-timeline.md). One departure from the
+design above, and it is deliberate: the pair badge reads *continued* /
+*continues* / *differs* rather than *hydrated* / *recheck*. **Nothing in a
+record says which half is which** — `environment` is a free-form label a sink
+stamped — so the roles come from time instead, which is true of a hydrated
+re-check, of replicas, and of anything else sharing an id.
+
+A `DecisionRecord` supplies every column: `action` and `resource` were
 `EvaluateOptions` inputs consumed and dropped before
 [BEH-QD-183](../behaviors/24-decision-sink.md), and the wall-clock `at` did not
 exist at all. The ERROR class is `outcome._tag === "Failed"`, which is
@@ -64,16 +72,26 @@ Panels:
   ([ADR-QD-019](../decisions/019-obligations.md));
 - **Trace** — resolver calls, cache hit/miss, history port touches.
 
+**Built** — `Inspector` in `@qadi/devtools/react`, specified normatively by
+[BEH-QD-208–209](../behaviors/27-devtools-timeline.md). The short-circuit
+rendering is the load-bearing part: an unevaluated node reads *never resolved*
+and never as a cross, and a trace truncated below the root reads *not disclosed*
+rather than *never resolved* — the two are distinguishable because a composite
+that short-circuits always evaluates its first child.
+
 The Explanation panel works because a record carries its `Policy`. `explain()`
 takes a `Policy` and a `Decision` carries only `trace.policyTag`, a string — so
 before [BEH-QD-183](../behaviors/24-decision-sink.md) *the explanation of a
 denial was unreachable from the denial*. Dotting short-circuited nodes needs the
 policy zipped against the trace, which the same record makes possible.
 
-> **Gap — obligations.** `Obligation` is `{ id, attributes, advisory }` with no
-> state field, and `discharge` returns `Effect<void>` recording nothing. There is
-> no way to know which obligations were discharged. The panel can list them and
-> state the rule; it cannot show discharged/pending.
+> **Gap — obligations, narrowed.** `Obligation` is `{ id, attributes, advisory }`
+> with no state field, and a handler receives the whole array and returns
+> `void` — so per-duty state is not merely unimplemented, it is unobservable.
+> The panel lists the duties, distinguishes advisory from binding, shows the
+> **gate** outcome from an `ObligationRecord` when one has arrived, and says in
+> words that per-duty state cannot be known. That is the honest version of this
+> panel and it is what shipped.
 
 **Cache hit/miss is now per decision.** A `DecisionRecord` carries `cache`:
 `"hit"`, `"coalesced"`, `"miss"`, or absent when no cache was consulted at all

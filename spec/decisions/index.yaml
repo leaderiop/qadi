@@ -140,3 +140,6 @@ entries:
   - id: "ADR-QD-046"
     file: "046-a-decision-feed-is-sse-and-guarded.md"
     title: "A decision feed is Server-Sent Events, and it is guarded like any other route"
+  - id: "ADR-QD-047"
+    file: "047-a-headless-devtools-model.md"
+    title: "The devtools is a headless model with a React shell over it"

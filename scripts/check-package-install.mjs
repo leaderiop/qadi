@@ -279,6 +279,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
   currentSubjectLayer,
+  Decided,
   DecisionHistoryUnknown,
   evaluate,
   EvaluationIdLive,
@@ -291,6 +292,8 @@ import {
 import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
 import { QadiProvider } from "@qadi/react";
+import { emptyTimeline, ingest, verdictOf } from "@qadi/devtools";
+import { DevtoolsDock } from "@qadi/devtools/react";
 
 const read = permission("document", "read");
 const write = permission("document", "write");
@@ -329,9 +332,25 @@ expect("promise deny", await qadi.check(alice, hasPermission(write)), false);
 await qadi.dispose();
 
 // The other public packages are imported and referenced, so a broken
-// declaration file in either one is a compile error here.
+// declaration file in any of them is a compile error here.
 expect("testing layer", typeof qadiTestLayer, "function");
 expect("react provider", typeof QadiProvider, "function");
+
+// @qadi/devtools ships TWO entry points, and check 3's import probe only
+// reaches package roots — so the second one is exercised here or nowhere.
+const decided = await decide(hasPermission(read));
+const timeline = ingest(emptyTimeline(), {
+  _tag: "Decision",
+  evaluationId: decided.evaluationId,
+  at: 0,
+  policy: hasPermission(read),
+  outcome: new Decided({ decision: decided }),
+  environment: "Server",
+});
+const [only] = timeline.entries;
+expect("devtools timeline", timeline.entries.length, 1);
+expect("devtools verdict", only === undefined ? "missing" : verdictOf(only), "Allow");
+expect("devtools dock", typeof DevtoolsDock, "function");
 
 console.log("consumer: the published artifact authorizes correctly");
 `;

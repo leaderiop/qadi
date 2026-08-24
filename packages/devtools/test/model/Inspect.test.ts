@@ -190,6 +190,24 @@ describe("status", () => {
     assert.isTrue(skipped.every(isNeverResolved));
   });
 
+  /**
+   * E4.3 — a rule table's first diagnostic question is *which row hit*, and
+   * ADR-QD-023 is why the trace carries a reason even when it allows.
+   */
+  it("a rule table names the row that decided, in both directions", async () => {
+    const permitted = await treeOf(
+      rules([permitWhen(hasRole("nobody")), permitWhen(hasPermission(read))]),
+    );
+    assert.include(permitted.reason ?? "", "rules[1]");
+
+    const refused = await treeOf(
+      rules([permitWhen(hasRole("nobody")), denyWhen(hasPermission(read))], {
+        combining: "DenyOverrides",
+      }),
+    );
+    assert.include(refused.reason ?? "", "rules[1]");
+  });
+
   it("a rule table that stops early leaves later rows unexamined", async () => {
     const tree = await treeOf(
       rules([permitWhen(hasPermission(read)), permitWhen(hasRole("reader"))]),
