@@ -181,6 +181,10 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `decisionSinkForwarding`, `decisionSinkAll` | layer factory | `DecisionSinkForwarding.ts` |
 | `decisionSinkFeed`, `DEFAULT_FEED_CAPACITY` | layer factory + constant | `DecisionSinkFeed.ts` |
 | `portCallsTotal`, `portRetriesTotal` | metric | `PortMetrics.ts` |
+| `hydrationDehydratedTotal`, `hydrationSeededTotal` | metric | `HydrationMetrics.ts` |
+| `hydrationDroppedTotal`, `hydrationRechecksTotal`, `hydrationMismatchesTotal` | metric | `HydrationMetrics.ts` |
+| `DehydrationDropReason`, `ClientHydrationDropReason`, `HydrationDropReason` | type | `HydrationMetrics.ts` |
+| `hydrationDropReasons` | constant | `HydrationMetrics.ts` |
 | `AttributeResolverShape`, `RelationshipResolverShape`, `RelationshipCheck` | type | resolver modules |
 | `RelatedResult`, `RelationshipEdgeInput` | type | `RelationshipResolver.ts` |
 | `RelationshipEdge` | value class | `RelationshipResolver.ts` |
@@ -261,6 +265,7 @@ because this section is called the *public API surface*, and a reader looking fo
 | `usePolicies`, `useProjected`, `useInvalidate` | hook | `hooks.ts` |
 | `dehydrateDecisions`, `hydrateDecisions` | function | `Hydration.ts` |
 | `DehydratedDecisions`, `DehydratedEntry`, `DecisionEntry`, `DehydrateOptions` | type | `Hydration.ts` |
+| `HydrateOptions`, `HydrationDrop`, `HydrationDropReporter` | type | `Hydration.ts` |
 
 `currentDecision` is the one to read twice: it is the single place the rule "a decision
 being re-checked is not a decision" lives
@@ -404,6 +409,9 @@ is (CCR-QD-067).
 | `roleSummary`, `grantPath`, `decidingSet` | function | `model/RoleTree.ts` |
 | `PortReport`, `CacheReport`, `WiringReport`, `PortActivity` | type | `model/Wiring.ts` |
 | `wiringReport`, `portActivity` | effect | `model/Wiring.ts` |
+| `HydrationActivity`, `HydrationDrops` | type | `model/Hydration.ts` |
+| `hydrationActivity` | effect | `model/Hydration.ts` |
+| `unaccountedEntries`, `hasHydrated` | function | `model/Hydration.ts` |
 | `useTimeline`, `useTimelineStore`, `UseTimeline` | hook + type | `react/useTimeline.ts` |
 | `DevtoolsDock`, `DevtoolsDockProps` | component + type | `react/DevtoolsDock.tsx` |
 | `DecisionLog`, `DecisionLogProps` | component + type | `react/DecisionLog.tsx` |

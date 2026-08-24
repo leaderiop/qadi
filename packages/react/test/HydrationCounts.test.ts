@@ -142,6 +142,68 @@ describe("counting what crosses the network", () => {
     expect(moved).toBe(2);
   });
 
+  // INV-QD-045. Stated as a conservation law over the whole partition rather
+  // than as a list of the cases known today: three of hydration's four exits
+  // were found by enumerating them, not by anyone noticing one.
+  it("ACCOUNTS FOR EVERY ENTRY OFFERED TO dehydrateDecisions", () => {
+    const offered = [
+      { policy: canRead, decision: serverAllow("u1", "e1") },
+      { policy: isAdmin, decision: serverAllow("u2", "e2") },
+      { policy: isAdmin, decision: serverAllow("u1", "e3") },
+    ];
+
+    let kept = 0;
+    const lost = dropped("ForeignSubject", () => {
+      kept = counted(hydrationDehydratedTotal, () => {
+        quietly(() => dehydrateDecisions(offered));
+      });
+    });
+
+    expect(kept + lost).toBe(offered.length);
+  });
+
+  it("ACCOUNTS FOR EVERY ENTRY IN A PAYLOAD hydrateDecisions IS HANDED", () => {
+    const good = dehydrateDecisions([
+      { policy: canRead, decision: serverAllow("u1", "e1") },
+      { policy: isAdmin, decision: serverAllow("u1", "e2") },
+    ]);
+    const payload: DehydratedDecisions = {
+      subjectId: "u1",
+      entries: [
+        ...good.entries,
+        { policy: { _tag: "NotAPolicy" }, allowed: true, evaluationId: "e3", durationMillis: 1 },
+      ],
+    };
+
+    let seeded = 0;
+    const lost = dropped("UndecodablePolicy", () => {
+      seeded = counted(hydrationSeededTotal, () => {
+        quietly(() => hydrateDecisions(atoms, payload, alice));
+      });
+    });
+
+    expect(seeded + lost).toBe(payload.entries.length);
+  });
+
+  it("accounts for a payload refused whole", () => {
+    // A whole-payload refusal seeds nothing, so every entry has to land in the
+    // drop bin — otherwise the biggest failure is the one that counts least.
+    const payload = dehydrateDecisions([
+      { policy: canRead, decision: serverAllow("u1", "e1") },
+      { policy: isAdmin, decision: serverAllow("u1", "e2") },
+    ]);
+
+    let seeded = 0;
+    const lost = dropped("PayloadSubjectMismatch", () => {
+      seeded = counted(hydrationSeededTotal, () => {
+        quietly(() => hydrateDecisions(atoms, payload, bob));
+      });
+    });
+
+    expect(seeded).toBe(0);
+    expect(lost).toBe(payload.entries.length);
+  });
+
   it("counts an empty payload as nothing, not as a failure", () => {
     const payload = dehydrateDecisions([]);
     const seeded = counted(hydrationSeededTotal, () => {

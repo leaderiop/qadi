@@ -311,8 +311,10 @@ conflate the two.
   their pair id; stale entries show `stale — re-checking` (never the old verdict,
   [ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md)); each gate
   has a "highlight" → lens.
-- **Hydration** — dehydrated entry count, re-checked count, mismatch count (a
-  mismatch = the server allow no longer holds client-side), and "Invalidate all".
+- **Hydration** — dehydrated and seeded entry counts, re-checked count, mismatch
+  count (a mismatch = the server allow no longer holds client-side), one row per
+  drop reason that fired, and "Invalidate all". **Built**, read passively with
+  `hydrationActivity`.
 
 **Rescoped and built**, exactly as this note proposed: the panel is keyed by
 **question**, and says so on screen because a reader counting rows against their
@@ -331,6 +333,17 @@ reasoning is the design:
 >
 > A panel keyed by **policy** rather than by instance is buildable today, and is
 > probably the honest version of this screen.
+
+**Closed, and it was larger than the note.** All the counts are now read from
+metrics `@qadi/core` declares and `@qadi/react` writes
+([ADR-QD-052](../decisions/052-hydration-is-counted-where-both-ends-can-see-it.md)).
+Exploring it found something this note had not: `hydrateDecisions` had **three**
+silent exits — a payload naming another subject, an unregistered atom set, and an
+entry whose policy would not decode — and announced none of them, so a page that
+re-decided everything from scratch was indistinguishable from one with nothing to
+hydrate ([BEH-QD-230](../behaviors/19-hydration.md),
+[INV-QD-045](../invariants.md)). The original note, kept because it is what the
+screen was scoped against:
 
 > **Gap — hydration counts.** Only the mismatch count is obtainable, and only for
 > verdict disagreements, once per question. `hydrateDecisions` returns an array

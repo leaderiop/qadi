@@ -155,3 +155,6 @@ entries:
   - id: "ADR-QD-051"
     file: "051-a-span-says-what-was-asked.md"
     title: "A span says what was asked, and a tracer is what reads it back"
+  - id: "ADR-QD-052"
+    file: "052-hydration-is-counted-where-both-ends-can-see-it.md"
+    title: "Hydration is counted, and the counter is declared where both ends can see it"

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-19                                    |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-08-24                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
+> | Change History | 1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
 
 _Previous: [18 — Policy Explanation](./18-explanation.md)_
 
@@ -85,9 +85,14 @@ REQUIREMENT: `dehydrateDecisions` MUST report what it dropped.
 The drop is right; the silence was not. A server that accidentally mixes
 subjects — a cache key that lost its user, a batch assembled from two requests —
 shipped a payload of one row where it meant to ship a thousand, and saw nothing
-wrong with it. This was the last quiet failure left in hydration, the mismatch
-reporter having covered the other one
-([BEH-QD-152](#beh-qd-152-a-superseded-seed-is-announced)).
+wrong with it.
+
+> **Correction.** This paragraph said this was "the last quiet failure left in
+> hydration, the mismatch reporter having covered the other one". It was not.
+> **Three** remained, all on the hydrate side, and they are the subject of
+> [BEH-QD-230](#beh-qd-230-a-payload-that-seeds-nothing-says-why). The claim was
+> made after closing the drop that had been *looked for*, and nothing had
+> enumerated the exits (CCR-QD-072).
 
 `DehydrateOptions.onDropped` takes the same shape and for the same reasons: a
 development-mode `console.warn` by default, replaced outright by a supplied
@@ -290,6 +295,165 @@ and without `includeTrace` it is a stand-in naming nothing
 is `decided.reason`, which is where
 [BEH-QD-045](./06-services.md) pays off: a client with no relationship resolver
 says so there, turning "why did this button vanish" into an answer in one line.
+
+## BEH-QD-230: A payload that seeds nothing says why
+
+```ts
+export interface HydrateOptions {
+  readonly onDropped?: HydrationDropReporter<DehydratedEntry>;
+}
+```
+
+```
+REQUIREMENT: Every exit by which `hydrateDecisions` declines to seed an entry
+             MUST be announced.
+```
+
+There are **three**, and until now only the fourth — the one on the dehydrate
+side ([BEH-QD-146](#beh-qd-146-a-payload-is-bound-to-one-subject-and-fails-closed))
+— had ever been closed. A payload could name the wrong subject, reach an atom set
+`makeQadiAtoms` did not build, or carry entries whose policy would not decode,
+and in every case the function returned and said nothing at all. The page then
+re-decided everything from scratch, which is *correct* and is also
+indistinguishable from a page with nothing to hydrate.
+
+```
+REQUIREMENT: A drop MUST carry a reason.
+```
+
+Not a count. The three have three causes and three different fixes: a payload
+reaching the wrong client is a cache-key bug on the server, an unregistered atom
+set is a wiring mistake in the call, and an undecodable policy is version skew
+between the two ends. A number cannot tell a developer which of those they have,
+and it is the only thing they will see.
+
+```
+REQUIREMENT: Undecodable entries MUST be reported once, not once each.
+```
+
+A version skew makes *every* entry of a shape undecodable at once, so per-entry
+reporting buries the rest of the page's output under a payload's worth of
+identical lines — and the count, which is the useful part, is the one thing that
+form loses.
+
+```
+REQUIREMENT: A refused payload MUST NOT prevent the entries that did decode from
+             being seeded.
+```
+
+The undecodable ones are dropped; the rest are not held hostage to them. Only the
+two whole-payload refusals seed nothing, and those are refusals of the payload
+rather than of its contents.
+
+```
+REQUIREMENT: The default reporter MUST be development-only, and MUST name no
+             entry's contents. A supplied reporter MUST replace it and MUST run
+             in production.
+```
+
+The shape [BEH-QD-152](#beh-qd-152-a-superseded-seed-is-announced) and
+[BEH-QD-146](#beh-qd-146-a-payload-is-bound-to-one-subject-and-fails-closed)
+already use, for the third time and the same reasons.
+
+The **supplied** reporter receives the entries, and for `PayloadSubjectMismatch`
+that is not a disclosure: they are the caller's own argument handed back. The
+default withholds them anyway, because the console is read by whoever is looking
+at the page rather than by whoever called the function.
+
+## BEH-QD-231: What crossed the network is counted, at both ends
+
+> **Invariant:** [INV-QD-045](../invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for)
+
+```ts
+// packages/core/src/HydrationMetrics.ts
+hydrationDehydratedTotal   // counter
+hydrationSeededTotal       // counter
+hydrationDroppedTotal      // frequency, keyed on HydrationDropReason
+hydrationRechecksTotal     // counter
+hydrationMismatchesTotal   // counter
+```
+
+```
+REQUIREMENT: Every entry a payload gains or loses MUST be counted.
+```
+
+[INV-QD-045](../invariants.md). Both functions returned their entries and forgot
+them, so the only hydration number a panel could show was the mismatch count —
+and even that was accumulated by the **host**, through a callback, because
+`@qadi/react` had no counter of its own.
+
+```
+REQUIREMENT: The counts MUST be readable with no wiring.
+```
+
+`Metric`'s default registry is memoised on the reference, which is what lets a
+panel read these the way it reads `portActivity`. Hydration runs where no Effect
+runtime need exist — a server rendering a page, a client's first render — so the
+write side is `updateUnsafe`, the only form available off a fiber.
+
+```
+REQUIREMENT: The metric declarations MUST be shared by the writer and the reader,
+             not restated.
+```
+
+`@qadi/core` declares them; `@qadi/react` writes and `@qadi/devtools` reads. The
+alternative compiles and reads **zero forever**: the registry key is
+`type:id:description`, so a reader that re-declares a metric with a description
+differing by a word gets its own registry entry and no error anywhere. That makes
+`PortMetrics.ts`'s note — that nothing reads a description back, so mutation
+testing cannot tell one from none — false for these five, and each is pinned.
+
+```
+REQUIREMENT: The drop reasons MUST be a closed set, reported in full including at
+             zero.
+```
+
+Closed, because an unbounded frequency key grows a permanent registry entry per
+distinct value — the cardinality objection `PortMetrics.ts` records for keying on
+a port name. Reported in full, because a healthy system and a build that has lost
+a reason otherwise look identical, and it is the reasons sitting at zero that
+tell a reader they are watched for at all.
+
+```
+REQUIREMENT: A re-check MUST be counted only where the question was seeded.
+```
+
+A first answer is not a re-check. Counting one would make the ratio against the
+mismatch count mean nothing, and the ratio is what the pair is for.
+
+## BEH-QD-232: The counts are process-wide, and the panel refuses the subtraction
+
+```ts
+export const hydrationActivity: Effect.Effect<HydrationActivity>;
+export const unaccountedEntries: (self: HydrationActivity) => number | undefined;
+```
+
+```
+REQUIREMENT: A panel showing these MUST say they are process-wide.
+```
+
+As `portActivity`'s are, and for the same reason. On a server they accumulate
+across every request the process has served, so `dehydrated` is not *this page's
+payload* — and a reader will subtract one number from the other whether or not
+they were invited to.
+
+```
+REQUIREMENT: `dehydrated − seeded` MUST NOT be reported where it would be
+             negative.
+```
+
+A browser seeds from payloads it did not build, so `seeded` exceeding
+`dehydrated` is the **ordinary** case there rather than a fault. Reporting
+"−4 unaccounted" would send a reader hunting a bug that is not one, so
+`unaccountedEntries` returns `undefined` and the panel says what that state means
+instead.
+
+```
+REQUIREMENT: A clean reading MUST be stated, not left blank.
+```
+
+"Nothing was dropped, all four reasons are watched" is a finding. An empty area
+reads as *not implemented*, which is what the panel used to have to admit to.
 
 ---
 

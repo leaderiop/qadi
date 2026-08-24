@@ -95,6 +95,9 @@ importers:
       '@qadi/devtools':
         specifier: workspace:*
         version: link:../packages/devtools
+      '@qadi/react':
+        specifier: workspace:*
+        version: link:../packages/react
       '@qadi/testing':
         specifier: workspace:*
         version: link:../packages/testing

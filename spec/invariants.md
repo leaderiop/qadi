@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.16                                            |
+> | Revision       | 1.17                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -1446,3 +1446,43 @@ the question is where a value could leak rather than where it was meant to.
 no value field.
 
 **Related**: [BEH-QD-227](behaviors/30-port-calls.md), [ADR-QD-051](decisions/051-a-span-says-what-was-asked.md).
+
+## INV-QD-045: No entry leaves hydration unaccounted for
+
+Every entry offered to `dehydrateDecisions` is either counted as dehydrated or
+counted as dropped, with a reason. Every entry in a payload handed to
+`hydrateDecisions` is either counted as seeded or counted as dropped, with a
+reason. Neither function loses one silently.
+
+**Source**: `packages/react/src/Hydration.ts`, through
+`packages/react/src/HydrationCounts.ts` — the counts are conservation laws over
+the two partitions each function performs.
+
+**Implication**: this is an **availability** invariant rather than a security
+one, and it is the only one in this document that is. Nothing here can leak a
+decision or grant a subject something they lack; the failure it prevents is a
+page that quietly re-decides everything from scratch while every signal says
+hydration is working. That failure is invisible by construction — the correct
+outcome of a dropped entry is *ask the question properly*, which is also what a
+page with nothing to hydrate does.
+
+Hydration had **four** exits by which an entry could be discarded and only one of
+them was ever announced ([BEH-QD-230](behaviors/19-hydration.md)). The one that
+was is the one somebody went looking for; the other three were found by
+enumerating them, which is why this invariant is stated as a conservation law
+over the whole partition rather than as a list of the cases known today. A fifth
+exit added without a count is a failure of this invariant, not a gap in it.
+
+**The two ends are not one sum.** `dehydrated` and `seeded` are process-wide
+aggregates over different populations — a server builds payloads for many
+clients, a browser seeds payloads it did not build — so the invariant holds
+*per call*, and subtracting one total from the other is a comparison
+[BEH-QD-232](behaviors/19-hydration.md) explicitly refuses where it would go
+negative.
+
+**Enforcement**: `packages/react/test/HydrationCounts.test.ts` asserts the
+partition for both functions, including that an empty payload lands in neither
+bin — a working system must not report a fault on every request that happened to
+ask no questions.
+
+**Related**: [BEH-QD-230](behaviors/19-hydration.md), [BEH-QD-231](behaviors/19-hydration.md), [ADR-QD-052](decisions/052-hydration-is-counted-where-both-ends-can-see-it.md).
