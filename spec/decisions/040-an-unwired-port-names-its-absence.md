@@ -164,7 +164,8 @@ through `AccessDenied`, into error handlers.
   exists to draw. Worth recording: the compile error this decision was chosen
   *for* does not reach assertion helpers that accept `unknown`.
 - **Three arms where there were two**, dispatched with `Match.value` rather than
-  a `switch` — `SWITCH_BUDGET` pins `Evaluate.ts` at exactly two and gate 4
+  a `switch` — `SWITCH_BUDGET` in `scripts/check-house-style.mjs` pins
+  `Evaluate.ts` at exactly two and gate 4
   fails on a third ([ADR-QD-034](./034-the-switch-exception-is-measured.md)).
   `Match.value` rebuilds per call; the arms close over `policy`, `subject` and
   `rawId`, so there is nothing to hoist, and the rebuild is noise against a

@@ -389,13 +389,38 @@ the whole package:
 ## 15. Documentation is gated, not remembered
 
 `spec/overview.md` must name every export of every public package.
-`scripts/check-api-surface.mjs` is merge gate 11 and fails otherwise; to leave an
+`scripts/check-api-surface.mjs` is merge gate 13 and fails otherwise; to leave an
 export out of the tables, put it in that document's "Not listed above" table with a
 reason. Omission is allowed, silent omission is not.
 
 This exists because the document drifted twice — see CCR-QD-025 and CCR-QD-034. Two
 occurrences is a property of the process rather than an oversight, and adding a
 gate was cheaper than remembering a third time.
+
+**Two more documents are gated for the same reason** (CCR-QD-075), and both were
+found the same way: a claim was true when written and nobody was connecting it to
+the thing it described.
+
+`spec/devtools-spec/` held **seven** false claims at once — screens marked *Partial*
+after they were built, "Not built. Screens 3 to 6" six increments late, lens mode
+"blocked on a design change to `@qadi/react`" which is the change ADR-QD-053 made.
+`scripts/check-devtools-claims.mjs` is merge gate 12: every statement there that
+something is absent is registered in that folder's "Claims of absence" table with
+the reason it still is. A superseded claim kept as a `>` blockquote under a
+correction needs no row, which is already how those documents preserve history.
+
+`spec/process/definitions-of-done.md` had drifted in both directions at once — a
+Stryker run `pnpm check` performs and the table never listed, and **eight**
+references elsewhere naming a step by a number two off, because CCR-QD-048 inserted
+two steps in the middle. `scripts/check-dod-table.mjs` is merge gate 11: the table
+must be the commands `pnpm check` runs, in order, and a "gate N" anywhere must name
+the command it means so the number can be checked. **Name the script, not just the
+number** — that is the rule that makes the rest possible, and prose that gives a
+number with no command fails.
+
+Change history is exempt from both. A CCR row saying a gate was added "as merge gate
+10" records what was true then, and a gate that forced history to be rewritten to
+stay green would corrupt the record it exists to protect.
 
 **CI runs `pnpm check` and nothing else** (`.github/workflows/check.yml`). That is
 deliberate: a workflow with its own list of steps would be a second definition of
@@ -410,7 +435,7 @@ other way round.
 
 ## 16. Publish with `pnpm`, never `npm`
 
-`scripts/check-package-install.mjs` is merge gate 12: it packs each public package,
+`scripts/check-package-install.mjs` is merge gate 14: it packs each public package,
 installs it into a sandbox and makes a TypeScript consumer authorize through the
 published `exports` map. Two rules come out of it, and both are checked rather than
 remembered.

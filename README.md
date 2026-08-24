@@ -51,9 +51,11 @@ pnpm spec:examples # compile every runnable example in spec/
 pnpm spec:verify:strict  # specification internal consistency
 pnpm spec:api      # the documented API surface matches the real one
 pnpm spec:package  # the packed packages install, resolve and authorize
+pnpm spec:gates    # the DoD table is the merge gate pnpm check actually runs
+pnpm spec:claims   # spec/devtools-spec says why each absence still holds
 pnpm bench         # dispatch and evaluation throughput (measurement, not a gate)
 pnpm mutation      # Stryker on packages/core and on the devtools model
-pnpm check         # all fourteen gates, in order
+pnpm check         # all sixteen gates, in order
 ```
 
 `pnpm check` is the merge gate, and [CI](./.github/workflows/check.yml) runs that

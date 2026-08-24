@@ -46,6 +46,35 @@ The documents here now describe what exists, and mark every remaining gap
 `Qadi Devtools UI Mock.html` is a self-contained hi-fi mock in a templating
 dialect — a design artifact, not runnable code and not part of any build.
 
+## Claims of absence
+
+Every statement in this folder that something is absent, unavailable or unbuilt is
+registered here with the reason it is still true. `scripts/check-devtools-claims.mjs`
+fails on an unregistered one **and** on a row that no longer matches anything, so
+closing a gap and deleting its row go together — the rule `spec/overview.md` states
+for exports, applied to prose: omission is allowed, **silent** omission is not.
+
+This table exists because the folder held seven false claims at once and nothing
+could have caught them (CCR-QD-074). It is a net rather than a proof: a claim worded
+around the phrase list goes through, and "Partial" — how two screens sat stale for
+six increments — is not on it.
+
+A superseded claim kept as a `>` blockquote under a correction needs no row. That is
+already how these documents preserve history, so history is exempt by construction.
+
+| File | Phrase | Count | Still true because |
+| ---- | ------ | ----- | ------------------ |
+| `01-shell.md` | is not written | 1 | [ADR-QD-049](../decisions/049-the-second-shell-is-a-cli.md) decided the second shell is a CLI and no `packages/cli` exists. The three browserless topologies still have no rendered surface |
+| `README.md` | is not written | 1 | The same CLI, in this document's own "Not built" paragraph |
+| `README.md` | not built | 1 | Ditto — and it is now scoped to the topologies rather than the screens, which are all built |
+| `01-shell.md` | unobtainable | 1 | **Not a claim.** Prose *describing* the withdrawn one, in the correction that closed the lens gap: "What did not follow is that instances are unobtainable" |
+| `02-screens.md` | unobtainable | 1 | **Not a claim.** Same: "The other half was declared unobtainable below and was not" |
+
+The last two rows are the cost of a phrase list rather than a parser — a sentence
+that names a withdrawn claim reads the same as one making it. Registering them is
+cheap and keeps the table a complete register of where these documents discuss
+absence at all.
+
 ## Status
 
 No BEH/ADR numbers are allocated to the documents in **this folder**. Identifiers

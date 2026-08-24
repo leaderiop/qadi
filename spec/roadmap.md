@@ -180,7 +180,7 @@ interactions, when the answer was to make them unreachable: share the fold, and 
 schedule cannot reach a decision rule at all.
 
 **Mutation testing is a gate rather than an aspiration**
-([ADR-QD-025](./decisions/025-mutation-testing.md)): `stryker run` is step 13 of
+([ADR-QD-025](./decisions/025-mutation-testing.md)): `stryker run` is step 15 of
 `pnpm check` and fails below 80%. It replaces five hand-run passes whose results
 were quoted into ADRs as prose — evidence nobody but its author could reproduce,
 which is the predecessor's failure mode in miniature. The first enforced run also

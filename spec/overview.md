@@ -353,7 +353,7 @@ that model and computes nothing. `react` is an **optional** peer dependency, so
 a server-side aggregator can consume the model without a UI.
 
 The `bun` condition of every entry point in a package's `exports` map is read by
-`scripts/check-api-surface.mjs`, gate 11, so a second entry point's surface is
+`scripts/check-api-surface.mjs`, gate 13, so a second entry point's surface is
 checked exactly as the first one's is (CCR-QD-067).
 
 | Export | Kind | Source |

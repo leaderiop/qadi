@@ -60,8 +60,9 @@ const UNRESOLVED = /^(catalog:|workspace:|link:|file:|portal:)/;
 const DEPENDENCY_FIELDS = ["dependencies", "peerDependencies", "optionalDependencies"];
 
 // ---------------------------------------------------------------------------
-// Discover the public packages. `private: true` is excluded, exactly as gate 11
-// excludes it: @qadi/features is never published, so it has no tarball to check.
+// Discover the public packages. `private: true` is excluded, exactly as
+// `check-api-surface.mjs`, gate 13, excludes it: @qadi/features is never
+// published, so it has no tarball to check.
 // ---------------------------------------------------------------------------
 
 const packagesDir = join(ROOT, "packages");

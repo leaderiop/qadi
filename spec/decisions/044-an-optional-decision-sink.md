@@ -125,7 +125,7 @@ is unchanged; see the amendment to [ADR-QD-012](./012-deterministic-time-and-ids
   replicated and serverless topologies without the evaluator learning anything.
 - (−) One more optional service, and optional services are the ones that get
   missed — `DecisionCache` was omitted from `spec/overview.md` for exactly that
-  reason. Gate 11 now names this one.
+  reason. `scripts/check-api-surface.mjs`, gate 13, now names this one.
 - (−) A sink runs inside the evaluation, so a slow sink slows evaluation. It is
   awaited rather than forked deliberately: a fire-and-forget record would be
   unordered under `TestClock` and untestable. A sink that must do I/O should

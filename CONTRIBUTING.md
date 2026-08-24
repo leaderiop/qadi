@@ -27,6 +27,8 @@ drift out of sync with it.
 | A test | `AGENTS.md` §10; coverage thresholds are gated, not advisory |
 | Anything in `spec/` | `spec/README.md` is the index; `spec/process/definitions-of-done.md` explains the gates |
 | A public export | `spec/overview.md` must list it — `scripts/check-api-surface.mjs` fails otherwise |
+| A claim that something is absent, in `spec/devtools-spec/` | Register it in that folder's "Claims of absence" table with the reason — `scripts/check-devtools-claims.mjs` fails otherwise |
+| A merge gate | `pnpm check` and `spec/process/definitions-of-done.md` together — `scripts/check-dod-table.mjs` fails otherwise. Name the script beside any "gate N" |
 | Package `dependencies`/publishing | `AGENTS.md` §16 — `pnpm publish` only, `tsconfig.build.json` membership |
 
 ## Why the rules read the way they do

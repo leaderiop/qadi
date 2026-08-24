@@ -32,14 +32,16 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 8 | `pnpm --filter @qadi/features test` | Acceptance scenarios pass |
 | 9 | `node scripts/check-doc-examples.mjs` | Every runnable example in `spec/` compiles |
 | 10 | `bash spec/scripts/verify-traceability.sh --strict` | Specification is internally consistent |
-| 11 | `node scripts/check-api-surface.mjs` | `spec/overview.md` names every export of every public package |
-| 12 | `node scripts/check-package-install.mjs` | The packed packages install, resolve and authorize |
-| 13 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
-| 14 | `stryker run stryker.devtools.mjs` | Mutation score on the `@qadi/devtools` **model** is at or above 80% |
+| 11 | `node scripts/check-dod-table.mjs` | This table is the merge gate `pnpm check` actually runs |
+| 12 | `node scripts/check-devtools-claims.mjs` | `spec/devtools-spec/` says why each thing it calls absent still is |
+| 13 | `node scripts/check-api-surface.mjs` | `spec/overview.md` names every export of every public package |
+| 14 | `node scripts/check-package-install.mjs` | The packed packages install, resolve and authorize |
+| 15 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
+| 16 | `stryker run stryker.devtools.mjs` | Mutation score on the `@qadi/devtools` **model** is at or above 80% |
 
 Steps 5 and 6 are new in CCR-QD-048 ([ADR-QD-037](../decisions/037-circular-imports-and-type-level-tests-are-gates.md)).
 Both are placed here — after the lint family, before the slower runtime
-suite — for the same reason step 9 (then step 7) already sits ahead of
+suite — for the same reason `check-doc-examples.mjs` already sits ahead of
 mutation testing: each takes under two seconds combined, so a regression in
 either fails before anything slower even starts. Step 6 depends on
 `tstyche.json` pinning a specific TypeScript version (`6.0.3`, the newest
@@ -47,9 +49,11 @@ either fails before anything slower even starts. Step 6 depends on
 `typescript@^7.0.0` — a real, standing gap the ADR records rather than
 hides; a `.tst.ts` assertion passing is not the same claim `tsc -b` makes.
 
-Step 9 was absent from this table until CCR-QD-026 while `pnpm check` had been
-running it for some time — the documented gate was *weaker* than the real one,
-which is the safe direction and still a defect in a normative document.
+`node scripts/check-doc-examples.mjs`, step 9, was absent from this table until
+CCR-QD-026 while `pnpm check` had been running it for some time — the documented
+gate was *weaker* than the real one, which is the safe direction and still a
+defect in a normative document. It happened again with the devtools mutation run;
+see step 16.
 
 **CI runs this command and nothing else** — `.github/workflows/check.yml`, added in
 CCR-QD-036. A workflow enumerating its own steps would be a second definition of
@@ -60,25 +64,25 @@ Note what that costs: CI is only as complete as `check`. `pnpm format:check` is 
 in it and fails on 127 of 145 files, which is a pre-existing state nobody has decided
 about — recorded here rather than left for someone to discover.
 
-Step 4 gained a `SWITCH_BUDGET` in CCR-QD-039. AGENTS.md §5a bans dispatching on a
+`node scripts/check-house-style.mjs`, step 4, gained a `SWITCH_BUDGET` in CCR-QD-039. AGENTS.md §5a bans dispatching on a
 `_tag` with `switch` and had named **two** deliberate exceptions while there were
 **four**, with nothing checking the count — the rule was enforced by memory alone. The
 budget declares each file and its exact number and fails in both directions, so a new
 switch needs a written reason and a converted one needs the document updated.
 
-Step 11 is new in CCR-QD-034, and it exists because the document it checks drifted
-**twice**. CCR-QD-025 found `spec/overview.md` still describing the library as it stood
+`node scripts/check-api-surface.mjs`, step 13, is new in CCR-QD-034, and it exists
+because the document it checks drifted **twice**. CCR-QD-025 found `spec/overview.md` still describing the library as it stood
 before any of the seven enablers shipped; six commits later it was missing ten more
 exports and a whole package. Two occurrences in one working session is not an
 oversight but a property of the process — nothing connected an export to its
 documentation, so the connection survived only as long as someone remembered it. The
 third fix is a gate rather than an edit.
 
-It runs before step 13 deliberately: it takes milliseconds and mutation testing takes
+It runs before step 15 deliberately: it takes milliseconds and mutation testing takes
 ninety seconds, so a drifted document fails fast.
 
-Step 12 is new in CCR-QD-038, and it is the first gate that looks at the package rather
-than the sources. Every test in this repository imports `src/` by relative path, so
+`node scripts/check-package-install.mjs`, step 14, is new in CCR-QD-038, and it is the
+first gate that looks at the package rather than the sources. Every test in this repository imports `src/` by relative path, so
 nothing had ever resolved a `@qadi/*` specifier through a published `exports` map.
 Checking by hand found two defects in an hour: `npm pack` copies pnpm's `catalog:` and
 `workspace:` protocols into the tarball verbatim, making it uninstallable, so these
@@ -92,17 +96,18 @@ and `tsc -b` emits — so a `lib/` was always on disk looking like a build produ
 gate's first check therefore reads `tsconfig.build.json` statically, because it is the
 only check here that a stale directory cannot fool. See ADR-QD-033.
 
-Step 14 is new here in CCR-QD-075 and was **running untabled since CCR-QD-067**.
+Step 16 is new here in CCR-QD-075 and was **running untabled since CCR-QD-067**.
 `"mutation"` is `stryker run && stryker run stryker.devtools.mjs` — two configs,
 because `stryker.config.mjs` pins `vitest.dir` to `packages/core` and a mutant in
 another package would have no covering test, survive, and fail the gate for a
 reason unrelated to the change under review. The table documented one of the two,
-so the documented gate was **weaker than the real one** — the same defect this
-table records at step 9, and one that misled a reader of this repository into
-reporting a devtools-only score as the whole picture. Step 15 now checks the
-table against `pnpm check`, so a third occurrence fails the build.
+so the documented gate was **weaker than the real one** — the same defect
+`check-doc-examples.mjs` caused above, and one that misled a reader of this
+repository into reporting a devtools-only score as the whole picture.
+`scripts/check-dod-table.mjs` now checks this table against `pnpm check`, so a
+third occurrence fails the build.
 
-Step 13 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
+Step 15 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
 which lines executed, not which assertions mean anything, and every enabler in
 this library was signed off with a mutation pass **run by hand and quoted into an
 ADR**. Quoted evidence nobody else can reproduce is the predecessor's failure mode
