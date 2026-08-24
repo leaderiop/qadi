@@ -994,3 +994,58 @@ describe("screen 5 — the simulator, and the dock around it", () => {
     assert.strictEqual(rows().length, 1);
   });
 });
+
+describe("screen 6 — the port calls the dock threads through", () => {
+  const oneAttributePort = {
+    ports: [
+      {
+        port: "AttributeResolver",
+        name: "record",
+        required: true,
+        present: true,
+        consequence: "an unanswered attribute denies",
+      },
+    ],
+    cache: { present: false, size: undefined },
+  };
+
+  it("names what the detail would take when no collector was wired", async () => {
+    render(<DevtoolsDock source={sourceFromRecords([])} wiring={oneAttributePort} />);
+    await act(async () => {});
+    await click(screen.getByRole("button", { name: "Services" }));
+
+    // Counts only, and the card says what would be needed — rather than looking
+    // exactly like a port nothing ever asked.
+    assert.isNotEmpty(screen.queryAllByTestId("qadi-calls-uncollected"));
+    assert.isEmpty(screen.queryAllByTestId("qadi-port-call"));
+  });
+
+  it("renders the calls when the host wired a collector", async () => {
+    render(
+      <DevtoolsDock
+        source={sourceFromRecords([])}
+        wiring={oneAttributePort}
+        portCalls={{
+          calls: [
+            {
+              _tag: "AttributeResolver",
+              span: "qadi.attribute",
+              at: 1_000,
+              durationMillis: 0.4,
+              subjectId: "alice",
+              attribute: "clearance",
+              resolved: true,
+            },
+          ],
+          dropped: 0,
+          capacity: 200,
+        }}
+      />,
+    );
+    await act(async () => {});
+    await click(screen.getByRole("button", { name: "Services" }));
+
+    assert.include(screen.getByTestId("qadi-port-call").textContent ?? "", "clearance");
+    assert.isEmpty(screen.queryAllByTestId("qadi-calls-uncollected"));
+  });
+});

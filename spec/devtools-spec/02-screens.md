@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-02                                    |
-> | Revision       | 0.6 (draft)                                    |
+> | Revision       | 0.7 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.7 (2026-08-24): The resolver-call gap closed, and the note corrected — annotating the spans was half of it, and a reader was the other half (CCR-QD-071)<br>0.6 (2026-08-24): Screen 5 built, and §5 corrected on two counts it had asserted since the first draft — it runs on `@qadi/core`'s own layers rather than `@qadi/testing`'s, and "never against live resolvers" was the wrong rule (CCR-QD-070)<br>0.5 (2026-08-24): Screens 3, 4, 6 and 7 built; three of the five remaining gaps had already closed in earlier increments and this document had not been told (CCR-QD-068)<br>0.4 (2026-08-24): Screens 1 and 2 built; their normative rules are BEH-QD-203–210 (CCR-QD-067)<br>0.3 (2026-08-24): Six gaps resolved in code rather than left recorded — depth, provenance, unknown-parent reporting, trace diff, per-decision cache outcome, cache flush (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; four screens described capabilities that do not exist, each now marked **Gap** rather than left to be discovered during implementation (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -119,12 +119,28 @@ policy zipped against the trace, which the same record makes possible.
 ([BEH-QD-189](../behaviors/25-inspection.md)). It was a process-global frequency
 shared by every cache in the process.
 
-> **Gap — resolver calls and history touches.** `readAttribute` is a plain
-> function, not an `Effect.fn`, so it has no span and nothing records that an
-> attribute was resolved. `qadi.acted` and `qadi.hasRelationship` are spans
-> carrying no attributes, so a consumer sees that one happened and how long it
-> took, not for whom or what it returned. Closing this means annotating those
-> spans, which is evaluator-adjacent work with its own review.
+**Resolver calls and history touches — closed, and it was two jobs rather than
+one** (CCR-QD-071, [ADR-QD-051](../decisions/051-a-span-says-what-was-asked.md)).
+
+`readAttribute`'s port call is now a `qadi.attribute` span, and all three port
+spans carry what they asked and what they heard. That half was the recorded gap.
+
+The half the note missed is that **annotating a span does nothing for this
+screen**: the devtools model read `Metric` and only `Metric`, and spans reach an
+OpenTelemetry backend rather than the dock. So `collectPortCalls` is the reader —
+a tracer layer that wraps the one already in scope and keeps the three port
+spans. Richer metrics could not have done it (`PortMetrics.ts` keys on the port
+name for cardinality, and an attribute name is unbounded) and a per-call sink was
+already rejected there for putting a write on the hot path.
+
+**The value never travels.** `qadi.resolved` says a value came back, not what it
+was ([INV-QD-044](../invariants.md)) — the other two ports answer with closed
+enums and are reported in full. A subject-carried attribute emits nothing at all,
+so the span and `portCallsTotal` agree about what a port call is.
+
+Measured rather than asserted: +4.7 µs on a resolver miss against a
+zero-latency resolver, of which the annotations are ≈0.75 µs and the rest is the
+cost `qadi.acted` and `qadi.hasRelationship` have always paid.
 
 ## 3. Policy explorer
 
@@ -266,6 +282,14 @@ wiring. That answers the question `name` cannot: a store that is wired but never
 consulted and one that is not wired at all are opposite problems with the same
 symptom. The counts are process-wide aggregates and the panel says so
 (BEH-QD-216).
+
+**And each card now lists what its port was actually asked** (CCR-QD-071,
+BEH-QD-229). `collectPortCalls` reads it from the spans, which is a different
+scope from the counts and is labelled as one: the counts come from metrics and
+are process-wide, the calls come from spans and are the recent ones this reader
+collected. It is opt-in — the collector's tracer layer has to be wired where
+evaluations run — and a card with no collector says so rather than looking like a
+port nothing asked.
 
 **Flush now exists** — `DecisionCacheShape.clear` discards every completed entry
 and leaves in-flight work alone ([BEH-QD-190](../behaviors/25-inspection.md)).

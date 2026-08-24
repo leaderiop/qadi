@@ -152,3 +152,6 @@ entries:
   - id: "ADR-QD-050"
     file: "050-a-simulation-is-sealed.md"
     title: "A simulation is sealed, and it answers from one of three sources"
+  - id: "ADR-QD-051"
+    file: "051-a-span-says-what-was-asked.md"
+    title: "A span says what was asked, and a tracer is what reads it back"

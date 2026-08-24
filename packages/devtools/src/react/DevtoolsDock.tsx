@@ -25,6 +25,7 @@ import { selectionOf } from "../model/Selection.ts";
 import { sourceFromRecords, type Source } from "../model/Source.ts";
 import { countsOf, type Verdict } from "../model/Verdict.ts";
 import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
+import type { PortCallLog } from "../model/PortCalls.ts";
 import type { PortActivity, WiringReport } from "../model/Wiring.ts";
 import type { PairedEntry } from "../model/Pairing.ts";
 import type { Selection } from "../model/Selection.ts";
@@ -82,6 +83,14 @@ export interface DevtoolsDockProps {
   readonly wiring?: WiringReport;
   /** Read with `portActivity`, which needs no wiring at all. */
   readonly activity?: ReadonlyArray<PortActivity>;
+  /**
+   * Recent port calls, read with `collectPortCalls`.
+   *
+   * Needs the collector's tracer layer wired where evaluations run, so it is
+   * opt-in. Without it the services panel shows counts and says what the detail
+   * would take.
+   */
+  readonly portCalls?: PortCallLog;
   /** Usually `atoms.asked()` from `@qadi/react`. */
   readonly questions?: ReadonlyArray<AskedQuestionLike>;
   /** Parent names `resolveRoleGraph` dropped. */
@@ -106,6 +115,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   catalogue,
   wiring,
   activity = [],
+  portCalls,
   questions,
   unknownParents,
   hydrationMismatches,
@@ -226,6 +236,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           {...(unknownParents === undefined ? {} : { unknownParents })}
           wiring={wiring}
           activity={activity}
+          {...(portCalls === undefined ? {} : { portCalls })}
           questions={questions}
           {...(hydrationMismatches === undefined ? {} : { hydrationMismatches })}
           {...(onInvalidate === undefined ? {} : { onInvalidate })}
@@ -284,6 +295,7 @@ const Screen: FC<{
   readonly unknownParents?: ReadonlyArray<string>;
   readonly wiring: WiringReport | undefined;
   readonly activity: ReadonlyArray<PortActivity>;
+  readonly portCalls?: PortCallLog;
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
   readonly hydrationMismatches?: number;
   readonly onInvalidate?: () => void;
@@ -303,7 +315,13 @@ const Screen: FC<{
         {...(props.unknownParents === undefined ? {} : { unknownParents: props.unknownParents })}
       />
     ),
-    services: () => <ServicesPanel wiring={props.wiring} activity={props.activity} />,
+    services: () => (
+      <ServicesPanel
+        wiring={props.wiring}
+        activity={props.activity}
+        {...(props.portCalls === undefined ? {} : { portCalls: props.portCalls })}
+      />
+    ),
     simulator: () => (
       <Simulator
         sightings={props.sightings}

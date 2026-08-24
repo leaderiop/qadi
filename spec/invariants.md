@@ -1405,3 +1405,44 @@ cause, that two queries to one port are keyed apart, and that a relationship
 keyed by `(subject, relation, resource)` does not collapse to the relation alone.
 
 **Related**: [BEH-QD-221](behaviors/29-devtools-simulator.md), [ADR-QD-050](decisions/050-a-simulation-is-sealed.md).
+
+## INV-QD-044: A span never carries a resolved attribute's value
+
+`qadi.attribute` records the attribute's **name**, the subject it was asked
+about, and whether a value came back. It never records the value.
+
+**Source**: `packages/core/src/Evaluate.ts` — `resolveAttribute` annotates
+`qadi.resolved` with `value !== undefined`, a boolean.
+
+**Implication**: a span attribute is not a debug print. It reaches whatever
+tracing backend the host wired, is retained there on that backend's terms, and
+is readable by anyone with access to it — which is a wider and longer-lived
+audience than the code that asked for the attribute.
+
+The other two ports are safe to report in full, and the contrast is the whole
+reason this invariant names only one of them: `hasActed` and `hasRelationship`
+answer with **closed three-valued enums** — `Acted`/`NotActed`/`Unknown` and
+`Related`/`Unrelated`/`Unknown` — which disclose no more than a policy tag does.
+An attribute resolves to arbitrary data: a clearance level, a department, a
+security label, a patient identifier. The library cannot know which, so it
+records none of them.
+
+This is the line [BEH-QD-147](behaviors/19-hydration.md) already draws in the
+other direction — `dehydrateDecisions` withholds a trace by default because it
+"names every node's tag, its label and the sentence explaining why it refused".
+Same reasoning, same default, opposite boundary.
+
+**`qadi.resolved` is a boolean and not a presence check on the trace**, because
+the distinction it draws is one a reviewer acts on: an attribute the store did
+not have denies for a different reason than one it had and that compared wrong,
+and only the first sends somebody to look at their wiring
+([INV-QD-029](#inv-qd-029-an-unwired-port-names-its-own-absence)).
+
+**Enforcement**: `packages/core/test/Evaluate.test.ts` resolves an attribute
+whose value is a recognisable sentinel and asserts the sentinel appears in **no**
+span the evaluation emitted — every span, not only the attribute's own, because
+the question is where a value could leak rather than where it was meant to.
+`packages/devtools/test/model/PortCalls.test.ts` asserts the decoded row carries
+no value field.
+
+**Related**: [BEH-QD-227](behaviors/30-port-calls.md), [ADR-QD-051](decisions/051-a-span-says-what-was-asked.md).
