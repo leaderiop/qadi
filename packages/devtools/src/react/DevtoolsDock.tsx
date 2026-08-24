@@ -28,6 +28,8 @@ import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catal
 import type { PortActivity, WiringReport } from "../model/Wiring.ts";
 import type { PairedEntry } from "../model/Pairing.ts";
 import type { Selection } from "../model/Selection.ts";
+import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
+import type { TimelineEntry } from "../model/Timeline.ts";
 import type { Role } from "@qadi/core";
 import { DecisionLog } from "./DecisionLog.tsx";
 import { Inspector } from "./Inspector.tsx";
@@ -35,6 +37,7 @@ import { PolicyExplorer } from "./PolicyExplorer.tsx";
 import { QuestionsPanel, type AskedQuestionLike } from "./QuestionsPanel.tsx";
 import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
+import { Simulator } from "./Simulator.tsx";
 import { useTimeline } from "./useTimeline.ts";
 import { body, button, colors, dock, font, input, muted, toolbar } from "./theme.ts";
 
@@ -54,6 +57,7 @@ const TABS = [
   { id: "policies", label: "Policies" },
   { id: "roles", label: "Roles" },
   { id: "services", label: "Services" },
+  { id: "simulator", label: "Simulator" },
   { id: "questions", label: "React" },
 ] as const;
 
@@ -86,6 +90,14 @@ export interface DevtoolsDockProps {
   readonly hydrationMismatches?: number;
   /** Usually `useInvalidate()`. */
   readonly onInvalidate?: () => void;
+  /**
+   * The application's own resolvers, for the simulator's `Live` source.
+   *
+   * The only way anything in this package performs I/O, so it is opt-in by the
+   * application author. Without it the simulator still works on fixtures, and
+   * the `Live` option is shown disabled with the reason.
+   */
+  readonly ports?: EvaluationPortsLayer;
 }
 
 export const DevtoolsDock: FC<DevtoolsDockProps> = ({
@@ -98,6 +110,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   unknownParents,
   hydrationMismatches,
   onInvalidate,
+  ports,
 }) => {
   const { timeline, paused, setPaused, clear } = useTimeline(
     source,
@@ -107,6 +120,14 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   const [filters, setFilters] = useState<Filters>(noFilters);
   const [tab, setTab] = useState<TabId>("log");
   const [selectedKey, setSelectedKey] = useState<string | undefined>(undefined);
+  /**
+   * The row the simulator is seeded from.
+   *
+   * Separate from `selectedKey` on purpose: moving on in the log should not
+   * silently re-seed a form the reviewer is halfway through filling in, so
+   * seeding is an act rather than a consequence.
+   */
+  const [seed, setSeed] = useState<TimelineEntry | undefined>(undefined);
 
   // Paired against the **whole** timeline and filtered afterwards: pairing a
   // filtered view would make a row look unpaired because its partner happened
@@ -125,6 +146,13 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   const select = useCallback((key: string) => {
     setSelectedKey(key);
     setTab("inspector");
+  }, []);
+
+  // E8.1 — switches tab *and* seeds. Doing only the first would leave the
+  // reviewer on a blank form wondering which row they came from.
+  const replay = useCallback((entry: TimelineEntry) => {
+    setSeed(entry);
+    setTab("simulator");
   }, []);
 
   return (
@@ -201,6 +229,9 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           questions={questions}
           {...(hydrationMismatches === undefined ? {} : { hydrationMismatches })}
           {...(onInvalidate === undefined ? {} : { onInvalidate })}
+          onReplay={replay}
+          {...(seed === undefined ? {} : { seed })}
+          {...(ports === undefined ? {} : { ports })}
         />
       </div>
     </section>
@@ -256,12 +287,15 @@ const Screen: FC<{
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
   readonly hydrationMismatches?: number;
   readonly onInvalidate?: () => void;
+  readonly onReplay: (entry: TimelineEntry) => void;
+  readonly seed?: TimelineEntry;
+  readonly ports?: EvaluationPortsLayer;
 }> = (props) => {
   const screens: Record<TabId, () => ReactNode> = {
     log: () => (
       <DecisionLog rows={props.rows} selectedKey={props.selectedKey} onSelect={props.onSelect} />
     ),
-    inspector: () => <Inspector selection={props.selection} />,
+    inspector: () => <Inspector selection={props.selection} onReplay={props.onReplay} />,
     policies: () => <PolicyExplorer sightings={props.sightings} />,
     roles: () => (
       <RoleViewer
@@ -270,6 +304,13 @@ const Screen: FC<{
       />
     ),
     services: () => <ServicesPanel wiring={props.wiring} activity={props.activity} />,
+    simulator: () => (
+      <Simulator
+        sightings={props.sightings}
+        {...(props.seed === undefined ? {} : { seed: props.seed })}
+        {...(props.ports === undefined ? {} : { ports: props.ports })}
+      />
+    ),
     questions: () => (
       <QuestionsPanel
         questions={props.questions}

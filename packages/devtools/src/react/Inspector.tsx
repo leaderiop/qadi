@@ -10,14 +10,15 @@
  * a **failed** evaluation has no tree at all, and a **hydrated** decision may
  * carry a reduced one. Both say so in words.
  */
-import type { CSSProperties, FC } from "react";
+import type { FC } from "react";
 import { isAllowed } from "@qadi/core";
-import type { Allow, Obligation } from "@qadi/core";
+import type { Allow } from "@qadi/core";
 import { inspectEntry, isTruncated, type InspectNode } from "../model/Inspect.ts";
 import type { Selection } from "../model/Selection.ts";
 import type { TimelineDecision, TimelineEntry } from "../model/Timeline.ts";
 import { verdictOf } from "../model/Verdict.ts";
-import { colors, font, muted } from "./theme.ts";
+import { button, colors, heading, muted, panel } from "./theme.ts";
+import { FieldsPanel, ObligationList } from "./DecisionPanels.tsx";
 import { PolicyTree } from "./PolicyTree.tsx";
 import { EnvironmentTag, VerdictTag } from "./VerdictTag.tsx";
 
@@ -35,22 +36,20 @@ const allowOf = (entry: TimelineDecision): Allow | undefined => {
   return isAllowed(outcome.decision) ? outcome.decision : undefined;
 };
 
-const panel: CSSProperties = {
-  border: `1px solid ${colors.border}`,
-  borderRadius: 4,
-  padding: "8px 10px",
-  marginBottom: 8,
-};
+export interface InspectorProps {
+  readonly selection: Selection;
+  /**
+   * Seeds the simulator from this row and switches to it.
+   *
+   * Optional, and **absent rather than inert** on a row that cannot be replayed:
+   * a disabled button on an orphan invites a click that explains nothing, where
+   * no button at all is answered by the panel beside it, which already says why
+   * an orphan has nothing to explain.
+   */
+  readonly onReplay?: (entry: TimelineEntry) => void;
+}
 
-const heading: CSSProperties = {
-  ...muted,
-  fontSize: font.sizeSmall,
-  textTransform: "uppercase",
-  letterSpacing: 0.6,
-  marginBottom: 6,
-};
-
-export const Inspector: FC<{ readonly selection: Selection }> = ({ selection }) => {
+export const Inspector: FC<InspectorProps> = ({ selection, onReplay }) => {
   if (selection._tag === "NoSelection") {
     return (
       <p style={{ ...muted, padding: 16 }} data-testid="qadi-inspector-empty">
@@ -71,12 +70,29 @@ export const Inspector: FC<{ readonly selection: Selection }> = ({ selection }) 
     );
   }
 
-  return <Detail entry={selection.entry} />;
+  return (
+    <Detail entry={selection.entry} {...(onReplay === undefined ? {} : { onReplay })} />
+  );
 };
 
-const Detail: FC<{ readonly entry: TimelineEntry }> = ({ entry }) => (
+const Detail: FC<{
+  readonly entry: TimelineEntry;
+  readonly onReplay?: (entry: TimelineEntry) => void;
+}> = ({ entry, onReplay }) => (
   <div style={{ padding: 12 }} data-testid="qadi-inspector">
     <Header entry={entry} />
+    {/* E8.2 — a decision row only. An orphan carries no policy, so there is
+        nothing to replay and the action is absent rather than dead. */}
+    {onReplay === undefined || entry._tag !== "TimelineDecision" ? null : (
+      <button
+        type="button"
+        style={{ ...button(false), marginBottom: 10 }}
+        data-testid="qadi-replay"
+        onClick={() => onReplay(entry)}
+      >
+        replay in simulator
+      </button>
+    )}
     {entry._tag === "TimelineDecision" ? <DecisionPanels entry={entry} /> : <OrphanPanel />}
   </div>
 );
@@ -164,25 +180,6 @@ const ExplanationPanel: FC<{ readonly tree: InspectNode }> = ({ tree }) => (
 );
 
 /**
- * `undefined` is the **top** of the field lattice and means every field.
- *
- * Rendering it as an empty list would understate a full grant into a grant of
- * nothing, which is the one direction of error a reviewer acts on.
- */
-const FieldsPanel: FC<{ readonly fields: ReadonlyArray<string> | undefined }> = ({ fields }) => (
-  <section style={panel} data-testid="qadi-fields">
-    <div style={heading}>visible fields</div>
-    {fields === undefined ? (
-      <span data-testid="qadi-fields-all">every field</span>
-    ) : fields.length === 0 ? (
-      <span data-testid="qadi-fields-none">no fields</span>
-    ) : (
-      <span data-testid="qadi-fields-some">{fields.join(", ")}</span>
-    )}
-  </section>
-);
-
-/**
  * Duties, with the state marked **unobtainable per duty** rather than guessed.
  *
  * `ObligationHandler` receives the whole array and returns `void`, so the
@@ -197,14 +194,7 @@ const ObligationsPanel: FC<{ readonly entry: TimelineDecision }> = ({ entry }) =
   return (
     <section style={panel} data-testid="qadi-obligations">
       <div style={heading}>obligations</div>
-      {duties.map((duty: Obligation) => (
-        <div key={duty.id}>
-          <span>{duty.id}</span>
-          <span style={{ ...muted, marginLeft: 6 }}>
-            {duty.advisory ? "advisory" : "binding"}
-          </span>
-        </div>
-      ))}
+      <ObligationList duties={duties} />
       <p style={{ ...muted, marginBottom: 0, marginTop: 6 }} data-testid="qadi-obligation-state">
         {entry.obligations === undefined
           ? duties.length === 0

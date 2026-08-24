@@ -9,6 +9,7 @@
  * model's, and this renders what the model produced.
  */
 export * from "./DecisionLog.tsx";
+export * from "./DecisionPanels.tsx";
 export * from "./DevtoolsDock.tsx";
 export * from "./Inspector.tsx";
 export * from "./PolicyExplorer.tsx";
@@ -16,5 +17,7 @@ export * from "./PolicyTree.tsx";
 export * from "./QuestionsPanel.tsx";
 export * from "./RoleViewer.tsx";
 export * from "./ServicesPanel.tsx";
+export * from "./Simulator.tsx";
 export * from "./VerdictTag.tsx";
+export * from "./WhatIfTable.tsx";
 export * from "./useTimeline.ts";

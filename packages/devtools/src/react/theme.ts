@@ -107,6 +107,36 @@ export const input: CSSProperties = {
 
 export const muted: CSSProperties = { color: colors.textMuted };
 
+/** A bordered card. Every screen that groups related facts uses this one. */
+export const panel: CSSProperties = {
+  border: `1px solid ${colors.border}`,
+  borderRadius: 4,
+  padding: "8px 10px",
+  marginBottom: 8,
+};
+
+export const heading: CSSProperties = {
+  color: colors.textMuted,
+  fontSize: font.sizeSmall,
+  textTransform: "uppercase",
+  letterSpacing: 0.6,
+  marginBottom: 6,
+};
+
+/** One removable value in a set the reviewer is editing. */
+export const chip: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  background: colors.surfaceRaised,
+  border: `1px solid ${colors.border}`,
+  borderRadius: 10,
+  padding: "1px 4px 1px 8px",
+  fontSize: font.sizeSmall,
+  marginRight: 4,
+  marginBottom: 4,
+};
+
 /** Keeps a long subject id or resource path from widening the whole table. */
 export const truncate: CSSProperties = {
   overflow: "hidden",

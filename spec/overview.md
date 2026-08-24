@@ -403,7 +403,10 @@ is (CCR-QD-067).
 | `useTimeline`, `useTimelineStore`, `UseTimeline` | hook + type | `react/useTimeline.ts` |
 | `DevtoolsDock`, `DevtoolsDockProps` | component + type | `react/DevtoolsDock.tsx` |
 | `DecisionLog`, `DecisionLogProps` | component + type | `react/DecisionLog.tsx` |
-| `Inspector` | component | `react/Inspector.tsx` |
+| `Inspector`, `InspectorProps` | component + type | `react/Inspector.tsx` |
+| `FieldsPanel`, `ObligationList` | component | `react/DecisionPanels.tsx` |
+| `Simulator`, `SimulatorProps` | component + type | `react/Simulator.tsx` |
+| `WhatIfTable`, `WhatIfTableProps` | component + type | `react/WhatIfTable.tsx` |
 | `VerdictTag`, `EnvironmentTag` | component | `react/VerdictTag.tsx` |
 | `PolicyTree`, `PolicyTreeProps` | component + type | `react/PolicyTree.tsx` |
 | `PolicyExplorer`, `PolicyExplorerProps` | component + type | `react/PolicyExplorer.tsx` |

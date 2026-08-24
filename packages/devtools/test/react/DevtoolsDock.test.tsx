@@ -933,3 +933,64 @@ describe("the six screens", () => {
     );
   });
 });
+
+/**
+ * JOB 8 ledger — E8.1 … E8.4.
+ *
+ * The seventh screen, and the one cross-link it adds. What matters here is the
+ * *wiring*: the simulator's own behaviour is proved in `Simulator.test.tsx`, and
+ * re-proving it through the dock would only make these slower.
+ */
+describe("screen 5 — the simulator, and the dock around it", () => {
+  // E8.3
+  it("shows seven tabs, and the simulator works with no new props at all", async () => {
+    await mount([decisionRecord({ evaluationId: "a", policy: hasPermission(read) })]);
+    await click(screen.getByRole("button", { name: "Simulator" }));
+
+    assert.isNotNull(screen.getByTestId("qadi-simulator"));
+    // Fixtures only: the host passed no ports, so `Live` is offered and
+    // disabled rather than hidden.
+    assert.isTrue(screen.getByTestId("qadi-source-Live").hasAttribute("disabled"));
+  });
+
+  // E8.1 — switches tab *and* seeds. Doing only the first would leave the
+  // reviewer on a blank form wondering which row they came from.
+  it("replaying from the inspector switches tab and seeds the form", async () => {
+    await mount([
+      decisionRecord({
+        evaluationId: "ev-91",
+        policy: hasPermission(read),
+        action: "read",
+      }),
+    ]);
+
+    await click(rows()[0] ?? fail());
+    await click(screen.getByTestId("qadi-replay"));
+
+    assert.isNotNull(screen.getByTestId("qadi-simulator"));
+    assert.isNotNull(screen.getByTestId("qadi-unseeded"));
+    assert.strictEqual(screen.getByTestId("qadi-action").getAttribute("value"), "read");
+  });
+
+  // E8.2 — absent rather than inert. A disabled button on an orphan invites a
+  // click that explains nothing.
+  it("offers no replay action on an orphan, which carries no policy", async () => {
+    await mount([obligationRecord({ evaluationId: "ev-orphan" })]);
+
+    await click(rows()[0] ?? fail());
+    assert.isNotNull(screen.getByTestId("qadi-orphan"));
+    assert.isNull(screen.queryByTestId("qadi-replay"));
+  });
+
+  // E8.4 — the other six screens are untouched.
+  it("leaves the log, the inspector and the explorer where they were", async () => {
+    await mount([decisionRecord({ evaluationId: "a", policy: hasPermission(read) })]);
+
+    for (const tab of ["Log", "Inspector", "Policies", "Roles", "Services", "React"]) {
+      await click(screen.getByRole("button", { name: tab }));
+    }
+    await click(screen.getByRole("button", { name: "Log" }));
+
+    assert.strictEqual(rows().length, 1);
+  });
+});
