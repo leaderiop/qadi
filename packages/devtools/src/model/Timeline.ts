@@ -81,6 +81,18 @@ export const ingestAll = (self: Timeline, records: ReadonlyArray<StoredRecord>):
   records.reduce(ingest, self);
 
 /**
+ * A stable identity for one row.
+ *
+ * The same three fields the timeline dedupes on, and for the same reason: not
+ * the evaluation id alone, because a server decision and its client re-check
+ * share one. Serves as a React key and as what a selection holds on to, so that
+ * a row surviving a re-fold stays selected and one dropped by capacity can be
+ * told apart from one that was never there.
+ */
+export const entryKey = (entry: TimelineEntry): string =>
+  `${entry._tag}|${entry.environment}|${entry.evaluationId}|${entry.at}`;
+
+/**
  * Folds one record in, and returns the timeline that results.
  *
  * Every rejection is silent by design: a duplicate is not an error, it is the

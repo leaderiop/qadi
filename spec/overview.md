@@ -354,10 +354,22 @@ is (CCR-QD-067).
 | `sourceFromRecords`, `sourceFromFeed`, `sourceFromEventSource` | constructor | `model/Source.ts` |
 | `Timeline`, `TimelineEntry` | type | `model/Timeline.ts` |
 | `TimelineDecision`, `TimelineOrphan` | class | `model/Timeline.ts` |
-| `emptyTimeline`, `ingest`, `ingestAll` | function | `model/Timeline.ts` |
+| `emptyTimeline`, `ingest`, `ingestAll`, `entryKey` | function | `model/Timeline.ts` |
 | `DEFAULT_TIMELINE_CAPACITY` | constant | `model/Timeline.ts` |
 | `TimelineStore` | type | `model/TimelineStore.ts` |
 | `makeTimelineStore`, `runSource` | function | `model/TimelineStore.ts` |
+| `Verdict`, `Counts` | type | `model/Verdict.ts` |
+| `verdictOf`, `countsOf` | function | `model/Verdict.ts` |
+| `PairRole`, `PairedEntry` | type | `model/Pairing.ts` |
+| `pairedEntries`, `pairsOf` | function | `model/Pairing.ts` |
+| `NodeStatus`, `InspectKind`, `InspectNode` | type | `model/Inspect.ts` |
+| `inspect`, `inspectEntry`, `isNeverResolved`, `flattenTree` | function | `model/Inspect.ts` |
+| `Filters` | type | `model/Filters.ts` |
+| `noFilters` | constant | `model/Filters.ts` |
+| `isUnfiltered`, `applyFilters`, `environmentsOf`, `searchTextOf` | function | `model/Filters.ts` |
+| `Selection` | type | `model/Selection.ts` |
+| `NoSelection`, `Selected`, `Evicted` | class | `model/Selection.ts` |
+| `selectionOf` | function | `model/Selection.ts` |
 | `useTimeline`, `useTimelineStore`, `UseTimeline` | hook + type | `react/useTimeline.ts` |
 
 ## Not listed above

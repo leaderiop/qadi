@@ -9,6 +9,11 @@
  * The dock that renders it is a separate entry point, `@qadi/devtools/react`,
  * so a backend aggregator can consume the model without pulling in a UI.
  */
+export * from "./model/Filters.ts";
+export * from "./model/Inspect.ts";
+export * from "./model/Pairing.ts";
+export * from "./model/Selection.ts";
 export * from "./model/Source.ts";
 export * from "./model/Timeline.ts";
 export * from "./model/TimelineStore.ts";
+export * from "./model/Verdict.ts";
