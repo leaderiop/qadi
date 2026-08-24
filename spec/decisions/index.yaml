@@ -134,3 +134,6 @@ entries:
   - id: "ADR-QD-044"
     file: "044-an-optional-decision-sink.md"
     title: "An optional decision sink: what ADR-QD-009 deleted, and what it did not"
+  - id: "ADR-QD-045"
+    file: "045-the-topology-is-a-choice-of-sink.md"
+    title: "The topology is a choice of sink, and core ships only the seam"

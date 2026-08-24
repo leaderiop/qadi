@@ -65,6 +65,7 @@ export const decisionSinkRing = (options: {
   readonly layer: Layer.Layer<DecisionSink>;
   readonly snapshot: Effect.Effect<ReadonlyArray<StoredRecord>>;
   readonly clear: Effect.Effect<void>;
+  readonly ingest: (record: SinkRecord, environment?: string) => Effect.Effect<void>;
 } => {
   const capacity = options.capacity ?? DEFAULT_RING_CAPACITY;
   // Checked here, at construction, for the reason `decisionCacheLayer` gives:
@@ -87,23 +88,45 @@ export const decisionSinkRing = (options: {
   // a reassignment inside `Effect.sync` is exactly as atomic as `Ref.modify`.
   let records: Chunk.Chunk<StoredRecord> = Chunk.empty();
 
+  const append = (record: SinkRecord, environment: string): void => {
+    // No special case for `capacity === 0`: appending then dropping
+    // leaves the log empty, which is the right answer, and a guard for it
+    // was dead code — mutation testing removed it and every test still
+    // passed.
+    records = Chunk.append(records, { ...record, environment });
+    if (Chunk.size(records) > capacity) {
+      records = Chunk.drop(records, 1);
+    }
+  };
+
   return {
     layer: Layer.succeed(DecisionSink, {
       record: (record) =>
         Effect.sync(() => {
-          // No special case for `capacity === 0`: appending then dropping
-          // leaves the log empty, which is the right answer, and a guard for it
-          // was dead code — mutation testing removed it and every test still
-          // passed.
-          records = Chunk.append(records, { ...record, environment: options.environment });
-          if (Chunk.size(records) > capacity) {
-            records = Chunk.drop(records, 1);
-          }
+          append(record, options.environment);
         }),
     }),
     snapshot: Effect.sync(() => Chunk.toReadonlyArray(records)),
     clear: Effect.sync(() => {
       records = Chunk.empty();
     }),
+    /**
+     * Adds a record this process did not make.
+     *
+     * The receiving half of `decisionSinkForwarding`. A replica forwards, an
+     * aggregator ingests, and one merged timeline exists somewhere that a reader
+     * can actually reach — which is the whole reason the port is write-only and
+     * the topology is a choice of sink.
+     *
+     * `environment` is a parameter here rather than the ring's own, and that is
+     * the point: a merged log holds rows from several processes, and stamping
+     * them all with the aggregator's label would erase the one distinction the
+     * merge exists to preserve. It falls back to the ring's own label for a
+     * caller ingesting its own records.
+     */
+    ingest: (record, environment) =>
+      Effect.sync(() => {
+        append(record, environment ?? options.environment);
+      }),
   };
 };

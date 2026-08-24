@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-24                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-23                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 _Previous: [23 — HTTP Enforcement](./23-http.md)_
 
@@ -226,6 +226,84 @@ Opt-in, so it is only ever a caller stating a relationship it knows about — Qa
 cannot infer one. `EvaluationId.next` is still read on both paths rather than
 skipped, so whether a given call correlates cannot shift the ids the calls around
 it receive.
+
+## BEH-QD-187: A sink can forward, and a forwarder cannot break evaluation
+
+```ts
+export const decisionSinkForwarding: (options: {
+  readonly send: (encoded: unknown) => Effect<void, unknown>;
+  readonly onFailure?: (error: unknown) => void;
+}) => Layer<DecisionSink>;
+export const decisionSinkAll: (sinks: ReadonlyArray<Layer<DecisionSink>>) => Layer<DecisionSink>;
+```
+
+```
+REQUIREMENT: A `send` that fails OR dies MUST NOT change the decision, and MUST
+             be reported.
+```
+
+The in-process ring answers "what did *this* process decide", and three of the
+six deployments Qadi runs in cannot be served by that: a replicated server has
+n rings and a reader reaches whichever one answered, a serverless function's ring
+dies with the invocation, and a browser talking to a separate API origin has two
+processes of which one has no page.
+
+**The topology is a choice of sink, not a change to the evaluator**
+([ADR-QD-045](../decisions/045-the-topology-is-a-choice-of-sink.md)). This is
+what makes the write-only port worth having: `send` is the seam, and which
+socket, which store and which framing lie beyond it belong to the caller.
+
+The failure rule is [INV-QD-035](../invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)
+applied where it matters most — a devtools page being unreachable is the most
+ordinary thing that can go wrong here, and an authorization request must not fail
+because nobody is watching. Reported rather than silent, though: a forwarder
+dropping every record while looking healthy is the defect `dehydrateDecisions`
+had before `onDropped`.
+
+```
+REQUIREMENT: `send` MUST NOT block.
+```
+
+`record` is awaited inside the evaluation, deliberately, so records stay ordered
+and reproducible under `TestClock`. A `send` performing a network round trip
+therefore makes every decision wait for it. It must enqueue and drain elsewhere —
+which is also why this takes a `send` rather than a socket: a transport that
+batches is a better transport, and this layer has no business deciding how.
+
+```
+REQUIREMENT: `decisionSinkAll` MUST write to every sink given, in order.
+```
+
+Merging two `Layer`s for one service does **not** do this — the later simply
+wins, and the first sink silently sees nothing. A server with devtools wants a
+local ring *and* a forwarder, so the fan-out is explicit. Sequential, because
+these run inside the evaluation and a sink that would benefit from concurrency is
+one already violating the rule above.
+
+## BEH-QD-188: A log can ingest what another process decided
+
+```ts
+readonly ingest: (record: SinkRecord, environment?: string) => Effect<void>;
+```
+
+```
+REQUIREMENT: `ingest` MUST stamp the environment it is given, not the ring's own.
+```
+
+The receiving half of forwarding: a replica forwards, an aggregator ingests, and
+one merged timeline exists somewhere a reader can actually reach.
+
+`environment` is a parameter rather than the ring's own field precisely because a
+merged log holds rows from several processes — stamping them all with the
+aggregator's label would erase the one distinction the merge exists to preserve.
+It falls back to the ring's label for a caller ingesting its own records.
+
+```
+REQUIREMENT: An ingested record MUST respect `capacity` like any other.
+```
+
+An aggregator taking records from n replicas is where an unbounded log would hurt
+most, so there is one bound and one eviction path for both routes in.
 
 ---
 

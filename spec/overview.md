@@ -177,6 +177,7 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |
 | `DecisionSink` | service | `DecisionSink.ts` |
 | `decisionSinkRing`, `DEFAULT_RING_CAPACITY` | layer factory + constant | `DecisionSinkRing.ts` |
+| `decisionSinkForwarding`, `decisionSinkAll` | layer factory | `DecisionSinkForwarding.ts` |
 | `AttributeResolverShape`, `RelationshipResolverShape`, `RelationshipCheck` | type | resolver modules |
 | `RelatedResult`, `RelationshipEdgeInput` | type | `RelationshipResolver.ts` |
 | `RelationshipEdge` | value class | `RelationshipResolver.ts` |
