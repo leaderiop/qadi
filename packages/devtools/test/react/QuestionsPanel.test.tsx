@@ -10,6 +10,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { afterEach } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { hasPermission, hasRole, permission } from "@qadi/core";
+import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
 
@@ -86,8 +87,9 @@ describe("the questions panel", () => {
     );
   });
 
-  describe("hydration", () => {
-    // E5.7 — one number is obtainable; the others are named as not.
+  describe("hydration, counted by the host", () => {
+    // The shape from before anything counted for itself. Kept working, and
+    // superseded by `hydration` below.
     it("reports mismatches when a reporter is wired", () => {
       render(<QuestionsPanel questions={[]} hydrationMismatches={2} />);
       const text = screen.getByTestId("qadi-hydration-mismatches").textContent ?? "";
@@ -105,20 +107,123 @@ describe("the questions panel", () => {
       );
     });
 
-    it("says when no reporter is wired, rather than showing zero", () => {
+    it("says when nothing is wired, rather than showing zero", () => {
       render(<QuestionsPanel questions={[]} />);
       // Zero would claim there were no mismatches; there is simply nobody
-      // counting.
-      assert.isNotNull(screen.getByTestId("qadi-hydration-unwired"));
+      // counting. And it names the fix, which is now a real one.
+      const text = screen.getByTestId("qadi-hydration-unwired").textContent ?? "";
+      assert.include(text, "hydrationActivity");
+      assert.include(text, "needs no wiring");
       assert.isNull(screen.queryByTestId("qadi-hydration-mismatches"));
     });
+  });
 
-    it("names the counts that are not obtainable", () => {
-      render(<QuestionsPanel questions={[]} />);
-      const limits = screen.getByTestId("qadi-hydration-limits").textContent ?? "";
+  describe("hydration, read from the metrics", () => {
+    const reading = (fields: Partial<HydrationActivity>): HydrationActivity => ({
+      dehydrated: 0,
+      seeded: 0,
+      rechecked: 0,
+      mismatched: 0,
+      drops: [],
+      ...fields,
+    });
 
-      assert.include(limits, "not obtainable");
-      assert.include(limits, "does not retain them");
+    it("shows all four counts", () => {
+      render(
+        <QuestionsPanel
+          questions={[]}
+          hydration={reading({ dehydrated: 12, seeded: 10, rechecked: 8, mismatched: 1 })}
+        />,
+      );
+
+      assert.include(screen.getByTestId("qadi-hydration-dehydrated").textContent ?? "", "12");
+      assert.include(screen.getByTestId("qadi-hydration-seeded").textContent ?? "", "10");
+      assert.include(screen.getByTestId("qadi-hydration-rechecked").textContent ?? "", "8");
+      assert.include(screen.getByTestId("qadi-hydration-mismatched").textContent ?? "", "1");
+    });
+
+    it("supersedes a host-counted mismatch rather than showing both", () => {
+      // Both count the same thing, so showing both invites a reader to
+      // reconcile one number with itself.
+      render(
+        <QuestionsPanel
+          questions={[]}
+          hydration={reading({ rechecked: 3, mismatched: 1 })}
+          hydrationMismatches={1}
+        />,
+      );
+      assert.isNull(screen.queryByTestId("qadi-hydration-mismatches"));
+      assert.isNotNull(screen.getByTestId("qadi-hydration-mismatched"));
+    });
+
+    it("states the rate where anything was re-checked", () => {
+      render(<QuestionsPanel questions={[]} hydration={reading({ rechecked: 4, mismatched: 1 })} />);
+      assert.include(screen.getByTestId("qadi-hydration-rate").textContent ?? "", "1 of 4");
+    });
+
+    it("offers no rate where nothing was re-checked", () => {
+      // "0 of 0 disagreed" is a sentence about nothing.
+      render(<QuestionsPanel questions={[]} hydration={reading({ seeded: 3 })} />);
+      assert.isNull(screen.queryByTestId("qadi-hydration-rate"));
+    });
+
+    it("says nothing was dropped, rather than leaving it blank", () => {
+      render(
+        <QuestionsPanel
+          questions={[]}
+          hydration={reading({
+            seeded: 3,
+            drops: [{ reason: "ForeignSubject", count: 0, meaning: "mixed payload" }],
+          })}
+        />,
+      );
+      // An empty area reads as "not implemented"; this reads as "watched, and
+      // clean", which is the finding.
+      assert.include(screen.getByTestId("qadi-hydration-no-drops").textContent ?? "", "Nothing was dropped");
+      assert.isNull(screen.queryByTestId("qadi-hydration-drops"));
+    });
+
+    it("lists only the reasons that fired, with what each means", () => {
+      render(
+        <QuestionsPanel
+          questions={[]}
+          hydration={reading({
+            drops: [
+              { reason: "ForeignSubject", count: 0, meaning: "mixed payload" },
+              { reason: "UndecodablePolicy", count: 2, meaning: "usually version skew" },
+            ],
+          })}
+        />,
+      );
+
+      const rows = screen.getAllByTestId("qadi-hydration-drop").map((row) => row.textContent ?? "");
+      assert.strictEqual(rows.length, 1);
+      assert.include(rows[0] ?? "", "UndecodablePolicy");
+      // The meaning, not just the count — a number alone is not a diagnosis.
+      assert.include(rows[0] ?? "", "version skew");
+    });
+
+    it("says the totals are process-wide before a reader subtracts them", () => {
+      render(<QuestionsPanel questions={[]} hydration={reading({ dehydrated: 10, seeded: 4 })} />);
+      const scope = screen.getByTestId("qadi-hydration-scope").textContent ?? "";
+
+      assert.include(scope, "Process-wide");
+      assert.include(scope, "6 dehydrated entries");
+    });
+
+    it("does not report a negative shortfall in a browser", () => {
+      // A client seeds from payloads it did not build, so this is the ordinary
+      // case there rather than a fault to hunt.
+      render(<QuestionsPanel questions={[]} hydration={reading({ dehydrated: 0, seeded: 4 })} />);
+      const scope = screen.getByTestId("qadi-hydration-scope").textContent ?? "";
+
+      assert.include(scope, "seeded more than it built");
+      assert.notInclude(scope, "-4");
+    });
+
+    it("reads naturally for a shortfall of one", () => {
+      render(<QuestionsPanel questions={[]} hydration={reading({ dehydrated: 1, seeded: 0 })} />);
+      assert.include(screen.getByTestId("qadi-hydration-scope").textContent ?? "", "1 dehydrated entry ");
     });
   });
 

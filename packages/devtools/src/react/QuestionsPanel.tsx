@@ -18,6 +18,8 @@
 import type { CSSProperties, FC } from "react";
 import type { Policy, Resource } from "@qadi/core";
 import { policyLabel } from "../model/Catalogue.ts";
+import type { HydrationActivity } from "../model/Hydration.ts";
+import { unaccountedEntries } from "../model/Hydration.ts";
 import { button, colors, font, muted } from "./theme.ts";
 
 /**
@@ -35,7 +37,21 @@ export interface AskedQuestionLike {
 
 export interface QuestionsPanelProps {
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
-  /** Verdict disagreements between a server decision and its client re-check. */
+  /**
+   * Read with `hydrationActivity`, which needs no wiring at all.
+   *
+   * It supersedes {@link hydrationMismatches}, which a host had to accumulate
+   * itself because nothing in `@qadi/react` counted anything.
+   */
+  readonly hydration?: HydrationActivity;
+  /**
+   * Verdict disagreements, counted by the host.
+   *
+   * Kept for a host already passing it, and shown only when {@link hydration}
+   * is absent. A host counting its own `onHydrationMismatch` calls counts
+   * exactly what `hydration.mismatched` counts, so showing both would invite a
+   * reader to reconcile one number with itself.
+   */
   readonly hydrationMismatches?: number;
   /** Wired to `useInvalidate`. Absent means the button is not shown. */
   readonly onInvalidate?: () => void;
@@ -51,6 +67,7 @@ const row: CSSProperties = {
 
 export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   questions,
+  hydration,
   hydrationMismatches,
   onInvalidate,
 }) => (
@@ -84,7 +101,7 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
       ))
     )}
 
-    <Hydration mismatches={hydrationMismatches} />
+    <Hydration activity={hydration} mismatches={hydrationMismatches} />
 
     {onInvalidate === undefined ? null : (
       <button
@@ -99,29 +116,48 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   </div>
 );
 
+const heading: CSSProperties = {
+  ...muted,
+  fontSize: font.sizeSmall,
+  textTransform: "uppercase",
+  letterSpacing: 0.6,
+};
+
 /**
- * The one hydration number that is obtainable, and the ones that are not.
+ * What crossed the network, and what was lost.
  *
- * `hydrateDecisions` returns an array and forgets it, so the dehydrated-entry
- * count is not retained anywhere; nothing counts re-evaluations. Only a verdict
- * *disagreement* is reported, once per question. Naming the gap beats leaving a
- * reader to wonder why two of the three numbers they expected are missing.
+ * All four counts are now read rather than handed in: they come from metrics
+ * `@qadi/core` declares and `@qadi/react` writes, which is why this needs no
+ * wiring and why the panel no longer has to say two of the three numbers are
+ * unobtainable.
+ *
+ * `dehydrated` and `seeded` are **process-wide**, so the footer says so. On a
+ * server they accumulate across every request; in a browser only `seeded` moves
+ * at all, because nothing there built a payload. Subtracting one from the other
+ * is a comparison a reader will attempt unprompted, so `unaccountedEntries`
+ * refuses it where it would not mean anything.
  */
-const Hydration: FC<{ readonly mismatches: number | undefined }> = ({ mismatches }) => (
+const Hydration: FC<{
+  readonly activity: HydrationActivity | undefined;
+  readonly mismatches: number | undefined;
+}> = ({ activity, mismatches }) => (
   <div style={{ marginTop: 10 }} data-testid="qadi-hydration">
-    <div
-      style={{
-        ...muted,
-        fontSize: font.sizeSmall,
-        textTransform: "uppercase",
-        letterSpacing: 0.6,
-      }}
-    >
-      hydration
-    </div>
+    <div style={heading}>hydration</div>
+    {activity === undefined ? (
+      <LegacyMismatches mismatches={mismatches} />
+    ) : (
+      <Counts activity={activity} />
+    )}
+  </div>
+);
+
+/** The one number a host could accumulate before anything counted for it. */
+const LegacyMismatches: FC<{ readonly mismatches: number | undefined }> = ({ mismatches }) => (
+  <>
     {mismatches === undefined ? (
       <span style={muted} data-testid="qadi-hydration-unwired">
-        no mismatch reporter wired
+        no counts read. Pass <code>hydration</code> — the result of{" "}
+        <code>hydrationActivity</code>, which needs no wiring — to fill this in.
       </span>
     ) : (
       <span data-testid="qadi-hydration-mismatches">
@@ -131,11 +167,76 @@ const Hydration: FC<{ readonly mismatches: number | undefined }> = ({ mismatches
         </span>
       </span>
     )}
-    <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-limits">
-      Dehydrated and re-checked counts are not obtainable: hydration returns its
-      entries and does not retain them, and nothing counts re-evaluations.
-    </div>
-  </div>
+  </>
+);
+
+const Counts: FC<{ readonly activity: HydrationActivity }> = ({ activity }) => {
+  const unaccounted = unaccountedEntries(activity);
+  const raised = activity.drops.filter((drop) => drop.count > 0);
+
+  return (
+    <>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "2px 0" }}>
+        <Count label="dehydrated" value={activity.dehydrated} testId="qadi-hydration-dehydrated" />
+        <Count label="seeded" value={activity.seeded} testId="qadi-hydration-seeded" />
+        <Count label="re-checked" value={activity.rechecked} testId="qadi-hydration-rechecked" />
+        <Count
+          label="mismatched"
+          value={activity.mismatched}
+          testId="qadi-hydration-mismatched"
+        />
+      </div>
+
+      {activity.rechecked === 0 ? null : (
+        <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-rate">
+          {activity.mismatched} of {activity.rechecked} re-checked question
+          {activity.rechecked === 1 ? "" : "s"} disagreed with the server.
+        </div>
+      )}
+
+      {raised.length === 0 ? (
+        <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-no-drops">
+          {/* Said rather than left blank: every reason is watched for, and none
+              of them fired. An empty area would read as "not implemented". */}
+          Nothing was dropped. All {activity.drops.length} reasons are watched.
+        </div>
+      ) : (
+        <div style={{ marginTop: 4 }} data-testid="qadi-hydration-drops">
+          {raised.map((drop) => (
+            <div key={drop.reason} style={{ ...row, borderBottom: "none" }} data-testid="qadi-hydration-drop">
+              {/* `error`, not `denySolid`: a dropped entry is a fault to chase,
+                  not a refusal. Colouring it as a denial would file a wiring
+                  bug under the one thing the dock's palette reserves for a
+                  policy saying no. */}
+              <span style={{ color: colors.error }}>{drop.count}</span>
+              <span>{drop.reason}</span>
+              <span style={{ ...muted, fontSize: font.sizeSmall }}>— {drop.meaning}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-scope">
+        {/* The reader will try to subtract one from the other, so the shape of
+            the numbers has to be stated before they do. */}
+        Process-wide totals, not this page&apos;s.{" "}
+        {unaccounted === undefined
+          ? "This process seeded more than it built, so it is a client reading payloads rendered elsewhere."
+          : `${unaccounted} dehydrated entr${unaccounted === 1 ? "y" : "ies"} have no seeding counted in this process.`}
+      </div>
+    </>
+  );
+};
+
+const Count: FC<{
+  readonly label: string;
+  readonly value: number;
+  readonly testId: string;
+}> = ({ label, value, testId }) => (
+  <span data-testid={testId}>
+    <span style={{ fontWeight: 600 }}>{value}</span>
+    <span style={{ ...muted, marginLeft: 4, fontSize: font.sizeSmall }}>{label}</span>
+  </span>
 );
 
 const resourceOf = (resource: Resource): string => {

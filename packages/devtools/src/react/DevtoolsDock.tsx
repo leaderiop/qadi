@@ -26,6 +26,7 @@ import { sourceFromRecords, type Source } from "../model/Source.ts";
 import { countsOf, type Verdict } from "../model/Verdict.ts";
 import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
 import type { PortCallLog } from "../model/PortCalls.ts";
+import type { HydrationActivity } from "../model/Hydration.ts";
 import type { PortActivity, WiringReport } from "../model/Wiring.ts";
 import type { PairedEntry } from "../model/Pairing.ts";
 import type { Selection } from "../model/Selection.ts";
@@ -95,7 +96,14 @@ export interface DevtoolsDockProps {
   readonly questions?: ReadonlyArray<AskedQuestionLike>;
   /** Parent names `resolveRoleGraph` dropped. */
   readonly unknownParents?: ReadonlyArray<string>;
-  /** Verdict disagreements counted by an `onHydrationMismatch` reporter. */
+  /** Read with `hydrationActivity`, which needs no wiring at all. */
+  readonly hydration?: HydrationActivity;
+  /**
+   * Verdict disagreements counted by an `onHydrationMismatch` reporter.
+   *
+   * Superseded by {@link hydration}, which counts the same thing without the
+   * host having to. Shown only when that is absent.
+   */
   readonly hydrationMismatches?: number;
   /** Usually `useInvalidate()`. */
   readonly onInvalidate?: () => void;
@@ -118,6 +126,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   portCalls,
   questions,
   unknownParents,
+  hydration,
   hydrationMismatches,
   onInvalidate,
   ports,
@@ -238,6 +247,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           activity={activity}
           {...(portCalls === undefined ? {} : { portCalls })}
           questions={questions}
+          {...(hydration === undefined ? {} : { hydration })}
           {...(hydrationMismatches === undefined ? {} : { hydrationMismatches })}
           {...(onInvalidate === undefined ? {} : { onInvalidate })}
           onReplay={replay}
@@ -297,6 +307,7 @@ const Screen: FC<{
   readonly activity: ReadonlyArray<PortActivity>;
   readonly portCalls?: PortCallLog;
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
+  readonly hydration?: HydrationActivity;
   readonly hydrationMismatches?: number;
   readonly onInvalidate?: () => void;
   readonly onReplay: (entry: TimelineEntry) => void;
@@ -332,6 +343,7 @@ const Screen: FC<{
     questions: () => (
       <QuestionsPanel
         questions={props.questions}
+        {...(props.hydration === undefined ? {} : { hydration: props.hydration })}
         {...(props.hydrationMismatches === undefined
           ? {}
           : { hydrationMismatches: props.hydrationMismatches })}

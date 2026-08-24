@@ -13,6 +13,7 @@ export * from "./model/Capture.ts";
 export * from "./model/Catalogue.ts";
 export * from "./model/Edits.ts";
 export * from "./model/Filters.ts";
+export * from "./model/Hydration.ts";
 export * from "./model/Inspect.ts";
 export * from "./model/Pairing.ts";
 export * from "./model/PortCalls.ts";
