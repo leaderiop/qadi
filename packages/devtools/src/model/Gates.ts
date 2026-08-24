@@ -149,15 +149,20 @@ export const gateGroups = (
 };
 
 /**
- * The ids the lens should highlight for one group.
+ * The ids the lens can actually point at.
+ *
+ * Takes the instances rather than a `GateGroup`, because callers hold instances
+ * — a panel joining an `asked()` row to the guards asking it has a list, not a
+ * group, and the first version of this made it fabricate one.
  *
  * The unlocatable ones are left out rather than passed on to fail quietly
  * downstream: a hook has no node, so highlighting it is not a thing that can
  * happen, and a caller needs to be able to tell "highlighted nothing" from
  * "nothing to highlight".
  */
-export const locatableIds = (self: GateGroup): ReadonlyArray<string> =>
-  self.instances.filter(isLocatable).map((instance) => instance.id);
+export const locatableIds = (
+  instances: ReadonlyArray<GateInstanceLike>,
+): ReadonlyArray<string> => instances.filter(isLocatable).map((instance) => instance.id);
 
 /**
  * The instances asking a question, across every group.

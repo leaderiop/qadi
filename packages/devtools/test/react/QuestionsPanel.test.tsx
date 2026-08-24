@@ -1,10 +1,14 @@
 /**
- * JOB 5 ledger — E5.1 … E5.7.
+ * JOB 5 ledger — E5.1 … E5.7: what the panel says has been **asked**.
  *
- * The rescoping is the feature. `Atom.family` keys structurally, so ten
- * `<Can policy={isAdmin}>` in different places are one atom; a panel listing
- * ten rows would invent a distinction the architecture does not have. This one
- * lists questions, says so, and never claims a per-instance count.
+ * `Atom.family` keys structurally, so ten `<Can policy={isAdmin}>` in different
+ * places are one atom, and one row is what this view must show for them. That
+ * has not changed and is still asserted here.
+ *
+ * What changed is the conclusion drawn from it. A second view lists the guards
+ * asking each question, and it lives in `GatesPanel.test.tsx` — kept apart
+ * deliberately, because the failure worth catching is one view silently
+ * replacing the other.
  */
 import { assert, describe, it } from "@effect/vitest";
 import { afterEach } from "vitest";
@@ -42,10 +46,13 @@ describe("the questions panel", () => {
 
     assert.include(note, "per question");
     assert.include(note, "one atom");
-    // "instance" appears exactly once and only to disclaim it: the panel must
-    // never *claim* a per-instance count, and saying so is how a reader stops
-    // looking for one.
-    assert.include(note, "a per-instance count would be invented");
+    // This assertion used to require the sentence "a per-instance count would
+    // be invented", which was the screen's original scoping and is now wrong:
+    // a per-instance view exists and is listed underneath (ADR-QD-053). What
+    // still has to be said is what a *row* counts, because that is what a
+    // reader compares against their component tree.
+    assert.include(note, "that is what the evaluator sees");
+    assert.notInclude(note, "would be invented");
   });
 
   it("lists one row per question", () => {

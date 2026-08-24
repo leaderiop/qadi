@@ -26,6 +26,7 @@ import { sourceFromRecords, type Source } from "../model/Source.ts";
 import { countsOf, type Verdict } from "../model/Verdict.ts";
 import { catalogueOf, type Catalogue, type PolicySighting } from "../model/Catalogue.ts";
 import type { PortCallLog } from "../model/PortCalls.ts";
+import type { GateInstanceLike } from "../model/Gates.ts";
 import type { HydrationActivity } from "../model/Hydration.ts";
 import type { PortActivity, WiringReport } from "../model/Wiring.ts";
 import type { PairedEntry } from "../model/Pairing.ts";
@@ -94,6 +95,13 @@ export interface DevtoolsDockProps {
   readonly portCalls?: PortCallLog;
   /** Usually `atoms.asked()` from `@qadi/react`. */
   readonly questions?: ReadonlyArray<AskedQuestionLike>;
+  /**
+   * The live guards, usually `gateInstances()` from `@qadi/react`.
+   *
+   * Needs `instrument` on the `QadiProvider`, so it is opt-in twice over — a
+   * host has to ask for the registry and then hand it here.
+   */
+  readonly gates?: ReadonlyArray<GateInstanceLike>;
   /** Parent names `resolveRoleGraph` dropped. */
   readonly unknownParents?: ReadonlyArray<string>;
   /** Read with `hydrationActivity`, which needs no wiring at all. */
@@ -126,6 +134,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   portCalls,
   questions,
   unknownParents,
+  gates,
   hydration,
   hydrationMismatches,
   onInvalidate,
@@ -247,6 +256,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
           activity={activity}
           {...(portCalls === undefined ? {} : { portCalls })}
           questions={questions}
+          {...(gates === undefined ? {} : { gates })}
           {...(hydration === undefined ? {} : { hydration })}
           {...(hydrationMismatches === undefined ? {} : { hydrationMismatches })}
           {...(onInvalidate === undefined ? {} : { onInvalidate })}
@@ -307,6 +317,7 @@ const Screen: FC<{
   readonly activity: ReadonlyArray<PortActivity>;
   readonly portCalls?: PortCallLog;
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
+  readonly gates?: ReadonlyArray<GateInstanceLike>;
   readonly hydration?: HydrationActivity;
   readonly hydrationMismatches?: number;
   readonly onInvalidate?: () => void;
@@ -343,6 +354,7 @@ const Screen: FC<{
     questions: () => (
       <QuestionsPanel
         questions={props.questions}
+        {...(props.gates === undefined ? {} : { gates: props.gates })}
         {...(props.hydration === undefined ? {} : { hydration: props.hydration })}
         {...(props.hydrationMismatches === undefined
           ? {}

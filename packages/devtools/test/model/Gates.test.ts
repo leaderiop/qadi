@@ -170,7 +170,7 @@ describe("locatableIds", () => {
       instance({ id: "b" }),
       instance({ id: "c", element: {} }),
     ]);
-    assert.deepStrictEqual(locatableIds(only(groups)), ["a", "c"]);
+    assert.deepStrictEqual(locatableIds(only(groups).instances), ["a", "c"]);
   });
 
   it("counts them on the group, so a panel can say how many it cannot show", () => {
@@ -184,7 +184,7 @@ describe("locatableIds", () => {
     const groups = gateGroups([instance({ id: "a", kind: "useCan" })]);
     // A caller must be able to tell "highlighted nothing" from "nothing to
     // highlight" — this is what makes that possible.
-    assert.deepStrictEqual(locatableIds(only(groups)), []);
+    assert.deepStrictEqual(locatableIds(only(groups).instances), []);
   });
 });
 
