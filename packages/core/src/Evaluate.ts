@@ -238,6 +238,43 @@ const deny = (
 });
 
 /**
+ * The port call, when the subject did not already have the attribute.
+ *
+ * A span here and not in `readAttribute` above it, so that a **subject hit
+ * emits nothing at all**. The distinction is the one the reader wants: a span
+ * named `qadi.attribute` means the resolver was asked, which is the same event
+ * `portCallsTotal` counts, so the trace and the metric agree about what
+ * happened rather than counting two different things. It also keeps the
+ * commonest branch — the attribute the subject already carries — free of any
+ * tracing cost at all.
+ *
+ * **The value is never recorded.** `hasActed` and `hasRelationship` answer with
+ * closed three-valued enums, which are safe to annotate; an attribute resolves
+ * to arbitrary data, and a span attribute goes to whatever backend is wired.
+ * `qadi.resolved` says a value came back, not what it was
+ * ([INV-QD-044](../../../spec/invariants.md)) — the same line
+ * `dehydrateDecisions` draws with `includeTrace`.
+ */
+const resolveAttribute = Effect.fn("qadi.attribute")(function* (
+  subject: AuthSubject,
+  attribute: string,
+) {
+  // Before the call, so a resolver that fails still leaves a span saying what
+  // it was asked. A failed lookup with no question on it is the least useful
+  // span there is.
+  yield* Effect.annotateCurrentSpan({
+    "qadi.attribute": attribute,
+    "qadi.subject_id": subject.id,
+  });
+  yield* Metric.update(portCallsTotal, "AttributeResolver");
+  const value = yield* AttributeResolver.resolve(subject.id, attribute);
+  // `undefined` is the absent sentinel every fail-closed default answers with;
+  // `null` is a value a store genuinely returned.
+  yield* Effect.annotateCurrentSpan({ "qadi.resolved": value !== undefined });
+  return value;
+});
+
+/**
  * Reads an attribute, consulting the subject first.
  *
  * The miss-only call to the resolver is what preserves short-circuiting: a
@@ -249,9 +286,7 @@ const readAttribute = (
 ): Effect.Effect<unknown, EvaluationError, AttributeResolver> =>
   Object.hasOwn(subject.attributes, attribute)
     ? Effect.succeed(subject.attributes[attribute])
-    : Metric.update(portCallsTotal, "AttributeResolver").pipe(
-        Effect.andThen(AttributeResolver.resolve(subject.id, attribute)),
-      );
+    : resolveAttribute(subject, attribute);
 
 /**
  * Why an attribute policy refused.
@@ -326,6 +361,17 @@ const evaluateActed = Effect.fn("qadi.acted")(function* (
 ) {
   const scoped = policy.scope === "Resource";
   const rawId = resource?.["id"];
+  // Annotated before the `MissingResourceId` check, so the span that records a
+  // wiring error still names the event it was asked about. The resource id is
+  // present exactly when the *port call* would carry one — an `Any`-scoped
+  // question asks about no resource even where the request has one, and the
+  // span should say what was asked rather than what was available.
+  yield* Effect.annotateCurrentSpan({
+    "qadi.subject_id": subject.id,
+    "qadi.event": policy.event,
+    "qadi.scope": policy.scope,
+    ...(scoped && typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
+  });
   if (scoped && typeof rawId !== "string") {
     return yield* Effect.fail(new MissingResourceId({ relation: policy.event }));
   }
@@ -336,6 +382,8 @@ const evaluateActed = Effect.fn("qadi.acted")(function* (
     event: policy.event,
     resourceId: scoped && typeof rawId === "string" ? makeResourceId(rawId) : undefined,
   });
+  // A closed three-valued enum, so this discloses nothing a policy tag does not.
+  yield* Effect.annotateCurrentSpan({ "qadi.answer": answer });
   // `"Unknown"` matches neither, so both polarities deny under an unwired
   // port. That is the whole reason the port is three-valued rather than
   // boolean (ADR-QD-020).
@@ -356,6 +404,15 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
   resource: Resource | undefined,
 ) {
   const rawId = resource?.["id"];
+  // Before the check, for the reason `evaluateActed` gives: the span that
+  // records a missing resource id should still name the relation it wanted one
+  // for.
+  yield* Effect.annotateCurrentSpan({
+    "qadi.subject_id": subject.id,
+    "qadi.relation": policy.relation,
+    ...(typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
+    ...(policy.depth === undefined ? {} : { "qadi.depth": policy.depth }),
+  });
   if (typeof rawId !== "string") {
     return yield* Effect.fail(new MissingResourceId({ relation: policy.relation }));
   }
@@ -366,6 +423,7 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
     resourceId: makeResourceId(rawId),
     depth: policy.depth,
   });
+  yield* Effect.annotateCurrentSpan({ "qadi.answer": related });
   // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
   // the arms close over `policy`, `subject` and `rawId`, so there is nothing to
   // hoist. The rebuild is also noise against the service call above, which may

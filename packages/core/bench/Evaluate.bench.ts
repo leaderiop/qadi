@@ -17,16 +17,28 @@
  *   matcher-heavy  four refs, the only workload that reaches `resolveRef`
  *   per element    `filter` over 500 items, where §5a's "once per element on top
  *                  of that" actually happens
+ *   resolver miss  the port path, and the only workload that emits a
+ *                  `qadi.attribute` span
  *
  * The layers are the deterministic ones, so nothing here measures I/O: no
  * attribute store, no relationship graph. That is deliberate — a benchmark whose
  * variance is dominated by a resolver would answer a different question, and the
  * resolvers are ports whose cost belongs to whoever implements them.
+ *
+ * **The resolver-miss workload is the exception, and it is deliberately
+ * unrealistic.** Its resolver answers from a record synchronously, so the port
+ * costs nothing at all — which makes the span and annotations that path emits
+ * (CCR-QD-071) as large a fraction of the total as they can ever be. Against a
+ * store that does any real work the fraction only shrinks, so this is an upper
+ * bound rather than an estimate. Every other attribute workload here reads from
+ * the *subject*, which asks no port and emits no span; without this one, nothing
+ * would measure the port path at all.
  */
+import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
 import { bench, describe } from "vitest";
-import { AttributeResolverNone } from "../src/AttributeResolver.ts";
+import { AttributeResolver, AttributeResolverNone } from "../src/AttributeResolver.ts";
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
@@ -66,12 +78,31 @@ const services = Layer.mergeAll(
 );
 
 /**
+ * The same environment with an attribute resolver that actually answers.
+ *
+ * `alice` carries no `tier`, so `readAttribute` misses the subject and asks the
+ * port — the path a subject hit never reaches.
+ */
+const resolving = Layer.mergeAll(
+  Layer.succeed(AttributeResolver, {
+    name: "record",
+    resolve: (_subjectId, attribute: string) =>
+      Effect.succeed(attribute === "tier" ? 5 : undefined),
+  }),
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+  currentSubjectLayer(alice),
+);
+
+/**
  * Built once, outside the benchmarked function. `Effect.provide` constructs the
  * layer per execution, so provisioning inside the measured body would time layer
  * construction and call it evaluation — the same mistake the decision cache
  * tests had to assert against.
  */
 const runtime = ManagedRuntime.make(services);
+const resolvingRuntime = ManagedRuntime.make(resolving);
 
 const run = (policy: Policy): void => {
   runtime.runSync(evaluate(policy));
@@ -115,6 +146,9 @@ const matchers = allOf([
   hasAttribute("department", eq(subjectId())),
 ]);
 
+/** Absent from the subject, so the port is asked. */
+const missed = hasAttribute("tier", gte(3));
+
 const items = Array.from({ length: 500 }, (_, index) => ({
   id: `doc-${index}`,
   ownerId: index % 2 === 0 ? "alice" : "bob",
@@ -127,6 +161,13 @@ describe("evaluate", () => {
   bench("wide — allOf of 8", () => run(wide), options);
   bench("deep — 10 levels", () => run(deep), options);
   bench("matcher-heavy — 4 refs", () => run(matchers), options);
+  bench(
+    "resolver miss — one port call",
+    () => {
+      resolvingRuntime.runSync(evaluate(missed));
+    },
+    options,
+  );
 });
 
 describe("filter — 500 items", () => {

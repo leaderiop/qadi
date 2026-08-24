@@ -1961,6 +1961,277 @@ describe("observability", () => {
       assert.isDefined(named(spans, "qadi.anyOf"));
     }));
 
+  /**
+   * JOB 1's ledger — the port spans.
+   *
+   * The load-bearing one is the last: a span attribute goes to whatever backend
+   * is wired, so what may appear in one is a disclosure decision rather than a
+   * formatting one (INV-QD-044).
+   */
+  const attributes = (span: Tracer.Span | undefined): Record<string, unknown> =>
+    span === undefined ? {} : Object.fromEntries(span.attributes);
+
+  const resolverOf = (record: Readonly<Record<string, unknown>>) =>
+    Layer.succeed(AttributeResolver, {
+      name: "record",
+      resolve: (_subjectId, attribute: string) => Effect.succeed(record[attribute]),
+    });
+
+  // E1.1 — the commonest branch. A subject hit asks no port, so it emits
+  // nothing: the span and `portCallsTotal` agree about what happened.
+  it.effect("an attribute the subject carries emits no span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
+        Effect.provide(testLayer(subjectWith({ attributes: { tier: 5 } }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.isUndefined(named(spans, "qadi.attribute"));
+    }));
+
+  // E1.2 / E1.3
+  it.effect("a resolved attribute names itself and says a value came back", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({ tier: 5 }) }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
+        "qadi.attribute": "tier",
+        "qadi.subject_id": "u1",
+        "qadi.resolved": true,
+      });
+    }));
+
+  it.effect("an attribute the resolver does not have says so, without inventing one", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({}) })),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.strictEqual(attributes(named(spans, "qadi.attribute"))["qadi.resolved"], false);
+    }));
+
+  // E1.4 — the question is annotated before the call precisely so this holds.
+  it.effect("a resolver that fails still leaves a span saying what it was asked", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* Effect.result(
+        evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
+          Effect.provide(
+            testLayer(subjectWith({ id: "u1" }), {
+              attributes: Layer.succeed(AttributeResolver, {
+                name: "broken",
+                resolve: (_subjectId, attribute: string) =>
+                  Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+              }),
+            }),
+          ),
+          Effect.provide(collectingTracer(spans)),
+        ),
+      );
+
+      const span = named(spans, "qadi.attribute");
+      assert.isDefined(span);
+      assert.deepStrictEqual(attributes(span), {
+        "qadi.attribute": "tier",
+        "qadi.subject_id": "u1",
+      });
+      // No answer to record, and the span must still close or a failing
+      // dependency would leave traces open.
+      assert.notStrictEqual(span?.status._tag, "Started");
+    }));
+
+  // E1.5 — INV-QD-005 is unchanged by any of this: a branch never reached
+  // performs no lookup, and now emits no span either.
+  it.effect("a short-circuited attribute branch emits no span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(
+        P.anyOf([P.hasRole("editor"), P.hasAttribute("tier", M.gte(3))]),
+      ).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ roles: ["editor"] }), { attributes: resolverOf({ tier: 5 }) }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.isUndefined(named(spans, "qadi.attribute"));
+    }));
+
+  // E1.6 — an `Any`-scoped question asks about no resource even where the
+  // request carries one, so the span says what was asked.
+  it.effect("qadi.acted names the question, and omits a resource it did not ask about", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasActed("raised", { scope: "Any" }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            history: decisionHistoryFromEvents([
+              { subjectId: "u1", event: "raised", resourceId: "doc-9" },
+            ]),
+          }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
+        "qadi.subject_id": "u1",
+        "qadi.event": "raised",
+        "qadi.scope": "Any",
+        "qadi.answer": "Acted",
+      });
+    }));
+
+  it.effect("a resource-scoped qadi.acted carries the resource it asked about", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasActed("raised"), { resource: { id: "doc-1" } }).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1" }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
+        "qadi.subject_id": "u1",
+        "qadi.event": "raised",
+        "qadi.scope": "Resource",
+        "qadi.resource_id": "doc-1",
+        // Unwired, so three-valued rather than a denial's boolean (ADR-QD-020).
+        "qadi.answer": "Unknown",
+      });
+    }));
+
+  /**
+   * The other half of E1.6, and the case that makes annotating *before* the
+   * guard cost something: `scoped` is true and there is no id to report, so the
+   * key must still be absent. Writing `qadi.resource_id: undefined` would put a
+   * field on the span whose value is the word nobody meant — the same failure
+   * the decision log avoids by rendering an absent column blank.
+   */
+  it.effect("a resource-scoped qadi.acted with no resource id reports no resource", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* Effect.result(
+        evaluate(P.hasActed("raised"), { resource: { name: "no id" } }).pipe(
+          Effect.provide(testLayer(subjectWith({ id: "u1" }))),
+          Effect.provide(collectingTracer(spans)),
+        ),
+      );
+
+      const span = named(spans, "qadi.acted");
+      assert.deepStrictEqual(attributes(span), {
+        "qadi.subject_id": "u1",
+        "qadi.event": "raised",
+        "qadi.scope": "Resource",
+      });
+      assert.notStrictEqual(span?.status._tag, "Started");
+    }));
+
+  // E1.7
+  it.effect("qadi.hasRelationship omits a depth the policy did not set", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            relationships: relationshipResolverFromEdges([
+              { subjectId: "u1", relation: "owner", resourceId: "doc-1" },
+            ]),
+          }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasRelationship")), {
+        "qadi.subject_id": "u1",
+        "qadi.relation": "owner",
+        "qadi.resource_id": "doc-1",
+        "qadi.answer": "Related",
+      });
+    }));
+
+  it.effect("a depth the policy did set is carried", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasRelationship("owner", { depth: 3 }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1" }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.strictEqual(attributes(named(spans, "qadi.hasRelationship"))["qadi.depth"], 3);
+    }));
+
+  // E1.8 — a wiring error should still say what it wanted a resource id for.
+  it.effect("a missing resource id leaves a span naming the relation", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* Effect.result(
+        evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
+          Effect.provide(testLayer(subjectWith({ id: "u1" }))),
+          Effect.provide(collectingTracer(spans)),
+        ),
+      );
+
+      const span = named(spans, "qadi.hasRelationship");
+      assert.deepStrictEqual(attributes(span), {
+        "qadi.subject_id": "u1",
+        "qadi.relation": "owner",
+      });
+      assert.notStrictEqual(span?.status._tag, "Started");
+    }));
+
+  /**
+   * E1.9 — the one that would be a defect rather than a shortfall.
+   *
+   * `hasActed` and `hasRelationship` answer with closed enums; an attribute
+   * resolves to arbitrary data. A span attribute reaches whatever backend is
+   * wired, so the value must not appear in one — asserted against **every**
+   * span the evaluation emitted, not only the attribute's own, because the
+   * question is where the value could leak rather than where it was meant to.
+   */
+  it.effect("a resolved attribute's value never reaches any span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const secret = "sentinel-8f21-do-not-disclose";
+
+      yield* evaluate(P.hasAttribute("clearance", M.eq(M.literal(secret)))).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            attributes: resolverOf({ clearance: secret }),
+          }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      const rendered = spans
+        .flatMap((span) => [...span.attributes.values()])
+        .map((value) => String(value))
+        .join(" ");
+      assert.notInclude(rendered, secret);
+    }));
+
   it.effect("a failed evaluation still ends its span", () =>
     Effect.gen(function* () {
       const spans: Array<Tracer.Span> = [];
