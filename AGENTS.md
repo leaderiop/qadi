@@ -389,7 +389,7 @@ the whole package:
 ## 15. Documentation is gated, not remembered
 
 `spec/overview.md` must name every export of every public package.
-`scripts/check-api-surface.mjs` is merge gate 9 and fails otherwise; to leave an
+`scripts/check-api-surface.mjs` is merge gate 11 and fails otherwise; to leave an
 export out of the tables, put it in that document's "Not listed above" table with a
 reason. Omission is allowed, silent omission is not.
 
@@ -410,7 +410,7 @@ other way round.
 
 ## 16. Publish with `pnpm`, never `npm`
 
-`scripts/check-package-install.mjs` is merge gate 10: it packs each public package,
+`scripts/check-package-install.mjs` is merge gate 12: it packs each public package,
 installs it into a sandbox and makes a TypeScript consumer authorize through the
 published `exports` map. Two rules come out of it, and both are checked rather than
 remembered.

@@ -100,7 +100,7 @@ remembers to update it" is exactly the kind of connection
 [Definitions of Done](../process/definitions-of-done.md) already
 identifies as the thing that rots (`spec/overview.md` drifted from the
 exports twice for precisely this reason — CCR-QD-025, CCR-QD-034 —
-before gate 9 closed it). A changeset is written next to the change that
+before `scripts/check-api-surface.mjs` closed it). A changeset is written next to the change that
 motivated it, in the same PR, or `changeset status` says so.
 
 **Deciding publishing scope now, as part of this same change.** Declined

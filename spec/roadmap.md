@@ -28,13 +28,19 @@ HTTP framework bindings and a test toolkit — six packages.
 | `tsc -b` (sources and tests) | passing |
 | `oxlint` + house-style checks | passing |
 | Circular imports (`madge`) | none found, across every package's `src/` |
-| Type-level tests (`tstyche`) | 8 assertions passing |
-| Unit and property tests | 617 passing |
-| Acceptance scenarios | 150 scenarios, 735 steps passing |
-| Coverage | 99.6% statements, 98.5% branches, 100% functions, 99.63% lines — thresholds enforced |
-| Doc examples compile | 71 blocks |
-| Specification integrity | 13 checks passing |
-| Mutation score | 96.67% on `packages/core`, break threshold 80 — enforced |
+| Type-level tests (`tstyche`) | 13 assertions passing |
+| Unit and property tests | 1589 passing |
+| Acceptance scenarios | 220 scenarios, 1002 steps passing |
+| Coverage | 99.29% statements, 96.16% branches, 99.59% functions, 99.53% lines — thresholds enforced |
+| Doc examples compile | 73 blocks |
+| Specification integrity | 15 checks passing |
+| Mutation score | 96.65% on `packages/core` and 100.00% on the `@qadi/devtools` model, break threshold 80 — enforced |
+
+This table groups the **fourteen** numbered steps of
+[the merge gate](./process/definitions-of-done.md#merge-gate) into families and
+is not a row-for-row image of it. `scripts/check-dod-table.mjs` checks that
+table against `pnpm check`; this one carries measured numbers and is maintained
+by hand, so it is the one to distrust first.
 
 Every requirement in the [URS](./urs.md) now has a test behind it; §7 there
 records both gaps that writing it surfaced, and both are closed.
@@ -174,7 +180,7 @@ interactions, when the answer was to make them unreachable: share the fold, and 
 schedule cannot reach a decision rule at all.
 
 **Mutation testing is a gate rather than an aspiration**
-([ADR-QD-025](./decisions/025-mutation-testing.md)): `stryker run` is step 11 of
+([ADR-QD-025](./decisions/025-mutation-testing.md)): `stryker run` is step 13 of
 `pnpm check` and fails below 80%. It replaces five hand-run passes whose results
 were quoted into ADRs as prose — evidence nobody but its author could reproduce,
 which is the predecessor's failure mode in miniature. The first enforced run also

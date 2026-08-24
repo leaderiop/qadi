@@ -105,4 +105,4 @@ package no test covered.
 - (−) Two entry points mean two API surfaces to document. `check-api-surface.mjs`
   had to learn to read a package's `exports` map; before that it assumed
   `src/index.ts` was the only one, and the dock's exports would have been
-  invisible to gate 9.
+  invisible to `scripts/check-api-surface.mjs`, gate 11.

@@ -70,8 +70,8 @@ table to change ([ADR-QD-031](../decisions/031-decision-cache.md)).
 [05 — Evaluator](./05-evaluator.md) had listed five since E5 shipped. Two behaviour
 documents disagreeing about how many services exist is the kind of drift a normative
 set cannot carry, and the first time it had propagated into §1 of the traceability
-matrix. Twice is a pattern, not an oversight, and it is the reason step 9 of the merge
-gate now exists — though note what that gate does and does not cover: it checks that
+matrix. Twice is a pattern, not an oversight, and it is the reason
+`scripts/check-api-surface.mjs`, step 11 of the merge gate, now exists — though note what that gate does and does not cover: it checks that
 `spec/overview.md` names every **export**, and `DecisionCache` being missing from
 **this** table is a different miss that the gate would not have caught.*
 

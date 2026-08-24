@@ -52,8 +52,8 @@ pnpm spec:verify:strict  # specification internal consistency
 pnpm spec:api      # the documented API surface matches the real one
 pnpm spec:package  # the packed packages install, resolve and authorize
 pnpm bench         # dispatch and evaluation throughput (measurement, not a gate)
-pnpm mutation      # Stryker, breaking below 80% on packages/core
-pnpm check         # all thirteen gates, in order
+pnpm mutation      # Stryker on packages/core and on the devtools model
+pnpm check         # all fourteen gates, in order
 ```
 
 `pnpm check` is the merge gate, and [CI](./.github/workflows/check.yml) runs that

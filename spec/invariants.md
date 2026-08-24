@@ -822,7 +822,7 @@ project graph — the typecheck one — included the package and left a `lib/` b
 looked like a build product. Ten gates read the sources and agreed, and the tarball
 would have shipped empty.
 
-**Enforcement**: step 10 of `pnpm check`. `scripts/check-package-install.mjs` reads the
+**Enforcement**: step 12 of `pnpm check`. `scripts/check-package-install.mjs` reads the
 build graph, packs each public package with `pnpm`, extracts the tarballs into a sandbox
 resolving `effect` and `react` from this workspace, and compiles and runs a TypeScript
 consumer against the shipped `.d.ts`. Its first check is static because it is the only

@@ -828,9 +828,11 @@ Compatibility is claimed by running the merge gate, not by inspection:
 pnpm check
 ```
 
-which runs `typecheck`, `lint`, `coverage`, `test:bdd`, `spec:examples` and
-`spec:verify:strict` in that order. For this document set, `spec:verify:strict`
-is the operative gate: it verifies that every file in `spec/models/` appears in
+whose steps are enumerated in
+[Definitions of Done](../process/definitions-of-done.md#merge-gate) — named
+there rather than restated here, because this listing had gone stale against
+that table twice over. For this document set, `spec:verify:strict` is the
+operative gate: it verifies that every file in `spec/models/` appears in
 `index.yaml` and that every relative link resolves.
 
 Note two things it does **not** check. Anchors are never validated, so a link to

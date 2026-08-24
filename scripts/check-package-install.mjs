@@ -60,7 +60,7 @@ const UNRESOLVED = /^(catalog:|workspace:|link:|file:|portal:)/;
 const DEPENDENCY_FIELDS = ["dependencies", "peerDependencies", "optionalDependencies"];
 
 // ---------------------------------------------------------------------------
-// Discover the public packages. `private: true` is excluded, exactly as gate 9
+// Discover the public packages. `private: true` is excluded, exactly as gate 11
 // excludes it: @qadi/features is never published, so it has no tarball to check.
 // ---------------------------------------------------------------------------
 

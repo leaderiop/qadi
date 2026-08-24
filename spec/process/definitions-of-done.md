@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-02                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 
@@ -35,6 +35,7 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 11 | `node scripts/check-api-surface.mjs` | `spec/overview.md` names every export of every public package |
 | 12 | `node scripts/check-package-install.mjs` | The packed packages install, resolve and authorize |
 | 13 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
+| 14 | `stryker run stryker.devtools.mjs` | Mutation score on the `@qadi/devtools` **model** is at or above 80% |
 
 Steps 5 and 6 are new in CCR-QD-048 ([ADR-QD-037](../decisions/037-circular-imports-and-type-level-tests-are-gates.md)).
 Both are placed here — after the lint family, before the slower runtime
@@ -90,6 +91,16 @@ The second defect explains the shape of the gate. It survived ten green gates be
 and `tsc -b` emits — so a `lib/` was always on disk looking like a build product. The
 gate's first check therefore reads `tsconfig.build.json` statically, because it is the
 only check here that a stale directory cannot fool. See ADR-QD-033.
+
+Step 14 is new here in CCR-QD-075 and was **running untabled since CCR-QD-067**.
+`"mutation"` is `stryker run && stryker run stryker.devtools.mjs` — two configs,
+because `stryker.config.mjs` pins `vitest.dir` to `packages/core` and a mutant in
+another package would have no covering test, survive, and fail the gate for a
+reason unrelated to the change under review. The table documented one of the two,
+so the documented gate was **weaker than the real one** — the same defect this
+table records at step 9, and one that misled a reader of this repository into
+reporting a devtools-only score as the whole picture. Step 15 now checks the
+table against `pnpm check`, so a third occurrence fails the build.
 
 Step 13 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
 which lines executed, not which assertions mean anything, and every enabler in
