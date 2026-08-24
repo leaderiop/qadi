@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-01                                    |
-> | Revision       | 0.4 (draft)                                    |
+> | Revision       | 0.5 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                    |
-> | Change History | 0.4 (2026-08-24): The dock is built; its normative rules are BEH-QD-210 (CCR-QD-067)<br>0.3 (2026-08-24): The non-page topologies now have a data path, though still no surface (CCR-QD-066)<br>0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.5 (2026-08-24): The lens is built; the gap saying it was blocked on a design change to `@qadi/react` closed, and the dock's "apart from the lens" qualifier withdrawn (CCR-QD-074)<br>0.4 (2026-08-24): The dock is built; its normative rules are BEH-QD-210 (CCR-QD-067)<br>0.3 (2026-08-24): The non-page topologies now have a data path, though still no surface (CCR-QD-066)<br>0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -20,9 +20,10 @@
 An **in-page overlay dock** sliding up from the bottom of the host
 application, plus an **element-picking lens** merged into its toolbar.
 
-**Built**, apart from the lens: `DevtoolsDock` in `@qadi/devtools/react` is the
-dock, and [BEH-QD-210](../behaviors/27-devtools-timeline.md) is where its rules
-are normative. Two of them are worth repeating here because they constrain the
+**Built**, the lens included (CCR-QD-073): `DevtoolsDock` in
+`@qadi/devtools/react` is the dock, and
+[BEH-QD-210](../behaviors/27-devtools-timeline.md) is where its rules are
+normative. Two of them are worth repeating here because they constrain the
 form: the dock **does not mount itself** — the host renders it, since a module
 whose only job is a side effect may be dropped by a bundler under
 `"sideEffects": false` — and its styling is **inline objects**, because this
@@ -35,8 +36,9 @@ running the host application, and
 records three deployments where that does not hold — a backend-only service, a
 serverless function, a replicated server. Their decisions are now *reachable* —
 `/__decisions` serves them and `ingest` merges several processes into one
-timeline — but a dock has nowhere to run, so they need a served dev UI, a CLI, or
-an exporter. None of this document applies to those. What survives across all of
+timeline — but a dock has nowhere to run, so they need a second shell.
+[ADR-QD-049](../decisions/049-the-second-shell-is-a-cli.md) decided that shell is
+a **CLI**, and it is not written. None of this document applies to those. What survives across all of
 them is the **data plane** (`DecisionSink`, the wire form, the feed) and the
 vocabulary rules; the dock is the presentation for the topologies that have a
 page.
@@ -72,12 +74,27 @@ Toggling the crosshair enters element-picking mode over the host page:
 The React panel's "highlight" action is the inverse mapping: from a gate in
 the tree to its DOM element.
 
+**Built** ([ADR-QD-053](../decisions/053-a-gate-can-be-found.md), CCR-QD-073).
+The design change this gap named is the one that was made: `@qadi/react` gained
+an opt-in registry of live gate instances, each carrying the marker element
+React's ref filled in. It still touches no DOM — measuring, drawing and
+hit-testing are `@qadi/devtools`'s `react/Lens.ts`. The marker is
+`display: contents`, so it generates no box and changes no layout, and with
+`instrument` off there is no marker and no registration at all.
+
+The original note, kept because half of it is still the design:
+
 > **Gap.** Both directions of the lens need something `@qadi/react` does not
 > have: a registry of live gate instances and a handle on their DOM nodes. The
 > package never touches the DOM, and `Atom.family` keys structurally so several
 > `<Can>` on one policy are a single atom — see
 > [02-screens.md §7](./02-screens.md#7-react-panel-client-only). Lens mode is
 > therefore blocked on a design change to `@qadi/react`, not on devtools work.
+
+The structural keying is still true and is still why the panel is keyed by
+question. What did not follow is that instances are unobtainable: the *atom
+layer* cannot distinguish them, and a component knows perfectly well that it
+exists.
 
 ## Cross-links (must all be wired)
 

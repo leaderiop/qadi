@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-00                                    |
-> | Revision       | 0.5 (draft)                                    |
+> | Revision       | 0.6 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.6 (2026-08-24): Screens 3, 6 and 7 re-marked **Built** and four stale data claims corrected — resolver calls, port counts, wired implementations and hydration counts are all obtainable now (CCR-QD-074)<br>0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -50,6 +50,17 @@ The consequence is a requirement on this document rather than a footnote:
 **wiring is mandatory and must be documented as such.** The app author provides
 a sink layer at runtime construction. There is no way to make a devtools appear
 in an application that has not asked for one, and there should not be.
+
+> **A span channel exists after all, for the one thing spans are good at**
+> (CCR-QD-071, recorded here in CCR-QD-074). Both sentences above stay true —
+> a span cannot carry a `Trace`, and a `Tracer` cannot attach at mount — and
+> neither rules out `collectPortCalls`, a `Tracer` layer the host wires at
+> runtime construction on exactly the terms this paragraph demands. It reads
+> *port calls*, which are flat by nature: an attribute name, a subject id, a
+> three-valued answer. It **wraps** the tracer already in scope rather than
+> shadowing it, so a host that wired its own keeps it. What was withdrawn is
+> the claim that spans could carry the whole product, not the use of a span for
+> what fits in one.
 
 **Records also travel.** `decisionSinkForwarding` hands each record to a
 caller-supplied `send`, `decisionSinkFeed` buffers without ever blocking the
@@ -130,12 +141,12 @@ remaining gaps are listed here rather than discovered during implementation.
 | # | Screen | Data status |
 | - | ------ | ----------- |
 | 1 | Decision log | **Ready.** A record carries every column, including the `resource` and timestamp a `Decision` never had. |
-| 2 | Decision inspector | **Ready**, including per-decision cache outcome. Remaining: obligation *discharged/pending* state is unobservable, and resolver calls are not recorded. |
-| 3 | Policy explorer | **Partial.** The ADT, codec, `simplify` and now `policyDepth` all exist. Nothing enumerates "all named policies" — a policy is a value the app holds — so the left rail still has no source. |
+| 2 | Decision inspector | **Ready**, including per-decision cache outcome. Resolver calls **are** recorded now — `collectPortCalls` keeps the three port spans and the Services panel lists them (CCR-QD-071); they are not correlated to one decision, which is a different and still-open thing. Remaining: obligation *discharged/pending* state is unobservable by construction. |
+| 3 | Policy explorer | **Built** (CCR-QD-068). The rail is fed by `catalogueOf`, which merges what the log has **seen** — every record carries its policy — with an optional `catalogue` the host passes. Remaining, and unchanged: nothing can enumerate "all named policies" from inside the program, because a policy is a value the app holds. The screen names what it was given rather than implying completeness. |
 | 4 | Role DAG viewer | **Ready.** `permissionProvenance` supplies the granting role and path, in agreement with `flattenPermissions`; an unknown parent is now reported rather than silently dropped. |
 | 5 | Subject simulator | **Built** (CCR-QD-070). Sealed in every mode; three answer sources; what-if in both directions; replay checked against the logged trace. |
-| 6 | Services & cache | **Partial.** `size`, per-decision hit/miss and `clear` now exist. Remaining: which *implementation* is wired is not obtainable from inside the program, there are no per-port call counts or retry stats, and there is **no TTL** — the cache is bounded by capacity, evicted FIFO. |
-| 7 | React panel | **Rescope required.** `Atom.family` keys structurally, so ten `<Can>` on one policy are **one atom**. Per-instance enumeration and DOM highlighting are not merely unimplemented; the current architecture makes them unobtainable without an instance registry. Hydration counts other than mismatches are likewise not retained. |
+| 6 | Services & cache | **Built** (CCR-QD-068, CCR-QD-071). `size`, per-decision hit/miss and `clear` exist; `wiringReport` names which implementation is wired via each service's own `name`; `portActivity` reads per-port call and retry counts from `PortMetrics`; and `collectPortCalls` lists what each port was actually asked. Remaining, and by design: there is **no TTL** — the cache is bounded by capacity and evicted FIFO, and adding time-based eviction is a cache design change rather than a display one. |
+| 7 | React panel | **Built** (CCR-QD-068, CCR-QD-072, CCR-QD-073). Keyed by question, because `Atom.family` keys structurally and ten `<Can>` on one policy are one atom — that part was always right. The conclusion drawn from it was not: per-instance enumeration and DOM highlighting needed an instance registry, and one was built ([ADR-QD-053](../decisions/053-a-gate-can-be-found.md)), so both views are shown and the lens works in both directions. All four hydration counts are retained ([ADR-QD-052](../decisions/052-hydration-is-counted-where-both-ends-can-see-it.md)). |
 
 ## Vocabulary rules the UI must respect
 

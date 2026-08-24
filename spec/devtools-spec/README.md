@@ -57,16 +57,28 @@ specified normatively elsewhere — see
 documents and those disagree, those win.
 
 **Built.** The data plane (ADR-QD-044), the transport (ADR-QD-045, ADR-QD-046),
-and now the surface: `@qadi/devtools` ships a headless model — sources,
-timeline, verdicts, pairing, the policy/trace zip, filters, selection — and
-`@qadi/devtools/react` renders **screens 1 and 2**, the decision log and the
-inspector, in a dock the host mounts.
+and the surface: `@qadi/devtools` ships a headless model — sources, timeline,
+verdicts, pairing, the policy/trace zip, filters, selection, simulation, port
+calls and gate instances — and `@qadi/devtools/react` renders **all seven
+screens** in a dock the host mounts.
 
-**Not built.** Screens 3 to 6, each waiting on the gap named against it below.
-Screen 7 needs rescoping rather than implementing. And the three topologies with
-no browser page still have no rendered surface: their decisions are reachable at
-`/__decisions` and the model that merges them is framework-free, so a served dev
-UI or a CLI is a second shell over the same model — but it is not written.
+Screens 3 to 6 landed in CCR-QD-068, the subject simulator in CCR-QD-070, port
+calls in CCR-QD-071, hydration counts in CCR-QD-072, and the React panel's
+per-instance view and lens in CCR-QD-073.
+
+**Not built.** The three topologies with no browser page still have no rendered
+surface: their decisions are reachable at `/__decisions` and the model that
+merges them is framework-free, so a second shell is a shell over the same model
+— [ADR-QD-049](../decisions/049-the-second-shell-is-a-cli.md) decided it should
+be a **CLI** rather than a served page, and it is not written.
+
+> **Corrected in CCR-QD-074.** This section read "**Not built.** Screens 3 to 6…
+> Screen 7 needs rescoping rather than implementing" for six increments after
+> they were built. Nothing gates the prose in this folder — `pnpm check`'s
+> spec gates verify indexes, cross-references and link integrity here, and
+> `spec/overview.md`'s API-surface gate does not reach it. Every claim about
+> what exists is therefore maintained by hand, which is what CCR-QD-025 and
+> CCR-QD-034 already recorded going wrong twice elsewhere.
 
 The repository still has **no frontend build tooling** — no bundler, no CSS
 pipeline, no dev server, no example app — and the dock is built to need none:
