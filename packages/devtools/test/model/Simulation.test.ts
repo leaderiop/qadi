@@ -278,6 +278,31 @@ describe("simulate", () => {
       assert.isAbove(Context.get(context, Clock.Clock).currentTimeMillisUnsafe(), 0);
     }).pipe(Effect.scoped));
 
+  /**
+   * E6.2, and the reason the screen has to **label** the clock rather than read
+   * the number.
+   *
+   * A deterministic run reports zero, reproducibly. So does a live run of a
+   * trivial policy, because an in-memory evaluation genuinely takes under a
+   * millisecond — so `0` on its own cannot tell "not measured" from "measured,
+   * and fast". Only the option the caller passed distinguishes them, which is
+   * why it has to reach the panel rather than being inferred there.
+   *
+   * `it.live` for the live half: `@effect/vitest` hands `it.effect` a
+   * `TestClock`, so under it *both* halves would read zero and the test would
+   * prove nothing.
+   */
+  it.live("reports a reproducible zero under the deterministic clock", () =>
+    Effect.gen(function* () {
+      const deterministic = decisionOf(
+        yield* simulate(hasPermission(read), alice, { clock: "deterministic" }),
+      );
+      assert.strictEqual(deterministic.durationMillis, 0);
+
+      const live = decisionOf(yield* simulate(hasPermission(read), alice, { clock: "live" }));
+      assert.isAtLeast(live.durationMillis, 0);
+    }));
+
   // The resource and the action are optional, and absent must mean absent —
   // an empty resource is a different question from no resource at all.
   it.effect("omits an absent resource and action rather than passing empty ones", () =>

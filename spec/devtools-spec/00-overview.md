@@ -108,11 +108,17 @@ simulator, seeded from its entry, and what-if edits re-evaluate against
 `@qadi/testing` layers.
 
 One correction to revision 0.1, which claimed "clock and evaluation ids
-reproducible, per ADR-QD-012". Ids are: `evaluationIdSequential` is wired by
-`qadiReviewLayer`. **The clock is not** — nothing in `@qadi/testing` provides a
+reproducible, per ADR-QD-012". Ids were: `evaluationIdSequential` is wired by
+`qadiReviewLayer`. **The clock was not** — nothing in `@qadi/testing` provided a
 `TestClock`, and while `@effect/vitest`'s `it.effect` supplies one to *tests*, a
-simulator running in a browser has no such ambient help. A simulator that wants
-reproducible durations must wire `TestClock` itself.
+simulator running in a browser has no such ambient help. One half of a
+determinism claim is worse than neither, because it is believed, and it survived
+precisely because every test suite already had the half that was missing.
+
+**Closed** (CCR-QD-069): `TestLayerOptions.clock` takes `"live" | "test"`, and
+`simulate` takes the same choice as `"live" | "deterministic"`. Neither changes
+a `Trace`, which carries no time — see [screen 5](./02-screens.md#5-subject-simulator--what-if)
+for why that made this a presentation gap rather than a correctness one.
 
 ## Feature set (v1), by what its data plane can supply
 

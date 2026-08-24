@@ -193,8 +193,25 @@ difference — verdict, reason, fields, obligations — each addressed by a path
 the root ([BEH-QD-194](../behaviors/25-inspection.md)). An empty diff is the
 check a replay wants: stronger than "the verdicts match".
 
-> **Gap — reproducible durations.** `@qadi/testing` wires deterministic ids but
-> **no clock**. A simulator in a browser must wire `TestClock` itself.
+**Reproducible durations — the gap dissolved twice over, and both halves are
+worth writing down.**
+
+The first half is that it was never a *correctness* gap. `diffTraces` compares
+`allowed`, `reason`, `children`, `visibleFields` and `obligations`, and a `Trace`
+carries **no time at all** — so replay comparison was already deterministic
+under any clock. What a clock buys is a reproducible number on screen, which is
+presentation.
+
+The second half is that the presentation gap is closed anyway, in both places.
+`simulate(policy, input, { clock: "deterministic" })` wires `TestClock` for one
+simulation, and `qadiTestLayer(subject, { clock: "test" })` closes it for
+`@qadi/testing`'s own users, who had exactly the problem this note described
+(CCR-QD-069).
+
+**A duration of `0` still does not mean "not measured".** A live run of a
+trivial policy also reports zero, because an in-memory evaluation genuinely
+takes under a millisecond. The panel therefore labels the clock it ran under
+rather than inferring anything from the number.
 
 ## 6. Services & cache
 
