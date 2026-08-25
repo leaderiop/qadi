@@ -70,7 +70,27 @@ export const Shell = ({
 
     <form action={switchUser} style={{ ...note, display: "flex", gap: 8, alignItems: "center" }}>
       <span style={mono}>viewing as</span>
-      <select name="user" defaultValue={currentUserId} style={{ ...button, cursor: "default" }}>
+      {/*
+        `key`, and it is load-bearing. A `<select>` with `defaultValue` is
+        **uncontrolled**: React applies the default when the element mounts and
+        re-applies that same mount-time value on later updates. After the server
+        action switches the session, this subtree re-renders with a new
+        `currentUserId` and the control keeps showing **the value it had when it
+        mounted** — measured: three switches in a row, and it read the same name
+        throughout while every decision below it changed. The switch works and
+        the control says it did not, which is worse than either.
+
+        Keying on the value forces a remount, so the default applies again. The
+        alternative is `useState` in a client component, which would put session
+        state in React for a control whose whole job is to say what the *server*
+        thinks.
+      */}
+      <select
+        key={currentUserId}
+        name="user"
+        defaultValue={currentUserId}
+        style={{ ...button, cursor: "default" }}
+      >
         <option value="">anonymous</option>
         {users.map((user) => (
           <option key={user.id} value={user.id}>

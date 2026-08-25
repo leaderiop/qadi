@@ -137,8 +137,10 @@ use `useDecision` and render the pending state.
 ### 9. A `<select defaultValue>` lies after a Server Action
 
 The user switcher looked broken and was not. Switching worked — the cookie
-changed and every decision on the page changed with it — and the `<select>`
-snapped back to the previous name, which is worse than either outcome on its own.
+changed and every decision on the page changed with it — and the `<select>` went
+on naming the user it had when it first mounted. Measured: three switches in a
+row, and it read the same name throughout. That is worse than either outcome on
+its own.
 
 A `<select>` with `defaultValue` is **uncontrolled**: React applies the default
 at mount and re-applies that same mount-time value on later updates, so a
