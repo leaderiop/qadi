@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - features
+  - examples/*
 
 catalog:
   '@effect/vitest': 4.0.0-rc.110

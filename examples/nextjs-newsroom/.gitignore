@@ -1,0 +1,10 @@
+# Next's build output and generated types. `next build` rewrites tsconfig.json's
+# `include` to point at these, so they must exist locally and must never be
+# committed — a stale `.next/types` is how a build passes on one machine and
+# fails on every other.
+.next/
+next-env.d.ts
+
+# Playwright
+playwright-report/
+test-results/
