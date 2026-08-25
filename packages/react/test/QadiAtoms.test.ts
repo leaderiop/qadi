@@ -8,6 +8,7 @@
 import {
   AttributeResolver,
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -39,6 +40,7 @@ const baseLayer = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
 );
 
 /** Counts how many times an attribute lookup actually happens. */
@@ -54,6 +56,7 @@ const countingLayer = (counter: { count: number }) =>
     RelationshipResolverNever,
     DecisionHistoryUnknown,
     EvaluationIdLive,
+    CustomPredicateNone,
   );
 
 const registries: Array<AtomRegistry.AtomRegistry> = [];

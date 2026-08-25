@@ -41,6 +41,7 @@ import { bench, describe } from "vitest";
 import { AttributeResolver, AttributeResolverNone } from "../src/AttributeResolver.ts";
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
+import { CustomPredicateNone } from "../src/CustomPredicate.ts";
 import { DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
 import { EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
@@ -75,6 +76,7 @@ const services = Layer.mergeAll(
   EvaluationIdLive,
   RelationshipResolverNever,
   currentSubjectLayer(alice),
+  CustomPredicateNone,
 );
 
 /**
@@ -93,6 +95,7 @@ const resolving = Layer.mergeAll(
   EvaluationIdLive,
   RelationshipResolverNever,
   currentSubjectLayer(alice),
+  CustomPredicateNone,
 );
 
 /**

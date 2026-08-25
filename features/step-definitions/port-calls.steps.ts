@@ -21,6 +21,7 @@ import {
   AttributeResolver,
   AttributeResolverNone,
   currentSubjectLayer,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   evaluate,
   evaluationIdSequential,
@@ -171,6 +172,7 @@ const run = async (name: string, resource?: Record<string, unknown>): Promise<vo
     relationships,
     DecisionHistoryUnknown,
     evaluationIdSequential("ev"),
+    CustomPredicateNone,
   );
 
   // An outer tracer that records every span, so the value-disclosure scenario

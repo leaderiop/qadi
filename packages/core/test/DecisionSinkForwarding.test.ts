@@ -5,6 +5,7 @@ import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import { isAllowed } from "../src/Decision.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
+import { ObligationRecord } from "../src/DecisionRecord.ts";
 import { decisionSinkAll, decisionSinkForwarding } from "../src/DecisionSinkForwarding.ts";
 import { decisionSinkRing } from "../src/DecisionSinkRing.ts";
 import { evaluate } from "../src/Evaluate.ts";
@@ -224,13 +225,14 @@ describe("forward and ingest, end to end", () => {
     Effect.gen(function* () {
       const ring = decisionSinkRing({ environment: "Server" });
 
-      yield* ring.ingest({
-        _tag: "Obligations",
-        evaluationId: "e",
-        at: 0,
-        outcome: "Refused",
-        obligationIds: ["audit.log"],
-      });
+      yield* ring.ingest(
+        new ObligationRecord({
+          evaluationId: "e",
+          at: 0,
+          outcome: "Refused",
+          obligationIds: ["audit.log"],
+        }),
+      );
 
       assert.strictEqual((yield* ring.snapshot)[0]?.environment, "Server");
     }));
@@ -240,13 +242,14 @@ describe("forward and ingest, end to end", () => {
       const ring = decisionSinkRing({ environment: "Server", capacity: 2 });
 
       for (const id of ["a", "b", "c"]) {
-        yield* ring.ingest({
-          _tag: "Obligations",
-          evaluationId: id,
-          at: 0,
-          outcome: "Discharged",
-          obligationIds: [],
-        });
+        yield* ring.ingest(
+          new ObligationRecord({
+            evaluationId: id,
+            at: 0,
+            outcome: "Discharged",
+            obligationIds: [],
+          }),
+        );
       }
 
       // One bound for both paths — an aggregator taking records from n replicas

@@ -92,6 +92,22 @@ describe("Policy combinators", () => {
     assert.strictEqual(policy.depth, 3);
     assert.deepStrictEqual(policy.fields, ["title"]);
   });
+
+  it("hasCustom carries its name, params and fields", () => {
+    const policy = P.hasCustom("isOwner", { threshold: 5 }, { fields: ["id"] });
+    if (policy._tag !== "HasCustom") return;
+    assert.strictEqual(policy.name, "isOwner");
+    assert.deepStrictEqual(policy.params, { threshold: 5 });
+    assert.deepStrictEqual(policy.fields, ["id"]);
+  });
+
+  it("hasCustom omits params rather than setting it to undefined", () => {
+    // `fieldsKey`'s own reasoning applies here too: an omitted optional key
+    // keeps encode/decode an exact identity, so a hand-built policy and one
+    // that round-tripped through JSON are `deepStrictEqual`.
+    const policy = P.hasCustom("isOwner");
+    assert.isFalse(Object.hasOwn(policy, "params"));
+  });
 });
 
 describe("Obligation", () => {
@@ -407,6 +423,12 @@ describe("Policy serialization", () => {
         FastCheck.tuple(FastCheck.string(), FastCheck.option(FastCheck.integer())).map(
           ([relation, depth]) =>
             P.hasRelationship(segment(relation), depth === null ? undefined : { depth }),
+        ),
+        // `params` is `Schema.Unknown`, so both branches of its own omission
+        // ternary need a generator turn — the same reasoning `depth`'s
+        // `FastCheck.option` above already needed.
+        FastCheck.tuple(FastCheck.string(), FastCheck.option(FastCheck.string())).map(
+          ([name, params]) => P.hasCustom(segment(name), params === null ? undefined : params),
         ),
       );
 

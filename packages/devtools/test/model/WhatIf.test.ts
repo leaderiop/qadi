@@ -14,6 +14,7 @@ import {
   anyOf,
   AttributeResolveError,
   AttributeResolver,
+  CustomPredicateNone,
   decisionSinkRing,
   DecisionHistoryUnknown,
   eq,
@@ -70,6 +71,7 @@ const brokenPorts = Layer.mergeAll(
   }),
   RelationshipResolverNever,
   DecisionHistoryUnknown,
+  CustomPredicateNone,
 );
 
 describe("compareOutcomes", () => {

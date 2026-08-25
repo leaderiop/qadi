@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-OVERVIEW                                  |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -23,9 +23,11 @@ bespoke port.
 
 ## Design philosophy
 
-**One definition per concept.** The policy union is a Schema; the type and the
-JSON codec are derived from it. Every defect this library was written to remove
-came from maintaining two representations of one thing and letting them drift.
+**One definition per concept.** The policy union's recursive type is
+hand-written once, and the Schema — and from it the JSON codec — is built and
+type-checked against that single definition. Every defect this library was
+written to remove came from maintaining two representations of one thing and
+letting them drift.
 
 **Failure is not denial.** A broken attribute lookup is an error, never a
 denial. Reporting an outage as "not authorized" sends engineers to audit
@@ -84,6 +86,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `hasPermission`, `hasRole`, `hasAttribute`, `hasResourceAttribute`, `hasRelationship` | function | `Policy.ts` |
 | `hasAction` | function | `Policy.ts` |
 | `hasActed`, `hasNotActed` | function | `Policy.ts` |
+| `hasCustom` | function | `Policy.ts` |
 | `allOf`, `anyOf`, `not`, `labeled`, `anyOfRoles` | function | `Policy.ts` |
 | `obliged` | function | `Policy.ts` |
 | `rules`, `permitWhen`, `denyWhen` | function | `Policy.ts` |
@@ -177,6 +180,8 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `relationshipResolverRetrying`, `relationshipResolverBounded` | layer combinator | `RelationshipResolver.ts` |
 | `DecisionHistory`, `DecisionHistoryUnknown`, `decisionHistoryFromEvents` | service + layer | `DecisionHistory.ts` |
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
+| `CustomPredicate`, `CustomPredicateNone`, `customPredicateFromRecord` | service + layer | `CustomPredicate.ts` |
+| `customPredicateRetrying`, `customPredicateBounded` | layer combinator | `CustomPredicate.ts` |
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |
 | `DecisionSink` | service | `DecisionSink.ts` |
 | `decisionSinkRing`, `DEFAULT_RING_CAPACITY` | layer factory + constant | `DecisionSinkRing.ts` |
@@ -188,31 +193,43 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `DehydrationDropReason`, `ClientHydrationDropReason`, `HydrationDropReason` | type | `HydrationMetrics.ts` |
 | `hydrationDropReasons` | constant | `HydrationMetrics.ts` |
 | `AttributeResolverShape`, `RelationshipResolverShape`, `RelationshipCheck` | type | resolver modules |
+| `CustomPredicateShape` | type | `CustomPredicate.ts` |
 | `RelatedResult`, `RelationshipEdgeInput` | type | `RelationshipResolver.ts` |
 | `RelationshipEdge` | value class | `RelationshipResolver.ts` |
 | `DecisionHistoryShape`, `ActedQuery`, `ActedResult` | type | `DecisionHistory.ts` |
 | `ActedEventInput`, `ActedAnywhereInput` | type | `DecisionHistory.ts` |
 | `ActedEvent`, `ActedAnywhere` | value class | `DecisionHistory.ts` |
 | `EvaluationIdShape`, `DecisionCacheShape`, `DecisionCacheKey` | type | service modules |
-| `DecisionSinkShape`, `DecisionRecord`, `DecisionOutcome`, `StoredRecord` | type | sink modules |
-| `ObligationRecord`, `ObligationOutcome`, `SinkRecord`, `Stamped` | type | sink modules |
+| `DecisionSinkShape`, `DecisionOutcome`, `ObligationOutcome`, `SinkRecord` | type | sink modules |
+| `DecisionRecord`, `ObligationRecord`, `Decided`, `Failed` | value class | `DecisionRecord.ts` |
+| `Stamped`, `StoredRecord` | type | `DecisionSinkRing.ts` |
+| `StoredDecisionRecord`, `StoredObligationRecord` | value class | `DecisionSinkRing.ts` — a `DecisionRecord`/`ObligationRecord` plus `Stamped`'s `environment`, built via `new`, never a spread of the un-stamped instance |
+| `stampRecord` | function | `DecisionSinkRing.ts` |
 | `SinkRecordWire` | schema + type | `SinkCodec.ts` |
+| `TraceSchema` | schema | `SinkCodec.ts` — reused by `@qadi/react`'s `Hydration.ts` to validate a `DehydratedEntry`'s `trace` field |
 | `toWire`, `fromWire`, `encodeRecord`, `decodeRecord`, `decodeRecordWire` | codec | `SinkCodec.ts` |
 | `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |
-| `Decided`, `Failed` | value class | `DecisionRecord.ts` |
 
-**Seven services, and only five are required.** `DecisionHistory` was the one added
+**Eight services, and only six are required.** `DecisionHistory` was the one added
 after the initial release, and the one whose default had to be **three-valued** — see
 [BEH-QD-042](behaviors/06-services.md) and
 [INV-QD-014](invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities).
 
-`DecisionCache` is the sixth and is **optional**: it is absent from
+`CustomPredicate` is the sixth required service, backing `hasCustom` — the policy
+tree's one escape hatch for a condition that does not reduce to a declarative
+matcher. Its default, `CustomPredicateNone`, denies every name; a registry that
+**is** wired but has no entry for a given name fails rather than denies, since that
+is a wiring mistake, not a legitimate answer
+([ADR-QD-055](decisions/055-a-named-registered-custom-predicate.md),
+[INV-QD-049](invariants.md#inv-qd-049-an-unregistered-custom-predicate-name-is-an-error-never-a-denial)).
+
+`DecisionCache` is the seventh and is **optional**: it is absent from
 `EvaluationServices` and read through `Effect.serviceOption`, so an application that
 never provides it is unaffected ([ADR-QD-031](decisions/031-decision-cache.md)). That
 is also why it was missed — it is a service that does not appear in the type every
 other service appears in.
 
-`DecisionSink` is the seventh and is optional on the same terms
+`DecisionSink` is the eighth and is optional on the same terms
 ([ADR-QD-044](decisions/044-an-optional-decision-sink.md)). It is the only
 **write-only** port: `evaluate` hands it every completed evaluation and reads
 nothing back, and whatever happens to it — a failure or a defect — cannot change
@@ -242,6 +259,7 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `MissingResource`, `MissingResourceId`, `MissingAction`, `PolicyTooDeep`,
 `CircularRoleInheritance`, `InvalidPermissionSegment`,
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
+`CustomPredicateError`,
 plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
@@ -376,6 +394,8 @@ to their own model's `WhereInput` at the call site. Same refusal discipline as
 | `edgeRelationshipResolver` | layer | `EdgeRelationshipResolver.ts` |
 | `eventDecisionHistory` | layer | `EventDecisionHistory.ts` |
 | `failingAttributeResolver` | layer | `FailingAttributeResolver.ts` |
+| `recordingCustomPredicate` | layer | `RecordingCustomPredicate.ts` |
+| `failingCustomPredicate` | layer | `FailingCustomPredicate.ts` |
 | `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` |
 | `subjectWith`, `permissions`, `roles`, `policies` | fixture | `Fixtures.ts` |
 | `nobody`, `viewer`, `administrator` | fixture | `Fixtures.ts` |
@@ -405,7 +425,7 @@ checked exactly as the first one's is (CCR-QD-067).
 | `Verdict`, `Counts` | type | `model/Verdict.ts` |
 | `verdictOf`, `verdictOfOutcome`, `countsOf` | function | `model/Verdict.ts` |
 | `PairRole`, `PairedEntry` | type | `model/Pairing.ts` |
-| `PortCallPort`, `AttributeCall`, `ActedCall`, `RelationshipCall`, `PortCall` | type | `model/PortCalls.ts` |
+| `PortCallPort`, `AttributeCall`, `ActedCall`, `RelationshipCall`, `CustomPredicateCall`, `PortCall` | type | `model/PortCalls.ts` |
 | `PortCallLog`, `PortCallCollector` | type | `model/PortCalls.ts` |
 | `DEFAULT_PORT_CALL_CAPACITY` | constant | `model/PortCalls.ts` |
 | `collectPortCalls` | function | `model/PortCalls.ts` |
@@ -424,7 +444,7 @@ checked exactly as the first one's is (CCR-QD-067).
 | `Answer`, `CapturedAnswers` | type | `model/Capture.ts` |
 | `emptyAnswers` | constant | `model/Capture.ts` |
 | `capturing`, `replayLayer`, `answerCount` | function | `model/Capture.ts` |
-| `attributeKey`, `relationshipKey`, `historyKey` | function | `model/Capture.ts` |
+| `attributeKey`, `relationshipKey`, `historyKey`, `customPredicateKey` | function | `model/Capture.ts` |
 | `EditDirection`, `EditKind`, `SimulationEdit` | type | `model/SimulationEdit.ts` |
 | `composeEdits`, `applyEdits`, `editParts` | function | `model/SimulationEdit.ts` |
 | `PairSweep` | type | `model/Edits.ts` |

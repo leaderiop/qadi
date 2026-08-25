@@ -239,6 +239,10 @@ const requirementsOf: (self: Policy) => ReadonlyArray<Requirement> = Match.type<
     // The remedy for "has not acted" is to remove the event, which `singleEdits`
     // already offers for every event the fixtures list.
     HasNotActed: () => [],
+    // Opaque, externally-registered logic — there is no matcher to read a
+    // witness out of, and no set membership to strengthen either, so this
+    // sweep has nothing to offer for it (ADR-QD-055).
+    HasCustom: () => [],
     AllOf: (p) => p.policies.flatMap(requirementsOf),
     AnyOf: (p) => p.policies.flatMap(requirementsOf),
     Rules: (p) => p.rules.flatMap((rule) => requirementsOf(rule.condition)),

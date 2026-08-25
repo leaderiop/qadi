@@ -240,6 +240,7 @@ const restrictsFields: (policy: Policy) => boolean = Match.type<Policy>().pipe(
     HasAction: (p) => p.fields !== undefined,
     HasActed: (p) => p.fields !== undefined,
     HasNotActed: (p) => p.fields !== undefined,
+    HasCustom: (p) => p.fields !== undefined,
     HasRole: () => false,
     AllOf: (p) => p.policies.some(restrictsFields),
     AnyOf: (p) => p.policies.some(restrictsFields),
@@ -356,6 +357,15 @@ const translateNode = (
         untranslatable(
           "HasRelationship",
           "a relationship is keyed by the row's id and cannot fold",
+        ),
+
+      // Opaque, externally-registered logic — there is nothing here to fold,
+      // and approximating it would be exactly the failure mode ADR-QD-024
+      // refuses (ADR-QD-055).
+      HasCustom: (p) =>
+        untranslatable(
+          "HasCustom",
+          `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`,
         ),
 
       // INV-QD-013 reaching a construct it could not otherwise reach: a

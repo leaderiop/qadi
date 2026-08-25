@@ -21,8 +21,10 @@ _Previous: [02 — Roles and Inheritance](./02-roles.md)_
 > **Invariant:** [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity)
 > **See:** [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md), [ADR-QD-003](../decisions/003-tag-discriminant.md)
 
-Thirteen variants, discriminated on `_tag`. The union is defined once as a Schema;
-the TypeScript type and the JSON codec are both derived from it.
+Thirteen variants, discriminated on `_tag`. The type is hand-written first —
+`Policy`/`PolicyEncoded`, a recursive discriminated union — and the
+`Schema.Codec` is built and type-asserted against it, so the TypeScript type
+and the JSON codec cannot diverge.
 
 | `_tag` | Meaning |
 | ------ | ------- |
@@ -45,8 +47,8 @@ the subject or the resource, and this one asks about the *request*. See
 [10 — The Action Dimension](./10-actions.md).
 
 ```ts
-export const Policy: Schema.Codec<Policy>;
-export type Policy = /* the fourteen-variant union above */;
+export type Policy = /* the fourteen-variant union above, hand-written first */;
+export const Policy: Schema.Codec<Policy>; // built and type-asserted against it
 ```
 
 ```

@@ -176,6 +176,18 @@ Given("the history store is unreachable", function (this: QadiWorld) {
 });
 
 // ---------------------------------------------------------------------------
+// Custom predicates
+// ---------------------------------------------------------------------------
+
+Given("a custom predicate {string} that allows", function (this: QadiWorld, name: string) {
+  this.customPredicates = { ...(this.customPredicates ?? {}), [name]: true };
+});
+
+Given("a custom predicate {string} that denies", function (this: QadiWorld, name: string) {
+  this.customPredicates = { ...(this.customPredicates ?? {}), [name]: false };
+});
+
+// ---------------------------------------------------------------------------
 // Security labels
 // ---------------------------------------------------------------------------
 

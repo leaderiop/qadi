@@ -22,8 +22,9 @@ discipline. In the previous implementation:
 - one error code was assigned to two unrelated failures.
 
 Each of those is a consequence of maintaining two representations of one thing.
-Here the policy union is defined **once** as an Effect `Schema` and both the
-TypeScript type and the JSON codec are derived from it, so they cannot diverge.
+Here the policy union and the matcher DSL are each defined once: the recursive
+type is written by hand and the `Schema.Codec` is built and type-checked
+against it, so the TypeScript type and the JSON codec cannot diverge.
 
 ## Packages
 

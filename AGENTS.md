@@ -258,12 +258,18 @@ brands — that is the alchemy norm and it applies to `Permission`, `Role`, `Aut
 **The Policy ADT is the deliberate exception** (ADR-QD-002). Policies cross a
 trust boundary: they are persisted and re-parsed from untrusted JSON. Hand-written
 codecs are exactly what caused the data-loss defect this library was rewritten to
-fix. So the policy union is defined once as a Schema and the type is derived:
+fix. So the schema and the type are one definition, not two independently
+maintained ones. For a flat union that means schema-first, type derived:
 
 ```ts
-export const Policy = Schema.Union([HasPermission, HasRole, AllOf, /* … */]);
-export type Policy = typeof Policy.Type;
+export const ValueRef = Schema.Union([SubjectRef, SubjectIdRef, /* … */]);
+export type ValueRef = typeof ValueRef.Type;
 ```
+
+`Policy` and `Matcher` are recursive, so the order inverts: the self-referential
+type is hand-written first — `Schema.suspend` needs a named type to close the
+loop — and the `Schema.TaggedStruct` variants are then built and type-asserted
+against it. See `Policy.ts` and `Matcher.ts`.
 
 v4 API notes: `Schema.Union([...])` takes an **array**; the type is
 `Schema.Codec<T>` (not `Schema.Schema<T>`); recursion factors into a single

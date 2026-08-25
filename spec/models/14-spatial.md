@@ -117,7 +117,7 @@ address, so it belongs in the policy as the separate attribute it is.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolver, DecisionHistoryUnknown, EvaluationIdLive,
+  AttributeResolver, CustomPredicateNone, DecisionHistoryUnknown, EvaluationIdLive,
   RelationshipResolverNever, allOf, anyOf,
   check, currentSubjectLayer, eq, hasAttribute, hasResourceAttribute, inArray,
   literal, lt, makeSubject, type AttributeResolveError, type EvaluationError,
@@ -159,6 +159,7 @@ const services = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
 );
 
 const program: Effect.Effect<boolean, EvaluationError> = check(

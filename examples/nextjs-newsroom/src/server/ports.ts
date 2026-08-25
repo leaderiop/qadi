@@ -19,6 +19,7 @@ import {
   attributeResolverBounded,
   attributeResolverRetrying,
   AttributeResolver,
+  CustomPredicateNone,
   decisionHistoryFromEvents,
   relationshipResolverFromEdges,
 } from "@qadi/core";
@@ -93,4 +94,8 @@ export const ports: EvaluationPortsLayer = Layer.mergeAll(
   ),
   relationships,
   history,
+  // This newsroom has no policy that reaches for `hasCustom` — every rule is
+  // expressible with the built-in matchers — so the registry is left at its
+  // fail-closed default rather than wired to anything.
+  CustomPredicateNone,
 );

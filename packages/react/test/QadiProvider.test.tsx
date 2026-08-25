@@ -2,6 +2,7 @@ import {
   AttributeResolver,
   AttributeResolveError,
   AttributeResolverNone,
+  CustomPredicateNone,
   EvaluationIdLive,
   DecisionHistoryUnknown,
   RelationshipResolverNever,
@@ -38,6 +39,7 @@ const atoms = makeQadiAtoms(
       RelationshipResolverNever,
       DecisionHistoryUnknown,
       EvaluationIdLive,
+      CustomPredicateNone,
     ),
 );
 
@@ -120,6 +122,7 @@ describe("Can / Cannot", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         EvaluationIdLive,
+        CustomPredicateNone,
       ),
     );
     const needsAttribute = hasAttribute("dept", eq(literal("legal")));
@@ -220,6 +223,7 @@ describe("isolated contexts", () => {
       RelationshipResolverNever,
       DecisionHistoryUnknown,
       EvaluationIdLive,
+      CustomPredicateNone,
     ),
     );
 

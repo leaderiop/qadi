@@ -5,6 +5,7 @@ import { AttributeResolver, AttributeResolverNone } from "../src/AttributeResolv
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { CurrentSubject, currentSubjectLayer } from "../src/CurrentSubject.ts";
+import { CustomPredicate, CustomPredicateNone } from "../src/CustomPredicate.ts";
 import { DecisionHistory, DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
 import { EvaluationId, evaluationIdSequential } from "../src/EvaluationId.ts";
 import {
@@ -17,7 +18,8 @@ export type QadiServices =
   | AttributeResolver
   | RelationshipResolver
   | DecisionHistory
-  | EvaluationId;
+  | EvaluationId
+  | CustomPredicate;
 
 /**
  * A fully-wired evaluation environment with deterministic identifiers.
@@ -30,6 +32,7 @@ export const testLayer = (
     readonly attributes?: Layer.Layer<AttributeResolver>;
     readonly relationships?: Layer.Layer<RelationshipResolver>;
     readonly history?: Layer.Layer<DecisionHistory>;
+    readonly customPredicate?: Layer.Layer<CustomPredicate>;
   },
 ): Layer.Layer<QadiServices> =>
   Layer.mergeAll(
@@ -38,6 +41,7 @@ export const testLayer = (
     overrides?.relationships ?? RelationshipResolverNever,
     overrides?.history ?? DecisionHistoryUnknown,
     evaluationIdSequential(),
+    overrides?.customPredicate ?? CustomPredicateNone,
   );
 
 /**
@@ -51,12 +55,14 @@ export const subjectSetLayer = (overrides?: {
   readonly attributes?: Layer.Layer<AttributeResolver>;
   readonly relationships?: Layer.Layer<RelationshipResolver>;
   readonly history?: Layer.Layer<DecisionHistory>;
+  readonly customPredicate?: Layer.Layer<CustomPredicate>;
 }): Layer.Layer<Exclude<QadiServices, CurrentSubject>> =>
   Layer.mergeAll(
     overrides?.attributes ?? AttributeResolverNone,
     overrides?.relationships ?? RelationshipResolverNever,
     overrides?.history ?? DecisionHistoryUnknown,
     evaluationIdSequential(),
+    overrides?.customPredicate ?? CustomPredicateNone,
   );
 
 export const subjectWith = (config: {

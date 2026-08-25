@@ -23,6 +23,7 @@ import * as Layer from "effect/Layer";
 import {
   Allow,
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   hasPermission,
@@ -73,6 +74,25 @@ const gibberish = (index: number): DehydratedEntry => ({
   durationMillis: 1,
 });
 
+/**
+ * An entry whose shape is wrong apart from its policy — a hand-built or
+ * version-skewed payload with a field of the wrong type.
+ *
+ * Round-tripped through JSON, the same idiom `Hydration.test.ts` uses:
+ * `DehydratedEntry`'s fields are legitimately typed for a well-behaved
+ * caller, and a malformed `durationMillis` is exactly what that type cannot
+ * rule out for a payload arriving as real, untrusted JSON.
+ */
+const malformed = (index: number): DehydratedEntry =>
+  JSON.parse(
+    JSON.stringify({
+      policy: { _tag: "NotAPolicy", index },
+      allowed: true,
+      evaluationId: `m${String(index)}`,
+      durationMillis: "not-a-number",
+    }),
+  );
+
 const freshAtoms = () =>
   makeQadiAtoms(
     Layer.mergeAll(
@@ -80,6 +100,7 @@ const freshAtoms = () =>
       RelationshipResolverNever,
       DecisionHistoryUnknown,
       EvaluationIdLive,
+      CustomPredicateNone,
     ),
   );
 
@@ -154,6 +175,16 @@ Given(
 Given("the payload also carries {int} entry the client cannot decode", (count: number) => {
   extraEntries = Array.from({ length: count }, (_unused, index) => gibberish(index));
 });
+
+Given(
+  "a payload for {string} carrying {int} entries the client cannot verify apart from their policy",
+  (id: string, count: number) => {
+    payload = {
+      subjectId: id,
+      entries: Array.from({ length: count }, (_unused, index) => malformed(index)),
+    };
+  },
+);
 
 Given("a process that seeded {int} entries and built none", (count: number) => {
   // Fabricated rather than driven: producing this state for real needs a

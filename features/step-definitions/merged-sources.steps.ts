@@ -25,14 +25,17 @@ import * as Stream from "effect/Stream";
 import {
   AttributeResolverNone,
   currentSubjectLayer,
+  CustomPredicateNone,
   decisionSinkRing,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   evaluate,
   hasPermission,
   makeSubject,
+  ObligationRecord,
   permission,
   RelationshipResolverNever,
+  stampRecord,
 } from "@qadi/core";
 import type { Decision, StoredRecord } from "@qadi/core";
 import { emptyTimeline, ingestAll, mergeSources, pairedEntries } from "@qadi/devtools";
@@ -48,6 +51,7 @@ const ports = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
 );
 
 let sources: Array<Source> = [];
@@ -71,14 +75,16 @@ const futureOnly = (records: ReadonlyArray<StoredRecord>): Source => ({
   live: Stream.fromArray(records),
 });
 
-const stamped = (at: number, environment: string): StoredRecord => ({
-  _tag: "Obligations",
-  evaluationId: `ev-${at}`,
-  at,
-  outcome: "NotRequired",
-  obligationIds: [],
-  environment,
-});
+const stamped = (at: number, environment: string): StoredRecord =>
+  stampRecord(
+    new ObligationRecord({
+      evaluationId: `ev-${at}`,
+      at,
+      outcome: "NotRequired",
+      obligationIds: [],
+    }),
+    environment,
+  );
 
 /** One real evaluation, recorded by its own ring, and the ring's snapshot. */
 const decideInto = (

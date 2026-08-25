@@ -25,6 +25,7 @@ import * as Match from "effect/Match";
 import {
   attributeResolverFromRecord,
   AttributeResolverNone,
+  CustomPredicateNone,
   decisionHistoryFromEvents,
   DecisionHistoryUnknown,
   relationshipResolverFromEdges,
@@ -132,4 +133,11 @@ const fixtureLayer = (input: SimulationInput): Layer.Layer<EvaluationPorts> =>
     input.history === undefined
       ? DecisionHistoryUnknown
       : decisionHistoryFromEvents(input.history),
+    // `SimulationInput` has no form vocabulary for a custom predicate's
+    // answer — unlike an attribute or an edge, there is no small typed value a
+    // reviewer could type in that stands for arbitrary registered logic — so
+    // Fixtures mode always denies a `HasCustom` node, the same fail-closed
+    // default a real deployment gets from an unwired registry. Supplying a
+    // real answer needs `Snapshot` or `Live`.
+    CustomPredicateNone,
   );

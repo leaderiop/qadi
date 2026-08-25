@@ -20,6 +20,7 @@ import {
   lt,
   dominates,
   hasActed,
+  hasCustom,
   hasNotActed,
   not,
   obligation,
@@ -243,6 +244,14 @@ When("they must have raised the resource", function (this: QadiWorld) {
  */
 When("the negation of having raised the resource is evaluated", function (this: QadiWorld) {
   this.run(not(hasActed("raised")));
+});
+
+// ---------------------------------------------------------------------------
+// Custom predicates
+// ---------------------------------------------------------------------------
+
+When("they invoke the custom check {string}", function (this: QadiWorld, name: string) {
+  this.run(hasCustom(name));
 });
 
 // ---------------------------------------------------------------------------

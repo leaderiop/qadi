@@ -119,6 +119,20 @@ export class UndischargedObligation extends Data.TaggedError(
 }> {}
 
 /**
+ * A `HasCustom` node's registered predicate could not produce an answer.
+ *
+ * Covers two distinct causes under one tag: the name has no entry in a
+ * populated `CustomPredicate` registry (a wiring mistake), or the registered
+ * function's own logic failed. Neither is a denial — "failure is not denial"
+ * applies to a misconfigured or broken custom predicate exactly as it does to
+ * a broken attribute lookup.
+ */
+export class CustomPredicateError extends Data.TaggedError("CustomPredicateError")<{
+  readonly name: string;
+  readonly reason: string;
+}> {}
+
+/**
  * A policy could not be translated into a row predicate.
  *
  * Raised rather than approximated. A node outside the translatable subset
@@ -138,6 +152,7 @@ export type EvaluationError =
   | AttributeResolveError
   | RelationshipResolveError
   | DecisionHistoryUnavailable
+  | CustomPredicateError
   | MissingAction
   | MissingResource
   | MissingResourceId
@@ -172,6 +187,7 @@ export const ERROR_CODES = {
   "UndischargedObligation": "ACL010",
   "DecisionHistoryUnavailable": "ACL011",
   "PolicyNotTranslatable": "ACL012",
+  "CustomPredicateError": "ACL013",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

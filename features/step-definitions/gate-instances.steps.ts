@@ -16,6 +16,7 @@ import * as Layer from "effect/Layer";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import {
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   hasPermission,
@@ -52,6 +53,7 @@ const atoms = () =>
       RelationshipResolverNever,
       DecisionHistoryUnknown,
       EvaluationIdLive,
+      CustomPredicateNone,
     ),
   );
 

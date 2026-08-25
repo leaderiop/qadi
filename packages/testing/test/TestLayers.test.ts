@@ -6,6 +6,7 @@ import {
   gte,
   hasActed,
   hasAttribute,
+  hasCustom,
   hasNotActed,
   hasRelationship,
   hasRole,
@@ -22,10 +23,12 @@ import {
   qadiReviewLayer,
   eventDecisionHistory,
   failingAttributeResolver,
+  failingCustomPredicate,
   qadiTestLayer,
   nobody,
   policies,
   recordingAttributeResolver,
+  recordingCustomPredicate,
   subjectWith,
   viewer,
 } from "../src/index.ts";
@@ -70,6 +73,12 @@ describe("qadiTestLayer", () => {
   it.effect("defaults fail closed", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(hasRelationship("owner"), { resource: { id: "d" } });
+      assert.isFalse(isAllowed(d));
+    }).pipe(Effect.provide(qadiTestLayer(nobody))));
+
+  it.effect("hasCustom denies when no registry is wired", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(hasCustom("isOwner"));
       assert.isFalse(isAllowed(d));
     }).pipe(Effect.provide(qadiTestLayer(nobody))));
 
@@ -200,6 +209,41 @@ describe("recording resolvers", () => {
         evaluate(hasAttribute("x", gte(1))).pipe(
           Effect.provide(
             qadiTestLayer(nobody, { attributeResolver: failingAttributeResolver() }),
+          ),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+    }));
+
+  it.effect("recordingCustomPredicate records the name and answers from its table", () =>
+    Effect.gen(function* () {
+      const registry = recordingCustomPredicate({ isOwner: true });
+
+      const d = yield* evaluate(hasCustom("isOwner")).pipe(
+        Effect.provide(qadiTestLayer(nobody, { customPredicate: registry.layer })),
+      );
+
+      assert.isTrue(isAllowed(d));
+      assert.deepStrictEqual([...registry.calls], ["isOwner"]);
+    }));
+
+  it.effect("recordingCustomPredicate denies an unlisted name rather than erroring", () =>
+    Effect.gen(function* () {
+      const registry = recordingCustomPredicate({});
+
+      const d = yield* evaluate(hasCustom("isOwner")).pipe(
+        Effect.provide(qadiTestLayer(nobody, { customPredicate: registry.layer })),
+      );
+
+      assert.isFalse(isAllowed(d));
+    }));
+
+  it.effect("failingCustomPredicate surfaces an error, not a denial", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(
+        evaluate(hasCustom("isOwner")).pipe(
+          Effect.provide(
+            qadiTestLayer(nobody, { customPredicate: failingCustomPredicate() }),
           ),
         ),
       );

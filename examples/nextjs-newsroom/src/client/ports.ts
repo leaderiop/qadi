@@ -22,6 +22,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
   AttributeResolveError,
+  CustomPredicateNone,
   DecisionHistory,
   DecisionHistoryUnavailable,
   RelationshipResolver,
@@ -134,4 +135,9 @@ export const browserPorts: EvaluationPortsLayer = Layer.mergeAll(
   attributes,
   relationships,
   history,
+  // No browser endpoint answers a `hasCustom` question in this example — every
+  // policy it authorizes uses only the built-in matchers — so the client's
+  // registry is the same fail-closed default a real deployment gets from an
+  // unwired one.
+  CustomPredicateNone,
 );

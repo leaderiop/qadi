@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as FastCheck from "effect/testing/FastCheck";
 import { Allow, Deny } from "../src/Decision.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
-import { Decided, Failed } from "../src/DecisionRecord.ts";
+import { Decided, DecisionRecord, Failed, ObligationRecord } from "../src/DecisionRecord.ts";
 import {
   AttributeResolveError,
   DecisionHistoryUnavailable,
@@ -56,8 +56,7 @@ const trace = (allowed: boolean) => ({
   obligations: [],
 });
 
-const allowRecord: SinkRecord = {
-  _tag: "Decision",
+const allowRecord: SinkRecord = new DecisionRecord({
   evaluationId: "eval-1",
   at: 1000,
   policy: P.hasPermission(read),
@@ -74,7 +73,7 @@ const allowRecord: SinkRecord = {
       obligations: [obligation("audit.log")],
     }),
   }),
-};
+});
 
 describe("a record survives the wire", () => {
   it.effect("an allow round-trips through validation", () =>
@@ -93,8 +92,7 @@ describe("a record survives the wire", () => {
     Effect.gen(function* () {
       // The wire codec never validates or interprets field-string content —
       // a dot-path or wildcard is just a string, exactly like a flat name.
-      const record: SinkRecord = {
-        _tag: "Decision",
+      const record: SinkRecord = new DecisionRecord({
         evaluationId: "eval-fp",
         at: 5000,
         policy: P.hasPermission(read, { fields: ["id", "contact.*"] }),
@@ -114,7 +112,7 @@ describe("a record survives the wire", () => {
             obligations: [],
           }),
         }),
-      };
+      });
 
       const back = yield* decodeRecord(
         JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
@@ -124,8 +122,7 @@ describe("a record survives the wire", () => {
 
   it.effect("a denial keeps its reason", () =>
     Effect.gen(function* () {
-      const denial: SinkRecord = {
-        _tag: "Decision",
+      const denial: SinkRecord = new DecisionRecord({
         evaluationId: "eval-2",
         at: 2000,
         policy: P.hasRole("editor"),
@@ -138,7 +135,7 @@ describe("a record survives the wire", () => {
             reason: "subject lacks role 'editor'",
           }),
         }),
-      };
+      });
 
       const back = yield* decodeRecord(
         JSON.parse(JSON.stringify(yield* encodeRecord(toWire(denial)))),
@@ -148,13 +145,12 @@ describe("a record survives the wire", () => {
 
   it.effect("an obligation record round-trips", () =>
     Effect.gen(function* () {
-      const record: SinkRecord = {
-        _tag: "Obligations",
+      const record: SinkRecord = new ObligationRecord({
         evaluationId: "eval-3",
         at: 3000,
         outcome: "Refused",
         obligationIds: ["audit.log", "notify.owner"],
-      };
+      });
 
       const back = yield* decodeRecord(
         JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
@@ -164,8 +160,7 @@ describe("a record survives the wire", () => {
 
   it.effect("a nested policy and trace survive", () =>
     Effect.gen(function* () {
-      const record: SinkRecord = {
-        _tag: "Decision",
+      const record: SinkRecord = new DecisionRecord({
         evaluationId: "eval-4",
         at: 4000,
         policy: P.allOf([
@@ -189,7 +184,7 @@ describe("a record survives the wire", () => {
             obligations: [],
           }),
         }),
-      };
+      });
 
       const back = yield* decodeRecord(
         JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
@@ -201,8 +196,7 @@ describe("a record survives the wire", () => {
 describe("optional fields normalise", () => {
   it.effect("an explicitly-undefined optional arrives absent, and reads the same", () =>
     Effect.gen(function* () {
-      const record: SinkRecord = {
-        _tag: "Decision",
+      const record: SinkRecord = new DecisionRecord({
         evaluationId: "e",
         at: 0,
         policy: P.hasPermission(read),
@@ -220,7 +214,7 @@ describe("optional fields normalise", () => {
             obligations: [],
           }),
         }),
-      };
+      });
 
       const back = yield* decodeRecord(
         JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
@@ -240,13 +234,12 @@ describe("every error variant crosses, and carries its code", () => {
   it.effect("each one round-trips to the same tag and fields", () =>
     Effect.gen(function* () {
       for (const error of everyError) {
-        const record: SinkRecord = {
-          _tag: "Decision",
+        const record: SinkRecord = new DecisionRecord({
           evaluationId: "e",
           at: 0,
           policy: P.hasPermission(read),
           outcome: new Failed({ error }),
-        };
+        });
 
         const back = yield* decodeRecord(
           JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
@@ -280,13 +273,14 @@ describe("every error variant crosses, and carries its code", () => {
 
   it("the wire carries the stable code for every variant", () => {
     for (const error of everyError) {
-      const wire = toWire({
-        _tag: "Decision",
-        evaluationId: "e",
-        at: 0,
-        policy: P.hasPermission(read),
-        outcome: new Failed({ error }),
-      });
+      const wire = toWire(
+        new DecisionRecord({
+          evaluationId: "e",
+          at: 0,
+          policy: P.hasPermission(read),
+          outcome: new Failed({ error }),
+        }),
+      );
 
       assert.strictEqual(wire._tag, "Decision");
       if (wire._tag === "Decision") {
@@ -298,18 +292,19 @@ describe("every error variant crosses, and carries its code", () => {
   });
 
   it("a non-string cause is rendered, and the loss is deliberate", () => {
-    const wire = toWire({
-      _tag: "Decision",
-      evaluationId: "e",
-      at: 0,
-      policy: P.hasPermission(read),
-      outcome: new Failed({
-        error: new AttributeResolveError({
-          attribute: "clearance",
-          cause: new Error("connection reset"),
+    const wire = toWire(
+      new DecisionRecord({
+        evaluationId: "e",
+        at: 0,
+        policy: P.hasPermission(read),
+        outcome: new Failed({
+          error: new AttributeResolveError({
+            attribute: "clearance",
+            cause: new Error("connection reset"),
+          }),
         }),
       }),
-    });
+    );
 
     assert.strictEqual(wire._tag, "Decision");
     if (wire._tag === "Decision") {
@@ -327,15 +322,16 @@ describe("every error variant crosses, and carries its code", () => {
       },
     };
 
-    const wire = toWire({
-      _tag: "Decision",
-      evaluationId: "e",
-      at: 0,
-      policy: P.hasPermission(read),
-      outcome: new Failed({
-        error: new AttributeResolveError({ attribute: "x", cause: hostile }),
+    const wire = toWire(
+      new DecisionRecord({
+        evaluationId: "e",
+        at: 0,
+        policy: P.hasPermission(read),
+        outcome: new Failed({
+          error: new AttributeResolveError({ attribute: "x", cause: hostile }),
+        }),
       }),
-    });
+    );
 
     assert.strictEqual(wire._tag, "Decision");
     if (wire._tag === "Decision") {
@@ -350,7 +346,7 @@ describe("every literal the wire admits is exercised", () => {
       // A literal a test never sends is a literal a mutated schema could drop
       // without anything noticing.
       for (const cache of ["hit", "coalesced", "miss"] as const) {
-        const record: SinkRecord = { ...allowRecord, cache };
+        const record: SinkRecord = new DecisionRecord({ ...allowRecord, cache });
         const back = yield* decodeRecord(
           JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
         );
@@ -367,13 +363,12 @@ describe("every literal the wire admits is exercised", () => {
         "Refused",
         "NotRequired",
       ] as const) {
-        const record: SinkRecord = {
-          _tag: "Obligations",
+        const record: SinkRecord = new ObligationRecord({
           evaluationId: "e",
           at: 0,
           outcome,
           obligationIds: ["audit.log"],
-        };
+        });
         const back = yield* decodeRecord(
           JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
         );
@@ -383,13 +378,14 @@ describe("every literal the wire admits is exercised", () => {
     }));
 
   it("toWire omits an absent optional rather than writing undefined", () => {
-    const wire = toWire({
-      _tag: "Decision",
-      evaluationId: "e",
-      at: 0,
-      policy: P.hasPermission(read),
-      outcome: new Failed({ error: new PolicyTooDeep({ maxDepth: 8 }) }),
-    });
+    const wire = toWire(
+      new DecisionRecord({
+        evaluationId: "e",
+        at: 0,
+        policy: P.hasPermission(read),
+        outcome: new Failed({ error: new PolicyTooDeep({ maxDepth: 8 }) }),
+      }),
+    );
 
     assert.strictEqual(wire._tag, "Decision");
     if (wire._tag === "Decision") {
@@ -403,13 +399,14 @@ describe("every literal the wire admits is exercised", () => {
   });
 
   it("an absent MissingAction expectation stays absent", () => {
-    const wire = toWire({
-      _tag: "Decision",
-      evaluationId: "e",
-      at: 0,
-      policy: P.hasPermission(read),
-      outcome: new Failed({ error: new MissingAction({ expected: undefined }) }),
-    });
+    const wire = toWire(
+      new DecisionRecord({
+        evaluationId: "e",
+        at: 0,
+        policy: P.hasPermission(read),
+        outcome: new Failed({ error: new MissingAction({ expected: undefined }) }),
+      }),
+    );
 
     assert.strictEqual(wire._tag, "Decision");
     if (wire._tag === "Decision") {
@@ -418,13 +415,14 @@ describe("every literal the wire admits is exercised", () => {
   });
 
   it("a present MissingAction expectation is carried", () => {
-    const wire = toWire({
-      _tag: "Decision",
-      evaluationId: "e",
-      at: 0,
-      policy: P.hasPermission(read),
-      outcome: new Failed({ error: new MissingAction({ expected: "read" }) }),
-    });
+    const wire = toWire(
+      new DecisionRecord({
+        evaluationId: "e",
+        at: 0,
+        policy: P.hasPermission(read),
+        outcome: new Failed({ error: new MissingAction({ expected: "read" }) }),
+      }),
+    );
 
     assert.strictEqual(wire._tag, "Decision");
     if (wire._tag === "Decision") assert.strictEqual(wire.failed?.expected, "read");
@@ -616,13 +614,12 @@ describe("round-trip property", () => {
                 reason,
               });
 
-          const record: SinkRecord = {
-            _tag: "Decision",
+          const record: SinkRecord = new DecisionRecord({
             evaluationId: "e",
             at: 0,
             policy,
             outcome: new Decided({ decision }),
-          };
+          });
 
           return JSON.stringify(fromWire(toWire(record))) === JSON.stringify(record);
         },

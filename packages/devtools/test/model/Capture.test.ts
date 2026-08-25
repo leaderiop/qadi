@@ -16,6 +16,9 @@ import {
   AttributeResolveError,
   AttributeResolver,
   attributeResolverFromRecord,
+  CustomPredicate,
+  customPredicateFromRecord,
+  CustomPredicateNone,
   DecisionHistory,
   decisionHistoryFromEvents,
   DecisionHistoryUnknown,
@@ -24,6 +27,7 @@ import {
   gte,
   hasActed,
   hasAttribute,
+  hasCustom,
   hasNotActed,
   hasRelationship,
   makeResourceId,
@@ -41,6 +45,7 @@ import {
   answerCount,
   attributeKey,
   capturing,
+  customPredicateKey,
   emptyAnswers,
   historyKey,
   relationshipKey,
@@ -60,6 +65,7 @@ const realPorts = Layer.mergeAll(
   attributeResolverFromRecord({ clearance: 4, dept: "eng" }),
   relationshipResolverFromEdges([{ subjectId: "alice", relation: "owner", resourceId: "doc-1" }]),
   decisionHistoryFromEvents([{ subjectId: "alice", event: "raised", resourceId: "doc-1" }]),
+  CustomPredicateNone,
 );
 
 const alice: SimulationInput = { subject: { id: "alice" }, resource: { id: "doc-1" } };
@@ -119,6 +125,7 @@ describe("capture fidelity — INV-QD-043", () => {
         }),
         RelationshipResolverNever,
         DecisionHistoryUnknown,
+        CustomPredicateNone,
       );
       const capture = capturing(broken);
       const policy = hasAttribute("clearance", gte(1));
@@ -155,6 +162,7 @@ describe("capture fidelity — INV-QD-043", () => {
             ),
         }),
         DecisionHistoryUnknown,
+        CustomPredicateNone,
       );
       const capture = capturing(broken);
 
@@ -181,6 +189,7 @@ describe("capture fidelity — INV-QD-043", () => {
               new DecisionHistoryUnavailable({ event: query.event, cause: "journal down" }),
             ),
         }),
+        CustomPredicateNone,
       );
       const capture = capturing(broken);
 
@@ -277,6 +286,23 @@ describe("what a capture records", () => {
     );
   });
 
+  it("keys a custom predicate by subject, name and params, all three", () => {
+    const alice = makeSubjectId("alice");
+    const bob = makeSubjectId("bob");
+    assert.notStrictEqual(
+      customPredicateKey(alice, "isOwner", undefined),
+      customPredicateKey(bob, "isOwner", undefined),
+    );
+    assert.notStrictEqual(
+      customPredicateKey(alice, "isOwner", undefined),
+      customPredicateKey(alice, "isEditor", undefined),
+    );
+    assert.notStrictEqual(
+      customPredicateKey(alice, "isOwner", "doc-1"),
+      customPredicateKey(alice, "isOwner", "doc-2"),
+    );
+  });
+
   it.effect("names itself around whatever it wrapped", () =>
     Effect.gen(function* () {
       const capture = capturing(realPorts);
@@ -297,6 +323,10 @@ describe("what a capture records", () => {
         Context.get(context, DecisionHistory).name,
         "decisionHistoryFromEvents (capturing)",
       );
+      assert.strictEqual(
+        Context.get(context, CustomPredicate).name,
+        "CustomPredicateNone (capturing)",
+      );
     }).pipe(Effect.scoped));
 
   it.effect("wrapping something unnamed says so rather than dropping the stack", () =>
@@ -305,6 +335,7 @@ describe("what a capture records", () => {
         Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
         Layer.succeed(RelationshipResolver, { check: () => Effect.succeed(unknownRelated) }),
         Layer.succeed(DecisionHistory, { hasActed: () => Effect.succeed(unknownActed) }),
+        Layer.succeed(CustomPredicate, { evaluate: () => Effect.succeed(false) }),
       );
       const context = yield* Layer.build(capturing(anonymous).layer);
 
@@ -314,6 +345,7 @@ describe("what a capture records", () => {
       assert.strictEqual(Context.get(context, AttributeResolver).name, "? (capturing)");
       assert.strictEqual(Context.get(context, RelationshipResolver).name, "? (capturing)");
       assert.strictEqual(Context.get(context, DecisionHistory).name, "? (capturing)");
+      assert.strictEqual(Context.get(context, CustomPredicate).name, "? (capturing)");
     }).pipe(Effect.scoped));
 
   it.effect("a replay layer names itself a snapshot", () =>
@@ -325,6 +357,7 @@ describe("what a capture records", () => {
       assert.strictEqual(Context.get(context, AttributeResolver).name, "snapshot");
       assert.strictEqual(Context.get(context, RelationshipResolver).name, "snapshot");
       assert.strictEqual(Context.get(context, DecisionHistory).name, "snapshot");
+      assert.strictEqual(Context.get(context, CustomPredicate).name, "snapshot");
     }).pipe(Effect.scoped));
 
   it.effect("a fresh capture holds nothing", () =>
@@ -347,6 +380,26 @@ describe("what a capture records", () => {
       assert.strictEqual(answers.attributes.size, 1);
       assert.strictEqual(answers.relationships.size, 1);
       assert.strictEqual(answers.history.size, 1);
+    }));
+
+  it.effect("counts a custom predicate's answer alongside the other three ports", () =>
+    Effect.gen(function* () {
+      const withCustom = Layer.mergeAll(
+        attributeResolverFromRecord({ clearance: 4 }),
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        customPredicateFromRecord({ isOwner: () => Effect.succeed(true) }),
+      );
+      const capture = capturing(withCustom);
+      yield* simulate(
+        allOf([hasAttribute("clearance", gte(2)), hasCustom("isOwner")]),
+        alice,
+        { source: live(capture.layer) },
+      );
+
+      // `-` in place of `+` would answer the same 1 here as it would answer
+      // 3 above — this is the case that tells the two apart.
+      assert.strictEqual(answerCount(yield* capture.answers), 2);
     }));
 
   it.effect("hands back a copy, so a later capture does not mutate an earlier snapshot", () =>
@@ -379,6 +432,7 @@ describe("what a replayed failure carries", () => {
         }),
         RelationshipResolverNever,
         DecisionHistoryUnknown,
+        CustomPredicateNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
@@ -416,6 +470,7 @@ describe("what a replayed failure carries", () => {
             ),
         }),
         DecisionHistoryUnknown,
+        CustomPredicateNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasRelationship("owner"), alice, { source: live(capture.layer) });
@@ -444,6 +499,7 @@ describe("what a replayed failure carries", () => {
               new DecisionHistoryUnavailable({ event: query.event, cause: "journal down" }),
             ),
         }),
+        CustomPredicateNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasActed("raised"), alice, { source: live(capture.layer) });
@@ -473,6 +529,7 @@ describe("what a replayed failure carries", () => {
         }),
         RelationshipResolverNever,
         DecisionHistoryUnknown,
+        CustomPredicateNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
@@ -490,7 +547,12 @@ describe("what a replayed failure carries", () => {
   it.effect("a port that was never reached captures nothing", () =>
     Effect.gen(function* () {
       const capture = capturing(
-        Layer.mergeAll(attributeResolverFromRecord({}), RelationshipResolverNever, DecisionHistoryUnknown),
+        Layer.mergeAll(
+          attributeResolverFromRecord({}),
+          RelationshipResolverNever,
+          DecisionHistoryUnknown,
+          CustomPredicateNone,
+        ),
       );
       // No resource, so `hasRelationship` fails with `MissingResourceId`
       // before the port is consulted at all.
@@ -513,6 +575,7 @@ describe("what a replayed failure carries", () => {
         }),
         RelationshipResolverNever,
         DecisionHistoryUnknown,
+        CustomPredicateNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
@@ -535,6 +598,7 @@ describe("what a replayed failure carries", () => {
         }),
         RelationshipResolverNever,
         DecisionHistoryUnknown,
+        CustomPredicateNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
@@ -604,5 +668,80 @@ describe("replaying outside the captured set", () => {
       );
       assert.strictEqual(decisionOf(negated)._tag, "Deny");
       assert.include(decisionOf(negated).trace.reason ?? "", "no history is available");
+    }));
+});
+
+describe("custom predicate capture", () => {
+  const withCustom = Layer.mergeAll(
+    attributeResolverFromRecord({}),
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    customPredicateFromRecord({
+      isOwner: (subject) => Effect.succeed(subject.id === "alice"),
+    }),
+  );
+
+  it.effect("a snapshot replays a custom predicate's trace", () =>
+    Effect.gen(function* () {
+      const capture = capturing(withCustom);
+      const policy = hasCustom("isOwner");
+
+      const liveRun = decisionOf(
+        yield* simulate(policy, alice, { source: live(capture.layer) }),
+      );
+      const answers = yield* capture.answers;
+      const replayed = decisionOf(
+        yield* simulate(policy, alice, { source: snapshot(answers) }),
+      );
+
+      assert.strictEqual(liveRun._tag, "Allow");
+      assert.deepStrictEqual(diffTraces(liveRun.trace, replayed.trace), []);
+    }));
+
+  it.effect("records the custom predicate's answer, keyed by subject, name and params", () =>
+    Effect.gen(function* () {
+      const capture = capturing(withCustom);
+      yield* simulate(hasCustom("isOwner"), alice, { source: live(capture.layer) });
+
+      const answers = yield* capture.answers;
+      assert.strictEqual(answers.custom.size, 1);
+      assert.deepStrictEqual(
+        answers.custom.get(customPredicateKey(makeSubjectId("alice"), "isOwner", undefined)),
+        { _tag: "Answered", value: true },
+      );
+    }));
+
+  // An unregistered name is a wiring mistake, not a legitimate denial — the
+  // capture must reproduce it as a failure, never as a miss.
+  it.effect("an unregistered custom predicate errors, and replays as the same error", () =>
+    Effect.gen(function* () {
+      const capture = capturing(withCustom);
+      const policy = hasCustom("noSuchPredicate");
+
+      const liveRun = yield* simulate(policy, alice, { source: live(capture.layer) });
+      const replayed = yield* simulate(policy, alice, {
+        source: snapshot(yield* capture.answers),
+      });
+
+      assert.strictEqual(liveRun._tag, "Failed");
+      assert.strictEqual(replayed._tag, "Failed");
+      if (replayed._tag !== "Failed") return;
+      assert.strictEqual(replayed.error._tag, "CustomPredicateError");
+      assert.strictEqual(
+        replayed.error._tag === "CustomPredicateError" ? replayed.error.name : "",
+        "noSuchPredicate",
+      );
+      assert.isAbove(
+        (replayed.error._tag === "CustomPredicateError" ? replayed.error.reason : "").length,
+        0,
+      );
+    }));
+
+  it.effect("an unseen custom predicate answers false, which denies", () =>
+    Effect.gen(function* () {
+      const outcome = yield* simulate(hasCustom("isOwner"), alice, {
+        source: snapshot(emptyAnswers),
+      });
+      assert.strictEqual(decisionOf(outcome)._tag, "Deny");
     }));
 });

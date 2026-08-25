@@ -1,9 +1,12 @@
 /**
  * The policy algebraic data type.
  *
- * Defined **once** as a Schema; the TypeScript type is derived from it and the
- * JSON codec is derived from it. This is the central design decision of the
- * library (ADR-QD-002).
+ * The type and the schema are a single definition, not two maintained
+ * independently: `Policy`/`PolicyEncoded` are hand-written first — a
+ * recursive type needs a named declaration to close the `Schema.suspend`
+ * loop — and the `Schema.TaggedStruct` variants below are then built and
+ * type-asserted against them, so the JSON codec cannot drift from the type.
+ * This is the central design decision of the library (ADR-QD-002).
  *
  * The predecessor maintained the type in one file and a hand-written
  * serializer/deserializer in two others. They drifted: `fieldStrategy` was
@@ -189,6 +192,7 @@ export type Policy =
   | { readonly _tag: "HasAction"; readonly action: ActionName; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasActed"; readonly event: EventName; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasNotActed"; readonly event: EventName; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasCustom"; readonly name: string; readonly params?: unknown; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<Rule>; readonly combining: Combining }
@@ -223,6 +227,7 @@ export type PolicyEncoded =
   | { readonly _tag: "HasAction"; readonly action: string; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasNotActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasCustom"; readonly name: string; readonly params?: unknown; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<PolicyEncoded>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<PolicyEncoded>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<RuleEncoded>; readonly combining: Combining }
@@ -277,6 +282,19 @@ const HasNotActed = Schema.TaggedStruct("HasNotActed", {
   fields: Fields,
 });
 
+/**
+ * A named, externally-registered predicate — the escape hatch for logic the
+ * matchers above cannot express (ADR-QD-055). `name` is deliberately plain,
+ * unbranded `string`, for the same reason `attribute` is on `HasAttribute`:
+ * it names a key into an open, caller-defined registry, not a closed
+ * vocabulary this library defines.
+ */
+const HasCustom = Schema.TaggedStruct("HasCustom", {
+  name: Schema.String,
+  params: Schema.optional(Schema.Unknown),
+  fields: Fields,
+});
+
 const AllOf = Schema.TaggedStruct("AllOf", {
   policies: Schema.Array(PolicyRef),
   fieldStrategy: FieldStrategy,
@@ -319,6 +337,7 @@ export const Policy: Schema.Codec<Policy, PolicyEncoded> = Schema.Union([
   HasAction,
   HasActed,
   HasNotActed,
+  HasCustom,
   AllOf,
   AnyOf,
   Rules,
@@ -458,6 +477,28 @@ export const hasNotActed = (event: string, options?: HistoryOptions): Policy => 
   _tag: "HasNotActed",
   event: mkEventName(event),
   scope: options?.scope ?? "Resource",
+  ...fieldsKey(options?.fields),
+});
+
+/**
+ * The named, externally-registered predicate returns `true`.
+ *
+ * `name` is resolved by a `CustomPredicate` layer at evaluation time — the
+ * logic itself is never in `params` or anywhere else on the policy, only the
+ * name that finds it. This is the deliberate escape hatch for a condition
+ * that does not reduce to `hasAttribute`/`hasResourceAttribute`'s matchers,
+ * and it costs the properties those matchers buy: opaque to `explain()`
+ * beyond naming the check, and refused by `toPredicate` rather than compiled
+ * (ADR-QD-055).
+ */
+export const hasCustom = (
+  name: string,
+  params?: unknown,
+  options?: FieldOptions,
+): Policy => ({
+  _tag: "HasCustom",
+  name,
+  ...(params === undefined ? {} : { params }),
   ...fieldsKey(options?.fields),
 });
 
@@ -608,6 +649,7 @@ export const policyDepth: (self: Policy) => number = Match.type<Policy>().pipe(
     HasAction: () => 0,
     HasActed: () => 0,
     HasNotActed: () => 0,
+    HasCustom: () => 0,
     AllOf: (p) => deepest(p.policies),
     AnyOf: (p) => deepest(p.policies),
     Rules: (p) => deepest(p.rules.map((r) => r.condition)),

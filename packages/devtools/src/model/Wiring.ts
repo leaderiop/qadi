@@ -6,12 +6,12 @@
  * show up as an empty screen. `name` answers the first, and the port metrics
  * answer the second.
  *
- * **"Unwired" is a misnomer for five of the seven services** and this module
+ * **"Unwired" is a misnomer for six of the eight services** and this module
  * refuses to use the word for them. `AttributeResolver`, `RelationshipResolver`,
- * `DecisionHistory`, `EvaluationId` and `CurrentSubject` are in
- * `EvaluationServices`: a program that has not provided them does not run, so
- * what a card can truthfully report is that one is *defaulted to a fail-closed
- * implementation* ([INV-QD-007](../../../../spec/invariants.md#inv-qd-007-defaults-fail-closed)).
+ * `DecisionHistory`, `EvaluationId`, `CustomPredicate` and `CurrentSubject` are
+ * in `EvaluationServices`: a program that has not provided them does not run,
+ * so what a card can truthfully report is that one is *defaulted to a
+ * fail-closed implementation* ([INV-QD-007](../../../../spec/invariants.md#inv-qd-007-defaults-fail-closed)).
  * `DecisionCache` and `DecisionSink` are the only two genuinely optional ones.
  */
 import * as Effect from "effect/Effect";
@@ -20,6 +20,7 @@ import * as Option from "effect/Option";
 import {
   AttributeResolver,
   CurrentSubject,
+  CustomPredicate,
   DecisionCache,
   DecisionHistory,
   DecisionSink,
@@ -70,6 +71,7 @@ export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* ()
   const relationship = yield* Effect.serviceOption(RelationshipResolver);
   const history = yield* Effect.serviceOption(DecisionHistory);
   const ids = yield* Effect.serviceOption(EvaluationId);
+  const custom = yield* Effect.serviceOption(CustomPredicate);
   const subject = yield* Effect.serviceOption(CurrentSubject);
   const cache = yield* Effect.serviceOption(DecisionCache);
   const sink = yield* Effect.serviceOption(DecisionSink);
@@ -86,6 +88,8 @@ export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* ()
         "the three-valued default denies hasActed and hasNotActed alike"),
       required("EvaluationId", nameOf(ids), Option.isSome(ids),
         "identifiers correlate a decision with its trace; nothing else depends on them"),
+      required("CustomPredicate", nameOf(custom), Option.isSome(custom),
+        "every hasCustom node denies, since no registered predicate can be reached"),
       required("CurrentSubject", undefined, Option.isSome(subject),
         "supplied per request, so its absence here says nothing about the application"),
       optional("DecisionCache", Option.isSome(cache),

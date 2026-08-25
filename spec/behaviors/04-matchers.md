@@ -19,7 +19,8 @@
 > **See:** [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)
 
 Matchers contain no closures, so they serialize with the policy that holds them.
-Like `Policy`, the union is schema-defined and the type is derived from it.
+Like `Policy`, the `Matcher` type below is hand-written first, and the
+`Schema.Codec` is built and type-asserted against it.
 
 ```ts
 export type Matcher =

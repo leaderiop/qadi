@@ -21,6 +21,7 @@ export const ENFORCEMENT_ERROR_TAGS = [
   "AttributeResolveError",
   "RelationshipResolveError",
   "DecisionHistoryUnavailable",
+  "CustomPredicateError",
   "MissingAction",
   "MissingResource",
   "MissingResourceId",
@@ -39,6 +40,10 @@ export const toResponse: (error: EnforcementError) => HttpServerResponse.HttpSer
     AttributeResolveError: () => HttpServerResponse.empty({ status: 502 }),
     RelationshipResolveError: () => HttpServerResponse.empty({ status: 502 }),
     DecisionHistoryUnavailable: () => HttpServerResponse.empty({ status: 502 }),
+    // Covers both causes this tag carries — an unregistered name and the
+    // registered predicate's own logic failing — under the same status the
+    // other resolver outages get, since the common case is the latter.
+    CustomPredicateError: () => HttpServerResponse.empty({ status: 502 }),
     // The evaluation was missing something the policy needed — a wiring
     // mistake in this service, not the caller's.
     MissingAction: () => HttpServerResponse.empty({ status: 500 }),

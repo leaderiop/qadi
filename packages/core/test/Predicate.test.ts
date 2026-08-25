@@ -261,6 +261,12 @@ describe("untranslatable fails loudly and never widens", () => {
       assert.strictEqual(f?.policyTag, "HasRelationship");
     }));
 
+  it.effect("a custom predicate cannot fold — it is opaque, registered logic", () =>
+    Effect.gen(function* () {
+      const f = yield* reasonFor(P.hasCustom("isOwner"));
+      assert.strictEqual(f?.policyTag, "HasCustom");
+    }));
+
   it.effect("a resource-scoped history question cannot fold", () =>
     Effect.gen(function* () {
       const f = yield* reasonFor(P.hasActed("raised"));

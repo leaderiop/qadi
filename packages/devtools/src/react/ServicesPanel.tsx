@@ -8,7 +8,7 @@
  * is wired but never consulted and one that is not wired at all both render as
  * an empty screen otherwise.
  *
- * **The word "unwired" appears nowhere for a required port.** Five of the seven
+ * **The word "unwired" appears nowhere for a required port.** Six of the eight
  * are in `EvaluationServices`, so a program that has not provided them does not
  * run; what a card can truthfully say is *defaulted to a fail-closed
  * implementation*.
@@ -194,6 +194,10 @@ const describe: (self: PortCall) => string = Match.type<PortCall>().pipe(
       `${call.relation ?? "not recorded"} on ${call.resourceId ?? "no resource"}${
         call.depth === undefined ? "" : ` (depth ${String(call.depth)})`
       } → ${call.answer ?? "no answer"}`,
+    CustomPredicate: (call) =>
+      `${call.name ?? "not recorded"} → ${
+        call.answer === undefined ? "no answer" : call.answer ? "true" : "false"
+      }`,
   }),
 );
 
@@ -201,7 +205,7 @@ const callsFor = (log: PortCallLog | undefined, port: string): ReadonlyArray<Por
   log === undefined ? [] : log.calls.filter((call) => call._tag === port);
 
 /**
- * The wording that keeps the five required ports honest.
+ * The wording that keeps the six required ports honest.
  *
  * A required port cannot be "unwired" — the program would not have started —
  * so an unnamed one is reported as unnamed, and the consequence line carries
