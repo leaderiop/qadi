@@ -20,6 +20,7 @@ import {
   anyOf,
   AttributeResolverNone,
   currentSubjectLayer,
+  CustomPredicateNone,
   Decided,
   DecisionHistoryUnknown,
   denyWhen,
@@ -60,6 +61,7 @@ const services = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
+  CustomPredicateNone,
 );
 
 /** A real decision, with the trace the evaluator actually produced. */

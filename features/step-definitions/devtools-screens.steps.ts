@@ -13,13 +13,15 @@ import {
   allOf,
   Allow,
   Decided,
+  DecisionRecord,
   flattenPermissions,
   hasPermission,
   makeSubjectId,
   permission,
   role,
+  stampRecord,
 } from "@qadi/core";
-import type { DecisionRecord, Policy, Role, StoredRecord, Trace } from "@qadi/core";
+import type { Policy, Role, StoredRecord, Trace } from "@qadi/core";
 import {
   catalogueOf,
   emptyTimeline,
@@ -69,8 +71,7 @@ const trace: Trace = {
 const decisionFor = (policy: Policy): StoredRecord => {
   at += 1;
   const evaluationId = `ev-${at}`;
-  const record: DecisionRecord = {
-    _tag: "Decision",
+  const record = new DecisionRecord({
     evaluationId,
     at,
     policy,
@@ -84,8 +85,8 @@ const decisionFor = (policy: Policy): StoredRecord => {
         obligations: [],
       }),
     }),
-  };
-  return { ...record, environment: "Server" };
+  });
+  return stampRecord(record, "Server");
 };
 
 const named = (name: string): Policy => policies[name] ?? hasPermission(read);

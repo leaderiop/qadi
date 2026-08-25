@@ -77,6 +77,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
+  CustomPredicateNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -118,6 +119,7 @@ const services = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
 );
 
 // The cost: every candidate row crosses the wire before any can be judged, and

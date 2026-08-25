@@ -13,8 +13,11 @@
  * durable history writes a sink that forwards somewhere durable.
  */
 import * as Chunk from "effect/Chunk";
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
+import { DecisionRecord, ObligationRecord } from "./DecisionRecord.ts";
 import type { SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 
@@ -36,12 +39,47 @@ export interface Stamped {
 /**
  * A record as this sink stores it: whatever core reported, plus where it ran.
  *
- * An intersection over the tagged union rather than one flat interface, so a
- * consumer still narrows on `_tag` and gets `policy` on a `Decision` and
- * `obligationIds` on an `Obligations` — a widened struct carrying both as
- * optional would hand every reader a "cannot happen" branch.
+ * Two sibling `Data.TaggedClass`es reusing `DecisionRecord`/`ObligationRecord`'s
+ * own constructor parameter types, rather than one flat interface or a
+ * `SinkRecord & Stamped` intersection: a consumer still narrows on `_tag` and
+ * gets `policy` on a `Decision` and `obligationIds` on an `Obligations` — a
+ * widened struct carrying both as optional would hand every reader a "cannot
+ * happen" branch — and a plain `{ ...record, environment }` spread of a
+ * `Data.TaggedClass` instance would silently place the result on
+ * `Object.prototype`, losing `.pipe`/`Equal.equals`/`Hash`. `new` always sets
+ * the correct prototype, so a real class per tag needs no such spread at all.
  */
-export type StoredRecord = SinkRecord & Stamped;
+export class StoredDecisionRecord extends Data.TaggedClass("Decision")<
+  ConstructorParameters<typeof DecisionRecord>[0] & Stamped
+> {}
+
+export class StoredObligationRecord extends Data.TaggedClass("Obligations")<
+  ConstructorParameters<typeof ObligationRecord>[0] & Stamped
+> {}
+
+export type StoredRecord = StoredDecisionRecord | StoredObligationRecord;
+
+/**
+ * Stamps a record with where it ran, preserving the record's own prototype.
+ *
+ * A plain `{ ...record, environment }` spread would place the result on
+ * `Object.prototype`: `DecisionRecord`/`ObligationRecord` are `Data.TaggedClass`
+ * instances, and spread only copies own enumerable keys, not the prototype
+ * chain those classes hang `.pipe`, `Equal.equals` and `Hash.hash` from.
+ * TypeScript does not catch this — the spread's type-level operator carries
+ * `.pipe`'s signature into the result type regardless of whether the runtime
+ * value has a working `.pipe` — so a `StoredRecord` built that way would
+ * quietly stop honestly satisfying its own type. Spreading `record`'s fields
+ * into a fresh class's constructor, below, is a different operation: `new`
+ * builds a genuinely new instance with the right prototype, so nothing is lost.
+ */
+export const stampRecord = (record: SinkRecord, environment: string): StoredRecord =>
+  Match.value(record).pipe(
+    Match.tagsExhaustive({
+      Decision: (r) => new StoredDecisionRecord({ ...r, environment }),
+      Obligations: (r) => new StoredObligationRecord({ ...r, environment }),
+    }),
+  );
 
 export const DEFAULT_RING_CAPACITY = 500;
 
@@ -93,7 +131,7 @@ export const decisionSinkRing = (options: {
     // leaves the log empty, which is the right answer, and a guard for it
     // was dead code — mutation testing removed it and every test still
     // passed.
-    records = Chunk.append(records, { ...record, environment });
+    records = Chunk.append(records, stampRecord(record, environment));
     if (Chunk.size(records) > capacity) {
       records = Chunk.drop(records, 1);
     }

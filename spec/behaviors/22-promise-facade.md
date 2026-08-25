@@ -97,6 +97,7 @@ the request lifetime.
 ```typescript
 import {
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -112,6 +113,7 @@ const qadi = makeQadi(
     RelationshipResolverNever,
     DecisionHistoryUnknown,
     EvaluationIdLive,
+    CustomPredicateNone,
   ),
 );
 

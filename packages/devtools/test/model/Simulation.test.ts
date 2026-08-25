@@ -19,6 +19,8 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolveError,
   AttributeResolver,
+  CustomPredicate,
+  CustomPredicateNone,
   DecisionCache,
   decisionCacheLayer,
   DecisionHistory,
@@ -77,6 +79,10 @@ const everyPortDies = Layer.mergeAll(
   Layer.succeed(DecisionHistory, {
     name: "live",
     hasActed: () => Effect.die("the simulator reached a live history port"),
+  }),
+  Layer.succeed(CustomPredicate, {
+    name: "live",
+    evaluate: () => Effect.die("the simulator reached a live custom predicate registry"),
   }),
 );
 
@@ -154,6 +160,7 @@ describe("simulate", () => {
         }),
         RelationshipResolverNever,
         DecisionHistoryUnknown,
+        CustomPredicateNone,
       );
 
       const outcome = yield* simulate(

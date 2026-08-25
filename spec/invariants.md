@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.21                                            |
+> | Revision       | 1.24                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -54,9 +54,10 @@ exponential.
 
 The JSON codec and the TypeScript type of a policy cannot disagree.
 
-**Source**: `packages/core/src/Policy.ts` — both are derived from one
-`Schema.Union`; `type Policy = typeof Policy.Type` and
-`Schema.fromJsonString(Policy)`.
+**Source**: `packages/core/src/Policy.ts` — the type is hand-written first and
+the `Schema.Union` of `Schema.TaggedStruct` variants is type-asserted against
+it (`Schema.Codec<Policy, PolicyEncoded>`); the JSON codec is then derived
+from that schema (`Schema.fromJsonString(Policy)`).
 
 **Implication**: `fromJson(toJson(p))` is structurally equal to `p` for every
 policy. The predecessor maintained three artefacts by hand and they drifted,
@@ -615,9 +616,13 @@ A server-rendered decision is seeded into a client registry only when the payloa
 subject id is the hydrating subject's.
 
 **Source**: `packages/react/src/Hydration.ts` — `hydrateDecisions` returns an empty
-seed list on a mismatch, and skips any entry whose policy does not decode.
-`dehydrateDecisions` drops entries whose decision belongs to a different subject
-than the payload claims.
+seed list on a mismatch, and drops any entry whose shape or policy it cannot
+verify: `evaluationId`, `durationMillis`, `visibleFields`, `obligations`, `reason`
+and `trace` are checked against `DehydratedEntryFields` and `policy` is checked
+separately against `PolicySchema` — every field of the untrusted payload is
+validated, not just the one this invariant used to name. `dehydrateDecisions`
+drops entries whose decision belongs to a different subject than the payload
+claims.
 
 **Implication**: a hydration payload is **authorization state crossing a network**,
 and the failure mode is a page cached or reused across users — one subject's allows
@@ -1620,3 +1625,45 @@ found by running a compiled `WhereInput` against a real, SQLite-backed
 of `MemberOf`'s `values` is split out of `in` into its own `{column: null}`.
 
 **Related**: [BEH-QD-242](behaviors/31-predicate-compilation.md), [BEH-QD-244](behaviors/31-predicate-compilation.md#beh-qd-244-a-compiled-fragment-handles-null-the-way-evaluatepredicate-does), [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md).
+
+## INV-QD-049: An unregistered custom predicate name is an error, never a denial
+
+A `HasCustom` node whose `name` has no entry in a **populated**
+`CustomPredicate` registry fails with `CustomPredicateError`; it never
+resolves to `Deny`.
+
+**Source**: `packages/core/src/CustomPredicate.ts` — `customPredicateFromRecord`'s
+`evaluate` fails on a table miss rather than answering `false`; `Evaluate.ts`'s
+`HasCustom` case in `evaluateNode` never catches or converts
+`CustomPredicateError`.
+
+**Implication**: this is [INV-QD-006](#inv-qd-006-failure-is-not-denial) applied
+to a misconfigured registry rather than a broken store. Only the *absence* of
+any registry at all — `CustomPredicateNone`, [BEH-QD-246](behaviors/32-custom-predicates.md#beh-qd-246-an-unwired-custompredicate-denies-every-name)
+— is a legitimate fail-closed default; a wired registry that does not
+recognise a name is, overwhelmingly, a typo in `hasCustom`'s own argument, and
+denying it would send whoever reads the decision to audit permissions rather
+than the policy that named the wrong string.
+
+**Related**: [BEH-QD-247](behaviors/32-custom-predicates.md#beh-qd-247-a-registered-predicates-own-failure-and-an-unrecognised-name-are-errors--never-denials), [ADR-QD-055](decisions/055-a-named-registered-custom-predicate.md).
+
+## INV-QD-050: A `HasCustom` node never appears in a compiled `Predicate`
+
+`toPredicate` fails `PolicyNotTranslatable` for every `HasCustom` node; no
+`Predicate` `@qadi/predicate-sql` or `@qadi/predicate-prisma` ever compiles
+contains one, whole or approximated.
+
+**Source**: `packages/core/src/Predicate.ts` — `translateNode`'s `HasCustom`
+arm calls `untranslatable` unconditionally, before any dialect-specific
+compiler ever sees the tree.
+
+**Implication**: opaque, externally-registered logic has no
+resource-independent expression to fold to. Approximating it — folding to
+`True` so a query runs, say — would be exactly the failure mode
+[ADR-QD-024](decisions/024-predicate-output.md) refuses: rows a `HasCustom`-guarded
+policy would have denied returned anyway. Because the refusal happens in
+`toPredicate` itself, `@qadi/predicate-sql` and `@qadi/predicate-prisma` need
+no `HasCustom`-specific logic of their own — the node never reaches either
+package.
+
+**Related**: [BEH-QD-248](behaviors/32-custom-predicates.md#beh-qd-248-topredicate-refuses-a-hascustom-node), [ADR-QD-024](decisions/024-predicate-output.md), [ADR-QD-055](decisions/055-a-named-registered-custom-predicate.md).

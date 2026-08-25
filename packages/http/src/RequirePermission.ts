@@ -17,6 +17,7 @@ import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import type {
   AttributeResolver,
+  CustomPredicate,
   DecisionHistory,
   EvaluationId,
   Permission,
@@ -163,11 +164,18 @@ export const requiresPermission = (
  * middleware body — the rest of `EvaluationServices` is a standing
  * requirement, satisfied once by whatever `QadiEvaluationLive`-shaped layer
  * the application already merges into its server (`AttributeResolver`,
- * `RelationshipResolver`, `DecisionHistory`, `EvaluationId`).
+ * `RelationshipResolver`, `DecisionHistory`, `EvaluationId`, `CustomPredicate`).
  */
 export class RequirePermission extends HttpApiMiddleware.Service<
   RequirePermission,
-  { requires: AttributeResolver | RelationshipResolver | DecisionHistory | EvaluationId }
+  {
+    requires:
+      | AttributeResolver
+      | RelationshipResolver
+      | DecisionHistory
+      | EvaluationId
+      | CustomPredicate;
+  }
 >()("qadi/http/RequirePermission") {}
 
 export const RequirePermissionLive: Layer.Layer<RequirePermission, never, SubjectExtractor> = Layer.effect(

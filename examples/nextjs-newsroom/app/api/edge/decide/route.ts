@@ -33,6 +33,7 @@ import {
   currentSubjectLayer,
   decide,
   Decided,
+  DecisionRecord,
   decisionSinkForwarding,
   EvaluationIdLive,
   isAllowed,
@@ -108,12 +109,13 @@ export const GET = async (request: Request): Promise<Response> => {
     verdict: isAllowed(decision) ? "Allow" : "Deny",
     // Forwarded before this returned, which is the property the topology needs.
     forwardFailures: failures,
-    wire: toWire({
-      _tag: "Decision",
-      evaluationId: decision.evaluationId,
-      at: decision.durationMillis,
-      policy: canReadArticle,
-      outcome: new Decided({ decision }),
-    }),
+    wire: toWire(
+      new DecisionRecord({
+        evaluationId: decision.evaluationId,
+        at: decision.durationMillis,
+        policy: canReadArticle,
+        outcome: new Decided({ decision }),
+      }),
+    ),
   });
 };

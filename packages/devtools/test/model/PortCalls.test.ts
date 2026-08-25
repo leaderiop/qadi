@@ -20,6 +20,9 @@ import {
   AttributeResolver,
   AttributeResolverNone,
   currentSubjectLayer,
+  CustomPredicate,
+  customPredicateFromRecord,
+  CustomPredicateNone,
   decisionHistoryFromEvents,
   DecisionHistory,
   DecisionHistoryUnknown,
@@ -28,6 +31,7 @@ import {
   gte,
   hasActed,
   hasAttribute,
+  hasCustom,
   hasRelationship,
   hasRole,
   makeSubject,
@@ -37,7 +41,13 @@ import {
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { collectPortCalls, DEFAULT_PORT_CALL_CAPACITY } from "../../src/index.ts";
-import type { ActedCall, AttributeCall, PortCall, RelationshipCall } from "../../src/index.ts";
+import type {
+  ActedCall,
+  AttributeCall,
+  CustomPredicateCall,
+  PortCall,
+  RelationshipCall,
+} from "../../src/index.ts";
 
 const alice = makeSubject({ id: "alice", roles: ["editor"], permissions: [], attributes: {} });
 
@@ -45,6 +55,7 @@ interface Overrides {
   readonly attributes?: Layer.Layer<AttributeResolver>;
   readonly relationships?: Layer.Layer<RelationshipResolver>;
   readonly history?: Layer.Layer<DecisionHistory>;
+  readonly customPredicate?: Layer.Layer<CustomPredicate>;
 }
 
 const services = (overrides?: Overrides) =>
@@ -54,6 +65,7 @@ const services = (overrides?: Overrides) =>
     overrides?.relationships ?? RelationshipResolverNever,
     overrides?.history ?? DecisionHistoryUnknown,
     evaluationIdSequential("ev"),
+    overrides?.customPredicate ?? CustomPredicateNone,
   );
 
 const resolverOf = (record: Readonly<Record<string, unknown>>) =>
@@ -191,6 +203,22 @@ describe("what a row says", () => {
       // E2.5 — the policy set no depth, so the field reads as not recorded
       // rather than as a fabricated default.
       assert.isUndefined(call.depth);
+    }));
+
+  it.effect("a custom predicate call names the check and the answer", () =>
+    Effect.gen(function* () {
+      const log = yield* watch(hasCustom("isOwner"), {
+        layers: {
+          customPredicate: customPredicateFromRecord({
+            isOwner: () => Effect.succeed(true),
+          }),
+        },
+      });
+
+      const call: CustomPredicateCall = only(log.calls, "CustomPredicate");
+      assert.strictEqual(call.span, "qadi.hasCustom");
+      assert.strictEqual(call.name, "isOwner");
+      assert.strictEqual(call.answer, true);
     }));
 
   it.effect("a depth the policy set is carried", () =>

@@ -20,25 +20,28 @@ import {
   AttributeResolveError,
   AttributeResolver,
   attributeResolverFromRecord,
+  CustomPredicateNone,
   decisionSinkRing,
   DecisionHistory,
   DecisionHistoryUnavailable,
   DecisionHistoryUnknown,
   Decided,
+  DecisionRecord,
   diffTraces,
   gte,
   hasAttribute,
   hasPermission,
   hasRole,
   makeSubjectId,
+  ObligationRecord,
   permission,
   RelationshipResolveError,
   RelationshipResolver,
   RelationshipResolverNever,
+  stampRecord,
 } from "@qadi/core";
 import type {
   DecisionOutcome,
-  DecisionRecord,
   Policy,
   StoredRecord,
   Trace,
@@ -97,6 +100,7 @@ const brokenPorts: EvaluationPortsLayer = Layer.mergeAll(
     hasActed: (query) =>
       Effect.fail(new DecisionHistoryUnavailable({ event: query.event, cause: "down" })),
   }),
+  CustomPredicateNone,
 );
 
 let input: SimulationInput = { subject: { id: "alice" } };
@@ -186,6 +190,7 @@ Given("a real resolver answering {string} with {int}", (attribute: string, value
     attributeResolverFromRecord({ [attribute]: value }),
     RelationshipResolverNever,
     DecisionHistoryUnknown,
+    CustomPredicateNone,
   );
 });
 
@@ -198,8 +203,7 @@ Given(
       children: [],
       obligations: [],
     };
-    const record: DecisionRecord = {
-      _tag: "Decision",
+    const record = new DecisionRecord({
       evaluationId,
       at: 1_000,
       policy: policyNamed(name),
@@ -213,20 +217,23 @@ Given(
           obligations: [],
         }),
       }),
-    };
-    entry = entryOf({ ...record, environment: "Server" });
+    });
+    entry = entryOf(stampRecord(record, "Server"));
   },
 );
 
 Given("a logged obligation outcome {string} with no decision", (evaluationId: string) => {
-  entry = entryOf({
-    _tag: "Obligations",
-    evaluationId,
-    at: 1_000,
-    outcome: "Discharged",
-    obligationIds: ["audit"],
-    environment: "Server",
-  });
+  entry = entryOf(
+    stampRecord(
+      new ObligationRecord({
+        evaluationId,
+        at: 1_000,
+        outcome: "Discharged",
+        obligationIds: ["audit"],
+      }),
+      "Server",
+    ),
+  );
 });
 
 // ---------------------------------------------------------------------------

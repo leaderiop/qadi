@@ -128,8 +128,8 @@ export const droppedEntriesReporter = <A,>(
  * entry type lives in `Hydration.ts`, which imports this module, and nothing
  * here reads an entry.
  *
- * The reason is carried because the three cases have three different causes and
- * three different fixes, and a bare count cannot tell them apart. Two of them
+ * The reason is carried because the four cases have four different causes and
+ * four different fixes, and a bare count cannot tell them apart. Two of them
  * reject the payload whole, so `entries` is then every entry in it.
  */
 export interface HydrationDrop<A> {
@@ -142,7 +142,7 @@ export type HydrationDropReporter<A> = (drop: HydrationDrop<A>) => void;
 /**
  * What to say about each way a payload fails to seed.
  *
- * Built once at module scope (AGENTS.md §5a) and exhaustive, so a fourth reason
+ * Built once at module scope (AGENTS.md §5a) and exhaustive, so a fifth reason
  * is a compile error here rather than a payload that fails quietly in a new way
  * — which is the defect this whole reporter exists to remove.
  *
@@ -166,6 +166,14 @@ const explain: (reason: ClientHydrationDropReason) => string = Match.type<
       "the atom set was not built by makeQadiAtoms, so it has no seed to write to. " +
       "A wrapper, a proxy or a test double is not registered — pass the atom set " +
       "itself",
+  ),
+  Match.when(
+    "MalformedEntry",
+    () =>
+      "an entry's shape didn't match what this client expects — a field other than " +
+      "the policy was missing, of the wrong type, or shaped wrong. The usual cause is " +
+      "version skew, same as an undecodable policy; a hand-built payload that skips " +
+      "required fields is the other",
   ),
   Match.when(
     "UndecodablePolicy",
@@ -194,11 +202,12 @@ const warnHydrationDrop = (drop: HydrationDrop<unknown>): void => {
  * two: a development-mode warning by default, replaced outright by a supplied
  * callback, which then runs in production.
  *
- * It exists because hydration had **three** silent exits and this file had
+ * It exists because hydration had **four** silent exits and this file had
  * closed only the one on the dehydrate side. A payload could name the wrong
- * subject, reach an unregistered atom set, or carry entries that would not
- * decode, and in every case `hydrateDecisions` returned and said nothing — so
- * "hydration isn't working" had no signal attached to it at all.
+ * subject, reach an unregistered atom set, carry an entry malformed apart from
+ * its policy, or carry a policy that would not decode, and in every case
+ * `hydrateDecisions` returned and said nothing — so "hydration isn't working"
+ * had no signal attached to it at all.
  */
 export const hydrationDropReporter = <A,>(
   supplied: HydrationDropReporter<A> | undefined,

@@ -25,6 +25,8 @@ import * as Predicate from "effect/Predicate";
 import {
   AttributeResolveError,
   AttributeResolver,
+  CustomPredicate,
+  CustomPredicateError,
   DecisionHistory,
   DecisionHistoryUnavailable,
   RelationshipResolveError,
@@ -33,8 +35,10 @@ import {
 import type {
   ActedQuery,
   ActedResult,
+  AuthSubject,
   RelatedResult,
   RelationshipCheck,
+  Resource,
   SubjectId,
 } from "@qadi/core";
 import type { EvaluationPorts } from "./SimulationInput.ts";
@@ -57,17 +61,27 @@ export interface CapturedAnswers {
   readonly relationships: ReadonlyMap<string, Answer<RelatedResult>>;
   /** Keyed by `(subjectId, event, resourceId?)`, so "ever, at all" stays distinct. */
   readonly history: ReadonlyMap<string, Answer<ActedResult>>;
+  /**
+   * Keyed by `(subjectId, name, params)` — not by the resource, since a
+   * `HasCustom` node's resource is arbitrary caller data rather than a single
+   * id the way a relationship or history check's is. A capture taken against
+   * more than one resource per (subject, name, params) triple would collapse
+   * onto one answer; a simulation run fixes one resource for its duration, so
+   * this does not arise in practice.
+   */
+  readonly custom: ReadonlyMap<string, Answer<boolean>>;
 }
 
 export const emptyAnswers: CapturedAnswers = {
   attributes: new Map(),
   relationships: new Map(),
   history: new Map(),
+  custom: new Map(),
 };
 
 /** How many answers a capture holds, for a panel that wants to say so. */
 export const answerCount = (self: CapturedAnswers): number =>
-  self.attributes.size + self.relationships.size + self.history.size;
+  self.attributes.size + self.relationships.size + self.history.size + self.custom.size;
 
 /**
  * Keys, written once and called from both sides.
@@ -90,6 +104,12 @@ export const relationshipKey = (check: RelationshipCheck): string =>
 export const historyKey = (query: ActedQuery): string =>
   JSON.stringify([query.subjectId, query.event, query.resourceId ?? null]);
 
+export const customPredicateKey = (
+  subjectId: SubjectId,
+  name: string,
+  params: unknown,
+): string => JSON.stringify([subjectId, name, params]);
+
 /**
  * Wraps live ports so every answer they give is recorded.
  *
@@ -108,6 +128,7 @@ export const capturing = (
   const attributes = new Map<string, Answer<unknown>>();
   const relationships = new Map<string, Answer<RelatedResult>>();
   const history = new Map<string, Answer<ActedResult>>();
+  const custom = new Map<string, Answer<boolean>>();
 
   const layer = Layer.mergeAll(
     Layer.effect(
@@ -146,6 +167,22 @@ export const capturing = (
         };
       }),
     ),
+    Layer.effect(
+      CustomPredicate,
+      Effect.gen(function* () {
+        const context = yield* Layer.build(ports);
+        const inner = Context.get(context, CustomPredicate);
+        return {
+          name: `${inner.name ?? "?"} (capturing)`,
+          evaluate: (name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown) =>
+            record(
+              custom,
+              customPredicateKey(subject.id, name, params),
+              inner.evaluate(name, subject, resource, params),
+            ),
+        };
+      }),
+    ),
   );
 
   return {
@@ -156,6 +193,7 @@ export const capturing = (
       attributes: new Map(attributes),
       relationships: new Map(relationships),
       history: new Map(history),
+      custom: new Map(custom),
     })),
   };
 };
@@ -246,6 +284,15 @@ export const replayLayer = (answers: CapturedAnswers): Layer.Layer<EvaluationPor
           answers.history.get(historyKey(query)),
           actedUnknown,
           (message) => new DecisionHistoryUnavailable({ event: query.event, cause: message }),
+        ),
+    }),
+    Layer.succeed(CustomPredicate, {
+      name: "snapshot",
+      evaluate: (name: string, subject: AuthSubject, _resource: Resource | undefined, params: unknown) =>
+        answer(
+          answers.custom.get(customPredicateKey(subject.id, name, params)),
+          false,
+          (message) => new CustomPredicateError({ name, reason: message }),
         ),
     }),
   );

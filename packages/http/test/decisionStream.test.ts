@@ -8,6 +8,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import {
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -55,6 +56,7 @@ const appLayer = Effect.gen(function* () {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         EvaluationIdLive,
+        CustomPredicateNone,
       ),
     ),
     Layer.provideMerge(HttpServer.layerServices),

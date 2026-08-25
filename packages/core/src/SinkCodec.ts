@@ -28,11 +28,12 @@ import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny } from "./Decision.ts";
-import type { DecisionRecord, ObligationRecord, SinkRecord } from "./DecisionRecord.ts";
-import { Decided, Failed } from "./DecisionRecord.ts";
+import type { SinkRecord } from "./DecisionRecord.ts";
+import { Decided, DecisionRecord, Failed, ObligationRecord } from "./DecisionRecord.ts";
 import type { EvaluationError } from "./Errors.ts";
 import {
   AttributeResolveError,
+  CustomPredicateError,
   DecisionHistoryUnavailable,
   ERROR_CODES,
   MissingAction,
@@ -62,6 +63,7 @@ const TRACE_TAGS = [
   "HasAction",
   "HasActed",
   "HasNotActed",
+  "HasCustom",
   "AllOf",
   "AnyOf",
   "Rules",
@@ -70,8 +72,16 @@ const TRACE_TAGS = [
   "Labeled",
 ] as const satisfies ReadonlyArray<Policy["_tag"]>;
 
-/** A `Trace` on the wire. Recursive through `children`, like the policy codec. */
-const TraceSchema: Schema.Codec<Trace> = Schema.suspend(
+/**
+ * A `Trace` on the wire. Recursive through `children`, like the policy codec.
+ *
+ * Exported for `packages/react/src/Hydration.ts`, which validates a
+ * `DehydratedEntry`'s own `trace` field against the same shape a sink record's
+ * does — a `Trace` crosses a trust boundary in both places, and duplicating
+ * `TRACE_TAGS`/this recursion in a second file is exactly the drift ADR-QD-002's
+ * reasoning warns about.
+ */
+export const TraceSchema: Schema.Codec<Trace> = Schema.suspend(
   (): Schema.Codec<Trace> =>
     Schema.Struct({
       policyTag: Schema.Literals(TRACE_TAGS),
@@ -108,6 +118,7 @@ const ErrorSchema = Schema.Struct({
     "MissingResourceId",
     "DecisionHistoryUnavailable",
     "PolicyTooDeep",
+    "CustomPredicateError",
   ]),
   code: Schema.String,
   attribute: Schema.optional(Schema.String),
@@ -116,6 +127,13 @@ const ErrorSchema = Schema.Struct({
   resourceId: Schema.optional(Schema.String),
   event: Schema.optional(Schema.String),
   maxDepth: Schema.optional(Schema.Number),
+  /** `CustomPredicateError`'s registered predicate name. */
+  name: Schema.optional(Schema.String),
+  /**
+   * `CustomPredicateError`'s own reason — distinct from `cause`, which is
+   * always a rendered `unknown` thrown by someone else's code.
+   */
+  reason: Schema.optional(Schema.String),
   /** Always a string here, whatever it was in the process that raised it. */
   cause: Schema.optional(Schema.String),
 });
@@ -224,6 +242,12 @@ const encodeError: (error: EvaluationError) => ErrorWire = Match.type<Evaluation
       code: ERROR_CODES.PolicyTooDeep,
       maxDepth: e.maxDepth,
     }),
+    CustomPredicateError: (e) => ({
+      _tag: "CustomPredicateError" as const,
+      code: ERROR_CODES.CustomPredicateError,
+      name: e.name,
+      reason: e.reason,
+    }),
   }),
 );
 
@@ -265,6 +289,10 @@ const decodeError = (wire: ErrorWire): EvaluationError =>
       () => new DecisionHistoryUnavailable({ event: wire.event ?? "", cause: wire.cause }),
     ),
     Match.when("PolicyTooDeep", () => new PolicyTooDeep({ maxDepth: wire.maxDepth ?? 0 })),
+    Match.when(
+      "CustomPredicateError",
+      () => new CustomPredicateError({ name: wire.name ?? "", reason: wire.reason ?? "" }),
+    ),
     Match.exhaustive,
   );
 
@@ -331,22 +359,19 @@ export const toWire = (record: SinkRecord): SinkRecordWire =>
 /** Rebuilds a record from its wire projection. */
 export const fromWire = (wire: SinkRecordWire): SinkRecord => {
   if (wire._tag === "Obligations") {
-    const record: ObligationRecord = {
-      _tag: "Obligations",
+    return new ObligationRecord({
       evaluationId: wire.evaluationId,
       at: wire.at,
       outcome: wire.outcome,
       obligationIds: wire.obligationIds,
-    };
-    return record;
+    });
   }
   // `decided` absent and `failed` absent cannot both hold for a record this
   // module produced, but the wire is untrusted, so the fallback is a `Failed`
   // naming the malformation rather than a cast or a thrown error. A devtools row
   // saying "the sender sent neither outcome" is more useful than a dropped
   // record, and it can never be mistaken for a decision.
-  const record: DecisionRecord = {
-    _tag: "Decision",
+  return new DecisionRecord({
     evaluationId: wire.evaluationId,
     at: wire.at,
     policy: wire.policy,
@@ -361,8 +386,7 @@ export const fromWire = (wire: SinkRecordWire): SinkRecord => {
           : new Failed({
               error: new MissingResource({ attribute: "<malformed record: no outcome>" }),
             }),
-  };
-  return record;
+  });
 };
 
 /** Encodes a record to a plain JSON value. */

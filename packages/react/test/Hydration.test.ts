@@ -9,6 +9,7 @@ import {
   AttributeResolveError,
   AttributeResolver,
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   Deny,
   EvaluationIdLive,
@@ -45,6 +46,7 @@ const atoms = makeQadiAtoms(
     RelationshipResolverNever,
     DecisionHistoryUnknown,
     EvaluationIdLive,
+    CustomPredicateNone,
   ),
 );
 
@@ -297,6 +299,75 @@ describe("hydrateDecisions", () => {
     expect([...seeded]).toEqual([]);
   });
 
+  // The malformed payloads below round-trip through JSON, the same idiom
+  // `SinkCodec.test.ts` uses for untrusted input: `DehydratedEntry`'s fields
+  // are legitimately typed for a well-behaved caller, and a hand-crafted or
+  // version-skewed payload arriving as real JSON is exactly what these
+  // fields' compile-time types cannot rule out.
+
+  it("drops an entry whose durationMillis is not a number", () => {
+    const policy = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }])
+      .entries[0]!.policy;
+    const dehydrated = JSON.parse(
+      JSON.stringify({
+        subjectId: "u1",
+        entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: "not-a-number" }],
+      }),
+    );
+    const seeded = hydrateDecisions(atoms, dehydrated, alice);
+    expect([...seeded]).toEqual([]);
+  });
+
+  it("drops an entry whose obligations is not an array", () => {
+    const policy = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }])
+      .entries[0]!.policy;
+    const dehydrated = JSON.parse(
+      JSON.stringify({
+        subjectId: "u1",
+        entries: [
+          { policy, allowed: true, evaluationId: "e", durationMillis: 0, obligations: "nope" },
+        ],
+      }),
+    );
+    const seeded = hydrateDecisions(atoms, dehydrated, alice);
+    expect([...seeded]).toEqual([]);
+  });
+
+  it("drops an entry whose trace does not match the shape", () => {
+    const policy = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }])
+      .entries[0]!.policy;
+    const dehydrated = JSON.parse(
+      JSON.stringify({
+        subjectId: "u1",
+        entries: [
+          {
+            policy,
+            allowed: true,
+            evaluationId: "e",
+            durationMillis: 0,
+            trace: { policyTag: "NotARealTag" },
+          },
+        ],
+      }),
+    );
+    const seeded = hydrateDecisions(atoms, dehydrated, alice);
+    expect([...seeded]).toEqual([]);
+  });
+
+  it("reports a malformed non-policy field under its own reason", () => {
+    const policy = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }])
+      .entries[0]!.policy;
+    const dehydrated = JSON.parse(
+      JSON.stringify({
+        subjectId: "u1",
+        entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: "not-a-number" }],
+      }),
+    );
+    const onDropped = vi.fn();
+    hydrateDecisions(atoms, dehydrated, alice, { onDropped });
+    expect(onDropped).toHaveBeenCalledWith(expect.objectContaining({ reason: "MalformedEntry" }));
+  });
+
   it("a hydrated denial reads as a denial, not as pending", () => {
     // The distinction ADR-QD-017 exists for: `Initial` and `Deny` are different
     // answers, and a seeded deny must be the second one.
@@ -493,6 +564,7 @@ describe("hydration mismatch", () => {
     RelationshipResolverNever,
     DecisionHistoryUnknown,
     EvaluationIdLive,
+    CustomPredicateNone,
   );
 
   /** An atom set reporting into `seen`, with the subject already known. */
@@ -604,6 +676,7 @@ describe("hydration mismatch", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         EvaluationIdLive,
+        CustomPredicateNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );
@@ -832,6 +905,7 @@ describe("a re-check that settles asynchronously", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         EvaluationIdLive,
+        CustomPredicateNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );

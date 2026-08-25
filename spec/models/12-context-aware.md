@@ -92,6 +92,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolveError,
   AttributeResolver,
+  CustomPredicateNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -146,6 +147,7 @@ const program: Effect.Effect<boolean, EvaluationError> = check(canExport, {
       RelationshipResolverNever,
       DecisionHistoryUnknown,
       EvaluationIdLive,
+      CustomPredicateNone,
     ),
   ),
 );

@@ -7,6 +7,8 @@
 import {
   AttributeResolver,
   AttributeResolverNone,
+  CustomPredicate,
+  CustomPredicateNone,
   DecisionHistory,
   DecisionHistoryUnknown,
   RelationshipResolver,
@@ -76,6 +78,8 @@ export interface TestLayerOptions {
   readonly relationshipResolver?: Layer.Layer<RelationshipResolver>;
   /** Supplies the history port directly, taking precedence over `history`. */
   readonly decisionHistory?: Layer.Layer<DecisionHistory>;
+  /** Supplies the `HasCustom` registry directly. Defaults to `CustomPredicateNone`. */
+  readonly customPredicate?: Layer.Layer<CustomPredicate>;
 }
 
 /**
@@ -107,6 +111,7 @@ export const qadiReviewLayer = (
         ? DecisionHistoryUnknown
         : eventDecisionHistory(options.history).layer),
     evaluationIdSequential(options?.idPrefix ?? "eval"),
+    options?.customPredicate ?? CustomPredicateNone,
     clockLayer(options?.clock),
   );
 

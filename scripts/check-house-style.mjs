@@ -185,6 +185,29 @@ const SWITCH_BUDGET = {
 
 const SWITCH = /\bswitch\s*\(/;
 
+/**
+ * `hasCustom(...)` call sites outside `packages/core/src` and
+ * `packages/testing/src`, by file and exact count (ADR-QD-055).
+ *
+ * `HasCustom` is Qadi's one deliberate escape hatch — a policy node whose
+ * condition is opaque, externally-registered logic rather than a declarative
+ * matcher, so a policy reaching for it forfeits `explain()`'s ability to
+ * decompose the check and `toPredicate`'s ability to compile it to a row
+ * filter. An escape hatch with no friction becomes the default path, so
+ * adopting it anywhere outside core/testing is a conscious, reviewed edit to
+ * this list — the same discipline `SWITCH_BUDGET` enforces for `switch`, not a
+ * convention left to be remembered. Empty today: no shipped package outside
+ * core/testing reaches for it yet.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const HAS_CUSTOM_BUDGET = {};
+
+const HAS_CUSTOM_CALL = /\bhasCustom\s*\(/;
+
+/** `hasCustom` is defined and fixture-used here; only usage elsewhere is budgeted. */
+const HAS_CUSTOM_EXEMPT_PREFIXES = ["packages/core/src/", "packages/testing/src/"];
+
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
 // this script scans — reuses the identical `as` keyword for namespacing, not
@@ -265,6 +288,9 @@ let failures = 0;
 /** @type {Map<string, number[]>} */
 const switchLines = new Map();
 
+/** @type {Map<string, number[]>} */
+const hasCustomLines = new Map();
+
 for (const file of sources) {
   const rel = relative(ROOT, file);
   const exempt = EXEMPTIONS[rel] ?? [];
@@ -315,6 +341,15 @@ for (const file of sources) {
       switchLines.set(rel, found);
     }
 
+    if (
+      HAS_CUSTOM_CALL.test(line) &&
+      !HAS_CUSTOM_EXEMPT_PREFIXES.some((prefix) => rel.startsWith(prefix))
+    ) {
+      const found = hasCustomLines.get(rel) ?? [];
+      found.push(index + 1);
+      hasCustomLines.set(rel, found);
+    }
+
     for (const rule of RULES) {
       if (exempt.includes(rule.id)) continue;
       if (rule.id === "no-type-assertion" && importActive) continue;
@@ -358,6 +393,35 @@ for (const [rel, found] of switchLines) {
   console.error(
     `${rel}:${found.join(", ")}  [no-switch] Dispatch with effect/Match, not switch — AGENTS.md §5a.\n` +
       `    A hot path that genuinely needs one is declared in SWITCH_BUDGET with its reason.`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ADR-QD-055 — `hasCustom(...)` usage outside core/testing is a named
+// allowlist, not a grep. An escape hatch with no friction becomes the default
+// path; this makes reaching for it anywhere new a conscious, reviewed edit,
+// checked in both directions like SWITCH_BUDGET above.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(HAS_CUSTOM_BUDGET)) {
+  const found = hasCustomLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [hasCustom-budget] declares ${budget} hasCustom(...) call(s), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update HAS_CUSTOM_BUDGET in scripts/check-house-style.mjs so the two agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of hasCustomLines) {
+  if (rel in HAS_CUSTOM_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [hasCustom-budget] New hasCustom(...) usage outside core/testing.\n` +
+      `    Add it to HAS_CUSTOM_BUDGET in scripts/check-house-style.mjs with its exact count — a ` +
+      `conscious, reviewed opt-in, not a silent grep hit (ADR-QD-055).`,
   );
 }
 

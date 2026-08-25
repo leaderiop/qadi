@@ -52,6 +52,7 @@ attributes, somewhere to resolve relationships, and a source of evaluation ids.
 ```typescript
 import {
   AttributeResolver,
+  CustomPredicateNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -70,6 +71,7 @@ export const QadiLive = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
 );
 ```
 
@@ -94,6 +96,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -104,6 +107,7 @@ const QadiLive = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
 );
 
 export const qadi = makeQadiAtoms(QadiLive);
@@ -124,6 +128,7 @@ import type { AuthSubject } from "@qadi/core";
 import { QadiProvider, makeQadiAtoms } from "@qadi/react";
 import {
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -137,6 +142,7 @@ const qadi = makeQadiAtoms(
     RelationshipResolverNever,
     DecisionHistoryUnknown,
     EvaluationIdLive,
+    CustomPredicateNone,
   ),
 );
 
@@ -349,6 +355,7 @@ forget.
 import type { AuthSubject } from "@qadi/core";
 import {
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -362,6 +369,7 @@ const base = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
 );
 
 const tenantAtoms = new Map([
@@ -398,6 +406,7 @@ graph. Proving them needs a registry, not a DOM.
 ```typescript
 import {
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -416,6 +425,7 @@ const atoms = makeQadiAtoms(
     RelationshipResolverNever,
     DecisionHistoryUnknown,
     EvaluationIdLive,
+    CustomPredicateNone,
   ),
 );
 
@@ -443,6 +453,7 @@ import type { AuthSubject } from "@qadi/core";
 import { QadiProvider, makeQadiAtoms } from "@qadi/react";
 import {
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -457,6 +468,7 @@ export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
     RelationshipResolverNever,
     DecisionHistoryUnknown,
     EvaluationIdLive,
+    CustomPredicateNone,
   ),
   );
   return (

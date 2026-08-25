@@ -15,7 +15,7 @@
  * **dropped** rather than trusted.
  */
 import type { AuthSubject, Decision, Policy, Resource, SubjectId, Trace } from "@qadi/core";
-import { Allow, Deny, Policy as PolicySchema } from "@qadi/core";
+import { Allow, Deny, Obligation, Policy as PolicySchema, TraceSchema } from "@qadi/core";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import type * as Atom from "effect/unstable/reactivity/Atom";
@@ -41,6 +41,38 @@ const encodePolicy = Schema.encodeSync(PolicySchema);
  * subject gets.
  */
 const decodePolicy = Schema.decodeUnknownOption(PolicySchema);
+
+/**
+ * Every field of a `DehydratedEntry` except `policy`, which keeps its own
+ * decode path above — it needs a type transformation (`unknown` to `Policy`)
+ * this struct doesn't perform, so folding it in here would just re-run
+ * `PolicySchema` a second time for no benefit.
+ *
+ * Field-for-field with the interface's own optionality: `resource` follows the
+ * inline `Schema.Record(Schema.String, Schema.Unknown)` convention
+ * `SinkCodec.ts` already uses for the same shape — no named `Resource` schema
+ * exists to import. `obligations` and `trace` reuse `Obligation` and
+ * `TraceSchema` from `@qadi/core` rather than re-describing either union here,
+ * for the same drift reason `SinkCodec.ts`'s own doc comment gives.
+ */
+const DehydratedEntryFields = Schema.Struct({
+  resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+  allowed: Schema.Boolean,
+  evaluationId: Schema.String,
+  durationMillis: Schema.Number,
+  visibleFields: Schema.optional(Schema.Array(Schema.String)),
+  obligations: Schema.optional(Schema.Array(Obligation)),
+  reason: Schema.optional(Schema.String),
+  trace: Schema.optional(TraceSchema),
+});
+
+/**
+ * Decoding is the untrusted side, so — like `decodePolicy` — this returns an
+ * Option and a malformed entry is dropped rather than thrown on. Every field
+ * but `policy` used to reach `rebuild` compile-time-typed and runtime-unchecked;
+ * this closes that gap.
+ */
+const decodeEntryFields = Schema.decodeUnknownOption(DehydratedEntryFields);
 
 /** One decision the server made, ready to be dehydrated. */
 export interface DecisionEntry {
@@ -198,10 +230,12 @@ export interface HydrateOptions {
    * Called with the entries this client refused to seed, and why.
    *
    * The sibling of {@link DehydrateOptions.onDropped}, and it carries a reason
-   * because the three ways a payload fails to seed have three different causes:
+   * because the four ways a payload fails to seed have four different causes:
    * the payload naming another subject is a cache-key bug, an unregistered atom
-   * set is a wiring mistake, and an undecodable policy is version skew. A bare
-   * count cannot tell them apart, and each wants a different fix.
+   * set is a wiring mistake, an entry malformed apart from its policy is
+   * usually version skew, and an undecodable policy is version skew of the
+   * policy shape specifically. A bare count cannot tell them apart, and each
+   * wants a different fix.
    *
    * Supplying this replaces the development-mode console warning and runs in
    * production, exactly as {@link DehydrateOptions.onDropped} and
@@ -218,7 +252,7 @@ export interface HydrateOptions {
  * Turns a payload into `initialValues` for `QadiProvider`.
  *
  * **Drops** every entry whose `subjectId` is not this subject's, and every entry
- * whose policy does not decode. A dropped entry leaves its atom `Initial`, so the
+ * whose shape or policy this client cannot verify. A dropped entry leaves its atom `Initial`, so the
  * client asks the question properly — the page flashes, which is exactly what
  * would have happened without hydration and is the correct outcome for a payload
  * that cannot be verified.
@@ -266,9 +300,20 @@ export const hydrateDecisions = (
   }
 
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
+  const malformed: Array<DehydratedEntry> = [];
   const undecodable: Array<DehydratedEntry> = [];
 
   for (const entry of dehydrated.entries) {
+    const fields = decodeEntryFields(entry);
+    // Checked before the policy: an envelope malformed at this level — a string
+    // where durationMillis belongs, an obligations value that isn't an array, a
+    // trace of the wrong shape — is a different failure than a policy shape this
+    // schema doesn't know, and warrants its own reason.
+    if (!Option.isSome(fields)) {
+      malformed.push(entry);
+      continue;
+    }
+
     const decoded = decodePolicy(entry.policy);
     // Collected rather than reported one at a time: a version skew makes *every*
     // entry of a shape undecodable, and one warning per entry would bury the
@@ -280,6 +325,11 @@ export const hydrateDecisions = (
     const policy = decoded.value;
 
     seeded.push([seedFor(policy, entry.resource), rebuild(entry, subject.id)]);
+  }
+
+  if (malformed.length > 0) {
+    countDropped("MalformedEntry", malformed.length);
+    report?.({ reason: "MalformedEntry", entries: malformed });
   }
 
   if (undecodable.length > 0) {

@@ -135,6 +135,7 @@ without one fails with `MissingResource` — a wiring mistake, not a decision.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
+  CustomPredicateNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -170,6 +171,7 @@ const services = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
 );
 
 const program: Effect.Effect<boolean, EvaluationError> = check(canWorkCase, {

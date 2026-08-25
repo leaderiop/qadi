@@ -19,6 +19,7 @@ import {
   anyOf,
   AttributeResolveError,
   AttributeResolver,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   Failed,
   gte,
@@ -66,6 +67,7 @@ const brokenPorts = Layer.mergeAll(
   }),
   RelationshipResolverNever,
   DecisionHistoryUnknown,
+  CustomPredicateNone,
 );
 
 const entryOf = (record: Parameters<typeof ingestAll>[1][number]): TimelineEntry => {
@@ -709,6 +711,7 @@ describe("a defect in the layer the host supplied", () => {
       Layer.effect(AttributeResolver, Effect.die(new Error("the layer exploded"))),
       RelationshipResolverNever,
       DecisionHistoryUnknown,
+      CustomPredicateNone,
     );
     render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} ports={dying} />);
 

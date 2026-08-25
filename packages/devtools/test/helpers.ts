@@ -11,18 +11,19 @@
 import {
   Allow,
   Decided,
+  DecisionRecord,
   Deny,
   Failed,
   hasPermission,
   makeSubjectId,
   MissingResource,
+  ObligationRecord,
   permission,
+  stampRecord,
 } from "@qadi/core";
 import type {
-  DecisionRecord,
   EvaluationError,
   ObligationOutcome,
-  ObligationRecord,
   Policy,
   StoredRecord,
   Trace,
@@ -88,17 +89,20 @@ export const decisionRecord = (options?: {
   readonly resource?: Record<string, unknown>;
   readonly cache?: DecisionRecord["cache"];
   readonly outcome?: DecisionRecord["outcome"];
-}): StoredRecord => ({
-  _tag: "Decision",
-  evaluationId: options?.evaluationId ?? "ev-1",
-  at: options?.at ?? 1_000,
-  policy: options?.policy ?? readPolicy,
-  ...(options?.resource === undefined ? {} : { resource: options.resource }),
-  ...(options?.action === undefined ? {} : { action: options.action }),
-  ...(options?.cache === undefined ? {} : { cache: options.cache }),
-  outcome: options?.outcome ?? new Decided({ decision: allow({ evaluationId: options?.evaluationId ?? "ev-1" }) }),
-  environment: options?.environment ?? "Server",
-});
+}): StoredRecord =>
+  stampRecord(
+    new DecisionRecord({
+      evaluationId: options?.evaluationId ?? "ev-1",
+      at: options?.at ?? 1_000,
+      policy: options?.policy ?? readPolicy,
+      ...(options?.resource === undefined ? {} : { resource: options.resource }),
+      ...(options?.action === undefined ? {} : { action: options.action }),
+      ...(options?.cache === undefined ? {} : { cache: options.cache }),
+      outcome:
+        options?.outcome ?? new Decided({ decision: allow({ evaluationId: options?.evaluationId ?? "ev-1" }) }),
+    }),
+    options?.environment ?? "Server",
+  );
 
 /** A `Decision` record whose evaluation broke. Not a denial — INV-QD-006. */
 export const failedRecord = (options?: {
@@ -122,13 +126,13 @@ export const obligationRecord = (options?: {
   readonly environment?: string;
   readonly outcome?: ObligationOutcome;
   readonly obligationIds?: ReadonlyArray<string>;
-}): StoredRecord => {
-  const record: ObligationRecord = {
-    _tag: "Obligations",
-    evaluationId: options?.evaluationId ?? "ev-1",
-    at: options?.at ?? 1_001,
-    outcome: options?.outcome ?? "Discharged",
-    obligationIds: options?.obligationIds ?? ["audit"],
-  };
-  return { ...record, environment: options?.environment ?? "Server" };
-};
+}): StoredRecord =>
+  stampRecord(
+    new ObligationRecord({
+      evaluationId: options?.evaluationId ?? "ev-1",
+      at: options?.at ?? 1_001,
+      outcome: options?.outcome ?? "Discharged",
+      obligationIds: options?.obligationIds ?? ["audit"],
+    }),
+    options?.environment ?? "Server",
+  );

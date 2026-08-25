@@ -16,6 +16,7 @@ import * as Option from "effect/Option";
 import type { Concurrency } from "effect/Types";
 import { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
+import { CustomPredicate } from "./CustomPredicate.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
@@ -23,8 +24,7 @@ import type { CacheOutcome, DecisionCacheKey } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
-import type { DecisionRecord } from "./DecisionRecord.ts";
-import { Decided, Failed } from "./DecisionRecord.ts";
+import { Decided, DecisionRecord, Failed } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { EvaluationError } from "./Errors.ts";
 import {
@@ -201,7 +201,8 @@ export type EvaluationServices =
   | AttributeResolver
   | RelationshipResolver
   | DecisionHistory
-  | EvaluationId;
+  | EvaluationId
+  | CustomPredicate;
 
 const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
 
@@ -449,6 +450,27 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
   );
 });
 
+/**
+ * `HasCustom`'s arm, extracted for the same reason `evaluateActed` and
+ * `evaluateHasRelationship` are.
+ */
+const evaluateHasCustom = Effect.fn("qadi.hasCustom")(function* (
+  policy: Extract<Policy, { _tag: "HasCustom" }>,
+  subject: AuthSubject,
+  resource: Resource | undefined,
+) {
+  yield* Effect.annotateCurrentSpan({
+    "qadi.custom_predicate": policy.name,
+    "qadi.subject_id": subject.id,
+  });
+  yield* Metric.update(portCallsTotal, "CustomPredicate");
+  const allowed = yield* CustomPredicate.evaluate(policy.name, subject, resource, policy.params);
+  yield* Effect.annotateCurrentSpan({ "qadi.answer": allowed });
+  return allowed
+    ? allow("HasCustom", policy.fields)
+    : deny("HasCustom", `custom predicate '${policy.name}' returned false`);
+});
+
 const evaluateNode = (
   policy: Policy,
   subject: AuthSubject,
@@ -458,7 +480,7 @@ const evaluateNode = (
 ): Effect.Effect<
   Trace,
   EvaluationError,
-  AttributeResolver | RelationshipResolver | DecisionHistory
+  AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate
 > => {
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
 
@@ -535,6 +557,9 @@ const evaluateNode = (
     case "HasActed":
     case "HasNotActed":
       return evaluateActed(policy, subject, resource);
+
+    case "HasCustom":
+      return evaluateHasCustom(policy, subject, resource);
 
     case "AllOf":
       return evaluateAllOf(policy, subject, request, depth, maxDepth);
@@ -1011,7 +1036,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   const lookupEffect: Effect.Effect<
     EvaluationLookup,
     EvaluationError,
-    AttributeResolver | RelationshipResolver | DecisionHistory
+    AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate
   > = Option.isSome(cache)
     ? cache.value.getOrCompute(cacheKey, compute)
     : Effect.map(compute, (trace) => ({ trace, outcome: undefined }));
@@ -1024,15 +1049,16 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
           "qadi.outcome": "Failed",
           "qadi.error_tag": error._tag,
         });
-        yield* emit({
-          _tag: "Decision",
-          evaluationId,
-          at: startedAt,
-          policy,
-          resource: options?.resource,
-          action: options?.action,
-          outcome: new Failed({ error }),
-        });
+        yield* emit(
+          new DecisionRecord({
+            evaluationId,
+            at: startedAt,
+            policy,
+            resource: options?.resource,
+            action: options?.action,
+            outcome: new Failed({ error }),
+          }),
+        );
       }),
     ),
   );
@@ -1090,16 +1116,17 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   // Last, after every other emission, so a sink cannot observe a decision the
   // metrics and span have not yet recorded — and so that nothing below it could
   // be skipped were the sink to misbehave.
-  yield* emit({
-    _tag: "Decision",
-    evaluationId,
-    at: startedAt,
-    policy,
-    resource: options?.resource,
-    action: options?.action,
-    cache: lookup.outcome,
-    outcome: new Decided({ decision }),
-  });
+  yield* emit(
+    new DecisionRecord({
+      evaluationId,
+      at: startedAt,
+      policy,
+      resource: options?.resource,
+      action: options?.action,
+      cache: lookup.outcome,
+      outcome: new Decided({ decision }),
+    }),
+  );
 
   return decision;
 });

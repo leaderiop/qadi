@@ -39,7 +39,12 @@ export type PortCallPort = PortCall["_tag"];
  * Narrowing the name once makes `rowOf` exhaustive, so a fourth span is a
  * compile error rather than a blank row.
  */
-const PORT_SPANS = ["qadi.attribute", "qadi.acted", "qadi.hasRelationship"] as const;
+const PORT_SPANS = [
+  "qadi.attribute",
+  "qadi.acted",
+  "qadi.hasRelationship",
+  "qadi.hasCustom",
+] as const;
 
 type PortSpan = (typeof PORT_SPANS)[number];
 
@@ -95,13 +100,27 @@ export interface RelationshipCall extends PortCallBase {
 }
 
 /**
+ * A `HasCustom` node's registered predicate.
+ *
+ * `answer` is a plain boolean, unlike the three-valued history/relationship
+ * answers — there is no "unwired" case to distinguish here, since an unwired
+ * registry already denies through `CustomPredicateNone` rather than answering
+ * a closed third value.
+ */
+export interface CustomPredicateCall extends PortCallBase {
+  readonly _tag: "CustomPredicate";
+  readonly name: string | undefined;
+  readonly answer: boolean | undefined;
+}
+
+/**
  * One row per port call.
  *
- * A union rather than a flat row with an `asked` string, because the three ports
+ * A union rather than a flat row with an `asked` string, because the four ports
  * genuinely ask different questions: a scope and a depth have nowhere to live in
  * a shape built for the union of their names.
  */
-export type PortCall = AttributeCall | ActedCall | RelationshipCall;
+export type PortCall = AttributeCall | ActedCall | RelationshipCall | CustomPredicateCall;
 
 export interface PortCallLog {
   /**
@@ -234,6 +253,14 @@ const rowOf = (span: Tracer.Span, name: PortSpan): PortCall => {
       scope: stringAt(span, "qadi.scope"),
       resourceId: stringAt(span, "qadi.resource_id"),
       answer: stringAt(span, "qadi.answer"),
+    };
+  }
+  if (name === "qadi.hasCustom") {
+    return {
+      ...base,
+      _tag: "CustomPredicate",
+      name: stringAt(span, "qadi.custom_predicate"),
+      answer: booleanAt(span, "qadi.answer"),
     };
   }
   const exhaustive: "qadi.hasRelationship" = name;

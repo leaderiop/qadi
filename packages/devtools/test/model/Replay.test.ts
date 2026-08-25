@@ -18,6 +18,7 @@ import {
   allOf,
   AttributeResolverNone,
   currentSubjectLayer,
+  CustomPredicateNone,
   Decided,
   decisionSinkRing,
   DecisionHistoryUnknown,
@@ -349,6 +350,7 @@ describe("replay, reconstruct, and check — end to end", () => {
             DecisionHistoryUnknown,
             RelationshipResolverNever,
             evaluationIdSequential("ev"),
+            CustomPredicateNone,
           ),
         ),
       );

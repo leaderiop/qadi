@@ -1,8 +1,10 @@
 /**
  * The matcher DSL used by attribute policies.
  *
- * Like {@link Policy}, matchers are defined once as a Schema and the TypeScript
- * type is derived from it, so the wire format and the type cannot drift.
+ * Like {@link Policy}, the `Matcher` type is hand-written first — recursive
+ * types need a named declaration to close the `Schema.suspend` loop — and
+ * the `Schema.TaggedStruct` variants below are then built and type-asserted
+ * against it, so the wire format and the type cannot drift.
  *
  * Matchers compare an attribute value against a literal, another field of the
  * subject or resource, or a nested structure. They are pure data: no closures,

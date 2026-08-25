@@ -73,6 +73,7 @@ const MEANINGS: Record<HydrationDropReason, string> = {
   ForeignSubject: "the server put two subjects' decisions in one payload",
   PayloadSubjectMismatch: "a payload reached a client it was not rendered for",
   UnregisteredAtoms: "hydrateDecisions was handed an atom set makeQadiAtoms did not build",
+  MalformedEntry: "an entry's shape didn't match what this client expects, apart from its policy",
   UndecodablePolicy: "a policy shape the client's schema does not know — usually version skew",
 };
 

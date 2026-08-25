@@ -23,6 +23,7 @@ import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import type { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
+import type { CustomPredicate } from "./CustomPredicate.ts";
 import type { Trace } from "./Decision.ts";
 import type { DecisionHistory } from "./DecisionHistory.ts";
 import type { EvaluationError } from "./Errors.ts";
@@ -74,7 +75,11 @@ export interface DecisionCacheKey {
  * What `getOrCompute`'s `compute` argument — always `evaluateNode` — can
  * need or raise.
  */
-type EvaluationRequirements = AttributeResolver | RelationshipResolver | DecisionHistory;
+type EvaluationRequirements =
+  | AttributeResolver
+  | RelationshipResolver
+  | DecisionHistory
+  | CustomPredicate;
 
 /**
  * Which of the cache's three documented paths a lookup took.

@@ -37,7 +37,8 @@ export type RequirementKind =
   | "attribute"
   | "relationship"
   | "action"
-  | "history";
+  | "history"
+  | "custom";
 
 export interface Requirement {
   readonly _tag: "Requirement";
@@ -194,6 +195,10 @@ export const explain: (policy: Policy) => Explanation = Match.type<Policy>().pip
         `the subject has not ${p.event} ${p.scope === "Any" ? "anything" : "this resource"}`,
         p.fields,
       ),
+
+    // Opaque by design: this names the registered check without pretending to
+    // decompose logic it cannot see (ADR-QD-055).
+    HasCustom: (p) => requirement("custom", `custom predicate '${p.name}'`, p.fields),
 
     AllOf: (p): All => ({
       _tag: "All",

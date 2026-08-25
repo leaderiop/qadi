@@ -159,6 +159,7 @@ describe("HydrationMetrics", () => {
       "ForeignSubject",
       "PayloadSubjectMismatch",
       "UnregisteredAtoms",
+      "MalformedEntry",
       "UndecodablePolicy",
     ] as const;
 

@@ -280,8 +280,10 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
   currentSubjectLayer,
+  CustomPredicateNone,
   Decided,
   DecisionHistoryUnknown,
+  DecisionRecord,
   evaluate,
   EvaluationIdLive,
   fromRoles,
@@ -289,6 +291,7 @@ import {
   permission,
   RelationshipResolverNever,
   role,
+  stampRecord,
   toPredicate,
 } from "@qadi/core";
 import { makeQadi } from "@qadi/promise";
@@ -306,6 +309,7 @@ const alice = fromRoles({ id: "alice", roles: [editor] });
 
 const services = Layer.mergeAll(
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -343,14 +347,18 @@ expect("react provider", typeof QadiProvider, "function");
 // @qadi/devtools ships TWO entry points, and check 3's import probe only
 // reaches package roots — so the second one is exercised here or nowhere.
 const decided = await decide(hasPermission(read));
-const timeline = ingest(emptyTimeline(), {
-  _tag: "Decision",
-  evaluationId: decided.evaluationId,
-  at: 0,
-  policy: hasPermission(read),
-  outcome: new Decided({ decision: decided }),
-  environment: "Server",
-});
+const timeline = ingest(
+  emptyTimeline(),
+  stampRecord(
+    new DecisionRecord({
+      evaluationId: decided.evaluationId,
+      at: 0,
+      policy: hasPermission(read),
+      outcome: new Decided({ decision: decided }),
+    }),
+    "Server",
+  ),
+);
 const [only] = timeline.entries;
 expect("devtools timeline", timeline.entries.length, 1);
 expect("devtools verdict", only === undefined ? "missing" : verdictOf(only), "Allow");

@@ -33,6 +33,7 @@ describe("policyDepth", () => {
       P.hasAction("read"),
       P.hasActed("approved", { scope: "Resource" }),
       P.hasNotActed("approved", { scope: "Resource" }),
+      P.hasCustom("isOwner"),
     ];
     for (const leaf of leaves) {
       assert.strictEqual(P.policyDepth(leaf), 0, `${leaf._tag} should be depth 0`);

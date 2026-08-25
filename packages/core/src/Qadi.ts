@@ -24,6 +24,7 @@ import type { Authorized } from "./Authorized.ts";
 import type { Allow, Decision } from "./Decision.ts";
 import { isAllowed, project } from "./Decision.ts";
 import type { ObligationOutcome } from "./DecisionRecord.ts";
+import { ObligationRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import { AccessDenied, UndischargedObligation } from "./Errors.ts";
 import type { EvaluationError } from "./Errors.ts";
@@ -75,13 +76,14 @@ const discharge = <E, R>(
     const emit = (outcome: ObligationOutcome): Effect.Effect<void> =>
       Option.isSome(sink)
         ? Effect.catchCause(
-            sink.value.record({
-              _tag: "Obligations",
-              evaluationId: decision.evaluationId,
-              at,
-              outcome,
-              obligationIds,
-            }),
+            sink.value.record(
+              new ObligationRecord({
+                evaluationId: decision.evaluationId,
+                at,
+                outcome,
+                obligationIds,
+              }),
+            ),
             () => Effect.void,
           )
         : Effect.void;

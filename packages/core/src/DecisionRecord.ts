@@ -53,8 +53,7 @@ export class Failed extends Data.TaggedClass("Failed")<{
  */
 export type DecisionOutcome = Decided | Failed;
 
-export interface DecisionRecord {
-  readonly _tag: "Decision";
+export class DecisionRecord extends Data.TaggedClass("Decision")<{
   readonly evaluationId: string;
   /**
    * When evaluation started, in epoch millis, from `Clock`.
@@ -83,7 +82,7 @@ export interface DecisionRecord {
    */
   readonly cache?: CacheOutcome | undefined;
   readonly outcome: DecisionOutcome;
-}
+}> {}
 
 /**
  * What happened at the obligation gate, for an allow that carried duties.
@@ -103,14 +102,13 @@ export interface DecisionRecord {
  * enforcement boundary, and until this the log showed such a request as `ALLOW`
  * while the caller received an error.
  */
-export interface ObligationRecord {
-  readonly _tag: "Obligations";
+export class ObligationRecord extends Data.TaggedClass("Obligations")<{
   /** The decision these duties came from, so the two rows pair. */
   readonly evaluationId: string;
   readonly at: number;
   readonly outcome: ObligationOutcome;
   readonly obligationIds: ReadonlyArray<string>;
-}
+}> {}
 
 /**
  * `Discharged` — a handler ran and succeeded.

@@ -17,6 +17,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
   currentSubjectLayer,
+  CustomPredicateNone,
   decide,
   DecisionHistoryUnknown,
   EvaluationIdLive,
@@ -72,6 +73,7 @@ describe("a seeded decision, with no Next in the way", () => {
             RelationshipResolverNever,
             DecisionHistoryUnknown,
             EvaluationIdLive,
+            CustomPredicateNone,
             currentSubjectLayer(omar),
           ),
         ),
@@ -84,7 +86,13 @@ describe("a seeded decision, with no Next in the way", () => {
 
     // The browser half.
     const atoms = makeQadiAtoms(
-      Layer.mergeAll(silent, RelationshipResolverNever, DecisionHistoryUnknown, EvaluationIdLive),
+      Layer.mergeAll(
+        silent,
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+        CustomPredicateNone,
+      ),
     );
     const initialValues = Array.from(hydrateDecisions(atoms, payload, omar));
     expect(initialValues).toHaveLength(1);

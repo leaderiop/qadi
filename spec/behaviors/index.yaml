@@ -95,3 +95,6 @@ entries:
   - id: "BEH-QD-236"
     file: "31-predicate-compilation.md"
     title: "31 — Predicate Compilation"
+  - id: "BEH-QD-245"
+    file: "32-custom-predicates.md"
+    title: "32 — Custom Predicates"

@@ -21,9 +21,12 @@ is a good default for types that never leave the process.
 
 ## Decision
 
-The policy union is defined **once** as an Effect `Schema`. The TypeScript type
-is derived from it (`type Policy = typeof Policy.Type`) and the JSON codec is
-derived from it (`Schema.fromJsonString(Policy)`).
+The policy union's recursive TypeScript type (`Policy`/`PolicyEncoded`) is
+hand-written first, because `Schema.suspend` needs a named type to close a
+self-referential loop. The `Schema.Union` of `Schema.TaggedStruct` variants is
+then built and type-asserted against that type (`Schema.Codec<Policy,
+PolicyEncoded>`), so the two cannot silently diverge. The JSON codec is
+derived from that schema (`Schema.fromJsonString(Policy)`).
 
 `fieldStrategy` is a **required** field, not optional. An omitted optional is
 precisely what went missing before.

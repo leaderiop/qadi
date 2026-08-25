@@ -164,3 +164,6 @@ entries:
   - id: "ADR-QD-054"
     file: "054-a-companion-package-may-compile-a-dialect.md"
     title: "A companion package may compile a dialect"
+  - id: "ADR-QD-055"
+    file: "055-a-named-registered-custom-predicate.md"
+    title: "A named, registered custom predicate: the policy tree's one escape hatch"

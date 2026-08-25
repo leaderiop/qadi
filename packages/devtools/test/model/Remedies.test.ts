@@ -25,6 +25,7 @@ import {
   hasActed,
   hasAction,
   hasAttribute,
+  hasCustom,
   hasNotActed,
   hasPermission,
   hasRelationship,
@@ -452,6 +453,13 @@ describe("remedyEdits — walking the tree", () => {
 
   it("proposes nothing for hasNotActed, whose remedy is a removal", () => {
     assert.deepStrictEqual(labels(hasNotActed("closed")), []);
+  });
+
+  it("proposes nothing for hasCustom — there is no matcher to read a witness from", () => {
+    assert.deepStrictEqual(labels(hasCustom("isOwner")), []);
+    assert.deepStrictEqual(labels(allOf([hasRole("editor"), hasCustom("isOwner")])), [
+      "with role editor",
+    ]);
   });
 
   it("collapses two nodes asking for the same thing into one row", () => {

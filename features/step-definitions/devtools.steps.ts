@@ -16,8 +16,10 @@ import {
   allOf,
   AttributeResolverNone,
   currentSubjectLayer,
+  CustomPredicateNone,
   Decided,
   DecisionHistoryUnknown,
+  DecisionRecord,
   Deny,
   evaluate,
   EvaluationIdLive,
@@ -26,11 +28,13 @@ import {
   hasPermission,
   makeSubjectId,
   MissingResource,
+  ObligationRecord,
   permission,
   RelationshipResolverNever,
   role,
+  stampRecord,
 } from "@qadi/core";
-import type { DecisionRecord, ObligationRecord, StoredRecord, Trace } from "@qadi/core";
+import type { StoredRecord, Trace } from "@qadi/core";
 import {
   countsOf,
   emptyTimeline,
@@ -49,6 +53,7 @@ const alice = fromRoles({ id: "alice", roles: [reader] });
 
 const services = Layer.mergeAll(
   AttributeResolverNone,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -81,17 +86,20 @@ const trace = (allowed: boolean): Trace => ({
   obligations: [],
 });
 
-const decisionAt = (at: number, environment: string, allowed: boolean): StoredRecord => {
-  const evaluationId = `ev-${at}`;
-  const record: DecisionRecord = {
-    _tag: "Decision",
-    evaluationId,
+// Unstamped, and taking an `evaluationId` override, so the re-check steps
+// below can build a second record for the same evaluation without spreading
+// an already-stamped `StoredRecord` — spreading a `Data.TaggedClass` instance
+// into a plain object literal silently drops its prototype.
+const buildDecision = (at: number, allowed: boolean, evaluationId?: string): DecisionRecord => {
+  const id = evaluationId ?? `ev-${at}`;
+  return new DecisionRecord({
+    evaluationId: id,
     at,
     policy: hasPermission(read),
     outcome: new Decided({
       decision: allowed
         ? new Allow({
-          evaluationId,
+          evaluationId: id,
           subjectId: makeSubjectId("alice"),
           durationMillis: 1,
           trace: trace(true),
@@ -99,16 +107,18 @@ const decisionAt = (at: number, environment: string, allowed: boolean): StoredRe
           obligations: [],
         })
         : new Deny({
-          evaluationId,
+          evaluationId: id,
           subjectId: makeSubjectId("alice"),
           durationMillis: 1,
           trace: trace(false),
           reason: "the subject does not hold doc:read",
         }),
     }),
-  };
-  return { ...record, environment };
+  });
 };
+
+const decisionAt = (at: number, environment: string, allowed: boolean): StoredRecord =>
+  stampRecord(buildDecision(at, allowed), environment);
 
 const accept = (record: StoredRecord) => {
   timeline = ingest(timeline, record);
@@ -140,15 +150,14 @@ Given(
 Given(
   "a failed evaluation recorded at {int} on {string}",
   function (at: number, environment: string) {
-    const record: DecisionRecord = {
-      _tag: "Decision",
+    const record = new DecisionRecord({
       evaluationId: `ev-${at}`,
       at,
       policy: hasPermission(read),
       // Not a `Deny` with a reason: a lookup broke, so there is no verdict.
       outcome: new Failed({ error: new MissingResource({ attribute: "doc.ownerId" }) }),
-    };
-    accept({ ...record, environment });
+    });
+    accept(stampRecord(record, environment));
   },
 );
 
@@ -159,14 +168,14 @@ Given("that same decision is delivered again", function () {
 Given(
   "the same evaluation re-checked at {int} on {string}",
   function (at: number, environment: string) {
-    accept({ ...decisionAt(at, environment, true), evaluationId: "ev-100" });
+    accept(stampRecord(buildDecision(at, true, "ev-100"), environment));
   },
 );
 
 Given(
   "the same evaluation denied at {int} on {string}",
   function (at: number, environment: string) {
-    accept({ ...decisionAt(at, environment, false), evaluationId: "ev-100" });
+    accept(stampRecord(buildDecision(at, false, "ev-100"), environment));
   },
 );
 
@@ -184,16 +193,16 @@ Given(
   },
 );
 
-const obligationAt = (outcome: string, at: number, evaluationId: string): StoredRecord => {
-  const record: ObligationRecord = {
-    _tag: "Obligations",
-    evaluationId,
-    at,
-    outcome: outcome === "Refused" ? "Refused" : "Discharged",
-    obligationIds: ["audit.log"],
-  };
-  return { ...record, environment: "Server" };
-};
+const obligationAt = (outcome: string, at: number, evaluationId: string): StoredRecord =>
+  stampRecord(
+    new ObligationRecord({
+      evaluationId,
+      at,
+      outcome: outcome === "Refused" ? "Refused" : "Discharged",
+      obligationIds: ["audit.log"],
+    }),
+    "Server",
+  );
 
 Given("a policy requiring all of {string} and {string}", async function (_first: string, _second: string) {
   const policy = allOf([hasPermission(write), hasPermission(read)]);
@@ -203,14 +212,13 @@ Given("a policy requiring all of {string} and {string}", async function (_first:
       Effect.provide(services),
     ),
   );
-  const record: DecisionRecord = {
-    _tag: "Decision",
+  const record = new DecisionRecord({
     evaluationId: "ev-100",
     at: 100,
     policy,
     outcome: new Decided({ decision }),
-  };
-  accept({ ...record, environment: "Server" });
+  });
+  accept(stampRecord(record, "Server"));
 });
 
 // ---------------------------------------------------------------------------

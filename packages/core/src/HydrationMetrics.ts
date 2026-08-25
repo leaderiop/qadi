@@ -59,6 +59,8 @@ export type ClientHydrationDropReason =
   | "PayloadSubjectMismatch"
   /** The atom set was not built by `makeQadiAtoms`, so it has no seed to write to. */
   | "UnregisteredAtoms"
+  /** A field other than `policy` did not match `DehydratedEntry`'s shape. */
+  | "MalformedEntry"
   /** The entry's policy did not decode. */
   | "UndecodablePolicy";
 
@@ -77,6 +79,7 @@ export const hydrationDropReasons: ReadonlyArray<HydrationDropReason> = [
   "ForeignSubject",
   "PayloadSubjectMismatch",
   "UnregisteredAtoms",
+  "MalformedEntry",
   "UndecodablePolicy",
 ];
 
@@ -111,7 +114,7 @@ export const hydrationSeededTotal = Metric.counter("qadi_hydration_seeded_total"
  * is a version skew. The per-call increment costs one map write per lost entry,
  * on a path that only runs when something is already wrong.
  *
- * `preregisteredWords` puts all four reasons in the snapshot at zero, so a
+ * `preregisteredWords` puts all five reasons in the snapshot at zero, so a
  * reader gets the closed set from the metric rather than having to restate it —
  * and an absent reason reads as *did not happen* rather than as *this build does
  * not know about it*.

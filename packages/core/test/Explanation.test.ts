@@ -153,6 +153,15 @@ describe("explain", () => {
     assert.strictEqual(requirement.detail, "the subject has not approved this resource");
   });
 
+  it("gives HasCustom the exact kind and detail sentence, naming the check and nothing more", () => {
+    // Opaque by design (ADR-QD-055): the detail names the registered check and
+    // stops there — it never tries to render `params` as if it explained the
+    // decision, since `explain` cannot see inside the registered function.
+    const requirement = asRequirement(explain(P.hasCustom("isOwner", { threshold: 5 })));
+    assert.strictEqual(requirement.kind, "custom");
+    assert.strictEqual(requirement.detail, "custom predicate 'isOwner'");
+  });
+
   it("joins a non-empty anyOf's parts with \" or \", unlike a single-part one", () => {
     // A mutant that treats every `anyOf` as zero-part would render "never
     // allows" here instead; a mutant that blanks the " or " join text would
@@ -351,6 +360,7 @@ describe("explain", () => {
       FastCheck.constant(P.hasNotActed("approved", { scope: "Any" })),
       FastCheck.constant(P.hasAttribute("seniority", M.gte(3))),
       FastCheck.constant(P.hasResourceAttribute("ownerId", M.eq(M.subjectId()))),
+      FastCheck.constant(P.hasCustom("isOwner")),
     );
 
     const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({

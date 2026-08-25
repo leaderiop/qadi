@@ -16,6 +16,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
   currentSubjectLayer,
+  CustomPredicateNone,
   decide,
   DecisionHistoryUnknown,
   EvaluationIdLive,
@@ -54,6 +55,7 @@ const ports = Layer.mergeAll(
   ),
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
 );
 
 const decideAs = (subject: AuthSubject, entries: ReadonlyArray<{
@@ -80,6 +82,7 @@ const freshAtoms = () =>
       RelationshipResolverNever,
       DecisionHistoryUnknown,
       EvaluationIdLive,
+      CustomPredicateNone,
     ),
   );
 

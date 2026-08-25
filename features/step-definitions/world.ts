@@ -14,6 +14,7 @@ import type {
 import {
   DecisionHistory,
   DecisionHistoryUnavailable,
+  customPredicateFromRecord,
   decideSubjects,
   filterSubjects,
   enforce,
@@ -115,6 +116,13 @@ export class QadiWorld extends World {
   workRan = false;
   /** Past events. Undefined means unwired. */
   events: Array<ActedEventInput> | undefined = undefined;
+  /**
+   * Registered `hasCustom` answers, by name. `undefined` means no registry is
+   * wired at all — `CustomPredicateNone`'s fail-closed default. A name present
+   * here answers as recorded; a name absent from a *wired* table errors,
+   * never denies (BEH-QD-247).
+   */
+  customPredicates: Record<string, boolean> | undefined = undefined;
   /** Set when a scenario wants the history store to be down rather than absent. */
   historyUnreachable = false;
   /**
@@ -164,6 +172,7 @@ export class QadiWorld extends World {
     this.discharged = [];
     this.workRan = false;
     this.events = undefined;
+    this.customPredicates = undefined;
     this.historyUnreachable = false;
     this.concurrency = undefined;
     this.explanation = undefined;
@@ -220,6 +229,20 @@ export class QadiWorld extends World {
             : this.events === undefined
               ? {}
               : { history: this.events }),
+          // `undefined` leaves `qadiTestLayer`'s own `CustomPredicateNone`
+          // default in place — nothing registered, so every name denies.
+          ...(this.customPredicates === undefined
+            ? {}
+            : {
+                customPredicate: customPredicateFromRecord(
+                  Object.fromEntries(
+                    Object.entries(this.customPredicates).map(([name, answer]) => [
+                      name,
+                      () => Effect.succeed(answer),
+                    ]),
+                  ),
+                ),
+              }),
         }),
       ),
     );
