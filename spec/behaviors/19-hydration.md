@@ -271,11 +271,29 @@ REQUIREMENT: A mismatch is a difference of VERDICT. Two allows differing in
 REQUIREMENT: A client-side FAILURE MUST NOT be reported as a mismatch.
 ```
 
+
 The client could not answer, so there is nothing for the server's answer to
 disagree with; reporting one would be
 [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) in reverse. This
 is the rule [BEH-QD-072](./09-react.md) applies to a function `fallback`, at a
 different surface.
+
+```
+REQUIREMENT: Whether a disagreement is reported MUST NOT depend on how the
+             decision is being read.
+```
+
+A seed lives in an atom beside the decision's, and it is only ever a
+*dependency* of that decision — nothing mounts it. A registry may therefore drop
+its value, and one did: under `registry.mount` the seed survived to be compared
+against and the disagreement was announced, while under a `QadiProvider`, which
+subscribes rather than mounts, it did not and the announcement was skipped in
+silence.
+
+That made the report a fact about registry lifetime rather than about the
+decision. Every existing test used the first shape and passed; the second is what
+every application uses. Found by driving one (CCR-QD-077).
+
 
 ```
 REQUIREMENT: The default reporter MUST be development-only. A supplied

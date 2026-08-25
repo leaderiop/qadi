@@ -251,6 +251,30 @@ REQUIREMENT: `useInvalidate()` MUST discard every decision in its context and
              server-side leaves the same subject id holding different powers.
 ```
 
+```
+REQUIREMENT: Invalidation MUST clear a `DecisionCache` in its layer, before the
+             atoms recompute.
+```
+
+Both halves, or neither counts. `Reactivity.invalidate` makes the mounted atoms
+recompute at once, and a cache still holding the previous answer serves it
+straight back — so the ports are never re-asked, the verdict cannot change, and
+the one action that exists to notice a revoked grant is the one guaranteed not
+to. Ordering is therefore normative and not an implementation note: clearing
+after the recompute clears an entry nothing will read again.
+
+This gap was **known and recorded** before it was closed.
+[BEH-QD-190](./25-inspection.md#beh-qd-190-a-cache-can-be-emptied)
+described it exactly — *"an invalidated atom re-evaluating through a warm cache
+receives the same cached trace back"* — and `DecisionCache.clear` was added so an
+operator could do by hand what invalidation had not done for them. Writing the
+limitation down is not the same as accepting it: the requirement above says the
+decisions are discarded, and a caller who cannot observe any discarding has not
+been given what it promises.
+
+It survived because an atom set without a cache behaves correctly, and no test
+had one. Found by driving an application that did (CCR-QD-077).
+
 Invalidation is keyed through `Reactivity` under `qadi/decisions`.
 
 ## BEH-QD-070: Isolated contexts

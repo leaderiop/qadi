@@ -205,42 +205,40 @@ a bug rather than the guard doing its job.
   `"use client"` and re-exports both sides; `dehydrateDecisions` is reachable from
   an RSC and `next build` is happy. No `@qadi/react/server` subpath is needed.
 
-## Open, and not diagnosed
+## Two library bugs it found, and closing them
 
-Two things measured but not explained. Both are stated at what was observed,
-because a wrong mechanism written down confidently is worse than a gap.
+Both were found here, reduced to a unit test at `@qadi/react`'s public seam, and
+fixed in the library. Neither was reachable from an application without a
+`DecisionCache` in its layer or a provider around its atoms — which is to say,
+neither was reachable from anything the library's own tests did.
 
-### `useInvalidate()` produces no re-evaluation in a production build
+### `useInvalidate()` did not invalidate
 
-On `/edge/invalidate`, pressing the button increments its own round counter and
-then nothing happens: no state transition on either row, and **zero** calls to
-`/api/ports/*`, counted by wrapping `window.fetch`. Under `next dev` the same
-page shows `Allow → Rechecking → Allow` on the resolver-bound row, so the
-machinery does work somewhere.
+Pressing invalidate discarded the atoms, recomputed them, and got the previous
+answer back from the `DecisionCache` — so the ports were never re-asked and a
+revoked grant could not be noticed by the one action that exists to notice it.
 
-A first reading blamed a `DecisionCache` in the browser layer — the atoms
-discarded, the cache answering anyway. Measuring both ways disproved it: with the
-cache and without it, the production number is zero. The cache is still there and
-the claim was withdrawn.
+**The specification already knew.** `spec/behaviors/25-inspection.md` said it in
+as many words: *"an invalidated atom re-evaluating through a warm cache receives
+the same cached trace back."* It was written down as a limitation, with
+`DecisionCache.clear` offered as the operator's manual remedy. But BEH-QD-069
+requires invalidation to *discard every decision*, and a caller who cannot
+observe any discarding has not been given that — so the note was describing a
+defect rather than drawing a boundary. Invalidation now clears the cache **before**
+the atoms recompute; clearing after would clear an entry nothing reads again.
 
-A candidate end-to-end test was dropped rather than kept. It passed either way —
-it was counting unrelated network traffic — and a green test that does not
-discriminate is worse than none.
+### A disagreement was announced or not depending on how you read the decision
 
-### A verdict that changes from its seed announces no mismatch
+`/edge/divergent`'s verdict really did change from its seed, and
+`onHydrationMismatch` never fired. The seed lives in an atom beside the
+decision's and is only ever a *dependency* of it — nothing mounts it — so a
+registry may drop its value. Under `registry.mount` it survived and the
+disagreement was reported; under a `QadiProvider`, which subscribes rather than
+mounts, it did not.
 
-On `/edge/divergent` the verdict genuinely changes from the seed — the guard is
-handed `Success` (the seed), then `Initial+waiting` (the re-check in flight, per
-[BEH-QD-151](../../spec/behaviors/19-hydration.md)), then `Success` (its own
-denial). `onHydrationMismatch` should fire once
-([BEH-QD-152](../../spec/behaviors/19-hydration.md)) and does not; `rechecked`
-stays `0`, which means `get.once(seed)` reads `undefined` at announcement time.
-
-The same round trip through a plain `render()` behaves as specified —
-`test/seed.test.tsx` proves it — so this is environmental rather than a defect in
-`@qadi/react`, and it has not been chased further from here. The end-to-end suite
-asserts the **observed** value, so a fix arrives as a failing test rather than as
-nothing at all.
+Every existing test used the first shape. Every application uses the second. The
+announcement now remembers the seed as first observed, so whether a disagreement
+is reported depends on the decision rather than on registry lifetime.
 
 ---
 

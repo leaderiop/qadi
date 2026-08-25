@@ -50,9 +50,10 @@ The shape is a **separately exported `interface …Shape`**.
 
 ```ts
 export interface AttributeResolverShape {
+  readonly name?: string | undefined;
   readonly resolve: (
+    subjectId: SubjectId,
     attribute: string,
-    resource?: Resource,
   ) => Effect.Effect<unknown, AttributeResolveError>;
 }
 
@@ -62,10 +63,20 @@ export class AttributeResolver extends Context.Service<
 >()("qadi/AttributeResolver") {
   // `use` requires its callback to RETURN an Effect — it is a one-step method
   // accessor, not an identity read.
-  static resolve = (attribute: string) =>
-    AttributeResolver.use((r) => r.resolve(attribute));
+  static resolve = (subjectId: SubjectId, attribute: string) =>
+    AttributeResolver.use((r) => r.resolve(subjectId, attribute));
 }
 ```
+
+> **Corrected in CCR-QD-077.** This example carried `resolve(attribute, resource?)`
+> and omitted `name` — a signature no version of this library has had. Nothing
+> checks the code in this file: `check-doc-examples.mjs` compiles fenced
+> `typescript` blocks under `spec/`, and this is `ts` in `AGENTS.md`, which is
+> reference material by §12's own rules. It was noticed four separate times
+> before anyone changed it, each time as an aside in work about something else.
+> The `@qadi/example-nextjs` port implementations are written against the real
+> signature and compile, which is the first thing in this repository that would
+> have caught it.
 
 Tag ids are namespaced: `"qadi/AttributeResolver"`.
 

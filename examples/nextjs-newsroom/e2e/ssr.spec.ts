@@ -188,26 +188,6 @@ test.describe("the browser half", () => {
     );
   });
 
-  /**
-   * A discrepancy, pinned so it cannot drift unnoticed.
-   *
-   * The verdict above genuinely changed from the seed, so `onHydrationMismatch`
-   * should fire once (BEH-QD-152). It does not here. The same round trip
-   * reported through a plain `render()` — `test/seed.test.tsx` — behaves as
-   * specified, so this is environmental rather than a library defect, and it is
-   * asserted at its **observed** value so that a fix shows up as a failing test
-   * rather than as nothing at all.
-   */
-  test("KNOWN: the disagreement is not announced in this environment", async ({ context, page }) => {
-    await context.addCookies(as("omar"));
-    await page.goto("/edge/divergent");
-    await expect(page.getByTestId("state-standing")).toHaveAttribute("data-state", "Denied", {
-      timeout: 15_000,
-    });
-
-    await expect(page.getByTestId("mismatch-report")).toContainText("disagreements reported: 0");
-  });
-
   test("a copy of the atom set seeds nothing", async ({ context, page }) => {
     await context.addCookies(as("omar"));
     await page.goto("/edge/unregistered");
@@ -321,5 +301,41 @@ test.describe("regressions found by driving the app", () => {
         { timeout: 20_000 },
       )
       .toBeGreaterThan(0);
+  });
+
+  test("a disagreement with the seed is announced", async ({ context, page }) => {
+    // `/edge/divergent`'s verdict changes from its seed, and for a while nothing
+    // said so. The seed is a dependency of the decision atom and nothing mounts
+    // it, so a registry could drop its value — and whether the disagreement was
+    // reported became a fact about registry lifetime rather than the decision.
+    await context.addCookies(as("omar"));
+    await page.goto("/edge/divergent");
+
+    await expect(page.getByTestId("state-standing")).toHaveAttribute("data-state", "Denied", {
+      timeout: 15_000,
+    });
+    await expect(page.getByTestId("mismatch-report")).toContainText("disagreements reported: 1");
+  });
+
+  test("invalidating re-asks the ports", async ({ context, page }) => {
+    // Counted at the network, because the symptom was absence: the atoms really
+    // were discarded and really were recomputed, and a `DecisionCache` in the
+    // layer answered the recomputation, so nothing was ever asked again.
+    await context.addCookies(as("hakim"));
+    await page.goto("/edge/invalidate");
+    await expect(page.getByTestId("safe-standing (over HTTP)"))
+      .toHaveAttribute("data-state", "Allow", { timeout: 15_000 });
+
+    let portCalls = 0;
+    page.on("request", (request) => {
+      if (request.url().includes("/api/ports/attribute")) portCalls += 1;
+    });
+    // Settle first, so nothing in flight is counted as a consequence of the click.
+    await page.waitForTimeout(1_500);
+    portCalls = 0;
+
+    await page.click('[data-testid="invalidate"]');
+
+    await expect.poll(() => portCalls, { timeout: 15_000 }).toBeGreaterThan(0);
   });
 });

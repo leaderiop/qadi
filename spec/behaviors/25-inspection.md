@@ -69,9 +69,18 @@ REQUIREMENT: `clear` MUST NOT cancel a `compute` already in flight.
 The only way to empty a cache was to discard the layer scope, which a tool
 running *inside* that scope cannot do — so an operator who could see a stale
 decision, and knew exactly why it was stale, had nothing to do about it.
-`useInvalidate` in `@qadi/react` is not this: it invalidates *atoms*, and an
-invalidated atom re-evaluating through a warm cache receives the same cached
-trace back.
+
+> **Corrected in CCR-QD-077.** This paragraph continued: "`useInvalidate` in
+> `@qadi/react` is not this: it invalidates *atoms*, and an invalidated atom
+> re-evaluating through a warm cache receives the same cached trace back." That
+> was true, and it was a defect being described rather than a boundary being
+> drawn — [BEH-QD-069](./09-react.md#beh-qd-069-invalidation) requires
+> invalidation to discard every decision, and a caller who cannot observe any
+> discarding has not been given that. `useInvalidate` now clears a
+> `DecisionCache` in its layer before the atoms recompute.
+
+`clear` remains what it always was and is still worth having: an operator's
+flush, reachable from a tool, independent of any React context.
 
 In-flight work is left alone deliberately. Those fibers are answering questions
 asked *before* the flush, and cancelling them would turn a housekeeping action

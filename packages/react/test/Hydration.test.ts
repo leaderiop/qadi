@@ -788,3 +788,74 @@ describe("a re-check continues the server's evaluation", () => {
     expect(answered?.evaluationId).not.toBe("eval-1");
   });
 });
+
+/**
+ * A re-check that has to wait for a port.
+ *
+ * Every mismatch case above uses a policy that settles **synchronously** —
+ * `hasRole` and `hasPermission` read the subject, so the client answers on the
+ * first read of the atom. A policy that reaches `AttributeResolver` cannot, and
+ * that is the ordinary case in a browser whose ports are remote.
+ *
+ * Found by driving a Next.js app: a verdict genuinely changed from its seed and
+ * nothing was reported. The synchronous cases passed throughout, which is why it
+ * survived — the shape that fails is the one no test had.
+ */
+describe("a re-check that settles asynchronously", () => {
+  const standing = hasAttribute("standing", eq(literal("good")));
+
+  /** Answers on a later turn, the way an HTTP resolver does. */
+  const slowResolver = (value: string) =>
+    Layer.succeed(AttributeResolver, {
+      resolve: (_subjectId, attribute) =>
+        Effect.flatMap(
+          Effect.sleep("1 millis"),
+          () => Effect.succeed(attribute === "standing" ? value : undefined),
+        ),
+    });
+
+  const seededAllow = (subjectId: string) =>
+    new Allow({
+      evaluationId: "eval-async",
+      subjectId: makeSubjectId(subjectId),
+      durationMillis: 2,
+      trace: { policyTag: "HasAttribute", allowed: true, children: [], obligations: [] },
+      visibleFields: undefined,
+      obligations: [],
+    });
+
+  const mount = (answer: string) => {
+    const seen: Array<HydrationMismatch> = [];
+    const watched = makeQadiAtoms(
+      Layer.mergeAll(
+        slowResolver(answer),
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+      ),
+      { onHydrationMismatch: (m) => seen.push(m) },
+    );
+    const payload = dehydrateDecisions([{ policy: standing, decision: seededAllow("u1") }]);
+    const registry = AtomRegistry.make({
+      initialValues: [
+        [watched.subject, alice] as const,
+        ...hydrateDecisions(watched, payload, alice),
+      ],
+    });
+    const unmount = registry.mount(watched.decision(standing));
+    return { seen, watched, registry, unmount };
+  };
+
+  it("REPORTS a server allow this client denies", async () => {
+    // The server said `good`; by the time this client asks, it is `suspended`.
+    const { seen, registry, unmount } = mount("suspended");
+
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.seeded._tag).toBe("Allow");
+    expect(seen[0]?.decided._tag).toBe("Deny");
+    unmount();
+    registry.dispose();
+  });
+});

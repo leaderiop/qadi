@@ -59,24 +59,12 @@ const record = (mismatch: HydrationMismatch): void => {
  * place mainly by surviving a re-render — on a server, where a hit spans
  * requests, it earns rather more.
  *
- * It was briefly suspected of defeating `useInvalidate()` and it is **not** the
- * cause: measured with and without it, in a production build, invalidating
- * `/edge/invalidate` produces no state transition and no port call either way.
- * That observation is open and recorded in the README rather than diagnosed
- * here; the cache stays because removing it changed nothing.
- */
-/**
- * Everything the browser's evaluations run in, named so the Services panel can
- * be handed the **same** context the evaluator has.
- *
- * Exported for that reason and no other. `wiringReport` reports on the context
- * it is given, so providing it a subset makes the panel under-report — it said
- * `DecisionSink absent — decisions are made and not observed` while the sink was
- * what fed the Log directly below it. A wiring report that is wrong about the
- * wiring is worse than no wiring report.
- *
- * `CurrentSubject` is deliberately not here: it changes per evaluation, and the
- * panel says so of its own accord.
+ * It is here deliberately now. Having one is what exposed `useInvalidate()`
+ * failing to invalidate: the atoms were discarded, recomputed, and answered from
+ * this cache, so the ports were never re-asked. That is fixed in `@qadi/react`
+ * — invalidation clears a `DecisionCache` in its layer before the atoms
+ * recompute — and keeping the cache is what keeps this example exercising the
+ * path that found it.
  */
 export const browserLayer = Layer.mergeAll(
   browserPorts,

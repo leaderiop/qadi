@@ -22,9 +22,10 @@ import type {
   Policy,
   Resource,
 } from "@qadi/core";
-import { currentSubjectLayer, evaluate } from "@qadi/core";
+import { currentSubjectLayer, DecisionCache, evaluate } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import type * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
@@ -231,6 +232,26 @@ export const makeQadiAtoms = (
     // render, which a value comparison would report twice.
     let announced = false;
 
+    /**
+     * The seed, as this atom first saw it.
+     *
+     * Kept because `get.once(seed)` below can read `undefined` for a seed that
+     * was definitely there: a registry may drop the value of an atom nothing
+     * mounted, and the seed atom is only ever a *dependency* of this one. Under
+     * `registry.mount` it survives and the disagreement is reported; under a
+     * `QadiProvider`, which subscribes rather than mounts, it does not and the
+     * report is silently skipped.
+     *
+     * That made whether a disagreement is announced a fact about registry
+     * lifetime rather than about the decision, which is the defect. Remembering
+     * the first non-absent reading makes the announcement depend only on what
+     * was seeded and what this client then decided.
+     *
+     * Written in the branch that already reads the seed reactively, so it costs
+     * nothing and adds no dependency of its own.
+     */
+    let observedSeed: Decision | undefined;
+
     const combined = Atom.readable((get): DecisionResult => {
       const result = get(computed);
       // `Initial` is the only state in which this client has never answered for
@@ -250,7 +271,9 @@ export const makeQadiAtoms = (
           // promise it was protecting, because it registers no dependency. It is
           // also the honest read here: the seed is already spent in this branch,
           // so re-running on a later seed change could not change the answer.
-          const seeded = get.once(seed);
+          // `?? observedSeed`: the registry's copy is authoritative when it has
+          // one, and the first reading stands in when it has dropped it.
+          const seeded = get.once(seed) ?? observedSeed;
           if (seeded !== undefined) {
             // A failure is not a disagreement. The client could not answer, so
             // there is nothing for the server's answer to disagree with, and
@@ -267,6 +290,7 @@ export const makeQadiAtoms = (
         return result;
       }
       const seeded = get(seed);
+      if (seeded !== undefined) observedSeed = seeded;
       return seeded === undefined ? result : AsyncResult.success(seeded);
     });
 
@@ -299,7 +323,32 @@ export const makeQadiAtoms = (
     }),
   );
 
-  const invalidate = runtime.fn((_: void) => Reactivity.invalidate([DECISIONS_KEY]));
+  /**
+   * Discards every decision, and every cached answer behind one.
+   *
+   * **The cache is cleared first, and that ordering is the whole fix.**
+   * `Reactivity.invalidate` makes the mounted atoms recompute immediately, and a
+   * `DecisionCache` still holding the previous answer serves it straight back —
+   * so the ports are never re-asked, the verdict cannot change, and the button
+   * that exists to notice a revoked grant is the one thing guaranteed not to.
+   *
+   * It was silent, which is what made it dangerous. Nothing failed and nothing
+   * logged; the atoms really were discarded and really were recomputed, and the
+   * recomputation was answered from memory. An application without a cache in
+   * its layer worked, so every test of this passed
+   * ([BEH-QD-070](../../../spec/behaviors/09-react.md)) until one was written
+   * with a cache in it.
+   *
+   * `serviceOption`, because `DecisionCache` is optional — an atom set without
+   * one must not fail here, and most do not have one.
+   */
+  const invalidate = runtime.fn((_: void) =>
+    Effect.gen(function* () {
+      const cache = yield* Effect.serviceOption(DecisionCache);
+      if (Option.isSome(cache)) yield* cache.value.clear;
+      yield* Reactivity.invalidate([DECISIONS_KEY]);
+    })
+  );
 
   const atoms: QadiAtoms = {
     runtime,
