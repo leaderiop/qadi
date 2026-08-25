@@ -155,7 +155,19 @@ it: that suite runs a production build, and it stayed green on the broken
 version. The likely cause is dev-mode double rendering. The test is kept for what
 it does assert and its comment says plainly that it is not a regression guard.
 
-### 10. An SSE connection is bound to the session that opened it
+### 10. A wiring report is only as honest as the context you hand it
+
+**The Services panel said `DecisionSink absent — decisions are made and not
+observed` while the sink was feeding the Log directly below it.** `wiringReport`
+reports on the context it is given, and the dock was handing it `browserPorts` —
+the three resolvers — rather than the layer `makeQadiAtoms` actually runs in. So
+it truthfully described a context nobody evaluates in, and called three wired
+services absent. It is given `browserLayer` now.
+
+A wiring report that is wrong about the wiring is worse than no wiring report,
+because it is the screen you open when you suspect the wiring.
+
+### 11. An SSE connection is bound to the session that opened it
 
 `/__decisions` is guarded by a policy, so the `EventSource` is authorized as
 whoever held the session when it connected. The dock built its source **once**,

@@ -65,13 +65,25 @@ const record = (mismatch: HydrationMismatch): void => {
  * That observation is open and recorded in the README rather than diagnosed
  * here; the cache stays because removing it changed nothing.
  */
-export const atoms = makeQadiAtoms(
-  Layer.mergeAll(
-    browserPorts,
-    EvaluationIdLive,
-    decisionCacheLayer({ capacity: 256 }),
-    decisionSinkAll([clientRing.layer, clientFeed.layer]),
-    clientPortCalls.layer,
-  ),
-  { onHydrationMismatch: record },
+/**
+ * Everything the browser's evaluations run in, named so the Services panel can
+ * be handed the **same** context the evaluator has.
+ *
+ * Exported for that reason and no other. `wiringReport` reports on the context
+ * it is given, so providing it a subset makes the panel under-report — it said
+ * `DecisionSink absent — decisions are made and not observed` while the sink was
+ * what fed the Log directly below it. A wiring report that is wrong about the
+ * wiring is worse than no wiring report.
+ *
+ * `CurrentSubject` is deliberately not here: it changes per evaluation, and the
+ * panel says so of its own accord.
+ */
+export const browserLayer = Layer.mergeAll(
+  browserPorts,
+  EvaluationIdLive,
+  decisionCacheLayer({ capacity: 256 }),
+  decisionSinkAll([clientRing.layer, clientFeed.layer]),
+  clientPortCalls.layer,
 );
+
+export const atoms = makeQadiAtoms(browserLayer, { onHydrationMismatch: record });

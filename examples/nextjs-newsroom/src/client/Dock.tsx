@@ -34,6 +34,7 @@ import { catalogue } from "../domain/policies.ts";
 import { allRoles } from "../domain/roles.ts";
 import {
   atoms,
+  browserLayer,
   clientFeed,
   clientPortCalls,
   clientRing,
@@ -132,7 +133,9 @@ export const Dock = () => {
   const drops = useDrops();
 
   const wiring: WiringReport | undefined = useSampled(
-    useMemo(() => Effect.provide(wiringReport, browserPorts), []),
+    // The atoms' own layer, not just the ports — a report given a subset
+    // under-reports, and this one claimed the sink feeding the Log was absent.
+    useMemo(() => Effect.provide(wiringReport, browserLayer), []),
   );
   const activity: ReadonlyArray<PortActivity> | undefined = useSampled(portActivity);
   const hydration: HydrationActivity | undefined = useSampled(hydrationActivity);
