@@ -27,6 +27,7 @@ import * as Effect from "effect/Effect";
 import type { EvaluationPortsLayer } from "@qadi/devtools";
 import { articles } from "../domain/articles.ts";
 import { userById } from "../domain/subjects.ts";
+import { standingOf } from "./revocations.ts";
 
 /**
  * Subject attributes, from the "identity provider".
@@ -38,7 +39,15 @@ import { userById } from "../domain/subjects.ts";
 const attributes: Layer.Layer<AttributeResolver> = Layer.succeed(AttributeResolver, {
   name: "newsroom directory",
   resolve: (subjectId: SubjectId, attribute: string) =>
-    Effect.sync(() => userById(subjectId).subject.attributes[attribute]),
+    Effect.sync(() =>
+      // `standing` is the one attribute this directory does not hold statically:
+      // it is what `/edge/divergent` revokes between a render and a re-check, so
+      // it has to be read at the moment of the question rather than baked into
+      // the subject.
+      attribute === "standing"
+        ? standingOf(subjectId)
+        : userById(subjectId).subject.attributes[attribute]
+    ),
 } satisfies AttributeResolverShape);
 
 /**

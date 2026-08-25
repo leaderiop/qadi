@@ -36,13 +36,32 @@ import type {
 } from "@qadi/core";
 import type { EvaluationPortsLayer } from "@qadi/devtools";
 
+/**
+ * Asks the server, and refuses to guess when there is no server to ask *from*.
+ *
+ * A `"use client"` module still executes during the server render — that is what
+ * puts a settled control into the HTML — so these resolvers run in Node too,
+ * where a relative `fetch` throws `TypeError: Failed to parse URL`. Letting that
+ * become an `AttributeResolveError` would render *could not decide* on the
+ * server for every attribute question, which is a lie: the question was never
+ * asked.
+ *
+ * So on the server it does not settle. An atom whose effect never completes
+ * stays `Initial`, the guard renders **pending**, and the seed is what covers
+ * that gap — which is exactly the division of labour
+ * [BEH-QD-067](../../../../spec/behaviors/09-react.md) describes. A question
+ * this page seeded is correct in the first byte; one it did not is pending until
+ * the browser can ask.
+ */
 const ask = (path: string, query: Record<string, string>): Effect.Effect<unknown, unknown> =>
-  Effect.tryPromise(async () => {
-    const url = `${path}?${new URLSearchParams(query).toString()}`;
-    const response = await fetch(url, { credentials: "same-origin" });
-    if (!response.ok) throw new Error(`${url} answered ${response.status}`);
-    return response.json();
-  });
+  typeof window === "undefined"
+    ? Effect.never
+    : Effect.tryPromise(async () => {
+      const url = `${path}?${new URLSearchParams(query).toString()}`;
+      const response = await fetch(url, { credentials: "same-origin" });
+      if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+      return response.json();
+    });
 
 /** Reads one property off an unknown JSON body without an `as`. */
 const field = (body: unknown, key: string): unknown =>

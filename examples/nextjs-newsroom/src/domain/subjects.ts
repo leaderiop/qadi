@@ -16,6 +16,15 @@
  * oversight: a page that re-checks its own decisions tells the browser what the
  * user may do. What it need **not** disclose is why — which is what
  * `dehydrateDecisions` withholds by default, and what `/edge/leakage` shows.
+ *
+ * **`standing` is deliberately not here.** `readAttribute` consults the subject
+ * first and calls `AttributeResolver` only on a miss — which is what preserves
+ * short-circuiting, and which means an attribute *present* on the subject is
+ * frozen for the life of that subject object. A browser holding a subject that
+ * carries a mutable attribute can never learn it changed. `clearance` is static
+ * and belongs on the subject; `standing` is revocable, so it must miss and go to
+ * the port. `/edge/divergent` cannot work any other way, and quietly failed to
+ * work at all until this was noticed.
  */
 import { fromRoles } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
@@ -39,7 +48,7 @@ export const users: ReadonlyArray<DemoUser> = [
     subject: fromRoles({
       id: "yasmine",
       roles: [reader],
-      attributes: { clearance: clearance(0, []), standing: "good" },
+      attributes: { clearance: clearance(0, []) },
     }),
   },
   {
@@ -50,7 +59,7 @@ export const users: ReadonlyArray<DemoUser> = [
     subject: fromRoles({
       id: "nadia",
       roles: [author],
-      attributes: { clearance: clearance(1, ["finance"]), standing: "good" },
+      attributes: { clearance: clearance(1, ["finance"]) },
     }),
   },
   {
@@ -61,7 +70,7 @@ export const users: ReadonlyArray<DemoUser> = [
     subject: fromRoles({
       id: "omar",
       roles: [editor],
-      attributes: { clearance: clearance(2, ["finance", "security"]), standing: "good" },
+      attributes: { clearance: clearance(2, ["finance", "security"]) },
     }),
   },
   {
@@ -71,7 +80,7 @@ export const users: ReadonlyArray<DemoUser> = [
     subject: fromRoles({
       id: "hakim",
       roles: [chiefEditor],
-      attributes: { clearance: clearance(3, ["finance", "security"]), standing: "good" },
+      attributes: { clearance: clearance(3, ["finance", "security"]) },
     }),
   },
   {
@@ -82,7 +91,7 @@ export const users: ReadonlyArray<DemoUser> = [
     subject: fromRoles({
       id: "leila",
       roles: [legalReviewer],
-      attributes: { clearance: clearance(1, ["security"]), standing: "good" },
+      attributes: { clearance: clearance(1, ["security"]) },
     }),
   },
 ];

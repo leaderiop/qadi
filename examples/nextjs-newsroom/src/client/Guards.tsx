@@ -8,6 +8,7 @@
  * which is the only honest way to test "no flash".
  */
 import type { ReactNode } from "react";
+import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import type { Deny, Policy, Resource } from "@qadi/core";
 import { Can, useDecision } from "@qadi/react";
 import { currentDecision } from "@qadi/react";
@@ -32,9 +33,26 @@ export const GateState = ({
   readonly label: string;
 }) => {
   const result = useDecision(policy, resource);
+
+  // The same five states, in the same order, as `@qadi/react`'s internal
+  // `renderStateOf` — the one the gate registry records and the devtools React
+  // panel displays. Written out rather than imported because `useGate.ts` is
+  // deliberately out of the barrel; kept identical so a reader comparing this
+  // page to that panel is comparing like with like.
+  //
+  // The **order** is the substance. `isInitial` first, so a question being
+  // asked for the first time reads *Pending* rather than *Rechecking*; `waiting`
+  // before `isFailure`, so a re-check in flight never renders the previous
+  // answer. `currentDecision` enforces the same thing for the value.
   const decision = currentDecision(result);
-  const state = decision === undefined
-    ? (result.waiting ? "Rechecking" : "Pending")
+  const state = AsyncResult.isInitial(result)
+    ? "Pending"
+    : result.waiting
+    ? "Rechecking"
+    : AsyncResult.isFailure(result)
+    ? "Failed"
+    : decision === undefined
+    ? "Pending"
     : decision._tag === "Allow"
     ? "Allowed"
     : "Denied";
@@ -43,7 +61,7 @@ export const GateState = ({
     <span style={{ ...mono, marginRight: "1rem" }} data-testid={`state-${label}`} data-state={state}>
       <span
         style={badge(
-          state === "Allowed" ? "allow" : state === "Denied" ? "deny" : "pending",
+          state === "Allowed" ? "allow" : state === "Denied" || state === "Failed" ? "deny" : "pending",
         )}
       >
         {state}

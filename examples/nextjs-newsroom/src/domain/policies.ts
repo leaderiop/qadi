@@ -148,6 +148,21 @@ export const readBriefing: Policy = labeled(
   hasAttribute("clearance", dominates(resource("classification"))),
 );
 
+/**
+ * Standing — the attribute `/edge/divergent` revokes mid-flight.
+ *
+ * Deliberately a subject attribute rather than a role or a permission: those two
+ * are read off `AuthSubject` and settle synchronously, so the browser would
+ * answer from the copy it already holds and could never disagree with the
+ * server. An attribute goes through `AttributeResolver`, which in the browser is
+ * an HTTP call — so the two sides can genuinely be told different things, which
+ * is the whole point.
+ */
+export const inGoodStanding: Policy = labeled(
+  "you are in good standing",
+  hasAttribute("standing", eq(literal("good"))),
+);
+
 /** What guards `/__decisions` and `/__permissions`. */
 export const canReadDevtools: Policy = labeled(
   "may read this deployment's decisions",
@@ -174,6 +189,7 @@ export const canWriteArticle: Policy = labeled(
  */
 export const catalogue: Readonly<Record<string, Policy>> = {
   canReadArticle,
+  inGoodStanding,
   canWriteArticle,
   canPublishArticle,
   viewArticle,
