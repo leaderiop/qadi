@@ -97,6 +97,7 @@ writeFileSync(
           "@qadi/testing": ["../packages/testing/src/index.ts"],
           "@qadi/predicate-sql": ["../packages/predicate-sql/src/index.ts"],
           "@qadi/predicate-prisma": ["../packages/predicate-prisma/src/index.ts"],
+          "@qadi/audit": ["../packages/audit/src/index.ts"],
         },
       },
     },

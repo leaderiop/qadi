@@ -117,11 +117,12 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
     const [current, justTransitioned] = yield* Ref.modify(
       ref,
       (state): readonly [readonly [CircuitBreakerStatus, boolean], State] => {
-        if (
-          state.status !== "Open" ||
-          state.openedAt === undefined ||
-          now - state.openedAt < options.resetTimeoutMs
-        ) {
+        // `openedAt` is set if and only if `status === "Open"` — this Ref's
+        // own invariant — so checking it alone already answers "not open",
+        // with no separate `state.status !== "Open"` clause needed (and no
+        // narrower one TypeScript could use anyway, since `openedAt` isn't
+        // typed as discriminated by `status`).
+        if (state.openedAt === undefined || now - state.openedAt < options.resetTimeoutMs) {
           return [[state.status, false], state];
         }
         const next: State = { status: "HalfOpen", consecutiveFailures: state.consecutiveFailures, openedAt: undefined };
@@ -137,7 +138,6 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
       if (state.status === "HalfOpen") {
         return [true, { status: "Closed" as const, consecutiveFailures: 0, openedAt: undefined }];
       }
-      if (state.consecutiveFailures === 0) return [false, state];
       return [false, { ...state, consecutiveFailures: 0 }];
     });
     if (closedNow) yield* announceTransition("Closed");

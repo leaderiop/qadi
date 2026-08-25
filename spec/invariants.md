@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.24                                            |
+> | Revision       | 1.25                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -1665,5 +1665,140 @@ policy would have denied returned anyway. Because the refusal happens in
 `toPredicate` itself, `@qadi/predicate-sql` and `@qadi/predicate-prisma` need
 no `HasCustom`-specific logic of their own — the node never reaches either
 package.
+
+## INV-QD-051: Staging presence or absence never changes the committed audit entries
+
+The same sequence of `SinkRecord`s driven through `AuditDecisionSinkLive`,
+with `AuditStagingPort` wired and unwired, produces identical **committed**
+`AuditEntry` sequences.
+
+**Source**: `packages/audit/src/AuditDecisionSinkLive.ts` — `stage`/`commit`
+calls are best-effort side effects on the path to `AuditTrailPort.write`;
+neither call's outcome changes whether `write` is attempted or what is
+written.
+
+**Implication**: `AuditStagingPort`'s whole value proposition
+([BEH-QD-252](behaviors/33-audit-pipeline.md#beh-qd-252-staging-is-best-effort-and-provably-non-observable-in-the-happy-path))
+is additive recoverability, never a second, divergent code path. A caller
+who wires staging must never end up with a different — or less reliable —
+set of committed rows than one who did not, or staging would be a liability
+disguised as a safety net.
+
+**Enforcement**: a `FastCheck` property drives the same generated sequence
+of `SinkRecord`s through two configurations of the same pipeline — staging
+wired, staging unwired — and asserts the committed `AuditEntry` sequences,
+read back from a deterministic `AuditTrailPortTest`, are identical.
+
+**Related**: [BEH-QD-252](behaviors/33-audit-pipeline.md#beh-qd-252-staging-is-best-effort-and-provably-non-observable-in-the-happy-path), [ADR-QD-056](decisions/056-audit-companion-package.md).
+
+## INV-QD-052: Once a circuit breaker trips, `write` is never attempted again until reset
+
+While the breaker built by `makeCircuitBreaker` is `Open`, `record()` never
+calls `AuditTrailPort.write` — not even under concurrent `record()` calls
+racing to trip or read it.
+
+**Source**: `packages/audit/src/CircuitBreaker.ts` — every state transition
+(`status`, `recordSuccess`, `recordFailure`) is a single `Ref.modify` call,
+never a separate `Ref.get` followed by a later `Ref.set`, so two fibers
+reading the same state before either writes back cannot lose an update or
+double-count a transition.
+
+**Implication**: `Qadi.ts`'s `filter`/`filterStream` evaluate items
+concurrently, so concurrent `record()` calls reaching one breaker are the
+ordinary shape of a caller batch-authorizing a collection, not a hypothetical
+edge case. A non-atomic transition would let the breaker take longer than
+`failureThreshold` consecutive failures to trip, silently weakening the
+guard it exists to provide.
+
+**Enforcement**: scripted threshold-boundary tests — the exact
+`failureThreshold`-th failure trips, `failureThreshold - 1` does not, a
+success mid-`half-open` closes, a failure mid-`half-open` reopens — paired
+with a concurrency stress test that fires `failureThreshold` `recordFailure`
+calls at `"unbounded"` concurrency and asserts both the resulting status and
+that `qadi_audit_circuit_breaker_transitions_total{to: "Open"}` counted
+exactly one transition, not more.
+
+**Related**: [BEH-QD-251](behaviors/33-audit-pipeline.md#beh-qd-251-a-tripped-circuit-breaker-skips-the-write-not-the-stage-and-its-transitions-are-atomic-under-concurrency), [ADR-QD-056](decisions/056-audit-companion-package.md).
+
+## INV-QD-053: Retained and purged partition entries
+
+For any `entries`, `RetentionPolicy` and `now`,
+`enforceRetention(entries, policy, now)` and
+`getPurgeableEntries(entries, policy, now)` partition `entries`: their union
+recovers `entries`, and their intersection is empty.
+
+**Source**: `packages/audit/src/Retention.ts` — both exported functions
+delegate to one internal `partitionByRetention`, which evaluates the
+purgeability predicate exactly once per entry in a single pass.
+
+**Implication**: retention is a caller-invoked, caller-scheduled surface
+entirely outside the `DecisionSink` pipeline
+([BEH-QD-253](behaviors/33-audit-pipeline.md#beh-qd-253-retention-partitions-entries-by-construction)).
+A partition violated — an entry counted as both retained and purged, or as
+neither — would mean either a compliance-relevant row silently vanishing
+from both sets, or a row a caller believed purged still being retained.
+
+**Enforcement**: a `FastCheck` property over generated timestamp arrays,
+`maxAgeMs` values and `now` values, asserting the union/intersection
+identities hold for every generated case.
+
+**Related**: [BEH-QD-253](behaviors/33-audit-pipeline.md#beh-qd-253-retention-partitions-entries-by-construction), [ADR-QD-056](decisions/056-audit-companion-package.md).
+
+## INV-QD-054: `verifyChainIntegrity` detects every gap and duplicate sequence number
+
+For any set of `AuditEntry` rows, `verifyChainIntegrity` fails
+`ChainIntegrityError` if and only if the defined `sequenceNumber`s, sorted
+ascending, contain a gap or a duplicate.
+
+**Source**: `packages/audit/src/ChainIntegrity.ts` — sorts the defined
+sequence numbers and fails the moment one is not exactly one more than its
+predecessor, which catches a gap (a jump past the expected value) and a
+duplicate (the same value twice, which sorts to *less* than expected) with
+the same single check.
+
+**Implication**: sequence numbers are assigned entirely by the caller's own
+store, never by `@qadi/audit`
+([BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-chain-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order)) —
+this is the one check standing between an audit trail a compliance reviewer
+can trust and rows quietly missing or overwritten in the caller's own
+storage. A false negative here — a real gap that verification misses — is
+indistinguishable from tampering nobody caught.
+
+**Enforcement**: a `FastCheck` property over generated contiguous sequences
+(always intact) and generated sequences with one deliberately removed
+element (always caught), plus hand-written cases for a duplicate and for a
+mix of sequenced and unsequenced entries.
+
+**Related**: [BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-chain-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order), [ADR-QD-056](decisions/056-audit-companion-package.md).
+
+## INV-QD-055: `signatureObligationHandler` calls `capture` exactly once, and the `ObligationRecord` matches
+
+For one discharge, `signatureObligationHandler(port, meaning)` calls
+`port.capture` exactly once, and the `ObligationRecord` outcome
+`DecisionSink` observes for that discharge is `Discharged` exactly when that
+call succeeded and `HandlerFailed` exactly when it failed.
+
+**Source**: `packages/audit/src/SignatureCapturePort.ts` —
+`signatureObligationHandler`'s returned `ObligationHandler` calls `capture`
+once per invocation, with a request built from the whole obligations array
+rather than once per obligation; `Qadi.ts`'s `discharge` maps the handler's
+own success/failure to the `ObligationRecord` outcome unconditionally.
+
+**Implication**: signature capture is wired through `ObligationHandler`, the
+only mechanism this library has for enforcement-time custom logic, never
+through `DecisionSink`
+([BEH-QD-256](behaviors/33-audit-pipeline.md#beh-qd-256-a-signature-obligation-handler-calls-capture-exactly-once-and-the-discharge-record-matches-its-outcome)).
+A handler calling `capture` more than once per discharge would let a
+caller's signature service be asked to sign the same duty twice; a
+mismatched `ObligationRecord` outcome would report a captured signature as
+`HandlerFailed`, or a failed one as `Discharged` — silently misrecording
+exactly the event a compliance reviewer reads this log for.
+
+**Enforcement**: unit tests over `signatureObligationHandler` in isolation
+(call count, request shape, failure propagation), plus integration tests
+through `Qadi.assert`'s real `discharge` path asserting the recorded
+`ObligationRecord.outcome` for both a successful and a failing `capture`.
+
+**Related**: [BEH-QD-256](behaviors/33-audit-pipeline.md#beh-qd-256-a-signature-obligation-handler-calls-capture-exactly-once-and-the-discharge-record-matches-its-outcome), [ADR-QD-056](decisions/056-audit-companion-package.md).
 
 **Related**: [BEH-QD-248](behaviors/32-custom-predicates.md#beh-qd-248-topredicate-refuses-a-hascustom-node), [ADR-QD-024](decisions/024-predicate-output.md), [ADR-QD-055](decisions/055-a-named-registered-custom-predicate.md).

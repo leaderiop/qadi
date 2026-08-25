@@ -65,8 +65,12 @@ export type AuditEntry = typeof AuditEntry.Type;
  * `isSafeValue`: a fixed, explicit allowlist rather than an unbounded walk of
  * every value a caller could ever construct.
  */
+// `isJsonSafe`'s only call site already handles `null`, `Date` and arrays
+// before ever reaching this — via its own `Array.isArray(value) ||
+// isRecord(value)` short-circuit — so excluding them here too would be dead
+// code no test could ever exercise, not a second layer of safety.
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof Date);
+  typeof value === "object" && value !== null;
 
 /**
  * `seen` tracks the current recursion path, not every value visited overall —

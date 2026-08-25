@@ -21,6 +21,21 @@ describe("createDecommissioningChecklist", () => {
     const checklist = createDecommissioningChecklist("system-1", 0);
     assert.strictEqual(checklist.steps.length, 6);
   });
+
+  it("each step carries its own real, distinct description text", () => {
+    const checklist = createDecommissioningChecklist("system-1", 0);
+    assert.deepStrictEqual(
+      checklist.steps.map((s) => s.description),
+      [
+        "Export the full audit trail to an archive",
+        "Verify the archived chain's integrity",
+        "Transfer the archive to long-term storage",
+        "Revoke signing keys",
+        "Record the final audit entry",
+        "Notify the regulatory authority, if required",
+      ],
+    );
+  });
 });
 
 describe("completeDecommissioningStep", () => {

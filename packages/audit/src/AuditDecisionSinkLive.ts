@@ -30,7 +30,7 @@ import { DecisionSink } from "@qadi/core";
 import { encodeAuditEntry } from "./AuditEntry.ts";
 import { AuditTrailPort } from "./AuditTrailPort.ts";
 import { AuditStagingPort } from "./AuditStagingPort.ts";
-import type { AuditStagingHandle } from "./AuditStagingPort.ts";
+import type { AuditStagingError } from "./AuditStagingPort.ts";
 import { makeCircuitBreaker } from "./CircuitBreaker.ts";
 
 export interface AuditDecisionSinkOptions {
@@ -104,11 +104,17 @@ export const AuditDecisionSinkLive = (
           // whether write() is attempted differs.
           const status = yield* breaker.status;
 
-          let handle: AuditStagingHandle | undefined;
+          // Ties "was staged" and "how to commit it" to one value, rather
+          // than a `handle` and a `stagingPort !== undefined` check that
+          // must always agree with each other — one Optional value the type
+          // checker can narrow on its own, instead of two variables a later
+          // edit could let drift apart.
+          let commitStaged: (() => Effect.Effect<void, AuditStagingError>) | undefined;
           if (stagingPort !== undefined) {
             const staged = yield* Effect.result(stagingPort.stage(entry));
             if (Result.isSuccess(staged)) {
-              handle = staged.success;
+              const handle = staged.success;
+              commitStaged = () => stagingPort.commit(handle);
               yield* Metric.update(stagingStaged, 1);
             } else {
               yield* Metric.update(stagingFailed, 1);
@@ -125,10 +131,8 @@ export const AuditDecisionSinkLive = (
           const written = yield* Effect.result(trailPort.write(entry));
           if (Result.isSuccess(written)) {
             yield* breaker.recordSuccess;
-            if (handle !== undefined && stagingPort !== undefined) {
-              yield* Effect.catchCause(stagingPort.commit(handle), () =>
-                Metric.update(stagingCommitFailed, 1),
-              );
+            if (commitStaged !== undefined) {
+              yield* Effect.catchCause(commitStaged(), () => Metric.update(stagingCommitFailed, 1));
             }
             yield* Metric.update(writesWritten, 1);
           } else {

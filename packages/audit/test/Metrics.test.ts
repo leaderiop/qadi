@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
@@ -76,6 +77,21 @@ describe("qadi_audit_writes_total", () => {
       assert.isDefined(failed);
       assert.strictEqual(failed?.state.count, 1);
     }));
+
+  it.effect("carries its documented description", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest();
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          yield* sink.record(decisionRecord());
+          return yield* Metric.snapshot;
+        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+      );
+
+      const rows = counters(snapshots, "qadi_audit_writes_total");
+      assert.strictEqual(rows[0]?.description, "SinkRecords the audit pipeline received, tagged by outcome.");
+    }));
 });
 
 describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
@@ -100,6 +116,82 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
       const toOpen = transitions.find((r) => r.attributes?.to === "Open");
       assert.isDefined(toOpen);
       assert.strictEqual(toOpen?.state.count, 1);
+    }));
+
+  it.effect("the gauge and both counters carry their documented descriptions", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest({
+        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+      });
+
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
+          return yield* Metric.snapshot;
+        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+      );
+
+      const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
+      assert.strictEqual(
+        gauge?.description,
+        "Current circuit breaker state: 0 = closed, 1 = half-open, 2 = open.",
+      );
+
+      const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
+      assert.strictEqual(
+        transitions[0]?.description,
+        "Circuit breaker state transitions, tagged by the state transitioned to.",
+      );
+    }));
+
+  it.effect("closing from half-open transitions the gauge to 0 and counts a transition to 'Closed'", () =>
+    Effect.gen(function* () {
+      // Only the first five writes fail — the recovery write must succeed,
+      // or the breaker reopens instead of closing.
+      const { layer: trail } = AuditTrailPortTest({
+        failWith: (entry) =>
+          entry.record.evaluationId.startsWith("fail-")
+            ? new AuditWriteError({ entry, cause: "offline" })
+            : undefined,
+      });
+
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `fail-${i}` }));
+          yield* TestClock.adjust("30 seconds");
+          // A status read transitions Open -> HalfOpen; the next successful
+          // write then closes it.
+          yield* sink.record(decisionRecord({ evaluationId: "recovers" }));
+          return yield* Metric.snapshot;
+        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+      );
+
+      const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
+      assert.strictEqual(gauge?.state.value, 0);
+
+      const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
+      const toHalfOpen = transitions.find((r) => r.attributes?.to === "HalfOpen");
+      const toClosed = transitions.find((r) => r.attributes?.to === "Closed");
+      assert.strictEqual(toHalfOpen?.state.count, 1);
+      assert.strictEqual(toClosed?.state.count, 1);
+    }));
+
+  it.effect("a success on an already-closed breaker announces no transition at all", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest();
+
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          yield* sink.record(decisionRecord());
+          return yield* Metric.snapshot;
+        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+      );
+
+      const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
+      assert.strictEqual(transitions.length, 0);
     }));
 });
 
@@ -192,5 +284,21 @@ describe("qadi_audit_staging_total", () => {
       const commitFailed = rows.find((r) => r.attributes?.outcome === "commit_failed");
       assert.isDefined(commitFailed);
       assert.strictEqual(commitFailed?.state.count, 1);
+    }));
+
+  it.effect("carries its documented description", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest();
+      const { layer: staging } = AuditStagingPortTest();
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          yield* sink.record(decisionRecord());
+          return yield* Metric.snapshot;
+        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging)),
+      );
+
+      const rows = counters(snapshots, "qadi_audit_staging_total");
+      assert.strictEqual(rows[0]?.description, "AuditStagingPort.stage attempts, tagged by outcome.");
     }));
 });

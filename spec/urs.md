@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-URS                                       |
-> | Revision       | 1.20                                           |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.21                                           |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | User Requirements Specification                |
-> | Change History | 1.20 (2026-08-24): URS-QD-033, finding the component behind a missing control (CCR-QD-073)<br>1.19 (2026-08-24): URS-QD-032, what the ports were asked (CCR-QD-071)<br>1.18 (2026-08-24): URS-QD-031, the subject simulator (CCR-QD-070)<br>1.17 (2026-07-26): URS-QD-028, the Promise facade (CCR-QD-033)<br>1.16 (2026-07-26): URS-QD-027, the decision cache (CCR-QD-032)<br>1.15 (2026-07-26): URS-QD-026, simplification (CCR-QD-031)<br>1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.21 (2026-08-25): §1.1 scope table corrected — "durable, tamper-evident audit trails" was stale against ADR-QD-056's narrowing of ADR-QD-016; reworded to what remains actually out of scope (durability, cryptographic tamper-evidence) without overclaiming what `@qadi/audit` provides (CCR-QD-086)<br>1.20 (2026-08-24): URS-QD-033, finding the component behind a missing control (CCR-QD-073)<br>1.19 (2026-08-24): URS-QD-032, what the ports were asked (CCR-QD-071)<br>1.18 (2026-08-24): URS-QD-031, the subject simulator (CCR-QD-070)<br>1.17 (2026-07-26): URS-QD-028, the Promise facade (CCR-QD-033)<br>1.16 (2026-07-26): URS-QD-027, the decision cache (CCR-QD-032)<br>1.15 (2026-07-26): URS-QD-026, simplification (CCR-QD-031)<br>1.14 (2026-07-26): URS-QD-025, deriving a label (CCR-QD-030)<br>1.13 (2026-07-26): URS-QD-024, decision hydration (CCR-QD-029)<br>1.12 (2026-07-26): URS-QD-023, policy explanation (CCR-QD-028)<br>1.11 (2026-07-26): URS-QD-022, concurrent evaluation (CCR-QD-027)<br>1.10 (2026-07-26): URS-QD-021, predicate output (CCR-QD-020)<br>1.9 (2026-07-26): URS-QD-020, ordered rule tables (CCR-QD-019)<br>1.8 (2026-07-26): URS-QD-019, subject sets (CCR-QD-018)<br>1.7 (2026-07-26): URS-QD-018, label dominance (CCR-QD-017)<br>1.6 (2026-07-26): URS-QD-017, decision history (CCR-QD-016)<br>1.5 (2026-07-26): URS-QD-016, obligations (CCR-QD-015)<br>1.4 (2026-07-26): URS-QD-015, the action dimension (CCR-QD-012)<br>1.3 (2026-07-26): URS-QD-012 gap closed (CCR-QD-010)<br>1.2 (2026-07-26): URS-QD-010 gap closed; URS-QD-013 title reworded (CCR-QD-009)<br>1.1 (2026-07-26): React verification re-pointed (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -35,12 +35,20 @@ what that process did surface.
 | Deciding whether a subject may act | Authenticating the subject |
 | Deciding which fields they may see | Storing users, roles or policies |
 | Composing RBAC, ABAC and ReBAC conditions | Providing a policy authoring UI |
-| Serializing policies for storage and transport | Durable, tamper-evident audit trails |
+| Serializing policies for storage and transport | Durability and cryptographic tamper-evidence of an audit trail |
 | Reporting decisions to tracing | Regulated-environment qualification |
 
 Qadi decides. It does not authenticate, persist, or administer. Anything it
 cannot do correctly, it does not offer — see
-[ADR-QD-016](./decisions/016-gxp-out-of-scope.md).
+[ADR-QD-016](./decisions/016-gxp-out-of-scope.md), narrowed by
+[ADR-QD-056](./decisions/056-audit-companion-package.md): the optional
+`@qadi/audit` companion package writes an audit trail through
+`DecisionSink`, but owns no storage of its own (durability stays entirely
+the caller's) and offers no cryptographic proof against tampering —
+`ChainIntegrity.ts`'s sequence-gap detection is a caller-driven check over a
+caller-assigned sequence number, not a hash chain or a signature. Neither
+"durable" nor "tamper-evident" in the strong sense either word implies is a
+claim this library makes anywhere.
 
 ## 2. User groups
 

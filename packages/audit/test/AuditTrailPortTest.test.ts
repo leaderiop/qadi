@@ -29,7 +29,11 @@ describe("AuditTrailPortTest", () => {
 
       const result = yield* Effect.result(AuditTrailPort.write(entry)).pipe(Effect.provide(layer));
       assert.strictEqual(result._tag, "Failure");
-      if (result._tag === "Failure") assert.strictEqual(result.failure, failure);
+      if (result._tag === "Failure") {
+        assert.strictEqual(result.failure, failure);
+        assert.strictEqual(result.failure._tag, "AuditWriteError");
+        assert.strictEqual(result.failure.cause, "store offline");
+      }
       assert.strictEqual(written().length, 0);
     }));
 
@@ -51,5 +55,17 @@ describe("AuditTrailPortTest", () => {
       }).pipe(Effect.provide(layer));
 
       assert.deepStrictEqual(written(), [entryA]);
+    }));
+
+  it.effect("options present without failWith still records normally", () =>
+    Effect.gen(function* () {
+      // `options` itself is truthy here, unlike AuditTrailPortTest() with no
+      // arguments at all — exercises the "options defined, failWith absent"
+      // path `options?.failWith?.(entry)` specifically guards.
+      const entry = yield* encodeAuditEntry(decisionRecord());
+      const { layer, written } = AuditTrailPortTest({});
+
+      yield* AuditTrailPort.write(entry).pipe(Effect.provide(layer));
+      assert.deepStrictEqual(written(), [entry]);
     }));
 });

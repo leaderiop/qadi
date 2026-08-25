@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 import {
   assert as qadiAssert,
   AttributeResolverNone,
@@ -19,13 +20,13 @@ import {
 } from "@qadi/core";
 import type { AuthSubject, ObligationRecord } from "@qadi/core";
 import {
+  ElectronicSignature,
   SIGNATURE_MEANINGS,
   SignatureCaptureError,
   SignatureCapturePort,
   signatureObligationHandler,
 } from "../src/SignatureCapturePort.ts";
 import type {
-  ElectronicSignature,
   SignatureCaptureRequest,
   SignatureCapturePortShape,
   SignatureValidationResult,
@@ -97,7 +98,13 @@ describe("signatureObligationHandler — unit", () => {
       );
 
       assert.strictEqual(result._tag, "Failure");
-      if (result._tag === "Failure") assert.strictEqual(result.failure, failure);
+      if (result._tag === "Failure") {
+        assert.strictEqual(result.failure, failure);
+        // A hard-coded literal, not compared against another instance of the
+        // same class — that comparison alone couldn't distinguish the real
+        // tag from a mutated one, since both sides would mutate together.
+        assert.strictEqual(result.failure._tag, "SignatureCaptureError");
+      }
     }));
 
   it.effect("SignatureCapturePort's static accessors delegate to the provided Layer", () =>
@@ -200,5 +207,37 @@ describe("signatureObligationHandler — wired through Qadi.enforce's discharge"
       const result = yield* Effect.result(qadiAssert(policy).pipe(Effect.provide(testEnv(alice))));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") assert.strictEqual(result.failure._tag, "UndischargedObligation");
+    }));
+});
+
+describe("ElectronicSignature — the schema is real, not decorative", () => {
+  it.effect("a real signature round-trips through Schema encode/decode, every field intact", () =>
+    Effect.gen(function* () {
+      const full: ElectronicSignature = {
+        signerId: alice.id,
+        signedAt: 1_700_000_000_000,
+        meaning: SIGNATURE_MEANINGS.WITNESSED,
+        algorithm: "Ed25519",
+        keyId: "key-1",
+      };
+
+      const encoded = yield* Schema.encodeEffect(ElectronicSignature)(full);
+      const decoded = yield* Schema.decodeUnknownEffect(ElectronicSignature)(
+        JSON.parse(JSON.stringify(encoded)),
+      );
+      assert.deepStrictEqual(decoded, full);
+    }));
+
+  it.effect("algorithm and keyId stay genuinely optional — absent, not present-and-undefined", () =>
+    Effect.gen(function* () {
+      const minimal: ElectronicSignature = {
+        signerId: alice.id,
+        signedAt: 0,
+        meaning: SIGNATURE_MEANINGS.APPROVED,
+      };
+
+      const encoded = yield* Schema.encodeEffect(ElectronicSignature)(minimal);
+      assert.isFalse(Object.hasOwn(encoded, "algorithm"));
+      assert.isFalse(Object.hasOwn(encoded, "keyId"));
     }));
 });

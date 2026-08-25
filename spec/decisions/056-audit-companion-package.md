@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-056                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Accepted — narrows ADR-QD-016                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -174,16 +174,29 @@ deterministic `AuditTrailPortTest`/`AuditStagingPortTest` in-memory `Layer`s
 - the one genuine differential property this design does have — staging-present
   and staging-absent configurations of the same pipeline, driven by the same
   generated `SinkRecord` sequence, must produce identical **committed**
-  `AuditEntry` sequences (`test/Agreement.test.ts`);
+  `AuditEntry` sequences (`test/Agreement.test.ts`, formalized as
+  [INV-QD-051](../invariants.md#inv-qd-051-staging-presence-or-absence-never-changes-the-committed-audit-entries));
 - scripted threshold-boundary tests for the circuit breaker, since a property
   generated at random is unlikely to land on the exact failing count that
-  trips it (`test/CircuitBreaker.test.ts`);
+  trips it (`test/CircuitBreaker.test.ts`, formalized — together with a
+  concurrency stress test, since `Ref`-backed state transitions must stay
+  correct under the concurrent `record()` calls `filter`/`filterStream`
+  produce — as
+  [INV-QD-052](../invariants.md#inv-qd-052-once-a-circuit-breaker-trips-write-is-never-attempted-again-until-reset));
 - an algebraic partition property for retention: `retained ∪ purged = entries`,
-  `retained ∩ purged = ∅` (`test/Retention.test.ts`);
+  `retained ∩ purged = ∅` (`test/Retention.test.ts`, formalized as
+  [INV-QD-053](../invariants.md#inv-qd-053-retained-and-purged-partition-entries));
 - gap-and-duplicate detection over generated sequence numbers
-  (`test/ChainIntegrity.test.ts`);
+  (`test/ChainIntegrity.test.ts`, formalized as
+  [INV-QD-054](../invariants.md#inv-qd-054-verifychainintegrity-detects-every-gap-and-duplicate-sequence-number));
 - a call-once property for the signature obligation handler
-  (`test/SignatureCapturePort.test.ts`).
+  (`test/SignatureCapturePort.test.ts`, formalized as
+  [INV-QD-055](../invariants.md#inv-qd-055-signatureobligationhandler-calls-capture-exactly-once-and-the-obligationrecord-matches)).
+
+Distilled into `spec/invariants.md` and [33 — Audit
+Pipeline](../behaviors/33-audit-pipeline.md) as a follow-up to this ADR's
+initial release, closing the gap the first revision named rather than left
+implicit (CCR-QD-086).
 
 **A new finding, not previously flagged anywhere on the map it came from:**
 `Qadi.ts`'s `filter`/`filterStream` evaluate items concurrently, so concurrent
@@ -233,12 +246,6 @@ internal buffering state staging's own design already refused.
   `DecisionRecord`/`DecisionSink` evolve.
 - E-signature *check* remains a real gap in Qadi's row-level and policy
   story; this ADR closes the capture half only, deliberately.
-- No formal `INV-QD-NNN` invariant is recorded for `@qadi/audit` in this
-  revision — correctness rests on the property and scripted-boundary tests
-  named above, in `packages/audit/test/`, not yet distilled into
-  `spec/invariants.md`. Recorded here rather than left implicit, so a later
-  session either closes this gap or the document says so it is not itself
-  what stands in for it.
 
 **Trade-off accepted**: five capabilities in one package, at the cost of a
 package whose surface is noticeably larger than either predicate compiler's.
@@ -250,6 +257,10 @@ that would have left the exact question this ADR exists to answer
 unanswered.
 
 **Implemented**: `packages/audit/`, with the test suite named in
-"Correctness" above as the evidence. `spec/behaviors/` documentation and
-`spec/invariants.md` entries are **not yet added** — see the negative
-consequence above.
+"Correctness" above as the evidence, [33 — Audit
+Pipeline](../behaviors/33-audit-pipeline.md), and
+[INV-QD-051](../invariants.md#inv-qd-051-staging-presence-or-absence-never-changes-the-committed-audit-entries)
+through
+[INV-QD-055](../invariants.md#inv-qd-055-signatureobligationhandler-calls-capture-exactly-once-and-the-obligationrecord-matches).
+Mutation testing (`stryker.audit.mjs`, `pnpm check` gate 20) scores 92%,
+clearing both the 80% break and the 90% high threshold.

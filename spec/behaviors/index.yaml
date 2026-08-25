@@ -98,3 +98,6 @@ entries:
   - id: "BEH-QD-245"
     file: "32-custom-predicates.md"
     title: "32 — Custom Predicates"
+  - id: "BEH-QD-249"
+    file: "33-audit-pipeline.md"
+    title: "33 — Audit Pipeline"

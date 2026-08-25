@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import { encodeAuditEntry } from "../src/AuditEntry.ts";
+import * as Schema from "effect/Schema";
+import { AuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import { decisionRecord, failedRecord, obligationRecord } from "./helpers.ts";
 
 describe("encodeAuditEntry", () => {
@@ -49,6 +50,10 @@ describe("encodeAuditEntry", () => {
       if (result._tag === "Failure") {
         assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
         assert.strictEqual(result.failure.recordTag, "Decision");
+        assert.strictEqual(
+          result.failure.reason,
+          "resource carries a value with no safe durable representation",
+        );
       }
     }));
 
@@ -88,5 +93,32 @@ describe("encodeAuditEntry", () => {
     Effect.gen(function* () {
       const entry = yield* encodeAuditEntry(obligationRecord());
       assert.strictEqual(entry.record._tag, "Obligations");
+    }));
+});
+
+describe("AuditEntry — the schema is real, not decorative", () => {
+  it.effect("a real entry round-trips through Schema encode/decode unchanged", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord({ evaluationId: "e1" }));
+      const encoded = yield* Schema.encodeEffect(AuditEntry)(entry);
+      const decoded = yield* Schema.decodeUnknownEffect(AuditEntry)(
+        JSON.parse(JSON.stringify(encoded)),
+      );
+      assert.deepStrictEqual(decoded.record, entry.record);
+      // Absent, not present-and-undefined — `Schema.optional` drops an
+      // explicitly-undefined key on decode, the same normalization
+      // `@qadi/core`'s own wire codec applies.
+      assert.isUndefined(decoded.sequenceNumber);
+    }));
+
+  it.effect("sequenceNumber survives the same round-trip when present", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord({ evaluationId: "e1" }));
+      const withSequence = { ...entry, sequenceNumber: 7 };
+      const encoded = yield* Schema.encodeEffect(AuditEntry)(withSequence);
+      const decoded = yield* Schema.decodeUnknownEffect(AuditEntry)(
+        JSON.parse(JSON.stringify(encoded)),
+      );
+      assert.strictEqual(decoded.sequenceNumber, 7);
     }));
 });
