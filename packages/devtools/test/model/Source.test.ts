@@ -257,6 +257,7 @@ describe("sourceFromEventSource", () => {
         _tag: "Decision",
         evaluationId: "broken",
         at: 1,
+        subjectId: "alice",
         policy: { _tag: "HasPermission", permission: { resource: "doc", action: "read" } },
       });
 

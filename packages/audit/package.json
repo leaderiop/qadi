@@ -1,0 +1,59 @@
+{
+  "name": "@qadi/audit",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Mohammad AL Mechkor",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/leaderiop/qadi.git",
+    "directory": "packages/audit"
+  },
+  "homepage": "https://github.com/leaderiop/qadi/tree/main/packages/audit#readme",
+  "bugs": {
+    "url": "https://github.com/leaderiop/qadi/issues"
+  },
+  "description": "GxP-style audit trail, staging, circuit breaker, retention, and e-signature capture for @qadi/core, composed onto DecisionSink",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "bun": "./src/index.ts",
+      "import": "./lib/index.js"
+    },
+    "./*": {
+      "types": "./lib/*.d.ts",
+      "bun": "./src/*.ts",
+      "import": "./lib/*.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@qadi/core": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "keywords": [
+    "authorization",
+    "audit",
+    "gxp",
+    "compliance",
+    "qadi"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

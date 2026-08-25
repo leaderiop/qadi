@@ -95,6 +95,7 @@ const buildDecision = (at: number, allowed: boolean, evaluationId?: string): Dec
   return new DecisionRecord({
     evaluationId: id,
     at,
+    subjectId: makeSubjectId("alice"),
     policy: hasPermission(read),
     outcome: new Decided({
       decision: allowed
@@ -153,6 +154,7 @@ Given(
     const record = new DecisionRecord({
       evaluationId: `ev-${at}`,
       at,
+      subjectId: makeSubjectId("alice"),
       policy: hasPermission(read),
       // Not a `Deny` with a reason: a lookup broke, so there is no verdict.
       outcome: new Failed({ error: new MissingResource({ attribute: "doc.ownerId" }) }),
@@ -215,6 +217,7 @@ Given("a policy requiring all of {string} and {string}", async function (_first:
   const record = new DecisionRecord({
     evaluationId: "ev-100",
     at: 100,
+    subjectId: decision.subjectId,
     policy,
     outcome: new Decided({ decision }),
   });

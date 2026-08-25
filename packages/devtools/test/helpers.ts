@@ -84,6 +84,7 @@ export const decisionRecord = (options?: {
   readonly evaluationId?: string;
   readonly at?: number;
   readonly environment?: string;
+  readonly subjectId?: string;
   readonly policy?: Policy;
   readonly action?: string;
   readonly resource?: Record<string, unknown>;
@@ -94,6 +95,7 @@ export const decisionRecord = (options?: {
     new DecisionRecord({
       evaluationId: options?.evaluationId ?? "ev-1",
       at: options?.at ?? 1_000,
+      subjectId: makeSubjectId(options?.subjectId ?? "alice"),
       policy: options?.policy ?? readPolicy,
       ...(options?.resource === undefined ? {} : { resource: options.resource }),
       ...(options?.action === undefined ? {} : { action: options.action }),

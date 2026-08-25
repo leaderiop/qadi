@@ -20,6 +20,7 @@ export default defineConfig({
         // headless model and the React dock that renders it.
         "packages/devtools/src/index.ts",
         "packages/devtools/src/react/index.ts",
+        "packages/audit/src/index.ts",
         "**/*.test-d.ts",
       ],
       // A shortfall is a failure, not a report.

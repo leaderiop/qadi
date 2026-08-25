@@ -206,6 +206,7 @@ Given(
     const record = new DecisionRecord({
       evaluationId,
       at: 1_000,
+      subjectId: makeSubjectId(subjectId),
       policy: policyNamed(name),
       outcome: new Decided({
         decision: new Allow({

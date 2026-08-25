@@ -301,6 +301,7 @@ import { emptyTimeline, ingest, verdictOf } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
 import { compileSql } from "@qadi/predicate-sql";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
+import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
 
 const read = permission("document", "read");
 const write = permission("document", "write");
@@ -353,6 +354,7 @@ const timeline = ingest(
     new DecisionRecord({
       evaluationId: decided.evaluationId,
       at: 0,
+      subjectId: decided.subjectId,
       policy: hasPermission(read),
       outcome: new Decided({ decision: decided }),
     }),
@@ -377,6 +379,20 @@ const sqlFragment = await Effect.runPromise(compileSql(predicate, { dialect: "po
 expect("predicate-sql fragment", sqlFragment.text, "TRUE");
 const prismaWhere = await Effect.runPromise(compilePrismaWhere(predicate));
 expect("predicate-prisma where", JSON.stringify(prismaWhere), JSON.stringify({ AND: [] }));
+
+// @qadi/audit's assembled pipeline: a real evaluation, recorded through
+// AuditDecisionSinkLive into a deterministic in-memory AuditTrailPort.
+const { layer: auditTrailLayer, written } = AuditTrailPortTest();
+const auditDecision = await Effect.runPromise(
+  evaluate(hasPermission(read)).pipe(
+    Effect.provide(currentSubjectLayer(alice)),
+    Effect.provide(services),
+    Effect.provide(AuditDecisionSinkLive()),
+    Effect.provide(auditTrailLayer),
+  ),
+);
+expect("audit decision allow", auditDecision._tag, "Allow");
+expect("audit trail wrote one entry", written().length, 1);
 
 console.log("consumer: the published artifact authorizes correctly");
 `;

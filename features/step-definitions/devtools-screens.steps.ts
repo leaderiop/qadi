@@ -74,6 +74,7 @@ const decisionFor = (policy: Policy): StoredRecord => {
   const record = new DecisionRecord({
     evaluationId,
     at,
+    subjectId: makeSubjectId("alice"),
     policy,
     outcome: new Decided({
       decision: new Allow({

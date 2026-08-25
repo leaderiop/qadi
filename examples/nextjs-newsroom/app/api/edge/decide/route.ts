@@ -113,6 +113,7 @@ export const GET = async (request: Request): Promise<Response> => {
       new DecisionRecord({
         evaluationId: decision.evaluationId,
         at: decision.durationMillis,
+        subjectId: decision.subjectId,
         policy: canReadArticle,
         outcome: new Decided({ decision }),
       }),
