@@ -115,6 +115,17 @@ describe("compilePrismaWhere — golden shapes", () => {
         OR: [],
       });
     }));
+
+  it.effect("a null value is on the safe allowlist and compiles, rather than refusing", () =>
+    Effect.gen(function* () {
+      const where = yield* compilePrismaWhere({
+        _tag: "Compare",
+        column: "deletedAt",
+        op: "Eq",
+        value: null,
+      });
+      assert.deepStrictEqual(where, { deletedAt: null });
+    }));
 });
 
 describe("compilePrismaWhere — refusals", () => {
@@ -123,9 +134,10 @@ describe("compilePrismaWhere — refusals", () => {
       const failure = yield* refusalOf({ _tag: "Compare", column: "x", op: "Eq", value: { foo: 1 } });
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
       assert.strictEqual(failure?.predicateTag, "Compare");
+      assert.strictEqual(failure?.reason, "value for column 'x' is not a safe query parameter");
     }));
 
-  it.effect("a MemberOf member outside the safe allowlist refuses", () =>
+  it.effect("a MemberOf member outside the safe allowlist refuses, naming the column", () =>
     Effect.gen(function* () {
       const failure = yield* refusalOf({
         _tag: "MemberOf",
@@ -134,6 +146,7 @@ describe("compilePrismaWhere — refusals", () => {
       });
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
       assert.strictEqual(failure?.predicateTag, "MemberOf");
+      assert.strictEqual(failure?.reason, "a value for column 'x' is not a safe query parameter");
     }));
 
   it.effect("a refusal deep in the tree fails the whole compilation", () =>

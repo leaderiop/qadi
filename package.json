@@ -24,7 +24,7 @@
     "test:tstyche": "tstyche",
     "coverage": "vitest run --coverage",
     "bench": "vitest bench --run",
-    "mutation": "stryker run && stryker run stryker.devtools.mjs",
+    "mutation": "stryker run && stryker run stryker.devtools.mjs && stryker run stryker.predicate-sql.mjs && stryker run stryker.predicate-prisma.mjs",
     "test:bdd": "pnpm --filter @qadi/features test",
     "circular": "madge --circular --extensions ts,tsx packages/*/src",
     "lint": "oxlint && node scripts/check-house-style.mjs",

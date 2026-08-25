@@ -54,8 +54,8 @@ pnpm spec:package  # the packed packages install, resolve and authorize
 pnpm spec:gates    # the DoD table is the merge gate pnpm check actually runs
 pnpm spec:claims   # spec/devtools-spec says why each absence still holds
 pnpm bench         # dispatch and evaluation throughput (measurement, not a gate)
-pnpm mutation      # Stryker on packages/core and on the devtools model
-pnpm check         # all seventeen gates, in order
+pnpm mutation      # Stryker on packages/core, the devtools model, predicate-sql, predicate-prisma
+pnpm check         # all nineteen gates, in order
 ```
 
 `pnpm check` is the merge gate, and [CI](./.github/workflows/check.yml) runs that

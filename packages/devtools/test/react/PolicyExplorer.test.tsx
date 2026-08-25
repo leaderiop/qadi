@@ -119,6 +119,11 @@ describe("the structure view", () => {
     mount([sighting(hasPermission(read, { fields: ["id", "title"] }))]);
     assert.include(screen.getByTestId("qadi-policies").textContent ?? "", "exposing only id, title");
   });
+
+  it("a path-aware field spec renders as the literal string it is", () => {
+    mount([sighting(hasPermission(read, { fields: ["id", "contact.*"] }))]);
+    assert.include(screen.getByTestId("qadi-policies").textContent ?? "", "exposing only id, contact.*");
+  });
 });
 
 describe("depth", () => {

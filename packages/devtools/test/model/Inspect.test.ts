@@ -305,6 +305,12 @@ describe("fields and duties", () => {
     assert.isUndefined((await treeOf(hasPermission(read))).restrictsFields);
   });
 
+  it("a path-aware spec carries through unchanged — it's an opaque string, not parsed here", async () => {
+    const tree = await treeOf(hasPermission(read, { fields: ["id", "address.street", "contact.*"] }));
+
+    assert.deepStrictEqual(tree.restrictsFields, ["id", "address.street", "contact.*"]);
+  });
+
   it("an allowed obliged node carries its duty", async () => {
     const tree = await treeOf(obliged(obligation("audit"), hasPermission(read)));
 

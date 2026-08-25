@@ -115,6 +115,13 @@ describe("compileSql — golden fragments, one row per dialect", () => {
       assert.strictEqual(fragment.params[0], createdAt);
     }));
 
+  it.effect("a null value is on the safe allowlist and compiles, rather than refusing", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = { _tag: "Compare", column: "deletedAt", op: "Eq", value: null };
+      const fragment = yield* render(predicate, "postgres");
+      assert.deepStrictEqual(fragment, { text: '"deletedAt" = $1', params: [null] });
+    }));
+
   it.effect("True/False render to their own keyword with no params", () =>
     Effect.gen(function* () {
       assert.deepStrictEqual(yield* render({ _tag: "True" }, "postgres"), {
@@ -150,14 +157,16 @@ describe("compileSql — refusals", () => {
       const failure = yield* refusalOf(predicate, "postgres");
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
       assert.strictEqual(failure?.predicateTag, "Compare");
+      assert.strictEqual(failure?.reason, "value for column 'x' is not a safe query parameter");
     }));
 
-  it.effect("a MemberOf member outside the safe allowlist refuses", () =>
+  it.effect("a MemberOf member outside the safe allowlist refuses, naming the column", () =>
     Effect.gen(function* () {
       const predicate: Predicate = { _tag: "MemberOf", column: "x", values: ["ok", { bad: true }] };
       const failure = yield* refusalOf(predicate, "postgres");
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
       assert.strictEqual(failure?.predicateTag, "MemberOf");
+      assert.strictEqual(failure?.reason, "a value for column 'x' is not a safe query parameter");
     }));
 
   it.effect("MemberOf past maxInValues refuses rather than rendering an unbounded IN", () =>
@@ -170,6 +179,7 @@ describe("compileSql — refusals", () => {
       const failure = yield* refusalOf(predicate, "postgres");
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
       assert.strictEqual(failure?.predicateTag, "MemberOf");
+      assert.strictEqual(failure?.reason, "1001 values exceeds maxInValues (1000)");
     }));
 
   it.effect("maxInValues is configurable", () =>
