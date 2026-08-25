@@ -7,11 +7,18 @@ import "server-only";
  * asks for itself the answer has changed. Faking it with a timer would be a
  * demonstration of a timer; this changes the attribute the policy actually reads.
  *
- * A module-scope `Set`, which is a demo's database. It is process-wide like
- * everything else here, so two browsers pointed at the same server share it —
- * said out loud rather than left to surprise someone.
+ * A `Set`, which is a demo's database — pinned to `globalThis`, because the page
+ * that revokes and the route handler the browser then asks are different module
+ * graphs and a plain module-scope `Set` is two sets. That is exactly how this
+ * route silently failed to demonstrate anything: the page revoked, the browser
+ * asked, and the answer was still `good`.
+ *
+ * Process-wide, so two browsers pointed at the same server share it — said out
+ * loud rather than left to surprise someone.
  */
-const revoked = new Set<string>();
+import { revokedOnce } from "./processGlobal.ts";
+
+const revoked = revokedOnce();
 
 export const revoke = (subjectId: string): void => {
   revoked.add(subjectId);

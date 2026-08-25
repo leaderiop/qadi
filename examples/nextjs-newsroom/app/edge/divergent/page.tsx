@@ -64,10 +64,11 @@ const Page = async () => {
         }
         watch={
           <>
-            the badge below starts <strong>Allowed</strong> and becomes <strong>Denied</strong>{" "}
-            without a reload; <code>qadi_hydration_mismatches_total</code> moves in the dock&rsquo;s
-            React tab; and the Log shows the server&rsquo;s row and the browser&rsquo;s re-check as
-            a <em>pair that differs</em>, because both carry one evaluation id.
+            the badge starts <strong>Allowed</strong> in the served HTML, goes{" "}
+            <strong>Pending</strong> while this client asks for itself, and lands on{" "}
+            <strong>Denied</strong> — the three-step sequence printed below. The Log shows the
+            server&rsquo;s row and the browser&rsquo;s re-check as a <em>pair that differs</em>,
+            because both carry one evaluation id.
           </>
         }
       />

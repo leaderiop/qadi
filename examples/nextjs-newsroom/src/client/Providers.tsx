@@ -15,22 +15,38 @@
  *    has one. A seed is a cache; it is not an authorization
  *    ([ADR-QD-017](../../../../spec/decisions/017-stale-decisions-are-not-decisions.md)).
  *
+ * **The drops are per render, not module scope**, and that is a correction. They
+ * were collected into a module-level array, which on a server is shared by every
+ * request the process handles — so one visitor's `PayloadSubjectMismatch`
+ * appeared in the next visitor's HTML, on a page that had had no such thing
+ * happen to it. Module scope on a server is request-shared state; it is the same
+ * lesson `processGlobal.ts` records from the other direction.
+ *
  * `useState` with an initialiser, not `useMemo`: React may discard and recompute
- * a `useMemo`, and re-seeding a registry that has since been overwritten by the
- * client's own decisions would resurrect the server's. The registry is built
- * once from these values and never re-seeded, so computing them twice would be
- * wasted at best and wrong at worst.
+ * a `useMemo`, and re-running hydration against a registry the client has since
+ * overwritten with its own decisions would resurrect the server's.
  */
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import type { AuthSubject } from "@qadi/core";
 import { hydrateDecisions, QadiProvider } from "@qadi/react";
-import type { DehydratedDecisions, HydrationDrop } from "@qadi/react";
+import type { DehydratedDecisions } from "@qadi/react";
 import { atoms } from "./atoms.ts";
 
 export interface DropNotice {
   readonly reason: string;
   readonly count: number;
 }
+
+/**
+ * What hydration refused to seed on **this** render.
+ *
+ * A context rather than a store, because it is a property of one hydration and
+ * never changes afterwards: `hydrateDecisions` runs once per provider and
+ * everything it refused, it refused then.
+ */
+const DropContext = createContext<ReadonlyArray<DropNotice>>([]);
+
+export const useDrops = (): ReadonlyArray<DropNotice> => useContext(DropContext);
 
 export interface ProvidersProps {
   readonly subject: AuthSubject;
@@ -40,51 +56,30 @@ export interface ProvidersProps {
   readonly children: ReactNode;
 }
 
-/**
- * Every drop this page saw, for the routes that exist to cause one.
- *
- * Module scope rather than state, because `hydrateDecisions` runs during render
- * and setting state from a render is not allowed. The dock reads this through a
- * subscription like it reads everything else.
- */
-const drops: Array<DropNotice> = [];
-const listeners = new Set<() => void>();
-let snapshot: ReadonlyArray<DropNotice> = [];
-
-export const subscribeDrops = (listener: () => void): (() => void) => {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-};
-export const dropSnapshot = (): ReadonlyArray<DropNotice> => snapshot;
-
-const noteDrop = (drop: HydrationDrop<unknown>): void => {
-  drops.push({ reason: drop.reason, count: drop.entries.length });
-  snapshot = [...drops];
-  // Deferred, because this runs inside a render pass: notifying a subscriber
-  // synchronously would have the dock setting state while this tree is still
-  // rendering.
-  queueMicrotask(() => {
-    for (const listener of listeners) listener();
-  });
-};
-
 export const Providers = ({ subject, payload, instrument = false, children }: ProvidersProps) => {
   // A supplied reporter replaces the development-mode console warning and runs
   // in production. Wanted here: the routes under `/edge` exist to make a drop
-  // happen, and a drop nobody can see is exactly the defect BEH-QD-230 was
-  // written about.
-  const [initialValues] = useState(() =>
-    Array.from(hydrateDecisions(atoms, payload, subject, { onDropped: noteDrop }))
-  );
+  // happen, and a drop nobody can see is the defect BEH-QD-230 was written about.
+  const [{ initialValues, drops }] = useState(() => {
+    const captured: Array<DropNotice> = [];
+    const values = Array.from(
+      hydrateDecisions(atoms, payload, subject, {
+        onDropped: (drop) => captured.push({ reason: drop.reason, count: drop.entries.length }),
+      }),
+    );
+    return { initialValues: values, drops: captured };
+  });
 
   return (
-    <QadiProvider
-      atoms={atoms}
-      subject={subject}
-      initialValues={initialValues}
-      instrument={instrument}
-    >
-      {children}
-    </QadiProvider>
+    <DropContext.Provider value={drops}>
+      <QadiProvider
+        atoms={atoms}
+        subject={subject}
+        initialValues={initialValues}
+        instrument={instrument}
+      >
+        {children}
+      </QadiProvider>
+    </DropContext.Provider>
   );
 };

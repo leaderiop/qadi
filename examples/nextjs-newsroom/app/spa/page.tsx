@@ -11,22 +11,23 @@
  * cannot be verified — which is the fail-closed outcome every drop reason on the
  * other routes lands on.
  */
-import { dehydrateDecisions } from "@qadi/react";
 import { Shell } from "../../src/ui/Shell.tsx";
 import { Explain } from "../../src/ui/Explain.tsx";
 import { Spa } from "../../src/client/Spa.tsx";
 import { articles } from "../../src/domain/articles.ts";
 import { policyResource } from "../../src/domain/resource.ts";
 import { currentUser } from "../../src/server/session.ts";
+import { emptyPayload } from "../../src/server/emptyPayload.ts";
 
 export const dynamic = "force-dynamic";
 
 const Page = async () => {
   const user = await currentUser();
 
-  // No `runAs`, no `decideAll`. An empty payload is the honest way to say "this
-  // page decided nothing", rather than a special case in the provider.
-  const payload = dehydrateDecisions([]);
+  // No `runAs`, no `decideAll`. The payload names this subject and carries
+  // nothing, which is what "this page decided nothing" means — see
+  // `emptyPayload.ts` for why `dehydrateDecisions([])` cannot say it.
+  const payload = emptyPayload(user.subject);
 
   // The resources still cross, because the browser has to ask about something.
   // `embargoLifted` is `false` here and that is fine: this page is not seeding,

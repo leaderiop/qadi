@@ -13,10 +13,9 @@
  * different fixes: a mismatched subject is a cache-key bug, an unregistered atom
  * set is a wiring mistake, and an undecodable policy is version skew.
  */
-import { useSyncExternalStore } from "react";
 import type { Policy, Resource } from "@qadi/core";
 import { GateState } from "./Guards.tsx";
-import { dropSnapshot, subscribeDrops } from "./Providers.tsx";
+import { useDrops } from "./Providers.tsx";
 import { badge, card, mono, muted } from "../ui/theme.ts";
 
 export interface DropsProps {
@@ -31,7 +30,7 @@ export interface DropsProps {
 }
 
 export const Drops = ({ testId, expect, questions }: DropsProps) => {
-  const drops = useSyncExternalStore(subscribeDrops, dropSnapshot, dropSnapshot);
+  const drops = useDrops();
   const matching = drops.filter((drop) => drop.reason === expect);
 
   return (

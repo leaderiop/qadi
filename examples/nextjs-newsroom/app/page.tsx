@@ -1,14 +1,17 @@
 /**
  * The index: what each route is for.
  *
- * No decisions here, so no payload and no dock — a page that guards nothing has
- * nothing to seed, and `dehydrateDecisions([])` on an empty list is the honest
- * way to say so rather than a special case.
+ * No decisions here, so no payload and no dock.
+ *
+ * The payload still names this subject, because `dehydrateDecisions([])` cannot:
+ * with no entries there is no `entries[0].decision.subjectId` to take, so the id
+ * is `""` and hydration reports a `PayloadSubjectMismatch` of zero entries. See
+ * `src/server/emptyPayload.ts`.
  */
 import Link from "next/link";
-import { dehydrateDecisions } from "@qadi/react";
 import { Shell } from "../src/ui/Shell.tsx";
 import { currentUser } from "../src/server/session.ts";
+import { emptyPayload } from "../src/server/emptyPayload.ts";
 import { card, h2, mono, muted, navLink } from "../src/ui/theme.ts";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +71,7 @@ const Page = async () => {
       }
       subject={user.subject}
       currentUserId={user.id}
-      payload={dehydrateDecisions([])}
+      payload={emptyPayload(user.subject)}
       dock={false}
       instrument={false}
     >

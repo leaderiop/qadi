@@ -41,7 +41,7 @@ import {
   subscribeMismatches,
 } from "./atoms.ts";
 import { browserPorts } from "./ports.ts";
-import { dropSnapshot, subscribeDrops } from "./Providers.tsx";
+import { useDrops } from "./Providers.tsx";
 
 /**
  * Both halves of this deployment's decisions, in one timeline.
@@ -111,7 +111,9 @@ export const Dock = () => {
     mismatchSnapshot,
     mismatchSnapshot,
   );
-  const drops = useSyncExternalStore(subscribeDrops, dropSnapshot, dropSnapshot);
+  // Read from the provider above this one, so it is this render's drops and
+  // never another request's.
+  const drops = useDrops();
 
   const wiring: WiringReport | undefined = useSampled(
     useMemo(() => Effect.provide(wiringReport, browserPorts), []),
