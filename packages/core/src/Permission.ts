@@ -59,6 +59,44 @@ export const permissionKey = <TResource extends string, TAction extends string>(
   self: Permission<TResource, TAction>,
 ): PermissionKey<TResource, TAction> => `${self.resource}:${self.action}`;
 
+/** One resource's actions, each mapped to its own {@link Permission} token. */
+export type PermissionGroup<TResource extends string, TActions extends ReadonlyArray<string>> = {
+  readonly [K in TActions[number]]: Permission<TResource, K>;
+};
+
+/**
+ * Builds a `Permission` per action for one resource, keyed by action name.
+ *
+ * Ergonomics only: `createPermissionGroup("doc", ["read", "write"])` is
+ * `{ read: permission("doc", "read"), write: permission("doc", "write") }`
+ * spelled once instead of once per action. Segment validity is unchecked
+ * here for the same reason `permission` leaves it unchecked above — enforced
+ * at the trust boundary by {@link PermissionSchema}, not at construction.
+ *
+ * The public overload preserves literal types via `const` type parameters;
+ * the implementation signature below is intentionally wider; only the
+ * overload above is visible to callers.
+ *
+ * Named `createPermissionGroup`, not `makePermissionGroup` (AGENTS.md §8's
+ * documented builder prefix): this is the exact identifier two independent
+ * `wayfinder:map` issues used for this out-of-scope, build-directly item —
+ * keeping it lets a reader land on this export from either map's text.
+ */
+export function createPermissionGroup<
+  const TResource extends string,
+  const TActions extends ReadonlyArray<string>,
+>(resource: TResource, actions: TActions): PermissionGroup<TResource, TActions>;
+export function createPermissionGroup(
+  resource: string,
+  actions: ReadonlyArray<string>,
+): Record<string, Permission<string, string>> {
+  const result: Record<string, Permission<string, string>> = {};
+  for (const action of actions) {
+    result[action] = permission(resource, action);
+  }
+  return result;
+}
+
 /**
  * Wire format for a permission.
  *

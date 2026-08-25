@@ -15,6 +15,7 @@ export * from "./Errors.ts";
 export * from "./Evaluate.ts";
 export * from "./EvaluationId.ts";
 export * from "./Explanation.ts";
+export * from "./GuardHealthCheck.ts";
 export * from "./HydrationMetrics.ts";
 export * from "./Identity.ts";
 export * from "./Matcher.ts";

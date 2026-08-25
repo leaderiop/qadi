@@ -12,6 +12,7 @@ import {
 } from "../src/Errors.ts";
 import { makeResourceId } from "../src/Identity.ts";
 import {
+  createPermissionGroup,
   isValidSegment,
   permission,
   permissionKey,
@@ -32,6 +33,32 @@ describe("Permission", () => {
     assert.isTrue(isValidSegment("doc"));
     assert.isFalse(isValidSegment("a:b"));
     assert.isFalse(isValidSegment(""));
+  });
+
+  describe("createPermissionGroup", () => {
+    it("builds one Permission per action, keyed by action name", () => {
+      const doc = createPermissionGroup("doc", ["read", "write", "delete"]);
+      assert.deepStrictEqual(doc.read, permission("doc", "read"));
+      assert.deepStrictEqual(doc.write, permission("doc", "write"));
+      assert.deepStrictEqual(doc.delete, permission("doc", "delete"));
+    });
+
+    it("is equivalent to calling permission() once per action by hand", () => {
+      const doc = createPermissionGroup("doc", ["read", "write"]);
+      assert.deepStrictEqual(doc, { read, write });
+    });
+
+    it("an empty action list yields an empty group", () => {
+      assert.deepStrictEqual(createPermissionGroup("doc", []), {});
+    });
+
+    it("a duplicate action name overwrites — last one wins, unchecked", () => {
+      // Not validated, deliberately: same "total by design" reasoning
+      // `permission` itself documents — a duplicate is caught wherever the
+      // segment reaches PermissionSchema, not here.
+      const doc = createPermissionGroup("doc", ["read", "read"]);
+      assert.deepStrictEqual(doc, { read });
+    });
   });
 });
 

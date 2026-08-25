@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-OVERVIEW                                  |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-08-25): `Signature`, `SignatureHistory` and `SignatureHistoryUnavailable` added — the canonical e-signature shape and its lookup port, resolving wayfinder ticket #13 ahead of the `hasSignature` Policy leaf itself; declared but not yet wired into `EvaluationServices` or the error unions (CCR-QD-087)<br>1.5 (2026-08-25): `@qadi/audit` added to the Packages table and given its own subsection — audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` (ADR-QD-056, CCR-QD-085)<br>1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.7 (2026-08-25): `createPermissionGroup`/`PermissionGroup` (permission-bundling ergonomics) and `createGuardHealthCheck`/`GuardHealthCheckResult` (a canary-evaluation readiness probe) added — both were ruled out of scope on both `wayfinder:map` efforts as "no open decision, build directly", so neither carries a ticket (CCR-QD-088)<br>1.6 (2026-08-25): `Signature`, `SignatureHistory` and `SignatureHistoryUnavailable` added — the canonical e-signature shape and its lookup port, resolving wayfinder ticket #13 ahead of the `hasSignature` Policy leaf itself; declared but not yet wired into `EvaluationServices` or the error unions (CCR-QD-087)<br>1.5 (2026-08-25): `@qadi/audit` added to the Packages table and given its own subsection — audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` (ADR-QD-056, CCR-QD-085)<br>1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -64,8 +64,8 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 
 | Export | Kind | Source |
 | ------ | ---- | ------ |
-| `permission`, `permissionKey`, `isValidSegment` | function | `Permission.ts` |
-| `Permission`, `PermissionKey`, `InferResource`, `InferAction`, `InferKey` | type | `Permission.ts` |
+| `permission`, `permissionKey`, `isValidSegment`, `createPermissionGroup` | function | `Permission.ts` |
+| `Permission`, `PermissionKey`, `InferResource`, `InferAction`, `InferKey`, `PermissionGroup` | type | `Permission.ts` |
 | `PermissionSchema` | schema | `Permission.ts` |
 | `SEGMENT_PATTERN` | constant | `Permission.ts` |
 | `role`, `flattenPermissions`, `flattenAll`, `roleNames`, `resolveRoleGraph` | function | `Role.ts` |
@@ -127,6 +127,8 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `RenderTraceOptions` | type | `Decision.ts` |
 | `EnforceOptions`, `EnforcementError`, `ObligationHandler` | type | `Qadi.ts` |
 | `Authorized` | type | `Authorized.ts` |
+| `createGuardHealthCheck` | function | `GuardHealthCheck.ts` |
+| `GuardHealthCheckResult` | type | `GuardHealthCheck.ts` |
 
 #### Which of the six to call
 
@@ -169,6 +171,14 @@ through the environment. Reach for it when downstream code needs proof, not
 just an unblocked effect — a handler typed to require `Authorized<typeof
 writeDocument>` cannot be called without going through `guard` first, which
 `enforce` alone cannot express. See [ADR-QD-035](decisions/035-witness-guard-primitive.md).
+
+`createGuardHealthCheck` is a readiness probe, not a seventh reporting or
+enforcing call: it runs a caller-supplied canary `Policy` through `decide`,
+times it, and reports `{ healthy, checkedAt, latencyMillis, errors }` without
+ever failing itself. A typed `EvaluationError` from the probed evaluation
+counts as unhealthy; a clean `Allow` or `Deny` both count as healthy, since
+the question is whether `EvaluationServices` answered at all, not what it
+answered.
 
 ### Services
 
