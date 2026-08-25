@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-35                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.1 (2026-07-26): Shipped as E7, in the recommended form (CCR-QD-020)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.2 (2026-08-25): Non-goal 3, Dialect — narrowed by ADR-QD-054, a companion package may now compile the predicate (BEH-QD-236, CCR-QD-079)<br>1.1 (2026-07-26): Shipped as E7, in the recommended form (CCR-QD-020)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -233,6 +233,13 @@ third implementation of a rule two already share.
 semantics, one grammar per engine. **Emit the abstract predicate and let the
 caller compile it.** Qadi has no database dependency today, and acquiring one is
 a far larger commitment than this feature warrants.
+
+*Narrowed, not reopened.* [ADR-QD-054](../decisions/054-a-companion-package-may-compile-a-dialect.md)
+lets a separate, optional companion package compile the predicate — `@qadi/core`
+still owns no dialect and gains no database dependency, but a caller no longer
+has to write their own compiler from nothing to get one. `@qadi/predicate-sql`
+covers PostgreSQL, MySQL and SQLite; `@qadi/predicate-prisma` covers Prisma's
+`WhereInput`. See [31 — Predicate Compilation](../behaviors/31-predicate-compilation.md).
 
 **4. Trace.** A denial explains itself today: `Deny` carries a reason and a
 structured trace, which is what [URS-QD-009](../urs.md) requires. A predicate

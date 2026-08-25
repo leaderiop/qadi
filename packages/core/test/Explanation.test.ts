@@ -48,6 +48,19 @@ describe("explain", () => {
     );
   });
 
+  it("renders a path-shaped field spec as a literal term, not a path", () => {
+    // Explanation rendering is opaque to what a field string means — a
+    // dot-path or wildcard spec is just a string it backticks and joins,
+    // identical to a flat name. No path/depth reasoning happens here.
+    const policy = P.hasPermission(permission("doc", "read"), {
+      fields: ["id", "contact.*"],
+    });
+    assert.strictEqual(
+      renderExplanation(explain(policy)),
+      "requires permission `doc:read`, exposing only `id`, `contact.*`",
+    );
+  });
+
   it("names an obligation, and says when it is advisory", () => {
     const audited = obligation("audit.log");
     const advisory = obligation("notify.owner", {}, { advisory: true });

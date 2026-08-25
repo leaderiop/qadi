@@ -43,6 +43,31 @@ describe("simplify", () => {
       }),
     ));
 
+  it("the double-negation guard holds identically for a path-shaped field", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        // Same counterexample as above, with a dot-path field spec instead of
+        // a flat name — the guard keys off Not always setting
+        // `visibleFields: undefined`, never off what the field strings
+        // inside a restriction mean, so this must hold identically.
+        const inner = P.hasPermission(permission("doc", "meta"), {
+          fields: ["contact.email"],
+        });
+        const subject = subjectWith({ id: "u-1", permissions: ["doc:meta"] });
+        const run = (p: P.Policy) =>
+          evaluate(p).pipe(Effect.provide(testLayer(subject)));
+
+        const direct = yield* run(inner);
+        const doubled = yield* run(P.not(P.not(inner)));
+
+        assert.isTrue(isAllowed(direct));
+        assert.isTrue(isAllowed(doubled));
+        if (!isAllowed(direct) || !isAllowed(doubled)) return;
+        assert.deepStrictEqual(direct.visibleFields, ["contact.email"]);
+        assert.isUndefined(doubled.visibleFields);
+      }),
+    ));
+
   it("leaves every leaf variant exactly as it found it", () => {
     // All fourteen variants have an arm, so all fourteen need exercising — an
     // unexercised leaf arm would be a variant `simplify` silently mishandles, and

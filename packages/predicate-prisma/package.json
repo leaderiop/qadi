@@ -1,0 +1,58 @@
+{
+  "name": "@qadi/predicate-prisma",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Mohammad AL Mechkor",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/leaderiop/qadi.git",
+    "directory": "packages/predicate-prisma"
+  },
+  "homepage": "https://github.com/leaderiop/qadi/tree/main/packages/predicate-prisma#readme",
+  "bugs": {
+    "url": "https://github.com/leaderiop/qadi/issues"
+  },
+  "description": "Compiles a @qadi/core Predicate to a Prisma WhereInput",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "bun": "./src/index.ts",
+      "import": "./lib/index.js"
+    },
+    "./*": {
+      "types": "./lib/*.d.ts",
+      "bun": "./src/*.ts",
+      "import": "./lib/*.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@qadi/core": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "keywords": [
+    "authorization",
+    "prisma",
+    "row-level-security",
+    "qadi"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

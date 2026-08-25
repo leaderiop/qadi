@@ -12,6 +12,7 @@ import { EvaluationId, EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
+import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import {
   RelationshipResolver,
@@ -126,6 +127,26 @@ describe("field-strategy edge cases", () => {
       const d = yield* evaluate(policy);
       assert.isTrue(isAllowed(d));
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] })))));
+
+  it.effect("AllOf/First takes the first child's path-shaped field set verbatim, unmerged", () =>
+    Effect.gen(function* () {
+      // First never calls mergeFields's Intersection/Union arms at all — it
+      // just returns sets[0] — so a path-aware field spec on the SECOND
+      // child must never leak in, wildcard or not.
+      const policy = P.allOf(
+        [
+          P.hasPermission(permission("doc", "read"), { fields: ["contact.email"] }),
+          P.hasPermission(permission("doc", "write"), { fields: ["contact.**"] }),
+        ],
+        { fieldStrategy: "First" },
+      );
+      const d = yield* evaluate(policy);
+      assert.isTrue(isAllowed(d));
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.visibleFields, ["contact.email"]);
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
+    ));
 
   it.effect("resolver is consulted only when the subject lacks the attribute", () =>
     Effect.gen(function* () {

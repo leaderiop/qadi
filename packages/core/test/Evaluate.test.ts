@@ -648,6 +648,24 @@ describe("field visibility", () => {
       Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
     ));
 
+  it.effect("AllOf/Intersection merges path-shaped fields through mergeFields unchanged", () =>
+    Effect.gen(function* () {
+      // mergeFields dispatches on FieldStrategy alone, never on field-string
+      // content — this pins that it needs no changes now that a field can be
+      // a dot-path: a broader path-aware spec intersected with a narrower
+      // one still yields the narrower one, through the real evaluator.
+      const policy = P.allOf([
+        P.hasPermission(read, { fields: ["contact.**"] }),
+        P.hasPermission(write, { fields: ["contact.street"] }),
+      ]);
+      const d = yield* evaluate(policy);
+      assert.isTrue(isAllowed(d));
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.visibleFields, ["contact.street"]);
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
+    ));
+
   it.effect("Not carries no field visibility of its own", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.not(P.hasPermission(write, { fields: ["secret"] })));

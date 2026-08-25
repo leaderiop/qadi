@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-16                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-020) |
+> | Change History | 1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
 
 _Previous: [15 — Rule Tables](./15-rules.md)_
 
@@ -34,12 +34,16 @@ export type Predicate =
 ```
 
 ```
-REQUIREMENT: Qadi MUST NOT emit SQL. The caller compiles the predicate.
+REQUIREMENT: Qadi MUST NOT emit SQL. The caller compiles the predicate, or
+             installs a companion package that compiles it for them.
 ```
 
 Emitting SQL means owning a dialect — quoting, binding, null semantics, one
 grammar per engine. Qadi has no database dependency and acquiring one is a far
-larger commitment than this feature warrants.
+larger commitment than this feature warrants. [ADR-QD-054](../decisions/054-a-companion-package-may-compile-a-dialect.md)
+narrows exactly the "the caller compiles it" clause: `@qadi/predicate-sql` and
+`@qadi/predicate-prisma` are optional companion packages that do, `@qadi/core`
+itself still doesn't. See [31 — Predicate Compilation](./31-predicate-compilation.md).
 
 `Predicate` is hand-written with **no `Schema`**, unlike `Policy`. That is the
 [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md) boundary applied

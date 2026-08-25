@@ -7,6 +7,7 @@
  * could not be asserted on at all.
  */
 import * as Data from "effect/Data";
+import { compareFieldPaths, project as projectPaths } from "./FieldPath.ts";
 import type { SubjectId } from "./Identity.ts";
 import type { Obligation } from "./Obligation.ts";
 import type { Policy } from "./Policy.ts";
@@ -90,7 +91,12 @@ const isFieldOf = <A extends Resource>(
  * Projects a record down to the fields the decision makes visible.
  *
  * A denial exposes nothing. An allow with no field restriction exposes
- * everything, since `undefined` is the top of the visibility lattice.
+ * everything, since `undefined` is the top of the visibility lattice. A field
+ * spec may now be a dot-path or carry a `*`/`**` wildcard (`FieldPath.ts`);
+ * this function's own job stays what it always was — crossing from that
+ * untyped projection back into a typed `Partial<A>` for the caller — while
+ * `FieldPath.project` does the recursive, path-aware work of deciding what
+ * each key's value collapses to.
  */
 export const project = <A extends Resource>(
   decision: Decision,
@@ -99,6 +105,8 @@ export const project = <A extends Resource>(
   if (!isAllowed(decision)) return {};
   if (decision.visibleFields === undefined) return data;
 
+  const projected = projectPaths(data, decision.visibleFields);
+
   // Not a write through `out[field] = …` — TS permits reading a
   // generic-indexed type but not writing through one (TS2862) — but also not
   // a fresh `{ ...out, [field]: … }` literal per field, which is the same
@@ -106,9 +114,9 @@ export const project = <A extends Resource>(
   // `Object.assign` mutates `out` directly without ever indexing it by a
   // generic key, so it sidesteps TS2862 at O(1) amortized per field.
   const out: Partial<A> = {};
-  for (const field of decision.visibleFields) {
+  for (const field of Object.keys(projected)) {
     if (isFieldOf(data, field)) {
-      Object.assign(out, { [field]: data[field] });
+      Object.assign(out, { [field]: projected[field] });
     }
   }
   return out;
@@ -123,6 +131,14 @@ export const project = <A extends Resource>(
  *
  * `undefined` means "all fields" — the top of the lattice — so intersecting it
  * with any set yields that set.
+ *
+ * Pairwise via `compareFieldPaths` rather than an exact-string-set filter: a
+ * field spec may be a dot-path with a `*`/`**` wildcard, and `"address.**"`
+ * must intersect with `"address.street"` to `"address.street"`, not to `[]`
+ * — an exact-string filter would silently deny something a caller's own
+ * narrower spec already grants. Every pair with no subsumption relationship
+ * contributes nothing (`Incomparable`), which is the conservative, fails-
+ * closed direction.
  */
 export const intersectFields = (
   a: ReadonlyArray<string> | undefined,
@@ -130,11 +146,26 @@ export const intersectFields = (
 ): ReadonlyArray<string> | undefined => {
   if (a === undefined) return b;
   if (b === undefined) return a;
-  const inB = new Set(b);
-  return a.filter((f) => inB.has(f));
+  const kept: Array<string> = [];
+  for (const specA of a) {
+    for (const specB of b) {
+      const cmp = compareFieldPaths(specA, specB);
+      if (cmp === "Equal" || cmp === "BLessA") kept.push(specB);
+      else if (cmp === "ALessB") kept.push(specA);
+    }
+  }
+  return [...new Set(kept)];
 };
 
-/** Unions two visible-field sets, preserving "all fields" as absorbing. */
+/**
+ * Unions two visible-field sets, preserving "all fields" as absorbing.
+ *
+ * No path-aware algorithm change needed here, unlike `intersectFields`:
+ * applying every spec in both sides and unioning the results is correct
+ * regardless of overlap — a redundant, subsumed entry (e.g. `"address.street"`
+ * alongside `"address.**"`) projects identically to omitting it, so exact-set
+ * union stays correct even though the strings themselves may now be paths.
+ */
 export const unionFields = (
   a: ReadonlyArray<string> | undefined,
   b: ReadonlyArray<string> | undefined,

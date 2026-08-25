@@ -47,6 +47,19 @@ When("they request permission {string}", function (this: QadiWorld, key: string)
   this.run(permissionPolicy(key));
 });
 
+When(
+  "a policy exposing fields {string} for {string} is evaluated",
+  function (this: QadiWorld, fields: string, key: string) {
+    const [resourceName, actionName] = key.split(":");
+    if (resourceName === undefined || actionName === undefined) {
+      throw new Error(`malformed permission key: ${key}`);
+    }
+    this.run(
+      hasPermission(permission(resourceName, actionName), { fields: fields.split(",") }),
+    );
+  },
+);
+
 When("they must satisfy all of {string}", function (this: QadiWorld, keys: string) {
   this.run(allOf(permissionList(keys)));
 });

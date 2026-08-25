@@ -6,6 +6,8 @@
     { "path": "packages/promise/tsconfig.src.json" },
     { "path": "packages/react/tsconfig.src.json" },
     { "path": "packages/http/tsconfig.src.json" },
-    { "path": "packages/devtools/tsconfig.src.json" }
+    { "path": "packages/devtools/tsconfig.src.json" },
+    { "path": "packages/predicate-sql/tsconfig.src.json" },
+    { "path": "packages/predicate-prisma/tsconfig.src.json" }
   ]
 }

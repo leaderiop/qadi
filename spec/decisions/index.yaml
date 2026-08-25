@@ -161,3 +161,6 @@ entries:
   - id: "ADR-QD-053"
     file: "053-a-gate-can-be-found.md"
     title: "A guard can say that it exists, and be found on the page"
+  - id: "ADR-QD-054"
+    file: "054-a-companion-package-may-compile-a-dialect.md"
+    title: "A companion package may compile a dialect"

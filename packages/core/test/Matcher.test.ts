@@ -570,6 +570,18 @@ describe("field lattice", () => {
     assert.isUndefined(unionFields(undefined, ["a"]));
     assert.deepStrictEqual([...(unionFields(["a"], ["b"]) ?? [])].sort(), ["a", "b"]);
   });
+
+  it("intersection is path-aware: an unbounded spec doesn't lose to an exact-string miss", () => {
+    // A naive exact-string filter would return [] here, wrongly denying
+    // address.street even though "address.**" already grants it.
+    assert.deepStrictEqual(intersectFields(["address.**"], ["address.street"]), [
+      "address.street",
+    ]);
+  });
+
+  it("intersection stays conservative at the '*' depth boundary", () => {
+    assert.deepStrictEqual(intersectFields(["address.*"], ["address.street.zip"]), []);
+  });
 });
 
 describe("project", () => {
@@ -601,5 +613,20 @@ describe("project", () => {
 
   it("a restricted allow exposes only the listed fields", () => {
     assert.deepStrictEqual(project(allow(["id"]), data), { id: "1" });
+  });
+
+  it("a path-aware restricted allow projects nested data through the public API", () => {
+    // `contact` is typed as a bag rather than an exact shape: `Partial<A>` is
+    // shallow, so a nested field is either the WHOLE original sub-object or
+    // absent — never itself partial at the type level — which would make an
+    // expected literal missing a sibling key fail to type-check otherwise.
+    const nested: { id: string; contact: Record<string, unknown> } = {
+      id: "1",
+      contact: { email: "a@b.com", phone: "555" },
+    };
+    assert.deepStrictEqual(project(allow(["id", "contact.email"]), nested), {
+      id: "1",
+      contact: { email: "a@b.com" },
+    });
   });
 });

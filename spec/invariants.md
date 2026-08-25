@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.18                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.20                                            |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -73,15 +73,32 @@ pinning the original defect, and Gherkin scenario `@REQ-QD-008`.
 
 An absent field set means *all fields*, never *no fields*.
 
+A field spec inside the set is a plain `string`, and may be a dot-path with a
+`*`/`**` wildcard terminal. A literal terminal and `**` are containment-
+equivalent — both denote the reached value whole, at any depth beneath it —
+so the lattice's shape is unchanged by path syntax: two specs that denote the
+same set (a bare name and its own `.**`) compare `Equal`, and a spec whose
+denoted set is a proper subset of another's is the one an `Intersection`
+merge keeps. `*` is the one case where the lattice's own ordering relation
+declines to answer: whether a `*` at one depth discloses more or less than a
+different spec at another depth depends on the reached value's actual runtime
+shape, not on the specs alone, so that comparison is `Incomparable` rather
+than guessed (see [BEH-QD-056](behaviors/07-enforcement.md)) — which, under
+`Intersection`, means neither survives. `undefined` itself is untouched by
+any of this: it is still the one value nothing can compare beneath.
+
 **Source**: `packages/core/src/Decision.ts` — `intersectFields` returns the other
 operand when either is `undefined`; `unionFields` returns `undefined` when either
 is, since a branch granting everything makes the union everything.
+`packages/core/src/FieldPath.ts` — `compareFieldPaths` is what `intersectFields`
+consults for two non-`undefined` sets, and `project` is what turns a field-spec
+set into an actual projection of a record.
 
 **Implication**: intersecting an unrestricted policy with a restricted one yields
 the restriction, and a denial projects to `{}`. Treating `undefined` as the empty
 set would invert the meaning of every unrestricted policy.
 
-**Related**: [BEH-QD-018](behaviors/03-policy-adt.md), [BEH-QD-051](behaviors/07-enforcement.md), [ADR-QD-006](decisions/006-field-strategy-always-encoded.md).
+**Related**: [BEH-QD-018](behaviors/03-policy-adt.md), [BEH-QD-051](behaviors/07-enforcement.md), [BEH-QD-056](behaviors/07-enforcement.md), [ADR-QD-006](decisions/006-field-strategy-always-encoded.md).
 
 ---
 
@@ -1524,3 +1541,55 @@ indirect and worth more: the **127 tests that existed before this feature pass
 untouched**, none of them instrumented.
 
 **Related**: [BEH-QD-233](behaviors/28-devtools-screens.md), [BEH-QD-234](behaviors/28-devtools-screens.md), [ADR-QD-053](decisions/053-a-gate-can-be-found.md).
+
+## INV-QD-047: A compiled SQL fragment admits exactly the rows the predicate admits
+
+For every `Predicate` `@qadi/predicate-sql`'s `compileSql` renders, and every
+row, interpreting the rendered `SqlFragment` against that row gives the same
+answer as `evaluatePredicate` does against the same `Predicate` and row.
+
+**Source**: `packages/predicate-sql/src/index.ts` — `compileSql`, checked
+against `@qadi/core`'s `evaluatePredicate`. Nothing structural forces the
+agreement; a test-only reader that understands only the fixed grammar this
+compiler ever emits is what makes the check possible.
+
+**Implication**: this is [INV-QD-018](#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows)
+one interpreter further from the `Policy` tree. `toPredicate` already proved
+its output means what `evaluate` meant; this invariant proves a caller's SQL
+means what that `Predicate` meant, closing the gap ADR-QD-024 left open —
+"a caller with only `toPredicate` compiles a predicate to SQL and has nothing
+that says their SQL means what Qadi meant." A divergence here is a query that
+silently returns rows an authorization decision never admitted.
+
+**Enforcement**: a `FastCheck` property samples generated `Predicate` trees
+and generated rows, comparing `evaluatePredicate` against a test-only SQL
+reader restricted to exactly the productions `compileSql` emits — the same
+differential method `INV-QD-018` uses, not a bypass of the rendered text.
+Golden fixture strings pin per-dialect syntax (quoting, placeholder
+numbering, `IN` grammar) the differential reader cannot validate on its own,
+across all three dialects.
+
+**Related**: [BEH-QD-241](behaviors/31-predicate-compilation.md), [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md).
+
+## INV-QD-048: A compiled Prisma `WhereInput` admits exactly the rows the predicate admits
+
+For every `Predicate` `@qadi/predicate-prisma`'s `compilePrismaWhere` renders,
+and every row, interpreting the rendered `WhereInput` against that row gives
+the same answer as `evaluatePredicate` does against the same `Predicate` and
+row.
+
+**Source**: `packages/predicate-prisma/src/index.ts` — `compilePrismaWhere`,
+checked against `@qadi/core`'s `evaluatePredicate`.
+
+**Implication**: the same property as [INV-QD-047](#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits),
+against the other grammar. There is no `Predicate` shape that renders to one
+target and not the other, so the two invariants differ only in which
+compiler and which test-only interpreter they check — a stronger guarantee
+than SQL's, in one respect: there is no serialization step to separately
+verify, since `WhereInput` is a plain object rather than text.
+
+**Enforcement**: a `FastCheck` property, mirroring INV-QD-047's, using a
+test-only `matchesPrismaWhere` reader restricted to the `WhereInput` subset
+this compiler ever emits.
+
+**Related**: [BEH-QD-242](behaviors/31-predicate-compilation.md), [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md).

@@ -20,6 +20,12 @@
       "path": "packages/devtools"
     },
     {
+      "path": "packages/predicate-sql"
+    },
+    {
+      "path": "packages/predicate-prisma"
+    },
+    {
       "path": "features"
     }
   ]

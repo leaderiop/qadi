@@ -89,6 +89,39 @@ describe("a record survives the wire", () => {
       assert.deepStrictEqual(back, allowRecord);
     }));
 
+  it.effect("a path-shaped, wildcarded field spec round-trips opaquely", () =>
+    Effect.gen(function* () {
+      // The wire codec never validates or interprets field-string content —
+      // a dot-path or wildcard is just a string, exactly like a flat name.
+      const record: SinkRecord = {
+        _tag: "Decision",
+        evaluationId: "eval-fp",
+        at: 5000,
+        policy: P.hasPermission(read, { fields: ["id", "contact.*"] }),
+        outcome: new Decided({
+          decision: new Allow({
+            evaluationId: "eval-fp",
+            subjectId: makeSubjectId("u1"),
+            durationMillis: 0,
+            trace: {
+              policyTag: "HasPermission",
+              allowed: true,
+              children: [],
+              visibleFields: ["id", "contact.*"],
+              obligations: [],
+            },
+            visibleFields: ["id", "contact.*"],
+            obligations: [],
+          }),
+        }),
+      };
+
+      const back = yield* decodeRecord(
+        JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
+      );
+      assert.deepStrictEqual(back, record);
+    }));
+
   it.effect("a denial keeps its reason", () =>
     Effect.gen(function* () {
       const denial: SinkRecord = {

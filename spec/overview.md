@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-OVERVIEW                                  |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -51,6 +51,8 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `@qadi/promise` | A Promise facade for callers who do not use Effect |
 | `@qadi/http` | `effect/unstable/http`/`httpapi` bindings — enforcement middleware, subject extraction, permission registry |
 | `@qadi/devtools` | A headless decision timeline, and a React dock that renders it |
+| `@qadi/predicate-sql` | Compiles a `Predicate` to PostgreSQL, MySQL, or SQLite |
+| `@qadi/predicate-prisma` | Compiles a `Predicate` to a Prisma `WhereInput` |
 | `@qadi/features` | Cucumber acceptance suite (private) |
 
 ## Public API surface
@@ -330,6 +332,39 @@ and the permission each requires, so it is guarded by default;
 `permissionRegistryRouteUnguarded(reason)` is the explicit opt-out and warns on
 every request.
 See [ADR-QD-036](decisions/036-qadi-http-package-shape.md).
+
+### `@qadi/predicate-sql`
+
+| Export | Kind | Source |
+| ------ | ---- | ------ |
+| `compileSql` | function | `index.ts` |
+| `SqlDialect`, `SqlFragment`, `CompileSqlOptions` | type | `index.ts` |
+| `PredicateNotRenderable` | error | `index.ts` |
+
+Compiles a `Predicate` into a parameterized SQL fragment for PostgreSQL, MySQL,
+or SQLite, all three built at v1. Optional and separately versioned —
+`@qadi/core` gains no dependency of any kind through this package existing.
+Refuses rather than approximates: an unsafe `Compare`/`MemberOf` value, or a
+`MemberOf` past `maxInValues`, fails `PredicateNotRenderable` instead of being
+stringified into the fragment. See
+[ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md) and
+[31 — Predicate Compilation](behaviors/31-predicate-compilation.md).
+
+### `@qadi/predicate-prisma`
+
+| Export | Kind | Source |
+| ------ | ---- | ------ |
+| `compilePrismaWhere` | function | `index.ts` |
+| `PrismaWhereInput` | type | `index.ts` |
+| `PredicateNotRenderable` | error | `index.ts` |
+
+Compiles a `Predicate` into a Prisma `WhereInput`. `PrismaWhereInput` is
+`Record<string, unknown>` deliberately — this package never sees a generated
+Prisma schema, so it cannot claim a narrower type; a caller assigns the result
+to their own model's `WhereInput` at the call site. Same refusal discipline as
+`@qadi/predicate-sql`, declared independently. See
+[ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md) and
+[31 — Predicate Compilation](behaviors/31-predicate-compilation.md).
 
 ### `@qadi/testing`
 

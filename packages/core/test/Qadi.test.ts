@@ -125,6 +125,17 @@ describe("Qadi.enforceProjected", () => {
       const out = yield* Effect.succeed(record).pipe(Qadi.enforceProjected(policy));
       assert.deepStrictEqual(out, { id: "1" });
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+
+  it.effect("projects a path-shaped field spec on nested data end to end", () =>
+    Effect.gen(function* () {
+      const nested: { id: string; contact: Record<string, unknown> } = {
+        id: "1",
+        contact: { email: "a@b.com", phone: "555" },
+      };
+      const policy = P.hasPermission(read, { fields: ["id", "contact.email"] });
+      const out = yield* Effect.succeed(nested).pipe(Qadi.enforceProjected(policy));
+      assert.deepStrictEqual(out, { id: "1", contact: { email: "a@b.com" } });
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 });
 
 describe("Qadi.guard", () => {
