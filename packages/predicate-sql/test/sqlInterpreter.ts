@@ -1,9 +1,11 @@
 /**
  * A test-only reader for the SQL `compileSql` renders — nothing more.
  *
- * Understands exactly the seven productions `renderNode` in `../src/index.ts`
- * ever emits, tolerant to both quoting styles (`"col"`/`` `col` ``) and both
- * placeholder styles (`$1, $2, …`/repeated `?`). It reads the actual rendered
+ * Understands exactly the productions `renderNode` in `../src/index.ts` ever
+ * emits — including `IS [NOT] NULL` and the `(x != ? OR x IS NULL)` shape
+ * `Neq`/`MemberOf` render for a NULL-valued column — tolerant to both quoting
+ * styles (`"col"`/`` `col` ``) and both placeholder styles (`$1, $2, …`/
+ * repeated `?`). It reads the actual rendered
  * `text`, not a bypass of it — the differential property this drives
  * (INV-QD-047) is only meaningful because this interprets what `compileSql`
  * really produced.
@@ -17,7 +19,7 @@
 import type { SqlFragment } from "../src/index.ts";
 
 type Token =
-  | { readonly kind: "lparen" | "rparen" | "comma" | "and" | "or" | "not" | "in" | "true" | "false" }
+  | { readonly kind: "lparen" | "rparen" | "comma" | "and" | "or" | "not" | "in" | "is" | "null" | "true" | "false" }
   | { readonly kind: "ident"; readonly name: string }
   | { readonly kind: "op"; readonly op: "=" | "!=" | ">=" | "<" }
   | { readonly kind: "placeholder" };
@@ -101,6 +103,10 @@ const tokenize = (text: string): ReadonlyArray<Token> => {
         tokens.push({ kind: "not" });
       } else if (keyword === "IN") {
         tokens.push({ kind: "in" });
+      } else if (keyword === "IS") {
+        tokens.push({ kind: "is" });
+      } else if (keyword === "NULL") {
+        tokens.push({ kind: "null" });
       } else {
         throw new Error(`unexpected keyword: ${keyword}`);
       }
@@ -123,7 +129,8 @@ type Ast =
       readonly op: "=" | "!=" | ">=" | "<";
       readonly paramIndex: number;
     }
-  | { readonly type: "in"; readonly column: string; readonly paramIndex: number; readonly count: number };
+  | { readonly type: "in"; readonly column: string; readonly paramIndex: number; readonly count: number }
+  | { readonly type: "isNull"; readonly column: string; readonly negated: boolean };
 
 /**
  * Recursive-descent parser over the closed grammar above; `at` is mutated as a
@@ -204,6 +211,14 @@ const parse = (tokens: ReadonlyArray<Token>): Ast => {
         at++;
         return { type: "in", column, paramIndex, count };
       }
+      if (next?.kind === "is") {
+        at++;
+        const negated = peek()?.kind === "not";
+        if (negated) at++;
+        if (peek()?.kind !== "null") throw new Error("expected NULL after IS[ NOT]");
+        at++;
+        return { type: "isNull", column, negated };
+      }
       if (next?.kind !== "op") throw new Error(`expected an operator after '${column}'`);
       at++;
       if (peek()?.kind !== "placeholder") throw new Error("expected placeholder after operator");
@@ -239,6 +254,9 @@ const interpret = (
   if (ast.type === "or") return ast.parts.some((part) => interpret(part, params, row));
   if (ast.type === "compare") {
     return compareValue(ast.op, row[ast.column], params[ast.paramIndex]);
+  }
+  if (ast.type === "isNull") {
+    return ast.negated ? row[ast.column] !== null : row[ast.column] === null;
   }
   const members = params.slice(ast.paramIndex, ast.paramIndex + ast.count);
   return members.includes(row[ast.column]);

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-31                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-25): Initial release (CCR-QD-079) |
+> | Change History | 1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
 
 _Previous: [30 — Port Calls](./30-port-calls.md)_
 
@@ -191,6 +191,55 @@ const fragment = toPredicate(visible).pipe(
 // interpolates `text` and binds `params`; neither is ever string-concatenated
 // with a value from the predicate.
 ```
+
+## BEH-QD-244: A compiled fragment handles NULL the way `evaluatePredicate` does
+
+```
+REQUIREMENT: `Eq`/`Neq` against a `null` value MUST render `IS [NOT] NULL`,
+             never `= NULL`/`!= NULL` — SQL's three-valued logic treats a
+             NULL-valued side of `=`/`!=` as unknown, and a query's `WHERE`
+             excludes unknown the same as it excludes false, so `= NULL`
+             never matches any row, not even one where the column genuinely
+             `IS NULL`.
+REQUIREMENT: `Neq` against a non-null value, and `MemberOf` whose column may
+             be NULL, MUST admit a NULL-valued row — `null !== value` and
+             `![null].includes(row)` are both true in `evaluatePredicate` for
+             any non-null `value` — which a bare `!=`/`NOT IN` alone would
+             silently exclude.
+REQUIREMENT: A `null` member of `MemberOf`'s `values` MUST be rendered as its
+             own `IS NULL`/`{column: null}`, not left inside the `IN`/`in`
+             list — an `IN` clause containing NULL never matches through that
+             branch even when the column genuinely is NULL, and Prisma's own
+             `in` filter refuses a `null` element outright as invalid input
+             rather than silently mishandling it.
+```
+
+This was a real defect in both compilers, caught by running compiled output
+against real engines and comparing the result set to `evaluatePredicate`'s —
+not designed in from the start. Neither `@qadi/predicate-sql`'s differential
+property test nor `@qadi/predicate-prisma`'s could have found it on their
+own: both test-only interpreters re-implement `evaluatePredicate`'s own
+`===`/`!==` in JS, so they agreed with the original, wrong translation rather
+than catching it. Verified by hand against PostgreSQL 16, MySQL 8 and SQLite
+(`node:sqlite`), and against a real, SQLite-backed `@prisma/client` for the
+Prisma grammar — not merely reasoned about.
+
+**A known, accepted limitation, not fixed here: a numeric value stored as
+text compares differently under each engine's own coercion than under
+`evaluatePredicate`'s strict `typeof` check.** `evaluatePredicate`'s
+`Gte`/`Lt` require *both* sides to be JavaScript numbers — a text column
+holding `"3"` never admits, regardless of what the string parses to
+([BEH-QD-123](./16-predicates.md#beh-qd-123-untranslatable-fails-nothing-is-approximated)
+names this the same discriminator for the evaluator/matcher pair). Verified
+by hand: **PostgreSQL refuses the query outright** (`operator does not
+exist: text >= integer`) — a loud failure, not a silent one. **SQLite and
+MySQL both silently coerce and admit the row** — `"3" >= 2` reads as true
+under each engine's own type-comparison rules, which is a real widening
+`compileSql` does not currently prevent. There is no portable, dialect-free
+SQL that reproduces `typeof`-strictness across all three engines without a
+schema the compiler does not have, so this is recorded as a caveat rather
+than patched: a `Gte`/`Lt` predicate is only as trustworthy as the caller's
+own column types.
 
 ---
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.20                                            |
+> | Revision       | 1.21                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -1569,7 +1569,22 @@ Golden fixture strings pin per-dialect syntax (quoting, placeholder
 numbering, `IN` grammar) the differential reader cannot validate on its own,
 across all three dialects.
 
-**Related**: [BEH-QD-241](behaviors/31-predicate-compilation.md), [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md).
+**The generators shared INV-QD-018's own weak point, in a new place, and
+manual verification against real engines is what found it, not the
+generators.** `Eq`/`Neq`/`MemberOf` against a `NULL`-valued column diverged
+from `evaluatePredicate`: `col = NULL`/`col != NULL` are never true in real
+SQL for any row, and a plain `IN`/`NOT IN` silently excludes a NULL-valued
+row `evaluatePredicate`'s `===`/`!==` would admit. The property test's own
+differential reader re-implements `===`/`!==` in JS, so it agreed with the
+original translation rather than catching it — the generators never produced
+a `Neq` predicate on a column that could actually be NULL, and even if they
+had, the test-only reader had no real SQL NULL semantics to disagree with.
+Fixed ([BEH-QD-244](behaviors/31-predicate-compilation.md#beh-qd-244-a-compiled-fragment-handles-null-the-way-evaluatepredicate-does)),
+confirmed by hand against real PostgreSQL, MySQL and SQLite, and the
+generators and the differential reader both extended so the property covers
+it going forward.
+
+**Related**: [BEH-QD-241](behaviors/31-predicate-compilation.md), [BEH-QD-244](behaviors/31-predicate-compilation.md#beh-qd-244-a-compiled-fragment-handles-null-the-way-evaluatepredicate-does), [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md).
 
 ## INV-QD-048: A compiled Prisma `WhereInput` admits exactly the rows the predicate admits
 
@@ -1592,4 +1607,16 @@ verify, since `WhereInput` is a plain object rather than text.
 test-only `matchesPrismaWhere` reader restricted to the `WhereInput` subset
 this compiler ever emits.
 
-**Related**: [BEH-QD-242](behaviors/31-predicate-compilation.md), [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md).
+**The same NULL-handling defect INV-QD-047 found existed here too, one
+grammar over, and manual verification against a real Prisma client found it
+worse than SQL's version.** `{column: {not: value}}` alone excludes a
+NULL-valued row `evaluatePredicate`'s `!==` would admit — but Prisma's `in`
+filter does not merely mishandle a `null` member the way a bare SQL `IN`
+does: it **refuses the query outright** with a client-side validation error,
+found by running a compiled `WhereInput` against a real, SQLite-backed
+`@prisma/client`. Fixed the same way
+([BEH-QD-244](behaviors/31-predicate-compilation.md#beh-qd-244-a-compiled-fragment-handles-null-the-way-evaluatepredicate-does)):
+`Neq` against a non-null value ORs in `{column: null}`, and a `null` member
+of `MemberOf`'s `values` is split out of `in` into its own `{column: null}`.
+
+**Related**: [BEH-QD-242](behaviors/31-predicate-compilation.md), [BEH-QD-244](behaviors/31-predicate-compilation.md#beh-qd-244-a-compiled-fragment-handles-null-the-way-evaluatepredicate-does), [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md).

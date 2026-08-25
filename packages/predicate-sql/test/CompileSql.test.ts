@@ -34,15 +34,16 @@ describe("compileSql — golden fragments, one row per dialect", () => {
 
   it.effect("every CompareOp renders its own operator", () =>
     Effect.gen(function* () {
+      // Neq is not `"c" != $1` alone — see the dedicated NULL-handling
+      // describe block below for why.
       const ops: ReadonlyArray<readonly [Predicate, string]> = [
-        [{ _tag: "Compare", column: "c", op: "Eq", value: 1 }, "="],
-        [{ _tag: "Compare", column: "c", op: "Neq", value: 1 }, "!="],
-        [{ _tag: "Compare", column: "c", op: "Gte", value: 1 }, ">="],
-        [{ _tag: "Compare", column: "c", op: "Lt", value: 1 }, "<"],
+        [{ _tag: "Compare", column: "c", op: "Eq", value: 1 }, '"c" = $1'],
+        [{ _tag: "Compare", column: "c", op: "Gte", value: 1 }, '"c" >= $1'],
+        [{ _tag: "Compare", column: "c", op: "Lt", value: 1 }, '"c" < $1'],
       ];
-      for (const [predicate, operator] of ops) {
+      for (const [predicate, text] of ops) {
         const fragment = yield* render(predicate, "postgres");
-        assert.strictEqual(fragment.text, `"c" ${operator} $1`);
+        assert.strictEqual(fragment.text, text);
       }
     }));
 
@@ -115,11 +116,16 @@ describe("compileSql — golden fragments, one row per dialect", () => {
       assert.strictEqual(fragment.params[0], createdAt);
     }));
 
-  it.effect("a null value is on the safe allowlist and compiles, rather than refusing", () =>
+  it.effect("a null value is on the safe allowlist and compiles as IS NULL, not '= NULL'", () =>
     Effect.gen(function* () {
+      // `col = NULL` is never true in SQL for any row, not even one where
+      // `col IS NULL` — SQL's three-valued logic treats a NULL-valued side
+      // of `=` as unknown, and WHERE excludes unknown. Caught by running the
+      // compiled SQL against a real SQLite engine, not designed in from the
+      // start (see the describe block below).
       const predicate: Predicate = { _tag: "Compare", column: "deletedAt", op: "Eq", value: null };
       const fragment = yield* render(predicate, "postgres");
-      assert.deepStrictEqual(fragment, { text: '"deletedAt" = $1', params: [null] });
+      assert.deepStrictEqual(fragment, { text: '"deletedAt" IS NULL', params: [] });
     }));
 
   it.effect("True/False render to their own keyword with no params", () =>
@@ -146,6 +152,66 @@ describe("compileSql — golden fragments, one row per dialect", () => {
       assert.deepStrictEqual(yield* render({ _tag: "Or", predicates: [] }, "postgres"), {
         text: "FALSE",
         params: [],
+      });
+    }));
+});
+
+// SQL's `=`/`!=` are never true when either side is NULL — three-valued
+// logic, and WHERE excludes "unknown" the same as it excludes "false". A
+// column comparison and a JS `===`/`!==` comparison therefore disagree on
+// exactly the rows where the column is NULL, unless the SQL is built to
+// account for it. This was found by running compiled SQL against a real
+// SQLite engine and comparing its result set to `evaluatePredicate`'s — the
+// property test's own interpreter re-implements `===`/`!==` in JS and so
+// agreed with the original, wrong translation rather than catching it.
+describe("compileSql — NULL handling agrees with evaluatePredicate's ===/!==", () => {
+  it.effect("Eq against null renders IS NULL, not '= NULL'", () =>
+    Effect.gen(function* () {
+      const fragment = yield* render({ _tag: "Compare", column: "c", op: "Eq", value: null }, "postgres");
+      assert.deepStrictEqual(fragment, { text: '"c" IS NULL', params: [] });
+    }));
+
+  it.effect("Neq against null renders IS NOT NULL, not '!= NULL'", () =>
+    Effect.gen(function* () {
+      const fragment = yield* render({ _tag: "Compare", column: "c", op: "Neq", value: null }, "postgres");
+      assert.deepStrictEqual(fragment, { text: '"c" IS NOT NULL', params: [] });
+    }));
+
+  it.effect("Gte/Lt against null render FALSE — evaluatePredicate never admits a non-number literal", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Gte", value: null }, "postgres"), {
+        text: "FALSE",
+        params: [],
+      });
+      assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Lt", value: null }, "postgres"), {
+        text: "FALSE",
+        params: [],
+      });
+    }));
+
+  it.effect("Neq against a non-null value also admits a NULL-valued column", () =>
+    Effect.gen(function* () {
+      // Plain "c" != $1 alone would exclude a NULL-valued row; `null !== 1`
+      // is true in evaluatePredicate, so the compiled SQL must admit it too.
+      const fragment = yield* render({ _tag: "Compare", column: "c", op: "Neq", value: 1 }, "postgres");
+      assert.deepStrictEqual(fragment, { text: '("c" != $1 OR "c" IS NULL)', params: [1] });
+    }));
+
+  it.effect("a MemberOf holding only null renders IS NULL, with no IN clause at all", () =>
+    Effect.gen(function* () {
+      const fragment = yield* render({ _tag: "MemberOf", column: "c", values: [null] }, "postgres");
+      assert.deepStrictEqual(fragment, { text: '"c" IS NULL', params: [] });
+    }));
+
+  it.effect("a MemberOf mixing null with real values ORs in IS NULL", () =>
+    Effect.gen(function* () {
+      const fragment = yield* render(
+        { _tag: "MemberOf", column: "c", values: [null, "red", "blue"] },
+        "postgres",
+      );
+      assert.deepStrictEqual(fragment, {
+        text: '("c" IN ($1, $2) OR "c" IS NULL)',
+        params: ["red", "blue"],
       });
     }));
 });

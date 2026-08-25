@@ -51,10 +51,24 @@ const isSafeValue = (value: unknown): boolean =>
   typeof value === "boolean" ||
   value instanceof Date;
 
-const compareFilter = (op: CompareOp, value: unknown): unknown =>
+/**
+ * The non-null-value shape of a comparison filter.
+ *
+ * `null` is handled by `renderNode`'s `Compare` case before this is ever
+ * called — Prisma's `{not: null}`/`{equals: null}` already mean `IS [NOT]
+ * NULL` correctly, but `{gte: null}`/`{lt: null}` are a validation error
+ * Prisma refuses outright, the same way it refuses `{in: [null, ...]}`
+ * (found by running a compiled `WhereInput` against a real, SQLite-backed
+ * Prisma client, not assumed).
+ *
+ * `Neq` is deliberately excluded from this function's domain too, not
+ * merely unused: a non-null `Neq` never renders as `{not: value}` alone —
+ * `renderNode`'s `Compare` case ORs in `{column: null}` before this is ever
+ * reached, so the type is narrowed rather than left exhaustive-but-dead.
+ */
+const compareFilter = (op: Exclude<CompareOp, "Neq">, value: unknown): unknown =>
   Match.value(op).pipe(
     Match.when("Eq", () => value),
-    Match.when("Neq", () => ({ not: value })),
     Match.when("Gte", () => ({ gte: value })),
     Match.when("Lt", () => ({ lt: value })),
     Match.exhaustive,
@@ -67,6 +81,17 @@ const compareFilter = (op: CompareOp, value: unknown): unknown =>
  * zero conditions: true) and `{OR: []}` (any of zero conditions: false) —
  * matching `evaluatePredicate`'s own `.every`/`.some` on an empty array, the
  * same choice `@qadi/predicate-sql` makes for its empty `And`/`Or` case.
+ *
+ * `Neq`/`MemberOf` against a `null`-capable column need more than Prisma's
+ * own filter shape: `{col: {not: value}}` alone excludes a row where `col`
+ * is genuinely `NULL`, but `evaluatePredicate`'s `!==` admits it — `null !==
+ * value` is true for any non-null `value`. This was a real defect, caught by
+ * running the compiled `WhereInput` against a real, SQLite-backed Prisma
+ * client and comparing its result set to `evaluatePredicate`'s, not designed
+ * in from the start: `@qadi/predicate-sql`'s own differential property test
+ * re-implements `!==` in JS and so agreed with the original, wrong
+ * translation rather than catching it — the same lesson that compiler's own
+ * fix already carries, one grammar over.
  */
 const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, PredicateNotRenderable> =>
   Match.value(predicate).pipe(
@@ -83,6 +108,19 @@ const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, Predi
             }),
           );
         }
+        if (p.value === null) {
+          if (p.op === "Eq") return Effect.succeed({ [p.column]: null });
+          if (p.op === "Neq") return Effect.succeed({ [p.column]: { not: null } });
+          // Gte/Lt against a null literal: evaluatePredicate requires both
+          // sides to be numbers, and null never is — always False, for any
+          // row, and {gte: null}/{lt: null} is a Prisma validation error.
+          return Effect.succeed({ OR: [] });
+        }
+        if (p.op === "Neq") {
+          return Effect.succeed({
+            OR: [{ [p.column]: { not: p.value } }, { [p.column]: null }],
+          });
+        }
         return Effect.succeed({ [p.column]: compareFilter(p.op, p.value) });
       },
 
@@ -98,7 +136,14 @@ const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, Predi
             }),
           );
         }
-        return Effect.succeed({ [p.column]: { in: p.values } });
+        // Prisma's `in` refuses a `null` member outright (a validation
+        // error, not a silent miss), so a `null` member needs its own
+        // `{col: null}`, split out of the `in` list.
+        const hasNull = p.values.includes(null);
+        const nonNull = p.values.filter((value) => value !== null);
+        if (nonNull.length === 0) return Effect.succeed({ [p.column]: null });
+        const inFilter = { [p.column]: { in: nonNull } };
+        return Effect.succeed(hasNull ? { OR: [inFilter, { [p.column]: null }] } : inFilter);
       },
 
       // An empty `predicates` array is unreachable through `toPredicate`, but

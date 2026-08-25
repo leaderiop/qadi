@@ -40,6 +40,22 @@ const leaf: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
     (vs): Predicate => ({ _tag: "MemberOf", column: "tag", values: vs }),
   ),
   FastCheck.constant<Predicate>({ _tag: "MemberOf", column: "tag", values: [] }),
+  // `level` can be `null` in a generated row (above) — these leaves are what
+  // caught INV-QD-048's original NULL-handling defect. Neither `matchesPrismaWhere`
+  // nor the reference interpreter can find that class of bug without a
+  // predicate whose OWN value is null, or whose column can be, compared with
+  // Eq/Neq/MemberOf specifically.
+  FastCheck.constant<Predicate>({ _tag: "Compare", column: "level", op: "Eq", value: null }),
+  FastCheck.constant<Predicate>({ _tag: "Compare", column: "level", op: "Neq", value: null }),
+  FastCheck.integer({ min: 0, max: 5 }).map(
+    (n): Predicate => ({ _tag: "Compare", column: "level", op: "Eq", value: n }),
+  ),
+  FastCheck.integer({ min: 0, max: 5 }).map(
+    (n): Predicate => ({ _tag: "Compare", column: "level", op: "Neq", value: n }),
+  ),
+  FastCheck.subarray([0, 1, 2, null]).map(
+    (vs): Predicate => ({ _tag: "MemberOf", column: "level", values: vs }),
+  ),
 );
 
 const tree: FastCheck.Arbitrary<Predicate> = FastCheck.letrec((tie) => ({

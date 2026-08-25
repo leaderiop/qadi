@@ -38,4 +38,19 @@ checked, by property, against `@qadi/core`'s own `evaluatePredicate` —
 INV-QD-047 and INV-QD-048, the same differential method that already proves
 `toPredicate` agrees with `evaluate`, one interpreter further from the tree.
 
-See BEH-QD-236–243.
+`Eq`/`Neq`/`MemberOf` handle `null` correctly, including across an engine
+boundary — `col = NULL` never matches in real SQL, so an `Eq`/`Neq` literal
+of `null` renders `IS [NOT] NULL`; `Neq` against a non-null value, and a
+`MemberOf` whose column may be NULL, admit a NULL-valued row the same way
+`evaluatePredicate`'s `!==` does, which a bare `!=`/`IN` alone would silently
+exclude. Found by running compiled output against real PostgreSQL, MySQL,
+SQLite and a SQLite-backed Prisma client, not assumed — Prisma's own `in`
+filter refuses a `null` member outright rather than mishandling it. A
+`Gte`/`Lt` predicate against a numeric value stored as text is a documented,
+accepted limitation rather than something this release attempts to patch:
+`evaluatePredicate` requires both sides to be genuine numbers, and no
+portable SQL reproduces that check across all three dialects without a
+schema the compiler doesn't have — Postgres refuses such a query outright,
+SQLite and MySQL silently coerce it.
+
+See BEH-QD-236–244.

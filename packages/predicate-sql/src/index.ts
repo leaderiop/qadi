@@ -73,10 +73,15 @@ const SYNTAX: Record<SqlDialect, DialectSyntax> = {
   },
 };
 
-const compareOperator = (op: CompareOp): string =>
+// `Neq` is deliberately excluded from this table's domain, not merely
+// unused: it never renders as a simple "column op placeholder" shape — a
+// NULL-valued column must still admit, which `renderNode`'s `Compare` case
+// handles before this function is ever reached. Narrowing the parameter type
+// (rather than leaving an exhaustive-but-dead "Neq" arm here) makes that
+// unreachable by construction instead of by convention.
+const compareOperator = (op: Exclude<CompareOp, "Neq">): string =>
   Match.value(op).pipe(
     Match.when("Eq", () => "="),
-    Match.when("Neq", () => "!="),
     Match.when("Gte", () => ">="),
     Match.when("Lt", () => "<"),
     Match.exhaustive,
@@ -112,6 +117,15 @@ const renderNode = (
       True: () => Effect.succeed("TRUE"),
       False: () => Effect.succeed("FALSE"),
 
+      // `null` is on the safe allowlist but is not a value SQL's `=`/`!=`
+      // can bind: `col = NULL` and `col != NULL` are never true for any row,
+      // not even one where `col` genuinely `IS NULL` — SQL's three-valued
+      // logic treats a NULL-valued side of any `=`/`!=` as unknown, and
+      // `WHERE` excludes unknown. `evaluatePredicate`'s `===`/`!==` has no
+      // such third value. This was a real defect, caught by running the
+      // compiled SQL against a real engine, not designed in from the start:
+      // the differential property test's own interpreter re-implements
+      // `===`/`!==` in JS and so agreed with the bug rather than catching it.
       Compare: (p) => {
         if (!isSafeValue(p.value)) {
           return Effect.fail(
@@ -121,10 +135,20 @@ const renderNode = (
             }),
           );
         }
+        const column = syntax.quote(p.column);
+        if (p.value === null) {
+          if (p.op === "Eq") return Effect.succeed(`${column} IS NULL`);
+          if (p.op === "Neq") return Effect.succeed(`${column} IS NOT NULL`);
+          // Gte/Lt against a null literal: evaluatePredicate requires both
+          // sides to be numbers, and null never is — always False, for any row.
+          return Effect.succeed("FALSE");
+        }
         params.push(p.value);
-        return Effect.succeed(
-          `${syntax.quote(p.column)} ${compareOperator(p.op)} ${syntax.placeholder(params.length)}`,
-        );
+        const placeholder = syntax.placeholder(params.length);
+        // Neq admits a NULL-valued column too — `null !== against` is true
+        // for any non-null `against` — which plain `!=` alone would exclude.
+        if (p.op === "Neq") return Effect.succeed(`(${column} != ${placeholder} OR ${column} IS NULL)`);
+        return Effect.succeed(`${column} ${compareOperator(p.op)} ${placeholder}`);
       },
 
       MemberOf: (p) => {
@@ -147,11 +171,20 @@ const renderNode = (
             }),
           );
         }
-        const placeholders = p.values.map((value) => {
+        const column = syntax.quote(p.column);
+        // A `null` member needs its own `IS NULL`, for the same reason a
+        // `null` Compare value does: `col IN (NULL, ...)` never matches even
+        // a row where `col IS NULL`, because `col = NULL` inside IN's
+        // expansion is unknown, not true.
+        const hasNull = p.values.includes(null);
+        const nonNull = p.values.filter((value) => value !== null);
+        if (nonNull.length === 0) return Effect.succeed(`${column} IS NULL`);
+        const placeholders = nonNull.map((value) => {
           params.push(value);
           return syntax.placeholder(params.length);
         });
-        return Effect.succeed(`${syntax.quote(p.column)} IN (${placeholders.join(", ")})`);
+        const inClause = `${column} IN (${placeholders.join(", ")})`;
+        return Effect.succeed(hasNull ? `(${inClause} OR ${column} IS NULL)` : inClause);
       },
 
       // An empty `predicates` array is unreachable through `toPredicate`

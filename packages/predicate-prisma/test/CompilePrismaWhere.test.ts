@@ -24,9 +24,11 @@ describe("compilePrismaWhere — golden shapes", () => {
         yield* compilePrismaWhere({ _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" }),
         { tenantId: "t-1" },
       );
+      // Not `{ tenantId: { not: "t-1" } }` alone — see the dedicated
+      // NULL-handling describe block below for why.
       assert.deepStrictEqual(
         yield* compilePrismaWhere({ _tag: "Compare", column: "tenantId", op: "Neq", value: "t-1" }),
-        { tenantId: { not: "t-1" } },
+        { OR: [{ tenantId: { not: "t-1" } }, { tenantId: null }] },
       );
       assert.deepStrictEqual(
         yield* compilePrismaWhere({ _tag: "Compare", column: "level", op: "Gte", value: 3 }),
@@ -125,6 +127,63 @@ describe("compilePrismaWhere — golden shapes", () => {
         value: null,
       });
       assert.deepStrictEqual(where, { deletedAt: null });
+    }));
+});
+
+// `{col: {not: value}}` alone excludes a row where `col IS NULL` — Prisma's
+// `not` compiles to a standard SQL `!=`/`<>` underneath most connectors, and
+// `evaluatePredicate`'s `!==` admits that row (`null !== value` is true for
+// any non-null `value`). `{col: {in: [...]}}` is worse: Prisma's own
+// validator REFUSES a `null` member outright rather than silently
+// mishandling it. Both found by running a compiled `WhereInput` against a
+// real, SQLite-backed Prisma client (`@prisma/adapter-better-sqlite3`) and
+// comparing its result set to `evaluatePredicate`'s — not designed in from
+// the start.
+describe("compilePrismaWhere — NULL handling agrees with evaluatePredicate's ===/!==", () => {
+  it.effect("Eq/Neq against null use Prisma's own null-equality filters, unchanged", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Eq", value: null }),
+        { c: null },
+      );
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Neq", value: null }),
+        { c: { not: null } },
+      );
+    }));
+
+  it.effect("Gte/Lt against null render False's identity — Prisma refuses {gte: null}", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Gte", value: null }),
+        { OR: [] },
+      );
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Lt", value: null }),
+        { OR: [] },
+      );
+    }));
+
+  it.effect("Neq against a non-null value also admits a NULL-valued column", () =>
+    Effect.gen(function* () {
+      const where = yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Neq", value: 1 });
+      assert.deepStrictEqual(where, { OR: [{ c: { not: 1 } }, { c: null }] });
+    }));
+
+  it.effect("a MemberOf holding only null renders {col: null}, no 'in' at all", () =>
+    Effect.gen(function* () {
+      const where = yield* compilePrismaWhere({ _tag: "MemberOf", column: "c", values: [null] });
+      assert.deepStrictEqual(where, { c: null });
+    }));
+
+  it.effect("a MemberOf mixing null with real values splits null out of 'in'", () =>
+    Effect.gen(function* () {
+      const where = yield* compilePrismaWhere({
+        _tag: "MemberOf",
+        column: "c",
+        values: [null, "red", "blue"],
+      });
+      assert.deepStrictEqual(where, { OR: [{ c: { in: ["red", "blue"] } }, { c: null }] });
     }));
 });
 
