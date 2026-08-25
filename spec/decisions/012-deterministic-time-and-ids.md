@@ -35,3 +35,24 @@ else the checker fails the build on ambient clock or UUID access.
 **Trade-off accepted**: `EvaluationIdLive` is one line to provide, and the
 alternative is traces that cannot be tested — which is how the predecessor
 shipped a trace feature with no assertions on its content.
+
+## Amendment (2026-08-23, CCR-QD-060)
+
+`EvaluateOptions.evaluationId` lets a caller supply the identifier instead of
+minting one. This does not weaken the decision above: the id still comes from a
+service on every path, `EvaluationId.next` is still read whether or not the
+option is present, and the default — a fresh id per call, cache hit or miss — is
+untouched.
+
+What it admits is that "one evaluation, one identifier" and "one *question*, one
+identifier" are different rules, and the evaluator was enforcing the first while
+callers needed the second. A decision made on the server, dehydrated, and
+re-checked on the client is one question answered twice; with a freshly minted id
+at each end nothing joins the two, and the re-check reads as unrelated work.
+`Evaluate.ts` argues against a *cached* decision reusing an id — two log lines
+claiming to be the same event — and that argument still holds, because a cache
+hit is a repeat rather than a continuation. Only a caller can tell the two apart,
+so only a caller may say.
+
+See [ADR-QD-044](./044-an-optional-decision-sink.md) and
+[BEH-QD-186](../behaviors/24-decision-sink.md).

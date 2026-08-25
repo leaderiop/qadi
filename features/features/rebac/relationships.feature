@@ -13,6 +13,18 @@ Feature: Relationship-based access control
     And the resource "doc-1"
     When they must be "owner" of the resource
     Then access is denied
+    And the denial reason mentions "has no 'owner' relation"
+
+  # An unwired port and a store that looked and found nothing both deny, so the
+  # verdict cannot tell them apart. The reason must, or the sentence above sends
+  # a reader to audit a graph they never connected.
+  Scenario: An unwired resolver denies by naming itself, not the missing edge
+    Given a subject "peggy"
+    And the resource "doc-1"
+    And no relationship resolver is wired
+    When they must be "owner" of the resource
+    Then access is denied
+    And the denial reason mentions "no relationship resolver is wired"
 
   Scenario: A relationship to a different resource does not carry over
     Given a subject "olivia"

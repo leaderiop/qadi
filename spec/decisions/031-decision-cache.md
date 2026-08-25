@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-031                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-032). 1.1 (2026-08-19): `decisionCacheLayer` takes an optional `capacity`, FIFO-evicted once exceeded. |
 
 ---
 
@@ -108,6 +108,29 @@ code that does. The cache has to be provided around the **unit of work** — the
 request — with the evaluations inside it. The test suite asserts the trap as well as
 the correct shape, because a silently-ineffective cache is worse than none: it costs
 the same lookups and reports success.
+
+### An optional `capacity`, evicted FIFO — not the TTL rejected below
+
+`decisionCacheLayer({ capacity })` bounds how many completed entries `entries` holds;
+once exceeded, the **oldest-inserted** entry is evicted. Unset, the cache is unbounded,
+exactly as it always was — this is additive, not a change to the existing default.
+
+Worth separating from "A TTL on entries", rejected below, because the two are
+different mechanisms answering different questions. A TTL bounds *how long* an entry
+may answer for, which is a claim about the caller's tolerance for staleness and needs
+a clock — the objection that sank it. A `capacity` bounds *how many* entries a cache
+may hold at once, which needs no clock at all: eviction order is insertion order, a
+sequence the cache already produces deterministically, not wall-clock time. It says
+nothing about staleness and changes nothing about which of two structurally-equal
+answers a hit returns — only how long an entry survives before eviction makes it a
+miss again. INV-QD-025 (a cached decision agrees with an uncached one) holds
+identically whether or not `capacity` is set.
+
+The gap this closes: "provide it once at application scope" (below) was already
+documented as a staleness trade-off a caller can choose to accept — it was never
+documented as an *unbounded memory growth* trade-off, because until this revision
+there was no way to accept one without the other. `capacity` lets a caller running a
+long-lived cache take the staleness trade-off without also taking the memory one.
 
 ## Alternatives considered
 

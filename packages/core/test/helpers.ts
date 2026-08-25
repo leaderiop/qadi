@@ -1,4 +1,6 @@
+import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import { AttributeResolver, AttributeResolverNone } from "../src/AttributeResolver.ts";
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
@@ -69,3 +71,23 @@ export const subjectWith = (config: {
     permissions: config.permissions ?? [],
     attributes: config.attributes ?? {},
   });
+
+/**
+ * Gives an effect its own `MetricRegistry` for the duration of a test.
+ *
+ * The `CurrentMetricAttributes` override alongside it is not optional:
+ * `effect/Metric`'s `hook` caches an untagged metric's resolved hooks on the
+ * metric object itself, for the process's lifetime, the first time it is
+ * touched with no ambient `CurrentMetricAttributes` set — the fast path a
+ * real deployment (one registry, one process) wants. Every metric this test
+ * suite touches is "untagged" by that check even where it carries its own
+ * fixed attributes (`Metric.withAttributes`), since the check looks at the
+ * ambient context, not at the metric's own attributes. Left unset, the first
+ * test to touch a given metric would pin it to that test's registry for
+ * every test after.
+ */
+export const isolatedMetrics = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  effect.pipe(
+    Effect.provideService(Metric.MetricRegistry, new Map()),
+    Effect.provideService(Metric.CurrentMetricAttributes, { test: "isolated" }),
+  );

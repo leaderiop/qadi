@@ -5,19 +5,26 @@
   "private": true,
   "description": "Cucumber BDD acceptance tests for @qadi/core",
   "scripts": {
-    "test": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts",
-    "test:dry": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts --dry-run",
-    "test:tags": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts --tags",
+    "test": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts -i step-definitions/devtools-screens.steps.ts -i step-definitions/devtools-simulator.steps.ts -i step-definitions/port-calls.steps.ts -i step-definitions/hydration-counts.steps.ts -i step-definitions/gate-instances.steps.ts -i step-definitions/merged-sources.steps.ts",
+    "test:dry": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts -i step-definitions/devtools-screens.steps.ts -i step-definitions/devtools-simulator.steps.ts -i step-definitions/port-calls.steps.ts -i step-definitions/hydration-counts.steps.ts -i step-definitions/gate-instances.steps.ts -i step-definitions/merged-sources.steps.ts --dry-run",
+    "test:tags": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts -i step-definitions/devtools-screens.steps.ts -i step-definitions/devtools-simulator.steps.ts -i step-definitions/port-calls.steps.ts -i step-definitions/hydration-counts.steps.ts -i step-definitions/gate-instances.steps.ts -i step-definitions/merged-sources.steps.ts --tags",
     "typecheck": "tsc -b tsconfig.json"
   },
   "dependencies": {
     "@qadi/core": "workspace:*",
+    "@qadi/devtools": "workspace:*",
+    "@qadi/react": "workspace:*",
     "@qadi/testing": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^11.2.0",
+    "@happy-dom/global-registrator": "^20.11.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^25.7.0",
+    "@types/react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "tsx": "^4.19.2",
     "typescript": "catalog:"
   }

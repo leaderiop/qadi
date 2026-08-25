@@ -23,15 +23,13 @@
  * this file, where a reviewer would never look for it.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const OVERVIEW = join(ROOT, "spec", "overview.md");
 
 /**
- * Declaration forms this parser understands. Verified exhaustive for this repo: there
- * is no `export { … }`, no `export type { … }`, no `export default` and no
- * `export * as` in any package source, so a line-anchored match captures everything.
+ * Declaration forms this parser understands.
  */
 const DECLARATION = /^export (?:const|class|interface|type|function) ([A-Za-z_$][\w$]*)/;
 
@@ -39,10 +37,32 @@ const DECLARATION = /^export (?:const|class|interface|type|function) ([A-Za-z_$]
 const BARREL = /^export \* from "\.\/([^"]+)"/;
 
 /**
+ * A named re-export **from another module**: `export type { A, B } from "./C.ts"`.
+ *
+ * Understood rather than rejected, because the names are on the line — no module
+ * resolution is needed to know what this adds to the surface. The form appears
+ * where a module is deliberately out of the barrel and only its types are public
+ * (`HydrationWarning.ts`, whose ambient-global boundary is not a public surface).
+ *
+ * The `from` clause is required. `export { foo }` with no source is a different
+ * thing — it can publish a locally-declared name that carries no `export`
+ * keyword of its own, so `DECLARATION` would never have seen it — and stays
+ * unsupported below.
+ */
+const REEXPORT_FROM = /^export (?:type )?\{([^}]*)\} from "/;
+
+/** One clause of such a list. A rename publishes the name after `as`. */
+const REEXPORT_NAME = /^(?:type\s+)?[A-Za-z_$][\w$]*(?:\s+as\s+([A-Za-z_$][\w$]*))?$/;
+
+/**
  * Forms that would make this parser under-report. Encountering one is a hard error
  * rather than a silent miss: a parser that quietly skips an export makes the gate
  * weaker while still printing success, which is the failure mode the gate exists to
  * prevent.
+ *
+ * `export {` and `export type {` are listed, and `REEXPORT_FROM` is tried first —
+ * so only the source-less form, and any list this parser cannot decompose, reaches
+ * here.
  */
 const UNSUPPORTED = /^export (?:\{|type \{|default\b|\* as\b)/;
 
@@ -79,6 +99,23 @@ const exportsOf = (file) => {
   const names = new Set();
 
   for (const [index, line] of source.split("\n").entries()) {
+    const reexport = REEXPORT_FROM.exec(line);
+    if (reexport) {
+      const clauses = reexport[1]
+        .split(",")
+        .map((clause) => clause.trim())
+        .filter((clause) => clause !== "");
+      // A clause this regex cannot decompose falls through to UNSUPPORTED
+      // below rather than being dropped — under-reporting is the one outcome
+      // this parser must not have.
+      const parsed = clauses.map((clause) => REEXPORT_NAME.exec(clause));
+      if (parsed.every((m) => m !== null)) {
+        for (const [i, m] of parsed.entries()) {
+          names.add(m[1] ?? clauses[i].replace(/^type\s+/, ""));
+        }
+        continue;
+      }
+    }
     if (UNSUPPORTED.test(line)) {
       fail(
         `${relative(ROOT, file)}:${index + 1}`,
@@ -94,24 +131,64 @@ const exportsOf = (file) => {
 };
 
 /**
- * The export set of one package.
+ * Every source file a package publishes as an entry point.
+ *
+ * Read off the `exports` map's `bun` condition, which is the one that points at
+ * source rather than at `lib/`. Assuming `src/index.ts` was the only entry point
+ * held for four packages and stopped holding at `@qadi/devtools`, which ships a
+ * headless model at `.` and a React dock at `./react`; the dock's exports would
+ * have been invisible to this checker and could have drifted indefinitely — the
+ * silent omission §15 exists to forbid.
+ *
+ * A wildcard subpath (`@qadi/http`'s `./*`) names no single file, so it is
+ * skipped: it re-exports modules the root barrel already reaches.
+ */
+const entryPointsOf = ({ dir }) => {
+  const packageDir = join(ROOT, "packages", dir);
+  const src = join(packageDir, "src");
+  const { exports: map } = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
+
+  const entries = new Set();
+  for (const target of collectSourceTargets(map ?? {})) {
+    const file = join(packageDir, target);
+    if (existsSync(file)) entries.add(file);
+  }
+  // Every package has one whether or not its manifest spells it out.
+  entries.add(join(src, "index.ts"));
+  return [...entries];
+};
+
+/** The `bun` condition of every non-wildcard subpath in an `exports` map. */
+const collectSourceTargets = (map) =>
+  Object.entries(map).flatMap(([subpath, condition]) =>
+    subpath.includes("*") || condition === null || typeof condition !== "object"
+      ? []
+      : typeof condition.bun === "string"
+        ? [condition.bun]
+        : [],
+  );
+
+/**
+ * The export set of one package, across all of its entry points.
  *
  * Handles both shapes. `@qadi/core` and friends have a barrel of `export * from`
  * lines; `@qadi/promise`'s index *is* the implementation, so a resolver that assumed a
  * barrel would report zero exports for it and pass.
  */
-const surfaceOf = ({ dir }) => {
-  const src = join(ROOT, "packages", dir, "src");
-  const index = join(src, "index.ts");
-  const barrel = readFileSync(index, "utf8")
-    .split("\n")
-    .map((line) => BARREL.exec(line)?.[1])
-    .filter((specifier) => specifier !== undefined);
-
-  const modules = barrel.length > 0 ? barrel.map((f) => join(src, f)) : [index];
+const surfaceOf = (pkg) => {
   const names = new Map();
-  for (const file of modules) {
-    for (const name of exportsOf(file)) names.set(name, relative(ROOT, file));
+
+  for (const index of entryPointsOf(pkg)) {
+    const barrel = readFileSync(index, "utf8")
+      .split("\n")
+      .map((line) => BARREL.exec(line)?.[1])
+      .filter((specifier) => specifier !== undefined);
+
+    const from = dirname(index);
+    const modules = barrel.length > 0 ? barrel.map((f) => join(from, f)) : [index];
+    for (const file of modules) {
+      for (const name of exportsOf(file)) names.set(name, relative(ROOT, file));
+    }
   }
   return names;
 };

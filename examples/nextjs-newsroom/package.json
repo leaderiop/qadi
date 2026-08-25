@@ -1,0 +1,40 @@
+{
+  "name": "@qadi/example-nextjs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "The SSR/hydration topology, running: Effect as the backend, Qadi guarding a Next.js app, and the devtools dock wired whole",
+  "scripts": {
+    "dev": "next dev --port 3210",
+    "build": "next build",
+    "start": "next start --port 3210",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "check": "pnpm typecheck && pnpm test && pnpm build && playwright install --with-deps chromium && pnpm test:e2e"
+  },
+  "dependencies": {
+    "@qadi/core": "workspace:*",
+    "@qadi/devtools": "workspace:*",
+    "@qadi/http": "workspace:*",
+    "@qadi/react": "workspace:*",
+    "effect": "catalog:",
+    "next": "16.3.2",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^25.7.0",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "happy-dom": "^20.11.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

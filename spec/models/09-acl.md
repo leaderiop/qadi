@@ -132,7 +132,9 @@ const AclResolver: Layer.Layer<RelationshipResolver> = Layer.succeed(
         ]);
         return entries.some(
           (e) => e.right === request.relation && principals.has(e.principal),
-        );
+        )
+          ? "Related"
+          : "Unrelated";
       }),
   },
 );

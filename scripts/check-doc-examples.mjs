@@ -91,9 +91,12 @@ writeFileSync(
         noUnusedParameters: false,
         paths: {
           "@qadi/core": ["../packages/core/src/index.ts"],
+          "@qadi/http": ["../packages/http/src/index.ts"],
           "@qadi/promise": ["../packages/promise/src/index.ts"],
           "@qadi/react": ["../packages/react/src/index.ts"],
           "@qadi/testing": ["../packages/testing/src/index.ts"],
+          "@qadi/predicate-sql": ["../packages/predicate-sql/src/index.ts"],
+          "@qadi/predicate-prisma": ["../packages/predicate-prisma/src/index.ts"],
         },
       },
     },

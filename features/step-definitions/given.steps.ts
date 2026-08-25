@@ -63,9 +63,17 @@ Given(
 Given(
   "the subject is {string} of resource {string}",
   function (this: QadiWorld, relation: string, resourceId: string) {
-    this.relationships.push({ subjectId: this.subjectId, relation, resourceId });
+    this.relationships = [
+      ...(this.relationships ?? []),
+      { subjectId: this.subjectId, relation, resourceId },
+    ];
   },
 );
+
+/** The counterpart of "the history store is unreachable" — absent, not down. */
+Given("no relationship resolver is wired", function (this: QadiWorld) {
+  this.relationships = undefined;
+});
 
 Given(
   "the resource {string} with attribute {string} of {string}",

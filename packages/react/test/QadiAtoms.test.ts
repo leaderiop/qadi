@@ -8,9 +8,10 @@
 import {
   AttributeResolver,
   AttributeResolverNone,
-  EvaluationIdLive,
   DecisionHistoryUnknown,
+  EvaluationIdLive,
   RelationshipResolverNever,
+  decisionSinkRing,
   gte,
   hasAttribute,
   hasPermission,
@@ -23,7 +24,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
@@ -199,5 +200,87 @@ describe("makeQadiAtoms", () => {
 
     expect(isAllowed(await settle(registry, tenantA, canRead))).toBe(true);
     expect(isAllowed(await settle(registry, tenantB, canRead))).toBe(false);
+  });
+});
+
+describe("asked()", () => {
+  it("records each distinct question once, in the order first asked", () => {
+    // The honest basis for a devtools panel. `Atom.family` keys structurally, so
+    // several `<Can>` on one policy are ONE atom — a panel keyed by component
+    // instance would be inventing a distinction the architecture does not have.
+    const set = makeQadiAtoms(baseLayer);
+
+    set.decision(canRead);
+    set.decision(canRead);
+    set.decision(isAdmin);
+    set.decisionFor(canRead, { id: "doc-1" });
+
+    const asked = set.asked();
+    expect(asked.length).toBe(3);
+    expect(asked[0]).toEqual({ policy: canRead });
+    expect(asked[1]).toEqual({ policy: isAdmin });
+    expect(asked[2]).toEqual({ policy: canRead, resource: { id: "doc-1" } });
+  });
+
+  it("counts a structurally equal policy as the same question", () => {
+    const set = makeQadiAtoms(baseLayer);
+
+    set.decision(hasRole("admin"));
+    set.decision(hasRole("admin"));
+
+    // Structural keying is the property `v4-reactivity-smoke.test.ts` pins; this
+    // asserts the panel agrees with it rather than double-counting.
+    expect(set.asked().length).toBe(1);
+  });
+
+  it("hands back a copy", () => {
+    const set = makeQadiAtoms(baseLayer);
+    set.decision(canRead);
+
+    const first = set.asked();
+    set.decision(isAdmin);
+
+    expect(first.length).toBe(1);
+    expect(set.asked().length).toBe(2);
+  });
+});
+
+describe("a DecisionSink wired into the runtime layer", () => {
+  it("records the decisions this client makes", async () => {
+    // The client half of the merged timeline. `DecisionSink` is optional, so it
+    // is absent from `QadiRuntimeServices` and nothing in the types says a layer
+    // may carry one — this asserts that providing it anyway reaches
+    // `Effect.serviceOption` inside the atom runtime, which is what makes
+    // "one UI, two streams" true on the browser side rather than merely
+    // plausible.
+    const ring = decisionSinkRing({ environment: "Client" });
+
+    const set = makeQadiAtoms(Layer.merge(baseLayer, ring.layer));
+    const registry = AtomRegistry.make();
+    registry.set(set.subject, reader);
+    registry.get(set.decision(canRead));
+
+    await vi.waitFor(async () => {
+      const stored = await Effect.runPromise(ring.snapshot);
+      expect(stored.length).toBe(1);
+    });
+
+    const stored = await Effect.runPromise(ring.snapshot);
+    // Stamped by the sink, not by core — which cannot know it is in a browser.
+    expect(stored[0]?.environment).toBe("Client");
+    expect(stored[0]?._tag).toBe("Decision");
+  });
+
+  it("an atom set with no sink is unaffected", async () => {
+    // The optionality that makes the above safe to offer: absent, nothing
+    // changes and nothing is recorded anywhere.
+    const set = makeQadiAtoms(baseLayer);
+    const registry = AtomRegistry.make();
+    registry.set(set.subject, reader);
+
+    await vi.waitFor(() => {
+      const result = registry.get(set.decision(canRead));
+      expect(AsyncResult.isSuccess(result) && !result.waiting).toBe(true);
+    });
   });
 });

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-GLOSSARY                                  |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-08-22                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.5 (2026-08-22): Witness and Guard added; the Revision field corrected to match the latest entry, which had drifted since CCR-QD-019 (CCR-QD-043)<br>1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -375,6 +375,32 @@ in parallel. It changes which lookups happen and how long they take, and nothing
 else: the decision and the whole trace are identical, because both paths drive the
 same fold in declaration order (ADR-QD-026). It forfeits **short-circuiting**,
 which is why it is opt-in.
+
+## Witness
+
+Proof that a policy check succeeded for a specific permission and resource,
+held as `Authorized<P>`. Structurally carries the exact permission it was
+checked for — a witness for one permission is not assignable where a
+different permission's witness is required — so it is a stronger guarantee
+than a boolean or a discarded `Decision`: code typed to require one cannot be
+called without a [Guard](#guard) call site upstream having produced it.
+
+Deliberately not called "Capability": that word already names a different,
+shipped access-control model in [`spec/models/04-capability.md`](models/04-capability.md)
+— holding a `Permission` token *is* the authority there, with no policy to
+evaluate; a witness is closer to the opposite, proof that a full `Policy`
+evaluation succeeded. See [ADR-QD-035](decisions/035-witness-guard-primitive.md).
+
+## Guard
+
+The combinator that produces a [Witness](#witness):
+`guard(permission, policy)(resource, handler)`. Built on `enforce`, sharing
+its obligation-discharge and denial handling, but shaped differently — it
+takes a resource and a handler function rather than wrapping an existing
+effect, since a witness needs somewhere to go once the check succeeds. Not
+folded into the [Aspect](#aspect) entry above: an aspect wraps an `Effect`
+without changing its shape, and `guard` does change it.
+See [ADR-QD-035](decisions/035-witness-guard-primitive.md).
 
 ---
 

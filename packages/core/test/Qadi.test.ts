@@ -1,5 +1,13 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as Layer from "effect/Layer";
+import * as Ref from "effect/Ref";
+import * as Result from "effect/Result";
+import * as Stream from "effect/Stream";
+import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { renderTrace } from "../src/Decision.ts";
 import * as M from "../src/Matcher.ts";
 import * as Qadi from "../src/Qadi.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -57,6 +65,30 @@ describe("Qadi.enforce", () => {
       assert.include(recovered, "doc:read");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
+  it.effect("AccessDenied CARRIES THE TRACE, not only the root sentence", () =>
+    Effect.gen(function* () {
+      // `Errors.ts` promised this in a doc comment long before the field
+      // existed. The whole subtree was built and then discarded at the one place
+      // most callers meet a denial.
+      const nested = P.allOf([P.hasRole("admin"), canRead]);
+      const result = yield* Effect.result(Effect.succeed("x").pipe(Qadi.enforce(nested)));
+
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      const failure = result.failure;
+      assert.strictEqual(failure._tag, "AccessDenied");
+      if (failure._tag !== "AccessDenied") return;
+
+      // The root's own sentence is all `reason` ever had.
+      assert.strictEqual(failure.reason, failure.trace.reason);
+
+      // The tree beneath it is what `reason` cannot say: which branch refused.
+      const rendered = renderTrace(failure.trace);
+      assert.include(rendered, "✗ AllOf");
+      assert.include(rendered, "✗ HasRole");
+      assert.isAbove(failure.trace.children.length, 0);
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+
   it.effect("assert succeeds silently when allowed", () =>
     Effect.gen(function* () {
       yield* Qadi.assert(canRead);
@@ -93,6 +125,141 @@ describe("Qadi.enforceProjected", () => {
       const out = yield* Effect.succeed(record).pipe(Qadi.enforceProjected(policy));
       assert.deepStrictEqual(out, { id: "1" });
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+
+  it.effect("projects a path-shaped field spec on nested data end to end", () =>
+    Effect.gen(function* () {
+      const nested: { id: string; contact: Record<string, unknown> } = {
+        id: "1",
+        contact: { email: "a@b.com", phone: "555" },
+      };
+      const policy = P.hasPermission(read, { fields: ["id", "contact.email"] });
+      const out = yield* Effect.succeed(nested).pipe(Qadi.enforceProjected(policy));
+      assert.deepStrictEqual(out, { id: "1", contact: { email: "a@b.com" } });
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+});
+
+describe("Qadi.guard", () => {
+  const write = permission("doc", "write");
+  const canWrite = P.hasPermission(write);
+  const doc = { id: "1" };
+
+  it.effect("hands the handler a witness carrying the exact permission checked", () =>
+    Effect.gen(function* () {
+      const out = yield* Qadi.guard(
+        read,
+        canRead,
+      )(doc, (authorized, resource) => Effect.succeed({ permission: authorized.permission, resource }));
+      assert.deepStrictEqual(out.permission, read);
+      assert.deepStrictEqual(out.resource, doc);
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+
+  it.effect("EVALUATES THE POLICY AGAINST THE GUARDED RESOURCE", () =>
+    Effect.gen(function* () {
+      // The resource used to reach only the handler. `enforce` ran with
+      // `options.resource`, which nothing set, so a resource-scoped policy was
+      // evaluated against no resource — and an absent resource does not deny:
+      // `neq` on `undefined` is true. A rule written to refuse a mismatched
+      // tenant therefore allowed one (INV-QD-032).
+      const sameTenant = P.hasAttribute("homeTenant", M.neq(M.resource("tenant")));
+      let leaked = false;
+
+      const r = yield* Effect.result(
+        Qadi.guard(read, sameTenant)({ id: "d1", tenant: "evil" }, () =>
+          Effect.sync(() => {
+            leaked = true;
+            return "payload";
+          }),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "AccessDenied");
+      assert.isFalse(leaked);
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ attributes: { homeTenant: "evil" } }))),
+    ));
+
+  it.effect("allows when the guarded resource satisfies the policy", () =>
+    Effect.gen(function* () {
+      // The other direction, so the test above cannot pass by denying
+      // everything — which a `guard` that simply refused resource-scoped
+      // policies would also do.
+      const otherTenant = P.hasAttribute("homeTenant", M.neq(M.resource("tenant")));
+      const out = yield* Qadi.guard(read, otherTenant)(
+        { id: "d1", tenant: "acme" },
+        (_authorized, resource) => Effect.succeed(resource.id),
+      );
+      assert.strictEqual(out, "d1");
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ attributes: { homeTenant: "evil" } }))),
+    ));
+
+  it.effect("an empty resource DENIES a resource policy rather than erroring", () =>
+    Effect.gen(function* () {
+      // What `@qadi/http`'s RequirePermission relies on: it guards with `{}`
+      // before any resource is loaded. `{}` reaches the evaluator and the
+      // attribute is simply absent, so this is a denial. Evaluated with no
+      // resource at all it would fail with MissingResource — a 500 where a 403
+      // belongs.
+      const ownedByMe = P.hasResourceAttribute("ownerId", M.eq(M.subjectId()));
+      const r = yield* Effect.result(
+        Qadi.guard(read, ownedByMe)({}, () => Effect.succeed("payload")),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "AccessDenied");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("the guarded resource overrides one passed in options", () =>
+    Effect.gen(function* () {
+      // Two channels for one value is what caused the defect. The positional
+      // resource is the one the handler and the witness describe, so it is the
+      // one evaluated — anything else lets the three disagree.
+      const ownedByMe = P.hasResourceAttribute("ownerId", M.eq(M.subjectId()));
+      const out = yield* Qadi.guard(read, ownedByMe, {
+        resource: { ownerId: "someone-else" },
+      })({ ownerId: "u1" }, (_a, resource) => Effect.succeed(resource.ownerId));
+      assert.strictEqual(out, "u1");
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
+
+  it.effect("fails with AccessDenied and never starts the handler when denied", () =>
+    Effect.gen(function* () {
+      let started = false;
+      const guarded = Qadi.guard(
+        write,
+        canWrite,
+      )(doc, () =>
+        Effect.sync(() => {
+          started = true;
+          return "payload";
+        }),
+      );
+
+      const r = yield* Effect.result(guarded);
+      assert.strictEqual(r._tag, "Failure");
+      // Same property `enforce` guarantees: refusing after running the
+      // handler would be no protection at all.
+      assert.isFalse(started);
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("fails with UndischargedObligation the same way enforce does", () =>
+    Effect.gen(function* () {
+      const logIt = obligation("log-write", { channel: "audit" });
+      const audited = P.obliged(logIt, canWrite);
+
+      const r = yield* Effect.result(
+        Qadi.guard(write, audited)(doc, () => Effect.succeed("payload")),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "UndischargedObligation");
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:write"] })))));
+
+  // The type-level guarantee that a witness for one permission cannot
+  // satisfy a position typed for a different permission's is pinned in
+  // `Qadi.tst.ts` (`tstyche`) rather than here — a real assertion instead of
+  // an `it()` that only type-checks and never runs.
 });
 
 describe("Qadi.filter", () => {
@@ -120,6 +287,130 @@ describe("Qadi.filter", () => {
       const kept = yield* Qadi.filter(P.hasRole("nobody"), [{ id: "a" }]);
       assert.strictEqual(kept.length, 0);
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
+});
+
+describe("Qadi.filterStream", () => {
+  it.effect("keeps only the items the policy allows, same as filter", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute(
+        "state",
+        { _tag: "Eq", ref: { _tag: "LiteralRef", value: "open" } },
+      );
+      const items = [
+        { id: "a", state: "open" },
+        { id: "b", state: "closed" },
+        { id: "c", state: "open" },
+      ];
+      const kept = yield* Stream.runCollect(Qadi.filterStream(policy, Stream.fromIterable(items)));
+      assert.deepStrictEqual(
+        kept.map((i) => i["id"]),
+        ["a", "c"],
+      );
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("returns an empty stream when nothing qualifies", () =>
+    Effect.gen(function* () {
+      const kept = yield* Stream.runCollect(
+        Qadi.filterStream(P.hasRole("nobody"), Stream.fromIterable([{ id: "a" }])),
+      );
+      assert.strictEqual(kept.length, 0);
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("discharges per allowed element, and refuses rather than silently dropping an obliged one", () =>
+    Effect.gen(function* () {
+      const logIt = obligation("log-access", { channel: "audit" });
+      const discharged: Array<string> = [];
+      const policy = P.obliged(logIt, P.hasResourceAttribute("state", M.eq(M.literal("open"))));
+      const items = [
+        { id: "a", state: "open" },
+        { id: "b", state: "closed" },
+        { id: "c", state: "open" },
+      ];
+
+      const kept = yield* Stream.runCollect(
+        Qadi.filterStream(policy, Stream.fromIterable(items), {
+          onObligations: (obligations) =>
+            Effect.sync(() => {
+              for (const o of obligations) discharged.push(o.id);
+            }),
+        }),
+      );
+      assert.deepStrictEqual(kept.map((k) => k["id"]), ["a", "c"]);
+      assert.deepStrictEqual(discharged, ["log-access", "log-access"]);
+
+      const refused = yield* Effect.result(
+        Stream.runCollect(Qadi.filterStream(policy, Stream.fromIterable(items))),
+      );
+      assert.strictEqual(refused._tag, "Failure");
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+});
+
+describe("Qadi.filterStream — concurrency across items", () => {
+  // Mirrors "Qadi.filter — concurrency across items" below: `options.concurrency`
+  // has to reach `Stream.mapEffect`'s own options, not just get threaded into each
+  // item's `evaluate` call. Proven the same way — a resolver blocking on a shared
+  // gate, so "how many lookups are in flight" is observed directly, not inferred.
+  const policy = P.hasAttribute("clearance", M.gte(1));
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  const blockingResolver = (invocations: Ref.Ref<number>, gate: Deferred.Deferred<void>) =>
+    Layer.succeed(AttributeResolver, {
+      resolve: () =>
+        Ref.update(invocations, (n) => n + 1).pipe(
+          Effect.flatMap(() => Deferred.await(gate)),
+          Effect.as(5),
+        ),
+    });
+
+  it.effect("without a concurrency option, one item's lookup is in flight at a time", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(
+          Stream.runCollect(Qadi.filterStream(policy, Stream.fromIterable(items))),
+        );
+        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+        assert.strictEqual(
+          yield* Ref.get(invocations),
+          1,
+          "sequential filterStream should never have more than one item's lookup in flight",
+        );
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
+
+  it.effect("with concurrency: 'unbounded', every item's lookup is in flight at once", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(
+          Stream.runCollect(
+            Qadi.filterStream(policy, Stream.fromIterable(items), { concurrency: "unbounded" }),
+          ),
+        );
+        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+        assert.strictEqual(
+          yield* Ref.get(invocations),
+          items.length,
+          "concurrent filterStream should have every item's lookup in flight before any completes",
+        );
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
 });
 
 describe("Qadi obligations", () => {
@@ -315,4 +606,100 @@ describe("Qadi obligations", () => {
       // work an undischarged duty could guard. Documented, not overlooked.
       assert.isTrue(yield* Qadi.check(audited));
     }).pipe(Effect.provide(testLayer(reader))));
+});
+
+describe("Qadi.filter — concurrency across items", () => {
+  // The claim: `filter`'s outer fan-out over `items`, not just each item's own
+  // `allOf`/`anyOf` tree, now honours `options.concurrency`. Proven the same
+  // way `DecisionCache.test.ts`'s coalescing tests are — a resolver that
+  // blocks on a shared gate, so "how many lookups are in flight when the gate
+  // is still shut" is directly observable rather than inferred from timing.
+  // A subject attribute, not a resource one: `HasResourceAttribute` reads
+  // straight from the resource in hand, but `HasAttribute` goes through
+  // `AttributeResolver` — the call this test needs to observe.
+  const policy = P.hasAttribute("clearance", M.gte(1));
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  const blockingResolver = (invocations: Ref.Ref<number>, gate: Deferred.Deferred<void>) =>
+    Layer.succeed(AttributeResolver, {
+      resolve: () =>
+        Ref.update(invocations, (n) => n + 1).pipe(
+          Effect.flatMap(() => Deferred.await(gate)),
+          Effect.as(5),
+        ),
+    });
+
+  it.effect("without a concurrency option, one item's lookup is in flight at a time", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(Qadi.filter(policy, items));
+        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+        assert.strictEqual(
+          yield* Ref.get(invocations),
+          1,
+          "sequential filter should never have more than one item's lookup in flight",
+        );
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
+
+  it.effect("with concurrency: 'unbounded', every item's lookup is in flight at once", () =>
+    Effect.gen(function* () {
+      const invocations = yield* Ref.make(0);
+      const gate = yield* Deferred.make<void>();
+
+      yield* Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(
+          Qadi.filter(policy, items, { concurrency: "unbounded" }),
+        );
+        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+        assert.strictEqual(
+          yield* Ref.get(invocations),
+          items.length,
+          "concurrent filter should have every item's lookup in flight before any completes",
+        );
+        yield* Deferred.succeed(gate, undefined);
+        yield* Fiber.join(fiber);
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+        ),
+      );
+    }));
+
+  it.effect("concurrency changes overlap, never which items are kept", () =>
+    Effect.gen(function* () {
+      const openItems = [
+        { id: "a", state: "open" },
+        { id: "b", state: "closed" },
+        { id: "c", state: "open" },
+      ];
+      const statePolicy = P.hasResourceAttribute(
+        "state",
+        { _tag: "Eq", ref: { _tag: "LiteralRef", value: "open" } },
+      );
+
+      const [sequential, concurrent] = yield* Effect.gen(function* () {
+        const s = yield* Qadi.filter(statePolicy, openItems);
+        const c = yield* Qadi.filter(statePolicy, openItems, { concurrency: "unbounded" });
+        return [s, c] as const;
+      }).pipe(Effect.provide(testLayer(subjectWith({}))));
+
+      assert.deepStrictEqual(
+        sequential.map((i) => i.id),
+        ["a", "c"],
+      );
+      assert.deepStrictEqual(
+        concurrent.map((i) => i.id),
+        ["a", "c"],
+      );
+    }));
 });

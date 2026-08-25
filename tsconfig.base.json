@@ -38,7 +38,8 @@
     // resolving to source means tests need no build step.
     "paths": {
       "@qadi/core": ["./packages/core/src/index.ts"],
-      "@qadi/testing": ["./packages/testing/src/index.ts"]
+      "@qadi/testing": ["./packages/testing/src/index.ts"],
+      "@qadi/devtools": ["./packages/devtools/src/index.ts"]
     },
     "plugins": [
       {

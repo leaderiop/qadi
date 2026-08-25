@@ -20,6 +20,7 @@ import type {
   RelationshipEdgeInput,
 } from "@qadi/core";
 import * as Layer from "effect/Layer";
+import * as TestClock from "effect/testing/TestClock";
 import { edgeRelationshipResolver } from "./EdgeRelationshipResolver.ts";
 import { recordingAttributeResolver } from "./RecordingAttributeResolver.ts";
 import { eventDecisionHistory } from "./EventDecisionHistory.ts";
@@ -45,6 +46,24 @@ export interface TestLayerOptions {
   readonly history?: ReadonlyArray<ActedEventInput>;
   /** Prefix for the deterministic evaluation ids. Defaults to `eval`. */
   readonly idPrefix?: string;
+  /**
+   * Which clock the evaluation runs under. Defaults to `live`.
+   *
+   * `test` makes `durationMillis` reproducibly zero, which matters when two
+   * decisions are being compared field by field.
+   *
+   * **This option exists because the ids were reproducible and the clock was
+   * not**, and one half of a determinism claim is worse than neither: revision
+   * 0.1 of the devtools overview said "clock and evaluation ids reproducible",
+   * and only the ids were. `@effect/vitest`'s `it.effect` supplies a `TestClock`
+   * to *tests*, so a test suite rarely noticed; anything else using these
+   * fixtures — a simulator in a browser, a script — had no such ambient help.
+   *
+   * `live` provides no clock at all rather than a second one: the runtime's own
+   * is already correct, and layering another over it would only be a way to get
+   * it wrong.
+   */
+  readonly clock?: "live" | "test";
   /**
    * Supplies the resolver layer directly, taking precedence over
    * `attributes`.
@@ -88,4 +107,18 @@ export const qadiReviewLayer = (
         ? DecisionHistoryUnknown
         : eventDecisionHistory(options.history).layer),
     evaluationIdSequential(options?.idPrefix ?? "eval"),
+    clockLayer(options?.clock),
   );
+
+/**
+ * `Layer.empty` for `live`, so nothing shadows the runtime's own clock.
+ *
+ * Deliberately unannotated. `TestClock.layer()` provides a `TestClock`, which is
+ * a *wider* service than `Clock` — it adds `adjust`, `setTime` and `withLive` —
+ * so no single annotation covers both branches without either lying about the
+ * live one or narrowing away the test one. The inferred union is the truth, and
+ * it costs a caller nothing: `Clock` is a default service, so neither branch can
+ * leave an unmet requirement behind.
+ */
+const clockLayer = (clock: TestLayerOptions["clock"]) =>
+  clock === "test" ? TestClock.layer() : Layer.empty;

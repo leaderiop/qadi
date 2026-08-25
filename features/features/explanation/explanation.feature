@@ -13,7 +13,19 @@ Feature: Policy explanation
 
   Scenario: A policy reads as a sentence
     When the publishing policy is described
-    Then the description reads "requires role `editor` and requires permission `doc:publish`, exposing only `id`, `title`, and owes `audit.log`"
+    Then the description reads "requires role `editor` and (requires permission `doc:publish`, exposing only `id`, `title`, and owes `audit.log`)"
+
+  # The parentheses above are not decoration. Without them the sentence read as
+  # though `audit.log` were owed by the whole policy; it is owed by the second
+  # branch alone. The same flattening let two DIFFERENT policies render
+  # identically, which is the scenario below.
+  Scenario: Two policies that are not the same never read the same
+    When the "admin-or-both" policy is described
+    Then the description reads "either requires role `admin` or (requires role `editor` and requires role `onCall`)"
+
+  Scenario: The mirror grouping reads differently
+    When the "either-and-oncall" policy is described
+    Then the description reads "(either requires role `admin` or requires role `editor`) and requires role `onCall`"
 
   Scenario: A restriction is stated, not only the requirement
     # The error direction that matters. Describing this policy as "requires

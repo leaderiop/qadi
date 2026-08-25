@@ -1,14 +1,21 @@
 import {
+  AttributeResolver,
+  AttributeResolveError,
   AttributeResolverNone,
   EvaluationIdLive,
   DecisionHistoryUnknown,
   RelationshipResolverNever,
+  eq,
+  hasAttribute,
+  literal,
   hasPermission,
   hasRole,
   makeSubject,
   permission,
+  renderTrace,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
+import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { assert, afterEach, describe, expect, it } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -62,6 +69,85 @@ describe("Can / Cannot", () => {
       </Can>,
     );
     await waitFor(() => expect(screen.getByText("nope")).toBeDefined());
+  });
+
+  it("HANDS THE FALLBACK THE DENIAL, so it can say why", async () => {
+    // The guard already holds the `Deny` at the moment it decides to render
+    // nothing, and used to throw it away — which made "why is this control not
+    // here?" the one question the declarative API could not answer.
+    wrap(
+      nobody,
+      <Can policy={canRead} fallback={(decision) => <span>{decision.reason}</span>}>
+        allowed
+      </Can>,
+    );
+    await waitFor(() => expect(screen.getByText(/doc:read/)).toBeDefined());
+  });
+
+  it("hands Cannot's children the denial too", async () => {
+    wrap(
+      nobody,
+      <Cannot policy={canRead}>
+        {(decision) => <span>{`blocked: ${decision.trace.policyTag}`}</span>}
+      </Cannot>,
+    );
+    await waitFor(() => expect(screen.getByText("blocked: HasPermission")).toBeDefined());
+  });
+
+  it("renders the whole trace when the fallback asks for it", async () => {
+    wrap(
+      nobody,
+      <Can
+        policy={canRead}
+        fallback={(decision) => <pre>{renderTrace(decision.trace, { term: (t) => t })}</pre>}
+      >
+        allowed
+      </Can>,
+    );
+    await waitFor(() => expect(screen.getByText(/✗ HasPermission/)).toBeDefined());
+  });
+
+  it("DOES NOT REUSE A FUNCTION FALLBACK FOR A FAILURE", async () => {
+    // A fallback written to explain a denial would describe a refusal that never
+    // happened. Failure is not denial (INV-QD-006), and there is no `Deny` to
+    // hand it — so it renders nothing, which is still closed.
+    const failing = makeQadiAtoms(
+      Layer.mergeAll(
+        Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+        }),
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+      ),
+    );
+    const needsAttribute = hasAttribute("dept", eq(literal("legal")));
+
+    // First: a *node* fallback IS reused for a failure — the fail-closed
+    // default. This half is what proves the failure branch is genuinely
+    // reached, so the second half is not passing on a still-pending decision.
+    const closed = render(
+      <QadiProvider atoms={failing} subject={reader}>
+        <Can policy={needsAttribute} fallback={<span>closed</span>}>
+          allowed
+        </Can>
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("closed")).toBeDefined());
+    closed.unmount();
+
+    // Second: a function fallback is not reused, because there is no denial to
+    // hand it. Nothing renders, which is still closed.
+    render(
+      <QadiProvider atoms={failing} subject={reader}>
+        <Can policy={needsAttribute} fallback={(d) => <span>{`denied: ${d.reason}`}</span>}>
+          allowed
+        </Can>
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.queryByText("allowed")).toBeNull());
+    expect(screen.queryByText(/^denied:/)).toBeNull();
   });
 
   it("renders the pending node while the subject is loading", () => {

@@ -1,0 +1,75 @@
+{
+  "name": "@qadi/devtools",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "author": "Mohammad AL Mechkor",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/leaderiop/qadi.git",
+    "directory": "packages/devtools"
+  },
+  "homepage": "https://github.com/leaderiop/qadi/tree/main/packages/devtools#readme",
+  "bugs": {
+    "url": "https://github.com/leaderiop/qadi/issues"
+  },
+  "description": "Devtools for @qadi/core \u2014 a headless decision timeline, and a React dock that renders it",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "bun": "./src/index.ts",
+      "import": "./lib/index.js"
+    },
+    "./react": {
+      "types": "./lib/react/index.d.ts",
+      "bun": "./src/react/index.ts",
+      "import": "./lib/react/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@qadi/core": "workspace:*",
+    "effect": "catalog:"
+  },
+  "peerDependencies": {
+    "react": ">=19.2.4"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@qadi/testing": "workspace:*",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "happy-dom": "^20.11.1",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "keywords": [
+    "effect",
+    "authorization",
+    "devtools",
+    "qadi",
+    "react",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

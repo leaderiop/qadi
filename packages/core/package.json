@@ -9,6 +9,10 @@
     "url": "git+ssh://git@github.com/leaderiop/qadi.git",
     "directory": "packages/core"
   },
+  "homepage": "https://github.com/leaderiop/qadi/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/leaderiop/qadi/issues"
+  },
   "description": "Effect-native authorization: permission tokens, role DAG, schema-derived policy ADT, Effect evaluator",
   "sideEffects": false,
   "exports": {
@@ -25,7 +29,8 @@
   },
   "files": [
     "lib",
-    "src"
+    "src",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b tsconfig.json",
@@ -49,5 +54,8 @@
     "rebac",
     "policy",
     "typescript"
-  ]
+  ],
+  "engines": {
+    "node": ">=20"
+  }
 }

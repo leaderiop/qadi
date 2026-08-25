@@ -54,7 +54,7 @@ one.
 
 ## Decision
 
-**Gate 10 packs each public package, installs it into a throwaway sandbox, and makes a
+**`scripts/check-package-install.mjs`, gate 14, packs each public package, installs it into a throwaway sandbox, and makes a
 TypeScript consumer authorize through it.** `scripts/check-package-install.mjs`, wired
 into `pnpm check` before `stryker`.
 

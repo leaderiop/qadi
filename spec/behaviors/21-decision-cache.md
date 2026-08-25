@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-08-23                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -25,7 +25,9 @@ export class DecisionCache extends Context.Service<DecisionCache, DecisionCacheS
   "qadi/DecisionCache",
 ) {}
 
-export const decisionCacheLayer: () => Layer.Layer<DecisionCache>;
+export const decisionCacheLayer: (options?: {
+  readonly capacity?: number;
+}) => Layer.Layer<DecisionCache>;
 ```
 
 ```
@@ -61,6 +63,11 @@ REQUIREMENT: The cache key MUST comprise the subject id, the policy, the resourc
              and the action.
 ```
 
+> **Amended in CCR-QD-058.** "the subject id" is now **the subject** — see
+> [BEH-QD-168](#beh-qd-168-the-key-carries-the-subject-not-the-subjects-id). An
+> id identifies a subject only if it determines that subject's grants, which is
+> false wherever a subject is rebuilt per request from a token.
+
 A cache keyed on the policy alone would serve one subject's allow to another — the
 same class of defect as an unbound hydration payload
 ([BEH-QD-146](./19-hydration.md)). A decision is *about* a subject, so any structure
@@ -80,6 +87,11 @@ REQUIREMENT: Two structurally equal resources with different property order MAY
 
 A miss costs an evaluation; a wrong hit costs an authorization.
 
+> **Superseded in CCR-QD-057.** The permission is spent: they now **hit**, per
+> [BEH-QD-167](#beh-qd-167-two-different-questions-never-share-an-entry). The
+> second clause was the load-bearing one and it was the one that failed — the
+> stringified key this permission existed to excuse could collide.
+
 ## BEH-QD-164: The lifetime is the caller's
 
 ```
@@ -89,7 +101,15 @@ REQUIREMENT: `decisionCacheLayer` MUST be a function returning a fresh cache, ne
 
 Provided per request the cache dies with the request; provided once at application
 scope it lives for the process — not a leak across subjects, since the key includes
-the subject, but staleness: a revoked grant stays granted.
+the subject.
+
+> **Narrowed in CCR-QD-058.** "a revoked grant stays granted" is now only half
+> true, and the half that matters is which. A grant revoked in the **subject**
+> changes the key, so an application-scoped cache re-evaluates rather than
+> serving the old allow. A grant revoked only in a **store the evaluation
+> consults** stays cached. Application scope is safe against token downgrade and
+> unsafe against backend revocation; per-request scope is safe against both
+> ([BEH-QD-168](#beh-qd-168-the-key-carries-the-subject-not-the-subjects-id)).
 
 ```
 REQUIREMENT: The cache MUST be provided around the unit of work, not around each
@@ -116,6 +136,112 @@ const handleRequest = Effect.gen(function* () {
   return [first.evaluationId, second.evaluationId] as const;
 }).pipe(Effect.provide(decisionCacheLayer()));
 ```
+
+## BEH-QD-166: `capacity` bounds the cache, validated at construction
+
+> **See:** [ADR-QD-031, capacity addendum](../decisions/031-decision-cache.md#an-optional-capacity-evicted-fifo--not-the-ttl-rejected-below)
+
+```
+REQUIREMENT: `decisionCacheLayer`'s `capacity` option, when given, MUST be a
+             non-negative integer. Any other value MUST fail the layer at
+             construction, before any evaluation runs.
+```
+
+A negative `capacity` would make the eviction loop's own exit condition
+(`size(entries) > capacity`) unsatisfiable once `entries` empties out — an
+infinite loop, not a small cache. A `NaN` capacity would make that same
+comparison always `false`, silently turning "bounded" into unbounded instead
+of failing loudly. Both are caller misconfiguration, not a runtime condition
+to recover from, so this fails as a defect rather than a typed error.
+
+```
+REQUIREMENT: Once the number of completed entries exceeds `capacity`, the
+             oldest-inserted entry MUST be evicted — never an entry whose
+             `compute` is still in flight.
+```
+
+Eviction is FIFO (insertion order), not least-recently-used: recording an
+access on every hit would cost every lookup something to buy a policy this
+cache has no stated need for. `capacity` is unset by default — every behaviour
+above this section holds unchanged when it is absent.
+
+## BEH-QD-167: Two different questions never share an entry
+
+> **Invariant:** [INV-QD-030](../invariants.md#inv-qd-030-cache-key-uniqueness)
+> **See:** [ADR-QD-042](../decisions/042-a-projection-is-not-an-identity.md)
+
+```
+REQUIREMENT: The key MUST identify the question structurally. Two distinct
+             `DecisionCacheKey` values MUST NOT resolve to one entry.
+```
+
+```
+REQUIREMENT: Two equal questions MUST hit regardless of the order their
+             properties were written in.
+```
+
+The key is the `DecisionCacheKey` itself, held in the `HashMap` with no
+serialization step. Effect's `Equal`/`Hash` compare plain objects structurally,
+nested included, so equality of keys is equality of questions and neither
+requirement above needs anything else to hold.
+
+This replaces a `JSON.stringify` key. The first requirement is the one that
+matters: `stringify` maps a `Date` onto its ISO string, drops
+`undefined`-valued and function-valued properties, and renders `NaN` as `null`,
+so `{d: new Date(0)}` and `{d: "1970-01-01T00:00:00.000Z"}` were **one entry for
+two questions** — and the second caller was handed the first's verdict.
+
+That is not a cache inefficiency. It breaks
+[BEH-QD-162](#beh-qd-162-the-trace-is-cached-never-the-decision)'s premise that
+what is cached answers *this* question, and it makes
+[INV-QD-025](../invariants.md#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity)
+false — a colliding hit differs from a miss in verdict, not only in speed and
+identity.
+
+The second requirement was previously a documented **miss**, defended as the
+safe direction of a stringified key. It is now a hit, and safely: the comparison
+is real structural equality rather than a serialization that happens to agree.
+
+## BEH-QD-168: The key carries the subject, not the subject's id
+
+> **Invariant:** [INV-QD-033](../invariants.md#inv-qd-033-a-cached-decision-belongs-to-the-grants-that-earned-it)
+> **See:** [ADR-QD-043](../decisions/043-a-decision-is-computed-from-its-inputs.md)
+
+```ts
+export interface DecisionCacheKey {
+  readonly subject: AuthSubject;
+  readonly policy: Policy;
+  readonly resource: Readonly<Record<string, unknown>> | undefined;
+  readonly action: string | undefined;
+}
+```
+
+```
+REQUIREMENT: Two subjects with different grants MUST NOT share an entry,
+             whatever their ids.
+```
+
+This amends [BEH-QD-163](#beh-qd-163-the-key-includes-the-subject), which
+required "the subject id". An id identifies a subject only if it determines that
+subject's grants, and in an HTTP application it does not: a `SubjectExtractor`
+rebuilds an `AuthSubject` per request from a token, so a scoped token and a full
+token for one user share an id and hold different permissions. Under an
+application-scoped cache the first verdict won permanently — an allow leaking to
+a downgraded token, or a denial trapping a full one.
+
+```
+REQUIREMENT: Two structurally equal subjects MUST still hit.
+```
+
+Stated because the fix would otherwise be indistinguishable from disabling the
+cache. `AuthSubject` compares structurally, `HashSet` grants included, so a
+subject rebuilt per request from the same token is the same key.
+
+Staleness is narrower than BEH-QD-164 implies and the boundary is worth stating:
+a grant revoked in the **subject** changes the key and is picked up on the next
+request; a grant revoked only in a **store the evaluation consults** is invisible
+to the key and stays cached. Application scope is safe against token downgrade
+and unsafe against backend revocation; per-request scope is safe against both.
 
 ---
 

@@ -60,8 +60,9 @@ const UNRESOLVED = /^(catalog:|workspace:|link:|file:|portal:)/;
 const DEPENDENCY_FIELDS = ["dependencies", "peerDependencies", "optionalDependencies"];
 
 // ---------------------------------------------------------------------------
-// Discover the public packages. `private: true` is excluded, exactly as gate 9
-// excludes it: @qadi/features is never published, so it has no tarball to check.
+// Discover the public packages. `private: true` is excluded, exactly as
+// `check-api-surface.mjs`, gate 13, excludes it: @qadi/features is never
+// published, so it has no tarball to check.
 // ---------------------------------------------------------------------------
 
 const packagesDir = join(ROOT, "packages");
@@ -279,6 +280,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
   currentSubjectLayer,
+  Decided,
   DecisionHistoryUnknown,
   evaluate,
   EvaluationIdLive,
@@ -287,10 +289,15 @@ import {
   permission,
   RelationshipResolverNever,
   role,
+  toPredicate,
 } from "@qadi/core";
 import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
 import { QadiProvider } from "@qadi/react";
+import { emptyTimeline, ingest, verdictOf } from "@qadi/devtools";
+import { DevtoolsDock } from "@qadi/devtools/react";
+import { compileSql } from "@qadi/predicate-sql";
+import { compilePrismaWhere } from "@qadi/predicate-prisma";
 
 const read = permission("document", "read");
 const write = permission("document", "write");
@@ -329,9 +336,39 @@ expect("promise deny", await qadi.check(alice, hasPermission(write)), false);
 await qadi.dispose();
 
 // The other public packages are imported and referenced, so a broken
-// declaration file in either one is a compile error here.
+// declaration file in any of them is a compile error here.
 expect("testing layer", typeof qadiTestLayer, "function");
 expect("react provider", typeof QadiProvider, "function");
+
+// @qadi/devtools ships TWO entry points, and check 3's import probe only
+// reaches package roots — so the second one is exercised here or nowhere.
+const decided = await decide(hasPermission(read));
+const timeline = ingest(emptyTimeline(), {
+  _tag: "Decision",
+  evaluationId: decided.evaluationId,
+  at: 0,
+  policy: hasPermission(read),
+  outcome: new Decided({ decision: decided }),
+  environment: "Server",
+});
+const [only] = timeline.entries;
+expect("devtools timeline", timeline.entries.length, 1);
+expect("devtools verdict", only === undefined ? "missing" : verdictOf(only), "Allow");
+expect("devtools dock", typeof DevtoolsDock, "function");
+
+// @qadi/predicate-sql and @qadi/predicate-prisma compile what toPredicate
+// emits — a held permission folds to True, so both compile to their own
+// vacuous-true identity rather than refusing.
+const predicate = await Effect.runPromise(
+  toPredicate(hasPermission(read)).pipe(
+    Effect.provide(currentSubjectLayer(alice)),
+    Effect.provide(services),
+  ),
+);
+const sqlFragment = await Effect.runPromise(compileSql(predicate, { dialect: "postgres" }));
+expect("predicate-sql fragment", sqlFragment.text, "TRUE");
+const prismaWhere = await Effect.runPromise(compilePrismaWhere(predicate));
+expect("predicate-prisma where", JSON.stringify(prismaWhere), JSON.stringify({ AND: [] }));
 
 console.log("consumer: the published artifact authorizes correctly");
 `;

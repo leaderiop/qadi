@@ -23,3 +23,8 @@ packages/*/test/**/*.js
 packages/*/test/**/*.js.map
 packages/*/test/**/*.d.ts
 packages/*/test/**/*.d.ts.map
+
+# @qadi/predicate-prisma's fixture schema is committed; what `prisma
+# generate`/`db push` produce from it is not.
+packages/predicate-prisma/prisma/generated/
+packages/predicate-prisma/prisma/*.db

@@ -1,0 +1,4 @@
+{
+  "target": "6.0.3",
+  "tsconfig": "tsconfig.test.json"
+}

@@ -19,6 +19,7 @@ import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 import type { DecisionHistoryUnavailable } from "./Errors.ts";
+import type { ResourceId, SubjectId } from "./Identity.ts";
 
 /**
  * What the port can say about a past event.
@@ -35,7 +36,7 @@ import type { DecisionHistoryUnavailable } from "./Errors.ts";
 export type ActedResult = "Acted" | "NotActed" | "Unknown";
 
 export interface ActedQuery {
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   /**
    * What was done before — `"raised"`, `"approved"`.
    *
@@ -45,10 +46,12 @@ export interface ActedQuery {
    */
   readonly event: string;
   /** The resource it was done to. Absent when the question is "ever, at all". */
-  readonly resourceId: string | undefined;
+  readonly resourceId: ResourceId | undefined;
 }
 
 export interface DecisionHistoryShape {
+  /** Which implementation this is. A label only — see `AttributeResolverShape`. */
+  readonly name?: string | undefined;
   readonly hasActed: (
     query: ActedQuery,
   ) => Effect.Effect<ActedResult, DecisionHistoryUnavailable>;
@@ -72,7 +75,7 @@ export class DecisionHistory extends Context.Service<
  */
 export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory> = Layer.succeed(
   DecisionHistory,
-  { hasActed: () => Effect.succeed("Unknown") },
+  { name: "DecisionHistoryUnknown", hasActed: () => Effect.succeed("Unknown") },
 );
 
 /**
@@ -128,6 +131,7 @@ export const decisionHistoryFromEvents = (
   );
 
   return Layer.succeed(DecisionHistory, {
+    name: "decisionHistoryFromEvents",
     hasActed: (query) =>
       Effect.succeed(
         (

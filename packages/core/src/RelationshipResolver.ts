@@ -12,22 +12,50 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
+import * as Semaphore from "effect/Semaphore";
 import type { RelationshipResolveError } from "./Errors.ts";
+import type { ResourceId, SubjectId } from "./Identity.ts";
+import { portRetriesTotal } from "./PortMetrics.ts";
 import { wrapService } from "./RetryingLayer.ts";
 
 export interface RelationshipCheck {
-  readonly subjectId: string;
+  readonly subjectId: SubjectId;
   readonly relation: string;
-  readonly resourceId: string;
+  readonly resourceId: ResourceId;
   /** Maximum traversal depth. Undefined means the resolver decides. */
   readonly depth: number | undefined;
 }
 
+/**
+ * What the port can say about a relationship.
+ *
+ * Three values, mirroring `ActedResult` in `DecisionHistory.ts`.
+ * [ADR-QD-020](../../../spec/decisions/020-decision-history-port.md) named
+ * `RelationshipResolverNever` answering `false` "the exact counterpart" of
+ * `"Unknown"` and left this port boolean, because `hasRelationship` is a
+ * positive test and `false` already fails closed. That is still true — the
+ * third value buys nothing here for *safety*.
+ *
+ * It buys the denial's sentence. A boolean cannot tell the evaluator which of
+ * two answers it is holding, so an unwired port denied with
+ * `subject 'u1' has no 'owner' relation to 'doc-1'` — a claim about the
+ * contents of a store nobody had wired
+ * ([INV-QD-029](../../../spec/invariants.md#inv-qd-029-a-denial-names-only-what-was-consulted)).
+ *
+ * `"Unknown"` means *nobody can say* — no resolver is wired. A resolver that is
+ * wired and unreachable is a `RelationshipResolveError`, which is an error, not
+ * an answer.
+ */
+export type RelatedResult = "Related" | "Unrelated" | "Unknown";
+
 export interface RelationshipResolverShape {
+  /** Which implementation this is. A label only — see `AttributeResolverShape`. */
+  readonly name?: string | undefined;
   readonly check: (
     request: RelationshipCheck,
-  ) => Effect.Effect<boolean, RelationshipResolveError>;
+  ) => Effect.Effect<RelatedResult, RelationshipResolveError>;
 }
 
 export class RelationshipResolver extends Context.Service<
@@ -39,14 +67,20 @@ export class RelationshipResolver extends Context.Service<
 }
 
 /**
- * Denies every relationship.
+ * Knows nothing, so every relationship policy denies.
  *
  * The default, and deliberately fail-closed: an unwired resolver must not grant
- * access. A `HasRelationship` policy under this layer always denies.
+ * access. A `HasRelationship` policy under this layer always denies — the name
+ * is still accurate in outcome, which is why it kept it.
+ *
+ * It answers `"Unknown"` rather than `"Unrelated"`, and the difference is only
+ * ever visible in the denial's reason. `"Unrelated"` is what a wired store says
+ * when it looked and found no edge; this layer never looked, and a denial that
+ * claimed otherwise sent developers to audit a graph they had not connected.
  */
 export const RelationshipResolverNever: Layer.Layer<RelationshipResolver> = Layer.succeed(
   RelationshipResolver,
-  { check: () => Effect.succeed(false) },
+  { name: "RelationshipResolverNever", check: () => Effect.succeed("Unknown") },
 );
 
 /**
@@ -86,12 +120,17 @@ export class RelationshipEdge extends Data.Class<RelationshipEdgeInput> {}
  *
  * Direct edges only — `depth` is ignored, since a flat list has no graph to
  * traverse. Suitable for tests and small fixed policies.
+ *
+ * A closed world: an edge not listed is `"Unrelated"` rather than `"Unknown"`,
+ * because this layer *is* the store and it does know — the same distinction
+ * `decisionHistoryFromEvents` draws.
  */
 export const relationshipResolverFromEdges = (
   edges: ReadonlyArray<RelationshipEdgeInput>,
 ): Layer.Layer<RelationshipResolver> => {
   const index = HashSet.fromIterable(edges.map((edge) => new RelationshipEdge(edge)));
   return Layer.succeed(RelationshipResolver, {
+    name: "relationshipResolverFromEdges",
     check: (request) =>
       Effect.succeed(
         HashSet.has(
@@ -101,7 +140,9 @@ export const relationshipResolverFromEdges = (
             relation: request.relation,
             resourceId: request.resourceId,
           }),
-        ),
+        )
+          ? "Related"
+          : "Unrelated",
       ),
   });
 };
@@ -118,5 +159,41 @@ export const relationshipResolverRetrying =
   (schedule: Schedule.Schedule<unknown, RelationshipResolveError>) =>
   (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver> =>
     wrapService(RelationshipResolver, layer, (inner) => ({
-      check: (request) => inner.check(request).pipe(Effect.retry(schedule)),
+      name: `${inner.name ?? "?"} (retrying)`,
+      check: (request) =>
+        inner
+          .check(request)
+          .pipe(
+            Effect.tapError(() => Metric.update(portRetriesTotal, "RelationshipResolver")),
+            Effect.retry(schedule),
+          ),
     }));
+
+/**
+ * Wraps a resolver layer so no more than `permits` calls to `check` run at
+ * once, queuing the rest.
+ *
+ * The sibling of `attributeResolverBounded` in `AttributeResolver.ts` — see
+ * that doc comment for why this exists and why `effect/Semaphore` rather than
+ * a rate limiter. `Qadi.filter`'s `concurrency` bounds fan-out across policy
+ * evaluations, not calls into this specific resolver, so a `HasRelationship`-
+ * heavy policy evaluated over a large collection under `concurrency:
+ * "unbounded"` has nothing else standing between it and this resolver's
+ * backing store.
+ */
+export const relationshipResolverBounded =
+  (permits: number) =>
+  (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver> =>
+    Layer.effect(
+      RelationshipResolver,
+      Effect.gen(function* () {
+        const semaphore = yield* Semaphore.make(permits);
+        const inner = yield* Layer.build(layer).pipe(
+          Effect.map((context) => Context.get(context, RelationshipResolver)),
+        );
+        return {
+          name: `${inner.name ?? "?"} (bounded ${permits})`,
+          check: (request) => Semaphore.withPermit(semaphore)(inner.check(request)),
+        };
+      }),
+    );

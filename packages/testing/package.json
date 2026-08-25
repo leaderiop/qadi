@@ -9,7 +9,11 @@
     "url": "git+ssh://git@github.com/leaderiop/qadi.git",
     "directory": "packages/testing"
   },
-  "description": "Test layers, fixtures, conformance suites and matchers for @qadi/core",
+  "homepage": "https://github.com/leaderiop/qadi/tree/main/packages/testing#readme",
+  "bugs": {
+    "url": "https://github.com/leaderiop/qadi/issues"
+  },
+  "description": "Fixtures, deterministic layers and recording resolvers for @qadi/core",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -25,7 +29,8 @@
   },
   "files": [
     "lib",
-    "src"
+    "src",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -b tsconfig.json",
@@ -40,5 +45,15 @@
     "@effect/vitest": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "keywords": [
+    "effect",
+    "authorization",
+    "testing",
+    "fixtures",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=20"
   }
 }

@@ -137,13 +137,18 @@ const StoreResolver: Layer.Layer<RelationshipResolver> = Layer.succeed(
     check: (request: RelationshipCheck) => {
       // The object type travels in the id — the only channel the port gives us.
       const colon = request.resourceId.indexOf(":");
-      return checkPermission({
-        resourceType: colon === -1 ? "employee" : request.resourceId.slice(0, colon),
-        resourceId: request.resourceId.slice(colon + 1),
-        permission: request.relation,
-        subject: `user:${request.subjectId}`,
-        maximumDepth: request.depth,
-      });
+      return Effect.map(
+        checkPermission({
+          resourceType: colon === -1 ? "employee" : request.resourceId.slice(0, colon),
+          resourceId: request.resourceId.slice(colon + 1),
+          permission: request.relation,
+          subject: `user:${request.subjectId}`,
+          maximumDepth: request.depth,
+        }),
+        // A Zanzibar store is closed-world by construction — it answers every
+        // check — so its `false` is "Unrelated" and never "Unknown".
+        (permitted) => (permitted ? "Related" : "Unrelated"),
+      );
     },
   },
 );

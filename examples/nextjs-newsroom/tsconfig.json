@@ -1,0 +1,70 @@
+{
+  // Deliberately standalone — it does NOT extend `tsconfig.base.json`.
+  //
+  // That file maps `@qadi/*` to `packages/*/src/*.ts` and turns on
+  // `allowImportingTsExtensions`, which is right for the library's own graph and
+  // wrong here. This example is meant to consume the packages the way anybody
+  // else does: through their `exports` maps, against the emitted `lib/`. If a
+  // declaration is missing or an entry point is unreachable, this project is
+  // where that shows up rather than being papered over by a path alias.
+  //
+  // It is also not a project reference of the root `tsconfig.json`: Next rewrites
+  // `jsx` to `react-jsx` and appends its own generated type directories on every
+  // build, which the library graph must not inherit.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": [
+      "node"
+    ],
+    "noEmit": true,
+    "allowJs": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "incremental": true,
+    "strict": true,
+    // The repository writes relative imports with an explicit `.ts`, and this
+    // example keeps that convention rather than inventing a second one for one
+    // package. Safe here because nothing is emitted: Next compiles the sources
+    // itself, and Turbopack resolves an explicit extension.
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noErrorTruncation": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "~/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next"
+  ]
+}

@@ -1,6 +1,6 @@
 # ADR-QD-024: A predicate is a second interpreter, and it ships with the reference that proves it agrees
 
-> **Status:** Accepted
+> **Status:** Accepted — narrowed by [ADR-QD-054](./054-a-companion-package-may-compile-a-dialect.md)
 > **Date:** 2026-07-26
 
 ## Context
@@ -48,6 +48,15 @@ export type Predicate =
 Emitting SQL means owning a dialect: quoting, binding, null semantics, one
 grammar per engine. Qadi has no database dependency and acquiring one is a far
 larger commitment than this feature warrants. The caller compiles the predicate.
+
+**Narrowed by [ADR-QD-054](./054-a-companion-package-may-compile-a-dialect.md).**
+"The caller compiles the predicate" now also reads "...or installs a companion
+package that does it for them." `@qadi/core` still acquires no database
+dependency of any kind — the narrowing is that a separate, optional package
+(`@qadi/predicate-sql`, `@qadi/predicate-prisma`) may now exist to do what this
+paragraph originally left entirely to the caller. Every other decision on this
+page, including the reference interpreter, the untranslatable subset and the
+`fields` refusal, is unchanged.
 
 **`Predicate` is a hand-written type with no `Schema`.** That is the
 [ADR-QD-002](./002-schema-derived-policy-adt.md) boundary applied rather than

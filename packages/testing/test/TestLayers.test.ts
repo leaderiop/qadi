@@ -12,7 +12,10 @@ import {
   isAllowed,
   filterSubjects,
 } from "@qadi/core";
+import * as Clock from "effect/Clock";
+import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import {
   administrator,
   edgeRelationshipResolver,
@@ -89,6 +92,57 @@ describe("qadiTestLayer", () => {
     ));
 });
 
+/**
+ * CCR-QD-069's gap, closed.
+ *
+ * Revision 0.1 of the devtools overview claimed "clock and evaluation ids
+ * reproducible". Only the ids were — `evaluationIdSequential` is wired here and
+ * nothing was. **One half of a determinism claim is worse than neither**,
+ * because it is believed.
+ *
+ * Every case below runs under `it.live` rather than `it.effect`, and that is the
+ * whole reason the gap survived: `@effect/vitest` supplies a `TestClock` to
+ * `it.effect`, so a test suite already had one and never noticed the fixtures
+ * did not. Anything without that ambient help — a simulator in a browser, a
+ * script — did.
+ */
+describe("the clock", () => {
+  it.live("defaults to the runtime's own, which nothing here shadows", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(policies.canRead);
+
+      assert.isTrue(isAllowed(decision));
+      assert.isAbove(yield* Clock.currentTimeMillis, 0);
+    }).pipe(Effect.provide(qadiTestLayer(administrator))));
+
+  it.live("makes durations reproducible when asked for", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(policies.canRead);
+
+      assert.isTrue(isAllowed(decision));
+      assert.strictEqual(yield* Clock.currentTimeMillis, 0);
+      // The point of the option: two decisions compared field by field agree on
+      // this one, where under a live clock they agree only by luck.
+      assert.strictEqual(decision.durationMillis, 0);
+    }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "test" }))));
+
+  it.live("is the same option on the review layer, which has no subject", () =>
+    Effect.gen(function* () {
+      const test = yield* Layer.build(qadiReviewLayer({ clock: "test" }));
+      const live = yield* Layer.build(qadiReviewLayer());
+
+      assert.strictEqual(Context.get(test, Clock.Clock).currentTimeMillisUnsafe(), 0);
+      assert.isAbove(Context.get(live, Clock.Clock).currentTimeMillisUnsafe(), 0);
+    }).pipe(Effect.scoped));
+
+  it.live("leaves the ids deterministic either way", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(policies.canRead);
+
+      assert.strictEqual(decision.evaluationId, "eval-1");
+    }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "test" }))));
+});
+
 describe("recording resolvers", () => {
   it.effect("records which attributes were asked for", () =>
     Effect.gen(function* () {
@@ -116,6 +170,28 @@ describe("recording resolvers", () => {
         ),
       );
       assert.deepStrictEqual([...resolver.calls], ["u1 owner d1"]);
+    }));
+
+  it.effect("ANSWERS Unrelated for an edge it does not hold, never Unknown", () =>
+    Effect.gen(function* () {
+      // A fixture edge list is the store, so a miss is a closed-world "no" and
+      // the denial should name the missing edge. `"Unknown"` is reserved for a
+      // resolver that was never wired (INV-QD-029), which this one plainly was.
+      const resolver = edgeRelationshipResolver([
+        { subjectId: "u1", relation: "owner", resourceId: "d1" },
+      ]);
+      const d = yield* evaluate(hasRelationship("owner"), {
+        resource: { id: "d2" },
+      }).pipe(
+        Effect.provide(
+          qadiTestLayer(subjectWith({ id: "u1" }), {
+            relationshipResolver: resolver.layer,
+          }),
+        ),
+      );
+      assert.strictEqual(d._tag, "Deny");
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject 'u1' has no 'owner' relation to 'd2'");
     }));
 
   it.effect("failingAttributeResolver surfaces an error, not a denial", () =>

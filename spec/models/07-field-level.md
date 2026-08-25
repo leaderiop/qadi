@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-07                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-006) |
+> | Change History | 1.1 (2026-08-25): Field names may be dot-paths with a `*`/`**` wildcard terminal (BEH-QD-056); the leaf-variant list corrected from four to the real seven; the worked example extended (CCR-QD-078)<br>1.0 (2026-07-26): Initial release (CCR-QD-006) |
 
 ---
 
@@ -48,7 +48,7 @@ until it leaks.
 
 ## How Qadi expresses it
 
-Four leaf variants accept a field restriction, applied when that node allows.
+Seven leaf variants accept a field restriction, applied when that node allows.
 `hasRole` does not — a role is a membership test with no natural column scope,
 and giving it one would create two spellings of the same grant.
 
@@ -57,6 +57,9 @@ export const hasPermission: (permission: Permission, options?: FieldOptions) => 
 export const hasAttribute: (attribute: string, matcher: Matcher, options?: FieldOptions) => Policy;
 export const hasResourceAttribute: (attribute: string, matcher: Matcher, options?: FieldOptions) => Policy;
 export const hasRelationship: (relation: string, options?: FieldOptions & { depth?: number }) => Policy;
+export const hasAction: (action: string, options?: FieldOptions) => Policy;
+export const hasActed: (event: string, options?: FieldOptions & { scope?: HistoryScope }) => Policy;
+export const hasNotActed: (event: string, options?: FieldOptions & { scope?: HistoryScope }) => Policy;
 export const hasRole: (role: string) => Policy;   // no options — no `fields`
 ```
 
@@ -78,6 +81,51 @@ Reading `undefined` as "none" would invert the meaning of every unrestricted
 policy in existence — an ordinary `hasRole("admin")` would project to `{}`. Both
 helpers are exported so that anyone extending the merge logic inherits the
 lattice rather than re-deriving it.
+
+### Path-aware field names
+
+A `fields` entry is still a plain `string` — nothing changed in `FieldOptions`,
+in the schema, or on the wire; [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)'s
+boundary is untouched by construction. What changed is what a string can *say*.
+A dot-path addresses a nested field, and the terminal segment may carry a
+wildcard:
+
+| Terminal | Meaning |
+| -------- | ------- |
+| a literal name (`"street"`) | grants the value at that path whole, at any depth beneath it |
+| `**` | the same as a literal terminal — grants everything beneath the path |
+| `*` | grants exactly one level down: existence of every immediate child, capped — an object-valued child shows as `{}`, never its own contents |
+
+A bare, undotted name (`"title"`) is a one-segment path with a literal
+terminal, and is **containment-equivalent to `"title.**"`** — this is the
+whole backward-compatibility argument: every `fields: [...]` array written
+before this section existed means exactly what it always meant.
+
+```ts
+hasPermission(readDoc, { fields: ["id", "address.street", "contact.*"] });
+// { id, address: { street }, contact: { email, phone, employer: {} } }
+//                                                       ^^^^^^^^^^^^^
+// employer exists — "contact.*" reaches it — but its own contents are one
+// level beyond what "*" discloses.
+```
+
+`*` is deliberately narrower than a genuine subsumption relationship with a
+deeper spec at the same path: `intersectFields(["address.*"], ["address.street"])`
+is `[]`, not `["address.street"]`, because whether `"*"`'s capped view of
+`street` discloses more or less than `"address.street"`'s full expansion
+depends on `street`'s own runtime shape — a scalar makes them equal, an
+object makes `"address.street"` strictly wider. The specs alone cannot say,
+so the merge claims nothing rather than guess
+([BEH-QD-056](../behaviors/07-enforcement.md)). This was a real defect caught
+by a differential test during implementation, not a rule designed in advance
+— see that behavior entry for the counterexample.
+
+Wildcards are meaningful only as the terminal segment; `"a.*.b"` has no
+special meaning and is read as a literal field named `*`. A literal field
+name that itself contains a `.` is now ambiguous with a path separator — the
+same limitation `Matcher.ts`'s `getByPath` already has for `M.subject(path)`/
+`M.resource(path)`, so this is consistent with existing precedent, not a new
+kind of gap.
 
 ### The three strategies
 
@@ -162,7 +210,7 @@ const readMeta = permission("doc", "meta");
 // This is the strategy the predecessor dropped on serialization.
 const canView: Policy = anyOf(
   [
-    hasPermission(readDoc, { fields: ["id", "title"] }),
+    hasPermission(readDoc, { fields: ["id", "title", "author.name"] }),
     hasPermission(readMeta, { fields: ["id", "author"] }),
   ],
   { fieldStrategy: "Union" },
@@ -178,9 +226,12 @@ const quinn = subjectWith({
   permissions: ["doc:read", "doc:meta"],
 });
 
-declare const loadDocument: (
-  id: string,
-) => Effect.Effect<{ id: string; title: string; author: string; internalNotes: string }>;
+declare const loadDocument: (id: string) => Effect.Effect<{
+  id: string;
+  title: string;
+  author: { readonly name: string; readonly email: string };
+  internalNotes: string;
+}>;
 
 const program = Effect.gen(function* () {
   // Stored and reloaded from untrusted JSON. `fieldStrategy` is encoded, so
@@ -198,7 +249,14 @@ const program = Effect.gen(function* () {
 
   return { fields, visible, guarded };
 }).pipe(Effect.provide(qadiTestLayer(quinn)));
-// → fields: ["id", "title", "author"]; `internalNotes` is never returned
+// → fields (the raw spec list): ["id", "title", "author.name", "author"] —
+//   Union keeps both specs rather than collapsing the redundant one.
+// → visible / guarded: { id, title, author: { name, email } } — `author`
+//   (bare, from readMeta's branch) discloses the whole object, so its
+//   presence wins over `author.name`'s narrower reach from readDoc's
+//   branch; that is Union's OR semantics doing exactly what it always did,
+//   just now visible at a nested key instead of only a top-level one.
+//   `internalNotes` is never returned.
 ```
 
 ## What is missing
@@ -237,6 +295,11 @@ and `First` keeps short-circuiting
 | **The original defect.** `fieldStrategy: "Union"` survives a store-and-reload | `packages/core/test/Policy.test.ts` — `REGRESSION: anyOf Union fieldStrategy survives a round trip` |
 | Any policy tree at all survives a round trip | `packages/core/test/Policy.test.ts` — `PROPERTY: any generated policy survives a round trip`, building arbitrary trees with `FastCheck.letrec` |
 | `enforceProjected` narrows the result, returns everything when unrestricted, ignores absent fields, and fails closed | `packages/core/test/Qadi.test.ts` — `describe("Qadi.enforceProjected")` |
+| Path parsing, `*`/`**` depth semantics, and `compareFieldPaths`'s subsumption relation (including the `Incomparable` boundary) | `packages/core/test/FieldPath.test.ts` |
+| A bare literal, `*`, and `**` project identically through the public `project`/`intersectFields` API, including the fail-closed `*`-boundary case | `packages/core/test/Matcher.test.ts` — the path-aware cases in `describe("field lattice")`/`describe("project")` |
+| `mergeFields` needs no change: a path-shaped field survives `Intersection`/`Union`/`First` through the real evaluator | `packages/core/test/Evaluate.test.ts`, `packages/core/test/Layers.test.ts` — the path-aware cases in `describe("field visibility")`/`describe("field-strategy edge cases")` |
+| The double-negation guard (`not(not(p))`) holds identically for a path-shaped field | `packages/core/test/Simplify.test.ts` |
+| Explanation rendering, the wire codec, and the round-trip generator all treat a path-shaped spec opaquely | `packages/core/test/Explanation.test.ts`, `packages/core/test/SinkCodec.test.ts`, `packages/core/test/Policy.test.ts` |
 | Acceptance | `REQ-QD-007` (`features/features/field-visibility/field-visibility.feature`), `REQ-QD-008` (`features/features/serialization/round-trip.feature`) |
 
 The two acceptance features are near-duplicates by design. `@REQ-QD-007`

@@ -1,0 +1,21 @@
+// A fixture schema, not a shipped one — this package never generates or
+// ships model types (see PrismaWhereInput's doc comment in ../src/index.ts).
+// It exists to type-check compilePrismaWhere's output against a real
+// generated WhereInput and, in verification only, to run it against a real
+// SQLite-backed Prisma client. See spec/behaviors/31-predicate-compilation.md.
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Row {
+  id        Int      @id @default(autoincrement())
+  tenantId  String
+  level     Int?
+  tag       String?
+  sealed    Boolean
+}

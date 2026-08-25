@@ -25,3 +25,10 @@ Feature: Field-level visibility
     When they request permission "doc:read"
     Then access is granted
     And all fields are visible
+
+  Scenario: A dot-path field spec with a wildcard is carried through unchanged
+    Given a subject "quinn"
+    And the subject has permission "doc:read"
+    When a policy exposing fields "id,contact.*" for "doc:read" is evaluated
+    Then access is granted
+    And the visible fields are "id,contact.*"

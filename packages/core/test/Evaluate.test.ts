@@ -3,6 +3,9 @@ import * as Effect from "effect/Effect";
 import * as FastCheck from "effect/testing/FastCheck";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
+import * as Metric from "effect/Metric";
+import * as References from "effect/References";
 import * as Tracer from "effect/Tracer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
@@ -25,7 +28,7 @@ import {
   RelationshipResolver,
   relationshipResolverFromEdges,
 } from "../src/RelationshipResolver.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -71,6 +74,39 @@ describe("leaf policies", () => {
       if (d._tag !== "Deny") return;
       assert.strictEqual(d.reason, "subject attribute 'level' did not match");
     }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { level: 1 } })))));
+
+  it.effect("AN ABSENT ATTRIBUTE SAYS SO, rather than 'did not match'", () =>
+    Effect.gen(function* () {
+      // "did not match" is *true* of an unresolved attribute — every matcher
+      // fails `undefined` — so this was never a wrong answer, only a withheld
+      // diagnosis. A misconfigured or unwired `AttributeResolver` produces this
+      // case exclusively, and the two sentences are what tell them apart.
+      const d = yield* evaluate(P.hasAttribute("level", M.gte(3)));
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject attribute 'level' has no value");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: {} })))));
+
+  it.effect("an absent resource attribute says so too", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
+      const d = yield* evaluate(policy, { resource: { id: "doc-1" } });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "resource attribute 'state' has no value");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("A PRESENT-BUT-UNDEFINED VALUE IS STILL 'has no value'", () =>
+    Effect.gen(function* () {
+      // `readAttribute` consults `Object.hasOwn` first, so this path reaches the
+      // matcher without touching the resolver — and the sentence has to be true
+      // of it too. "has no value" covers both readings; "is not set" would have
+      // been a claim about the record's shape, which this is not.
+      const d = yield* evaluate(P.hasAttribute("level", M.exists()));
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject attribute 'level' has no value");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { level: undefined } })))));
 
   it.effect("a matcher referencing action() allows once an action is supplied", () =>
     Effect.gen(function* () {
@@ -139,6 +175,8 @@ describe("leaf policies", () => {
       assert.isFalse(isAllowed(d));
       assert.strictEqual(d.trace.policyTag, "HasRelationship");
       if (d._tag !== "Deny") return;
+      // A *wired* store looked and found nothing, so naming the missing edge is
+      // correct here. The unwired case gets a different sentence — see below.
       assert.strictEqual(d.reason, "subject 'u1' has no 'owner' relation to 'doc-2'");
     }).pipe(
       Effect.provide(
@@ -149,6 +187,28 @@ describe("leaf policies", () => {
         }),
       ),
     ));
+
+  it.effect("AN UNWIRED RESOLVER NAMES ITSELF rather than the missing edge", () =>
+    Effect.gen(function* () {
+      // The defect this replaced: under `RelationshipResolverNever` the denial
+      // read "subject 'u1' has no 'owner' relation to 'doc-1'" — a claim about
+      // the contents of a graph nobody had connected, which sends a reader to
+      // audit their edges instead of their wiring (INV-QD-029).
+      const d = yield* evaluate(P.hasRelationship("owner"), {
+        resource: { id: "doc-1" },
+      });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(
+        d.reason,
+        "no relationship resolver is wired, so no 'owner' relation to 'doc-1' can be confirmed",
+      );
+      // Still a denial, not an error: an unwired port is a structural absence,
+      // and INV-QD-007 has it fail closed rather than fail loud.
+      assert.strictEqual(d.trace.policyTag, "HasRelationship");
+      // `testLayer` defaults to RelationshipResolverNever, which is the point —
+      // this is what a caller who wired nothing actually gets.
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
 
   it.effect("HasRelationship fails without resource.id, naming the relation", () =>
     Effect.gen(function* () {
@@ -437,7 +497,7 @@ describe("short-circuiting", () => {
       check: (request) =>
         Effect.sync(() => {
           calls.push(`${request.subjectId} ${request.relation} ${request.resourceId}`);
-          return request.relation === "owner";
+          return request.relation === "owner" ? "Related" : "Unrelated";
         }),
     });
 
@@ -584,6 +644,24 @@ describe("field visibility", () => {
       const d = yield* evaluate(policy);
       if (d._tag !== "Allow") return;
       assert.deepStrictEqual(d.visibleFields, ["b"]);
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
+    ));
+
+  it.effect("AllOf/Intersection merges path-shaped fields through mergeFields unchanged", () =>
+    Effect.gen(function* () {
+      // mergeFields dispatches on FieldStrategy alone, never on field-string
+      // content — this pins that it needs no changes now that a field can be
+      // a dot-path: a broader path-aware spec intersected with a narrower
+      // one still yields the narrower one, through the real evaluator.
+      const policy = P.allOf([
+        P.hasPermission(read, { fields: ["contact.**"] }),
+        P.hasPermission(write, { fields: ["contact.street"] }),
+      ]);
+      const d = yield* evaluate(policy);
+      assert.isTrue(isAllowed(d));
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.visibleFields, ["contact.street"]);
     }).pipe(
       Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
     ));
@@ -816,7 +894,7 @@ describe("the action dimension", () => {
               check: (request) =>
                 Effect.sync(() => {
                   calls.push(request.relation);
-                  return true;
+                  return "Related";
                 }),
             }),
           }),
@@ -1186,6 +1264,29 @@ describe("decision history", () => {
       assert.isTrue(isAllowed(d));
     }));
 
+  it.effect("scope Any strips resourceId from the query even when a resource IS present", () =>
+    Effect.gen(function* () {
+      // The test above proves `scope: "Any"` needs no resource; this proves
+      // the stronger claim — that it ignores one it's given. A request
+      // carrying a resource but asking "Any" must still ask the port an
+      // unscoped question, or "ever, at all" silently narrows to "at this
+      // resource" the moment a caller happens to have one in context.
+      const queries: Array<string | undefined> = [];
+      const recording = Layer.succeed(DecisionHistory, {
+        hasActed: (query) =>
+          Effect.sync(() => {
+            queries.push(query.resourceId);
+            return "NotActed";
+          }),
+      });
+
+      yield* evaluate(P.hasActed("raised", { scope: "Any" }), invoice).pipe(
+        Effect.provide(testLayer(clerk, { history: recording })),
+      );
+
+      assert.deepStrictEqual(queries, [undefined]);
+    }));
+
   it.effect("scope Resource without resource.id is an error, not a denial", () =>
     Effect.gen(function* () {
       const r = yield* Effect.result(evaluate(P.hasActed("raised")));
@@ -1442,7 +1543,7 @@ describe("task-based access control", () => {
         check: (request) =>
           Effect.sync(() => {
             edges.push(request.relation);
-            return true;
+            return "Related";
           }),
       });
       const recordingEvents = Layer.succeed(DecisionHistory, {
@@ -1700,7 +1801,7 @@ describe("obligations", () => {
               check: (request) =>
                 Effect.sync(() => {
                   calls.push(request.relation);
-                  return true;
+                  return "Related";
                 }),
             }),
           }),
@@ -1878,6 +1979,277 @@ describe("observability", () => {
       assert.isDefined(named(spans, "qadi.anyOf"));
     }));
 
+  /**
+   * JOB 1's ledger — the port spans.
+   *
+   * The load-bearing one is the last: a span attribute goes to whatever backend
+   * is wired, so what may appear in one is a disclosure decision rather than a
+   * formatting one (INV-QD-044).
+   */
+  const attributes = (span: Tracer.Span | undefined): Record<string, unknown> =>
+    span === undefined ? {} : Object.fromEntries(span.attributes);
+
+  const resolverOf = (record: Readonly<Record<string, unknown>>) =>
+    Layer.succeed(AttributeResolver, {
+      name: "record",
+      resolve: (_subjectId, attribute: string) => Effect.succeed(record[attribute]),
+    });
+
+  // E1.1 — the commonest branch. A subject hit asks no port, so it emits
+  // nothing: the span and `portCallsTotal` agree about what happened.
+  it.effect("an attribute the subject carries emits no span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
+        Effect.provide(testLayer(subjectWith({ attributes: { tier: 5 } }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.isUndefined(named(spans, "qadi.attribute"));
+    }));
+
+  // E1.2 / E1.3
+  it.effect("a resolved attribute names itself and says a value came back", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({ tier: 5 }) }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
+        "qadi.attribute": "tier",
+        "qadi.subject_id": "u1",
+        "qadi.resolved": true,
+      });
+    }));
+
+  it.effect("an attribute the resolver does not have says so, without inventing one", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({}) })),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.strictEqual(attributes(named(spans, "qadi.attribute"))["qadi.resolved"], false);
+    }));
+
+  // E1.4 — the question is annotated before the call precisely so this holds.
+  it.effect("a resolver that fails still leaves a span saying what it was asked", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* Effect.result(
+        evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
+          Effect.provide(
+            testLayer(subjectWith({ id: "u1" }), {
+              attributes: Layer.succeed(AttributeResolver, {
+                name: "broken",
+                resolve: (_subjectId, attribute: string) =>
+                  Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+              }),
+            }),
+          ),
+          Effect.provide(collectingTracer(spans)),
+        ),
+      );
+
+      const span = named(spans, "qadi.attribute");
+      assert.isDefined(span);
+      assert.deepStrictEqual(attributes(span), {
+        "qadi.attribute": "tier",
+        "qadi.subject_id": "u1",
+      });
+      // No answer to record, and the span must still close or a failing
+      // dependency would leave traces open.
+      assert.notStrictEqual(span?.status._tag, "Started");
+    }));
+
+  // E1.5 — INV-QD-005 is unchanged by any of this: a branch never reached
+  // performs no lookup, and now emits no span either.
+  it.effect("a short-circuited attribute branch emits no span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(
+        P.anyOf([P.hasRole("editor"), P.hasAttribute("tier", M.gte(3))]),
+      ).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ roles: ["editor"] }), { attributes: resolverOf({ tier: 5 }) }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.isUndefined(named(spans, "qadi.attribute"));
+    }));
+
+  // E1.6 — an `Any`-scoped question asks about no resource even where the
+  // request carries one, so the span says what was asked.
+  it.effect("qadi.acted names the question, and omits a resource it did not ask about", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasActed("raised", { scope: "Any" }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            history: decisionHistoryFromEvents([
+              { subjectId: "u1", event: "raised", resourceId: "doc-9" },
+            ]),
+          }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
+        "qadi.subject_id": "u1",
+        "qadi.event": "raised",
+        "qadi.scope": "Any",
+        "qadi.answer": "Acted",
+      });
+    }));
+
+  it.effect("a resource-scoped qadi.acted carries the resource it asked about", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasActed("raised"), { resource: { id: "doc-1" } }).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1" }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
+        "qadi.subject_id": "u1",
+        "qadi.event": "raised",
+        "qadi.scope": "Resource",
+        "qadi.resource_id": "doc-1",
+        // Unwired, so three-valued rather than a denial's boolean (ADR-QD-020).
+        "qadi.answer": "Unknown",
+      });
+    }));
+
+  /**
+   * The other half of E1.6, and the case that makes annotating *before* the
+   * guard cost something: `scoped` is true and there is no id to report, so the
+   * key must still be absent. Writing `qadi.resource_id: undefined` would put a
+   * field on the span whose value is the word nobody meant — the same failure
+   * the decision log avoids by rendering an absent column blank.
+   */
+  it.effect("a resource-scoped qadi.acted with no resource id reports no resource", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* Effect.result(
+        evaluate(P.hasActed("raised"), { resource: { name: "no id" } }).pipe(
+          Effect.provide(testLayer(subjectWith({ id: "u1" }))),
+          Effect.provide(collectingTracer(spans)),
+        ),
+      );
+
+      const span = named(spans, "qadi.acted");
+      assert.deepStrictEqual(attributes(span), {
+        "qadi.subject_id": "u1",
+        "qadi.event": "raised",
+        "qadi.scope": "Resource",
+      });
+      assert.notStrictEqual(span?.status._tag, "Started");
+    }));
+
+  // E1.7
+  it.effect("qadi.hasRelationship omits a depth the policy did not set", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            relationships: relationshipResolverFromEdges([
+              { subjectId: "u1", relation: "owner", resourceId: "doc-1" },
+            ]),
+          }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasRelationship")), {
+        "qadi.subject_id": "u1",
+        "qadi.relation": "owner",
+        "qadi.resource_id": "doc-1",
+        "qadi.answer": "Related",
+      });
+    }));
+
+  it.effect("a depth the policy did set is carried", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasRelationship("owner", { depth: 3 }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1" }))),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      assert.strictEqual(attributes(named(spans, "qadi.hasRelationship"))["qadi.depth"], 3);
+    }));
+
+  // E1.8 — a wiring error should still say what it wanted a resource id for.
+  it.effect("a missing resource id leaves a span naming the relation", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* Effect.result(
+        evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
+          Effect.provide(testLayer(subjectWith({ id: "u1" }))),
+          Effect.provide(collectingTracer(spans)),
+        ),
+      );
+
+      const span = named(spans, "qadi.hasRelationship");
+      assert.deepStrictEqual(attributes(span), {
+        "qadi.subject_id": "u1",
+        "qadi.relation": "owner",
+      });
+      assert.notStrictEqual(span?.status._tag, "Started");
+    }));
+
+  /**
+   * E1.9 — the one that would be a defect rather than a shortfall.
+   *
+   * `hasActed` and `hasRelationship` answer with closed enums; an attribute
+   * resolves to arbitrary data. A span attribute reaches whatever backend is
+   * wired, so the value must not appear in one — asserted against **every**
+   * span the evaluation emitted, not only the attribute's own, because the
+   * question is where the value could leak rather than where it was meant to.
+   */
+  it.effect("a resolved attribute's value never reaches any span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const secret = "sentinel-8f21-do-not-disclose";
+
+      yield* evaluate(P.hasAttribute("clearance", M.eq(M.literal(secret)))).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            attributes: resolverOf({ clearance: secret }),
+          }),
+        ),
+        Effect.provide(collectingTracer(spans)),
+      );
+
+      const rendered = spans
+        .flatMap((span) => [...span.attributes.values()])
+        .map((value) => String(value))
+        .join(" ");
+      assert.notInclude(rendered, secret);
+    }));
+
   it.effect("a failed evaluation still ends its span", () =>
     Effect.gen(function* () {
       const spans: Array<Tracer.Span> = [];
@@ -1895,6 +2267,189 @@ describe("observability", () => {
       assert.isDefined(span);
       if (span === undefined) return;
       assert.notStrictEqual(span.status._tag, "Started");
+    }));
+});
+
+describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
+  const counterOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, attributes: Record<string, string>) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Counter" }> =>
+        s.type === "Counter" &&
+        s.id === "qadi_decisions_total" &&
+        Object.entries(attributes).every(([k, v]) => s.attributes?.[k] === v),
+    );
+
+  const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> => s.type === "Frequency" && s.id === id,
+    );
+
+  it.effect("tags an allow and a deny under separate outcome series", () =>
+    Effect.gen(function* () {
+      // Two allows, one deny — deliberately asymmetric. Equal counts (one of
+      // each) would still read as "correct" even if `evaluate` attributed
+      // outcomes to the wrong series entirely, as long as it did so
+      // consistently; only different counts prove which series is which.
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          yield* evaluate(P.hasRole("editor")).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+          );
+          yield* evaluate(P.hasRole("editor")).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+          );
+          yield* evaluate(P.hasPermission(write)).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u2" }))),
+          );
+          return yield* Metric.snapshot;
+        }),
+      );
+
+      const allow = counterOf(snapshots, { outcome: "allow" });
+      const deny = counterOf(snapshots, { outcome: "deny" });
+      assert.isDefined(allow);
+      assert.isDefined(deny);
+      assert.strictEqual(allow?.state.count, 2);
+      assert.strictEqual(deny?.state.count, 1);
+    }));
+
+  it.effect("does not count a failed evaluation as either outcome", () =>
+    Effect.gen(function* () {
+      // A missing resource.id is an error, not a decision (INV-QD-006) — it
+      // must not inflate either series.
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          yield* Effect.result(
+            evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
+              Effect.provide(testLayer(subjectWith({}))),
+            ),
+          );
+          return yield* Metric.snapshot;
+        }),
+      );
+
+      assert.isUndefined(counterOf(snapshots, { outcome: "allow" }));
+      assert.isUndefined(counterOf(snapshots, { outcome: "deny" }));
+    }));
+
+  it.effect("records the denying node's policy tag in the frequency", () =>
+    Effect.gen(function* () {
+      // Not the free-text reason: `evaluateActed`/`evaluateHasRelationship`
+      // both build theirs from caller-supplied identifiers, which would make
+      // a frequency keyed on the raw sentence grow one entry per distinct
+      // (subject, resource) pair ever denied — see the doc comment on
+      // `denialsByPolicyTagTotal` in `Evaluate.ts`.
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasPermission(write))
+          .pipe(Effect.provide(testLayer(subjectWith({ id: "u2" }))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const denials = frequencyOf(snapshots, "qadi_denials_by_policy_tag_total");
+      assert.isDefined(denials);
+      assert.strictEqual(denials?.state.occurrences.get("HasPermission"), 1);
+    }));
+
+  it.effect("an allow adds nothing to the denial frequency", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasRole("editor"))
+          .pipe(Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      assert.isUndefined(frequencyOf(snapshots, "qadi_denials_by_policy_tag_total"));
+    }));
+});
+
+describe("qadi_evaluation_duration_millis", () => {
+  const histogramOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Histogram" }> =>
+        s.type === "Histogram" && s.id === "qadi_evaluation_duration_millis",
+    );
+
+  it.effect("records one observation per evaluate call, allow or deny alike", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          yield* evaluate(P.hasRole("editor")).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+          );
+          yield* evaluate(P.hasPermission(write)).pipe(
+            Effect.provide(testLayer(subjectWith({ id: "u2" }))),
+          );
+          return yield* Metric.snapshot;
+        }),
+      );
+
+      const duration = histogramOf(snapshots);
+      assert.isDefined(duration);
+      assert.strictEqual(duration?.state.count, 2, "one allow and one deny both contribute a sample");
+    }));
+
+  it.effect("does not record a sample for a failed evaluation", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          yield* Effect.result(
+            evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
+              Effect.provide(testLayer(subjectWith({}))),
+            ),
+          );
+          return yield* Metric.snapshot;
+        }),
+      );
+
+      assert.isUndefined(histogramOf(snapshots));
+    }));
+});
+
+describe("qadi.evaluate Debug log on denial", () => {
+  const collectingLogger = (
+    logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }>,
+  ) =>
+    Logger.layer([
+      Logger.make((options) => {
+        logs.push({
+          message: options.message,
+          annotations: options.fiber.getRef(References.CurrentLogAnnotations),
+        });
+      }),
+    ]);
+
+  it.effect("logs the policy tag, subject and reason", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }> = [];
+
+      yield* evaluate(P.hasPermission(write)).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u2" }))),
+        Effect.provideService(References.MinimumLogLevel, "Debug"),
+        Effect.provide(collectingLogger(logs)),
+      );
+
+      assert.strictEqual(logs.length, 1);
+      // `Effect.log*` is variadic (`...message`), so a single-argument call
+      // still arrives as a one-element array.
+      assert.deepStrictEqual(logs[0]?.message, ["qadi: policy denied"]);
+      assert.deepStrictEqual(logs[0]?.annotations, {
+        "qadi.policy_tag": "HasPermission",
+        "qadi.subject_id": "u2",
+        "qadi.reason": "subject lacks permission 'doc:write'",
+      });
+    }));
+
+  it.effect("an allow logs nothing", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ readonly message: unknown; readonly annotations: Record<string, unknown> }> = [];
+
+      yield* evaluate(P.hasRole("editor")).pipe(
+        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
+        Effect.provideService(References.MinimumLogLevel, "Debug"),
+        Effect.provide(collectingLogger(logs)),
+      );
+
+      assert.strictEqual(logs.length, 0);
     }));
 });
 
@@ -1928,7 +2483,7 @@ describe("concurrent evaluation", () => {
       check: (request: { readonly relation: string }) =>
         Effect.sync(() => {
           calls.push(`rel:${request.relation}`);
-          return request.relation === "owner";
+          return request.relation === "owner" ? "Related" : "Unrelated";
         }),
     }),
   });
@@ -1981,6 +2536,53 @@ describe("concurrent evaluation", () => {
       const concurrent = yield* run(policy, "unbounded");
 
       // `hasRole` denies from the subject in hand, so sequential asks nothing.
+      assert.deepStrictEqual(sequential.calls, []);
+      assert.deepStrictEqual(concurrent.calls.toSorted(), ["attr:riskScore", "rel:owner"]);
+      assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
+    }));
+
+  it.effect("AnyOf: concurrency performs MORE lookups, or it is doing nothing", () =>
+    Effect.gen(function* () {
+      // Mirrors the AllOf test above, but AnyOf short-circuits on the first
+      // ALLOWING child rather than the first denying one: `hasRole` allows
+      // from the subject already in hand, so sequential evaluation never asks
+      // the relationship/attribute resolvers at all. Concurrency evaluates
+      // every child before folding — under `First` the fold still settles on
+      // the same winning child and trace (`beginAnyOf`/`stepAnyOf`'s own
+      // header comment), so only `calls` should differ, not the decision.
+      const policy = P.anyOf([
+        P.hasRole("editor"),
+        P.hasRelationship("owner"),
+        P.hasAttribute("riskScore", M.gte(1)),
+      ]);
+
+      const sequential = yield* run(policy, undefined);
+      const concurrent = yield* run(policy, "unbounded");
+
+      assert.isTrue(isAllowed(sequential.decision));
+      assert.isTrue(isAllowed(concurrent.decision));
+      assert.deepStrictEqual(sequential.calls, []);
+      assert.deepStrictEqual(concurrent.calls.toSorted(), ["attr:riskScore", "rel:owner"]);
+      assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
+    }));
+
+  it.effect("Rules: concurrency performs MORE lookups, or it is doing nothing", () =>
+    Effect.gen(function* () {
+      // Same shape again for `Rules` under the default `FirstApplicable`
+      // combining: the walk stops at the first rule whose condition applies
+      // at all, so a `hasRole` row the subject already satisfies means
+      // sequential evaluation never reaches the later rows' resolvers.
+      const policy = P.rules([
+        P.permitWhen(P.hasRole("editor")),
+        P.permitWhen(P.hasRelationship("owner")),
+        P.permitWhen(P.hasAttribute("riskScore", M.gte(1))),
+      ]);
+
+      const sequential = yield* run(policy, undefined);
+      const concurrent = yield* run(policy, "unbounded");
+
+      assert.isTrue(isAllowed(sequential.decision));
+      assert.isTrue(isAllowed(concurrent.decision));
       assert.deepStrictEqual(sequential.calls, []);
       assert.deepStrictEqual(concurrent.calls.toSorted(), ["attr:riskScore", "rel:owner"]);
       assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);

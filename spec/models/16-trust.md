@@ -135,8 +135,14 @@ const StandingResolver: Layer.Layer<RelationshipResolver> = Layer.succeed(
   {
     check: (request: RelationshipCheck) =>
       request.relation === "trusted-contributor"
-        ? Effect.map(standing(request.subjectId, request.resourceId), (s) => s >= 500)
-        : Effect.succeed(false),
+        ? Effect.map(standing(request.subjectId, request.resourceId), (s) =>
+            s >= 500 ? "Related" : "Unrelated",
+          )
+        // `"Unknown"`, not `"Unrelated"`: this resolver knows about exactly one
+        // relation, and has nothing to say about any other. Both deny, so the
+        // verdict is the same either way — what differs is the sentence the
+        // denial carries (ADR-QD-040).
+        : Effect.succeed("Unknown"),
   },
 );
 

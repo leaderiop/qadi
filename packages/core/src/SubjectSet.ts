@@ -22,6 +22,7 @@
  * prevent.
  */
 import * as Effect from "effect/Effect";
+import * as Stream from "effect/Stream";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import type { Decision } from "./Decision.ts";
@@ -103,4 +104,42 @@ export const filterSubjects = (
 ): Effect.Effect<ReadonlyArray<AuthSubject>, EvaluationError, SubjectSetServices> =>
   Effect.map(decideSubjects(policy, subjects, options), (results) =>
     results.filter((r) => isAllowed(r.decision)).map((r) => r.subject),
+  );
+
+/**
+ * The streamed sibling of `decideSubjects`, for a review too large to hold as
+ * a `ReadonlyArray` — a full tenant's user base, say, rather than a handful
+ * of candidates for a sharing dialog.
+ *
+ * Sequential, for the same reason `decideSubjects` itself is and not a
+ * convenience this loses: `Stream.mapEffect` with no `concurrency` given
+ * processes subjects one at a time, matching `decideSubjects`'s deliberate
+ * choice not to multiply the caller's own store's load by the batch size. A
+ * caller who does want concurrent fan-out here is asking for something this
+ * library has chosen not to default to, on both the array and streamed form
+ * alike — not a gap in the streaming sibling specifically.
+ */
+export const decideSubjectsStream = <E2 = never, R2 = never>(
+  policy: Policy,
+  subjects: Stream.Stream<AuthSubject, E2, R2>,
+  options?: EvaluateOptions,
+): Stream.Stream<SubjectDecision, EvaluationError | E2, SubjectSetServices | R2> =>
+  subjects.pipe(
+    Stream.mapEffect((subject) =>
+      Effect.map(
+        Effect.provideService(evaluate(policy, options), CurrentSubject, subject),
+        (decision): SubjectDecision => ({ subject, decision }),
+      ),
+    ),
+  );
+
+/** The streamed sibling of `filterSubjects` — see `decideSubjectsStream`. */
+export const filterSubjectsStream = <E2 = never, R2 = never>(
+  policy: Policy,
+  subjects: Stream.Stream<AuthSubject, E2, R2>,
+  options?: EvaluateOptions,
+): Stream.Stream<AuthSubject, EvaluationError | E2, SubjectSetServices | R2> =>
+  decideSubjectsStream(policy, subjects, options).pipe(
+    Stream.filter((r) => isAllowed(r.decision)),
+    Stream.map((r) => r.subject),
   );

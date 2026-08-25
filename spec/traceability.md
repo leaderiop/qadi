@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RTM                                       |
-> | Revision       | 1.24                                           |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.50                                           |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Verification Record                            |
-> | Change History | 1.24 (2026-07-27): ADR-QD-034, the measured switch exception (CCR-QD-040)<br>1.23 (2026-07-26): The packed artifact; INV-QD-027, ADR-QD-033 (CCR-QD-038)<br>1.22 (2026-07-26): Four §1 ranges corrected — behaviour files 01, 03, 05 and 07 had gained identifiers the matrix never followed (CCR-QD-035)<br>1.21 (2026-07-26): `DecisionCache.ts` added to the services row (CCR-QD-034)<br>1.20 (2026-07-26): The Promise facade; behaviour 22, INV-QD-026, ADR-QD-032 (CCR-QD-033)<br>1.19 (2026-07-26): The decision cache; behaviour 21, INV-QD-025, ADR-QD-031 (CCR-QD-032)<br>1.18 (2026-07-26): Policy simplification; behaviour 20, INV-QD-024, ADR-QD-030 (CCR-QD-031)<br>1.17 (2026-07-26): `join` and `meet`; INV-QD-023, ADR-QD-029; MLS to Shipped (CCR-QD-030)<br>1.16 (2026-07-26): Decision hydration; behaviour 19, INV-QD-022, ADR-QD-028 (CCR-QD-029)<br>1.15 (2026-07-26): Policy explanation; behaviour 18, INV-QD-021, ADR-QD-027, `@REQ-QD-023` (CCR-QD-028)<br>1.14 (2026-07-26): Concurrent evaluation; behaviour 17, INV-QD-020, ADR-QD-026, `@REQ-QD-022` (CCR-QD-027)<br>1.13 (2026-07-26): ADR-QD-025, mutation testing as a merge gate (CCR-QD-026)<br>1.12 (2026-07-26): MLS verified; INV-QD-019 and BEH-QD-102, the order laws (CCR-QD-024)<br>1.11 (2026-07-26): Biba verified, both variants (CCR-QD-023)<br>1.10 (2026-07-26): Chinese Wall and task-based control verified (CCR-QD-022)<br>1.9 (2026-07-26): Separation of duty verified (CCR-QD-021)<br>1.8 (2026-07-26): Predicate output built (CCR-QD-020)<br>1.7 (2026-07-26): Rule tables built (CCR-QD-019)<br>1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.50 (2026-08-25): BEH-QD-244 — NULL-handling fix in both predicate compilers, found by manual verification against real PostgreSQL, MySQL, SQLite and Prisma (CCR-QD-081)<br>1.49 (2026-08-25): Mutation gates for `@qadi/predicate-sql`/`@qadi/predicate-prisma`; §4 rows for both packages' `Metrics.test.ts` (ADR-QD-054, CCR-QD-080)<br>1.48 (2026-08-25): A companion package may compile a dialect; behaviour 31, BEH-QD-236–243, INV-QD-047, INV-QD-048, ADR-QD-054, `@qadi/predicate-sql` and `@qadi/predicate-prisma` (CCR-QD-079)<br>1.47 (2026-08-25): A field spec may be a dot-path with a `*`/`**` wildcard terminal; BEH-QD-056, INV-QD-004 revised, `FieldPath.ts`/`FieldPath.test.ts` (CCR-QD-078)<br>1.46 (2026-08-25): Several sources are one source, so a server's decisions and a browser's re-checks reach one timeline; BEH-QD-235, `@REQ-QD-030`, and the `examples/nextjs-newsroom` proof of the SSR topology (CCR-QD-076)<br>1.45 (2026-08-24): A guard can say that it exists, and the lens points at one in both directions; BEH-QD-233, BEH-QD-234, INV-QD-046, ADR-QD-053, URS-QD-033, `@REQ-QD-029`; BEH-QD-217 revised and ADR-QD-014 amended (CCR-QD-073)<br>1.44 (2026-08-24): Hydration counted at both ends, and its three silent exits announced; BEH-QD-230–232, INV-QD-045, ADR-QD-052, `@REQ-QD-028` (CCR-QD-072)<br>1.43 (2026-08-24): What the ports were asked — a span on the third port, attributes on the other two, and a collecting tracer to read them back; behaviour 30, BEH-QD-227–229, INV-QD-044, ADR-QD-051, URS-QD-032, `@REQ-QD-027` (CCR-QD-071)<br>1.42 (2026-08-24): The subject simulator — a sealed engine, three answer sources, what-if in both directions, and replay against a logged row; behaviour 29, BEH-QD-219–226, INV-QD-042, INV-QD-043, ADR-QD-050, URS-QD-031, `@REQ-QD-026`, and `TestLayerOptions.clock` (CCR-QD-069, CCR-QD-070)<br>1.41 (2026-08-24): The four read-only screens — policy explorer, role viewer, services, and the React panel keyed by question; behaviour 28, BEH-QD-211–218, INV-QD-041, ADR-QD-048, ADR-QD-049, URS-QD-030, `@REQ-QD-025` (CCR-QD-068)<br>1.40 (2026-08-24): The surface — a headless devtools model and a React dock; behaviour 27, BEH-QD-203–210, INV-QD-039, INV-QD-040, ADR-QD-047, URS-QD-029, `@REQ-QD-024`, and the `@qadi/devtools` package (CCR-QD-067)<br>1.39 (2026-08-24): The transport — a buffering feed and a guarded SSE route; behaviour 26, BEH-QD-201, BEH-QD-202, ADR-QD-046 (CCR-QD-065)<br>1.38 (2026-08-24): The topology is a choice of sink; BEH-QD-187, BEH-QD-188, ADR-QD-045 (CCR-QD-064)<br>1.37 (2026-08-24): The record's wire form, so a sink can forward across a process boundary; BEH-QD-199, BEH-QD-200 (CCR-QD-063)<br>1.36 (2026-08-24): The remaining devtools gaps resolved in code; BEH-QD-195–198, behaviour 23 Rev 1.1 (`/__permissions` guarded by default), five package READMEs (CCR-QD-062)<br>1.35 (2026-08-24): Six questions the library could pose and not answer; behaviour 25, BEH-QD-189–194, INV-QD-037, INV-QD-038 (CCR-QD-061)<br>1.34 (2026-08-23): The decision sink — the first channel by which a decision can be observed at all; behaviour 24, BEH-QD-181–186, INV-QD-035, INV-QD-036, ADR-QD-044, and `qadi_evaluation_errors_total` (CCR-QD-060)<br>1.33 (2026-08-23): Behaviour 23 — HTTP Enforcement, the document `@qadi/http` shipped without; BEH-QD-174–180, INV-QD-034, and the package's first §1 and §4 rows (CCR-QD-059)<br>1.32 (2026-08-23): Two fail-opens found by auditing @qadi/http and fixed in core; INV-QD-032, INV-QD-033, ADR-QD-043, BEH-QD-055, BEH-QD-168 (CCR-QD-058)<br>1.31 (2026-08-23): A lossy projection is not an identity; INV-QD-030, INV-QD-031, ADR-QD-042, BEH-QD-167. `"use client"` and server rendering; BEH-QD-067. The 21 range corrected from 161–165, BEH-QD-166 having been added without it (CCR-QD-057)<br>1.30 (2026-08-23): An unwired port names its absence; INV-QD-029, ADR-QD-040, BEH-QD-045 (CCR-QD-055). A superseded seed is announced; ADR-QD-041, BEH-QD-152 (CCR-QD-056)<br>1.29 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>1.28 (2026-08-23): `renderTrace` and the trace on `AccessDenied`; BEH-QD-144, BEH-QD-054 (ADR-QD-039, CCR-QD-053)<br>1.27 (2026-08-23): A seed never outlives the client's own answer; INV-QD-028, ADR-QD-039, BEH-QD-151 (CCR-QD-052)<br>1.26 (2026-08-22): ADR-QD-037, the circular-import/type-level-test gates; ADR-QD-038, changesets (CCR-QD-050)<br>1.25 (2026-08-22): ADR-QD-035, the witness/guard primitive; ADR-QD-036, the `@qadi/http` package shape (CCR-QD-044)<br>1.24 (2026-07-27): ADR-QD-034, the measured switch exception (CCR-QD-040)<br>1.23 (2026-07-26): The packed artifact; INV-QD-027, ADR-QD-033 (CCR-QD-038)<br>1.22 (2026-07-26): Four §1 ranges corrected — behaviour files 01, 03, 05 and 07 had gained identifiers the matrix never followed (CCR-QD-035)<br>1.21 (2026-07-26): `DecisionCache.ts` added to the services row (CCR-QD-034)<br>1.20 (2026-07-26): The Promise facade; behaviour 22, INV-QD-026, ADR-QD-032 (CCR-QD-033)<br>1.19 (2026-07-26): The decision cache; behaviour 21, INV-QD-025, ADR-QD-031 (CCR-QD-032)<br>1.18 (2026-07-26): Policy simplification; behaviour 20, INV-QD-024, ADR-QD-030 (CCR-QD-031)<br>1.17 (2026-07-26): `join` and `meet`; INV-QD-023, ADR-QD-029; MLS to Shipped (CCR-QD-030)<br>1.16 (2026-07-26): Decision hydration; behaviour 19, INV-QD-022, ADR-QD-028 (CCR-QD-029)<br>1.15 (2026-07-26): Policy explanation; behaviour 18, INV-QD-021, ADR-QD-027, `@REQ-QD-023` (CCR-QD-028)<br>1.14 (2026-07-26): Concurrent evaluation; behaviour 17, INV-QD-020, ADR-QD-026, `@REQ-QD-022` (CCR-QD-027)<br>1.13 (2026-07-26): ADR-QD-025, mutation testing as a merge gate (CCR-QD-026)<br>1.12 (2026-07-26): MLS verified; INV-QD-019 and BEH-QD-102, the order laws (CCR-QD-024)<br>1.11 (2026-07-26): Biba verified, both variants (CCR-QD-023)<br>1.10 (2026-07-26): Chinese Wall and task-based control verified (CCR-QD-022)<br>1.9 (2026-07-26): Separation of duty verified (CCR-QD-021)<br>1.8 (2026-07-26): Predicate output built (CCR-QD-020)<br>1.7 (2026-07-26): Rule tables built (CCR-QD-019)<br>1.6 (2026-07-26): Subject sets built (CCR-QD-018)<br>1.5 (2026-07-26): Label lattice built (CCR-QD-017)<br>1.4 (2026-07-26): Decision history built (CCR-QD-016)<br>1.3 (2026-07-26): Obligations built (CCR-QD-015)<br>1.2 (2026-07-26): Reactivity canary; BEH-QD-071 corrected (CCR-QD-013)<br>1.1 (2026-07-26): Action dimension built (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -37,10 +37,10 @@ contract.
 | [03 — Policy ADT](behaviors/03-policy-adt.md) | BEH-QD-017–020 | `packages/core/src/Policy.ts` |
 | [04 — Matcher DSL](behaviors/04-matchers.md) | BEH-QD-025–028 | `packages/core/src/Matcher.ts` |
 | [05 — Evaluator](behaviors/05-evaluator.md) | BEH-QD-033–040 | `packages/core/src/Evaluate.ts`, `Decision.ts` |
-| [06 — Services and Layers](behaviors/06-services.md) | BEH-QD-041–044 | `packages/core/src/{CurrentSubject,AttributeResolver,RelationshipResolver,DecisionHistory,DecisionCache,EvaluationId}.ts` |
-| [07 — Enforcement](behaviors/07-enforcement.md) | BEH-QD-049–053 | `packages/core/src/Qadi.ts` |
+| [06 — Services and Layers](behaviors/06-services.md) | BEH-QD-041–045 | `packages/core/src/{CurrentSubject,AttributeResolver,RelationshipResolver,DecisionHistory,DecisionCache,EvaluationId}.ts` |
+| [07 — Enforcement](behaviors/07-enforcement.md) | BEH-QD-049–056 | `packages/core/src/Qadi.ts`, `Errors.ts`, `FieldPath.ts` |
 | [08 — Serialization](behaviors/08-serialization.md) | BEH-QD-057–059 | `packages/core/src/Policy.ts` |
-| [09 — React Integration](behaviors/09-react.md) | BEH-QD-065–071 | `packages/react/src/QadiAtoms.ts`, `QadiProvider.tsx`, `hooks.ts`, `components.tsx` |
+| [09 — React Integration](behaviors/09-react.md) | BEH-QD-065–072 | `packages/react/src/QadiAtoms.ts`, `QadiProvider.tsx`, `hooks.ts`, `components.tsx` |
 | [10 — The Action Dimension](behaviors/10-actions.md) | BEH-QD-073–078 | `packages/core/src/Evaluate.ts`, `Policy.ts`, `Matcher.ts`, `Errors.ts` |
 | [11 — Obligations](behaviors/11-obligations.md) | BEH-QD-081–087 | `packages/core/src/Obligation.ts`, `Decision.ts`, `Policy.ts`, `Evaluate.ts`, `Qadi.ts` |
 | [12 — Decision History](behaviors/12-history.md) | BEH-QD-089–095 | `packages/core/src/DecisionHistory.ts`, `Policy.ts`, `Evaluate.ts`, `Errors.ts` |
@@ -49,11 +49,20 @@ contract.
 | [15 — Rule Tables](behaviors/15-rules.md) | BEH-QD-111–117 | `packages/core/src/Policy.ts`, `Evaluate.ts` |
 | [16 — Predicate Output](behaviors/16-predicates.md) | BEH-QD-121–128 | `packages/core/src/Predicate.ts`, `Matcher.ts`, `Errors.ts` |
 | [17 — Concurrent Evaluation](behaviors/17-concurrency.md) | BEH-QD-129–135 | `packages/core/src/Evaluate.ts` |
-| [18 — Policy Explanation](behaviors/18-explanation.md) | BEH-QD-137–143 | `packages/core/src/Explanation.ts` |
-| [19 — Decision Hydration](behaviors/19-hydration.md) | BEH-QD-145–150 | `packages/react/src/Hydration.ts` |
+| [18 — Policy Explanation](behaviors/18-explanation.md) | BEH-QD-137–144 | `packages/core/src/Explanation.ts`, `Decision.ts` |
+| [19 — Decision Hydration](behaviors/19-hydration.md) | BEH-QD-145–152, BEH-QD-230–232 | `packages/react/src/Hydration.ts`, `HydrationSeed.ts`, `HydrationWarning.ts`, `HydrationCounts.ts`, `QadiAtoms.ts`, `packages/core/src/HydrationMetrics.ts`, `packages/devtools/src/model/Hydration.ts` |
 | [20 — Policy Simplification](behaviors/20-simplification.md) | BEH-QD-153–156 | `packages/core/src/Simplify.ts` |
-| [21 — Decision Cache](behaviors/21-decision-cache.md) | BEH-QD-161–165 | `packages/core/src/DecisionCache.ts`, `Evaluate.ts` |
+| [21 — Decision Cache](behaviors/21-decision-cache.md) | BEH-QD-161–168 | `packages/core/src/DecisionCache.ts`, `Evaluate.ts` |
 | [22 — The Promise Facade](behaviors/22-promise-facade.md) | BEH-QD-169–173 | `packages/promise/src/index.ts` |
+| [23 — HTTP Enforcement](behaviors/23-http.md) | BEH-QD-174–180 | `packages/http/src/{RequirePermission,GuardRoute,SubjectExtractor,PermissionRegistry,QadiHttpError}.ts` |
+| [24 — The Decision Sink](behaviors/24-decision-sink.md) | BEH-QD-181–188 | `packages/core/src/{DecisionRecord,DecisionSink,DecisionSinkRing,DecisionSinkForwarding,Evaluate}.ts` |
+| [25 — Inspection](behaviors/25-inspection.md) | BEH-QD-189–200 | `packages/core/src/{Policy,Role,TraceDiff,DecisionCache,PortMetrics,Qadi}.ts`, `packages/react/src/QadiAtoms.ts` |
+| [26 — The Decision Stream](behaviors/26-decision-stream.md) | BEH-QD-201–202 | `packages/core/src/DecisionSinkFeed.ts`, `packages/http/src/DecisionStreamRoute.ts` |
+| [27 — The Devtools Timeline](behaviors/27-devtools-timeline.md) | BEH-QD-203–210, BEH-QD-235 | `packages/devtools/src/model/{Source,Timeline,TimelineStore,Verdict,Pairing,Inspect,Filters,Selection}.ts`, `packages/devtools/src/react/*` |
+| [28 — The Devtools Screens](behaviors/28-devtools-screens.md) | BEH-QD-211–218, BEH-QD-233, BEH-QD-234 | `packages/devtools/src/model/{Catalogue,RoleTree,Wiring}.ts`, `packages/devtools/src/react/{PolicyTree,PolicyExplorer,RoleViewer,ServicesPanel,QuestionsPanel}.tsx` |
+| [30 — Port Calls](behaviors/30-port-calls.md) | BEH-QD-227–229 | `packages/core/src/Evaluate.ts`, `packages/devtools/src/model/PortCalls.ts`, `packages/devtools/src/react/ServicesPanel.tsx` |
+| [29 — The Subject Simulator](behaviors/29-devtools-simulator.md) | BEH-QD-219–226 | `packages/devtools/src/model/{Simulation,SimulationInput,SimulationEdit,Sources,Capture,Edits,Remedies,WhatIf,Replay}.ts`, `packages/devtools/src/react/{Simulator,WhatIfTable,DecisionPanels}.tsx`, `packages/testing/src/QadiReviewLayer.ts` |
+| [31 — Predicate Compilation](behaviors/31-predicate-compilation.md) | BEH-QD-236–244 | `packages/predicate-sql/src/index.ts`, `packages/predicate-prisma/src/index.ts` |
 
 ## §2 Invariant traceability
 
@@ -62,7 +71,7 @@ contract.
 | [INV-QD-001](invariants.md#inv-qd-001-permission-key-uniqueness) | Permission key uniqueness | Schema pattern `/^[^:]+$/` | `Tokens.test.ts`, `Policy.test.ts` |
 | [INV-QD-002](invariants.md#inv-qd-002-role-graph-acyclicity) | Role graph acyclicity | By-value `inherits` | `Tokens.test.ts` |
 | [INV-QD-003](invariants.md#inv-qd-003-codectype-identity) | Codec/type identity | Single schema definition | `Policy.test.ts` (property) |
-| [INV-QD-004](invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top) | Field visibility lattice | `intersectFields`, `unionFields` | `Matcher.test.ts`, `Evaluate.test.ts` |
+| [INV-QD-004](invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top) | Field visibility lattice | `intersectFields`, `unionFields`, `FieldPath.ts`'s `compareFieldPaths`/`project` | `Matcher.test.ts`, `Evaluate.test.ts`, `FieldPath.test.ts` |
 | [INV-QD-005](invariants.md#inv-qd-005-short-circuit-preservation) | Short-circuit preservation | Leaf-local resolution | `Evaluate.test.ts` (attribute and relationship call counts) |
 | [INV-QD-006](invariants.md#inv-qd-006-failure-is-not-denial) | Failure is not denial | Effect error channel | `Evaluate.test.ts`, `Policies.test.tsx` |
 | [INV-QD-007](invariants.md#inv-qd-007-defaults-fail-closed) | Defaults fail closed | Default layer bodies | `Layers.test.ts` |
@@ -85,7 +94,28 @@ contract.
 | [INV-QD-024](invariants.md#inv-qd-024-simplification-changes-the-tree-and-nothing-a-caller-can-observe) | Simplification changes the tree and nothing observable | Two conditional rewrites; nothing in the library calls it | `Simplify.test.ts` (property over policies × four subjects) |
 | [INV-QD-025](invariants.md#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity) | A cache hit differs only in speed and identity | The trace is cached; id and duration stamped per call; subject in the key | `DecisionCache.test.ts` (call counts, id inequality, two subjects through one cache) |
 | [INV-QD-026](invariants.md#inv-qd-026-the-facade-answers-what-the-core-answers) | The facade answers what the core answers | Every method is `runPromise` over a core function; no branch decides | `facade.test.ts` (both paths compared, trace included; failure rejects) |
-| [INV-QD-027](invariants.md#inv-qd-027-the-published-package-decides-what-the-sources-decide) | The published package decides what the sources decide | The build graph emits every public package; `pnpm pack` resolves the workspace protocols | `scripts/check-package-install.mjs` (merge gate 10; five deliberate breaks) |
+| [INV-QD-027](invariants.md#inv-qd-027-the-published-package-decides-what-the-sources-decide) | The published package decides what the sources decide | The build graph emits every public package; `pnpm pack` resolves the workspace protocols | `scripts/check-package-install.mjs` (merge gate 14; five deliberate breaks) |
+| [INV-QD-028](invariants.md#inv-qd-028-a-seed-never-outlives-the-clients-own-answer) | A seed never outlives the client's own answer | Seed held in its own atom; the atom a consumer reads consults it only while the computed result is `Initial` | `Hydration.test.ts` (a seeded allow for a failing policy asserted to read as a denial, immediately and after every scheduled turn) |
+| [INV-QD-029](invariants.md#inv-qd-029-a-denial-names-only-what-was-consulted) | A denial names only what was consulted | `RelatedResult` is three-valued, so an unwired resolver answers `"Unknown"`; `attributeReason` distinguishes an unresolved attribute from one that compared wrong | `Evaluate.test.ts` (each sentence pinned against its neighbour), `relationships.feature` |
+| [INV-QD-030](invariants.md#inv-qd-030-cache-key-uniqueness) | Cache key uniqueness | `DecisionCacheKey` is the `HashMap` key itself; Effect's structural `Equal`/`Hash` replace `JSON.stringify` | `DecisionCache.test.ts` (a `Date` beside its ISO string, an `undefined`-valued property beside an absent one — two evaluations each) |
+| [INV-QD-031](invariants.md#inv-qd-031-a-rendered-explanation-denotes-exactly-one-policy) | A rendered explanation denotes exactly one policy | One `embed` helper parenthesises every non-atomic child of `renderExplanation` | `Explanation.test.ts` (the two groupings that collided, plus one case per embedding position), `explanation.feature` |
+| [INV-QD-032](invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource) | A guarded resource is the evaluated resource | `guard` calls `enforce(policy, { ...options, resource })` | `Qadi.test.ts` (a resource that must be refused, one that must pass, an empty resource denying rather than erroring) |
+| [INV-QD-033](invariants.md#inv-qd-033-a-cached-decision-belongs-to-the-grants-that-earned-it) | A cached decision belongs to the grants that earned it | `DecisionCacheKey` carries the whole `AuthSubject`, compared structurally | `DecisionCache.test.ts` (two tokens for one id, both orders; equal subjects still hit) |
+| [INV-QD-034](invariants.md#inv-qd-034-an-endpoints-authorization-is-declared-not-inferred) | An endpoint's authorization is declared, not inferred | `RequirePermissionLive` refuses an endpoint carrying neither `RequiredPermission` nor `PublicEndpoint` | `http.test.ts` (neither → 500, declared public → 204) |
+| [INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decision) | A sink cannot change a decision | `record` returns `Effect<void>`; `evaluate` wraps the call in `Effect.catchCause` | `DecisionSink.test.ts` (failing sink, dying sink, dying sink on the failure path) |
+| [INV-QD-036](invariants.md#inv-qd-036-a-decision-record-is-complete) | A decision record is complete | `DecisionRecord` carries `policy`, `resource`, `action` and `at` beside the outcome | `DecisionSink.test.ts` (policy round-trips into `explain`; `at` under `TestClock`) |
+| [INV-QD-037](invariants.md#inv-qd-037-a-measured-depth-agrees-with-the-evaluated-bound) | A measured depth agrees with the evaluated bound | `policyDepth` counts as `evaluateNode` counts | `RolesAndDepth.test.ts` (asserted against `evaluate`, both directions) |
+| [INV-QD-038](invariants.md#inv-qd-038-provenance-and-flattening-agree) | Provenance and flattening agree | both walk depth-first with one visited set | `RolesAndDepth.test.ts` (sets compared directly; diamond yields one grant) |
+| [INV-QD-039](invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival) | The timeline is ordered, unique, and independent of arrival | total order over `at`; identity is `(_tag, environment, evaluationId, at)`; a duplicate returns the identical timeline | `Timeline.test.ts` (a closed product folded forward, reversed and twice), `TimelineStore.test.ts` (identity) |
+| [INV-QD-040](invariants.md#inv-qd-040-the-inspector-never-claims-more-than-the-trace-does) | The inspector never claims more than the trace does | a part with no child trace at its index yields `NeverResolved`, recursively | `Inspect.test.ts` (every tree from a real `evaluate`), `DevtoolsDock.test.tsx` (the rendered wording) |
+| [INV-QD-041](invariants.md#inv-qd-041-a-structural-view-states-no-verdict) | A structural view states no verdict | one `PolicyTree` serves both screens; `showStatus` is the only difference | `PolicyExplorer.test.tsx` (no status, no marks, no reasons), `DevtoolsDock.test.tsx` (both screens, one policy) |
+| [INV-QD-042](invariants.md#inv-qd-042-a-simulation-reaches-no-port-it-was-not-given-and-records-nothing) | A simulation reaches no port it was not given, and records nothing | `simulationLayer` shadows `DecisionSink` and `DecisionCache` unconditionally; `CurrentSubject` is excluded from `LiveSource` by type | `Simulation.test.ts` (beside a real ring, and beside dying ports), `Sources.test.ts` (all three modes), `WhatIf.test.ts` (a sweep of 20+ rows) |
+| [INV-QD-044](invariants.md#inv-qd-044-a-span-never-carries-a-resolved-attributes-value) | A span never carries a resolved attribute's value | `qadi.resolved` is a boolean; the other two ports answer with closed enums | `Evaluate.test.ts` (a sentinel value, searched for across every span the evaluation emitted), `PortCalls.test.ts` (no value on the decoded row) |
+| [INV-QD-045](invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for) | No entry leaves hydration unaccounted for | Each function partitions its entries into counted-kept and counted-dropped, with a reason | `HydrationCounts.test.ts` (the partition asserted for both functions, and an empty payload landing in neither bin) |
+| [INV-QD-046](invariants.md#inv-qd-046-instrumentation-never-changes-what-a-guard-renders) | Instrumentation never changes what a guard renders | `instrument` gates recording only; off renders no wrapper at all, on renders a `display: contents` span | `GateRegistry.test.tsx`, and the 127 pre-existing React tests passing untouched |
+| [INV-QD-043](invariants.md#inv-qd-043-a-snapshot-answers-what-the-live-layer-answered) | A snapshot answers what the live layer answered | answers rather than calls; failures replay as failures; keys written once and called from both sides | `Capture.test.ts` (`diffTraces` between the captured and replayed runs is empty), `devtools-simulator.feature` |
+| [INV-QD-047](invariants.md#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits) | A compiled SQL fragment admits exactly the rows the predicate admits | a test-only reader restricted to the fixed grammar `compileSql` emits, compared against `evaluatePredicate` | `packages/predicate-sql/test/Agreement.test.ts` (property over predicates × rows), golden fixtures per dialect |
+| [INV-QD-048](invariants.md#inv-qd-048-a-compiled-prisma-whereinput-admits-exactly-the-rows-the-predicate-admits) | A compiled Prisma `WhereInput` admits exactly the rows the predicate admits | a test-only reader restricted to the `WhereInput` subset `compilePrismaWhere` emits, compared against `evaluatePredicate` | `packages/predicate-prisma/test/Agreement.test.ts` (property over predicates × rows) |
 
 ## §3 Decision traceability
 
@@ -125,6 +155,26 @@ contract.
 | [ADR-QD-032](decisions/032-promise-facade.md) | A Promise facade with no evaluator in it | INV-QD-006, INV-QD-026 |
 | [ADR-QD-033](decisions/033-the-packed-artifact-is-the-product.md) | The packed artifact is the product, so a gate installs it | INV-QD-006, INV-QD-026, INV-QD-027 |
 | [ADR-QD-034](decisions/034-the-switch-exception-is-measured.md) | The switch exception is measured, and two of the four were unguarded | INV-QD-004 |
+| [ADR-QD-035](decisions/035-witness-guard-primitive.md) | A witness travels as a value, because Context cannot prove which permission it's for | INV-QD-009 |
+| [ADR-QD-036](decisions/036-qadi-http-package-shape.md) | `@qadi/http`: two framework adapters, one enforcement path, one registry | — |
+| [ADR-QD-037](decisions/037-circular-imports-and-type-level-tests-are-gates.md) | Two new merge gates: no circular imports, and type-level tests that outlive a comment | — (tooling gates, not an authorization invariant) |
+| [ADR-QD-038](decisions/038-changesets-for-versioned-releases.md) | Changesets track versioned releases; publishing itself still doesn't run anywhere | — (release process, not an authorization invariant) |
+| [ADR-QD-039](decisions/039-a-seed-is-not-an-authority.md) | A seed is not an authority, so it lives in its own atom | [INV-QD-028](invariants.md#inv-qd-028-a-seed-never-outlives-the-clients-own-answer) |
+| [ADR-QD-040](decisions/040-an-unwired-port-names-its-absence.md) | An unwired port names its own absence, because a denial that guesses sends the reader to the wrong system | [INV-QD-029](invariants.md#inv-qd-029-a-denial-names-only-what-was-consulted) |
+| [ADR-QD-041](decisions/041-a-mismatch-is-announced.md) | A hydration mismatch is announced, not resolved | [INV-QD-028](invariants.md#inv-qd-028-a-seed-never-outlives-the-clients-own-answer) |
+| [ADR-QD-042](decisions/042-a-projection-is-not-an-identity.md) | A lossy projection is not an identity, in prose or in a cache key | [INV-QD-030](invariants.md#inv-qd-030-cache-key-uniqueness), [INV-QD-031](invariants.md#inv-qd-031-a-rendered-explanation-denotes-exactly-one-policy) |
+| [ADR-QD-043](decisions/043-a-decision-is-computed-from-its-inputs.md) | A decision is computed from the inputs it claims, not from a proxy for them | [INV-QD-032](invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource), [INV-QD-033](invariants.md#inv-qd-033-a-cached-decision-belongs-to-the-grants-that-earned-it) |
+| [ADR-QD-044](decisions/044-an-optional-decision-sink.md) | An optional decision sink: what ADR-QD-009 deleted, and what it did not | [INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decision), [INV-QD-036](invariants.md#inv-qd-036-a-decision-record-is-complete) |
+| [ADR-QD-045](decisions/045-the-topology-is-a-choice-of-sink.md) | The topology is a choice of sink, and core ships only the seam | [INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decision) |
+| [ADR-QD-046](decisions/046-a-decision-feed-is-sse-and-guarded.md) | A decision feed is Server-Sent Events, and it is guarded like any other route | [INV-QD-007](invariants.md#inv-qd-007-defaults-fail-closed), [INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decision) |
+| [ADR-QD-047](decisions/047-a-headless-devtools-model.md) | The devtools is a headless model with a React shell over it | [INV-QD-039](invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival), [INV-QD-040](invariants.md#inv-qd-040-the-inspector-never-claims-more-than-the-trace-does) |
+| [ADR-QD-048](decisions/048-an-observed-catalogue.md) | The catalogue is observed, not registered | [INV-QD-018](invariants.md#inv-qd-018-the-two-interpreters-agree), [INV-QD-039](invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival) |
+| [ADR-QD-049](decisions/049-the-second-shell-is-a-cli.md) | The second shell is a CLI, not a served page | [INV-QD-039](invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival) |
+| [ADR-QD-051](decisions/051-a-span-says-what-was-asked.md) | A span says what was asked, and a tracer is what reads it back | [INV-QD-044](invariants.md#inv-qd-044-a-span-never-carries-a-resolved-attributes-value), [INV-QD-005](invariants.md#inv-qd-005-short-circuit-preservation) |
+| [ADR-QD-052](decisions/052-hydration-is-counted-where-both-ends-can-see-it.md) | Hydration is counted, and the counter is declared where both ends can see it | [INV-QD-045](invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for), [INV-QD-022](invariants.md#inv-qd-022-a-hydrated-decision-belongs-to-the-subject-that-hydrates-it) |
+| [ADR-QD-053](decisions/053-a-gate-can-be-found.md) | A guard can say that it exists, and be found on the page | [INV-QD-046](invariants.md#inv-qd-046-instrumentation-never-changes-what-a-guard-renders) |
+| [ADR-QD-050](decisions/050-a-simulation-is-sealed.md) | A simulation is sealed, and it answers from one of three sources | [INV-QD-042](invariants.md#inv-qd-042-a-simulation-reaches-no-port-it-was-not-given-and-records-nothing), [INV-QD-043](invariants.md#inv-qd-043-a-snapshot-answers-what-the-live-layer-answered) |
+| [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md) | A companion package may compile a dialect | [INV-QD-047](invariants.md#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits), [INV-QD-048](invariants.md#inv-qd-048-a-compiled-prisma-whereinput-admits-exactly-the-rows-the-predicate-admits) |
 
 ## §4 Test file map
 
@@ -135,22 +185,76 @@ contract.
 | `packages/core/test/Tokens.test.ts` | BEH-QD-001–012, INV-QD-001, INV-QD-002, INV-QD-010 |
 | `packages/core/test/Policy.test.ts` | BEH-QD-017–019, BEH-QD-057–059, BEH-QD-074, BEH-QD-081, BEH-QD-091–092, INV-QD-003 |
 | `packages/core/test/Matcher.test.ts` | BEH-QD-025–028, BEH-QD-075, BEH-QD-097–104, INV-QD-004, INV-QD-011, INV-QD-015, INV-QD-019, INV-QD-023 |
-| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–040, BEH-QD-073–078, BEH-QD-081–086, BEH-QD-089–095, BEH-QD-098–101, INV-QD-005, INV-QD-006, INV-QD-008, INV-QD-011, INV-QD-012, INV-QD-014, INV-QD-015, ADR-QD-009 |
+| `packages/core/test/FieldPath.test.ts` | BEH-QD-051, BEH-QD-056, INV-QD-004 |
+| `packages/core/test/Evaluate.test.ts` | BEH-QD-033–040, BEH-QD-073–078, BEH-QD-081–086, BEH-QD-089–095, BEH-QD-098–101, INV-QD-005, INV-QD-006, INV-QD-008, INV-QD-011, INV-QD-012, INV-QD-014, INV-QD-015, INV-QD-029, ADR-QD-009 |
 | `packages/core/test/SubjectSet.test.ts` | BEH-QD-105–109, INV-QD-006, INV-QD-016 |
 | `packages/core/test/Rules.test.ts` | BEH-QD-111–117, INV-QD-004, INV-QD-006, INV-QD-017 |
 | `packages/core/test/Predicate.test.ts` | BEH-QD-121–128, INV-QD-006, INV-QD-011, INV-QD-018 |
-| `packages/core/test/Explanation.test.ts` | BEH-QD-137–143, INV-QD-021 |
-| `packages/react/test/Hydration.test.ts` | BEH-QD-145–150, INV-QD-022 |
+| `packages/core/test/Explanation.test.ts` | BEH-QD-137–143, INV-QD-021, INV-QD-031 |
+| `packages/core/test/RenderTrace.test.ts` | BEH-QD-144, INV-QD-004, INV-QD-020 |
+| `packages/react/test/Hydration.test.ts` | BEH-QD-145–152, INV-QD-022, INV-QD-028, ADR-QD-041 |
+| `packages/react/test/HydrationCounts.test.ts` | BEH-QD-230, BEH-QD-231, INV-QD-045, ADR-QD-052 |
+| `packages/core/test/HydrationMetrics.test.ts` | BEH-QD-231, ADR-QD-052 (the `type:id:description` registry key) |
+| `packages/react/test/ServerRender.test.tsx` | BEH-QD-067, BEH-QD-145, BEH-QD-151 (server rendering) |
 | `packages/core/test/Simplify.test.ts` | BEH-QD-153–156, INV-QD-024 |
-| `packages/core/test/DecisionCache.test.ts` | BEH-QD-161–165, INV-QD-025 |
+| `packages/core/test/DecisionCache.test.ts` | BEH-QD-161–168, INV-QD-025, INV-QD-030, INV-QD-033 |
 | `packages/promise/test/facade.test.ts` | BEH-QD-169–173, INV-QD-006, INV-QD-026 |
-| `packages/core/test/Layers.test.ts` | BEH-QD-041–044, INV-QD-007 |
-| `packages/core/test/Qadi.test.ts` | BEH-QD-049–053, BEH-QD-085, INV-QD-009, INV-QD-013 |
+| `packages/http/test/http.test.ts` | BEH-QD-174–180, INV-QD-006, INV-QD-034, INV-QD-007 |
+| `packages/core/test/DecisionSink.test.ts` | BEH-QD-181–186, INV-QD-006, INV-QD-035, INV-QD-036 |
+| `packages/core/test/TraceDiff.test.ts` | BEH-QD-194, INV-QD-004, INV-QD-020 |
+| `packages/core/test/RolesAndDepth.test.ts` | BEH-QD-191–193, INV-QD-037, INV-QD-038 |
+| `packages/core/test/Ports.test.ts` | BEH-QD-196, BEH-QD-197, INV-QD-005 |
+| `packages/core/test/SinkCodec.test.ts` | BEH-QD-199, BEH-QD-200 |
+| `packages/core/test/DecisionSinkForwarding.test.ts` | BEH-QD-187, BEH-QD-188, INV-QD-035 |
+| `packages/core/test/DecisionSinkFeed.test.ts` | BEH-QD-201, INV-QD-035 |
+| `packages/http/test/decisionStream.test.ts` | BEH-QD-202, INV-QD-007 |
+| `packages/devtools/test/model/Source.test.ts` | BEH-QD-203, BEH-QD-204, BEH-QD-235 |
+| `packages/devtools/test/model/Timeline.test.ts` | BEH-QD-205, INV-QD-039 |
+| `packages/devtools/test/model/TimelineStore.test.ts` | BEH-QD-205, BEH-QD-210, INV-QD-039 |
+| `packages/devtools/test/model/Pairing.test.ts` | BEH-QD-206, BEH-QD-207, INV-QD-006 |
+| `packages/devtools/test/model/Inspect.test.ts` | BEH-QD-208, INV-QD-004, INV-QD-005, INV-QD-040 |
+| `packages/devtools/test/model/Filters.test.ts` | BEH-QD-206, BEH-QD-209 |
+| `packages/devtools/test/react/useTimeline.test.tsx` | BEH-QD-210 |
+| `packages/devtools/test/react/DevtoolsDock.test.tsx` | BEH-QD-206, BEH-QD-208–210, BEH-QD-218, INV-QD-040, INV-QD-041 |
+| `packages/devtools/test/model/Catalogue.test.ts` | BEH-QD-211 |
+| `packages/devtools/test/model/RoleTree.test.ts` | BEH-QD-214, INV-QD-038 |
+| `packages/devtools/test/model/Wiring.test.ts` | BEH-QD-215, BEH-QD-216, INV-QD-007 |
+| `packages/devtools/test/react/PolicyExplorer.test.tsx` | BEH-QD-212, BEH-QD-213, INV-QD-037, INV-QD-041 |
+| `packages/devtools/test/react/RoleViewer.test.tsx` | BEH-QD-214 |
+| `packages/devtools/test/react/ServicesPanel.test.tsx` | BEH-QD-215, BEH-QD-216 |
+| `packages/devtools/test/react/QuestionsPanel.test.tsx` | BEH-QD-217 |
+| `packages/devtools/test/model/Simulation.test.ts` | BEH-QD-219, BEH-QD-226, INV-QD-042 |
+| `packages/devtools/test/model/Sources.test.ts` | BEH-QD-220, INV-QD-042 |
+| `packages/devtools/test/model/Capture.test.ts` | BEH-QD-221, INV-QD-043 |
+| `packages/devtools/test/model/Edits.test.ts` | BEH-QD-222 |
+| `packages/devtools/test/model/Remedies.test.ts` | BEH-QD-222, BEH-QD-223 |
+| `packages/devtools/test/model/WhatIf.test.ts` | BEH-QD-222, BEH-QD-224, INV-QD-042 |
+| `packages/devtools/test/model/Replay.test.ts` | BEH-QD-225, INV-QD-006 |
+| `packages/devtools/test/react/Simulator.test.tsx` | BEH-QD-219, BEH-QD-225, BEH-QD-226, INV-QD-004 |
+| `packages/devtools/test/react/WhatIfTable.test.tsx` | BEH-QD-222, BEH-QD-224 |
+| `packages/testing/test/TestLayers.test.ts` | BEH-QD-226 |
+| `packages/devtools/test/model/PortCalls.test.ts` | BEH-QD-228, INV-QD-044 |
+| `packages/devtools/test/model/Hydration.test.ts` | BEH-QD-231, BEH-QD-232, ADR-QD-052 |
+| `packages/react/test/GateRegistry.test.tsx` | BEH-QD-233, INV-QD-046, ADR-QD-053 |
+| `packages/devtools/test/model/Gates.test.ts` | BEH-QD-217 (the keying that survives), BEH-QD-233 |
+| `packages/devtools/test/react/Lens.test.ts` | BEH-QD-234, ADR-QD-053 |
+| `packages/devtools/test/react/GatesPanel.test.tsx` | BEH-QD-233, BEH-QD-234 |
+| `packages/devtools/test/react/ServicesPanel.test.tsx` | BEH-QD-215, BEH-QD-216, BEH-QD-229 |
+| `packages/devtools/test/manifest.test.ts` | BEH-QD-210 |
+| `packages/http/test/QadiHttpError.test.ts` | BEH-QD-177 |
+| `packages/core/test/Layers.test.ts` | BEH-QD-041–045, INV-QD-007 |
+| `packages/core/test/Qadi.test.ts` | BEH-QD-049–055, BEH-QD-085, INV-QD-009, INV-QD-013, INV-QD-032 |
 | `packages/testing/test/TestLayers.test.ts` | Test fixtures and layers, INV-QD-014 |
 | `packages/react/test/QadiAtoms.test.ts` | BEH-QD-065, BEH-QD-069, BEH-QD-070, BEH-QD-071 |
 | `packages/react/test/QadiProvider.test.tsx` | BEH-QD-067, BEH-QD-068, BEH-QD-070 |
 | `packages/react/test/hooks.test.tsx` | BEH-QD-066, BEH-QD-068, BEH-QD-069, INV-QD-006, ADR-QD-017 |
 | `packages/react/test/edges.test.tsx` | BEH-QD-067, BEH-QD-068 |
+| `packages/predicate-sql/test/Agreement.test.ts` | BEH-QD-241, BEH-QD-244, INV-QD-047 |
+| `packages/predicate-sql/test/CompileSql.test.ts` | BEH-QD-236–240, BEH-QD-244 |
+| `packages/predicate-sql/test/Metrics.test.ts` | BEH-QD-236 |
+| `packages/predicate-prisma/test/Agreement.test.ts` | BEH-QD-242, BEH-QD-244, INV-QD-048 |
+| `packages/predicate-prisma/test/CompilePrismaWhere.test.ts` | BEH-QD-236, BEH-QD-238, BEH-QD-239, BEH-QD-244 |
+| `packages/predicate-prisma/test/Metrics.test.ts` | BEH-QD-236 |
 
 ## §5 Acceptance scenario traceability
 
@@ -179,12 +283,21 @@ contract.
 | REQ-QD-021 | `features/features/mls/mls.feature` | BEH-QD-098–099, BEH-QD-102–103, INV-QD-015, INV-QD-019, INV-QD-023 |
 | REQ-QD-022 | `features/features/concurrency/concurrency.feature` | BEH-QD-129–133, INV-QD-005, INV-QD-020 |
 | REQ-QD-023 | `features/features/explanation/explanation.feature` | BEH-QD-137–141, INV-QD-021 |
+| REQ-QD-024 | `features/features/devtools/devtools.feature` | BEH-QD-205–208, INV-QD-006, INV-QD-039, INV-QD-040 |
+| REQ-QD-025 | `features/features/devtools-screens/devtools-screens.feature` | BEH-QD-211–217, INV-QD-038, INV-QD-041 |
+| REQ-QD-026 | `features/features/devtools-simulator/devtools-simulator.feature` | BEH-QD-219–226, INV-QD-006, INV-QD-042, INV-QD-043 |
+| REQ-QD-027 | `features/features/port-calls/port-calls.feature` | BEH-QD-227–229, INV-QD-005, INV-QD-044 |
+| REQ-QD-028 | `features/features/hydration-counts/hydration-counts.feature` | BEH-QD-230–232, INV-QD-045 |
+| REQ-QD-029 | `features/features/gate-instances/gate-instances.feature` | BEH-QD-217, BEH-QD-233, INV-QD-046 |
+| REQ-QD-030 | `features/features/merged-sources/merged-sources.feature` | BEH-QD-203, BEH-QD-207, BEH-QD-235 |
 
 ## §6 Coverage targets
 
 | Scope | Statements | Branches | Enforced by |
 | ----- | ---------- | -------- | ----------- |
 | `packages/core/src` | 95% | 95% | `vitest.config.ts` thresholds |
+| `packages/predicate-sql/src` | 95% | 95% | `vitest.config.ts` thresholds |
+| `packages/predicate-prisma/src` | 95% | 95% | `vitest.config.ts` thresholds |
 | Workspace | 90% | 90% | `vitest.config.ts` thresholds |
 
 A shortfall fails the run; it is not merely reported.

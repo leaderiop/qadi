@@ -30,9 +30,10 @@ TypeScript type and the JSON codec are derived from it, so they cannot diverge.
 | Package | Description |
 | ------- | ----------- |
 | `@qadi/core` | Tokens, policy ADT, evaluator, enforcement |
-| `@qadi/testing` | Test layers, fixtures, conformance suites, matchers |
+| `@qadi/testing` | Fixtures, deterministic layers, recording resolvers |
 | `@qadi/react` | `QadiProvider`, hooks, `Can`/`Cannot`, server-render hydration |
 | `@qadi/promise` | A Promise facade for callers who do not use Effect |
+| `@qadi/http` | `effect/unstable/http`/`httpapi` bindings — enforcement middleware, subject extraction, permission registry |
 | `@qadi/features` | Cucumber BDD acceptance tests (private) |
 
 ## Development
@@ -43,14 +44,18 @@ pnpm typecheck     # tsc -b across project references
 pnpm test          # vitest
 pnpm coverage      # thresholds enforced: 90% workspace, 95% core
 pnpm lint          # oxlint + house-style checks
+pnpm circular      # madge — no circular imports across any package's src/
+pnpm test:tstyche  # type-level tests (*.tst.ts)
 pnpm test:bdd      # Cucumber acceptance scenarios
 pnpm spec:examples # compile every runnable example in spec/
 pnpm spec:verify:strict  # specification internal consistency
 pnpm spec:api      # the documented API surface matches the real one
 pnpm spec:package  # the packed packages install, resolve and authorize
+pnpm spec:gates    # the DoD table is the merge gate pnpm check actually runs
+pnpm spec:claims   # spec/devtools-spec says why each absence still holds
 pnpm bench         # dispatch and evaluation throughput (measurement, not a gate)
-pnpm mutation      # Stryker, breaking below 80% on packages/core
-pnpm check         # all eleven gates, in order
+pnpm mutation      # Stryker on packages/core, the devtools model, predicate-sql, predicate-prisma
+pnpm check         # all nineteen gates, in order
 ```
 
 `pnpm check` is the merge gate, and [CI](./.github/workflows/check.yml) runs that

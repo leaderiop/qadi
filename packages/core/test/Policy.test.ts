@@ -363,6 +363,17 @@ describe("Policy serialization", () => {
           P.hasPermission(permission(segment(r), segment(a))),
         ),
         FastCheck.string().map((s) => P.hasRole(segment(s))),
+        // A dot-path/wildcard field spec is still just a `string` to the
+        // codec (`FieldPath.ts` interprets it, `Fields` doesn't validate
+        // it) — this leaf exists so the round-trip property says something
+        // about that shape too, not only about flat field names.
+        FastCheck.record({
+          r: FastCheck.string(),
+          a: FastCheck.string(),
+          field: FastCheck.constantFrom("id", "address.street", "contact.*", "contact.**"),
+        }).map(({ r, a, field }) =>
+          P.hasPermission(permission(segment(r), segment(a)), { fields: [field] }),
+        ),
         FastCheck.integer().map((n) => P.hasAttribute("lvl", M.gte(n))),
         FastCheck.string().map((s) => P.hasAction(segment(s))),
         // A matcher carrying an ActionRef: the variant lives in ValueRef rather

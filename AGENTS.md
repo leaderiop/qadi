@@ -50,9 +50,10 @@ The shape is a **separately exported `interface …Shape`**.
 
 ```ts
 export interface AttributeResolverShape {
+  readonly name?: string | undefined;
   readonly resolve: (
+    subjectId: SubjectId,
     attribute: string,
-    resource?: Resource,
   ) => Effect.Effect<unknown, AttributeResolveError>;
 }
 
@@ -62,10 +63,20 @@ export class AttributeResolver extends Context.Service<
 >()("qadi/AttributeResolver") {
   // `use` requires its callback to RETURN an Effect — it is a one-step method
   // accessor, not an identity read.
-  static resolve = (attribute: string) =>
-    AttributeResolver.use((r) => r.resolve(attribute));
+  static resolve = (subjectId: SubjectId, attribute: string) =>
+    AttributeResolver.use((r) => r.resolve(subjectId, attribute));
 }
 ```
+
+> **Corrected in CCR-QD-077.** This example carried `resolve(attribute, resource?)`
+> and omitted `name` — a signature no version of this library has had. Nothing
+> checks the code in this file: `check-doc-examples.mjs` compiles fenced
+> `typescript` blocks under `spec/`, and this is `ts` in `AGENTS.md`, which is
+> reference material by §12's own rules. It was noticed four separate times
+> before anyone changed it, each time as an aside in work about something else.
+> The `@qadi/example-nextjs` port implementations are written against the real
+> signature and compile, which is the first thing in this repository that would
+> have caught it.
 
 Tag ids are namespaced: `"qadi/AttributeResolver"`.
 
@@ -319,7 +330,8 @@ state-management layer of its own. The rules that keep it that way:
 
 - **No React state for decisions.** Decisions live in atoms. If you find
   yourself writing `useState` + `useEffect` to hold one, the atom graph is the
-  place for it instead.
+  place for it instead. This is the rule the instance registry below does **not**
+  bend: it holds who is asking, never what the answer was.
 - **No additional dependencies.** The React glue is one `useSyncExternalStore`
   call in `QadiProvider.tsx`. `@effect/atom-react` supplies the same thing plus
   features this package does not use, and was rejected on that basis
@@ -338,6 +350,34 @@ state-management layer of its own. The rules that keep it that way:
 - **Test the graph, not the DOM, where you can.** `QadiAtoms.test.ts` renders
   nothing — caching, sharing and invalidation are properties of the atoms, and
   proving them through components only makes the test slower and vaguer.
+- **A guard may record that it exists, and may record nothing else**
+  (ADR-QD-053). `GateRegistry.ts` is a module-scope map a guard writes to from an
+  effect — the shape `HydrationSeed.ts` already uses — carrying its policy, its
+  resource, what it rendered, and a ref React filled in. Nothing re-renders
+  because a guard registered, and nothing in that file can affect what one
+  renders.
+
+  This section previously read as forbidding it, and `@qadi/devtools`'s React
+  panel said so on screen: *"an instance registry would breach AGENTS.md §13
+  twice over."* It would not, and the two rules it was said to breach are both
+  still intact. Decisions are still not in React state. The React glue is still
+  **one** `useSyncExternalStore` call in `QadiProvider.tsx` — the registry
+  exposes `subscribe`/`snapshot` and it is `@qadi/devtools`, a DOM package
+  already, that subscribes.
+
+  What the argument actually established is that the **atom layer** cannot see
+  instances, which is true and is why the panel is still keyed by question. A
+  component knows perfectly well that it exists; nothing was asking it.
+- **Instrumentation is opt-in, and off means absent.** `QadiProvider`'s
+  `instrument` defaults to `false`, and with it off no guard registers and no
+  marker element is rendered — not a wrapper that does nothing, no wrapper. A
+  consumer's DOM must not change because they upgraded this package. The
+  assertion that keeps this honest is that the React suite's existing tests pass
+  untouched.
+- **`@qadi/react` calls no DOM API.** It renders a `display: contents` span and
+  holds the ref React fills in; measuring, drawing and hit-testing are
+  `@qadi/devtools`'s `react/Lens.ts`, which is the only file in either package
+  that touches `document`.
 
 ## 14. `@qadi/promise`
 
@@ -360,13 +400,38 @@ the whole package:
 ## 15. Documentation is gated, not remembered
 
 `spec/overview.md` must name every export of every public package.
-`scripts/check-api-surface.mjs` is merge gate 9 and fails otherwise; to leave an
+`scripts/check-api-surface.mjs` is merge gate 13 and fails otherwise; to leave an
 export out of the tables, put it in that document's "Not listed above" table with a
 reason. Omission is allowed, silent omission is not.
 
 This exists because the document drifted twice — see CCR-QD-025 and CCR-QD-034. Two
 occurrences is a property of the process rather than an oversight, and adding a
 gate was cheaper than remembering a third time.
+
+**Two more documents are gated for the same reason** (CCR-QD-075), and both were
+found the same way: a claim was true when written and nobody was connecting it to
+the thing it described.
+
+`spec/devtools-spec/` held **seven** false claims at once — screens marked *Partial*
+after they were built, "Not built. Screens 3 to 6" six increments late, lens mode
+"blocked on a design change to `@qadi/react`" which is the change ADR-QD-053 made.
+`scripts/check-devtools-claims.mjs` is merge gate 12: every statement there that
+something is absent is registered in that folder's "Claims of absence" table with
+the reason it still is. A superseded claim kept as a `>` blockquote under a
+correction needs no row, which is already how those documents preserve history.
+
+`spec/process/definitions-of-done.md` had drifted in both directions at once — a
+Stryker run `pnpm check` performs and the table never listed, and **eight**
+references elsewhere naming a step by a number two off, because CCR-QD-048 inserted
+two steps in the middle. `scripts/check-dod-table.mjs` is merge gate 11: the table
+must be the commands `pnpm check` runs, in order, and a "gate N" anywhere must name
+the command it means so the number can be checked. **Name the script, not just the
+number** — that is the rule that makes the rest possible, and prose that gives a
+number with no command fails.
+
+Change history is exempt from both. A CCR row saying a gate was added "as merge gate
+10" records what was true then, and a gate that forced history to be rewritten to
+stay green would corrupt the record it exists to protect.
 
 **CI runs `pnpm check` and nothing else** (`.github/workflows/check.yml`). That is
 deliberate: a workflow with its own list of steps would be a second definition of
@@ -381,7 +446,7 @@ other way round.
 
 ## 16. Publish with `pnpm`, never `npm`
 
-`scripts/check-package-install.mjs` is merge gate 10: it packs each public package,
+`scripts/check-package-install.mjs` is merge gate 14: it packs each public package,
 installs it into a sandbox and makes a TypeScript consumer authorize through the
 published `exports` map. Two rules come out of it, and both are checked rather than
 remembered.

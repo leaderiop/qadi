@@ -47,6 +47,19 @@ When("they request permission {string}", function (this: QadiWorld, key: string)
   this.run(permissionPolicy(key));
 });
 
+When(
+  "a policy exposing fields {string} for {string} is evaluated",
+  function (this: QadiWorld, fields: string, key: string) {
+    const [resourceName, actionName] = key.split(":");
+    if (resourceName === undefined || actionName === undefined) {
+      throw new Error(`malformed permission key: ${key}`);
+    }
+    this.run(
+      hasPermission(permission(resourceName, actionName), { fields: fields.split(",") }),
+    );
+  },
+);
+
 When("they must satisfy all of {string}", function (this: QadiWorld, keys: string) {
   this.run(allOf(permissionList(keys)));
 });
@@ -625,6 +638,22 @@ When("the publishing policy is described", function (this: QadiWorld) {
         hasPermission(permission("doc", "publish"), { fields: ["id", "title"] }),
       ),
     ]),
+  );
+});
+
+/**
+ * The two groupings that used to render identically.
+ *
+ * Not equivalent: the first admits a lone `admin`, the second requires `onCall`
+ * of everyone. Rendered without parentheses both read "either requires role
+ * admin or requires role editor and requires role onCall" — one sentence for two
+ * policies, which is what INV-QD-031 forbids.
+ */
+When("the {string} policy is described", function (this: QadiWorld, name: string) {
+  this.describe(
+    name === "admin-or-both"
+      ? anyOf([hasRole("admin"), allOf([hasRole("editor"), hasRole("onCall")])])
+      : allOf([anyOf([hasRole("admin"), hasRole("editor")]), hasRole("onCall")]),
   );
 });
 

@@ -153,7 +153,9 @@ const ConsentRegisterResolver: Layer.Layer<RelationshipResolver> = Layer.succeed
             (c) =>
               c.grantedTo === request.subjectId &&
               `consented:${c.purpose}` === request.relation,
-          ),
+          )
+            ? "Related"
+            : "Unrelated",
         ),
         Effect.mapError((cause) =>
           new RelationshipResolveError({

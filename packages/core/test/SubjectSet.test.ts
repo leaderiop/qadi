@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Stream from "effect/Stream";
 import * as Tracer from "effect/Tracer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
@@ -11,7 +12,12 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { decideSubjects, filterSubjects } from "../src/SubjectSet.ts";
+import {
+  decideSubjects,
+  decideSubjectsStream,
+  filterSubjects,
+  filterSubjectsStream,
+} from "../src/SubjectSet.ts";
 import { subjectSetLayer, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
@@ -373,4 +379,48 @@ describe("observability", () => {
         .map((s) => Object.fromEntries(s.attributes)["qadi.subject_id"]);
       assert.deepStrictEqual(perSubject, ["a", "b"]);
     }));
+});
+
+describe("decideSubjectsStream", () => {
+  it.effect("pairs every subject with its own decision, same as decideSubjects", () =>
+    Effect.gen(function* () {
+      const results = yield* Stream.runCollect(
+        decideSubjectsStream(canRead, Stream.fromIterable([reader("a"), nobody("b")])),
+      );
+
+      assert.deepStrictEqual(
+        results.map((r) => [r.subject.id, r.decision._tag]),
+        [
+          ["a", "Allow"],
+          ["b", "Deny"],
+        ],
+      );
+    }).pipe(Effect.provide(subjectSetLayer())));
+
+  it.effect("an empty stream is an empty answer, not an error", () =>
+    Effect.gen(function* () {
+      const results = yield* Stream.runCollect(
+        decideSubjectsStream(canRead, Stream.fromIterable([])),
+      );
+      assert.strictEqual(results.length, 0);
+    }).pipe(Effect.provide(subjectSetLayer())));
+});
+
+describe("filterSubjectsStream", () => {
+  it.effect("keeps the subjects the policy allows, same as filterSubjects", () =>
+    Effect.gen(function* () {
+      const allowed = yield* Stream.runCollect(
+        filterSubjectsStream(canRead, Stream.fromIterable([reader("a"), nobody("b"), reader("c")])),
+      );
+      assert.deepStrictEqual(ids(allowed), ["a", "c"]);
+    }).pipe(Effect.provide(subjectSetLayer())));
+
+  it.effect("does not deduplicate", () =>
+    Effect.gen(function* () {
+      const alice = reader("alice");
+      const allowed = yield* Stream.runCollect(
+        filterSubjectsStream(canRead, Stream.fromIterable([alice, alice])),
+      );
+      assert.deepStrictEqual(ids(allowed), ["alice", "alice"]);
+    }).pipe(Effect.provide(subjectSetLayer())));
 });

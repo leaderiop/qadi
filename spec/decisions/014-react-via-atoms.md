@@ -3,6 +3,9 @@
 > **Status:** Accepted
 > **Date:** 2026-07-26
 > **Supersedes:** the `ManagedRuntime` integration described in revision 1.0
+> **Amended:** 2026-08-24 by [ADR-QD-053](./053-a-gate-can-be-found.md) — a guard
+> may record that it exists. Two stale claims in the Consequences below corrected
+> at the same time (CCR-QD-073).
 
 ## Context
 
@@ -41,6 +44,11 @@ alternative, and a worse one.
 dependency: the React glue is one `useSyncExternalStore` call in
 `QadiProvider.tsx`, so the package depends on `effect` and `react` and nothing
 else.
+
+> **Still one call, after ADR-QD-053.** `GateRegistry.ts` is a second external
+> store, and it is subscribed to by `@qadi/devtools` rather than here — this
+> package exposes `subscribe` and a snapshot and calls `useSyncExternalStore`
+> exactly once, in `QadiProvider.tsx`, as it always did.
 
 `makeQadiAtoms(layer)` builds one authorization context: a writable `subject`
 atom, an `Atom.family` of decisions keyed by policy, a second family keyed by
@@ -81,10 +89,24 @@ something, which is what replaced the predecessor's cloned hook factory.
 
 - `effect/unstable/reactivity` is unstable by name. Its API may move before 4.0
   is released, and this package moves with it.
-- Policies are keyed by reference, so one built inline in render produces a new
-  atom on every render (BEH-QD-069).
+- ~~Policies are keyed by reference, so one built inline in render produces a new
+  atom on every render (BEH-QD-069).~~ **Wrong on both counts, corrected in
+  CCR-QD-073.** `Atom.family` holds a `MutableHashMap` and compares with
+  `Equal.equals`, which is **structural** in Effect v4 — so a policy built inline
+  and one hoisted to module scope map to the same atom, and inline does not
+  defeat sharing. `packages/react/test/v4-reactivity-smoke.test.ts` pins this
+  precisely because a change either way would be silent and serious, and
+  AGENTS.md §13 has said so since it was written. The citation was wrong too:
+  BEH-QD-069 is about **invalidation** and says nothing about keying.
+
+  The real cost is smaller and worth keeping: the structural hash is cached per
+  object, so a fresh policy object each render re-walks the tree to hash it.
+  Hoist or `useMemo` for that reason, not for sharing.
 - The registry is a second lifetime to reason about alongside React's, which is
   why `QadiProvider` defers disposal past a development-mode double mount.
+- A guard can be enumerated and located, but only when the host asks for it
+  ([ADR-QD-053](./053-a-gate-can-be-found.md)). Off by default, and off means no
+  registration and no marker element.
 
 **Trade-off accepted**: depending on an unstable module is worth it. The
 alternative was not "no dependency" — it was a private, less-tested

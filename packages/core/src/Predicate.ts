@@ -14,6 +14,7 @@
  */
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
+import * as Metric from "effect/Metric";
 import { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
@@ -439,6 +440,18 @@ const translateRules = (
   );
 
 /**
+ * Successful policy-to-`Predicate` translations.
+ *
+ * The complementary case to `PolicyNotTranslatable`, which is already a typed
+ * failure a caller can catch and count on its own: this is a metric a
+ * deployment can watch for the successful path without wiring a catch clause
+ * of its own, the same reason `Evaluate.ts`'s `qadi_decisions_total` exists.
+ */
+const predicatesTranslatedTotal = Metric.counter("qadi_predicates_translated_total", {
+  description: "Policies successfully compiled to a Predicate by `toPredicate`.",
+});
+
+/**
  * Compiles a policy into a filter over rows the caller has not loaded.
  *
  * Fails rather than approximates. A node outside the translatable subset
@@ -476,6 +489,8 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
     "qadi.policy_tag": policy._tag,
     "qadi.predicate_tag": predicate._tag,
   });
+
+  yield* Metric.update(predicatesTranslatedTotal, 1);
 
   return predicate;
 });

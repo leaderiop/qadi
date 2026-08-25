@@ -1,8 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import * as Ref from "effect/Ref";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import type { AuthSubject } from "../src/AuthSubject.ts";
@@ -10,11 +12,12 @@ import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 /**
  * Forks `count` copies of `effect`, yields enough scheduler turns for every
@@ -219,10 +222,12 @@ describe("DecisionCache", () => {
       );
     }));
 
-  it.effect("a resource whose keys differ in order MISSES rather than hits wrongly", () =>
+  it.effect("a resource whose keys differ in order is the SAME question", () =>
     Effect.gen(function* () {
-      // Stringifying the key means property order matters. A miss costs an
-      // evaluation; a wrong hit costs an authorization. Documented, not optimised.
+      // It used to miss, and that was defended as the safe direction of a
+      // stringified key. The key is now the struct itself, compared with
+      // Effect's structural `Equal`/`Hash`, so property order is not a
+      // property of the question and this hits.
       const calls: Array<string> = [];
       yield* Effect.gen(function* () {
         yield* evaluate(needsLookup, { resource: { a: 1, b: 2 } });
@@ -232,7 +237,92 @@ describe("DecisionCache", () => {
         Effect.provide(decisionCacheLayer()),
       );
 
-      assert.strictEqual(calls.length, 2, "the reordered resource missed, as documented");
+      assert.strictEqual(calls.length, 1, "same question, one evaluation");
+    }));
+
+  it.effect("TWO TOKENS FOR ONE USER ARE TWO QUESTIONS", () =>
+    Effect.gen(function* () {
+      // The key held `subject.id` alone, which is enough only if an id
+      // determines the subject's grants. It does not: @qadi/http rebuilds an
+      // AuthSubject per request from a token, so a scoped token and a full
+      // token for one user share an id and hold different permissions. Under
+      // an application-scoped cache the first verdict won, permanently, in
+      // whichever direction it happened to be asked first (INV-QD-033).
+      const canRead = P.hasPermission(permission("doc", "read"));
+      const full: AuthSubject = subjectWith({ id: "alice", permissions: ["doc:read"] });
+      const scoped: AuthSubject = subjectWith({ id: "alice" });
+
+      const both = (first: AuthSubject, second: AuthSubject) =>
+        Effect.gen(function* () {
+          const a = yield* evaluate(canRead).pipe(
+            Effect.provide(testLayer(first)),
+          );
+          const b = yield* evaluate(canRead).pipe(
+            Effect.provide(testLayer(second)),
+          );
+          return [isAllowed(a), isAllowed(b)] as const;
+        }).pipe(Effect.provide(decisionCacheLayer()));
+
+      // Escalation: the scoped token used to inherit the full token's allow.
+      assert.deepStrictEqual(yield* both(full, scoped), [true, false]);
+      // And the mirror: the full token used to inherit the scoped denial.
+      assert.deepStrictEqual(yield* both(scoped, full), [false, true]);
+    }));
+
+  it.effect("the same subject still hits, so the cache still caches", () =>
+    Effect.gen(function* () {
+      // The control. Keying on the whole subject would be worthless if two
+      // requests carrying equal subjects missed — `AuthSubject` compares
+      // structurally, HashSet grants included, so a subject rebuilt per
+      // request from the same token is the same key.
+      const calls: Array<string> = [];
+      const rebuilt = () => subjectWith({ id: "alice", attributes: { tier: "gold" } });
+
+      yield* Effect.gen(function* () {
+        yield* evaluate(needsLookup).pipe(Effect.provide(testLayer(rebuilt())));
+        yield* evaluate(needsLookup).pipe(Effect.provide(testLayer(rebuilt())));
+      }).pipe(
+        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+        Effect.provide(decisionCacheLayer()),
+      );
+
+      assert.strictEqual(calls.length, 0, "resolved from the subject, never the resolver");
+    }));
+
+  it.effect("TWO DIFFERENT QUESTIONS NEVER SHARE A KEY", () =>
+    Effect.gen(function* () {
+      // The defect the reordering test's old comment claimed was impossible.
+      // `JSON.stringify` maps a Date onto its ISO string, so these two resources
+      // produced one key — and the second caller was handed the first's verdict.
+      // A collision serves one question's decision as another's answer, which is
+      // INV-QD-025 broken, not merely a cache inefficiency.
+      const calls: Array<string> = [];
+      yield* Effect.gen(function* () {
+        yield* evaluate(needsLookup, { resource: { d: new Date(0) } });
+        yield* evaluate(needsLookup, { resource: { d: "1970-01-01T00:00:00.000Z" } });
+      }).pipe(
+        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+        Effect.provide(decisionCacheLayer()),
+      );
+
+      assert.strictEqual(calls.length, 2, "a Date is not its ISO string");
+    }));
+
+  it.effect("an undefined-valued property is not an absent one", () =>
+    Effect.gen(function* () {
+      // The second stringify collision: `JSON.stringify` drops
+      // `undefined`-valued properties outright, so `{a: 1, b: undefined}` and
+      // `{a: 1}` produced one key.
+      const calls: Array<string> = [];
+      yield* Effect.gen(function* () {
+        yield* evaluate(needsLookup, { resource: { a: 1, b: undefined } });
+        yield* evaluate(needsLookup, { resource: { a: 1 } });
+      }).pipe(
+        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+        Effect.provide(decisionCacheLayer()),
+      );
+
+      assert.strictEqual(calls.length, 2, "an explicit undefined is part of the question");
     }));
 
   it.effect("size reports what is held, so a caller can measure its own hit rate", () =>
@@ -266,7 +356,12 @@ describe("DecisionCache", () => {
           }
         }
         const roles = new CountingRoles([P.makeRoleName("admin")]);
-        const subject: AuthSubject = { id: "u1", roles, permissions: new Set(), attributes: {} };
+        const subject: AuthSubject = {
+          id: makeSubjectId("u1"),
+          roles,
+          permissions: new Set(),
+          attributes: {},
+        };
 
         yield* Effect.gen(function* () {
           yield* evaluate(P.hasRole("admin")); // miss: evaluateNode runs, roles.has called once
@@ -464,4 +559,179 @@ describe("DecisionCache", () => {
         );
       }),
   );
+
+  describe("capacity", () => {
+    it.effect("rejects a negative capacity rather than looping forever", () =>
+      Effect.gen(function* () {
+        // Regression: a negative capacity used to make the eviction loop's own
+        // exit condition unsatisfiable once `entries` ran dry — an infinite
+        // loop inside `Effect.sync`, not a small cache.
+        const exit = yield* Effect.exit(
+          evaluate(needsLookup).pipe(
+            Effect.provide(testLayer(alice, { attributes: counting([]) })),
+            Effect.provide(decisionCacheLayer({ capacity: -1 })),
+          ),
+        );
+        assert.strictEqual(exit._tag, "Failure");
+        if (exit._tag !== "Failure") return;
+        const defect = Cause.squash(exit.cause);
+        assert.instanceOf(defect, Error);
+        if (!(defect instanceof Error)) return;
+        assert.match(defect.message, /capacity/i);
+      }));
+
+    it.effect("rejects a fractional or NaN capacity rather than silently disabling eviction", () =>
+      Effect.gen(function* () {
+        // Regression: `size(entries) > NaN` is always false, so an unvalidated
+        // NaN capacity made eviction a silent no-op — "bounded" in name only.
+        const exit = yield* Effect.exit(
+          evaluate(needsLookup).pipe(
+            Effect.provide(testLayer(alice, { attributes: counting([]) })),
+            Effect.provide(decisionCacheLayer({ capacity: Number.NaN })),
+          ),
+        );
+        assert.strictEqual(exit._tag, "Failure");
+      }));
+
+    it.effect("capacity: 0 is a legal, degenerate cache that retains nothing", () =>
+      Effect.gen(function* () {
+        const calls: Array<string> = [];
+        yield* Effect.gen(function* () {
+          yield* evaluate(needsLookup);
+          yield* evaluate(needsLookup);
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+          Effect.provide(decisionCacheLayer({ capacity: 0 })),
+        );
+
+        assert.deepStrictEqual(calls, ["u-1:clearance", "u-1:clearance"]);
+      }));
+
+    it.effect("unset, still unbounded — the existing behaviour every prior test assumes", () =>
+      Effect.gen(function* () {
+        const held = yield* Effect.gen(function* () {
+          yield* evaluate(needsLookup, { resource: { id: "doc-1" } });
+          yield* evaluate(needsLookup, { resource: { id: "doc-2" } });
+          yield* evaluate(needsLookup, { resource: { id: "doc-3" } });
+          return yield* DecisionCache.use((c) => c.size);
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: counting([]) })),
+          Effect.provide(decisionCacheLayer()),
+        );
+
+        assert.strictEqual(held, 3);
+      }));
+
+    it.effect("evicts the oldest completed entry once exceeded, insertion order (FIFO)", () =>
+      Effect.gen(function* () {
+        const calls: Array<string> = [];
+        const ask = (id: string) => evaluate(needsLookup, { resource: { id } });
+
+        yield* Effect.gen(function* () {
+          yield* ask("doc-1");
+          yield* ask("doc-2");
+          // Capacity 2: inserting doc-3 pushes size to 3, so doc-1 — the
+          // oldest — is evicted immediately after.
+          yield* ask("doc-3");
+          const afterThird = yield* DecisionCache.use((c) => c.size);
+          assert.strictEqual(afterThird, 2, "capacity must never be exceeded, not even transiently");
+
+          yield* ask("doc-2"); // still held — a hit, no resolver call
+          yield* ask("doc-1"); // evicted — a miss, one more resolver call
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: counting(calls) })),
+          Effect.provide(decisionCacheLayer({ capacity: 2 })),
+        );
+
+        assert.deepStrictEqual(calls, [
+          "u-1:clearance", // doc-1: miss
+          "u-1:clearance", // doc-2: miss
+          "u-1:clearance", // doc-3: miss, evicts doc-1
+          "u-1:clearance", // doc-1 again: miss — it was evicted
+        ]);
+      }));
+
+    it.effect("never evicts a key with a compute still in flight", () =>
+      Effect.gen(function* () {
+        // A capacity of 1 under two genuinely concurrent, DIFFERENT questions
+        // is the case eviction must not touch: neither claim is a completed
+        // entry yet, so there is nothing eviction is entitled to remove.
+        const gate = yield* Deferred.make<void>();
+        const blockingResolver = Layer.succeed(AttributeResolver, {
+          resolve: () => Deferred.await(gate).pipe(Effect.as(5)),
+        });
+
+        const [first, second] = yield* Effect.gen(function* () {
+          const fiberA = yield* Effect.forkChild(evaluate(needsLookup, { resource: { id: "doc-1" } }));
+          const fiberB = yield* Effect.forkChild(evaluate(needsLookup, { resource: { id: "doc-2" } }));
+          for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+          yield* Deferred.succeed(gate, undefined);
+          return [yield* Fiber.join(fiberA), yield* Fiber.join(fiberB)] as const;
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: blockingResolver })),
+          Effect.provide(decisionCacheLayer({ capacity: 1 })),
+        );
+
+        assert.isTrue(isAllowed(first));
+        assert.isTrue(isAllowed(second));
+      }));
+  });
+
+  describe("qadi_decision_cache_lookups_total", () => {
+    const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
+      snapshots.find(
+        (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
+          s.type === "Frequency" && s.id === "qadi_decision_cache_lookups_total",
+      );
+
+    it.effect("counts a miss, then a hit, under separate outcomes", () =>
+      Effect.gen(function* () {
+        const snapshots = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            yield* evaluate(needsLookup);
+            yield* evaluate(needsLookup);
+            return yield* Metric.snapshot;
+          }).pipe(
+            Effect.provide(testLayer(alice, { attributes: counting([]) })),
+            Effect.provide(decisionCacheLayer()),
+          ),
+        );
+
+        const lookups = frequencyOf(snapshots);
+        assert.isDefined(lookups);
+        assert.strictEqual(lookups?.state.occurrences.get("miss"), 1);
+        assert.strictEqual(lookups?.state.occurrences.get("hit"), 1);
+        assert.isUndefined(lookups?.state.occurrences.get("coalesced"));
+      }));
+
+    it.effect("counts a coalesced join separately from the claiming miss", () =>
+      Effect.gen(function* () {
+        const invocations = yield* Ref.make(0);
+        const gate = yield* Deferred.make<void>();
+        const blockingResolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.update(invocations, (n) => n + 1).pipe(
+              Effect.flatMap(() => Deferred.await(gate)),
+              Effect.as(5),
+            ),
+        });
+
+        const snapshots = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            const fibers = yield* forkAllAndSettle(evaluate(needsLookup), 2);
+            yield* Deferred.succeed(gate, undefined);
+            yield* Effect.forEach(fibers, Fiber.join);
+            return yield* Metric.snapshot;
+          }).pipe(
+            Effect.provide(testLayer(alice, { attributes: blockingResolver })),
+            Effect.provide(decisionCacheLayer()),
+          ),
+        );
+
+        const lookups = frequencyOf(snapshots);
+        assert.isDefined(lookups);
+        assert.strictEqual(lookups?.state.occurrences.get("miss"), 1);
+        assert.strictEqual(lookups?.state.occurrences.get("coalesced"), 1);
+      }));
+  });
 });

@@ -7,6 +7,7 @@ import {
   Allow,
   Deny,
 } from "../src/Decision.ts";
+import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import {
   compareLabels,
@@ -19,7 +20,7 @@ import {
 
 const ctx: M.MatcherContext = {
   subject: { dept: "eng", nested: { deep: 7 } },
-  subjectId: "u1",
+  subjectId: makeSubjectId("u1"),
   resource: { owner: "eng", tags: ["a", "b"] },
   action: "write",
 };
@@ -418,7 +419,7 @@ describe("the dominates matcher", () => {
   const ctxWith = (
     subject: Readonly<Record<string, unknown>>,
     resource: Readonly<Record<string, unknown>> | undefined,
-  ): M.MatcherContext => ({ subject, subjectId: "u1", resource, action: undefined });
+  ): M.MatcherContext => ({ subject, subjectId: makeSubjectId("u1"), resource, action: undefined });
 
   const secret = { level: 2, compartments: ["CRYPTO"] };
   const internal = { level: 1, compartments: [] };
@@ -569,6 +570,18 @@ describe("field lattice", () => {
     assert.isUndefined(unionFields(undefined, ["a"]));
     assert.deepStrictEqual([...(unionFields(["a"], ["b"]) ?? [])].sort(), ["a", "b"]);
   });
+
+  it("intersection is path-aware: an unbounded spec doesn't lose to an exact-string miss", () => {
+    // A naive exact-string filter would return [] here, wrongly denying
+    // address.street even though "address.**" already grants it.
+    assert.deepStrictEqual(intersectFields(["address.**"], ["address.street"]), [
+      "address.street",
+    ]);
+  });
+
+  it("intersection stays conservative at the '*' depth boundary", () => {
+    assert.deepStrictEqual(intersectFields(["address.*"], ["address.street.zip"]), []);
+  });
 });
 
 describe("project", () => {
@@ -576,7 +589,7 @@ describe("project", () => {
   const allow = (fields: ReadonlyArray<string> | undefined) =>
     new Allow({
       evaluationId: "e",
-      subjectId: "u",
+      subjectId: makeSubjectId("u"),
       durationMillis: 0,
       trace: { policyTag: "HasRole", allowed: true, children: [], obligations: [] },
       visibleFields: fields,
@@ -586,7 +599,7 @@ describe("project", () => {
   it("a denial exposes nothing", () => {
     const deny = new Deny({
       evaluationId: "e",
-      subjectId: "u",
+      subjectId: makeSubjectId("u"),
       durationMillis: 0,
       trace: { policyTag: "HasRole", allowed: false, children: [], obligations: [] },
       reason: "no",
@@ -600,5 +613,20 @@ describe("project", () => {
 
   it("a restricted allow exposes only the listed fields", () => {
     assert.deepStrictEqual(project(allow(["id"]), data), { id: "1" });
+  });
+
+  it("a path-aware restricted allow projects nested data through the public API", () => {
+    // `contact` is typed as a bag rather than an exact shape: `Partial<A>` is
+    // shallow, so a nested field is either the WHOLE original sub-object or
+    // absent — never itself partial at the type level — which would make an
+    // expected literal missing a sibling key fail to type-check otherwise.
+    const nested: { id: string; contact: Record<string, unknown> } = {
+      id: "1",
+      contact: { email: "a@b.com", phone: "555" },
+    };
+    assert.deepStrictEqual(project(allow(["id", "contact.email"]), nested), {
+      id: "1",
+      contact: { email: "a@b.com" },
+    });
   });
 });

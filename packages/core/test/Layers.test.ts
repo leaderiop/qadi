@@ -10,7 +10,9 @@ import { CurrentSubject, CurrentSubjectAnonymous } from "../src/CurrentSubject.t
 import { isAllowed } from "../src/Decision.ts";
 import { EvaluationId, EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
+import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import {
   RelationshipResolver,
@@ -22,25 +24,28 @@ import { subjectWith, testLayer } from "./helpers.ts";
 describe("default layers", () => {
   it.effect("AttributeResolverNone resolves to undefined", () =>
     Effect.gen(function* () {
-      const value = yield* AttributeResolver.resolve("u", "anything");
+      const value = yield* AttributeResolver.resolve(makeSubjectId("u"), "anything");
       assert.isUndefined(value);
     }).pipe(Effect.provide(AttributeResolverNone)));
 
   it.effect("attributeResolverFromRecord reads a static table", () =>
     Effect.gen(function* () {
-      assert.strictEqual(yield* AttributeResolver.resolve("u", "tier"), "gold");
-      assert.isUndefined(yield* AttributeResolver.resolve("u", "absent"));
+      assert.strictEqual(yield* AttributeResolver.resolve(makeSubjectId("u"), "tier"), "gold");
+      assert.isUndefined(yield* AttributeResolver.resolve(makeSubjectId("u"), "absent"));
     }).pipe(Effect.provide(attributeResolverFromRecord({ tier: "gold" }))));
 
-  it.effect("RelationshipResolverNever denies everything", () =>
+  it.effect("RelationshipResolverNever answers Unknown, not Unrelated", () =>
     Effect.gen(function* () {
+      // Both deny, so the difference never reaches a verdict — it reaches the
+      // denial's sentence. "Unrelated" is what a wired store says when it looked
+      // and found nothing; this layer never looked (INV-QD-029).
       const related = yield* RelationshipResolver.check({
-        subjectId: "u",
+        subjectId: makeSubjectId("u"),
         relation: "owner",
-        resourceId: "d",
+        resourceId: makeResourceId("d"),
         depth: undefined,
       });
-      assert.isFalse(related);
+      assert.strictEqual(related, "Unknown");
     }).pipe(Effect.provide(RelationshipResolverNever)));
 
   it.effect("relationshipResolverFromEdges matches direct edges only", () =>
@@ -49,19 +54,21 @@ describe("default layers", () => {
         { subjectId: "u", relation: "owner", resourceId: "d" },
       ]);
       const hit = yield* RelationshipResolver.check({
-        subjectId: "u",
+        subjectId: makeSubjectId("u"),
         relation: "owner",
-        resourceId: "d",
+        resourceId: makeResourceId("d"),
         depth: 5,
       }).pipe(Effect.provide(layer));
       const miss = yield* RelationshipResolver.check({
-        subjectId: "u",
+        subjectId: makeSubjectId("u"),
         relation: "editor",
-        resourceId: "d",
+        resourceId: makeResourceId("d"),
         depth: undefined,
       }).pipe(Effect.provide(layer));
-      assert.isTrue(hit);
-      assert.isFalse(miss);
+      assert.strictEqual(hit, "Related");
+      // A static edge list *is* the store, so a missing edge is "Unrelated" —
+      // the closed world `decisionHistoryFromEvents` also assumes.
+      assert.strictEqual(miss, "Unrelated");
     }));
 
   it.effect("CurrentSubjectAnonymous fails closed", () =>
@@ -120,6 +127,26 @@ describe("field-strategy edge cases", () => {
       const d = yield* evaluate(policy);
       assert.isTrue(isAllowed(d));
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] })))));
+
+  it.effect("AllOf/First takes the first child's path-shaped field set verbatim, unmerged", () =>
+    Effect.gen(function* () {
+      // First never calls mergeFields's Intersection/Union arms at all — it
+      // just returns sets[0] — so a path-aware field spec on the SECOND
+      // child must never leak in, wildcard or not.
+      const policy = P.allOf(
+        [
+          P.hasPermission(permission("doc", "read"), { fields: ["contact.email"] }),
+          P.hasPermission(permission("doc", "write"), { fields: ["contact.**"] }),
+        ],
+        { fieldStrategy: "First" },
+      );
+      const d = yield* evaluate(policy);
+      assert.isTrue(isAllowed(d));
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.visibleFields, ["contact.email"]);
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
+    ));
 
   it.effect("resolver is consulted only when the subject lacks the attribute", () =>
     Effect.gen(function* () {
