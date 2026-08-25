@@ -18,10 +18,12 @@ import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Stream from "effect/Stream";
 import { toWire } from "@qadi/core";
-import type { SinkRecord } from "@qadi/core";
+import type { SinkRecord, StoredRecord } from "@qadi/core";
 import {
   type DecisionEventSource,
   type MalformedReason,
+  mergeSources,
+  type Source,
   sourceFromEventSource,
   sourceFromFeed,
   sourceFromRecords,
@@ -468,4 +470,147 @@ describe("the default EventSource", () => {
       sourceFromEventSource({ url: "/__decisions", environment: "Server", open: fake.open }).live,
     );
   });
+});
+
+/**
+ * JOB 1 ledger — E1.8 … E1.13.
+ *
+ * Built from `Source` literals rather than from the three constructors, which is
+ * this file's own standard: `mergeSources` takes a `Source` and knows nothing
+ * about transports, so a transport in the way would test the wrong boundary.
+ */
+describe("mergeSources", () => {
+  /** A producer that cannot answer for the past — a bare feed, or SSE. */
+  const liveOnly = (records: ReadonlyArray<StoredRecord>): Source => ({
+    live: Stream.fromArray(records),
+  });
+
+  /** A producer that can — a ring, or a captured session. */
+  const withBacklog = (
+    backlog: ReadonlyArray<StoredRecord>,
+    records: ReadonlyArray<StoredRecord> = [],
+  ): Source => ({
+    backlog: Effect.succeed(backlog),
+    live: Stream.fromArray(records),
+  });
+
+  // The reason this function exists. A server decides during the render and the
+  // browser re-checks after it; the two records carry one `evaluationId`, and
+  // `pairedEntries` can only pair what reached one `Timeline`.
+  it.effect("carries every producer's live records", () =>
+    Effect.gen(function* () {
+      const merged = mergeSources([
+        liveOnly([decisionRecord({ evaluationId: "ev-1", environment: "Server" })]),
+        liveOnly([decisionRecord({ evaluationId: "ev-1", environment: "Client" })]),
+      ]);
+
+      const got = Array.from(yield* Stream.runCollect(merged.live));
+
+      // Asserted as a set: under concurrent merging the arrival order is the
+      // producers' order, not this array's, and asserting a sequence here would
+      // be asserting a scheduler.
+      assert.strictEqual(got.length, 2);
+      assert.deepStrictEqual(
+        got.map((record) => record.environment).sort(),
+        ["Client", "Server"],
+      );
+    }));
+
+  /**
+   * The property `concurrency: "unbounded"` buys, and it is not a tuning knob.
+   *
+   * Merged sequentially, `mergeAll` drains one producer before pulling the next
+   * — and the producer this exists for is an SSE connection that **never
+   * completes**. The browser's own decisions would then never be read at all,
+   * and a panel would show the server's half of every pair and none of the
+   * client's, looking merely quiet rather than broken.
+   *
+   * `it.live`, not `it.effect`: the ordering is the assertion, and under
+   * `TestClock` the sleep would never elapse. Two mutants — `{}` and
+   * `concurrency: ""`, both of which Effect reads as *one at a time* — survived
+   * every other case here, because a merge of two already-finished streams
+   * cannot tell the two apart.
+   */
+  it.live("does not make one producer wait for another to finish", () =>
+    Effect.gen(function* () {
+      const slow: Source = {
+        live: Stream.fromArray([decisionRecord({ evaluationId: "slow" })]).pipe(
+          Stream.mapEffect((record) => Effect.as(Effect.sleep("50 millis"), record)),
+        ),
+      };
+      const fast: Source = {
+        live: Stream.fromArray([decisionRecord({ evaluationId: "fast" })]),
+      };
+
+      const got = Array.from(yield* Stream.runCollect(mergeSources([slow, fast]).live));
+
+      // Second producer, first record.
+      assert.deepStrictEqual(got.map((record) => record.evaluationId), ["fast", "slow"]);
+    }));
+
+  it.effect("orders the merged backlog by time, not by source", () =>
+    Effect.gen(function* () {
+      const merged = mergeSources([
+        withBacklog([decisionRecord({ evaluationId: "third", at: 3_000 })]),
+        withBacklog([
+          decisionRecord({ evaluationId: "first", at: 1_000 }),
+          decisionRecord({ evaluationId: "second", at: 2_000 }),
+        ]),
+      ]);
+
+      assert.isDefined(merged.backlog);
+      const got = merged.backlog === undefined ? [] : yield* merged.backlog;
+
+      assert.deepStrictEqual(
+        got.map((record) => record.evaluationId),
+        ["first", "second", "third"],
+      );
+    }));
+
+  // BEH-QD-203: absent means "cannot answer for the past", empty means "can, and
+  // there was nothing". A merge of two feeds must not answer `[]` and so claim a
+  // history was looked at.
+  // `in`, not `=== undefined`, and for the reason the `sourceFromFeed` case
+  // above gives: the key is absent, not present-and-undefined. A reader asking
+  // `"backlog" in source` — which is the honest way to ask "can this answer for
+  // the past" — must get `false`.
+  it.effect("cannot answer for the past when no producer can", () =>
+    Effect.gen(function* () {
+      const merged = mergeSources([liveOnly([]), liveOnly([])]);
+      assert.isFalse("backlog" in merged);
+    }));
+
+  it.effect("one producer answering for the past is enough", () =>
+    Effect.gen(function* () {
+      const record = decisionRecord({ evaluationId: "kept" });
+      const merged = mergeSources([liveOnly([]), withBacklog([record]), liveOnly([])]);
+
+      assert.isDefined(merged.backlog);
+      const got = merged.backlog === undefined ? [] : yield* merged.backlog;
+
+      // Exactly one, not three: a producer with no backlog contributes nothing
+      // rather than an empty run the reader would have to distinguish.
+      assert.deepStrictEqual(got.map((r) => r.evaluationId), ["kept"]);
+    }));
+
+  it.effect("merging nothing answers nothing, and does not pretend to", () =>
+    Effect.gen(function* () {
+      const merged = mergeSources([]);
+      assert.isFalse("backlog" in merged);
+      assert.deepStrictEqual(Array.from(yield* Stream.runCollect(merged.live)), []);
+    }));
+
+  // Deliberately not deduplicated. A feed built with `replay` re-delivers and
+  // `EventSource` reconnects on its own, so duplicates are expected — and the
+  // timeline already folds by evaluation id. Doing it twice would be two places
+  // to be wrong, and this pins the contract so a future "helpful" dedupe here
+  // fails rather than silently hiding a replay.
+  it.effect("does not deduplicate — that is the timeline's job", () =>
+    Effect.gen(function* () {
+      const record = decisionRecord({ evaluationId: "ev-1", at: 1_000 });
+      const merged = mergeSources([withBacklog([record]), withBacklog([record])]);
+
+      const got = merged.backlog === undefined ? [] : yield* merged.backlog;
+      assert.strictEqual(got.length, 2);
+    }));
 });

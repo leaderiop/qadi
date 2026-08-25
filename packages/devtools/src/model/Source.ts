@@ -147,6 +147,47 @@ export const sourceFromEventSource = (options: {
 };
 
 /**
+ * Several sources as one.
+ *
+ * A dock renders **one** timeline, and the deployment that most needs it has two
+ * producers: a server deciding during the render and a browser re-checking after
+ * it. Their records share an `evaluationId` — which is what
+ * `EvaluateOptions.evaluationId` exists for — so pairing them is the point, and
+ * `pairedEntries` can only pair what is in one `Timeline`.
+ *
+ * There was no way to get them there. `decisionSinkRing.ingest` takes a record
+ * from elsewhere, but a ring answers for the past and not for the future, so a
+ * second **live** stream had nowhere to go and the SSR topology's "pairs shown"
+ * was unreachable through the public API.
+ *
+ * **`backlog` is absent when every input's is absent**, and that is the part
+ * worth reading twice. `Source` distinguishes absent — "this sink cannot answer
+ * for the past" — from empty — "it can, and there was nothing"
+ * ([BEH-QD-203](../../../spec/behaviors/27-devtools-timeline.md)). Merging two
+ * bare feeds and answering `[]` would claim a history was checked when none
+ * could be.
+ *
+ * Ordered by `at`, because the reader is one chronological table and two
+ * processes interleave. **Not** deduplicated: a feed built with `replay`
+ * re-delivers and `EventSource` reconnects, and the timeline already folds by
+ * evaluation id — doing it here as well would be two places to be wrong.
+ */
+export const mergeSources = (sources: ReadonlyArray<Source>): Source => {
+  const backlogs = sources.flatMap((source) =>
+    source.backlog === undefined ? [] : [source.backlog]
+  );
+
+  const backlog = backlogs.length === 0
+    ? undefined
+    : Effect.map(Effect.all(backlogs), (parts) => parts.flat().sort((a, b) => a.at - b.at));
+
+  return {
+    ...(backlog === undefined ? {} : { backlog }),
+    live: Stream.mergeAll(sources.map((source) => source.live), { concurrency: "unbounded" }),
+  };
+};
+
+/**
  * One SSE frame to one record, or a reported drop.
  *
  * A `FilterEffect` rather than a map: `Result.fail` skips the element, which is

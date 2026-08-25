@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-27                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -65,6 +65,58 @@ REQUIREMENT: The environment MUST be stamped by the source, not read off a
 Core deliberately does not claim one, because it cannot know whether it is in a
 browser, on a server or at an edge ([BEH-QD-182](./24-decision-sink.md)). The
 adapter does, and applies it at the same boundary `decisionSinkRing` does.
+
+## BEH-QD-235: Several sources are one source
+
+```ts
+export const mergeSources: (sources: ReadonlyArray<Source>) => Source;
+```
+
+```
+REQUIREMENT: The merged `live` MUST carry every input's records.
+```
+
+The deployment this exists for is the second of the six: a server deciding
+during the render and a browser re-checking after it
+([00-overview](../devtools-spec/00-overview.md)). Their two records share an
+`evaluationId` — which is what `EvaluateOptions.evaluationId` is for
+([BEH-QD-186](./24-decision-sink.md)) — so pairing them is the whole point of
+that row saying *pairs shown*, and [BEH-QD-207](#beh-qd-207-rows-are-paired-by-evaluation-and-roles-come-from-time)
+can only pair what reached one `Timeline`.
+
+It was unreachable through the public API. `decisionSinkRing.ingest` accepts a
+record from elsewhere, but a ring answers for the past and not for the future, so
+a **second live stream** had nowhere to go. The three constructors each produce
+one `Source` and `useTimeline` consumes one; nothing joined them.
+
+```
+REQUIREMENT: The merged `backlog` MUST be absent when every input's is absent.
+```
+
+The direct consequence of [BEH-QD-203](#beh-qd-203-a-source-is-what-the-devtools-reads-never-a-transport)'s
+second requirement, and the reason this function is not a one-liner. Absent means
+*cannot answer for the past*; empty means *can, and there was nothing*. Merging
+two bare feeds and answering `[]` would report a history as checked and empty
+when none could be checked at all — the exact distinction that requirement exists
+to preserve, destroyed by the operation meant to combine them.
+
+```
+REQUIREMENT: A merged backlog MUST be ordered by time.
+```
+
+The reader is one chronological table and two processes interleave. Ordering by
+source would put every server row before every browser row regardless of when
+either happened, which is the one arrangement that makes a pair unreadable.
+
+```
+REQUIREMENT: `mergeSources` MUST NOT deduplicate.
+```
+
+Duplicates are expected: a feed built with `replay` re-delivers, and `EventSource`
+reconnects on its own. The timeline already folds by evaluation id
+([BEH-QD-205](#beh-qd-205-one-timeline-ordered-unique-and-joined)), so doing it
+here as well would be two places to be wrong — and the one that silently hid a
+replay would be the one nobody was looking at.
 
 ## BEH-QD-204: A malformed frame degrades one row, and says which way it broke
 

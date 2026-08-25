@@ -360,6 +360,7 @@ checked exactly as the first one's is (CCR-QD-067).
 | ------ | ---- | ------ |
 | `Source`, `DecisionEventSource`, `MalformedReason` | type | `model/Source.ts` |
 | `sourceFromRecords`, `sourceFromFeed`, `sourceFromEventSource` | constructor | `model/Source.ts` |
+| `mergeSources` | several sources as one, so a server's decisions and a browser's re-checks share a timeline | `model/Source.ts` |
 | `Timeline`, `TimelineEntry` | type | `model/Timeline.ts` |
 | `TimelineDecision`, `TimelineOrphan` | class | `model/Timeline.ts` |
 | `emptyTimeline`, `ingest`, `ingestAll`, `entryKey` | function | `model/Timeline.ts` |
