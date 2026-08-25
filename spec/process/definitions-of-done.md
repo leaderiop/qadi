@@ -36,8 +36,29 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 12 | `node scripts/check-devtools-claims.mjs` | `spec/devtools-spec/` says why each thing it calls absent still is |
 | 13 | `node scripts/check-api-surface.mjs` | `spec/overview.md` names every export of every public package |
 | 14 | `node scripts/check-package-install.mjs` | The packed packages install, resolve and authorize |
-| 15 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
-| 16 | `stryker run stryker.devtools.mjs` | Mutation score on the `@qadi/devtools` **model** is at or above 80% |
+| 15 | `pnpm --filter @qadi/example-nextjs check` | The Next.js example type-checks, builds, and its claims hold in a browser |
+| 16 | `stryker run` | Mutation score on `packages/core` is at or above 80% |
+| 17 | `stryker run stryker.devtools.mjs` | Mutation score on the `@qadi/devtools` **model** is at or above 80% |
+
+Step 15 is new in CCR-QD-076. It runs `examples/nextjs-newsroom`'s own `check` —
+`tsc --noEmit`, `vitest run`, `next build`, then Playwright against `next start` —
+as **one** step, because a workspace boundary is one step and
+`check-dod-table.mjs` stops expanding at `pnpm --filter` for exactly that reason.
+
+It is placed after `check-package-install.mjs` and before mutation testing.
+After, because that gate already runs `pnpm build` and the example consumes the
+packages through their `exports` maps rather than through the workspace's `src`
+path aliases — it is a consumer, and it should compile against what ships.
+Before, because it takes about a minute and mutation testing takes rather more.
+
+Its Playwright half is the only place in this repository where a real browser
+runs, and it earns that: the lens measures a `display: contents` marker with
+`Range.selectNodeContents`, happy-dom has no layout, and
+`packages/devtools/test/react/Lens.test.ts` therefore stubs the measurement. The
+one claim that needed an engine was the one nothing had ever run in one. The
+browser is installed inside the example's own `check` rather than in CI, because
+CI runs `pnpm check` and nothing else and a second list of steps would be a
+second definition of done.
 
 Steps 5 and 6 are new in CCR-QD-048 ([ADR-QD-037](../decisions/037-circular-imports-and-type-level-tests-are-gates.md)).
 Both are placed here — after the lint family, before the slower runtime
@@ -78,8 +99,8 @@ oversight but a property of the process — nothing connected an export to its
 documentation, so the connection survived only as long as someone remembered it. The
 third fix is a gate rather than an edit.
 
-It runs before step 15 deliberately: it takes milliseconds and mutation testing takes
-ninety seconds, so a drifted document fails fast.
+It runs before `stryker run`, step 16, deliberately: it takes milliseconds and
+mutation testing takes ninety seconds, so a drifted document fails fast.
 
 `node scripts/check-package-install.mjs`, step 14, is new in CCR-QD-038, and it is the
 first gate that looks at the package rather than the sources. Every test in this repository imports `src/` by relative path, so

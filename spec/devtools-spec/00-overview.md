@@ -85,7 +85,7 @@ not then exist. The real spread, and where each now stands:
 | Topology | Decisions made | A page to host an overlay? | Data plane | Surface |
 | -------- | -------------- | -------------------------- | ---------- | ------- |
 | SPA, client-only | browser | yes | ✅ in-process ring | ✅ the dock |
-| SSR / hydration (Next.js) | both | yes, after hydration | ✅ ring + seeded pairing | ✅ the dock, pairs shown |
+| SSR / hydration (Next.js) | both | yes, after hydration | ✅ ring + seeded pairing | ✅ the dock, pairs shown — **built**, `examples/nextjs-newsroom` |
 | Backend-only service | server | **no** | ✅ SSE feed | ❌ reachable, not presentable |
 | SPA + separate API origin | both, two processes | yes | ✅ forward + ingest | ✅ the dock, over SSE |
 | Serverless / edge | server, ephemeral | no | ✅ forward before the process ends | ❌ needs an aggregator's page |

@@ -109,10 +109,19 @@ export interface QadiAtoms {
    * apart, and a panel listing ten rows would be inventing a distinction the
    * architecture does not have.
    *
-   * Recorded here, in the atom layer, rather than by components registering
-   * themselves: [AGENTS.md §13](../../../AGENTS.md) keeps the React glue to one
-   * `useSyncExternalStore` call and decisions out of React state, and an
-   * instance registry would breach both.
+   * Recorded here, in the atom layer, because this is the layer that knows what
+   * was *asked*. What is **asking** is recorded separately, by the components
+   * themselves, in `GateRegistry.ts` — the two views sit side by side in the
+   * devtools React panel ([ADR-QD-053](../../../spec/decisions/053-a-gate-can-be-found.md)).
+   *
+   * This paragraph read "an instance registry would breach [AGENTS.md §13]
+   * twice over", and it does not. Decisions are still not in React state and the
+   * React glue is still one `useSyncExternalStore` call in `QadiProvider.tsx`;
+   * the registry exposes `subscribe`/`snapshot` and it is `@qadi/devtools` that
+   * subscribes. What the argument above actually establishes is that the *atom
+   * layer* cannot see instances, which is true and is why this screen is keyed
+   * by question. A component knows perfectly well that it exists; nothing was
+   * asking it (CCR-QD-073, corrected here in CCR-QD-076).
    *
    * Read the current verdict for each with `decision`/`decisionFor` — that is
    * what keeps a stale entry rendering as re-checking rather than as its old

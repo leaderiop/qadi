@@ -109,9 +109,21 @@ be a **CLI** rather than a served page, and it is not written.
 > what exists is therefore maintained by hand, which is what CCR-QD-025 and
 > CCR-QD-034 already recorded going wrong twice elsewhere.
 
-The repository still has **no frontend build tooling** — no bundler, no CSS
-pipeline, no dev server, no example app — and the dock is built to need none:
-`tsc` only, styles as inline objects, and nothing that runs on import. That last
-point is a constraint rather than a preference, because `@qadi/devtools`
-declares `"sideEffects": false` and a bundler may drop a module whose only job
-is a side effect.
+The dock needs **no frontend build tooling**: `tsc` only, styles as inline
+objects, and nothing that runs on import. That last point is a constraint rather
+than a preference, because `@qadi/devtools` declares `"sideEffects": false` and a
+bundler may drop a module whose only job is a side effect.
+
+> **Corrected in CCR-QD-076.** This paragraph read "The repository still has **no
+> frontend build tooling** — no bundler, no CSS pipeline, no dev server, no
+> example app — and the dock is built to need none". The first half is no longer
+> true: `examples/nextjs-newsroom` is a Next.js application, it is a workspace
+> package, and it is step 15 of `pnpm check`. The claim it was making is, and is
+> what survives above — the dock needs no build tooling, which is why it can be
+> mounted in an application that has some.
+
+That example is the SSR/hydration row of the table below, running: Effect served
+by a Next.js Route Handler, decisions seeded into the browser and re-checked
+there, and the dock reading both halves through one `mergeSources`. It found
+seven things no test in this repository could have, which is the argument for
+having built it — they are listed in `examples/nextjs-newsroom/README.md`.

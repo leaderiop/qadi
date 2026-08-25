@@ -97,10 +97,18 @@ one degrades to an unfamiliar badge rather than to a wrong answer.
 
 ## Status
 
-Increment 3 is in progress. The model is built; the dock is not yet complete.
-See [`spec/devtools-spec/`](../../spec/devtools-spec) for the design and
+All seven screens are built, and `examples/nextjs-newsroom` mounts the dock with
+every one of `DevtoolsDockProps`' twelve fields wired. See
+[`spec/devtools-spec/`](../../spec/devtools-spec) for the design and
 [behaviour 27](../../spec/behaviors/27-devtools-timeline.md) for the normative
 rules.
+
+> **Corrected in CCR-QD-076.** This read "Increment 3 is in progress. The model is
+> built; the dock is not yet complete" for six increments after the dock was
+> finished. Nothing gates a package README: `check-devtools-claims.mjs` covers
+> only `spec/devtools-spec/`, and `check-api-surface.mjs` reads only
+> `spec/overview.md`. Found while writing the example, which is the first thing
+> that had to consume this package as a stranger would.
 
 ## License
 

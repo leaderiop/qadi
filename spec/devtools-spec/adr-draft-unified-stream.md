@@ -90,8 +90,16 @@ Naming these so the draft cannot again claim more than it has.
   A paired row's explanation panel will render nothing until a payload opts in.
   That is a disclosure boundary rather than a defect, so the fix is for the UI to
   say "trace not disclosed" rather than for the payload to loosen.
-- **Nothing renders any of it.** The pair is expressible and reachable; the
-  timeline that would show it is increment 3.
+- ~~**Nothing renders any of it.**~~ Closed. The timeline was built in
+  CCR-QD-067 and `mergeSources` (BEH-QD-235, CCR-QD-076) is what finally lets a
+  server's decisions and a browser's re-checks reach **one** of them, which is
+  what a pair needs. `examples/nextjs-newsroom` wires it.
+
+  > Read, until CCR-QD-076: "The pair is expressible and reachable; the timeline
+  > that would show it is increment 3." True when written and stale for eight
+  > increments. The phrase list in `check-devtools-claims.mjs` does not include
+  > "Nothing renders", so gate 12 did not see it — a reminder that the gate is a
+  > net rather than a proof, which it says of itself.
 
 ## Alternatives considered
 

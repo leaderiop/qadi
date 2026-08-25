@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.25                                           |
-> | Effective Date | 2026-08-22                                     |
+> | Revision       | 1.26                                           |
+> | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.25 (2026-08-22): Two new merge gates (`madge`, `tstyche`) and changesets adopted; gate table updated (ADR-QD-037, ADR-QD-038, CCR-QD-051)<br>1.24 (2026-08-22): The witness/`guard` primitive and `@qadi/http` shipped; gate figures refreshed (ADR-QD-035, ADR-QD-036, CCR-QD-047)<br>1.23 (2026-07-26): The Promise facade shipped; Under consideration is now empty (ADR-QD-032, CCR-QD-033)<br>1.22 (2026-07-26): Decision caching shipped (ADR-QD-031, CCR-QD-032)<br>1.21 (2026-07-26): Policy simplification shipped (ADR-QD-030, CCR-QD-031)<br>1.20 (2026-07-26): `join` and `meet` shipped; MLS to Shipped (ADR-QD-029, CCR-QD-030)<br>1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.26 (2026-08-25): `mergeSources` and the Next.js example; the merge gate goes from sixteen steps to seventeen; gate figures refreshed; the devtools programme and the CLI recorded here for the first time (BEH-QD-235, CCR-QD-076)<br>1.25 (2026-08-22): Two new merge gates (`madge`, `tstyche`) and changesets adopted; gate table updated (ADR-QD-037, ADR-QD-038, CCR-QD-051)<br>1.24 (2026-08-22): The witness/`guard` primitive and `@qadi/http` shipped; gate figures refreshed (ADR-QD-035, ADR-QD-036, CCR-QD-047)<br>1.23 (2026-07-26): The Promise facade shipped; Under consideration is now empty (ADR-QD-032, CCR-QD-033)<br>1.22 (2026-07-26): Decision caching shipped (ADR-QD-031, CCR-QD-032)<br>1.21 (2026-07-26): Policy simplification shipped (ADR-QD-030, CCR-QD-031)<br>1.20 (2026-07-26): `join` and `meet` shipped; MLS to Shipped (ADR-QD-029, CCR-QD-030)<br>1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -21,7 +21,9 @@ specification infix. The core is complete and verified: fourteen policy variants
 twelve matchers, five value references, obligations, a decision-history port, a
 label lattice, ordered rule tables, the evaluator, enforcement, subject-set
 review, predicate output, serialization, React integration, a Promise facade,
-HTTP framework bindings and a test toolkit — six packages.
+HTTP framework bindings, a headless devtools model with a React dock, and a test
+toolkit — **six published packages**, plus the private `@qadi/features`
+acceptance suite and the `@qadi/example-nextjs` application.
 
 | Gate | Status |
 | ---- | ------ |
@@ -29,16 +31,17 @@ HTTP framework bindings and a test toolkit — six packages.
 | `oxlint` + house-style checks | passing |
 | Circular imports (`madge`) | none found, across every package's `src/` |
 | Type-level tests (`tstyche`) | 13 assertions passing |
-| Unit and property tests | 1589 passing |
-| Acceptance scenarios | 220 scenarios, 1002 steps passing |
-| Coverage | 99.29% statements, 96.16% branches, 99.59% functions, 99.53% lines — thresholds enforced |
+| Unit and property tests | 1596 passing |
+| Acceptance scenarios | 228 scenarios, 1036 steps passing |
+| Coverage | 99.30% statements, 96.18% branches, 99.59% functions, 99.53% lines — thresholds enforced |
 | Doc examples compile | 73 blocks |
 | Specification integrity | 15 checks passing |
+| Example application | type-checks, builds, 12 unit and 23 end-to-end assertions in a real browser |
 | Mutation score | 96.65% on `packages/core` and 100.00% on the `@qadi/devtools` model, break threshold 80 — enforced |
 
-This table groups the **fourteen** numbered steps of
+This table groups the **seventeen** numbered steps of
 [the merge gate](./process/definitions-of-done.md#merge-gate) into families and
-is not a row-for-row image of it. `scripts/check-dod-table.mjs` checks that
+is not a row-for-row image of it. `node scripts/check-dod-table.mjs` checks that
 table against `pnpm check`; this one carries measured numbers and is maintained
 by hand, so it is the one to distrust first.
 
@@ -278,7 +281,24 @@ revisions; see [BEH-QD-071](./behaviors/09-react.md).
 
 ## Planned
 
-**Nothing.** Every item this roadmap committed to has shipped.
+**One.** [ADR-QD-049](./decisions/049-the-second-shell-is-a-cli.md) is Accepted
+with implementation deferred: the second devtools shell is a **CLI**, reading
+`/__decisions` and rendering the merged timeline to a terminal. Three of the six
+deployments — a backend-only service, a serverless function, a replicated server
+— have no browser page, so their decisions are reachable and not presentable.
+
+It appeared in no section of this roadmap between being accepted (CCR-QD-068) and
+CCR-QD-076, which is the failure mode this document exists to prevent: a decision
+taken, recorded as an ADR, and then in no list of what is left to do.
+
+The seam it needs already exists — `sourceFromEventSource` takes an `open`
+callback precisely so a runtime without a global `EventSource` can supply its own
+reader — and it needs no bundler, which is the argument that chose it over a
+served page.
+
+> Read "**Nothing.** Every item this roadmap committed to has shipped" until
+> CCR-QD-076. True of everything this document had *committed to*; ADR-QD-049 had
+> never been written down here at all.
 
 ## Under consideration
 

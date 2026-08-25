@@ -34,12 +34,13 @@
     "format:check": "oxfmt --check packages features",
     "spec:verify": "bash spec/scripts/verify-traceability.sh",
     "spec:verify:strict": "bash spec/scripts/verify-traceability.sh --strict",
-    "check": "pnpm typecheck && pnpm lint && pnpm circular && pnpm test:tstyche && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict && pnpm spec:gates && pnpm spec:claims && pnpm spec:api && pnpm spec:package && pnpm mutation",
+    "check": "pnpm typecheck && pnpm lint && pnpm circular && pnpm test:tstyche && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict && pnpm spec:gates && pnpm spec:claims && pnpm spec:api && pnpm spec:package && pnpm example && pnpm mutation",
     "spec:examples": "node scripts/check-doc-examples.mjs",
     "spec:api": "node scripts/check-api-surface.mjs",
     "spec:package": "node scripts/check-package-install.mjs",
     "spec:gates": "node scripts/check-dod-table.mjs",
-    "spec:claims": "node scripts/check-devtools-claims.mjs"
+    "spec:claims": "node scripts/check-devtools-claims.mjs",
+    "example": "pnpm --filter @qadi/example-nextjs check"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.1",

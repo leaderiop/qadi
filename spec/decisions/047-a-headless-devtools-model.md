@@ -30,9 +30,16 @@ a decision with an outcome emitted after `evaluate` returned, and telling a
 short-circuited node from a denied one. Those are as testable as the evaluator.
 
 Two constraints came with the ground rather than with the design. The repository
-has **no frontend build tooling at all** — no bundler, no CSS pipeline, no dev
+had **no frontend build tooling at all** — no bundler, no CSS pipeline, no dev
 server, no example app — and three of the six deployments have no browser page
 to host an overlay in.
+
+> **Amended in CCR-QD-076.** The first constraint no longer holds:
+> `examples/nextjs-newsroom` is a Next.js application in the workspace. The
+> decision stands unchanged, and the example is the reason it does — a dock that
+> needed a bundler could not have been mounted in one written afterwards. The
+> second constraint is untouched: those three deployments still have no page, and
+> ADR-QD-049's CLI is still not written.
 
 ## Decision
 
