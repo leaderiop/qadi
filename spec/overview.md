@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-OVERVIEW                                  |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-08-25): `@qadi/audit` added to the Packages table and given its own subsection — audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` (ADR-QD-056, CCR-QD-085)<br>1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.6 (2026-08-25): `Signature`, `SignatureHistory` and `SignatureHistoryUnavailable` added — the canonical e-signature shape and its lookup port, resolving wayfinder ticket #13 ahead of the `hasSignature` Policy leaf itself; declared but not yet wired into `EvaluationServices` or the error unions (CCR-QD-087)<br>1.5 (2026-08-25): `@qadi/audit` added to the Packages table and given its own subsection — audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` (ADR-QD-056, CCR-QD-085)<br>1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -180,6 +180,8 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `RelationshipResolver`, `RelationshipResolverNever`, `relationshipResolverFromEdges` | service + layer | `RelationshipResolver.ts` |
 | `relationshipResolverRetrying`, `relationshipResolverBounded` | layer combinator | `RelationshipResolver.ts` |
 | `DecisionHistory`, `DecisionHistoryUnknown`, `decisionHistoryFromEvents` | service + layer | `DecisionHistory.ts` |
+| `SignatureHistory`, `SignatureHistoryNone` | service + layer | `SignatureHistory.ts` |
+| `Signature`, `SIGNATURE_MEANINGS` | schema + constant | `Signature.ts` |
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
 | `CustomPredicate`, `CustomPredicateNone`, `customPredicateFromRecord` | service + layer | `CustomPredicate.ts` |
 | `customPredicateRetrying`, `customPredicateBounded` | layer combinator | `CustomPredicate.ts` |
@@ -200,6 +202,8 @@ writeDocument>` cannot be called without going through `guard` first, which
 | `DecisionHistoryShape`, `ActedQuery`, `ActedResult` | type | `DecisionHistory.ts` |
 | `ActedEventInput`, `ActedAnywhereInput` | type | `DecisionHistory.ts` |
 | `ActedEvent`, `ActedAnywhere` | value class | `DecisionHistory.ts` |
+| `SignatureHistoryShape`, `SignatureQuery` | type | `SignatureHistory.ts` |
+| `SignatureMeaning` | type | `Signature.ts` |
 | `EvaluationIdShape`, `DecisionCacheShape`, `DecisionCacheKey` | type | service modules |
 | `DecisionSinkShape`, `DecisionOutcome`, `ObligationOutcome`, `SinkRecord` | type | sink modules |
 | `DecisionRecord`, `ObligationRecord`, `Decided`, `Failed` | value class | `DecisionRecord.ts` |
@@ -236,6 +240,15 @@ other service appears in.
 nothing back, and whatever happens to it — a failure or a defect — cannot change
 the decision ([INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)).
 
+`SignatureHistory` is declared but **not yet a ninth service** — it is not part of
+`EvaluationServices`, and no Policy leaf calls it. It exists ahead of its own
+`hasSignature` leaf because the leaf's design (wayfinder ticket #14) needs a
+concrete `SignatureHistory`/`Signature` to design against; wiring it into
+`EvaluationServices` as a required service is wayfinder ticket #16. Its default,
+`SignatureHistoryNone`, answers with no signatures on file — the same fail-closed
+shape every other default in this table follows
+([INV-QD-007](invariants.md#inv-qd-007-defaults-fail-closed)).
+
 #### Inspecting a policy, a role graph and two traces
 
 | Export | Kind | Source |
@@ -263,6 +276,11 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `CustomPredicateError`,
 plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
+
+`SignatureHistoryUnavailable` is declared alongside them but, like the service it
+belongs to, is **not yet a member of either union** — it carries no `ACL###` code
+in `ERROR_CODES`. It joins both once `hasSignature`'s `evaluateNode` wiring can
+actually raise it (wayfinder ticket #16).
 
 ## The other packages
 

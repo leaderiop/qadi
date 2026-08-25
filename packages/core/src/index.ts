@@ -28,6 +28,8 @@ export * from "./RelationshipResolver.ts";
 export * from "./Resource.ts";
 export * from "./Role.ts";
 export * from "./SecurityLabel.ts";
+export * from "./Signature.ts";
+export * from "./SignatureHistory.ts";
 export * from "./Simplify.ts";
 export * from "./SinkCodec.ts";
 export * from "./SubjectSet.ts";

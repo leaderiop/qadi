@@ -60,6 +60,23 @@ export class DecisionHistoryUnavailable extends Data.TaggedError(
   readonly cause: unknown;
 }> {}
 
+/**
+ * A wired `SignatureHistory` store could not be reached. Distinct from it
+ * legitimately answering "no matching signatures" — see `SignatureHistory.ts`.
+ *
+ * Not yet a member of {@link EvaluationError}/{@link QadiError}: the
+ * `hasSignature` Policy leaf that raises this during evaluation does not
+ * exist yet (wayfinder ticket #14). It joins both unions once that leaf and
+ * its `evaluateNode` wiring land (wayfinder ticket #16).
+ */
+export class SignatureHistoryUnavailable extends Data.TaggedError(
+  "SignatureHistoryUnavailable",
+)<{
+  readonly subjectId: SubjectId;
+  readonly resourceId: ResourceId | undefined;
+  readonly cause: unknown;
+}> {}
+
 /** The policy tree is deeper than the configured limit. Guards against cyclic input. */
 export class PolicyTooDeep extends Data.TaggedError("PolicyTooDeep")<{
   readonly maxDepth: number;
