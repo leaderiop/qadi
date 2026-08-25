@@ -158,7 +158,7 @@ const HistoryPort = HttpRouter.add(
  *
  * `addGuardedRoute` mints an `Authorized<P>` witness the handler cannot
  * fabricate, and registers the path in the permission registry so
- * `/__permissions` can list it. Nothing `middleware.ts` does can reach this: the
+ * `/__permissions` can list it. Nothing `proxy.ts` does can reach this: the
  * decision is taken here, in the handler's own layer, from the policy.
  */
 const ArticleRoute = addGuardedRoute(

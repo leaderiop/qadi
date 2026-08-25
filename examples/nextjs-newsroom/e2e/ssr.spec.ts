@@ -116,7 +116,7 @@ test.describe("the guarded devtools routes", () => {
   });
 });
 
-test.describe("middleware is not a security boundary", () => {
+test.describe("the proxy is not a security boundary", () => {
   test("a forged x-middleware-subrequest changes nothing", async () => {
     const plain = await fetch("http://127.0.0.1:3211/api/articles/night-shift", {
       headers: { cookie: "qadi-newsroom-user=yasmine" },

@@ -8,7 +8,7 @@ import "server-only";
  *
  * The cookie is read on **every** surface that decides — the page, the server
  * action, the route handler — and never trusted from a header a proxy could
- * set. `middleware.ts` in this app touches none of this, deliberately: see
+ * set. `proxy.ts` in this app touches none of this, deliberately: see
  * `/edge/middleware`.
  */
 import { cookies } from "next/headers";

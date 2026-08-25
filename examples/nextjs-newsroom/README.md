@@ -44,7 +44,8 @@ lists them.
 ## What building it found
 
 Every item here was found by **running** the app, and none of them could have
-been found by the library's own tests. That is the argument for having built it.
+been found by the library's own tests. Two of them by the dev server's own
+startup banner. That is the argument for having built it.
 
 ### 1. The resource is part of the atom key, so decide against attributes
 
@@ -110,7 +111,22 @@ was never asked. `src/client/ports.ts` does not settle on the server, so the
 guard reads pending and the seed covers the gap — which is the division of labour
 [BEH-QD-067](../../spec/behaviors/09-react.md) describes.
 
-### 7. Suspending on a question the server cannot answer holds the response open
+### 7. Next renamed `middleware` to `proxy`, and the rename is the argument
+
+`next dev` on 16.3 says `middleware.ts` is deprecated. The new convention is
+`proxy.ts`, and its documentation now says the layer "should not be used as a
+full session management or authorization solution", calling the permission checks
+it *is* suited to "optimistic". That is `/edge/middleware`'s whole point,
+conceded upstream: a proxy is what it always was, and only the name suggested
+otherwise. CVE-2025-29927 — a CVSS 9.1 that let `x-middleware-subrequest` skip
+the layer entirely — made the point the expensive way first.
+
+`next dev` also writes an `AGENTS.md` and a `CLAUDE.md` into this directory, and
+re-creates them if you delete the files. This repository's `AGENTS.md` is its
+house-style authority and lives at the root; a second one nested here would be a
+competing set of rules. `agentRules: false` in `next.config.ts`.
+
+### 8. Suspending on a question the server cannot answer holds the response open
 
 The App Router awaits Suspense boundaries during the server render, so
 `useDecisionSuspense` on an **unseeded, resolver-bound** question suspends a

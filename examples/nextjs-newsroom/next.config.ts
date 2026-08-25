@@ -11,6 +11,12 @@ import type { NextConfig } from "next";
  */
 const config: NextConfig = {
   typedRoutes: true,
+  // `next dev` writes an `AGENTS.md` and a `CLAUDE.md` into this directory
+  // unless this is off, and re-creates them if you delete the files. This
+  // repository's `AGENTS.md` is its house-style authority and lives at the root;
+  // a second one nested here would be a competing set of rules for anyone —
+  // person or agent — working in this directory.
+  agentRules: false,
 };
 
 export default config;

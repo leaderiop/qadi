@@ -1,5 +1,10 @@
 /**
- * Middleware is not a security boundary — and neither is a hydrated allow.
+ * The proxy is not a security boundary — and neither is a hydrated allow.
+ *
+ * Next renamed this convention in 16.3: `middleware.ts` is deprecated and the
+ * file is now `proxy.ts`. The rename is the concession — its own documentation
+ * says the layer "should not be used as a full session management or
+ * authorization solution".
  *
  * Two independent enforcement points, both reachable, both re-deciding:
  *
@@ -8,7 +13,7 @@
  *   `addGuardedRoute` and mints an `Authorized<P>` witness the handler cannot
  *   fabricate.
  *
- * Neither consults `middleware.ts`, and neither reads any header a caller could
+ * Neither consults `proxy.ts`, and neither reads any header a caller could
  * set. That is defence in depth in the only form that means anything: not a
  * fallback behind a primary check, but two places that each own their decision.
  */
@@ -48,7 +53,7 @@ const Page = async () => {
 
   return (
     <Shell
-      title="Middleware is not a boundary"
+      title="The proxy is not a boundary"
       lede="It ran. Nothing downstream asked it anything."
       subject={user.subject}
       currentUserId={user.id}
@@ -58,8 +63,9 @@ const Page = async () => {
         what="What happens here"
         how={
           <>
-            <code>middleware.ts</code> sets two headers and decides nothing. This page reads the
-            session cookie and asks <code>canReadArticle</code> for itself; the route handler at{" "}
+            <code>proxy.ts</code> — what Next 16.3 renamed <code>middleware.ts</code> to — sets two
+            headers and decides nothing. This page reads the session cookie and asks{" "}
+            <code>canReadArticle</code> for itself; the route handler at{" "}
             <code>/api/articles/{target?.id ?? ":id"}</code> asks it again, independently, through{" "}
             <code>addGuardedRoute</code>.
           </>
@@ -75,9 +81,9 @@ const Page = async () => {
       />
 
       <div style={card}>
-        <div style={{ ...mono, marginBottom: 4 }}>what middleware left on this request</div>
+        <div style={{ ...mono, marginBottom: 4 }}>what the proxy left on this request</div>
         <ul style={{ ...mono, margin: 0, paddingLeft: "1.1rem" }}>
-          <li>x-newsroom-middleware: {incoming.get("x-newsroom-middleware") ?? "(absent)"}</li>
+          <li>x-newsroom-proxy: {incoming.get("x-newsroom-proxy") ?? "(absent)"}</li>
           <li>
             x-newsroom-claimed-user: {incoming.get("x-newsroom-claimed-user") ?? "(absent)"}
           </li>

@@ -5,7 +5,7 @@
  * The point is a negative result: the response tracks the session cookie and
  * nothing else. `x-middleware-subrequest` is the header CVE-2025-29927 used to
  * skip middleware entirely; `x-claimed-user` is the shape an app takes when
- * someone decides middleware should "pass the user down". Neither reaches a
+ * someone decides the proxy should "pass the user down". Neither reaches a
  * decision here, because the decision is taken in the handler's own layer from
  * the policy and the extractor reads one cookie.
  */
