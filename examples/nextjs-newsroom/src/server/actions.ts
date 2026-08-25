@@ -15,7 +15,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import * as Effect from "effect/Effect";
-import { assert } from "@qadi/core";
+import { assert, renderTrace } from "@qadi/core";
 import { articleById } from "../domain/articles.ts";
 import { canPublishArticle } from "../domain/policies.ts";
 import { knownUserIds } from "../domain/subjects.ts";
@@ -36,6 +36,16 @@ export const switchUser = async (formData: FormData): Promise<void> => {
 export interface ActionOutcome {
   readonly ok: boolean;
   readonly message: string;
+  /**
+   * The denial's trace, rendered.
+   *
+   * Needed because `AccessDenied.reason` is the **top node's** sentence, and for
+   * a rule table that sentence is `rules[1] denied` — the row by index, not the
+   * `labeled(...)` name sitting on it. The labels are in the trace, so an
+   * application that wants to tell a person *why* renders the trace rather than
+   * reading the reason.
+   */
+  readonly detail?: string;
 }
 
 /**
@@ -43,8 +53,8 @@ export interface ActionOutcome {
  *
  * `assert` rather than `check`: the caller has said "proceed only if permitted",
  * so a denial is a failure of this operation and not a boolean to branch on.
- * `AccessDenied` carries the trace, which is why the message below can name the
- * rule that refused rather than only say that something did.
+ * `AccessDenied` carries the **trace**, which is what lets the refusal name the
+ * rule — its `reason` alone would say `rules[1] denied`.
  */
 export const publish = async (articleId: string): Promise<ActionOutcome> => {
   const user = await currentUser();
@@ -62,7 +72,11 @@ export const publish = async (articleId: string): Promise<ActionOutcome> => {
         // the second as the first is how an attribute store falling over becomes
         // "you may not publish this".
         Effect.catchTag("AccessDenied", (denied) =>
-          Effect.succeed<ActionOutcome>({ ok: false, message: `refused: ${denied.reason}` })),
+          Effect.succeed<ActionOutcome>({
+            ok: false,
+            message: `refused: ${denied.reason}`,
+            detail: renderTrace(denied.trace),
+          })),
         Effect.catchTag(
           [
             "AttributeResolveError",

@@ -134,6 +134,38 @@ boundary that never resolves. Measured: still streaming at twenty seconds, which
 is where the test gave up rather than where the server did. Seed the question, or
 use `useDecision` and render the pending state.
 
+### 9. A `<select defaultValue>` lies after a Server Action
+
+The user switcher looked broken and was not. Switching worked — the cookie
+changed and every decision on the page changed with it — and the `<select>`
+snapped back to the previous name, which is worse than either outcome on its own.
+
+A `<select>` with `defaultValue` is **uncontrolled**: React applies the default
+at mount and re-applies that same mount-time value on later updates, so a
+subtree re-rendered by a Server Action shows the old value however new the props
+are. `key={currentUserId}` forces a remount. The alternative is React state,
+which would put session state in the client for a control whose whole job is to
+report what the *server* thinks.
+
+**It reproduced under `next dev` and never under `next start`** — measured both
+ways, with and without the fix, which is why the end-to-end suite cannot guard
+it: that suite runs a production build, and it stayed green on the broken
+version. The likely cause is dev-mode double rendering. The test is kept for what
+it does assert and its comment says plainly that it is not a regression guard.
+
+### 10. An SSE connection is bound to the session that opened it
+
+`/__decisions` is guarded by a policy, so the `EventSource` is authorized as
+whoever held the session when it connected. The dock built its source **once**,
+at module scope, so opening the page as a subject without `devtools:read` got a
+refusal that was never retried — and switching to one who has it left the panel
+showing the browser's own decisions and none of the server's, indistinguishable
+from a broken transport.
+
+The source is now rebuilt when the subject changes, and only then. The panel also
+says out loud when the feed was refused, because otherwise its absence looks like
+a bug rather than the guard doing its job.
+
 ---
 
 ## Smaller observations about the API
@@ -150,11 +182,38 @@ use `useDecision` and render the pending state.
   `Neq` and `Dominates` take a ref; `Gte` and `Lt` take a literal number. There
   is no way to say "this resource's `embargoUntil` is at or before this subject's
   now", so `embargoLifted` is derived by the caller, where the clock already is.
+- **`AccessDenied.reason` names a rule-table row by index.** For a `rules([...])`
+  policy the top node's sentence is `rules[1] denied`, not the `labeled(...)`
+  name sitting on that row. The labels are in the **trace**, so an application
+  that wants to tell a person why renders `renderTrace(denied.trace)` rather than
+  reading the reason. `/edge/action` does.
 - **A Server Component *can* import from `@qadi/react`.** The barrel carries no
   `"use client"` and re-exports both sides; `dehydrateDecisions` is reachable from
   an RSC and `next build` is happy. No `@qadi/react/server` subpath is needed.
 
-## One open discrepancy
+## Open, and not diagnosed
+
+Two things measured but not explained. Both are stated at what was observed,
+because a wrong mechanism written down confidently is worse than a gap.
+
+### `useInvalidate()` produces no re-evaluation in a production build
+
+On `/edge/invalidate`, pressing the button increments its own round counter and
+then nothing happens: no state transition on either row, and **zero** calls to
+`/api/ports/*`, counted by wrapping `window.fetch`. Under `next dev` the same
+page shows `Allow → Rechecking → Allow` on the resolver-bound row, so the
+machinery does work somewhere.
+
+A first reading blamed a `DecisionCache` in the browser layer — the atoms
+discarded, the cache answering anyway. Measuring both ways disproved it: with the
+cache and without it, the production number is zero. The cache is still there and
+the claim was withdrawn.
+
+A candidate end-to-end test was dropped rather than kept. It passed either way —
+it was counting unrelated network traffic — and a green test that does not
+discriminate is worse than none.
+
+### A verdict that changes from its seed announces no mismatch
 
 On `/edge/divergent` the verdict genuinely changes from the seed — the guard is
 handed `Success` (the seed), then `Initial+waiting` (the re-check in flight, per

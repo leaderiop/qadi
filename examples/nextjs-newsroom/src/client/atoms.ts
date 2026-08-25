@@ -52,6 +52,19 @@ const record = (mismatch: HydrationMismatch): void => {
   for (const listener of listeners) listener();
 };
 
+/**
+ * A cache in the browser is a second layer of memoisation.
+ *
+ * `Atom.family` already keeps one evaluation per question, so this earns its
+ * place mainly by surviving a re-render — on a server, where a hit spans
+ * requests, it earns rather more.
+ *
+ * It was briefly suspected of defeating `useInvalidate()` and it is **not** the
+ * cause: measured with and without it, in a production build, invalidating
+ * `/edge/invalidate` produces no state transition and no port call either way.
+ * That observation is open and recorded in the README rather than diagnosed
+ * here; the cache stays because removing it changed nothing.
+ */
 export const atoms = makeQadiAtoms(
   Layer.mergeAll(
     browserPorts,

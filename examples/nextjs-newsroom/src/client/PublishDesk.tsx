@@ -17,7 +17,7 @@ import { publish } from "../server/actions.ts";
 import type { ActionOutcome } from "../server/actions.ts";
 import { canPublishArticle } from "../domain/policies.ts";
 import { GateState } from "./Guards.tsx";
-import { button, card, mono, muted } from "../ui/theme.ts";
+import { button, card, mono, muted, pre } from "../ui/theme.ts";
 
 export interface Target {
   readonly id: string;
@@ -64,6 +64,9 @@ const Row = ({ target }: { readonly target: Target }) => {
             {outcome.message}
           </p>
         )}
+      {outcome?.detail === undefined ? null : (
+        <pre style={pre} data-testid={`publish-trace-${target.id}`}>{outcome.detail}</pre>
+      )}
     </div>
   );
 };

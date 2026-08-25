@@ -29,7 +29,7 @@ import {
 } from "@qadi/devtools";
 import type { HydrationActivity, PortActivity, PortCallLog, WiringReport } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
-import { gateInstances, subscribeGates, useInvalidate } from "@qadi/react";
+import { gateInstances, subscribeGates, useInvalidate, useSubject } from "@qadi/react";
 import { catalogue } from "../domain/policies.ts";
 import { allRoles } from "../domain/roles.ts";
 import {
@@ -46,27 +46,37 @@ import { useDrops } from "./Providers.tsx";
 /**
  * Both halves of this deployment's decisions, in one timeline.
  *
- * Built once at module scope: `useTimeline` holds its source by identity, and a
- * fresh one per render would re-subscribe — reopening the `EventSource` on every
- * keystroke in the dock's filter box.
+ * **Rebuilt when the subject changes, and only then.** `useTimeline` holds its
+ * source by identity, so a fresh one per render would reopen the `EventSource`
+ * on every keystroke in the filter box — but a source built *once* is worse in a
+ * different way, and this example shipped that version first.
+ *
+ * `/__decisions` is guarded by a policy, so the connection is authorized as
+ * whoever held the session when it opened. Open the page as a subject without
+ * `devtools:read` and the stream is refused; switch to one who has it and the
+ * connection is never retried, because nothing asked for a new one. The panel
+ * then shows the browser's own decisions and none of the server's —
+ * indistinguishable from the transport being broken, which is what it looked
+ * like.
  */
-const source = mergeSources([
-  sourceFromEventSource({
-    url: "/api/__decisions",
-    environment: "Server",
-    withCredentials: true,
-    // A frame that does not decode is one row lost, never the stream. The panel
-    // is what you are looking at when something is already wrong.
-    onMalformed: (frame, reason) => {
-      console.warn(`qadi: dropped a ${reason} frame`, frame.slice(0, 120));
-    },
-  }),
-  sourceFromFeed({
-    stream: clientFeed.stream,
-    environment: "Client",
-    backlog: clientRing.snapshot,
-  }),
-]);
+const makeSource = () =>
+  mergeSources([
+    sourceFromEventSource({
+      url: "/api/__decisions",
+      environment: "Server",
+      withCredentials: true,
+      // A frame that does not decode is one row lost, never the stream. The
+      // panel is what you are looking at when something is already wrong.
+      onMalformed: (frame, reason) => {
+        console.warn(`qadi: dropped a ${reason} frame`, frame.slice(0, 120));
+      },
+    }),
+    sourceFromFeed({
+      stream: clientFeed.stream,
+      environment: "Client",
+      backlog: clientRing.snapshot,
+    }),
+  ]);
 
 /** Parent names `resolveRoleGraph` could not resolve. Collected once. */
 const unknownParents: Array<string> = [];
@@ -104,6 +114,12 @@ const useSampled = <A,>(read: Effect.Effect<A>, everyMillis = 2_000): A | undefi
 
 export const Dock = () => {
   const invalidate = useInvalidate();
+  const subject = useSubject();
+
+  // One connection per session. `useSubject` comes from the provider above, so
+  // this rebuilds exactly when the session the stream is authorized against
+  // changes — and never on a re-render that changes nothing about it.
+  const source = useMemo(makeSource, [subject?.id]);
 
   const gates = useSyncExternalStore(subscribeGates, gateInstances, gateInstances);
   const mismatches = useSyncExternalStore(
@@ -138,8 +154,25 @@ export const Dock = () => {
     invalidate();
   }, [invalidate]);
 
+  // Said on screen, because otherwise its absence looks like a broken transport.
+  // `/__decisions` is guarded by `canReadDevtools`, which only the chief editor
+  // and the legal reviewer hold — there is deliberately no environment-variable
+  // gate and no unguarded variant (BEH-QD-174), so a reader without the
+  // permission sees their own browser's decisions and none of the server's.
+  const mayReadServer = subject?.permissions.has("devtools:read") ?? false;
+
   return (
     <>
+      {mayReadServer ? null : (
+        <p
+          data-testid="server-feed-refused"
+          style={{ fontFamily: "monospace", fontSize: 12, color: "#8a7c2f" }}
+        >
+          the Log below shows this browser&rsquo;s decisions only — `/__decisions` is guarded by
+          `devtools:read`, which this subject does not hold. Switch to the chief editor or the legal
+          reviewer to see the server&rsquo;s half and the pairs.
+        </p>
+      )}
       {drops.length > 0
         ? (
           <p data-testid="hydration-drops" style={{ fontFamily: "monospace", fontSize: 12 }}>

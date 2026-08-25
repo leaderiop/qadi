@@ -249,3 +249,77 @@ test.describe("the browser half", () => {
     await expect(outcome).toContainText("refused:");
   });
 });
+
+/**
+ * What the browser found, and what can actually be pinned here.
+ *
+ * Both of these failed in front of a person after passing their unit tests,
+ * which is the argument for having driven the app at all. Only one is a
+ * regression guard: the other reproduced solely under `next dev`, and this suite
+ * runs a production build, so it stays green on the broken version. Its comment
+ * says so rather than letting the green tick imply otherwise.
+ *
+ * A third candidate was dropped entirely — see the README's open items. It
+ * asserted a cause that measurement did not support, and passed for an unrelated
+ * reason, which is worse than having no test at all.
+ */
+test.describe("regressions found by driving the app", () => {
+  /** Switching to another user, and the control agreeing that it happened. */
+  const switchTo = async (page: import("@playwright/test").Page, user: string) => {
+    await page.selectOption("select[name=user]", user);
+    await page.click("form button[type=submit]");
+  };
+
+  /**
+   * **This does not guard the bug it was written for**, and saying so is the
+   * point of the comment.
+   *
+   * The switcher reported the wrong user in `next dev` and never in
+   * `next start` — measured both ways, with and without the `key` that fixes it.
+   * This suite runs against a production build, so it would pass on the broken
+   * version, and it did: removing the fix left it green.
+   *
+   * It is kept because it asserts something true and cheap — that switching
+   * changes both the control and the decisions under it — and because a reader
+   * who finds the `key` in `Shell.tsx` and looks for its test should find this
+   * and the reason it is not one.
+   */
+  test("the user switcher reports the user it switched to", async ({ context, page }) => {
+    await context.addCookies(as("yasmine"));
+    await page.goto("/newsroom");
+
+    await switchTo(page, "omar");
+
+    await expect(page.locator("select[name=user]")).toHaveValue("omar", { timeout: 15_000 });
+    await expect(page.getByTestId("state-read:the-harbour-contract"))
+      .toHaveAttribute("data-state", "Allowed");
+  });
+
+  test("the server feed connects after switching to a subject who may read it", async ({
+    context,
+    page,
+  }) => {
+    // `/__decisions` is guarded, so the EventSource is authorized as whoever
+    // held the session when it opened. Built once at module scope, a refusal was
+    // never retried and switching to a permitted subject left the panel with the
+    // browser's own decisions and none of the server's.
+    await context.addCookies(as("yasmine"));
+    await page.goto("/newsroom");
+    await expect(page.getByTestId("server-feed-refused")).toBeVisible();
+
+    await switchTo(page, "hakim");
+
+    await expect(page.getByTestId("server-feed-refused")).toHaveCount(0, { timeout: 15_000 });
+    await expect
+      .poll(
+        () =>
+          page
+            .locator('[data-testid="qadi-devtools"] tbody tr')
+            .evaluateAll((rows) =>
+              rows.filter((row) => row.textContent?.startsWith("Server")).length
+            ),
+        { timeout: 20_000 },
+      )
+      .toBeGreaterThan(0);
+  });
+});
