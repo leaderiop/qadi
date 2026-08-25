@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-OVERVIEW                                  |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-08-25): `@qadi/audit` added to the Packages table and given its own subsection — audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` (ADR-QD-056, CCR-QD-085)<br>1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -55,6 +55,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `@qadi/devtools` | A headless decision timeline, and a React dock that renders it |
 | `@qadi/predicate-sql` | Compiles a `Predicate` to PostgreSQL, MySQL, or SQLite |
 | `@qadi/predicate-prisma` | Compiles a `Predicate` to a Prisma `WhereInput` |
+| `@qadi/audit` | Audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` |
 | `@qadi/features` | Cucumber acceptance suite (private) |
 
 ## Public API surface
@@ -383,6 +384,55 @@ to their own model's `WhereInput` at the call site. Same refusal discipline as
 `@qadi/predicate-sql`, declared independently. See
 [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md) and
 [31 — Predicate Compilation](behaviors/31-predicate-compilation.md).
+
+### `@qadi/audit`
+
+| Export | Kind | Source |
+| ------ | ---- | ------ |
+| `AuditTrailPort`, `AuditTrailPortShape` | service | `AuditTrailPort.ts` |
+| `AuditWriteError` | error | `AuditTrailPort.ts` |
+| `AuditStagingPort`, `AuditStagingPortShape` | service | `AuditStagingPort.ts` |
+| `AuditStagingError` | error | `AuditStagingPort.ts` |
+| `AuditStagingHandle` | type | `AuditStagingPort.ts` |
+| `AuditEntry` | schema + type | `AuditEntry.ts` |
+| `AuditEntryNotEncodable` | error | `AuditEntry.ts` |
+| `encodeAuditEntry` | function | `AuditEntry.ts` |
+| `AuditDecisionSinkLive` | layer | `AuditDecisionSinkLive.ts` |
+| `AuditDecisionSinkOptions` | type | `AuditDecisionSinkLive.ts` |
+| `AuditTrailPortTest` | function | `AuditTrailPortTest.ts` |
+| `AuditTrailPortTestOptions`, `AuditTrailPortTestHandle` | type | `AuditTrailPortTest.ts` |
+| `AuditStagingPortTest` | function | `AuditStagingPortTest.ts` |
+| `AuditStagingPortTestOptions`, `AuditStagingPortTestHandle` | type | `AuditStagingPortTest.ts` |
+| `getPurgeableEntries`, `enforceRetention` | function | `Retention.ts` |
+| `RetentionPolicy` | type | `Retention.ts` |
+| `verifyChainIntegrity` | function | `ChainIntegrity.ts` |
+| `ChainIntegrityError` | error | `ChainIntegrity.ts` |
+| `archiveAuditTrail` | function | `AuditArchive.ts` |
+| `AuditArchive`, `ArchivalOptions`, `KeyMaterial` | type | `AuditArchive.ts` |
+| `createDecommissioningChecklist`, `completeDecommissioningStep` | function | `DecommissioningChecklist.ts` |
+| `DecommissioningChecklist`, `DecommissioningStep`, `DecommissioningStepId` | type | `DecommissioningChecklist.ts` |
+| `UnknownDecommissioningStep` | error | `DecommissioningChecklist.ts` |
+| `SignatureCapturePort`, `SignatureCapturePortShape` | service | `SignatureCapturePort.ts` |
+| `signatureObligationHandler` | function | `SignatureCapturePort.ts` |
+| `SignatureCaptureError` | error | `SignatureCapturePort.ts` |
+| `ElectronicSignature` | schema + type | `SignatureCapturePort.ts` |
+| `SignatureCaptureRequest`, `SignatureValidationResult` | type | `SignatureCapturePort.ts` |
+| `SIGNATURE_MEANINGS` | constant | `SignatureCapturePort.ts` |
+| `SignatureMeaning` | type | `SignatureCapturePort.ts` |
+
+Narrows [ADR-QD-016](decisions/016-gxp-out-of-scope.md) the way ADR-QD-054
+narrowed ADR-QD-024: an optional, dependency-free companion package, adding
+nothing to `@qadi/core`'s dependency graph. `AuditDecisionSinkLive` is the
+assembled `DecisionSink` implementation — audit-trail write, best-effort
+staging and an internal circuit breaker composed into one pipeline, so the
+capability is reachable through one call rather than individually correct and
+never wired together, the defect ADR-QD-016 named in the predecessor and
+[HexDi's own Guard](decisions/016-gxp-out-of-scope.md) still has. Retention,
+archival, the decommissioning checklist and e-signature *capture* are
+structurally outside that pipeline — pure functions and an `ObligationHandler`,
+respectively — while e-signature *check* (a policy predicate) stays out of
+scope entirely, needing its own future `@qadi/core` change. See
+[ADR-QD-056](decisions/056-audit-companion-package.md).
 
 ### `@qadi/testing`
 

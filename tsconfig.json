@@ -26,6 +26,9 @@
       "path": "packages/predicate-prisma"
     },
     {
+      "path": "packages/audit"
+    },
+    {
       "path": "features"
     }
   ]

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-02                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.3 (2026-08-25): Step 20 — mutation testing for `@qadi/audit` (ADR-QD-056, CCR-QD-086)<br>1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 
@@ -41,6 +41,7 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 17 | `stryker run stryker.devtools.mjs` | Mutation score on the `@qadi/devtools` **model** is at or above 80% |
 | 18 | `stryker run stryker.predicate-sql.mjs` | Mutation score on `packages/predicate-sql` is at or above 80% |
 | 19 | `stryker run stryker.predicate-prisma.mjs` | Mutation score on `packages/predicate-prisma` is at or above 80% |
+| 20 | `stryker run stryker.audit.mjs` | Mutation score on `packages/audit` is at or above 80% |
 
 Step 15 is new in CCR-QD-076. It runs `examples/nextjs-newsroom`'s own `check` —
 `tsc --noEmit`, `vitest run`, `next build`, then Playwright against `next start` —
@@ -136,6 +137,15 @@ surviving mutant in makes wrong, not slow — the SQL/`WhereInput` a caller's
 query actually runs, checked against `evaluatePredicate` by INV-QD-047 and
 INV-QD-048. Each package gets its own config for the same `vitest.dir`
 reason step 17's config does, and `"mutation"` now runs all four in sequence.
+
+Step 20 is new in CCR-QD-086, for the same reason: `@qadi/audit`
+(ADR-QD-056) writes what a compliance reviewer trusts, and a surviving
+mutant there is a wrong audit trail, not a slow one — checked against
+INV-QD-051 through INV-QD-055. `stryker.audit.mjs` mirrors
+`stryker.config.mjs`'s barrel exclusion (`!packages/audit/src/index.ts`)
+rather than the predicate compilers' pattern, because `@qadi/audit`'s
+`index.ts` is a real re-export barrel, not the implementation itself.
+`"mutation"` now runs all five in sequence.
 
 Step 15 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
 which lines executed, not which assertions mean anything, and every enabler in

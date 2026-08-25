@@ -22,6 +22,7 @@ import * as Data from "effect/Data";
 import type { Decision } from "./Decision.ts";
 import type { CacheOutcome } from "./DecisionCache.ts";
 import type { EvaluationError } from "./Errors.ts";
+import type { SubjectId } from "./Identity.ts";
 import type { Policy } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
 
@@ -64,6 +65,17 @@ export class DecisionRecord extends Data.TaggedClass("Decision")<{
    * questions were asked; the end is `at + durationMillis` for a `Decided` one.
    */
   readonly at: number;
+  /**
+   * Who was asking, for both outcomes.
+   *
+   * `Decided`'s payload already names it on the `Decision` itself, but a
+   * `Failed` record previously carried no actor at all — not here, not on any
+   * `EvaluationError` member — even though `evaluate` resolves `CurrentSubject`
+   * before the code that can fail. A sink watching for who a broken attribute
+   * lookup was for had nothing to read. Top-level rather than duplicated onto
+   * `Failed` specifically, so a consumer reads one field regardless of outcome.
+   */
+  readonly subjectId: SubjectId;
   readonly policy: Policy;
   /** The resource under consideration, if any. */
   readonly resource?: Resource | undefined;

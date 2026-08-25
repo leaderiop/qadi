@@ -1053,6 +1053,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
           new DecisionRecord({
             evaluationId,
             at: startedAt,
+            subjectId: subject.id,
             policy,
             resource: options?.resource,
             action: options?.action,
@@ -1120,6 +1121,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     new DecisionRecord({
       evaluationId,
       at: startedAt,
+      subjectId: subject.id,
       policy,
       resource: options?.resource,
       action: options?.action,

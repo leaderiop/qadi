@@ -8,6 +8,7 @@
     { "path": "packages/http/tsconfig.src.json" },
     { "path": "packages/devtools/tsconfig.src.json" },
     { "path": "packages/predicate-sql/tsconfig.src.json" },
-    { "path": "packages/predicate-prisma/tsconfig.src.json" }
+    { "path": "packages/predicate-prisma/tsconfig.src.json" },
+    { "path": "packages/audit/tsconfig.src.json" }
   ]
 }

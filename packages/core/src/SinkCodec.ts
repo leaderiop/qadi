@@ -157,6 +157,15 @@ export const SinkRecordWire = Schema.Union([
     _tag: Schema.Literal("Decision"),
     evaluationId: Schema.String,
     at: Schema.Number,
+    // Optional on the wire, though never absent from anything this module
+    // encodes: `SinkRecordWire` crosses process boundaries (a devtools
+    // socket, a replica forwarding to a shared store), and a sender running
+    // an older version during a rolling deploy predates this field. Rejecting
+    // such a record outright would silently drop real decisions for the
+    // length of the deploy; `fromWire` falls back to an empty `SubjectId`
+    // instead, the same "absent means unknown" idiom this module already
+    // uses for a malformed `EvaluationError` field.
+    subjectId: Schema.optional(Schema.String),
     policy: Policy,
     resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
     action: Schema.optional(Schema.String),
@@ -347,6 +356,7 @@ export const toWire = (record: SinkRecord): SinkRecordWire =>
         _tag: "Decision",
         evaluationId: record.evaluationId,
         at: record.at,
+        subjectId: record.subjectId,
         policy: record.policy,
         ...(record.resource === undefined ? {} : { resource: record.resource }),
         ...(record.action === undefined ? {} : { action: record.action }),
@@ -374,6 +384,10 @@ export const fromWire = (wire: SinkRecordWire): SinkRecord => {
   return new DecisionRecord({
     evaluationId: wire.evaluationId,
     at: wire.at,
+    // `?? ""` mirrors every other fallback in this file: unreachable for
+    // anything this module encodes, real for a wire record sent by an
+    // older process during a rolling deploy, before this field existed.
+    subjectId: makeSubjectId(wire.subjectId ?? ""),
     policy: wire.policy,
     ...(wire.resource === undefined ? {} : { resource: wire.resource }),
     ...(wire.action === undefined ? {} : { action: wire.action }),

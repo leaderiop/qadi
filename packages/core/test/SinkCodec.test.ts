@@ -59,6 +59,7 @@ const trace = (allowed: boolean) => ({
 const allowRecord: SinkRecord = new DecisionRecord({
   evaluationId: "eval-1",
   at: 1000,
+  subjectId: makeSubjectId("u1"),
   policy: P.hasPermission(read),
   resource: { id: "doc-1", owner: "u1" },
   action: "read",
@@ -95,6 +96,7 @@ describe("a record survives the wire", () => {
       const record: SinkRecord = new DecisionRecord({
         evaluationId: "eval-fp",
         at: 5000,
+        subjectId: makeSubjectId("u1"),
         policy: P.hasPermission(read, { fields: ["id", "contact.*"] }),
         outcome: new Decided({
           decision: new Allow({
@@ -125,6 +127,7 @@ describe("a record survives the wire", () => {
       const denial: SinkRecord = new DecisionRecord({
         evaluationId: "eval-2",
         at: 2000,
+        subjectId: makeSubjectId("u2"),
         policy: P.hasRole("editor"),
         outcome: new Decided({
           decision: new Deny({
@@ -163,6 +166,7 @@ describe("a record survives the wire", () => {
       const record: SinkRecord = new DecisionRecord({
         evaluationId: "eval-4",
         at: 4000,
+        subjectId: makeSubjectId("u1"),
         policy: P.allOf([
           P.hasPermission(read),
           P.not(P.hasAttribute("clearance", M.gte(3))),
@@ -199,6 +203,7 @@ describe("optional fields normalise", () => {
       const record: SinkRecord = new DecisionRecord({
         evaluationId: "e",
         at: 0,
+        subjectId: makeSubjectId("u1"),
         policy: P.hasPermission(read),
         // Written explicitly, which is what a caller spreading an options object
         // ends up doing under `exactOptionalPropertyTypes`.
@@ -237,6 +242,7 @@ describe("every error variant crosses, and carries its code", () => {
         const record: SinkRecord = new DecisionRecord({
           evaluationId: "e",
           at: 0,
+          subjectId: makeSubjectId("u1"),
           policy: P.hasPermission(read),
           outcome: new Failed({ error }),
         });
@@ -277,6 +283,7 @@ describe("every error variant crosses, and carries its code", () => {
         new DecisionRecord({
           evaluationId: "e",
           at: 0,
+          subjectId: makeSubjectId("u1"),
           policy: P.hasPermission(read),
           outcome: new Failed({ error }),
         }),
@@ -296,6 +303,7 @@ describe("every error variant crosses, and carries its code", () => {
       new DecisionRecord({
         evaluationId: "e",
         at: 0,
+        subjectId: makeSubjectId("u1"),
         policy: P.hasPermission(read),
         outcome: new Failed({
           error: new AttributeResolveError({
@@ -326,6 +334,7 @@ describe("every error variant crosses, and carries its code", () => {
       new DecisionRecord({
         evaluationId: "e",
         at: 0,
+        subjectId: makeSubjectId("u1"),
         policy: P.hasPermission(read),
         outcome: new Failed({
           error: new AttributeResolveError({ attribute: "x", cause: hostile }),
@@ -382,6 +391,7 @@ describe("every literal the wire admits is exercised", () => {
       new DecisionRecord({
         evaluationId: "e",
         at: 0,
+        subjectId: makeSubjectId("u1"),
         policy: P.hasPermission(read),
         outcome: new Failed({ error: new PolicyTooDeep({ maxDepth: 8 }) }),
       }),
@@ -403,6 +413,7 @@ describe("every literal the wire admits is exercised", () => {
       new DecisionRecord({
         evaluationId: "e",
         at: 0,
+        subjectId: makeSubjectId("u1"),
         policy: P.hasPermission(read),
         outcome: new Failed({ error: new MissingAction({ expected: undefined }) }),
       }),
@@ -419,6 +430,7 @@ describe("every literal the wire admits is exercised", () => {
       new DecisionRecord({
         evaluationId: "e",
         at: 0,
+        subjectId: makeSubjectId("u1"),
         policy: P.hasPermission(read),
         outcome: new Failed({ error: new MissingAction({ expected: "read" }) }),
       }),
@@ -440,6 +452,18 @@ describe("the wire is untrusted", () => {
     Effect.gen(function* () {
       const result = yield* Effect.result(decodeRecord({ _tag: "Whatever" }));
       assert.strictEqual(result._tag, "Failure");
+    }));
+
+  it.effect("a Decision record with no subjectId — an older sender, mid rolling-deploy — still decodes", () =>
+    Effect.gen(function* () {
+      const back = yield* decodeRecord({
+        _tag: "Decision",
+        evaluationId: "e",
+        at: 0,
+        policy: P.hasPermission(read),
+      });
+      assert.strictEqual(back._tag, "Decision");
+      if (back._tag === "Decision") assert.strictEqual(back.subjectId, "");
     }));
 
   it.effect("a policy that is not a policy is refused", () =>
@@ -481,6 +505,7 @@ describe("the wire is untrusted", () => {
         _tag: "Decision",
         evaluationId: "e",
         at: 0,
+        subjectId: "u1",
         policy: P.hasPermission(read),
         failed: { _tag: c._tag, code: c.code },
       });
@@ -498,6 +523,7 @@ describe("the wire is untrusted", () => {
       _tag: "Decision",
       evaluationId: "e",
       at: 0,
+      subjectId: "u1",
       policy: P.hasPermission(read),
       decided: {
         _tag: "Deny",
@@ -526,6 +552,7 @@ describe("the wire is untrusted", () => {
       _tag: "Decision",
       evaluationId: "e",
       at: 0,
+      subjectId: "u1",
       policy: P.hasPermission(read),
       failed: { _tag: "AttributeResolveError", code: "ACL002" },
     });
@@ -546,6 +573,7 @@ describe("the wire is untrusted", () => {
       _tag: "Decision",
       evaluationId: "e",
       at: 0,
+      subjectId: "u1",
       policy: P.hasPermission(read),
     });
 
@@ -617,6 +645,7 @@ describe("round-trip property", () => {
           const record: SinkRecord = new DecisionRecord({
             evaluationId: "e",
             at: 0,
+            subjectId: makeSubjectId("u1"),
             policy,
             outcome: new Decided({ decision }),
           });
