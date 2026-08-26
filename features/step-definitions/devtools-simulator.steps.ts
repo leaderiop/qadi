@@ -38,6 +38,9 @@ import {
   RelationshipResolveError,
   RelationshipResolver,
   RelationshipResolverNever,
+  SignatureHistory,
+  SignatureHistoryNone,
+  SignatureHistoryUnavailable,
   stampRecord,
 } from "@qadi/core";
 import type {
@@ -101,6 +104,17 @@ const brokenPorts: EvaluationPortsLayer = Layer.mergeAll(
       Effect.fail(new DecisionHistoryUnavailable({ event: query.event, cause: "down" })),
   }),
   CustomPredicateNone,
+  Layer.succeed(SignatureHistory, {
+    name: "broken",
+    signaturesFor: (query) =>
+      Effect.fail(
+        new SignatureHistoryUnavailable({
+          subjectId: query.subjectId,
+          resourceId: query.resourceId,
+          cause: "the store is down",
+        }),
+      ),
+  }),
 );
 
 let input: SimulationInput = { subject: { id: "alice" } };
@@ -191,6 +205,7 @@ Given("a real resolver answering {string} with {int}", (attribute: string, value
     RelationshipResolverNever,
     DecisionHistoryUnknown,
     CustomPredicateNone,
+    SignatureHistoryNone,
   );
 });
 

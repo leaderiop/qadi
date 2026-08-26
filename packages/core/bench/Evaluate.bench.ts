@@ -42,6 +42,7 @@ import { AttributeResolver, AttributeResolverNone } from "../src/AttributeResolv
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { CustomPredicateNone } from "../src/CustomPredicate.ts";
+import { SignatureHistoryNone } from "../src/SignatureHistory.ts";
 import { DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
 import { EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
@@ -77,6 +78,7 @@ const services = Layer.mergeAll(
   RelationshipResolverNever,
   currentSubjectLayer(alice),
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 /**
@@ -96,6 +98,7 @@ const resolving = Layer.mergeAll(
   RelationshipResolverNever,
   currentSubjectLayer(alice),
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 /**

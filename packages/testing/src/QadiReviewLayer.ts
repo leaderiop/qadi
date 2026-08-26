@@ -13,6 +13,8 @@ import {
   DecisionHistoryUnknown,
   RelationshipResolver,
   RelationshipResolverNever,
+  SignatureHistory,
+  SignatureHistoryNone,
   evaluationIdSequential,
 } from "@qadi/core";
 import type {
@@ -26,6 +28,8 @@ import * as TestClock from "effect/testing/TestClock";
 import { edgeRelationshipResolver } from "./EdgeRelationshipResolver.ts";
 import { recordingAttributeResolver } from "./RecordingAttributeResolver.ts";
 import { eventDecisionHistory } from "./EventDecisionHistory.ts";
+import type { SignatureInput } from "./SignatureHistoryFixture.ts";
+import { recordingSignatureHistory } from "./SignatureHistoryFixture.ts";
 
 /**
  * Everything an evaluation needs.
@@ -46,6 +50,8 @@ export interface TestLayerOptions {
   readonly relationships?: ReadonlyArray<RelationshipEdgeInput>;
   /** Past events. */
   readonly history?: ReadonlyArray<ActedEventInput>;
+  /** On-file signatures. */
+  readonly signatures?: ReadonlyArray<SignatureInput>;
   /** Prefix for the deterministic evaluation ids. Defaults to `eval`. */
   readonly idPrefix?: string;
   /**
@@ -80,6 +86,8 @@ export interface TestLayerOptions {
   readonly decisionHistory?: Layer.Layer<DecisionHistory>;
   /** Supplies the `HasCustom` registry directly. Defaults to `CustomPredicateNone`. */
   readonly customPredicate?: Layer.Layer<CustomPredicate>;
+  /** Supplies the signature history port directly, taking precedence over `signatures`. */
+  readonly signatureHistory?: Layer.Layer<SignatureHistory>;
 }
 
 /**
@@ -112,6 +120,10 @@ export const qadiReviewLayer = (
         : eventDecisionHistory(options.history).layer),
     evaluationIdSequential(options?.idPrefix ?? "eval"),
     options?.customPredicate ?? CustomPredicateNone,
+    options?.signatureHistory ??
+      (options?.signatures === undefined
+        ? SignatureHistoryNone
+        : recordingSignatureHistory(options.signatures).layer),
     clockLayer(options?.clock),
   );
 

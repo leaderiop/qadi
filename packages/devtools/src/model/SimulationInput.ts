@@ -21,6 +21,7 @@ import type {
   PermissionKey,
   RelationshipEdgeInput,
   Resource,
+  SignatureInput,
 } from "@qadi/core";
 
 /**
@@ -57,10 +58,11 @@ export interface SimulationInput {
   readonly attributes?: Readonly<Record<string, unknown>>;
   readonly relationships?: ReadonlyArray<RelationshipEdgeInput>;
   readonly history?: ReadonlyArray<ActedEventInput>;
+  readonly signatures?: ReadonlyArray<SignatureInput>;
 }
 
 /**
- * The three ports a source supplies.
+ * The ports a source supplies.
  *
  * `CurrentSubject` and `EvaluationId` are excluded because the simulator owns
  * them: the subject is the thing being simulated, and ids are made sequential so

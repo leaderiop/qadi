@@ -81,6 +81,7 @@ describe("simplify", () => {
       P.hasAction("read"),
       P.hasActed("raised"),
       P.hasNotActed("approved", { scope: "Any" }),
+      P.hasSignature("approved"),
     ];
 
     for (const leaf of leaves) {

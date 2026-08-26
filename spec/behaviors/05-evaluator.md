@@ -136,6 +136,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
   CustomPredicateNone,
+  SignatureHistoryNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -157,6 +158,7 @@ const services = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 // `EvaluationError` remains in the channel: a lookup failure is not a denial,

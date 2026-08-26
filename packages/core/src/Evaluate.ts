@@ -45,6 +45,7 @@ import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
+import { SignatureHistory } from "./SignatureHistory.ts";
 
 /**
  * Every decision `evaluate` reaches, tagged by outcome.
@@ -202,7 +203,8 @@ export type EvaluationServices =
   | RelationshipResolver
   | DecisionHistory
   | EvaluationId
-  | CustomPredicate;
+  | CustomPredicate
+  | SignatureHistory;
 
 const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
 
@@ -471,6 +473,55 @@ const evaluateHasCustom = Effect.fn("qadi.hasCustom")(function* (
     : deny("HasCustom", `custom predicate '${policy.name}' returned false`);
 });
 
+/**
+ * `HasSignature`'s arm, extracted for the same reason `evaluateActed`,
+ * `evaluateHasRelationship` and `evaluateHasCustom` are.
+ *
+ * `qadi.matched` rather than a three-valued `qadi.answer` like
+ * `evaluateActed`'s: a signature either matches or it doesn't, with no
+ * analogous middle state. The deny reason distinguishes "no signatures on
+ * file at all" from "signatures exist but none match" at no extra cost,
+ * since `SignatureHistory.signaturesFor` already returns the full list before
+ * this filters it.
+ */
+const evaluateHasSignature = Effect.fn("qadi.hasSignature")(function* (
+  policy: Extract<Policy, { _tag: "HasSignature" }>,
+  subject: AuthSubject,
+  resource: Resource | undefined,
+) {
+  const scoped = policy.scope === "Resource";
+  const rawId = resource?.["id"];
+  yield* Effect.annotateCurrentSpan({
+    "qadi.subject_id": subject.id,
+    "qadi.meaning": policy.meaning,
+    "qadi.scope": policy.scope,
+    ...(policy.signerRole === undefined ? {} : { "qadi.signer_role": policy.signerRole }),
+    ...(scoped && typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
+  });
+  if (scoped && typeof rawId !== "string") {
+    return yield* Effect.fail(new MissingResourceId({ relation: policy.meaning }));
+  }
+  yield* Metric.update(portCallsTotal, "SignatureHistory");
+  const signatures = yield* SignatureHistory.signaturesFor({
+    subjectId: subject.id,
+    resourceId: scoped && typeof rawId === "string" ? makeResourceId(rawId) : undefined,
+  });
+  const matched = signatures.some(
+    (s) =>
+      s.meaning === policy.meaning &&
+      (policy.signerRole === undefined || s.signerRole === policy.signerRole),
+  );
+  yield* Effect.annotateCurrentSpan({ "qadi.matched": matched });
+  if (matched) return allow("HasSignature", policy.fields);
+  return deny(
+    "HasSignature",
+    signatures.length === 0
+      ? `no signatures are on file for subject '${subject.id}'`
+      : `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` +
+        (policy.signerRole === undefined ? "" : ` and signer role '${policy.signerRole}'`),
+  );
+});
+
 const evaluateNode = (
   policy: Policy,
   subject: AuthSubject,
@@ -480,7 +531,7 @@ const evaluateNode = (
 ): Effect.Effect<
   Trace,
   EvaluationError,
-  AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate
+  AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate | SignatureHistory
 > => {
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
 
@@ -560,6 +611,9 @@ const evaluateNode = (
 
     case "HasCustom":
       return evaluateHasCustom(policy, subject, resource);
+
+    case "HasSignature":
+      return evaluateHasSignature(policy, subject, resource);
 
     case "AllOf":
       return evaluateAllOf(policy, subject, request, depth, maxDepth);
@@ -1036,7 +1090,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   const lookupEffect: Effect.Effect<
     EvaluationLookup,
     EvaluationError,
-    AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate
+    AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate | SignatureHistory
   > = Option.isSome(cache)
     ? cache.value.getOrCompute(cacheKey, compute)
     : Effect.map(compute, (trace) => ({ trace, outcome: undefined }));

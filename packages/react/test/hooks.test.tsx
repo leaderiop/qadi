@@ -2,6 +2,7 @@ import {
   AttributeResolveError,
   AttributeResolver,
   CustomPredicateNone,
+  SignatureHistoryNone,
   EvaluationIdLive,
   DecisionHistoryUnknown,
   RelationshipResolverNever,
@@ -49,6 +50,7 @@ const working = makeQadiAtoms(
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   ),
 );
 
@@ -63,6 +65,7 @@ const broken = makeQadiAtoms(
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   ),
 );
 
@@ -266,6 +269,7 @@ describe("useDecisionSuspense", () => {
         DecisionHistoryUnknown,
         EvaluationIdLive,
         CustomPredicateNone,
+        SignatureHistoryNone,
       ),
     );
     const SlowProbe = () => (
@@ -299,6 +303,7 @@ describe("useInvalidate", () => {
     DecisionHistoryUnknown,
         EvaluationIdLive,
         CustomPredicateNone,
+        SignatureHistoryNone,
       ),
     );
 
@@ -374,6 +379,7 @@ describe("through a provider, as an application reads it", () => {
         DecisionHistoryUnknown,
         EvaluationIdLive,
         CustomPredicateNone,
+        SignatureHistoryNone,
         // The one thing an application layer has that the cases above do not.
         decisionCacheLayer(),
       ),
@@ -411,6 +417,7 @@ describe("through a provider, as an application reads it", () => {
         DecisionHistoryUnknown,
         EvaluationIdLive,
         CustomPredicateNone,
+        SignatureHistoryNone,
         decisionCacheLayer(),
       ),
       {

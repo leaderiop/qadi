@@ -1,14 +1,18 @@
 /**
- * `SignatureHistory`'s own depth, matching `DecisionHistory.test.ts` — the
- * `hasSignature` leaf that will call this port doesn't exist yet (ticket
- * wayfinder#14), so there is no `Evaluate.test.ts` coverage to lean on.
+ * `SignatureHistory`'s own depth, matching `DecisionHistory.test.ts` —
+ * `Evaluate.test.ts` covers `hasSignature` through full policy evaluation;
+ * this is the port's own.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
-import { SignatureHistory, SignatureHistoryNone } from "../src/SignatureHistory.ts";
+import {
+  SignatureHistory,
+  SignatureHistoryNone,
+  signatureHistoryFromSignatures,
+} from "../src/SignatureHistory.ts";
 
 const query = (
   layer: Layer.Layer<SignatureHistory>,
@@ -69,6 +73,51 @@ describe("SignatureHistory", () => {
           assert.strictEqual(result.failure._tag, "SignatureHistoryUnavailable");
           assert.strictEqual(result.failure.cause, "store offline");
         }
+      }));
+  });
+
+  describe("signatureHistoryFromSignatures", () => {
+    const history = signatureHistoryFromSignatures([
+      { subjectId: "alice", resourceId: "doc-1", meaning: "approved" },
+      { subjectId: "alice", meaning: "witnessed", signerRole: "manager" },
+    ]);
+
+    it.effect("a resource-scoped query sees only rows stored with that resourceId", () =>
+      Effect.gen(function* () {
+        assert.deepStrictEqual(yield* query(history, "alice", "doc-1"), [
+          {
+            signerId: makeSubjectId("alice"),
+            meaning: "approved",
+            signedAt: 0,
+          },
+        ]);
+        assert.deepStrictEqual(yield* query(history, "alice", "doc-2"), []);
+      }));
+
+    it.effect("a subject-global query sees only rows stored with no resourceId", () =>
+      Effect.gen(function* () {
+        assert.deepStrictEqual(yield* query(history, "alice", undefined), [
+          {
+            signerId: makeSubjectId("alice"),
+            meaning: "witnessed",
+            signerRole: "manager",
+            signedAt: 0,
+          },
+        ]);
+      }));
+
+    it.effect("an unlisted subject answers empty, closed-world", () =>
+      Effect.gen(function* () {
+        assert.deepStrictEqual(yield* query(history, "bob", "doc-1"), []);
+      }));
+
+    it.effect("signedAt defaults to 0 when omitted, and is kept when given", () =>
+      Effect.gen(function* () {
+        const withTimestamp = signatureHistoryFromSignatures([
+          { subjectId: "alice", resourceId: "doc-1", meaning: "approved", signedAt: 1_700_000_000_000 },
+        ]);
+        const [signature] = yield* query(withTimestamp, "alice", "doc-1");
+        assert.strictEqual(signature?.signedAt, 1_700_000_000_000);
       }));
   });
 });

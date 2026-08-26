@@ -267,6 +267,12 @@ describe("untranslatable fails loudly and never widens", () => {
       assert.strictEqual(f?.policyTag, "HasCustom");
     }));
 
+  it.effect("a signature lookup cannot fold — it is looked up through an external port", () =>
+    Effect.gen(function* () {
+      const f = yield* reasonFor(P.hasSignature("approved"));
+      assert.strictEqual(f?.policyTag, "HasSignature");
+    }));
+
   it.effect("a resource-scoped history question cannot fold", () =>
     Effect.gen(function* () {
       const f = yield* reasonFor(P.hasActed("raised"));

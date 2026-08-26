@@ -93,6 +93,7 @@ import {
   AttributeResolveError,
   AttributeResolver,
   CustomPredicateNone,
+  SignatureHistoryNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -148,6 +149,7 @@ const program: Effect.Effect<boolean, EvaluationError> = check(canExport, {
       DecisionHistoryUnknown,
       EvaluationIdLive,
       CustomPredicateNone,
+      SignatureHistoryNone,
     ),
   ),
 );

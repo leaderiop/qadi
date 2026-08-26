@@ -18,6 +18,7 @@ import {
   AttributeResolveError,
   DecisionHistoryUnavailable,
   RelationshipResolveError,
+  SignatureHistoryUnavailable,
 } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
@@ -28,6 +29,7 @@ import {
   RelationshipResolver,
   relationshipResolverFromEdges,
 } from "../src/RelationshipResolver.ts";
+import { SignatureHistory, signatureHistoryFromSignatures } from "../src/SignatureHistory.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
@@ -235,6 +237,142 @@ describe("leaf policies", () => {
   it.effect("the default relationship resolver fails closed", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasRelationship("owner"), {
+        resource: { id: "doc-1" },
+      });
+      assert.isFalse(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("HasSignature allows when a matching signature is on file", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasSignature("approved"), {
+        resource: { id: "doc-1" },
+      });
+      assert.isTrue(isAllowed(d));
+      assert.strictEqual(d.trace.policyTag, "HasSignature");
+    }).pipe(
+      Effect.provide(
+        testLayer(subjectWith({ id: "u1" }), {
+          signatureHistory: signatureHistoryFromSignatures([
+            { subjectId: "u1", resourceId: "doc-1", meaning: "approved" },
+          ]),
+        }),
+      ),
+    ));
+
+  it.effect("HasSignature matches signerRole when specified, and denies when it doesn't", () =>
+    Effect.gen(function* () {
+      const layer = testLayer(subjectWith({ id: "u1" }), {
+        signatureHistory: signatureHistoryFromSignatures([
+          { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signerRole: "manager" },
+        ]),
+      });
+
+      const matches = yield* evaluate(
+        P.hasSignature("approved", { signerRole: "manager" }),
+        { resource: { id: "doc-1" } },
+      ).pipe(Effect.provide(layer));
+      assert.isTrue(isAllowed(matches));
+
+      const wrongRole = yield* evaluate(
+        P.hasSignature("approved", { signerRole: "director" }),
+        { resource: { id: "doc-1" } },
+      ).pipe(Effect.provide(layer));
+      assert.isFalse(isAllowed(wrongRole));
+    }));
+
+  it.effect("HasSignature denies, naming the subject, when no signatures are on file at all", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasSignature("approved"), {
+        resource: { id: "doc-1" },
+      });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "no signatures are on file for subject 'u1'");
+    }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
+
+  it.effect(
+    "HasSignature denies, naming the meaning, when signatures exist but none match",
+    () =>
+      Effect.gen(function* () {
+        const d = yield* evaluate(P.hasSignature("approved"), {
+          resource: { id: "doc-1" },
+        });
+        assert.isFalse(isAllowed(d));
+        if (d._tag !== "Deny") return;
+        assert.strictEqual(
+          d.reason,
+          "subject 'u1' has no signature matching meaning 'approved'",
+        );
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            signatureHistory: signatureHistoryFromSignatures([
+              { subjectId: "u1", resourceId: "doc-1", meaning: "rejected" },
+            ]),
+          }),
+        ),
+      ),
+  );
+
+  it.effect("HasSignature scope: 'Any' matches a subject-global signature with no resource", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasSignature("approved", { scope: "Any" }));
+      assert.isTrue(isAllowed(d));
+    }).pipe(
+      Effect.provide(
+        testLayer(subjectWith({ id: "u1" }), {
+          signatureHistory: signatureHistoryFromSignatures([
+            { subjectId: "u1", meaning: "approved" },
+          ]),
+        }),
+      ),
+    ));
+
+  it.effect("HasSignature fails without resource.id, naming the meaning", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(
+        evaluate(P.hasSignature("approved"), { resource: { name: "x" } }),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "MissingResourceId");
+      if (r.failure._tag !== "MissingResourceId") return;
+      assert.strictEqual(r.failure.relation, "approved");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("HasSignature fails when there is no resource at all", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(evaluate(P.hasSignature("approved")));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "MissingResourceId");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("HasSignature propagates a wired-but-unreachable store as a typed failure", () =>
+    Effect.gen(function* () {
+      const failure = new SignatureHistoryUnavailable({
+        subjectId: subjectWith({ id: "u1" }).id,
+        resourceId: undefined,
+        cause: "store offline",
+      });
+      const layer = Layer.succeed(SignatureHistory, {
+        name: "broken",
+        signaturesFor: () => Effect.fail(failure),
+      });
+
+      const r = yield* Effect.result(
+        evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
+          Effect.provide(testLayer(subjectWith({ id: "u1" }), { signatureHistory: layer })),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "SignatureHistoryUnavailable");
+    }));
+
+  it.effect("the default signature history fails closed", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasSignature("approved"), {
         resource: { id: "doc-1" },
       });
       assert.isFalse(isAllowed(d));

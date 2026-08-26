@@ -291,6 +291,7 @@ import {
   permission,
   RelationshipResolverNever,
   role,
+  SignatureHistoryNone,
   stampRecord,
   toPredicate,
 } from "@qadi/core";
@@ -314,6 +315,7 @@ const services = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
+  SignatureHistoryNone,
 );
 
 const decide = (policy: Parameters<typeof evaluate>[0]) =>

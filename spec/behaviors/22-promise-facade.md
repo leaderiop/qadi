@@ -98,6 +98,7 @@ the request lifetime.
 import {
   AttributeResolverNone,
   CustomPredicateNone,
+  SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -114,6 +115,7 @@ const qadi = makeQadi(
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   ),
 );
 

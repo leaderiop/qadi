@@ -15,6 +15,7 @@ import {
   Allow,
   AttributeResolverNone,
   CustomPredicateNone,
+  SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   hydrationDehydratedTotal,
@@ -54,6 +55,7 @@ const atoms = makeQadiAtoms(
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   ),
 );
 
@@ -509,6 +511,7 @@ const freshAtoms = () =>
       DecisionHistoryUnknown,
       EvaluationIdLive,
       CustomPredicateNone,
+      SignatureHistoryNone,
     ),
   );
 

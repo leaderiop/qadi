@@ -15,6 +15,7 @@ import {
   AttributeResolveError,
   AttributeResolver,
   CustomPredicateNone,
+  SignatureHistoryNone,
   decisionSinkRing,
   DecisionHistoryUnknown,
   eq,
@@ -72,6 +73,7 @@ const brokenPorts = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 describe("compareOutcomes", () => {

@@ -10,6 +10,7 @@ import {
   AttributeResolver,
   AttributeResolverNone,
   CustomPredicateNone,
+  SignatureHistoryNone,
   DecisionHistoryUnknown,
   Deny,
   EvaluationIdLive,
@@ -47,6 +48,7 @@ const atoms = makeQadiAtoms(
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   ),
 );
 
@@ -565,6 +567,7 @@ describe("hydration mismatch", () => {
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   );
 
   /** An atom set reporting into `seen`, with the subject already known. */
@@ -677,6 +680,7 @@ describe("hydration mismatch", () => {
         DecisionHistoryUnknown,
         EvaluationIdLive,
         CustomPredicateNone,
+        SignatureHistoryNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );
@@ -906,6 +910,7 @@ describe("a re-check that settles asynchronously", () => {
         DecisionHistoryUnknown,
         EvaluationIdLive,
         CustomPredicateNone,
+        SignatureHistoryNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );

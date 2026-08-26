@@ -10,6 +10,7 @@
 import {
   AttributeResolverNone,
   CustomPredicateNone,
+  SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   hasPermission,
@@ -41,6 +42,7 @@ const atoms = () =>
       DecisionHistoryUnknown,
       EvaluationIdLive,
       CustomPredicateNone,
+      SignatureHistoryNone,
     ),
   );
 

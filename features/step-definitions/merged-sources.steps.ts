@@ -35,6 +35,7 @@ import {
   ObligationRecord,
   permission,
   RelationshipResolverNever,
+  SignatureHistoryNone,
   stampRecord,
 } from "@qadi/core";
 import type { Decision, StoredRecord } from "@qadi/core";
@@ -52,6 +53,7 @@ const ports = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 let sources: Array<Source> = [];

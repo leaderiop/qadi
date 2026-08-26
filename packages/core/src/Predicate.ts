@@ -241,6 +241,7 @@ const restrictsFields: (policy: Policy) => boolean = Match.type<Policy>().pipe(
     HasActed: (p) => p.fields !== undefined,
     HasNotActed: (p) => p.fields !== undefined,
     HasCustom: (p) => p.fields !== undefined,
+    HasSignature: (p) => p.fields !== undefined,
     HasRole: () => false,
     AllOf: (p) => p.policies.some(restrictsFields),
     AnyOf: (p) => p.policies.some(restrictsFields),
@@ -366,6 +367,16 @@ const translateNode = (
         untranslatable(
           "HasCustom",
           `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`,
+        ),
+
+      // Looked up through an external port (SignatureHistory), keyed by
+      // subject/resource — not a column any row carries, the same reason
+      // HasRelationship refuses rather than HasCustom's opacity reason
+      // (INV-QD-056).
+      HasSignature: () =>
+        untranslatable(
+          "HasSignature",
+          "a signature is looked up through an external port and cannot fold into a resource-independent expression",
         ),
 
       // INV-QD-013 reaching a construct it could not otherwise reach: a

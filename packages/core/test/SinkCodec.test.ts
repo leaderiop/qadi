@@ -13,6 +13,7 @@ import {
   MissingResourceId,
   PolicyTooDeep,
   RelationshipResolveError,
+  SignatureHistoryUnavailable,
 } from "../src/Errors.ts";
 import type { EvaluationError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
@@ -38,6 +39,11 @@ const everyError: ReadonlyArray<EvaluationError> = [
   new MissingResourceId({ relation: "owner" }),
   new DecisionHistoryUnavailable({ event: "approved", cause: "history offline" }),
   new PolicyTooDeep({ maxDepth: 64 }),
+  new SignatureHistoryUnavailable({
+    subjectId: makeSubjectId("u1"),
+    resourceId: makeResourceId("doc-1"),
+    cause: "signature store offline",
+  }),
 ];
 
 /**
@@ -496,9 +502,11 @@ describe("the wire is untrusted", () => {
         e._tag === "DecisionHistoryUnavailable" ? e.event : "?" },
       { _tag: "PolicyTooDeep" as const, code: "ACL006", read: (e: EvaluationError) =>
         e._tag === "PolicyTooDeep" ? String(e.maxDepth) : "?" },
+      { _tag: "SignatureHistoryUnavailable" as const, code: "ACL014", read: (e: EvaluationError) =>
+        e._tag === "SignatureHistoryUnavailable" ? e.subjectId : "?" },
     ];
 
-    const expected = ["", "|", "", "", "0"];
+    const expected = ["", "|", "", "", "0", ""];
 
     cases.forEach((c, i) => {
       const back = fromWire({

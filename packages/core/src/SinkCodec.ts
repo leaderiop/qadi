@@ -41,6 +41,7 @@ import {
   MissingResourceId,
   PolicyTooDeep,
   RelationshipResolveError,
+  SignatureHistoryUnavailable,
 } from "./Errors.ts";
 import { makeResourceId, makeSubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
@@ -64,6 +65,7 @@ const TRACE_TAGS = [
   "HasActed",
   "HasNotActed",
   "HasCustom",
+  "HasSignature",
   "AllOf",
   "AnyOf",
   "Rules",
@@ -119,6 +121,7 @@ const ErrorSchema = Schema.Struct({
     "DecisionHistoryUnavailable",
     "PolicyTooDeep",
     "CustomPredicateError",
+    "SignatureHistoryUnavailable",
   ]),
   code: Schema.String,
   attribute: Schema.optional(Schema.String),
@@ -129,6 +132,8 @@ const ErrorSchema = Schema.Struct({
   maxDepth: Schema.optional(Schema.Number),
   /** `CustomPredicateError`'s registered predicate name. */
   name: Schema.optional(Schema.String),
+  /** `SignatureHistoryUnavailable`'s subject. */
+  subjectId: Schema.optional(Schema.String),
   /**
    * `CustomPredicateError`'s own reason — distinct from `cause`, which is
    * always a rendered `unknown` thrown by someone else's code.
@@ -257,6 +262,13 @@ const encodeError: (error: EvaluationError) => ErrorWire = Match.type<Evaluation
       name: e.name,
       reason: e.reason,
     }),
+    SignatureHistoryUnavailable: (e) => ({
+      _tag: "SignatureHistoryUnavailable" as const,
+      code: ERROR_CODES.SignatureHistoryUnavailable,
+      subjectId: e.subjectId,
+      ...(e.resourceId === undefined ? {} : { resourceId: e.resourceId }),
+      cause: renderCause(e.cause),
+    }),
   }),
 );
 
@@ -301,6 +313,15 @@ const decodeError = (wire: ErrorWire): EvaluationError =>
     Match.when(
       "CustomPredicateError",
       () => new CustomPredicateError({ name: wire.name ?? "", reason: wire.reason ?? "" }),
+    ),
+    Match.when(
+      "SignatureHistoryUnavailable",
+      () =>
+        new SignatureHistoryUnavailable({
+          subjectId: makeSubjectId(wire.subjectId ?? ""),
+          resourceId: wire.resourceId === undefined ? undefined : makeResourceId(wire.resourceId),
+          cause: wire.cause,
+        }),
     ),
     Match.exhaustive,
   );

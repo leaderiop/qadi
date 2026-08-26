@@ -122,6 +122,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
   CustomPredicateNone,
+  SignatureHistoryNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -179,6 +180,7 @@ const decideFor = (token: VerifiedToken): Effect.Effect<boolean, EvaluationError
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   ),
     ),
   );

@@ -18,6 +18,7 @@ import {
   AttributeResolver,
   currentSubjectLayer,
   CustomPredicateNone,
+  SignatureHistoryNone,
   decide,
   DecisionHistoryUnknown,
   EvaluationIdLive,
@@ -74,6 +75,7 @@ describe("a seeded decision, with no Next in the way", () => {
             DecisionHistoryUnknown,
             EvaluationIdLive,
             CustomPredicateNone,
+            SignatureHistoryNone,
             currentSubjectLayer(omar),
           ),
         ),
@@ -92,6 +94,7 @@ describe("a seeded decision, with no Next in the way", () => {
         DecisionHistoryUnknown,
         EvaluationIdLive,
         CustomPredicateNone,
+        SignatureHistoryNone,
       ),
     );
     const initialValues = Array.from(hydrateDecisions(atoms, payload, omar));

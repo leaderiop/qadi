@@ -5,10 +5,11 @@
  * wearing one name, and only this one fits a companion package. HexDi's
  * `hasSignature` (`libs/guard/core/src/evaluator/evaluate.ts`) is a real,
  * *wired* policy predicate — the one genuinely assembled piece across the
- * whole reference implementation — but adopting an equivalent means
+ * whole reference implementation — but adopting an equivalent meant
  * extending Qadi's `Policy` ADT itself, a `@qadi/core` change on the scale of
- * ADR-QD-016's own narrowing, not a corollary of it. That side is out of
- * scope for this map entirely.
+ * ADR-QD-016's own narrowing, not a corollary of it. That side landed as its
+ * own map ("hasSignature: extending the Policy ADT for e-signature checks"),
+ * and this file harmonizes with what it decided — see below.
  *
  * `SignatureServicePort` (capture) genuinely is unwired in HexDi — no
  * reference anywhere in `guard.ts` — the same unassembled shape as its
@@ -30,55 +31,35 @@
  * unwired obligation (`UndischargedObligation`) — the safe default exists for
  * free, and a `Noop` here would only manufacture the risk of someone
  * forgetting to swap it out.
+ *
+ * **Harmonized with `@qadi/core`'s `Signature` (ADR-QD-057).** This package's
+ * own `ElectronicSignature` is retired — `capture`/`validate` operate on the
+ * canonical `Signature` type directly, and `SIGNATURE_MEANINGS`/
+ * `SignatureMeaning` are re-exported from `@qadi/core` rather than defined
+ * here a second time. Only where the vocabulary is canonically *defined*
+ * moved; existing `import { SIGNATURE_MEANINGS } from "@qadi/audit"` call
+ * sites keep working unchanged.
  */
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
-import * as Schema from "effect/Schema";
 import { CurrentSubject } from "@qadi/core";
-import type { Obligation } from "@qadi/core";
+import type { Obligation, Signature, SignatureMeaning } from "@qadi/core";
+
+export { SIGNATURE_MEANINGS } from "@qadi/core";
+export type { SignatureMeaning } from "@qadi/core";
 
 /**
- * The recommended vocabulary for `meaning`, kept from HexDi as-is — one
- * decision that was already correct. `meaning` itself stays an open string on
- * `ElectronicSignature`; a deployment may extend this with site-specific
- * meanings, the same open-namespace treatment `Policy.ts` gives `attribute`.
+ * Derived from the obligations a discharge is presenting, not hand-built by a
+ * caller. `signerRole`, when supplied, threads straight into the produced
+ * `Signature.signerRole` — a caller with role context can now populate the
+ * field `@qadi/core`'s `Signature` carries; one that doesn't gets `undefined`,
+ * unchanged from before this field existed.
  */
-export const SIGNATURE_MEANINGS = {
-  AUTHORED: "authored",
-  REVIEWED: "reviewed",
-  APPROVED: "approved",
-  REJECTED: "rejected",
-  WITNESSED: "witnessed",
-  RELEASED: "released",
-  WITNESSED_DESTRUCTION: "witnessed-destruction",
-} as const;
-
-export type SignatureMeaning = (typeof SIGNATURE_MEANINGS)[keyof typeof SIGNATURE_MEANINGS];
-
-/**
- * `Schema`-derived, the same ADR-QD-002 condition `AuditEntry` meets: captured
- * once, typically persisted in an archive, re-parsed later.
- *
- * `signerId` reuses Qadi's own `SubjectId` brand rather than a second identity
- * concept — an external, non-subject signer is the caller's own `capture`
- * implementation's business, invisible here. `algorithm`/`keyId` stay opaque
- * strings this package never interprets, the same reauthentication-style
- * refusal.
- */
-export const ElectronicSignature = Schema.Struct({
-  signerId: Schema.String.pipe(Schema.brand("SubjectId")),
-  signedAt: Schema.Number,
-  meaning: Schema.String,
-  algorithm: Schema.optional(Schema.String),
-  keyId: Schema.optional(Schema.String),
-});
-export type ElectronicSignature = typeof ElectronicSignature.Type;
-
-/** Derived from the obligations a discharge is presenting, not hand-built by a caller. */
 export interface SignatureCaptureRequest {
   readonly meaning: string;
-  readonly signerId: ElectronicSignature["signerId"];
+  readonly signerId: Signature["signerId"];
+  readonly signerRole?: string;
   readonly obligationIds: ReadonlyArray<string>;
 }
 
@@ -101,14 +82,14 @@ export class SignatureCaptureError extends Data.TaggedError("SignatureCaptureErr
 export interface SignatureCapturePortShape {
   readonly capture: (
     request: SignatureCaptureRequest,
-  ) => Effect.Effect<ElectronicSignature, SignatureCaptureError>;
+  ) => Effect.Effect<Signature, SignatureCaptureError>;
   /**
    * Independent of `capture` on purpose — a caller reviewing an archived
    * signature later needs to re-validate it without ever calling `capture`
    * again.
    */
   readonly validate: (
-    signature: ElectronicSignature,
+    signature: Signature,
   ) => Effect.Effect<SignatureValidationResult, SignatureCaptureError>;
 }
 
@@ -118,7 +99,7 @@ export class SignatureCapturePort extends Context.Service<
 >()("qadi/audit/SignatureCapturePort") {
   static capture = (request: SignatureCaptureRequest) =>
     SignatureCapturePort.use((p) => p.capture(request));
-  static validate = (signature: ElectronicSignature) =>
+  static validate = (signature: Signature) =>
     SignatureCapturePort.use((p) => p.validate(signature));
 }
 
@@ -134,9 +115,18 @@ export class SignatureCapturePort extends Context.Service<
  * the caller already has an instance in hand (however they built it), and an
  * `ObligationHandler` should not force `SignatureCapturePort` into `enforce`'s
  * own requirement channel just to call one method on it.
+ *
+ * `meaning`'s parameter type mirrors `hasSignature`'s own — `string |
+ * SignatureMeaning` — for editor autocomplete over the recommended
+ * vocabulary. `options.signerRole`, when given, reaches `capture()`'s
+ * request, which is the only way a caller can actually set that field.
  */
 export const signatureObligationHandler =
-  (port: SignatureCapturePortShape, meaning: string) =>
+  (
+    port: SignatureCapturePortShape,
+    meaning: string | SignatureMeaning,
+    options?: { readonly signerRole?: string },
+  ) =>
   (
     obligations: ReadonlyArray<Obligation>,
   ): Effect.Effect<void, SignatureCaptureError, CurrentSubject> =>
@@ -145,6 +135,7 @@ export const signatureObligationHandler =
       yield* port.capture({
         meaning,
         signerId: subject.id,
+        ...(options?.signerRole === undefined ? {} : { signerRole: options.signerRole }),
         obligationIds: obligations.map((o) => o.id),
       });
     });

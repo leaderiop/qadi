@@ -13,6 +13,7 @@ import * as Layer from "effect/Layer";
 import {
   attributeResolverFromRecord,
   CustomPredicateNone,
+  SignatureHistoryNone,
   decisionSinkRing,
   DecisionHistoryUnknown,
   gte,
@@ -41,6 +42,7 @@ const realPorts = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 const alice: SimulationInput = { subject: { id: "alice", permissions: ["doc:read"] } };

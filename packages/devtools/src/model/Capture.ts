@@ -31,6 +31,8 @@ import {
   DecisionHistoryUnavailable,
   RelationshipResolveError,
   RelationshipResolver,
+  SignatureHistory,
+  SignatureHistoryUnavailable,
 } from "@qadi/core";
 import type {
   ActedQuery,
@@ -39,6 +41,8 @@ import type {
   RelatedResult,
   RelationshipCheck,
   Resource,
+  Signature,
+  SignatureQuery,
   SubjectId,
 } from "@qadi/core";
 import type { EvaluationPorts } from "./SimulationInput.ts";
@@ -70,6 +74,8 @@ export interface CapturedAnswers {
    * this does not arise in practice.
    */
   readonly custom: ReadonlyMap<string, Answer<boolean>>;
+  /** Keyed by `(subjectId, resourceId?)` — the same pair `SignatureHistory.signaturesFor` itself takes. */
+  readonly signatures: ReadonlyMap<string, Answer<ReadonlyArray<Signature>>>;
 }
 
 export const emptyAnswers: CapturedAnswers = {
@@ -77,11 +83,16 @@ export const emptyAnswers: CapturedAnswers = {
   relationships: new Map(),
   history: new Map(),
   custom: new Map(),
+  signatures: new Map(),
 };
 
 /** How many answers a capture holds, for a panel that wants to say so. */
 export const answerCount = (self: CapturedAnswers): number =>
-  self.attributes.size + self.relationships.size + self.history.size + self.custom.size;
+  self.attributes.size +
+  self.relationships.size +
+  self.history.size +
+  self.custom.size +
+  self.signatures.size;
 
 /**
  * Keys, written once and called from both sides.
@@ -110,6 +121,9 @@ export const customPredicateKey = (
   params: unknown,
 ): string => JSON.stringify([subjectId, name, params]);
 
+export const signatureHistoryKey = (query: SignatureQuery): string =>
+  JSON.stringify([query.subjectId, query.resourceId ?? null]);
+
 /**
  * Wraps live ports so every answer they give is recorded.
  *
@@ -129,6 +143,7 @@ export const capturing = (
   const relationships = new Map<string, Answer<RelatedResult>>();
   const history = new Map<string, Answer<ActedResult>>();
   const custom = new Map<string, Answer<boolean>>();
+  const signatures = new Map<string, Answer<ReadonlyArray<Signature>>>();
 
   const layer = Layer.mergeAll(
     Layer.effect(
@@ -183,6 +198,18 @@ export const capturing = (
         };
       }),
     ),
+    Layer.effect(
+      SignatureHistory,
+      Effect.gen(function* () {
+        const context = yield* Layer.build(ports);
+        const inner = Context.get(context, SignatureHistory);
+        return {
+          name: `${inner.name ?? "?"} (capturing)`,
+          signaturesFor: (query: SignatureQuery) =>
+            record(signatures, signatureHistoryKey(query), inner.signaturesFor(query)),
+        };
+      }),
+    ),
   );
 
   return {
@@ -194,6 +221,7 @@ export const capturing = (
       relationships: new Map(relationships),
       history: new Map(history),
       custom: new Map(custom),
+      signatures: new Map(signatures),
     })),
   };
 };
@@ -295,11 +323,27 @@ export const replayLayer = (answers: CapturedAnswers): Layer.Layer<EvaluationPor
           (message) => new CustomPredicateError({ name, reason: message }),
         ),
     }),
+    Layer.succeed(SignatureHistory, {
+      name: "snapshot",
+      signaturesFor: (query: SignatureQuery) =>
+        answer(
+          answers.signatures.get(signatureHistoryKey(query)),
+          noSignatures,
+          (message) =>
+            new SignatureHistoryUnavailable({
+              subjectId: query.subjectId,
+              resourceId: query.resourceId,
+              cause: message,
+            }),
+        ),
+    }),
   );
 
 /** Named so the fail-closed default is a value with a reason, not a literal. */
 const unrelatedUnknown: RelatedResult = "Unknown";
 const actedUnknown: ActedResult = "Unknown";
+/** Matches `SignatureHistoryNone`'s own answer — a replay default must never diverge from the real one. */
+const noSignatures: ReadonlyArray<Signature> = [];
 
 const answer = <A, E>(
   captured: Answer<A> | undefined,

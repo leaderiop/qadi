@@ -7,6 +7,7 @@ import {
   AttributeResolverNone,
   currentSubjectLayer,
   CustomPredicateNone,
+  SignatureHistoryNone,
   DecisionHistoryUnknown,
   DecisionSink,
   EvaluationIdLive,
@@ -17,10 +18,10 @@ import {
   obliged,
   permission,
   RelationshipResolverNever,
+  Signature,
 } from "@qadi/core";
 import type { AuthSubject, ObligationRecord } from "@qadi/core";
 import {
-  ElectronicSignature,
   SIGNATURE_MEANINGS,
   SignatureCaptureError,
   SignatureCapturePort,
@@ -48,9 +49,10 @@ const testEnv = (subject: AuthSubject) =>
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   );
 
-const signature: ElectronicSignature = {
+const signature: Signature = {
   signerId: makeSubjectId("alice"),
   signedAt: 0,
   meaning: SIGNATURE_MEANINGS.APPROVED,
@@ -82,6 +84,30 @@ describe("signatureObligationHandler — unit", () => {
         signerId: alice.id,
         obligationIds: ["sig.capture"],
       });
+    }));
+
+  it.effect("options.signerRole reaches capture()'s request; omitting it leaves the field absent", () =>
+    Effect.gen(function* () {
+      const seen: Array<SignatureCaptureRequest> = [];
+      const port: SignatureCapturePortShape = {
+        capture: (request) =>
+          Effect.sync(() => {
+            seen.push(request);
+            return signature;
+          }),
+        validate: () => Effect.succeed({ valid: true, validatedAt: 0 }),
+      };
+
+      yield* signatureObligationHandler(port, "approved", { signerRole: "manager" })([
+        obligation("sig.capture"),
+      ]).pipe(Effect.provide(currentSubjectLayer(alice)));
+      yield* signatureObligationHandler(port, "approved")([obligation("sig.capture")]).pipe(
+        Effect.provide(currentSubjectLayer(alice)),
+      );
+
+      assert.strictEqual(seen.length, 2);
+      assert.strictEqual(seen[0]?.signerRole, "manager");
+      assert.isFalse(Object.hasOwn(seen[1] ?? {}, "signerRole"));
     }));
 
   it.effect("a capture failure fails the handler with SignatureCaptureError", () =>
@@ -210,10 +236,10 @@ describe("signatureObligationHandler — wired through Qadi.enforce's discharge"
     }));
 });
 
-describe("ElectronicSignature — the schema is real, not decorative", () => {
+describe("Signature (re-exported from @qadi/core) — the schema is real, not decorative", () => {
   it.effect("a real signature round-trips through Schema encode/decode, every field intact", () =>
     Effect.gen(function* () {
-      const full: ElectronicSignature = {
+      const full: Signature = {
         signerId: alice.id,
         signedAt: 1_700_000_000_000,
         meaning: SIGNATURE_MEANINGS.WITNESSED,
@@ -221,8 +247,8 @@ describe("ElectronicSignature — the schema is real, not decorative", () => {
         keyId: "key-1",
       };
 
-      const encoded = yield* Schema.encodeEffect(ElectronicSignature)(full);
-      const decoded = yield* Schema.decodeUnknownEffect(ElectronicSignature)(
+      const encoded = yield* Schema.encodeEffect(Signature)(full);
+      const decoded = yield* Schema.decodeUnknownEffect(Signature)(
         JSON.parse(JSON.stringify(encoded)),
       );
       assert.deepStrictEqual(decoded, full);
@@ -230,13 +256,13 @@ describe("ElectronicSignature — the schema is real, not decorative", () => {
 
   it.effect("algorithm and keyId stay genuinely optional — absent, not present-and-undefined", () =>
     Effect.gen(function* () {
-      const minimal: ElectronicSignature = {
+      const minimal: Signature = {
         signerId: alice.id,
         signedAt: 0,
         meaning: SIGNATURE_MEANINGS.APPROVED,
       };
 
-      const encoded = yield* Schema.encodeEffect(ElectronicSignature)(minimal);
+      const encoded = yield* Schema.encodeEffect(Signature)(minimal);
       assert.isFalse(Object.hasOwn(encoded, "algorithm"));
       assert.isFalse(Object.hasOwn(encoded, "keyId"));
     }));

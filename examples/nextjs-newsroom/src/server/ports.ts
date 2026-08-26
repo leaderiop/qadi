@@ -22,6 +22,7 @@ import {
   CustomPredicateNone,
   decisionHistoryFromEvents,
   relationshipResolverFromEdges,
+  SignatureHistoryNone,
 } from "@qadi/core";
 import type { AttributeResolverShape, SubjectId } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -98,4 +99,7 @@ export const ports: EvaluationPortsLayer = Layer.mergeAll(
   // expressible with the built-in matchers — so the registry is left at its
   // fail-closed default rather than wired to anything.
   CustomPredicateNone,
+  // Same reasoning as CustomPredicateNone above: no policy here reaches for
+  // hasSignature, so the port is left at its fail-closed default too.
+  SignatureHistoryNone,
 );

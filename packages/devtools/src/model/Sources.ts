@@ -30,6 +30,8 @@ import {
   DecisionHistoryUnknown,
   relationshipResolverFromEdges,
   RelationshipResolverNever,
+  signatureHistoryFromSignatures,
+  SignatureHistoryNone,
 } from "@qadi/core";
 import type { CapturedAnswers } from "./Capture.ts";
 import { replayLayer } from "./Capture.ts";
@@ -140,4 +142,9 @@ const fixtureLayer = (input: SimulationInput): Layer.Layer<EvaluationPorts> =>
     // default a real deployment gets from an unwired registry. Supplying a
     // real answer needs `Snapshot` or `Live`.
     CustomPredicateNone,
+    // Unlike HasCustom, SignatureHistory is data-fetching, so it earns the
+    // same declarative form attributes/edges/events get.
+    input.signatures === undefined
+      ? SignatureHistoryNone
+      : signatureHistoryFromSignatures(input.signatures),
   );

@@ -32,6 +32,7 @@ import {
   permission,
   RelationshipResolverNever,
   role,
+  SignatureHistoryNone,
   stampRecord,
 } from "@qadi/core";
 import type { StoredRecord, Trace } from "@qadi/core";
@@ -57,6 +58,7 @@ const services = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
+  SignatureHistoryNone,
 );
 
 let timeline: Timeline = emptyTimeline();
