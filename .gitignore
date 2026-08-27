@@ -1,5 +1,6 @@
 node_modules/
-lib/
+packages/*/lib/
+features/lib/
 lib-test/
 dist/
 coverage/
@@ -13,10 +14,14 @@ features/reports/
 !.env.example
 
 .doc-examples/
+.website-doc-examples/
 .package-check/
 reports/
 .stryker-tmp/
 .scratch/
+
+# Astro's generated type-declaration cache
+apps/*/.astro/
 
 # Compiled test output, which once got committed beside its source
 packages/*/test/**/*.js

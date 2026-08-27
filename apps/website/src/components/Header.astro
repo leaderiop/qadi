@@ -1,0 +1,31 @@
+---
+// Adds the site's top-level navigation (Home / Blog / Compliance) alongside
+// Starlight's own default header (site title, search, social icons, theme
+// select) — Starlight only knows about the `docs` collection, so these links
+// to pages outside it are not something the default Header can express.
+import Default from "@astrojs/starlight/components/Header.astro";
+---
+
+<div class="qadi-site-nav">
+  <a href="/">Home</a>
+  <a href="/blog/">Blog</a>
+  <a href="/compliance/">Compliance</a>
+</div>
+<Default />
+
+<style>
+  .qadi-site-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.4rem 0;
+    font-size: var(--sl-text-sm);
+  }
+  .qadi-site-nav a {
+    color: var(--sl-color-gray-2);
+    text-decoration: none;
+  }
+  .qadi-site-nav a:hover {
+    color: var(--sl-color-white);
+  }
+</style>

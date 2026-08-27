@@ -5,5 +5,12 @@
     "no-non-null-asserted-optional-chain": "off",
     "no-explicit-any": "error"
   },
-  "ignorePatterns": ["**/lib/**", "**/lib-test/**", "**/node_modules/**"]
+  "ignorePatterns": [
+    "packages/*/lib/**",
+    "features/lib/**",
+    "**/lib-test/**",
+    "**/node_modules/**",
+    "apps/*/.astro/**",
+    "apps/*/dist/**"
+  ]
 }

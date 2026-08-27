@@ -1,0 +1,17 @@
+@layer base, starlight, theme, components, utilities;
+
+@import "@astrojs/starlight-tailwind";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Qadi's own accent, layered on top of Starlight's Tailwind theme tokens. */
+:root {
+  --sl-color-accent-low: #1a3a3d;
+  --sl-color-accent: #2f8f9c;
+  --sl-color-accent-high: #bfe6ea;
+}
+:root[data-theme="light"] {
+  --sl-color-accent-low: #d6f0f2;
+  --sl-color-accent: #1f7a86;
+  --sl-color-accent-high: #0d3336;
+}

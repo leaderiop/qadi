@@ -1,0 +1,146 @@
+---
+import { getCollection, render } from "astro:content";
+import "../../styles/landing.css";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog", ({ data }) => {
+    return import.meta.env.MODE !== "production" || data.draft !== true;
+  });
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const formatDate = (d: Date) =>
+  d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{post.data.title} — Qadi</title>
+    <meta name="description" content={post.data.description} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="qadi-body">
+    <div class="qadi-nav">
+      <a href="/" class="qadi-nav-brand">
+        <svg width="26" height="26" viewBox="0 0 100 100">
+          <polygon
+            points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4"
+            fill="oklch(0.72 0.15 195 / 0.14)"
+            stroke="oklch(0.72 0.15 195)"
+            stroke-width="4"></polygon>
+          <rect x="42" y="42" width="16" height="16" transform="rotate(45 50 50)" fill="oklch(0.75 0.13 80)"
+          ></rect>
+        </svg>
+        <span class="serif qadi-wordmark">qadi</span>
+      </a>
+      <div class="qadi-nav-links">
+        <a href="/docs/" class="mono navlink">Docs</a>
+        <a href="/blog/" class="mono navlink nav-active">Blog</a>
+        <a href="/compliance/" class="mono navlink">Compliance</a>
+        <a href="https://github.com/leaderiop/qadi" class="mono qadi-github-btn">GitHub</a>
+      </div>
+    </div>
+
+    <article class="qadi-post">
+      <a href="/blog/" class="mono qadi-back-link">&larr; All posts</a>
+      <p class="mono qadi-post-meta">
+        {formatDate(post.data.date)} &middot; {post.data.author}
+      </p>
+      <h1 class="serif qadi-post-title">{post.data.title}</h1>
+      <div class="qadi-post-body">
+        <Content />
+      </div>
+    </article>
+
+    <footer class="qadi-simple-footer">
+      <span class="mono">&copy; 2026 Mohammad AL Mechkor &middot; MIT License</span>
+      <a href="/blog/rss.xml" class="mono">RSS</a>
+    </footer>
+
+    <style>
+      .qadi-post {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 56px 32px 40px;
+      }
+      .qadi-back-link {
+        font-size: 12.5px;
+        color: oklch(0.6 0.01 260);
+        display: inline-block;
+        margin-bottom: 32px;
+      }
+      .qadi-post-meta {
+        font-size: 12.5px;
+        color: oklch(0.55 0.01 260);
+        margin: 0 0 10px;
+      }
+      .qadi-post-title {
+        font-size: 38px;
+        font-weight: 400;
+        margin: 0 0 40px;
+        line-height: 1.15;
+      }
+      .qadi-post-body {
+        font-size: 16px;
+        line-height: 1.75;
+        color: oklch(0.85 0.006 260);
+      }
+      .qadi-post-body :global(h2) {
+        font-family: "Marcellus", Georgia, serif;
+        font-size: 26px;
+        font-weight: 400;
+        margin: 44px 0 16px;
+        color: oklch(0.93 0.006 260);
+      }
+      .qadi-post-body :global(p) {
+        margin: 0 0 20px;
+        color: oklch(0.72 0.01 260);
+      }
+      .qadi-post-body :global(a) {
+        color: oklch(0.78 0.13 195);
+      }
+      .qadi-post-body :global(code) {
+        font-family: "IBM Plex Mono", monospace;
+        background: oklch(0.13 0.012 260);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+      .qadi-post-body :global(pre) {
+        background: oklch(0.13 0.012 260);
+        border: 1px solid oklch(1 0 0 / 0.1);
+        border-radius: 8px;
+        padding: 18px 20px;
+        overflow-x: auto;
+      }
+      .qadi-post-body :global(pre code) {
+        background: none;
+        padding: 0;
+      }
+      .qadi-post-body :global(ul),
+      .qadi-post-body :global(ol) {
+        color: oklch(0.72 0.01 260);
+        padding-left: 22px;
+      }
+      .qadi-simple-footer {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 24px 32px 56px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: oklch(0.5 0.01 260);
+      }
+    </style>
+  </body>
+</html>
