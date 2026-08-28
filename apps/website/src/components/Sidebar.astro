@@ -1,0 +1,40 @@
+---
+// Header.astro's single-row header hides the site-wide Home/Blog/Compliance
+// links and the GitHub pill below the `md` breakpoint — there's no room for
+// them alongside the wordmark, search icon, and menu toggle on a narrow
+// viewport. Those same links reappear here, at the top of the mobile
+// sidebar drawer, so they stay reachable through the one navigational
+// surface a mobile reader already has open (the hamburger menu) rather
+// than a second, competing header row.
+import Default from "@astrojs/starlight/components/Sidebar.astro";
+---
+
+<nav class="qadi-sidebar-site-nav sl-flex md:sl-hidden" aria-label="Site">
+  <a href="/">Home</a>
+  <a href="/blog/">Blog</a>
+  <a href="/compliance/">Compliance</a>
+  <a href="https://github.com/leaderiop/qadi">GitHub</a>
+</nav>
+<Default />
+
+<style>
+  /* `.sidebar-content` (PageFrame.astro) already supplies the top and
+     side padding this nav sits inside; only the bottom separation is
+     this component's own. */
+  .qadi-sidebar-site-nav {
+    align-items: center;
+    gap: 1.25rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+    font-size: var(--sl-text-xs);
+    letter-spacing: 0.04em;
+  }
+  .qadi-sidebar-site-nav a {
+    color: var(--sl-color-gray-3);
+    text-decoration: none;
+  }
+  .qadi-sidebar-site-nav a:hover {
+    color: var(--sl-color-white);
+  }
+</style>

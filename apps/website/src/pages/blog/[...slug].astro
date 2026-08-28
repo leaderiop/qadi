@@ -1,6 +1,8 @@
 ---
 import { getCollection, render } from "astro:content";
 import "../../styles/landing.css";
+import HeadFonts from "../../components/HeadFonts.astro";
+import SiteNav from "../../components/SiteNav.astro";
 
 export async function getStaticPaths() {
   const posts = await getCollection("blog", ({ data }) => {
@@ -23,33 +25,16 @@ const formatDate = (d: Date) =>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{post.data.title} — Qadi</title>
     <meta name="description" content={post.data.description} />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
+    <HeadFonts />
   </head>
   <body class="qadi-body">
-    <div class="qadi-nav">
-      <a href="/" class="qadi-nav-brand">
-        <svg width="26" height="26" viewBox="0 0 100 100">
-          <polygon
-            points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4"
-            fill="oklch(0.72 0.15 195 / 0.14)"
-            stroke="oklch(0.72 0.15 195)"
-            stroke-width="4"></polygon>
-          <rect x="42" y="42" width="16" height="16" transform="rotate(45 50 50)" fill="oklch(0.75 0.13 80)"
-          ></rect>
-        </svg>
-        <span class="serif qadi-wordmark">qadi</span>
-      </a>
-      <div class="qadi-nav-links">
-        <a href="/docs/" class="mono navlink">Docs</a>
-        <a href="/blog/" class="mono navlink nav-active">Blog</a>
-        <a href="/compliance/" class="mono navlink">Compliance</a>
-        <a href="https://github.com/leaderiop/qadi" class="mono qadi-github-btn">GitHub</a>
-      </div>
-    </div>
+    <SiteNav
+      links={[
+        { href: "/docs/", label: "Docs" },
+        { href: "/blog/", label: "Blog", active: true },
+        { href: "/compliance/", label: "Compliance" },
+      ]}
+    />
 
     <article class="qadi-post">
       <a href="/blog/" class="mono qadi-back-link">&larr; All posts</a>
@@ -87,6 +72,7 @@ const formatDate = (d: Date) =>
       .qadi-post-title {
         font-size: 38px;
         font-weight: 400;
+        color: oklch(0.93 0.006 260);
         margin: 0 0 40px;
         line-height: 1.15;
       }

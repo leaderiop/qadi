@@ -10,9 +10,33 @@
 // points at the real site's top-level sections (Docs / Blog / Compliance)
 // instead of the prototype's same-page anchors — see the NAV block below.
 import "../styles/landing.css";
-import { apiRows, arch, bars, features, marqueeItems, packages, stepInfo } from "../data/landing-content.js";
+import HeadFonts from "../components/HeadFonts.astro";
+import SiteNav from "../components/SiteNav.astro";
+import {
+  apiRows,
+  arch,
+  bars,
+  features,
+  marqueeItems,
+  modelGlossary,
+  modelsExcluded,
+  modelsShipped,
+  modelsWiring,
+  packages,
+  stepInfo,
+} from "../data/landing-content.js";
 
-const stepInfoDots = stepInfo;
+// The marquee's labels are shortened for a single-line scroll, so a couple
+// don't match a modelGlossary key verbatim; alias them to the full key
+// rather than duplicating their gloss text under a second key.
+const glossaryAliases: Record<string, string> = {
+  RBAC: "RBAC + role DAG",
+  "rule tables": "ordered rule tables (RuBAC)",
+};
+const glossOf = (label: string) => {
+  const key = label.replace(/\*$/, "");
+  return modelGlossary[key] ?? modelGlossary[glossaryAliases[key]];
+};
 ---
 
 <html lang="en">
@@ -21,10 +45,10 @@ const stepInfoDots = stepInfo;
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Qadi — Effect-native authorization for TypeScript</title>
   <meta name="description" content="Permission tokens, a role DAG, a schema-derived policy ADT, and a single Effect-returning evaluator. One definition per concept." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <HeadFonts />
 </head>
 <body>
+<a href="#main-content" class="mono skip-link" style="position:absolute;top:-40px;left:8px;z-index:50;padding:10px 16px;background:oklch(0.72 0.15 195);color:oklch(0.14 0.01 195);font-weight:600;font-size:13px;border-radius:6px;">Skip to content</a>
 <div style="font-family:'IBM Plex Sans',sans-serif;background:oklch(0.17 0.014 260);color:oklch(0.93 0.006 260);min-height:100vh;overflow-x:hidden;">
 
   <!-- NAV
@@ -35,96 +59,102 @@ const stepInfoDots = stepInfo;
        highlight the active anchor is dropped with it — there is nothing
        left to spy on. The scroll-progress bar stays; it doesn't depend on
        what the nav links to. -->
-  <div style="position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:16px 48px;background:linear-gradient(180deg,oklch(0.15 0.013 260 / 0.94),oklch(0.17 0.014 260 / 0.78));backdrop-filter:blur(16px) saturate(1.3);">
-    <div id="scroll-progress" style="position:absolute;top:0;left:0;height:2px;width:0%;background:linear-gradient(90deg,oklch(0.72 0.15 195),oklch(0.75 0.13 80));box-shadow:0 0 10px oklch(0.75 0.13 80 / 0.5);"></div>
-    <div style="display:flex;align-items:center;gap:12px;">
-      <svg width="28" height="28" viewBox="0 0 100 100"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.72 0.15 195 / 0.14)" stroke="oklch(0.72 0.15 195)" stroke-width="4"></polygon><rect x="42" y="42" width="16" height="16" transform="rotate(45 50 50)" fill="oklch(0.75 0.13 80)"></rect></svg>
-      <span class="serif" style="font-size:21px;letter-spacing:0.08em;color:oklch(0.94 0.008 260);">qadi</span>
-      <span style="width:1px;height:18px;background:oklch(1 0 0 / 0.14);"></span>
-      <span class="mono" style="font-size:11px;letter-spacing:0.06em;color:oklch(0.58 0.03 80);">قاضي · the judge</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:26px;">
-      <a href="/docs/" class="mono navlink" style="font-size:13px;color:oklch(0.75 0.01 260);">Docs</a>
-      <a href="/blog/" class="mono navlink" style="font-size:13px;color:oklch(0.75 0.01 260);">Blog</a>
-      <a href="/compliance/" class="mono navlink" style="font-size:13px;color:oklch(0.75 0.01 260);">Compliance</a>
-      <a href="https://github.com/leaderiop/qadi" class="mono nav-github" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border:1px solid oklch(1 0 0 / 0.16);border-radius:6px;color:oklch(0.93 0.006 260);font-size:13px;">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg>
-        github
-      </a>
-    </div>
-    <div style="position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,oklch(0.75 0.13 80 / 0.55) 22%,oklch(0.72 0.15 195 / 0.55) 78%,transparent);"></div>
-  </div>
+  <SiteNav
+    links={[
+      { href: "/docs/", label: "Docs" },
+      { href: "/blog/", label: "Blog" },
+      { href: "/compliance/", label: "Compliance" },
+    ]}
+    showScrollProgress
+  />
 
   <!-- HERO -->
-  <div style="position:relative;">
+  <main id="main-content" tabindex="-1" style="position:relative;outline:none;">
+   {/* `main` stays position:relative for the whole page (see the note below),
+       so the hero's absolutely-positioned decorative layers — including the
+       canvas mount `initHeroArt` sizes itself against — need their own
+       position:relative wrapper here. Without one, "inset:0" resolves
+       against `main`'s full-page containing block instead of the hero's own
+       bounds, stretching the canvas (and the cost of redrawing it every
+       frame) to the height of the entire page. */}
+   <div style="position:relative;">
     <div style="position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0.5;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cg fill='none' stroke='%23c9a227' stroke-opacity='0.16' stroke-width='1'%3E%3Cpolygon points='50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4'/%3E%3Cpolygon points='16,0 0,16 -16,0 0,-16'/%3E%3Cpolygon points='106,0 90,16 74,0 90,-16'/%3E%3Cpolygon points='16,90 0,106 -16,90 0,74'/%3E%3Cpolygon points='106,90 90,106 74,90 90,74'/%3E%3C/g%3E%3C/svg%3E&quot;);background-size:90px 90px;-webkit-mask-image:radial-gradient(ellipse 75% 85% at 50% 32%, black, transparent 78%);mask-image:radial-gradient(ellipse 75% 85% at 50% 32%, black, transparent 78%);"></div>
     <div style="position:absolute;inset:0;z-index:0;background:radial-gradient(ellipse 60% 55% at 72% 42%, oklch(0.72 0.15 195 / 0.11), transparent 70%),radial-gradient(ellipse 50% 45% at 10% 18%, oklch(0.75 0.13 80 / 0.08), transparent 70%);pointer-events:none;"></div>
     <div id="hero-art-mount" style="position:absolute;inset:0;z-index:0;opacity:0.55;pointer-events:none;"></div>
-    <div style="position:relative;z-index:1;display:grid;grid-template-columns:1fr 1.1fr;gap:56px;align-items:center;max-width:1280px;margin:0 auto;padding:96px 48px 88px;">
+    <div class="hero-grid" style="position:relative;z-index:1;display:grid;grid-template-columns:1fr 1.1fr;gap:56px;align-items:center;max-width:1280px;margin:0 auto;padding:96px 48px 88px;">
       <div>
-        <div class="mono hero-in d1" style="display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid oklch(0.75 0.14 150 / 0.4);border-radius:999px;font-size:12px;color:oklch(0.75 0.14 150);margin-bottom:28px;background:oklch(0.17 0.014 260 / 0.7);">
-          <span style="width:6px;height:6px;border-radius:50%;background:oklch(0.75 0.14 150);"></span>
-          feature-complete · v0.0.0 · unpublished
+        <div class="mono hero-in d1" style="display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid oklch(0.75 0.13 80 / 0.4);border-radius:999px;font-size:12px;color:oklch(0.75 0.13 80);margin-bottom:28px;background:oklch(0.17 0.014 260 / 0.7);">
+          <span style="width:6px;height:6px;transform:rotate(45deg);background:oklch(0.75 0.13 80);"></span>
+          all roadmap items shipped · v0.0.0 · unpublished
         </div>
-        <h1 class="serif hero-in d2" style="font-size:58px;line-height:1.12;font-weight:400;margin:0 0 24px;letter-spacing:0.005em;">
-          Effect-native<br /><span style="background:linear-gradient(100deg,oklch(0.78 0.13 195),oklch(0.78 0.12 80),oklch(0.78 0.13 195));background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:oklch(0.78 0.13 195);-webkit-text-fill-color:transparent;animation:shimmer 8s ease-in-out infinite;">authorization</span><br />for TypeScript.
+        <h1 class="serif hero-in d2 hero-title" style="font-size:58px;line-height:1.12;font-weight:400;margin:0 0 24px;letter-spacing:0.005em;">
+          Effect-native<br /><span style="color:oklch(0.78 0.13 195);">authorization</span><br />for TypeScript.
         </h1>
         <p class="hero-in d3" style="font-size:18px;line-height:1.6;color:oklch(0.72 0.01 260);margin:0 0 36px;max-width:480px;">
-          Permission tokens, a role DAG, a schema-derived policy ADT, and a single <span class="mono" style="color:oklch(0.85 0.006 260);">Effect</span>-returning evaluator. One definition per concept — the type and the JSON codec are derived from the same schema, so they cannot drift.
+          Permission tokens, a role DAG, a schema-derived policy ADT, and a single <span class="mono" style="color:oklch(0.85 0.006 260);">Effect</span>-returning evaluator. One definition per concept: the type and the JSON codec are derived from the same schema, so they cannot drift.
         </p>
         <div class="hero-in d4" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;">
           <a href="https://github.com/leaderiop/qadi" class="btn-primary" style="display:flex;align-items:center;gap:8px;padding:12px 20px;background:oklch(0.72 0.15 195);border-radius:6px;color:oklch(0.14 0.01 195);font-weight:600;font-size:14px;">View on GitHub</a>
           <a href="/docs/" class="btn-outline" style="display:flex;align-items:center;gap:8px;padding:12px 20px;border:1px solid oklch(1 0 0 / 0.16);border-radius:6px;color:oklch(0.93 0.006 260);font-size:14px;background:oklch(0.17 0.014 260 / 0.7);">Read the spec</a>
         </div>
         <div class="mono hero-in d5" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:6px;font-size:13px;color:oklch(0.75 0.01 260);max-width:340px;">
-          <span style="color:oklch(0.75 0.14 150);">$</span>
+          <span style="color:oklch(0.78 0.13 195);">$</span>
           <span style="flex:1;">pnpm add @qadi/core</span>
-          <button id="copy-install" type="button" class="copy-btn mono" style="cursor:pointer;color:oklch(0.5 0.01 260);border:none;border-left:1px solid oklch(1 0 0 / 0.08);background:transparent;padding-left:12px;font-size:13px;">copy</button>
+          <button id="copy-install" type="button" class="copy-btn mono" style="cursor:pointer;color:oklch(0.6 0.01 260);border:none;border-left:1px solid oklch(1 0 0 / 0.08);background:transparent;padding-left:12px;font-size:13px;">copy</button>
         </div>
       </div>
 
       <div class="mono hero-in d6" style="background:oklch(0.13 0.012 260 / 0.92);border:1px solid oklch(1 0 0 / 0.1);border-radius:10px;overflow:hidden;box-shadow:0 24px 60px oklch(0 0 0 / 0.45);backdrop-filter:blur(4px);">
         <div style="height:2px;background:linear-gradient(90deg,oklch(0.72 0.15 195),oklch(0.75 0.13 80) 50%,oklch(0.72 0.15 195));"></div>
         <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid oklch(1 0 0 / 0.08);">
-          <span style="width:10px;height:10px;border-radius:50%;background:oklch(0.65 0.16 25);"></span>
-          <span style="width:10px;height:10px;border-radius:50%;background:oklch(0.75 0.13 80);"></span>
-          <span style="width:10px;height:10px;border-radius:50%;background:oklch(0.75 0.14 150);"></span>
-          <span style="margin-left:8px;font-size:12px;color:oklch(0.5 0.01 260);">document.ts</span>
-          <button id="replay-btn" type="button" class="replay-btn mono" style="margin-left:auto;font-size:11px;color:oklch(0.5 0.01 260);cursor:pointer;border:none;background:transparent;">↺ replay</button>
+          <span style="width:9px;height:9px;transform:rotate(45deg);background:oklch(0.65 0.16 25);"></span>
+          <span style="width:9px;height:9px;transform:rotate(45deg);background:oklch(0.75 0.13 80);"></span>
+          <span style="width:9px;height:9px;transform:rotate(45deg);background:oklch(0.72 0.15 195);"></span>
+          <span style="margin-left:8px;font-size:12px;color:oklch(0.6 0.01 260);">document.ts</span>
+          <button id="replay-btn" type="button" class="replay-btn mono" style="margin-left:auto;font-size:11px;color:oklch(0.6 0.01 260);cursor:pointer;border:none;background:transparent;">↺ replay</button>
         </div>
         <div style="padding:22px 22px 16px;min-height:300px;"><pre id="typed-code" style="margin:0;font-size:12.5px;line-height:1.75;white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;"></pre></div>
         <div style="border-top:1px solid oklch(1 0 0 / 0.08);padding:16px 22px 18px;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
             <span id="cap-num" class="mono" style="font-size:11px;color:oklch(0.78 0.13 195);"></span>
-            <span id="cap-title" style="font-size:13.5px;font-weight:600;color:oklch(0.9 0.006 260);"></span>
+            <span id="cap-title" style="font-size:13.5px;font-weight:600;color:oklch(0.93 0.006 260);"></span>
             <div style="margin-left:auto;display:flex;gap:6px;">
-              {stepInfoDots.map((_, i) => (
-                <span class="step-dot" data-idx={i} style="width:18px;height:4px;border-radius:2px;cursor:pointer;background:oklch(1 0 0 / 0.15);transition:background 0.3s;"></span>
+              {stepInfo.map((info, i) => (
+                <button type="button" class="step-dot" data-idx={i} aria-label={`Go to step ${i + 1}: ${info.title}`} style="appearance:none;width:18px;height:4px;padding:0;margin:0;border:none;border-radius:999px;cursor:pointer;background:oklch(1 0 0 / 0.15);transition:background 0.3s;"></button>
               ))}
             </div>
           </div>
-          <p id="cap-body" style="font-size:12.5px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;min-height:40px;"></p>
+          <p id="cap-body" aria-live="polite" style="font-size:12.5px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;min-height:40px;"></p>
         </div>
       </div>
     </div>
-  </div>
+   </div>
+  {/* The hero's own position:relative wrapper and inner grid both close
+      just above; <main> itself stays open through every numbered section
+      below and closes right before the footer, so screen-reader region
+      navigation covers the whole page
+      body, not only the hero. */}
 
   <!-- MODEL MARQUEE -->
-  <div style="overflow:hidden;border-top:1px solid oklch(1 0 0 / 0.07);border-bottom:1px solid oklch(1 0 0 / 0.07);background:oklch(0.15 0.013 260);padding:13px 0;">
+  {/* Decorative and duplicative by construction (every item is rendered
+     twice, back to back, for the seamless scroll loop): aria-hidden rather
+     than wired for accessible discovery, since the same models get a real
+     accessible gloss (aria-label + focusable tooltip) in #models below. */}
+  <div aria-hidden="true" style="overflow:hidden;border-top:1px solid oklch(1 0 0 / 0.07);border-bottom:1px solid oklch(1 0 0 / 0.07);background:oklch(0.15 0.013 260);padding:13px 0;">
     <div id="marquee-track" style="display:flex;width:max-content;will-change:transform;">
       <div class="mono" style="display:flex;align-items:center;gap:40px;padding-right:40px;">
         {marqueeItems.map((mq) => (
           <div style="display:flex;align-items:center;gap:40px;">
-            <span style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:oklch(0.68 0.05 80);white-space:nowrap;">{mq.label}</span>
-            <svg width="8" height="8" viewBox="0 0 100 100"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.75 0.13 80 / 0.5)"></polygon></svg>
+            <span title={glossOf(mq.label)} style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:oklch(0.68 0.05 80);white-space:nowrap;cursor:help;">{mq.label}</span>
+            <svg width="8" height="8" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.75 0.13 80 / 0.5)"></polygon></svg>
           </div>
         ))}
       </div>
       <div class="mono" style="display:flex;align-items:center;gap:40px;padding-right:40px;">
         {marqueeItems.map((mq) => (
           <div style="display:flex;align-items:center;gap:40px;">
-            <span style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:oklch(0.68 0.05 80);white-space:nowrap;">{mq.label}</span>
-            <svg width="8" height="8" viewBox="0 0 100 100"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.75 0.13 80 / 0.5)"></polygon></svg>
+            <span title={glossOf(mq.label)} style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:oklch(0.68 0.05 80);white-space:nowrap;cursor:help;">{mq.label}</span>
+            <svg width="8" height="8" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.75 0.13 80 / 0.5)"></polygon></svg>
           </div>
         ))}
       </div>
@@ -133,19 +163,19 @@ const stepInfoDots = stepInfo;
 
   <!-- PROBLEM -->
   <div id="problem" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">01</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">01</div>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">01 · the problem</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Two representations of one thing will drift</h2>
     <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 40px;max-width:680px;">
-      In the previous implementation the policy serializer and the policy type were maintained by hand — and drifted, silently narrowing field-level visibility on a JSON round-trip. Watch it happen, then watch why it can't happen here.
+      In the previous implementation the policy serializer and the policy type were maintained by hand, and drifted, silently narrowing field-level visibility on a JSON round-trip. Watch it happen, then watch why it can't happen here.
     </p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+    <div class="problem-compare-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
       <div style="padding:28px;background:oklch(0.19 0.014 260);border:1px solid oklch(0.65 0.16 25 / 0.3);border-radius:10px;position:relative;overflow:hidden;">
         <div class="mono" style="font-size:12px;color:oklch(0.65 0.16 25);margin-bottom:20px;">maintained by hand</div>
-        <div style="display:flex;gap:20px;align-items:stretch;">
+        <div class="problem-inner-split" style="display:flex;gap:20px;align-items:stretch;">
           <div style="flex:1;min-width:0;">
-            <div class="mono" style="display:flex;align-items:center;gap:6px;font-size:11px;color:oklch(0.55 0.01 260);margin-bottom:8px;"><span style="width:6px;height:6px;border-radius:50%;background:oklch(0.55 0.01 260);"></span>policy.ts — the type</div>
+            <div class="mono" style="display:flex;align-items:center;gap:6px;font-size:11px;color:oklch(0.6 0.01 260);margin-bottom:8px;"><span style="width:6px;height:6px;transform:rotate(45deg);background:oklch(0.55 0.01 260);"></span>policy.ts — the type</div>
             <div class="mono" style="padding:14px 16px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;font-size:12px;line-height:1.9;color:oklch(0.82 0.006 260);">
               <div><span style="color:oklch(0.78 0.13 195)">type</span> FieldRule = &#123;</div>
               <div style="padding-left:14px;">fields: [</div>
@@ -158,7 +188,7 @@ const stepInfoDots = stepInfo;
           </div>
           <div class="mono" style="align-self:center;color:oklch(0.65 0.16 25);font-size:16px;animation:floaty 4s ease-in-out infinite;">⇄</div>
           <div style="flex:1;min-width:0;">
-            <div class="mono" style="display:flex;align-items:center;gap:6px;font-size:11px;color:oklch(0.55 0.01 260);margin-bottom:8px;"><span style="width:6px;height:6px;border-radius:50%;background:oklch(0.65 0.16 25);"></span>serialize.ts — by hand</div>
+            <div class="mono" style="display:flex;align-items:center;gap:6px;font-size:11px;color:oklch(0.6 0.01 260);margin-bottom:8px;"><span style="width:6px;height:6px;transform:rotate(45deg);background:oklch(0.65 0.16 25);"></span>serialize.ts — by hand</div>
             <div class="mono" style="padding:14px 16px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;font-size:12px;line-height:1.9;color:oklch(0.82 0.006 260);">
               <div><span style="color:oklch(0.78 0.13 195)">const</span> <span style="color:oklch(0.75 0.12 200)">toJson</span> = (r) =&gt; (&#123;</div>
               <div style="padding-left:14px;">fields: [</div>
@@ -171,26 +201,26 @@ const stepInfoDots = stepInfo;
           </div>
         </div>
         <div class="mono" style="margin-top:18px;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid oklch(0.65 0.16 25 / 0.5);border-radius:6px;font-size:12px;color:oklch(0.7 0.16 25);animation:driftAlarm 9s ease-in-out infinite;">
-          ⚠ "body" silently dropped on JSON round-trip — no error, narrower visibility
+          ⚠ "body" silently dropped on JSON round-trip: no error, narrower visibility
         </div>
       </div>
-      <div style="padding:28px;background:oklch(0.19 0.014 260);border:1px solid oklch(0.75 0.14 150 / 0.3);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.75 0.14 150);margin-bottom:20px;">qadi: derived from one Schema</div>
+      <div style="padding:28px;background:oklch(0.19 0.014 260);border:1px solid oklch(0.72 0.15 195 / 0.3);border-radius:10px;">
+        <div class="mono" style="font-size:12px;color:oklch(0.78 0.13 195);margin-bottom:20px;">qadi: derived from one Schema</div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
-          <div class="mono" style="padding:12px 22px;background:oklch(0.72 0.15 195 / 0.12);border:1px solid oklch(0.72 0.15 195 / 0.5);border-radius:8px;font-size:13px;color:oklch(0.82 0.13 195);animation:syncPulse 3s ease-in-out infinite;">Policy — one Effect Schema</div>
-          <svg width="220" height="52" viewBox="0 0 220 52" style="display:block;">
-            <path d="M110 0 L40 52" stroke="oklch(0.75 0.14 150 / 0.7)" stroke-width="1.5" stroke-dasharray="6 6" fill="none" style="animation:dashFlow 1.2s linear infinite;"></path>
-            <path d="M110 0 L180 52" stroke="oklch(0.75 0.14 150 / 0.7)" stroke-width="1.5" stroke-dasharray="6 6" fill="none" style="animation:dashFlow 1.2s linear infinite;"></path>
+          <div class="mono" style="padding:12px 22px;background:oklch(0.72 0.15 195 / 0.12);border:1px solid oklch(0.72 0.15 195 / 0.5);border-radius:8px;font-size:13px;color:oklch(0.82 0.13 195);">Policy — one Effect Schema</div>
+          <svg width="220" height="52" viewBox="0 0 220 52" style="display:block;" aria-hidden="true">
+            <path d="M110 0 L40 52" stroke="oklch(0.72 0.15 195 / 0.7)" stroke-width="1.5" stroke-dasharray="6 6" fill="none" style="animation:dashFlow 1.2s linear infinite;"></path>
+            <path d="M110 0 L180 52" stroke="oklch(0.72 0.15 195 / 0.7)" stroke-width="1.5" stroke-dasharray="6 6" fill="none" style="animation:dashFlow 1.2s linear infinite;"></path>
           </svg>
           <div style="display:flex;gap:20px;width:100%;">
-            <div class="mono" style="flex:1;padding:12px;text-align:center;background:oklch(0.13 0.012 260);border:1px solid oklch(0.75 0.14 150 / 0.4);border-radius:8px;font-size:12px;color:oklch(0.75 0.14 150);animation:syncPulse 3s ease-in-out infinite;">TypeScript type</div>
-            <div class="mono" style="flex:1;padding:12px;text-align:center;background:oklch(0.13 0.012 260);border:1px solid oklch(0.75 0.14 150 / 0.4);border-radius:8px;font-size:12px;color:oklch(0.75 0.14 150);animation:syncPulse 3s ease-in-out infinite;">JSON codec</div>
+            <div class="mono" style="flex:1;padding:12px;text-align:center;background:oklch(0.13 0.012 260);border:1px solid oklch(0.72 0.15 195 / 0.4);border-radius:8px;font-size:12px;color:oklch(0.82 0.13 195);">TypeScript type</div>
+            <div class="mono" style="flex:1;padding:12px;text-align:center;background:oklch(0.13 0.012 260);border:1px solid oklch(0.72 0.15 195 / 0.4);border-radius:8px;font-size:12px;color:oklch(0.82 0.13 195);">JSON codec</div>
           </div>
         </div>
-        <p style="font-size:13.5px;line-height:1.6;color:oklch(0.68 0.01 260);margin:20px 0 0;">Both derived from the same definition. There is no second representation to drift — the defect class is removed structurally, not by discipline.</p>
+        <p style="font-size:13.5px;line-height:1.6;color:oklch(0.68 0.01 260);margin:20px 0 0;">Both derived from the same definition. There is no second representation to drift: the defect class is removed structurally, not by discipline.</p>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px;">
+    <div class="tricol-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px;">
       <div style="padding:20px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
         <div class="mono" style="font-size:12px;color:oklch(0.78 0.13 195);margin-bottom:6px;">failure ≠ denial</div>
         <p style="font-size:13px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;">A broken attribute lookup is an error, never a denial. An outage reported as "not authorized" sends engineers to audit permissions instead of the backend.</p>
@@ -201,18 +231,18 @@ const stepInfoDots = stepInfo;
       </div>
       <div style="padding:20px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
         <div class="mono" style="font-size:12px;color:oklch(0.78 0.13 195);margin-bottom:6px;">determinism is a feature</div>
-        <p style="font-size:13px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;">Time and identifiers come from services, so a decision — including its trace and duration — is reproducible under test.</p>
+        <p style="font-size:13px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;">Time and identifiers come from services, so a decision (including its trace and duration) is reproducible under test.</p>
       </div>
     </div>
   </div>
 
   <!-- WHERE IT SITS -->
   <div id="compare" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">02</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">02</div>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">02 · where it sits</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 40px;letter-spacing:-0.01em;">Three ways to do authorization</h2>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:stretch;">
+    <div class="tricol-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:stretch;">
       <div style="padding:26px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
         <div class="mono" style="font-size:13px;color:oklch(0.7 0.01 260);margin-bottom:16px;">hand-rolled checks</div>
         <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.5;color:oklch(0.68 0.01 260);">
@@ -223,7 +253,7 @@ const stepInfoDots = stepInfo;
         </div>
         <div class="mono" style="margin-top:16px;padding:10px 12px;background:oklch(0.13 0.012 260);border-radius:6px;font-size:12px;color:oklch(0.78 0.01 260);">
           if (user.role === <span style="position:relative;display:inline-block;"><span style="color:oklch(0.75 0.13 80);animation:swapA 6s infinite;">"admin"</span><span style="position:absolute;left:0;top:0;color:oklch(0.65 0.16 25);animation:swapB 6s infinite;">"editor"</span></span>)
-          <div style="font-size:10.5px;color:oklch(0.5 0.01 260);margin-top:5px;">the meaning drifts with every refactor</div>
+          <div style="font-size:11px;color:oklch(0.6 0.01 260);margin-top:5px;">the meaning drifts with every refactor</div>
         </div>
       </div>
       <div style="padding:26px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
@@ -237,10 +267,10 @@ const stepInfoDots = stepInfo;
         <div class="mono" style="margin-top:16px;padding:10px 12px;background:oklch(0.13 0.012 260);border-radius:6px;font-size:12px;color:oklch(0.78 0.01 260);">
           <div style="display:flex;align-items:center;gap:8px;">
             <span>app</span>
-            <span style="position:relative;flex:1;height:2px;background:oklch(1 0 0 / 0.1);border-radius:2px;"><span style="position:absolute;top:-2.5px;width:7px;height:7px;border-radius:50%;background:oklch(0.75 0.13 80);animation:beamDot 2.2s linear infinite;"></span></span>
+            <span style="position:relative;flex:1;height:2px;background:oklch(1 0 0 / 0.1);border-radius:999px;"><span style="position:absolute;top:-2px;width:6px;height:6px;transform:rotate(45deg);background:oklch(0.75 0.13 80);animation:beamDot 2.2s linear infinite;"></span></span>
             <span>engine</span>
           </div>
-          <div style="font-size:10.5px;color:oklch(0.5 0.01 260);margin-top:6px;">a round-trip inside every decision</div>
+          <div style="font-size:11px;color:oklch(0.6 0.01 260);margin-top:6px;">a round-trip inside every decision</div>
         </div>
       </div>
       <div style="position:relative;overflow:hidden;padding:26px;background:oklch(0.72 0.15 195 / 0.07);border:1px solid oklch(0.72 0.15 195 / 0.5);border-radius:10px;box-shadow:0 0 40px oklch(0.72 0.15 195 / 0.12);">
@@ -253,9 +283,9 @@ const stepInfoDots = stepInfo;
           <div>deterministic under test — clock and ids are services</div>
           <div>compiles to a SQL / Prisma filter when the check belongs in the query</div>
         </div>
-        <div class="mono" style="margin-top:16px;padding:10px 12px;background:oklch(0.13 0.012 260);border-radius:6px;font-size:12px;color:oklch(0.75 0.14 150);animation:syncPulse 3s ease-in-out infinite;">
-          decide(policy) → Allow · trace · fields
-          <div style="font-size:10.5px;color:oklch(0.55 0.01 260);margin-top:5px;">in-process, typed, traceable</div>
+        <div class="mono" style="margin-top:16px;padding:10px 12px;background:oklch(0.13 0.012 260);border-radius:6px;font-size:12px;color:oklch(0.82 0.13 195);">
+          decide(policy) → <span style="color:oklch(0.75 0.14 150);">Allow</span> · trace · fields
+          <div style="font-size:11px;color:oklch(0.6 0.01 260);margin-top:5px;">in-process, typed, traceable</div>
         </div>
         </div>
       </div>
@@ -264,12 +294,12 @@ const stepInfoDots = stepInfo;
 
   <!-- ROLE DAG -->
   <div id="dag" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">03</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">03</div>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">03 · roles</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Permissions flow through a role DAG</h2>
-    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:48px;align-items:center;">
-      <svg viewBox="0 0 560 300" style="width:100%;">
+    <div class="dag-grid" style="display:grid;grid-template-columns:1.2fr 1fr;gap:48px;align-items:center;">
+      <svg viewBox="0 0 560 300" style="width:100%;" aria-hidden="true">
         <defs>
           <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="oklch(0.5 0.05 195)"></path></marker>
         </defs>
@@ -278,11 +308,11 @@ const stepInfoDots = stepInfo;
         <path id="e3" d="M320 130 C 380 130, 400 90, 450 80" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
         <path id="e4" d="M320 145 C 390 165, 400 205, 448 220" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
         <path id="e5" d="M300 210 C 360 230, 400 228, 445 224" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
-        <circle r="4" fill="oklch(0.78 0.13 195)"><animateMotion dur="2.6s" repeatCount="indefinite" rotate="auto"><mpath href="#e1"></mpath></animateMotion></circle>
-        <circle r="4" fill="oklch(0.78 0.13 195)"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#e2"></mpath></animateMotion></circle>
-        <circle r="4" fill="oklch(0.75 0.14 150)"><animateMotion dur="2.2s" begin="0.6s" repeatCount="indefinite"><mpath href="#e3"></mpath></animateMotion></circle>
-        <circle r="4" fill="oklch(0.75 0.14 150)"><animateMotion dur="2.9s" begin="1.1s" repeatCount="indefinite"><mpath href="#e4"></mpath></animateMotion></circle>
-        <circle r="4" fill="oklch(0.75 0.14 150)"><animateMotion dur="2.4s" begin="0.3s" repeatCount="indefinite"><mpath href="#e5"></mpath></animateMotion></circle>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#e1"></mpath></animateMotion></rect>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#e2"></mpath></animateMotion></rect>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="2.2s" begin="0.6s" repeatCount="indefinite"><mpath href="#e3"></mpath></animateMotion></rect>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="2.9s" begin="1.1s" repeatCount="indefinite"><mpath href="#e4"></mpath></animateMotion></rect>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="2.4s" begin="0.3s" repeatCount="indefinite"><mpath href="#e5"></mpath></animateMotion></rect>
         <g style="animation:floaty 5s ease-in-out infinite;">
           <rect x="50" y="38" width="80" height="40" rx="8" fill="oklch(0.72 0.15 195 / 0.15)" stroke="oklch(0.72 0.15 195 / 0.6)"></rect>
           <text x="90" y="63" text-anchor="middle" fill="oklch(0.85 0.1 195)" font-family="IBM Plex Mono" font-size="13">admin</text>
@@ -296,16 +326,16 @@ const stepInfoDots = stepInfo;
           <text x="278" y="217" text-anchor="middle" fill="oklch(0.85 0.006 260)" font-family="IBM Plex Mono" font-size="13">reviewer</text>
         </g>
         <g style="animation:floaty 5s ease-in-out 2.4s infinite;">
-          <rect x="440" y="58" width="90" height="40" rx="8" fill="oklch(0.75 0.14 150 / 0.1)" stroke="oklch(0.75 0.14 150 / 0.5)"></rect>
-          <text x="485" y="83" text-anchor="middle" fill="oklch(0.78 0.12 150)" font-family="IBM Plex Mono" font-size="12">doc:read</text>
+          <rect x="440" y="58" width="90" height="40" rx="8" fill="oklch(0.19 0.014 260)" stroke="oklch(1 0 0 / 0.2)"></rect>
+          <text x="485" y="83" text-anchor="middle" fill="oklch(0.85 0.006 260)" font-family="IBM Plex Mono" font-size="12">doc:read</text>
         </g>
         <g style="animation:floaty 5s ease-in-out 3.2s infinite;">
-          <rect x="436" y="200" width="98" height="40" rx="8" fill="oklch(0.75 0.14 150 / 0.1)" stroke="oklch(0.75 0.14 150 / 0.5)"></rect>
-          <text x="485" y="225" text-anchor="middle" fill="oklch(0.78 0.12 150)" font-family="IBM Plex Mono" font-size="12">doc:write</text>
+          <rect x="436" y="200" width="98" height="40" rx="8" fill="oklch(0.19 0.014 260)" stroke="oklch(1 0 0 / 0.2)"></rect>
+          <text x="485" y="225" text-anchor="middle" fill="oklch(0.85 0.006 260)" font-family="IBM Plex Mono" font-size="12">doc:write</text>
         </g>
       </svg>
       <div>
-        <p style="font-size:15px;line-height:1.7;color:oklch(0.72 0.01 260);margin:0 0 20px;">Roles form a directed acyclic graph. A role inherits every permission reachable below it — <span class="mono" style="color:oklch(0.85 0.006 260);">flattenPermissions</span> resolves the closure, <span class="mono" style="color:oklch(0.85 0.006 260);">resolveRoleGraph</span> rejects cycles at construction.</p>
+        <p style="font-size:15px;line-height:1.7;color:oklch(0.72 0.01 260);margin:0 0 20px;">Roles form a directed acyclic graph. A role inherits every permission reachable below it: <span class="mono" style="color:oklch(0.85 0.006 260);">flattenPermissions</span> resolves the closure, <span class="mono" style="color:oklch(0.85 0.006 260);">resolveRoleGraph</span> rejects cycles at construction.</p>
         <div class="mono" style="padding:16px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;font-size:12.5px;line-height:1.8;color:oklch(0.82 0.006 260);">
           <div><span style="color:oklch(0.78 0.13 195)">const</span> viewer = role(<span style="color:oklch(0.75 0.13 80)">"viewer"</span>, [readDoc]);</div>
           <div><span style="color:oklch(0.78 0.13 195)">const</span> editor = role(<span style="color:oklch(0.75 0.13 80)">"editor"</span>, [writeDoc], [viewer]);</div>
@@ -317,95 +347,111 @@ const stepInfoDots = stepInfo;
 
   <!-- FEATURES -->
   <div id="features" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">04</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">04</div>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">04 · features</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Everything in the box</h2>
-    <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 40px;max-width:640px;">Every capability below is implemented, wired and tested — Qadi ships nothing it cannot prove.</p>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
-      {features.map((ft) => (
-        <div class="ornate feature-card" style="position:relative;padding:22px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);box-shadow:none;border-radius:10px;display:flex;flex-direction:column;gap:8px;transition:all 0.45s;">
-          <span class="mono" style="align-self:flex-start;font-size:11px;padding:3px 9px;border-radius:5px;background:oklch(0.72 0.15 195 / 0.12);color:oklch(0.82 0.13 195);">{ft.api}</span>
-          <h3 style="font-size:15px;margin:4px 0 0;">{ft.title}</h3>
-          <p style="font-size:13px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;">{ft.desc}</p>
-          <div class="mono feature-demo" style="font-size:11.5px;color:oklch(0.75 0.14 150);opacity:0;max-height:0px;overflow:hidden;transition:all 0.45s;">{ft.demo}</div>
-        </div>
-      ))}
+    <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 40px;max-width:640px;">Every capability below is implemented, wired and tested. Qadi ships nothing it cannot prove.</p>
+    <div class="card-group">
+      <div class="tricol-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        {features.map((ft, i) => (
+          <div class:list={["ornate", "feature-card", i >= 6 && "card-extra"]} tabindex="0" style="position:relative;padding:22px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);box-shadow:none;border-radius:10px;display:flex;flex-direction:column;gap:8px;transition:border-color 0.45s,transform 0.45s;">
+            <span class="mono" style="align-self:flex-start;font-size:11px;padding:3px 9px;border-radius:6px;background:oklch(0.72 0.15 195 / 0.12);color:oklch(0.82 0.13 195);">{ft.api}</span>
+            <h3 style="font-size:15px;margin:4px 0 0;">{ft.title}</h3>
+            <p style="font-size:13px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;">{ft.desc}</p>
+            <div class="mono feature-demo" style="font-size:11.5px;color:oklch(0.78 0.13 195);opacity:0;max-height:0px;overflow:hidden;transition:opacity 0.45s,max-height 0.45s;">{ft.demo}</div>
+          </div>
+        ))}
+      </div>
+      {features.length > 6 && (
+        <button type="button" class="card-toggle mono" data-more={`+${features.length - 6} more`} data-less="show less" style="display:block;margin:24px auto 0;font-size:12px;color:oklch(0.78 0.13 195);background:transparent;border:1px dashed oklch(0.72 0.15 195 / 0.4);border-radius:999px;padding:8px 18px;cursor:pointer;">+{features.length - 6} more</button>
+      )}
     </div>
   </div>
 
   <!-- MODELS -->
   <div id="models" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">05</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">05</div>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">05 · models</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;"><span id="model-count" class="mono" style="color:oklch(0.78 0.13 195);">0</span> access-control models — adopted or explicitly declined</h2>
     <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 36px;max-width:680px;">The adoption matrix documents every model Qadi can express, which it cannot, and what each missing one would cost. Nothing is claimed without a test behind it.</p>
     <div style="display:flex;flex-direction:column;gap:20px;">
-      <div style="padding:22px 24px;background:oklch(0.19 0.014 260);border:1px solid oklch(0.75 0.14 150 / 0.3);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.75 0.14 150);margin-bottom:14px;">✓ shipped — expressible today, covered by tests</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          {["RBAC + role DAG","ABAC","ReBAC","capability tokens","field-level visibility","ordered rule tables (RuBAC)","separation of duty","Bell–LaPadula","Biba","Chinese Wall","row-level security","TBAC","XACML parity*","MLS*","HBAC*","NGAC*"].map((label) => (
-            <span class="mono" style="font-size:12px;padding:5px 11px;border-radius:999px;background:oklch(0.13 0.012 260);border:1px solid oklch(0.75 0.14 150 / 0.3);color:oklch(0.85 0.006 260);">{label}</span>
+      <div class="model-category" style="padding:22px 24px;background:oklch(0.19 0.014 260);border:1px solid oklch(0.72 0.15 195 / 0.3);border-radius:10px;">
+        <div class="mono" style="font-size:12px;color:oklch(0.78 0.13 195);margin-bottom:14px;">✓ shipped — expressible today, covered by tests</div>
+        <div class="pill-group" style="display:flex;flex-wrap:wrap;gap:8px;">
+          {modelsShipped.map((label, i) => (
+            <button type="button" class:list={["mono", "pill", "gloss-pill", i >= 8 && "pill-extra"]} data-gloss={glossOf(label)} aria-label={glossOf(label) ? `${label} — ${glossOf(label)}` : label} style="appearance:none;font-family:inherit;margin:0;font-size:12px;padding:5px 11px;border-radius:999px;background:oklch(0.13 0.012 260);border:1px solid oklch(0.72 0.15 195 / 0.3);color:oklch(0.85 0.006 260);cursor:help;">{label}</button>
           ))}
         </div>
+        {modelsShipped.length > 8 && (
+          <button type="button" class="pill-toggle mono" data-more={`+${modelsShipped.length - 8} more`} data-less="show less" style="margin-top:10px;font-size:11.5px;color:oklch(0.78 0.13 195);background:transparent;border:1px dashed oklch(0.72 0.15 195 / 0.4);border-radius:999px;padding:5px 11px;cursor:pointer;">+{modelsShipped.length - 8} more</button>
+        )}
       </div>
-      <div style="padding:22px 24px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:10px;">
+      <div class="model-category" style="padding:22px 24px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:10px;">
         <div class="mono" style="font-size:12px;color:oklch(0.75 0.13 80);margin-bottom:14px;">⚙ wiring recipe — expressible today with your own resolver</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          {["DAC / ownership","ACLs","Zanzibar stores (SpiceDB / OpenFGA)","OIDC claims","temporal","spatial / geofence","risk-adaptive","consent-based","tenant hierarchies","team-based","OrBAC","purpose-based"].map((label) => (
-            <span class="mono" style="font-size:12px;padding:5px 11px;border-radius:999px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.12);color:oklch(0.75 0.01 260);">{label}</span>
+        <div class="pill-group" style="display:flex;flex-wrap:wrap;gap:8px;">
+          {modelsWiring.map((label, i) => (
+            <button type="button" class:list={["mono", "pill", "gloss-pill", i >= 8 && "pill-extra"]} data-gloss={glossOf(label)} aria-label={glossOf(label) ? `${label} — ${glossOf(label)}` : label} style="appearance:none;font-family:inherit;margin:0;font-size:12px;padding:5px 11px;border-radius:999px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.12);color:oklch(0.75 0.01 260);cursor:help;">{label}</button>
           ))}
         </div>
+        {modelsWiring.length > 8 && (
+          <button type="button" class="pill-toggle mono" data-more={`+${modelsWiring.length - 8} more`} data-less="show less" style="margin-top:10px;font-size:11.5px;color:oklch(0.75 0.13 80);background:transparent;border:1px dashed oklch(1 0 0 / 0.16);border-radius:999px;padding:5px 11px;cursor:pointer;">+{modelsWiring.length - 8} more</button>
+        )}
       </div>
       <div style="padding:22px 24px;background:oklch(0.15 0.012 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.55 0.01 260);margin-bottom:14px;">✕ excluded by design — enforced by a mechanism Qadi is not</div>
-        <p style="font-size:13px;line-height:1.7;color:oklch(0.6 0.01 260);margin:0;">Attribute-based encryption, token chains (macaroons, biscuits, UCANs), administrative RBAC, Clark–Wilson, information flow control, object capabilities. Qadi decides — it does not authenticate, persist, or administer. Each exclusion is documented with what pairs with it instead.</p>
+        <div class="mono" style="font-size:12px;color:oklch(0.6 0.01 260);margin-bottom:14px;">✕ excluded by design — enforced by a mechanism Qadi is not</div>
+        <p style="font-size:13px;line-height:1.7;color:oklch(0.6 0.01 260);margin:0;">{modelsExcluded[0][0].toUpperCase() + modelsExcluded[0].slice(1)}, {modelsExcluded.slice(1).join(", ")}. Qadi decides. It does not authenticate, persist, or administer. Each exclusion is documented with what pairs with it instead.</p>
       </div>
     </div>
-    <p class="mono" style="font-size:11.5px;color:oklch(0.5 0.01 260);margin:16px 0 0;">* shipped in part — the remainder is named and either staged or declined, never implied.</p>
+    <p class="mono" style="font-size:11.5px;color:oklch(0.6 0.01 260);margin:16px 0 0;">* shipped in part: the remainder is named and either staged or declined, never implied.</p>
   </div>
 
   <!-- PACKAGES -->
   <div id="packages" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">06</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">06</div>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">06 · packages</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 40px;letter-spacing:-0.01em;">Nine packages, one enforcement path</h2>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
-      {packages.map((pkg) => (
-        <div class="pkgcard" style={`position:relative;overflow:hidden;padding:24px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;display:flex;flex-direction:column;gap:10px;animation:fadeUp 0.6s ease ${pkg.delay} both;`}>
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <span class="mono" style="font-size:14px;color:oklch(0.78 0.13 195);">{pkg.name}</span>
-            <span class="mono" style="font-size:10.5px;padding:3px 8px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:oklch(0.6 0.01 260);">{pkg.tag}</span>
+    <div class="card-group">
+      <div class="tricol-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        {packages.map((pkg, i) => (
+          <div class:list={["pkgcard", i >= 6 && "card-extra"]} style={`position:relative;overflow:hidden;padding:24px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;display:flex;flex-direction:column;gap:10px;animation:fadeUp 0.6s ease ${pkg.delay} both;`}>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span class="mono" style="font-size:14px;color:oklch(0.78 0.13 195);">{pkg.name}</span>
+              <span class="mono" style="font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:oklch(0.6 0.01 260);">{pkg.tag}</span>
+            </div>
+            <p style="font-size:13.5px;line-height:1.6;color:oklch(0.7 0.01 260);margin:0;">{pkg.desc}</p>
           </div>
-          <p style="font-size:13.5px;line-height:1.6;color:oklch(0.7 0.01 260);margin:0;">{pkg.desc}</p>
-        </div>
-      ))}
+        ))}
+      </div>
+      {packages.length > 6 && (
+        <button type="button" class="card-toggle mono" data-more={`+${packages.length - 6} more`} data-less="show less" style="display:block;margin:24px auto 0;font-size:12px;color:oklch(0.78 0.13 195);background:transparent;border:1px dashed oklch(0.72 0.15 195 / 0.4);border-radius:999px;padding:8px 18px;cursor:pointer;">+{packages.length - 6} more</button>
+      )}
     </div>
   </div>
 
   <!-- API -->
   <div id="api" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">07</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">07</div>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">07 · api</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Which of the six to call</h2>
     <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 36px;max-width:640px;">
-      The line that actually divides these: reporting versus enforcing. <span class="mono">decide</span> and <span class="mono">check</span> report — they hand back an answer and run nothing. <span class="mono">assert</span>, <span class="mono">enforce</span>, <span class="mono">enforceProjected</span> and <span class="mono">filter</span> enforce — each refuses an allow whose obligation nobody has discharged.
+      The line that actually divides these: reporting versus enforcing. <span class="mono">decide</span> and <span class="mono">check</span> report: they hand back an answer and run nothing. <span class="mono">assert</span>, <span class="mono">enforce</span>, <span class="mono">enforceProjected</span> and <span class="mono">filter</span> enforce: each refuses an allow whose obligation nobody has discharged.
     </p>
     <div class="mono" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-      <span id="api-rep-chip" style="font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:oklch(0.55 0.01 260);transition:all 0.4s;">reporting — decide · check</span>
-      <span id="api-enf-chip" style="font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:oklch(0.55 0.01 260);transition:all 0.4s;">enforcing — assert · enforce · enforceProjected · filter</span>
+      <span id="api-rep-chip" style="font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:oklch(0.6 0.01 260);transition:all 0.4s;">reporting — decide · check</span>
+      <span id="api-enf-chip" style="font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:oklch(0.6 0.01 260);transition:all 0.4s;">enforcing — assert · enforce · enforceProjected · filter</span>
     </div>
-    <div style="border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;overflow:hidden;">
-      <table style="width:100%;border-collapse:collapse;font-size:13.5px;">
+    <div class="api-table-wrap" tabindex="0" role="region" aria-label="API call reference table" style="border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;overflow-x:auto;">
+      <table style="width:100%;min-width:560px;border-collapse:collapse;font-size:13.5px;">
         <thead>
           <tr style="background:oklch(0.21 0.014 260);">
-            <th class="mono" style="text-align:left;padding:14px 20px;color:oklch(0.6 0.01 260);font-weight:500;font-size:12px;">call</th>
-            <th style="text-align:left;padding:14px 20px;color:oklch(0.6 0.01 260);font-weight:500;font-size:12px;">use when</th>
-            <th class="mono" style="text-align:left;padding:14px 20px;color:oklch(0.6 0.01 260);font-weight:500;font-size:12px;">returns</th>
-            <th style="text-align:left;padding:14px 20px;color:oklch(0.6 0.01 260);font-weight:500;font-size:12px;">on denial</th>
+            <th class="mono" style="text-align:left;padding:14px 20px;color:oklch(0.63 0.01 260);font-weight:500;font-size:12px;">call</th>
+            <th style="text-align:left;padding:14px 20px;color:oklch(0.63 0.01 260);font-weight:500;font-size:12px;">use when</th>
+            <th class="mono" style="text-align:left;padding:14px 20px;color:oklch(0.63 0.01 260);font-weight:500;font-size:12px;">returns</th>
+            <th style="text-align:left;padding:14px 20px;color:oklch(0.63 0.01 260);font-weight:500;font-size:12px;">on denial</th>
           </tr>
         </thead>
         <tbody>
@@ -427,42 +473,42 @@ const stepInfoDots = stepInfo;
 
   <!-- ARCHITECTURE -->
   <div id="architecture" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">08</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">08</div>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">08 · architecture</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 40px;letter-spacing:-0.01em;">How a decision gets made</h2>
     <div style="display:flex;gap:8px;margin-bottom:20px;">
       {arch.map((sc) => (
-        <span class="mono arch-scen-btn" style="cursor:pointer;font-size:12px;padding:6px 14px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.15);color:oklch(0.6 0.01 260);background:transparent;transition:all 0.3s;">{sc.label}</span>
+        <button type="button" class="mono arch-scen-btn" aria-label={`Pin scenario: ${sc.label}`} style="appearance:none;cursor:pointer;font-family:inherit;font-size:12px;padding:6px 14px;margin:0;border-radius:999px;border:1px solid oklch(1 0 0 / 0.15);color:oklch(0.6 0.01 260);background:transparent;transition:background-color 0.3s,border-color 0.3s,color 0.3s;">{sc.label}</button>
       ))}
-      <span class="mono" style="align-self:center;margin-left:8px;font-size:11px;color:oklch(0.5 0.01 260);">scenarios alternate automatically — click to pin one</span>
+      <span class="mono" style="align-self:center;margin-left:8px;font-size:11px;color:oklch(0.6 0.01 260);">scenarios alternate automatically — click to pin one, click again to release</span>
     </div>
-    <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:24px;align-items:stretch;">
+    <div class="arch-grid" style="display:grid;grid-template-columns:1.15fr 1fr;gap:24px;align-items:stretch;">
       <div id="arch-diagram" style="padding:24px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;"></div>
       <div style="display:flex;flex-direction:column;gap:16px;">
         <div class="mono" style="flex:1;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:10px;overflow:hidden;">
-          <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid oklch(1 0 0 / 0.08);font-size:11px;color:oklch(0.5 0.01 260);">
-            <span style="width:6px;height:6px;border-radius:50%;background:oklch(0.75 0.14 150);"></span>
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid oklch(1 0 0 / 0.08);font-size:11px;color:oklch(0.6 0.01 260);">
+            <span style="width:6px;height:6px;transform:rotate(45deg);background:oklch(0.6 0.01 260);"></span>
             decision trace · live
           </div>
-          <div id="arch-trace" style="padding:16px 18px;"></div>
+          <div id="arch-trace" aria-live="polite" style="padding:16px 18px;"></div>
         </div>
         <div style="padding:16px 18px;background:oklch(0.72 0.15 195 / 0.08);border:1px solid oklch(0.72 0.15 195 / 0.3);border-radius:10px;">
-          <p id="arch-caption" style="font-size:13.5px;line-height:1.6;color:oklch(0.82 0.01 260);margin:0;min-height:44px;"></p>
+          <p id="arch-caption" aria-live="polite" style="font-size:13.5px;line-height:1.6;color:oklch(0.82 0.01 260);margin:0;min-height:44px;"></p>
         </div>
-        <p style="font-size:12px;line-height:1.6;color:oklch(0.55 0.01 260);margin:0;">Seven services sit behind the evaluator — AttributeResolver, RelationshipResolver, DecisionHistory, EvaluationId, CurrentSubject, plus the optional DecisionCache and the write-only DecisionSink. An unwired resolver denies by default.</p>
+        <p style="font-size:12px;line-height:1.6;color:oklch(0.6 0.01 260);margin:0;">Seven services sit behind the evaluator: AttributeResolver, RelationshipResolver, DecisionHistory, EvaluationId, CurrentSubject, plus the optional DecisionCache and the write-only DecisionSink. An unwired resolver denies by default.</p>
       </div>
     </div>
   </div>
 
   <!-- PROOF / GRAPHS -->
   <div id="proof" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">09</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">09</div>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">09 · proof</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Measured, not asserted</h2>
     <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 36px;max-width:640px;">Numbers a merge gate actually checks, not a claim in a README.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px;">
+    <div class="proof-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px;">
       {bars.map((bar) => (
         <div>
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
@@ -470,7 +516,7 @@ const stepInfoDots = stepInfo;
             <span class="mono" style="font-size:13px;color:oklch(0.85 0.006 260);">{bar.value}</span>
           </div>
           <div style="height:8px;background:oklch(0.13 0.012 260);border-radius:4px;overflow:hidden;">
-            <div style={`height:100%;width:${bar.width};background:oklch(0.72 0.15 195);transform-origin:left;animation:barGrow 1.2s cubic-bezier(0.22,1,0.36,1) both;`}></div>
+            <div style={`height:100%;width:${bar.width};background:${bar.goalIsZero ? "oklch(0.75 0.14 150)" : "oklch(0.72 0.15 195)"};transform-origin:left;animation:barGrow 1.2s cubic-bezier(0.22,1,0.36,1) both;`}></div>
           </div>
         </div>
       ))}
@@ -479,12 +525,12 @@ const stepInfoDots = stepInfo;
 
   <!-- STATUS -->
   <div id="status" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">10</div>
-    <svg width="240" height="240" viewBox="0 0 100 100" style="position:absolute;right:24px;bottom:16px;opacity:0.05;animation:starSpin 140s linear infinite;pointer-events:none;"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="1.5"></polygon></svg>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">10</div>
+    <svg width="240" height="240" viewBox="0 0 100 100" style="position:absolute;right:24px;bottom:16px;opacity:0.05;animation:starSpin 140s linear infinite;pointer-events:none;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="1.5"></polygon></svg>
     <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">10 · status</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 24px;letter-spacing:-0.01em;">Where it stands</h2>
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;">
+    <div class="status-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:24px;">
       <div style="padding:28px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
         <p style="font-size:15px;line-height:1.7;color:oklch(0.78 0.01 260);margin:0;">
           Every item the roadmap committed to has shipped, and every access-control model in the adoption matrix is either adopted or explicitly declined. The version is still <span class="mono">0.0.0</span> and nothing is on npm, so the API may still move.
@@ -492,47 +538,58 @@ const stepInfoDots = stepInfo;
       </div>
       <div style="padding:28px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;display:flex;flex-direction:column;justify-content:center;gap:12px;">
         <div style="display:flex;justify-content:space-between;" class="mono">
-          <span style="font-size:12px;color:oklch(0.55 0.01 260);">version</span>
+          <span style="font-size:12px;color:oklch(0.6 0.01 260);">version</span>
           <span style="font-size:12px;color:oklch(0.85 0.006 260);">0.0.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;" class="mono">
-          <span style="font-size:12px;color:oklch(0.55 0.01 260);">merge gate</span>
-          <span style="font-size:12px;color:oklch(0.85 0.006 260);">21 checks</span>
+          <span style="font-size:12px;color:oklch(0.6 0.01 260);">merge gate</span>
+          <span style="font-size:12px;color:oklch(0.85 0.006 260);">22 checks</span>
         </div>
         <div style="display:flex;justify-content:space-between;" class="mono">
-          <span style="font-size:12px;color:oklch(0.55 0.01 260);">coverage</span>
+          <span style="font-size:12px;color:oklch(0.6 0.01 260);">coverage</span>
           <span style="font-size:12px;color:oklch(0.85 0.006 260);">90% / 95% core</span>
         </div>
         <div style="display:flex;justify-content:space-between;" class="mono">
-          <span style="font-size:12px;color:oklch(0.55 0.01 260);">license</span>
+          <span style="font-size:12px;color:oklch(0.6 0.01 260);">license</span>
           <span style="font-size:12px;color:oklch(0.85 0.006 260);">MIT</span>
         </div>
       </div>
     </div>
+    <div style="margin-top:36px;padding-top:32px;border-top:1px solid oklch(1 0 0 / 0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;">
+      <p class="mono" style="font-size:13px;color:oklch(0.6 0.01 260);margin:0;">Read the source, check the gates yourself, or start with <span style="color:oklch(0.85 0.006 260);">pnpm add @qadi/core</span>.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;">
+        <a href="https://github.com/leaderiop/qadi" class="btn-primary" style="display:flex;align-items:center;gap:8px;padding:12px 20px;background:oklch(0.72 0.15 195);border-radius:6px;color:oklch(0.14 0.01 195);font-weight:600;font-size:14px;">View on GitHub</a>
+        <a href="/docs/" class="btn-outline" style="display:flex;align-items:center;gap:8px;padding:12px 20px;border:1px solid oklch(1 0 0 / 0.16);border-radius:6px;color:oklch(0.93 0.006 260);font-size:14px;background:oklch(0.17 0.014 260 / 0.7);">Read the spec</a>
+      </div>
+    </div>
   </div>
+  </main>
 
   <!-- FOOTER -->
-  <div class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:56px 48px 36px;">
+  <footer class="reveal footer-section" style="position:relative;max-width:1280px;margin:0 auto;padding:56px 48px 36px;">
     <div style="position:absolute;top:0;left:48px;right:48px;height:1px;background:linear-gradient(90deg,transparent,oklch(0.75 0.13 80 / 0.55) 22%,oklch(0.72 0.15 195 / 0.55) 78%,transparent);"></div>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:32px;margin-bottom:36px;">
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;align-items:center;gap:12px;">
-          <svg width="24" height="24" viewBox="0 0 100 100"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.72 0.15 195 / 0.14)" stroke="oklch(0.72 0.15 195)" stroke-width="4"></polygon><rect x="42" y="42" width="16" height="16" transform="rotate(45 50 50)" fill="oklch(0.75 0.13 80)"></rect></svg>
-          <span class="serif" style="font-size:22px;letter-spacing:0.08em;color:oklch(0.94 0.008 260);">qadi</span>
+          <svg width="24" height="24" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.72 0.15 195 / 0.14)" stroke="oklch(0.72 0.15 195)" stroke-width="4"></polygon><rect x="42" y="42" width="16" height="16" transform="rotate(45 50 50)" fill="oklch(0.75 0.13 80)"></rect></svg>
+          <span class="serif" style="font-size:21px;letter-spacing:0.08em;color:oklch(0.94 0.008 260);">qadi</span>
           <span style="width:1px;height:18px;background:oklch(1 0 0 / 0.14);"></span>
-          <span class="mono" style="font-size:11px;letter-spacing:0.06em;color:oklch(0.58 0.03 80);">قاضي · the judge</span>
+          <span class="mono" style="font-size:11px;letter-spacing:0.06em;color:oklch(0.65 0.03 80);">قاضي · the judge</span>
         </div>
-        <p style="font-size:13.5px;line-height:1.6;color:oklch(0.6 0.01 260);margin:0;max-width:380px;">Effect-native authorization for TypeScript — one schema, one evaluator, decisions that explain themselves.</p>
+        <p style="font-size:13.5px;line-height:1.6;color:oklch(0.6 0.01 260);margin:0;max-width:380px;">Effect-native authorization for TypeScript: one schema, one evaluator, decisions that explain themselves.</p>
       </div>
-      <div style="display:flex;gap:64px;">
+      <div class="footer-links" style="display:flex;gap:64px;">
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <span class="mono" style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.5 0.01 260);">project</span>
+          <span class="mono" style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.6 0.01 260);">project</span>
           <a href="https://github.com/leaderiop/qadi" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">GitHub</a>
           <a href="/docs/" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">Spec</a>
-          <a href="#" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">Roadmap</a>
+          <a href="#status" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">Roadmap</a>
         </div>
+        <!-- Deliberately three, not all ten sections: why (the problem) →
+             what (packages) → how (architecture) is the shortest path back
+             to the page's own argument, not an arbitrary sample. -->
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <span class="mono" style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.5 0.01 260);">explore</span>
+          <span class="mono" style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.6 0.01 260);">explore</span>
           <a href="#problem" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">the problem</a>
           <a href="#packages" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">packages</a>
           <a href="#architecture" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">architecture</a>
@@ -540,10 +597,10 @@ const stepInfoDots = stepInfo;
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-top:1px solid oklch(1 0 0 / 0.07);padding-top:20px;">
-      <span class="mono" style="font-size:12.5px;color:oklch(0.5 0.01 260);">© 2026 Mohammad AL Mechkor · MIT License</span>
-      <span class="mono" style="font-size:12px;color:oklch(0.55 0.03 80);">Effect v4 · TypeScript</span>
+      <span class="mono" style="font-size:12.5px;color:oklch(0.6 0.01 260);">© 2026 Mohammad AL Mechkor · MIT License</span>
+      <span class="mono" style="font-size:12px;color:oklch(0.65 0.03 80);">Effect v4 · TypeScript</span>
     </div>
-  </div>
+  </footer>
 
 </div>
 

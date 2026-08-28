@@ -12,15 +12,19 @@ export default defineConfig({
       customCss: ["./src/styles/starlight.css"],
       components: {
         Header: "./src/components/Header.astro",
+        ThemeSelect: "./src/components/ThemeSelect.astro",
+        Sidebar: "./src/components/Sidebar.astro",
       },
       sidebar: [
         { label: "Getting Started", slug: "docs" },
         {
           label: "Concepts",
+          collapsed: true,
           items: [{ autogenerate: { directory: "docs/concepts" } }],
         },
         {
           label: "Packages",
+          collapsed: true,
           items: [
             {
               label: "@qadi/core",

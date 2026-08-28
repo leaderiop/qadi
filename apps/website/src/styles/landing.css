@@ -21,11 +21,24 @@ a {
 }
 
 a:hover {
-  color: oklch(0.85 0.13 195);
+  color: oklch(0.82 0.13 195);
 }
 
 ::selection {
   background: oklch(0.72 0.15 195 / 0.35);
+}
+
+/*
+ * Every focus ring on this page otherwise falls back to the browser's
+ * UA-default blue outline — a third, off-palette color with no relationship
+ * to Verdict Teal or Seal Gold. Mirrors the same fix already applied to the
+ * Starlight docs header in starlight.css (`header.header a:focus-visible`).
+ */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid oklch(0.75 0.13 80);
+  outline-offset: 2px;
 }
 
 .mono {
@@ -55,10 +68,6 @@ html {
   0%, 24% { opacity: 0; }
   30%, 58% { opacity: 1; }
   66%, 100% { opacity: 0; }
-}
-@keyframes syncPulse {
-  0%, 100% { box-shadow: 0 0 0 0 oklch(0.75 0.14 150 / 0); }
-  50% { box-shadow: 0 0 0 6px oklch(0.75 0.14 150 / 0.15); }
 }
 @keyframes dashFlow {
   to { stroke-dashoffset: -24; }
@@ -97,10 +106,6 @@ html {
 }
 @keyframes starSpin {
   to { transform: rotate(360deg); }
-}
-@keyframes shimmer {
-  0%, 100% { background-position: 0% 0; }
-  50% { background-position: 100% 0; }
 }
 
 .ornate {
@@ -141,9 +146,9 @@ html {
   border-color: oklch(0.72 0.15 195 / 0.5) !important;
   transform: translateY(-3px);
 }
-
 .pkgcard {
   position: relative;
+  transition: border-color 0.45s, transform 0.45s;
 }
 .pkgcard::before {
   content: "";
@@ -173,42 +178,18 @@ html {
 }
 ::-webkit-scrollbar-thumb {
   background: oklch(0.32 0.02 260);
-  border-radius: 5px;
+  border-radius: 4px;
   border: 2px solid oklch(0.15 0.013 260);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.6 0.08 80);
+  background: oklch(0.68 0.05 80);
 }
 
-.navlink {
-  position: relative;
-  transition: color 0.3s;
+.skip-link {
+  transition: top 0.2s;
 }
-.navlink:hover {
-  color: oklch(0.92 0.006 260) !important;
-}
-.navlink::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: -5px;
-  width: 100%;
-  height: 1px;
-  background: linear-gradient(90deg, oklch(0.75 0.13 80), oklch(0.72 0.15 195));
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.navlink:hover::after {
-  transform: scaleX(1);
-}
-
-.nav-github {
-  transition: border-color 0.3s, transform 0.3s;
-}
-.nav-github:hover {
-  border-color: oklch(0.75 0.13 80 / 0.6);
-  transform: translateY(-1px);
+.skip-link:focus {
+  top: 8px !important;
 }
 
 .btn-primary {
@@ -248,6 +229,85 @@ html {
   color: oklch(0.85 0.08 80) !important;
 }
 
+.pill {
+  transition: border-color 0.3s, color 0.3s;
+}
+.pill:hover {
+  border-color: oklch(0.72 0.15 195 / 0.6) !important;
+  color: oklch(0.93 0.006 260) !important;
+}
+
+/* Accessible replacement for a bare `title` tooltip on the model-matrix
+   glossary pills: `title` never fires on touch and is unreliable across
+   screen readers, so the gloss also lives in `aria-label` (always announced)
+   and is shown visually on both :hover and :focus-visible — the latter is
+   what makes it reachable by keyboard, and by a tap on most touch browsers,
+   which title never was. */
+.gloss-pill {
+  position: relative;
+}
+.gloss-pill[data-gloss]::after {
+  content: attr(data-gloss);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 220px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: oklch(0.15 0.013 260);
+  border: 1px solid oklch(1 0 0 / 0.14);
+  color: oklch(0.82 0.006 260);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 20;
+}
+.gloss-pill[data-gloss]:hover::after,
+.gloss-pill[data-gloss]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+.pill-extra {
+  display: none;
+}
+.model-category.expanded .pill-extra {
+  display: inline-flex;
+}
+.pill-toggle {
+  transition: border-color 0.3s, color 0.3s;
+}
+.pill-toggle:hover {
+  border-style: solid !important;
+}
+
+/* Same show-more mechanic as the model pill groups above, generalized for
+   card grids (Features, Packages) — the display value differs because a
+   card is a flex column, not an inline pill. */
+.card-extra {
+  display: none !important;
+}
+.card-group.expanded .card-extra {
+  display: flex !important;
+}
+.card-toggle {
+  transition: border-color 0.3s, color 0.3s;
+}
+.card-toggle:hover {
+  border-style: solid !important;
+}
+
 .hero-in {
   animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -268,6 +328,108 @@ body.reveal-armed .reveal.in-view {
   transform: none;
 }
 
+/* ============================================================
+ * Responsive overrides.
+ *
+ * Media queries have no inline-style equivalent, so — like the
+ * `:hover` rules above, which replace the prototype's style-hover
+ * attribute — breakpoint-specific layout lives here and uses
+ * `!important` to win over the inline styles that carry the
+ * desktop-first layout the prototype shipped.
+ * ============================================================ */
+
+.hero-title {
+  font-size: clamp(2.25rem, 4vw, 3.625rem) !important;
+}
+
+@media (max-width: 900px) {
+  .hero-grid,
+  .problem-compare-grid,
+  .dag-grid,
+  .arch-grid,
+  .status-grid,
+  .proof-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .tricol-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .problem-inner-split {
+    flex-direction: column !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .tricol-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .hero-grid {
+    padding: 56px 20px 48px !important;
+    gap: 32px !important;
+  }
+  #problem,
+  #compare,
+  #dag,
+  #features,
+  #models,
+  #packages,
+  #api,
+  #architecture,
+  #proof,
+  #status,
+  .footer-section {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  .footer-links {
+    gap: 32px !important;
+  }
+  .api-table-wrap table {
+    min-width: 480px !important;
+  }
+  .api-table-wrap {
+    position: relative;
+  }
+  .api-table-wrap::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    background: linear-gradient(to right, transparent, oklch(0.17 0.014 260 / 0.9));
+    pointer-events: none;
+    border-radius: 0 10px 10px 0;
+  }
+  /* The fade alone reads too faintly against the dark background to register
+     as "there's more, swipe" — an explicit label makes the affordance
+     legible rather than relying on a low-contrast gradient alone. Anchored
+     to the top, not the bottom, of the wrap: the wrap's height is the
+     table's full content height, and a bottom-anchored hint only enters
+     the viewport once the reader has already scrolled past every row. */
+  .api-table-wrap::before {
+    content: "scroll →";
+    position: absolute;
+    top: 46px;
+    right: 8px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: oklch(0.65 0.03 80);
+    pointer-events: none;
+    z-index: 1;
+  }
+  /* The section-ordinal watermark (`.sec-num`) sits at a fixed 130px/56px/48px
+     regardless of viewport, so a wrapped two-line H2 on narrow screens runs
+     straight through the numeral — shrink and reposition it out of the way. */
+  .sec-num {
+    top: 20px !important;
+    right: 20px !important;
+    font-size: 64px !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -276,6 +438,13 @@ body.reveal-armed .reveal.in-view {
   }
   html {
     scroll-behavior: auto;
+  }
+  /* The role-DAG's traveling dots are SMIL <animateMotion>, which the CSS
+     animation-duration kill above cannot reach. The static nodes, arrows,
+     and labels already convey the permission-flow relationship on their
+     own, so hiding the dots loses no information under reduced motion. */
+  .dag-flow-dot {
+    display: none;
   }
   body.reveal-armed .reveal {
     opacity: 1;
