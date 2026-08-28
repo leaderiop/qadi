@@ -38,7 +38,8 @@ export type RequirementKind =
   | "relationship"
   | "action"
   | "history"
-  | "custom";
+  | "custom"
+  | "signature";
 
 export interface Requirement {
   readonly _tag: "Requirement";
@@ -153,7 +154,7 @@ const requirement = (
 /**
  * Describes a policy without evaluating it.
  *
- * Total by construction: `Match.tagsExhaustive` makes a fourteenth policy variant
+ * Total by construction: `Match.tagsExhaustive` makes a fifteenth policy variant
  * a compile error here rather than a silently unexplained node. Unlike
  * `toPredicate`, which refuses what it cannot translate, this refuses nothing — a
  * policy a reviewer cannot read is worse than one they can only partly act on.
@@ -199,6 +200,17 @@ export const explain: (policy: Policy) => Explanation = Match.type<Policy>().pip
     // Opaque by design: this names the registered check without pretending to
     // decompose logic it cannot see (ADR-QD-055).
     HasCustom: (p) => requirement("custom", `custom predicate '${p.name}'`, p.fields),
+
+    // Decomposable, unlike HasCustom: meaning/signerRole/scope are public
+    // policy fields, not opaque externally-registered logic.
+    HasSignature: (p) =>
+      requirement(
+        "signature",
+        `the subject has a signature meaning '${p.meaning}'` +
+          (p.signerRole === undefined ? "" : ` from a '${p.signerRole}'`) +
+          ` for ${p.scope === "Any" ? "anything" : "this resource"}`,
+        p.fields,
+      ),
 
     AllOf: (p): All => ({
       _tag: "All",

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-OVERVIEW                                  |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-08-25): `createPermissionGroup`/`PermissionGroup` (permission-bundling ergonomics) and `createGuardHealthCheck`/`GuardHealthCheckResult` (a canary-evaluation readiness probe) added — both were ruled out of scope on both `wayfinder:map` efforts as "no open decision, build directly", so neither carries a ticket (CCR-QD-088)<br>1.6 (2026-08-25): `Signature`, `SignatureHistory` and `SignatureHistoryUnavailable` added — the canonical e-signature shape and its lookup port, resolving wayfinder ticket #13 ahead of the `hasSignature` Policy leaf itself; declared but not yet wired into `EvaluationServices` or the error unions (CCR-QD-087)<br>1.5 (2026-08-25): `@qadi/audit` added to the Packages table and given its own subsection — audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` (ADR-QD-056, CCR-QD-085)<br>1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.8 (2026-08-25): `hasSignature` implemented end to end — `HasSignature`/`hasSignature` (`Policy.ts`), `evaluateHasSignature` wired into `evaluateNode`, `Explanation`, `Predicate` (INV-QD-056) and `SinkCodec`; `SignatureHistory` graduates to the ninth service, seventh required; `SignatureHistoryUnavailable` joins `EvaluationError`/`QadiError`; full consumer wiring across `@qadi/testing`, `@qadi/http`, `@qadi/devtools`, the Next.js example and the Gherkin suite; `@qadi/audit` harmonized — `ElectronicSignature` retired in favor of the canonical `Signature` (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.7 (2026-08-25): `createPermissionGroup`/`PermissionGroup` (permission-bundling ergonomics) and `createGuardHealthCheck`/`GuardHealthCheckResult` (a canary-evaluation readiness probe) added — both were ruled out of scope on both `wayfinder:map` efforts as "no open decision, build directly", so neither carries a ticket (CCR-QD-088)<br>1.6 (2026-08-25): `Signature`, `SignatureHistory` and `SignatureHistoryUnavailable` added — the canonical e-signature shape and its lookup port, resolving wayfinder ticket #13 ahead of the `hasSignature` Policy leaf itself; declared but not yet wired into `EvaluationServices` or the error unions (CCR-QD-087)<br>1.5 (2026-08-25): `@qadi/audit` added to the Packages table and given its own subsection — audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` (ADR-QD-056, CCR-QD-085)<br>1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -88,6 +88,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `hasAction` | function | `Policy.ts` |
 | `hasActed`, `hasNotActed` | function | `Policy.ts` |
 | `hasCustom` | function | `Policy.ts` |
+| `hasSignature` | function | `Policy.ts` |
 | `allOf`, `anyOf`, `not`, `labeled`, `anyOfRoles` | function | `Policy.ts` |
 | `obliged` | function | `Policy.ts` |
 | `rules`, `permitWhen`, `denyWhen` | function | `Policy.ts` |
@@ -101,7 +102,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `join`, `meet` | function | `SecurityLabel.ts` |
 | `Obligation`, `ObligationOptions` | schema + type | `Obligation.ts` |
 | `obligation`, `unionObligations`, `bindingObligations` | function | `Obligation.ts` |
-| `FieldOptions`, `CombinatorOptions`, `HistoryOptions`, `HistoryScope` | type | `Policy.ts` |
+| `FieldOptions`, `CombinatorOptions`, `HistoryOptions`, `HistoryScope`, `SignatureOptions` | type | `Policy.ts` |
 | `Matcher`, `ValueRef`, `MatcherContext` | schema + type | `Matcher.ts` |
 | `evaluateMatcher`, `referencesAction`, `referencesResource`, `getByPath` | function | `Matcher.ts` |
 | `simplify` | function | `Simplify.ts` |
@@ -190,7 +191,7 @@ answered.
 | `RelationshipResolver`, `RelationshipResolverNever`, `relationshipResolverFromEdges` | service + layer | `RelationshipResolver.ts` |
 | `relationshipResolverRetrying`, `relationshipResolverBounded` | layer combinator | `RelationshipResolver.ts` |
 | `DecisionHistory`, `DecisionHistoryUnknown`, `decisionHistoryFromEvents` | service + layer | `DecisionHistory.ts` |
-| `SignatureHistory`, `SignatureHistoryNone` | service + layer | `SignatureHistory.ts` |
+| `SignatureHistory`, `SignatureHistoryNone`, `signatureHistoryFromSignatures` | service + layer | `SignatureHistory.ts` |
 | `Signature`, `SIGNATURE_MEANINGS` | schema + constant | `Signature.ts` |
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
 | `CustomPredicate`, `CustomPredicateNone`, `customPredicateFromRecord` | service + layer | `CustomPredicate.ts` |
@@ -212,7 +213,7 @@ answered.
 | `DecisionHistoryShape`, `ActedQuery`, `ActedResult` | type | `DecisionHistory.ts` |
 | `ActedEventInput`, `ActedAnywhereInput` | type | `DecisionHistory.ts` |
 | `ActedEvent`, `ActedAnywhere` | value class | `DecisionHistory.ts` |
-| `SignatureHistoryShape`, `SignatureQuery` | type | `SignatureHistory.ts` |
+| `SignatureHistoryShape`, `SignatureQuery`, `SignatureInput` | type | `SignatureHistory.ts` |
 | `SignatureMeaning` | type | `Signature.ts` |
 | `EvaluationIdShape`, `DecisionCacheShape`, `DecisionCacheKey` | type | service modules |
 | `DecisionSinkShape`, `DecisionOutcome`, `ObligationOutcome`, `SinkRecord` | type | sink modules |
@@ -225,7 +226,7 @@ answered.
 | `toWire`, `fromWire`, `encodeRecord`, `decodeRecord`, `decodeRecordWire` | codec | `SinkCodec.ts` |
 | `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |
 
-**Eight services, and only six are required.** `DecisionHistory` was the one added
+**Nine services, and only seven are required.** `DecisionHistory` was the one added
 after the initial release, and the one whose default had to be **three-valued** — see
 [BEH-QD-042](behaviors/06-services.md) and
 [INV-QD-014](invariants.md#inv-qd-014-an-unwired-history-port-denies-both-polarities).
@@ -238,26 +239,26 @@ is a wiring mistake, not a legitimate answer
 ([ADR-QD-055](decisions/055-a-named-registered-custom-predicate.md),
 [INV-QD-049](invariants.md#inv-qd-049-an-unregistered-custom-predicate-name-is-an-error-never-a-denial)).
 
-`DecisionCache` is the seventh and is **optional**: it is absent from
+`SignatureHistory` is the seventh required service, backing `hasSignature` — the
+policy tree's own signature check, decomposable (unlike `hasCustom`) since
+`meaning`/`signerRole`/`scope` are public policy fields, not opaque registered
+logic. Its default, `SignatureHistoryNone`, answers with no signatures on file,
+the same fail-closed shape every other default in this table follows
+([INV-QD-007](invariants.md#inv-qd-007-defaults-fail-closed)); `SignatureHistoryUnavailable`
+is distinct — a wired store that could not be reached, not a legitimate "no
+signatures" answer.
+
+`DecisionCache` is the eighth and is **optional**: it is absent from
 `EvaluationServices` and read through `Effect.serviceOption`, so an application that
 never provides it is unaffected ([ADR-QD-031](decisions/031-decision-cache.md)). That
 is also why it was missed — it is a service that does not appear in the type every
 other service appears in.
 
-`DecisionSink` is the eighth and is optional on the same terms
+`DecisionSink` is the ninth and is optional on the same terms
 ([ADR-QD-044](decisions/044-an-optional-decision-sink.md)). It is the only
 **write-only** port: `evaluate` hands it every completed evaluation and reads
 nothing back, and whatever happens to it — a failure or a defect — cannot change
 the decision ([INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)).
-
-`SignatureHistory` is declared but **not yet a ninth service** — it is not part of
-`EvaluationServices`, and no Policy leaf calls it. It exists ahead of its own
-`hasSignature` leaf because the leaf's design (wayfinder ticket #14) needs a
-concrete `SignatureHistory`/`Signature` to design against; wiring it into
-`EvaluationServices` as a required service is wayfinder ticket #16. Its default,
-`SignatureHistoryNone`, answers with no signatures on file — the same fail-closed
-shape every other default in this table follows
-([INV-QD-007](invariants.md#inv-qd-007-defaults-fail-closed)).
 
 #### Inspecting a policy, a role graph and two traces
 
@@ -283,14 +284,14 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `MissingResource`, `MissingResourceId`, `MissingAction`, `PolicyTooDeep`,
 `CircularRoleInheritance`, `InvalidPermissionSegment`,
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
-`CustomPredicateError`,
+`CustomPredicateError`, `SignatureHistoryUnavailable`,
 plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
-`SignatureHistoryUnavailable` is declared alongside them but, like the service it
-belongs to, is **not yet a member of either union** — it carries no `ACL###` code
-in `ERROR_CODES`. It joins both once `hasSignature`'s `evaluateNode` wiring can
-actually raise it (wayfinder ticket #16).
+`SignatureHistoryUnavailable` joins `EvaluationError`/`QadiError` the same way
+`DecisionHistoryUnavailable`/`RelationshipResolveError` do — a wired store that
+could not be reached, distinct from `SignatureHistoryNone`'s legitimate "no
+signatures" answer. `ERROR_CODES["SignatureHistoryUnavailable"]` is `ACL014`.
 
 ## The other packages
 
@@ -443,10 +444,9 @@ to their own model's `WhereInput` at the call site. Same refusal discipline as
 | `SignatureCapturePort`, `SignatureCapturePortShape` | service | `SignatureCapturePort.ts` |
 | `signatureObligationHandler` | function | `SignatureCapturePort.ts` |
 | `SignatureCaptureError` | error | `SignatureCapturePort.ts` |
-| `ElectronicSignature` | schema + type | `SignatureCapturePort.ts` |
 | `SignatureCaptureRequest`, `SignatureValidationResult` | type | `SignatureCapturePort.ts` |
-| `SIGNATURE_MEANINGS` | constant | `SignatureCapturePort.ts` |
-| `SignatureMeaning` | type | `SignatureCapturePort.ts` |
+| `SIGNATURE_MEANINGS` | constant, re-exported from `@qadi/core` | `SignatureCapturePort.ts` |
+| `SignatureMeaning` | type, re-exported from `@qadi/core` | `SignatureCapturePort.ts` |
 
 Narrows [ADR-QD-016](decisions/016-gxp-out-of-scope.md) the way ADR-QD-054
 narrowed ADR-QD-024: an optional, dependency-free companion package, adding
@@ -458,9 +458,14 @@ never wired together, the defect ADR-QD-016 named in the predecessor and
 [HexDi's own Guard](decisions/016-gxp-out-of-scope.md) still has. Retention,
 archival, the decommissioning checklist and e-signature *capture* are
 structurally outside that pipeline — pure functions and an `ObligationHandler`,
-respectively — while e-signature *check* (a policy predicate) stays out of
-scope entirely, needing its own future `@qadi/core` change. See
-[ADR-QD-056](decisions/056-audit-companion-package.md).
+respectively. See [ADR-QD-056](decisions/056-audit-companion-package.md).
+
+E-signature *check* — the `hasSignature` `Policy` predicate — was out of
+scope for ADR-QD-056 and landed separately as its own `@qadi/core` change
+(the "hasSignature" map). `SignatureCapturePort.capture`/`validate` now
+operate on that map's canonical `Signature` type directly, harmonized by
+**ADR-QD-057**, which retired this package's own `ElectronicSignature` in
+favor of it.
 
 ### `@qadi/testing`
 
@@ -474,6 +479,8 @@ scope entirely, needing its own future `@qadi/core` change. See
 | `failingAttributeResolver` | layer | `FailingAttributeResolver.ts` |
 | `recordingCustomPredicate` | layer | `RecordingCustomPredicate.ts` |
 | `failingCustomPredicate` | layer | `FailingCustomPredicate.ts` |
+| `recordingSignatureHistory` | layer | `SignatureHistoryFixture.ts` |
+| `SignatureInput` | type, re-exported from `@qadi/core` | `SignatureHistoryFixture.ts` |
 | `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` |
 | `subjectWith`, `permissions`, `roles`, `policies` | fixture | `Fixtures.ts` |
 | `nobody`, `viewer`, `administrator` | fixture | `Fixtures.ts` |
@@ -503,7 +510,7 @@ checked exactly as the first one's is (CCR-QD-067).
 | `Verdict`, `Counts` | type | `model/Verdict.ts` |
 | `verdictOf`, `verdictOfOutcome`, `countsOf` | function | `model/Verdict.ts` |
 | `PairRole`, `PairedEntry` | type | `model/Pairing.ts` |
-| `PortCallPort`, `AttributeCall`, `ActedCall`, `RelationshipCall`, `CustomPredicateCall`, `PortCall` | type | `model/PortCalls.ts` |
+| `PortCallPort`, `AttributeCall`, `ActedCall`, `RelationshipCall`, `CustomPredicateCall`, `SignatureHistoryCall`, `PortCall` | type | `model/PortCalls.ts` |
 | `PortCallLog`, `PortCallCollector` | type | `model/PortCalls.ts` |
 | `DEFAULT_PORT_CALL_CAPACITY` | constant | `model/PortCalls.ts` |
 | `collectPortCalls` | function | `model/PortCalls.ts` |
@@ -522,7 +529,7 @@ checked exactly as the first one's is (CCR-QD-067).
 | `Answer`, `CapturedAnswers` | type | `model/Capture.ts` |
 | `emptyAnswers` | constant | `model/Capture.ts` |
 | `capturing`, `replayLayer`, `answerCount` | function | `model/Capture.ts` |
-| `attributeKey`, `relationshipKey`, `historyKey`, `customPredicateKey` | function | `model/Capture.ts` |
+| `attributeKey`, `relationshipKey`, `historyKey`, `customPredicateKey`, `signatureHistoryKey` | function | `model/Capture.ts` |
 | `EditDirection`, `EditKind`, `SimulationEdit` | type | `model/SimulationEdit.ts` |
 | `composeEdits`, `applyEdits`, `editParts` | function | `model/SimulationEdit.ts` |
 | `PairSweep` | type | `model/Edits.ts` |

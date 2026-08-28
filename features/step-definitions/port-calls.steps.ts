@@ -32,6 +32,7 @@ import {
   makeSubject,
   RelationshipResolverNever,
   relationshipResolverFromEdges,
+  SignatureHistoryNone,
 } from "@qadi/core";
 import type { Policy, RelationshipResolver } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
@@ -173,6 +174,7 @@ const run = async (name: string, resource?: Record<string, unknown>): Promise<vo
     DecisionHistoryUnknown,
     evaluationIdSequential("ev"),
     CustomPredicateNone,
+    SignatureHistoryNone,
   );
 
   // An outer tracer that records every span, so the value-disclosure scenario
@@ -273,13 +275,18 @@ Then("that call reports no answer at all", () => {
     assert.equal(call.answer, undefined);
     return;
   }
+  if (call._tag === "SignatureHistory") {
+    assert.equal(call.matched, undefined);
+    return;
+  }
   assert.equal(call.answer, undefined);
 });
 
 Then("that call reports the answer {string}", (answer: string) => {
   const call = theCall();
   assert.notEqual(call._tag, "AttributeResolver");
-  if (call._tag === "AttributeResolver") return;
+  assert.notEqual(call._tag, "SignatureHistory");
+  if (call._tag === "AttributeResolver" || call._tag === "SignatureHistory") return;
   assert.equal(call.answer, answer);
 });
 

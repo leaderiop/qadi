@@ -10,6 +10,7 @@ import {
   hasNotActed,
   hasRelationship,
   hasRole,
+  hasSignature,
   isAllowed,
   filterSubjects,
 } from "@qadi/core";
@@ -99,6 +100,24 @@ describe("qadiTestLayer", () => {
         }),
       ),
     ));
+
+  it.effect("resolves configured signatures", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(hasSignature("approved"), { resource: { id: "d1" } });
+      assert.isTrue(isAllowed(d));
+    }).pipe(
+      Effect.provide(
+        qadiTestLayer(subjectWith({ id: "u1" }), {
+          signatures: [{ subjectId: "u1", resourceId: "d1", meaning: "approved" }],
+        }),
+      ),
+    ));
+
+  it.effect("hasSignature denies when no signature history is wired", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(hasSignature("approved"), { resource: { id: "d1" } });
+      assert.isFalse(isAllowed(d));
+    }).pipe(Effect.provide(qadiTestLayer(nobody))));
 });
 
 /**

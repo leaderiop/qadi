@@ -112,6 +112,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
   CustomPredicateNone,
+  SignatureHistoryNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -165,6 +166,7 @@ const program: Effect.Effect<boolean, EvaluationError> = check(mayPerform("read"
       DecisionHistoryUnknown,
       EvaluationIdLive,
       CustomPredicateNone,
+      SignatureHistoryNone,
     ),
   ),
 );

@@ -24,6 +24,7 @@ import type {
   Policy,
   RelationshipResolver,
   Resource,
+  SignatureHistory,
 } from "@qadi/core";
 import { currentSubjectLayer, guard } from "@qadi/core";
 import { ENFORCEMENT_ERROR_TAGS, toResponse } from "./QadiHttpError.ts";
@@ -164,7 +165,8 @@ export const requiresPermission = (
  * middleware body — the rest of `EvaluationServices` is a standing
  * requirement, satisfied once by whatever `QadiEvaluationLive`-shaped layer
  * the application already merges into its server (`AttributeResolver`,
- * `RelationshipResolver`, `DecisionHistory`, `EvaluationId`, `CustomPredicate`).
+ * `RelationshipResolver`, `DecisionHistory`, `EvaluationId`, `CustomPredicate`,
+ * `SignatureHistory`).
  */
 export class RequirePermission extends HttpApiMiddleware.Service<
   RequirePermission,
@@ -174,7 +176,8 @@ export class RequirePermission extends HttpApiMiddleware.Service<
       | RelationshipResolver
       | DecisionHistory
       | EvaluationId
-      | CustomPredicate;
+      | CustomPredicate
+      | SignatureHistory;
   }
 >()("qadi/http/RequirePermission") {}
 

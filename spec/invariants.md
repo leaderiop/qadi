@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.25                                            |
+> | Revision       | 1.26                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -1799,6 +1799,33 @@ exactly the event a compliance reviewer reads this log for.
 through `Qadi.assert`'s real `discharge` path asserting the recorded
 `ObligationRecord.outcome` for both a successful and a failing `capture`.
 
-**Related**: [BEH-QD-256](behaviors/33-audit-pipeline.md#beh-qd-256-a-signature-obligation-handler-calls-capture-exactly-once-and-the-discharge-record-matches-its-outcome), [ADR-QD-056](decisions/056-audit-companion-package.md).
+**Related**: [BEH-QD-256](behaviors/33-audit-pipeline.md#beh-qd-256-a-signature-obligation-handler-calls-capture-exactly-once-and-the-discharge-record-matches-its-outcome), [ADR-QD-056](decisions/056-audit-companion-package.md), [ADR-QD-057](decisions/057-audit-signature-harmonization.md) (the property is unchanged; only the type `capture`/`validate` operate on moved from `ElectronicSignature` to `@qadi/core`'s `Signature`).
+
+## INV-QD-056: A `HasSignature` node never appears in a compiled `Predicate`
+
+`toPredicate` fails `PolicyNotTranslatable` for every `HasSignature` node; no
+`Predicate` `@qadi/predicate-sql` or `@qadi/predicate-prisma` ever compiles
+one, and no query built from a compiled predicate can silently omit rows a
+policy carrying a signature check would have denied.
+
+**Source**: `packages/core/src/Predicate.ts` — `translateNode`'s
+`Match.tagsExhaustive` refuses `HasSignature` unconditionally, before
+touching `SignatureHistory`; the reasoning mirrors `HasRelationship`'s arm
+(looked up through an external port, keyed by subject/resource, cannot fold
+into a resource-independent expression) rather than `HasCustom`'s (opaque,
+externally-registered logic).
+
+**Implication**: a `Policy` reaching for `hasSignature` cannot be pushed down
+to SQL/Prisma — the same declared limitation `HasRelationship` and
+`HasCustom` already carry, not a new one. Approximating the check instead of
+refusing it would be exactly the "approximate rather than refuse" failure
+mode [ADR-QD-024](decisions/024-predicate-output.md) rejects, one
+interpreter further in.
+
+**Enforcement**: `packages/core/test/Predicate.test.ts` asserts
+`toPredicate(hasSignature(...))` fails with `PolicyNotTranslatable` naming
+`"HasSignature"`.
+
+**Related**: [ADR-QD-058](decisions/058-hassignature-a-ninth-service-and-a-decomposable-leaf.md), [INV-QD-050](#inv-qd-050-a-hascustom-node-never-appears-in-a-compiled-predicate) (the same property, one leaf earlier).
 
 **Related**: [BEH-QD-248](behaviors/32-custom-predicates.md#beh-qd-248-topredicate-refuses-a-hascustom-node), [ADR-QD-024](decisions/024-predicate-output.md), [ADR-QD-055](decisions/055-a-named-registered-custom-predicate.md).

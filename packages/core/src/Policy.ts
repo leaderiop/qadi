@@ -24,6 +24,7 @@ import { Matcher } from "./Matcher.ts";
 import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import { PermissionSchema, SEGMENT_PATTERN } from "./Permission.ts";
+import type { SignatureMeaning } from "./Signature.ts";
 
 /**
  * The default recursion bound for walking a `Policy` tree, shared by both
@@ -193,6 +194,7 @@ export type Policy =
   | { readonly _tag: "HasActed"; readonly event: EventName; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasNotActed"; readonly event: EventName; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasCustom"; readonly name: string; readonly params?: unknown; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasSignature"; readonly meaning: string; readonly signerRole?: string | undefined; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<Rule>; readonly combining: Combining }
@@ -228,6 +230,7 @@ export type PolicyEncoded =
   | { readonly _tag: "HasActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasNotActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "HasCustom"; readonly name: string; readonly params?: unknown; readonly fields?: ReadonlyArray<string> | undefined }
+  | { readonly _tag: "HasSignature"; readonly meaning: string; readonly signerRole?: string | undefined; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
   | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<PolicyEncoded>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<PolicyEncoded>; readonly fieldStrategy: FieldStrategy }
   | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<RuleEncoded>; readonly combining: Combining }
@@ -295,6 +298,20 @@ const HasCustom = Schema.TaggedStruct("HasCustom", {
   fields: Fields,
 });
 
+/**
+ * The subject has an on-file signature matching `meaning` (and `signerRole`,
+ * if given). `meaning` stays an open `Schema.String` at the wire level — the
+ * same open-namespace treatment `HasCustom.name` and `HasAttribute.attribute`
+ * get — even though the smart constructor below narrows the TypeScript
+ * parameter to `string | SignatureMeaning` for editor autocomplete.
+ */
+const HasSignature = Schema.TaggedStruct("HasSignature", {
+  meaning: Schema.String,
+  signerRole: Schema.optional(Schema.String),
+  scope: HistoryScope,
+  fields: Fields,
+});
+
 const AllOf = Schema.TaggedStruct("AllOf", {
   policies: Schema.Array(PolicyRef),
   fieldStrategy: FieldStrategy,
@@ -338,6 +355,7 @@ export const Policy: Schema.Codec<Policy, PolicyEncoded> = Schema.Union([
   HasActed,
   HasNotActed,
   HasCustom,
+  HasSignature,
   AllOf,
   AnyOf,
   Rules,
@@ -502,6 +520,32 @@ export const hasCustom = (
   ...fieldsKey(options?.fields),
 });
 
+export interface SignatureOptions extends FieldOptions {
+  /** Defaults to `"Resource"`. */
+  readonly scope?: HistoryScope;
+  readonly signerRole?: string;
+}
+
+/**
+ * The subject has an on-file signature matching `meaning` (and `signerRole`,
+ * if given).
+ *
+ * Reads through `SignatureHistory`. An unwired port answers with an empty
+ * list, and this denies — trust-on-presence, no live re-validation of the
+ * signature itself (settled during this map's charting; see wayfinder
+ * ticket #14's resolution).
+ */
+export const hasSignature = (
+  meaning: string | SignatureMeaning,
+  options?: SignatureOptions,
+): Policy => ({
+  _tag: "HasSignature",
+  meaning,
+  scope: options?.scope ?? "Resource",
+  ...(options?.signerRole === undefined ? {} : { signerRole: options.signerRole }),
+  ...fieldsKey(options?.fields),
+});
+
 /**
  * Every child must allow.
  *
@@ -650,6 +694,7 @@ export const policyDepth: (self: Policy) => number = Match.type<Policy>().pipe(
     HasActed: () => 0,
     HasNotActed: () => 0,
     HasCustom: () => 0,
+    HasSignature: () => 0,
     AllOf: (p) => deepest(p.policies),
     AnyOf: (p) => deepest(p.policies),
     Rules: (p) => deepest(p.rules.map((r) => r.condition)),

@@ -63,11 +63,6 @@ export class DecisionHistoryUnavailable extends Data.TaggedError(
 /**
  * A wired `SignatureHistory` store could not be reached. Distinct from it
  * legitimately answering "no matching signatures" — see `SignatureHistory.ts`.
- *
- * Not yet a member of {@link EvaluationError}/{@link QadiError}: the
- * `hasSignature` Policy leaf that raises this during evaluation does not
- * exist yet (wayfinder ticket #14). It joins both unions once that leaf and
- * its `evaluateNode` wiring land (wayfinder ticket #16).
  */
 export class SignatureHistoryUnavailable extends Data.TaggedError(
   "SignatureHistoryUnavailable",
@@ -170,6 +165,7 @@ export type EvaluationError =
   | RelationshipResolveError
   | DecisionHistoryUnavailable
   | CustomPredicateError
+  | SignatureHistoryUnavailable
   | MissingAction
   | MissingResource
   | MissingResourceId
@@ -205,6 +201,7 @@ export const ERROR_CODES = {
   "DecisionHistoryUnavailable": "ACL011",
   "PolicyNotTranslatable": "ACL012",
   "CustomPredicateError": "ACL013",
+  "SignatureHistoryUnavailable": "ACL014",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

@@ -19,6 +19,7 @@ import {
   AttributeResolverNone,
   currentSubjectLayer,
   CustomPredicateNone,
+  SignatureHistoryNone,
   Decided,
   decisionSinkRing,
   DecisionHistoryUnknown,
@@ -351,6 +352,7 @@ describe("replay, reconstruct, and check — end to end", () => {
             RelationshipResolverNever,
             evaluationIdSequential("ev"),
             CustomPredicateNone,
+            SignatureHistoryNone,
           ),
         ),
       );

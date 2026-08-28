@@ -31,6 +31,7 @@ import {
   makeSubjectId,
   permission,
   RelationshipResolverNever,
+  SignatureHistoryNone,
 } from "@qadi/core";
 import type { Decision, Policy } from "@qadi/core";
 import { dehydrateDecisions, hydrateDecisions, makeQadiAtoms } from "@qadi/react";
@@ -101,6 +102,7 @@ const freshAtoms = () =>
       DecisionHistoryUnknown,
       EvaluationIdLive,
       CustomPredicateNone,
+      SignatureHistoryNone,
     ),
   );
 

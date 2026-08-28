@@ -19,6 +19,7 @@ import {
   CustomPredicate,
   customPredicateFromRecord,
   CustomPredicateNone,
+  SignatureHistoryNone,
   DecisionHistory,
   decisionHistoryFromEvents,
   DecisionHistoryUnknown,
@@ -36,6 +37,7 @@ import {
   RelationshipResolveError,
   RelationshipResolver,
   RelationshipResolverNever,
+  SignatureHistory,
 } from "@qadi/core";
 import type { ActedResult, Decision, DecisionOutcome, RelatedResult } from "@qadi/core";
 
@@ -66,6 +68,7 @@ const realPorts = Layer.mergeAll(
   relationshipResolverFromEdges([{ subjectId: "alice", relation: "owner", resourceId: "doc-1" }]),
   decisionHistoryFromEvents([{ subjectId: "alice", event: "raised", resourceId: "doc-1" }]),
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 const alice: SimulationInput = { subject: { id: "alice" }, resource: { id: "doc-1" } };
@@ -126,6 +129,7 @@ describe("capture fidelity — INV-QD-043", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
       const capture = capturing(broken);
       const policy = hasAttribute("clearance", gte(1));
@@ -163,6 +167,7 @@ describe("capture fidelity — INV-QD-043", () => {
         }),
         DecisionHistoryUnknown,
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
       const capture = capturing(broken);
 
@@ -190,6 +195,7 @@ describe("capture fidelity — INV-QD-043", () => {
             ),
         }),
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
       const capture = capturing(broken);
 
@@ -336,6 +342,7 @@ describe("what a capture records", () => {
         Layer.succeed(RelationshipResolver, { check: () => Effect.succeed(unknownRelated) }),
         Layer.succeed(DecisionHistory, { hasActed: () => Effect.succeed(unknownActed) }),
         Layer.succeed(CustomPredicate, { evaluate: () => Effect.succeed(false) }),
+        Layer.succeed(SignatureHistory, { signaturesFor: () => Effect.succeed([]) }),
       );
       const context = yield* Layer.build(capturing(anonymous).layer);
 
@@ -389,6 +396,7 @@ describe("what a capture records", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         customPredicateFromRecord({ isOwner: () => Effect.succeed(true) }),
+        SignatureHistoryNone,
       );
       const capture = capturing(withCustom);
       yield* simulate(
@@ -433,6 +441,7 @@ describe("what a replayed failure carries", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
@@ -471,6 +480,7 @@ describe("what a replayed failure carries", () => {
         }),
         DecisionHistoryUnknown,
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasRelationship("owner"), alice, { source: live(capture.layer) });
@@ -500,6 +510,7 @@ describe("what a replayed failure carries", () => {
             ),
         }),
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasActed("raised"), alice, { source: live(capture.layer) });
@@ -530,6 +541,7 @@ describe("what a replayed failure carries", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
@@ -552,6 +564,7 @@ describe("what a replayed failure carries", () => {
           RelationshipResolverNever,
           DecisionHistoryUnknown,
           CustomPredicateNone,
+          SignatureHistoryNone,
         ),
       );
       // No resource, so `hasRelationship` fails with `MissingResourceId`
@@ -576,6 +589,7 @@ describe("what a replayed failure carries", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
@@ -599,6 +613,7 @@ describe("what a replayed failure carries", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
@@ -679,6 +694,7 @@ describe("custom predicate capture", () => {
     customPredicateFromRecord({
       isOwner: (subject) => Effect.succeed(subject.id === "alice"),
     }),
+    SignatureHistoryNone,
   );
 
   it.effect("a snapshot replays a custom predicate's trace", () =>

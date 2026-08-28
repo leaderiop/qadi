@@ -25,6 +25,7 @@ import {
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
+  SignatureHistoryNone,
   decisionCacheLayer,
   guard,
   gte,
@@ -156,6 +157,7 @@ const EvaluationServicesTest = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 // Composed through named intermediate steps, deliberately: chaining every

@@ -12,6 +12,7 @@ import {
   RelationshipResolver,
   RelationshipResolverNever,
 } from "../src/RelationshipResolver.ts";
+import { SignatureHistory, SignatureHistoryNone } from "../src/SignatureHistory.ts";
 
 export type QadiServices =
   | CurrentSubject
@@ -19,7 +20,8 @@ export type QadiServices =
   | RelationshipResolver
   | DecisionHistory
   | EvaluationId
-  | CustomPredicate;
+  | CustomPredicate
+  | SignatureHistory;
 
 /**
  * A fully-wired evaluation environment with deterministic identifiers.
@@ -33,6 +35,7 @@ export const testLayer = (
     readonly relationships?: Layer.Layer<RelationshipResolver>;
     readonly history?: Layer.Layer<DecisionHistory>;
     readonly customPredicate?: Layer.Layer<CustomPredicate>;
+    readonly signatureHistory?: Layer.Layer<SignatureHistory>;
   },
 ): Layer.Layer<QadiServices> =>
   Layer.mergeAll(
@@ -42,6 +45,7 @@ export const testLayer = (
     overrides?.history ?? DecisionHistoryUnknown,
     evaluationIdSequential(),
     overrides?.customPredicate ?? CustomPredicateNone,
+    overrides?.signatureHistory ?? SignatureHistoryNone,
   );
 
 /**
@@ -56,6 +60,7 @@ export const subjectSetLayer = (overrides?: {
   readonly relationships?: Layer.Layer<RelationshipResolver>;
   readonly history?: Layer.Layer<DecisionHistory>;
   readonly customPredicate?: Layer.Layer<CustomPredicate>;
+  readonly signatureHistory?: Layer.Layer<SignatureHistory>;
 }): Layer.Layer<Exclude<QadiServices, CurrentSubject>> =>
   Layer.mergeAll(
     overrides?.attributes ?? AttributeResolverNone,
@@ -63,6 +68,7 @@ export const subjectSetLayer = (overrides?: {
     overrides?.history ?? DecisionHistoryUnknown,
     evaluationIdSequential(),
     overrides?.customPredicate ?? CustomPredicateNone,
+    overrides?.signatureHistory ?? SignatureHistoryNone,
   );
 
 export const subjectWith = (config: {

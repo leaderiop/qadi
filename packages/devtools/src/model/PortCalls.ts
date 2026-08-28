@@ -18,14 +18,14 @@
  * with a default, so a host that has wired its own tracer has one in scope — and
  * a devtools panel that shadowed it would silently turn off an application's
  * tracing for as long as the dock was mounted. The layer reads the tracer that
- * was there, delegates every span to it, and records only the three it cares
+ * was there, delegates every span to it, and records only the five it cares
  * about.
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 
-/** The three ports an evaluation can touch, named as `wiringReport` names them. */
+/** The five ports an evaluation can touch, named as `wiringReport` names them. */
 export type PortCallPort = PortCall["_tag"];
 
 /**
@@ -36,7 +36,7 @@ export type PortCallPort = PortCall["_tag"];
  * read time — and the pair could disagree: a name added to the lookup without an
  * arm to decode it produced a row with every field blank, and the guard that was
  * supposed to catch that could never fire, because nothing else could reach it.
- * Narrowing the name once makes `rowOf` exhaustive, so a fourth span is a
+ * Narrowing the name once makes `rowOf` exhaustive, so a sixth span is a
  * compile error rather than a blank row.
  */
 const PORT_SPANS = [
@@ -44,6 +44,7 @@ const PORT_SPANS = [
   "qadi.acted",
   "qadi.hasRelationship",
   "qadi.hasCustom",
+  "qadi.hasSignature",
 ] as const;
 
 type PortSpan = (typeof PORT_SPANS)[number];
@@ -114,13 +115,31 @@ export interface CustomPredicateCall extends PortCallBase {
 }
 
 /**
+ * A `HasSignature` node's lookup. `matched` is a plain boolean, the same shape
+ * `CustomPredicateCall.answer` is and for the same reason — no three-valued
+ * "unwired" case, since an unwired history already denies through
+ * `SignatureHistoryNone` rather than answering a closed third value.
+ */
+export interface SignatureHistoryCall extends PortCallBase {
+  readonly _tag: "SignatureHistory";
+  readonly meaning: string | undefined;
+  readonly signerRole: string | undefined;
+  readonly matched: boolean | undefined;
+}
+
+/**
  * One row per port call.
  *
- * A union rather than a flat row with an `asked` string, because the four ports
+ * A union rather than a flat row with an `asked` string, because the five ports
  * genuinely ask different questions: a scope and a depth have nowhere to live in
  * a shape built for the union of their names.
  */
-export type PortCall = AttributeCall | ActedCall | RelationshipCall | CustomPredicateCall;
+export type PortCall =
+  | AttributeCall
+  | ActedCall
+  | RelationshipCall
+  | CustomPredicateCall
+  | SignatureHistoryCall;
 
 export interface PortCallLog {
   /**
@@ -163,7 +182,7 @@ export interface PortCallCollector {
 }
 
 /**
- * A tracer that records the three port spans and passes everything through.
+ * A tracer that records the five port spans and passes everything through.
  *
  * State lives in this function's closure rather than the layer's, so `snapshot`
  * can read what the layer wrote — the arrangement `decisionSinkRing` and
@@ -224,7 +243,7 @@ export const collectPortCalls = (options?: {
 /**
  * One span as a row.
  *
- * Total over `PortSpan`, so adding a fourth name to `PORT_SPANS` without an arm
+ * Total over `PortSpan`, so adding a sixth name to `PORT_SPANS` without an arm
  * here does not compile — the `never` assignment below is what makes that true,
  * and it is free at runtime (the shape AGENTS.md §5a prescribes for the two
  * switches whose return type could otherwise absorb `undefined`).
@@ -261,6 +280,15 @@ const rowOf = (span: Tracer.Span, name: PortSpan): PortCall => {
       _tag: "CustomPredicate",
       name: stringAt(span, "qadi.custom_predicate"),
       answer: booleanAt(span, "qadi.answer"),
+    };
+  }
+  if (name === "qadi.hasSignature") {
+    return {
+      ...base,
+      _tag: "SignatureHistory",
+      meaning: stringAt(span, "qadi.meaning"),
+      signerRole: stringAt(span, "qadi.signer_role"),
+      matched: booleanAt(span, "qadi.matched"),
     };
   }
   const exhaustive: "qadi.hasRelationship" = name;

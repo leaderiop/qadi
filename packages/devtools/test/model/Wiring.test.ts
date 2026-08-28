@@ -1,7 +1,7 @@
 /**
  * JOB 4 ledger — E4.1 … E4.11 (the model half).
  *
- * The wording rule is the point of this module. Six of the eight services are
+ * The wording rule is the point of this module. Seven of the nine services are
  * in `EvaluationServices`, so a program that has not provided them does not
  * run — "unwired" is a category error for those, and what a reader can
  * truthfully be told is that one is *defaulted to a fail-closed
@@ -39,14 +39,14 @@ describe("wiringReport", () => {
     Effect.gen(function* () {
       const report = yield* wiringReport;
 
-      assert.strictEqual(report.ports.length, 8);
+      assert.strictEqual(report.ports.length, 9);
       assert.isTrue(report.ports.every((port) => !port.present));
       assert.isFalse(report.cache.present);
       assert.isUndefined(report.cache.size);
     }));
 
-  // E4.3 — the wording that keeps six of eight honest.
-  it.effect("names the six required services as required", () =>
+  // E4.3 — the wording that keeps seven of nine honest.
+  it.effect("names the seven required services as required", () =>
     Effect.gen(function* () {
       const report = yield* wiringReport;
       const required = report.ports.filter((port) => port.required).map((port) => port.port);
@@ -57,6 +57,7 @@ describe("wiringReport", () => {
         "DecisionHistory",
         "EvaluationId",
         "CustomPredicate",
+        "SignatureHistory",
         "CurrentSubject",
       ]);
     }));

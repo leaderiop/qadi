@@ -3,6 +3,7 @@ import {
   AttributeResolverNone,
   AttributeResolveError,
   CustomPredicateNone,
+  SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -28,6 +29,7 @@ const baseLayer = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 const alice = makeSubject({ id: "u-1", roles: ["editor"], permissions: ["doc:read"] });
@@ -66,6 +68,7 @@ describe("makeQadi", () => {
       DecisionHistoryUnknown,
       EvaluationIdLive,
       CustomPredicateNone,
+      SignatureHistoryNone,
     );
     const qadi = facade(broken);
 
@@ -169,6 +172,7 @@ describe("makeQadi", () => {
         DecisionHistoryUnknown,
         EvaluationIdLive,
         CustomPredicateNone,
+        SignatureHistoryNone,
       ),
     );
 

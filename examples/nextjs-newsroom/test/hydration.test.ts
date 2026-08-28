@@ -17,6 +17,7 @@ import {
   AttributeResolverNone,
   currentSubjectLayer,
   CustomPredicateNone,
+  SignatureHistoryNone,
   decide,
   DecisionHistoryUnknown,
   EvaluationIdLive,
@@ -56,6 +57,7 @@ const ports = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 const decideAs = (subject: AuthSubject, entries: ReadonlyArray<{
@@ -83,6 +85,7 @@ const freshAtoms = () =>
       DecisionHistoryUnknown,
       EvaluationIdLive,
       CustomPredicateNone,
+      SignatureHistoryNone,
     ),
   );
 

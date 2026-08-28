@@ -21,6 +21,7 @@ import {
   AttributeResolver,
   CustomPredicate,
   CustomPredicateNone,
+  SignatureHistoryNone,
   DecisionCache,
   decisionCacheLayer,
   DecisionHistory,
@@ -161,6 +162,7 @@ describe("simulate", () => {
         RelationshipResolverNever,
         DecisionHistoryUnknown,
         CustomPredicateNone,
+        SignatureHistoryNone,
       );
 
       const outcome = yield* simulate(

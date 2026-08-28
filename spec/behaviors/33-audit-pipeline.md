@@ -213,6 +213,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
   currentSubjectLayer,
+  CustomPredicateNone,
   DecisionHistoryUnknown,
   evaluate,
   EvaluationIdLive,
@@ -220,6 +221,7 @@ import {
   makeSubject,
   permission,
   RelationshipResolverNever,
+  SignatureHistoryNone,
 } from "@qadi/core";
 import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
 
@@ -238,6 +240,8 @@ const services = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 const program = evaluate(hasPermission(read)).pipe(

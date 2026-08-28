@@ -136,6 +136,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   CustomPredicateNone,
+  SignatureHistoryNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -172,6 +173,7 @@ const services = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 const program: Effect.Effect<boolean, EvaluationError> = check(canWorkCase, {

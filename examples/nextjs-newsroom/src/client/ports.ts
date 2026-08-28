@@ -27,6 +27,7 @@ import {
   DecisionHistoryUnavailable,
   RelationshipResolver,
   RelationshipResolveError,
+  SignatureHistoryNone,
 } from "@qadi/core";
 import type {
   ActedResult,
@@ -140,4 +141,7 @@ export const browserPorts: EvaluationPortsLayer = Layer.mergeAll(
   // registry is the same fail-closed default a real deployment gets from an
   // unwired one.
   CustomPredicateNone,
+  // Same reasoning as CustomPredicateNone above: no policy here reaches for
+  // hasSignature either.
+  SignatureHistoryNone,
 );

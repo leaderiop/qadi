@@ -24,6 +24,7 @@ import {
   makeSubject,
   permission,
   RelationshipResolverNever,
+  SignatureHistoryNone,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { gateGroups, isLocatable } from "@qadi/devtools";
@@ -54,6 +55,7 @@ const atoms = () =>
       DecisionHistoryUnknown,
       EvaluationIdLive,
       CustomPredicateNone,
+      SignatureHistoryNone,
     ),
   );
 

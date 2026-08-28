@@ -21,6 +21,7 @@ import {
   AttributeResolver,
   AttributeResolverNone,
   CustomPredicateNone,
+  SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
@@ -57,6 +58,7 @@ const atoms = makeQadiAtoms(
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   ),
 );
 
@@ -81,6 +83,7 @@ const slow = makeQadiAtoms(
     DecisionHistoryUnknown,
     EvaluationIdLive,
     CustomPredicateNone,
+    SignatureHistoryNone,
   ),
 );
 

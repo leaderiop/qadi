@@ -103,6 +103,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone,
   CustomPredicateNone,
+  SignatureHistoryNone,
   EvaluationIdLive,
   RelationshipResolverNever,
   DecisionHistoryUnknown,
@@ -135,6 +136,7 @@ const services = Layer.mergeAll(
   DecisionHistoryUnknown,
   EvaluationIdLive,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 const program: Effect.Effect<boolean, EvaluationError> = check(canReadDocument, {

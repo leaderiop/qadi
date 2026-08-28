@@ -29,6 +29,7 @@ import type { DecisionHistory } from "./DecisionHistory.ts";
 import type { EvaluationError } from "./Errors.ts";
 import type { Policy } from "./Policy.ts";
 import type { RelationshipResolver } from "./RelationshipResolver.ts";
+import type { SignatureHistory } from "./SignatureHistory.ts";
 
 /**
  * The question a cached decision answers — everything that can change an answer.
@@ -79,7 +80,8 @@ type EvaluationRequirements =
   | AttributeResolver
   | RelationshipResolver
   | DecisionHistory
-  | CustomPredicate;
+  | CustomPredicate
+  | SignatureHistory;
 
 /**
  * Which of the cache's three documented paths a lookup took.

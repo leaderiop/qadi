@@ -9,6 +9,7 @@ import type {
   Policy,
   Predicate,
   RelationshipEdgeInput,
+  SignatureInput,
   Trace,
 } from "@qadi/core";
 import {
@@ -123,6 +124,12 @@ export class QadiWorld extends World {
    * never denies (BEH-QD-247).
    */
   customPredicates: Record<string, boolean> | undefined = undefined;
+  /**
+   * On-file signatures. `undefined` means no store is wired at all —
+   * `SignatureHistoryNone`'s fail-closed default, the same "unwired" meaning
+   * `events` carries for `DecisionHistory`.
+   */
+  signatures: Array<SignatureInput> | undefined = undefined;
   /** Set when a scenario wants the history store to be down rather than absent. */
   historyUnreachable = false;
   /**
@@ -173,6 +180,7 @@ export class QadiWorld extends World {
     this.workRan = false;
     this.events = undefined;
     this.customPredicates = undefined;
+    this.signatures = undefined;
     this.historyUnreachable = false;
     this.concurrency = undefined;
     this.explanation = undefined;
@@ -243,6 +251,10 @@ export class QadiWorld extends World {
                   ),
                 ),
               }),
+          // `undefined` leaves `qadiTestLayer`'s own `SignatureHistoryNone`
+          // default in place — no signatures on file, so every hasSignature
+          // node denies.
+          ...(this.signatures === undefined ? {} : { signatures: this.signatures }),
         }),
       ),
     );

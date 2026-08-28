@@ -198,6 +198,10 @@ const describe: (self: PortCall) => string = Match.type<PortCall>().pipe(
       `${call.name ?? "not recorded"} → ${
         call.answer === undefined ? "no answer" : call.answer ? "true" : "false"
       }`,
+    SignatureHistory: (call) =>
+      `${call.meaning ?? "not recorded"}${
+        call.signerRole === undefined ? "" : ` from a '${call.signerRole}'`
+      } → ${call.matched === undefined ? "no answer" : call.matched ? "matched" : "no match"}`,
   }),
 );
 
@@ -205,7 +209,7 @@ const callsFor = (log: PortCallLog | undefined, port: string): ReadonlyArray<Por
   log === undefined ? [] : log.calls.filter((call) => call._tag === port);
 
 /**
- * The wording that keeps the six required ports honest.
+ * The wording that keeps the seven required ports honest.
  *
  * A required port cannot be "unwired" — the program would not have started —
  * so an unnamed one is reported as unnamed, and the consequence line carries

@@ -77,6 +77,7 @@ export const simplify: (policy: Policy) => Policy = Match.type<Policy>().pipe(
     HasActed: (p): Policy => p,
     HasNotActed: (p): Policy => p,
     HasCustom: (p): Policy => p,
+    HasSignature: (p): Policy => p,
 
     AllOf: (p): Policy => {
       const children = flatten(p.policies.map(simplify), "AllOf", p.fieldStrategy);

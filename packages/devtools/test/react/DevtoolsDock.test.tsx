@@ -22,6 +22,7 @@ import {
   AttributeResolverNone,
   currentSubjectLayer,
   CustomPredicateNone,
+  SignatureHistoryNone,
   Decided,
   DecisionHistoryUnknown,
   evaluate,
@@ -56,6 +57,7 @@ const services = Layer.mergeAll(
   EvaluationIdLive,
   RelationshipResolverNever,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 const decide = (policy: Policy): Promise<Decision> =>

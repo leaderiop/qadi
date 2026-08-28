@@ -22,6 +22,7 @@ export const ENFORCEMENT_ERROR_TAGS = [
   "RelationshipResolveError",
   "DecisionHistoryUnavailable",
   "CustomPredicateError",
+  "SignatureHistoryUnavailable",
   "MissingAction",
   "MissingResource",
   "MissingResourceId",
@@ -44,6 +45,9 @@ export const toResponse: (error: EnforcementError) => HttpServerResponse.HttpSer
     // registered predicate's own logic failing — under the same status the
     // other resolver outages get, since the common case is the latter.
     CustomPredicateError: () => HttpServerResponse.empty({ status: 502 }),
+    // A wired signature history store could not be reached — the same outage
+    // shape as the other resolver errors above, same status.
+    SignatureHistoryUnavailable: () => HttpServerResponse.empty({ status: 502 }),
     // The evaluation was missing something the policy needed — a wiring
     // mistake in this service, not the caller's.
     MissingAction: () => HttpServerResponse.empty({ status: 500 }),

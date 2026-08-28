@@ -19,6 +19,7 @@ import {
   AttributeResolveError,
   AttributeResolver,
   CustomPredicateNone,
+  SignatureHistoryNone,
   Decided,
   DecisionHistoryUnknown,
   Failed,
@@ -56,6 +57,7 @@ const brokenPorts = Layer.mergeAll(
   RelationshipResolverNever,
   DecisionHistoryUnknown,
   CustomPredicateNone,
+  SignatureHistoryNone,
 );
 
 const sweep = (

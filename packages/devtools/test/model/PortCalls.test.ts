@@ -23,6 +23,7 @@ import {
   CustomPredicate,
   customPredicateFromRecord,
   CustomPredicateNone,
+  SignatureHistoryNone,
   decisionHistoryFromEvents,
   DecisionHistory,
   DecisionHistoryUnknown,
@@ -66,6 +67,7 @@ const services = (overrides?: Overrides) =>
     overrides?.history ?? DecisionHistoryUnknown,
     evaluationIdSequential("ev"),
     overrides?.customPredicate ?? CustomPredicateNone,
+    SignatureHistoryNone,
   );
 
 const resolverOf = (record: Readonly<Record<string, unknown>>) =>

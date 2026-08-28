@@ -162,6 +162,25 @@ describe("explain", () => {
     assert.strictEqual(requirement.detail, "custom predicate 'isOwner'");
   });
 
+  it("gives HasSignature the exact kind and detail sentence, decomposed unlike HasCustom", () => {
+    const requirement = asRequirement(explain(P.hasSignature("approved")));
+    assert.strictEqual(requirement.kind, "signature");
+    assert.strictEqual(
+      requirement.detail,
+      "the subject has a signature meaning 'approved' for this resource",
+    );
+  });
+
+  it("HasSignature's detail names the signer role and the 'Any' scope when given", () => {
+    const requirement = asRequirement(
+      explain(P.hasSignature("approved", { signerRole: "manager", scope: "Any" })),
+    );
+    assert.strictEqual(
+      requirement.detail,
+      "the subject has a signature meaning 'approved' from a 'manager' for anything",
+    );
+  });
+
   it("joins a non-empty anyOf's parts with \" or \", unlike a single-part one", () => {
     // A mutant that treats every `anyOf` as zero-part would render "never
     // allows" here instead; a mutant that blanks the " or " join text would
@@ -361,6 +380,7 @@ describe("explain", () => {
       FastCheck.constant(P.hasAttribute("seniority", M.gte(3))),
       FastCheck.constant(P.hasResourceAttribute("ownerId", M.eq(M.subjectId()))),
       FastCheck.constant(P.hasCustom("isOwner")),
+      FastCheck.constant(P.hasSignature("approved")),
     );
 
     const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({

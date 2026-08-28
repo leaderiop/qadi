@@ -243,6 +243,11 @@ const requirementsOf: (self: Policy) => ReadonlyArray<Requirement> = Match.type<
     // witness out of, and no set membership to strengthen either, so this
     // sweep has nothing to offer for it (ADR-QD-055).
     HasCustom: () => [],
+    // Unlike HasCustom this isn't opaque, but synthesizing a remedy would mean
+    // building a plausible on-file signature (meaning, role) out of nothing —
+    // a different kind of guess than strengthening an existing subject
+    // attribute or fixture edge, so this sweep offers nothing here either.
+    HasSignature: () => [],
     AllOf: (p) => p.policies.flatMap(requirementsOf),
     AnyOf: (p) => p.policies.flatMap(requirementsOf),
     Rules: (p) => p.rules.flatMap((rule) => requirementsOf(rule.condition)),
