@@ -141,9 +141,9 @@ detail live in REQUIREMENTS.md. -->
   its own `PRODUCT.md` explicitly states: "Live deployment (hosting, custom
   domain, deploy-on-merge CI) is separate follow-up work." That gap — not the
   site's content — is what this roadmap picks up (see Phase 4).
-- **`CONCERNS.md` flags the declared Node.js engine floor
-  (`>=20.19.0`) as documented but unverified** — CI currently tests only Node
-  26, the latest major, not the floor itself.
+- **The declared Node.js engine floor (`>=20.19.0`) is now verified in CI** —
+  Phase 1 closed the gap `CONCERNS.md` used to flag: `check.yml` runs a
+  two-leg matrix (`20.19.0` and `26`), both blocking.
 - **The merge gate is extensive and non-negotiable:** `pnpm check` (22 steps)
   is the sole definition of "done" (AGENTS.md §15); CI runs exactly this and
   nothing else. Any new work — including this milestone's — must pass it,
@@ -173,8 +173,8 @@ detail live in REQUIREMENTS.md. -->
 - **Merge gate**: `pnpm check` (22 steps, `AGENTS.md` §15) is the only
   definition of done; CI (`.github/workflows/check.yml`) runs exactly this
   step and nothing else.
-- **Compatibility**: Declared Node floor `>=20.19.0`, currently unverified in
-  CI (`CONCERNS.md`) — Phase 1 closes this gap.
+- **Compatibility**: Declared Node floor `>=20.19.0`, now verified in CI as a
+  blocking matrix leg alongside Node 26 — Phase 1 closed this gap.
 
 ## Key Decisions
 
