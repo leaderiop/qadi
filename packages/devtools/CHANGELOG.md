@@ -4,46 +4,38 @@
 
 ### Minor Changes
 
-- d251db4: Four more screens: the policy explorer, the role viewer, services and cache, and
-  the React panel rescoped to questions.
+- fd63503: New package: `@qadi/devtools`, the surface for the decision data plane.
 
-  **The policy rail is observed, not registered.** Every `DecisionRecord` already
-  carries the `Policy` it evaluated, so the policies an application uses are in the
-  log — `policiesSeen` groups them by `Equal.equals` (structural for plain objects,
-  the same property `Atom.family` relies on) and counts their verdicts. An optional
-  `catalogue` prop adds names and the policies that have not run yet. No registry,
-  no registration call sites, no service whose only consumer is a panel.
+  Two entry points. `@qadi/devtools` is the **headless model** — three source
+  adapters (`sourceFromRecords`, `sourceFromFeed`, `sourceFromEventSource`), the
+  `Timeline` fold that merges them, and a subscribable `TimelineStore` — with no
+  React anywhere in it. `@qadi/devtools/react` adds one `useSyncExternalStore`
+  hook and computes nothing, so a server-side aggregator can consume the model
+  without a UI and `react` is an _optional_ peer dependency.
 
-  **A structural view states no verdict.** `inspect(policy, undefined)` marks every
-  node `NeverResolved`, which reads truthfully in the _inspector_ as "this branch
-  was short-circuited" and would say a rule was skipped when it was never run. One
-  `PolicyTree` component serves both screens so the difference lives in one place.
+  The model is what absorbs a feed that promises nothing. `EventSource` reconnects
+  by itself and a feed may be replaying, so a record arrives twice; a merge
+  interleaves two clocks, so records arrive out of order; and an obligation
+  outcome is emitted after `evaluate` returned, so the two halves of one story
+  arrive backwards. All of that is handled here and nowhere else, and everything
+  downstream may assume entries are ordered, unique and joined.
 
-  **A required port is never called unwired.** Five of the seven services are in
-  `EvaluationServices` — a program that has not provided them does not run — so the
-  card reports _defaulted to a fail-closed implementation_ and carries what that
-  costs. `name?` says which implementation is behind each port; `portActivity`
-  says whether anything ever reached it, read with zero wiring. Those are opposite
-  problems with the same symptom.
+  Three things it deliberately does **not** do: it never collapses a server
+  decision and its client re-check, because sharing an evaluation id is the whole
+  pairing story; it never lets a bad frame take down the panel, because a panel is
+  what you are looking at when something is already wrong; and it never decides
+  CORS, because a browser reading a separate API origin is a deployment's call.
 
-  **No "acyclic ✓".** A by-value `Role` cannot express a cycle, so the check is
-  vacuous there; a tick would report a check that never ran. The screen says why
-  there is nothing to report instead.
+  `onMalformed` reports _why_ a frame was dropped — `"not-json"` is a broken
+  transport, `"not-a-record"` is a protocol mismatch — because they have different
+  fixes and a reader that cannot tell them apart debugs the wrong one.
 
-  **The React panel is keyed by question.** Ten `<Can policy={isAdmin}>` in
-  different places are one atom — the library cannot tell them apart, and a panel
-  listing ten rows would invent a distinction the architecture does not have. The
-  screen says so, because a reader counting rows against their component tree
-  would otherwise conclude it is broken.
-
-  `@qadi/core` now exports `portCallsTotal` and `portRetriesTotal`, which existed
-  as internal scaffolding and are what makes the "wired but never reached" answer
-  possible.
-
-  Two things are deferred with their reasons named: the **simulator**, which runs
-  evaluations inside a debug panel rather than reading records and needs a clock
-  `@qadi/testing` does not wire; and the **CLI** for the three deployments with no
-  browser page, which ADR-QD-049 records as the chosen second shell.
+  The model joins the mutation gate at core's threshold, through a second Stryker
+  configuration (`stryker.devtools.mjs`); it currently sits at 100% with no
+  survivors. Three separate rounds of it found dead code rather than weak tests: a
+  sequence-number tie-break that stable sorting already provided, a three-way
+  comparator whose `-1` and `0` were the same answer to the only question asked of
+  it, and two redundant guards. All four were deleted rather than pinned.
 
 - f356c73: Screens 1 and 2 — the decision log and the inspector — in a dock the host
   mounts.
@@ -84,6 +76,47 @@
   in-page dock. Their decisions are reachable at `/__decisions` and the model that
   merges them imports no React, so a served page or a CLI is a second shell over
   the same model — but neither is written, and the documents say so.
+
+- d251db4: Four more screens: the policy explorer, the role viewer, services and cache, and
+  the React panel rescoped to questions.
+
+  **The policy rail is observed, not registered.** Every `DecisionRecord` already
+  carries the `Policy` it evaluated, so the policies an application uses are in the
+  log — `policiesSeen` groups them by `Equal.equals` (structural for plain objects,
+  the same property `Atom.family` relies on) and counts their verdicts. An optional
+  `catalogue` prop adds names and the policies that have not run yet. No registry,
+  no registration call sites, no service whose only consumer is a panel.
+
+  **A structural view states no verdict.** `inspect(policy, undefined)` marks every
+  node `NeverResolved`, which reads truthfully in the _inspector_ as "this branch
+  was short-circuited" and would say a rule was skipped when it was never run. One
+  `PolicyTree` component serves both screens so the difference lives in one place.
+
+  **A required port is never called unwired.** Five of the seven services are in
+  `EvaluationServices` — a program that has not provided them does not run — so the
+  card reports _defaulted to a fail-closed implementation_ and carries what that
+  costs. `name?` says which implementation is behind each port; `portActivity`
+  says whether anything ever reached it, read with zero wiring. Those are opposite
+  problems with the same symptom.
+
+  **No "acyclic ✓".** A by-value `Role` cannot express a cycle, so the check is
+  vacuous there; a tick would report a check that never ran. The screen says why
+  there is nothing to report instead.
+
+  **The React panel is keyed by question.** Ten `<Can policy={isAdmin}>` in
+  different places are one atom — the library cannot tell them apart, and a panel
+  listing ten rows would invent a distinction the architecture does not have. The
+  screen says so, because a reader counting rows against their component tree
+  would otherwise conclude it is broken.
+
+  `@qadi/core` now exports `portCallsTotal` and `portRetriesTotal`, which existed
+  as internal scaffolding and are what makes the "wired but never reached" answer
+  possible.
+
+  Two things are deferred with their reasons named: the **simulator**, which runs
+  evaluations inside a debug panel rather than reading records and needs a clock
+  `@qadi/testing` does not wire; and the **CLI** for the three deployments with no
+  browser page, which ADR-QD-049 records as the chosen second shell.
 
 - 1a0d767: The subject simulator — the seventh devtools screen, and the only one that
   **runs** an evaluation rather than reading records.
@@ -127,39 +160,6 @@
   deterministic and the clock was not, which is half a determinism claim — and it
   survived unnoticed because `@effect/vitest` hands `it.effect` a `TestClock`
   anyway.
-
-- fd63503: New package: `@qadi/devtools`, the surface for the decision data plane.
-
-  Two entry points. `@qadi/devtools` is the **headless model** — three source
-  adapters (`sourceFromRecords`, `sourceFromFeed`, `sourceFromEventSource`), the
-  `Timeline` fold that merges them, and a subscribable `TimelineStore` — with no
-  React anywhere in it. `@qadi/devtools/react` adds one `useSyncExternalStore`
-  hook and computes nothing, so a server-side aggregator can consume the model
-  without a UI and `react` is an _optional_ peer dependency.
-
-  The model is what absorbs a feed that promises nothing. `EventSource` reconnects
-  by itself and a feed may be replaying, so a record arrives twice; a merge
-  interleaves two clocks, so records arrive out of order; and an obligation
-  outcome is emitted after `evaluate` returned, so the two halves of one story
-  arrive backwards. All of that is handled here and nowhere else, and everything
-  downstream may assume entries are ordered, unique and joined.
-
-  Three things it deliberately does **not** do: it never collapses a server
-  decision and its client re-check, because sharing an evaluation id is the whole
-  pairing story; it never lets a bad frame take down the panel, because a panel is
-  what you are looking at when something is already wrong; and it never decides
-  CORS, because a browser reading a separate API origin is a deployment's call.
-
-  `onMalformed` reports _why_ a frame was dropped — `"not-json"` is a broken
-  transport, `"not-a-record"` is a protocol mismatch — because they have different
-  fixes and a reader that cannot tell them apart debugs the wrong one.
-
-  The model joins the mutation gate at core's threshold, through a second Stryker
-  configuration (`stryker.devtools.mjs`); it currently sits at 100% with no
-  survivors. Three separate rounds of it found dead code rather than weak tests: a
-  sequence-number tie-break that stable sorting already provided, a three-way
-  comparator whose `-1` and `0` were the same answer to the only question asked of
-  it, and two redundant guards. All four were deleted rather than pinned.
 
 - ab7301b: A guard can say that it exists, and the devtools can point at it.
 
