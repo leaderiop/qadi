@@ -37,7 +37,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm circular && pnpm test:tstyche && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict && pnpm spec:gates && pnpm spec:claims && pnpm spec:api && pnpm spec:package && pnpm example && pnpm mutation && pnpm spec:website-examples && pnpm website",
     "spec:examples": "node scripts/check-doc-examples.mjs",
     "spec:website-examples": "node scripts/check-website-doc-examples.mjs",
-    "website": "pnpm --filter @qadi/website check",
+    "website": "node scripts/check-website-build.mjs",
     "spec:api": "node scripts/check-api-surface.mjs",
     "spec:package": "node scripts/check-package-install.mjs",
     "spec:gates": "node scripts/check-dod-table.mjs",
