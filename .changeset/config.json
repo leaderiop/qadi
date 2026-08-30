@@ -2,7 +2,19 @@
   "$schema": "https://unpkg.com/@changesets/config@4.0.0/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@qadi/core",
+      "@qadi/testing",
+      "@qadi/promise",
+      "@qadi/react",
+      "@qadi/http",
+      "@qadi/devtools",
+      "@qadi/audit",
+      "@qadi/predicate-sql",
+      "@qadi/predicate-prisma"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
