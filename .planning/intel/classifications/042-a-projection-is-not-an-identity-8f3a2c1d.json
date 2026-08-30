@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/042-a-projection-is-not-an-identity.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-042 — A lossy projection is not an identity, in prose or in a cache key",
+  "summary": "Decision to parenthesize composite explanation children and replace DecisionCache's lossy JSON.stringify key with structural equality on the question itself.",
+  "scope": ["Explanation.ts", "renderExplanation", "DecisionCache", "keyOf", "INV-QD-025", "INV-QD-030"],
+  "cross_refs": ["./027-policy-explanation.md", "../invariants.md#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity", "../invariants.md#inv-qd-030-cache-key-uniqueness", "../invariants.md#inv-qd-001-permission-key-uniqueness"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

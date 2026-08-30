@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/018-action-dimension.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-018: The action is an evaluation input, not a permission segment",
+  "summary": "Decides that action is request-scoped evaluation input (EvaluateOptions.action), kept separate from the permission token's action segment.",
+  "scope": ["action", "EvaluateOptions", "MatcherContext", "permission tokens", "policy evaluation"],
+  "cross_refs": ["./007-permission-token-representation.md", "../models/00-adoption-matrix.md", "../invariants.md#inv-qd-001-permission-key-uniqueness"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

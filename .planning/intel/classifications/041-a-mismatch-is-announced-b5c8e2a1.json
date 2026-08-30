@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/041-a-mismatch-is-announced.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-041 — A hydration mismatch is announced, not resolved",
+  "summary": "Decision to report seed/client decision mismatches to developers without altering the client's answer, which always wins.",
+  "scope": ["hydration mismatch", "RelationshipResolver", "seed", "client decision", "reporting"],
+  "cross_refs": ["./039-a-seed-is-not-an-authority.md", "../invariants.md#inv-qd-028-a-seed-never-outlives-the-clients-own-answer", "../invariants.md#inv-qd-006-failure-is-not-denial", "../behaviors/09-react.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

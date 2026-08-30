@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/011-enforce-as-aspect.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-011: Qadi.enforce is an Effect aspect",
+  "summary": "Qadi.enforce wraps an Effect as a combinator so a guarded effect runs only if the policy allows, failing with AccessDenied otherwise.",
+  "scope": ["Qadi.enforce", "Qadi.enforceProjected", "AccessDenied", "Effect aspect", "enforcement"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

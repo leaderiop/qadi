@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/028-decision-hydration.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-028 — A hydrated decision is bound to a subject and carries no trace",
+  "summary": "Decision to hydrate/dehydrate authorization decisions via two pure functions, bound to subject id, trace stripped by default.",
+  "scope": ["decision hydration", "QadiProvider", "dehydrateDecisions", "hydrateDecisions", "React", "subject binding", "trace disclosure"],
+  "cross_refs": ["../roadmap.md", "./017-stale-decisions-are-not-decisions.md", "./014-react-via-atoms.md", "../invariants.md#inv-qd-007-defaults-fail-closed"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

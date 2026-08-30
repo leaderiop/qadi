@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/023-combining-algorithms.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-023: A rule list stops at the first rule that cannot be overridden",
+  "summary": "Adds a new Rules policy variant with combining algorithms (FirstApplicable, DenyOverrides, PermitOverrides) instead of extending AllOf/AnyOf.",
+  "scope": ["Rules variant", "Combining algorithms", "AllOf", "AnyOf", "FieldStrategy", "RuBAC", "XACML", "Policy ADT"],
+  "cross_refs": ["../models/00-adoption-matrix.md", "../models/25-rubac.md", "../models/26-xacml.md", "./006-field-strategy-always-encoded.md", "../invariants.md#inv-qd-005-short-circuit-preservation"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

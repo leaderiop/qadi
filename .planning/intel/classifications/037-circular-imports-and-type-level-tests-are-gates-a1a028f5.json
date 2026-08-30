@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/037-circular-imports-and-type-level-tests-are-gates.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-037 — Two new merge gates: no circular imports, and type-level tests that outlive a comment",
+  "summary": "Adds madge circular-import check and tstyche type-level tests as merge gates 5 and 6 in pnpm check.",
+  "scope": ["madge", "tstyche", "circular imports", "type-level tests", "pnpm check", "merge gates"],
+  "cross_refs": ["../process/definitions-of-done.md", "./025-mutation-testing.md", "./034-the-switch-exception-is-measured.md", "./036-qadi-http-package-shape.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

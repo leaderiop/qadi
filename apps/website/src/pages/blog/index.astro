@@ -1,0 +1,153 @@
+---
+import { getCollection } from "astro:content";
+import "../../styles/landing.css";
+import HeadFonts from "../../components/HeadFonts.astro";
+import SiteNav from "../../components/SiteNav.astro";
+
+const allPosts = await getCollection("blog", ({ data }) => {
+  return import.meta.env.MODE !== "production" || data.draft !== true;
+});
+const posts = allPosts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const formatDate = (d: Date) =>
+  d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blog — Qadi</title>
+    <meta name="description" content="News and deep dives from the Qadi authorization library." />
+    <link rel="alternate" type="application/rss+xml" title="Qadi Blog" href="/blog/rss.xml" />
+    <HeadFonts />
+  </head>
+  <body class="qadi-body">
+    <SiteNav
+      links={[
+        { href: "/docs/", label: "Docs" },
+        { href: "/blog/", label: "Blog", active: true },
+        { href: "/compliance/", label: "Compliance" },
+      ]}
+    />
+
+    <main class="qadi-blog-listing">
+      <p class="mono qadi-eyebrow">the blog</p>
+      <h1 class="serif qadi-blog-title">From the Qadi team</h1>
+      <p class="qadi-blog-intro">Announcements, design notes, and deep dives on what shipped and why.</p>
+
+      <div class="qadi-post-list">
+        {
+          posts.map((post) => (
+            <a href={`/blog/${post.id}/`} class="qadi-post-row">
+              <span class="mono qadi-post-date">{formatDate(post.data.date)}</span>
+              <div>
+                <h2 class="qadi-post-row-title">{post.data.title}</h2>
+                <p class="qadi-post-row-desc">{post.data.description}</p>
+                {post.data.tags && post.data.tags.length > 0 && (
+                  <div class="qadi-post-tags">
+                    {post.data.tags.map((tag) => (
+                      <span class="mono qadi-tag">{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </main>
+
+    <footer class="qadi-simple-footer">
+      <span class="mono">&copy; 2026 Mohammad AL Mechkor &middot; MIT License</span>
+      <a href="/blog/rss.xml" class="mono">RSS</a>
+    </footer>
+
+    <style>
+      .qadi-blog-listing {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 72px 32px 96px;
+      }
+      .qadi-eyebrow {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: oklch(0.78 0.13 195);
+        margin: 0 0 12px;
+      }
+      .qadi-blog-title {
+        font-size: 40px;
+        font-weight: 400;
+        color: oklch(0.93 0.006 260);
+        margin: 0 0 12px;
+      }
+      .qadi-blog-intro {
+        font-size: 16px;
+        line-height: 1.6;
+        color: oklch(0.68 0.01 260);
+        margin: 0 0 48px;
+      }
+      .qadi-post-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .qadi-post-row {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 24px;
+        padding: 24px 0;
+        border-top: 1px solid oklch(1 0 0 / 0.08);
+        text-decoration: none;
+        color: inherit;
+      }
+      .qadi-post-row:last-child {
+        border-bottom: 1px solid oklch(1 0 0 / 0.08);
+      }
+      .qadi-post-date {
+        font-size: 12.5px;
+        color: oklch(0.55 0.01 260);
+        padding-top: 3px;
+      }
+      .qadi-post-row-title {
+        font-size: 19px;
+        font-weight: 600;
+        color: oklch(0.93 0.006 260);
+        margin: 0 0 6px;
+        transition: color 0.25s;
+      }
+      .qadi-post-row:hover .qadi-post-row-title {
+        color: oklch(0.78 0.13 195);
+      }
+      .qadi-post-row-desc {
+        font-size: 14px;
+        line-height: 1.6;
+        color: oklch(0.68 0.01 260);
+        margin: 0;
+      }
+      .qadi-post-tags {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .qadi-tag {
+        font-size: 11px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid oklch(1 0 0 / 0.14);
+        color: oklch(0.6 0.01 260);
+      }
+      .qadi-simple-footer {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 24px 32px 56px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: oklch(0.5 0.01 260);
+      }
+    </style>
+  </body>
+</html>

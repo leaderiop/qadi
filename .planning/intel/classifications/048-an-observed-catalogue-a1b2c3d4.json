@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/048-an-observed-catalogue.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-048 — The catalogue is observed, not registered",
+  "summary": "Devtools policy catalogue is derived from the decision timeline rather than a new PolicyRegistry service.",
+  "scope": ["devtools", "policy catalogue", "DecisionRecord", "policiesSeen", "Catalogue", "role viewer", "policy explorer"],
+  "cross_refs": ["../behaviors/24-decision-sink.md", "../invariants.md", "02-screens.md", "packages/react/test/v4-reactivity-smoke.test.ts", "Catalogue.test.ts"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

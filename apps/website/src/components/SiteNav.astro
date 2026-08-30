@@ -1,0 +1,337 @@
+---
+/**
+ * The one canonical site nav — brand mark, page links, GitHub button.
+ *
+ * Four pages (homepage, Compliance, the blog, and this component's own
+ * caller Header.astro for docs) used to hand-copy this markup
+ * independently. They had already drifted: the Compliance page's logo was a
+ * plain gradient square instead of the star mark, and the blog's nav
+ * referenced classes (`.qadi-nav`, `.qadi-nav-brand`, ...) that were never
+ * defined anywhere, rendering as unstyled stacked links. This component is
+ * self-contained (base look, hover states, and the mobile breakpoint all
+ * live in its own scoped `<style>`) so every consumer gets the same nav
+ * without also having to import `landing.css`.
+ */
+export interface Props {
+  /** Where the brand mark links. */
+  homeHref?: string;
+  /** Page links rendered after the brand mark, in order. */
+  links: { href: string; label: string; active?: boolean }[];
+  /** The homepage's scroll-position indicator line along the nav's top edge. */
+  showScrollProgress?: boolean;
+  /** The mobile hamburger menu. Off for the docs header, which Starlight already gives responsive chrome of its own. */
+  mobileToggle?: boolean;
+  /** Renders the nav's own sticky bar (background, blur, padding, bottom hairline). Off when a host (the docs header) already supplies that chrome and only wants the brand+links+github row. */
+  chrome?: boolean;
+}
+
+const { homeHref = "/", links, showScrollProgress = false, mobileToggle = true, chrome = true } = Astro.props;
+---
+
+{
+  chrome ? (
+    <div class="site-nav">
+      {showScrollProgress && <div id="scroll-progress" />}
+      <a href={homeHref} class="brand-link">
+        <svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true">
+          <polygon
+            points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4"
+            fill="oklch(0.72 0.15 195 / 0.14)"
+            stroke="oklch(0.72 0.15 195)"
+            stroke-width="4"
+          />
+          <rect x="42" y="42" width="16" height="16" transform="rotate(45 50 50)" fill="oklch(0.75 0.13 80)" />
+        </svg>
+        <span class="wordmark">qadi</span>
+        <span class="nav-divider" aria-hidden="true" />
+        <span class="nav-tagline">قاضي · the judge</span>
+      </a>
+      {mobileToggle && (
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigation menu">
+          <svg class="nav-toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+            <line class="bar bar-top" x1="1" y1="3.5" x2="15" y2="3.5" />
+            <line class="bar bar-mid" x1="1" y1="8" x2="15" y2="8" />
+            <line class="bar bar-bottom" x1="1" y1="12.5" x2="15" y2="12.5" />
+          </svg>
+        </button>
+      )}
+      <nav id="nav-links" class="nav-links" aria-label="Site">
+        {links.map((link) => (
+          <a href={link.href} class={link.active ? "navlink nav-active" : "navlink"} aria-current={link.active ? "page" : undefined}>
+            {link.label}
+          </a>
+        ))}
+        <slot name="extra" />
+        <a href="https://github.com/leaderiop/qadi" class="nav-github">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+          </svg>
+          github
+        </a>
+      </nav>
+      <div class="nav-bottom-hairline" aria-hidden="true" />
+    </div>
+  ) : (
+    <>
+      <a href={homeHref} class="brand-link">
+        <svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true">
+          <polygon
+            points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4"
+            fill="oklch(0.72 0.15 195 / 0.14)"
+            stroke="oklch(0.72 0.15 195)"
+            stroke-width="4"
+          />
+          <rect x="42" y="42" width="16" height="16" transform="rotate(45 50 50)" fill="oklch(0.75 0.13 80)" />
+        </svg>
+        <span class="wordmark">qadi</span>
+        <span class="nav-divider" aria-hidden="true" />
+        <span class="nav-tagline">قاضي · the judge</span>
+      </a>
+      {mobileToggle && (
+        <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigation menu">
+          <svg class="nav-toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+            <line class="bar bar-top" x1="1" y1="3.5" x2="15" y2="3.5" />
+            <line class="bar bar-mid" x1="1" y1="8" x2="15" y2="8" />
+            <line class="bar bar-bottom" x1="1" y1="12.5" x2="15" y2="12.5" />
+          </svg>
+        </button>
+      )}
+      <nav id="nav-links" class="nav-links" aria-label="Site">
+        {links.map((link) => (
+          <a href={link.href} class={link.active ? "navlink nav-active" : "navlink"} aria-current={link.active ? "page" : undefined}>
+            {link.label}
+          </a>
+        ))}
+        <slot name="extra" />
+        <a href="https://github.com/leaderiop/qadi" class="nav-github">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+          </svg>
+          github
+        </a>
+      </nav>
+    </>
+  )
+}
+
+<style>
+  .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 48px;
+    background: linear-gradient(180deg, oklch(0.15 0.013 260 / 0.94), oklch(0.17 0.014 260 / 0.78));
+    backdrop-filter: blur(16px) saturate(1.3);
+  }
+
+  #scroll-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: linear-gradient(90deg, oklch(0.72 0.15 195), oklch(0.75 0.13 80));
+    box-shadow: 0 0 10px oklch(0.75 0.13 80 / 0.5);
+  }
+
+  .brand-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    overflow: clip;
+    text-decoration: none;
+  }
+  .brand-link svg {
+    flex-shrink: 0;
+  }
+
+  .wordmark {
+    font-family: "Marcellus", Georgia, "Times New Roman", serif;
+    font-size: 21px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: oklch(0.94 0.008 260);
+    white-space: nowrap;
+  }
+
+  .nav-divider {
+    width: 1px;
+    height: 18px;
+    background: oklch(1 0 0 / 0.14);
+    flex-shrink: 0;
+  }
+
+  .nav-tagline {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: oklch(0.65 0.03 80);
+    white-space: nowrap;
+  }
+
+  .nav-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid oklch(1 0 0 / 0.16);
+    border-radius: 6px;
+    background: transparent;
+    color: oklch(0.93 0.006 260);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* Morphs the three bars into an X so the button's own state — open or
+     closed — is visible at a glance, not only exposed via aria-expanded. */
+  .nav-toggle-icon .bar {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 0.25s ease, opacity 0.2s ease;
+  }
+  .nav-toggle[aria-expanded="true"] .bar-top {
+    transform: translateY(4.5px) rotate(45deg);
+  }
+  .nav-toggle[aria-expanded="true"] .bar-mid {
+    opacity: 0;
+  }
+  .nav-toggle[aria-expanded="true"] .bar-bottom {
+    transform: translateY(-4.5px) rotate(-45deg);
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+  }
+
+  .navlink {
+    position: relative;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    color: oklch(0.75 0.01 260);
+    text-decoration: none;
+    transition: color 0.3s;
+  }
+  .navlink:hover {
+    color: oklch(0.92 0.006 260);
+  }
+  .navlink::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -5px;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, oklch(0.75 0.13 80), oklch(0.72 0.15 195));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .navlink:hover::after {
+    transform: scaleX(1);
+  }
+  .nav-active {
+    color: oklch(0.93 0.006 260);
+  }
+
+  .nav-github {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 1px solid oklch(1 0 0 / 0.16);
+    border-radius: 6px;
+    color: oklch(0.93 0.006 260);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    text-decoration: none;
+    transition: border-color 0.3s, transform 0.3s;
+  }
+  .nav-github:hover {
+    border-color: oklch(0.75 0.13 80 / 0.6);
+    transform: translateY(-1px);
+  }
+
+  .nav-bottom-hairline {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, oklch(0.75 0.13 80 / 0.55) 22%, oklch(0.72 0.15 195 / 0.55) 78%, transparent);
+  }
+
+  @media (max-width: 50rem) {
+    .nav-divider,
+    .nav-tagline {
+      display: none;
+    }
+  }
+
+  /* The `.nav-toggle ~` prefix keeps this scoped to instances that actually
+     render the toggle button (mobileToggle={true}) — otherwise hiding
+     `.nav-links` here with no button to reveal it again would strand the
+     docs header's nav behind nothing, since Header.astro renders this
+     component with mobileToggle={false} and supplies its own breakpoint
+     instead (see Header.astro). */
+  @media (max-width: 45rem) {
+    .nav-toggle {
+      display: flex;
+      position: relative;
+      z-index: 16;
+    }
+    .nav-toggle ~ .nav-links {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100vh;
+      z-index: 15;
+      overflow-y: auto;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      padding: 90px 20px 20px;
+      background: oklch(0.15 0.013 260);
+      backdrop-filter: blur(16px) saturate(1.3);
+      border-bottom: 1px solid oklch(1 0 0 / 0.08);
+    }
+    .nav-toggle ~ .nav-links.nav-open {
+      display: flex;
+    }
+    .nav-toggle ~ .nav-links .nav-github {
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .site-nav {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+  }
+</style>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>(".nav-toggle");
+  const links = document.getElementById("nav-links");
+  if (toggle && links) {
+    toggle.addEventListener("click", () => {
+      const open = links.classList.toggle("nav-open");
+      toggle.setAttribute("aria-expanded", String(open));
+    });
+    links.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", () => {
+        links.classList.remove("nav-open");
+        toggle.setAttribute("aria-expanded", "false");
+      });
+    });
+  }
+</script>

@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/026-concurrent-evaluation.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-026 — Concurrency changes what is looked up, never what is decided",
+  "summary": "Opt-in EvaluateOptions.concurrency changes only which lookups happen and their timing, never the decision or trace.",
+  "scope": ["EvaluateOptions.concurrency", "evaluation", "short-circuiting", "trace", "AllOf", "AnyOf", "Rules", "INV-QD-005", "INV-QD-020"],
+  "cross_refs": [
+    "../invariants.md#inv-qd-005-short-circuit-preservation",
+    "../roadmap.md",
+    "./023-combining-algorithms.md",
+    "./005-lazy-attribute-resolution.md",
+    "./013-short-circuit-default.md",
+    "./024-predicate-output.md"
+  ],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

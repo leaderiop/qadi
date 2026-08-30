@@ -1,0 +1,226 @@
+@import url("https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+@layer base, starlight, theme, components, utilities;
+
+@import "@astrojs/starlight-tailwind";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/*
+ * Qadi's "Judge's Ledger" system, carried into Starlight's docs chrome via
+ * the supported @astrojs/starlight-tailwind bridge (a full 11-step Tailwind
+ * color scale, not a partial --sl-color-accent-* override) — see DESIGN.md.
+ * Accent = Verdict Teal (oklch(0.72 0.15 195), the scale's 500 step); the
+ * gray scale is Qadi's own ink/void/chamber/parchment neutrals, not Zinc.
+ */
+@theme {
+  --font-sans: "IBM Plex Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  --color-accent-50: oklch(0.97 0.02 195);
+  --color-accent-100: oklch(0.93 0.04 195);
+  --color-accent-200: oklch(0.87 0.07 195);
+  --color-accent-300: oklch(0.79 0.1 195);
+  --color-accent-400: oklch(0.72 0.13 195);
+  --color-accent-500: oklch(0.72 0.15 195);
+  --color-accent-600: oklch(0.63 0.15 195);
+  --color-accent-700: oklch(0.52 0.14 195);
+  --color-accent-800: oklch(0.4 0.11 195);
+  --color-accent-900: oklch(0.3 0.08 195);
+  --color-accent-950: oklch(0.2 0.05 195);
+
+  --color-gray-50: oklch(0.97 0.004 260);
+  --color-gray-100: oklch(0.93 0.006 260);
+  --color-gray-200: oklch(0.85 0.006 260);
+  --color-gray-300: oklch(0.75 0.008 260);
+  --color-gray-400: oklch(0.68 0.01 260);
+  --color-gray-500: oklch(0.55 0.01 260);
+  --color-gray-600: oklch(0.42 0.012 260);
+  --color-gray-700: oklch(0.3 0.013 260);
+  --color-gray-800: oklch(0.19 0.014 260);
+  --color-gray-900: oklch(0.17 0.014 260);
+  --color-gray-950: oklch(0.13 0.012 260);
+}
+
+/* Headings read as a ruling, not a citation — Marcellus, everywhere except
+   the sidebar/nav chrome, which stays in the mono/sans "evidence" register. */
+main :is(h1, h2, h3, h4, h5, h6) {
+  font-family: "Marcellus", Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+/*
+ * Direct, UNLAYERED override of Starlight's own --sl-color-* variables.
+ *
+ * The @theme block above is the documented @astrojs/starlight-tailwind
+ * mechanism, but in this Astro/Starlight/Tailwind v4 combination its
+ * `@layer utilities` bridge loses the cascade to Starlight's own
+ * `@layer starlight.base` defaults (props.css) — confirmed by inspecting the
+ * built CSS: both declarations are present, but Starlight's hardcoded indigo
+ * wins on layer order. Un-layered rules always beat layered ones regardless
+ * of order, per the CSS cascade-layers spec, so this block is the guaranteed
+ * fix rather than a second guess at layer ordering. The @theme block stays
+ * for the Tailwind utility classes it also generates elsewhere.
+ *
+ * The docs are dark-only, same as the marketing pages (which never had a
+ * light variant) — [data-theme='light'] repeats the same values rather than
+ * defining a second, undesigned theme; the ThemeSelect toggle is removed
+ * (astro.config.mjs) so there is nothing left to switch to.
+ */
+:root,
+:root[data-theme="light"] {
+  --qadi-seal-gold: oklch(0.75 0.13 80);
+
+  --sl-color-white: oklch(0.93 0.006 260); /* parchment */
+  --sl-color-gray-1: oklch(0.85 0.006 260); /* parchment-dim */
+  --sl-color-gray-2: oklch(0.68 0.01 260); /* testimony — default body text */
+  --sl-color-gray-3: oklch(0.6 0.01 260); /* footnote — 0.55 failed WCAG AA at 3.8:1 against ink-raised */
+  --sl-color-gray-4: oklch(0.42 0.012 260);
+  --sl-color-gray-5: oklch(0.3 0.013 260);
+  --sl-color-gray-6: oklch(0.19 0.014 260); /* ink-raised */
+  --sl-color-gray-7: oklch(0.19 0.014 260);
+  --sl-color-black: oklch(0.13 0.012 260); /* void */
+
+  --sl-color-accent-low: oklch(0.3 0.08 195);
+  --sl-color-accent: oklch(0.72 0.15 195); /* verdict teal */
+  --sl-color-accent-high: oklch(0.78 0.13 195); /* verdict teal, bright */
+
+  --sl-color-text: var(--sl-color-gray-2);
+  --sl-color-text-accent: var(--sl-color-accent-high);
+  --sl-color-bg: oklch(0.17 0.014 260); /* ink */
+  --sl-color-bg-nav: oklch(0.15 0.013 260); /* chamber */
+  --sl-color-bg-sidebar: oklch(0.15 0.013 260); /* chamber */
+  --sl-color-bg-inline-code: oklch(0.13 0.012 260); /* void */
+  --sl-color-hairline-light: oklch(1 0 0 / 0.14);
+  --sl-color-hairline: oklch(1 0 0 / 0.08);
+  --sl-color-hairline-shade: oklch(0.13 0.012 260);
+}
+
+a:not(.sl-badge) {
+  text-underline-offset: 0.2em;
+}
+
+/*
+ * The current-page sidebar item defaults to a solid, bright accent-fill
+ * pill (Starlight's own [aria-current='page'] rule in SidebarSublist.astro)
+ * — exactly the "wallpaper" use of the accent DESIGN.md's No-Wallpaper Rule
+ * rules out. Replaced with the same vocabulary the rest of the site already
+ * uses to mark "this one, not the others": a mark, not a fill.
+ */
+.sidebar-content [aria-current="page"],
+.sidebar-content [aria-current="page"]:hover,
+.sidebar-content [aria-current="page"]:focus {
+  background-color: oklch(0.19 0.014 260 / 0.7); /* ink-raised */
+  color: oklch(0.78 0.13 195); /* verdict teal, bright */
+  box-shadow: inset 2px 0 0 oklch(0.72 0.15 195);
+}
+
+/*
+ * PageFrame.astro sizes the outer header to a fixed
+ * `height: var(--sl-nav-height)`. Header.astro's single row is built to
+ * fit that by design, but `height: auto` is kept as a safety margin so a
+ * font-metrics difference grows the box instead of clipping it — auto
+ * only ever matches or exceeds the fixed value, never shrinks below it.
+ *
+ * An earlier version of Header.astro stacked a second row inside this
+ * same box and set `position: relative` here to anchor the hairline
+ * below, which silently overrode PageFrame's own `position: fixed` (an
+ * unlayered rule always wins over a layered one, position included) —
+ * the header scrolled away with the page while the sidebar/TOC stayed
+ * fixed, assuming it hadn't. `position: fixed` already establishes a
+ * containing block for the `::after` pseudo-element below, so this rule
+ * never needed to touch `position` at all.
+ */
+header.header {
+  height: auto;
+}
+header.header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--qadi-seal-gold) 22%,
+    var(--sl-color-accent) 78%,
+    transparent
+  );
+  opacity: 0.55;
+}
+
+/*
+ * Matches the marketing nav's own translucent-gradient, blurred bar
+ * (src/pages/index.astro) rather than Starlight's flat --sl-color-bg-nav
+ * fill — one visual identity across both the marketing and docs chrome.
+ */
+header.header {
+  background: linear-gradient(180deg, oklch(0.15 0.013 260 / 0.94), oklch(0.17 0.014 260 / 0.78));
+  backdrop-filter: blur(16px) saturate(1.3);
+}
+
+/*
+ * Starlight's own search trigger ships as a bordered, input-shaped button
+ * (`border, background-color, width:100%, max-width:22rem` at ≥50rem) —
+ * Header.astro now composes it inline among plain nav links and a single
+ * bordered GitHub pill, so the search trigger is restyled down to the same
+ * quiet, unbordered register as those nav links rather than reading as a
+ * second, competing input box.
+ */
+button[data-open-modal] {
+  border: 0;
+  background-color: transparent;
+  padding: 0;
+  width: auto;
+  max-width: none;
+  height: auto;
+  gap: 0.5rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8125rem;
+  color: oklch(0.75 0.01 260);
+}
+button[data-open-modal]:hover {
+  border-color: transparent;
+  color: oklch(0.92 0.006 260);
+}
+button[data-open-modal] kbd {
+  background-color: var(--sl-color-gray-6);
+}
+
+/*
+ * Every focus ring in this header fell back to the browser's UA-default
+ * blue outline — a third, off-palette color with no relationship to
+ * Verdict Teal or Seal Gold. One themed rule covers all of it: the
+ * utility nav links, the Starlight wordmark/search/GitHub row, and the
+ * mobile menu toggle below.
+ */
+header.header a:focus-visible,
+header.header button:focus-visible {
+  outline: 2px solid var(--qadi-seal-gold);
+  outline-offset: 2px;
+}
+
+/*
+ * Starlight's stock mobile menu toggle ships as a filled circle
+ * (`border-radius: 50%`) — a direct violation of the Angles-Not-Circles
+ * hard invariant, and the single busiest interactive element on every
+ * mobile page load. Restyled flat and transparent to match the
+ * neighboring Search button's own minimal treatment; the open (X) state
+ * gets a flat Ink-Raised fill to mark it as active, per Flat-Until-Marked.
+ */
+starlight-menu-button button {
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--sl-color-gray-2);
+  box-shadow: none;
+}
+starlight-menu-button button:hover {
+  color: var(--sl-color-white);
+}
+starlight-menu-button[aria-expanded="true"] button {
+  background-color: var(--sl-color-gray-6);
+  color: var(--sl-color-text-accent);
+  box-shadow: none;
+}

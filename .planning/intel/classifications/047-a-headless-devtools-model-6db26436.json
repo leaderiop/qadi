@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/047-a-headless-devtools-model.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-047 — The devtools is a headless model with a React shell over it",
+  "summary": "Decision to split @qadi/devtools into a headless model package and an optional React rendering layer.",
+  "scope": ["@qadi/devtools", "devtools model", "React shell", "decision timeline", "verdict classification"],
+  "cross_refs": ["./044-an-optional-decision-sink.md", "./045-the-topology-is-a-choice-of-sink.md", "./046-a-decision-feed-is-sse-and-guarded.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

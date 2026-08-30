@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/031-decision-cache.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-031 — A cache stores the trace, not the decision, and the key is the security boundary",
+  "summary": "An optional DecisionCache service caches the Trace (not the Decision) keyed by subject, to avoid duplicate lookups within one server-side request.",
+  "scope": ["DecisionCache", "Trace", "EvaluationId", "server-side caching", "evaluate"],
+  "cross_refs": ["../roadmap.md", "./014-react-via-atoms.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/022-subject-set-evaluation.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-022: A subject set is asked by nobody, and the answer reports rather than enforces",
+  "summary": "Decides how decideSubjects batch-evaluates a policy across many subjects without an ambient CurrentSubject.",
+  "scope": ["decideSubjects", "SubjectSetServices", "CurrentSubject", "batch evaluation", "review queries", "NGAC"],
+  "cross_refs": ["../roadmap.md", "../models/00-adoption-matrix.md", "../models/34-ngac.md", "./011-enforce-as-aspect.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

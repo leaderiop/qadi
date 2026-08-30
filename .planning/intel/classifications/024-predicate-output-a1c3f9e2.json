@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/024-predicate-output.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-024: A predicate is a second interpreter, and it ships with the reference that proves it agrees",
+  "summary": "Defines an abstract Predicate ADT for row-level security that the caller (or a companion package) compiles to SQL, keeping core database-free.",
+  "scope": ["predicate", "row-level security", "SQL compilation", "reference interpreter", "Qadi core"],
+  "cross_refs": ["./054-a-companion-package-may-compile-a-dialect.md", "../models/00-adoption-matrix.md", "../models/35-row-level.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

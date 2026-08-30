@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/043-a-decision-is-computed-from-its-inputs.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-043 — A decision is computed from the inputs it claims, not from a proxy for them",
+  "summary": "Fixes two fail-open defects where a decision's evaluation ignored or under-keyed the inputs it claimed to depend on.",
+  "scope": ["guard", "Qadi.ts", "resource evaluation", "DecisionCache", "Evaluate.ts", "@qadi/http", "SubjectExtractor"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

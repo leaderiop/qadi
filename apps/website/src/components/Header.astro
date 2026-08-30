@@ -1,0 +1,56 @@
+---
+// Docs header. Renders the shared SiteNav content (star logo, wordmark,
+// Arabic subtitle, nav links, GitHub pill — the same markup the marketing
+// pages use) inside Starlight's own header chrome, with `chrome={false}`
+// since Starlight's header wrapper already supplies the sticky bar,
+// background and padding. `Home`/`Blog`/`Compliance` are the marketing
+// nav's own `Docs`/`Blog`/`Compliance` with `Docs` swapped for `Home` (this
+// page IS the docs), which is also why the logo links to `/docs/` rather
+// than `/` — there's already a distinct link back to the marketing site.
+// No mobile toggle here: Starlight already gives docs pages their own
+// responsive nav (the sidebar toggle), so the nav links simply hide under
+// the same breakpoint they always have, unreplaced.
+//
+// Search stays functional (Pagefind, ⌘K) via Starlight's own `<Search />`,
+// restyled in starlight.css to the same quiet, unbordered register as the
+// nav links — the marketing nav has no search to copy, so this is the one
+// element built to match the surrounding voice rather than shared.
+import config from "virtual:starlight/user-config";
+import Search from "virtual:starlight/components/Search";
+import SiteNav from "./SiteNav.astro";
+
+const shouldRenderSearch =
+  config.pagefind || config.components.Search !== "@astrojs/starlight/components/Search.astro";
+---
+
+<div class="qadi-header">
+  <SiteNav
+    homeHref="/docs/"
+    links={[
+      { href: "/", label: "Home" },
+      { href: "/blog/", label: "Blog" },
+      { href: "/compliance/", label: "Compliance" },
+    ]}
+    mobileToggle={false}
+    chrome={false}
+  >
+    <div slot="extra" class="qadi-search sl-flex print:hidden">
+      {shouldRenderSearch && <Search />}
+    </div>
+  </SiteNav>
+</div>
+
+<style>
+  .qadi-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    height: 100%;
+  }
+  @media (max-width: 50rem) {
+    .qadi-header :global(.nav-links > :is(.navlink, .nav-github)) {
+      display: none;
+    }
+  }
+</style>

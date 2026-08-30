@@ -226,10 +226,10 @@ for (const file of scanned) {
 const WORDS = [
   "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
   "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-  "seventeen", "eighteen", "nineteen", "twenty",
+  "seventeen", "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two",
 ];
 
-const total = readFileSync(README, "utf8").match(/all (\w+) gates, in order/);
+const total = readFileSync(README, "utf8").match(/all ([\w-]+) gates, in order/);
 if (total === null) {
   fail("README.md", `[count] the "all N gates, in order" line is gone. It is the only total in the repository; keep it or this check is dead.`);
 } else if (total[1] !== WORDS[steps.length]) {

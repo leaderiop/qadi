@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/006-field-strategy-always-encoded.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-006: `fieldStrategy` is required and always encoded",
+  "summary": "Makes fieldStrategy a required, always-encoded field on AllOf/AnyOf to prevent silent reversion to default on reload.",
+  "scope": ["fieldStrategy", "AllOf", "AnyOf", "composite policies", "schema serialization"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}
