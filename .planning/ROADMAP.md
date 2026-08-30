@@ -43,13 +43,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Every one of the nine public packages carries a changeset recording a real semver version bump; `pnpm changeset version` leaves no package at the placeholder `0.0.0` workspace-only version.
   3. `scripts/check-package-install.mjs` (merge gate 14 / ADR-QD-033) passes for all nine packages as part of release sign-off.
 
-**Plans**: 4 plans
+**Plans**: 2/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Expand `check.yml` to a blocking two-leg Node matrix (20.19.0 + 26) and retire every claim that the floor is unverified [COMPAT-01]
-- [ ] 01-02-PLAN.md — Author the two missing `@qadi/audit` changesets, the only public package carrying none [REL-03]
+- [x] 01-01-PLAN.md — Expand `check.yml` to a blocking two-leg Node matrix (20.19.0 + 26) and retire every claim that the floor is unverified [COMPAT-01]
+- [x] 01-02-PLAN.md — Author the two missing `@qadi/audit` changesets, the only public package carrying none [REL-03]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -105,7 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phase 3 depends only on Ph
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Release Readiness & Runtime Verification | 0/4 | Planned | - |
+| 1. Release Readiness & Runtime Verification | 2/4 | In Progress|  |
 | 2. Publish to npm | 0/TBD | Not started | - |
 | 3. Devtools CLI | 0/TBD | Not started | - |
 | 4. Website Launch | 0/TBD | Not started | - |
