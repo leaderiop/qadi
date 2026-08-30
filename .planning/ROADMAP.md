@@ -43,7 +43,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Every one of the nine public packages carries a changeset recording a real semver version bump; `pnpm changeset version` leaves no package at the placeholder `0.0.0` workspace-only version.
   3. `scripts/check-package-install.mjs` (merge gate 14 / ADR-QD-033) passes for all nine packages as part of release sign-off.
 
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans executed
 
 Plans:
 **Wave 1**
@@ -61,7 +61,7 @@ Plans:
 
 **Wave 4** *(gap closure — UAT gap G-01-1)*
 
-- [ ] 01-05-PLAN.md — Close the TOCTOU race in `@qadi/react`'s suspense promise that fails the `check (20.19.0)` floor leg, and prove both legs green [COMPAT-01]
+- [x] 01-05-PLAN.md — Close the TOCTOU race in `@qadi/react`'s suspense promise that fails the `check (20.19.0)` floor leg, and prove both legs green [COMPAT-01]
 
 ### Phase 2: Publish to npm
 
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phase 3 depends only on Ph
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Release Readiness & Runtime Verification | 4/5 | In Progress (gap closure) |  |
+| 1. Release Readiness & Runtime Verification | 5/5 | In Progress|  |
 | 2. Publish to npm | 0/TBD | Not started | - |
 | 3. Devtools CLI | 0/TBD | Not started | - |
 | 4. Website Launch | 0/TBD | Not started | - |
