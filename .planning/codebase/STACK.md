@@ -13,7 +13,7 @@
 ## Runtime
 
 **Environment:**
-- Node.js >=20.19.0 (verified: v26 in CI)
+- Node.js >=20.19.0 (declared floor; CI matrix exercises both 20.19.0 and 26)
 - Bun runtime supported (entry points via `bun` export condition)
 
 **Package Manager:**
@@ -124,9 +124,9 @@
 ## Development Node Versions
 
 **Supported Range:**
-- >=20.19.0 (declared in engines)
-- CI tests on v26 (latest stable major)
-- v20 is the minimum (vitest and oxlint constraints)
+- >=20.19.0 (declared in engines; CI matrix exercises both 20.19.0 and v26 as blocking legs)
+- v26 is the latest stable major, the one development actually happens on
+- v20.19.0 is the minimum (vitest and oxlint constraints)
 
 **Version Sources:**
 - `packageManager` in `package.json` specifies pnpm version

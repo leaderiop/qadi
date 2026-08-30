@@ -229,19 +229,19 @@
 
 ## Test Coverage Gaps
 
-### Engine Version Floor Unverified
+### Engine Version Floor (Resolved)
 
 **Area:** Node.js runtime compatibility
 
-**Issue:** `package.json` declares `"engines": {"node": ">=20.19.0"}`, derived from what dependencies require. CI tests on node 26 (`actions/setup-node@v4` with `node-version: "26"`), so the floor is **not actually verified**.
+**Issue:** `package.json` declares `"engines": {"node": ">=20.19.0"}`, derived from what dependencies require. CI now exercises both `20.19.0` and `26` as blocking legs of one matrixed `check` job.
 
-**Files:** `package.json` (line 65–67), `.github/workflows/check.yml` (line 52)
+**Files:** `package.json` `engines`, `.github/workflows/check.yml`'s `jobs.check.strategy.matrix.node-version`.
 
-**Impact:** Breakage on node 20.19 would go unnoticed until a user runs on that version. Dependencies may silently fail on the declared floor.
+**Impact:** Breakage on node 20.19 would previously have gone unnoticed until a user ran on that version. Both declared-floor and latest-major runtimes are now exercised on every push and pull request.
 
-**Current mitigation:** The floor is declared but acknowledged as aspirational in the workflow comment (line 48–51).
+**Current mitigation:** The floor is exercised by the merge gate on every push and pull request, with no informational grace period — the `20.19.0` leg is a real, blocking gate alongside the `26` leg.
 
-**Recommendations:** Either increase the floor to what CI actually tests (node 26), or add a CI job testing node 20.19 explicitly. A declared floor with no verification is worse than no declaration.
+**Recommendations:** All nine `packages/*/package.json` files still declare the looser `"engines": {"node": ">=20"}` while the root declares `>=20.19.0`, so a published tarball still promises a range wider than CI exercises. This is a known, deliberate gap for this phase — see `01-RESEARCH.md` Open Question 1 — and those nine manifests are not changed here.
 
 ### Hydration Count Tracking
 
