@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/004-single-effect-evaluator.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-004: One Effect-returning evaluator",
+  "summary": "Unifies the predecessor's two evaluators into one Effect-returning evaluator to restore short-circuiting and enable async relationship checks.",
+  "scope": ["evaluator", "Effect", "short-circuiting", "RelationshipResolver", "AttributeResolver", "ReBAC"],
+  "cross_refs": ["ADR-QD-014"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

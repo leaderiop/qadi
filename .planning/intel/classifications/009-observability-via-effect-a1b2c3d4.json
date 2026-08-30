@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/009-observability-via-effect.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-009: Observability comes from Effect",
+  "summary": "Authorization decisions are reported via Effect's built-in tracing, logging and metrics, replacing four deleted bespoke interfaces.",
+  "scope": ["observability", "tracing", "AuditTrailPort", "QadiEventSink", "QadiSpanSink", "QadiInspector", "ClockSource", "evaluate span"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": "cross_refs to ADR-QD-016 removed to break a mutual-citation cycle detected during ingest (ADR-QD-016 already cites this ADR back on the same audit-trail scope boundary); content verified non-contradictory."
+}

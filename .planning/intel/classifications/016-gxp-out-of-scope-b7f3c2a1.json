@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/016-gxp-out-of-scope.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-016: GxP compliance is out of scope",
+  "summary": "Declares regulated-environment (GxP) compliance machinery out of scope; library provides only authorization.",
+  "scope": ["GxP compliance", "audit trail", "write-ahead log", "circuit breaker", "IQ/OQ/PQ validation", "electronic signatures", "authorization"],
+  "cross_refs": ["ADR-QD-009"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/045-the-topology-is-a-choice-of-sink.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-045 — The topology is a choice of sink, and core ships only the seam",
+  "summary": "Core ships only the decision-sink seam (forwarding/fan-out/ring ingest), never a transport, leaving deployment topology to callers.",
+  "scope": ["decisionSinkRing", "decisionSinkForwarding", "decisionSinkAll", "devtools", "@qadi/core", "transports"],
+  "cross_refs": ["./044-an-optional-decision-sink.md", "../behaviors/25-inspection.md", "../behaviors/24-decision-sink.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

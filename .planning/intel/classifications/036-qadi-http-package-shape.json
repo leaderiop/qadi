@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/036-qadi-http-package-shape.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-036 — `@qadi/http`: two framework adapters, one enforcement path, one registry",
+  "summary": "Decides how @qadi/http wires Qadi enforcement into Effect v4's HttpApi and HttpRouter surfaces via curried endpoint permission functions.",
+  "scope": ["@qadi/http", "HttpApiEndpoint", "HttpRouter", "requiresPermission", "guard", "SubjectExtractorShape"],
+  "cross_refs": ["./035-witness-guard-primitive.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

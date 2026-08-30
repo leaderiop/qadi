@@ -1,0 +1,101 @@
+docs:
+  - path: spec/decisions/001-effect-v4-as-effect-system.md
+    type: ADR
+  - path: spec/decisions/002-schema-derived-policy-adt.md
+    type: ADR
+  - path: spec/decisions/003-tag-discriminant.md
+    type: ADR
+  - path: spec/decisions/004-single-effect-evaluator.md
+    type: ADR
+  - path: spec/decisions/005-lazy-attribute-resolution.md
+    type: ADR
+  - path: spec/decisions/006-field-strategy-always-encoded.md
+    type: ADR
+  - path: spec/decisions/007-permission-token-representation.md
+    type: ADR
+  - path: spec/decisions/008-error-taxonomy.md
+    type: ADR
+  - path: spec/decisions/009-observability-via-effect.md
+    type: ADR
+  - path: spec/decisions/010-context-service-and-layers.md
+    type: ADR
+  - path: spec/decisions/011-enforce-as-aspect.md
+    type: ADR
+  - path: spec/decisions/012-deterministic-time-and-ids.md
+    type: ADR
+  - path: spec/decisions/013-short-circuit-default.md
+    type: ADR
+  - path: spec/decisions/014-react-via-atoms.md
+    type: ADR
+  - path: spec/decisions/015-role-dag-acyclic-by-construction.md
+    type: ADR
+  - path: spec/decisions/016-gxp-out-of-scope.md
+    type: ADR
+  - path: spec/decisions/017-stale-decisions-are-not-decisions.md
+    type: ADR
+  - path: spec/decisions/018-action-dimension.md
+    type: ADR
+  - path: spec/decisions/019-obligations.md
+    type: ADR
+  - path: spec/decisions/020-decision-history-port.md
+    type: ADR
+  - path: spec/decisions/021-label-lattice.md
+    type: ADR
+  - path: spec/decisions/022-subject-set-evaluation.md
+    type: ADR
+  - path: spec/decisions/023-combining-algorithms.md
+    type: ADR
+  - path: spec/decisions/024-predicate-output.md
+    type: ADR
+  - path: spec/decisions/025-mutation-testing.md
+    type: ADR
+  - path: spec/decisions/026-concurrent-evaluation.md
+    type: ADR
+  - path: spec/decisions/027-policy-explanation.md
+    type: ADR
+  - path: spec/decisions/028-decision-hydration.md
+    type: ADR
+  - path: spec/decisions/029-lattice-join-and-meet.md
+    type: ADR
+  - path: spec/decisions/030-policy-simplification.md
+    type: ADR
+  - path: spec/decisions/031-decision-cache.md
+    type: ADR
+  - path: spec/decisions/032-promise-facade.md
+    type: ADR
+  - path: spec/decisions/033-the-packed-artifact-is-the-product.md
+    type: ADR
+  - path: spec/decisions/034-the-switch-exception-is-measured.md
+    type: ADR
+  - path: spec/decisions/035-witness-guard-primitive.md
+    type: ADR
+  - path: spec/decisions/036-qadi-http-package-shape.md
+    type: ADR
+  - path: spec/decisions/037-circular-imports-and-type-level-tests-are-gates.md
+    type: ADR
+  - path: spec/decisions/038-changesets-for-versioned-releases.md
+    type: ADR
+  - path: spec/decisions/039-a-seed-is-not-an-authority.md
+    type: ADR
+  - path: spec/decisions/040-an-unwired-port-names-its-absence.md
+    type: ADR
+  - path: spec/decisions/041-a-mismatch-is-announced.md
+    type: ADR
+  - path: spec/decisions/042-a-projection-is-not-an-identity.md
+    type: ADR
+  - path: spec/decisions/043-a-decision-is-computed-from-its-inputs.md
+    type: ADR
+  - path: spec/decisions/044-an-optional-decision-sink.md
+    type: ADR
+  - path: spec/decisions/045-the-topology-is-a-choice-of-sink.md
+    type: ADR
+  - path: spec/decisions/046-a-decision-feed-is-sse-and-guarded.md
+    type: ADR
+  - path: spec/decisions/047-a-headless-devtools-model.md
+    type: ADR
+  - path: spec/decisions/048-an-observed-catalogue.md
+    type: ADR
+  - path: spec/decisions/049-the-second-shell-is-a-cli.md
+    type: ADR
+  - path: spec/decisions/050-a-simulation-is-sealed.md
+    type: ADR

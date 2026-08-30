@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/025-mutation-testing.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-025 — Mutation testing as a merge gate",
+  "summary": "Stryker mutation testing runs on packages/core as the final step of pnpm check, breaking below 80%.",
+  "scope": ["mutation testing", "Stryker", "packages/core", "pnpm check", "merge gate"],
+  "cross_refs": ["ADR-QD-024", "ADR-QD-021", "CCR-QD-024", "ADR-QD-014", "CCR-QD-038", "CCR-QD-026"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

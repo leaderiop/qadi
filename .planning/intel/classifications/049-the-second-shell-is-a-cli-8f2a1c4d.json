@@ -1,0 +1,17 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/049-the-second-shell-is-a-cli.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-049 — The second shell is a CLI, not a served page",
+  "summary": "Decides the second devtools shell will be a CLI reading /__decisions rather than a served page, to avoid a second build graph.",
+  "scope": ["devtools CLI", "second shell", "/__decisions", "build graph", "@qadi/promise", "check-package-install.mjs"],
+  "cross_refs": [
+    "./046-a-decision-feed-is-sse-and-guarded.md",
+    "./047-a-headless-devtools-model.md",
+    "./033-the-packed-artifact-is-the-product.md"
+  ],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

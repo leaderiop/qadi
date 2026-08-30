@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/033-the-packed-artifact-is-the-product.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-033 — The packed artifact is the product, so a gate installs it",
+  "summary": "Adds merge gate 14 to pack, install, and authorization-test each public package before publish.",
+  "scope": ["merge gates", "package publishing", "pnpm pack", "tsconfig.build.json", "exports map", "@qadi/promise", "authorization"],
+  "cross_refs": ["../invariants.md#inv-qd-027-the-published-package-decides-what-the-sources-decide", "../invariants.md#inv-qd-026-the-facade-answers-what-the-core-answers", "./032-promise-facade.md", "../process/definitions-of-done.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

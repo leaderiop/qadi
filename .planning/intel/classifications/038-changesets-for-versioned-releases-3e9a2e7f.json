@@ -1,0 +1,17 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/038-changesets-for-versioned-releases.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-038 — Changesets track versioned releases; publishing itself still doesn't run anywhere",
+  "summary": "Adopts @changesets/cli to record changes and compute version bumps, without wiring publishing into CI.",
+  "scope": ["changesets", "versioning", "monorepo releases", "CI", "pnpm workspace", "changelog"],
+  "cross_refs": [
+    "./033-the-packed-artifact-is-the-product.md",
+    "./037-circular-imports-and-type-level-tests-are-gates.md",
+    "../process/definitions-of-done.md"
+  ],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

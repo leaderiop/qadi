@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/005-lazy-attribute-resolution.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-005: Attribute resolution is lazy and per-node",
+  "summary": "Attributes are resolved per-node at evaluation time rather than pre-collected, so unevaluated branches incur no resolver cost.",
+  "scope": ["attribute resolution", "AttributeResolver", "policy evaluation", "short-circuiting", "concurrency"],
+  "cross_refs": ["../invariants.md#inv-qd-005-short-circuit-preservation"],
+  "locked": true,
+  "precedence": null,
+  "notes": "cross_refs to ./026-concurrent-evaluation.md removed to break a mutual-citation cycle detected during ingest (ADR-QD-026 amends this ADR and already cites it back); content verified non-contradictory."
+}

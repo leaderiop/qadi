@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/017-stale-decisions-are-not-decisions.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-017: A decision being re-checked is not a decision",
+  "summary": "Waiting AsyncResult values must be treated as undecided across @qadi/react consumers, centralized in currentDecision.",
+  "scope": ["AsyncResult", "waiting flag", "currentDecision", "@qadi/react", "useCan", "useDecisionSuspense", "Can", "Cannot"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

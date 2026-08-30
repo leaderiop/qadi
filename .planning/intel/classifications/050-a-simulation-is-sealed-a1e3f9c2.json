@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/050-a-simulation-is-sealed.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-050 — A simulation is sealed, and it answers from one of three sources",
+  "summary": "Devtools simulator always runs in a sealed layer shadowing sink/cache, answering from Fixtures, Snapshot, or Live sources.",
+  "scope": ["subject simulator", "devtools", "simulationLayer", "DecisionSink", "DecisionCache", "CurrentSubject", "Fixtures", "Snapshot", "Live"],
+  "cross_refs": ["../invariants.md", "02-screens.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

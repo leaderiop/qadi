@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/012-deterministic-time-and-ids.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-012: Time and identifiers come from services",
+  "summary": "Durations come from Effect's Clock and evaluation identifiers from an EvaluationId service, ensuring deterministic, testable evaluation traces.",
+  "scope": ["Clock", "EvaluationId service", "evaluation traces", "determinism", "TestClock"],
+  "cross_refs": ["./044-an-optional-decision-sink.md", "../behaviors/24-decision-sink.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/044-an-optional-decision-sink.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-044 — An optional decision sink: what ADR-QD-009 deleted, and what it did not",
+  "summary": "Adds an optional write-only DecisionSink port, read via Effect.serviceOption, without reintroducing the always-on observability machinery ADR-QD-009 removed.",
+  "scope": ["DecisionSink", "EvaluationServices", "DecisionCache", "observability", "ADR-QD-009", "ADR-QD-008", "devtools"],
+  "cross_refs": ["./008-error-taxonomy.md", "./009-observability-via-effect.md", "./031-decision-cache.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

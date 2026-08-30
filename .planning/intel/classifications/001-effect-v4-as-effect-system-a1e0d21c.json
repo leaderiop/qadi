@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/001-effect-v4-as-effect-system.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-001: Effect v4 is the effect system",
+  "summary": "Adopts Effect v4 beta as the sole effect system, retiring the hand-rolled Result type.",
+  "scope": ["Effect v4", "Result type", "Context.Service", "dependency injection", "concurrency model", "observability"],
+  "cross_refs": ["packages/core/test/v4-api-smoke.test.ts"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

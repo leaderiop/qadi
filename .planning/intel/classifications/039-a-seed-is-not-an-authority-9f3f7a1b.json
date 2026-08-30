@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/039-a-seed-is-not-an-authority.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-039 — A seed is not an authority, so it lives in its own atom",
+  "summary": "A hydration seed must live in its own atom because a synchronous evaluation can silently discard a differing client decision.",
+  "scope": ["AtomRegistry", "decision hydration", "seeded decisions", "currentDecision", "QadiProviderProps.initialValues"],
+  "cross_refs": ["./028-decision-hydration.md", "./017-stale-decisions-are-not-decisions.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

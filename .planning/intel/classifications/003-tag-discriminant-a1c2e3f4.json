@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/003-tag-discriminant.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-003: `_tag` is the discriminant",
+  "summary": "Chose `_tag` over `kind` as the discriminant property for all discriminated unions to align with Effect conventions.",
+  "scope": ["discriminated unions", "_tag", "Schema.TaggedStruct", "Effect.catchTag", "Match"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

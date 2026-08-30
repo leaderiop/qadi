@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/027-policy-explanation.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-027 — An explanation is a tree, and English is one rendering of it",
+  "summary": "Decided that policy explanations are returned as a structured Explanation tree, with renderExplanation producing English as one rendering.",
+  "scope": ["policy explanation", "explain", "renderExplanation", "Explanation tree"],
+  "cross_refs": ["../roadmap.md", "./024-predicate-output.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}
