@@ -176,3 +176,6 @@ entries:
   - id: "ADR-QD-058"
     file: "058-hassignature-a-ninth-service-and-a-decomposable-leaf.md"
     title: "hasSignature: a ninth service, and a decomposable leaf"
+  - id: "ADR-QD-059"
+    file: "059-a-gate-runs-where-its-toolchain-runs.md"
+    title: "A gate runs where its toolchain runs, and says so where it does not"

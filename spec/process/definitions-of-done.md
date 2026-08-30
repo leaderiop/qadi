@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-02                                   |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-08-28                                     |
+> | Revision       | 1.6                                            |
+> | Effective Date | 2026-08-30                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.5 (2026-08-28): Step 22 — `apps/website` itself must type-check and build; step 21 alone only checked its embedded doc snippets (found in review, CCR-QD-091)<br>1.4 (2026-08-27): Step 21 — doc-snippet type-checking for `apps/website` (wayfinder #25, CCR-QD-090)<br>1.3 (2026-08-25): Step 20 — mutation testing for `@qadi/audit` (ADR-QD-056, CCR-QD-086)<br>1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.6 (2026-08-30): Step 22 becomes runtime-scoped — it runs on every `check.yml` leg whose Node satisfies astro's `engines.node`, read from its manifest rather than restated (ADR-QD-059, CCR-QD-092)<br>1.5 (2026-08-28): Step 22 — `apps/website` itself must type-check and build; step 21 alone only checked its embedded doc snippets (found in review, CCR-QD-091)<br>1.4 (2026-08-27): Step 21 — doc-snippet type-checking for `apps/website` (wayfinder #25, CCR-QD-090)<br>1.3 (2026-08-25): Step 20 — mutation testing for `@qadi/audit` (ADR-QD-056, CCR-QD-086)<br>1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 
@@ -60,6 +60,17 @@ a sidebar `slug:` pointing at a file that doesn't exist would fail
 gap the same way step 15 closes it for the Next.js example — one workspace
 boundary, one step, `check-dod-table.mjs`'s stated reason for not expanding
 past `pnpm --filter`.
+
+Step 22 became runtime-scoped in CCR-QD-092: it now runs on every
+`check.yml` matrix leg whose Node satisfies the floor `apps/website`'s own
+toolchain (Astro) declares, reading that floor from the installed `astro`
+manifest rather than restating it, via `node scripts/check-website-build.mjs`.
+On a leg below that floor the step prints one line naming the running
+version, the floor, and where it was read from, rather than passing
+quietly. If no matrix leg satisfies the floor, the step fails outright
+rather than skipping on every leg. The reasoning, including the rejected
+Astro-downgrade alternative and the Starlight peer range that rules it out,
+is in [ADR-QD-059](../decisions/059-a-gate-runs-where-its-toolchain-runs.md).
 
 Both steps are appended rather than inserted, so steps 1–20 keep their
 numbers and every existing cross-reference to a gate by number stays correct.
