@@ -39,7 +39,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. CI runs the full `pnpm check` gate suite on Node.js 20.19.0 — the declared engine floor — in addition to the existing Node 26 job, and it passes: the floor is enforced, not just documented.
   2. Every one of the nine public packages carries a changeset recording a real semver version bump; `pnpm changeset version` leaves no package at the placeholder `0.0.0` workspace-only version.
   3. `scripts/check-package-install.mjs` (merge gate 14 / ADR-QD-033) passes for all nine packages as part of release sign-off.
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Expand `check.yml` to a blocking two-leg Node matrix (20.19.0 + 26) and retire every claim that the floor is unverified [COMPAT-01]
+- [ ] 01-02-PLAN.md — Author the two missing `@qadi/audit` changesets, the only public package carrying none [REL-03]
+- [ ] 01-03-PLAN.md — Configure the permanent nine-package `fixed` group and run the version bump to a shared 0.3.0 [REL-03]
+- [ ] 01-04-PLAN.md — Polish the nine generated changelogs and sign off merge gate 14 against the 0.3.0 manifests [REL-03, REL-04]
 
 ### Phase 2: Publish to npm
 **Goal**: Developers outside this repository can depend on Qadi in a real project.
@@ -78,7 +84,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phase 3 depends only on Ph
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Release Readiness & Runtime Verification | 0/TBD | Not started | - |
+| 1. Release Readiness & Runtime Verification | 0/4 | Planned | - |
 | 2. Publish to npm | 0/TBD | Not started | - |
 | 3. Devtools CLI | 0/TBD | Not started | - |
 | 4. Website Launch | 0/TBD | Not started | - |
