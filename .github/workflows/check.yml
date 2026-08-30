@@ -68,6 +68,13 @@ jobs:
           # `26` is the latest stable major, and the one development actually
           # happens on. Both are required, blocking legs of this one job — no
           # informational grace period on either.
+          #
+          # One step of `pnpm check` is runtime-scoped rather than identical
+          # on both legs: the website build (gate 22) builds `apps/website`
+          # on whichever leg satisfies Astro's own `engines.node` floor and
+          # states the skip in one log line on the leg that does not. See
+          # ADR-QD-059 — this does not change which steps run, only what one
+          # step does on a runtime its own toolchain does not support.
           node-version: ${{ matrix.node-version }}
           cache: pnpm
 

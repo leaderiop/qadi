@@ -237,9 +237,9 @@
 
 **Files:** `package.json` `engines`, `.github/workflows/check.yml`'s `jobs.check.strategy.matrix.node-version`.
 
-**Impact:** Breakage on node 20.19 would previously have gone unnoticed until a user ran on that version. Both declared-floor and latest-major runtimes are now exercised on every push and pull request.
+**Impact:** Breakage on node 20.19 would previously have gone unnoticed until a user ran on that version. Both declared-floor and latest-major runtimes are now exercised on every push and pull request — true of twenty-one of the merge gate's twenty-two steps. The remaining step (`apps/website`'s build, gate 22) is runtime-scoped: it builds the site on whichever leg satisfies Astro's own `engines.node`, which is above the workspace floor, and states the skip on a leg below it rather than running there silently (ADR-QD-059).
 
-**Current mitigation:** The floor is exercised by the merge gate on every push and pull request, with no informational grace period — the `20.19.0` leg is a real, blocking gate alongside the `26` leg.
+**Current mitigation:** The floor is exercised by the merge gate on every push and pull request, with no informational grace period — the `20.19.0` leg is a real, blocking gate alongside the `26` leg. The nine published packages, including the packed-artifact install gate (step 14), are exercised on both legs; the site's build runs on the legs its own Astro toolchain supports, per ADR-QD-059.
 
 **Recommendations:** All nine `packages/*/package.json` files still declare the looser `"engines": {"node": ">=20"}` while the root declares `>=20.19.0`, so a published tarball still promises a range wider than CI exercises. This is a known, deliberate gap for this phase — see `01-RESEARCH.md` Open Question 1 — and those nine manifests are not changed here.
 
