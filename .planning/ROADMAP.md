@@ -43,7 +43,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Every one of the nine public packages carries a changeset recording a real semver version bump; `pnpm changeset version` leaves no package at the placeholder `0.0.0` workspace-only version.
   3. `scripts/check-package-install.mjs` (merge gate 14 / ADR-QD-033) passes for all nine packages as part of release sign-off.
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 **Wave 1**
@@ -57,7 +57,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-04-PLAN.md — Polish the nine generated changelogs and sign off merge gate 14 against the 0.3.0 manifests [REL-03, REL-04]
+- [x] 01-04-PLAN.md — Polish the nine generated changelogs and sign off merge gate 14 against the 0.3.0 manifests [REL-03, REL-04]
 
 ### Phase 2: Publish to npm
 
@@ -105,7 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4. Phase 3 depends only on Ph
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Release Readiness & Runtime Verification | 3/4 | In Progress|  |
+| 1. Release Readiness & Runtime Verification | 4/4 | In Progress|  |
 | 2. Publish to npm | 0/TBD | Not started | - |
 | 3. Devtools CLI | 0/TBD | Not started | - |
 | 4. Website Launch | 0/TBD | Not started | - |
