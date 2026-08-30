@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/014-react-via-atoms.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-014: React integrates through Effect atoms",
+  "summary": "Decides @qadi/react binds to effect/unstable/reactivity via one useSyncExternalStore call instead of a custom ManagedRuntime integration.",
+  "scope": ["@qadi/react", "effect/unstable/reactivity", "Atom", "AtomRegistry", "useSyncExternalStore", "QadiProvider", "decision caching", "invalidation"],
+  "cross_refs": ["./053-a-gate-can-be-found.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

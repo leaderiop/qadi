@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/040-an-unwired-port-names-its-absence.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-040 — An unwired port names its own absence, because a denial that guesses sends the reader to the wrong system",
+  "summary": "Makes the relationship port three-valued (Related/Unrelated/Unknown) so denial messages distinguish missing wiring from missing data.",
+  "scope": ["RelationshipResolver", "hasRelationship", "ReBAC", "AccessDenied", "RelatedResult"],
+  "cross_refs": ["./020-decision-history-port.md", "../behaviors/07-enforcement.md", "../behaviors/09-react.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/029-lattice-join-and-meet.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-029 — `join` and `meet` ship as utilities, and the evaluator still never derives a label",
+  "summary": "join and meet are exported as pure SecurityLabel utilities; the evaluator itself still never derives a label.",
+  "scope": ["SecurityLabel", "label lattice", "join", "meet", "evaluator"],
+  "cross_refs": ["./021-label-lattice.md", "../models/29-mls.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

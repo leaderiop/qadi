@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/046-a-decision-feed-is-sse-and-guarded.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-046 — A decision feed is Server-Sent Events, and it is guarded like any other route",
+  "summary": "Decision feed uses guarded SSE with no unguarded variant and no env-var gate, routed through the same HttpRouter and guardRoute.",
+  "scope": ["decision feed", "SSE", "guardRoute", "HttpRouter", "authorization", "decisionStreamRoute"],
+  "cross_refs": ["./045-the-topology-is-a-choice-of-sink.md", "../behaviors/23-http.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

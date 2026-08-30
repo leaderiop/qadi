@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/035-witness-guard-primitive.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-035 — A witness travels as a value, because `Context` cannot prove which permission it's for",
+  "summary": "Decided a witness of authorization is a branded value produced by a `guard` combinator, not a per-permission Context.Service.",
+  "scope": ["witness", "guard", "Authorized", "Context.Service", "@qadi/http", "@qadi/core", "enforce"],
+  "cross_refs": ["../invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

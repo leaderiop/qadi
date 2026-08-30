@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/013-short-circuit-default.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-013: Sequential short-circuit by default",
+  "summary": "Composite policies evaluate children sequentially by default, short-circuiting allOf/anyOf, with opt-in concurrency via ADR-QD-026.",
+  "scope": ["composite policies", "allOf", "anyOf", "short-circuit evaluation", "fieldStrategy Union", "concurrent evaluation", "EvaluateOptions.concurrency"],
+  "cross_refs": ["../invariants.md#inv-qd-005-short-circuit-preservation"],
+  "locked": true,
+  "precedence": null,
+  "notes": "cross_refs to ./026-concurrent-evaluation.md removed to break a mutual-citation cycle detected during ingest (ADR-QD-026 amends this ADR and already cites it back); content verified non-contradictory."
+}

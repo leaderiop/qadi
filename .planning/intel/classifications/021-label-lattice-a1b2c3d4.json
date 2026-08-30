@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/021-label-lattice.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-021: Dominance is a four-valued comparison, and the label never enters the policy",
+  "summary": "Decides security labels use a structural (level, compartments) shape with array compartments, computing dominance without a declared lattice service.",
+  "scope": ["security labels", "dominance", "lattice", "SecurityLabel", "matchers", "Bell-LaPadula", "MLS"],
+  "cross_refs": ["../models/23-label-based.md", "../models/29-mls.md", "../models/27-bell-lapadula.md", "../models/00-adoption-matrix.md"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/015-role-dag-acyclic-by-construction.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-015: The role DAG is acyclic by construction",
+  "summary": "Roles inherit by value so the role graph is a DAG by construction, avoiding cycle checks except when reconstructed from serialized form.",
+  "scope": ["role graph", "role inheritance", "flattenPermissions", "resolveRoleGraph", "CircularRoleInheritance"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

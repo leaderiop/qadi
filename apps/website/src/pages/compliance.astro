@@ -1,0 +1,644 @@
+---
+// Standalone top-level page — not part of the Starlight docs collection.
+// Shares the marketing site's dark visual language (oklch colors, Marcellus +
+// IBM Plex Sans/Mono, teal/gold accents) but is deliberately calm: prose and
+// tables, no scroll-reveal or canvas work. See AGENTS.md §12 — none of the
+// numbers on this page are invented; they trace to spec/decisions/056 and
+// spec/behaviors/33-audit-pipeline.md.
+import HeadFonts from "../components/HeadFonts.astro";
+import SiteNav from "../components/SiteNav.astro";
+
+const title = "Compliance — Qadi";
+const description =
+  "What Qadi's audit package assembles, what you still have to bring, and what it explicitly is not.";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <HeadFonts />
+    <style>
+      :root {
+        --bg: oklch(0.17 0.014 260);
+        --bg-raised: oklch(0.21 0.016 260);
+        --bg-card: oklch(0.195 0.015 260);
+        --border: oklch(0.32 0.02 260);
+        --border-soft: oklch(0.27 0.018 260);
+        --text: oklch(0.93 0.006 260);
+        --text-muted: oklch(0.72 0.012 260);
+        --text-faint: oklch(0.56 0.012 260);
+        --teal: oklch(0.72 0.15 195);
+        --teal-dim: oklch(0.72 0.15 195 / 0.35);
+        --gold: oklch(0.75 0.13 80);
+        --gold-dim: oklch(0.75 0.13 80 / 0.35);
+        --danger: oklch(0.65 0.16 25);
+        --font-serif: "Marcellus", "Iowan Old Style", Georgia, serif;
+        --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        color-scheme: dark;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 16px;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: var(--teal);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      code,
+      .mono {
+        font-family: var(--font-mono);
+        font-size: 0.9em;
+      }
+
+      code {
+        background: var(--bg-raised);
+        border: 1px solid var(--border-soft);
+        border-radius: 4px;
+        padding: 0.1em 0.4em;
+        color: var(--gold);
+      }
+
+      /* ---------- layout ---------- */
+
+      main {
+        max-width: 780px;
+        margin: 0 auto;
+        padding: clamp(2.5rem, 6vw, 5rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+      }
+
+      section {
+        margin-top: clamp(3rem, 6vw, 4.5rem);
+      }
+
+      section:first-of-type {
+        margin-top: 0;
+      }
+
+      h1 {
+        font-family: var(--font-serif);
+        font-size: clamp(2.1rem, 5vw, 2.9rem);
+        line-height: 1.15;
+        margin: 0 0 1.1rem;
+        color: var(--text);
+      }
+
+      h2 {
+        font-family: var(--font-serif);
+        font-size: clamp(1.4rem, 3vw, 1.7rem);
+        color: var(--text);
+        margin: 0 0 0.35rem;
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+      }
+
+      .section-number {
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        color: var(--teal);
+      }
+
+      .section-lede {
+        color: var(--text-muted);
+        font-size: 0.98rem;
+        margin: 0 0 1.6rem;
+        max-width: 60ch;
+      }
+
+      .eyebrow {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin: 0 0 0.9rem;
+      }
+
+      p {
+        color: var(--text-muted);
+        margin: 0 0 1rem;
+      }
+
+      p.lead {
+        font-size: 1.08rem;
+        color: var(--text);
+      }
+
+      strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      /* ---------- principle callout ---------- */
+
+      .principle {
+        margin-top: 2.2rem;
+        padding: 1.15rem 1.4rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border-soft);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        color: var(--text);
+      }
+
+      .callout-label {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 0.6rem;
+      }
+
+      .principle .callout-label {
+        color: var(--teal);
+      }
+
+      .principle .mono {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--text-faint);
+        font-size: 0.78rem;
+      }
+
+      /* ---------- capability cards ---------- */
+
+      .cap-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .cap {
+        background: var(--bg-card);
+        border: 1px solid var(--border-soft);
+        border-radius: 10px;
+        padding: 1.15rem 1.35rem;
+      }
+
+      .cap h3 {
+        margin: 0 0 0.4rem;
+        font-size: 1rem;
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .cap h3 code {
+        font-size: 0.82em;
+      }
+
+      .cap p {
+        margin: 0;
+        font-size: 0.94rem;
+      }
+
+      .tag {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--teal);
+        border: 1px solid var(--teal-dim);
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+      }
+
+      /* ---------- you-bring list ---------- */
+
+      .bring-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+      }
+
+      .bring-list li {
+        display: flex;
+        gap: 0.85rem;
+        padding: 0.9rem 1.1rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border-soft);
+        border-radius: 8px;
+        font-size: 0.94rem;
+      }
+
+      .bring-list .glyph {
+        font-family: var(--font-mono);
+        color: var(--gold);
+        flex-shrink: 0;
+      }
+
+      .bring-list p {
+        margin: 0;
+      }
+
+      /* ---------- not-list ---------- */
+
+      .not-list {
+        list-style: none;
+        margin: 0 0 1.4rem;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+      }
+
+      .not-list li {
+        display: flex;
+        gap: 0.7rem;
+        font-size: 0.96rem;
+        color: var(--text-muted);
+        line-height: 1.55;
+      }
+
+      .not-list .glyph {
+        color: var(--danger);
+        flex-shrink: 0;
+        font-family: var(--font-mono);
+      }
+
+      .callout-warn {
+        background: var(--bg-card);
+        border: 1px solid oklch(0.65 0.16 25 / 0.4);
+        border-radius: 8px;
+        padding: 1.15rem 1.4rem;
+        font-size: 0.95rem;
+      }
+
+      .callout-warn .callout-label {
+        color: var(--danger);
+      }
+
+      .callout-warn p:last-child {
+        margin-bottom: 0;
+      }
+
+      /* ---------- evidence table ---------- */
+
+      .evidence-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.6rem;
+      }
+
+      .stat {
+        background: var(--bg-card);
+        border: 1px solid var(--border-soft);
+        border-radius: 10px;
+        padding: 1.1rem 1.3rem;
+      }
+
+      .stat .num {
+        font-family: var(--font-serif);
+        font-size: 1.9rem;
+        color: var(--teal);
+        line-height: 1;
+        display: block;
+        margin-bottom: 0.3rem;
+      }
+
+      .stat .label {
+        font-size: 0.82rem;
+        color: var(--text-faint);
+      }
+
+      .inv-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+        overflow-x: auto;
+        display: block;
+      }
+
+      .inv-table tbody {
+        display: table;
+        width: 100%;
+      }
+
+      .inv-table th,
+      .inv-table td {
+        text-align: left;
+        padding: 0.7rem 0.8rem;
+        border-bottom: 1px solid var(--border-soft);
+        vertical-align: top;
+      }
+
+      .inv-table th {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+        font-weight: 500;
+      }
+
+      .inv-table td.id {
+        font-family: var(--font-mono);
+        color: var(--gold);
+        white-space: nowrap;
+      }
+
+      .inv-table td {
+        color: var(--text-muted);
+      }
+
+      .measured-line {
+        margin-top: 1.4rem;
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        /* Brighter than --text-faint (0.56) specifically here: this text sits
+           directly on --bg (0.17), not a raised card, where 0.56 measured
+           4.1:1 live — short of the 4.5:1 WCAG AA floor PRODUCT.md commits to. */
+        color: oklch(0.62 0.012 260);
+      }
+
+      .measured-line strong {
+        color: var(--teal);
+        font-family: var(--font-sans);
+      }
+
+      /* ---------- footer / doc links ---------- */
+
+      .doc-links {
+        margin-top: 4rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--border-soft);
+      }
+
+      .doc-links p {
+        margin-bottom: 1rem;
+        font-size: 0.94rem;
+      }
+
+      .doc-links ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+
+      .doc-links a {
+        font-family: var(--font-mono);
+        font-size: 0.92rem;
+      }
+
+      footer.site-footer {
+        border-top: 1px solid var(--border-soft);
+        padding: 2rem clamp(1.25rem, 4vw, 3rem);
+        text-align: center;
+        color: var(--text-faint);
+        font-size: 0.85rem;
+      }
+
+      @media (max-width: 620px) {
+        .evidence-stats {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <SiteNav
+      links={[
+        { href: "/docs/", label: "Docs" },
+        { href: "/blog/", label: "Blog" },
+        { href: "/compliance/", label: "Compliance", active: true },
+      ]}
+    />
+
+    <main>
+      <section>
+        <p class="eyebrow">Trust &amp; assurance</p>
+        <h1>Compliance</h1>
+        <p class="lead">
+          This page describes, plainly, what Qadi's audit package assembles for you, what you
+          still have to bring yourself, and what it explicitly does not do. No compliance
+          certification of any kind is being claimed anywhere on this page. What follows is a
+          factual account of wiring and test coverage, not a regulatory attestation.
+        </p>
+        <div class="principle">
+          <span class="callout-label">Design principle</span>
+          Every capability described below is wired into the real evaluation path and covered by
+          the tests cited beside it: nothing on this page is exported but unused.
+          <span class="mono">This is a design principle Qadi's audit package is built to, not a marketing claim.</span>
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="section-number">01</span> What Qadi assembles</h2>
+        <p class="section-lede">
+          <code>@qadi/audit</code> composes five capabilities into one pipeline, hung off the
+          same decision sink every evaluation already writes through.
+        </p>
+        <div class="cap-list">
+          <div class="cap">
+            <h3><code>AuditDecisionSinkLive</code> <span class="tag">wired</span></h3>
+            <p>
+              An audit trail write, best-effort staging, and an internal circuit breaker,
+              composed into one assembled pipeline reachable through a single call. You are not
+              handed three individually-correct pieces to wire together yourself: encoding,
+              staging (if configured), and the trail write all happen inside the one
+              <code>record()</code> call every evaluation already makes. While the breaker is
+              open, a wired staging store still receives the entry even though the trail write is
+              skipped, so nothing is silently lost if a staging backend is configured.
+            </p>
+          </div>
+          <div class="cap">
+            <h3>Retention, archival &amp; decommissioning <span class="tag">pure functions</span></h3>
+            <p>
+              Retention selection, chain-integrity checking across sequence numbers, archival, and
+              a six-step decommissioning checklist all ship as plain, invocable functions and
+              data. They run when you call them: nothing here is triggered on a timer or a
+              schedule internal to the library.
+            </p>
+          </div>
+          <div class="cap">
+            <h3>E-signature capture <span class="tag">wired</span></h3>
+            <p>
+              A <code>hasSignature</code> policy check, an obligation handler, and a
+              <code>SignatureCapturePort</code> you implement, wired together through the same
+              obligation mechanism the rest of policy enforcement already uses. Capturing a
+              signature is a condition of enforcement, not a side channel bolted on afterward.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="section-number">02</span> What you still bring</h2>
+        <p class="section-lede">
+          Every capability above needs real storage, identity, or crypto behind it. Qadi supplies
+          none of that itself. It defines the ports and wires the calls that use them.
+        </p>
+        <ul class="bring-list">
+          <li>
+            <span class="glyph">01</span>
+            <p>
+              <strong>A storage backend for the audit trail port.</strong> Qadi does not open a
+              database connection, generate a key, or assume a schema. You implement where
+              entries are durably written.
+            </p>
+          </li>
+          <li>
+            <span class="glyph">02</span>
+            <p>
+              <strong>Crypto and identity for signature capture.</strong> The signature capture
+              port is a plain interface; what actually authenticates a signer and produces a
+              signature record is entirely your implementation.
+            </p>
+          </li>
+          <li>
+            <span class="glyph">03</span>
+            <p>
+              <strong>Your own retention schedule.</strong> Qadi never runs a retention job on a
+              timer of its own. You invoke retention, archival, and decommissioning yourself, on
+              whatever cadence your policies require.
+            </p>
+          </li>
+          <li>
+            <span class="glyph">04</span>
+            <p>
+              <strong>Your own IQ/OQ/PQ evidence.</strong> Installation, operational, and
+              performance qualification for your deployment are your organization's
+              responsibility to produce and hold. Qadi's tests establish that its own pipeline
+              behaves as documented, not that your particular deployment meets a regulatory
+              standard.
+            </p>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2><span class="section-number">03</span> What this explicitly is not</h2>
+        <p class="section-lede">
+          Stated plainly rather than left implicit, because the gap between "wired and tested"
+          and "compliant" is exactly the gap this page exists to be honest about.
+        </p>
+        <ul class="not-list">
+          <li><span class="glyph">—</span> Not a certification of any kind, from any body.</li>
+          <li><span class="glyph">—</span> Not 21 CFR Part 11 support out of the box.</li>
+          <li>
+            <span class="glyph">—</span> Not a claim that your deployment is audit-ready simply
+            because this package is installed.
+          </li>
+        </ul>
+        <div class="callout-warn">
+          <span class="callout-label">Important</span>
+          <p>
+            <strong><code>hasSignature</code> is trust-on-presence.</strong> It checks whether a
+            caller-supplied signature record exists with a matching meaning and, optionally,
+            signer role (the same record your own signature capture port produced earlier). It
+            does not perform a live cryptographic check of any kind, and it models no
+            reauthentication step.
+          </p>
+          <p>
+            No default signature capture implementation ships. Not even a no-op one. A shipped
+            no-op would let a signature obligation silently appear satisfied with nothing behind
+            it, which is exactly the false-compliance affordance this design deliberately avoided.
+            Without your own port wired, enforcement fails closed instead.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="section-number">04</span> Evidence</h2>
+        <p class="section-lede">
+          Measured, not asserted. These are concrete numbers from the test suite, not descriptive
+          claims about intent.
+        </p>
+        <div class="evidence-stats">
+          <div class="stat">
+            <span class="num">92%</span>
+            <span class="label">Mutation score on <code>packages/audit</code> — <code>pnpm check</code> gate 20</span>
+          </div>
+          <div class="stat">
+            <span class="num">5</span>
+            <span class="label">Formally stated invariants, INV-QD-051 through INV-QD-055</span>
+          </div>
+        </div>
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th>Invariant</th>
+              <th>What it covers</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="id">INV-QD-051</td>
+              <td>Staging presence or absence never changes the committed audit entries.</td>
+            </tr>
+            <tr>
+              <td class="id">INV-QD-052</td>
+              <td>Once a circuit breaker trips, a write is never attempted again until reset.</td>
+            </tr>
+            <tr>
+              <td class="id">INV-QD-053</td>
+              <td>Retained and purged entries partition the full set: no overlap, no gap.</td>
+            </tr>
+            <tr>
+              <td class="id">INV-QD-054</td>
+              <td>Chain-integrity checking detects every gap and duplicate sequence number.</td>
+            </tr>
+            <tr>
+              <td class="id">INV-QD-055</td>
+              <td>
+                The signature obligation handler calls capture exactly once, and the obligation
+                record matches its outcome.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="measured-line">
+          <strong>92%</strong> mutation score · <strong>5</strong> invariants · <strong>1</strong> assembled pipeline
+        </p>
+      </section>
+
+      <div class="doc-links">
+        <p>For the API reference, see the <code>@qadi/audit</code> package documentation:</p>
+        <ul>
+          <li><a href="/docs/packages/audit/">/docs/packages/audit/</a> — overview</li>
+          <li><a href="/docs/packages/audit/capabilities/">/docs/packages/audit/capabilities/</a> — the assembled pipeline, retention, and archival</li>
+          <li><a href="/docs/packages/audit/signatures/">/docs/packages/audit/signatures/</a> — e-signature capture</li>
+        </ul>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <p>Qadi is an Effect-native authorization library for TypeScript.</p>
+    </footer>
+  </body>
+</html>

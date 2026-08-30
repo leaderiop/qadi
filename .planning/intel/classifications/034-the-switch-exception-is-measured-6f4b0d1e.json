@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/034-the-switch-exception-is-measured.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-034 — The switch exception is measured, and two of the four were unguarded",
+  "summary": "Benchmarks confirm the four switch-based dispatch exceptions to AGENTS.md §5a remain justified and adds exhaustiveness guards to two unguarded dispatchers.",
+  "scope": ["switch dispatch exception", "Match", "resolveRef", "mergeFields", "evaluation performance", "exhaustiveness"],
+  "cross_refs": ["AGENTS.md", "CCR-QD-039", "ADR-QD-025", "packages/core/bench/Dispatch.bench.ts", "packages/core/bench/Evaluate.bench.ts"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-02                                   |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-08-28                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.3 (2026-08-25): Step 20 — mutation testing for `@qadi/audit` (ADR-QD-056, CCR-QD-086)<br>1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-08-28): Step 22 — `apps/website` itself must type-check and build; step 21 alone only checked its embedded doc snippets (found in review, CCR-QD-091)<br>1.4 (2026-08-27): Step 21 — doc-snippet type-checking for `apps/website` (wayfinder #25, CCR-QD-090)<br>1.3 (2026-08-25): Step 20 — mutation testing for `@qadi/audit` (ADR-QD-056, CCR-QD-086)<br>1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 
@@ -42,6 +42,27 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 18 | `stryker run stryker.predicate-sql.mjs` | Mutation score on `packages/predicate-sql` is at or above 80% |
 | 19 | `stryker run stryker.predicate-prisma.mjs` | Mutation score on `packages/predicate-prisma` is at or above 80% |
 | 20 | `stryker run stryker.audit.mjs` | Mutation score on `packages/audit` is at or above 80% |
+| 21 | `node scripts/check-website-doc-examples.mjs` | Every runnable example in `apps/website`'s docs content compiles |
+| 22 | `pnpm --filter @qadi/website check` | `apps/website` itself type-checks and builds (`astro check && astro build`) |
+
+Step 21 (`node scripts/check-website-doc-examples.mjs`) is a sibling of step 9
+(`node scripts/check-doc-examples.mjs`), not an extension of it (wayfinder
+#25): it walks `apps/website/src/content/docs` instead of `spec/`, shares the
+same fence extraction via `scripts/lib/extract-code-fences.mjs`, and compiles
+under the workspace's own TypeScript 7.x rather than `apps/website`'s local
+6.0.3 pin — that pin is about Astro/Starlight tooling lag, not about what a
+snippet-copying reader experiences. It checks the *content* embedded in
+`apps/website`'s docs, not the app itself: neither `tsc -b tsconfig.json`
+(step 1) nor `oxlint` (step 3) reaches `.astro` files or this workspace
+member, so without step 22 a broken Astro page, an invalid component prop, or
+a sidebar `slug:` pointing at a file that doesn't exist would fail
+`astro build` locally but ship past a green `pnpm check`. Step 22 closes that
+gap the same way step 15 closes it for the Next.js example — one workspace
+boundary, one step, `check-dod-table.mjs`'s stated reason for not expanding
+past `pnpm --filter`.
+
+Both steps are appended rather than inserted, so steps 1–20 keep their
+numbers and every existing cross-reference to a gate by number stays correct.
 
 Step 15 is new in CCR-QD-076. It runs `examples/nextjs-newsroom`'s own `check` —
 `tsc --noEmit`, `vitest run`, `next build`, then Playwright against `next start` —

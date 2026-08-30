@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/010-context-service-and-layers.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-010: Context.Service with standalone layer constants",
+  "summary": "Services use Context.Service with separate Shape interfaces and layers as standalone exported constants, not Effect.Service.",
+  "scope": ["Context.Service", "layers", "Effect v4", "service shape", "Effect.Service"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

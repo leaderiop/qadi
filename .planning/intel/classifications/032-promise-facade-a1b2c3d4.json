@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/032-promise-facade.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-032 — A Promise facade with no evaluator in it",
+  "summary": "Decision to build @qadi/promise as a thin one-file Promise facade over the core evaluator with no branching logic of its own.",
+  "scope": ["@qadi/promise", "Promise facade", "ManagedRuntime", "evaluator", "denial vs failure semantics"],
+  "cross_refs": ["../roadmap.md", "./004-single-effect-evaluator.md", "../invariants.md#inv-qd-006-failure-is-not-denial"],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

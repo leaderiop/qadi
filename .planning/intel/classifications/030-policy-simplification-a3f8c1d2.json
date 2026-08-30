@@ -1,0 +1,21 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/030-policy-simplification.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-030 — Simplification preserves the verdict, not the trace, and is never automatic",
+  "summary": "Decision that simplify(policy) is an explicit opt-in transform preserving verdict and fields, not the trace.",
+  "scope": ["simplify", "Policy ADT", "explain", "toPredicate", "field visibility", "double negation"],
+  "cross_refs": [
+    "../roadmap.md",
+    "./027-policy-explanation.md",
+    "./024-predicate-output.md",
+    "./019-obligations.md",
+    "../invariants.md#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows",
+    "../models/07-field-level.md",
+    "../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top"
+  ],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

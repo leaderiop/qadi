@@ -1,0 +1,23 @@
+{
+  "source_path": "/Users/mohammadalmechkor/Projects/Perso/qadi/spec/decisions/020-decision-history-port.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-QD-020: History is a three-valued port, because a boolean cannot fail closed under negation",
+  "summary": "Defines DecisionHistory as a three-valued (Acted/NotActed/Unknown) port to support DSD, Chinese Wall, history-based and task-based control.",
+  "scope": ["DecisionHistory", "ActedQuery", "ActedResult", "separation of duty", "Chinese Wall", "history-based control", "task-based control", "fail-closed defaults"],
+  "cross_refs": [
+    "./012-deterministic-time-and-ids.md",
+    "../models/00-adoption-matrix.md",
+    "../urs.md",
+    "./016-gxp-out-of-scope.md",
+    "../models/24-separation-of-duty.md",
+    "../models/31-hbac.md",
+    "../models/30-chinese-wall.md",
+    "../models/33-tbac.md",
+    "../invariants.md#inv-qd-007-defaults-fail-closed"
+  ],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}
