@@ -43,7 +43,7 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 19 | `stryker run stryker.predicate-prisma.mjs` | Mutation score on `packages/predicate-prisma` is at or above 80% |
 | 20 | `stryker run stryker.audit.mjs` | Mutation score on `packages/audit` is at or above 80% |
 | 21 | `node scripts/check-website-doc-examples.mjs` | Every runnable example in `apps/website`'s docs content compiles |
-| 22 | `pnpm --filter @qadi/website check` | `apps/website` itself type-checks and builds (`astro check && astro build`) |
+| 22 | `node scripts/check-website-build.mjs` | `apps/website` type-checks and builds (`astro check && astro build`) on every matrix leg whose Node satisfies astro's own `engines.node`; below that floor the step states the skip and names the leg that does build |
 
 Step 21 (`node scripts/check-website-doc-examples.mjs`) is a sibling of step 9
 (`node scripts/check-doc-examples.mjs`), not an extension of it (wayfinder
