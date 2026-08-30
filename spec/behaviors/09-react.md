@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 2.4                                                          |
-> | Effective Date | 2026-08-23                                                   |
+> | Revision       | 2.5                                                          |
+> | Effective Date | 2026-08-30                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -209,6 +209,27 @@ REQUIREMENT: `Cannot` MUST NOT render its children on failure. "We could not
 RECOMMENDED: `Can` renders `failure ?? fallback`, so an interface with no
              `failure` node fails closed. Supply one wherever an operator needs
              to tell an outage from a denial.
+```
+
+```
+REQUIREMENT: A decision that has already settled when its suspense promise is
+             created MUST still resolve that promise. `AtomRegistry.subscribe`
+             notifies on transitions only, and a decision that has reached its
+             verdict has none left to make, so a subscription registered after
+             the fact is not sufficient — a component that re-renders stale
+             would otherwise suspend permanently.
+```
+
+Found by the Node 20.19.0 floor leg (COMPAT-01), not by review: `check
+(20.19.0)` failed reproducibly on a genuine race in `useDecisionSuspense`'s
+suspense promise, and no existing test caught it because the failure mode was
+a hang rather than a wrong answer — `check (26)` passed the identical suite
+every time.
+
+```
+REQUIREMENT: A decision being re-checked MUST still suspend. The previous
+             verdict is not an answer to the current question — see
+             [ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md).
 ```
 
 ## BEH-QD-072: A guard hands its denial to the node that replaces it
