@@ -10,11 +10,11 @@ import type { AuthSubject, Decision, Policy, Resource } from "@qadi/core";
 import { isAllowed, project } from "@qadi/core";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
-import type * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import { useCallback, useEffect, useMemo } from "react";
 import type { DecisionResult } from "./QadiAtoms.ts";
 import { currentDecision } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
+import { isPending, settled } from "./settled.ts";
 import { useGate } from "./useGate.ts";
 
 /** The subject under authorization, or `undefined` while it is still loading. */
@@ -66,39 +66,8 @@ export const useDecisionSuspense = (policy: Policy, resource?: Resource): Decisi
   // this one reads through `useGate` for the registration and keeps the atom it
   // already had. Both reads hit the same registry entry.
   const result = useGate("useDecisionSuspense", policy, resource).result;
-  if (AsyncResult.isInitial(result) || result.waiting) throw settled(registry, atom);
+  if (isPending(result)) throw settled(registry, atom);
   return AsyncResult.getOrThrow(result);
-};
-
-const pending = new WeakMap<Atom.Atom<DecisionResult>, Promise<void>>();
-
-/**
- * A promise that resolves when the decision leaves `Initial`.
- *
- * Suspense is defined in terms of thrown promises, so one has to exist here.
- * It is memoised per atom because React re-renders on every throw, and a fresh
- * promise each time would suspend forever.
- */
-const settled = (
-  registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<DecisionResult>,
-): Promise<void> => {
-  const existing = pending.get(atom);
-  if (existing !== undefined) return existing;
-  // React's throw-to-suspend contract is defined in terms of a thrown
-  // Promise, not an Effect — this is the one framework boundary AGENTS.md
-  // §6's async ban cannot reach through, hence this file's
-  // `no-raw-promise` exemption in check-house-style.mjs.
-  const promise = new Promise<void>((resolve) => {
-    const unsubscribe = registry.subscribe(atom, (result) => {
-      if (AsyncResult.isInitial(result) || result.waiting) return;
-      unsubscribe();
-      pending.delete(atom);
-      resolve();
-    });
-  });
-  pending.set(atom, promise);
-  return promise;
 };
 
 /**
