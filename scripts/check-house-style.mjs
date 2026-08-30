@@ -151,9 +151,10 @@ const RULES = [
 const EXEMPTIONS = {
   "packages/core/src/EvaluationId.ts": ["no-ambient-uuid"],
   // React Suspense is *defined* in terms of a thrown promise, so one has to
-  // exist at that boundary. It is confined to `useDecisionSuspense`; every
-  // other hook reads the atom synchronously and needs no Promise at all.
-  "packages/react/src/hooks.ts": ["no-raw-promise"],
+  // exist at that boundary. Confined to `settled.ts`, the only module that
+  // constructs one; every hook that reads a decision does so synchronously
+  // and needs no Promise at all.
+  "packages/react/src/settled.ts": ["no-raw-promise"],
 };
 
 /**
