@@ -9,7 +9,7 @@
     "test:dry": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts -i step-definitions/devtools-screens.steps.ts -i step-definitions/devtools-simulator.steps.ts -i step-definitions/port-calls.steps.ts -i step-definitions/hydration-counts.steps.ts -i step-definitions/gate-instances.steps.ts -i step-definitions/merged-sources.steps.ts --dry-run",
     "test:tags": "node --import tsx/esm node_modules/@cucumber/cucumber/bin/cucumber-js -i step-definitions/world.ts -i step-definitions/given.steps.ts -i step-definitions/when.steps.ts -i step-definitions/then.steps.ts -i step-definitions/devtools.steps.ts -i step-definitions/devtools-screens.steps.ts -i step-definitions/devtools-simulator.steps.ts -i step-definitions/port-calls.steps.ts -i step-definitions/hydration-counts.steps.ts -i step-definitions/gate-instances.steps.ts -i step-definitions/merged-sources.steps.ts --tags",
     "test:vitest": "vitest run",
-    "typecheck": "tsc -b tsconfig.json"
+    "typecheck": "tsc -b tsconfig.json && tsc -p tsconfig.test.json"
   },
   "dependencies": {
     "@qadi/core": "workspace:*",
