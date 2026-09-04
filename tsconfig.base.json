@@ -44,7 +44,11 @@
     "plugins": [
       {
         "name": "@effect/language-service",
-        "diagnostics": true
+        "diagnostics": true,
+        "namespaceImportPackages": ["effect", "@effect/*", "@qadi/*", "@effect-cucumber/*"],
+        "includeSuggestionsInTsc": false,
+        "ignoreEffectWarningsInTscExitCode": true,
+        "ignoreEffectErrorsInTscExitCode": false
       }
     ]
   }
