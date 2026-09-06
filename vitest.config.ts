@@ -47,6 +47,45 @@ export default defineConfig({
           branches: 95,
           statements: 95,
         },
+        // The top-level 90/90/90/90 above is a *workspace-wide average*: a
+        // well-tested package can carry an undertested one to a green run
+        // without either number showing it. AGENTS.md §10 states 90% as each
+        // package's own floor, not the fleet's, so each of the remaining
+        // public packages gets its own entry at that same number — a glob
+        // with the identical thresholds is not a no-op the way it would look:
+        // it changes the pass/fail unit from "the workspace average" to
+        // "this package", which is the number a shortfall should actually be
+        // measured against.
+        "packages/http/src/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
+        "packages/audit/src/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
+        "packages/react/src/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
+        "packages/promise/src/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
+        "packages/testing/src/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
       },
     },
   },

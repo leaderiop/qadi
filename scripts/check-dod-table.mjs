@@ -161,6 +161,23 @@ const collectMarkdown = (dir) => {
 };
 
 /**
+ * `.github/workflows/*.yml` — the one place `check.yml` itself carries "gate N" /
+ * "step N" prose (its own doc comments), which drifted just like everywhere else
+ * (tickets 53/60/61): the CI workflow said "gate 22" and "Five suites" after the
+ * table had moved on. `collectMarkdown` only walks `.md`/`.mjs` files, so this
+ * directory needs its own, narrower collector rather than a `.yml` case added to
+ * that one — workflows are not docs or scripts, and mixing them in would widen
+ * what that helper means everywhere else it's called.
+ */
+const collectWorkflows = (dir) => {
+  const out = [];
+  for (const entry of readdirSync(dir)) {
+    if (entry.endsWith(".yml") || entry.endsWith(".yaml")) out.push(join(dir, entry));
+  }
+  return out;
+};
+
+/**
  * This file is not scanned.
  *
  * Its doc comment quotes stale references as **examples** of the defect, and its
@@ -175,6 +192,7 @@ const scanned = [
   join(ROOT, "CONTRIBUTING.md"),
   ...collectMarkdown(join(ROOT, "spec")),
   ...collectMarkdown(join(ROOT, "scripts")),
+  ...collectWorkflows(join(ROOT, ".github", "workflows")),
 ];
 
 let references = 0;

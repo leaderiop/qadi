@@ -21,6 +21,20 @@
  * *inside the document* with a reason. The rule is no **silent** omission, not no
  * omission — and the declaration lives in the document being checked rather than in
  * this file, where a reviewer would never look for it.
+ *
+ * **Known limitation: no signature check.** All three checks above are presence
+ * checks — a name matches or it does not. Nothing here compares *what* an export
+ * is: its arity, parameter types, or return type. A function kept under the same
+ * name but given a new required parameter, a removed one, or a changed parameter
+ * type passes this gate silently as long as the identifier survives, because the
+ * `DECLARATION`/`REEXPORT_*` regexes below only ever capture a name, never a type.
+ * Closing that gap for real needs the TypeScript compiler API (a `ts.Program` per
+ * public package, comparing each export's resolved type against a committed
+ * snapshot) rather than the regex-over-source-text approach this file uses
+ * everywhere else — deliberately, so this gate has no compiler dependency and stays
+ * fast. That is a real, open gap in what "the export surface didn't drift" means
+ * here, not an oversight this comment is papering over; a reviewer relying on this
+ * gate to catch a signature change should not.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join, relative } from "node:path";

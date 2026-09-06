@@ -13,18 +13,23 @@
   "bugs": {
     "url": "https://github.com/leaderiop/qadi/issues"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Fixtures, deterministic layers and recording resolvers for @qadi/core",
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
       "bun": "./src/index.ts",
-      "import": "./lib/index.js"
+      "import": "./lib/index.js",
+      "default": "./lib/index.js"
     },
     "./*": {
       "types": "./lib/*.d.ts",
       "bun": "./src/*.ts",
-      "import": "./lib/*.js"
+      "import": "./lib/*.js",
+      "default": "./lib/*.js"
     }
   },
   "files": [
@@ -54,6 +59,6 @@
     "typescript"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0"
   }
 }
