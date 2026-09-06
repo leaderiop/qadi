@@ -24,7 +24,7 @@ export const featDemos = [
   'decisionSinkRing({ environment: "prod", capacity: 1024 })',
   "same input → same trace, same duration",
   "<Can do={writeDoc}>…</Can>",
-  "await qadi.check(policy)",
+  "await qadi.check(subject, policy)",
 ];
 
 const featureBase = [
