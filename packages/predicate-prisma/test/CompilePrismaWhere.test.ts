@@ -3,9 +3,6 @@ import * as Effect from "effect/Effect";
 import type { Predicate } from "@qadi/core";
 import { compilePrismaWhere } from "../src/index.ts";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
 const refusalOf = (predicate: Predicate) =>
   Effect.map(Effect.result(compilePrismaWhere(predicate)), (r) =>
     r._tag === "Failure" ? r.failure : undefined,
@@ -90,22 +87,6 @@ describe("compilePrismaWhere — golden shapes", () => {
       assert.deepStrictEqual(yield* compilePrismaWhere(doubled), {
         NOT: { NOT: { tenantId: "t-1" } },
       });
-    }));
-
-  it.effect("a Date value passes through as a driver-native value, not stringified", () =>
-    Effect.gen(function* () {
-      const createdAt = new Date("2026-01-01T00:00:00.000Z");
-      const where = yield* compilePrismaWhere({
-        _tag: "Compare",
-        column: "createdAt",
-        op: "Gte",
-        value: createdAt,
-      });
-      const filter = where.createdAt;
-      assert.ok(isRecord(filter));
-      if (isRecord(filter)) {
-        assert.strictEqual(filter.gte, createdAt);
-      }
     }));
 
   it.effect("a hand-constructed empty And/Or degrades to the vacuous identity", () =>
@@ -219,5 +200,42 @@ describe("compilePrismaWhere — refusals", () => {
       };
       const failure = yield* refusalOf(predicate);
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+    }));
+
+  it.effect("a Date value refuses rather than compiling to a query that disagrees with evaluatePredicate", () =>
+    Effect.gen(function* () {
+      // evaluatePredicate's Gte/Lt require typeof value === "number", so a
+      // Date there is always false in the reference evaluator, while
+      // Prisma's {gte: date} performs a real comparison and would admit rows
+      // the reference evaluator denies — INV-QD-048's own disagreement.
+      const failure = yield* refusalOf({
+        _tag: "Compare",
+        column: "createdAt",
+        op: "Gte",
+        value: new Date("2026-01-01T00:00:00.000Z"),
+      });
+      assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+      assert.strictEqual(failure?.predicateTag, "Compare");
+      assert.strictEqual(
+        failure?.reason,
+        "value for column 'createdAt' is not a safe query parameter",
+      );
+    }));
+
+  it.effect("a column named NOT refuses rather than silently negating the filter", () =>
+    Effect.gen(function* () {
+      const failure = yield* refusalOf({ _tag: "Compare", column: "NOT", op: "Eq", value: "t-1" });
+      assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+      assert.strictEqual(failure?.predicateTag, "Compare");
+      assert.strictEqual(failure?.reason, "column 'NOT' is not a safe identifier");
+    }));
+
+  it.effect("a column named AND or OR refuses too, for MemberOf as well as Compare", () =>
+    Effect.gen(function* () {
+      const and = yield* refusalOf({ _tag: "Compare", column: "AND", op: "Eq", value: 1 });
+      const or = yield* refusalOf({ _tag: "MemberOf", column: "OR", values: ["a", "b"] });
+      assert.strictEqual(and?._tag, "PredicateNotRenderable");
+      assert.strictEqual(or?._tag, "PredicateNotRenderable");
+      assert.strictEqual(or?.reason, "column 'OR' is not a safe identifier");
     }));
 });

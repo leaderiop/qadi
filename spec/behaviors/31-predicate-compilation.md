@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-31                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-09-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
+> | Change History | 1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
 
 _Previous: [30 — Port Calls](./30-port-calls.md)_
 
@@ -83,7 +83,7 @@ the cheap part.
 
 ```
 REQUIREMENT: A `Compare`/`MemberOf` value or member that is not on the safe
-             allowlist (`string | number | boolean | null | Date`) MUST fail
+             allowlist (`string | number | boolean | null`) MUST fail
              `PredicateNotRenderable`. It MUST NOT be stringified into the
              fragment or `WhereInput`.
 ```
@@ -93,6 +93,45 @@ into a query fragment — coercing an object, a function, a Symbol into a bound
 parameter — is [ADR-QD-024](../decisions/024-predicate-output.md)'s rejected
 failure mode one interpreter deeper: "nothing is approximated" does not stop
 applying once the AST becomes a string.
+
+`Date` was on this allowlist and no longer is: `evaluatePredicate`'s `compare`
+(`@qadi/core`'s `Predicate.ts`) requires `typeof value === "number"` for
+`Gte`/`Lt`, so a `Date` value there is always `false` in the reference
+evaluator, while a real SQL engine's `>=`/`<` or Prisma's `{gte: date}`
+performs a genuine date comparison against the row — an
+[INV-QD-047](../invariants.md#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits)/[INV-QD-048](../invariants.md#inv-qd-048-a-compiled-prisma-whereinput-admits-exactly-the-rows-the-predicate-admits)
+disagreement in the direction that matters, admitting rows the reference
+evaluator would deny. `Eq`'s `===` disagrees from the other side: two
+distinct `Date` instances holding the same instant are never `===`, so a
+`Date` `Eq` is reference-evaluator-false for any row a caller would actually
+construct, while the compiled query matches correctly. Both compilers now
+refuse a `Date`-valued `Compare`/`MemberOf` rather than compile a comparison
+the reference evaluator does not support — the same "refuse rather than
+approximate" answer this requirement already gives every other unsafe value.
+
+## BEH-QD-258: A `Compare`/`MemberOf` column refuses rather than colliding with the target's own syntax
+
+```
+REQUIREMENT: A `Compare`/`MemberOf` column that would change what the
+             compiled output means, rather than merely fail to render, MUST
+             refuse with `PredicateNotRenderable` naming the column.
+```
+
+`Predicate.column` is a plain `string` on an AST that crosses a trust
+boundary (AGENTS.md §7) with no schema either compiler can validate it
+against. Each dialect's own syntax gives this a different shape:
+`compileSql` interpolates the column as SQL identifier text, so a column
+carrying the target dialect's own quote character (`"`, `` ` ``) or falling
+outside `[A-Za-z_][A-Za-z0-9_]*` refuses rather than being escaped —
+escaping is a policy this requirement does not adopt, since the one place
+`renderNode` builds SQL text from caller data is exactly the place a
+caller-controlled escape could still be gotten wrong. `compilePrismaWhere`
+takes no SQL text at all — its hazard is `AND`/`OR`/`NOT`, Prisma's own
+combinator keys at every `WhereInput` level: a column literally named one
+changes what the compiled object means (`{NOT: "t-1"}` negates rather than
+comparing) instead of failing to compile, so those three names refuse there
+even though they are syntactically ordinary identifiers a SQL dialect would
+accept without complaint.
 
 ## BEH-QD-239: An empty `MemberOf` is `False`, never `IN ()`
 

@@ -87,13 +87,28 @@ const compareOperator = (op: Exclude<CompareOp, "Neq">): string =>
     Match.exhaustive,
   );
 
-/** `unknown`, safely: the only shapes a driver can bind as a parameter. */
+/**
+ * `unknown`, safely: the only shapes a driver can bind as a parameter.
+ *
+ * Deliberately excludes `Date`, unlike an earlier version of this function —
+ * `evaluatePredicate`'s `compare` (`@qadi/core`'s `Predicate.ts`) requires
+ * `typeof value === "number"` for `Gte`/`Lt`, so a `Date` there is always
+ * `false` in the reference evaluator, while a real SQL engine's `>=`/`<`
+ * performs a real date comparison against the row — INV-QD-047 disagreement,
+ * in the direction that matters: the compiled SQL would admit rows the
+ * reference evaluator denies. `Eq`'s `===` has the same problem from the
+ * other side — two distinct `Date` instances holding the same instant are
+ * never `===`, so a `Date` `Eq` is reference-evaluator-false for any row a
+ * caller would actually construct, while SQL's `=` matches correctly.
+ * Refusing to compile a `Date`-valued `Compare`/`MemberOf` is the ADR-QD-024
+ * "refuse rather than approximate" answer to a comparison the reference
+ * evaluator does not actually support.
+ */
 const isSafeValue = (value: unknown): boolean =>
   value === null ||
   typeof value === "string" ||
   typeof value === "number" ||
-  typeof value === "boolean" ||
-  value instanceof Date;
+  typeof value === "boolean";
 
 /**
  * A column identifier this package will quote and render.
