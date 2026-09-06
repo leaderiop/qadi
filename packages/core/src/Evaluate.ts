@@ -578,7 +578,14 @@ const evaluateNode = (
       if (action === undefined && referencesAction(policy.matcher)) {
         return Effect.fail(new MissingAction({ expected: undefined }));
       }
-      const value = resource[policy.attribute];
+      // `Object.hasOwn`, mirroring `readAttribute` above and `FieldPath.ts`'s
+      // `projectAt`: a decoded policy's `attribute` is untrusted input, and
+      // without this guard a name like `"toString"` or `"constructor"`
+      // resolves an inherited `Object.prototype` member instead of reporting
+      // the absence `attributeReason` already has a sentence for.
+      const value = Object.hasOwn(resource, policy.attribute)
+        ? resource[policy.attribute]
+        : undefined;
       return Effect.succeed(
         evaluateMatcher(policy.matcher, value, matcherContext)
           ? allow("HasResourceAttribute", policy.fields)

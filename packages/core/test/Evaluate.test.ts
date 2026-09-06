@@ -143,6 +143,20 @@ describe("leaf policies", () => {
       assert.strictEqual(d.reason, "resource attribute 'state' did not match");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
+  it.effect("HasResourceAttribute does not resolve an inherited prototype member", () =>
+    Effect.gen(function* () {
+      // A decoded policy's `attribute` is untrusted input. Without an
+      // `Object.hasOwn` guard, naming a prototype-chain key such as
+      // `toString` resolves `Object.prototype.toString` — a function — as
+      // though the resource carried it, rather than reporting absence the
+      // way every other missing attribute does.
+      const policy = P.hasResourceAttribute("toString", M.exists());
+      const d = yield* evaluate(policy, { resource: { id: "doc-1" } });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "resource attribute 'toString' has no value");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
   it.effect("HasResourceAttribute fails when no resource is in context", () =>
     Effect.gen(function* () {
       const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
