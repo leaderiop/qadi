@@ -980,12 +980,14 @@ describe("a re-check that settles asynchronously", () => {
     // Not `settled` on this atom: the mismatch report is a side effect that
     // lands on a later turn than the decision atom itself commits (confirmed
     // empirically — awaiting settled() alone, or settled() plus one
-    // Promise.resolve() microtask, both still observe `seen` empty). The
-    // 60ms headroom here is generous against the resolver's real
-    // Effect.sleep("1 millis"); TestClock cannot reach this real-timer path.
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    // Promise.resolve() microtask, both still observe `seen` empty). Polled
+    // rather than a fixed sleep, matching the convention `hooks.test.tsx`'s
+    // "re-evaluates when invalidated" test uses: a fixed wait races the
+    // resolver's real `Effect.sleep("1 millis")` — which TestClock cannot
+    // reach — and either flakes under load or, generous enough not to, leaves
+    // headroom nobody can justify a number for.
+    await vi.waitFor(() => expect(seen).toHaveLength(1));
 
-    expect(seen).toHaveLength(1);
     expect(seen[0]?.seeded._tag).toBe("Allow");
     expect(seen[0]?.decided._tag).toBe("Deny");
     unmount();
