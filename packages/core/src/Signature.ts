@@ -35,8 +35,26 @@ export const Signature = Schema.Struct({
    * matches only signatures carrying that same value.
    */
   signerRole: Schema.optional(Schema.String),
+  /**
+   * When the signature was made. Captured for the audit record, but
+   * `evaluateHasSignature` (`Evaluate.ts`) never compares it to anything —
+   * `hasSignature` is trust-on-presence, with no expiry or freshness concept,
+   * so an arbitrarily old signature matches exactly as well as a recent one.
+   */
   signedAt: Schema.Number,
+  /**
+   * The signing algorithm, when the capture flow records one. Carried through
+   * for audit and downstream verification, but `evaluateHasSignature` never
+   * inspects it — an on-file signature with an unrecognized `algorithm`
+   * still matches a `hasSignature` leaf that names the right `meaning`.
+   */
   algorithm: Schema.optional(Schema.String),
+  /**
+   * Which key produced the signature, when the capture flow records one.
+   * Like `algorithm` above, this is carried for audit and downstream
+   * verification only — `evaluateHasSignature` never checks whether `keyId`
+   * still resolves to a valid key.
+   */
   keyId: Schema.optional(Schema.String),
 });
 export type Signature = typeof Signature.Type;

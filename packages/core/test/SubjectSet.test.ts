@@ -29,6 +29,18 @@ const nobody = (id: string) => subjectWith({ id });
 const ids = (subjects: ReadonlyArray<{ readonly id: string }>) =>
   subjects.map((s) => s.id);
 
+const collectingTracer = (spans: Array<Tracer.Span>) =>
+  Layer.succeed(
+    Tracer.Tracer,
+    Tracer.make({
+      span: (options) => {
+        const span = new Tracer.NativeSpan(options);
+        spans.push(span);
+        return span;
+      },
+    }),
+  );
+
 describe("filterSubjects", () => {
   it.effect("keeps the subjects the policy allows", () =>
     Effect.gen(function* () {
@@ -345,18 +357,6 @@ describe("request inputs and failures", () => {
 });
 
 describe("observability", () => {
-  const collectingTracer = (spans: Array<Tracer.Span>) =>
-    Layer.succeed(
-      Tracer.Tracer,
-      Tracer.make({
-        span: (options) => {
-          const span = new Tracer.NativeSpan(options);
-          spans.push(span);
-          return span;
-        },
-      }),
-    );
-
   it.effect("the batch reports its size, and each element its own decision", () =>
     Effect.gen(function* () {
       const spans: Array<Tracer.Span> = [];
@@ -403,6 +403,24 @@ describe("decideSubjectsStream", () => {
         decideSubjectsStream(canRead, Stream.fromIterable([])),
       );
       assert.strictEqual(results.length, 0);
+    }).pipe(Effect.provide(subjectSetLayer())));
+
+  it.effect("carries its own span, annotated with the policy tag", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* Stream.runDrain(
+        decideSubjectsStream(canRead, Stream.fromIterable([reader("a"), nobody("b")])).pipe(
+          Stream.provide(collectingTracer(spans)),
+        ),
+      );
+
+      const batch = spans.find((s) => s.name === "qadi.decideSubjectsStream");
+      assert.isDefined(batch);
+      if (batch === undefined) return;
+      assert.deepStrictEqual(Object.fromEntries(batch.attributes), {
+        "qadi.policy_tag": "HasPermission",
+      });
     }).pipe(Effect.provide(subjectSetLayer())));
 });
 

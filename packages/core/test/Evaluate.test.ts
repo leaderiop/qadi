@@ -2598,9 +2598,11 @@ describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
       assert.isUndefined(counterOf(snapshots, { outcome: "deny" }));
     }));
 
-  it.effect("records the denying node's policy tag in the frequency", () =>
+  it.effect("records the top-level policy's tag in the frequency", () =>
     Effect.gen(function* () {
-      // Not the free-text reason: `evaluateActed`/`evaluateHasRelationship`
+      // The top-level policy `evaluate` was asked to decide, not whichever
+      // node deep in its tree actually produced the denial, and not the
+      // free-text reason either: `evaluateActed`/`evaluateHasRelationship`
       // both build theirs from caller-supplied identifiers, which would make
       // a frequency keyed on the raw sentence grow one entry per distinct
       // (subject, resource) pair ever denied — see the doc comment on

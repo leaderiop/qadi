@@ -8,6 +8,7 @@
 import * as Data from "effect/Data";
 import type { Trace } from "./Decision.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
+import type { PolicyDecodeTooDeep } from "./Policy.ts";
 
 /** A policy referenced a resource attribute but no resource was in context. */
 export class MissingResource extends Data.TaggedError("MissingResource")<{
@@ -102,7 +103,18 @@ export class DuplicateRoleDefinition extends Data.TaggedError(
   readonly names: ReadonlyArray<string>;
 }> {}
 
-/** A permission segment contained the reserved `:` separator. */
+/**
+ * A permission segment contained the reserved `:` separator.
+ *
+ * Reserved for this purpose but not currently raised by any code path: today
+ * a colon in a decoded permission's `resource`/`action` surfaces as a generic
+ * `Schema` issue from {@link PermissionSchema}'s pattern check, not as this
+ * typed error — {@link Permission.ts}'s `permission()` constructor rejects a
+ * colon-containing literal at compile time via `NoColon` instead of at
+ * runtime. Kept in {@link QadiError}/{@link ERROR_CODES} (`ACL008`) as the
+ * stable code this violation would carry if a call site is ever added that
+ * raises it directly, rather than removed and the code retired.
+ */
 export class InvalidPermissionSegment extends Data.TaggedError(
   "InvalidPermissionSegment",
 )<{
@@ -202,7 +214,18 @@ export type EvaluationError =
   | MissingResourceId
   | PolicyTooDeep;
 
-/** Every error this library can produce, including enforcement and construction. */
+/**
+ * Every error this library can produce, including enforcement and construction.
+ *
+ * `PolicyDecodeTooDeep` is defined in `Policy.ts`, not here, and imported as a
+ * type only: it is raised by the public `decodePolicy`/`fromJson` API, before
+ * evaluation, and `Errors.ts` cannot import it as a value without a circular
+ * dependency (see the class's own doc comment in `Policy.ts`) — a type-only
+ * import is erased at compile time, so it carries none of that risk. It
+ * belongs in this union regardless: ADR-QD-008/INV-QD-010 promise every error
+ * this library can produce a stable code, and this one previously bypassed
+ * both the union and `ERROR_CODES`.
+ */
 export type QadiError =
   | EvaluationError
   | PolicyNotTranslatable
@@ -211,6 +234,7 @@ export type QadiError =
   | CircularRoleInheritance
   | DuplicateRoleDefinition
   | InvalidPermissionSegment
+  | PolicyDecodeTooDeep
   | InvalidBoundedPermits;
 
 /**
@@ -237,6 +261,7 @@ export const ERROR_CODES = {
   "SignatureHistoryUnavailable": "ACL014",
   "DuplicateRoleDefinition": "ACL015",
   "InvalidBoundedPermits": "ACL016",
+  "PolicyDecodeTooDeep": "ACL017",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

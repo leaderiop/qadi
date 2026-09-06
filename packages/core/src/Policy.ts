@@ -537,6 +537,19 @@ export interface SignatureOptions extends FieldOptions {
  * list, and this denies — trust-on-presence, no live re-validation of the
  * signature itself (settled during this map's charting; see wayfinder
  * ticket #14's resolution).
+ *
+ * Trust-on-presence means exactly this: `evaluateHasSignature` matches on
+ * `meaning` and, when given, `signerRole` — nothing else. `Signature`'s
+ * `algorithm` and `keyId` fields are captured for audit and downstream
+ * verification (`@qadi/audit`'s capture flow), but this evaluation never
+ * inspects them — an on-file signature with an unrecognized `algorithm` or a
+ * `keyId` that no longer resolves to a valid key still matches. `signedAt` is
+ * likewise never compared against anything: an arbitrarily old signature
+ * matches exactly as well as one made a second ago, since this leaf has no
+ * expiry or freshness concept. A deployment needing algorithm/key validity or
+ * signature freshness must enforce it before the signature reaches
+ * `SignatureHistory`, or reject it at capture time — not rely on this leaf to
+ * catch it.
  */
 export const hasSignature = (
   meaning: string | SignatureMeaning,

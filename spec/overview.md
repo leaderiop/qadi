@@ -208,6 +208,7 @@ answered.
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
 | `CustomPredicate`, `CustomPredicateNone`, `customPredicateFromRecord` | service + layer | `CustomPredicate.ts` |
 | `customPredicateRetrying`, `customPredicateBounded` | layer combinator | `CustomPredicate.ts` |
+| `EvaluationServicesNone` | layer | `EvaluationServicesNone.ts` — every optional port's fail-closed default, combined; excludes `CurrentSubject` (ADR-QD-022) |
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |
 | `DecisionSink` | service | `DecisionSink.ts` |
 | `decisionSinkRing`, `DEFAULT_RING_CAPACITY` | layer factory + constant | `DecisionSinkRing.ts` |
@@ -298,7 +299,8 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `MissingResource`, `MissingResourceId`, `MissingAction`, `PolicyTooDeep`,
 `CircularRoleInheritance`, `DuplicateRoleDefinition`, `InvalidPermissionSegment`,
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
-`CustomPredicateError`, `SignatureHistoryUnavailable`, `InvalidBoundedPermits`,
+`CustomPredicateError`, `SignatureHistoryUnavailable`, `PolicyDecodeTooDeep`,
+`InvalidBoundedPermits`,
 plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
@@ -313,10 +315,25 @@ by `resolveRoleGraph`, not by evaluation) alongside `CircularRoleInheritance`:
 repeated definition name, rather than letting the last definition silently
 shadow the others. `ERROR_CODES["DuplicateRoleDefinition"]` is `ACL015`.
 
+`PolicyDecodeTooDeep` joins `QadiError` (not `EvaluationError` — it is raised by
+`decodePolicy`/`fromJson`, before a policy is ever evaluated). It is defined in
+`Policy.ts`, not `Errors.ts`, and imported there as a type only, to avoid the
+circular value-import `Policy.ts`'s own doc comment on the class explains; a
+type-only import carries no such risk. It had bypassed `QadiError` and
+`ERROR_CODES` entirely until now, which meant `decodePolicy` could raise an
+error with no stable code — the exact guarantee
+ADR-QD-008/INV-QD-010 exist to make. `ERROR_CODES["PolicyDecodeTooDeep"]` is
+`ACL017`.
+
 `InvalidBoundedPermits` joins `QadiError` (construction-time, not evaluation)
-for `AttributeResolver.ts`'s `attributeResolverBounded`: `Semaphore.make`
-performs no validation, so a non-positive permit count would otherwise deadlock
-every call rather than fail. `ERROR_CODES["InvalidBoundedPermits"]` is `ACL016`.
+and is shared by every `…Bounded` port wrapper — `AttributeResolver.ts`'s
+`attributeResolverBounded` and `CustomPredicate.ts`'s `customPredicateBounded`
+both raise it: `Semaphore.make` performs no validation of its own, so
+`permits <= 0` previously built a layer whose every wrapped call deadlocked
+forever rather than failing. Fixing this requires each port wrapper to fail
+fast instead of building the layer, which is why the error is raised from the
+wrapper rather than from `Semaphore.make` itself.
+`ERROR_CODES["InvalidBoundedPermits"]` is `ACL016`.
 
 ## The other packages
 
