@@ -168,6 +168,71 @@ describe("compilePrismaWhere — NULL handling agrees with evaluatePredicate's =
     }));
 });
 
+// Prisma's query-compiler strips an empty `AND`/`OR` filter reached below the
+// top level before `NOT` ever sees it (verified against Prisma 7.10's engine
+// source — see `isVacuousTrue`/`isVacuousFalse` in `../src/index.ts`), so a
+// bare `{NOT: {AND: []}}`/`{NOT: {OR: []}}` folds to "no WHERE restriction" —
+// every row — inverting `evaluatePredicate(Negate(True/False), row)`, which
+// is `false`/`true` for every row. This is a golden-shape assertion, not a
+// `matchesPrismaWhere`-driven property one, on purpose: that reader computes
+// `!matchesPrismaWhere({AND: []}, row)` as plain JS (`.every([])` is `true`,
+// negated `false`), which already agrees with the *reference* semantics —
+// exactly why it was structurally blind to the real engine's folding bug in
+// the first place (ticket 06's own finding). Only the exact rendered
+// `WhereInput` shape distinguishes the fix from the defect.
+describe("compilePrismaWhere — Negate over a vacuous identity avoids the engine's NOT-folding bug", () => {
+  it.effect("Negate(True) renders False's own identity, not {NOT: {AND: []}}", () =>
+    Effect.gen(function* () {
+      const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: { _tag: "True" } });
+      assert.deepStrictEqual(where, { OR: [] });
+    }));
+
+  it.effect("Negate(False) renders True's own identity, not {NOT: {OR: []}}", () =>
+    Effect.gen(function* () {
+      const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: { _tag: "False" } });
+      assert.deepStrictEqual(where, { AND: [] });
+    }));
+
+  it.effect("Negate over a hand-built empty And/Or gets the same treatment", () =>
+    Effect.gen(function* () {
+      // Unreachable through toPredicate (negate() folds True/False before
+      // building a Negate node), but Predicate is directly constructible —
+      // an empty And/Or renders identically to True/False, so it hits the
+      // exact same engine-folding bug.
+      const negatedAnd = yield* compilePrismaWhere({
+        _tag: "Negate",
+        predicate: { _tag: "And", predicates: [] },
+      });
+      assert.deepStrictEqual(negatedAnd, { OR: [] });
+
+      const negatedOr = yield* compilePrismaWhere({
+        _tag: "Negate",
+        predicate: { _tag: "Or", predicates: [] },
+      });
+      assert.deepStrictEqual(negatedOr, { AND: [] });
+    }));
+
+  it.effect("Negate over an empty MemberOf also gets the same treatment", () =>
+    Effect.gen(function* () {
+      // MemberOf's own empty-values case renders {OR: []} too (line 179 of
+      // ../src/index.ts) — the same vacuous-false shape, same bug.
+      const where = yield* compilePrismaWhere({
+        _tag: "Negate",
+        predicate: { _tag: "MemberOf", column: "tag", values: [] },
+      });
+      assert.deepStrictEqual(where, { AND: [] });
+    }));
+
+  it.effect("Negate over a non-vacuous subtree still renders a plain NOT", () =>
+    Effect.gen(function* () {
+      const where = yield* compilePrismaWhere({
+        _tag: "Negate",
+        predicate: { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" },
+      });
+      assert.deepStrictEqual(where, { NOT: { tenantId: "t-1" } });
+    }));
+});
+
 describe("compilePrismaWhere — refusals", () => {
   it.effect("a Compare value outside the safe allowlist refuses, never binds it blind", () =>
     Effect.gen(function* () {
