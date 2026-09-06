@@ -103,7 +103,18 @@ export class DuplicateRoleDefinition extends Data.TaggedError(
   readonly names: ReadonlyArray<string>;
 }> {}
 
-/** A permission segment contained the reserved `:` separator. */
+/**
+ * A permission segment contained the reserved `:` separator.
+ *
+ * Reserved for this purpose but not currently raised by any code path: today
+ * a colon in a decoded permission's `resource`/`action` surfaces as a generic
+ * `Schema` issue from {@link PermissionSchema}'s pattern check, not as this
+ * typed error — {@link Permission.ts}'s `permission()` constructor rejects a
+ * colon-containing literal at compile time via `NoColon` instead of at
+ * runtime. Kept in {@link QadiError}/{@link ERROR_CODES} (`ACL008`) as the
+ * stable code this violation would carry if a call site is ever added that
+ * raises it directly, rather than removed and the code retired.
+ */
 export class InvalidPermissionSegment extends Data.TaggedError(
   "InvalidPermissionSegment",
 )<{
