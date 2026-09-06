@@ -1,6 +1,11 @@
 /**
  * Answers "which signatures does this subject/resource have on file?" — the
- * port `hasSignature` (wayfinder ticket #14, not yet built) will read from.
+ * port `Evaluate.ts`'s `evaluateHasSignature` reads from to answer a
+ * `hasSignature` policy node.
+ *
+ * Wayfinder ticket #14 (`hasSignature`) is implemented end to end
+ * (ADR-QD-057, ADR-QD-058): this was once the port declared ahead of that
+ * leaf, but that gap closed when `HasSignature`/`evaluateHasSignature` shipped.
  *
  * A **port**, not a store, exactly as `DecisionHistory.ts` and
  * `RelationshipResolver.ts` are — the signatures themselves live wherever the
@@ -67,7 +72,12 @@ export const SignatureHistoryNone: Layer.Layer<SignatureHistory> = Layer.succeed
  * `signedAt` defaults to `0` — `hasSignature`'s trust-on-presence semantics
  * (wayfinder ticket #14) never compare it to anything, so a fixture author
  * should not have to invent a timestamp to describe "this subject signed
- * this".
+ * this". The same is true of `algorithm` and `keyId` below: `evaluateHasSignature`
+ * (`Evaluate.ts`) matches only on `meaning` and, when given, `signerRole` — an
+ * on-file signature with an unrecognized `algorithm` or a stale `keyId` still
+ * matches, and no expiry is derived from `signedAt` either. `Signature`'s doc
+ * comment on the type itself carries the full statement of this limitation;
+ * this fixture just needs no value for either to build a matching row.
  */
 export interface SignatureInput {
   readonly subjectId: string;
@@ -119,9 +129,12 @@ export const signatureHistoryFromSignatures = (
 
   return Layer.succeed(SignatureHistory, {
     name: "signatureHistoryFromSignatures",
+    // A copy per query, not the live array `grouped` holds: handing out the
+    // internal reference would let a caller's push/splice on the returned
+    // list corrupt every future answer for that same key.
     signaturesFor: (query) =>
-      Effect.succeed(
-        grouped.get(JSON.stringify([query.subjectId, query.resourceId ?? null])) ?? [],
-      ),
+      Effect.succeed([
+        ...(grouped.get(JSON.stringify([query.subjectId, query.resourceId ?? null])) ?? []),
+      ]),
   });
 };
