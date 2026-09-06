@@ -60,6 +60,19 @@ const leaf: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
   FastCheck.subarray([0, 1, 2, null]).map(
     (vs): Predicate => ({ _tag: "MemberOf", column: "level", values: vs }),
   ),
+  // A non-number Gte/Lt operand: `level` is sometimes the numeric string
+  // "3"/"0" (see `rows` above). Both interpreters must agree it's always
+  // False, matching this refusal doctrine — this alone would not have caught
+  // the pre-fix bug (a real engine coerces the string; this interpreter
+  // re-derives via the same typeof check `evaluatePredicate` uses), but it
+  // does pin that the fixed rendering ("FALSE", never a real comparison)
+  // keeps agreeing going forward.
+  FastCheck.constantFrom("3", "0", true, false).map(
+    (v): Predicate => ({ _tag: "Compare", column: "level", op: "Gte", value: v }),
+  ),
+  FastCheck.constantFrom("3", "0", true, false).map(
+    (v): Predicate => ({ _tag: "Compare", column: "level", op: "Lt", value: v }),
+  ),
 );
 
 const tree: FastCheck.Arbitrary<Predicate> = FastCheck.letrec<{ node: Predicate }>((tie) => ({

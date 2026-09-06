@@ -187,6 +187,40 @@ describe("compileSql — NULL handling agrees with evaluatePredicate's ===/!==",
       });
     }));
 
+  // evaluatePredicate's compare requires typeof === "number" on BOTH sides
+  // for Gte/Lt and is always False otherwise — a real DB coerces a string
+  // (PostgreSQL: `int_col >= '10'` → 10) or orders NaN specially (above every
+  // number, in PostgreSQL) rather than refusing, admitting rows the reference
+  // evaluator denies for every row regardless of column type. Rendering FALSE
+  // — never binding the value into a real comparison — is what keeps the
+  // compiled SQL from ever running that coercing/ordering comparison at all.
+  it.effect("Gte/Lt with a non-number, non-null value renders FALSE, never a real comparison", () =>
+    Effect.gen(function* () {
+      const nonNumberValues: ReadonlyArray<unknown> = ["10", true, false, Number.NaN];
+      for (const value of nonNumberValues) {
+        assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Gte", value }, "postgres"), {
+          text: "FALSE",
+          params: [],
+        });
+        assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Lt", value }, "postgres"), {
+          text: "FALSE",
+          params: [],
+        });
+      }
+    }));
+
+  it.effect("Gte/Lt with a genuine number still compiles to a real comparison", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Gte", value: 10 }, "postgres"), {
+        text: '"c" >= $1',
+        params: [10],
+      });
+      assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Lt", value: 10 }, "postgres"), {
+        text: '"c" < $1',
+        params: [10],
+      });
+    }));
+
   it.effect("Neq against a non-null value also admits a NULL-valued column", () =>
     Effect.gen(function* () {
       // Plain "c" != $1 alone would exclude a NULL-valued row; `null !== 1`
