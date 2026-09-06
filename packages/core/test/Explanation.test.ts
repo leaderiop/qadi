@@ -194,6 +194,76 @@ describe("explain", () => {
     assert.notInclude(singlePart, " or ");
   });
 
+  it("mentions a non-default fieldStrategy, since it is load-bearing (INV-QD-031)", () => {
+    // The defect this pins: `allOf`/`anyOf` carry a `fieldStrategy` that
+    // changes which fields a multi-part composite discloses, and the old
+    // rendering never mentioned it at all — two policies differing only in
+    // this field rendered to the same sentence. The default (`Intersection`
+    // for `allOf`, `First` for `anyOf`) needs no mention, since that is what
+    // a bare "and"/"either…or" has always meant; only a departure from it is
+    // a real difference to report.
+    const parts = [P.hasRole("a"), P.hasRole("b")];
+
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf(parts))),
+      "requires role `a` and requires role `b`",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf(parts, { fieldStrategy: "Intersection" }))),
+      "requires role `a` and requires role `b`",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf(parts, { fieldStrategy: "Union" }))),
+      "requires role `a` and requires role `b`, combining every part's granted fields",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.allOf(parts, { fieldStrategy: "First" }))),
+      "requires role `a` and requires role `b`, keeping the first allowing part's fields",
+    );
+
+    assert.strictEqual(
+      renderExplanation(explain(P.anyOf(parts))),
+      "either requires role `a` or requires role `b`",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.anyOf(parts, { fieldStrategy: "First" }))),
+      "either requires role `a` or requires role `b`",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.anyOf(parts, { fieldStrategy: "Union" }))),
+      "either requires role `a` or requires role `b`, combining every part's granted fields",
+    );
+    assert.strictEqual(
+      renderExplanation(explain(P.anyOf(parts, { fieldStrategy: "Intersection" }))),
+      "either requires role `a` or requires role `b`, keeping only fields every part grants",
+    );
+
+    // Two policies differing only in fieldStrategy — the exact ambiguity
+    // INV-QD-031 forbids — must no longer render identically.
+    assert.notStrictEqual(
+      renderExplanation(explain(P.allOf(parts, { fieldStrategy: "Union" }))),
+      renderExplanation(explain(P.allOf(parts, { fieldStrategy: "Intersection" }))),
+    );
+  });
+
+  it("never mentions fieldStrategy for a single-part composite, since no strategy can differ there", () => {
+    // `mergeFields` (`Evaluate.ts`) proves any strategy over zero or one field
+    // set is the same result — `Intersection`/`Union`/`First` all reduce to
+    // that lone set — so a single-part composite's strategy is not a real
+    // difference for the rendering to report, whatever value it carries.
+    const one = [P.hasRole("a")];
+    for (const fieldStrategy of ["Intersection", "Union", "First"] as const) {
+      assert.strictEqual(
+        renderExplanation(explain(P.allOf(one, { fieldStrategy }))),
+        "requires role `a`",
+      );
+      assert.strictEqual(
+        renderExplanation(explain(P.anyOf(one, { fieldStrategy }))),
+        "either requires role `a`",
+      );
+    }
+  });
+
   it("A RENDERING DENOTES EXACTLY ONE POLICY", () => {
     // The defect this replaced. `a or (b and c)` and `(a or b) and c` are not
     // the same policy — the first admits a lone `a` — and they rendered to a
