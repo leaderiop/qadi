@@ -31,7 +31,13 @@ export interface GuardHealthCheckResult {
   /** Epoch millis the probe ran, from `Clock` rather than `Date.now()`. */
   readonly checkedAt: number;
   readonly latencyMillis: number;
-  /** The failed evaluation's error tag. Empty when `healthy`. */
+  /**
+   * The failed evaluation's error tags. A single-element array today — the
+   * probed evaluation fails with at most one `EvaluationError` — but the field
+   * is plural and array-typed because that is not a guarantee this type makes;
+   * a caller should read it as "whatever tags describe why this is unhealthy",
+   * not assume exactly one. Empty when `healthy`.
+   */
   readonly errors: ReadonlyArray<string>;
 }
 
@@ -51,6 +57,11 @@ export interface GuardHealthCheckResult {
  * `decide`/`enforce`/`guard`: this is the exact identifier two independent
  * `wayfinder:map` issues used for this out-of-scope, build-directly item —
  * keeping it lets a reader land on this export from either map's text.
+ *
+ * The returned object is checked with `satisfies GuardHealthCheckResult`
+ * (as `Simplify.ts`/`Explanation.ts` pin their own return shapes) so the two
+ * cannot drift apart silently — without it, a field renamed on one side alone
+ * would still typecheck via the surrounding `Effect.fn` inference.
  */
 export const createGuardHealthCheck = Effect.fn("qadi.guardHealthCheck")(function* (
   canaryPolicy: Policy,
@@ -64,5 +75,5 @@ export const createGuardHealthCheck = Effect.fn("qadi.guardHealthCheck")(functio
     checkedAt,
     latencyMillis: Duration.toMillis(elapsed),
     errors: Result.isFailure(result) ? [result.failure._tag] : [],
-  };
+  } satisfies GuardHealthCheckResult;
 });
