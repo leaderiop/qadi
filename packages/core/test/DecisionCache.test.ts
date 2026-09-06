@@ -560,6 +560,72 @@ describe("DecisionCache", () => {
       }),
   );
 
+  it.effect(
+    "a clear mid-compute is not undone by that compute finishing last, with the stale answer",
+    () =>
+      Effect.gen(function* () {
+        const started1 = yield* Deferred.make<void>();
+        const release1 = yield* Deferred.make<void>();
+        const started2 = yield* Deferred.make<void>();
+        const release2 = yield* Deferred.make<void>();
+        const invocations = yield* Ref.make(0);
+        // Invocation 1 (the pre-clear, stale compute) answers ALLOW-eligible;
+        // invocation 2 (the post-clear, fresh compute) answers DENY-eligible
+        // — deliberately different outcomes, so whichever one's write wins
+        // the cache is observable from a later hit's own verdict, not just
+        // from the cache's size.
+        const resolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.updateAndGet(invocations, (n) => n + 1).pipe(
+              Effect.flatMap((n) =>
+                n === 1
+                  ? Deferred.succeed(started1, undefined).pipe(
+                      Effect.flatMap(() => Deferred.await(release1)),
+                      Effect.as(5),
+                    )
+                  : Deferred.succeed(started2, undefined).pipe(
+                      Effect.flatMap(() => Deferred.await(release2)),
+                      Effect.as(0),
+                    ),
+              ),
+            ),
+        });
+
+        yield* Effect.gen(function* () {
+          // First ask: claims the key, blocks inside the resolver on release1.
+          const claimant = yield* Effect.forkChild(evaluate(needsLookup));
+          yield* Deferred.await(started1);
+
+          // Flushed while that compute is still in flight.
+          yield* DecisionCache.use((c) => c.clear);
+
+          // A second ask for the exact same question, made after the flush
+          // and before the first compute has finished. Under the bug this
+          // would coalesce onto the stale in-flight claim and never even
+          // reach the resolver a second time.
+          const second = yield* Effect.forkChild(evaluate(needsLookup));
+          yield* Deferred.await(started2);
+
+          // Let the SECOND (fresh) compute finish and cache its answer
+          // first, then the FIRST (stale) compute finish and settle last —
+          // the ordering under which the bug's unconditional `entries` write
+          // would let the stale result overwrite the fresh one.
+          yield* Deferred.succeed(release2, undefined);
+          const secondResult = yield* Fiber.join(second);
+          yield* Deferred.succeed(release1, undefined);
+          yield* Fiber.join(claimant);
+
+          assert.isFalse(isAllowed(secondResult), "the fresh, post-clear compute correctly denies");
+
+          // A third ask should hit the cache — and read back the fresh
+          // DENY, never the stale ALLOW the first compute settled with last.
+          const third = yield* evaluate(needsLookup);
+          assert.strictEqual(yield* Ref.get(invocations), 2, "the third ask was a cache hit, not a third compute");
+          assert.isFalse(isAllowed(third), "a clear mid-compute must not let that compute's stale result win");
+        }).pipe(Effect.provide(testLayer(alice, { attributes: resolver })), Effect.provide(decisionCacheLayer()));
+      }),
+  );
+
   describe("capacity", () => {
     it.effect("rejects a negative capacity rather than looping forever", () =>
       Effect.gen(function* () {
