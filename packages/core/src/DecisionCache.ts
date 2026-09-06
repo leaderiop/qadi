@@ -48,15 +48,26 @@ import type { SignatureHistory } from "./SignatureHistory.ts";
  * which this module documents as a supported choice — the first verdict for a
  * given id won, permanently, in whichever direction it happened to be asked
  * first ([INV-QD-033](../../../spec/invariants.md#inv-qd-033-a-cached-decision-belongs-to-the-grants-that-earned-it)).
- * `AuthSubject` compares structurally, `HashSet` grants included, so the key
- * now covers everything a decision can depend on.
+ * `AuthSubject` compares structurally, grants included, so the key now covers
+ * everything a decision can depend on.
  *
  * Used as a `HashMap` key **directly**, with no serialization step
  * ([INV-QD-030](../../../spec/invariants.md#inv-qd-030-cache-key-uniqueness)).
  * Effect's `Equal`/`Hash` compare plain objects structurally, nested included —
  * the same property `Atom.family` relies on in `@qadi/react` — so two equal
  * questions hit however their properties were ordered, and two different ones
- * cannot collide.
+ * cannot collide. `AuthSubject.roles`/`.permissions` are `ReadonlySet<RoleName>`
+ * / `ReadonlySet<PermissionKey>` — the built-in JS `Set`, not `effect/HashSet`
+ * — but that is not a gap: `effect@4.0.0-rc.112`'s `Equal.equals`/`Hash.hash`
+ * special-case `self instanceof Set` (and `Map`) and fold over their elements
+ * order-independently, the same way they fold over an array's, so two subjects
+ * whose grants are equal in content but held in two different `Set` objects —
+ * the common case, since `makeSubject`/`fromRoles` each build a fresh `Set` —
+ * are equal keys and this cache hits. Verified empirically against the
+ * installed `effect` build, not assumed from the `Equal`/`Hash` docs, since a
+ * prior version of this comment called the field `HashSet` and asserted the
+ * same property for the wrong reason; `DecisionCache.test.ts`'s "equal grants,
+ * different Set identity, still a hit" pins the actual mechanism.
  *
  * The predecessor of this was `JSON.stringify`, whose own doc comment claimed
  * property-order misses were the price of having "no chance of colliding". It

@@ -295,12 +295,61 @@ describe("DecisionCache", () => {
       assert.deepStrictEqual(yield* both(scoped, full), [false, true]);
     }));
 
+  it.effect(
+    "equal grants held in different Set objects still hit — not a HashSet, but Effect treats built-in Set structurally",
+    () =>
+      Effect.gen(function* () {
+        // DecisionCache.ts's own doc comment used to call this field
+        // `HashSet`. It is not: `AuthSubject.roles`/`.permissions` are the
+        // built-in JS `Set` (`ReadonlySet<RoleName>` / `ReadonlySet<PermissionKey>`).
+        // What actually makes two subjects with equal-content grants the same
+        // cache key is that `effect@4.0.0-rc.112`'s `Equal`/`Hash` special-case
+        // `instanceof Set` and fold its elements order-independently — verified
+        // directly here, not assumed, since a naive audit of "is this a
+        // HashSet?" would answer "no" and wrongly conclude this degrades to
+        // reference equality (a cache-miss-only failure mode, but still a
+        // wrong diagnosis worth pinning against regressing either way: if a
+        // future Effect version stops special-casing built-in `Set`, this
+        // test starts failing where it used to pass, not silently degrading).
+        const calls: Array<string> = [];
+        // Two independently-built subjects: same content, but `makeSubject`
+        // allocates a fresh `Set` on every call, so `roles`/`permissions` are
+        // never the same object between them.
+        const rebuilt = () =>
+          subjectWith({ id: "alice", roles: ["admin"], permissions: ["doc:read"] });
+        const first = rebuilt();
+        const second = rebuilt();
+        assert.notStrictEqual(first.roles, second.roles, "must be two distinct Set objects");
+        assert.notStrictEqual(
+          first.permissions,
+          second.permissions,
+          "must be two distinct Set objects",
+        );
+
+        yield* Effect.gen(function* () {
+          yield* evaluate(needsLookup).pipe(
+            Effect.provide(testLayer(first, { attributes: counting(calls) })),
+          );
+          yield* evaluate(needsLookup).pipe(
+            Effect.provide(testLayer(second, { attributes: counting(calls) })),
+          );
+        }).pipe(Effect.provide(decisionCacheLayer()));
+
+        assert.strictEqual(
+          calls.length,
+          1,
+          "equal-content grants in different Set objects must still hit",
+        );
+      }),
+  );
+
   it.effect("the same subject still hits, so the cache still caches", () =>
     Effect.gen(function* () {
       // The control. Keying on the whole subject would be worthless if two
       // requests carrying equal subjects missed — `AuthSubject` compares
-      // structurally, HashSet grants included, so a subject rebuilt per
-      // request from the same token is the same key.
+      // structurally, grants included (Effect treats built-in `Set`
+      // structurally too — see the dedicated test above), so a subject
+      // rebuilt per request from the same token is the same key.
       //
       // The resolver has to be reachable from THIS layer, not an outer one:
       // `Effect.provide` merges the provided context OVER the ambient one, so
