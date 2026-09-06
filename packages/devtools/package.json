@@ -22,12 +22,14 @@
     ".": {
       "types": "./lib/index.d.ts",
       "bun": "./src/index.ts",
-      "import": "./lib/index.js"
+      "import": "./lib/index.js",
+      "default": "./lib/index.js"
     },
     "./react": {
       "types": "./lib/react/index.d.ts",
       "bun": "./src/react/index.ts",
-      "import": "./lib/react/index.js"
+      "import": "./lib/react/index.js",
+      "default": "./lib/react/index.js"
     }
   },
   "files": [
