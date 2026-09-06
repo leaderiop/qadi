@@ -209,6 +209,27 @@ describe("compileSql — NULL handling agrees with evaluatePredicate's ===/!==",
       }
     }));
 
+  // ticket 157 — the same guard above already excludes both `string` and
+  // `boolean` alongside NaN, not merely non-finite numbers; this pins that
+  // through the And/Negate composition path too, not only a bare Compare, so
+  // the guard's placement inside renderNode's Compare case (reached once per
+  // leaf regardless of nesting) cannot regress unnoticed.
+  it.effect("a string or boolean Gte/Lt value renders FALSE even nested under And/Negate", () =>
+    Effect.gen(function* () {
+      const nested: Predicate = {
+        _tag: "And",
+        predicates: [
+          { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" },
+          { _tag: "Negate", predicate: { _tag: "Compare", column: "score", op: "Gte", value: "10" } },
+          { _tag: "Compare", column: "sealed", op: "Lt", value: true },
+        ],
+      };
+      assert.deepStrictEqual(yield* render(nested, "postgres"), {
+        text: '("tenantId" = $1 AND CASE WHEN (FALSE) THEN FALSE ELSE TRUE END AND FALSE)',
+        params: ["t-1"],
+      });
+    }));
+
   it.effect("Gte/Lt with a genuine number still compiles to a real comparison", () =>
     Effect.gen(function* () {
       assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Gte", value: 10 }, "postgres"), {
