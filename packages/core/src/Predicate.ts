@@ -129,22 +129,38 @@ const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
  *
  * This is what makes a second interpreter trustworthy rather than merely
  * plausible. Callers compiling to SQL should differential-test against it.
+ *
+ * Dispatches through a `Match.type<Predicate>()` built once at module scope,
+ * per AGENTS.md §5a's guidance for a per-row, per-node hot path — this
+ * replaces a `Match.value(self)` that was rebuilt on every call, the form a
+ * naive conversion produces and the one §5a measures as 3.5–7.7x slower at
+ * the dispatch site. `row` is call-time state a matcher built once at module
+ * scope cannot see, so — exactly like the four house-style-budgeted switches
+ * this is *not* one of — each arm returns a closure over `row` rather than
+ * reading it directly. Matcher.ts's `referencesAction`/`referencesResource`
+ * (imported below, used further down) need no such closure because they take
+ * no second argument; `restrictsFields` (below) is a third shape again — it
+ * takes a `depth`/`maxDepth` pair and stays a per-call `Match.value`,
+ * documented at its own definition.
  */
+type Row = Readonly<Record<string, unknown>>;
+
+const dispatchPredicate: (self: Predicate) => (row: Row) => boolean = Match.type<Predicate>().pipe(
+  Match.tagsExhaustive({
+    True: () => (_row: Row) => true,
+    False: () => (_row: Row) => false,
+    Compare: (p) => (row: Row) => compare(p.op, row[p.column], p.value),
+    MemberOf: (p) => (row: Row) => p.values.includes(row[p.column]),
+    And: (p) => (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)),
+    Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),
+    Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row),
+  }),
+);
+
 export const evaluatePredicate = (
   self: Predicate,
   row: Readonly<Record<string, unknown>>,
-): boolean =>
-  Match.value(self).pipe(
-    Match.tagsExhaustive({
-      True: () => true,
-      False: () => false,
-      Compare: (p) => compare(p.op, row[p.column], p.value),
-      MemberOf: (p) => p.values.includes(row[p.column]),
-      And: (p) => p.predicates.every((inner) => evaluatePredicate(inner, row)),
-      Or: (p) => p.predicates.some((inner) => evaluatePredicate(inner, row)),
-      Negate: (p) => !evaluatePredicate(p.predicate, row),
-    }),
-  );
+): boolean => dispatchPredicate(self)(row);
 
 // ---------------------------------------------------------------------------
 // Translation
@@ -230,27 +246,57 @@ const columnPredicate = (
   );
 };
 
-/** True when any node in the tree restricts visible fields. */
-const restrictsFields: (policy: Policy) => boolean = Match.type<Policy>().pipe(
-  Match.tagsExhaustive({
-    HasPermission: (p) => p.fields !== undefined,
-    HasAttribute: (p) => p.fields !== undefined,
-    HasResourceAttribute: (p) => p.fields !== undefined,
-    HasRelationship: (p) => p.fields !== undefined,
-    HasAction: (p) => p.fields !== undefined,
-    HasActed: (p) => p.fields !== undefined,
-    HasNotActed: (p) => p.fields !== undefined,
-    HasCustom: (p) => p.fields !== undefined,
-    HasSignature: (p) => p.fields !== undefined,
-    HasRole: () => false,
-    AllOf: (p) => p.policies.some(restrictsFields),
-    AnyOf: (p) => p.policies.some(restrictsFields),
-    Rules: (p) => p.rules.some((r) => restrictsFields(r.condition)),
-    Not: (p) => restrictsFields(p.policy),
-    Obliged: (p) => restrictsFields(p.policy),
-    Labeled: (p) => restrictsFields(p.policy),
-  }),
-);
+/** Sentinel `restrictsFields` returns instead of recursing past `maxDepth`. */
+const TOO_DEEP = "TooDeep" as const;
+type TooDeep = typeof TOO_DEEP;
+
+/**
+ * True when any node in the tree restricts visible fields — bounded by
+ * `depth`/`maxDepth`, the same guard `translateNode`/`evaluateNode` check
+ * before recursing further.
+ *
+ * `toPredicate` calls this *before* `translateNode`'s own depth-bounded walk,
+ * so without a guard here a pathological, hand-built-in-process `Policy` (not
+ * one decoded from untrusted JSON — `MAX_DECODE_DEPTH` already bounds that
+ * path in `Policy.ts`) could overflow the call stack with a raw `RangeError`
+ * before `translateNode` is ever reached. Unlike `evaluateNode`'s recursion,
+ * which runs inside `Effect.gen` and is trampolined by the runtime, this is a
+ * plain synchronous function — its recursion genuinely consumes the native
+ * call stack, so the depth check has to run first, not merely exist.
+ */
+const restrictsFields = (policy: Policy, depth: number, maxDepth: number): boolean | TooDeep => {
+  if (depth > maxDepth) return TOO_DEEP;
+
+  const child = (p: Policy): boolean | TooDeep => restrictsFields(p, depth + 1, maxDepth);
+  const anyChild = (children: ReadonlyArray<Policy>): boolean | TooDeep => {
+    for (const c of children) {
+      const result = child(c);
+      if (result === TOO_DEEP || result) return result;
+    }
+    return false;
+  };
+
+  return Match.value(policy).pipe(
+    Match.tagsExhaustive({
+      HasPermission: (p) => p.fields !== undefined,
+      HasAttribute: (p) => p.fields !== undefined,
+      HasResourceAttribute: (p) => p.fields !== undefined,
+      HasRelationship: (p) => p.fields !== undefined,
+      HasAction: (p) => p.fields !== undefined,
+      HasActed: (p) => p.fields !== undefined,
+      HasNotActed: (p) => p.fields !== undefined,
+      HasCustom: (p) => p.fields !== undefined,
+      HasSignature: (p) => p.fields !== undefined,
+      HasRole: () => false,
+      AllOf: (p) => anyChild(p.policies),
+      AnyOf: (p) => anyChild(p.policies),
+      Rules: (p) => anyChild(p.rules.map((r) => r.condition)),
+      Not: (p) => child(p.policy),
+      Obliged: (p) => child(p.policy),
+      Labeled: (p) => child(p.policy),
+    }),
+  );
+};
 
 /**
  * The subset of {@link EvaluationError} `translateNode`/`toPredicate` can
@@ -489,21 +535,20 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   options?: PredicateOptions,
 ) {
   const subject = yield* CurrentSubject;
+  const maxDepth = options?.maxDepth ?? DEFAULT_MAX_DEPTH;
 
-  if (restrictsFields(policy)) {
+  const fieldsCheck = restrictsFields(policy, 0, maxDepth);
+  if (fieldsCheck === TOO_DEEP) {
+    return yield* Effect.fail(new PolicyTooDeep({ maxDepth }));
+  }
+  if (fieldsCheck) {
     return yield* untranslatable(
       policy._tag,
       "the policy restricts visible fields, and a predicate selects rows rather than columns",
     );
   }
 
-  const predicate = yield* translateNode(
-    policy,
-    subject,
-    options?.action,
-    0,
-    options?.maxDepth ?? DEFAULT_MAX_DEPTH,
-  );
+  const predicate = yield* translateNode(policy, subject, options?.action, 0, maxDepth);
 
   yield* Effect.annotateCurrentSpan({
     "qadi.subject_id": subject.id,

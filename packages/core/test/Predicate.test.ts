@@ -446,6 +446,21 @@ describe("untranslatable fails loudly and never widens", () => {
       if (r.failure._tag !== "PolicyTooDeep") return;
       assert.strictEqual(r.failure.maxDepth, 3);
     }));
+
+  it.effect("an extremely deep, hand-built tree fails with PolicyTooDeep, not a stack overflow", () =>
+    Effect.gen(function* () {
+      // `restrictsFields` runs before `translateNode`'s own depth-bounded walk
+      // and, unlike it, is plain synchronous recursion rather than
+      // Effect-trampolined — so it has to bound its own recursion before
+      // reaching a depth this deep, or the call stack overflows first with a
+      // raw RangeError instead of this typed failure (ticket 135).
+      let policy: P.Policy = P.hasRole("editor");
+      for (let i = 0; i < 100_000; i += 1) policy = P.not(policy);
+      const r = yield* Effect.result(translate(policy));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "PolicyTooDeep");
+    }));
 });
 
 describe("restrictsFields protects every tag, not just HasPermission and Not", () => {
