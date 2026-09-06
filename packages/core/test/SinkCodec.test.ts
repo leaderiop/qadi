@@ -607,10 +607,16 @@ describe("the wire is untrusted", () => {
     }
   });
 
-  it("a record naming neither outcome becomes a Failed that says so", () => {
+  it("a record naming neither outcome becomes a Failed that says so (ticket 96: pins the current MissingResource/ACL004 stand-in)", () => {
     // Unreachable for anything this module encoded, but the wire is untrusted.
     // A row saying "the sender sent neither outcome" beats a dropped record, and
     // can never be mistaken for a decision.
+    //
+    // This pins today's *known-conflated* behavior (see the doc comment on
+    // `fromWire`'s `outcome` fallback): a protocol violation is reported by
+    // reusing `MissingResource`, a genuine resolver-wiring failure's tag and
+    // `ACL004` code. A future dedicated marker replacing this should update
+    // this test alongside it, not merely satisfy it by accident.
     const back = fromWire({
       _tag: "Decision",
       evaluationId: "e",
@@ -625,9 +631,45 @@ describe("the wire is untrusted", () => {
       // able to tell a malformed payload from a real failure.
       const error = back.outcome.error;
       assert.strictEqual(error._tag, "MissingResource");
+      assert.strictEqual(ERROR_CODES[error._tag], "ACL004");
       if (error._tag === "MissingResource") {
         assert.include(error.attribute, "malformed record");
       }
+    }
+  });
+
+  it("a record naming BOTH outcomes silently prefers `decided` (ticket 155: pins current behavior)", () => {
+    // Unreachable for anything this module encodes, but the wire is
+    // untrusted, and nothing today rejects a record naming both. See the
+    // conflation note on `fromWire`'s `outcome` fallback: there is no
+    // principled reason `decided` wins over `failed` here — it is an
+    // artifact of check order, not a decision — and a dedicated "both
+    // present" marker is the right fix, tracked rather than built in this
+    // change (it would require a new `EvaluationError` tag touched by
+    // `@qadi/http`'s exhaustive `EnforcementError` match, among other call
+    // sites). This test exists so that changing the preference, or rejecting
+    // the record outright, is a deliberate edit to this test rather than an
+    // unnoticed behavior change.
+    const back = fromWire({
+      _tag: "Decision",
+      evaluationId: "e",
+      at: 0,
+      subjectId: "u1",
+      policy: P.hasPermission(read),
+      decided: {
+        _tag: "Deny",
+        evaluationId: "e",
+        subjectId: "u1",
+        durationMillis: 1,
+        trace: trace(false),
+        obligations: [],
+      },
+      failed: { _tag: "MissingResource", code: "ACL004", attribute: "owner" },
+    });
+
+    assert.strictEqual(back._tag, "Decision");
+    if (back._tag === "Decision") {
+      assert.strictEqual(back.outcome._tag, "Decided");
     }
   });
 });
