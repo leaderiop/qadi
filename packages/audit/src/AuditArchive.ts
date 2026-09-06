@@ -34,6 +34,12 @@ export interface AuditArchive {
      * archive time. Not cryptographic tamper-evidence — see
      * `SequenceIntegrity.ts` — and not a claim about `keyMaterial` below,
      * which this package carries but never uses to sign or verify anything.
+     *
+     * `false` when fewer than two entries carry a `sequenceNumber`:
+     * sequencing is opt-in and `verifySequenceIntegrity`'s gap check has
+     * nothing to compare below two samples, so an archive built entirely (or
+     * almost entirely) from unsequenced entries has not actually had its
+     * sequence verified, whatever this field said before this correction.
      */
     readonly sequenceIntegrityVerified: boolean;
   };
@@ -59,6 +65,13 @@ const ARCHIVE_VERSION = "1";
  * — stably, so the (opt-in, unordered-by-definition) entries carrying none
  * keep their relative order rather than being shuffled by an incidental
  * comparator result.
+ *
+ * `sequenceIntegrityVerified` is `true` only when at least two entries carry
+ * a `sequenceNumber` — `verifySequenceIntegrity`'s gap-and-duplicate check
+ * has nothing to compare below two samples, so passing it with zero or one
+ * sequenced entries proves nothing. Passing that check is necessary but not
+ * sufficient for the claim; this second condition is what makes it
+ * sufficient too.
  */
 export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(function* (
   entries: ReadonlyArray<AuditEntry>,
@@ -71,12 +84,14 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
     (a, b) => (a.sequenceNumber ?? Number.POSITIVE_INFINITY) - (b.sequenceNumber ?? Number.POSITIVE_INFINITY),
   );
 
+  const sequencedCount = entries.filter((entry) => entry.sequenceNumber !== undefined).length;
+
   const archive: AuditArchive = {
     archiveVersion: ARCHIVE_VERSION,
     metadata: {
       createdAt: now,
       entryCount: ordered.length,
-      sequenceIntegrityVerified: true,
+      sequenceIntegrityVerified: sequencedCount >= 2,
     },
     entries: ordered,
     ...(options?.keyMaterial === undefined ? {} : { keyMaterial: options.keyMaterial }),
