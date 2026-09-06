@@ -1035,6 +1035,10 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     policy,
     resource: options?.resource,
     action: options?.action,
+    // A shallower `maxDepth` can turn this same question into `PolicyTooDeep`
+    // instead of an `Allow`/`Deny`, so it belongs in the key alongside
+    // `resource` and `action` — see `DecisionCacheKey`'s own doc comment.
+    maxDepth: options?.maxDepth ?? DEFAULT_MAX_DEPTH,
   };
 
   // `Effect.suspend`, not a direct call: `evaluateNode` is a plain switch, not

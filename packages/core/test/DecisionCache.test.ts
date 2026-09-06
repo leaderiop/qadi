@@ -182,6 +182,32 @@ describe("DecisionCache", () => {
       assert.isFalse(isAllowed(write));
     }));
 
+  it.effect("maxDepth is part of the question — a shallower limit is not a cache hit", () =>
+    Effect.gen(function* () {
+      // The key documents itself as "everything that can change an answer",
+      // and maxDepth can: the same subject, policy, resource and action can
+      // still turn Allow into PolicyTooDeep under a shallower limit. Three
+      // levels of Not evaluates fine at maxDepth 3 and overflows at maxDepth 2.
+      let policy: P.Policy = P.hasRole("a");
+      for (let i = 0; i < 3; i++) policy = P.not(policy);
+      const subject = subjectWith({ id: "u-1", roles: ["a"] });
+
+      const [atLimit, shallower] = yield* Effect.gen(function* () {
+        const a = yield* Effect.result(evaluate(policy, { maxDepth: 3 }));
+        const b = yield* Effect.result(evaluate(policy, { maxDepth: 2 }));
+        return [a, b] as const;
+      }).pipe(Effect.provide(testLayer(subject)), Effect.provide(decisionCacheLayer()));
+
+      assert.strictEqual(atLimit._tag, "Success");
+      // Under the bug, this hit the entry the first ask left behind instead of
+      // re-evaluating under its own (shallower) limit.
+      assert.strictEqual(shallower._tag, "Failure");
+      if (shallower._tag !== "Failure") return;
+      assert.strictEqual(shallower.failure._tag, "PolicyTooDeep");
+      if (shallower.failure._tag !== "PolicyTooDeep") return;
+      assert.strictEqual(shallower.failure.maxDepth, 2);
+    }));
+
   it.effect("a denial is cached too, and stays a denial", () =>
     Effect.gen(function* () {
       // A cache that only remembered allows would re-ask every denial, which is the
