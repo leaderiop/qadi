@@ -182,6 +182,37 @@ describe("DecisionCache", () => {
       assert.isFalse(isAllowed(write));
     }));
 
+  it.effect(
+    "maxDepth is part of the question — a shallower limit is not served the generous limit's cached answer",
+    () =>
+      Effect.gen(function* () {
+        // `maxDepth` bounds recursion (`PolicyTooDeep`) exactly as `resource`
+        // and `action` bound the answer, so a trace cached under a generous
+        // limit must not be handed to a later ask that supplies a shallower
+        // one for the same (subject, policy, resource, action) — the same
+        // defect ticket 18 fixes in `DecisionCache.ts`'s own key type.
+        let deep: P.Policy = P.hasRole("a");
+        for (let i = 0; i < 5; i++) deep = P.not(deep);
+
+        const [generous, shallow] = yield* Effect.gen(function* () {
+          const a = yield* Effect.result(evaluate(deep, { maxDepth: 10 }));
+          const b = yield* Effect.result(evaluate(deep, { maxDepth: 2 }));
+          return [a, b] as const;
+        }).pipe(Effect.provide(testLayer(alice)), Effect.provide(decisionCacheLayer()));
+
+        assert.strictEqual(generous._tag, "Success");
+
+        // Under the bug this is a cache HIT on the first call's trace: a
+        // `Success` carrying the (misleading) generous-limit answer, never
+        // the `PolicyTooDeep` this depth and limit actually call for.
+        assert.strictEqual(shallow._tag, "Failure");
+        if (shallow._tag !== "Failure") return;
+        assert.strictEqual(shallow.failure._tag, "PolicyTooDeep");
+        if (shallow.failure._tag !== "PolicyTooDeep") return;
+        assert.strictEqual(shallow.failure.maxDepth, 2);
+      }),
+  );
+
   it.effect("a denial is cached too, and stays a denial", () =>
     Effect.gen(function* () {
       // A cache that only remembered allows would re-ask every denial, which is the

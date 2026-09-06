@@ -20,7 +20,7 @@ import { CustomPredicate } from "./CustomPredicate.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
-import type { CacheOutcome, DecisionCacheKey } from "./DecisionCache.ts";
+import type { CacheOutcome } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
@@ -1042,7 +1042,25 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     Option.isSome(sink)
       ? Effect.catchCause(sink.value.record(record), () => Effect.void)
       : Effect.void;
-  const cacheKey: DecisionCacheKey = {
+  // `maxDepth` bounds recursion (`PolicyTooDeep`), so it can change the answer
+  // exactly as `resource` and `action` can: two concurrent asks for the same
+  // (subject, policy, resource, action) but different `maxDepth` are different
+  // questions, and coalescing them would let `getOrCompute` serve one caller's
+  // `PolicyTooDeep` failure to a caller who asked for a deeper limit and would
+  // otherwise have gotten a real answer (this is the Evaluate.ts side of the
+  // same defect ticket 18 fixes in `DecisionCache.ts`'s own key type).
+  //
+  // `DecisionCacheKey` does not (yet) declare this field, so this is
+  // deliberately **not** annotated with that type — annotating an object
+  // literal with a type lacking a property it carries is an excess-property
+  // error. `DecisionCache.ts`'s own doc comment is what makes the unannotated
+  // form correct rather than merely compiling: Effect's `Equal`/`Hash` compare
+  // plain objects structurally, over every own key actually present, typed or
+  // not — so `maxDepth` here already makes two otherwise-identical asks with
+  // different limits hash and compare unequal, and passing this object (not a
+  // fresh literal) to `getOrCompute` type-checks against `DecisionCacheKey`
+  // by ordinary structural widening.
+  const cacheKey = {
     // The whole subject, not `subject.id`: two tokens for one user carry the
     // same id and different grants, and the id-only key served the first
     // verdict to both (INV-QD-033).
@@ -1050,6 +1068,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     policy,
     resource: options?.resource,
     action: options?.action,
+    maxDepth: options?.maxDepth ?? DEFAULT_MAX_DEPTH,
   };
 
   // `Effect.suspend`, not a direct call: `evaluateNode` is a plain switch, not
