@@ -344,8 +344,14 @@ export const renderExplanation = (
 ): string => {
   const term = options?.term ?? ((t: string) => `\`${t}\``);
 
-  const fieldsText = (fields: ReadonlyArray<string> | undefined) =>
-    fields === undefined ? "" : `, exposing only ${fields.map(term).join(", ")}`;
+  const fieldsText = (fields: ReadonlyArray<string> | undefined): string => {
+    if (fields === undefined) return "";
+    // An empty array is the bottom of the lattice, not a missing list — say
+    // so outright rather than joining zero terms into a dangling
+    // ", exposing only ".
+    if (fields.length === 0) return ", exposing no fields";
+    return `, exposing only ${fields.map(term).join(", ")}`;
+  };
 
   const go = (self: Explanation): string =>
     Match.value(self).pipe(

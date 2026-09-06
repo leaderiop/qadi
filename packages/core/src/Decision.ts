@@ -260,11 +260,17 @@ export const renderTrace = (
   const term = options?.term ?? ((t: string) => `\`${t}\``);
   const indent = options?.indent ?? "  ";
 
-  const fieldsText = (fields: ReadonlyArray<string> | undefined): string =>
+  const fieldsText = (fields: ReadonlyArray<string> | undefined): string => {
     // `undefined` is the top of the lattice — every field — so it renders as
     // nothing rather than as an empty list, which would invert the meaning
     // (INV-QD-004).
-    fields === undefined ? "" : `, exposing only ${fields.map(term).join(", ")}`;
+    if (fields === undefined) return "";
+    // An empty array is the bottom of the lattice, not a missing list — say
+    // so outright rather than joining zero terms into a dangling
+    // ", exposing only ".
+    if (fields.length === 0) return ", exposing no fields";
+    return `, exposing only ${fields.map(term).join(", ")}`;
+  };
 
   const obligationsText = (owed: ReadonlyArray<Obligation>): string =>
     owed.length === 0
