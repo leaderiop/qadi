@@ -1090,6 +1090,38 @@ describe("the action dimension", () => {
       assert.isTrue(isAllowed(d));
     }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] })))));
 
+  it.effect(
+    "subject, resource and action references all resolve correctly through Not/Rules/Labeled",
+    () =>
+      Effect.gen(function* () {
+        // `matcherContext` is now built once, in `evaluate`'s `Effect.suspend`,
+        // and threaded as a parameter through `evaluateNode` and its
+        // `AllOf`/`Rules` helpers rather than rebuilt inside every
+        // `evaluateNode` call. This exercises every shape that threading has
+        // to survive in one tree: two nested `Not`s (each a `depth + 1`
+        // recursive call), a `Rules` table's sequential walk, and `Labeled`'s
+        // wrapper — with a leaf under each reading a different one of
+        // `subject()`/`resource()`/`action()`. A mis-threaded parameter at any
+        // one of those call sites would make its leaf compare against stale
+        // or wrong data.
+        const policy = P.allOf([
+          P.not(P.not(P.hasResourceAttribute("owner", M.eq(M.subjectId())))),
+          P.rules([P.permitWhen(P.hasAttribute("op", M.eq(M.action())))]),
+          P.labeled("action-check", P.hasResourceAttribute("requiredOp", M.eq(M.action()))),
+        ]);
+
+        const d = yield* evaluate(policy, {
+          resource: { owner: "u1", requiredOp: "approve" },
+          action: "approve",
+        });
+        assert.isTrue(isAllowed(d));
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1", attributes: { op: "approve" } })),
+        ),
+      ),
+  );
+
   it.effect("read-down and write-up are expressible in one stored policy", () =>
     Effect.gen(function* () {
       // The rule eight models were blocked on: the verb selects the comparison,
