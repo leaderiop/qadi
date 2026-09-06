@@ -20,6 +20,17 @@ import type { AuditEntry } from "./AuditEntry.ts";
  * discriminant: a caller — and the circuit breaker
  * ([CircuitBreaker.ts](./CircuitBreaker.ts)) — needs to react to the two
  * differently. A malformed record is not retriable; a store outage might be.
+ *
+ * **`entry` is the whole row** — subject id, resource, policy, potentially
+ * PII — carried deliberately, since a retry or a dead-letter write needs the
+ * original entry, not a description of it. That is also the risk: any
+ * `Effect.catchAll`/`Effect.tapErrorCause` a caller writes that logs this
+ * error whole (`console.error(e)`, a generic error-reporting middleware)
+ * publishes the audited decision's contents into whatever that log pipeline
+ * is, separate from the audited store's own access control. A caller
+ * handling this error should read `cause` for the failure and reach for
+ * `entry` only to retry or stage it — never pass the error itself to a
+ * general-purpose logger.
  */
 export class AuditWriteError extends Data.TaggedError("AuditWriteError")<{
   readonly entry: AuditEntry;
