@@ -594,6 +594,27 @@ describe("choosing a policy", () => {
     assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "ALLOW");
   });
 
+  // A stale index held past the list shrinking must not fall off the end:
+  // `sightings[chosen]` reading `undefined` silently dropped the selected
+  // policy instead of tracking the row the dropdown now shows.
+  it("clamps a selection that outlives the list shrinking", () => {
+    const view = render(
+      <Simulator sightings={[sighting(hasRole("a")), sighting(hasPermission(read))]} />,
+    );
+    act(() => {
+      fireEvent.change(screen.getByTestId("qadi-simulator-policy"), { target: { value: "1" } });
+    });
+    run();
+    assert.include(screen.getByTestId("qadi-simulator-result").textContent ?? "", "DENY");
+
+    view.rerender(<Simulator sightings={[sighting(hasRole("a"))]} />);
+
+    assert.strictEqual(
+      (screen.getByTestId("qadi-simulator-policy") as HTMLSelectElement).value,
+      "0",
+    );
+  });
+
   it("leaves a replayed row behind when another policy is chosen", () => {
     const decided = entryOf(decisionRecord({ evaluationId: "ev-91", policy: hasPermission(read) }));
     render(<Simulator sightings={[sighting(hasRole("a"))]} seed={decided} />);

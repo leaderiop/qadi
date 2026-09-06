@@ -66,7 +66,13 @@ export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
   const [preview, setPreview] = useState<Policy | undefined>(undefined);
   const [pasteError, setPasteError] = useState<string | undefined>(undefined);
 
-  const sighting = sightings[selected];
+  // `selected` is state and the list can shrink under it — "clear view" while
+  // an index from a longer list is still held, for instance — so it is
+  // clamped at render rather than trusted. An unclamped index would read
+  // `undefined` past the new end and this screen would falsely claim there was
+  // nothing to show, even though `sightings` is non-empty.
+  const clampedIndex = sightings.length === 0 ? undefined : Math.min(selected, sightings.length - 1);
+  const sighting = clampedIndex === undefined ? undefined : sightings[clampedIndex];
   const policy = draft ?? sighting?.policy;
 
   if (policy === undefined) {
@@ -96,7 +102,7 @@ export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
             key={`${entry.label}-${index}`}
             type="button"
             data-testid="qadi-policy-rail-item"
-            style={railItem(index === selected && draft === undefined)}
+            style={railItem(index === clampedIndex && draft === undefined)}
             onClick={() => choose(index)}
           >
             <div>{entry.label}</div>

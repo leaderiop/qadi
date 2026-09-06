@@ -124,7 +124,12 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
     }
   }
 
-  const policy = seeded?.policy ?? sightings[chosen]?.policy;
+  // `chosen` is state and `sightings` can shrink under it, the same shape as
+  // PolicyExplorer's rail selection — clamped at render rather than trusted,
+  // so a stale index reads the same policy the dropdown now shows instead of
+  // silently falling through to "no policy chosen".
+  const clampedChosen = sightings.length === 0 ? undefined : Math.min(chosen, sightings.length - 1);
+  const policy = seeded?.policy ?? (clampedChosen === undefined ? undefined : sightings[clampedChosen]?.policy);
 
   const fiber = useRef<{ readonly interruptUnsafe: () => void }>(undefined);
   /**
@@ -219,7 +224,7 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
     <div style={{ padding: 12 }} data-testid="qadi-simulator">
       <Controls
         sightings={sightings}
-        chosen={chosen}
+        chosen={clampedChosen ?? chosen}
         onChoose={(index) => {
           setChosen(index);
           // A seeded policy belongs to the row it came from; choosing another

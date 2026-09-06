@@ -38,7 +38,12 @@ const chip = (own: boolean): CSSProperties => ({
 
 export const RoleViewer: FC<RoleViewerProps> = ({ roles, unknownParents }) => {
   const [selected, setSelected] = useState(0);
-  const role = roles[selected];
+  // `selected` is state and `roles` can shrink under it — clamped at render
+  // rather than trusted, the same shape as PolicyExplorer's rail selection.
+  // An unclamped index would read `undefined` past the new end and this
+  // screen would falsely claim there were no roles at all.
+  const clampedIndex = roles.length === 0 ? undefined : Math.min(selected, roles.length - 1);
+  const role = clampedIndex === undefined ? undefined : roles[clampedIndex];
 
   if (role === undefined) {
     return (
@@ -60,7 +65,7 @@ export const RoleViewer: FC<RoleViewerProps> = ({ roles, unknownParents }) => {
               key={candidate.name}
               type="button"
               data-testid="qadi-role-chip"
-              style={button(index === selected)}
+              style={button(index === clampedIndex)}
               onClick={() => setSelected(index)}
             >
               {candidate.name}
