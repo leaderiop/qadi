@@ -233,7 +233,8 @@ describe("DecisionSink — record ordering", () => {
         record: (record) =>
           record._tag === "Decision" && record.outcome._tag === "Decided"
             ? Effect.map(Metric.snapshot, (snapshots) => {
-                countsAtRecordTime.push(counterOf(snapshots, { outcome: "allow" })?.state.count);
+                const count = counterOf(snapshots, { outcome: "allow" })?.state.count;
+                countsAtRecordTime.push(count === undefined ? undefined : Number(count));
               })
             : Effect.void,
       });
@@ -255,7 +256,8 @@ describe("DecisionSink — record ordering", () => {
         record: (record) =>
           record._tag === "Decision" && record.outcome._tag === "Decided"
             ? Effect.map(Metric.snapshot, (snapshots) => {
-                countsAtRecordTime.push(counterOf(snapshots, { outcome: "deny" })?.state.count);
+                const count = counterOf(snapshots, { outcome: "deny" })?.state.count;
+                countsAtRecordTime.push(count === undefined ? undefined : Number(count));
               })
             : Effect.void,
       });
@@ -302,14 +304,15 @@ describe("DecisionSink — record ordering", () => {
       Effect.gen(function* () {
         const seen: Array<{ readonly outcome: "allow" | "deny"; readonly counted: boolean }> = [];
         const sink = Layer.succeed(DecisionSink, {
-          record: (record) =>
-            record._tag === "Decision" && record.outcome._tag === "Decided"
-              ? Effect.map(Metric.snapshot, (snapshots) => {
-                  const outcome = isAllowed(record.outcome.decision) ? "allow" : "deny";
-                  const count = counterOf(snapshots, { outcome })?.state.count ?? 0;
-                  seen.push({ outcome, counted: count >= 1 });
-                })
-              : Effect.void,
+          record: (record) => {
+            if (record._tag !== "Decision" || record.outcome._tag !== "Decided") return Effect.void;
+            const { decision } = record.outcome;
+            return Effect.map(Metric.snapshot, (snapshots) => {
+              const outcome = isAllowed(decision) ? "allow" : "deny";
+              const count = counterOf(snapshots, { outcome })?.state.count ?? 0;
+              seen.push({ outcome, counted: count >= 1 });
+            });
+          },
         });
 
         yield* isolatedMetrics(

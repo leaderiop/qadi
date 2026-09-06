@@ -145,7 +145,7 @@ describe("effect/unstable/http API canary", () => {
       // implementation additionally inspects annotations and guards, but the
       // wiring this pins is that a `Service`-shaped middleware reaches the
       // handler at all through `HttpApiBuilder.layer`.
-      const MiddlewareLive = Layer.succeed(SmokeMiddleware, (httpEffect: Effect.Effect<unknown>) => httpEffect);
+      const MiddlewareLive = Layer.succeed(SmokeMiddleware, (httpEffect) => httpEffect);
 
       const ApiRoutes = HttpApiBuilder.layer(SmokeApi).pipe(
         Layer.provide(SmokeHandlers),
