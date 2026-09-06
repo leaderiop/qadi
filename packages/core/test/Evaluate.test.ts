@@ -931,6 +931,70 @@ describe("field visibility", () => {
       Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
     ));
 
+  it.effect(
+    "AnyOf/Union dedupes overlapping fields across three or more allowing children",
+    () =>
+      Effect.gen(function* () {
+        // `mergeFields`'s `Union` arm accumulates into a single `Set` across
+        // every child in one pass rather than folding pairwise through
+        // `unionFields` — this exercises that with three sets, two of which
+        // overlap, so a bug that rebuilt from the wrong starting point or
+        // dropped a set partway through would either lose "b" or keep a
+        // duplicate.
+        const policy = P.anyOf(
+          [
+            P.hasPermission(read, { fields: ["a", "b"] }),
+            P.hasPermission(write, { fields: ["b", "c"] }),
+            P.hasAttribute("level", M.gte(1), { fields: ["d"] }),
+          ],
+          { fieldStrategy: "Union" },
+        );
+        const d = yield* evaluate(policy);
+        assert.strictEqual(d.trace.policyTag, "AnyOf");
+        if (d._tag !== "Allow") return;
+        assert.deepStrictEqual([...(d.visibleFields ?? [])].sort(), ["a", "b", "c", "d"]);
+      }).pipe(
+        Effect.provide(
+          testLayer(
+            subjectWith({ permissions: ["doc:read", "doc:write"], attributes: { level: 5 } }),
+          ),
+        ),
+      ),
+  );
+
+  it.effect(
+    "AnyOf/Union stays absorbing on undefined even with other sets ahead of it",
+    () =>
+      Effect.gen(function* () {
+        // `unionFields` is absorbing on `undefined` — an unrestricted allowing
+        // child means "all fields" no matter what the others grant. Proven
+        // with the unrestricted child in the middle of the list, not first or
+        // last, so a single-pass rewrite cannot short-circuit correctly by
+        // accident only for an edge position.
+        const policy = P.anyOf(
+          [
+            P.hasPermission(read, { fields: ["a"] }),
+            P.hasRole("editor"),
+            P.hasAttribute("level", M.gte(1), { fields: ["d"] }),
+          ],
+          { fieldStrategy: "Union" },
+        );
+        const d = yield* evaluate(policy);
+        if (d._tag !== "Allow") return;
+        assert.isUndefined(d.visibleFields);
+      }).pipe(
+        Effect.provide(
+          testLayer(
+            subjectWith({
+              permissions: ["doc:read"],
+              roles: ["editor"],
+              attributes: { level: 5 },
+            }),
+          ),
+        ),
+      ),
+  );
+
   it.effect("an unrestricted child means all fields", () =>
     Effect.gen(function* () {
       const policy = P.allOf([
@@ -1038,6 +1102,31 @@ describe("decision metadata", () => {
       assert.isTrue(isAllowed(d));
       assert.strictEqual(d.durationMillis, 10);
     }));
+
+  it.effect(
+    "decides correctly with no DecisionCache wired, exercising every field the cache key would otherwise carry",
+    () =>
+      Effect.gen(function* () {
+        // The cache key — subject, policy, resource, action, maxDepth — is now
+        // built only inside the `Option.isSome(cache)` branch of `evaluate`,
+        // rather than unconditionally before the cache-hit check. This asks a
+        // question that touches every one of those fields (a resource, an
+        // action, and a non-default `maxDepth`) with no `DecisionCache`
+        // provided at all, so a mistake that made the no-cache path depend on
+        // the now-conditional key would show up as a wrong answer here rather
+        // than merely as a skipped allocation.
+        const policy = P.allOf([
+          P.hasResourceAttribute("owner", M.eq(M.subjectId())),
+          P.hasAction("approve"),
+        ]);
+        const d = yield* evaluate(policy, {
+          resource: { owner: "u1" },
+          action: "approve",
+          maxDepth: 5,
+        });
+        assert.isTrue(isAllowed(d));
+      }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))),
+  );
 });
 
 describe("subject identity references", () => {

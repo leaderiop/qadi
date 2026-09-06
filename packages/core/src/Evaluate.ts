@@ -20,10 +20,10 @@ import { CustomPredicate } from "./CustomPredicate.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
-import type { CacheOutcome, DecisionCacheKey } from "./DecisionCache.ts";
+import type { CacheOutcome } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
-import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
+import { Allow, Deny, intersectFields } from "./Decision.ts";
 import { Decided, DecisionRecord, Failed } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { EvaluationError } from "./Errors.ts";
@@ -339,14 +339,23 @@ const mergeFields = (
         undefined,
       );
     case "Union": {
-      // `unionFields` is absorbing on undefined: if any allowing branch grants
-      // all fields, the union grants all fields. Seeding with sets[0] rather
-      // than undefined preserves that, since undefined is the top of the
-      // lattice, not the empty set.
+      // Absorbing on undefined: if any allowing branch grants all fields, the
+      // union grants all fields, since undefined is the top of the lattice,
+      // not the empty set.
+      //
+      // Was `sets.reduce`-shaped, folding pairwise through `unionFields` —
+      // each step spread both sides into a fresh array, wrapped that in a
+      // fresh `Set`, and spread the `Set` back out, four allocations per
+      // iteration to rebuild everything accumulated so far from scratch.
+      // Accumulating into one `Set` across a single pass and materializing
+      // the result array exactly once avoids all of that.
       if (sets.length === 0) return undefined;
-      let acc = sets[0];
-      for (let i = 1; i < sets.length; i += 1) acc = unionFields(acc, sets[i]);
-      return acc;
+      const merged = new Set<string>();
+      for (const set of sets) {
+        if (set === undefined) return undefined;
+        for (const field of set) merged.add(field);
+      }
+      return [...merged];
     }
     case "First":
       return sets.length === 0 ? undefined : sets[0];
@@ -1096,20 +1105,6 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     Option.isSome(sink)
       ? Effect.catchCause(sink.value.record(record), () => Effect.void)
       : Effect.void;
-  // A shallower `maxDepth` can turn this same question into `PolicyTooDeep`
-  // instead of an `Allow`/`Deny`, so it belongs in the key alongside
-  // `resource` and `action` — see `DecisionCacheKey`'s own doc comment.
-  const cacheKey: DecisionCacheKey = {
-    // The whole subject, not `subject.id`: two tokens for one user carry the
-    // same id and different grants, and the id-only key served the first
-    // verdict to both (INV-QD-033).
-    subject,
-    policy,
-    resource: options?.resource,
-    action: options?.action,
-    maxDepth: options?.maxDepth ?? DEFAULT_MAX_DEPTH,
-  };
-
   // `Effect.suspend`, not a direct call: `evaluateNode` is a plain switch, not
   // an `Effect.gen`, so for a leaf tag (HasRole, HasPermission, …) calling it
   // does the real comparison — `subject.roles.has(...)`, `evaluateMatcher` —
@@ -1181,7 +1176,23 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     EvaluationError,
     AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate | SignatureHistory
   > = Option.isSome(cache)
-    ? cache.value.getOrCompute(cacheKey, compute)
+    ? cache.value.getOrCompute(
+        {
+          // The whole subject, not `subject.id`: two tokens for one user carry
+          // the same id and different grants, and the id-only key served the
+          // first verdict to both (INV-QD-033).
+          subject,
+          policy,
+          resource: options?.resource,
+          action: options?.action,
+          // A shallower `maxDepth` can turn this same question into
+          // `PolicyTooDeep` instead of an `Allow`/`Deny`, so it belongs in the
+          // key alongside `resource` and `action` — see `DecisionCacheKey`'s
+          // own doc comment.
+          maxDepth: options?.maxDepth ?? DEFAULT_MAX_DEPTH,
+        },
+        compute,
+      )
     : Effect.map(compute, (trace) => ({ trace, outcome: undefined }));
 
   const lookup = yield* lookupEffect.pipe(
