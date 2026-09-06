@@ -149,6 +149,32 @@ describe("project", () => {
     });
   });
 
+  it("a sibling '*' grant for a key survives when a deeper spec on that SAME key descends into a scalar", () => {
+    // The defect this pins: `"contact.employer.name"` descends into
+    // `employer`, which here is a scalar rather than an object, so that
+    // spec's own projection fails (`OMIT`). Without composing that failure
+    // with the sibling `"contact.*"` grant, `employer` vanished from the
+    // result entirely instead of falling back to what `"*"` alone would have
+    // shown — a whole scalar, per the "nothing further to redact" rule above.
+    const data = { contact: { email: "a@b.com", employer: "Acme" } };
+    assert.deepStrictEqual(project(data, ["contact.*", "contact.employer.name"]), {
+      contact: { email: "a@b.com", employer: "Acme" },
+    });
+  });
+
+  it("a sibling '*' grant for a key survives when a deeper spec on that SAME key matches nothing", () => {
+    // The object-valued mirror of the case above: `employer` IS a plain
+    // object here, but `"contact.employer.title"` names a key it doesn't
+    // have, so that spec's own projection is also `OMIT` (an empty result,
+    // not a non-object). The sibling `"*"` must still cap `employer` at `{}`
+    // — present but empty, exactly as an object-valued child reached only by
+    // `"*"` always is — rather than dropping the key outright.
+    const data = { contact: { email: "a@b.com", employer: { name: "Acme", id: 9 } } };
+    assert.deepStrictEqual(project(data, ["contact.*", "contact.employer.title"]), {
+      contact: { email: "a@b.com", employer: {} },
+    });
+  });
+
   it("two independent specs at different top-level keys both apply", () => {
     const data = { id: "1", title: "T", secret: "S" };
     assert.deepStrictEqual(project(data, ["id", "title"]), { id: "1", title: "T" });

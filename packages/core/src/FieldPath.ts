@@ -192,6 +192,18 @@ const projectAt = (value: unknown, tails: ReadonlyArray<ReadonlyArray<string>>):
     if (childTails !== undefined) {
       const projected = projectAt(child, childTails);
       if (projected !== OMIT) out[key] = projected;
+      else if (starOne) {
+        // The two conditions compose rather than exclude one another: a
+        // sibling `"*"` grants this same key too, and the deeper spec's own
+        // projection failing — `child` isn't a plain object, so descending
+        // into `childTails` hits `!isPlainObject(value)` and returns `OMIT`
+        // above — must not also erase the `"*"` grant that reached here
+        // independently. Without this arm a policy author combining
+        // `"contact.*"` with `"contact.employer.name"` would see `employer`
+        // vanish entirely whenever it's a scalar, rather than the whole value
+        // `"*"` alone would have shown it.
+        out[key] = isPlainObject(child) ? {} : child;
+      }
     } else if (starOne) {
       // `starOne` is always true here, not decoration: when it's false,
       // `keys` was built from `deeper.keys()` alone, so every iterated key
