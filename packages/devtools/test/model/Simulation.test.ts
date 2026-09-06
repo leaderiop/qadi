@@ -45,7 +45,7 @@ import {
   subjectOf,
   type SimulationInput,
 } from "../../src/model/SimulationInput.ts";
-import { live } from "../../src/model/Sources.ts";
+import { live } from "../../src/model/SimulationSource.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");

@@ -28,7 +28,7 @@ import type { Decision, DecisionOutcome } from "@qadi/core";
 import { emptyAnswers } from "../../src/model/Capture.ts";
 import { simulate } from "../../src/model/Simulation.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
-import { causesIO, fixtures, live, portsOf, snapshot } from "../../src/model/Sources.ts";
+import { causesIO, fixtures, live, portsOf, snapshot } from "../../src/model/SimulationSource.ts";
 
 const read = permission("doc", "read");
 

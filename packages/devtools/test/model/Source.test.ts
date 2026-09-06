@@ -588,6 +588,28 @@ describe("mergeSources", () => {
       );
     }));
 
+  // INV-QD-039: an unknown time sorts after every known one. `a.at - b.at`
+  // would leave a `NaN` row wherever `Array.prototype.sort` happened to place
+  // it, which is not the total order this timeline documents.
+  it.effect("sorts a NaN-timed row after every known time", () =>
+    Effect.gen(function* () {
+      const merged = mergeSources([
+        withBacklog([
+          decisionRecord({ evaluationId: "unknown", at: Number.NaN }),
+          decisionRecord({ evaluationId: "third", at: 3_000 }),
+        ]),
+        withBacklog([decisionRecord({ evaluationId: "first", at: 1_000 })]),
+      ]);
+
+      assert.isDefined(merged.backlog);
+      const got = merged.backlog === undefined ? [] : yield* merged.backlog;
+
+      assert.deepStrictEqual(
+        got.map((record) => record.evaluationId),
+        ["first", "third", "unknown"],
+      );
+    }));
+
   // BEH-QD-203: absent means "cannot answer for the past", empty means "can, and
   // there was nothing". A merge of two feeds must not answer `[]` and so claim a
   // history was looked at.

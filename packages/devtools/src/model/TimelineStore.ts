@@ -92,11 +92,13 @@ export const makeTimelineStore = (options?: { readonly capacity?: number }): Tim
  * few live records would still land in the right place — just later, with the
  * rows visibly rearranging under the cursor.
  */
-export const runSource = (store: TimelineStore, source: Source): Effect.Effect<void> =>
-  Effect.gen(function* () {
-    if (source.backlog !== undefined) {
-      const records = yield* source.backlog;
-      for (const record of records) store.accept(record);
-    }
-    yield* Stream.runForEach(source.live, (record) => Effect.sync(() => store.accept(record)));
-  });
+export const runSource = Effect.fn("qadi.devtools.runSource")(function* (
+  store: TimelineStore,
+  source: Source,
+) {
+  if (source.backlog !== undefined) {
+    const records = yield* source.backlog;
+    for (const record of records) store.accept(record);
+  }
+  yield* Stream.runForEach(source.live, (record) => Effect.sync(() => store.accept(record)));
+});
