@@ -101,6 +101,25 @@ export type TraceDifference =
   | FieldsChanged
   | ObligationsChanged;
 
+/**
+ * Whether two string collections hold the same elements, ignoring order.
+ *
+ * `FieldsChanged` and `ObligationsChanged` both document SET semantics — "the
+ * set of fields this node makes visible", "the duties this node contributed" —
+ * but a positional array comparison reports a reorder as a change. Sorting a
+ * copy of each side before comparing element-wise gives set equality (and,
+ * incidentally, multiset equality, which is the stricter and still-correct
+ * behavior if a caller's array ever carried a duplicate) without depending on
+ * `effect/HashSet`, which buys nothing extra for elements that are already
+ * primitive strings comparable with `===`.
+ */
+const sameStringSet = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean => {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((f, i) => f === sortedB[i]);
+};
+
 const sameFields = (
   a: ReadonlyArray<string> | undefined,
   b: ReadonlyArray<string> | undefined,
@@ -108,7 +127,7 @@ const sameFields = (
   // `undefined` and `[]` are opposite ends of the field lattice — all fields
   // versus none — so they must never compare equal here (INV-QD-004).
   if (a === undefined || b === undefined) return a === b;
-  return a.length === b.length && a.every((f, i) => f === b[i]);
+  return sameStringSet(a, b);
 };
 
 /**
@@ -186,10 +205,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
 
     const beforeObligations = a.obligations.map((o) => o.id);
     const afterObligations = b.obligations.map((o) => o.id);
-    if (
-      beforeObligations.length !== afterObligations.length ||
-      beforeObligations.some((id, i) => id !== afterObligations[i])
-    ) {
+    if (!sameStringSet(beforeObligations, afterObligations)) {
       out.push({
         _tag: "ObligationsChanged",
         path,
