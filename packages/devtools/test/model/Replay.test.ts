@@ -143,19 +143,18 @@ describe("replayInput", () => {
   });
 
   /**
-   * E5.5's first half. `subjectId` lives on the `Decision`, so a failed row
-   * carries no subject at all — the row is still worth replaying, and the blank
-   * is one more thing to say rather than a reason to refuse.
+   * E5.5's first half, corrected: `subjectId` is top-level on `DecisionRecord`
+   * for both outcomes (`DecisionRecord.ts`), so a `Failed` row names its
+   * subject exactly as a `Decided` one does — there is nothing left blank here,
+   * and `unseeded` is the same list either way.
    */
-  it("names the subject id too when the logged evaluation never decided", () => {
-    const seeded = replayable(replayInput(entryOf(failedRecord({ evaluationId: "ev-7" }))));
+  it("names the subject id from the record even when the logged evaluation never decided", () => {
+    const seeded = replayable(
+      replayInput(entryOf(failedRecord({ evaluationId: "ev-7", subjectId: "carol" }))),
+    );
 
-    assert.strictEqual(seeded.input.subject.id, "");
-    assert.deepStrictEqual(seeded.unseeded[0], {
-      field: "subject id",
-      reason: "the evaluation failed before deciding, and the id lives on the decision",
-    });
-    assert.strictEqual(seeded.unseeded.length, unseededByReplay.length + 1);
+    assert.strictEqual(seeded.input.subject.id, "carol");
+    assert.deepStrictEqual(seeded.unseeded, unseededByReplay);
   });
 
   // E5.6

@@ -59,18 +59,6 @@ export const unseededByReplay: ReadonlyArray<UnseededField> = [
   { field: "history", reason: ANSWERS_NOT_FIXTURES },
 ];
 
-/**
- * The subject id is missing too when the logged evaluation never decided.
- *
- * `subjectId` lives on the `Decision`, so a `Failed` row carries no subject at
- * all. The row is still worth replaying — reproducing an outage is a real thing
- * to want — so this is one more blank rather than a refusal.
- */
-const UNSEEDED_SUBJECT_ID: UnseededField = {
-  field: "subject id",
-  reason: "the evaluation failed before deciding, and the id lives on the decision",
-};
-
 export type Replay =
   | {
       readonly _tag: "Replayable";
@@ -97,22 +85,20 @@ export const replayInput = (entry: TimelineEntry): Replay => {
   }
 
   const decision = entry.decision;
-  const outcome = decision.outcome;
-  const subjectId = outcome._tag === "Decided" ? outcome.decision.subjectId : "";
 
   return {
     _tag: "Replayable",
     evaluationId: entry.evaluationId,
     policy: decision.policy,
     input: {
-      subject: { id: subjectId },
+      // `subjectId` is top-level on `DecisionRecord`, for both outcomes
+      // (`DecisionRecord.ts`) — a `Failed` row names its subject exactly as a
+      // `Decided` one does, so there is nothing to default here.
+      subject: { id: decision.subjectId },
       ...(decision.action === undefined ? {} : { action: decision.action }),
       ...(decision.resource === undefined ? {} : { resource: decision.resource }),
     },
-    unseeded:
-      outcome._tag === "Decided"
-        ? unseededByReplay
-        : [UNSEEDED_SUBJECT_ID, ...unseededByReplay],
+    unseeded: unseededByReplay,
   };
 };
 
