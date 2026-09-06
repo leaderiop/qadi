@@ -16,14 +16,37 @@ family keys **structurally**, so two separately built but equal policies share
 one atom.
 
 ```tsx
+import type { AuthSubject } from "@qadi/core";
+import {
+  AttributeResolverNone,
+  CustomPredicateNone,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  RelationshipResolverNever,
+  SignatureHistoryNone,
+  hasPermission,
+  permission,
+} from "@qadi/core";
 import { Can, QadiProvider, makeQadiAtoms } from "@qadi/react";
+import * as Layer from "effect/Layer";
 
-const atoms = makeQadiAtoms(AppLayer); // once, at module scope
+const canPublish = hasPermission(permission("post", "publish"));
 
-export const App = () => (
+const atoms = makeQadiAtoms(
+  Layer.mergeAll(
+    AttributeResolverNone,
+    RelationshipResolverNever,
+    DecisionHistoryUnknown,
+    EvaluationIdLive,
+    CustomPredicateNone,
+    SignatureHistoryNone,
+  ),
+); // once, at module scope
+
+export const App = ({ currentUser }: { readonly currentUser: AuthSubject | undefined }) => (
   <QadiProvider atoms={atoms} subject={currentUser}>
-    <Can policy={canPublish} fallback={<Disabled />}>
-      <PublishButton />
+    <Can policy={canPublish} fallback={<span>Publishing disabled</span>}>
+      <button type="button">Publish</button>
     </Can>
   </QadiProvider>
 );

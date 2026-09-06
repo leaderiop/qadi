@@ -38,7 +38,13 @@ against it, so the TypeScript type and the JSON codec cannot diverge.
 | `@qadi/react` | `QadiProvider`, hooks, `Can`/`Cannot`, server-render hydration |
 | `@qadi/promise` | A Promise facade for callers who do not use Effect |
 | `@qadi/http` | `effect/unstable/http`/`httpapi` bindings — enforcement middleware, subject extraction, permission registry |
-| `@qadi/features` | Cucumber BDD acceptance tests (private) |
+| `@qadi/audit` | Audit trail, staging, circuit breaker, retention/archival, e-signature capture, composed onto `DecisionSink` |
+| `@qadi/devtools` | A headless decision timeline and a React dock that renders it |
+| `@qadi/predicate-sql` | Compiles a `Predicate` into a parameterized SQL fragment — PostgreSQL, MySQL, or SQLite |
+| `@qadi/predicate-prisma` | Compiles a `Predicate` into a Prisma `WhereInput` |
+
+`@qadi/features` (Cucumber BDD acceptance tests, private) lives at repo-root
+`features/`, not under `packages/` like the ones above.
 
 ## Development
 

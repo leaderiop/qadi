@@ -228,7 +228,7 @@ describe("the JSON view", () => {
 
     const encoded = Effect.runSync(toJson(policy));
     assert.strictEqual(
-      (screen.getByTestId("qadi-policy-json") as HTMLTextAreaElement).value,
+      screen.getByTestId<HTMLTextAreaElement>("qadi-policy-json").value,
       encoded,
     );
   });

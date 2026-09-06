@@ -33,6 +33,7 @@ import { describe, expect, it, vi } from "vitest";
 import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
 import type { HydrationMismatch } from "../src/QadiAtoms.ts";
 import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
+import type { InitialValues } from "../src/QadiProvider.tsx";
 
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
@@ -85,6 +86,13 @@ const serverDeny = (subjectId: string) =>
     reason: "subject lacks role 'admin'",
   });
 
+/** The first element of an array every call site here already knows is non-empty. */
+const first = <T,>(xs: ReadonlyArray<T>): T => {
+  const [x] = xs;
+  if (x === undefined) throw new Error("expected a non-empty array");
+  return x;
+};
+
 describe("dehydrateDecisions", () => {
   it("carries the verdict, the visible fields and the obligations", () => {
     const payload = dehydrateDecisions([
@@ -93,9 +101,9 @@ describe("dehydrateDecisions", () => {
 
     expect(payload.subjectId).toBe("u1");
     expect(payload.entries).toHaveLength(1);
-    expect(payload.entries[0]!.allowed).toBe(true);
-    expect(payload.entries[0]!.visibleFields).toEqual(["id", "title"]);
-    expect(payload.entries[0]!.obligations?.map((o) => o.id)).toEqual(["audit.log"]);
+    expect(first(payload.entries).allowed).toBe(true);
+    expect(first(payload.entries).visibleFields).toEqual(["id", "title"]);
+    expect(first(payload.entries).obligations?.map((o) => o.id)).toEqual(["audit.log"]);
   });
 
   it("WITHHOLDS the trace and the denial reason by default", () => {
@@ -103,7 +111,7 @@ describe("dehydrateDecisions", () => {
     // sentence explaining the refusal — the policy's internal structure plus which
     // branch THIS subject failed, readable by any script on the page.
     const payload = dehydrateDecisions([{ policy: isAdmin, decision: serverDeny("u1") }]);
-    const entry = payload.entries[0]!;
+    const entry = first(payload.entries);
 
     expect(entry.reason).toBe("hydrated");
     expect(entry.trace?.children).toEqual([]);
@@ -114,7 +122,7 @@ describe("dehydrateDecisions", () => {
     const payload = dehydrateDecisions([{ policy: isAdmin, decision: serverDeny("u1") }], {
       includeTrace: true,
     });
-    expect(payload.entries[0]!.reason).toBe("subject lacks role 'admin'");
+    expect(first(payload.entries).reason).toBe("subject lacks role 'admin'");
     expect(JSON.stringify(payload)).toContain("lacks role");
   });
 
@@ -217,12 +225,9 @@ describe("dehydrateDecisions", () => {
 });
 
 describe("hydrateDecisions", () => {
-  const registryWith = (initialValues: Iterable<readonly [never, never]> | unknown) =>
+  const registryWith = (initialValues: InitialValues) =>
     AtomRegistry.make({
-      initialValues: [
-        [atoms.subject, alice] as const,
-        ...(initialValues as Iterable<readonly [never, never]>),
-      ],
+      initialValues: [[atoms.subject, alice] as const, ...initialValues],
     });
 
   /**
@@ -234,12 +239,9 @@ describe("hydrateDecisions", () => {
    * which the payload's own contents, rather than a locally computed decision,
    * are what a consumer reads.
    */
-  const seedsBeforeSubject = (initialValues: Iterable<readonly [never, never]> | unknown) =>
+  const seedsBeforeSubject = (initialValues: InitialValues) =>
     AtomRegistry.make({
-      initialValues: [
-        [atoms.subject, undefined] as const,
-        ...(initialValues as Iterable<readonly [never, never]>),
-      ],
+      initialValues: [[atoms.subject, undefined] as const, ...initialValues],
     });
 
   it("seeds a decision the first render can already read", () => {
@@ -308,8 +310,9 @@ describe("hydrateDecisions", () => {
   // fields' compile-time types cannot rule out.
 
   it("drops an entry whose durationMillis is not a number", () => {
-    const policy = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }])
-      .entries[0]!.policy;
+    const policy = first(
+      dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries,
+    ).policy;
     const dehydrated = JSON.parse(
       JSON.stringify({
         subjectId: "u1",
@@ -321,8 +324,9 @@ describe("hydrateDecisions", () => {
   });
 
   it("drops an entry whose obligations is not an array", () => {
-    const policy = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }])
-      .entries[0]!.policy;
+    const policy = first(
+      dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries,
+    ).policy;
     const dehydrated = JSON.parse(
       JSON.stringify({
         subjectId: "u1",
@@ -336,8 +340,9 @@ describe("hydrateDecisions", () => {
   });
 
   it("drops an entry whose trace does not match the shape", () => {
-    const policy = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }])
-      .entries[0]!.policy;
+    const policy = first(
+      dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries,
+    ).policy;
     const dehydrated = JSON.parse(
       JSON.stringify({
         subjectId: "u1",
@@ -357,8 +362,9 @@ describe("hydrateDecisions", () => {
   });
 
   it("reports a malformed non-policy field under its own reason", () => {
-    const policy = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }])
-      .entries[0]!.policy;
+    const policy = first(
+      dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries,
+    ).policy;
     const dehydrated = JSON.parse(
       JSON.stringify({
         subjectId: "u1",
@@ -496,8 +502,8 @@ describe("hydrateDecisions", () => {
         {
           policy: JSON.parse(
             JSON.stringify(
-              dehydrateDecisions([{ policy: isAdmin, decision: serverDeny("u1") }])
-                .entries[0]!.policy,
+              first(dehydrateDecisions([{ policy: isAdmin, decision: serverDeny("u1") }]).entries)
+                .policy,
             ),
           ),
           allowed: false,
@@ -523,8 +529,8 @@ describe("hydrateDecisions", () => {
       subjectId: "u1",
       entries: [
         {
-          policy: dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }])
-            .entries[0]!.policy,
+          policy: first(dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries)
+            .policy,
           allowed: true,
           evaluationId: "eval-y",
           durationMillis: 0,
@@ -574,12 +580,9 @@ describe("hydration mismatch", () => {
   const watching = () => {
     const seen: Array<HydrationMismatch> = [];
     const atomSet = makeQadiAtoms(base, { onHydrationMismatch: (m) => seen.push(m) });
-    const open = (initialValues: unknown) =>
+    const open = (initialValues: InitialValues) =>
       AtomRegistry.make({
-        initialValues: [
-          [atomSet.subject, alice] as const,
-          ...(initialValues as Iterable<readonly [never, never]>),
-        ],
+        initialValues: [[atomSet.subject, alice] as const, ...initialValues],
       });
     return { seen, atoms: atomSet, open };
   };
@@ -596,14 +599,14 @@ describe("hydration mismatch", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(seen).toHaveLength(1);
-    expect(seen[0]!.seeded._tag).toBe("Allow");
-    expect(seen[0]!.decided._tag).toBe("Deny");
+    expect(first(seen).seeded._tag).toBe("Allow");
+    expect(first(seen).decided._tag).toBe("Deny");
     // `toEqual`, not `toBe`: the policy reported is the one `hydrateDecisions`
     // DECODED from the payload, which is a distinct object equal to `isAdmin`.
     // They share an atom because `Atom.family` keys structurally (ADR-QD-017),
     // and the decoded one reached the family first.
-    expect(seen[0]!.policy).toEqual(isAdmin);
-    expect(seen[0]!.resource).toBeUndefined();
+    expect(first(seen).policy).toEqual(isAdmin);
+    expect(first(seen).resource).toBeUndefined();
     unmount();
     registry.dispose();
   });
@@ -614,7 +617,7 @@ describe("hydration mismatch", () => {
     const registry = open(hydrateDecisions(watched, payload, alice));
     registry.get(watched.decision(isAdmin));
 
-    const decided = seen[0]!.decided;
+    const decided = first(seen).decided;
     expect(decided._tag === "Deny" && decided.reason).toBe("subject lacks role 'admin'");
     registry.dispose();
   });
@@ -630,7 +633,7 @@ describe("hydration mismatch", () => {
       const registry = AtomRegistry.make({
         initialValues: [
           [plain.subject, alice] as const,
-          ...(hydrateDecisions(plain, payload, alice) as Iterable<readonly [never, never]>),
+          ...hydrateDecisions(plain, payload, alice),
         ],
       });
       // alice does hold `doc:read`, so her own answer allows.
@@ -691,7 +694,7 @@ describe("hydration mismatch", () => {
     const registry = AtomRegistry.make({
       initialValues: [
         [failing.subject, alice] as const,
-        ...(hydrateDecisions(failing, payload, alice) as Iterable<readonly [never, never]>),
+        ...hydrateDecisions(failing, payload, alice),
       ],
     });
     const unmount = registry.mount(failing.decision(needsAttribute));
@@ -735,7 +738,7 @@ describe("hydration mismatch", () => {
       const registry = AtomRegistry.make({
         initialValues: [
           [plain.subject, alice] as const,
-          ...(hydrateDecisions(plain, payload, alice) as Iterable<readonly [never, never]>),
+          ...hydrateDecisions(plain, payload, alice),
         ],
       });
       registry.get(plain.decision(isAdmin));
@@ -769,7 +772,7 @@ describe("hydration mismatch", () => {
       const registry = AtomRegistry.make({
         initialValues: [
           [plain.subject, alice] as const,
-          ...(hydrateDecisions(plain, payload, alice) as Iterable<readonly [never, never]>),
+          ...hydrateDecisions(plain, payload, alice),
         ],
       });
       registry.get(plain.decision(isAdmin));
@@ -795,7 +798,7 @@ describe("hydration mismatch", () => {
       const registry = AtomRegistry.make({
         initialValues: [
           [watched.subject, alice] as const,
-          ...(hydrateDecisions(watched, payload, alice) as Iterable<readonly [never, never]>),
+          ...hydrateDecisions(watched, payload, alice),
         ],
       });
       registry.get(watched.decision(isAdmin));
@@ -817,7 +820,7 @@ describe("hydration mismatch", () => {
     registry.get(watched.decisionFor(isAdmin, resource));
 
     expect(seen).toHaveLength(1);
-    expect(seen[0]!.resource).toEqual(resource);
+    expect(first(seen).resource).toEqual(resource);
     registry.dispose();
   });
 });

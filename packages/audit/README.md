@@ -18,6 +18,7 @@ identity or crypto is a caller-supplied port.
 
 ```ts
 import { AuditDecisionSinkLive } from "@qadi/audit";
+import * as Layer from "effect/Layer";
 
 const AppLayer = AuditDecisionSinkLive({ failureThreshold: 5, resetTimeoutMs: 30_000 }).pipe(
   Layer.provide(myAuditTrailPortLive), // the caller's own storage
@@ -43,13 +44,15 @@ obligation is the safe default already.
 
 ## Structurally outside the pipeline
 
-Retention, archival, chain-integrity verification and the decommissioning
-checklist are pure functions and data — caller-invoked, caller-scheduled,
-since this package has no scheduler of its own. E-signature capture is wired
-through `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`:
+Retention, archival, sequence-integrity verification (gap-and-duplicate
+detection — not cryptographic tamper-evidence, see `SequenceIntegrity.ts`) and
+the decommissioning checklist are pure functions and data — caller-invoked,
+caller-scheduled, since this package has no scheduler of its own. E-signature
+capture is wired through `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`:
 
 ```ts
 import { signatureObligationHandler, SIGNATURE_MEANINGS } from "@qadi/audit";
+import * as Qadi from "@qadi/core";
 
 Qadi.enforce(policy, {
   onObligations: signatureObligationHandler(mySignaturePort, SIGNATURE_MEANINGS.APPROVED),

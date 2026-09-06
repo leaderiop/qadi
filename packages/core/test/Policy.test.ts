@@ -531,19 +531,19 @@ describe("Policy serialization", () => {
         ),
       );
 
-      const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
+      const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
         node: FastCheck.oneof(
           { maxDepth: 4, withCrossShrink: true },
           leaf,
           FastCheck.tuple(
-            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, {
+            FastCheck.array(tie("node"), {
               minLength: 1,
               maxLength: 3,
             }),
             FastCheck.constantFrom("Intersection" as const, "Union" as const, "First" as const),
           ).map(([ps, strategy]) => P.allOf(ps, { fieldStrategy: strategy })),
           FastCheck.tuple(
-            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, {
+            FastCheck.array(tie("node"), {
               minLength: 1,
               maxLength: 3,
             }),
@@ -554,10 +554,7 @@ describe("Policy serialization", () => {
           // mandatory in the same change that added the variant.
           FastCheck.tuple(
             FastCheck.array(
-              FastCheck.tuple(
-                tie("node") as FastCheck.Arbitrary<P.Policy>,
-                FastCheck.boolean(),
-              ).map(([condition, permits]) =>
+              FastCheck.tuple(tie("node"), FastCheck.boolean()).map(([condition, permits]) =>
                 permits ? P.permitWhen(condition) : P.denyWhen(condition),
               ),
               { minLength: 1, maxLength: 3 },
@@ -568,7 +565,7 @@ describe("Policy serialization", () => {
               "PermitOverrides" as const,
             ),
           ).map(([rs, combining]) => P.rules(rs, { combining })),
-          (tie("node") as FastCheck.Arbitrary<P.Policy>).map(P.not),
+          tie("node").map(P.not),
         ),
       })).node;
 

@@ -87,7 +87,7 @@ describe("decisionSinkForwarding", () => {
 
   it.effect("with no onFailure it warns rather than going quiet", () =>
     Effect.gen(function* () {
-      const logs: Array<unknown> = [];
+      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
 
       yield* evaluate(policy).pipe(
         Effect.provide(
@@ -106,14 +106,13 @@ describe("decisionSinkForwarding", () => {
       );
 
       assert.strictEqual(logs.length, 1);
-      const entry = logs[0] as { message: unknown; annotations: unknown };
+      const [entry] = logs;
+      assert.isDefined(entry);
+      if (entry === undefined) return;
       assert.include(String(entry.message), "could not be forwarded");
       // The cause is the whole diagnostic value of the warning — a line saying
       // only "could not be forwarded" tells an operator nothing actionable.
-      assert.include(
-        String((entry.annotations as Record<string, unknown>)["qadi.cause"]),
-        "unreachable",
-      );
+      assert.include(String(entry.annotations["qadi.cause"]), "unreachable");
     }).pipe(Effect.provide(testLayer(allowed))));
 
   it.effect("a successful send logs nothing", () =>

@@ -1,0 +1,10 @@
+kind: process
+package: qadi
+infix: PROC
+entries:
+  - id: "QADI-PROC-01"
+    file: "requirement-id-scheme.md"
+    title: "Requirement ID Scheme"
+  - id: "QADI-PROC-02"
+    file: "definitions-of-done.md"
+    title: "Definitions of Done"

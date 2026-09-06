@@ -313,7 +313,7 @@ REQUIREMENT: `visibleFields: undefined` MUST render as *every field*.
 ```
 
 It is the top of the lattice
-([INV-QD-004](../invariants.md#inv-qd-004-the-field-lattice)), not the bottom.
+([INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top)), not the bottom.
 Rendering an empty list understates a full grant into a grant of nothing, which
 is the one direction of error a reviewer acts on.
 

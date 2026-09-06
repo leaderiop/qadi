@@ -6,7 +6,31 @@
  * Promises, barrel `effect` imports and type assertions are checked here.
  * Deliberately dumb and deterministic: a regex sweep over production source.
  *
- * Scope: packages/<pkg>/src only. Tests and BDD steps are exempt.
+ * Scope: `no-type-assertion` and `no-non-null-assertion` run over
+ * `packages/<pkg>/src` AND `packages/<pkg>/test` — AGENTS.md §6 states no test
+ * exemption, and a read-only audit found the previous src-only scope was
+ * silently hiding exactly the class of violation it names (54 casts, 21
+ * non-null assertions, none of them written down as an EXEMPTIONS entry or
+ * anywhere else — CCR-QD-105). Every other rule stays src-only, and that is a
+ * considered split, not an oversight: `no-async`/`no-await`/`no-raw-promise`
+ * are legitimate vitest/Testing-Library idiom in a test body (`await
+ * waitFor(...)`, a timer-driven `it("...", async () => {...})`) that AGENTS.md
+ * §6 never meant to reach, and `no-nondeterministic-time`'s regex cannot tell
+ * `new Date()` (an ambient clock read) from `new Date("2026-01-01")` (a fixed
+ * fixture value) — extending it as-is would fail on ordinary test fixtures,
+ * not find a real violation. `no-extensionless-relative-import` has the same
+ * problem in reverse: it fails `import manifest from "../package.json"`,
+ * a real, correct import with no `.ts` extension to add. `SWITCH_BUDGET` and
+ * `HAS_CUSTOM_BUDGET` below are unaffected either way — both stay keyed to
+ * `packages/<pkg>/src` files only, since no test file declares a budgeted
+ * switch or an out-of-package `hasCustom` call today.
+ *
+ * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
+ * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
+ * over the merged src+test file list — unlike the per-line rules above, none of
+ * them has a legitimate test-only form, so there was no reason to hold them
+ * back once the file list included tests. Verified free: zero matches in any
+ * test file at the time this scope changed.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -17,7 +41,7 @@ const ROOT = new URL("..", import.meta.url).pathname;
  * `raw: true` tests the unstripped line. Needed for rules that match inside
  * string literals (import specifiers), which `strip()` blanks out.
  *
- * @type {ReadonlyArray<{ id: string, re: RegExp, message: string, raw?: boolean }>}
+ * @type {ReadonlyArray<{ id: string, re: RegExp, message: string, raw?: boolean, testScope?: boolean }>}
  */
 const RULES = [
   {
@@ -55,6 +79,7 @@ const RULES = [
     // two apart.
     re: /\bas\s+(?!const\b)(?:[A-Za-z_$]|[([{])/,
     message: "No type assertions — fix the underlying type.",
+    testScope: true,
   },
   {
     id: "no-nondeterministic-time",
@@ -81,15 +106,7 @@ const RULES = [
     // this rule exists to close (found by code review, not by symptom).
     re: /(?<=[A-Za-z0-9_)\]])!(?!=)/,
     message: "No non-null assertions — fix the type (AGENTS.md §6).",
-  },
-  {
-    id: "no-named-effect-submodule-import",
-    // `import type { X } from "effect/Y"` is exempt: "type " between `import`
-    // and `{` means `\s+\{` never matches right after `import`, so a type-only
-    // named import — which carries no runtime module-shape concern — passes.
-    re: /^\s*import\s+\{[^}]*\}\s+from\s+["']effect\/[^"']+["']/,
-    message: 'Namespace-import effect submodules: import * as X from "effect/X".',
-    raw: true,
+    testScope: true,
   },
   {
     id: "no-extensionless-relative-import",
@@ -115,11 +132,6 @@ const RULES = [
   // no-prefixed-error-tag lives outside this array, as a whole-file regex —
   // see below. A per-line rule here would miss a tag string on the line after
   // `Data.TaggedError(`, which is how most of Errors.ts is actually formatted.
-  {
-    id: "no-catchtags-object-form",
-    re: /\.catchTags\s*\(\s*\{/,
-    message: "Effect.catchTag array form only — there is no catchTags({...}) here.",
-  },
   {
     id: "no-effect-ordie",
     re: /\bEffect\.orDie\b/,
@@ -250,8 +262,15 @@ const IMPORT_START = /^\s*(?:import\b|export\s+(?:\*|\{|type\s*\{))/;
 const IMPORT_END = /\bfrom\s+["']/;
 const IMPORT_MAX_LINES = 200;
 
-/** Recursively collect .ts/.tsx files under a directory. */
-const collect = (dir) => {
+/**
+ * Recursively collect .ts/.tsx files under a directory.
+ *
+ * `.test-d.ts` stays excluded even where `includeTests` is set: a tstyche
+ * type-level test file exists to exercise the type system at compile time and
+ * has no runtime behavior a cast or a non-null assertion could hide a defect
+ * behind.
+ */
+const collect = (dir, { includeTests = false } = {}) => {
   /** @type {string[]} */
   const out = [];
   let entries;
@@ -263,18 +282,23 @@ const collect = (dir) => {
   for (const entry of entries) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
-      out.push(...collect(full));
-    } else if (/\.tsx?$/.test(full) && !/\.test\.tsx?$|\.test-d\.ts$/.test(full)) {
-      out.push(full);
+      out.push(...collect(full, { includeTests }));
+    } else if (/\.tsx?$/.test(full) && !/\.test-d\.ts$/.test(full)) {
+      if (includeTests || !/\.test\.tsx?$/.test(full)) out.push(full);
     }
   }
   return out;
 };
 
 const packagesDir = join(ROOT, "packages");
-const sources = readdirSync(packagesDir).flatMap((pkg) =>
+const srcSources = readdirSync(packagesDir).flatMap((pkg) =>
   collect(join(packagesDir, pkg, "src"))
 );
+const testSources = readdirSync(packagesDir).flatMap((pkg) =>
+  collect(join(packagesDir, pkg, "test"), { includeTests: true })
+);
+const testSourceSet = new Set(testSources);
+const sources = [...srcSources, ...testSources];
 
 /** Strip line comments, block comments and string literals to cut false positives. */
 const strip = (line) =>
@@ -294,6 +318,7 @@ const hasCustomLines = new Map();
 
 for (const file of sources) {
   const rel = relative(ROOT, file);
+  const isTestFile = testSourceSet.has(file);
   const exempt = EXEMPTIONS[rel] ?? [];
   const lines = readFileSync(file, "utf8").split("\n");
   let inBlockComment = false;
@@ -336,13 +361,17 @@ for (const file of sources) {
       importSpan = 0;
     }
 
-    if (SWITCH.test(line)) {
+    // Both budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET are
+    // keyed to specific src files) — a test file's switch or hasCustom call,
+    // if one ever appears, is not what either budget tracks.
+    if (!isTestFile && SWITCH.test(line)) {
       const found = switchLines.get(rel) ?? [];
       found.push(index + 1);
       switchLines.set(rel, found);
     }
 
     if (
+      !isTestFile &&
       HAS_CUSTOM_CALL.test(line) &&
       !HAS_CUSTOM_EXEMPT_PREFIXES.some((prefix) => rel.startsWith(prefix))
     ) {
@@ -352,6 +381,7 @@ for (const file of sources) {
     }
 
     for (const rule of RULES) {
+      if (isTestFile && !rule.testScope) continue;
       if (exempt.includes(rule.id)) continue;
       if (rule.id === "no-type-assertion" && importActive) continue;
       if (rule.re.test(rule.raw === true ? raw : line)) {
@@ -446,6 +476,57 @@ for (const file of sources) {
           `(that's for service ids).\n    ${m[0].replace(/\s+/g, " ")}`,
       );
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// §4 — Effect.catchTag array form only, checked across line breaks. The
+// per-line rule this replaced matched `\.catchTags\s*\(\s*\{` against one line
+// at a time and missed `Effect.catchTags(\n  {`, which is how this reads at
+// AGENTS.md's own ~90-column hand-wrap width — the exact form the previous
+// version's own doc comment claimed it enforced (CCR-QD-104).
+// ---------------------------------------------------------------------------
+
+const CATCHTAGS_OBJECT_FORM = /\.catchTags\s*\(\s*\{/g;
+
+for (const file of sources) {
+  const rel = relative(ROOT, file);
+  const content = readFileSync(file, "utf8");
+  for (const m of content.matchAll(CATCHTAGS_OBJECT_FORM)) {
+    failures += 1;
+    console.error(
+      `${rel}  [no-catchtags-object-form] Effect.catchTag array form only — ` +
+        `there is no catchTags({...}) here.\n    ${m[0].replace(/\s+/g, " ")}`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// §1 — effect submodules import via `import * as X from "effect/X"`, checked
+// across line breaks. The per-line rule this replaced tested one raw line at
+// a time against a pattern requiring `import`, `{...}` and `from "effect/…"`
+// all on it, so a named import wrapped across several lines — this codebase's
+// own hand-wrap convention for a long specifier list — matched nothing on any
+// single line (CCR-QD-104). `[^}]*` already spans newlines; only the `^`
+// anchor needed multiline mode to find a match starting on any line, not just
+// the file's first.
+//
+// `import type { X } from "effect/Y"` stays exempt for the same reason as
+// before: "type " between `import` and `{` means `\s+\{` never matches right
+// after `import`.
+// ---------------------------------------------------------------------------
+
+const NAMED_EFFECT_SUBMODULE_IMPORT = /^[ \t]*import\s+\{[^}]*\}\s+from\s+["']effect\/[^"']+["']/gm;
+
+for (const file of sources) {
+  const rel = relative(ROOT, file);
+  const content = readFileSync(file, "utf8");
+  for (const m of content.matchAll(NAMED_EFFECT_SUBMODULE_IMPORT)) {
+    failures += 1;
+    console.error(
+      `${rel}  [no-named-effect-submodule-import] Namespace-import effect ` +
+        `submodules: import * as X from "effect/X".\n    ${m[0].replace(/\s+/g, " ")}`,
+    );
   }
 }
 

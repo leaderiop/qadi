@@ -60,6 +60,27 @@ describe("verifySequenceIntegrity", () => {
         entryWithSequence(2),
       ]);
     }));
+
+  it.effect("an unsequenced entry sitting between two sequenced ones does not hide the gap between them", () =>
+    Effect.gen(function* () {
+      // `Array.prototype.toSorted` moves `undefined` to the end unconditionally
+      // — the comparator is never even called for it — so this passes whether or
+      // not `.filter` ran first; the two are pinned together here rather than as
+      // separate cases because that spec guarantee is exactly why removing
+      // `.filter` is a genuinely equivalent mutant, not a coverage gap.
+      const result = yield* Effect.result(
+        verifySequenceIntegrity([
+          entryWithSequence(1),
+          entryWithSequence(undefined),
+          entryWithSequence(3),
+        ]),
+      );
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") {
+        assert.strictEqual(result.failure.expectedSequence, 2);
+        assert.strictEqual(result.failure.actualSequence, 3);
+      }
+    }));
 });
 
 describe("PROPERTY: gap and duplicate detection over generated sequences", () => {

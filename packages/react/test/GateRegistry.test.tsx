@@ -206,7 +206,8 @@ describe("locating a guard", () => {
     // The property the whole design rests on. Asserted on the style rather than
     // on a measured rect, because happy-dom performs no layout — a rect
     // assertion here would pass for a `display: block` wrapper too.
-    expect((element?.element as HTMLElement | undefined)?.style.display).toBe("contents");
+    const marker = element?.element;
+    expect(marker instanceof HTMLElement && marker.style.display).toBe("contents");
   });
 });
 

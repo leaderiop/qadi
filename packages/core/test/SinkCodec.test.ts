@@ -58,7 +58,7 @@ const trace = (allowed: boolean) => ({
   policyTag: "HasPermission" as const,
   allowed,
   children: [],
-  ...(allowed ? { visibleFields: ["id", "title"] as ReadonlyArray<string> } : {}),
+  ...(allowed ? { visibleFields: ["id", "title"] } : {}),
   obligations: [],
 });
 
@@ -614,18 +614,18 @@ describe("round-trip property", () => {
       FastCheck.constant(P.hasAction("read")),
     );
 
-    const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
+    const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
       node: FastCheck.oneof(
         { maxDepth: 3 },
         leaf,
-        FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, {
+        FastCheck.array(tie("node"), {
           minLength: 1,
           maxLength: 3,
         }).map((ps) => P.allOf(ps)),
-        (tie("node") as FastCheck.Arbitrary<P.Policy>).map((p) => P.not(p)),
-        (tie("node") as FastCheck.Arbitrary<P.Policy>).map((p) => P.labeled("audit", p)),
+        tie("node").map((p) => P.not(p)),
+        tie("node").map((p) => P.labeled("audit", p)),
       ),
-    })).node as FastCheck.Arbitrary<P.Policy>;
+    })).node;
 
     FastCheck.assert(
       FastCheck.property(

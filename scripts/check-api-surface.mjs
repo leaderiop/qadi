@@ -140,8 +140,14 @@ const exportsOf = (file) => {
  * have been invisible to this checker and could have drifted indefinitely — the
  * silent omission §15 exists to forbid.
  *
- * A wildcard subpath (`@qadi/http`'s `./*`) names no single file, so it is
- * skipped: it re-exports modules the root barrel already reaches.
+ * A wildcard subpath (`@qadi/core`'s `./*`, and five other packages') names no
+ * single file — it makes every `src/*.ts` module directly importable
+ * (`@qadi/core/FieldPath`), which is not "the root barrel already reaches it":
+ * a module the barrel deliberately omits (§9) is exactly the shape a wildcard
+ * subpath still exposes. So it is expanded to every `src/*.ts` module the
+ * package has, barreled or not, rather than skipped — an omission here made
+ * eleven exports invisible to this checker across four packages until a
+ * read-only audit found them by hand (CCR-QD-102).
  */
 const entryPointsOf = ({ dir }) => {
   const packageDir = join(ROOT, "packages", dir);
@@ -149,7 +155,7 @@ const entryPointsOf = ({ dir }) => {
   const { exports: map } = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
 
   const entries = new Set();
-  for (const target of collectSourceTargets(map ?? {})) {
+  for (const target of collectSourceTargets(map ?? {}, src)) {
     const file = join(packageDir, target);
     if (existsSync(file)) entries.add(file);
   }
@@ -158,15 +164,20 @@ const entryPointsOf = ({ dir }) => {
   return [...entries];
 };
 
-/** The `bun` condition of every non-wildcard subpath in an `exports` map. */
-const collectSourceTargets = (map) =>
-  Object.entries(map).flatMap(([subpath, condition]) =>
-    subpath.includes("*") || condition === null || typeof condition !== "object"
-      ? []
-      : typeof condition.bun === "string"
-        ? [condition.bun]
-        : [],
-  );
+/**
+ * The `bun` condition of every subpath in an `exports` map, source files
+ * behind a `./*` wildcard expanded to every `.ts` module actually on disk.
+ */
+const collectSourceTargets = (map, src) =>
+  Object.entries(map).flatMap(([subpath, condition]) => {
+    if (condition === null || typeof condition !== "object") return [];
+    if (typeof condition.bun !== "string") return [];
+    if (!subpath.includes("*")) return [condition.bun];
+    if (!existsSync(src)) return [];
+    return readdirSync(src)
+      .filter((file) => file.endsWith(".ts"))
+      .map((file) => condition.bun.replace("*", file.slice(0, -".ts".length)));
+  });
 
 /**
  * The export set of one package, across all of its entry points.
@@ -236,8 +247,19 @@ for (const pkg of publicPackages) {
 
 const everyExport = new Set(publicPackages.flatMap((p) => [...surfaceOf(p).keys()]));
 
-/** Rows of the tables under `## Public API surface`, first column only. */
-const apiSection = overview.split("\n## Public API surface")[1]?.split("\n## ")[0] ?? "";
+/**
+ * Rows of every table from `## Public API surface` through the end of
+ * `## Not listed above`, first column only.
+ *
+ * Used to stop at the first `## ` after `## Public API surface` itself, which
+ * is `## The other packages` — eight of the document's nine per-package
+ * tables, plus `## Not listed above`, went unchecked: an export removed from
+ * `@qadi/react`, `@qadi/devtools` or any other listed-but-not-core package
+ * could leave a stale row here with no gate failure (CCR-QD-102). This still
+ * stops before `## Worked example`, which is prose describing a scenario, not
+ * a claim about what exists.
+ */
+const apiSection = overview.split("\n## Public API surface")[1]?.split("\n## Worked example")[0] ?? "";
 
 for (const [index, line] of apiSection.split("\n").entries()) {
   if (!line.startsWith("|") || line.includes("| ---")) continue;

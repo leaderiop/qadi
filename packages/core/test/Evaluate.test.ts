@@ -2888,25 +2888,24 @@ describe("concurrent evaluation", () => {
         "Intersection" as const,
       );
 
-      const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
+      const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
         node: FastCheck.oneof(
           { maxDepth: 3, withCrossShrink: true },
           leaf,
           FastCheck.tuple(
-            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }),
+            FastCheck.array(tie("node"), { maxLength: 3 }),
             strategies,
           ).map(([ps, fieldStrategy]) => P.allOf(ps, { fieldStrategy })),
           FastCheck.tuple(
-            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }),
+            FastCheck.array(tie("node"), { maxLength: 3 }),
             strategies,
           ).map(([ps, fieldStrategy]) => P.anyOf(ps, { fieldStrategy })),
-          (tie("node") as FastCheck.Arbitrary<P.Policy>).map(P.not),
+          tie("node").map(P.not),
           FastCheck.tuple(
             FastCheck.array(
-              FastCheck.tuple(
-                tie("node") as FastCheck.Arbitrary<P.Policy>,
-                FastCheck.boolean(),
-              ).map(([c, permits]) => (permits ? P.permitWhen(c) : P.denyWhen(c))),
+              FastCheck.tuple(tie("node"), FastCheck.boolean()).map(([c, permits]) =>
+                permits ? P.permitWhen(c) : P.denyWhen(c),
+              ),
               { maxLength: 3 },
             ),
             FastCheck.constantFrom(
