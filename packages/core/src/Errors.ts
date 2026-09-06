@@ -8,6 +8,7 @@
 import * as Data from "effect/Data";
 import type { Trace } from "./Decision.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
+import type { PolicyDecodeTooDeep } from "./Policy.ts";
 
 /** A policy referenced a resource attribute but no resource was in context. */
 export class MissingResource extends Data.TaggedError("MissingResource")<{
@@ -188,7 +189,18 @@ export type EvaluationError =
   | MissingResourceId
   | PolicyTooDeep;
 
-/** Every error this library can produce, including enforcement and construction. */
+/**
+ * Every error this library can produce, including enforcement and construction.
+ *
+ * `PolicyDecodeTooDeep` is defined in `Policy.ts`, not here, and imported as a
+ * type only: it is raised by the public `decodePolicy`/`fromJson` API, before
+ * evaluation, and `Errors.ts` cannot import it as a value without a circular
+ * dependency (see the class's own doc comment in `Policy.ts`) — a type-only
+ * import is erased at compile time, so it carries none of that risk. It
+ * belongs in this union regardless: ADR-QD-008/INV-QD-010 promise every error
+ * this library can produce a stable code, and this one previously bypassed
+ * both the union and `ERROR_CODES`.
+ */
 export type QadiError =
   | EvaluationError
   | PolicyNotTranslatable
@@ -196,7 +208,8 @@ export type QadiError =
   | UndischargedObligation
   | CircularRoleInheritance
   | DuplicateRoleDefinition
-  | InvalidPermissionSegment;
+  | InvalidPermissionSegment
+  | PolicyDecodeTooDeep;
 
 /**
  * Stable numeric codes for logging and cross-process correlation.
@@ -221,6 +234,7 @@ export const ERROR_CODES = {
   "CustomPredicateError": "ACL013",
   "SignatureHistoryUnavailable": "ACL014",
   "DuplicateRoleDefinition": "ACL015",
+  "PolicyDecodeTooDeep": "ACL016",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

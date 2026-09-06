@@ -287,7 +287,7 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `MissingResource`, `MissingResourceId`, `MissingAction`, `PolicyTooDeep`,
 `CircularRoleInheritance`, `DuplicateRoleDefinition`, `InvalidPermissionSegment`,
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
-`CustomPredicateError`, `SignatureHistoryUnavailable`,
+`CustomPredicateError`, `SignatureHistoryUnavailable`, `PolicyDecodeTooDeep`,
 plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
@@ -301,6 +301,16 @@ by `resolveRoleGraph`, not by evaluation) alongside `CircularRoleInheritance`:
 `resolveRoleGraph` names a role graph loaded from serialized form with a
 repeated definition name, rather than letting the last definition silently
 shadow the others. `ERROR_CODES["DuplicateRoleDefinition"]` is `ACL015`.
+
+`PolicyDecodeTooDeep` joins `QadiError` (not `EvaluationError` — it is raised by
+`decodePolicy`/`fromJson`, before a policy is ever evaluated). It is defined in
+`Policy.ts`, not `Errors.ts`, and imported there as a type only, to avoid the
+circular value-import `Policy.ts`'s own doc comment on the class explains; a
+type-only import carries no such risk. It had bypassed `QadiError` and
+`ERROR_CODES` entirely until now, which meant `decodePolicy` could raise an
+error with no stable code — the exact guarantee
+ADR-QD-008/INV-QD-010 exist to make. `ERROR_CODES["PolicyDecodeTooDeep"]` is
+`ACL016`.
 
 ## The other packages
 
