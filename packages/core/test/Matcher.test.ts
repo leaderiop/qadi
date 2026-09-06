@@ -72,6 +72,19 @@ describe("matchers", () => {
     assert.isFalse(run(M.lt(3), 3));
   });
 
+  it("gte and lt reject a non-finite bound, mirroring SecurityLabel's Infinity/NaN guard", () => {
+    // A decoded policy is untrusted JSON (§7, ADR-QD-002): JSON has no literal
+    // spelling for `Infinity`, but `1e400` still decodes to it, so an
+    // `Infinity`/`NaN` bound is exactly as reachable here as an `Infinity`
+    // `SecurityLabel.level` is. Without the guard an `Infinity` bound would
+    // dominate every finite attribute value via `>=`.
+    assert.isFalse(run(M.gte(Number.POSITIVE_INFINITY), 1_000_000));
+    assert.isFalse(run(M.gte(Number.NaN), 5));
+    assert.isFalse(run(M.lt(Number.POSITIVE_INFINITY), 5));
+    assert.isFalse(run(M.lt(Number.NaN), 5));
+    assert.isFalse(run(M.lt(Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY));
+  });
+
   it("contains works on arrays and strings only", () => {
     assert.isTrue(run(M.contains("a"), ["a", "b"]));
     assert.isTrue(run(M.contains("ell"), "hello"));
@@ -174,6 +187,40 @@ describe("empty-collection boundaries", () => {
     // for every `x`.
     assert.isFalse(run(M.inArray([]), "anything"));
     assert.isFalse(run(M.inArray([]), undefined));
+  });
+});
+
+describe("eq/neq against an unresolved reference", () => {
+  // `subject("stae")` is a typo for `subject("dept")` — no such attribute
+  // exists on `ctx.subject`, so it resolves to `undefined` (see `getByPath`,
+  // which is total). `eq` and `neq` are both total over that, but NOT
+  // symmetrically safe: see the doc comments on `eq`/`neq` in `Matcher.ts`.
+  it("eq denies against an unresolved reference — fails safe", () => {
+    assert.isFalse(run(M.eq(M.subject("stae")), "eng"));
+  });
+
+  it("neq ALLOWS against the same unresolved reference — fails open, and is accepted as-is", () => {
+    // `hasAttribute("state", neq(subject("stae")))` reads like "state is not
+    // stae" and is actually "always true": `value !== undefined` is true for
+    // every attribute value that itself isn't `undefined`.
+    assert.isTrue(run(M.neq(M.subject("stae")), "eng"));
+    assert.isTrue(run(M.neq(M.subject("stae")), "anything at all"));
+    // The one value it does NOT allow against is `undefined` itself — the
+    // attribute being absent, same as the reference being unresolved.
+    assert.isFalse(run(M.neq(M.subject("stae")), undefined));
+  });
+});
+
+describe("eq vs inArray: NaN diverges under === vs SameValueZero", () => {
+  it("eq never matches NaN, even against itself — === defines NaN unequal to NaN", () => {
+    assert.isFalse(run(M.eq(M.literal(Number.NaN)), Number.NaN));
+  });
+
+  it("inArray DOES match NaN — Array.prototype.includes uses SameValueZero, not ===", () => {
+    // For a single element, `inArray([x])` looks like it should be
+    // equivalent to `eq(literal(x))`. It is, for every `x` except `NaN`.
+    assert.isTrue(run(M.inArray([Number.NaN]), Number.NaN));
+    assert.isFalse(run(M.eq(M.literal(Number.NaN)), Number.NaN));
   });
 });
 
@@ -564,6 +611,32 @@ describe("the dominates matcher", () => {
     assert.isTrue(
       M.evaluateMatcher(M.dominates(M.resource("label")), secret, ctxWith({}, { label: secret })),
     );
+  });
+});
+
+describe("subjectId() is isolated from subject()", () => {
+  // `subjectId()` is a distinct `ValueRef` variant precisely so that an
+  // attribute happening to be named `id` can never shadow the subject's real
+  // identifier, or be shadowed by it (see the doc comment on `subjectId` in
+  // `Matcher.ts`). Nothing exercised that through an actual evaluation: every
+  // other test referencing `M.subjectId()` only asserts it inside
+  // `referencesAction`/`referencesResource`'s negative lists, never resolves
+  // it via `evaluateMatcher`.
+  const context: M.MatcherContext = {
+    subject: { id: "attacker-controlled", dept: "eng" },
+    subjectId: makeSubjectId("real-u1"),
+    resource: undefined,
+    action: undefined,
+  };
+
+  it("resolves to the subject's own identifier, not an attribute named 'id'", () => {
+    assert.isTrue(M.evaluateMatcher(M.eq(M.subjectId()), makeSubjectId("real-u1"), context));
+    assert.isFalse(M.evaluateMatcher(M.eq(M.subjectId()), "attacker-controlled", context));
+  });
+
+  it("stays isolated from subject('id'), which reads the attribute instead", () => {
+    assert.isTrue(M.evaluateMatcher(M.eq(M.subject("id")), "attacker-controlled", context));
+    assert.isFalse(M.evaluateMatcher(M.eq(M.subject("id")), makeSubjectId("real-u1"), context));
   });
 });
 
