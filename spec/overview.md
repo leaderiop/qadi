@@ -574,8 +574,8 @@ checked exactly as the first one's is (CCR-QD-067).
 | `subjectOf`, `evaluationOptionsOf` | function | `model/SimulationInput.ts` |
 | `SimulationClock`, `SimulationOptions` | type | `model/Simulation.ts` |
 | `simulate`, `simulationLayer` | function | `model/Simulation.ts` |
-| `SimulationSource`, `FixtureSource`, `SnapshotSource`, `LiveSource` | type | `model/Sources.ts` |
-| `fixtures`, `snapshot`, `live`, `causesIO`, `portsOf` | function | `model/Sources.ts` |
+| `SimulationSource`, `FixtureSource`, `SnapshotSource`, `LiveSource` | type | `model/SimulationSource.ts` |
+| `fixtures`, `snapshot`, `live`, `causesIO`, `portsOf` | function | `model/SimulationSource.ts` |
 | `Answer`, `CapturedAnswers` | type | `model/Capture.ts` |
 | `emptyAnswers` | constant | `model/Capture.ts` |
 | `capturing`, `replayLayer`, `answerCount` | function | `model/Capture.ts` |

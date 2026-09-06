@@ -1392,7 +1392,7 @@ in a convention.
 **Enforcement**: `packages/devtools/test/model/Simulation.test.ts` runs a
 simulation beside a real `decisionSinkRing` and asserts the ring is empty, and
 beside a layer whose every port dies and asserts the simulation still decides;
-`Sources.test.ts` repeats both for `Snapshot` and `Live`;
+`SimulationSource.test.ts` repeats both for `Snapshot` and `Live`;
 `WhatIf.test.ts` asserts the same of a sweep of more than twenty rows.
 
 **Related**: [BEH-QD-219](behaviors/29-devtools-simulator.md), [ADR-QD-050](decisions/050-a-simulation-is-sealed.md).
