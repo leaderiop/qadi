@@ -26,28 +26,38 @@
  * unset must never be what opens a route. A deployment that wants this off in
  * production does not mount it.
  *
- * **`guardRoute` runs once, at connect, not once per record.** A revoked or
- * logged-out principal whose connection is still open keeps receiving every
- * decision this process makes for as long as the stream stays up — there is
- * no per-record re-check and no maximum connection lifetime here, so nothing
- * bounds that exposure window short of the client disconnecting or the
- * process restarting. A deployment for which that window matters needs its
- * own mitigation in front of this route (a reverse proxy that closes
- * long-lived connections past a maximum age, or `stream`'s own upstream
- * source declining to emit once a subscriber's token is known revoked) —
- * this module does not implement one, and a rushed one under time pressure
- * risked being wrong in a way silence is not.
+ * **`guardRoute` runs once, at connect — and again, periodically, for as long
+ * as the connection stays open, when `reauth` is given.** Without it, a
+ * revoked or logged-out principal whose connection is still open keeps
+ * receiving every decision this process makes for as long as the stream
+ * stays up, since nothing short of the client disconnecting or the process
+ * restarting would end it. `reauth` closes that window: on the interval it
+ * names, this route re-extracts the subject from the *same* request — which,
+ * for a real `SubjectExtractor` backed by a token/session lookup, is exactly
+ * where a revocation becomes visible, since the lookup runs again rather than
+ * reusing whatever it answered at connect — and re-evaluates the policy
+ * against the fresh subject. A failed lookup or a denial ends the stream;
+ * `EventSource`'s own automatic reconnect is what recovers, going through
+ * `guardRoute`'s full check again on the new connection, with no protocol of
+ * ours. Off by default: it is meaningless without a `SubjectExtractor` whose
+ * `lookup` actually consults something that can change (a real deployment's
+ * does; `subjectExtractorNone`/an in-memory test double does not), so an
+ * interval a caller did not ask for would only be needless load for one that
+ * has no revocation source to notice.
  */
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
 import * as Result from "effect/Result";
+import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
-import type { Permission, Policy, SinkRecord } from "@qadi/core";
-import { isJsonSafe, toWire } from "@qadi/core";
+import type { CurrentSubject, EvaluationServices, Permission, Policy, Resource, SinkRecord } from "@qadi/core";
+import { currentSubjectLayer, evaluate, isAllowed, isJsonSafe, toWire } from "@qadi/core";
 import { guardRoute } from "./GuardRoute.ts";
+import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
  * One record as an SSE frame: `data: <json>\n\n` — or filtered out when its
@@ -77,6 +87,57 @@ export const frame: Filter.Filter<SinkRecord, Uint8Array> = (record) => {
   return Result.succeed(new TextEncoder().encode(`data: ${JSON.stringify(toWire(record))}\n\n`));
 };
 
+export interface DecisionStreamOptions {
+  /**
+   * Re-authorizes an open connection on an interval, ending it the moment
+   * that check no longer passes. See this module's own doc comment for what
+   * this does and does not protect against. Absent means the connect-time
+   * check is the only one — the previous, and still default, behavior.
+   */
+  readonly reauth?: {
+    readonly interval: Duration.Input;
+  };
+}
+
+/**
+ * One re-authorization attempt: re-extract the subject from the same
+ * request, re-evaluate the policy against it, succeed only on an allow.
+ *
+ * Re-extracting is the point, not a formality — for a `SubjectExtractor`
+ * backed by a real token/session lookup, this calls that lookup again rather
+ * than reusing whatever it answered at connect, which is exactly where a
+ * revocation since connect becomes visible. `SubjectExtractionFailed` (the
+ * credential store itself broken) ends the stream the same as a denial: an
+ * outage on the recheck path is not a reason to keep serving decisions on
+ * the strength of a subject this process can no longer confirm.
+ *
+ * Exported for the same reason `frame` is: testing the merged `Stream`
+ * through a real, live SSE connection has no existing pattern in this repo
+ * (`decisionStream.test.ts`'s own note) — this is a plain `Effect`, testable
+ * directly against `TestClock` without one.
+ */
+export const reauthCheck = (
+  request: HttpServerRequest.HttpServerRequest,
+  policy: Policy,
+  resource: Resource,
+): Effect.Effect<
+  void,
+  "denied" | "extraction-failed",
+  Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
+> =>
+  SubjectExtractor.extract(request).pipe(
+    Effect.mapError(() => "extraction-failed" as const),
+    Effect.flatMap((subject) =>
+      evaluate(policy, { resource }).pipe(
+        Effect.provide(currentSubjectLayer(subject)),
+        Effect.mapError(() => "denied" as const),
+        Effect.flatMap((decision) =>
+          isAllowed(decision) ? Effect.void : Effect.fail("denied" as const),
+        ),
+      ),
+    ),
+  );
+
 /**
  * Mounts `/__decisions`, streaming the feed to callers the policy permits.
  *
@@ -91,6 +152,7 @@ export const decisionStreamRoute = <P extends Permission>(
   permission: P,
   policy: Policy,
   stream: Stream.Stream<SinkRecord>,
+  options?: DecisionStreamOptions,
 ) =>
   HttpRouter.add(
     "GET",
@@ -102,8 +164,36 @@ export const decisionStreamRoute = <P extends Permission>(
         policy,
         () => Effect.succeed({}),
       )(() =>
-        Effect.succeed(
-          HttpServerResponse.stream(Stream.filterMap(stream, frame), {
+        Effect.gen(function* () {
+          const frames = Stream.filterMap(stream, frame);
+          // `Stream.mergeEffect`: the recheck loop runs concurrently for the
+          // stream's lifetime, fails the whole stream the moment it fails,
+          // and is itself interrupted the moment the stream ends for any
+          // other reason (the client disconnecting) — never an orphaned
+          // fiber still polling a connection nobody is reading anymore.
+          const guarded =
+            options?.reauth === undefined
+              ? frames
+              : frames.pipe(
+                  Stream.mergeEffect(
+                    Effect.repeat(
+                      reauthCheck(request, policy, {}),
+                      Schedule.spaced(options.reauth.interval),
+                    ),
+                  ),
+                );
+          // `HttpServerResponse.stream` takes no requirement channel at
+          // all — it needs a fully discharged `Stream`, unlike
+          // `Effect.Effect`, which threads `R` through. The reauth loop's
+          // services are already in this handler's own ambient context
+          // (that is what `guardRoute`/`HttpRouter.add` provide them for),
+          // so capturing and re-providing that context is what discharges
+          // them here rather than leaving them for a caller who cannot see
+          // this route's internals to supply.
+          const context = yield* Effect.context<
+            Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
+          >();
+          return HttpServerResponse.stream(Stream.provideContext(guarded, context), {
             contentType: "text/event-stream",
             headers: {
               // Without these a proxy will buffer the stream into oblivion and
@@ -112,8 +202,8 @@ export const decisionStreamRoute = <P extends Permission>(
               connection: "keep-alive",
               "x-accel-buffering": "no",
             },
-          }),
-        ),
+          });
+        }),
       )(request);
     }),
   );
