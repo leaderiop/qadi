@@ -270,7 +270,7 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
  * reachable, which is the mode a sweep should actually use — one round of I/O
  * instead of one per edit.
  */
-const runProgram = (options: {
+const runProgram = Effect.fn("qadi.devtools.runProgram")(function* (options: {
   readonly policy: Policy;
   readonly input: SimulationInput;
   readonly sweep: boolean;
@@ -278,32 +278,26 @@ const runProgram = (options: {
   readonly source: SourceChoice;
   readonly ports: EvaluationPortsLayer | undefined;
   readonly captured: CapturedAnswers | undefined;
-}): Effect.Effect<{
-  readonly result: Omit<Extract<RunResult, { _tag: "Ran" }>, "input">;
-  readonly answers: CapturedAnswers | undefined;
-}> =>
-  Effect.gen(function* () {
-    const recorder =
-      options.source === "Live" && options.ports !== undefined
-        ? capturing(options.ports)
-        : undefined;
-    const source =
-      recorder === undefined
-        ? sourceOf(options.source, options.ports, options.captured)
-        : live(recorder.layer);
+}) {
+  const recorder =
+    options.source === "Live" && options.ports !== undefined ? capturing(options.ports) : undefined;
+  const source =
+    recorder === undefined
+      ? sourceOf(options.source, options.ports, options.captured)
+      : live(recorder.layer);
 
-    const run = { clock: options.clock, ...(source === undefined ? {} : { source }) };
+  const run = { clock: options.clock, ...(source === undefined ? {} : { source }) };
 
-    const report = options.sweep
-      ? yield* whatIf(options.policy, options.input, { ...run, pairs: true })
-      : undefined;
-    const outcome = report?.baseline ?? (yield* simulate(options.policy, options.input, run));
+  const report = options.sweep
+    ? yield* whatIf(options.policy, options.input, { ...run, pairs: true })
+    : undefined;
+  const outcome = report?.baseline ?? (yield* simulate(options.policy, options.input, run));
 
-    return {
-      result: { _tag: "Ran" as const, outcome, report, clock: options.clock, policy: options.policy },
-      answers: recorder === undefined ? undefined : yield* recorder.answers,
-    };
-  });
+  return {
+    result: { _tag: "Ran" as const, outcome, report, clock: options.clock, policy: options.policy },
+    answers: recorder === undefined ? undefined : yield* recorder.answers,
+  };
+});
 
 /**
  * The source a choice names, or nothing when it cannot be honoured.

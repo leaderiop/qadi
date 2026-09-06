@@ -121,21 +121,19 @@ export class SignatureCapturePort extends Context.Service<
  * vocabulary. `options.signerRole`, when given, reaches `capture()`'s
  * request, which is the only way a caller can actually set that field.
  */
-export const signatureObligationHandler =
-  (
-    port: SignatureCapturePortShape,
-    meaning: string | SignatureMeaning,
-    options?: { readonly signerRole?: string },
-  ) =>
-  (
+export const signatureObligationHandler = (
+  port: SignatureCapturePortShape,
+  meaning: string | SignatureMeaning,
+  options?: { readonly signerRole?: string },
+) =>
+  Effect.fn("qadi.audit.signatureObligationHandler")(function* (
     obligations: ReadonlyArray<Obligation>,
-  ): Effect.Effect<void, SignatureCaptureError, CurrentSubject> =>
-    Effect.gen(function* () {
-      const subject = yield* CurrentSubject;
-      yield* port.capture({
-        meaning,
-        signerId: subject.id,
-        ...(options?.signerRole === undefined ? {} : { signerRole: options.signerRole }),
-        obligationIds: obligations.map((o) => o.id),
-      });
+  ) {
+    const subject = yield* CurrentSubject;
+    yield* port.capture({
+      meaning,
+      signerId: subject.id,
+      ...(options?.signerRole === undefined ? {} : { signerRole: options.signerRole }),
+      obligationIds: obligations.map((o) => o.id),
     });
+  });

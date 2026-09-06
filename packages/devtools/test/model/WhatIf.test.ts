@@ -9,6 +9,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Tracer from "effect/Tracer";
 import {
   allOf,
   anyOf,
@@ -449,5 +450,30 @@ describe("a sweep is sealed, forty rows at a time", () => {
         assert.strictEqual(row.input.action, "read", row.edit.label);
         assert.deepStrictEqual(row.input.resource, { id: "doc-1" }, row.edit.label);
       }
+    }));
+
+  // AGENTS.md §5: every effectful function is Effect.fn, named when a span is
+  // wanted. `whatIf` runs one Effect per edit in a sweep, so a trace that
+  // cannot tell "the sweep" from "one edit's simulation" is not much of a
+  // trace — this pins that the sweep itself emits its own span.
+  it.effect("emits a qadi.devtools.whatIf span around the sweep", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const collectingTracer = Layer.succeed(
+        Tracer.Tracer,
+        Tracer.make({
+          span: (options) => {
+            const span = new Tracer.NativeSpan(options);
+            spans.push(span);
+            return span;
+          },
+        }),
+      );
+
+      yield* whatIf(hasPermission(read), alice, { remedies: false }).pipe(
+        Effect.provide(collectingTracer),
+      );
+
+      assert.isDefined(spans.find((s) => s.name === "qadi.devtools.whatIf"));
     }));
 });
