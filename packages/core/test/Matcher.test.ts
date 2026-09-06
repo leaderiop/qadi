@@ -72,6 +72,19 @@ describe("matchers", () => {
     assert.isFalse(run(M.lt(3), 3));
   });
 
+  it("gte and lt reject a non-finite bound, mirroring SecurityLabel's Infinity/NaN guard", () => {
+    // A decoded policy is untrusted JSON (§7, ADR-QD-002): JSON has no literal
+    // spelling for `Infinity`, but `1e400` still decodes to it, so an
+    // `Infinity`/`NaN` bound is exactly as reachable here as an `Infinity`
+    // `SecurityLabel.level` is. Without the guard an `Infinity` bound would
+    // dominate every finite attribute value via `>=`.
+    assert.isFalse(run(M.gte(Number.POSITIVE_INFINITY), 1_000_000));
+    assert.isFalse(run(M.gte(Number.NaN), 5));
+    assert.isFalse(run(M.lt(Number.POSITIVE_INFINITY), 5));
+    assert.isFalse(run(M.lt(Number.NaN), 5));
+    assert.isFalse(run(M.lt(Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY));
+  });
+
   it("contains works on arrays and strings only", () => {
     assert.isTrue(run(M.contains("a"), ["a", "b"]));
     assert.isTrue(run(M.contains("ell"), "hello"));

@@ -187,9 +187,25 @@ export const dominates = (ref: ValueRef): Matcher => ({ _tag: "Dominates", ref }
 export const inArray = (values: ReadonlyArray<unknown>): Matcher => ({ _tag: "In", values });
 /** Attribute is present and not null. */
 export const exists = (): Matcher => ({ _tag: "Exists" });
-/** Numeric attribute is >= value. */
+/**
+ * Numeric attribute is >= value.
+ *
+ * The bound is checked with `Number.isFinite` at evaluation time (see
+ * `evaluateMatcher`'s `Gte` case), mirroring `SecurityLabel.isSecurityLabel`'s
+ * rejection of `Infinity`/`NaN` levels. A `Matcher` crosses the same
+ * untrusted-JSON trust boundary a `Policy` does (§7 of AGENTS.md,
+ * ADR-QD-002): JSON has no literal spelling for `Infinity`, but `1e400`
+ * still decodes to it, so a bound is exactly as reachable from untrusted
+ * data as a `SecurityLabel` level is. Left unguarded, an `Infinity` bound
+ * would dominate every finite attribute value via `>=` — the identical
+ * failure mode `isSecurityLabel` closes.
+ */
 export const gte = (value: number): Matcher => ({ _tag: "Gte", value });
-/** Numeric attribute is < value. */
+/**
+ * Numeric attribute is < value.
+ *
+ * See {@link gte} — the bound is checked the same way, for the same reason.
+ */
 export const lt = (value: number): Matcher => ({ _tag: "Lt", value });
 /** Array or string attribute contains the value. */
 export const contains = (value: unknown): Matcher => ({ _tag: "Contains", value });
@@ -382,9 +398,9 @@ export const evaluateMatcher = (
     case "Exists":
       return value !== undefined && value !== null;
     case "Gte":
-      return typeof value === "number" && value >= self.value;
+      return typeof value === "number" && Number.isFinite(self.value) && value >= self.value;
     case "Lt":
-      return typeof value === "number" && value < self.value;
+      return typeof value === "number" && Number.isFinite(self.value) && value < self.value;
     case "Contains":
       return containsValue(value, self.value);
     // `Object.hasOwn` rather than `value[self.field]` alone, for the same
