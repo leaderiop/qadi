@@ -124,6 +124,37 @@ describe("leaf policies", () => {
       Effect.provide(testLayer(subjectWith({ attributes: { allowedOp: "approve" } }))),
     ));
 
+  it.effect(
+    "a HasAttribute matcher referencing the resource fails, rather than denies, without one",
+    () =>
+      Effect.gen(function* () {
+        // The `HasResourceAttribute` mirror of "a matcher referencing action()
+        // without one fails rather than denying": `evaluateMatcher` is total,
+        // so without the pre-check the `resource(...)` reference would resolve
+        // to `undefined`, compare false, and read as an ordinary denial rather
+        // than the caller error INV-QD-011 asks for.
+        const policy = P.hasAttribute("op", M.eq(M.resource("requiredOp")));
+        const r = yield* Effect.result(evaluate(policy));
+        assert.strictEqual(r._tag, "Failure");
+        if (r._tag !== "Failure") return;
+        assert.strictEqual(r.failure._tag, "MissingResource");
+        if (r.failure._tag !== "MissingResource") return;
+        assert.strictEqual(r.failure.attribute, "op");
+      }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { op: "approve" } })))),
+  );
+
+  it.effect(
+    "a HasAttribute matcher referencing the resource allows once one is supplied",
+    () =>
+      Effect.gen(function* () {
+        // The positive half: supplying a resource must actually let evaluation
+        // proceed to the match, not merely avoid the MissingResource failure.
+        const policy = P.hasAttribute("op", M.eq(M.resource("requiredOp")));
+        const d = yield* evaluate(policy, { resource: { requiredOp: "approve" } });
+        assert.isTrue(isAllowed(d));
+      }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { op: "approve" } })))),
+  );
+
   it.effect("HasResourceAttribute matches against the resource", () =>
     Effect.gen(function* () {
       const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
@@ -141,6 +172,20 @@ describe("leaf policies", () => {
       assert.strictEqual(d.trace.policyTag, "HasResourceAttribute");
       if (d._tag !== "Deny") return;
       assert.strictEqual(d.reason, "resource attribute 'state' did not match");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("HasResourceAttribute does not resolve an inherited prototype member", () =>
+    Effect.gen(function* () {
+      // A decoded policy's `attribute` is untrusted input. Without an
+      // `Object.hasOwn` guard, naming a prototype-chain key such as
+      // `toString` resolves `Object.prototype.toString` — a function — as
+      // though the resource carried it, rather than reporting absence the
+      // way every other missing attribute does.
+      const policy = P.hasResourceAttribute("toString", M.exists());
+      const d = yield* evaluate(policy, { resource: { id: "doc-1" } });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "resource attribute 'toString' has no value");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
   it.effect("HasResourceAttribute fails when no resource is in context", () =>
@@ -1044,6 +1089,38 @@ describe("the action dimension", () => {
       const d = yield* evaluate(policy, { action: "write" });
       assert.isTrue(isAllowed(d));
     }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] })))));
+
+  it.effect(
+    "subject, resource and action references all resolve correctly through Not/Rules/Labeled",
+    () =>
+      Effect.gen(function* () {
+        // `matcherContext` is now built once, in `evaluate`'s `Effect.suspend`,
+        // and threaded as a parameter through `evaluateNode` and its
+        // `AllOf`/`Rules` helpers rather than rebuilt inside every
+        // `evaluateNode` call. This exercises every shape that threading has
+        // to survive in one tree: two nested `Not`s (each a `depth + 1`
+        // recursive call), a `Rules` table's sequential walk, and `Labeled`'s
+        // wrapper — with a leaf under each reading a different one of
+        // `subject()`/`resource()`/`action()`. A mis-threaded parameter at any
+        // one of those call sites would make its leaf compare against stale
+        // or wrong data.
+        const policy = P.allOf([
+          P.not(P.not(P.hasResourceAttribute("owner", M.eq(M.subjectId())))),
+          P.rules([P.permitWhen(P.hasAttribute("op", M.eq(M.action())))]),
+          P.labeled("action-check", P.hasResourceAttribute("requiredOp", M.eq(M.action()))),
+        ]);
+
+        const d = yield* evaluate(policy, {
+          resource: { owner: "u1", requiredOp: "approve" },
+          action: "approve",
+        });
+        assert.isTrue(isAllowed(d));
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1", attributes: { op: "approve" } })),
+        ),
+      ),
+  );
 
   it.effect("read-down and write-up are expressible in one stored policy", () =>
     Effect.gen(function* () {

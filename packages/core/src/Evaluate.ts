@@ -36,7 +36,7 @@ import {
 import { EvaluationId } from "./EvaluationId.ts";
 import { makeResourceId } from "./Identity.ts";
 import type { MatcherContext } from "./Matcher.ts";
-import { evaluateMatcher, referencesAction } from "./Matcher.ts";
+import { evaluateMatcher, referencesAction, referencesResource } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
@@ -526,6 +526,7 @@ const evaluateNode = (
   policy: Policy,
   subject: AuthSubject,
   request: Evaluation,
+  matcherContext: MatcherContext,
   depth: number,
   maxDepth: number,
 ): Effect.Effect<
@@ -536,13 +537,6 @@ const evaluateNode = (
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
 
   const { action, resource } = request;
-
-  const matcherContext: MatcherContext = {
-    subject: subject.attributes,
-    subjectId: subject.id,
-    resource,
-    action,
-  };
 
   switch (policy._tag) {
     case "HasPermission": {
@@ -565,6 +559,14 @@ const evaluateNode = (
       if (action === undefined && referencesAction(policy.matcher)) {
         return Effect.fail(new MissingAction({ expected: undefined }));
       }
+      // The `HasResourceAttribute` mirror of the action check above
+      // (INV-QD-011): a matcher comparing against `resource(...)` with no
+      // resource in context would otherwise resolve that reference to
+      // `undefined`, compare false, and read as an ordinary denial rather than
+      // the caller error it is.
+      if (resource === undefined && referencesResource(policy.matcher)) {
+        return Effect.fail(new MissingResource({ attribute: policy.attribute }));
+      }
       return Effect.map(readAttribute(subject, policy.attribute), (value) =>
         evaluateMatcher(policy.matcher, value, matcherContext)
           ? allow("HasAttribute", policy.fields)
@@ -578,7 +580,14 @@ const evaluateNode = (
       if (action === undefined && referencesAction(policy.matcher)) {
         return Effect.fail(new MissingAction({ expected: undefined }));
       }
-      const value = resource[policy.attribute];
+      // `Object.hasOwn`, mirroring `readAttribute` above and `FieldPath.ts`'s
+      // `projectAt`: a decoded policy's `attribute` is untrusted input, and
+      // without this guard a name like `"toString"` or `"constructor"`
+      // resolves an inherited `Object.prototype` member instead of reporting
+      // the absence `attributeReason` already has a sentence for.
+      const value = Object.hasOwn(resource, policy.attribute)
+        ? resource[policy.attribute]
+        : undefined;
       return Effect.succeed(
         evaluateMatcher(policy.matcher, value, matcherContext)
           ? allow("HasResourceAttribute", policy.fields)
@@ -616,17 +625,17 @@ const evaluateNode = (
       return evaluateHasSignature(policy, subject, resource);
 
     case "AllOf":
-      return evaluateAllOf(policy, subject, request, depth, maxDepth);
+      return evaluateAllOf(policy, subject, request, matcherContext, depth, maxDepth);
 
     case "AnyOf":
-      return evaluateAnyOf(policy, subject, request, depth, maxDepth);
+      return evaluateAnyOf(policy, subject, request, matcherContext, depth, maxDepth);
 
     case "Rules":
-      return evaluateRules(policy, subject, request, depth, maxDepth);
+      return evaluateRules(policy, subject, request, matcherContext, depth, maxDepth);
 
     case "Not":
       return Effect.map(
-        evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
+        evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
         (child) =>
           child.allowed
             ? deny("Not", "negated policy allowed", [child])
@@ -639,7 +648,7 @@ const evaluateNode = (
 
     case "Obliged":
       return Effect.map(
-        evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
+        evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
         (child) =>
           child.allowed
             ? // The duty attaches only to a permission that was granted.
@@ -655,7 +664,7 @@ const evaluateNode = (
 
     case "Labeled":
       return Effect.map(
-        evaluateNode(policy.policy, subject, request, depth + 1, maxDepth),
+        evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
         (child) => ({
           policyTag: "Labeled" as const,
           label: policy.label,
@@ -725,6 +734,7 @@ const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
   policy: Extract<Policy, { _tag: "AllOf" }>,
   subject: AuthSubject,
   request: Evaluation,
+  matcherContext: MatcherContext,
   depth: number,
   maxDepth: number,
 ) {
@@ -734,14 +744,14 @@ const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
     for (const child of policy.policies) {
       const verdict = stepAllOf(
         fold,
-        yield* evaluateNode(child, subject, request, depth + 1, maxDepth),
+        yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
       );
       if (verdict !== undefined) return verdict;
     }
   } else {
     const traces = yield* Effect.forEach(
       policy.policies,
-      (child) => evaluateNode(child, subject, request, depth + 1, maxDepth),
+      (child) => evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
       { concurrency: request.concurrency },
     );
     // Traces arrive in input order regardless of completion order, so the fold
@@ -838,6 +848,7 @@ const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
   policy: Extract<Policy, { _tag: "AnyOf" }>,
   subject: AuthSubject,
   request: Evaluation,
+  matcherContext: MatcherContext,
   depth: number,
   maxDepth: number,
 ) {
@@ -847,14 +858,14 @@ const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
     for (const child of policy.policies) {
       const verdict = stepAnyOf(
         fold,
-        yield* evaluateNode(child, subject, request, depth + 1, maxDepth),
+        yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
       );
       if (verdict !== undefined) return verdict;
     }
   } else {
     const traces = yield* Effect.forEach(
       policy.policies,
-      (child) => evaluateNode(child, subject, request, depth + 1, maxDepth),
+      (child) => evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
       { concurrency: request.concurrency },
     );
     for (const trace of traces) {
@@ -879,6 +890,7 @@ const evaluateRules = Effect.fn("qadi.rules")(function* (
   policy: Extract<Policy, { _tag: "Rules" }>,
   subject: AuthSubject,
   request: Evaluation,
+  matcherContext: MatcherContext,
   depth: number,
   maxDepth: number,
 ) {
@@ -933,7 +945,14 @@ const evaluateRules = Effect.fn("qadi.rules")(function* (
   if (request.concurrency === undefined) {
     for (const [index, rule] of policy.rules.entries()) {
       // The condition answers *does this rule apply*, never *is this permitted*.
-      const trace = yield* evaluateNode(rule.condition, subject, request, depth + 1, maxDepth);
+      const trace = yield* evaluateNode(
+        rule.condition,
+        subject,
+        request,
+        matcherContext,
+        depth + 1,
+        maxDepth,
+      );
       if (step(index, rule, trace)) break;
     }
   } else {
@@ -944,7 +963,7 @@ const evaluateRules = Effect.fn("qadi.rules")(function* (
       policy.rules,
       (rule, index) =>
         Effect.map(
-          evaluateNode(rule.condition, subject, request, depth + 1, maxDepth),
+          evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),
           (trace) => ({ index, rule, trace }),
         ),
       { concurrency: request.concurrency },
@@ -1027,6 +1046,9 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     Option.isSome(sink)
       ? Effect.catchCause(sink.value.record(record), () => Effect.void)
       : Effect.void;
+  // A shallower `maxDepth` can turn this same question into `PolicyTooDeep`
+  // instead of an `Allow`/`Deny`, so it belongs in the key alongside
+  // `resource` and `action` — see `DecisionCacheKey`'s own doc comment.
   const cacheKey: DecisionCacheKey = {
     // The whole subject, not `subject.id`: two tokens for one user carry the
     // same id and different grants, and the id-only key served the first
@@ -1035,9 +1057,6 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     policy,
     resource: options?.resource,
     action: options?.action,
-    // A shallower `maxDepth` can turn this same question into `PolicyTooDeep`
-    // instead of an `Allow`/`Deny`, so it belongs in the key alongside
-    // `resource` and `action` — see `DecisionCacheKey`'s own doc comment.
     maxDepth: options?.maxDepth ?? DEFAULT_MAX_DEPTH,
   };
 
@@ -1050,20 +1069,36 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   // whether or not the cache already had the answer — exactly the "resolving
   // forty fields forty times" cost `DecisionCache`'s own doc comment exists
   // to avoid. `Effect.suspend` defers the call itself to when `compute` is
-  // actually run, so a cache hit never invokes `evaluateNode` at all.
-  const compute = Effect.suspend(() =>
-    evaluateNode(
+  // actually run, so a cache hit never invokes `evaluateNode` at all — and,
+  // by the same reasoning, never builds `matcherContext` below either.
+  const compute = Effect.suspend(() => {
+    const request: Evaluation = {
+      resource: options?.resource,
+      action: options?.action,
+      concurrency: options?.concurrency,
+    };
+    // Built once per `compute` run — i.e. once per evaluation this cache
+    // cannot already answer — rather than once per `evaluateNode` call.
+    // `matcherContext` depends only on `(subject, request)`, both invariant
+    // across the whole recursive walk, so a composite tag (`AllOf`, `Not`, …)
+    // and a leaf that never reads it (`HasPermission`, `HasRole`, …) used to
+    // still pay this allocation at every node. Threaded through `evaluateNode`
+    // and its `AllOf`/`AnyOf`/`Rules` helpers as a parameter instead.
+    const matcherContext: MatcherContext = {
+      subject: subject.attributes,
+      subjectId: subject.id,
+      resource: request.resource,
+      action: request.action,
+    };
+    return evaluateNode(
       policy,
       subject,
-      {
-        resource: options?.resource,
-        action: options?.action,
-        concurrency: options?.concurrency,
-      },
+      request,
+      matcherContext,
       0,
       options?.maxDepth ?? DEFAULT_MAX_DEPTH,
-    ),
-  );
+    );
+  });
 
   // The TRACE is cached, never the `Decision`. A cached decision would carry a
   // duplicate `evaluationId`, so two log lines would claim to be the same event and
