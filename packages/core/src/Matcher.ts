@@ -121,7 +121,19 @@ export const Matcher: Schema.Codec<Matcher> = Schema.Union([
 // Constructors
 // ---------------------------------------------------------------------------
 
-/** Attribute equals the referenced value. */
+/**
+ * Attribute equals the referenced value.
+ *
+ * Compares with `===`, so an attribute resolved to `NaN` never equals
+ * anything — including another `NaN`. `inArray` below compares with
+ * `Array.prototype.includes` (SameValueZero), under which `NaN` DOES match
+ * itself, so `inArray([x])` is not a drop-in replacement for `eq(literal(x))`
+ * when `x` is `NaN`. Left as `===` deliberately rather than unified with
+ * `inArray`: `predicate-sql` compiles `Eq` to SQL `=`, whose own NaN
+ * comparison is likewise always false, and switching to SameValueZero here
+ * would decouple in-process evaluation from what the compiled query actually
+ * does. Pinned in `Matcher.test.ts`, not fixed.
+ */
 export const eq = (ref: ValueRef): Matcher => ({ _tag: "Eq", ref });
 /** Attribute does not equal the referenced value. */
 export const neq = (ref: ValueRef): Matcher => ({ _tag: "Neq", ref });

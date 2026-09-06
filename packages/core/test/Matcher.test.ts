@@ -177,6 +177,19 @@ describe("empty-collection boundaries", () => {
   });
 });
 
+describe("eq vs inArray: NaN diverges under === vs SameValueZero", () => {
+  it("eq never matches NaN, even against itself — === defines NaN unequal to NaN", () => {
+    assert.isFalse(run(M.eq(M.literal(Number.NaN)), Number.NaN));
+  });
+
+  it("inArray DOES match NaN — Array.prototype.includes uses SameValueZero, not ===", () => {
+    // For a single element, `inArray([x])` looks like it should be
+    // equivalent to `eq(literal(x))`. It is, for every `x` except `NaN`.
+    assert.isTrue(run(M.inArray([Number.NaN]), Number.NaN));
+    assert.isFalse(run(M.eq(M.literal(Number.NaN)), Number.NaN));
+  });
+});
+
 describe("isObject / getByPath against null", () => {
   it("getByPath denies rather than throwing when the root is null", () => {
     // `isObject`'s guard is `typeof v === "object" && v !== null` — `typeof
