@@ -78,15 +78,16 @@ done
 # ---------------------------------------------------------------------------
 if [[ -f "$SPEC_DIR/invariants.md" && -f "$SPEC_DIR/traceability.md" ]]; then
   untraced=""
+  count=0
   while IFS= read -r inv; do
+    count=$((count + 1))
     grep -q "$inv" "$SPEC_DIR/traceability.md" || untraced="${untraced} ${inv}"
   done < <(grep -oE 'INV-QD-[0-9]{3}' "$SPEC_DIR/invariants.md" | sort -u)
 
   if [[ -n "$untraced" ]]; then
     report FAIL "invariants -> traceability" "untraced:${untraced}"
   else
-    n=$(grep -ocE 'INV-QD-[0-9]{3}' "$SPEC_DIR/invariants.md" 2>/dev/null || echo 0)
-    report PASS "invariants -> traceability" "all invariants traced"
+    report PASS "invariants -> traceability" "all $count invariant(s) traced"
   fi
 else
   report SKIP "invariants -> traceability" "invariants.md or traceability.md absent"
