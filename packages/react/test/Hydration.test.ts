@@ -522,6 +522,12 @@ describe("hydrateDecisions", () => {
     expect(decision?._tag).toBe("Deny");
     expect(decision?._tag === "Deny" && decision.reason).toBe("hydrated");
     expect(decision?.trace.children).toEqual([]);
+    // Pinned per `rebuild`'s doc comment: the fabricated trace's `policyTag` is
+    // an arbitrary member of the closed `Policy["_tag"]` union, not a claim that
+    // this entry was an `AllOf` policy. A future change to the sentinel is a
+    // documented, deliberate choice, not an accident this test should let pass
+    // silently.
+    expect(decision?.trace.policyTag).toBe("AllOf");
     registry.dispose();
   });
 
@@ -731,6 +737,44 @@ describe("hydration mismatch", () => {
     registry.dispose();
   });
 
+  it("reports once per REGISTRY, not once per atom set (tickets 140, 142)", async () => {
+    // Two registries over the SAME atom set — two `QadiProvider` instances, or
+    // two server requests rendering with one module-scope `makeQadiAtoms()` —
+    // each ask this seeded question for the first time from their own
+    // perspective. Before the per-registry fix, `announced` was a plain closure
+    // flag shared by every registry that ever read this atom: the second
+    // registry's genuinely-first re-check would find the flag already flipped
+    // by the first and report (and count) nothing.
+    const { seen, atoms: watched } = watching();
+    const payload = dehydrateDecisions([{ policy: isAdmin, decision: serverAllow("u1") }]);
+
+    const openFresh = () =>
+      AtomRegistry.make({
+        initialValues: [
+          [watched.subject, alice] as const,
+          ...hydrateDecisions(watched, payload, alice),
+        ],
+      });
+
+    const registryA = openFresh();
+    const unmountA = registryA.mount(watched.decision(isAdmin));
+    await settled(registryA, watched.decision(isAdmin));
+    expect(seen).toHaveLength(1);
+
+    const registryB = openFresh();
+    const unmountB = registryB.mount(watched.decision(isAdmin));
+    await settled(registryB, watched.decision(isAdmin));
+
+    // The second registry's own first answer is reported too — it is a
+    // distinct client re-check, not a repeat of registryA's.
+    expect(seen).toHaveLength(2);
+
+    unmountA();
+    unmountB();
+    registryA.dispose();
+    registryB.dispose();
+  });
+
   it("warns on the console when no reporter is supplied", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
@@ -936,12 +980,14 @@ describe("a re-check that settles asynchronously", () => {
     // Not `settled` on this atom: the mismatch report is a side effect that
     // lands on a later turn than the decision atom itself commits (confirmed
     // empirically — awaiting settled() alone, or settled() plus one
-    // Promise.resolve() microtask, both still observe `seen` empty). The
-    // 60ms headroom here is generous against the resolver's real
-    // Effect.sleep("1 millis"); TestClock cannot reach this real-timer path.
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    // Promise.resolve() microtask, both still observe `seen` empty). Polled
+    // rather than a fixed sleep, matching the convention `hooks.test.tsx`'s
+    // "re-evaluates when invalidated" test uses: a fixed wait races the
+    // resolver's real `Effect.sleep("1 millis")` — which TestClock cannot
+    // reach — and either flakes under load or, generous enough not to, leaves
+    // headroom nobody can justify a number for.
+    await vi.waitFor(() => expect(seen).toHaveLength(1));
 
-    expect(seen).toHaveLength(1);
     expect(seen[0]?.seeded._tag).toBe("Allow");
     expect(seen[0]?.decided._tag).toBe("Deny");
     unmount();

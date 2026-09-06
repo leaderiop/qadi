@@ -262,7 +262,7 @@ describe("a DecisionSink wired into the runtime layer", () => {
     const ring = decisionSinkRing({ environment: "Client" });
 
     const set = makeQadiAtoms(Layer.merge(baseLayer, ring.layer));
-    const registry = AtomRegistry.make();
+    const registry = makeRegistry();
     registry.set(set.subject, reader);
     registry.get(set.decision(canRead));
 
@@ -281,7 +281,7 @@ describe("a DecisionSink wired into the runtime layer", () => {
     // The optionality that makes the above safe to offer: absent, nothing
     // changes and nothing is recorded anywhere.
     const set = makeQadiAtoms(baseLayer);
-    const registry = AtomRegistry.make();
+    const registry = makeRegistry();
     registry.set(set.subject, reader);
 
     await vi.waitFor(() => {

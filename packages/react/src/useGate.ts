@@ -74,20 +74,39 @@ export const useGate = (kind: GateKind, policy: Policy, resource?: Resource): Ga
   // children; a hook returns a value to a component that may render nothing.
   const wraps = kind === "Can" || kind === "Cannot";
 
+  // Read inside the effect below, rather than closed over from the render that
+  // scheduled it: `policy` and `resource` compare by reference in a dependency
+  // array, and AGENTS.md §13 blesses passing them inline in render, which
+  // builds a fresh object every time. Depending on them directly would
+  // unregister and re-register this instance on every render of a caller doing
+  // exactly that — real, unnecessary churn, not merely a wasted comparison,
+  // since `registerGate`'s cleanup and re-registration both run. `atom` below
+  // is the fix: `Atom.family` keys it structurally, so it is the same
+  // reference across renders for an equal policy and resource, whether or not
+  // the caller's objects are. Depending on it instead of the raw values tracks
+  // "did the question this instance is asking actually change" rather than
+  // "did the caller build a new object this render" — and the ref is what
+  // still lets the effect body report the *current* policy and resource
+  // without making them part of that comparison.
+  const policyRef = useRef(policy);
+  policyRef.current = policy;
+  const resourceRef = useRef(resource);
+  resourceRef.current = resource;
+
   useEffect(() => {
     if (!instrument) return;
     return registerGate({
       id,
       kind,
-      policy,
-      resource,
+      policy: policyRef.current,
+      resource: resourceRef.current,
       state,
       // Read inside the effect, which is the first moment React has attached
       // it. `?? undefined` because a ref holds `null` and the registry's type
       // says absent — two spellings of nothing are one too many.
       element: wraps ? (marker.current ?? undefined) : undefined,
     });
-  }, [instrument, id, kind, policy, resource, state, wraps]);
+  }, [instrument, id, kind, atom, state, wraps]);
 
   return { result, id, ref: instrument && wraps ? marker : undefined };
 };

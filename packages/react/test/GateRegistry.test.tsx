@@ -8,24 +8,29 @@
  * the hook it happens to be built on.
  */
 import {
+  AttributeResolver,
   AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  eq,
+  hasAttribute,
   hasPermission,
   hasRole,
+  literal,
   makeSubject,
   permission,
   RelationshipResolverNever,
 } from "@qadi/core";
+import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Can, Cannot } from "../src/components.tsx";
 import { clearGatesUnsafe, gateInstances, subscribeGates } from "../src/GateRegistry.ts";
-import { useCan, useDecision } from "../src/hooks.ts";
+import { useCan, useDecision, useInvalidate } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { QadiProvider } from "../src/QadiProvider.tsx";
 
@@ -107,6 +112,67 @@ describe("instrumented, a guard says it exists", () => {
     expect(gateInstances()[0]?.state).toBe("Denied");
   });
 
+  it("reports 'Rechecking' during a re-check, not a stale Allowed/Denied (ticket 145)", async () => {
+    // `renderStateOf`'s waiting -> "Rechecking" mapping is the instrumented
+    // panel's half of ADR-QD-017 — the same "a decision being re-checked is
+    // not yet an answer" rule `components.tsx`'s `classify` follows for what a
+    // guard renders. Every other test in this file only ever observes a
+    // settled Allowed or Denied.
+    //
+    // The resolver is held open by hand, not timed: `waitFor`'s real-time
+    // polling could otherwise step over a re-check settling in under a
+    // millisecond and only ever observe the before and after.
+    let release: ((value: string) => void) | undefined;
+    const controlled = Layer.mergeAll(
+      Layer.succeed(AttributeResolver, {
+        resolve: (_id: unknown, attribute: string) =>
+          attribute === "standing"
+            ? Effect.promise(
+                () => new Promise<string | undefined>((resolve) => (release = resolve)),
+              )
+            : Effect.succeed(undefined),
+      }),
+      RelationshipResolverNever,
+      DecisionHistoryUnknown,
+      EvaluationIdLive,
+      CustomPredicateNone,
+      SignatureHistoryNone,
+    );
+    const set = makeQadiAtoms(controlled);
+    const standing = hasAttribute("standing", eq(literal("good")));
+
+    const Invalidate = () => {
+      const invalidate = useInvalidate();
+      return <button type="button" data-testid="invalidate" onClick={invalidate} />;
+    };
+
+    render(
+      <QadiProvider atoms={set} subject={alice} instrument>
+        <Can policy={standing}>allowed</Can>
+        <Invalidate />
+      </QadiProvider>,
+    );
+
+    await waitFor(() => expect(release).toBeDefined());
+    act(() => release?.("good"));
+    await waitFor(() => expect(gateInstances()[0]?.state).toBe("Allowed"));
+
+    // Reset the capture so the assertions below observe the RE-CHECK's own
+    // resolver, not the spent one from the initial decision.
+    release = undefined;
+    act(() => {
+      screen.getByTestId("invalidate").click();
+    });
+
+    // The re-check is genuinely in flight — the resolver has not been
+    // released yet — and this is exactly the moment the panel must say
+    // "Rechecking", not the stale "Allowed" it showed a moment ago.
+    await waitFor(() => expect(gateInstances()[0]?.state).toBe("Rechecking"));
+
+    act(() => release?.("suspended"));
+    await waitFor(() => expect(gateInstances()[0]?.state).toBe("Denied"));
+  });
+
   it("REGISTERS ONE INSTANCE PER GUARD, not one per nested hook", () => {
     // `Can` is built on the same read `useDecision` performs. Registering in
     // both would report this single component as two instances, the inner one
@@ -157,6 +223,51 @@ describe("instrumented, a guard says it exists", () => {
       true,
     );
     expect(gateInstances()[0]?.resource).toBe(resource);
+  });
+
+  it("does NOT re-register on a render with a fresh, structurally equal policy and resource (ticket 141)", () => {
+    // AGENTS.md §13 blesses passing an inline policy/resource literal — a fresh
+    // object every render — and relies on `Atom.family`'s structural keying to
+    // share the underlying atom anyway. Before the fix, the registration
+    // effect's dependency array compared `policy`/`resource` by reference, so
+    // this exact pattern unregistered and re-registered the instance (two
+    // `changed()` notifications) on every single render, even though nothing
+    // about the question or its answer changed.
+    const shared = atoms();
+    let notified = 0;
+    const unsubscribe = subscribeGates(() => {
+      notified += 1;
+    });
+
+    const Wrapper = ({ tick }: { tick: number }) => (
+      <Can policy={hasPermission(permission("doc", "read"))} resource={{ id: "doc-1" }}>
+        {`allowed-${tick}`}
+      </Can>
+    );
+
+    const view = render(
+      <QadiProvider atoms={shared} subject={alice} instrument>
+        <Wrapper tick={0} />
+      </QadiProvider>,
+    );
+
+    const idBefore = gateInstances()[0]?.id;
+    const notifiedAfterMount = notified;
+
+    view.rerender(
+      <QadiProvider atoms={shared} subject={alice} instrument>
+        <Wrapper tick={1} />
+      </QadiProvider>,
+    );
+
+    expect(gateInstances()).toHaveLength(1);
+    // The SAME instance, not one torn down and rebuilt.
+    expect(gateInstances()[0]?.id).toBe(idBefore);
+    // No unregister/re-register churn from the re-render.
+    expect(notified).toBe(notifiedAfterMount);
+
+    unsubscribe();
+    view.unmount();
   });
 
   it("drops an instance when it unmounts", () => {

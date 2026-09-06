@@ -21,6 +21,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { isDevelopment } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
 export interface QadiContextValue {
@@ -38,6 +39,37 @@ export interface QadiContextValue {
 }
 
 const QadiContext = createContext<QadiContextValue | null>(null);
+
+/**
+ * Whether the production-instrumentation warning below has already fired.
+ *
+ * Module scope, not per-provider: several `QadiProvider`s can share one
+ * process, and the point is a single signal that instrumentation reached a
+ * production bundle at all, not one line per provider instance.
+ */
+let warnedInstrumentedInProduction = false;
+
+/**
+ * Warns once when `instrument` is `true` outside development.
+ *
+ * `instrument` guards a debug affordance that hands any script on the page a
+ * list of what the current user may and may not do (`QadiProviderProps.instrument`'s
+ * own doc comment). Every other prod-visible conditional in this codebase says
+ * so out loud — `isDevelopment()` gates `HydrationWarning.ts`'s console warnings,
+ * and `permissionRegistryRouteUnguarded` logs per request in `@qadi/http` — and
+ * this one did not, so a build that accidentally ships `instrument` had nothing
+ * naming the leak.
+ */
+const warnInstrumentedInProduction = (): void => {
+  if (warnedInstrumentedInProduction) return;
+  warnedInstrumentedInProduction = true;
+  console.warn(
+    "[qadi] <QadiProvider instrument> is true outside development. This is a debug " +
+      "affordance: it registers every guarded control's policy, resource and verdict " +
+      "for @qadi/devtools, readable by any script on the page. Pass instrument only in " +
+      "development, or gate it the way you gate the devtools dock itself.",
+  );
+};
 
 /** Raised when a hook is used outside a provider. */
 export class MissingQadiProviderError extends Error {
@@ -166,6 +198,10 @@ export const QadiProvider = ({
       registry.set(atoms.subject, subject);
     }
   }
+
+  useEffect(() => {
+    if (instrument && !isDevelopment()) warnInstrumentedInProduction();
+  }, [instrument]);
 
   const disposeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {

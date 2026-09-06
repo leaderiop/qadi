@@ -19,7 +19,7 @@ import {
 import type { AuthSubject } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { assert, afterEach, describe, expect, it } from "vitest";
+import { assert, afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import {
   Can,
@@ -242,6 +242,43 @@ describe("hooks", () => {
     await waitFor(() => expect(screen.getByText("u2")).toBeDefined());
 
     expect(seen.every((id) => id === "u2")).toBe(true);
+  });
+});
+
+describe("instrument in a production bundle", () => {
+  it("warns once when instrument is true outside development (ticket 153)", () => {
+    // `instrument` hands any script on the page a list of what the current
+    // user may and may not do — a debug affordance that, unlike this
+    // codebase's other prod-visible conditionals (`isDevelopment()` in
+    // `HydrationWarning.ts`, per-request logging in
+    // `permissionRegistryRouteUnguarded`), had no runtime signal when it
+    // reached a production bundle.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const first = render(
+        <QadiProvider atoms={atoms} subject={reader} instrument>
+          <Can policy={canRead}>allowed</Can>
+        </QadiProvider>,
+      );
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain("instrument");
+      first.unmount();
+
+      // A second instrumented provider reaching production is the same signal,
+      // not a new one — this is a "did instrumentation ever ship" warning, not
+      // a per-instance one.
+      render(
+        <QadiProvider atoms={atoms} subject={reader} instrument>
+          <Can policy={canRead}>allowed</Can>
+        </QadiProvider>,
+      );
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      process.env.NODE_ENV = previous;
+      warn.mockRestore();
+    }
   });
 });
 
