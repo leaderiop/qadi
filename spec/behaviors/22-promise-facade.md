@@ -5,16 +5,30 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-22                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.1 (2026-09-07): Noted that this is the one behavior with no `.feature` leg, and why<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 _Previous: [21 — Decision Cache](./21-decision-cache.md)_
 
 ---
+
+**This behavior has no `.feature` file.** Every other behavior document in
+this directory is exercised at both levels — unit tests in
+`packages/*/test/` and a BDD scenario under `features/features/` carrying a
+`@REQ-QD-NNN` tag. `packages/promise/test/facade.test.ts` is the whole
+acceptance story for this one. That is deliberate rather than an oversight:
+`@qadi/promise` is [forwarding only](../decisions/032-promise-facade.md) —
+every method is `runtime.runPromise` over a `@qadi/core` function, so there is
+no request-level behavior here that isn't already a Gherkin scenario for the
+core function it forwards to. A `.feature` file over this package would
+either duplicate an existing core scenario through a thin Promise wrapper, or
+assert something about `runPromise`/`dispose` plumbing that Gherkin has no
+useful surface for. See `spec/traceability.md` §4 and §5 — behavior 22's row
+cites `facade.test.ts` and nothing under §5.
 
 ## BEH-QD-169: The facade contains no evaluation logic
 

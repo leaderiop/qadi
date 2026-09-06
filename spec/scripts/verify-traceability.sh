@@ -78,15 +78,16 @@ done
 # ---------------------------------------------------------------------------
 if [[ -f "$SPEC_DIR/invariants.md" && -f "$SPEC_DIR/traceability.md" ]]; then
   untraced=""
+  count=0
   while IFS= read -r inv; do
+    count=$((count + 1))
     grep -q "$inv" "$SPEC_DIR/traceability.md" || untraced="${untraced} ${inv}"
   done < <(grep -oE 'INV-QD-[0-9]{3}' "$SPEC_DIR/invariants.md" | sort -u)
 
   if [[ -n "$untraced" ]]; then
     report FAIL "invariants -> traceability" "untraced:${untraced}"
   else
-    n=$(grep -ocE 'INV-QD-[0-9]{3}' "$SPEC_DIR/invariants.md" 2>/dev/null || echo 0)
-    report PASS "invariants -> traceability" "all invariants traced"
+    report PASS "invariants -> traceability" "all $count invariant(s) traced"
   fi
 else
   report SKIP "invariants -> traceability" "invariants.md or traceability.md absent"
@@ -209,6 +210,34 @@ elif [[ -n "$untracked" ]]; then
   report FAIL "relative link integrity" "gitignored, so broken for everyone else:${untracked}"
 else
   report PASS "relative link integrity" "$checked link(s) resolve, none gitignored"
+fi
+
+# ---------------------------------------------------------------------------
+# 6. Every test file path cited in traceability.md's §4 table exists on disk.
+#
+# This checks existence only — not that the file actually covers what its
+# "Covers" cell claims, and not §1's behavior ranges or §6's coverage
+# percentages, which nothing here validates against the filesystem.
+# ---------------------------------------------------------------------------
+if [[ -f "$SPEC_DIR/traceability.md" ]]; then
+  section="$(awk '/^## §4 /{flag=1; next} /^## §5 /{flag=0} flag' "$SPEC_DIR/traceability.md")"
+  missing=""
+  checked=0
+  while IFS= read -r path; do
+    [[ -z "$path" ]] && continue
+    checked=$((checked + 1))
+    [[ -f "$ROOT_DIR/$path" ]] || missing="${missing} ${path}"
+  done < <(printf '%s\n' "$section" | grep -oE '`[^`]+`' | sed -E 's/^`//; s/`$//' | grep -E '^packages/')
+
+  if [[ $checked -eq 0 ]]; then
+    report SKIP "§4 test files -> disk" "no §4 rows found"
+  elif [[ -n "$missing" ]]; then
+    report FAIL "§4 test files -> disk" "missing:${missing}"
+  else
+    report PASS "§4 test files -> disk" "$checked file(s) exist"
+  fi
+else
+  report SKIP "§4 test files -> disk" "traceability.md absent"
 fi
 
 # ---------------------------------------------------------------------------

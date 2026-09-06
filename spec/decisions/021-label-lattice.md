@@ -210,3 +210,19 @@ compartment check from `compareLabels` — the "read them as scalars"
 approximation 27 warns about — kills five tests, three of them at policy level
 through a Bell–LaPadula tree. That is the difference between documenting a
 security property and having one.
+
+## Amendment (2026-07-26, CCR-QD-030)
+
+"No `join`, no `meet`" above is superseded. [ADR-QD-029](./029-lattice-join-and-meet.md)
+ships both as exported utilities — `join` and `meet` on `SecurityLabel` — on the
+grounds that a caller who needs to derive a combined document's classification
+will reimplement the lattice arithmetic themselves, and the failure mode
+(taking the max of the levels while forgetting the union of the compartments)
+under-classifies silently.
+
+This does not reopen "Qadi decides." `join`/`meet` are library utilities a
+caller invokes to *compute* a label; the evaluator itself still never derives
+one — `dominates` is still the only lattice operation reachable from a policy,
+and `SecurityLabel` still never enters a policy or a matcher. See
+[ADR-QD-029](./029-lattice-join-and-meet.md) for the full argument and
+`SecurityLabel.ts`'s `join`/`meet` for the implementation.
