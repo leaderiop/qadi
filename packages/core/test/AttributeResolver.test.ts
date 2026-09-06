@@ -9,6 +9,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
+import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import { AttributeResolveError } from "../src/Errors.ts";
 import {
@@ -126,5 +127,49 @@ describe("attributeResolverBounded", () => {
         AttributeResolver.resolve(makeSubjectId("u1"), "dept").pipe(Effect.provide(failing)),
       );
       assert.strictEqual(result._tag, "Failure");
+    }));
+
+  it.effect(
+    "fails fast with InvalidBoundedPermits instead of deadlocking every call, for permits <= 0",
+    () =>
+      Effect.gen(function* () {
+        // `Semaphore.make` performs no validation of its own: with a
+        // non-positive, `NaN` or infinite permit count, `free` never reaches
+        // `1`, so every `withPermit` call would enqueue in `waitForPermits`
+        // and nothing would ever release enough to wake it. This asserts the
+        // fast, typed failure this defect was fixed to produce instead —
+        // proven fast by `it.effect` itself: under `TestClock`, an Effect
+        // that actually deadlocked here would hang the test rather than let
+        // it complete.
+        for (const permits of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+          const bounded = attributeResolverBounded(permits)(
+            Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed("unreachable") }),
+          );
+          const result = yield* Effect.result(
+            AttributeResolver.resolve(makeSubjectId("u1"), "dept").pipe(Effect.provide(bounded)),
+          );
+
+          assert.isTrue(Result.isFailure(result), `permits ${permits} should fail fast`);
+          if (!Result.isFailure(result)) continue;
+          assert.strictEqual(result.failure._tag, "InvalidBoundedPermits");
+          if (result.failure._tag !== "InvalidBoundedPermits") continue;
+          // `assert.strictEqual` uses `===`, under which `NaN !== NaN` — the
+          // one case in this table needing its own comparison.
+          if (Number.isNaN(permits)) assert.isNaN(result.failure.permits);
+          else assert.strictEqual(result.failure.permits, permits);
+        }
+      }));
+
+  it.effect("accepts exactly one permit — the smallest valid bound", () =>
+    Effect.gen(function* () {
+      const bounded = attributeResolverBounded(1)(
+        Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed("ok") }),
+      );
+      assert.strictEqual(
+        yield* AttributeResolver.resolve(makeSubjectId("u1"), "dept").pipe(
+          Effect.provide(bounded),
+        ),
+        "ok",
+      );
     }));
 });

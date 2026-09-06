@@ -286,7 +286,7 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `MissingResource`, `MissingResourceId`, `MissingAction`, `PolicyTooDeep`,
 `CircularRoleInheritance`, `InvalidPermissionSegment`,
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
-`CustomPredicateError`, `SignatureHistoryUnavailable`,
+`CustomPredicateError`, `SignatureHistoryUnavailable`, `InvalidBoundedPermits`,
 plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
@@ -294,6 +294,11 @@ plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `DecisionHistoryUnavailable`/`RelationshipResolveError` do — a wired store that
 could not be reached, distinct from `SignatureHistoryNone`'s legitimate "no
 signatures" answer. `ERROR_CODES["SignatureHistoryUnavailable"]` is `ACL014`.
+
+`InvalidBoundedPermits` joins `QadiError` (construction-time, not evaluation)
+for `AttributeResolver.ts`'s `attributeResolverBounded`: `Semaphore.make`
+performs no validation, so a non-positive permit count would otherwise deadlock
+every call rather than fail. `ERROR_CODES["InvalidBoundedPermits"]` is `ACL015`.
 
 ## The other packages
 
