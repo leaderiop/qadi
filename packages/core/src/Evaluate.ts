@@ -36,7 +36,7 @@ import {
 import { EvaluationId } from "./EvaluationId.ts";
 import { makeResourceId } from "./Identity.ts";
 import type { MatcherContext } from "./Matcher.ts";
-import { evaluateMatcher, referencesAction } from "./Matcher.ts";
+import { evaluateMatcher, referencesAction, referencesResource } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
@@ -564,6 +564,14 @@ const evaluateNode = (
     case "HasAttribute":
       if (action === undefined && referencesAction(policy.matcher)) {
         return Effect.fail(new MissingAction({ expected: undefined }));
+      }
+      // The `HasResourceAttribute` mirror of the action check above
+      // (INV-QD-011): a matcher comparing against `resource(...)` with no
+      // resource in context would otherwise resolve that reference to
+      // `undefined`, compare false, and read as an ordinary denial rather than
+      // the caller error it is.
+      if (resource === undefined && referencesResource(policy.matcher)) {
+        return Effect.fail(new MissingResource({ attribute: policy.attribute }));
       }
       return Effect.map(readAttribute(subject, policy.attribute), (value) =>
         evaluateMatcher(policy.matcher, value, matcherContext)

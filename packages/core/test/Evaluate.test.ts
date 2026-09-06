@@ -124,6 +124,37 @@ describe("leaf policies", () => {
       Effect.provide(testLayer(subjectWith({ attributes: { allowedOp: "approve" } }))),
     ));
 
+  it.effect(
+    "a HasAttribute matcher referencing the resource fails, rather than denies, without one",
+    () =>
+      Effect.gen(function* () {
+        // The `HasResourceAttribute` mirror of "a matcher referencing action()
+        // without one fails rather than denying": `evaluateMatcher` is total,
+        // so without the pre-check the `resource(...)` reference would resolve
+        // to `undefined`, compare false, and read as an ordinary denial rather
+        // than the caller error INV-QD-011 asks for.
+        const policy = P.hasAttribute("op", M.eq(M.resource("requiredOp")));
+        const r = yield* Effect.result(evaluate(policy));
+        assert.strictEqual(r._tag, "Failure");
+        if (r._tag !== "Failure") return;
+        assert.strictEqual(r.failure._tag, "MissingResource");
+        if (r.failure._tag !== "MissingResource") return;
+        assert.strictEqual(r.failure.attribute, "op");
+      }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { op: "approve" } })))),
+  );
+
+  it.effect(
+    "a HasAttribute matcher referencing the resource allows once one is supplied",
+    () =>
+      Effect.gen(function* () {
+        // The positive half: supplying a resource must actually let evaluation
+        // proceed to the match, not merely avoid the MissingResource failure.
+        const policy = P.hasAttribute("op", M.eq(M.resource("requiredOp")));
+        const d = yield* evaluate(policy, { resource: { requiredOp: "approve" } });
+        assert.isTrue(isAllowed(d));
+      }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { op: "approve" } })))),
+  );
+
   it.effect("HasResourceAttribute matches against the resource", () =>
     Effect.gen(function* () {
       const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
