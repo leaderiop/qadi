@@ -37,6 +37,17 @@ export type PrismaWhereInput = Record<string, unknown>;
  * independently of `@qadi/predicate-sql`'s error of the same name: neither
  * package shares it through `@qadi/core`, which has no reason to know either
  * exists.
+ *
+ * The two declarations also share the identical `_tag` string (ticket 95) —
+ * deliberately, not an oversight ADR-QD-008's "the `_tag` is the identity"
+ * would otherwise flag. Both carry the same shape (`predicateTag`, `reason`),
+ * and this collision is benign: the two packages are mutually exclusive in
+ * practice — a caller compiles to SQL or to Prisma, not both from the same
+ * predicate — so no single `Effect.catchTag`/`Match` site is expected to see
+ * both at once. If one ever did, the two are structurally indistinguishable
+ * at that site by tag alone, which is the cost of this choice, accepted
+ * rather than renaming either and breaking a public API for a situation
+ * neither package's callers hit.
  */
 export class PredicateNotRenderable extends Data.TaggedError("PredicateNotRenderable")<{
   readonly predicateTag: string;
