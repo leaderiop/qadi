@@ -600,6 +600,92 @@ describe("the wire is untrusted", () => {
   });
 });
 
+describe("the wire's recursive positions are depth-bounded before Schema recurses", () => {
+  // Nests a policy `n` `Not`s deep, terminating in a leaf — the same shape
+  // `Policy.test.ts` uses to pin `Policy.ts`'s own `fromJson`/`fromJsonValue`
+  // guard, reused here because `decodeRecordWire`'s guard must refuse at the
+  // identical bound.
+  const wireWithNestedPolicy = (depth: number): unknown => {
+    let policy: unknown = { _tag: "HasRole", role: "x" };
+    for (let i = 0; i < depth; i++) policy = { _tag: "Not", policy };
+    return { _tag: "Decision", evaluationId: "e", at: 0, policy };
+  };
+
+  // Nests a `Trace` `depth` deep through its own recursive `children` array —
+  // the position `Policy.ts`'s guard was never asked to cover, since
+  // `TraceSchema` does not exist there.
+  const wireWithNestedTrace = (depth: number): unknown => {
+    let trace: unknown = {
+      policyTag: "HasRole",
+      allowed: true,
+      children: [],
+      obligations: [],
+    };
+    for (let i = 0; i < depth; i++) {
+      trace = { policyTag: "Not", allowed: true, children: [trace], obligations: [] };
+    }
+    return {
+      _tag: "Decision",
+      evaluationId: "e",
+      at: 0,
+      policy: { _tag: "HasRole", role: "x" },
+      decided: {
+        _tag: "Allow",
+        evaluationId: "e",
+        subjectId: "u1",
+        durationMillis: 0,
+        trace,
+        obligations: [],
+      },
+    };
+  };
+
+  it.effect("a policy nested past MAX_DECODE_DEPTH fails typed, naming the bound", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        decodeRecord(wireWithNestedPolicy(P.MAX_DECODE_DEPTH + 10)),
+      );
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") {
+        assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
+        if (result.failure._tag === "PolicyDecodeTooDeep") {
+          assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
+        }
+      }
+    }));
+
+  it.effect("a trace nested past MAX_DECODE_DEPTH fails typed, naming the bound", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        decodeRecord(wireWithNestedTrace(P.MAX_DECODE_DEPTH + 10)),
+      );
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") {
+        assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
+        if (result.failure._tag === "PolicyDecodeTooDeep") {
+          assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
+        }
+      }
+    }));
+
+  it.effect("a policy nested well within the bound still decodes", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(decodeRecord(wireWithNestedPolicy(4)));
+      assert.strictEqual(result._tag, "Success");
+    }));
+
+  // The regression this guards: before this guard ran ahead of `Schema`, a
+  // deeply-nested policy or trace on the wire raised a raw `RangeError` out
+  // of `Schema.decodeUnknownEffect` — an uncaught defect, not a typed
+  // `Effect` failure. Mirrors `Policy.test.ts`'s identical test for
+  // `fromJson`.
+  it.effect("an extreme depth (60,000) fails through the Effect channel, never as a defect", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(decodeRecord(wireWithNestedPolicy(60_000)));
+      assert.strictEqual(result._tag, "Failure");
+    }));
+});
+
 describe("round-trip property", () => {
   it("holds over generated policies", () => {
     // The drift-catcher. The mapping between `SinkRecord` and its wire form is

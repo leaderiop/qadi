@@ -45,7 +45,7 @@ import {
 } from "./Errors.ts";
 import { makeResourceId, makeSubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
-import { Policy } from "./Policy.ts";
+import { MAX_DECODE_DEPTH, Policy, PolicyDecodeTooDeep } from "./Policy.ts";
 
 /**
  * Every tag a `Trace` node can carry — the policy union's tags.
@@ -459,14 +459,78 @@ export const fromWire = (wire: SinkRecordWire): SinkRecord => {
 /** Encodes a record to a plain JSON value. */
 export const encodeRecord = Schema.encodeEffect(SinkRecordWire);
 
-/** Decodes a record's wire form from **untrusted** input. */
-export const decodeRecordWire = Schema.decodeUnknownEffect(SinkRecordWire);
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+/**
+ * Structural depth check over the raw, not-yet-`Schema`-walked wire value.
+ *
+ * Mirrors `Policy.ts`'s own `exceedsJsonDepth` line for line: same
+ * explicit-stack traversal (so the guard itself cannot be the thing that
+ * overflows), same non-recursive reason for existing. Kept as a second,
+ * local copy rather than an import — `Policy.ts`'s version is not exported,
+ * and this file's ownership boundary (see the audit fix that added this
+ * guard) is deliberately narrow — but the two must stay in lock-step, which
+ * is why every line otherwise matches.
+ *
+ * `SinkRecordWire` recurses through two positions `Policy.ts`'s own guard
+ * was never asked to cover: `policy` (through `PolicyRef`, embedding the
+ * whole `Policy` union) and the self-recursive `TraceSchema` (`children`).
+ * Without this check, `Schema`'s own descent through `Schema.suspend` has no
+ * depth cap on either, so an adversarial payload nested past the call
+ * stack's limit raises a raw `RangeError` defect during decode — the exact
+ * class of stack-overflow the 0.4.0 hardening fixed for
+ * `Policy.fromJson`/`fromJsonValue`, still reachable through every
+ * sink/hydration decode path that went through this file instead.
+ */
+const exceedsJsonDepth = (root: unknown, maxDepth: number): boolean => {
+  const stack: Array<{ readonly value: unknown; readonly depth: number }> = [
+    { value: root, depth: 0 },
+  ];
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (frame === undefined) break;
+    if (frame.depth > maxDepth) return true;
+    if (Array.isArray(frame.value)) {
+      for (const item of frame.value) stack.push({ value: item, depth: frame.depth + 1 });
+    } else if (isPlainObject(frame.value)) {
+      for (const key of Object.keys(frame.value)) {
+        stack.push({ value: frame.value[key], depth: frame.depth + 1 });
+      }
+    }
+  }
+  return false;
+};
+
+const decodeSinkRecordWireUnknown = Schema.decodeUnknownEffect(SinkRecordWire);
+
+/**
+ * Decodes a record's wire form from **untrusted** input.
+ *
+ * Pre-checks structural depth with {@link exceedsJsonDepth} before `Schema`
+ * ever recurses into the input — the same order `Policy.ts`'s own
+ * `fromJson`/`fromJsonValue` run their guard in, and for the same reason:
+ * `SinkRecordWire` embeds `Policy` and the self-recursive `TraceSchema`, and
+ * neither has a depth cap of its own. Fails with `PolicyDecodeTooDeep`
+ * rather than a second, look-alike error type — the failure is the
+ * identical shape in both places, raw JSON nested deeper than a decoder can
+ * safely walk, so a second class here would just be the drift ADR-QD-002's
+ * reasoning warns about, one error type over.
+ */
+export const decodeRecordWire = (
+  input: unknown,
+): Effect.Effect<SinkRecordWire, PolicyDecodeTooDeep | Schema.SchemaError> =>
+  exceedsJsonDepth(input, MAX_DECODE_DEPTH)
+    ? Effect.fail(new PolicyDecodeTooDeep({ maxDepth: MAX_DECODE_DEPTH }))
+    : decodeSinkRecordWireUnknown(input);
 
 /**
  * Decodes an untrusted value into a `SinkRecord`.
  *
  * Validates first, then rebuilds. A malformed payload fails with a
- * `SchemaIssue`; it never produces a half-built record.
+ * `SchemaIssue`; a payload nested past {@link decodeRecordWire}'s depth
+ * guard fails with `PolicyDecodeTooDeep`. Either way it never produces a
+ * half-built record.
  */
 export const decodeRecord = (input: unknown) =>
   Effect.map(decodeRecordWire(input), fromWire);
