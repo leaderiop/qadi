@@ -13,6 +13,9 @@
   "bugs": {
     "url": "https://github.com/leaderiop/qadi/issues"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "GxP-style audit trail, staging, circuit breaker, retention, and e-signature capture for @qadi/core, composed onto DecisionSink",
   "sideEffects": false,
   "exports": {

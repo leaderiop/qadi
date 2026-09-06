@@ -13,6 +13,9 @@
   "bugs": {
     "url": "https://github.com/leaderiop/qadi/issues"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Effect-native authorization: permission tokens, role DAG, schema-derived policy ADT, Effect evaluator",
   "sideEffects": false,
   "exports": {
