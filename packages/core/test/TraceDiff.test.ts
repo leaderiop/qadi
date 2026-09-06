@@ -142,6 +142,37 @@ describe("diffTraces", () => {
       );
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
+  it.effect("a label-only change is reported, even though nothing else about the node differs", () =>
+    Effect.gen(function* () {
+      // The defect this pins: same verdict, same reason, same fields, same
+      // obligations, same shape — the ONLY thing that changed is the label an
+      // author gave the `Labeled` wrapper. Before the fix this produced an
+      // empty diff, contradicting "empty means the two evaluations agree at
+      // every node".
+      const a = yield* evaluate(P.labeled("sod.role", P.hasRole("editor")));
+      const b = yield* evaluate(P.labeled("sod.role.v2", P.hasRole("editor")));
+
+      const diff = diffTraces(a.trace, b.trace);
+      assert.deepStrictEqual(diff, [
+        { _tag: "LabelChanged", path: [], policyTag: "Labeled", before: "sod.role", after: "sod.role.v2" },
+      ]);
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));
+
+  it.effect("a policy-tag-only change is reported, even when the two nodes decide identically", () =>
+    Effect.gen(function* () {
+      // Two different node types that happen to allow the same way: same
+      // verdict, no reason, no fields, no obligations, no children — the ONLY
+      // difference is which kind of check sits at this node. Before the fix
+      // this, too, produced an empty diff.
+      const a = yield* evaluate(P.hasRole("editor"));
+      const b = yield* evaluate(P.hasAction("read"), { action: "read" });
+
+      const diff = diffTraces(a.trace, b.trace);
+      assert.deepStrictEqual(diff, [
+        { _tag: "PolicyTagChanged", path: [], policyTag: "HasAction", before: "HasRole", after: "HasAction" },
+      ]);
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));
+
   it.effect("parents are listed before children", () =>
     Effect.gen(function* () {
       const policy = P.allOf([P.hasAttribute("clearance", M.gte(3))]);

@@ -270,7 +270,7 @@ the decision ([INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decis
 | `permissionProvenance`, `PermissionGrant` | function + type | `Role.ts` |
 | `diffTraces`, `flippedAt` | function | `TraceDiff.ts` |
 | `TraceDifference`, `TracePath` | type | `TraceDiff.ts` |
-| `VerdictChanged`, `ReasonChanged`, `ChildCountChanged`, `FieldsChanged`, `ObligationsChanged` | type | `TraceDiff.ts` |
+| `VerdictChanged`, `ReasonChanged`, `PolicyTagChanged`, `LabelChanged`, `ChildCountChanged`, `FieldsChanged`, `ObligationsChanged` | type | `TraceDiff.ts` |
 
 Each answers a question the library could pose but not answer. `policyDepth`
 counts the way the evaluator counts, so `policyDepth(p) <= n` is exactly the
