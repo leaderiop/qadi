@@ -89,9 +89,9 @@ jobs:
 
       # The mutation HTML reports are the artefact you want when a score drops,
       # and they are the one thing `pnpm check` produces that a log cannot show.
-      # Six suites (`stryker run` plus `stryker.devtools.mjs`, `.predicate-sql.mjs`,
-      # `.predicate-prisma.mjs`, `.audit.mjs` and `.http.mjs` — steps 16–21 per
-      # spec/process/definitions-of-done.md), six sibling report directories —
+      # Six suites (`stryker run` plus `stryker.devtools.mjs`, `stryker.predicate-sql.mjs`,
+      # `stryker.predicate-prisma.mjs`, `stryker.audit.mjs` and `stryker.http.mjs` —
+      # steps 16–21 per spec/process/definitions-of-done.md), six sibling report directories —
       # `upload-artifact`'s `path` does not glob sibling directories from one
       # entry, so each needs naming or one of the six reports is produced in CI
       # and thrown away silently (found in review: only `reports/mutation/`,
