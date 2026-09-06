@@ -528,8 +528,8 @@ favor of it.
 | `failingRelationshipResolver` | layer | `FailingRelationshipResolver.ts` |
 | `failingDecisionHistory` | layer | `FailingDecisionHistory.ts` |
 | `failingSignatureHistory` | layer | `FailingSignatureHistory.ts` |
-| `recordingSignatureHistory` | layer | `SignatureHistoryFixture.ts` |
-| `SignatureInput` | type, re-exported from `@qadi/core` | `SignatureHistoryFixture.ts` |
+| `recordingSignatureHistory` | layer | `RecordingSignatureHistory.ts` |
+| `SignatureInput` | type, re-exported from `@qadi/core` | `RecordingSignatureHistory.ts` |
 | `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` |
 | `subjectWith`, `permissions`, `roles`, `policies` | fixture | `Fixtures.ts` |
 | `nobody`, `viewer`, `administrator` | fixture | `Fixtures.ts` |

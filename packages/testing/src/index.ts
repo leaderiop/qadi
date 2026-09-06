@@ -10,4 +10,4 @@ export * from "./QadiReviewLayer.ts";
 export * from "./QadiTestLayer.ts";
 export * from "./RecordingAttributeResolver.ts";
 export * from "./RecordingCustomPredicate.ts";
-export * from "./SignatureHistoryFixture.ts";
+export * from "./RecordingSignatureHistory.ts";

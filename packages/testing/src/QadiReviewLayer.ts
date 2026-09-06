@@ -28,8 +28,8 @@ import * as TestClock from "effect/testing/TestClock";
 import { edgeRelationshipResolver } from "./EdgeRelationshipResolver.ts";
 import { recordingAttributeResolver } from "./RecordingAttributeResolver.ts";
 import { eventDecisionHistory } from "./EventDecisionHistory.ts";
-import type { SignatureInput } from "./SignatureHistoryFixture.ts";
-import { recordingSignatureHistory } from "./SignatureHistoryFixture.ts";
+import type { SignatureInput } from "./RecordingSignatureHistory.ts";
+import { recordingSignatureHistory } from "./RecordingSignatureHistory.ts";
 
 /**
  * Everything an evaluation needs.
