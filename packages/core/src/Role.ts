@@ -12,7 +12,7 @@
  * than referenced. That path lives in {@link resolveRoleGraph}.
  */
 import * as Effect from "effect/Effect";
-import { CircularRoleInheritance } from "./Errors.ts";
+import { CircularRoleInheritance, DuplicateRoleDefinition } from "./Errors.ts";
 import type { Permission, PermissionKey } from "./Permission.ts";
 import { permissionKey } from "./Permission.ts";
 
@@ -137,10 +137,11 @@ export interface RoleDefinition {
 /**
  * Resolves name-referenced role definitions into by-value {@link Role} values.
  *
- * This is the only place a cycle is representable, so it is the only place that
- * can fail. An unknown parent name is treated as a cycle-free no-op rather than
- * an error: partial role catalogues are a normal deployment state, and failing
- * closed here would deny every request rather than merely granting less.
+ * This is the only place a cycle or a duplicate name is representable, so it is
+ * the only place that can fail on either. An unknown parent name is treated as
+ * a cycle-free no-op rather than an error: partial role catalogues are a normal
+ * deployment state, and failing closed here would deny every request rather
+ * than merely granting less.
  *
  * **That drop is now reported.** Dropping is right; doing it silently was not.
  * A typo in one parent name produced a role granting fewer permissions than its
@@ -152,6 +153,15 @@ export interface RoleDefinition {
  * Reported once per resolve, with every unknown name, rather than once per
  * occurrence: a catalogue missing one widely-inherited role would otherwise
  * emit the same warning dozens of times and bury it.
+ *
+ * **A repeated definition name fails outright, rather than being reported.**
+ * `byName` used to be built with a `Map`, so the last definition for a repeated
+ * name silently won and every earlier definition's permissions vanished with
+ * nothing said. Unlike an unknown parent, there is no defensible "grant less"
+ * reading here — the two definitions disagree about what the name means, and
+ * silently picking one is a guess this library should not make. It fails with
+ * {@link DuplicateRoleDefinition} before any resolution happens, naming every
+ * repeated name at once.
  */
 export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
   definitions: ReadonlyArray<RoleDefinition>,
@@ -160,6 +170,18 @@ export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
     readonly onUnknownParent?: (names: ReadonlyArray<string>) => void;
   },
 ) {
+  const nameCounts = new Map<string, number>();
+  for (const definition of definitions) {
+    nameCounts.set(definition.name, (nameCounts.get(definition.name) ?? 0) + 1);
+  }
+  const duplicateNames = [...nameCounts]
+    .filter(([, count]) => count > 1)
+    .map(([name]) => name)
+    .sort();
+  if (duplicateNames.length > 0) {
+    return yield* Effect.fail(new DuplicateRoleDefinition({ names: duplicateNames }));
+  }
+
   const byName = new Map(definitions.map((d) => [d.name, d]));
   const resolved = new Map<string, Role>();
   const unknownParents = new Set<string>();

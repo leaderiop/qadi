@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import * as FastCheck from "effect/testing/FastCheck";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
@@ -257,6 +258,57 @@ describe("resolveRoleGraph — an unknown parent is reported", () => {
       );
 
       assert.strictEqual(result._tag, "Failure");
+    }));
+});
+
+describe("resolveRoleGraph — a duplicate definition name fails rather than shadowing", () => {
+  it.effect("fails with DuplicateRoleDefinition instead of the last definition winning", () =>
+    Effect.gen(function* () {
+      // Before the fix, `byName` was a `Map` built from `definitions`: the
+      // second "viewer" silently replaced the first, its `publish` permission
+      // vanished, and nothing reported it.
+      const result = yield* Effect.result(
+        resolveRoleGraph([
+          { name: "viewer", permissions: [read] },
+          { name: "viewer", permissions: [publish] },
+        ]),
+      );
+
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      const error = result.failure;
+      assert.strictEqual(error._tag, "DuplicateRoleDefinition");
+      if (error._tag !== "DuplicateRoleDefinition") return;
+      assert.deepStrictEqual(error.names, ["viewer"]);
+    }));
+
+  it.effect("names every repeated name at once, sorted", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        resolveRoleGraph([
+          { name: "zeta", permissions: [read] },
+          { name: "alpha", permissions: [write] },
+          { name: "zeta", permissions: [publish] },
+          { name: "alpha", permissions: [read] },
+        ]),
+      );
+
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      const error = result.failure;
+      assert.strictEqual(error._tag, "DuplicateRoleDefinition");
+      if (error._tag !== "DuplicateRoleDefinition") return;
+      assert.deepStrictEqual(error.names, ["alpha", "zeta"]);
+    }));
+
+  it.effect("a catalogue with no repeated names is unaffected", () =>
+    Effect.gen(function* () {
+      const roles = yield* resolveRoleGraph([
+        { name: "viewer", permissions: [read] },
+        { name: "editor", permissions: [write], inherits: ["viewer"] },
+      ]);
+
+      assert.strictEqual(roles.length, 2);
     }));
 });
 

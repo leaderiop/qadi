@@ -284,7 +284,7 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 
 `AccessDenied`, `AttributeResolveError`, `RelationshipResolveError`,
 `MissingResource`, `MissingResourceId`, `MissingAction`, `PolicyTooDeep`,
-`CircularRoleInheritance`, `InvalidPermissionSegment`,
+`CircularRoleInheritance`, `DuplicateRoleDefinition`, `InvalidPermissionSegment`,
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
 `CustomPredicateError`, `SignatureHistoryUnavailable`,
 plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
@@ -294,6 +294,12 @@ plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `DecisionHistoryUnavailable`/`RelationshipResolveError` do — a wired store that
 could not be reached, distinct from `SignatureHistoryNone`'s legitimate "no
 signatures" answer. `ERROR_CODES["SignatureHistoryUnavailable"]` is `ACL014`.
+
+`DuplicateRoleDefinition` joins `QadiError` (not `EvaluationError` — it is raised
+by `resolveRoleGraph`, not by evaluation) alongside `CircularRoleInheritance`:
+`resolveRoleGraph` names a role graph loaded from serialized form with a
+repeated definition name, rather than letting the last definition silently
+shadow the others. `ERROR_CODES["DuplicateRoleDefinition"]` is `ACL015`.
 
 ## The other packages
 
