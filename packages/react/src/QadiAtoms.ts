@@ -118,11 +118,22 @@ export interface QadiAtoms {
    * This paragraph read "an instance registry would breach [AGENTS.md §13]
    * twice over", and it does not. Decisions are still not in React state and the
    * React glue is still one `useSyncExternalStore` call in `QadiProvider.tsx`;
-   * the registry exposes `subscribe`/`snapshot` and it is `@qadi/devtools` that
-   * subscribes. What the argument above actually establishes is that the *atom
-   * layer* cannot see instances, which is true and is why this screen is keyed
-   * by question. A component knows perfectly well that it exists; nothing was
-   * asking it (CCR-QD-073, corrected here in CCR-QD-076).
+   * the registry exposes `subscribe`/`snapshot` for exactly that purpose. What
+   * the argument above actually establishes is that the *atom layer* cannot see
+   * instances, which is true and is why this screen is keyed by question. A
+   * component knows perfectly well that it exists; nothing was asking it
+   * (CCR-QD-073, corrected here in CCR-QD-076).
+   *
+   * **Correction:** this comment, ADR-QD-053 and AGENTS.md §13 all previously
+   * went on to claim "and it is `@qadi/devtools`, a DOM package already, that
+   * subscribes" — present tense, as if already wired. It is not: nothing under
+   * `packages/devtools/src` calls `subscribeGates`, and `DevtoolsDock.tsx`
+   * takes `gates` as a plain, one-shot prop rather than subscribing itself.
+   * `GateRegistry.ts`'s `subscribeGates`/`gateInstances` contract is correct
+   * and exercised by `GateRegistry.test.tsx`; what is missing is the
+   * consumer, in a package this file does not own. Flagged rather than
+   * silently reworded, per AGENTS.md §15's reason for gating claims like this
+   * one at all.
    *
    * Read the current verdict for each with `decision`/`decisionFor` — that is
    * what keeps a stale entry rendering as re-checking rather than as its old
