@@ -64,12 +64,22 @@ import type { SignatureHistory } from "./SignatureHistory.ts";
  * `undefined`-valued and function-valued properties, and renders `NaN` as
  * `null` — so `{d: new Date(0)}` and `{d: "1970-01-01T00:00:00.000Z"}` produced
  * one key for two questions, and the second caller received the first's verdict.
+ *
+ * **`maxDepth` is in the key for the same reason `action` is.** It is an
+ * `evaluate` option, not part of the `Policy` or the subject, but it can still
+ * change the answer: the same subject asking the same policy with a shallower
+ * `maxDepth` can turn an `Allow`/`Deny` into `PolicyTooDeep`. Omitting it would
+ * let a shallow-limited caller's ask hit an entry a deeper-limited caller left
+ * behind and be served that caller's verdict instead of its own
+ * `PolicyTooDeep` — the same class of cross-question collision `resource` and
+ * `action` are already here to prevent.
  */
 export interface DecisionCacheKey {
   readonly subject: AuthSubject;
   readonly policy: Policy;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
   readonly action: string | undefined;
+  readonly maxDepth: number;
 }
 
 /**
