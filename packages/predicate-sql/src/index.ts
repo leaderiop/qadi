@@ -173,12 +173,31 @@ const renderNode = (
             }),
           );
         }
+        // evaluatePredicate's compare requires typeof === "number" on BOTH
+        // sides for Gte/Lt and is otherwise always False — a string or
+        // boolean slips past isSafeValue's allowlist (built for Eq/Neq's
+        // `===`, where any of those compare validly) straight into a real
+        // range comparison: PostgreSQL coerces `int_col >= '10'` to a number,
+        // and SQLite/MySQL coerce via type affinity, admitting rows the
+        // reference evaluator refused. `NaN` is `typeof === "number"` but
+        // fails the same way from the numeric side: PostgreSQL orders NaN
+        // above every other value rather than refusing the comparison, while
+        // `NaN >= x`/`NaN < x` is always false in evaluatePredicate. Refusing
+        // here mirrors the established doctrine for this class — the Date
+        // refusal in isSafeValue above, and this file's own FALSE for a
+        // null-literal Gte/Lt just below.
+        if (
+          (p.op === "Gte" || p.op === "Lt") &&
+          (typeof p.value !== "number" || Number.isNaN(p.value))
+        ) {
+          return Effect.succeed("FALSE");
+        }
         const column = syntax.quote(p.column);
         if (p.value === null) {
           if (p.op === "Eq") return Effect.succeed(`${column} IS NULL`);
           if (p.op === "Neq") return Effect.succeed(`${column} IS NOT NULL`);
-          // Gte/Lt against a null literal: evaluatePredicate requires both
-          // sides to be numbers, and null never is — always False, for any row.
+          // Gte/Lt against a null literal is handled by the numeric guard
+          // above (typeof null !== "number").
           return Effect.succeed("FALSE");
         }
         params.push(p.value);
@@ -253,11 +272,32 @@ const renderNode = (
 
       // No double-negation elimination. `Simplify.ts` never runs on a
       // `Predicate`, only on a `Policy`, and this compiler renders exactly
-      // what the AST says — "NOT (NOT (...))" is valid, if redundant, SQL.
+      // what the AST says — nesting is preserved even though the rendered
+      // shape below is no longer a bare "NOT (NOT (...))".
+      //
+      // A plain `NOT (<inner>)` is not NULL-safe: SQL's three-valued logic
+      // makes `NOT` of an UNKNOWN inner condition (any leaf comparing a
+      // NULL-valued column — `Compare`'s `Eq`/`Gte`/`Lt` against a non-null
+      // literal render a plain `col op $n`, which is UNKNOWN, not FALSE, when
+      // `col IS NULL`) still UNKNOWN, and `WHERE` excludes UNKNOWN exactly
+      // like FALSE. But `evaluatePredicate`'s negation is
+      // `!evaluatePredicate(p.predicate, row)`, which is `true` whenever the
+      // inner comparison came back `false` — NULL-valued row included. Unlike
+      // `Compare`/`MemberOf`, which correct at a known column with `OR <col>
+      // IS NULL`, `Negate` wraps an arbitrary subtree spanning any number of
+      // columns, so there is no single column to OR against.
+      //
+      // `CASE WHEN` sidesteps that: an UNKNOWN condition never satisfies
+      // `WHEN`, so it falls to `ELSE` the same as a `FALSE` condition would —
+      // collapsing SQL's three-valued result to the two-valued one
+      // `evaluatePredicate` assumes, using `<inner>` exactly once so no
+      // placeholder is bound twice (`?`-style dialects consume placeholders
+      // positionally; duplicating rendered text would double the `?` count
+      // without doubling `params`).
       Negate: (p) =>
         Effect.map(
           renderNode(p.predicate, syntax, params, maxInValues),
-          (inner) => `NOT (${inner})`,
+          (inner) => `CASE WHEN (${inner}) THEN FALSE ELSE TRUE END`,
         ),
     }),
   );

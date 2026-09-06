@@ -85,6 +85,36 @@ const RESERVED_PRISMA_KEYS = new Set(["AND", "OR", "NOT"]);
 const isSafeColumn = (column: string): boolean => !RESERVED_PRISMA_KEYS.has(column);
 
 /**
+ * `renderNode`'s own vacuous-identity shapes — `{AND: []}` (always matches,
+ * `True`'s and an empty `And`'s rendering) and `{OR: []}` (never matches,
+ * `False`'s and an empty `Or`'s rendering, and `MemberOf`'s own empty-values
+ * case).
+ *
+ * `Negate` special-cases these because the real Prisma query-compiler does
+ * not treat `{NOT: {AND: []}}` as "not always-true" the way `evaluatePredicate`
+ * does. Verified against Prisma 7.10's engine source: `extract_filter`
+ * (query-compiler/core/src/query_graph_builder/extractors/filters/mod.rs)
+ * strips an empty `AND`/`OR` filter reached below the top level as
+ * `Filter::Empty`, so the `{AND: []}` inside `{NOT: {AND: []}}` is dropped
+ * before `NOT` ever sees it, leaving `Filter::not([])`; `filter/visitor.rs`
+ * maps that to `ConditionTree::NoCondition` — no WHERE restriction, every row
+ * — where `evaluatePredicate(Negate(True), row)` is `false` for every row.
+ * The inverse (`{NOT: {OR: []}}`, `evaluatePredicate(Negate(False))` always
+ * `true`) folds through the same mechanism to the opposite wrong answer.
+ * Rendering the correct opposite identity directly — instead of leaning on
+ * `NOT` to survive the engine's own folding — sidesteps it rather than
+ * fighting it.
+ */
+const isVacuousTrue = (where: PrismaWhereInput): boolean => {
+  const keys = Object.keys(where);
+  return keys.length === 1 && Array.isArray(where.AND) && where.AND.length === 0;
+};
+const isVacuousFalse = (where: PrismaWhereInput): boolean => {
+  const keys = Object.keys(where);
+  return keys.length === 1 && Array.isArray(where.OR) && where.OR.length === 0;
+};
+
+/**
  * The non-null-value shape of a comparison filter.
  *
  * `null` is handled by `renderNode`'s `Compare` case before this is ever
@@ -205,7 +235,15 @@ const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, Predi
 
       // No double-negation elimination — `Simplify.ts` never runs on a
       // `Predicate`, and this compiler renders exactly what the AST says.
-      Negate: (p) => Effect.map(renderNode(p.predicate), (inner) => ({ NOT: inner })),
+      // The one exception is the vacuous-identity shapes themselves: see
+      // `isVacuousTrue`/`isVacuousFalse` for why `{NOT: {AND: []}}`/`{NOT:
+      // {OR: []}}` cannot be left for the real Prisma engine to fold.
+      Negate: (p) =>
+        Effect.map(renderNode(p.predicate), (inner) => {
+          if (isVacuousTrue(inner)) return { OR: [] };
+          if (isVacuousFalse(inner)) return { AND: [] };
+          return { NOT: inner };
+        }),
     }),
   );
 
