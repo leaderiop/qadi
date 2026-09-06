@@ -51,5 +51,13 @@ export const userFromCookieHeader = (header: string | null): DemoUser => {
     .split(";")
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${SESSION_COOKIE}=`));
-  return userById(found === undefined ? undefined : decodeURIComponent(found.slice(SESSION_COOKIE.length + 1)));
+  if (found === undefined) return userById(undefined);
+  // A malformed percent-encoding must degrade to anonymous, not throw — this
+  // header is untrusted input, and "Never throws and never guesses" above
+  // extends to what feeds `userById`, not just `userById` itself.
+  try {
+    return userById(decodeURIComponent(found.slice(SESSION_COOKIE.length + 1)));
+  } catch {
+    return userById(undefined);
+  }
 };
