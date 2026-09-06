@@ -9,7 +9,7 @@
  */
 import * as Match from "effect/Match";
 import type { Resource } from "@qadi/core";
-import type { TimelineDecision, TimelineEntry } from "./Timeline.ts";
+import type { TimelineEntry } from "./Timeline.ts";
 import { verdictOf, type Verdict } from "./Verdict.ts";
 
 export interface Filters {
@@ -76,11 +76,11 @@ export const environmentsOf = (
  * containing neither word, and a filter that invents matches across field
  * boundaries is worse than one that misses.
  *
- * **A failed evaluation has no subject in it to search.** `subjectId` lives on
- * the `Decision`, and a `Failed` outcome has none — so filtering by subject
- * cannot find the rows where that subject's attribute lookup broke, which are
- * often the interesting ones. That is a limit of the record, not of this
- * function, and it is named here so a reader is not left guessing.
+ * **A failed evaluation's subject is searchable too.** `subjectId` is
+ * top-level on `DecisionRecord` (`DecisionRecord.ts`), for both outcomes, so a
+ * `Failed` row names its subject exactly as a `Decided` one does — filtering
+ * by subject reaches the rows where that subject's attribute lookup broke,
+ * which are often the interesting ones.
  */
 export const searchTextOf = (entry: TimelineEntry): string =>
   partsOf(entry).join(" ").toLowerCase();
@@ -99,7 +99,7 @@ const partsOf: (self: TimelineEntry) => ReadonlyArray<string> = Match.type<Timel
       entry.evaluationId,
       entry.environment,
       ...(entry.decision.action === undefined ? [] : [entry.decision.action]),
-      ...subjectOf(entry),
+      entry.decision.subjectId,
       ...resourceText(entry.decision.resource),
     ],
     TimelineOrphan: (entry) => [
@@ -109,10 +109,6 @@ const partsOf: (self: TimelineEntry) => ReadonlyArray<string> = Match.type<Timel
     ],
   }),
 );
-
-/** One element, or none: a failed evaluation has no subject. */
-const subjectOf = (entry: TimelineDecision): ReadonlyArray<string> =>
-  entry.decision.outcome._tag === "Decided" ? [entry.decision.outcome.decision.subjectId] : [];
 
 /**
  * A resource is an open record, so its *values* are what a reader recognises —
