@@ -126,6 +126,7 @@ describe("replayInput", () => {
     assert.isUndefined(seeded.input.attributes);
     assert.isUndefined(seeded.input.relationships);
     assert.isUndefined(seeded.input.history);
+    assert.isUndefined(seeded.input.signatures);
 
     assert.deepStrictEqual(
       seeded.unseeded.map((one) => one.field),
@@ -136,6 +137,7 @@ describe("replayInput", () => {
         "resolver attributes",
         "relationships",
         "history",
+        "signatures",
       ],
     );
     assert.isTrue(seeded.unseeded.every((one) => one.reason.length > 0));

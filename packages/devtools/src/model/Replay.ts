@@ -57,6 +57,7 @@ export const unseededByReplay: ReadonlyArray<UnseededField> = [
   { field: "resolver attributes", reason: ANSWERS_NOT_FIXTURES },
   { field: "relationships", reason: ANSWERS_NOT_FIXTURES },
   { field: "history", reason: ANSWERS_NOT_FIXTURES },
+  { field: "signatures", reason: ANSWERS_NOT_FIXTURES },
 ];
 
 export type Replay =
