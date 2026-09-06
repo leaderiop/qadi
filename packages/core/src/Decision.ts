@@ -97,6 +97,20 @@ const isFieldOf = <A extends Resource>(
  * untyped projection back into a typed `Partial<A>` for the caller — while
  * `FieldPath.project` does the recursive, path-aware work of deciding what
  * each key's value collapses to.
+ *
+ * **`Partial<A>` understates the shape for a `"*"`-projected nested object.**
+ * A single-level `"*"` (as opposed to the unbounded `"**"` or a bare literal)
+ * caps an object-valued child to `{}` rather than showing its own fields
+ * (`FieldPath.ts`'s `projectAt`) — so a spec like `"address.*"` returns
+ * `address: {}` at runtime, not the `A["address"]` this return type promises
+ * once narrowed. The accurate type would be a deep-partial over `A`, but
+ * `project`/`enforceProjected` (`Qadi.ts`) are public, and `Partial<A>` is
+ * exactly the shape every caller across the workspace — `@qadi/react`'s
+ * `useProjected` included — already narrows against; swapping in a deep
+ * partial would change what every one of those call sites infers, for a
+ * caveat that only matters to a caller reading into a `"*"`-capped subtree.
+ * Read a nested object off a projected value only after checking which spec
+ * reached it.
  */
 export const project = <A extends Resource>(
   decision: Decision,
@@ -246,11 +260,17 @@ export const renderTrace = (
   const term = options?.term ?? ((t: string) => `\`${t}\``);
   const indent = options?.indent ?? "  ";
 
-  const fieldsText = (fields: ReadonlyArray<string> | undefined): string =>
+  const fieldsText = (fields: ReadonlyArray<string> | undefined): string => {
     // `undefined` is the top of the lattice — every field — so it renders as
     // nothing rather than as an empty list, which would invert the meaning
     // (INV-QD-004).
-    fields === undefined ? "" : `, exposing only ${fields.map(term).join(", ")}`;
+    if (fields === undefined) return "";
+    // An empty array is the bottom of the lattice, not a missing list — say
+    // so outright rather than joining zero terms into a dangling
+    // ", exposing only ".
+    if (fields.length === 0) return ", exposing no fields";
+    return `, exposing only ${fields.map(term).join(", ")}`;
+  };
 
   const obligationsText = (owed: ReadonlyArray<Obligation>): string =>
     owed.length === 0

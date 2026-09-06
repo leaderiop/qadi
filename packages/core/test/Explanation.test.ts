@@ -61,6 +61,17 @@ describe("explain", () => {
     );
   });
 
+  it("says a permission that discloses nothing exposes no fields", () => {
+    // An empty `fields` array is the bottom of the lattice, distinct from
+    // omitting it (the top, meaning "all fields"). Joining zero terms into
+    // ", exposing only " would leave a dangling, garbled sentence instead.
+    const policy = P.hasPermission(permission("doc", "read"), { fields: [] });
+    assert.strictEqual(
+      renderExplanation(explain(policy)),
+      "requires permission `doc:read`, exposing no fields",
+    );
+  });
+
   it("names an obligation, and says when it is advisory", () => {
     const audited = obligation("audit.log");
     const advisory = obligation("notify.owner", {}, { advisory: true });
