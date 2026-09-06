@@ -5,30 +5,31 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-RMP                                       |
-> | Revision       | 1.29                                           |
+> | Revision       | 1.30                                           |
 > | Effective Date | 2026-09-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning                                       |
-> | Change History | 1.29 (2026-09-06): Current state brought current — version 0.0.0/unpublished corrected to 0.3.0 (four packages actually published at 0.2.0, verified live against the npm registry; five of nine have never been published, see the new release runbook in `CONTRIBUTING.md`); fourteen policy variants corrected to sixteen (`HasCustom`/`HasSignature` postdate the count); the gate-status table's "nineteen numbered steps" corrected to twenty-two and a `@qadi/audit` mutation score (93.54%, re-measured) added, matching `pnpm check`/the DoD table rather than the three-gate-old figure (CCR-QD-100)<br>1.28 (2026-09-06): "`stryker run` is step 15 of `pnpm check`" corrected to step 16 — stale since CCR-QD-076 inserted a new step 15 ahead of it (CCR-QD-096)<br>1.27 (2026-08-25): Field visibility is path-aware; `@qadi/predicate-sql` and `@qadi/predicate-prisma` shipped, with their own mutation gates; the merge gate goes from seventeen steps to nineteen; gate figures refreshed (BEH-QD-056, ADR-QD-054, CCR-QD-079, CCR-QD-080)<br>1.26 (2026-08-25): `mergeSources` and the Next.js example; the merge gate goes from sixteen steps to seventeen; gate figures refreshed; the devtools programme and the CLI recorded here for the first time (BEH-QD-235, CCR-QD-076)<br>1.25 (2026-08-22): Two new merge gates (`madge`, `tstyche`) and changesets adopted; gate table updated (ADR-QD-037, ADR-QD-038, CCR-QD-051)<br>1.24 (2026-08-22): The witness/`guard` primitive and `@qadi/http` shipped; gate figures refreshed (ADR-QD-035, ADR-QD-036, CCR-QD-047)<br>1.23 (2026-07-26): The Promise facade shipped; Under consideration is now empty (ADR-QD-032, CCR-QD-033)<br>1.22 (2026-07-26): Decision caching shipped (ADR-QD-031, CCR-QD-032)<br>1.21 (2026-07-26): Policy simplification shipped (ADR-QD-030, CCR-QD-031)<br>1.20 (2026-07-26): `join` and `meet` shipped; MLS to Shipped (ADR-QD-029, CCR-QD-030)<br>1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.30 (2026-09-06): Current state brought current again, same day — the `0.3.0`/`0.2.0` split this revision's own predecessor recorded was itself superseded hours later by a real `0.4.0` release of all nine packages, which this document did not follow until an adoption audit caught it; `@qadi/testing` corrected from "private" to one of the nine public packages, matching README's own Packages table; "twenty-two numbered steps" corrected to twenty-four (steps 21 and 24 new — `@qadi/http` mutation testing and a publish-status document gate) and `@qadi/http`'s mutation score (86.42%) added (CCR-QD-108, CCR-QD-109)<br>1.29 (2026-09-06): Current state brought current — version 0.0.0/unpublished corrected to 0.3.0 (four packages actually published at 0.2.0, verified live against the npm registry; five of nine have never been published, see the new release runbook in `CONTRIBUTING.md`); fourteen policy variants corrected to sixteen (`HasCustom`/`HasSignature` postdate the count); the gate-status table's "nineteen numbered steps" corrected to twenty-two and a `@qadi/audit` mutation score (93.54%, re-measured) added, matching `pnpm check`/the DoD table rather than the three-gate-old figure (CCR-QD-100)<br>1.28 (2026-09-06): "`stryker run` is step 15 of `pnpm check`" corrected to step 16 — stale since CCR-QD-076 inserted a new step 15 ahead of it (CCR-QD-096)<br>1.27 (2026-08-25): Field visibility is path-aware; `@qadi/predicate-sql` and `@qadi/predicate-prisma` shipped, with their own mutation gates; the merge gate goes from seventeen steps to nineteen; gate figures refreshed (BEH-QD-056, ADR-QD-054, CCR-QD-079, CCR-QD-080)<br>1.26 (2026-08-25): `mergeSources` and the Next.js example; the merge gate goes from sixteen steps to seventeen; gate figures refreshed; the devtools programme and the CLI recorded here for the first time (BEH-QD-235, CCR-QD-076)<br>1.25 (2026-08-22): Two new merge gates (`madge`, `tstyche`) and changesets adopted; gate table updated (ADR-QD-037, ADR-QD-038, CCR-QD-051)<br>1.24 (2026-08-22): The witness/`guard` primitive and `@qadi/http` shipped; gate figures refreshed (ADR-QD-035, ADR-QD-036, CCR-QD-047)<br>1.23 (2026-07-26): The Promise facade shipped; Under consideration is now empty (ADR-QD-032, CCR-QD-033)<br>1.22 (2026-07-26): Decision caching shipped (ADR-QD-031, CCR-QD-032)<br>1.21 (2026-07-26): Policy simplification shipped (ADR-QD-030, CCR-QD-031)<br>1.20 (2026-07-26): `join` and `meet` shipped; MLS to Shipped (ADR-QD-029, CCR-QD-030)<br>1.19 (2026-07-26): Planned section empty — every committed item shipped; the evaluator's mutation score closed at 81.25% (CCR-QD-029)<br>1.18 (2026-07-26): Server-side rendering shipped (ADR-QD-028, CCR-QD-029)<br>1.17 (2026-07-26): Policy explanation shipped (ADR-QD-027, CCR-QD-028)<br>1.16 (2026-07-26): Concurrent evaluation shipped (ADR-QD-026, CCR-QD-027)<br>1.15 (2026-07-26): Mutation testing shipped as a merge gate (ADR-QD-025); the evaluator's 77.85% score added as a Planned item (CCR-QD-026)<br>1.14 (2026-07-26): Gate counts updated for MLS and the order laws (CCR-QD-024)<br>1.13 (2026-07-26): Gate counts corrected — they had not moved since before CCR-QD-021, so two verified models went unrecorded (CCR-QD-023)<br>1.12 (2026-07-26): E7 — predicate output — shipped; phase 5 complete, every enabler shipped (CCR-QD-020)<br>1.11 (2026-07-26): E3 — combining algorithms — shipped; concurrent evaluation unblocked (CCR-QD-019)<br>1.10 (2026-07-26): E6 — subject sets — shipped; phase 4 complete (CCR-QD-018)<br>1.9 (2026-07-26): E4 — the label lattice — shipped (CCR-QD-017)<br>1.8 (2026-07-26): E5 — the decision-history port — shipped (CCR-QD-016)<br>1.7 (2026-07-26): E2 — obligations — shipped (CCR-QD-015)<br>1.6 (2026-07-26): Reactivity canary; no blocking items remain (CCR-QD-013)<br>1.5 (2026-07-26): E1 — the action dimension — shipped (CCR-QD-012)<br>1.4 (2026-07-26): Span emission verified; every URS gap closed (CCR-QD-010)<br>1.3 (2026-07-26): Relationship short-circuit coverage closed (CCR-QD-009)<br>1.2 (2026-07-26): Package scope resolved; renamed to Qadi (CCR-QD-005)<br>1.1 (2026-07-26): React rebuilt on atoms (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
 ## Current state
 
-Version `0.3.0`, under the `@qadi` scope with the `QD`
+Version `0.4.0`, under the `@qadi` scope with the `QD`
 specification infix. The core is complete and verified: sixteen policy variants,
 twelve matchers, five value references, obligations, a decision-history port, a
 label lattice, ordered rule tables, the evaluator, enforcement, subject-set
 review, predicate output, serialization, React integration, a Promise facade,
 HTTP framework bindings, an audit trail companion, SQL/Prisma predicate
 compilers, and a headless devtools model with a React dock — **nine public
-packages**, all at `0.3.0` and all carrying `@qadi/core` as a `workspace:*`
-dependency resolved by `pnpm`, plus the private `@qadi/testing` test toolkit,
-`@qadi/features` acceptance suite, and the `@qadi/example-nextjs` application.
-Five of the nine (`@qadi/http`, `@qadi/devtools`, `@qadi/audit`,
-`@qadi/predicate-sql`, `@qadi/predicate-prisma`) have never actually been
-published to npm — see the release runbook in `CONTRIBUTING.md`.
+packages** (`@qadi/core`, `@qadi/testing`, `@qadi/react`, `@qadi/promise`,
+`@qadi/http`, `@qadi/audit`, `@qadi/devtools`, `@qadi/predicate-sql`,
+`@qadi/predicate-prisma`), all at `0.4.0` and all carrying `@qadi/core` as a
+`workspace:*` dependency resolved by `pnpm`, plus the private `@qadi/features`
+acceptance suite and the `@qadi/example-nextjs` application. All nine are
+published on npm at `0.4.0`, verified live against the registry 2026-09-06 —
+see the release runbook in `CONTRIBUTING.md`.
 
 | Gate | Status |
 | ---- | ------ |
@@ -42,12 +43,13 @@ published to npm — see the release runbook in `CONTRIBUTING.md`.
 | Doc examples compile | 74 blocks |
 | Specification integrity | 15 checks passing |
 | Example application | type-checks, builds, 12 unit and 26 end-to-end assertions in a real browser |
-| Mutation score | 96.13% on `packages/core`, 100.00% on the `@qadi/devtools` model, 99.20% on `@qadi/predicate-sql`, 98.85% on `@qadi/predicate-prisma`, 93.54% on `@qadi/audit`, break threshold 80 — enforced |
+| Mutation score | 96.13% on `packages/core`, 100.00% on the `@qadi/devtools` model, 99.20% on `@qadi/predicate-sql`, 98.85% on `@qadi/predicate-prisma`, 93.54% on `@qadi/audit`, 86.42% on `@qadi/http`, break threshold 80 — enforced |
 
-This table groups the **twenty-two** numbered steps of
+This table groups the **twenty-four** numbered steps of
 [the merge gate](./process/definitions-of-done.md#merge-gate) into families and
 is not a row-for-row image of it — it has no row of its own for the
-`apps/website` gates (steps 21–22, CCR-QD-090/091). `node
+`apps/website` gates (steps 22–23, CCR-QD-090/091) or the publish-status
+document gate (CCR-QD-109). `node
 scripts/check-dod-table.mjs` checks that table against `pnpm check`; this one
 carries measured numbers and is maintained by hand, so it is the one to
 distrust first.

@@ -25,7 +25,7 @@
     "test:tstyche": "tstyche",
     "coverage": "vitest run --coverage",
     "bench": "vitest bench --run",
-    "mutation": "stryker run && stryker run stryker.devtools.mjs && stryker run stryker.predicate-sql.mjs && stryker run stryker.predicate-prisma.mjs && stryker run stryker.audit.mjs",
+    "mutation": "stryker run && stryker run stryker.devtools.mjs && stryker run stryker.predicate-sql.mjs && stryker run stryker.predicate-prisma.mjs && stryker run stryker.audit.mjs && stryker run stryker.http.mjs",
     "test:bdd": "pnpm --filter @qadi/features test",
     "circular": "madge --circular --extensions ts,tsx packages/*/src",
     "lint": "oxlint && node scripts/check-house-style.mjs",
@@ -35,7 +35,7 @@
     "format:check": "oxfmt --check packages features",
     "spec:verify": "bash spec/scripts/verify-traceability.sh",
     "spec:verify:strict": "bash spec/scripts/verify-traceability.sh --strict",
-    "check": "pnpm typecheck && pnpm lint && pnpm circular && pnpm test:tstyche && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict && pnpm spec:gates && pnpm spec:claims && pnpm spec:api && pnpm spec:package && pnpm example && pnpm mutation && pnpm spec:website-examples && pnpm website",
+    "check": "pnpm typecheck && pnpm lint && pnpm circular && pnpm test:tstyche && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict && pnpm spec:gates && pnpm spec:claims && pnpm spec:api && pnpm spec:package && pnpm example && pnpm mutation && pnpm spec:website-examples && pnpm website && pnpm spec:publish",
     "spec:examples": "node scripts/check-doc-examples.mjs",
     "spec:website-examples": "node scripts/check-website-doc-examples.mjs",
     "website": "node scripts/check-website-build.mjs",
@@ -43,6 +43,7 @@
     "spec:package": "node scripts/check-package-install.mjs",
     "spec:gates": "node scripts/check-dod-table.mjs",
     "spec:claims": "node scripts/check-devtools-claims.mjs",
+    "spec:publish": "node scripts/check-publish-status.mjs",
     "example": "pnpm --filter @qadi/example-nextjs check"
   },
   "devDependencies": {

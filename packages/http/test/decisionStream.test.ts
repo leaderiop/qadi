@@ -8,6 +8,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import {
   Allow,
+  AttributeResolver,
+  AttributeResolveError,
   AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
@@ -17,6 +19,8 @@ import {
   EvaluationIdLive,
   RelationshipResolverNever,
   decisionSinkFeed,
+  gte,
+  hasAttribute,
   hasPermission,
   makeSubject,
   makeSubjectId,
@@ -35,7 +39,7 @@ import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServer from "effect/unstable/http/HttpServer";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import { decisionStreamRoute, frame, reauthCheck } from "../src/DecisionStreamRoute.ts";
-import { subjectExtractorBearer } from "../src/SubjectExtractor.ts";
+import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 
 const readPermission = permission("devtools", "read");
 const readPolicy = hasPermission(readPermission);
@@ -143,6 +147,7 @@ describe("/__decisions", () => {
       assert.include(response.headers.get("content-type") ?? "", "text/event-stream");
       // Without these a proxy buffers the stream and the feed looks hung.
       assert.strictEqual(response.headers.get("cache-control"), "no-cache");
+      assert.strictEqual(response.headers.get("connection"), "keep-alive");
       assert.strictEqual(response.headers.get("x-accel-buffering"), "no");
     }));
 });
@@ -180,6 +185,55 @@ describe("reauth", () => {
       const second = yield* Effect.result(check);
       assert.strictEqual(second._tag, "Failure");
       if (second._tag === "Failure") assert.strictEqual(second.failure, "denied");
+    }));
+
+  it.effect("distinguishes a broken credential store from a denial — extraction-failed, not denied", () =>
+    Effect.gen(function* () {
+      const request = HttpServerRequest.fromWeb(
+        new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
+      );
+      const brokenStore = subjectExtractorBearer(() =>
+        Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
+      );
+      const layer = Layer.mergeAll(
+        brokenStore,
+        AttributeResolverNone,
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+        CustomPredicateNone,
+        SignatureHistoryNone,
+      );
+      const result = yield* reauthCheck(request, readPolicy, {}).pipe(Effect.provide(layer), Effect.result);
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") assert.strictEqual(result.failure, "extraction-failed");
+    }));
+
+  it.effect("an evaluator outage during recheck fails the same way a denial does", () =>
+    Effect.gen(function* () {
+      // `hasPermission` never consults an `AttributeResolver`, so a broken one
+      // would not observably change anything checked against `readPolicy` —
+      // an attribute-based policy is what actually exercises `evaluate`'s own
+      // failure channel, distinct from a decision that merely denies.
+      const attributePolicy = hasAttribute("clearance", gte(1));
+      const request = HttpServerRequest.fromWeb(
+        new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
+      );
+      const brokenResolver = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.fail(new AttributeResolveError({ attribute: "clearance", cause: "down" })),
+      });
+      const layer = Layer.mergeAll(
+        subjectExtractorBearer(lookupSubject),
+        brokenResolver,
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+        CustomPredicateNone,
+        SignatureHistoryNone,
+      );
+      const result = yield* reauthCheck(request, attributePolicy, {}).pipe(Effect.provide(layer), Effect.result);
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") assert.strictEqual(result.failure, "denied");
     }));
 
   it.effect("a merged stream ends once the periodic recheck starts failing, not before", () =>
@@ -220,6 +274,24 @@ describe("reauth", () => {
       assert.strictEqual(result._tag, "Failure");
     })),
   );
+
+  // `decisionStreamRoute`'s own `options?.reauth === undefined ? frames : ...`
+  // branch — the one call site that actually wires `reauthCheck` into a live
+  // route, as opposed to the two tests above, which exercise `reauthCheck` and
+  // a bare `Stream.mergeEffect` directly — is deliberately not driven through a
+  // real `HttpRouter.toWebHandler` response here. Tried it: `HttpServerResponse
+  // .stream`'s bridge to a web `ReadableStream` runs the merge's
+  // `Schedule.spaced` recheck on real wall-clock time, not `TestClock` —
+  // confirmed by running it with a 15s test timeout, which took a genuine
+  // ~10 real seconds and then surfaced the recheck's failure as an unhandled
+  // defect from a fiber the test does not own, rather than closing the
+  // response cleanly. Forcing that into a passing test would mean a slow,
+  // wall-clock-timed test, which is exactly what `TestClock` exists to avoid
+  // (AGENTS.md §6). This module's own doc comment already names the reason:
+  // "testing the merged `Stream` through a real, live SSE connection has no
+  // existing pattern in this repo." The wiring itself is one ternary with two
+  // arms, each independently proven correct by the tests above; what remains
+  // unverified is only that request-time branch selecting between them.
 });
 
 /**

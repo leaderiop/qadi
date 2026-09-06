@@ -3,14 +3,12 @@
 Effect-native authorization for TypeScript. Permission tokens, a role DAG, a
 schema-derived policy ADT, and a single `Effect`-returning evaluator.
 
-> **Status: feature-complete, partially published.** Every item the
+> **Status: feature-complete, published.** Every item the
 > [roadmap](./spec/roadmap.md) committed to has shipped, and every access-control
 > model in the [adoption matrix](./spec/models/00-adoption-matrix.md) is either
-> adopted or explicitly declined. All nine packages are staged at `0.3.0`;
-> `@qadi/core`, `@qadi/testing`, `@qadi/react` and `@qadi/promise` are published
-> on npm (latest release `0.2.0`), and `@qadi/audit`, `@qadi/http`,
-> `@qadi/devtools`, `@qadi/predicate-sql` and `@qadi/predicate-prisma` have not
-> been published yet — the API may still move.
+> adopted or explicitly declined. All nine packages are published on npm at
+> `0.4.0` (verified live against the registry, 2026-09-06) — the same version
+> every `packages/*/package.json` carries via the changesets fixed group.
 
 ## Why
 
@@ -63,9 +61,10 @@ pnpm spec:api      # the documented API surface matches the real one
 pnpm spec:package  # the packed packages install, resolve and authorize
 pnpm spec:gates    # the DoD table is the merge gate pnpm check actually runs
 pnpm spec:claims   # spec/devtools-spec says why each absence still holds
+pnpm spec:publish  # publish-status prose in README/CONTRIBUTING/roadmap/website matches package.json
 pnpm bench         # dispatch and evaluation throughput (measurement, not a gate)
-pnpm mutation      # Stryker on packages/core, the devtools model, predicate-sql, predicate-prisma, audit
-pnpm check         # all twenty-two gates, in order
+pnpm mutation      # Stryker on packages/core, the devtools model, predicate-sql, predicate-prisma, audit, http
+pnpm check         # all twenty-four gates, in order
 ```
 
 `pnpm check` is the merge gate, and [CI](./.github/workflows/check.yml) runs that

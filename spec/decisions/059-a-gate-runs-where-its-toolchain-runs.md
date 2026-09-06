@@ -32,7 +32,7 @@ floor by design (the workspace floor is a claim about what the nine
 ## Decision
 
 `scripts/check-website-build.mjs`, the command behind the `website` alias
-and gate 22, runs on every `check.yml` matrix leg whose Node satisfies the
+and gate 23, runs on every `check.yml` matrix leg whose Node satisfies the
 floor the site's own toolchain declares. It reads that floor from the
 installed `astro` manifest rather than restating it, so the next Astro
 dependency bump cannot silently desynchronize the gate from what it is
