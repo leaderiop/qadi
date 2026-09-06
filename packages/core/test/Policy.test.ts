@@ -213,6 +213,33 @@ describe("Policy serialization", () => {
       assert.deepStrictEqual(yield* roundTrip(policy), policy);
     }));
 
+  it.effect("round-trips an empty allOf/anyOf/rules — the property generator's minLength:1 never exercises these", () =>
+    Effect.gen(function* () {
+      const emptyAllOf = P.allOf([]);
+      const restoredAllOf = yield* roundTrip(emptyAllOf);
+      assert.deepStrictEqual(restoredAllOf, emptyAllOf);
+      assert.strictEqual(restoredAllOf._tag, "AllOf");
+      if (restoredAllOf._tag === "AllOf") {
+        assert.deepStrictEqual(restoredAllOf.policies, []);
+      }
+
+      const emptyAnyOf = P.anyOf([]);
+      const restoredAnyOf = yield* roundTrip(emptyAnyOf);
+      assert.deepStrictEqual(restoredAnyOf, emptyAnyOf);
+      assert.strictEqual(restoredAnyOf._tag, "AnyOf");
+      if (restoredAnyOf._tag === "AnyOf") {
+        assert.deepStrictEqual(restoredAnyOf.policies, []);
+      }
+
+      const emptyRules = P.rules([]);
+      const restoredRules = yield* roundTrip(emptyRules);
+      assert.deepStrictEqual(restoredRules, emptyRules);
+      assert.strictEqual(restoredRules._tag, "Rules");
+      if (restoredRules._tag === "Rules") {
+        assert.deepStrictEqual(restoredRules.rules, []);
+      }
+    }));
+
   it.effect("round-trips a Rules table, including each row's condition and effect", () =>
     Effect.gen(function* () {
       // `RuleStruct` is the codec's one untagged struct (a `Rule` is a row, not
