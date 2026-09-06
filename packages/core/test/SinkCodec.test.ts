@@ -22,7 +22,14 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { decodeRecord, encodeRecord, fromWire, isJsonSafe, toWire } from "../src/SinkCodec.ts";
+import {
+  decodeRecord,
+  encodeRecord,
+  fromWire,
+  isJsonSafe,
+  isRecordJsonSafe,
+  toWire,
+} from "../src/SinkCodec.ts";
 
 const read = permission("doc", "read");
 
@@ -787,5 +794,71 @@ describe("isJsonSafe", () => {
     // `seen` tracks the current path, not everything visited overall.
     const shared = { x: 1 };
     assert.isTrue(isJsonSafe({ a: shared, b: shared }));
+  });
+});
+
+describe("isRecordJsonSafe", () => {
+  it("is true for an ObligationRecord, which carries neither unknown field", () => {
+    const record: SinkRecord = new ObligationRecord({
+      evaluationId: "e",
+      at: 0,
+      outcome: "Refused",
+      obligationIds: ["audit.log"],
+    });
+    assert.isTrue(isRecordJsonSafe(record));
+  });
+
+  it("is true for a Decision record whose resource and policy are both safe", () => {
+    const record: SinkRecord = new DecisionRecord({
+      evaluationId: "e",
+      at: 0,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasPermission(read),
+      resource: { id: "doc-1" },
+      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
+    });
+    assert.isTrue(isRecordJsonSafe(record));
+  });
+
+  it("is false when resource carries an unsafe value", () => {
+    const record: SinkRecord = new DecisionRecord({
+      evaluationId: "e",
+      at: 0,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasPermission(read),
+      resource: { fn: () => {} },
+      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
+    });
+    assert.isFalse(isRecordJsonSafe(record));
+  });
+
+  it("is false when a HasCustom policy node's params carries an unsafe value — the gap a resource-only check misses", () => {
+    // The regression this pins: a record whose `resource` is absent (or
+    // perfectly safe) but whose `policy` carries a `HasCustom` node with an
+    // unsafe `params` used to pass a `resource`-only check like the one
+    // `@qadi/audit`'s `encodeAuditEntry` and `@qadi/http`'s decision-stream
+    // route each had.
+    const record: SinkRecord = new DecisionRecord({
+      evaluationId: "e",
+      at: 0,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasCustom("isOwner", { onFail: () => {} }),
+      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
+    });
+
+    // The old, incomplete check would have let this through.
+    assert.isTrue(record.resource === undefined || isJsonSafe(record.resource));
+    assert.isFalse(isRecordJsonSafe(record));
+  });
+
+  it("is true when a HasCustom policy node's params is itself JSON-safe", () => {
+    const record: SinkRecord = new DecisionRecord({
+      evaluationId: "e",
+      at: 0,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasCustom("isOwner", { minClearance: 3 }),
+      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
+    });
+    assert.isTrue(isRecordJsonSafe(record));
   });
 });

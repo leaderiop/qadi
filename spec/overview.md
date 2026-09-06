@@ -225,7 +225,8 @@ answered.
 | `SinkRecordWire` | schema + type | `SinkCodec.ts` |
 | `TraceSchema` | schema | `SinkCodec.ts` — reused by `@qadi/react`'s `Hydration.ts` to validate a `DehydratedEntry`'s `trace` field |
 | `toWire`, `fromWire`, `encodeRecord`, `decodeRecord`, `decodeRecordWire` | codec | `SinkCodec.ts` |
-| `isJsonSafe` | predicate | `SinkCodec.ts` — shared by `@qadi/audit`'s `encodeAuditEntry` and `@qadi/http`'s decision-stream route, both of which guard `toWire`'s one caller-supplied `unknown` field the same way |
+| `isJsonSafe` | predicate | `SinkCodec.ts` — a general recursive walk over any `unknown` value, not specialized to one field; `@qadi/audit`'s `encodeAuditEntry` and `@qadi/http`'s decision-stream route each call it on `resource` |
+| `isRecordJsonSafe` | predicate | `SinkCodec.ts` — `isJsonSafe` over **both** of a `SinkRecord`'s caller-supplied `unknown` surfaces, `resource` and `policy`'s `HasCustom.params`; closes the gap left by both real-world callers above checking only `resource` |
 | `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |
 
 **Nine services, and only seven are required.** `DecisionHistory` was the one added

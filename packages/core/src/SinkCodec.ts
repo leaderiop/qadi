@@ -368,13 +368,17 @@ const decodeDecision = (wire: typeof DecisionSchema.Type): Decision =>
  * `undefined`-swallowing, no function silently dropped, no cycle recursing
  * forever.
  *
- * `SinkRecord.resource` is the one caller-supplied `unknown` value that
- * reaches the wire, and `toWire` below passes it through raw — a resource
+ * A general recursive walk, not one specialized to `resource` — it accepts
+ * any `unknown` and descends through arbitrary nesting, which is what lets
+ * {@link isRecordJsonSafe} below reuse it unchanged for `policy` too. This
+ * doc comment used to claim `SinkRecord.resource` was "the one caller-supplied
+ * `unknown` value that reaches the wire", which was false: `HasCustom.params`
+ * (`Policy.ts`) is a second one, buried inside `policy` rather than sitting
+ * beside it, and both of this guard's real-world consumers — `@qadi/audit`'s
+ * `encodeAuditEntry`, `@qadi/http`'s decision-stream route — were written
+ * against that premise and checked only `resource`. A resource or a policy
  * carrying a circular reference or a `BigInt` used to throw a `TypeError` out
- * of `JSON.stringify` at whichever boundary encoded it. `@qadi/audit`'s
- * `encodeAuditEntry` was the only caller that guarded against this; sharing
- * the guard here means `@qadi/http`'s decision-stream route (`toWire`'s other
- * caller) can refuse the same way instead of crashing.
+ * of `JSON.stringify` at whichever boundary encoded it either way.
  *
  * `seen` tracks the current recursion path, not every value visited overall —
  * removed again after each branch returns, so a value legitimately reachable
@@ -394,6 +398,28 @@ export const isJsonSafe = (value: unknown, seen: ReadonlySet<object> = new Set()
   }
   return false;
 };
+
+/**
+ * True when every caller-supplied `unknown` value a `SinkRecord` can carry
+ * reaches the wire safely — `resource` **and** `policy`'s `HasCustom.params`.
+ *
+ * `isJsonSafe(resource)` alone is exactly the check both of its real-world
+ * callers had, and exactly the gap this closes: a `policy` built with
+ * `hasCustom(name, params)` (ADR-QD-055's escape hatch) carries its own
+ * `unknown` — `params` — and neither `@qadi/audit`'s `encodeAuditEntry` nor
+ * `@qadi/http`'s decision-stream route walked into it before refusing a
+ * record. `isJsonSafe` itself needed no change to cover this: it already
+ * walks an arbitrary object graph, and a `Policy` is exactly that — every
+ * `HasCustom` node's `params`, however deep, is just another child in the
+ * same recursive walk. Only a name for "check the whole record" was missing.
+ *
+ * An `ObligationRecord` carries neither field and is always safe.
+ */
+export const isRecordJsonSafe = (record: SinkRecord): boolean =>
+  record._tag === "Obligations"
+    ? true
+    : (record.resource === undefined || isJsonSafe(record.resource)) &&
+      isJsonSafe(record.policy);
 
 /** The wire projection of a record, ready to be JSON-encoded. */
 export const toWire = (record: SinkRecord): SinkRecordWire =>
