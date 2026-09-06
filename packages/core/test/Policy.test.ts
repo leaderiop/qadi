@@ -260,6 +260,32 @@ describe("Policy serialization", () => {
       assert.deepStrictEqual(yield* roundTrip(withDepth), withDepth);
     }));
 
+  it.effect("round-trips HasSignature, with and without signerRole", () =>
+    Effect.gen(function* () {
+      // HasSignature had zero codec round-trip coverage anywhere in this
+      // suite: the property generator's leaf cases omitted it entirely, so
+      // neither a hand-written nor a generated test ever exercised
+      // encode -> decode -> equals for this tag. `signerRole`'s omission
+      // mirrors `hasRelationship`'s `depth` and `hasCustom`'s `params`: an
+      // absent key, not a key set to `undefined`, is what must survive.
+      const withoutSignerRole = P.hasSignature("approved");
+      if (withoutSignerRole._tag !== "HasSignature") return;
+      assert.isFalse(Object.hasOwn(withoutSignerRole, "signerRole"));
+      assert.strictEqual(withoutSignerRole.scope, "Resource");
+      assert.deepStrictEqual(yield* roundTrip(withoutSignerRole), withoutSignerRole);
+
+      const withSignerRole = P.hasSignature("witnessed", {
+        scope: "Any",
+        signerRole: "quality-reviewer",
+        fields: ["signedAt"],
+      });
+      if (withSignerRole._tag !== "HasSignature") return;
+      assert.isTrue(Object.hasOwn(withSignerRole, "signerRole"));
+      assert.strictEqual(withSignerRole.signerRole, "quality-reviewer");
+      assert.strictEqual(withSignerRole.scope, "Any");
+      assert.deepStrictEqual(yield* roundTrip(withSignerRole), withSignerRole);
+    }));
+
   it.effect("round-trips every matcher variant", () =>
     Effect.gen(function* () {
       const matchers: ReadonlyArray<M.Matcher> = [
@@ -575,6 +601,19 @@ describe("Policy serialization", () => {
         FastCheck.tuple(FastCheck.string(), FastCheck.option(FastCheck.string())).map(
           ([name, params]) => P.hasCustom(segment(name), params === null ? undefined : params),
         ),
+        // `HasSignature` had zero codec round-trip coverage anywhere in this
+        // suite before this case. `signerRole`'s omission is the same shape of
+        // invariant as `depth`'s and `params`'s above — both branches of the
+        // ternary need a generator turn — and `meaning` is deliberately left
+        // an unconstrained `Schema.String` at the wire level (see `Policy.ts`'s
+        // `HasSignature` comment), so it gets no `segment()` sanitization.
+        FastCheck.tuple(
+          FastCheck.string(),
+          FastCheck.constantFrom("Resource" as const, "Any" as const),
+          FastCheck.option(FastCheck.string()),
+        ).map(([meaning, scope, signerRole]) =>
+          P.hasSignature(meaning, signerRole === null ? { scope } : { scope, signerRole }),
+        ),
       );
 
       const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
@@ -612,6 +651,13 @@ describe("Policy serialization", () => {
             ),
           ).map(([rs, combining]) => P.rules(rs, { combining })),
           tie("node").map(P.not),
+          // `Labeled` was reached only by the hand-written "round-trips a
+          // deeply nested tree" test above, never by this generator — the
+          // same standing-guard gap `HasSignature` had, just one level up
+          // the tree rather than at a leaf.
+          FastCheck.tuple(FastCheck.string(), tie("node")).map(([label, node]) =>
+            P.labeled(segment(label), node),
+          ),
         ),
       })).node;
 
