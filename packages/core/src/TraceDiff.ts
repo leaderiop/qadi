@@ -46,6 +46,24 @@ export interface ReasonChanged {
   readonly after?: string | undefined;
 }
 
+/** The node's own policy tag changed — a different kind of node sits here now. */
+export interface PolicyTagChanged {
+  readonly _tag: "PolicyTagChanged";
+  readonly path: TracePath;
+  readonly policyTag: Trace["policyTag"];
+  readonly before: Trace["policyTag"];
+  readonly after: Trace["policyTag"];
+}
+
+/** The label an author gave this node — present only on a `Labeled` node — changed. */
+export interface LabelChanged {
+  readonly _tag: "LabelChanged";
+  readonly path: TracePath;
+  readonly policyTag: Trace["policyTag"];
+  readonly before: string | undefined;
+  readonly after: string | undefined;
+}
+
 /** The two trees disagree in shape here, so neither side can be walked further. */
 export interface ChildCountChanged {
   readonly _tag: "ChildCountChanged";
@@ -77,6 +95,8 @@ export interface ObligationsChanged {
 export type TraceDifference =
   | VerdictChanged
   | ReasonChanged
+  | PolicyTagChanged
+  | LabelChanged
   | ChildCountChanged
   | FieldsChanged
   | ObligationsChanged;
@@ -107,6 +127,32 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
   const out: Array<TraceDifference> = [];
 
   const walk = (a: Trace, b: Trace, path: TracePath): void => {
+    // The node's own identity, checked before anything about its outcome: a
+    // node whose policy tag or label changed is a real difference even when
+    // its verdict, reason, fields and obligations all happen to coincide —
+    // the gap this pins. A label-only rename (`Labeled`'s `label`) or a node
+    // swapped for a different kind that evaluates the same way both used to
+    // vanish into an empty diff, contradicting "empty means the two
+    // evaluations agree at every node".
+    if (a.policyTag !== b.policyTag) {
+      out.push({
+        _tag: "PolicyTagChanged",
+        path,
+        policyTag: b.policyTag,
+        before: a.policyTag,
+        after: b.policyTag,
+      });
+    }
+    if (a.label !== b.label) {
+      out.push({
+        _tag: "LabelChanged",
+        path,
+        policyTag: b.policyTag,
+        before: a.label,
+        after: b.label,
+      });
+    }
+
     if (a.allowed !== b.allowed) {
       out.push({
         _tag: "VerdictChanged",

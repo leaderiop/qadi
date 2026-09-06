@@ -175,14 +175,14 @@ describe("/__decisions", () => {
       const { handler } = HttpRouter.toWebHandler(layer);
 
       const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
-      const body = (yield* Effect.promise(() => response.json())) as ReadonlyArray<{
+      const body: ReadonlyArray<{
         readonly permission: string;
         readonly endpoints: ReadonlyArray<{
           readonly method: string;
           readonly path: string;
           readonly group?: string;
         }>;
-      }>;
+      }> = yield* Effect.promise(() => response.json());
       const entry = body.find((row) => row.permission === permissionKey(readPermission));
 
       assert.isDefined(entry);

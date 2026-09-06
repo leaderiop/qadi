@@ -271,7 +271,7 @@ the decision ([INV-QD-035](invariants.md#inv-qd-035-a-sink-cannot-change-a-decis
 | `permissionProvenance`, `PermissionGrant` | function + type | `Role.ts` |
 | `diffTraces`, `flippedAt` | function | `TraceDiff.ts` |
 | `TraceDifference`, `TracePath` | type | `TraceDiff.ts` |
-| `VerdictChanged`, `ReasonChanged`, `ChildCountChanged`, `FieldsChanged`, `ObligationsChanged` | type | `TraceDiff.ts` |
+| `VerdictChanged`, `ReasonChanged`, `PolicyTagChanged`, `LabelChanged`, `ChildCountChanged`, `FieldsChanged`, `ObligationsChanged` | type | `TraceDiff.ts` |
 
 Each answers a question the library could pose but not answer. `policyDepth`
 counts the way the evaluator counts, so `policyDepth(p) <= n` is exactly the
@@ -287,7 +287,7 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `MissingResource`, `MissingResourceId`, `MissingAction`, `PolicyTooDeep`,
 `CircularRoleInheritance`, `DuplicateRoleDefinition`, `InvalidPermissionSegment`,
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
-`CustomPredicateError`, `SignatureHistoryUnavailable`,
+`CustomPredicateError`, `SignatureHistoryUnavailable`, `InvalidBoundedPermits`,
 plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
@@ -301,6 +301,11 @@ by `resolveRoleGraph`, not by evaluation) alongside `CircularRoleInheritance`:
 `resolveRoleGraph` names a role graph loaded from serialized form with a
 repeated definition name, rather than letting the last definition silently
 shadow the others. `ERROR_CODES["DuplicateRoleDefinition"]` is `ACL015`.
+
+`InvalidBoundedPermits` joins `QadiError` (construction-time, not evaluation)
+for `AttributeResolver.ts`'s `attributeResolverBounded`: `Semaphore.make`
+performs no validation, so a non-positive permit count would otherwise deadlock
+every call rather than fail. `ERROR_CODES["InvalidBoundedPermits"]` is `ACL016`.
 
 ## The other packages
 
@@ -597,7 +602,7 @@ standard the rest of the specification holds itself to.
 | Export | Why not listed |
 | ------ | -------------- |
 | `Requirement`, `All`, `Any`, `Negated`, `Named`, `Owing`, `Row`, `Table` | The eight members of the `Explanation` union. A caller needs the union and the two functions over it; naming each member above would describe the shape of a tree rather than the surface of an API. They are specified in [18 — Policy Explanation](behaviors/18-explanation.md) |
-| `parseFieldPath`, `Containment`, `compareFieldPaths`, `project` (`@qadi/core/FieldPath.ts`) | Deliberately kept out of the barrel per §9 (they are the field-lattice's own internal helpers, not vocabulary a policy author reaches for), but `@qadi/core`'s `./*` wildcard subpath export still makes `@qadi/core/FieldPath` importable, so they are real exports rather than private ones. No known consumer imports this subpath today |
+| `parseFieldPath`, `Containment`, `compareFieldPaths`, `project`, `SpecShape`, `shapeOf`, `compareShapes` (`@qadi/core/FieldPath.ts`) | Deliberately kept out of the barrel per §9 (they are the field-lattice's own internal helpers, not vocabulary a policy author reaches for), but `@qadi/core`'s `./*` wildcard subpath export still makes `@qadi/core/FieldPath` importable, so they are real exports rather than private ones. `SpecShape`/`shapeOf`/`compareShapes` split `compareFieldPaths`'s two steps apart so `Decision.ts`'s `intersectFields` can compute each spec's shape once and reuse it across an O(|a|·|b|) pairwise comparison instead of recomputing it per pair. No known consumer imports this subpath today |
 | `wrapService` (`@qadi/core/RetryingLayer.ts`) | Same reasoning as `FieldPath.ts` — a service-wrapping combinator with no policy-authoring role, reachable only via `@qadi/core/RetryingLayer` |
 | `CircuitBreakerStatus`, `CircuitBreakerOptions`, `CircuitBreaker`, `makeCircuitBreaker` (`@qadi/audit/CircuitBreaker.ts`) | Same reasoning, reachable via `@qadi/audit/CircuitBreaker`; `@qadi/audit`'s barrel exposes the breaker's effect on `record`, not the breaker type itself |
 | `CallRecorder`, `makeCallRecorder` (`@qadi/testing/CallRecorder.ts`) | Same reasoning, reachable via `@qadi/testing/CallRecorder`; a test-authoring helper, not fixture vocabulary |

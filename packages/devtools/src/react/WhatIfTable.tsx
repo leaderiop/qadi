@@ -209,6 +209,11 @@ const Kinds: FC<{ readonly differences: ReadonlyArray<TraceDifference> }> = ({ d
 const wording: Record<TraceDifference["_tag"], string> = {
   VerdictChanged: "verdicts",
   ReasonChanged: "reasons",
+  // A node's own identity, not its outcome: a `Labeled` rename or a different
+  // kind of node sitting at the same position, either possible even when the
+  // verdict, reason, fields and obligations all coincide.
+  PolicyTagChanged: "the kind of check",
+  LabelChanged: "a label",
   FieldsChanged: "visible fields",
   ObligationsChanged: "obligations",
   // A composite that short-circuited at a different point genuinely has fewer

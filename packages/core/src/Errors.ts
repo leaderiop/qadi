@@ -176,6 +176,20 @@ export class PolicyNotTranslatable extends Data.TaggedError(
   readonly reason: string;
 }> {}
 
+/**
+ * A `…Bounded` port wrapper was given a non-positive permit count.
+ *
+ * `effect/Semaphore`'s `Semaphore.make` performs no validation of its own: with
+ * `permits <= 0`, `free` is permanently below `1`, so every `withPermit` call
+ * enqueues in `waitForPermits` and nothing ever releases enough to wake it —
+ * every wrapped call deadlocks forever rather than failing. Caught here, at
+ * layer construction, rather than left to manifest as an unexplained hang the
+ * first time a caller reaches the wrapped port.
+ */
+export class InvalidBoundedPermits extends Data.TaggedError("InvalidBoundedPermits")<{
+  readonly permits: number;
+}> {}
+
 /** Every error this library can produce during evaluation. */
 export type EvaluationError =
   | AttributeResolveError
@@ -196,7 +210,8 @@ export type QadiError =
   | UndischargedObligation
   | CircularRoleInheritance
   | DuplicateRoleDefinition
-  | InvalidPermissionSegment;
+  | InvalidPermissionSegment
+  | InvalidBoundedPermits;
 
 /**
  * Stable numeric codes for logging and cross-process correlation.
@@ -221,6 +236,7 @@ export const ERROR_CODES = {
   "CustomPredicateError": "ACL013",
   "SignatureHistoryUnavailable": "ACL014",
   "DuplicateRoleDefinition": "ACL015",
+  "InvalidBoundedPermits": "ACL016",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

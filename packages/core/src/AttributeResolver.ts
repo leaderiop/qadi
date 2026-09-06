@@ -14,6 +14,7 @@ import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import type { AttributeResolveError } from "./Errors.ts";
+import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
 import { portRetriesTotal } from "./PortMetrics.ts";
 import { wrapService } from "./RetryingLayer.ts";
@@ -121,13 +122,25 @@ export const attributeResolverRetrying =
  *
  * Additive, like {@link attributeResolverRetrying}: a caller who does not
  * reach for this sees no change.
+ *
+ * Rejects `permits <= 0` rather than building a layer that deadlocks every
+ * call. `Semaphore.make` performs no validation of its own — `SemaphoreImpl`
+ * just assigns the field — so with `permits` zero, negative, `NaN` or
+ * infinite, `free` is permanently below the `1` every `withPermit` call
+ * needs, and every wrapped `resolve` enqueues in `waitForPermits` forever.
+ * Failing here, at layer construction, turns that into a diagnosable
+ * `InvalidBoundedPermits` instead of an unexplained hang the first time a
+ * caller reaches the wrapped resolver.
  */
 export const attributeResolverBounded =
   (permits: number) =>
-  (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver> =>
+  (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver, InvalidBoundedPermits> =>
     Layer.effect(
       AttributeResolver,
       Effect.gen(function* () {
+        if (!(Number.isInteger(permits) && permits > 0)) {
+          return yield* Effect.fail(new InvalidBoundedPermits({ permits }));
+        }
         const semaphore = yield* Semaphore.make(permits);
         const inner = yield* Layer.build(layer).pipe(
           Effect.map((context) => Context.get(context, AttributeResolver)),
