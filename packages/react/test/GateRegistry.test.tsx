@@ -159,6 +159,51 @@ describe("instrumented, a guard says it exists", () => {
     expect(gateInstances()[0]?.resource).toBe(resource);
   });
 
+  it("does NOT re-register on a render with a fresh, structurally equal policy and resource (ticket 141)", () => {
+    // AGENTS.md §13 blesses passing an inline policy/resource literal — a fresh
+    // object every render — and relies on `Atom.family`'s structural keying to
+    // share the underlying atom anyway. Before the fix, the registration
+    // effect's dependency array compared `policy`/`resource` by reference, so
+    // this exact pattern unregistered and re-registered the instance (two
+    // `changed()` notifications) on every single render, even though nothing
+    // about the question or its answer changed.
+    const shared = atoms();
+    let notified = 0;
+    const unsubscribe = subscribeGates(() => {
+      notified += 1;
+    });
+
+    const Wrapper = ({ tick }: { tick: number }) => (
+      <Can policy={hasPermission(permission("doc", "read"))} resource={{ id: "doc-1" }}>
+        {`allowed-${tick}`}
+      </Can>
+    );
+
+    const view = render(
+      <QadiProvider atoms={shared} subject={alice} instrument>
+        <Wrapper tick={0} />
+      </QadiProvider>,
+    );
+
+    const idBefore = gateInstances()[0]?.id;
+    const notifiedAfterMount = notified;
+
+    view.rerender(
+      <QadiProvider atoms={shared} subject={alice} instrument>
+        <Wrapper tick={1} />
+      </QadiProvider>,
+    );
+
+    expect(gateInstances()).toHaveLength(1);
+    // The SAME instance, not one torn down and rebuilt.
+    expect(gateInstances()[0]?.id).toBe(idBefore);
+    // No unregister/re-register churn from the re-render.
+    expect(notified).toBe(notifiedAfterMount);
+
+    unsubscribe();
+    view.unmount();
+  });
+
   it("drops an instance when it unmounts", () => {
     const view = mount(<Can policy={canRead}>allowed</Can>, true);
     expect(gateInstances()).toHaveLength(1);
