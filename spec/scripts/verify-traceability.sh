@@ -213,6 +213,34 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 6. Every test file path cited in traceability.md's §4 table exists on disk.
+#
+# This checks existence only — not that the file actually covers what its
+# "Covers" cell claims, and not §1's behavior ranges or §6's coverage
+# percentages, which nothing here validates against the filesystem.
+# ---------------------------------------------------------------------------
+if [[ -f "$SPEC_DIR/traceability.md" ]]; then
+  section="$(awk '/^## §4 /{flag=1; next} /^## §5 /{flag=0} flag' "$SPEC_DIR/traceability.md")"
+  missing=""
+  checked=0
+  while IFS= read -r path; do
+    [[ -z "$path" ]] && continue
+    checked=$((checked + 1))
+    [[ -f "$ROOT_DIR/$path" ]] || missing="${missing} ${path}"
+  done < <(printf '%s\n' "$section" | grep -oE '`[^`]+`' | sed -E 's/^`//; s/`$//' | grep -E '^packages/')
+
+  if [[ $checked -eq 0 ]]; then
+    report SKIP "§4 test files -> disk" "no §4 rows found"
+  elif [[ -n "$missing" ]]; then
+    report FAIL "§4 test files -> disk" "missing:${missing}"
+  else
+    report PASS "§4 test files -> disk" "$checked file(s) exist"
+  fi
+else
+  report SKIP "§4 test files -> disk" "traceability.md absent"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo
