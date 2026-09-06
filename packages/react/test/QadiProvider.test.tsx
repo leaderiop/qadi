@@ -214,6 +214,35 @@ describe("hooks", () => {
     );
     await waitFor(() => expect(screen.getByText("admin=true")).toBeDefined());
   });
+
+  it("commits a changed subject before children render it, not after paint in an effect", async () => {
+    // A write in a passive `useEffect` runs after paint, so a frame commits
+    // and paints with the *previous* subject's verdicts still on screen —
+    // here, `useSubject` itself still reporting the old id — for the gap
+    // between the new `subject` prop landing and the effect catching up. This
+    // records every render `Probe3` makes and asserts none of them, after the
+    // prop change, still hold the old subject: the write must land before this
+    // subtree renders, not in a subsequent commit.
+    const seen: Array<string | undefined> = [];
+    const Probe3 = () => {
+      const current = useSubject();
+      seen.push(current?.id);
+      return <span>{current?.id ?? "none"}</span>;
+    };
+
+    const { rerender } = wrap(reader, <Probe3 />);
+    await waitFor(() => expect(screen.getByText("u1")).toBeDefined());
+
+    seen.length = 0;
+    rerender(
+      <QadiProvider atoms={atoms} subject={nobody}>
+        <Probe3 />
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("u2")).toBeDefined());
+
+    expect(seen.every((id) => id === "u2")).toBe(true);
+  });
 });
 
 describe("isolated contexts", () => {
