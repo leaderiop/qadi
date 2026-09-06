@@ -5,7 +5,7 @@
  * These render nothing of their own; they choose between the nodes they are
  * given. All the state lives in the atoms.
  */
-import type { Deny, Policy, Resource } from "@qadi/core";
+import type { Decision, Deny, Policy, Resource } from "@qadi/core";
 import { isAllowed } from "@qadi/core";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import type { CSSProperties, ReactNode, RefObject } from "react";
@@ -65,6 +65,32 @@ export type DeniedNode = ReactNode | ((decision: Deny) => ReactNode);
 const renderDenied = (node: DeniedNode, decision: Deny): ReactNode =>
   typeof node === "function" ? node(decision) : node;
 
+/**
+ * The three things a gate's result can be, read once so `Can` and `Cannot`
+ * cannot drift on how they read it.
+ *
+ * Not `currentDecision` (`QadiAtoms.ts`): that helper collapses "still
+ * waiting" and "failed" into one `undefined`, which is exactly right for a
+ * consumer that only wants a settled `Decision` or nothing — but a guard
+ * renders three visibly different things for those two cases (`pending` vs
+ * `failure`), so it needs the distinction `currentDecision` deliberately
+ * discards. This is the narrower ladder both `chosen` and `refused` share:
+ * `waiting` checked before failure, on purpose — a decision being re-checked
+ * is not yet an answer, whichever answer (or failure) it held before
+ * (ADR-QD-017), and this is the one place that rule is written down for this
+ * package's components.
+ */
+type GateOutcome =
+  | { readonly _tag: "Pending" }
+  | { readonly _tag: "Failure" }
+  | { readonly _tag: "Settled"; readonly decision: Decision };
+
+const classify = (result: ReturnType<typeof useGate>["result"]): GateOutcome => {
+  if (AsyncResult.isInitial(result) || result.waiting) return { _tag: "Pending" };
+  if (AsyncResult.isFailure(result)) return { _tag: "Failure" };
+  return { _tag: "Settled", decision: result.value };
+};
+
 export interface CanProps {
   readonly policy: Policy;
   /** The resource under consideration, if the policy inspects one. */
@@ -100,13 +126,10 @@ export const Can = ({
   children,
 }: CanProps): ReactNode => {
   const { result, id, ref } = useGate("Can", policy, resource);
-  // `waiting` is checked before the failure branch on purpose: a decision being
-  // re-checked is not yet an answer, whichever answer it held before.
-  //
-  // The branching is unchanged and the marker wraps whatever came out of it,
-  // including `null`. That is the case the lens exists for: a guard that
-  // rendered nothing still says *where* the nothing is, which is the whole of
-  // "why is this button missing".
+  // The marker wraps whatever `chosen` returns, including `null`. That is the
+  // case the lens exists for: a guard that rendered nothing still says
+  // *where* the nothing is, which is the whole of "why is this button
+  // missing".
   return marked(chosen(result, children, fallback, pending, failure), id, ref);
 };
 
@@ -117,12 +140,10 @@ const chosen = (
   pending: ReactNode,
   failure: ReactNode,
 ): ReactNode => {
-  if (AsyncResult.isInitial(result) || result.waiting) return pending;
-  if (AsyncResult.isFailure(result)) {
-    return failure ?? (typeof fallback === "function" ? null : fallback);
-  }
-  const decision = result.value;
-  return isAllowed(decision) ? children : renderDenied(fallback, decision);
+  const outcome = classify(result);
+  if (outcome._tag === "Pending") return pending;
+  if (outcome._tag === "Failure") return failure ?? (typeof fallback === "function" ? null : fallback);
+  return isAllowed(outcome.decision) ? children : renderDenied(fallback, outcome.decision);
 };
 
 export interface CannotProps {
@@ -158,8 +179,8 @@ const refused = (
   pending: ReactNode,
   failure: ReactNode,
 ): ReactNode => {
-  if (AsyncResult.isInitial(result) || result.waiting) return pending;
-  if (AsyncResult.isFailure(result)) return failure;
-  const decision = result.value;
-  return isAllowed(decision) ? null : renderDenied(children, decision);
+  const outcome = classify(result);
+  if (outcome._tag === "Pending") return pending;
+  if (outcome._tag === "Failure") return failure;
+  return isAllowed(outcome.decision) ? null : renderDenied(children, outcome.decision);
 };

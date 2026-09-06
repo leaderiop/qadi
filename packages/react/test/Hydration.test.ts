@@ -34,6 +34,7 @@ import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
 import type { HydrationMismatch } from "../src/QadiAtoms.ts";
 import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { InitialValues } from "../src/QadiProvider.tsx";
+import { settled } from "../src/settled.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
@@ -596,7 +597,7 @@ describe("hydration mismatch", () => {
     const registry = open(hydrateDecisions(watched, payload, alice));
     const unmount = registry.mount(watched.decision(isAdmin));
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await settled(registry, watched.decision(isAdmin));
 
     expect(seen).toHaveLength(1);
     expect(first(seen).seeded._tag).toBe("Allow");
@@ -699,10 +700,10 @@ describe("hydration mismatch", () => {
     });
     const unmount = registry.mount(failing.decision(needsAttribute));
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
     // The failure genuinely happened — without this the case would pass on a
-    // decision that never settled.
+    // decision that never settled. `settled` resolves on any transition out
+    // of Initial, failure included — it does not mean "succeeded".
+    await settled(registry, failing.decision(needsAttribute));
     expect(AsyncResult.isFailure(registry.get(failing.decision(needsAttribute)))).toBe(true);
     expect(seen).toEqual([]);
     unmount();
@@ -718,11 +719,11 @@ describe("hydration mismatch", () => {
     registry.mount(watched.invalidate);
     const unmount = registry.mount(watched.decision(isAdmin));
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await settled(registry, watched.decision(isAdmin));
     expect(seen).toHaveLength(1);
 
     registry.set(watched.invalidate, undefined);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await settled(registry, watched.decision(isAdmin));
     registry.get(watched.decision(isAdmin));
 
     expect(seen).toHaveLength(1);
@@ -932,6 +933,12 @@ describe("a re-check that settles asynchronously", () => {
     // The server said `good`; by the time this client asks, it is `suspended`.
     const { seen, registry, unmount } = mount("suspended");
 
+    // Not `settled` on this atom: the mismatch report is a side effect that
+    // lands on a later turn than the decision atom itself commits (confirmed
+    // empirically — awaiting settled() alone, or settled() plus one
+    // Promise.resolve() microtask, both still observe `seen` empty). The
+    // 60ms headroom here is generous against the resolver's real
+    // Effect.sleep("1 millis"); TestClock cannot reach this real-timer path.
     await new Promise((resolve) => setTimeout(resolve, 60));
 
     expect(seen).toHaveLength(1);
