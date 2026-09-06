@@ -293,6 +293,52 @@ describe("Policy serialization", () => {
       assert.strictEqual(result._tag, "Failure");
     }));
 
+  describe("excess-property rejection — a typo'd field inside a known tag is a decode failure, not a silent drop", () => {
+    // Effect v4 defaults `onExcessProperty` to `"ignore"`: without
+    // `UNTRUSTED_DECODE_OPTIONS` (Policy.ts), a persisted policy carrying a
+    // misspelled key — `{"_tag":"HasRole","rle":"admin"}` — would decode by
+    // silently dropping the typo, not by rejecting it. `HasRole` still needs
+    // its own required `role`, so that particular typo also fails on a
+    // missing-field ground; the case below instead adds an unrecognized *extra*
+    // key alongside every required field already present, which the v4 default
+    // would decode successfully by stripping the extra key.
+
+    it.effect("fromJson rejects an extra unrecognized key on an otherwise well-formed tag", () =>
+      Effect.gen(function* () {
+        const result = yield* Effect.result(
+          P.fromJson(`{"_tag":"HasRole","role":"admin","rloe":"admin"}`),
+        );
+        assert.strictEqual(result._tag, "Failure");
+      }));
+
+    it.effect("fromJsonValue rejects the same excess key on an already-parsed value", () =>
+      Effect.gen(function* () {
+        const result = yield* Effect.result(
+          P.fromJsonValue({ _tag: "HasRole", role: "admin", rloe: "admin" }),
+        );
+        assert.strictEqual(result._tag, "Failure");
+      }));
+
+    it.effect("rejects an excess key nested inside a composite policy's child", () =>
+      Effect.gen(function* () {
+        // The stance has to hold at every recursive position, not just the
+        // top-level tag — `ParseOptions` propagating through `PolicyRef` is
+        // exactly what makes that true rather than incidental.
+        const result = yield* Effect.result(
+          P.fromJson(
+            `{"_tag":"AllOf","fieldStrategy":"Intersection","policies":[{"_tag":"HasRole","role":"admin","rloe":"admin"}]}`,
+          ),
+        );
+        assert.strictEqual(result._tag, "Failure");
+      }));
+
+    it.effect("the positive control: the same tag with no excess key still decodes", () =>
+      Effect.gen(function* () {
+        const result = yield* Effect.result(P.fromJson(`{"_tag":"HasRole","role":"admin"}`));
+        assert.strictEqual(result._tag, "Success");
+      }));
+  });
+
   it.effect("rejects a permission segment containing the key separator", () =>
     Effect.gen(function* () {
       // "a:b" as a resource would collide with resource "a", action "b:c".

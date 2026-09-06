@@ -22,6 +22,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
+import type * as SchemaAST from "effect/SchemaAST";
 import { Matcher } from "./Matcher.ts";
 import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
@@ -676,13 +677,25 @@ export class PolicyDecodeTooDeep extends Data.TaggedError("PolicyDecodeTooDeep")
  * guard is ever consulted — confirmed empirically at 60,000 levels, where it
  * throws a raw `RangeError`, not a typed `Effect` failure. `exceedsJsonDepth`
  * below walks the parsed JSON with an explicit array-backed stack rather than
- * recursion, so the guard itself cannot be the thing that overflows. The
- * bound is 8x {@link DEFAULT_MAX_DEPTH} — generous headroom for the extra
- * JSON nesting an array-valued node (`AllOf`/`AnyOf`/`Rules`) adds around
- * each `Policy` position — so no policy `evaluate` would ever accept is
- * rejected here first.
+ * recursion, so the guard itself cannot be the thing that overflows.
+ *
+ * The bound is 4x {@link DEFAULT_MAX_DEPTH} — headroom for the extra JSON
+ * nesting an array-valued node (`AllOf`/`AnyOf`/`Rules`) adds around each
+ * `Policy` position — so no policy `evaluate` would ever accept is rejected
+ * here first. This was 8x until {@link UNTRUSTED_DECODE_OPTIONS} started
+ * setting `onExcessProperty: "error"`: that option forces `Schema`'s struct
+ * decoder onto its generic, per-node-generator code path rather than the
+ * tight loop used when no `ParseOptions` are given (v4-rc.112,
+ * `SchemaAST.ts`'s object-parser "fast path" comment), and that path costs
+ * enough additional stack per recursive level that decode itself started
+ * raising the same raw `RangeError` well *inside* the old 8x bound — confirmed
+ * empirically: nesting between roughly 430 and 440 levels deep, comfortably
+ * under the old `DEFAULT_MAX_DEPTH * 8` (512), already overflowed. 4x (256)
+ * leaves the guard itself with headroom under that new, lower ceiling while
+ * still exceeding the ~128 raw JSON levels a maximally `AllOf`/`AnyOf`-nested
+ * `evaluate`-depth-64 policy needs.
  */
-export const MAX_DECODE_DEPTH = DEFAULT_MAX_DEPTH * 8;
+export const MAX_DECODE_DEPTH = DEFAULT_MAX_DEPTH * 4;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -706,7 +719,26 @@ const exceedsJsonDepth = (root: unknown, maxDepth: number): boolean => {
   return false;
 };
 
-const decodePolicyUnknown = Schema.decodeUnknownEffect(Policy);
+/**
+ * Untrusted-input decode options, shared by every entry point below.
+ *
+ * `onExcessProperty: "error"` is the deliberate stance (ADR-QD-002's trust-
+ * boundary framing): a `Policy` is persisted and re-parsed JSON, and the
+ * v4 default (`"ignore"`) would silently strip an unrecognized key from an
+ * otherwise-valid tag — `{"_tag":"HasPermission","permision":…}` decodes to
+ * `{ _tag: "HasPermission", permission: undefined }`'s *absence* of the typo'd
+ * grant, not a decode failure naming it. That is exactly the class of silent
+ * data loss this ADT was rewritten to make unrepresentable, just one field
+ * later than the `fieldStrategy` case the ADR already covers. Threaded once
+ * here rather than per `Schema.TaggedStruct` variant: `ParseOptions` is a
+ * decode-call option, not a schema-construction one (v4 has no per-struct
+ * excess-property switch), and `options` propagates through every nested
+ * struct a decode recurses into — `Matcher`, `Obligation`, `RuleStruct` — so
+ * setting it once at each public entry point below covers the whole tree.
+ */
+const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: "error" };
+
+const decodePolicyUnknown = Schema.decodeUnknownEffect(Policy, UNTRUSTED_DECODE_OPTIONS);
 
 /**
  * Decodes a policy from an untrusted JSON string.
@@ -716,6 +748,9 @@ const decodePolicyUnknown = Schema.decodeUnknownEffect(Policy);
  * run {@link exceedsJsonDepth} over the result before `Schema` ever walks it.
  * A parse failure here is not reported: it falls through to `Schema`'s own
  * decoder, which already reports malformed JSON as a typed failure.
+ *
+ * Rejects, rather than silently drops, an unrecognized field inside an
+ * otherwise-valid tag — see {@link UNTRUSTED_DECODE_OPTIONS}.
  */
 export const fromJson = (
   json: string,
@@ -728,7 +763,7 @@ export const fromJson = (
     } catch {
       // Malformed JSON: let Schema.fromJsonString report it its own way.
     }
-    return Schema.decodeUnknownEffect(PolicyFromJson)(json);
+    return Schema.decodeUnknownEffect(PolicyFromJson, UNTRUSTED_DECODE_OPTIONS)(json);
   });
 
 /** Encodes a policy to a plain JSON value. */
@@ -739,7 +774,8 @@ export const toJsonValue = Schema.encodeEffect(Policy);
  *
  * See {@link fromJson} — the same stack-exhaustion risk applies to an
  * already-parsed value handed in directly, so the same depth check runs
- * first.
+ * first, and the same excess-property rejection applies (see
+ * {@link UNTRUSTED_DECODE_OPTIONS}).
  */
 export const fromJsonValue = (
   value: unknown,
