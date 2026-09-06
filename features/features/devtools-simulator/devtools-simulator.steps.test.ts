@@ -351,8 +351,9 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
 
   When("that row is replayed", function* () {
     const s = yield* readState();
-    if (s.entry === undefined) throw new Error("no row to replay");
-    yield* patch(() => ({ replay: replayInput(s.entry as TimelineEntry) }));
+    const { entry } = s;
+    if (entry === undefined) throw new Error("no row to replay");
+    yield* patch(() => ({ replay: replayInput(entry) }));
   });
 
   When("the reviewer supposes the subject held the permission {string}", function* (key: string) {
