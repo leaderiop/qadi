@@ -170,6 +170,24 @@ export const sourceFromEventSource = (options: {
  * re-delivers and `EventSource` reconnects, and the timeline already folds by
  * evaluation id — doing it here as well would be two places to be wrong.
  */
+/**
+ * Ascending order for backlog rows, `NaN` included.
+ *
+ * `a.at - b.at` sorts `NaN` unpredictably — every comparison against it is
+ * `false`, so `Array.prototype.sort` leaves such a row wherever it happened to
+ * land. `Timeline.ts`'s `isAfter` gives this log its documented total order
+ * (INV-QD-039: an unknown time sorts after every known one, and two unknowns
+ * keep the order they arrived in), and a merged backlog is read as the same
+ * kind of ordered list, so it owes the same guarantee. `sort` is stable, so
+ * returning `0` for two unknowns is what "keep arrival order" means here.
+ */
+const compareByAt = (a: { readonly at: number }, b: { readonly at: number }): number => {
+  const aUnknown = Number.isNaN(a.at);
+  const bUnknown = Number.isNaN(b.at);
+  if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;
+  return a.at - b.at;
+};
+
 export const mergeSources = (sources: ReadonlyArray<Source>): Source => {
   const backlogs = sources.flatMap((source) =>
     source.backlog === undefined ? [] : [source.backlog]
@@ -177,7 +195,7 @@ export const mergeSources = (sources: ReadonlyArray<Source>): Source => {
 
   const backlog = backlogs.length === 0
     ? undefined
-    : Effect.map(Effect.all(backlogs), (parts) => parts.flat().sort((a, b) => a.at - b.at));
+    : Effect.map(Effect.all(backlogs), (parts) => parts.flat().sort(compareByAt));
 
   return {
     ...(backlog === undefined ? {} : { backlog }),
