@@ -12,6 +12,7 @@ import {
   check as checkCore,
   currentSubjectLayer,
   decide as decideCore,
+  filter as filterCore,
   hasAttribute,
   hasPermission,
   hasRole,
@@ -226,5 +227,27 @@ describe("makeQadi", () => {
     await expect(
       withResolver.check(alice, tenant, { concurrency: "unbounded" }),
     ).resolves.toBe(true);
+  });
+
+  it("filter forwards options, including concurrency, to core's filter unchanged", async () => {
+    // BEH-QD-172 read literally: `filter` had no options parameter at all, so a
+    // Promise consumer filtering many items had no escape hatch from sequential
+    // resolution. Asserted against core directly, the same way the property test
+    // above holds `check` and `decide` to core's own answer.
+    const owned = hasPermission(permission("doc", "read"));
+    const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+    const viaFacade = await facade().filter(alice, owned, items, {
+      concurrency: "unbounded",
+    });
+    const viaCore = await Effect.runPromise(
+      filterCore(owned, items, { concurrency: "unbounded" }).pipe(
+        Effect.provide(baseLayer),
+        Effect.provide(currentSubjectLayer(alice)),
+      ),
+    );
+
+    assert.deepStrictEqual(viaFacade, items);
+    assert.deepStrictEqual(viaFacade, viaCore);
   });
 });
