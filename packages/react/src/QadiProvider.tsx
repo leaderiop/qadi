@@ -141,6 +141,32 @@ export const QadiProvider = ({
     ],
   }));
 
+  // A changed `subject` prop is written to the registry here, during render,
+  // rather than in a passive `useEffect`. `useEffect` runs after paint, so a
+  // frame would commit and paint with the *previous* subject's verdicts still
+  // on screen for the gap between the new prop landing and the effect
+  // catching up — exactly the guarded controls this package exists to keep
+  // honest, briefly showing someone else's answer. Comparing against a ref
+  // and writing synchronously here closes that gap: children render after
+  // this line, in the same pass, so they read the new subject on their first
+  // render rather than a subsequent one.
+  //
+  // This mutates during render, which is fine here specifically because
+  // `registry` is not React state — it is the same external, imperative
+  // object `registryRef.current ??= …` above already constructs during
+  // render. `registry.set` only ever writes the exact value this render was
+  // given, so a discarded render (an aborted or replayed one, under
+  // concurrent rendering) writes nothing a later, committed render would not
+  // have written anyway — unlike calling a `useState` setter here, which
+  // would race React's own re-render loop.
+  const previousSubject = useRef(subject);
+  if (previousSubject.current !== subject) {
+    previousSubject.current = subject;
+    if (registry.get(atoms.subject) !== subject) {
+      registry.set(atoms.subject, subject);
+    }
+  }
+
   const disposeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     // Disposal is deferred by a tick and cancelled on remount, so React's
@@ -156,12 +182,6 @@ export const QadiProvider = ({
       }, 0);
     };
   }, [registry]);
-
-  useEffect(() => {
-    if (registry.get(atoms.subject) !== subject) {
-      registry.set(atoms.subject, subject);
-    }
-  }, [registry, atoms, subject]);
 
   // Memoised, or every render of the provider gives every consumer a new
   // context value and re-renders the whole guarded subtree.

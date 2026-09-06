@@ -174,4 +174,60 @@ describe("settled", () => {
     await recheckPromise;
     expect(isPending(registry.get(atom))).toBe(false);
   });
+
+  it("resolves a second provider generation over the same atoms, not the first's dead listener", async () => {
+    // G-01-1's third defect: `Atom.family` memoises `atoms.decision(policy)`
+    // structurally, so a route change or `key={userId}` remount over a
+    // module-scope `makeQadiAtoms()` call reuses the same atom *object* under
+    // a brand-new registry. Before the per-registry fix, `subscribed` was
+    // keyed by atom alone, so the second registry's call found the atom
+    // already "subscribed" (by the first, now-disposed registry) and never
+    // established its own listener — the promise could then only be resolved
+    // by a listener `dispose()` had already torn down.
+    let resolveAttribute: (() => void) | undefined;
+    const controlled = makeQadiAtoms(
+      Layer.mergeAll(
+        Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.promise(
+              () =>
+                new Promise<number>((resolve) => {
+                  resolveAttribute = () => resolve(1);
+                }),
+            ),
+        }),
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+        CustomPredicateNone,
+        SignatureHistoryNone,
+      ),
+    );
+    const atom = controlled.decision(needsClearance);
+
+    // Generation 1: a provider mounts, `settled` establishes its one
+    // long-lived listener on `registry1`, the decision resolves, and the
+    // provider unmounts — exactly a route change over the same atom set.
+    const registry1 = makeRegistry();
+    registry1.set(controlled.subject, reader);
+    const firstSettled = settled(registry1, atom);
+    await vi.waitFor(() => expect(resolveAttribute).toBeDefined());
+    resolveAttribute?.();
+    await firstSettled;
+    registry1.dispose();
+
+    // Generation 2: a fresh registry over the *same* atom object. The
+    // decision is genuinely pending again — a fresh node, a fresh
+    // evaluation — when `settled` is asked about it.
+    resolveAttribute = undefined;
+    const registry2 = makeRegistry();
+    registry2.set(controlled.subject, reader);
+    expect(AsyncResult.isInitial(registry2.get(atom))).toBe(true);
+
+    const secondSettled = settled(registry2, atom);
+    await vi.waitFor(() => expect(resolveAttribute).toBeDefined());
+    resolveAttribute?.();
+
+    await expect(raceTimeout(secondSettled, 250)).resolves.toBe("resolved");
+  });
 });

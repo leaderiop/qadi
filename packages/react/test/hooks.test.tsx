@@ -174,6 +174,39 @@ describe("usePolicies", () => {
     );
     expect(screen.getByText("read=? admin=?")).toBeDefined();
   });
+
+  it("shares its combined atom across components asking an equal but independently built policy set", async () => {
+    // The combined atom used to be `Atom.make` inside a `useMemo` keyed on
+    // `[atoms, policies]` — identity-keyed, so two components each building
+    // their own structurally-equal `policies` record got two separate combined
+    // atoms, defeating the structural family keying every other read path in
+    // this package relies on (AGENTS.md §13). Proven here through the
+    // registry's own referential-stability contract: reads of the same atom
+    // return the same cached value reference, so two components sharing one
+    // underlying atom must observe `Object.is`-equal results, not merely
+    // deep-equal ones.
+    let seenA: unknown;
+    let seenB: unknown;
+
+    const ProbeA = () => {
+      seenA = usePolicies({ read: canRead, admin: isAdmin });
+      return null;
+    };
+    const ProbeB = () => {
+      seenB = usePolicies({ read: canRead, admin: isAdmin });
+      return null;
+    };
+
+    render(
+      <QadiProvider atoms={working} subject={reader}>
+        <ProbeA />
+        <ProbeB />
+      </QadiProvider>,
+    );
+
+    await waitFor(() => expect(seenA).toBeDefined());
+    expect(seenB).toBe(seenA);
+  });
 });
 
 describe("useProjected", () => {
