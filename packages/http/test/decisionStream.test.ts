@@ -28,10 +28,13 @@ import {
   permissionKey,
 } from "@qadi/core";
 import type { AuthSubject, Trace } from "@qadi/core";
+import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as HashMap from "effect/HashMap";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
@@ -39,6 +42,7 @@ import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServer from "effect/unstable/http/HttpServer";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import { decisionStreamRoute, frame, reauthCheck } from "../src/DecisionStreamRoute.ts";
+import { PermissionRegistry, PermissionRegistryLive } from "../src/PermissionRegistry.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 
 const readPermission = permission("devtools", "read");
@@ -90,6 +94,7 @@ const appLayer = Effect.gen(function* () {
   const route = decisionStreamRoute(readPermission, readPolicy, feed.stream);
 
   const layer = route.pipe(
+    Layer.provideMerge(PermissionRegistryLive),
     Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
     Layer.provideMerge(
       Layer.mergeAll(
@@ -150,6 +155,23 @@ describe("/__decisions", () => {
       assert.strictEqual(response.headers.get("connection"), "keep-alive");
       assert.strictEqual(response.headers.get("x-accel-buffering"), "no");
     }));
+
+  it.effect("registers with PermissionRegistry, so /__permissions is not silently incomplete", () =>
+    Effect.gen(function* () {
+      const { layer } = yield* appLayer;
+      const context = yield* Layer.build(layer.pipe(Layer.provideMerge(HttpRouter.layer)));
+      const registry = Context.get(context, PermissionRegistry);
+      const snapshot = yield* registry.snapshot;
+      const endpoints = HashMap.get(snapshot, permissionKey(readPermission));
+
+      assert.isTrue(Option.isSome(endpoints));
+      if (Option.isSome(endpoints)) {
+        assert.deepStrictEqual(
+          [...endpoints.value],
+          [{ method: "GET", path: "/__decisions", group: undefined }],
+        );
+      }
+    }).pipe(Effect.scoped));
 });
 
 /**

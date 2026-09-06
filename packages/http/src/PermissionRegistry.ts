@@ -189,19 +189,30 @@ const snapshotResponse = Effect.map(PermissionRegistry.snapshot, (data) =>
  * Enforced through `guardRoute`, so a denial is a 403 and a broken attribute
  * store is a 502 — the introspection route obeys the same status mapping every
  * other guarded route does rather than inventing one.
+ *
+ * Registers its own permission with `PermissionRegistry`, the same as every
+ * other guarded route here — otherwise this route's own payload, which
+ * claims to list "every permission this application enforces, and the routes
+ * that require it", would omit the one route guaranteed to require a
+ * permission: itself.
  */
 export const permissionRegistryRoute = <P extends Permission>(permission: P, policy: Policy) =>
-  HttpRouter.add(
-    "GET",
-    "/__permissions",
-    Effect.gen(function* () {
-      const request = yield* HttpServerRequest.HttpServerRequest;
-      return yield* guardRoute(
-        permission,
-        policy,
-        () => Effect.succeed({}),
-      )(() => snapshotResponse)(request);
-    }),
+  Layer.merge(
+    HttpRouter.add(
+      "GET",
+      "/__permissions",
+      Effect.gen(function* () {
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        return yield* guardRoute(
+          permission,
+          policy,
+          () => Effect.succeed({}),
+        )(() => snapshotResponse)(request);
+      }),
+    ),
+    Layer.effectDiscard(
+      PermissionRegistry.register(permission, { method: "GET", path: "/__permissions", group: undefined }),
+    ),
   );
 
 /**

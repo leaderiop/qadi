@@ -277,8 +277,14 @@ describe("@qadi/http", () => {
       // corrupted walk (an extra or malformed entry) would still pass a check
       // that only ever reads two known keys back out with `.get`.
       assert.deepStrictEqual([...byPermission.keys()].sort(), ["document:read", "document:write"]);
+      // `permissionRegistryRoute` itself is guarded by `readPermission`
+      // ("document:read" in this fixture), so it registers itself alongside
+      // the `Api` endpoint sharing that permission — the point of ticket
+      // 31's fix: `/__permissions` no longer omits itself from its own
+      // snapshot.
       assert.deepStrictEqual(byPermission.get("document:read"), [
         { method: "GET", path: "/documents", group: "documents" },
+        { method: "GET", path: "/__permissions" },
       ]);
       // `group: undefined` has no JSON representation — it round-trips as an
       // absent key, not as `group: undefined`. Two entries: `WriteRoute` and
