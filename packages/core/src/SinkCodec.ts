@@ -560,9 +560,9 @@ export const decodeRecordWire = (
  * Decodes an untrusted value into a `SinkRecord`.
  *
  * Validates first, then rebuilds. A malformed payload fails with a
- * `SchemaIssue`; a payload nested past {@link decodeRecordWire}'s depth
- * guard fails with `PolicyDecodeTooDeep`. Either way it never produces a
- * half-built record.
+ * `Schema.SchemaError`; a payload nested past {@link decodeRecordWire}'s
+ * depth guard fails with `PolicyDecodeTooDeep`. Either way it never produces
+ * a half-built record.
  */
 export const decodeRecord = (input: unknown) =>
   Effect.map(decodeRecordWire(input), fromWire);
