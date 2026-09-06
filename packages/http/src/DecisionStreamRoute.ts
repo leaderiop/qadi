@@ -25,6 +25,18 @@
  * authorization comes from a policy, and an ambient value that happens to be
  * unset must never be what opens a route. A deployment that wants this off in
  * production does not mount it.
+ *
+ * **`guardRoute` runs once, at connect, not once per record.** A revoked or
+ * logged-out principal whose connection is still open keeps receiving every
+ * decision this process makes for as long as the stream stays up — there is
+ * no per-record re-check and no maximum connection lifetime here, so nothing
+ * bounds that exposure window short of the client disconnecting or the
+ * process restarting. A deployment for which that window matters needs its
+ * own mitigation in front of this route (a reverse proxy that closes
+ * long-lived connections past a maximum age, or `stream`'s own upstream
+ * source declining to emit once a subscriber's token is known revoked) —
+ * this module does not implement one, and a rushed one under time pressure
+ * risked being wrong in a way silence is not.
  */
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
