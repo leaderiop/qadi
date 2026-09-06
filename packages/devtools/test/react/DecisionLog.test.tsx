@@ -32,7 +32,8 @@ const rowOf = (entry: TimelineEntry): PairedEntry => ({
   disagrees: false,
 });
 
-const subjectCells = () => screen.getAllByTestId("qadi-log-row").map((row) => row.cells[1]?.textContent);
+const subjectCells = () =>
+  screen.getAllByTestId("qadi-log-row").map((row) => row.querySelectorAll("td")[1]?.textContent);
 
 describe("the subject column", () => {
   it("reads the subject id for a decided row", () => {

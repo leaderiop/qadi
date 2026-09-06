@@ -184,7 +184,11 @@ describe("settled", () => {
     // already "subscribed" (by the first, now-disposed registry) and never
     // established its own listener — the promise could then only be resolved
     // by a listener `dispose()` had already torn down.
-    let resolveAttribute: (() => void) | undefined;
+    // Each generation gets its own fresh holder object (rather than resetting
+    // one shared holder back to `undefined` between generations) so neither
+    // holder's `.current` narrowing history is contaminated by the other's.
+    type ResolveHolder = { current: (() => void) | undefined };
+    let activeHolder: ResolveHolder = { current: undefined };
     const controlled = makeQadiAtoms(
       Layer.mergeAll(
         Layer.succeed(AttributeResolver, {
@@ -192,7 +196,7 @@ describe("settled", () => {
             Effect.promise(
               () =>
                 new Promise<number>((resolve) => {
-                  resolveAttribute = () => resolve(1);
+                  activeHolder.current = () => resolve(1);
                 }),
             ),
         }),
@@ -208,25 +212,28 @@ describe("settled", () => {
     // Generation 1: a provider mounts, `settled` establishes its one
     // long-lived listener on `registry1`, the decision resolves, and the
     // provider unmounts — exactly a route change over the same atom set.
+    const holder1: ResolveHolder = { current: undefined };
+    activeHolder = holder1;
     const registry1 = makeRegistry();
     registry1.set(controlled.subject, reader);
     const firstSettled = settled(registry1, atom);
-    await vi.waitFor(() => expect(resolveAttribute).toBeDefined());
-    resolveAttribute?.();
+    await vi.waitFor(() => expect(holder1.current).toBeDefined());
+    holder1.current?.();
     await firstSettled;
     registry1.dispose();
 
     // Generation 2: a fresh registry over the *same* atom object. The
     // decision is genuinely pending again — a fresh node, a fresh
     // evaluation — when `settled` is asked about it.
-    resolveAttribute = undefined;
+    const holder2: ResolveHolder = { current: undefined };
+    activeHolder = holder2;
     const registry2 = makeRegistry();
     registry2.set(controlled.subject, reader);
     expect(AsyncResult.isInitial(registry2.get(atom))).toBe(true);
 
     const secondSettled = settled(registry2, atom);
-    await vi.waitFor(() => expect(resolveAttribute).toBeDefined());
-    resolveAttribute?.();
+    await vi.waitFor(() => expect(holder2.current).toBeDefined());
+    holder2.current?.();
 
     await expect(raceTimeout(secondSettled, 250)).resolves.toBe("resolved");
   });
