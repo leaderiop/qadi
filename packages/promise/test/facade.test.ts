@@ -1,4 +1,5 @@
 import {
+  AccessDenied,
   AttributeResolver,
   AttributeResolverNone,
   AttributeResolveError,
@@ -7,6 +8,7 @@ import {
   DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolverNever,
+  assert as assertCore,
   check as checkCore,
   currentSubjectLayer,
   decide as decideCore,
@@ -20,8 +22,23 @@ import {
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import { afterEach, assert, describe, expect, it } from "vitest";
 import { makeQadi } from "../src/index.ts";
+
+/**
+ * Runs a Promise expected to reject, and hands back what it rejected with —
+ * rather than only *that* it rejected, which `.rejects.toThrow()` alone
+ * cannot distinguish from any other throw.
+ */
+const rejection = async (p: Promise<unknown>): Promise<unknown> => {
+  try {
+    await p;
+  } catch (e) {
+    return e;
+  }
+  throw new Error("expected the promise to reject, but it resolved");
+};
 
 const baseLayer = Layer.mergeAll(
   AttributeResolverNone,
@@ -77,8 +94,14 @@ describe("makeQadi", () => {
 
     // Denied: an answer, so a value.
     await expect(qadi.check(alice, isAdmin)).resolves.toBe(false);
-    // Broken: not an answer, so a rejection — NOT `false`.
-    await expect(qadi.check(alice, hasAttribute("clearance", gte(1)))).rejects.toThrow();
+    // Broken: not an answer, so a rejection — NOT `false` — and typed as the
+    // port failure that actually broke, not merely "some throw happened".
+    const failure = await rejection(qadi.check(alice, hasAttribute("clearance", gte(1))));
+    assert.instanceOf(failure, AttributeResolveError);
+    if (failure instanceof AttributeResolveError) {
+      assert.strictEqual(failure.attribute, "clearance");
+      assert.strictEqual(failure.cause, "down");
+    }
   });
 
   it("decide carries the trace, the fields and the obligations", async () => {
@@ -95,7 +118,25 @@ describe("makeQadi", () => {
     // if permitted".
     const qadi = facade();
     await expect(qadi.assert(alice, canRead)).resolves.toBeUndefined();
-    await expect(qadi.assert(alice, isAdmin)).rejects.toThrow();
+
+    // BEH-QD-170: assert rejects with the *same* AccessDenied the Effect API
+    // fails with — asserted by actually failing both and comparing, not by
+    // trusting a doc comment's claim that they agree.
+    const failure = await rejection(qadi.assert(alice, isAdmin));
+    const coreResult = await Effect.runPromise(
+      Effect.result(
+        assertCore(isAdmin).pipe(
+          Effect.provide(baseLayer),
+          Effect.provide(currentSubjectLayer(alice)),
+        ),
+      ),
+    );
+
+    assert.instanceOf(failure, AccessDenied);
+    assert.strictEqual(Result.isFailure(coreResult), true);
+    if (Result.isFailure(coreResult)) {
+      assert.deepStrictEqual(failure, coreResult.failure);
+    }
   });
 
   it("filter keeps the admitted items in order", async () => {
