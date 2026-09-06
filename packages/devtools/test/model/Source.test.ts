@@ -194,6 +194,23 @@ describe("sourceFromFeed", () => {
       assert.strictEqual(got[0]?._tag, "Obligations");
       assert.strictEqual(got[0]?.environment, "Server");
     }));
+
+  // A plain `{ ...record, environment }` spread of a `Data.TaggedClass` instance
+  // lands on `Object.prototype`, silently dropping `.pipe`/`Equal.equals`/
+  // `Hash.hash` — the exact failure `DecisionSinkRing.ts`'s `stampRecord`
+  // documents and exists to avoid. This pins that `sourceFromFeed` stamps
+  // through core's own `stampRecord` rather than re-implementing the spread.
+  it.effect("stamps through core's stampRecord, not a spread that drops the prototype", () =>
+    Effect.gen(function* () {
+      const { environment: _dropped, ...bare } = decisionRecord({ evaluationId: "a" });
+      const source = sourceFromFeed({
+        stream: Stream.fromArray<SinkRecord>([bare]),
+        environment: "Client",
+      });
+
+      const got = Array.from(yield* Stream.runCollect(source.live));
+      assert.strictEqual(typeof got[0]?.pipe, "function");
+    }));
 });
 
 describe("sourceFromEventSource", () => {
@@ -205,6 +222,9 @@ describe("sourceFromEventSource", () => {
       assert.strictEqual(got.length, 1);
       assert.strictEqual(got[0]?.evaluationId, "a");
       assert.strictEqual(got[0]?.environment, "Server");
+      // Same prototype-preservation guarantee `sourceFromFeed` pins: a
+      // `{ ...record, environment }` spread would silently drop `.pipe`.
+      assert.strictEqual(typeof got[0]?.pipe, "function");
     }));
 
   // E1.1 — a frame that is not JSON at all: a broken transport.

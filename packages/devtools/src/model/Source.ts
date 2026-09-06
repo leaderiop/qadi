@@ -21,7 +21,7 @@ import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import type { SinkRecord, StoredRecord } from "@qadi/core";
-import { decodeRecord } from "@qadi/core";
+import { decodeRecord, stampRecord } from "@qadi/core";
 
 export interface Source {
   /**
@@ -54,8 +54,12 @@ export const sourceFromRecords = (records: ReadonlyArray<StoredRecord>): Source 
  *
  * The stamping happens here because core does not do it: `decisionSinkFeed`
  * yields `SinkRecord`, deliberately, since core cannot know whether it is in a
- * browser, on a server or at an edge. This is the same stamping
- * `decisionSinkRing` performs, at the same boundary, for the same reason.
+ * browser, on a server or at an edge. It reuses core's own `stampRecord`
+ * ([DecisionSinkRing.ts](../../../core/src/DecisionSinkRing.ts)) rather than a
+ * local `{ ...record, environment }` spread — spreading a `Data.TaggedClass`
+ * instance lands the result on `Object.prototype`, silently losing `.pipe`,
+ * `Equal.equals` and `Hash.hash`, which is exactly the failure that module
+ * documents and `stampRecord` exists to avoid.
  */
 export const sourceFromFeed = (options: {
   readonly stream: Stream.Stream<SinkRecord>;
@@ -64,13 +68,7 @@ export const sourceFromFeed = (options: {
   readonly backlog?: Effect.Effect<ReadonlyArray<StoredRecord>>;
 }): Source => ({
   ...(options.backlog === undefined ? {} : { backlog: options.backlog }),
-  live: Stream.map(options.stream, (record) => stamp(record, options.environment)),
-});
-
-/** A record plus where it ran. The one place the badge is applied. */
-const stamp = (record: SinkRecord, environment: string): StoredRecord => ({
-  ...record,
-  environment,
+  live: Stream.map(options.stream, (record) => stampRecord(record, options.environment)),
 });
 
 /**
@@ -206,7 +204,7 @@ const decodeFrame = (
     const decoded = yield* Effect.result(decodeRecord(parsed.success));
     if (Result.isFailure(decoded)) return yield* malformed(frame, "not-a-record", onMalformed);
 
-    return Result.succeed(stamp(decoded.success, environment));
+    return Result.succeed(stampRecord(decoded.success, environment));
   });
 
 /**
