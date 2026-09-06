@@ -78,10 +78,39 @@ const isSafeValue = (value: unknown): boolean =>
  * level: a column literally named one changes what the object means instead
  * of failing to render — `{NOT: "t-1"}` negates rather than comparing, and
  * `{AND: …}`/`{OR: …}` collide with the array forms this compiler emits for
- * `Predicate.And`/`Or`. Refused here rather than escaped, since there is no
- * escaping a JS object key — only choosing not to use it as one.
+ * `Predicate.And`/`Or`.
+ *
+ * The rest of the set (ticket 136) is Prisma's scalar-filter operator
+ * vocabulary — `equals`/`not`/`in`/`notIn`/`lt`/`lte`/`gt`/`gte`/`is`/
+ * `isNot` — the keys a nested filter object uses one level below a field
+ * name. A column literally named one of these does not fail to render:
+ * `renderNode` still emits a structurally valid `WhereInput` fragment, e.g.
+ * `{gte: {gte: value}}` for a `Compare` on a column named `"gte"`. Prisma
+ * then either rejects it at query time (no such model field, a failure this
+ * package could have given a clearer reason for at compile time) or, if the
+ * model happens to have a field by that name, resolves it as an ordinary
+ * field rather than the operator the column name suggests — compiling
+ * successfully to something the column name did not mean, the same failure
+ * mode `AND`/`OR`/`NOT` already guard against. Refused here rather than
+ * escaped, since there is no escaping a JS object key — only choosing not to
+ * use it as one. Matching is case-sensitive, as it already was for
+ * `AND`/`OR`/`NOT`: Prisma's own keys are exact-case, and so is this check.
  */
-const RESERVED_PRISMA_KEYS = new Set(["AND", "OR", "NOT"]);
+const RESERVED_PRISMA_KEYS = new Set([
+  "AND",
+  "OR",
+  "NOT",
+  "equals",
+  "not",
+  "in",
+  "notIn",
+  "lt",
+  "lte",
+  "gt",
+  "gte",
+  "is",
+  "isNot",
+]);
 const isSafeColumn = (column: string): boolean => !RESERVED_PRISMA_KEYS.has(column);
 
 /**
@@ -179,12 +208,27 @@ const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, Predi
             }),
           );
         }
+        // evaluatePredicate's compare requires typeof === "number" on BOTH
+        // sides for Gte/Lt and is otherwise always False — a string or
+        // boolean slips past isSafeValue's allowlist (built for Eq/Neq's
+        // `===`, where any of those compare validly) straight into a real
+        // Prisma range filter: `{gte: "10"}`/`{lt: true}` still executes
+        // against the row rather than refusing, admitting rows the reference
+        // evaluator denies. `NaN` is `typeof === "number"` but fails the same
+        // way from the numeric side. Mirrors `@qadi/predicate-sql`'s
+        // identical guard (ticket 157) and this file's own `{OR: []}` for a
+        // null-literal Gte/Lt just below.
+        if (
+          (p.op === "Gte" || p.op === "Lt") &&
+          (typeof p.value !== "number" || Number.isNaN(p.value))
+        ) {
+          return Effect.succeed({ OR: [] });
+        }
         if (p.value === null) {
           if (p.op === "Eq") return Effect.succeed({ [p.column]: null });
           if (p.op === "Neq") return Effect.succeed({ [p.column]: { not: null } });
-          // Gte/Lt against a null literal: evaluatePredicate requires both
-          // sides to be numbers, and null never is — always False, for any
-          // row, and {gte: null}/{lt: null} is a Prisma validation error.
+          // Gte/Lt against a null literal is handled by the numeric guard
+          // above (typeof null !== "number").
           return Effect.succeed({ OR: [] });
         }
         if (p.op === "Neq") {
