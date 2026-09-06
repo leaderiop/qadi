@@ -60,11 +60,31 @@ export class PredicateNotRenderable extends Data.TaggedError("PredicateNotRender
  * correctly. Refusing to compile a `Date`-valued `Compare`/`MemberOf` is the
  * ADR-QD-024 "refuse rather than approximate" answer to a comparison the
  * reference evaluator does not actually support.
+ *
+ * The `number` branch requires `Number.isFinite` too (ticket 138), not bare
+ * `typeof value === "number"` — `NaN`/`Infinity`/`-Infinity` all satisfy that
+ * `typeof` check but are unsound in both directions against
+ * `evaluatePredicate`: `NaN === NaN` is `false` in JS, so an `Eq`/`MemberOf`
+ * against `NaN` is reference-evaluator-false for every row, while Prisma's
+ * equality/`in` filters compile it into a real, engine-dependent comparison
+ * that can admit rows the reference evaluator denies. `Infinity`/`-Infinity`
+ * are ordinary numbers to a `>=`/`<` comparison in both `evaluatePredicate`
+ * and Prisma's `gte`/`lt`, so a real disagreement needs an actual database to
+ * confirm either way — refusing all three here is the same "refuse rather
+ * than approximate" answer as the `Date` case above, applied before either
+ * question needs answering empirically.
+ *
+ * `@qadi/predicate-sql`'s own `isSafeValue` does not carry this check — only
+ * its `Gte`/`Lt`-specific render guard excludes `NaN`, and only for those two
+ * operators, leaving `Eq`/`MemberOf` against `NaN` unaddressed there. This is
+ * a deliberate widening at the `isSafeValue` gate itself, ahead of, and
+ * covering more ground than, that precedent — not a claim that the two
+ * packages agree.
  */
 const isSafeValue = (value: unknown): boolean =>
   value === null ||
   typeof value === "string" ||
-  typeof value === "number" ||
+  (typeof value === "number" && Number.isFinite(value)) ||
   typeof value === "boolean";
 
 /**
@@ -214,14 +234,14 @@ const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, Predi
         // `===`, where any of those compare validly) straight into a real
         // Prisma range filter: `{gte: "10"}`/`{lt: true}` still executes
         // against the row rather than refusing, admitting rows the reference
-        // evaluator denies. `NaN` is `typeof === "number"` but fails the same
-        // way from the numeric side. Mirrors `@qadi/predicate-sql`'s
-        // identical guard (ticket 157) and this file's own `{OR: []}` for a
-        // null-literal Gte/Lt just below.
-        if (
-          (p.op === "Gte" || p.op === "Lt") &&
-          (typeof p.value !== "number" || Number.isNaN(p.value))
-        ) {
+        // evaluator denies. `NaN` is excluded earlier, by `isSafeValue` itself
+        // (ticket 138), so only the `typeof` check is left doing work here;
+        // it stays a plain `typeof` guard, not `Number.isFinite`, because
+        // `isSafeValue` having already run means anything reaching this line
+        // that is `typeof === "number"` is already finite. Mirrors
+        // `@qadi/predicate-sql`'s identical guard (ticket 157) and this
+        // file's own `{OR: []}` for a null-literal Gte/Lt just below.
+        if ((p.op === "Gte" || p.op === "Lt") && typeof p.value !== "number") {
           return Effect.succeed({ OR: [] });
         }
         if (p.value === null) {

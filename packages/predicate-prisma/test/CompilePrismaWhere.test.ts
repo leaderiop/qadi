@@ -156,10 +156,12 @@ describe("compilePrismaWhere — NULL handling agrees with evaluatePredicate's =
   // sides and are otherwise always False, but a string or boolean slips past
   // isSafeValue's allowlist straight into a real Prisma range filter
   // (`{gte: "10"}`/`{lt: true}`), admitting rows the reference evaluator
-  // denies. NaN passes typeof === "number" but fails the same way.
+  // denies. NaN is covered separately, by isSafeValue itself refusing it
+  // outright (ticket 138) before this Gte/Lt-specific guard is ever reached —
+  // see the "refuses NaN" describe block below.
   it.effect("Gte/Lt with a non-number, non-null value renders False's identity, never a real filter", () =>
     Effect.gen(function* () {
-      const nonNumberValues: ReadonlyArray<unknown> = ["10", true, false, Number.NaN];
+      const nonNumberValues: ReadonlyArray<unknown> = ["10", true, false];
       for (const value of nonNumberValues) {
         assert.deepStrictEqual(
           yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Gte", value }),
@@ -285,6 +287,46 @@ describe("compilePrismaWhere — refusals", () => {
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
       assert.strictEqual(failure?.predicateTag, "MemberOf");
       assert.strictEqual(failure?.reason, "a value for column 'x' is not a safe query parameter");
+    }));
+
+  // ticket 138 — isSafeValue's number branch now requires Number.isFinite,
+  // not bare typeof. NaN satisfies `typeof === "number"` but `NaN === NaN`
+  // is false in JS, so an Eq/MemberOf against NaN is reference-evaluator-false
+  // for every row while Prisma's equality/`in` filters compile it into a
+  // real, engine-dependent comparison — refused across Eq, MemberOf and Gte
+  // alike, all from the same isSafeValue gate.
+  it.effect("a NaN value refuses in Eq, MemberOf and Gte alike", () =>
+    Effect.gen(function* () {
+      const eq = yield* refusalOf({ _tag: "Compare", column: "score", op: "Eq", value: Number.NaN });
+      assert.strictEqual(eq?._tag, "PredicateNotRenderable");
+      assert.strictEqual(eq?.predicateTag, "Compare");
+      assert.strictEqual(eq?.reason, "value for column 'score' is not a safe query parameter");
+
+      const memberOf = yield* refusalOf({
+        _tag: "MemberOf",
+        column: "score",
+        values: [1, Number.NaN],
+      });
+      assert.strictEqual(memberOf?._tag, "PredicateNotRenderable");
+      assert.strictEqual(memberOf?.predicateTag, "MemberOf");
+      assert.strictEqual(
+        memberOf?.reason,
+        "a value for column 'score' is not a safe query parameter",
+      );
+
+      const gte = yield* refusalOf({ _tag: "Compare", column: "score", op: "Gte", value: Number.NaN });
+      assert.strictEqual(gte?._tag, "PredicateNotRenderable");
+      assert.strictEqual(gte?.predicateTag, "Compare");
+      assert.strictEqual(gte?.reason, "value for column 'score' is not a safe query parameter");
+    }));
+
+  it.effect("Infinity and -Infinity refuse too, alongside NaN", () =>
+    Effect.gen(function* () {
+      for (const value of [Infinity, -Infinity]) {
+        const failure = yield* refusalOf({ _tag: "Compare", column: "score", op: "Eq", value });
+        assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+        assert.strictEqual(failure?.reason, "value for column 'score' is not a safe query parameter");
+      }
     }));
 
   it.effect("a refusal deep in the tree fails the whole compilation", () =>
