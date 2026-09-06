@@ -197,6 +197,7 @@ answered.
 | `EvaluationId`, `EvaluationIdLive`, `evaluationIdSequential` | service + layer | `EvaluationId.ts` |
 | `CustomPredicate`, `CustomPredicateNone`, `customPredicateFromRecord` | service + layer | `CustomPredicate.ts` |
 | `customPredicateRetrying`, `customPredicateBounded` | layer combinator | `CustomPredicate.ts` |
+| `EvaluationServicesNone` | layer | `EvaluationServicesNone.ts` — every optional port's fail-closed default, combined; excludes `CurrentSubject` (ADR-QD-022) |
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |
 | `DecisionSink` | service | `DecisionSink.ts` |
 | `decisionSinkRing`, `DEFAULT_RING_CAPACITY` | layer factory + constant | `DecisionSinkRing.ts` |
