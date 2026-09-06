@@ -63,6 +63,13 @@ export interface CircuitBreaker {
    *
    * Resets on the next transition away from `HalfOpen`, whichever direction,
    * so the following half-open window admits a fresh probe.
+   *
+   * `false` is ambiguous by itself: it means either "another caller already
+   * holds this window's slot" (still `HalfOpen`) or "the breaker is no
+   * longer `HalfOpen` at all" (e.g. the prober's write just succeeded and
+   * closed it). `AuditDecisionSinkLive.ts`'s `record()` re-reads `status`
+   * after a lost claim to tell the two apart, rather than treating every
+   * loss as `Open` — see the comment there (ticket #46).
    */
   readonly claimProbe: Effect.Effect<boolean>;
 }
