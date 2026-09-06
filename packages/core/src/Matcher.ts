@@ -217,7 +217,19 @@ export const fieldMatch = (field: string, matcher: Matcher): Matcher => ({
 });
 /** At least one element of an array attribute satisfies the matcher. */
 export const someMatch = (matcher: Matcher): Matcher => ({ _tag: "SomeMatch", matcher });
-/** Every element of an array attribute satisfies the matcher. */
+/**
+ * Every element of an array attribute satisfies the matcher.
+ *
+ * A present but empty array ALLOWS: `[].every(...)` is vacuously `true` in
+ * JS regardless of the predicate, and `everyMatch` inherits that rather than
+ * special-casing it away. This is the same vacuous-truth convention `allOf`
+ * uses elsewhere in this codebase for an empty conjunction — deliberate, not
+ * an oversight, though the two are NOT interchangeable: `everyMatch` still
+ * DENIES an *absent* attribute (`Array.isArray(undefined)` is `false`, which
+ * short-circuits before "every" gets a chance to be vacuous), so a present
+ * `tags: []` and a missing `tags` are not equivalent inputs the way a reader
+ * might expect. Pinned in `Matcher.test.ts`, both directions.
+ */
 export const everyMatch = (matcher: Matcher): Matcher => ({ _tag: "EveryMatch", matcher });
 /** Applies a matcher to the length of an array or string attribute. */
 export const size = (matcher: Matcher): Matcher => ({ _tag: "Size", matcher });
