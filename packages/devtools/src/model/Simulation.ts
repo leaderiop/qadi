@@ -32,7 +32,7 @@ import {
 } from "@qadi/core";
 import type { DecisionOutcome, Policy } from "@qadi/core";
 import { evaluationOptionsOf, subjectOf, type SimulationInput } from "./SimulationInput.ts";
-import { portsOf, type SimulationSource } from "./Sources.ts";
+import { portsOf, type SimulationSource } from "./SimulationSource.ts";
 
 /**
  * Which clock a simulated evaluation runs under.

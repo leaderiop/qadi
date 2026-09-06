@@ -26,7 +26,7 @@ export * from "./model/Simulation.ts";
 export * from "./model/SimulationEdit.ts";
 export * from "./model/SimulationInput.ts";
 export * from "./model/Source.ts";
-export * from "./model/Sources.ts";
+export * from "./model/SimulationSource.ts";
 export * from "./model/Timeline.ts";
 export * from "./model/TimelineStore.ts";
 export * from "./model/Verdict.ts";

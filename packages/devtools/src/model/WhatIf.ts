@@ -38,7 +38,7 @@ import { simulate } from "./Simulation.ts";
 import type { SimulationOptions } from "./Simulation.ts";
 import type { SimulationEdit } from "./SimulationEdit.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
-import { causesIO, fixtures } from "./Sources.ts";
+import { causesIO, fixtures } from "./SimulationSource.ts";
 
 /** Both runs decided, so the two traces can be walked against each other. */
 export interface Compared {

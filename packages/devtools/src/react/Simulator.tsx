@@ -41,7 +41,7 @@ import { baselineDiff, matchesBaseline, replayInput } from "../model/Replay.ts";
 import type { Baseline, UnseededField } from "../model/Replay.ts";
 import { simulate, type SimulationClock } from "../model/Simulation.ts";
 import type { EvaluationPortsLayer, SimulationInput } from "../model/SimulationInput.ts";
-import { fixtures, live, snapshot, type SimulationSource } from "../model/Sources.ts";
+import { fixtures, live, snapshot, type SimulationSource } from "../model/SimulationSource.ts";
 import type { TimelineEntry } from "../model/Timeline.ts";
 import { verdictOfOutcome } from "../model/Verdict.ts";
 import { sweepPlan, whatIf, type WhatIfReport } from "../model/WhatIf.ts";
