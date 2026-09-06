@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/leaderiop/qadi/issues"
   },
-  "description": "Devtools for @qadi/core \u2014 a headless decision timeline, and a React dock that renders it",
+  "description": "Devtools for @qadi/core — a headless decision timeline, and a React dock that renders it",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -70,6 +70,6 @@
     "typescript"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0"
   }
 }
