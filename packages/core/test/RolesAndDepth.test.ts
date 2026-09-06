@@ -112,6 +112,23 @@ describe("policyDepth", () => {
       }
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
+  it("a wide tree (250k direct children) does not overflow the argument list", () => {
+    // Regression for the `Math.max(...children.map(policyDepth))` spread:
+    // spreading turns into one call argument per child, which throws a raw
+    // `RangeError` well before 250k. `deepest` now walks with a plain loop,
+    // so this must both return without throwing and report the right depth —
+    // 1 above every (leaf, depth-0) child.
+    const children: ReadonlyArray<P.Policy> = Array.from({ length: 250_000 }, () =>
+      P.hasPermission(read),
+    );
+    const wide = P.anyOf(children);
+    let depth: number | undefined;
+    assert.doesNotThrow(() => {
+      depth = P.policyDepth(wide);
+    });
+    assert.strictEqual(depth, 1);
+  });
+
   it("a right-leaning spine counts its own length", () => {
     FastCheck.assert(
       FastCheck.property(FastCheck.integer({ min: 0, max: 30 }), (n) => {

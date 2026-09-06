@@ -17,18 +17,21 @@ describe("Policy combinators", () => {
 
   it("anyOf defaults to First — short-circuiting", () => {
     const policy = P.anyOf([P.hasRole("a")]);
+    assert.strictEqual(policy._tag, "AnyOf");
     if (policy._tag !== "AnyOf") return;
     assert.strictEqual(policy.fieldStrategy, "First");
   });
 
   it("explicit fieldStrategy overrides the default", () => {
     const policy = P.anyOf([P.hasRole("a")], { fieldStrategy: "Union" });
+    assert.strictEqual(policy._tag, "AnyOf");
     if (policy._tag !== "AnyOf") return;
     assert.strictEqual(policy.fieldStrategy, "Union");
   });
 
   it("anyOfRoles builds an AnyOf of HasRole", () => {
     const policy = P.anyOfRoles(["admin", "editor"]);
+    assert.strictEqual(policy._tag, "AnyOf");
     if (policy._tag !== "AnyOf") return;
     assert.strictEqual(policy.policies.length, 2);
     assert.deepStrictEqual(
@@ -39,6 +42,7 @@ describe("Policy combinators", () => {
 
   it("labeled wraps a policy with a name", () => {
     const policy = P.labeled("four-eyes", P.hasRole("approver"));
+    assert.strictEqual(policy._tag, "Labeled");
     if (policy._tag !== "Labeled") return;
     assert.strictEqual(policy.label, "four-eyes");
   });
@@ -50,6 +54,7 @@ describe("Policy combinators", () => {
 
   it("hasAction carries the verb and fields", () => {
     const policy = P.hasAction("write", { fields: ["body"] });
+    assert.strictEqual(policy._tag, "HasAction");
     if (policy._tag !== "HasAction") return;
     assert.strictEqual(policy.action, "write");
     assert.deepStrictEqual(policy.fields, ["body"]);
@@ -74,6 +79,8 @@ describe("Policy combinators", () => {
   it("history policies default to Resource scope", () => {
     const acted = P.hasActed("raised");
     const notActed = P.hasNotActed("raised", { scope: "Any" });
+    assert.strictEqual(acted._tag, "HasActed");
+    assert.strictEqual(notActed._tag, "HasNotActed");
     if (acted._tag !== "HasActed" || notActed._tag !== "HasNotActed") return;
     assert.strictEqual(acted.scope, "Resource");
     assert.strictEqual(notActed.scope, "Any");
@@ -88,6 +95,7 @@ describe("Policy combinators", () => {
 
   it("hasRelationship carries depth and fields", () => {
     const policy = P.hasRelationship("owner", { depth: 3, fields: ["title"] });
+    assert.strictEqual(policy._tag, "HasRelationship");
     if (policy._tag !== "HasRelationship") return;
     assert.strictEqual(policy.depth, 3);
     assert.deepStrictEqual(policy.fields, ["title"]);
@@ -95,6 +103,7 @@ describe("Policy combinators", () => {
 
   it("hasCustom carries its name, params and fields", () => {
     const policy = P.hasCustom("isOwner", { threshold: 5 }, { fields: ["id"] });
+    assert.strictEqual(policy._tag, "HasCustom");
     if (policy._tag !== "HasCustom") return;
     assert.strictEqual(policy.name, "isOwner");
     assert.deepStrictEqual(policy.params, { threshold: 5 });
@@ -211,6 +220,33 @@ describe("Policy serialization", () => {
       );
 
       assert.deepStrictEqual(yield* roundTrip(policy), policy);
+    }));
+
+  it.effect("round-trips an empty allOf/anyOf/rules — the property generator's minLength:1 never exercises these", () =>
+    Effect.gen(function* () {
+      const emptyAllOf = P.allOf([]);
+      const restoredAllOf = yield* roundTrip(emptyAllOf);
+      assert.deepStrictEqual(restoredAllOf, emptyAllOf);
+      assert.strictEqual(restoredAllOf._tag, "AllOf");
+      if (restoredAllOf._tag === "AllOf") {
+        assert.deepStrictEqual(restoredAllOf.policies, []);
+      }
+
+      const emptyAnyOf = P.anyOf([]);
+      const restoredAnyOf = yield* roundTrip(emptyAnyOf);
+      assert.deepStrictEqual(restoredAnyOf, emptyAnyOf);
+      assert.strictEqual(restoredAnyOf._tag, "AnyOf");
+      if (restoredAnyOf._tag === "AnyOf") {
+        assert.deepStrictEqual(restoredAnyOf.policies, []);
+      }
+
+      const emptyRules = P.rules([]);
+      const restoredRules = yield* roundTrip(emptyRules);
+      assert.deepStrictEqual(restoredRules, emptyRules);
+      assert.strictEqual(restoredRules._tag, "Rules");
+      if (restoredRules._tag === "Rules") {
+        assert.deepStrictEqual(restoredRules.rules, []);
+      }
     }));
 
   it.effect("round-trips a Rules table, including each row's condition and effect", () =>
