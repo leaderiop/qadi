@@ -195,11 +195,11 @@ importers:
         version: 4.0.0-rc.112
     devDependencies:
       '@effect-cucumber/gherkin':
-        specifier: 0.2.0
-        version: 0.2.0(effect@4.0.0-rc.112)
+        specifier: ^0.3.1
+        version: 0.3.1(effect@4.0.0-rc.112)
       '@effect-cucumber/vitest':
-        specifier: 0.2.0
-        version: 0.2.0(@effect/platform-node@4.0.0-rc.112(effect@4.0.0-rc.112)(redis@6.2.1))(@effect/vitest@4.0.0-rc.112(effect@4.0.0-rc.112)(vitest@4.1.10))(@vitest/runner@4.1.10)(effect@4.0.0-rc.112)(vitest@4.1.10)
+        specifier: ^0.3.1
+        version: 0.3.1(@effect/platform-node@4.0.0-rc.112(effect@4.0.0-rc.112)(redis@6.2.1))(@effect/vitest@4.0.0-rc.112(effect@4.0.0-rc.112)(vitest@4.1.10))(@vitest/runner@4.1.10)(effect@4.0.0-rc.112)(vitest@4.1.10)
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 4.0.0-rc.112(effect@4.0.0-rc.112)(redis@6.2.1)
@@ -933,14 +933,14 @@ packages:
     resolution: {integrity: sha512-Xc3VhU02wqZ1HvHRJUwL09HkZSTvidqY5Ya0NXBSYOxAp+Ln9dcJr9fySI+CkONzP3PekQo9WdzCv0PGER/mOA==}
     engines: {node: '>=14.17.0'}
 
-  '@effect-cucumber/gherkin@0.2.0':
-    resolution: {integrity: sha512-bShy85E3LPG32YpvUu4/M0Ctjx2kN6+8MGekxE6O/J0LWrckMl6LS+6ToR2MpT72HNnVA3SFEx0G8tTYUH37zQ==}
+  '@effect-cucumber/gherkin@0.3.1':
+    resolution: {integrity: sha512-GrftDaLv1ZRkQSN2EMg3jxNm82bLkEmZmjSMSfBmjCDMyZk5z5nSIs3BrAnhciwvs0k8YLp69vx5ZDaOHZqS7Q==}
     engines: {node: '>=20'}
     peerDependencies:
       effect: ^4.0.0-rc.112
 
-  '@effect-cucumber/vitest@0.2.0':
-    resolution: {integrity: sha512-nAjPkfLs5reRJLg0Fy5G8c5eJYEJJz2Ph8BCzqmuXFLHivnck4PyZa5nMIgvXAAioTMe2ka2TJl/6g3gp5v+zw==}
+  '@effect-cucumber/vitest@0.3.1':
+    resolution: {integrity: sha512-awtfZADkzY8P4a63bkLSFGPz6HBrNAqpzzpdnODwpmc+jPflnQ1YCj8PGhIhXBlLB7EVNk9uLjzLE6NHaXP2Ng==}
     engines: {node: '>=20'}
     peerDependencies:
       '@effect/platform-node': ^4.0.0-rc.112
@@ -6425,16 +6425,16 @@ snapshots:
 
   '@discoveryjs/json-ext@1.1.0': {}
 
-  '@effect-cucumber/gherkin@0.2.0(effect@4.0.0-rc.112)':
+  '@effect-cucumber/gherkin@0.3.1(effect@4.0.0-rc.112)':
     dependencies:
       '@cucumber/cucumber-expressions': 20.1.0
       '@cucumber/gherkin': 42.0.1
       '@cucumber/messages': 34.2.1
       effect: 4.0.0-rc.112
 
-  '@effect-cucumber/vitest@0.2.0(@effect/platform-node@4.0.0-rc.112(effect@4.0.0-rc.112)(redis@6.2.1))(@effect/vitest@4.0.0-rc.112(effect@4.0.0-rc.112)(vitest@4.1.10))(@vitest/runner@4.1.10)(effect@4.0.0-rc.112)(vitest@4.1.10)':
+  '@effect-cucumber/vitest@0.3.1(@effect/platform-node@4.0.0-rc.112(effect@4.0.0-rc.112)(redis@6.2.1))(@effect/vitest@4.0.0-rc.112(effect@4.0.0-rc.112)(vitest@4.1.10))(@vitest/runner@4.1.10)(effect@4.0.0-rc.112)(vitest@4.1.10)':
     dependencies:
-      '@effect-cucumber/gherkin': 0.2.0(effect@4.0.0-rc.112)
+      '@effect-cucumber/gherkin': 0.3.1(effect@4.0.0-rc.112)
       '@effect/platform-node': 4.0.0-rc.112(effect@4.0.0-rc.112)(redis@6.2.1)
       '@effect/vitest': 4.0.0-rc.112(effect@4.0.0-rc.112)(vitest@4.1.10)
       '@vitest/runner': 4.1.10

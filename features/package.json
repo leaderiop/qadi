@@ -16,8 +16,8 @@
     "effect": "catalog:"
   },
   "devDependencies": {
-    "@effect-cucumber/gherkin": "0.2.0",
-    "@effect-cucumber/vitest": "0.2.0",
+    "@effect-cucumber/gherkin": "^0.3.1",
+    "@effect-cucumber/vitest": "^0.3.1",
     "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
     "@happy-dom/global-registrator": "^20.11.1",
