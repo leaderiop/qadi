@@ -174,7 +174,16 @@ const projectAt = (value: unknown, tails: ReadonlyArray<ReadonlyArray<string>>):
     tails.filter((tail) => !(tail.length === 1 && (tail[0] === "*" || tail[0] === "**"))),
   );
 
-  const out: Record<string, unknown> = {};
+  // `Object.create(null)` rather than `{}`: `key` comes from `Object.keys(value)`
+  // (untrusted data — JSON.parse gives an object its own "__proto__" key without
+  // ever touching the real prototype, so `Object.hasOwn` below sees it) or from a
+  // policy-authored field spec segment this module's own doc says is never
+  // validated. Either source can produce the literal string "__proto__", and
+  // `out[key] = ...` on an ordinary object literal would invoke
+  // `Object.prototype`'s `__proto__` *setter* rather than create an own
+  // property — a null-prototype `out` has no such setter to invoke, so the
+  // assignment is always a plain data property, whatever `key` is.
+  const out: Record<string, unknown> = Object.create(null);
   const keys = starOne ? Object.keys(value) : [...deeper.keys()];
   for (const key of keys) {
     if (!Object.hasOwn(value, key)) continue;
