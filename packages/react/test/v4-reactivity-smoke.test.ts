@@ -15,6 +15,7 @@ import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
@@ -97,6 +98,23 @@ describe("effect/unstable/reactivity API canary", () => {
     const registry = makeRegistry({ initialValues: [[atom, "seeded"] as const] });
 
     expect(registry.get(atom)).toBe("seeded");
+  });
+
+  // -------------------------------------------------------------------------
+  // Effect.serviceOption — the optional DecisionCache on `invalidate`
+  // -------------------------------------------------------------------------
+
+  it("Effect.serviceOption resolves Some when the service is provided, None when it is absent", async () => {
+    // `QadiAtoms.ts`'s `invalidate` clears an optional `DecisionCache` with
+    // exactly this: `Effect.serviceOption(DecisionCache)`, so an atom set
+    // without one — most of them — must not fail to invalidate at all.
+    const withTicker = await Effect.runPromise(
+      Effect.serviceOption(Ticker).pipe(Effect.provide(tickerLayer({ count: 0 }))),
+    );
+    expect(Option.isSome(withTicker)).toBe(true);
+
+    const withoutTicker = await Effect.runPromise(Effect.serviceOption(Ticker));
+    expect(Option.isNone(withoutTicker)).toBe(true);
   });
 
   // -------------------------------------------------------------------------
