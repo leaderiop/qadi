@@ -253,11 +253,32 @@ const renderNode = (
 
       // No double-negation elimination. `Simplify.ts` never runs on a
       // `Predicate`, only on a `Policy`, and this compiler renders exactly
-      // what the AST says — "NOT (NOT (...))" is valid, if redundant, SQL.
+      // what the AST says — nesting is preserved even though the rendered
+      // shape below is no longer a bare "NOT (NOT (...))".
+      //
+      // A plain `NOT (<inner>)` is not NULL-safe: SQL's three-valued logic
+      // makes `NOT` of an UNKNOWN inner condition (any leaf comparing a
+      // NULL-valued column — `Compare`'s `Eq`/`Gte`/`Lt` against a non-null
+      // literal render a plain `col op $n`, which is UNKNOWN, not FALSE, when
+      // `col IS NULL`) still UNKNOWN, and `WHERE` excludes UNKNOWN exactly
+      // like FALSE. But `evaluatePredicate`'s negation is
+      // `!evaluatePredicate(p.predicate, row)`, which is `true` whenever the
+      // inner comparison came back `false` — NULL-valued row included. Unlike
+      // `Compare`/`MemberOf`, which correct at a known column with `OR <col>
+      // IS NULL`, `Negate` wraps an arbitrary subtree spanning any number of
+      // columns, so there is no single column to OR against.
+      //
+      // `CASE WHEN` sidesteps that: an UNKNOWN condition never satisfies
+      // `WHEN`, so it falls to `ELSE` the same as a `FALSE` condition would —
+      // collapsing SQL's three-valued result to the two-valued one
+      // `evaluatePredicate` assumes, using `<inner>` exactly once so no
+      // placeholder is bound twice (`?`-style dialects consume placeholders
+      // positionally; duplicating rendered text would double the `?` count
+      // without doubling `params`).
       Negate: (p) =>
         Effect.map(
           renderNode(p.predicate, syntax, params, maxInValues),
-          (inner) => `NOT (${inner})`,
+          (inner) => `CASE WHEN (${inner}) THEN FALSE ELSE TRUE END`,
         ),
     }),
   );
