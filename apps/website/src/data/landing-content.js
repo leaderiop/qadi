@@ -13,7 +13,7 @@
 export const featDemos = [
   "→ { id, title }  · body withheld",
   "obliged(stepUpAuth, policy)",
-  'explain(policy) → "requires the editor role"',
+  'renderExplanation(explain(policy)) → "requires the editor role"',
   "→ [ u1 ✓, u2 ✗, u3 ✓ ]",
   "→ WHERE tenant_id = $1",
   "rules([denyWhen(…), permitWhen(…)])",
@@ -21,7 +21,7 @@ export const featDemos = [
   "(Secret,{CRYPTO}) ⋢ (Secret,{BIO})",
   '"Unknown" satisfies neither polarity',
   "Stream in → Stream out",
-  "decisionSinkRing(1024)",
+  'decisionSinkRing({ environment: "prod", capacity: 1024 })',
   "same input → same trace, same duration",
   "<Can do={writeDoc}>…</Can>",
   "await qadi.check(policy)",
@@ -30,16 +30,16 @@ export const featDemos = [
 const featureBase = [
   { api: "enforceProjected", title: "Field-level projection", desc: "The caller sees only the fields the policy allows. Visibility is a lattice where narrowing is always safe: a projected result can never widen." },
   { api: "obliged · onObligations", title: "Obligations", desc: "Conditions on permission: step-up auth, audit duties. Enforcement refuses to run on an Allow whose obligation nobody discharged." },
-  { api: "explain · renderTrace", title: "Explainable decisions", desc: "Every decision carries a full trace of what was checked. explain renders the requirements of a policy in human-readable form." },
-  { api: "decideSubjects", title: "Reverse queries", desc: '"Who can see this?" — one policy against many subjects, for administrators. The only entry point in the library asked by nobody.' },
+  { api: "explain · renderExplanation", title: "Explainable decisions", desc: "explain renders the requirements of a policy as a structured tree; renderExplanation turns it into readable prose." },
+  { api: "decideSubjects", title: "Reverse queries", desc: '"Who can see this?" is one policy against many subjects, for administrators. The only entry point in the library asked by nobody.' },
   { api: "toPredicate", title: "Query-side enforcement", desc: "Compile a policy to a SQL WHERE fragment or Prisma WhereInput. The predicate is executable, so the two interpreters provably agree." },
   { api: "rules · denyWhen", title: "Rule tables", desc: "deny-overrides, permit-overrides, first-applicable: XACML's combining algorithms as one policy node, leaving allOf and anyOf untouched." },
   { api: "guard · Authorized<P>", title: "Typed witnesses", desc: "guard hands your handler a proof the check succeeded. Code typed to require Authorized cannot be called without going through it." },
   { api: "dominates · join · meet", title: "Security labels", desc: "Dominance over (level, compartments) pairs. Incomparable labels deny in both directions, and the partial order is property-tested." },
   { api: "hasActed · hasNotActed", title: "Decision history", desc: "A three-valued port: Acted, NotActed, Unknown. No boolean default fails closed for both polarities, so the port refuses to be boolean." },
   { api: "filterStream", title: "Streams", desc: "Streamed siblings of filter and decideSubjects for collections too large to hold in memory: same per-item decision, Stream in and out." },
-  { api: "decisionSinkRing", title: "Observability", desc: "Tracing spans, port metrics, and write-only decision sinks — ring, feed, forwarding — plus a devtools timeline dock to watch decisions live." },
-  { api: "@qadi/testing", title: "Deterministic testing", desc: "Clock and ids are services, resolvers record their calls, and a decision — trace and duration included — reproduces exactly under test." },
+  { api: "decisionSinkRing", title: "Observability", desc: "Tracing spans, port metrics, and write-only decision sinks (ring, feed, forwarding) plus a devtools timeline dock to watch decisions live." },
+  { api: "@qadi/testing", title: "Deterministic testing", desc: "Clock and ids are services, resolvers record their calls, and a decision (trace and duration included) reproduces exactly under test." },
   { api: "QadiProvider · Can", title: "React, hydration included", desc: "Hooks and Can/Cannot components, with server-render hydration that rechecks on the client and reports mismatches as metrics." },
   { api: "@qadi/promise", title: "No Effect required", desc: "A Promise-returning facade over the same evaluator, for callers who do not use Effect. Same decisions, same traces." },
 ];
@@ -75,52 +75,52 @@ export const modelCount = modelsShipped.length + modelsWiring.length + modelsExc
 // "*" stripped, since four `modelsShipped` entries carry one.
 /** @type {Record<string, string>} */
 export const modelGlossary = {
-  "RBAC + role DAG": "Role-Based Access Control — permissions attach to roles; roles here form a DAG so a role inherits everything reachable below it.",
-  "ABAC": "Attribute-Based Access Control — decisions consult subject, resource, and environment attributes, not just role membership.",
-  "ReBAC": "Relationship-Based Access Control — access is granted by a graph relationship between subject and resource, such as owner or collaborator.",
+  "RBAC + role DAG": "Role-Based Access Control: permissions attach to roles; roles here form a DAG so a role inherits everything reachable below it.",
+  "ABAC": "Attribute-Based Access Control: decisions consult subject, resource, and environment attributes, not just role membership.",
+  "ReBAC": "Relationship-Based Access Control: access is granted by a graph relationship between subject and resource, such as owner or collaborator.",
   "capability tokens": "Access is granted by possessing an unforgeable token naming exactly what it permits, not by an identity check.",
   "field-level visibility": "A decision can narrow which fields of a resource are visible, not just allow or deny the whole object.",
-  "ordered rule tables (RuBAC)": "Rule-Based Access Control — an ordered table of allow/deny rules, evaluated in sequence like a firewall ruleset.",
+  "ordered rule tables (RuBAC)": "Rule-Based Access Control: an ordered table of allow/deny rules, evaluated in sequence like a firewall ruleset.",
   "separation of duty": "No single subject can hold two roles whose combination would let them complete a sensitive transaction alone.",
-  "Bell–LaPadula": "A confidentiality model: no read up, no write down — prevents high-clearance data from flowing to a lower clearance.",
-  "Biba": "An integrity model, the mirror of Bell–LaPadula: no write up, no read down — prevents low-integrity data from contaminating high-integrity data.",
-  "Chinese Wall": "A conflict-of-interest model — once a subject accesses one dataset in a conflict class, every competing dataset in that class becomes off-limits.",
+  "Bell–LaPadula": "A confidentiality model: no read up, no write down, which prevents high-clearance data from flowing to a lower clearance.",
+  "Biba": "An integrity model, the mirror of Bell–LaPadula: no write up, no read down, which prevents low-integrity data from contaminating high-integrity data.",
+  "Chinese Wall": "A conflict-of-interest model: once a subject accesses one dataset in a conflict class, every competing dataset in that class becomes off-limits.",
   "row-level security": "Authorization filters which rows of a table a subject may see, enforced at the query layer.",
-  "TBAC": "Task-Based Access Control — permissions are granted only for the duration and scope of an active task or workflow step.",
-  "XACML parity": "eXtensible Access Control Markup Language — the OASIS standard policy language; parity means Qadi's combining algorithms match its semantics without adopting its XML syntax.",
-  "MLS": "Multi-Level Security — data and subjects are classified into ordered sensitivity levels (e.g. Secret, Top Secret) governing flow between them.",
-  "HBAC": "History-Based Access Control — a decision can depend on what a subject has already done, not just their current attributes.",
-  "NGAC": "Next Generation Access Control — NIST's unified model expressing RBAC, ABAC and more through one relation-based graph structure.",
-  "DAC / ownership": "Discretionary Access Control — the resource's owner decides who else may access it.",
-  "ACLs": "Access Control Lists — an explicit list of subjects or groups and their permissions, attached directly to a resource.",
+  "TBAC": "Task-Based Access Control: permissions are granted only for the duration and scope of an active task or workflow step.",
+  "XACML parity": "eXtensible Access Control Markup Language: the OASIS standard policy language; parity means Qadi's combining algorithms match its semantics without adopting its XML syntax.",
+  "MLS": "Multi-Level Security: data and subjects are classified into ordered sensitivity levels (e.g. Secret, Top Secret) governing flow between them.",
+  "HBAC": "History-Based Access Control: a decision can depend on what a subject has already done, not just their current attributes.",
+  "NGAC": "Next Generation Access Control: NIST's unified model expressing RBAC, ABAC and more through one relation-based graph structure.",
+  "DAC / ownership": "Discretionary Access Control: the resource's owner decides who else may access it.",
+  "ACLs": "Access Control Lists: an explicit list of subjects or groups and their permissions, attached directly to a resource.",
   "Zanzibar stores (SpiceDB / OpenFGA)": "Relationship-graph authorization services modeled on Google's Zanzibar paper.",
-  "OIDC claims": "OpenID Connect — authorization derived from signed identity-token claims issued by an external identity provider.",
-  "temporal": "Access depends on a time window — business hours, an expiry date, a scheduled validity period.",
+  "OIDC claims": "OpenID Connect: authorization derived from signed identity-token claims issued by an external identity provider.",
+  "temporal": "Access depends on a time window: business hours, an expiry date, a scheduled validity period.",
   "spatial / geofence": "Access depends on the subject's physical or network location.",
   "risk-adaptive": "The evidence required for a decision scales with a computed risk score for the request.",
   "consent-based": "Access depends on a subject's explicit, revocable consent grant, as in data-sharing regulations.",
   "tenant hierarchies": "Permissions inherit down a multi-tenant organizational tree.",
   "team-based": "Permissions attach to team membership rather than to an individual or a global role.",
-  "OrBAC": "Organization-Based Access Control — permissions are expressed in terms of organizational roles, activities and views, then contextualized to concrete subjects and resources.",
+  "OrBAC": "Organization-Based Access Control: permissions are expressed in terms of organizational roles, activities and views, then contextualized to concrete subjects and resources.",
   "purpose-based": "Access depends on the declared purpose of the request, common in privacy-regulated data use.",
-  "attribute-based encryption": "Ciphertext itself encodes an access policy over attributes; only keys satisfying the policy can decrypt it — encryption-layer enforcement, not a runtime decision.",
-  "token chains (macaroons, biscuits, UCANs)": "Delegatable, attenuable bearer tokens that chain caveats — an authentication/delegation primitive, not a decision engine.",
+  "attribute-based encryption": "Ciphertext itself encodes an access policy over attributes; only keys satisfying the policy can decrypt it: encryption-layer enforcement, not a runtime decision.",
+  "token chains (macaroons, biscuits, UCANs)": "Delegatable, attenuable bearer tokens that chain caveats: an authentication/delegation primitive, not a decision engine.",
   "administrative RBAC": "The separate model governing who may assign or revoke roles themselves, distinct from RBAC's own access decisions.",
   "Clark–Wilson": "An integrity model enforcing well-formed transactions and separation of duty through certified procedures, not a labeling scheme.",
   "information flow control": "Tracks and restricts how classified data propagates through a program's execution, enforced by the language or runtime, not a policy check.",
-  "object capabilities": "A programming-language security model where possessing a reference to an object is itself the only permission — no ambient authority to check.",
+  "object capabilities": "A programming-language security model where possessing a reference to an object is itself the only permission: no ambient authority to check.",
 };
 
 const packageBase = [
-  { name: "@qadi/core", tag: "foundation", desc: "Permission tokens, role DAG, schema-derived policy ADT, matchers, the Effect evaluator, and all enforcement calls." },
-  { name: "@qadi/testing", tag: "testing", desc: "Fixtures, deterministic layers and recording resolvers: reproducible decisions, trace and duration included." },
-  { name: "@qadi/react", tag: "frontend", desc: "QadiProvider, hooks, Can/Cannot components, and server-render hydration with recheck metrics." },
-  { name: "@qadi/promise", tag: "interop", desc: "A Promise-returning facade over @qadi/core, for callers who do not use Effect." },
-  { name: "@qadi/http", tag: "backend", desc: "Effect v4 HttpApi/HttpApiMiddleware and HttpRouter enforcement, subject extraction, permission registry." },
-  { name: "@qadi/devtools", tag: "observability", desc: "A headless decision timeline, and a React dock that renders it." },
-  { name: "@qadi/predicate-sql", tag: "data", desc: "Compiles a core Predicate to a PostgreSQL, MySQL, or SQLite WHERE fragment. Authorize at the query, not after it." },
-  { name: "@qadi/predicate-prisma", tag: "data", desc: "Compiles a core Predicate to a Prisma WhereInput for the same query-side enforcement." },
-  { name: "@qadi/features", tag: "private", desc: "Cucumber BDD acceptance suite: executable scenarios pinning the documented behavior." },
+  { name: "@qadi/core", tag: "foundation", href: "/docs/packages/core/", desc: "Permission tokens, role DAG, schema-derived policy ADT, matchers, the Effect evaluator, and all enforcement calls." },
+  { name: "@qadi/testing", tag: "testing", href: "/docs/packages/testing/", desc: "Fixtures, deterministic layers and recording resolvers: reproducible decisions, trace and duration included." },
+  { name: "@qadi/react", tag: "frontend", href: "/docs/packages/react/", desc: "QadiProvider, hooks, Can/Cannot components, and server-render hydration with recheck metrics." },
+  { name: "@qadi/promise", tag: "interop", href: "/docs/packages/promise/", desc: "A Promise-returning facade over @qadi/core, for callers who do not use Effect." },
+  { name: "@qadi/http", tag: "backend", href: "/docs/packages/http/", desc: "Effect v4 HttpApi/HttpApiMiddleware and HttpRouter enforcement, subject extraction, permission registry." },
+  { name: "@qadi/devtools", tag: "observability", href: "/docs/packages/devtools/", desc: "A headless decision timeline, and a React dock that renders it." },
+  { name: "@qadi/predicate-sql", tag: "data", href: "/docs/packages/predicate-sql/", desc: "Compiles a core Predicate to a PostgreSQL, MySQL, or SQLite WHERE fragment. Authorize at the query, not after it." },
+  { name: "@qadi/predicate-prisma", tag: "data", href: "/docs/packages/predicate-prisma/", desc: "Compiles a core Predicate to a Prisma WhereInput for the same query-side enforcement." },
+  { name: "@qadi/audit", tag: "compliance", href: "/docs/packages/audit/", desc: "Audit trail, staging, circuit breaker, retention and e-signature capture, composed onto DecisionSink." },
 ];
 
 export const packages = packageBase.map((p, i) => ({ ...p, delay: i * 0.07 + "s" }));
@@ -138,7 +138,30 @@ export const bars = [
   { label: "coverage · @qadi/core", value: "95%", width: "95%" },
   { label: "coverage · workspace", value: "90%", width: "90%" },
   { label: "merge gates passing", value: "22 / 22", width: "100%" },
-  { label: "circular imports", value: "0", width: "100%", goalIsZero: true },
+  { label: "circular imports", value: "0", width: "100%" },
+];
+
+// The homepage's own section order, shared by the section-index rail
+// (index.astro) and its scroll-spy (landing.js) — one list instead of a
+// third hand-typed copy of what every section's own eyebrow label already
+// says, so reordering a section can't silently desync the rail from it.
+// A critique found "roles" (03) sitting between "where it sits" and
+// "features" — a single-feature deep dive interrupting the wide-angle pass
+// a first-time reader is still on. Moved next to "architecture" (08), the
+// section it's actually a companion to: both are "how it works internally"
+// content, and the role DAG is the mechanism the architecture trace's
+// `hasRole` step exercises.
+export const pageSections = [
+  { id: "problem", n: "01", title: "the problem" },
+  { id: "compare", n: "02", title: "where it sits" },
+  { id: "features", n: "03", title: "features" },
+  { id: "models", n: "04", title: "models" },
+  { id: "packages", n: "05", title: "packages" },
+  { id: "api", n: "06", title: "api" },
+  { id: "dag", n: "07", title: "roles" },
+  { id: "architecture", n: "08", title: "architecture" },
+  { id: "proof", n: "09", title: "proof" },
+  { id: "status", n: "10", title: "status" },
 ];
 
 export const marqueeItems = [

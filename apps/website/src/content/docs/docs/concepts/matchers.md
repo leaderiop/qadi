@@ -20,6 +20,31 @@ import { eq, hasAttribute, subjectId } from "@qadi/core";
 const ownsResource = hasAttribute("owner", eq(subjectId()));
 ```
 
+<svg viewBox="0 0 620 210" width="100%" style="max-width: 620px" role="img" aria-label="Diagram: a Matcher's three value references — subject(path), resource(path), and literal(value) — flow into a comparison such as eq or gte, which produces a plain boolean consumed by the Policy leaf that holds the matcher.">
+  <defs>
+    <marker id="mat-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--sl-color-gray-3)"/>
+    </marker>
+  </defs>
+  <rect x="20" y="16" width="180" height="30" rx="6" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
+  <text x="110" y="36" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" fill="var(--sl-color-white)">subject(path)</text>
+  <rect x="20" y="66" width="180" height="30" rx="6" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
+  <text x="110" y="86" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" fill="var(--sl-color-white)">resource(path)</text>
+  <rect x="20" y="116" width="180" height="30" rx="6" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
+  <text x="110" y="136" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" fill="var(--sl-color-white)">literal(value)</text>
+  <path d="M 200 31 L 250 76" fill="none" stroke="var(--sl-color-gray-3)" stroke-width="1" marker-end="url(#mat-arrow)"/>
+  <path d="M 200 81 L 250 81" fill="none" stroke="var(--sl-color-gray-3)" stroke-width="1" marker-end="url(#mat-arrow)"/>
+  <path d="M 200 131 L 250 86" fill="none" stroke="var(--sl-color-gray-3)" stroke-width="1" marker-end="url(#mat-arrow)"/>
+  <rect x="250" y="52" width="150" height="64" rx="8" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-accent)"/>
+  <text x="325" y="80" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="12" fill="var(--sl-color-accent-high)">Matcher</text>
+  <text x="325" y="100" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="10" fill="var(--sl-color-gray-2)">eq · gte · contains …</text>
+  <path d="M 400 84 L 450 84" fill="none" stroke="var(--sl-color-gray-3)" stroke-width="1" marker-end="url(#mat-arrow)"/>
+  <rect x="450" y="66" width="150" height="36" rx="6" fill="none" stroke="var(--sl-color-hairline-light)"/>
+  <text x="525" y="89" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="12" fill="var(--sl-color-white)">true / false</text>
+  <text x="20" y="185" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="10" fill="var(--sl-color-gray-3)">A ValueRef says what's on the other side of the comparison;</text>
+  <text x="20" y="200" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="10" fill="var(--sl-color-gray-3)">the Matcher itself only ever resolves to a plain boolean.</text>
+</svg>
+
 ## Comparisons
 
 ```ts
@@ -39,7 +64,9 @@ and `lt` return `false` for a non-numeric value rather than coercing it, so
 `"5"` never satisfies `gte(3)`. `contains` only applies to arrays and strings,
 and anything else it's given evaluates to `false` rather than throwing.
 `dominates` compares against a security-label ordering rather than plain
-equality — see `SecurityLabel.ts` for that lattice.
+equality — see [Security Labels](/docs/concepts/security-labels/) for that
+lattice (an ordering where every pair of labels has a narrowest label above
+both and a widest label below both).
 
 ## What the reference points at
 
@@ -78,6 +105,24 @@ size(gte(1)); // the array or string has at least one element/character
 `someMatch`/`everyMatch` only apply to arrays, and `size` only to arrays and
 strings — anything else is `false`, never an error, matching the same
 never-throw discipline as `contains` above.
+
+As a full policy leaf, not just a matcher on its own:
+
+```typescript
+import { everyMatch, fieldMatch, gte, hasResourceAttribute, someMatch } from "@qadi/core";
+
+// at least one line item has an "approvals" count of 1 or more
+const hasApproval = hasResourceAttribute(
+  "lineItems",
+  someMatch(fieldMatch("approvals", gte(1))),
+);
+
+// every line item has a "quantity" of at least 1 — none are back-ordered
+const allLinesStocked = hasResourceAttribute(
+  "lineItems",
+  everyMatch(fieldMatch("quantity", gte(1))),
+);
+```
 
 ## Composing at the policy level
 

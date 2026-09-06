@@ -10,18 +10,58 @@
  * prototyping-DSL feature with no HTML/CSS equivalent).
  */
 
+/* Design tokens, one custom property per DESIGN.md's `colors:` entry.
+   Values are copied verbatim from there — this file is the single place
+   a color is spelled out; every other rule in it and in index.astro
+   (which imports this file) references the name instead of repeating the
+   literal. compliance.astro already established this pattern for its own
+   page-local `:root` block; this is that same pattern applied to the
+   marketing homepage. Scoped to this file and index.astro only — SiteNav.astro
+   is shared by pages (compliance.astro, the Starlight docs header) that don't
+   import this stylesheet and carry their own token sets, so its literals stay
+   untouched to avoid an undefined custom property breaking nav color there. */
+:root {
+  --ink: oklch(0.17 0.014 260);
+  --ink-void: oklch(0.13 0.012 260);
+  --ink-raised: oklch(0.19 0.014 260);
+  --ink-chamber: oklch(0.15 0.013 260);
+  --parchment: oklch(0.93 0.006 260);
+  --parchment-dim: oklch(0.85 0.006 260);
+  --testimony: oklch(0.68 0.01 260);
+  --footnote: oklch(0.6 0.01 260);
+  --verdict-teal: oklch(0.72 0.15 195);
+  --verdict-teal-bright: oklch(0.78 0.13 195);
+  --verdict-teal-emphasis: oklch(0.82 0.13 195);
+  --seal-gold: oklch(0.75 0.13 80);
+  --allow-green: oklch(0.75 0.14 150);
+  --deny-red: oklch(0.65 0.16 25);
+  --hairline: oklch(1 0 0 / 0.08);
+  --testimony-bright: oklch(0.72 0.01 260);
+  --navlink: oklch(0.75 0.01 260);
+  --parchment-code: oklch(0.82 0.006 260);
+  --footnote-gold: oklch(0.65 0.03 80);
+  --marquee-label: oklch(0.68 0.05 80);
+  --table-header: oklch(0.63 0.01 260);
+  --comparison-body: oklch(0.7 0.01 260);
+  --comparison-body-bright: oklch(0.8 0.01 260);
+  --deny-red-emphasis: oklch(0.7 0.16 25);
+  --seal-gold-bright: oklch(0.85 0.08 80);
+  --code-function: oklch(0.75 0.12 200);
+  --window-chrome: oklch(0.4 0.01 260);
+}
+
 body {
   margin: 0;
-  background: oklch(0.17 0.014 260);
+  background: var(--ink);
 }
 
 a {
-  color: oklch(0.78 0.13 195);
+  color: var(--verdict-teal-bright);
   text-decoration: none;
 }
 
 a:hover {
-  color: oklch(0.82 0.13 195);
+  color: var(--verdict-teal-emphasis);
 }
 
 ::selection {
@@ -37,12 +77,26 @@ a:hover {
 a:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid oklch(0.75 0.13 80);
+  outline: 2px solid var(--seal-gold);
   outline-offset: 2px;
 }
 
 .mono {
   font-family: "IBM Plex Mono", monospace;
+}
+
+/* Visually hidden but present for screen readers — for text equivalents of
+   `aria-hidden` decorative graphics (the role-DAG svg is the current use). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .serif {
@@ -51,9 +105,16 @@ button:focus-visible,
   text-wrap: balance;
 }
 
-html {
-  scroll-behavior: smooth;
-}
+/* No global `scroll-behavior: smooth` here — it doesn't just govern the
+   footer's in-page anchor links, it intercepts every ordinary wheel tick and
+   trackpad flick. Chrome's smooth-scroll animation restarts its own easing
+   curve on each new scroll event, so a fast or repeated scroll gesture (the
+   exact pattern a long-form page like this one invites) got mostly absorbed
+   instead of tracked — a critique reproduced fast-scroll bursts landing at
+   ~10% of the intended distance. The four footer anchor links get their own
+   scoped `scrollIntoView({behavior:'smooth'})` click handler in landing.js
+   instead, so the one legitimate use case keeps its smooth jump without
+   fighting ordinary scrolling. */
 
 @keyframes blink {
   0%, 49% { opacity: 1; }
@@ -108,6 +169,18 @@ html {
   to { transform: rotate(360deg); }
 }
 
+/* The role-DAG's floaty node groups and dag-flow-dot SMIL animateMotion
+   elements otherwise run unconditionally from page load, unlike every other
+   animated section on the page (marquee, hero canvas, typed-code,
+   architecture, feature/api cycling), which all pause off-screen via
+   `gateByVisibility` (landing.js). `#dag-svg`'s own `initDagAnimations`
+   toggles this class from the same IntersectionObserver pattern: the CSS
+   side covers the `floaty`-animated `<g>` groups, `svg.pauseAnimations()`
+   (called from JS) covers the SMIL dots this class cannot reach. */
+#dag-svg.dag-paused g {
+  animation-play-state: paused;
+}
+
 .ornate {
   position: relative;
 }
@@ -157,7 +230,7 @@ html {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, oklch(0.72 0.15 195), oklch(0.75 0.13 80));
+  background: linear-gradient(90deg, var(--verdict-teal), var(--seal-gold));
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
@@ -174,15 +247,15 @@ html {
   width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: oklch(0.15 0.013 260);
+  background: var(--ink-chamber);
 }
 ::-webkit-scrollbar-thumb {
   background: oklch(0.32 0.02 260);
   border-radius: 4px;
-  border: 2px solid oklch(0.15 0.013 260);
+  border: 2px solid var(--ink-chamber);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.68 0.05 80);
+  background: var(--marquee-label);
 }
 
 .skip-link {
@@ -212,21 +285,21 @@ html {
   transition: color 0.3s;
 }
 .copy-btn:hover, .replay-btn:hover {
-  color: oklch(0.85 0.006 260) !important;
+  color: var(--parchment-dim) !important;
 }
 
 .api-row {
   transition: background 0.4s;
 }
 .api-row:hover {
-  background: oklch(0.19 0.014 260) !important;
+  background: var(--ink-raised) !important;
 }
 
 .footer-link {
   transition: color 0.3s;
 }
 .footer-link:hover {
-  color: oklch(0.85 0.08 80) !important;
+  color: var(--seal-gold-bright) !important;
 }
 
 .pill {
@@ -234,17 +307,27 @@ html {
 }
 .pill:hover {
   border-color: oklch(0.72 0.15 195 / 0.6) !important;
-  color: oklch(0.93 0.006 260) !important;
+  color: var(--parchment) !important;
 }
 
 /* Accessible replacement for a bare `title` tooltip on the model-matrix
    glossary pills: `title` never fires on touch and is unreliable across
    screen readers, so the gloss also lives in `aria-label` (always announced)
-   and is shown visually on both :hover and :focus-visible — the latter is
-   what makes it reachable by keyboard, and by a tap on most touch browsers,
-   which title never was. */
+   and is shown visually on :hover, :focus-visible, and a JS-toggled
+   `.gloss-active` (see `initGlossaryTooltips` in landing.js) — :focus-visible
+   alone was reachable "by a tap on most touch browsers" per an earlier
+   version of this comment, but a critique correctly called that a hedge
+   rather than a guarantee, so touch now gets its own explicit toggle instead
+   of relying on the browser's focus heuristics. The dotted underline below
+   is the visible cue `cursor: help` never was for a touch user, who cannot
+   hover to discover it first. */
 .gloss-pill {
   position: relative;
+}
+.gloss-pill[data-gloss] {
+  text-decoration: underline dotted;
+  text-decoration-color: oklch(1 0 0 / 0.35);
+  text-underline-offset: 3px;
 }
 .gloss-pill[data-gloss]::after {
   content: attr(data-gloss);
@@ -256,9 +339,9 @@ html {
   max-width: 220px;
   padding: 8px 10px;
   border-radius: 6px;
-  background: oklch(0.15 0.013 260);
+  background: var(--ink-chamber);
   border: 1px solid oklch(1 0 0 / 0.14);
-  color: oklch(0.82 0.006 260);
+  color: var(--parchment-code);
   font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
   line-height: 1.5;
@@ -274,12 +357,227 @@ html {
   z-index: 20;
 }
 .gloss-pill[data-gloss]:hover::after,
-.gloss-pill[data-gloss]:focus-visible::after {
+.gloss-pill[data-gloss]:focus-visible::after,
+.gloss-pill[data-gloss].gloss-active::after {
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(0);
 }
-.pill-extra {
+/* Section-index rail (see index.astro's SECTION INDEX comment). Each dot is
+   a slim vertical pill — the hero's own step-dots (`.step-dot`) rotated
+   into this rail's vertical orientation, not a new shape vocabulary. The
+   tooltip reuses `.gloss-pill`'s own `content: attr(...)` + opacity/
+   visibility pattern above rather than a second way of doing the same
+   thing. */
+.section-rail {
+  position: fixed;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.section-rail-dot {
+  appearance: none;
+  position: relative;
+  width: 16px;
+  /* Sized to the pill's active-state (unscaled) height so the `scaleY`
+     shrink below never overflows this box's own bounds into the next
+     dot's 10px gap. */
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Height is set once at its active-state size and animated via
+   `transform: scaleY()` instead of the `height` itself — this file already
+   avoids animating layout-triggering properties elsewhere (see the
+   feature-card demo's own `grid-template-rows` comment above); `scaleY` is
+   compositor-only for the same reason. */
+.section-rail-dot::before {
+  content: "";
+  width: 4px;
+  height: 22px;
+  border-radius: 999px;
+  /* A critique found the rail's resting state (previously 0.15) reads as
+     effectively invisible — this is the page's only remaining table of
+     contents, so "reserved at rest" can't mean "undiscoverable." Raised to
+     the strongest hairline step this system documents (DESIGN.md's 0.16
+     ceiling is for 1px borders; a 4px filled pill needs more than that to
+     read at a glance) without reaching for a new value outside the
+     white-alpha ladder's spirit. */
+  background: oklch(1 0 0 / 0.32);
+  transform: scaleY(0.727);
+  transition: background-color 0.3s, transform 0.3s;
+}
+.section-rail-dot:hover::before,
+.section-rail-dot:focus-visible::before {
+  background: oklch(1 0 0 / 0.5);
+}
+.section-rail-dot[aria-current="true"]::before {
+  background: var(--verdict-teal);
+  transform: scaleY(1);
+}
+.section-rail-dot[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--ink-chamber);
+  border: 1px solid oklch(1 0 0 / 0.14);
+  color: var(--parchment-code);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 20;
+}
+.section-rail-dot[data-tip]:hover::after,
+.section-rail-dot[data-tip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+.section-rail-dot[aria-current="true"][data-tip]::after {
+  color: var(--verdict-teal-bright);
+}
+/* The rail's whole reason for existing is letting a reader gauge remaining
+   scope before committing to read — that only works if the current
+   section's own name is legible without hovering. Scoped to `pointer: fine`
+   only: a coarse pointer already gets this same label on tap (its one
+   necessary interaction), so keeping it hover-gated there avoids a label
+   floating, unrequested, over the mobile content gutter next to it. */
+@media (pointer: fine) {
+  .section-rail-dot[aria-current="true"][data-tip]::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+/* Touch gets a bigger, still-honest hit area — `pointer: coarse` (adapt.md)
+   rather than a width breakpoint, since input method and screen size
+   aren't the same axis. This stops short of the usual 44px floor on
+   purpose: the rail is edge-docked inside a 20px mobile content gutter
+   (see the `max-width: 640px` section padding below), and centering a
+   full 44px *invisible* hit-box there would bleed well past the gutter and
+   sit on top of real cards/links, turning taps meant for them into
+   accidental section jumps instead. 28px, mostly filled by a visibly
+   bigger pill rather than padding around a small one, trades the ideal
+   target size for not laying an invisible trap over the content next to
+   it — the `max-height` rule below is the fallback for whichever screens
+   still find 28px too cramped to use at all. The tooltip gets no separate
+   touch path (unlike the glossary pills): the tap itself already does the
+   rail's one job — jump to the section — so there's no second tap to
+   unblock. */
+@media (pointer: coarse) {
+  .section-rail-dot {
+    width: 28px;
+    height: 28px;
+  }
+  .section-rail-dot::before {
+    width: 8px;
+    height: 28px;
+    transform: scaleY(0.857);
+  }
+  .section-rail-dot[aria-current="true"]::before {
+    transform: scaleY(1);
+  }
+}
+
+/* 10 dots at a 44px touch-friendly pitch need ~450px of vertical room; a
+   short landscape phone doesn't have it to spare against real content, so
+   the rail steps out rather than compress into unreadable, unreachable
+   micro-targets. */
+@media (max-height: 560px) {
+  .section-rail {
+    display: none;
+  }
+}
+
+/* See index.astro's COMPARE RECAP comment for why this is `position: fixed`
+   sitting outside the overflow-clipped wrapper rather than `sticky` inside
+   `.problem-compare-grid` — a sticky element there inherits the wrapper's
+   promoted `overflow-y: auto` as its containing block, which never itself
+   scrolls, so it would never actually stick. `top` is set from JS
+   (`initCompareRecap`) to the nav's real rendered height rather than a
+   guessed constant, so it tracks the nav across breakpoints without a
+   second hand-maintained number. Hidden by default (not just transparent):
+   `visibility` also removes it from tab order, and this bar has no
+   interactive content in it to reach anyway. `display: none` above 900px
+   is a hard backstop independent of the JS toggle, matching the same
+   breakpoint `.problem-compare-grid` itself collapses at (see the
+   `max-width: 900px` rule below) — the desktop side-by-side layout already
+   solves the comparison this recap exists for. */
+.compare-recap {
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  z-index: 14;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 14px;
+  background: oklch(0.15 0.013 260 / 0.96);
+  backdrop-filter: blur(8px);
+  border: 1px solid oklch(0.75 0.13 80 / 0.35);
+  border-radius: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.25s, transform 0.25s, visibility 0.25s;
+  pointer-events: none;
+}
+.compare-recap.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.compare-recap-tag {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--seal-gold-bright);
+}
+.compare-recap-line {
+  font-size: 11px;
+  color: var(--testimony);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (min-width: 901px) {
+  .compare-recap {
+    display: none !important;
+  }
+}
+
+/* Scoped to `.js` (set by a blocking inline script in index.astro's <head>,
+   before first paint) rather than hiding unconditionally: without it, a
+   client with JavaScript off or blocked would never be able to reach these
+   items at all, since the only way to un-hide them is the JS-driven
+   `.expanded` toggle below. With `.js` absent, every pill/card renders
+   visible from the start — degraded (no collapse), not gone. */
+.js .pill-extra {
   display: none;
 }
 .model-category.expanded .pill-extra {
@@ -295,7 +593,7 @@ html {
 /* Same show-more mechanic as the model pill groups above, generalized for
    card grids (Features, Packages) — the display value differs because a
    card is a flex column, not an inline pill. */
-.card-extra {
+.js .card-extra {
   display: none !important;
 }
 .card-group.expanded .card-extra {
@@ -311,7 +609,6 @@ html {
 .hero-in {
   animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.d1 { animation-delay: 0.05s; }
 .d2 { animation-delay: 0.14s; }
 .d3 { animation-delay: 0.23s; }
 .d4 { animation-delay: 0.32s; }
@@ -340,6 +637,22 @@ body.reveal-armed .reveal.in-view {
 
 .hero-title {
   font-size: clamp(2.25rem, 4vw, 3.625rem) !important;
+}
+
+/* CSS Grid items default to `min-width: auto`, which lets a track's
+   content-based minimum override its computed size — a critique caught this
+   live on `.arch-grid`'s second column: at a 350px mobile track it measured
+   a 386.8px minimum and bled 17px past the viewport edge. Every grid here
+   collapses to a single column below 900px (see the media query just below),
+   so every one of them is exposed to the same blowout; fixing it for all six
+   at once rather than waiting for each to surface its own bug report. */
+.hero-grid > *,
+.problem-compare-grid > *,
+.dag-grid > *,
+.arch-grid > *,
+.proof-grid > *,
+.status-grid > * {
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
@@ -384,11 +697,31 @@ body.reveal-armed .reveal.in-view {
   .footer-links {
     gap: 32px !important;
   }
+  /* Closer to the true edge than the desktop 28px — the touch-sized dots
+     above are already docked inside this breakpoint's 20px content gutter;
+     pulling the rail in further shrinks how far its hit area reaches back
+     over that gutter's own content. */
+  .section-rail {
+    right: 8px;
+    gap: 8px;
+  }
   .api-table-wrap table {
     min-width: 480px !important;
   }
   .api-table-wrap {
     position: relative;
+    /* A critique measured the hint below at 1.5px clearance from the header
+       row's real rendered height — close enough to visually merge with it.
+       Reserving a dedicated band above the table (Void, this system's own
+       code/terminal-panel background) instead of guessing a pixel offset
+       inside the header keeps the hint legible regardless of font-metric
+       drift. `!important` because `.api-table-wrap` now carries its own
+       inline `padding` (a later critique's top/bottom-inset fix) whose
+       higher specificity would otherwise win over this plain class rule
+       and collapse the reserved band back down — same reason every other
+       rule in this block needs it. */
+    padding-top: 26px !important;
+    background: var(--ink-void);
   }
   .api-table-wrap::after {
     content: "";
@@ -410,13 +743,46 @@ body.reveal-armed .reveal.in-view {
   .api-table-wrap::before {
     content: "scroll →";
     position: absolute;
-    top: 46px;
+    top: 8px;
     right: 8px;
     font-family: "IBM Plex Mono", monospace;
     font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: oklch(0.65 0.03 80);
+    color: var(--footnote-gold);
+    pointer-events: none;
+    z-index: 1;
+  }
+  /* Same overflow-x-with-hint idiom as `.api-table-wrap` above, for the
+     role-DAG svg: its node labels have a min-width floor (see index.astro)
+     so they scroll into view legibly rather than scaling below it. */
+  .dag-svg-wrap {
+    overflow-x: auto;
+    position: relative;
+  }
+  .dag-svg-wrap svg {
+    min-width: 480px !important;
+  }
+  .dag-svg-wrap::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    background: linear-gradient(to right, transparent, oklch(0.17 0.014 260 / 0.9));
+    pointer-events: none;
+  }
+  .dag-svg-wrap::before {
+    content: "scroll →";
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--footnote-gold);
     pointer-events: none;
     z-index: 1;
   }
@@ -435,9 +801,6 @@ body.reveal-armed .reveal.in-view {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-  html {
-    scroll-behavior: auto;
   }
   /* The role-DAG's traveling dots are SMIL <animateMotion>, which the CSS
      animation-duration kill above cannot reach. The static nodes, arrows,

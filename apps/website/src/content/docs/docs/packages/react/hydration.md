@@ -9,7 +9,10 @@ cannot, however fast it is — `renderToString` is one synchronous pass — and
 renders its `pending` node instead. `dehydrateDecisions` and `hydrateDecisions`
 close that gap: two pure, synchronous, React-free functions that carry a
 server's answers to the client so the first paint does not have to be a flash
-of `pending`.
+of `pending`. For the underlying concept — the atom registry, why a
+`waiting` result is treated as not decided, and hydration as a first-paint
+seed rather than an authority — see
+[Hydration & Reactivity](/docs/concepts/hydration-reactivity/).
 
 ```ts
 export const dehydrateDecisions: (

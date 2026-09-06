@@ -30,7 +30,7 @@ const { homeHref = "/", links, showScrollProgress = false, mobileToggle = true, 
 
 {
   chrome ? (
-    <div class="site-nav">
+    <header class="site-nav">
       {showScrollProgress && <div id="scroll-progress" />}
       <a href={homeHref} class="brand-link">
         <svg width="28" height="28" viewBox="0 0 100 100" aria-hidden="true">
@@ -70,7 +70,7 @@ const { homeHref = "/", links, showScrollProgress = false, mobileToggle = true, 
         </a>
       </nav>
       <div class="nav-bottom-hairline" aria-hidden="true" />
-    </div>
+    </header>
   ) : (
     <>
       <a href={homeHref} class="brand-link">
@@ -132,7 +132,9 @@ const { homeHref = "/", links, showScrollProgress = false, mobileToggle = true, 
     top: 0;
     left: 0;
     height: 2px;
-    width: 0%;
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left;
     background: linear-gradient(90deg, oklch(0.72 0.15 195), oklch(0.75 0.13 80));
     box-shadow: 0 0 10px oklch(0.75 0.13 80 / 0.5);
   }
@@ -308,6 +310,13 @@ const { homeHref = "/", links, showScrollProgress = false, mobileToggle = true, 
     }
     .nav-toggle ~ .nav-links .nav-github {
       justify-content: center;
+      padding: 14px 16px;
+    }
+    .nav-toggle ~ .nav-links .navlink {
+      padding: 14px 0;
+    }
+    .nav-toggle ~ .nav-links .navlink::after {
+      bottom: 3px;
     }
   }
 

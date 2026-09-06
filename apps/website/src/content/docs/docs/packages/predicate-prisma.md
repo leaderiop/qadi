@@ -15,7 +15,9 @@ filter over rows the caller hasn't loaded, and stops there on purpose — Qadi
 gains no dependency on Prisma through this package existing. This is the
 optional, separately versioned companion that compiles it, so a Prisma query
 can be authorized at the database rather than by filtering rows after
-fetching them.
+fetching them. For what a `Predicate` is and why some policy nodes fold away
+while others refuse to translate at all, see
+[Predicates](/docs/concepts/predicates/).
 
 ```ts
 import * as Effect from "effect/Effect";

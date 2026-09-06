@@ -4,10 +4,12 @@ description: Why Policy is one schema-derived definition instead of a hand-writt
 ---
 
 A `Policy` is a value — a tagged-union tree describing what must be true for a
-subject to be allowed to do something. `hasRole`, `hasPermission`, `allOf`, and
-the rest of `Policy.ts`'s constructors all build the same kind of value, which
-is what lets you compose, store, and re-evaluate a policy without ever touching
-a class or a closure.
+subject to be allowed to do something. That's what "ADT" in this page's title
+means: an algebraic data type, a value built from a fixed set of tagged
+variants, rather than a class or a function. `hasRole`, `hasPermission`,
+`allOf`, and the rest of `Policy.ts`'s constructors all build the same kind of
+value, which is what lets you compose, store, and re-evaluate a policy without
+ever touching a class or a closure.
 
 ## Why it's schema, not a hand-written interface
 
@@ -34,6 +36,52 @@ diverge, because the second is checked against the first at compile time rather
 than maintained alongside it.
 
 ## The shape
+
+A `Policy` is a tree, not a flat list — `allOf`/`anyOf` are the branch nodes,
+everything else (`hasRole`, `hasPermission`, and the rest) is a leaf. Take a
+small policy requiring the `editor` role **and** read access to a document,
+with only `id`/`title` visible:
+
+<svg viewBox="0 0 500 200" width="100%" style="max-width: 460px" role="img" aria-label="Diagram: a Policy tree. The root is an AllOf node with fieldStrategy Intersection, with two children — a HasRole leaf checking the editor role, and a HasPermission leaf checking doc:read with fields id and title.">
+  <defs>
+    <marker id="adt-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--sl-color-gray-3)"/>
+    </marker>
+  </defs>
+  <rect x="170" y="10" width="160" height="42" rx="7" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
+  <text x="250" y="28" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" font-weight="500" fill="var(--sl-color-accent-high)">AllOf</text>
+  <text x="250" y="44" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="9" fill="var(--sl-color-gray-3)">fieldStrategy: Intersection</text>
+  <path d="M 220 52 L 130 108" fill="none" stroke="var(--sl-color-gray-3)" stroke-width="1" marker-end="url(#adt-arrow)"/>
+  <path d="M 280 52 L 380 108" fill="none" stroke="var(--sl-color-gray-3)" stroke-width="1" marker-end="url(#adt-arrow)"/>
+  <rect x="30" y="110" width="180" height="54" rx="7" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
+  <text x="120" y="130" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" font-weight="500" fill="var(--sl-color-white)">HasRole</text>
+  <text x="120" y="148" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="10" fill="var(--sl-color-gray-2)">role: "editor"</text>
+  <rect x="280" y="110" width="200" height="54" rx="7" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
+  <text x="380" y="130" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" font-weight="500" fill="var(--sl-color-white)">HasPermission</text>
+  <text x="380" y="146" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="10" fill="var(--sl-color-gray-2)">doc:read</text>
+  <text x="380" y="160" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="9" fill="var(--sl-color-gray-3)">fields: [id, title]</text>
+</svg>
+
+```typescript
+import { allOf, hasPermission, hasRole, permission } from "@qadi/core";
+import type { Policy } from "@qadi/core";
+
+const readDoc = permission("doc", "read");
+
+const canReadTitle: Policy = allOf([
+  hasRole("editor"),
+  hasPermission(readDoc, { fields: ["id", "title"] }),
+]);
+```
+
+`allOf`'s default `fieldStrategy` is `Intersection` — visible above as a field
+on the root node itself, not implied — so both children must allow, and the
+visible fields are whichever they agree on. Swap it for `anyOf` and the same
+two leaves mean "either is enough," with `First` as the default strategy
+instead. Either way, evaluating the tree is a straightforward recursive walk:
+a leaf answers directly, a branch folds its children's answers according to
+its combinator and strategy — no separate interpreter, no special-casing by
+depth.
 
 Each variant is a tagged struct, discriminated on `_tag`:
 
