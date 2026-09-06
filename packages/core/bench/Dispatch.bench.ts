@@ -9,9 +9,12 @@
  * now no benchmark existed. So the cost was unmeasured and the exception rested
  * on an argument rather than a number.
  *
- * `resolveRef` is transcribed here **exactly** — five arms, each a one-liner, and
- * `getByPath` is the real exported one — so this is a complete comparison of that
- * dispatcher rather than an analogy. Three shapes are compared:
+ * `resolveRef` is transcribed here **exactly** — five real arms, each a
+ * one-liner, and `getByPath` is the real exported one. Production's `resolveRef`
+ * additionally carries a sixth `default` arm assigning the scrutinee to `never`
+ * (CCR-QD-040/ADR-QD-034's exhaustiveness guard, §5a) — free at runtime and
+ * omitted here because it contributes nothing to measure, not because this
+ * comparison forgot it. Three shapes are compared:
  *
  *   switch          what the code does today
  *   Match, hoisted  the matcher built once, returning a closure over the context
