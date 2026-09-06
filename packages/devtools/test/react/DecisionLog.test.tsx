@@ -8,9 +8,9 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import { afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { PairedEntry } from "../../src/model/Pairing.ts";
-import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
+import { emptyTimeline, entryKey, ingestAll } from "../../src/model/Timeline.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { DecisionLog } from "../../src/react/DecisionLog.tsx";
 import { decisionRecord, failedRecord } from "../helpers.ts";
@@ -50,5 +50,58 @@ describe("the subject column", () => {
     render(<DecisionLog rows={[row]} selectedKey={undefined} onSelect={() => {}} />);
 
     assert.deepStrictEqual(subjectCells(), ["carol"]);
+  });
+});
+
+// A keyboard/switch user has no pointer, so the row's only way in was
+// unreachable to them (WCAG 2.1.1). This pins that the row is a stop on the
+// keyboard tab order and that Enter/Space select it, the same as a click.
+describe("keyboard selection", () => {
+  it("is in the tab order", () => {
+    const row = rowOf(entryOf(decisionRecord({ evaluationId: "a" })));
+    render(<DecisionLog rows={[row]} selectedKey={undefined} onSelect={() => {}} />);
+
+    assert.strictEqual(screen.getByTestId("qadi-log-row").getAttribute("tabindex"), "0");
+  });
+
+  it("selects on Enter", () => {
+    const entry = entryOf(decisionRecord({ evaluationId: "a" }));
+    const selected: Array<string> = [];
+    render(
+      <DecisionLog rows={[rowOf(entry)]} selectedKey={undefined} onSelect={(key) => selected.push(key)} />,
+    );
+
+    fireEvent.keyDown(screen.getByTestId("qadi-log-row"), { key: "Enter" });
+
+    assert.deepStrictEqual(selected, [entryKey(entry)]);
+  });
+
+  it("selects on Space", () => {
+    const entry = entryOf(decisionRecord({ evaluationId: "a" }));
+    const selected: Array<string> = [];
+    render(
+      <DecisionLog rows={[rowOf(entry)]} selectedKey={undefined} onSelect={(key) => selected.push(key)} />,
+    );
+
+    fireEvent.keyDown(screen.getByTestId("qadi-log-row"), { key: " " });
+
+    assert.deepStrictEqual(selected, [entryKey(entry)]);
+  });
+
+  it("ignores every other key", () => {
+    const row = rowOf(entryOf(decisionRecord({ evaluationId: "a" })));
+    const selected: Array<string> = [];
+    render(<DecisionLog rows={[row]} selectedKey={undefined} onSelect={(key) => selected.push(key)} />);
+
+    fireEvent.keyDown(screen.getByTestId("qadi-log-row"), { key: "ArrowDown" });
+
+    assert.deepStrictEqual(selected, []);
+  });
+
+  it("reports its selection state through aria-selected", () => {
+    const entry = entryOf(decisionRecord({ evaluationId: "a" }));
+    render(<DecisionLog rows={[rowOf(entry)]} selectedKey={entryKey(entry)} onSelect={() => {}} />);
+
+    assert.strictEqual(screen.getByTestId("qadi-log-row").getAttribute("aria-selected"), "true");
   });
 });

@@ -89,7 +89,18 @@ const Row: FC<{
       data-testid="qadi-log-row"
       data-evaluation={row.entry.evaluationId}
       data-selected={selected}
+      tabIndex={0}
+      aria-selected={selected}
       onClick={() => onSelect(key)}
+      // A mouse-only `onClick` leaves keyboard and switch users with no way to
+      // cross-link a decision to the inspector (WCAG 2.1.1). `<tr>`'s implicit
+      // role is already `row`, which supports `aria-selected`, so this needs no
+      // role override — only the interaction the row was missing.
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onSelect(key);
+      }}
       style={{
         cursor: "pointer",
         background: selected
