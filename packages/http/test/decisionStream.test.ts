@@ -22,9 +22,12 @@ import {
   decisionSinkFeed,
   gte,
   hasAttribute,
+  hasCustom,
   hasPermission,
   makeSubject,
   makeSubjectId,
+  obligation,
+  obliged,
   permission,
   permissionKey,
 } from "@qadi/core";
@@ -318,6 +321,40 @@ describe("reauth", () => {
     })),
   );
 
+  it.effect(
+    "refuses a binding obligation the recheck cannot discharge — the same semantics " +
+      "connect-time guardRoute already enforces",
+    () =>
+      Effect.gen(function* () {
+        // `isAllowed`-based semantics would have succeeded here: the decision
+        // IS an allow. `reauthCheck` is now built on `assert`, which refuses an
+        // allow carrying a binding obligation nobody discharged — matching
+        // what `guardRoute`'s `@qadi/core` `guard` already does at connect, so
+        // the two enforcement points can no longer disagree about the same
+        // `Obliged` policy.
+        const obligedPolicy = obliged(obligation("must-log"), readPolicy);
+        const request = HttpServerRequest.fromWeb(
+          new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
+        );
+        const layer = Layer.mergeAll(
+          subjectExtractorBearer(lookupSubject),
+          AttributeResolverNone,
+          RelationshipResolverNever,
+          DecisionHistoryUnknown,
+          EvaluationIdLive,
+          CustomPredicateNone,
+          SignatureHistoryNone,
+        );
+
+        const result = yield* reauthCheck(request, obligedPolicy, {}).pipe(
+          Effect.provide(layer),
+          Effect.result,
+        );
+        assert.strictEqual(result._tag, "Failure");
+        if (result._tag === "Failure") assert.strictEqual(result.failure, "denied");
+      }),
+  );
+
   // `decisionStreamRoute`'s own `options?.reauth === undefined ? frames : ...`
   // branch — the one call site that actually wires `reauthCheck` into a live
   // route, as opposed to the two tests above, which exercise `reauthCheck` and
@@ -364,6 +401,42 @@ describe("frame", () => {
   it("encodes a Decision record with no resource at all", () => {
     assert.isTrue(Result.isSuccess(frame(decisionRecord("no-resource"))));
   });
+
+  it(
+    "drops a Decision record whose POLICY carries a JSON-unsafe HasCustom.params, " +
+      "even when the resource itself is safe",
+    () => {
+      // The defect three separate audit tickets (148, 154, 159) found: the old
+      // guard checked only `record.resource`, but `JSON.stringify(toWire(record))`
+      // also serializes the raw `policy` — and `HasCustom.params` is
+      // `Schema.Unknown`, so a circular value there threw the same raw
+      // `TypeError` out of `Stream.filterMap` a bad resource used to, killing
+      // the shared feed for every subscriber. `frame` now delegates to
+      // `@qadi/core`'s `isRecordJsonSafe`, which walks `policy` too.
+      const circular: Record<string, unknown> = { a: 1 };
+      circular.self = circular;
+      const record = new DecisionRecord({
+        evaluationId: "bad-policy",
+        at: 1_000,
+        subjectId: makeSubjectId("alice"),
+        policy: hasCustom("weird-check", circular),
+        resource: { a: 1 }, // JSON-safe on its own — the old guard would have passed this through
+        outcome: new Decided({
+          decision: new Allow({
+            evaluationId: "bad-policy",
+            subjectId: makeSubjectId("alice"),
+            durationMillis: 1,
+            trace: allowTrace,
+            visibleFields: undefined,
+            obligations: [],
+          }),
+        }),
+      });
+
+      assert.doesNotThrow(() => frame(record));
+      assert.isTrue(Result.isFailure(frame(record)));
+    },
+  );
 
   it("encodes a non-Decision SinkRecord (Obligations) unconditionally, never consulting isJsonSafe", () => {
     const obligations = new ObligationRecord({
