@@ -288,6 +288,7 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `CircularRoleInheritance`, `DuplicateRoleDefinition`, `InvalidPermissionSegment`,
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
 `CustomPredicateError`, `SignatureHistoryUnavailable`, `PolicyDecodeTooDeep`,
+`InvalidBoundedPermits`,
 plus `ERROR_CODES` and `errorCode`, and the two unions `EvaluationError` and
 `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
@@ -311,6 +312,16 @@ type-only import carries no such risk. It had bypassed `QadiError` and
 error with no stable code — the exact guarantee
 ADR-QD-008/INV-QD-010 exist to make. `ERROR_CODES["PolicyDecodeTooDeep"]` is
 `ACL016`.
+
+`InvalidBoundedPermits` joins `QadiError` (not `EvaluationError` — it is raised
+at layer construction, before any evaluation runs) alongside
+`customPredicateBounded` validating its `permits` argument: `Semaphore.make`
+performs no validation of its own, so `permits <= 0` previously built a layer
+whose every wrapped call deadlocked forever rather than failing. Fixing this
+requires the port wrapper to fail fast instead of building the layer, which is
+why the error is raised from the wrapper (`CustomPredicate.ts`) rather than
+from `Semaphore.make` itself. `ERROR_CODES["InvalidBoundedPermits"]` is
+`ACL017`.
 
 ## The other packages
 
