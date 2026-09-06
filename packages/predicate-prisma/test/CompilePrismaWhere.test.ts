@@ -151,6 +151,41 @@ describe("compilePrismaWhere — NULL handling agrees with evaluatePredicate's =
       assert.deepStrictEqual(where, { OR: [{ c: { not: 1 } }, { c: null }] });
     }));
 
+  // ticket 136(a) — mirrors @qadi/predicate-sql's identical guard (ticket
+  // 157): evaluatePredicate's Gte/Lt require typeof === "number" on both
+  // sides and are otherwise always False, but a string or boolean slips past
+  // isSafeValue's allowlist straight into a real Prisma range filter
+  // (`{gte: "10"}`/`{lt: true}`), admitting rows the reference evaluator
+  // denies. NaN is covered separately, by isSafeValue itself refusing it
+  // outright (ticket 138) before this Gte/Lt-specific guard is ever reached —
+  // see the "refuses NaN" describe block below.
+  it.effect("Gte/Lt with a non-number, non-null value renders False's identity, never a real filter", () =>
+    Effect.gen(function* () {
+      const nonNumberValues: ReadonlyArray<unknown> = ["10", true, false];
+      for (const value of nonNumberValues) {
+        assert.deepStrictEqual(
+          yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Gte", value }),
+          { OR: [] },
+        );
+        assert.deepStrictEqual(
+          yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Lt", value }),
+          { OR: [] },
+        );
+      }
+    }));
+
+  it.effect("Gte/Lt with a genuine number still compiles to a real filter", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Gte", value: 10 }),
+        { c: { gte: 10 } },
+      );
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "Compare", column: "c", op: "Lt", value: 10 }),
+        { c: { lt: 10 } },
+      );
+    }));
+
   it.effect("a MemberOf holding only null renders {col: null}, no 'in' at all", () =>
     Effect.gen(function* () {
       const where = yield* compilePrismaWhere({ _tag: "MemberOf", column: "c", values: [null] });
@@ -254,6 +289,46 @@ describe("compilePrismaWhere — refusals", () => {
       assert.strictEqual(failure?.reason, "a value for column 'x' is not a safe query parameter");
     }));
 
+  // ticket 138 — isSafeValue's number branch now requires Number.isFinite,
+  // not bare typeof. NaN satisfies `typeof === "number"` but `NaN === NaN`
+  // is false in JS, so an Eq/MemberOf against NaN is reference-evaluator-false
+  // for every row while Prisma's equality/`in` filters compile it into a
+  // real, engine-dependent comparison — refused across Eq, MemberOf and Gte
+  // alike, all from the same isSafeValue gate.
+  it.effect("a NaN value refuses in Eq, MemberOf and Gte alike", () =>
+    Effect.gen(function* () {
+      const eq = yield* refusalOf({ _tag: "Compare", column: "score", op: "Eq", value: Number.NaN });
+      assert.strictEqual(eq?._tag, "PredicateNotRenderable");
+      assert.strictEqual(eq?.predicateTag, "Compare");
+      assert.strictEqual(eq?.reason, "value for column 'score' is not a safe query parameter");
+
+      const memberOf = yield* refusalOf({
+        _tag: "MemberOf",
+        column: "score",
+        values: [1, Number.NaN],
+      });
+      assert.strictEqual(memberOf?._tag, "PredicateNotRenderable");
+      assert.strictEqual(memberOf?.predicateTag, "MemberOf");
+      assert.strictEqual(
+        memberOf?.reason,
+        "a value for column 'score' is not a safe query parameter",
+      );
+
+      const gte = yield* refusalOf({ _tag: "Compare", column: "score", op: "Gte", value: Number.NaN });
+      assert.strictEqual(gte?._tag, "PredicateNotRenderable");
+      assert.strictEqual(gte?.predicateTag, "Compare");
+      assert.strictEqual(gte?.reason, "value for column 'score' is not a safe query parameter");
+    }));
+
+  it.effect("Infinity and -Infinity refuse too, alongside NaN", () =>
+    Effect.gen(function* () {
+      for (const value of [Infinity, -Infinity]) {
+        const failure = yield* refusalOf({ _tag: "Compare", column: "score", op: "Eq", value });
+        assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+        assert.strictEqual(failure?.reason, "value for column 'score' is not a safe query parameter");
+      }
+    }));
+
   it.effect("a refusal deep in the tree fails the whole compilation", () =>
     Effect.gen(function* () {
       const predicate: Predicate = {
@@ -302,5 +377,33 @@ describe("compilePrismaWhere — refusals", () => {
       assert.strictEqual(and?._tag, "PredicateNotRenderable");
       assert.strictEqual(or?._tag, "PredicateNotRenderable");
       assert.strictEqual(or?.reason, "column 'OR' is not a safe identifier");
+    }));
+
+  // ticket 136(b) — RESERVED_PRISMA_KEYS widened past AND/OR/NOT to Prisma's
+  // scalar-filter operator vocabulary. A column named one of these still
+  // builds a structurally valid WhereInput (e.g. `{gte: {gte: value}}`), so
+  // without this it would compile successfully and only fail — or silently
+  // mean something else — at query time.
+  it.effect("a column matching a Prisma scalar-filter operator keyword refuses", () =>
+    Effect.gen(function* () {
+      const gte = yield* refusalOf({ _tag: "Compare", column: "gte", op: "Eq", value: 1 });
+      assert.strictEqual(gte?._tag, "PredicateNotRenderable");
+      assert.strictEqual(gte?.reason, "column 'gte' is not a safe identifier");
+
+      const not = yield* refusalOf({ _tag: "Compare", column: "not", op: "Eq", value: "t-1" });
+      assert.strictEqual(not?._tag, "PredicateNotRenderable");
+      assert.strictEqual(not?.reason, "column 'not' is not a safe identifier");
+
+      const inCol = yield* refusalOf({ _tag: "MemberOf", column: "in", values: ["a", "b"] });
+      assert.strictEqual(inCol?._tag, "PredicateNotRenderable");
+      assert.strictEqual(inCol?.reason, "column 'in' is not a safe identifier");
+    }));
+
+  it.effect("matching is case-sensitive, same as the existing AND/OR/NOT check", () =>
+    Effect.gen(function* () {
+      // "Gte"/"In" are not reserved — only the exact-case Prisma keywords
+      // are, matching the pre-existing AND/OR/NOT convention.
+      const gte = yield* compilePrismaWhere({ _tag: "Compare", column: "Gte", op: "Eq", value: 1 });
+      assert.deepStrictEqual(gte, { Gte: 1 });
     }));
 });

@@ -125,9 +125,24 @@ export const AuditDecisionSinkLive = (
           // recovering store would receive the whole of a `filter`/
           // `filterStream` fan-out at once the instant `resetTimeoutMs`
           // elapses, not the one trial write the option's own doc promises.
+          //
+          // A lost `claimProbe` has two distinct causes a single `"Open"`
+          // fallback would conflate: another caller already holds this
+          // half-open window's one slot (still `HalfOpen`), or the breaker
+          // moved on entirely while this call was in flight — most notably,
+          // the prober's write just succeeded and closed it. Re-reading
+          // `status` tells them apart: a `Closed` read means this entry can
+          // just write normally, rather than being logged and metered below
+          // as lost to a breaker that, by the time this line runs, is not
+          // open at all. Anything else (still `HalfOpen`, or re-`Open`ed by
+          // the prober's own failure) still means "not my probe to attempt",
+          // so it collapses to `"Open"` exactly as before.
           const initialStatus = yield* breaker.status;
-          const status =
-            initialStatus === "HalfOpen" && !(yield* breaker.claimProbe) ? "Open" : initialStatus;
+          let status = initialStatus;
+          if (initialStatus === "HalfOpen" && !(yield* breaker.claimProbe)) {
+            const current = yield* breaker.status;
+            status = current === "Closed" ? "Closed" : "Open";
+          }
 
           // Ties "was staged" and "how to commit it" to one value, rather
           // than a `handle` and a `stagingPort !== undefined` check that

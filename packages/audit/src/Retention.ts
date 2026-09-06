@@ -38,14 +38,34 @@ const partitionByRetention = (
   return { retained, purged };
 };
 
-/** Entries `policy` says may be purged. */
+/**
+ * Entries `policy` says may be purged.
+ *
+ * Age alone, not archival status, decides purgeability — this module has no
+ * concept of "archived" and never checks `archiveAuditTrail` (`AuditArchive.ts`)
+ * was ever called on a returned entry. **The caller is responsible for the
+ * ordering constraint "archive before purge"**: passing this function's
+ * output straight to a deletion routine, without first confirming every one
+ * of these rows already exists in a durable archive, purges audit history
+ * that was never successfully archived. This invariant is documented, not
+ * mechanically enforced — `@qadi/audit` has no scheduler and no archival
+ * store of its own to check against (see the package README's module
+ * header), so there is nothing here that could enforce it even if it tried.
+ */
 export const getPurgeableEntries = (
   entries: ReadonlyArray<AuditEntry>,
   policy: RetentionPolicy,
   now: number,
 ): ReadonlyArray<AuditEntry> => partitionByRetention(entries, policy, now).purged;
 
-/** Entries `policy` says must be retained. */
+/**
+ * Entries `policy` says must be retained.
+ *
+ * The complement of {@link getPurgeableEntries}: age alone decides retention
+ * too. A caller building a purge routine around this pair still owns the
+ * same archive-before-purge ordering constraint documented there — retaining
+ * an entry here says nothing about whether it has been archived.
+ */
 export const enforceRetention = (
   entries: ReadonlyArray<AuditEntry>,
   policy: RetentionPolicy,

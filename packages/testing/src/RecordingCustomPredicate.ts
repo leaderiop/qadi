@@ -30,6 +30,7 @@ export const recordingCustomPredicate = (
       return recorder.calls;
     },
     layer: Layer.succeed(CustomPredicate, {
+      name: "recordingCustomPredicate",
       evaluate: (name) =>
         Effect.sync(() => {
           recorder.record(name);

@@ -484,7 +484,7 @@ to their own model's `WhereInput` at the call site. Same refusal discipline as
 | `SequenceIntegrityError` | error | `SequenceIntegrity.ts` — renamed from `ChainIntegrityError` |
 | `archiveAuditTrail` | function | `AuditArchive.ts` |
 | `AuditArchive`, `ArchivalOptions`, `KeyMaterial` | type | `AuditArchive.ts` |
-| `createDecommissioningChecklist`, `completeDecommissioningStep` | function | `DecommissioningChecklist.ts` |
+| `makeDecommissioningChecklist`, `completeDecommissioningStep` | function | `DecommissioningChecklist.ts` |
 | `DecommissioningChecklist`, `DecommissioningStep`, `DecommissioningStepId` | type | `DecommissioningChecklist.ts` |
 | `UnknownDecommissioningStep` | error | `DecommissioningChecklist.ts` |
 | `SignatureCapturePort`, `SignatureCapturePortShape` | service | `SignatureCapturePort.ts` |
@@ -525,8 +525,11 @@ favor of it.
 | `failingAttributeResolver` | layer | `FailingAttributeResolver.ts` |
 | `recordingCustomPredicate` | layer | `RecordingCustomPredicate.ts` |
 | `failingCustomPredicate` | layer | `FailingCustomPredicate.ts` |
-| `recordingSignatureHistory` | layer | `SignatureHistoryFixture.ts` |
-| `SignatureInput` | type, re-exported from `@qadi/core` | `SignatureHistoryFixture.ts` |
+| `failingRelationshipResolver` | layer | `FailingRelationshipResolver.ts` |
+| `failingDecisionHistory` | layer | `FailingDecisionHistory.ts` |
+| `failingSignatureHistory` | layer | `FailingSignatureHistory.ts` |
+| `recordingSignatureHistory` | layer | `RecordingSignatureHistory.ts` |
+| `SignatureInput` | type, re-exported from `@qadi/core` | `RecordingSignatureHistory.ts` |
 | `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` |
 | `subjectWith`, `permissions`, `roles`, `policies` | fixture | `Fixtures.ts` |
 | `nobody`, `viewer`, `administrator` | fixture | `Fixtures.ts` |

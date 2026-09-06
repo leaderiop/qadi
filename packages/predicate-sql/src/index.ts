@@ -40,6 +40,18 @@ export interface CompileSqlOptions {
  * `MemberOf` past `maxInValues`. Never thrown; a typed Effect failure, the
  * same shape `@qadi/core`'s `PolicyNotTranslatable` uses, declared here rather
  * than shared, since `@qadi/core` has no reason to know this error exists.
+ *
+ * `@qadi/predicate-prisma` declares its own `PredicateNotRenderable` with the
+ * identical `_tag` (ticket 95) — deliberately, not an oversight ADR-QD-008's
+ * "the `_tag` is the identity" would otherwise flag. The two are independent
+ * declarations with identical shapes (`predicateTag`, `reason`), and neither
+ * package imports the other's error type. The collision is benign because the
+ * two packages are mutually exclusive in practice — a caller compiles to SQL
+ * or to Prisma, not both from the same predicate — so no single
+ * `Effect.catchTag`/`Match` site is expected to see both at once. If one ever
+ * did, the two are structurally indistinguishable at that site by tag alone,
+ * which is the cost of this choice, accepted rather than renaming either and
+ * breaking a public API for a situation neither package's callers hit.
  */
 export class PredicateNotRenderable extends Data.TaggedError("PredicateNotRenderable")<{
   readonly predicateTag: string;

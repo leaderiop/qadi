@@ -28,8 +28,8 @@ import * as TestClock from "effect/testing/TestClock";
 import { edgeRelationshipResolver } from "./EdgeRelationshipResolver.ts";
 import { recordingAttributeResolver } from "./RecordingAttributeResolver.ts";
 import { eventDecisionHistory } from "./EventDecisionHistory.ts";
-import type { SignatureInput } from "./SignatureHistoryFixture.ts";
-import { recordingSignatureHistory } from "./SignatureHistoryFixture.ts";
+import type { SignatureInput } from "./RecordingSignatureHistory.ts";
+import { recordingSignatureHistory } from "./RecordingSignatureHistory.ts";
 
 /**
  * Everything an evaluation needs.
@@ -70,6 +70,33 @@ export interface TestLayerOptions {
    * `live` provides no clock at all rather than a second one: the runtime's own
    * is already correct, and layering another over it would only be a way to get
    * it wrong.
+   *
+   * **`test` under `it.effect` shadows the ambient `TestClock`, and does not
+   * expose the one it builds.** `@effect/vitest`'s `it.effect` already provides
+   * a `TestClock` to the test effect. `clock: "test"` builds a *second*
+   * `TestClock.layer()` inside this fixture and provides it alongside the rest
+   * of the environment — Effect's "innermost provide wins" rule means the
+   * evaluation this layer feeds runs against *this* clock, not the ambient one.
+   * `qadiReviewLayer`/`qadiTestLayer` return a plain `Layer.Layer<...>` with no
+   * way to hand back the inner clock, so a test that calls
+   * `TestClock.adjust`/`TestClock.setTime` reaches only the ambient clock and
+   * silently no-ops against the clock actually driving evaluation.
+   *
+   * A caller who needs to control time — not just get a reproducible zero —
+   * must use `it.live` instead of `it.effect` (as this package's own suite
+   * does; see the `describe("the clock", ...)` block in `TestLayers.test.ts`)
+   * and read the time back through `Clock.currentTimeMillis`/the decision's own
+   * fields rather than driving it forward, or wire a `TestClock` of their own
+   * through `attributeResolver`/`relationshipResolver`/etc.'s "supply the layer
+   * directly" options instead of this one. Exposing the built `TestClock`
+   * alongside the layer was considered and rejected here: `qadiReviewLayer`'s
+   * return type is a plain `Layer.Layer<...>` consumed directly by
+   * `qadiTestLayer` and by every existing caller, and effect v4's
+   * `TestClock.layer()` registers its handle under the `Clock.Clock` tag rather
+   * than a separately reachable one, so recovering a `TestClock`-typed handle
+   * from the built context would need an unsafe cast this codebase forbids
+   * (§6). That makes a "return the handle too" API a breaking change for a fix
+   * this narrow; documenting the constraint is the change that ships.
    */
   readonly clock?: "live" | "test";
   /**
