@@ -525,6 +525,9 @@ favor of it.
 | `failingAttributeResolver` | layer | `FailingAttributeResolver.ts` |
 | `recordingCustomPredicate` | layer | `RecordingCustomPredicate.ts` |
 | `failingCustomPredicate` | layer | `FailingCustomPredicate.ts` |
+| `failingRelationshipResolver` | layer | `FailingRelationshipResolver.ts` |
+| `failingDecisionHistory` | layer | `FailingDecisionHistory.ts` |
+| `failingSignatureHistory` | layer | `FailingSignatureHistory.ts` |
 | `recordingSignatureHistory` | layer | `SignatureHistoryFixture.ts` |
 | `SignatureInput` | type, re-exported from `@qadi/core` | `SignatureHistoryFixture.ts` |
 | `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` |

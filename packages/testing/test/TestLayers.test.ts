@@ -25,6 +25,9 @@ import {
   eventDecisionHistory,
   failingAttributeResolver,
   failingCustomPredicate,
+  failingDecisionHistory,
+  failingRelationshipResolver,
+  failingSignatureHistory,
   qadiTestLayer,
   nobody,
   policies,
@@ -270,6 +273,52 @@ describe("recording resolvers", () => {
         ),
       );
       assert.strictEqual(r._tag, "Failure");
+    }));
+
+  it.effect("failingRelationshipResolver surfaces an error, not a denial", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(
+        evaluate(hasRelationship("owner"), { resource: { id: "d1" } }).pipe(
+          Effect.provide(
+            qadiTestLayer(subjectWith({ id: "u1" }), {
+              relationshipResolver: failingRelationshipResolver(),
+            }),
+          ),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag === "Failure") assert.strictEqual(r.failure._tag, "RelationshipResolveError");
+    }));
+
+  it.effect("failingDecisionHistory surfaces an error, not a denial", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(
+        evaluate(hasActed("raised"), { resource: { id: "inv-1" } }).pipe(
+          Effect.provide(
+            qadiTestLayer(subjectWith({ id: "u1" }), {
+              decisionHistory: failingDecisionHistory(),
+            }),
+          ),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag === "Failure") assert.strictEqual(r.failure._tag, "DecisionHistoryUnavailable");
+    }));
+
+  it.effect("failingSignatureHistory surfaces an error, not a denial", () =>
+    Effect.gen(function* () {
+      const r = yield* Effect.result(
+        evaluate(hasSignature("approved"), { resource: { id: "d1" } }).pipe(
+          Effect.provide(
+            qadiTestLayer(subjectWith({ id: "u1" }), {
+              signatureHistory: failingSignatureHistory(),
+            }),
+          ),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag === "Failure")
+        assert.strictEqual(r.failure._tag, "SignatureHistoryUnavailable");
     }));
 });
 
