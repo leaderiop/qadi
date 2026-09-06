@@ -77,8 +77,7 @@ const policyNamed = (name: string): Policy => {
   return found;
 };
 
-const instances = (): ReadonlyArray<GateInstanceLike> =>
-  gateInstances() as ReadonlyArray<GateInstanceLike>;
+const instances = (): ReadonlyArray<GateInstanceLike> => gateInstances();
 
 const theOne = (): GateInstanceLike => {
   const first = instances()[0];
