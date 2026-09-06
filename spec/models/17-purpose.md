@@ -235,14 +235,18 @@ policy tag ([ADR-QD-009](../decisions/009-observability-via-effect.md)), and
 since the purpose is a subject attribute the caller can annotate it onto that
 same span. That is a trace, and should not be mistaken for more.
 
-**Audit is out of scope, and this is the model where that bites.** Durable,
-tamper-evident audit trails are excluded by [the URS](../urs.md) and the
-exclusion argued in [ADR-QD-016](../decisions/016-gxp-out-of-scope.md). A
-regulated deployment of purpose limitation needs exactly such a trail: a
-retained, non-repudiable record of every purpose declared and every decision made
-against it. Qadi will not provide one, and will not provide a port pretending to.
-The predecessor shipped an `AuditTrailPort` that guaranteed nothing, and shipping
-the appearance of the guarantee was worse than shipping neither.
+**Cryptographic tamper-evidence is out of scope, and this is the model where
+that bites.** [The URS](../urs.md) and [ADR-QD-016](../decisions/016-gxp-out-of-scope.md)
+exclude it, narrowed since by [ADR-QD-056](../decisions/056-audit-companion-package.md):
+the optional `@qadi/audit` companion package can durably record every purpose
+declared and every decision made against it, through a caller-supplied
+`AuditTrailPort`, but offers no hash chain or signature over the result —
+`SequenceIntegrity.ts`'s sequence-gap detection checks a caller-assigned
+number, not tamper-evidence. A regulated deployment of purpose limitation
+needs a non-repudiable record, not merely a retained one. Qadi will not
+provide that half, and will not provide a port pretending to. The predecessor
+shipped an `AuditTrailPort` that guaranteed nothing, and shipping the
+appearance of the guarantee was worse than shipping neither.
 
 ## Verification
 

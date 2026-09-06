@@ -36,3 +36,13 @@ decision, subject id, evaluation id and policy tag.
 concern, and regulated environments are explicitly out of scope
 (ADR-QD-016). Shipping a port that only pretended to provide that guarantee was
 worse than not shipping one.
+
+> **Narrowed by [ADR-QD-056](./056-audit-companion-package.md).** The
+> "purpose-built port" this ADR said consumers would have to build themselves
+> now optionally exists: `@qadi/audit`'s `AuditTrailPort` under `DecisionSink`,
+> narrowing ADR-QD-016 the same way. It closes the *durability* half of the
+> Negative consequence above, but not the *tamper-evident* half — nothing in
+> it hash-chains or signs an entry; `SequenceIntegrity.ts`'s sequence-gap
+> detection checks a caller-assigned number, not cryptographic
+> tamper-evidence. "Tamper-evident audit trail" in this ADR's original text
+> describes what remained out of reach in 2026-07-25 and still does today.

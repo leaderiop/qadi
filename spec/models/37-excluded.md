@@ -112,8 +112,11 @@ Qadi expresses one leg of that triple. Deciding that a subject may invoke a
 procedure is an ordinary authorization decision; certifying that the procedure
 preserves the constraints is a claim about the code inside it, which no access
 check establishes. Clark–Wilson also rests on an append-only record of every
-transformation — durable tamper-evident audit, excluded by
-[ADR-QD-016](../decisions/016-gxp-out-of-scope.md).
+transformation; the optional `@qadi/audit` companion package narrows the
+durability half of that gap ([ADR-QD-056](../decisions/056-audit-companion-package.md)
+narrowing [ADR-QD-016](../decisions/016-gxp-out-of-scope.md)), but the
+cryptographic tamper-evidence Clark–Wilson's certification implies is still
+excluded — nothing hash-chains or signs an entry.
 
 **Pairs with Qadi how:** Qadi decides who may invoke a procedure, and can
 enforce static separation of duty over the roles the triples name. The
@@ -199,10 +202,14 @@ Qadi reads what it is given, with no opinion about how briefly it was held.
 
 Break-glass deserves a specific warning. Emergency override is only *safe*
 because it is recorded — the control is not the check, which by definition
-permits the access, but the durable, tamper-evident record that makes the
-override answerable afterwards. Qadi reports decisions to tracing and nothing
-more, and durable tamper-evident audit trails are excluded by
-[ADR-QD-016](../decisions/016-gxp-out-of-scope.md). **An application must not
+permits the access, but the record that makes the override answerable
+afterwards, and answerability needs more than durability: a record an
+attacker could quietly renumber proves nothing. Qadi reports decisions to
+tracing; the optional `@qadi/audit` companion package can durably record them
+too, through a caller-supplied port, but neither gives the cryptographic
+tamper-evidence — a hash chain or signature — that answerability actually
+rests on ([ADR-QD-056](../decisions/056-audit-companion-package.md) narrowing
+[ADR-QD-016](../decisions/016-gxp-out-of-scope.md)). **An application must not
 ship break-glass on Qadi alone.** The override itself is expressible as a policy
 in an afternoon, which is what makes this hazardous: the easy half is the half
 Qadi provides.
