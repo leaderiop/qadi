@@ -381,9 +381,13 @@ state-management layer of its own. The rules that keep it that way:
   assertion that keeps this honest is that the React suite's existing tests pass
   untouched.
 - **`@qadi/react` calls no DOM API.** It renders a `display: contents` span and
-  holds the ref React fills in; measuring, drawing and hit-testing are
-  `@qadi/devtools`'s `react/Lens.ts`, which is the only file in either package
-  that touches `document`.
+  holds the ref React fills in; every DOM call lives in `@qadi/devtools`, split
+  three ways rather than one. `react/Lens.ts` is a set of pure DOM operations —
+  measuring, drawing and hit-testing — that a test can drive without
+  rendering. `useLens.ts` wires `document`'s pointer/click/keydown listeners
+  for the pick gesture, each inside an effect so a server-rendered host never
+  reaches them. `QuestionsPanel.tsx` makes one `scrollIntoView` call, from a
+  ref, to bring a picked row into view.
 
 ## 14. `@qadi/promise`
 

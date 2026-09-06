@@ -2,12 +2,18 @@
 /**
  * Pointing at a guard on the page, in both directions.
  *
- * **Every DOM call in the devtools reach of `@qadi/react` is in this file.** The
- * guard package holds a ref React filled in and calls nothing; this measures it,
- * draws over it, and hit-tests it. Keeping that boundary in one named module is
- * the discipline `HydrationWarning.ts` applies to `console` and
- * `HydrationCounts.ts` to `Context.empty()` — a boundary with a file name stays
- * visible where one spread across a component tree dissolves.
+ * **Every element-measuring, drawing and hit-testing DOM call is in this
+ * file.** The guard package holds a ref React filled in and calls nothing;
+ * this measures it, draws over it, and hit-tests it. Keeping that boundary in
+ * one named module is the discipline `HydrationWarning.ts` applies to
+ * `console` and `HydrationCounts.ts` to `Context.empty()` — a boundary with a
+ * file name stays visible where one spread across a component tree dissolves.
+ *
+ * It is not the *only* file that touches `document`, though: `useLens.ts`
+ * wires the pointer/click/keydown listeners the pick gesture needs, and
+ * `QuestionsPanel.tsx` makes one `scrollIntoView` call. What this file owns is
+ * narrower and more specific — reading and marking up the page, not reacting
+ * to events on it — which is the boundary AGENTS.md §13 describes.
  *
  * Two directions, and they are genuinely different features:
  *
