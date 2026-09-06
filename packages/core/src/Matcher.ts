@@ -188,15 +188,32 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
  * every other matcher branch assumes. `readAttribute` (`Evaluate.ts`) and
  * `FieldPath.ts` both already guard the same way; this closed the one place
  * that hadn't.
+ *
+ * Walks `path` with `indexOf` rather than `path.split(".")`: this is the most
+ * frequently called allocator in the library — once per `SubjectRef`/
+ * `ResourceRef` resolution, per matcher node, per evaluation, and once more
+ * per element under `filter`/`decideSubjects` — and `split` pays for an
+ * intermediate segment array on every call in addition to the per-segment
+ * substrings, which are unavoidable since a property lookup needs an actual
+ * string key. Same segments, same order, same behavior at every boundary
+ * `split` produced (a trailing dot's empty final segment, a doubled dot's
+ * empty middle segment, a single segment with no dot at all) — pinned in
+ * `Matcher.test.ts` rather than merely asserted here.
  */
 export const getByPath = (input: unknown, path: string): unknown => {
   if (path === "") return input;
   let current: unknown = input;
-  for (const part of path.split(".")) {
+  let start = 0;
+  const length = path.length;
+  for (;;) {
+    const dot = path.indexOf(".", start);
+    const end = dot === -1 ? length : dot;
+    const part = path.slice(start, end);
     if (!isObject(current) || !Object.hasOwn(current, part)) return undefined;
     current = current[part];
+    if (dot === -1) return current;
+    start = dot + 1;
   }
-  return current;
 };
 
 const lengthOf = (value: unknown): number | undefined => {

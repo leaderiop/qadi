@@ -133,6 +133,49 @@ describe("matchers", () => {
   });
 });
 
+describe("empty-collection boundaries", () => {
+  // None of this is a bug: it is standard JS `Array.prototype.every`/`.some`
+  // semantics, applied to a matcher whose input array can itself be absent.
+  // Pinned because the two facts compound into something a policy author
+  // could easily get backwards, and nothing was asserting either half.
+  it("everyMatch on a present but empty array is vacuously true (ALLOWS)", () => {
+    // "every element of tags matches X" has no counterexample when `tags` is
+    // `[]` — `[].every(...)` is `true` regardless of the predicate.
+    assert.isTrue(run(M.everyMatch(M.eq(M.literal("nonexistent"))), []));
+  });
+
+  it("everyMatch DENIES an absent attribute, unlike the present-but-empty array above", () => {
+    // `Array.isArray(undefined)` is `false`, so the `&&` short-circuits to
+    // `false` before "every" gets to be vacuously true over anything. A
+    // present `tags: []` and an absent `tags` are therefore NOT
+    // interchangeable under `everyMatch`, even though a reader might expect
+    // "nothing to check" to mean the same thing in both cases.
+    assert.isFalse(run(M.everyMatch(M.eq(M.literal("nonexistent"))), undefined));
+  });
+
+  it("someMatch on a present but empty array is false, not vacuously true", () => {
+    // The mirror of everyMatch: "at least one element matches" has no witness
+    // when there are no elements, so `[].some(...)` is `false`.
+    assert.isFalse(run(M.someMatch(M.exists()), []));
+  });
+
+  it("someMatch on an absent attribute is also false", () => {
+    // Same `Array.isArray` short-circuit as everyMatch's absent case, but
+    // here it agrees with (rather than contradicts) the present-empty-array
+    // result — both deny.
+    assert.isFalse(run(M.someMatch(M.exists()), undefined));
+  });
+
+  it("inArray with an empty candidate list matches nothing, including undefined", () => {
+    // `values` here is the matcher's OWN literal list (from `inArray(...)`),
+    // not the attribute under test. `inArray([])` is therefore a matcher that
+    // can never allow, for any resolved value — `[].includes(x)` is `false`
+    // for every `x`.
+    assert.isFalse(run(M.inArray([]), "anything"));
+    assert.isFalse(run(M.inArray([]), undefined));
+  });
+});
+
 describe("isObject / getByPath against null", () => {
   it("getByPath denies rather than throwing when the root is null", () => {
     // `isObject`'s guard is `typeof v === "object" && v !== null` — `typeof
@@ -615,6 +658,23 @@ describe("getByPath", () => {
   it("returns undefined at any missing step", () => {
     assert.isUndefined(M.getByPath({ a: 1 }, "a.b.c"));
     assert.isUndefined(M.getByPath(undefined, "a"));
+  });
+
+  // These three pin the boundaries `path.split(".")` used to produce, so the
+  // `indexOf`-based walk (added to avoid allocating a segment array on every
+  // call — the most frequently called allocator in the library) provably
+  // matches it rather than merely resembling it.
+  it("resolves a single segment with no dot at all", () => {
+    assert.strictEqual(M.getByPath({ a: 1 }, "a"), 1);
+  });
+
+  it("treats a trailing dot as an empty final segment", () => {
+    assert.strictEqual(M.getByPath({ a: { "": 5 } }, "a."), 5);
+    assert.isUndefined(M.getByPath({ a: { b: 5 } }, "a."));
+  });
+
+  it("treats a doubled dot as an empty middle segment", () => {
+    assert.strictEqual(M.getByPath({ a: { "": { b: 9 } } }, "a..b"), 9);
   });
 });
 
