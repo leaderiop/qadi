@@ -737,6 +737,44 @@ describe("hydration mismatch", () => {
     registry.dispose();
   });
 
+  it("reports once per REGISTRY, not once per atom set (tickets 140, 142)", async () => {
+    // Two registries over the SAME atom set — two `QadiProvider` instances, or
+    // two server requests rendering with one module-scope `makeQadiAtoms()` —
+    // each ask this seeded question for the first time from their own
+    // perspective. Before the per-registry fix, `announced` was a plain closure
+    // flag shared by every registry that ever read this atom: the second
+    // registry's genuinely-first re-check would find the flag already flipped
+    // by the first and report (and count) nothing.
+    const { seen, atoms: watched } = watching();
+    const payload = dehydrateDecisions([{ policy: isAdmin, decision: serverAllow("u1") }]);
+
+    const openFresh = () =>
+      AtomRegistry.make({
+        initialValues: [
+          [watched.subject, alice] as const,
+          ...hydrateDecisions(watched, payload, alice),
+        ],
+      });
+
+    const registryA = openFresh();
+    const unmountA = registryA.mount(watched.decision(isAdmin));
+    await settled(registryA, watched.decision(isAdmin));
+    expect(seen).toHaveLength(1);
+
+    const registryB = openFresh();
+    const unmountB = registryB.mount(watched.decision(isAdmin));
+    await settled(registryB, watched.decision(isAdmin));
+
+    // The second registry's own first answer is reported too — it is a
+    // distinct client re-check, not a repeat of registryA's.
+    expect(seen).toHaveLength(2);
+
+    unmountA();
+    unmountB();
+    registryA.dispose();
+    registryB.dispose();
+  });
+
   it("warns on the console when no reporter is supplied", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
