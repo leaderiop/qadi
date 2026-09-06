@@ -102,7 +102,16 @@ export const AuditDecisionSinkLive = (
 
           // 2. Read breaker state, staging identically either way — only
           // whether write() is attempted differs.
-          const status = yield* breaker.status;
+          //
+          // A half-open breaker admits exactly one concurrent probe write:
+          // every other `record()` call racing this one while the breaker
+          // is half-open must behave as though it were still `Open`, or a
+          // recovering store would receive the whole of a `filter`/
+          // `filterStream` fan-out at once the instant `resetTimeoutMs`
+          // elapses, not the one trial write the option's own doc promises.
+          const initialStatus = yield* breaker.status;
+          const status =
+            initialStatus === "HalfOpen" && !(yield* breaker.claimProbe) ? "Open" : initialStatus;
 
           // Ties "was staged" and "how to commit it" to one value, rather
           // than a `handle` and a `stagingPort !== undefined` check that

@@ -47,6 +47,24 @@ export interface CircuitBreaker {
   readonly recordSuccess: Effect.Effect<void>;
   /** A write attempt failed with `AuditWriteError`. May trip the breaker. */
   readonly recordFailure: Effect.Effect<void>;
+  /**
+   * Claims the single write half-open admits, for a caller who has already
+   * read `status` as `"HalfOpen"`.
+   *
+   * `true` for exactly one caller per half-open window; `false` for every
+   * other concurrent caller in that same window, who must behave as though
+   * the breaker were still `Open` (skip the write) rather than each
+   * attempting one of their own. Without this, `Qadi.ts`'s `filter`/
+   * `filterStream` — the same concurrent-`record()` shape `recordSuccess`/
+   * `recordFailure`'s own `Ref.modify` docs already name — would let a
+   * recovering store receive the whole fan-out at once the instant
+   * `resetTimeoutMs` elapses, not the one trial write half-open's own name
+   * promises.
+   *
+   * Resets on the next transition away from `HalfOpen`, whichever direction,
+   * so the following half-open window admits a fresh probe.
+   */
+  readonly claimProbe: Effect.Effect<boolean>;
 }
 
 interface State {
@@ -54,6 +72,8 @@ interface State {
   readonly consecutiveFailures: number;
   /** Set only while `Open`, so `status`'s reset check has a moment to measure from. */
   readonly openedAt: number | undefined;
+  /** Meaningful only while `status === "HalfOpen"`; see `claimProbe`. */
+  readonly probeClaimed: boolean;
 }
 
 /**
@@ -99,6 +119,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
     status: "Closed",
     consecutiveFailures: 0,
     openedAt: undefined,
+    probeClaimed: false,
   });
 
   /**
@@ -125,7 +146,12 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
         if (state.openedAt === undefined || now - state.openedAt < options.resetTimeoutMs) {
           return [[state.status, false], state];
         }
-        const next: State = { status: "HalfOpen", consecutiveFailures: state.consecutiveFailures, openedAt: undefined };
+        const next: State = {
+          status: "HalfOpen",
+          consecutiveFailures: state.consecutiveFailures,
+          openedAt: undefined,
+          probeClaimed: false,
+        };
         return [["HalfOpen", true], next];
       },
     );
@@ -136,7 +162,15 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
   const recordSuccess: Effect.Effect<void> = Effect.gen(function* () {
     const closedNow = yield* Ref.modify(ref, (state) => {
       if (state.status === "HalfOpen") {
-        return [true, { status: "Closed" as const, consecutiveFailures: 0, openedAt: undefined }];
+        return [
+          true,
+          {
+            status: "Closed" as const,
+            consecutiveFailures: 0,
+            openedAt: undefined,
+            probeClaimed: false,
+          },
+        ];
       }
       return [false, { ...state, consecutiveFailures: 0 }];
     });
@@ -147,16 +181,30 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
     const now = yield* Clock.currentTimeMillis;
     const openedNow = yield* Ref.modify(ref, (state) => {
       if (state.status === "HalfOpen") {
-        return [true, { status: "Open" as const, consecutiveFailures: 1, openedAt: now }];
+        return [
+          true,
+          { status: "Open" as const, consecutiveFailures: 1, openedAt: now, probeClaimed: false },
+        ];
       }
       const consecutiveFailures = state.consecutiveFailures + 1;
       if (consecutiveFailures >= options.failureThreshold) {
-        return [true, { status: "Open" as const, consecutiveFailures, openedAt: now }];
+        return [
+          true,
+          { status: "Open" as const, consecutiveFailures, openedAt: now, probeClaimed: false },
+        ];
       }
       return [false, { ...state, consecutiveFailures }];
     });
     if (openedNow) yield* announceTransition("Open");
   });
 
-  return { status, recordSuccess, recordFailure } satisfies CircuitBreaker;
+  // Atomic with the check: a second concurrent caller reading `false` here
+  // must never be able to observe `probeClaimed` still false a moment later,
+  // or two callers could both believe they hold the one probe slot.
+  const claimProbe: Effect.Effect<boolean> = Ref.modify(ref, (state) => {
+    if (state.status !== "HalfOpen" || state.probeClaimed) return [false, state];
+    return [true, { ...state, probeClaimed: true }];
+  });
+
+  return { status, recordSuccess, recordFailure, claimProbe } satisfies CircuitBreaker;
 });
