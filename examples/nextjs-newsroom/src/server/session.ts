@@ -24,6 +24,15 @@ export const SESSION_COOKIE = "qadi-newsroom-user";
  * also what makes every page reading it dynamic — correct here, since a page
  * whose authorization answers were cached across users would be the defect this
  * whole example is about.
+ *
+ * A **wholly absent** cookie and an **explicit empty-string** cookie are
+ * deliberately not the same thing: absent means this visitor has never chosen
+ * anyone, so it seeds `DEFAULT_USER`; an empty string is `switchUser`'s
+ * "anonymous" option, and `?? DEFAULT_USER` does not fire for it (`""` is not
+ * nullish), so it reaches `userById` and resolves to the denied-everything
+ * fallback — the same one `userFromCookieHeader`/`userById(undefined)` return.
+ * That distinction only holds because `switchUser` sets an empty value rather
+ * than deleting the cookie; see its comment.
  */
 export const currentUser = async (): Promise<DemoUser> => {
   const jar = await cookies();

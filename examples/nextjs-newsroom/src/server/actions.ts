@@ -23,13 +23,22 @@ import { asResource } from "./decide.ts";
 import { runAs } from "./runtime.ts";
 import { SESSION_COOKIE, currentUser } from "./session.ts";
 
-/** Switches the demo session. Not authorization — this is the login. */
+/**
+ * Switches the demo session. Not authorization — this is the login.
+ *
+ * Picking "anonymous" **sets** the cookie to an empty value rather than
+ * deleting it. Deleting it made "the visitor deliberately chose anonymous"
+ * indistinguishable from "the visitor never chose anyone" — both left the
+ * cookie absent, and `currentUser` reads an absent cookie as "seed the
+ * first-visit default", so the anonymous option silently logged back in as
+ * `DEFAULT_USER`. An explicit empty-string cookie is a value `currentUser`
+ * can tell apart from absence.
+ */
 export const switchUser = async (formData: FormData): Promise<void> => {
   const wanted = formData.get("user");
   const id = typeof wanted === "string" && knownUserIds.includes(wanted) ? wanted : "";
   const jar = await cookies();
-  if (id === "") jar.delete(SESSION_COOKIE);
-  else jar.set(SESSION_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/" });
+  jar.set(SESSION_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/" });
   revalidatePath("/", "layout");
 };
 
