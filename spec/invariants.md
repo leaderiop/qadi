@@ -924,12 +924,22 @@ is *true* of an unresolved attribute — every matcher fails `undefined` — so
 nothing was false there; the diagnosis was merely withheld, and a misconfigured
 `AttributeResolver` produces that case exclusively.
 
+> **Corrected.** "`did not match` only for one that was resolved and compared" was
+> true of every matcher but one: `Neq` denies exactly when the value **matches**
+> the excluded reference (`evaluateMatcher`'s `Neq` arm is `value !==
+> resolveRef(...)`, so a `false` there means the two were equal), and for that
+> matcher "did not match" claimed the opposite of what happened — not a withheld
+> diagnosis, an inverted one. `attributeReason` now takes the matcher and says
+> `'<attribute>' matched an excluded value` for `Neq`'s resolved-and-compared
+> case; every other matcher's denial is unchanged.
+
 **Enforcement**: `packages/core/test/Evaluate.test.ts` pins both sentences
 against each other — an unwired resolver beside a wired store that looked and
-found nothing, an absent attribute beside a present one that compares wrong. A
-single sentence for both cases passes any test asserting only the verdict, which
-is how this survived to be found by reading.
-`features/features/rebac/relationships.feature` carries the same pair.
+found nothing, an absent attribute beside a present one that compares wrong —
+and, separately, a `Neq` denial's sentence against a same-shaped non-`Neq` one.
+A single sentence for both cases passes any test asserting only the verdict,
+which is how the original gap survived to be found by reading.
+`features/features/rebac/relationships.feature` carries the unwired/wired pair.
 
 **Related**: [BEH-QD-045](behaviors/06-services.md), [BEH-QD-043](behaviors/06-services.md), [ADR-QD-040](decisions/040-an-unwired-port-names-its-absence.md), [ADR-QD-020](decisions/020-decision-history-port.md), [INV-QD-014](#inv-qd-014-an-unwired-history-port-denies-both-polarities).
 

@@ -91,6 +91,38 @@ describe("leaf policies", () => {
       assert.strictEqual(d.reason, "subject attribute 'level' has no value");
     }).pipe(Effect.provide(testLayer(subjectWith({ attributes: {} })))));
 
+  it.effect("A Neq DENIAL SAYS THE VALUE MATCHED, not 'did not match'", () =>
+    Effect.gen(function* () {
+      // `evaluateMatcher`'s `Neq` arm returns `value !== resolveRef(...)`, so
+      // a `Neq` denial fires exactly when the two values are EQUAL — the
+      // opposite direction from every other matcher, where denial means no
+      // match was found. "did not match" would claim the reverse of what
+      // happened; `Qadi.test.ts`'s "EVALUATES THE POLICY AGAINST THE GUARDED
+      // RESOURCE" exercises the same shape (INV-QD-032).
+      const d = yield* evaluate(P.hasAttribute("homeTenant", M.neq(M.literal("evil"))));
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject attribute 'homeTenant' matched an excluded value");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { homeTenant: "evil" } })))));
+
+  it.effect(
+    "the Neq mirror holds for a resource attribute too",
+    () =>
+      Effect.gen(function* () {
+        const policy = P.hasResourceAttribute("tenant", M.neq(M.literal("evil")));
+        const d = yield* evaluate(policy, { resource: { tenant: "evil" } });
+        assert.isFalse(isAllowed(d));
+        if (d._tag !== "Deny") return;
+        assert.strictEqual(d.reason, "resource attribute 'tenant' matched an excluded value");
+      }).pipe(Effect.provide(testLayer(subjectWith({})))),
+  );
+
+  it.effect("a Neq ALLOW is unaffected — only the denial sentence changed", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasAttribute("homeTenant", M.neq(M.literal("evil"))));
+      assert.isTrue(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { homeTenant: "good" } })))));
+
   it.effect("an absent resource attribute says so too", () =>
     Effect.gen(function* () {
       const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));

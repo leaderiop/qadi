@@ -35,7 +35,7 @@ import {
 } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
 import { makeResourceId } from "./Identity.ts";
-import type { MatcherContext } from "./Matcher.ts";
+import type { Matcher, MatcherContext } from "./Matcher.ts";
 import { evaluateMatcher, referencesAction, referencesResource } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
@@ -302,6 +302,16 @@ const readAttribute = (
  * produces the absent case exclusively, so naming it points at the wiring
  * (INV-QD-029, and the mirror of what `"Unknown"` does for relationships).
  *
+ * `Neq` breaks that pattern rather than fitting it: it denies exactly when the
+ * value **matches** the excluded reference — `evaluateMatcher`'s `Neq` arm
+ * returns `value !== resolveRef(...)`, so a `false` there means the two were
+ * equal. "did not match" would claim the opposite of what happened, naming a
+ * mismatch where there was none. `Qadi.guard`'s own `EVALUATES THE POLICY
+ * AGAINST THE GUARDED RESOURCE` test exercises exactly this shape — a `Neq`
+ * that denies because the compared values agree (INV-QD-032) — which is what
+ * makes the general sentence wrong for this one matcher rather than merely
+ * imprecise.
+ *
  * The value itself is still never printed. The attribute *name* was already in
  * the sentence; its contents are the subject's data and stay out of a reason
  * that reaches logs and, through `AccessDenied`, error handlers.
@@ -310,10 +320,13 @@ const attributeReason = (
   side: "subject" | "resource",
   attribute: string,
   value: unknown,
-): string =>
-  value === undefined
-    ? `${side} attribute '${attribute}' has no value`
+  matcher: Matcher,
+): string => {
+  if (value === undefined) return `${side} attribute '${attribute}' has no value`;
+  return matcher._tag === "Neq"
+    ? `${side} attribute '${attribute}' matched an excluded value`
     : `${side} attribute '${attribute}' did not match`;
+};
 
 const mergeFields = (
   strategy: FieldStrategy,
@@ -604,7 +617,10 @@ const evaluateNode = (
       return Effect.map(readAttribute(subject, policy.attribute), (value) =>
         evaluateMatcher(policy.matcher, value, matcherContext)
           ? allow("HasAttribute", policy.fields)
-          : deny("HasAttribute", attributeReason("subject", policy.attribute, value)),
+          : deny(
+              "HasAttribute",
+              attributeReason("subject", policy.attribute, value, policy.matcher),
+            ),
       );
 
     case "HasResourceAttribute": {
@@ -627,7 +643,7 @@ const evaluateNode = (
           ? allow("HasResourceAttribute", policy.fields)
           : deny(
               "HasResourceAttribute",
-              attributeReason("resource", policy.attribute, value),
+              attributeReason("resource", policy.attribute, value, policy.matcher),
             ),
       );
     }
