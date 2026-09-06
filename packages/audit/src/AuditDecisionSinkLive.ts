@@ -130,7 +130,16 @@ export const AuditDecisionSinkLive = (
             }
           } else if (status === "Open") {
             // The one case worth flagging specially: unwired and open means
-            // this evaluation's row is genuinely, unrecoverably lost.
+            // this evaluation's row is genuinely, unrecoverably lost. A
+            // metric alone is indistinguishable from an encode failure on a
+            // dashboard that only samples counters — a compliance-flavored
+            // pipeline should make this the loudest failure mode it has, not
+            // one requiring an operator to already suspect it. `evaluationId`
+            // only: a correlation handle, not the subject/resource/policy the
+            // entry itself carries.
+            yield* Effect.logWarning(
+              "audit entry dropped: circuit breaker open and no staging port wired",
+            ).pipe(Effect.annotateLogs({ evaluationId: entry.record.evaluationId }));
             yield* Metric.update(stagingSkippedOpen, 1);
           }
 
