@@ -150,7 +150,17 @@ const witness: (self: Matcher) => (input: SimulationInput) => Synthesised = Matc
           : value(m.values[0]),
       Exists: () => () => value(true),
       Gte: (m) => () => value(m.value),
-      Lt: (m) => () => value(m.value - 1),
+      // `m.value - 1` is not a witness for every threshold: float rounding
+      // swallows the subtraction once `m.value` is large enough (1e308 and its
+      // own predecessor are the same float), and `Infinity`/`NaN` have no
+      // predecessor at all — `Infinity - 1` is still `Infinity`, which does
+      // not satisfy `lt`. The finiteness check and the strict-decrease check
+      // together catch both: BEH-QD-223 requires a synthesised value to
+      // actually satisfy the matcher, and declining beats a row that lies.
+      Lt: (m) => () =>
+        Number.isFinite(m.value) && m.value - 1 < m.value
+          ? value(m.value - 1)
+          : cannot(`no value less than ${String(m.value)} can be synthesised`),
       Contains: (m) => () => value([m.value]),
       FieldMatch: (m) => (input: SimulationInput) =>
         mapValue(witness(m.matcher)(input), (v) => value({ [m.field]: v })),

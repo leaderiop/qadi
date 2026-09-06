@@ -176,6 +176,23 @@ describe("satisfyingValue — every witness satisfies its own matcher", () => {
     assert.strictEqual(witnesses(lt(5)), 4);
   });
 
+  // BEH-QD-223: a synthesised value must actually satisfy the matcher it came
+  // from. `m.value - 1` is not that witness once float rounding swallows the
+  // subtraction (a huge finite threshold) or the threshold has no predecessor
+  // at all (`Infinity`, `NaN`) — those must decline rather than offer a value
+  // that silently fails to match.
+  it("declines Lt for thresholds with no synthesisable predecessor", () => {
+    assert.strictEqual(
+      declines(lt(Number.MAX_VALUE)),
+      `no value less than ${Number.MAX_VALUE} can be synthesised`,
+    );
+    assert.strictEqual(
+      declines(lt(Number.POSITIVE_INFINITY)),
+      "no value less than Infinity can be synthesised",
+    );
+    assert.strictEqual(declines(lt(Number.NaN)), "no value less than NaN can be synthesised");
+  });
+
   it("wraps a Contains needle in an array", () => {
     assert.deepStrictEqual(witnesses(contains("fin")), ["fin"]);
   });
