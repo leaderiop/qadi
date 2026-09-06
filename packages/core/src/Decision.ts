@@ -7,7 +7,7 @@
  * could not be asserted on at all.
  */
 import * as Data from "effect/Data";
-import { compareFieldPaths, project as projectPaths } from "./FieldPath.ts";
+import { compareShapes, project as projectPaths, shapeOf } from "./FieldPath.ts";
 import type { SubjectId } from "./Identity.ts";
 import type { Obligation } from "./Obligation.ts";
 import type { Policy } from "./Policy.ts";
@@ -147,6 +147,14 @@ export const project = <A extends Resource>(
  * narrower spec already grants. Every pair with no subsumption relationship
  * contributes nothing (`Incomparable`), which is the conservative, fails-
  * closed direction.
+ *
+ * `shapeOf` runs once per spec, not once per pair. The comparison itself is
+ * O(|a|·|b|), and `compareFieldPaths` computes both operands' `shapeOf` —
+ * `split(".")` plus two array allocations — on every call; over the same
+ * array pairwise-compared |b| (or |a|) times, that recomputed an identical
+ * shape from scratch every time. `compareShapes` takes the already-computed
+ * shape instead, so each spec's `shapeOf` is paid for exactly once here,
+ * however many pairs it is compared across.
  */
 export const intersectFields = (
   a: ReadonlyArray<string> | undefined,
@@ -154,12 +162,22 @@ export const intersectFields = (
 ): ReadonlyArray<string> | undefined => {
   if (a === undefined) return b;
   if (b === undefined) return a;
+  // Paired with its own shape rather than parallel arrays walked by index:
+  // `noUncheckedIndexedAccess` would otherwise type every lookup as possibly
+  // `undefined`, for an invariant (same length, same order) a pairing already
+  // guarantees outright.
+  // Paired with its own shape rather than parallel arrays walked by index:
+  // `noUncheckedIndexedAccess` would otherwise type every lookup as possibly
+  // `undefined`, for an invariant (same length, same order) a pairing already
+  // guarantees outright.
+  const shapedA = a.map((spec) => ({ spec, shape: shapeOf(spec) }));
+  const shapedB = b.map((spec) => ({ spec, shape: shapeOf(spec) }));
   const kept: Array<string> = [];
-  for (const specA of a) {
-    for (const specB of b) {
-      const cmp = compareFieldPaths(specA, specB);
-      if (cmp === "Equal" || cmp === "BLessA") kept.push(specB);
-      else if (cmp === "ALessB") kept.push(specA);
+  for (const specA of shapedA) {
+    for (const specB of shapedB) {
+      const cmp = compareShapes(specA.shape, specB.shape);
+      if (cmp === "Equal" || cmp === "BLessA") kept.push(specB.spec);
+      else if (cmp === "ALessB") kept.push(specA.spec);
     }
   }
   return [...new Set(kept)];

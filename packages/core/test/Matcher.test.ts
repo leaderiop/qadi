@@ -1,4 +1,4 @@
-import { assert, describe, it } from "@effect/vitest";
+import { assert, describe, it, vi } from "@effect/vitest";
 import * as FastCheck from "effect/testing/FastCheck";
 import {
   intersectFields,
@@ -7,6 +7,7 @@ import {
   Allow,
   Deny,
 } from "../src/Decision.ts";
+import * as FieldPath from "../src/FieldPath.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import {
@@ -644,6 +645,24 @@ describe("field lattice", () => {
 
   it("intersection stays conservative at the '*' depth boundary", () => {
     assert.deepStrictEqual(intersectFields(["address.*"], ["address.street.zip"]), []);
+  });
+
+  it("PERFORMANCE: computes each spec's shape once, not once per pair", () => {
+    // The defect this pins: `compareFieldPaths` alone computes `shapeOf` on
+    // BOTH operands — `split(".")` plus two array allocations — every single
+    // call, and `intersectFields`'s comparison is O(|a|·|b|), so a naive
+    // implementation calling `compareFieldPaths` in the nested loop would call
+    // `shapeOf` `2·|a|·|b|` times. Hoisted, it is called exactly `|a|+|b|`
+    // times — once per spec, however many pairs that spec is compared across.
+    const spy = vi.spyOn(FieldPath, "shapeOf");
+    try {
+      const a = ["a", "b", "c", "d"];
+      const b = ["w", "x", "y"];
+      intersectFields(a, b);
+      assert.strictEqual(spy.mock.calls.length, a.length + b.length);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
