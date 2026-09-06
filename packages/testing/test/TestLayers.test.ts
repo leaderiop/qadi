@@ -37,6 +37,7 @@ import {
   policies,
   recordingAttributeResolver,
   recordingCustomPredicate,
+  recordingSignatureHistory,
   subjectWith,
   viewer,
 } from "../src/index.ts";
@@ -413,6 +414,28 @@ describe("eventDecisionHistory", () => {
       assert.isFalse(isAllowed(yield* evaluate(hasActed("raised"), resource)));
       assert.isFalse(isAllowed(yield* evaluate(hasNotActed("raised"), resource)));
     }).pipe(Effect.provide(qadiTestLayer(clerk))));
+});
+
+describe("recordingSignatureHistory", () => {
+  it.effect("pins the record-key format: subject alone vs subject+resource", () =>
+    Effect.gen(function* () {
+      const history = recordingSignatureHistory([
+        { subjectId: "subjectA", resourceId: "resourceX", meaning: "approved" },
+      ]);
+
+      yield* evaluate(hasSignature("approved", { scope: "Any" })).pipe(
+        Effect.provide(
+          qadiTestLayer(subjectWith({ id: "subjectA" }), { signatureHistory: history.layer }),
+        ),
+      );
+      yield* evaluate(hasSignature("approved"), { resource: { id: "resourceX" } }).pipe(
+        Effect.provide(
+          qadiTestLayer(subjectWith({ id: "subjectB" }), { signatureHistory: history.layer }),
+        ),
+      );
+
+      assert.deepStrictEqual([...history.calls], ["subjectA", "subjectB resourceX"]);
+    }));
 });
 
 describe("fixture policies", () => {
