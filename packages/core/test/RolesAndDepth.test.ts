@@ -16,6 +16,7 @@ import {
   role,
   roleNames,
 } from "../src/Role.ts";
+import type { Role } from "../src/Role.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
@@ -230,6 +231,49 @@ describe("two distinct Role objects sharing a name are not conflated", () => {
       1,
     );
     assert.deepStrictEqual([...roleNames(top)].sort(), ["base", "left", "right", "top"]);
+  });
+});
+
+describe("the three walkers survive a very deep inheritance chain", () => {
+  // Ticket 86: flattenPermissions, roleNames and permissionProvenance used to
+  // recurse directly, one JS call frame per level of `inherits`. A chain this
+  // deep overflowed the native stack (`RangeError: Maximum call stack size
+  // exceeded`) well before Node's default limit. Built with a loop, not
+  // recursion, so constructing the fixture itself does not hit the same limit.
+  const DEPTH = 50_000;
+
+  const buildChain = (depth: number): Role => {
+    let current: Role = role({ name: "role-0", permissions: [read] });
+    for (let i = 1; i < depth; i += 1) {
+      current = role({ name: `role-${i}`, inherits: [current] });
+    }
+    return current;
+  };
+
+  it("flattenPermissions completes without a stack overflow", () => {
+    const top = buildChain(DEPTH);
+    const flat = flattenPermissions(top);
+    assert.strictEqual(flat.size, 1);
+    assert.isTrue(flat.has("doc:read"));
+  });
+
+  it("roleNames completes without a stack overflow", () => {
+    const top = buildChain(DEPTH);
+    const names = roleNames(top);
+    assert.strictEqual(names.size, DEPTH);
+    assert.isTrue(names.has("role-0"));
+    assert.isTrue(names.has(`role-${DEPTH - 1}`));
+  });
+
+  it("permissionProvenance completes without a stack overflow", () => {
+    const top = buildChain(DEPTH);
+    const grants = permissionProvenance(top);
+    assert.strictEqual(grants.length, 1);
+    assert.strictEqual(grants[0]?.grantedBy, "role-0");
+    // The path runs from the queried (top) role down to the granting one.
+    assert.strictEqual(grants[0]?.path.length, DEPTH);
+    assert.strictEqual(grants[0]?.path[0], `role-${DEPTH - 1}`);
+    assert.strictEqual(grants[0]?.path[DEPTH - 1], "role-0");
   });
 });
 

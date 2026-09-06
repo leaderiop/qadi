@@ -47,19 +47,28 @@ export const role = <const TName extends string>(config: {
  * on the object itself still collapses a true diamond (the same reference
  * reached by two paths) while visiting two same-named-but-distinct roles
  * separately, as their differing permissions require.
+ *
+ * **Iterative, with an explicit stack.** The result is a `Set`, so the order
+ * roles are visited in is not observable — only which ones are, which the
+ * identity-keyed `seen` set still governs exactly as a recursive walk would.
+ * A direct recursion here overflows the native call stack on a long
+ * inheritance chain; an explicit array does not, since it lives on the heap
+ * rather than growing a call frame per level. (Ticket 86.)
  */
 export const flattenPermissions = (self: Role): ReadonlySet<PermissionKey> => {
   const keys = new Set<PermissionKey>();
   const seen = new Set<Role>();
+  const stack: Array<Role> = [self];
 
-  const visit = (current: Role): void => {
-    if (seen.has(current)) return;
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (current === undefined) continue;
+    if (seen.has(current)) continue;
     seen.add(current);
     for (const p of current.permissions) keys.add(permissionKey(p));
-    for (const parent of current.inherits) visit(parent);
-  };
+    for (const parent of current.inherits) stack.push(parent);
+  }
 
-  visit(self);
   return keys;
 };
 
@@ -100,22 +109,89 @@ export interface PermissionGrant {
  * depth-first order reached first — "reachable twice" meaning the same object
  * reached by two paths, not merely two roles sharing a `name`; the visited set
  * is keyed on identity for the same reason `flattenPermissions`'s is.
+ *
+ * **Iterative, with an explicit stack of frames.** Unlike `flattenPermissions`,
+ * the *order* of `grants` is observable (it is what makes "first path wins"
+ * meaningful), so this cannot just push work onto a stack and pop in whatever
+ * order comes out — it has to reproduce the exact pre-order, depth-first,
+ * parents-in-array-order traversal a direct recursion would do. Each frame
+ * tracks the role it is visiting and which of its parents to descend into
+ * next; a parent is only pushed as a new frame — and only then are its own
+ * grants recorded — the first time it is reached, so an already-`seen` parent
+ * is skipped without disturbing the current frame's position. That reproduces
+ * the recursive call stack without using one, which a very deep chain would
+ * overflow. (Ticket 86.)
+ *
+ * **The path itself is a linked list while walking, not a copied array.** The
+ * recursive version's `here = [...path, current.name]` copies the whole
+ * path-so-far at every node; on a chain of depth *n* that is *n* copies whose
+ * lengths sum to O(n²) — invisible at any depth the native call stack could
+ * reach, but the first thing this rewrite would hit once the stack limit was
+ * no longer the thing stopping it. `PathLink` instead conses in O(1), and a
+ * path is only flattened to the `ReadonlyArray<string>` `PermissionGrant.path`
+ * wants — once — for a role that actually has permissions to report.
  */
 export const permissionProvenance = (self: Role): ReadonlyArray<PermissionGrant> => {
   const grants: Array<PermissionGrant> = [];
   const seen = new Set<Role>();
 
-  const visit = (current: Role, path: ReadonlyArray<string>): void => {
-    if (seen.has(current)) return;
-    seen.add(current);
-    const here = [...path, current.name];
-    for (const p of current.permissions) {
-      grants.push({ permission: permissionKey(p), grantedBy: current.name, path: here });
+  interface PathLink {
+    readonly name: string;
+    readonly parent: PathLink | undefined;
+  }
+
+  const toPath = (link: PathLink): ReadonlyArray<string> => {
+    const names: Array<string> = [];
+    for (let node: PathLink | undefined = link; node !== undefined; node = node.parent) {
+      names.push(node.name);
     }
-    for (const parent of current.inherits) visit(parent, here);
+    names.reverse();
+    return names;
   };
 
-  visit(self, []);
+  interface Frame {
+    readonly role: Role;
+    readonly here: PathLink;
+    nextParentIndex: number;
+  }
+
+  // Marks `role` visited, records its own grants under `path`, and returns the
+  // frame to push — or `undefined` if it was already visited, mirroring the
+  // recursive `visit`'s early `if (seen.has(current)) return`.
+  const enter = (role: Role, parentLink: PathLink | undefined): Frame | undefined => {
+    if (seen.has(role)) return undefined;
+    seen.add(role);
+    const here: PathLink = { name: role.name, parent: parentLink };
+    if (role.permissions.length > 0) {
+      const path = toPath(here);
+      for (const p of role.permissions) {
+        grants.push({ permission: permissionKey(p), grantedBy: role.name, path });
+      }
+    }
+    return { role, here, nextParentIndex: 0 };
+  };
+
+  const stack: Array<Frame> = [];
+  const rootFrame = enter(self, undefined);
+  if (rootFrame !== undefined) stack.push(rootFrame);
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame === undefined) break;
+
+    if (frame.nextParentIndex >= frame.role.inherits.length) {
+      stack.pop();
+      continue;
+    }
+
+    const parent = frame.role.inherits[frame.nextParentIndex];
+    frame.nextParentIndex += 1;
+    if (parent === undefined) continue;
+
+    const parentFrame = enter(parent, frame.here);
+    if (parentFrame !== undefined) stack.push(parentFrame);
+  }
+
   return grants;
 };
 
@@ -133,17 +209,26 @@ export const flattenAll = (roles: ReadonlyArray<Role>): ReadonlySet<PermissionKe
  * two distinct `Role` objects sharing a `name` are still two roles to walk, so
  * a role reachable only through the second one is not skipped just because its
  * name was already added to the result.
+ *
+ * Iterative for the same reason as {@link flattenPermissions}: the result is a
+ * `Set`, so traversal order is not observable and an explicit stack can pop in
+ * whatever order it likes, but a direct recursion would still overflow the
+ * native call stack on a very deep chain. (Ticket 86.)
  */
 export const roleNames = (self: Role): ReadonlySet<string> => {
   const names = new Set<string>();
   const seen = new Set<Role>();
-  const visit = (current: Role): void => {
-    if (seen.has(current)) return;
+  const stack: Array<Role> = [self];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (current === undefined) continue;
+    if (seen.has(current)) continue;
     seen.add(current);
     names.add(current.name);
-    for (const parent of current.inherits) visit(parent);
-  };
-  visit(self);
+    for (const parent of current.inherits) stack.push(parent);
+  }
+
   return names;
 };
 
@@ -206,16 +291,25 @@ export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
   const resolved = new Map<string, Role>();
   const unknownParents = new Set<string>();
 
+  // `ancestors` is the current DFS path, shared and mutated across the whole
+  // recursion rather than copied at each level: a name is added on entry and
+  // removed once its own recursion into its parents has finished, so a check
+  // is `Set#has` rather than `Array#includes` scanning the whole path — O(1)
+  // instead of O(depth) per call, which made the walk O(depth²) on a long
+  // inheritance chain. This is stack *content*, not the native call stack —
+  // `resolveRoleGraph`'s own recursion through `Effect.gen`/`yield*` is
+  // already trampolined and does not grow the JS stack, unlike the three
+  // walkers above. (Ticket 86.)
   const visit = (
     name: string,
-    stack: ReadonlyArray<string>,
+    ancestors: Set<string>,
   ): Effect.Effect<Role | undefined, CircularRoleInheritance> => {
     const existing = resolved.get(name);
     if (existing !== undefined) return Effect.succeed(existing);
 
-    if (stack.includes(name)) {
+    if (ancestors.has(name)) {
       return Effect.fail(
-        new CircularRoleInheritance({ roleName: name, cycle: [...stack, name] }),
+        new CircularRoleInheritance({ roleName: name, cycle: [...ancestors, name] }),
       );
     }
 
@@ -231,11 +325,13 @@ export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
     }
 
     return Effect.gen(function* () {
+      ancestors.add(name);
       const parents: Array<Role> = [];
       for (const parentName of definition.inherits ?? []) {
-        const parent = yield* visit(parentName, [...stack, name]);
+        const parent = yield* visit(parentName, ancestors);
         if (parent !== undefined) parents.push(parent);
       }
+      ancestors.delete(name);
       const built: Role = {
         name: definition.name,
         permissions: definition.permissions ?? [],
@@ -248,7 +344,7 @@ export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
 
   const out: Array<Role> = [];
   for (const definition of definitions) {
-    const built = yield* visit(definition.name, []);
+    const built = yield* visit(definition.name, new Set());
     if (built !== undefined) out.push(built);
   }
 
