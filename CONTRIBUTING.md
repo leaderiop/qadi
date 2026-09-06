@@ -32,6 +32,44 @@ drift out of sync with it.
 | A merge gate | `pnpm check` and `spec/process/definitions-of-done.md` together — `scripts/check-dod-table.mjs` fails otherwise. Name the script beside any "gate N" |
 | Package `dependencies`/publishing | `AGENTS.md` §16 — `pnpm publish` only, `tsconfig.build.json` membership |
 
+## Releasing a version
+
+[ADR-QD-038](spec/decisions/038-changesets-for-versioned-releases.md) scoped
+itself to *tracking* changes, deliberately not to publishing itself — neither
+runs in CI or `pnpm check` (CCR-QD-049), so both are manual and neither has a
+runbook anywhere else. This is it.
+
+**Add a changeset alongside any change to a published package's public
+behavior** — `pnpm changeset`, answer its prompts (bump type, one-line
+summary), commit the generated `.changeset/*.md` file with your change. Not
+every change needs one: a doc fix or an internal refactor with no public
+surface change does not.
+
+**To cut a release**, from `main` with a clean tree:
+
+```sh
+pnpm changeset-version   # consumes pending .changeset/*.md, bumps package.json
+                          # versions and CHANGELOG.md files, commits nothing itself
+pnpm changeset-publish   # pnpm publish for each package that changed
+```
+
+All nine `packages/*` are one `fixed` group in `.changeset/config.json` — a
+release bumps every one of them to the same version together, whether or not
+that specific package changed. Verify what would actually happen with
+`pnpm exec changeset status` before running either command; it lists which
+packages have pending changesets and what the resulting versions would be.
+
+**State as of this writing** (verified live against the npm registry, not
+assumed): the root and every `packages/*/package.json` read `0.3.0`, but only
+four packages have ever actually been published — `@qadi/core`, `@qadi/react`,
+`@qadi/promise`, `@qadi/testing` — and all four sit at `0.2.0` on npm. `.changeset/`
+holds no pending changesets. `@qadi/http`, `@qadi/devtools`, `@qadi/audit`,
+`@qadi/predicate-sql` and `@qadi/predicate-prisma` have never been published at
+all; the next `pnpm changeset-publish` ships all five for the first time,
+under the permanent fixed group above, at whatever version the other four
+land on. `pnpm publish`, never `npm publish` — AGENTS.md §16 explains why the
+workspace-time `catalog:`/`workspace:*` protocols require it.
+
 ## Why the rules read the way they do
 
 Every non-obvious rule in `AGENTS.md` explains its own reason inline — a past

@@ -6,6 +6,7 @@ import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "../src/DecisionRecord.ts";
 import {
   AttributeResolveError,
+  CustomPredicateError,
   DecisionHistoryUnavailable,
   ERROR_CODES,
   MissingAction,
@@ -44,6 +45,7 @@ const everyError: ReadonlyArray<EvaluationError> = [
     resourceId: makeResourceId("doc-1"),
     cause: "signature store offline",
   }),
+  new CustomPredicateError({ name: "isOwner", reason: "unregistered" }),
 ];
 
 /**

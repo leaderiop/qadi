@@ -19,13 +19,20 @@ import { flattenAll, roleNames } from "./Role.ts";
 // `policy.role`, which is branded `RoleName` and validated at `Policy`'s
 // `Schema` decode boundary — non-empty, no `:` (`Policy.ts`'s
 // `SEGMENT_PATTERN`). Before this brand, `subject.roles` stayed plain
-// `string`, so a subject could hold a role name — one containing `:`, say —
-// that could never appear as a valid `Policy.role` at all, a mismatch
-// nothing surfaced. Branding here with `Policy.ts`'s own `makeRoleName` —
-// the same total (non-throwing) conversion `hasRole` itself uses, not a
-// second independent one — makes both sides of that comparison the same
-// validated vocabulary constructed the same way; the identity provider still
-// supplies plain strings, and this conversion never fails.
+// `string`, so a `RoleName`-typed comparison against it needed a cast at every
+// call site. Branding here with `Policy.ts`'s own `makeRoleName` — the same
+// total (non-throwing) conversion `hasRole` itself uses, not a second
+// independent one — removes that cast: both sides are nominally `RoleName`,
+// constructed the same way.
+//
+// `makeRoleName` is `Brand.nominal`, not `Brand.refined` — a total conversion
+// with no runtime check, so this brands `subject.roles` without validating it.
+// An identity provider that supplies a role string containing `:` still gets
+// branded and stored here, and can never equal a decoded (SEGMENT_PATTERN-
+// validated) `Policy.role` carrying the same characters — the mismatch this
+// comment used to claim branding eliminated. What branding actually buys is
+// nominal typing at the comparison site; catching a malformed IdP-supplied
+// role name is a separate concern this file does not address.
 
 export interface AuthSubject {
   readonly id: SubjectId;

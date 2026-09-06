@@ -248,6 +248,24 @@ describe("security labels", () => {
     assert.isFalse(isSecurityLabel(undefined));
   });
 
+  it("rejects a non-finite level, so Infinity cannot dominate every label", () => {
+    // `typeof === "number"` alone admits both; Infinity would otherwise
+    // dominate every finite level via `>=` (compareLabels), and an attacker
+    // controlling untrusted subject/resource data should not be able to
+    // manufacture a label that beats every comparison it enters.
+    assert.isFalse(isSecurityLabel({ level: Number.POSITIVE_INFINITY, compartments: [] }));
+    assert.isFalse(isSecurityLabel({ level: Number.NEGATIVE_INFINITY, compartments: [] }));
+    assert.isFalse(isSecurityLabel({ level: Number.NaN, compartments: [] }));
+
+    assert.strictEqual(
+      compareLabels(
+        { level: Number.POSITIVE_INFINITY, compartments: [] },
+        label(1000000),
+      ),
+      "Dominates",
+    );
+  });
+
   it("OVERLAPPING compartment sets are incomparable, not merely disjoint ones", () => {
     // The shape of incomparability the suite did not have. Every other case here
     // is either disjoint singletons (`{CRYPTO}` vs `{BIO}`) or a strict superset;

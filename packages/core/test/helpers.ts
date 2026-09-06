@@ -27,6 +27,13 @@ export type QadiServices =
  * A fully-wired evaluation environment with deterministic identifiers.
  *
  * Defaults fail closed: no attribute resolution, no relationships.
+ *
+ * Structurally the same Layer.mergeAll body as `@qadi/testing`'s
+ * `qadiTestLayer`/`qadiReviewLayer` (`QadiTestLayer.ts`, `QadiReviewLayer.ts`),
+ * hand-copied here rather than imported: `@qadi/core` cannot depend on
+ * `@qadi/testing`, which depends on it. If `EvaluationServices` gains a
+ * service or a default changes, both copies need the edit — there is no
+ * gate that catches one going stale without the other.
  */
 export const testLayer = (
   subject: AuthSubject,
@@ -71,6 +78,14 @@ export const subjectSetLayer = (overrides?: {
     overrides?.signatureHistory ?? SignatureHistoryNone,
   );
 
+/**
+ * Same shape as `@qadi/testing`'s `Fixtures.ts` `subjectWith`, and for the
+ * same circular-import reason `testLayer` above cross-references — but the
+ * default `id` deliberately differs (`"u1"` here, `"test-subject"` there).
+ * Neither default is wrong on its own; a test relying on the specific string
+ * rather than passing `id` explicitly is the thing to fix if the two ever
+ * need to agree.
+ */
 export const subjectWith = (config: {
   readonly id?: string;
   readonly roles?: ReadonlyArray<string>;
