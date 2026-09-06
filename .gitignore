@@ -38,8 +38,5 @@ packages/predicate-prisma/prisma/*.db
 .claude/
 .impeccable/
 
-# `.planning/` is otherwise tracked on purpose (its planning documents are
-# real project history) — this is the one file in it that is not: a live
-# session id, PID and timestamp, one `git add -A` away from being committed
-# as if it were content.
-.planning/milestone.lock
+# Local GSD planning state — no longer tracked in git.
+.planning/
