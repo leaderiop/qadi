@@ -35,10 +35,27 @@
     // Workspace packages resolve to source, not to built output. Emitted .d.ts
     // files keep their `.ts` specifiers, which do not resolve against lib/, and
     // resolving to source means tests need no build step.
+    //
+    // Every public package is listed, not just the three (`core`, `testing`,
+    // `devtools`) that used to be here: `tsconfig.test.json` and
+    // `features/tsconfig.json` are the only configs that inherit this map as-is
+    // (every package's own `tsconfig.src.json` defines its own `paths` and so
+    // never sees this one), and both include files that cross-import a sibling
+    // package — `features/features/hydration-counts/hydration-counts.steps.test.ts`
+    // imports `@qadi/react`, for one. Before this list covered all nine, that
+    // import resolved through node_modules to `packages/react/lib/`, safe only
+    // because `pnpm typecheck` runs `tsc -b tsconfig.json` (which builds `lib/`)
+    // ahead of `tsc -p tsconfig.test.json` — a real dependency nothing recorded.
     "paths": {
+      "@qadi/audit": ["./packages/audit/src/index.ts"],
       "@qadi/core": ["./packages/core/src/index.ts"],
-      "@qadi/testing": ["./packages/testing/src/index.ts"],
-      "@qadi/devtools": ["./packages/devtools/src/index.ts"]
+      "@qadi/devtools": ["./packages/devtools/src/index.ts"],
+      "@qadi/http": ["./packages/http/src/index.ts"],
+      "@qadi/predicate-prisma": ["./packages/predicate-prisma/src/index.ts"],
+      "@qadi/predicate-sql": ["./packages/predicate-sql/src/index.ts"],
+      "@qadi/promise": ["./packages/promise/src/index.ts"],
+      "@qadi/react": ["./packages/react/src/index.ts"],
+      "@qadi/testing": ["./packages/testing/src/index.ts"]
     },
     "plugins": [
       {
