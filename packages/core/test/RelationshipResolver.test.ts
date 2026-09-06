@@ -8,6 +8,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
+import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import { RelationshipResolveError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
@@ -29,8 +30,8 @@ import {
  * matching the "plain input, branded internal shape" split `AuthSubject.makeSubject`
  * already uses.
  */
-const check = (
-  layer: Layer.Layer<RelationshipResolver>,
+const check = <E>(
+  layer: Layer.Layer<RelationshipResolver, E>,
   request: {
     readonly subjectId: string;
     readonly relation: string;
@@ -296,5 +297,30 @@ describe("RelationshipResolver", () => {
           yield* check(bounded, { subjectId: "bob", relation: "owner", resourceId: "doc-1" }),
         );
       }));
+
+    it.effect(
+      "fails fast with InvalidBoundedPermits instead of deadlocking every call, for permits <= 0",
+      () =>
+        Effect.gen(function* () {
+          // Same defect and fix as attributeResolverBounded's identically-named
+          // test — see that file's comment for why `it.effect`/`TestClock`
+          // itself is what proves this doesn't just hang instead.
+          for (const permits of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+            const bounded = relationshipResolverBounded(permits)(
+              relationshipResolverFromEdges([]),
+            );
+            const result = yield* Effect.result(
+              check(bounded, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
+            );
+
+            assert.isTrue(Result.isFailure(result), `permits ${permits} should fail fast`);
+            if (!Result.isFailure(result)) continue;
+            assert.strictEqual(result.failure._tag, "InvalidBoundedPermits");
+            if (result.failure._tag !== "InvalidBoundedPermits") continue;
+            if (Number.isNaN(permits)) assert.isNaN(result.failure.permits);
+            else assert.strictEqual(result.failure.permits, permits);
+          }
+        }),
+    );
   });
 });

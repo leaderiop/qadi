@@ -30,6 +30,14 @@ import { currentSubjectLayer, guard } from "@qadi/core";
 import { ENFORCEMENT_ERROR_TAGS, toResponse } from "./QadiHttpError.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
+// Named `PermissionRequirement`/`PublicDeclaration`, not the usual
+// `RequiredPermissionShape`/`PublicEndpointShape` — a deliberate exception to
+// AGENTS.md §2's naming convention, matching `CurrentSubject.ts`'s. Both are
+// public, documented domain values in their own right (ADR-QD-036,
+// behaviors/23-http.md) referenced by name across spec/, not internal payload
+// plumbing invented for the service — renaming would be a public API and
+// normative-doc change, not a local style fix. The substantive half of §2
+// still holds: each is a separately exported type, not an inline literal.
 export interface PermissionRequirement {
   readonly permission: Permission;
   readonly policy: Policy;

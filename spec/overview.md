@@ -327,12 +327,13 @@ ADR-QD-008/INV-QD-010 exist to make. `ERROR_CODES["PolicyDecodeTooDeep"]` is
 
 `InvalidBoundedPermits` joins `QadiError` (construction-time, not evaluation)
 and is shared by every `…Bounded` port wrapper — `AttributeResolver.ts`'s
-`attributeResolverBounded` and `CustomPredicate.ts`'s `customPredicateBounded`
-both raise it: `Semaphore.make` performs no validation of its own, so
-`permits <= 0` previously built a layer whose every wrapped call deadlocked
-forever rather than failing. Fixing this requires each port wrapper to fail
-fast instead of building the layer, which is why the error is raised from the
-wrapper rather than from `Semaphore.make` itself.
+`attributeResolverBounded`, `RelationshipResolver.ts`'s
+`relationshipResolverBounded`, and `CustomPredicate.ts`'s
+`customPredicateBounded` all raise it: `Semaphore.make` performs no validation
+of its own, so `permits <= 0` previously built a layer whose every wrapped call
+deadlocked forever rather than failing. Fixing this requires each port wrapper
+to fail fast instead of building the layer, which is why the error is raised
+from the wrapper rather than from `Semaphore.make` itself.
 `ERROR_CODES["InvalidBoundedPermits"]` is `ACL016`.
 
 ## The other packages
