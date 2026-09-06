@@ -301,18 +301,25 @@ describe("DecisionCache", () => {
       // requests carrying equal subjects missed — `AuthSubject` compares
       // structurally, HashSet grants included, so a subject rebuilt per
       // request from the same token is the same key.
+      //
+      // The resolver has to be reachable from THIS layer, not an outer one:
+      // `Effect.provide` merges the provided context OVER the ambient one, so
+      // an outer counting resolver would be shadowed by whatever the inner
+      // `testLayer` supplies by default (`AttributeResolverNone`) and could
+      // never be asked at all — the vacuous shape this test used to have.
       const calls: Array<string> = [];
       const rebuilt = () => subjectWith({ id: "alice", attributes: { tier: "gold" } });
 
       yield* Effect.gen(function* () {
-        yield* evaluate(needsLookup).pipe(Effect.provide(testLayer(rebuilt())));
-        yield* evaluate(needsLookup).pipe(Effect.provide(testLayer(rebuilt())));
-      }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-        Effect.provide(decisionCacheLayer()),
-      );
+        yield* evaluate(needsLookup).pipe(
+          Effect.provide(testLayer(rebuilt(), { attributes: counting(calls) })),
+        );
+        yield* evaluate(needsLookup).pipe(
+          Effect.provide(testLayer(rebuilt(), { attributes: counting(calls) })),
+        );
+      }).pipe(Effect.provide(decisionCacheLayer()));
 
-      assert.strictEqual(calls.length, 0, "resolved from the subject, never the resolver");
+      assert.strictEqual(calls.length, 1, "first ask misses and resolves; second hits and does not");
     }));
 
   it.effect("TWO DIFFERENT QUESTIONS NEVER SHARE A KEY", () =>
