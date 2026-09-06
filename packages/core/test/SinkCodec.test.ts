@@ -336,6 +336,31 @@ describe("every error variant crosses, and carries its code", () => {
     }
   });
 
+  it.effect("a wire error record missing `code` still decodes — ticket 163, code is never read on decode", () =>
+    Effect.gen(function* () {
+      // `code` is written on encode but never read on decode (`decodeError`
+      // dispatches purely on `_tag`), and `SinkRecordWire` otherwise tolerates
+      // an older sender's payload predating a field (see `subjectId`'s own
+      // doc comment). Requiring `code` bought no safety and only cost
+      // rejecting an otherwise-valid `failed` payload from a sender that
+      // predates the code being added.
+      const back = yield* decodeRecord({
+        _tag: "Decision",
+        evaluationId: "e",
+        at: 0,
+        subjectId: "u1",
+        policy: P.hasPermission(read),
+        failed: { _tag: "MissingResource", attribute: "owner" },
+      });
+
+      assert.strictEqual(back._tag, "Decision");
+      if (back._tag === "Decision" && back.outcome._tag === "Failed") {
+        const error = back.outcome.error;
+        assert.strictEqual(error._tag, "MissingResource");
+        if (error._tag === "MissingResource") assert.strictEqual(error.attribute, "owner");
+      }
+    }));
+
   it("a cause that cannot be stringified does not take the record down", () => {
     // A sink must never break the thing it observes, and that includes the
     // encoder a transport calls.

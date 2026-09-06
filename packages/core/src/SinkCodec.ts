@@ -102,8 +102,19 @@ export const TraceSchema: Schema.Codec<Trace> = Schema.suspend(
  * Carries the stable `code` beside the tag. `ERROR_CODES` exists, by its own
  * doc comment, "for logging and cross-process correlation" — this is that,
  * finally used for it. The code is written on encode and **ignored on decode**:
- * the tag is what rebuilds the error, and trusting a code from the far side to
- * choose a class would let a sender name one error and get another.
+ * the tag is what rebuilds the error (see {@link decodeError}, which never
+ * reads `wire.code`), and trusting a code from the far side to choose a class
+ * would let a sender name one error and get another.
+ *
+ * `code` is `optional`, for the same rolling-deploy reason `SinkRecordWire`'s
+ * own `subjectId` is (see that field's doc comment): it was added after this
+ * schema shipped, so an older sender's `failed` payload predates it. Since
+ * decode never reads it, requiring it bought no safety and only cost
+ * rejecting an otherwise-valid record from an old process during a deploy —
+ * a real gap this file's own tolerance rationale argues against. It stays
+ * required on `encode` in spirit (every arm of {@link encodeError} still
+ * writes one); only the wire's admission of an older sender's record needed
+ * loosening.
  *
  * `cause` is rendered to a string, and that is deliberate rather than lazy. It
  * is `unknown` — whatever a caller's resolver threw — so it may be an `Error`, a
@@ -123,7 +134,7 @@ const ErrorSchema = Schema.Struct({
     "CustomPredicateError",
     "SignatureHistoryUnavailable",
   ]),
-  code: Schema.String,
+  code: Schema.optional(Schema.String),
   attribute: Schema.optional(Schema.String),
   expected: Schema.optional(Schema.String),
   relation: Schema.optional(Schema.String),
