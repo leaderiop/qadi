@@ -400,6 +400,38 @@ const evaluateActed = Effect.fn("qadi.acted")(function* (
       );
 });
 
+/**
+ * Bounds `HasRelationship.depth` before it reaches `RelationshipResolver` as
+ * traversal fuel.
+ *
+ * Every other untrusted numeric at this trust boundary is bounded: the policy
+ * tree itself by `DEFAULT_MAX_DEPTH`, a raw decoded JSON value by
+ * `MAX_DECODE_DEPTH`. `depth` is `Schema.optional(Schema.Number)` with no
+ * `min`/`max`/`finite` refinement, so a hostile persisted policy can carry
+ * `1e308`, a negative number, or — once decoded through `fromJsonValue` —
+ * `NaN`/`Infinity`, and every one of those reached
+ * `RelationshipResolver.check` unclamped. Reusing `DEFAULT_MAX_DEPTH`'s value
+ * rather than inventing a second bound: nothing here argues a relationship
+ * graph should be walked deeper than a policy tree is ever allowed to be.
+ */
+const MAX_RELATIONSHIP_DEPTH = DEFAULT_MAX_DEPTH;
+
+/**
+ * Clamps a decoded `HasRelationship.depth` to `[0, MAX_RELATIONSHIP_DEPTH]`.
+ *
+ * `undefined` passes through unchanged — "the resolver decides" is a real,
+ * distinct meaning `RelationshipResolverShape.check`'s own doc comment names,
+ * not an absent value to default. `NaN` fails every comparison, including
+ * `<= 0`, so it is called out explicitly rather than silently falling through
+ * the clamp below with no bound applied at all; a fractional depth is
+ * truncated, since fuel is spent in whole hops.
+ */
+const clampRelationshipDepth = (depth: number | undefined): number | undefined => {
+  if (depth === undefined) return undefined;
+  if (Number.isNaN(depth) || depth <= 0) return 0;
+  return Math.min(Math.trunc(depth), MAX_RELATIONSHIP_DEPTH);
+};
+
 /** `HasRelationship`'s arm, extracted for the same reason `evaluateActed` is. */
 const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
   policy: Extract<Policy, { _tag: "HasRelationship" }>,
@@ -407,14 +439,16 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
   resource: Resource | undefined,
 ) {
   const rawId = resource?.["id"];
+  const depth = clampRelationshipDepth(policy.depth);
   // Before the check, for the reason `evaluateActed` gives: the span that
   // records a missing resource id should still name the relation it wanted one
-  // for.
+  // for. Annotated with the clamped value, not the raw decoded one: the span
+  // should say what was actually asked of the resolver.
   yield* Effect.annotateCurrentSpan({
     "qadi.subject_id": subject.id,
     "qadi.relation": policy.relation,
     ...(typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
-    ...(policy.depth === undefined ? {} : { "qadi.depth": policy.depth }),
+    ...(depth === undefined ? {} : { "qadi.depth": depth }),
   });
   if (typeof rawId !== "string") {
     return yield* Effect.fail(new MissingResourceId({ relation: policy.relation }));
@@ -424,7 +458,7 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
     subjectId: subject.id,
     relation: policy.relation,
     resourceId: makeResourceId(rawId),
-    depth: policy.depth,
+    depth,
   });
   yield* Effect.annotateCurrentSpan({ "qadi.answer": related });
   // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):

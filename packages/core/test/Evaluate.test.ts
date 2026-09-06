@@ -259,6 +259,55 @@ describe("leaf policies", () => {
       // this is what a caller who wired nothing actually gets.
     }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
 
+  it.effect(
+    "a hostile depth is clamped before it reaches the resolver as traversal fuel",
+    () =>
+      Effect.gen(function* () {
+        // `HasRelationship.depth` decodes via a bare `Schema.optional(Schema.Number)`
+        // — no `min`/`max`/`finite` refinement — so a persisted policy can carry
+        // `1e308`, a negative number, or (via `fromJsonValue`) `NaN`/`Infinity`.
+        // Every other untrusted numeric at this boundary is bounded
+        // (`DEFAULT_MAX_DEPTH`, `MAX_DECODE_DEPTH`); this proves `depth` now is
+        // too, by recording exactly what `evaluateHasRelationship` forwards to
+        // the port rather than what the policy claimed.
+        const depths: Array<number | undefined> = [];
+        const recordingResolver = Layer.succeed(RelationshipResolver, {
+          check: (request) =>
+            Effect.sync(() => {
+              depths.push(request.depth);
+              return "Related";
+            }),
+        });
+
+        for (const depth of [
+          1e308,
+          -5,
+          Number.NaN,
+          Number.POSITIVE_INFINITY,
+          Number.NEGATIVE_INFINITY,
+          0,
+          3.9,
+        ]) {
+          yield* evaluate(P.hasRelationship("owner", { depth }), {
+            resource: { id: "doc-1" },
+          }).pipe(
+            Effect.provide(
+              testLayer(subjectWith({ id: "u1" }), { relationships: recordingResolver }),
+            ),
+          );
+        }
+        // No `depth` at all still means "the resolver decides" — clamping must
+        // not invent a bound where the caller asked for none.
+        yield* evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
+          Effect.provide(
+            testLayer(subjectWith({ id: "u1" }), { relationships: recordingResolver }),
+          ),
+        );
+
+        assert.deepStrictEqual(depths, [64, 0, 0, 64, 0, 0, 3, undefined]);
+      }),
+  );
+
   it.effect("HasRelationship fails without resource.id, naming the relation", () =>
     Effect.gen(function* () {
       const r = yield* Effect.result(
