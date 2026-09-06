@@ -14,7 +14,7 @@ import type * as HttpServerRequest from "effect/unstable/http/HttpServerRequest"
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import type { Authorized, CurrentSubject, EvaluationServices, Permission, Policy, Resource } from "@qadi/core";
 import { currentSubjectLayer, guard } from "@qadi/core";
-import { ENFORCEMENT_ERROR_TAGS, toResponse } from "./QadiHttpError.ts";
+import { handleEnforcementErrors } from "./QadiHttpError.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
@@ -63,20 +63,19 @@ export const guardRoute =
     never,
     Exclude<R | EvaluationServices, CurrentSubject> | LR | SubjectExtractor
   > =>
-    Effect.gen(function* () {
-      const resource = yield* loadResource(request);
-      const subject = yield* SubjectExtractor.extract(request);
-      return yield* guard(permission, policy)(resource, handler).pipe(
-        Effect.provide(currentSubjectLayer(subject)),
-      );
-    }).pipe(
-      Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))),
-      // The credential store broke — an outage, not a denial, so 502 rather
-      // than 403 (INV-QD-006). The `never` error channel this route declares is
-      // what forced this arm to exist rather than letting the failure escape.
-      Effect.catchTag("SubjectExtractionFailed", (error) =>
-        Effect.logError(`qadi/http: subject extraction failed — ${error.reason}`).pipe(
-          Effect.as(HttpServerResponse.empty({ status: 502 })),
-        ),
-      ),
+    handleEnforcementErrors(
+      Effect.gen(function* () {
+        // Subject extraction runs before `loadResource`. A denial still
+        // reaches `loadResource` either way — the policy cannot be evaluated
+        // without the resource it might read — but an extraction *failure*
+        // (a broken credential store, an outage, not a denial) must now
+        // short-circuit before `loadResource` ever runs, rather than after
+        // paying its cost first. `RequirePermission`'s middleware already
+        // gets this order right; this route previously did not.
+        const subject = yield* SubjectExtractor.extract(request);
+        const resource = yield* loadResource(request);
+        return yield* guard(permission, policy)(resource, handler).pipe(
+          Effect.provide(currentSubjectLayer(subject)),
+        );
+      }),
     );
