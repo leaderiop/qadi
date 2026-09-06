@@ -1,5 +1,23 @@
 # @qadi/predicate-sql
 
+## 0.4.0
+
+### Patch Changes
+
+- Closed a SQL-injection surface in `@qadi/predicate-sql`: column identifiers
+  were quoted without validation, so an embedded quote in a policy-derived
+  column name reached the generated query unescaped. Column identifiers are
+  now refused outright when they fall outside a safe allowlist, before
+  quoting ever runs.
+
+  Also fixed two agreement/injection bugs shared by both predicate compilers'
+  translation logic — found together because the two packages share the same
+  translation shape and the same bug class had been introduced in both.
+
+- Updated dependencies
+- Updated dependencies
+  - @qadi/core@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

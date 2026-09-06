@@ -1,5 +1,36 @@
 # @qadi/audit
 
+## 0.4.0
+
+### Minor Changes
+
+- `ChainIntegrity`/`verifyChainIntegrity`/`ChainIntegrityError`/
+  `chainIntegrityVerified` are renamed to `SequenceIntegrity`/
+  `verifySequenceIntegrity`/`SequenceIntegrityError`/
+  `sequenceIntegrityVerified` throughout — no compatibility alias.
+
+  The prior names read as cryptographic tamper-evidence to a compliance
+  reviewer; what this actually checks is gap-and-duplicate detection over
+  caller-assigned sequence numbers, nothing more. **Breaking**: a consumer
+  importing any of the four old names must switch to the new ones — there is
+  no rename shim.
+
+### Patch Changes
+
+- Fixed two correctness issues in the audit sink's circuit breaker:
+  - **Half-open now admits exactly one concurrent probe write.** Previously
+    every write arriving while the breaker was half-open could race in as its
+    own probe, so a burst of concurrent writes could trip the breaker back to
+    open (or close it) based on more than one outcome instead of the single
+    probe half-open is meant to gate on.
+  - **An audit-entry dropped while the breaker is open is now logged**, even
+    when no `AuditStagingPort` is wired to catch it. Previously that drop was
+    silent — the entry disappeared with no observable trace at all.
+
+- Updated dependencies
+- Updated dependencies
+  - @qadi/core@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

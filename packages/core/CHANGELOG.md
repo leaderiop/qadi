@@ -1,5 +1,41 @@
 # @qadi/core
 
+## 0.4.0
+
+### Patch Changes
+
+- Fixed a race in `DecisionCache`: a `getOrCompute` in flight when `clear()`
+  runs could still write its result into the cache once it finished, silently
+  resurrecting an entry the caller had just asked to be flushed. The cache now
+  recognizes a generation that has moved on under it and discards the stale
+  compute instead of storing it.
+- Four hardening fixes against attacker-controlled policy and attribute data,
+  found by an internal audit rather than in production.
+
+  **Policy JSON decode now bounds nesting depth before `Schema` walks it.** A
+  ~60k-deep nested policy document previously threw a raw `RangeError` out of
+  `decodeUnknownEffect` instead of failing through the `Effect` error channel —
+  a stack overflow masquerading as an unhandled defect.
+
+  **`Matcher`'s `getByPath` and `FieldMatch` now require `Object.hasOwn` before
+  indexing.** Without it, a policy field path of `__proto__` or `constructor`
+  read across the prototype chain instead of failing to find the field.
+
+  **`FieldPath.projectAt` and `Decision.project` no longer accept prototype
+  pollution through a projected field name.** Both now build the projected
+  object with `Object.create(null)` and `Object.defineProperty` instead of
+  `Object.assign`, so a field named `__proto__` in attacker-controlled resource
+  data can no longer reach `Object.prototype`.
+
+  **`SecurityLabel.isSecurityLabel` now rejects a non-finite `level`.** `NaN`
+  already failed safe (`Incomparable` against everything), but an
+  `Infinity`-level label forged into untrusted subject or resource data would
+  have dominated every comparison in an MLS/Biba policy. Refused now via
+  `Number.isFinite`.
+
+  No public API shape changed; all four are behavior corrections against
+  malformed or hostile input.
+
 ## 0.3.0
 
 ### Minor Changes

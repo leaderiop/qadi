@@ -1,5 +1,23 @@
 # @qadi/react
 
+## 0.4.0
+
+### Patch Changes
+
+- **`@qadi/devtools`**: deduped the waiting/failure ladder in `components.tsx`
+  — a decision panel could render conflicting waiting and failure states for
+  the same question at once; the ladder now reflects exactly one state per
+  question.
+
+  **`@qadi/react`**: a decision atom's suspense promise is now resolved
+  exactly once, when the decision actually settles. Previously a
+  time-of-check-to-time-of-use gap could leave a suspended component waiting
+  on a promise that had already settled, or resolve one twice.
+
+- Updated dependencies
+- Updated dependencies
+  - @qadi/core@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

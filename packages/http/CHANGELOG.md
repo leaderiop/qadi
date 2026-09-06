@@ -1,5 +1,35 @@
 # @qadi/http
 
+## 0.4.0
+
+### Minor Changes
+
+- **`decisionStreamRoute` gains an optional `reauth` option.** Without it,
+  `/__decisions` authorizes only once, at connect — a revoked or logged-out
+  principal whose connection stayed open kept receiving every decision the
+  process made for as long as the stream stayed up. `reauth: { interval }`
+  re-extracts the subject from the same request and re-evaluates the policy
+  against it on that interval, ending the stream on the first failed recheck;
+  `EventSource`'s own reconnect recovers through a fresh connect-time check.
+  Off by default — it is meaningless without a `SubjectExtractor` whose lookup
+  actually consults something revocable. Adds `DecisionStreamOptions` and
+  `reauthCheck` (the latter exported so the recheck is testable directly
+  against `TestClock`, without a live SSE connection).
+
+  **A frame with a non-JSON-safe resource no longer crashes the whole feed.**
+  `decisionStreamRoute` now shares `@qadi/core`'s `isJsonSafe` guard (previously
+  duplicated as a private helper inside `@qadi/audit`, now a single shared
+  implementation): one bad decision's resource —
+  a circular reference, a `BigInt` — drops just that one SSE frame instead of
+  throwing out of `JSON.stringify` and ending every subscriber's connection
+  over it.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @qadi/core@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
