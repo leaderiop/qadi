@@ -69,6 +69,18 @@ const BEARER_PREFIX = "bearer ";
  * is `401` with a `WWW-Authenticate` challenge, and `AccessDenied` carries no
  * authentication state for `toResponse` to distinguish, so this package cannot
  * yet express one. Recorded rather than silently accepted.
+ *
+ * **The token is trimmed before it reaches `lookup`, and an empty result is
+ * treated as no credential at all rather than forwarded.** RFC 6750 §2.1
+ * separates the scheme from the token by exactly one space, but real clients
+ * are not always that careful — `"Bearer  abc"` (two spaces) or a bare
+ * `"Bearer "` both used to slice past only the fixed-length prefix and hand
+ * `lookup` a mangled or empty string unchanged: a leading-whitespace token for
+ * the former, `lookup("")` for the latter. Neither is a bypass — both fail
+ * closed through an ordinary lookup miss, the same as any other unrecognized
+ * token — but silently mangling a credential rather than cleanly rejecting it
+ * is its own defect, distinct from and adjacent to the case-sensitivity one
+ * above.
  */
 export const subjectExtractorBearer = (
   lookup: (token: string) => Effect.Effect<AuthSubject, SubjectExtractionFailed>,
@@ -77,9 +89,11 @@ export const subjectExtractorBearer = (
     extract: (request) =>
       Headers.get(request.headers, "authorization").pipe(
         Option.filter((header) => header.toLowerCase().startsWith(BEARER_PREFIX)),
+        Option.map((header) => header.slice(BEARER_PREFIX.length).trim()),
+        Option.filter((token) => token.length > 0),
         Option.match({
           onNone: () => Effect.succeed(anonymous),
-          onSome: (header) => lookup(header.slice(BEARER_PREFIX.length)),
+          onSome: (token) => lookup(token),
         }),
       ),
   });
