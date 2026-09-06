@@ -27,7 +27,7 @@ import type {
   SignatureHistory,
 } from "@qadi/core";
 import { currentSubjectLayer, guard } from "@qadi/core";
-import { ENFORCEMENT_ERROR_TAGS, toResponse } from "./QadiHttpError.ts";
+import { handleMiddlewareEnforcementErrors } from "./QadiHttpError.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 // Named `PermissionRequirement`/`PublicDeclaration`, not the usual
@@ -85,11 +85,23 @@ export const publicEndpoint = (reason: string): PublicDeclaration => ({ reason }
  * the handler, via `@qadi/core`'s `guard` directly, as defense in depth.
  *
  * Empty, deliberately, rather than absent. A policy reading a resource
- * attribute here finds nothing and **denies** (403); the same policy evaluated
- * with no resource at all *fails* with `MissingResource` (500), reporting a
- * caller's request as a server fault. This comment described the former while
- * `guard` did the latter, because the resource never reached evaluation — see
- * `guard` in `@qadi/core`.
+ * attribute here finds nothing and, for a positive matcher, **denies** (403);
+ * the same policy evaluated with no resource at all *fails* with
+ * `MissingResource` (500), reporting a caller's request as a server fault.
+ * This comment described the former while `guard` did the latter, because the
+ * resource never reached evaluation — see `guard` in `@qadi/core`.
+ *
+ * **That "denies" claim does not hold for a negative matcher.** `Neq` (or any
+ * matcher built on it) compared against an attribute this empty resource does
+ * not have resolves the comparison against `undefined`, and `undefined` is
+ * unequal to anything — so the matcher is *true* and the policy **allows**,
+ * exactly the [INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)
+ * hazard: a resource-scoped policy meant to refuse a mismatch, evaluated
+ * against no resource at all, quietly permits instead. This middleware runs
+ * before any resource is loaded, so it cannot be the place that catches this —
+ * a policy with a negative matcher over a resource attribute needs a
+ * resource-scoped re-check in the handler, via `@qadi/core`'s `guard` directly
+ * against the real resource, as defense in depth.
  */
 const NO_RESOURCE: Resource = {};
 
@@ -214,21 +226,14 @@ export const RequirePermissionLive: Layer.Layer<RequirePermission, never, Subjec
 
       const { permission, policy } = required.value;
 
-      return Effect.gen(function* () {
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        const subject = yield* extractor.extract(request);
-        return yield* guard(permission, policy)(NO_RESOURCE, () => httpEffect).pipe(
-          Effect.provide(currentSubjectLayer(subject)),
-        );
-      }).pipe(
-        Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))),
-        // A credential store that broke is an outage, not a denial — 502, the
-        // same status a broken AttributeResolver gets (INV-QD-006).
-        Effect.catchTag("SubjectExtractionFailed", (error) =>
-          Effect.logError(`qadi/http: subject extraction failed — ${error.reason}`).pipe(
-            Effect.as(HttpServerResponse.empty({ status: 502 })),
-          ),
-        ),
+      return handleMiddlewareEnforcementErrors(
+        Effect.gen(function* () {
+          const request = yield* HttpServerRequest.HttpServerRequest;
+          const subject = yield* extractor.extract(request);
+          return yield* guard(permission, policy)(NO_RESOURCE, () => httpEffect).pipe(
+            Effect.provide(currentSubjectLayer(subject)),
+          );
+        }),
       );
     };
   }),
