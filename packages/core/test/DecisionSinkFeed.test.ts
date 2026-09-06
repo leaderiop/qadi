@@ -166,4 +166,18 @@ describe("decisionSinkFeed", () => {
       );
     }
   });
+
+  it("rejects a replay that is not a non-negative integer", () => {
+    // Same failure shape as the capacity check above — thrown synchronously at
+    // the call site, not deferred into the returned Effect — so a negative or
+    // fractional `replay` can't be silently coerced into something PubSub
+    // accepts. Unlike capacity, 0 is valid here (it's the documented default).
+    for (const replay of [-1, 1.5, Number.NaN]) {
+      assert.throws(
+        () => decisionSinkFeed({ replay }),
+        /non-negative integer/,
+        `replay ${replay}`,
+      );
+    }
+  });
 });

@@ -66,8 +66,18 @@ export const decisionSinkFeed = (options?: {
     );
   }
 
+  const replay = options?.replay ?? 0;
+  if (!(Number.isInteger(replay) && replay >= 0)) {
+    // Non-negative, not positive: 0 is the documented default — a subscriber
+    // that gets no backlog — so unlike `capacity` above, zero is coherent and
+    // only negative or fractional counts are the mistake being caught here.
+    throw new Error(
+      `decisionSinkFeed: replay must be a non-negative integer, got ${options?.replay}`,
+    );
+  }
+
   return Effect.map(
-    PubSub.sliding<SinkRecord>({ capacity, replay: options?.replay ?? 0 }),
+    PubSub.sliding<SinkRecord>({ capacity, replay }),
     (pubsub) => ({
       layer: Layer.succeed(DecisionSink, {
         // `publish`, not `publishUnsafe`. `publishUnsafe` only tries the raw
