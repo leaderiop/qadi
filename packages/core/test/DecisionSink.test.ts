@@ -199,6 +199,145 @@ describe("DecisionSink — failures are observable", () => {
     }));
 });
 
+describe("DecisionSink — record ordering", () => {
+  // Pins the ordering `evaluate`'s final `emit` call documents: "Last, after
+  // every other emission, so a sink cannot observe a decision the metrics and
+  // span have not yet recorded." Nothing asserted this before — a sink that
+  // fired before the metrics update would have been indistinguishable from a
+  // correct one in every other test in this file, since none of them read a
+  // metric from inside the sink itself.
+  //
+  // Proven by reading `Metric.snapshot` *from inside the sink's own `record`
+  // effect*: both run in the same fiber, under the same `isolatedMetrics`
+  // registry, so a snapshot taken there sees exactly the counter state that
+  // existed at the moment the sink was invoked — a direct read of "did the
+  // metric update happen-before this", not an inference from timing.
+  const counterOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, attributes: Record<string, string>) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Counter" }> =>
+        s.type === "Counter" &&
+        s.id === "qadi_decisions_total" &&
+        Object.entries(attributes).every(([k, v]) => s.attributes?.[k] === v),
+    );
+
+  const errorFrequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
+        s.type === "Frequency" && s.id === "qadi_evaluation_errors_total",
+    );
+
+  it.effect("an allow's own counter is already incremented by the time the sink observes it", () =>
+    Effect.gen(function* () {
+      const countsAtRecordTime: Array<number | undefined> = [];
+      const sink = Layer.succeed(DecisionSink, {
+        record: (record) =>
+          record._tag === "Decision" && record.outcome._tag === "Decided"
+            ? Effect.map(Metric.snapshot, (snapshots) => {
+                countsAtRecordTime.push(counterOf(snapshots, { outcome: "allow" })?.state.count);
+              })
+            : Effect.void,
+      });
+
+      yield* isolatedMetrics(
+        evaluate(P.hasPermission(read)).pipe(Effect.provide(sink), Effect.provide(testLayer(allowed))),
+      );
+
+      // Not merely defined: exactly 1, since this is the only evaluation the
+      // isolated registry has seen — proving the increment, not just its
+      // eventual presence.
+      assert.deepStrictEqual(countsAtRecordTime, [1]);
+    }));
+
+  it.effect("a deny's own counter is already incremented by the time the sink observes it", () =>
+    Effect.gen(function* () {
+      const countsAtRecordTime: Array<number | undefined> = [];
+      const sink = Layer.succeed(DecisionSink, {
+        record: (record) =>
+          record._tag === "Decision" && record.outcome._tag === "Decided"
+            ? Effect.map(Metric.snapshot, (snapshots) => {
+                countsAtRecordTime.push(counterOf(snapshots, { outcome: "deny" })?.state.count);
+              })
+            : Effect.void,
+      });
+
+      yield* isolatedMetrics(
+        evaluate(P.hasPermission(read)).pipe(
+          Effect.provide(sink),
+          Effect.provide(testLayer(subjectWith({}))),
+        ),
+      );
+
+      assert.deepStrictEqual(countsAtRecordTime, [1]);
+    }));
+
+  it.effect(
+    "a Failed record only reaches the sink after qadi_evaluation_errors_total already counted it",
+    () =>
+      Effect.gen(function* () {
+        const countsAtRecordTime: Array<number | undefined> = [];
+        const sink = Layer.succeed(DecisionSink, {
+          record: (record) =>
+            record._tag === "Decision" && record.outcome._tag === "Failed"
+              ? Effect.map(Metric.snapshot, (snapshots) => {
+                  countsAtRecordTime.push(
+                    errorFrequencyOf(snapshots)?.state.occurrences.get("AttributeResolveError"),
+                  );
+                })
+              : Effect.void,
+        });
+
+        yield* isolatedMetrics(
+          Effect.result(
+            evaluate(P.hasAttribute("clearance", M.gte(3))).pipe(Effect.provide(sink)),
+          ).pipe(Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes }))),
+        );
+
+        assert.deepStrictEqual(countsAtRecordTime, [1]);
+      }),
+  );
+
+  it.effect(
+    "holds under concurrent evaluations too: each record still trails its own metric update",
+    () =>
+      Effect.gen(function* () {
+        const seen: Array<{ readonly outcome: "allow" | "deny"; readonly counted: boolean }> = [];
+        const sink = Layer.succeed(DecisionSink, {
+          record: (record) =>
+            record._tag === "Decision" && record.outcome._tag === "Decided"
+              ? Effect.map(Metric.snapshot, (snapshots) => {
+                  const outcome = isAllowed(record.outcome.decision) ? "allow" : "deny";
+                  const count = counterOf(snapshots, { outcome })?.state.count ?? 0;
+                  seen.push({ outcome, counted: count >= 1 });
+                })
+              : Effect.void,
+        });
+
+        yield* isolatedMetrics(
+          Effect.all(
+            [
+              evaluate(P.hasPermission(read)).pipe(Effect.provide(testLayer(allowed))),
+              evaluate(P.hasPermission(read)).pipe(
+                Effect.provide(testLayer(subjectWith({}))),
+              ),
+            ],
+            { concurrency: "unbounded" },
+          ).pipe(Effect.provide(sink)),
+        );
+
+        assert.strictEqual(seen.length, 2);
+        // Every record's own outcome counter had already been incremented by
+        // the time that same record reached the sink — concurrency does not
+        // let one evaluation's sink call observe the other's metric instead of
+        // its own not having run yet.
+        assert.isTrue(seen.every((s) => s.counted));
+        assert.sameMembers(
+          seen.map((s) => s.outcome),
+          ["allow", "deny"],
+        );
+      }),
+  );
+});
+
 describe("DecisionSink — a sink cannot change a decision", () => {
   /** The verdict reached with no sink at all: the baseline every case must match. */
   const baseline = evaluate(P.hasPermission(read));
