@@ -177,6 +177,27 @@ describe("empty-collection boundaries", () => {
   });
 });
 
+describe("eq/neq against an unresolved reference", () => {
+  // `subject("stae")` is a typo for `subject("dept")` — no such attribute
+  // exists on `ctx.subject`, so it resolves to `undefined` (see `getByPath`,
+  // which is total). `eq` and `neq` are both total over that, but NOT
+  // symmetrically safe: see the doc comments on `eq`/`neq` in `Matcher.ts`.
+  it("eq denies against an unresolved reference — fails safe", () => {
+    assert.isFalse(run(M.eq(M.subject("stae")), "eng"));
+  });
+
+  it("neq ALLOWS against the same unresolved reference — fails open, and is accepted as-is", () => {
+    // `hasAttribute("state", neq(subject("stae")))` reads like "state is not
+    // stae" and is actually "always true": `value !== undefined` is true for
+    // every attribute value that itself isn't `undefined`.
+    assert.isTrue(run(M.neq(M.subject("stae")), "eng"));
+    assert.isTrue(run(M.neq(M.subject("stae")), "anything at all"));
+    // The one value it does NOT allow against is `undefined` itself — the
+    // attribute being absent, same as the reference being unresolved.
+    assert.isFalse(run(M.neq(M.subject("stae")), undefined));
+  });
+});
+
 describe("eq vs inArray: NaN diverges under === vs SameValueZero", () => {
   it("eq never matches NaN, even against itself — === defines NaN unequal to NaN", () => {
     assert.isFalse(run(M.eq(M.literal(Number.NaN)), Number.NaN));

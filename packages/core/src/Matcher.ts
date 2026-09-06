@@ -135,7 +135,32 @@ export const Matcher: Schema.Codec<Matcher> = Schema.Union([
  * does. Pinned in `Matcher.test.ts`, not fixed.
  */
 export const eq = (ref: ValueRef): Matcher => ({ _tag: "Eq", ref });
-/** Attribute does not equal the referenced value. */
+/**
+ * Attribute does not equal the referenced value.
+ *
+ * `eq` and `neq` are both total: a `ValueRef` that cannot be resolved (a
+ * typo'd `subject`/`resource` path, most commonly) resolves to `undefined`
+ * rather than failing, the same way an unresolved `dominates` operand above
+ * resolves to "not a `SecurityLabel`" rather than failing. The two matchers
+ * are NOT symmetric under that failure, though, and this is the one place in
+ * the file where the total-function convention resolves to two different
+ * safety directions instead of one:
+ *
+ * - `eq(ref)` against an unresolved `ref` compares `value === undefined`,
+ *   which is `false` for every attribute value that itself isn't `undefined`
+ *   — a typo'd path DENIES. Fail-safe.
+ * - `neq(ref)` against the same unresolved `ref` compares `value !== undefined`,
+ *   which is `true` for every attribute value that isn't `undefined` — a
+ *   typo'd path ALLOWS. `hasAttribute("state", neq(subject("stae")))` reads
+ *   as "state is not stae" and is actually "always true".
+ *
+ * This is accepted as-is, not treated as a bug to fix: there is no
+ * resolution failure to surface (both `subject()` and `resource()` are
+ * total lookups by design, per `getByPath`), so there is nothing for `neq`
+ * to deny *because of*. A policy author still needs to spell the path
+ * correctly, exactly as with every other matcher here. Pinned in both
+ * directions in `Matcher.test.ts`.
+ */
 export const neq = (ref: ValueRef): Matcher => ({ _tag: "Neq", ref });
 /**
  * The attribute's security label **dominates** the referenced one — at least as
