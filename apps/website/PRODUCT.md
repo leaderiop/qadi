@@ -30,7 +30,7 @@ A developer lands on the homepage from a search, a link, or the npm/GitHub listi
 ## Capabilities and Constraints
 
 - Nine public packages get homepage and docs billing: `@qadi/core`, `@qadi/testing`, `@qadi/react`, `@qadi/promise`, `@qadi/http`, `@qadi/devtools`, `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/audit` — depth scaled by importance (`core`/`audit`/`react` deepest, three docs pages each).
-- Four packages (`@qadi/core`, `@qadi/testing`, `@qadi/react`, `@qadi/promise`) are published on npm at `v0.2.0`; the remaining five ship at `0.1.0`, unpublished. All nine are pre-1.0; the website must not imply a stable, released API.
+- All nine packages are published on npm at `0.4.0` (verified live against the registry, 2026-09-06). All nine are pre-1.0; the website must not imply a stable, released API.
 - `@qadi/audit` is explicitly **not** a compliance certification of any kind — no "GxP compliant," "21 CFR Part 11 compliant," "validated," or "certified" claim may appear anywhere on the site. `hasSignature`/e-signature capture is trust-on-presence, not live cryptographic validation, and that gap is stated plainly rather than hidden.
 - The site is static content (Astro-built), not an interactive product surface itself — no live in-browser policy evaluator exists yet (a `@effect/monaco-editor`-style demo was flagged as future work, not part of the current build).
 - Live deployment (hosting, custom domain, deploy-on-merge CI) is separate follow-up work; the real domain is `qadi.dev`.

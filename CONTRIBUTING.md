@@ -31,6 +31,7 @@ drift out of sync with it.
 | A claim that something is absent, in `spec/devtools-spec/` | Register it in that folder's "Claims of absence" table with the reason — `scripts/check-devtools-claims.mjs` fails otherwise |
 | A merge gate | `pnpm check` and `spec/process/definitions-of-done.md` together — `scripts/check-dod-table.mjs` fails otherwise. Name the script beside any "gate N" |
 | Package `dependencies`/publishing | `AGENTS.md` §16 — `pnpm publish` only, `tsconfig.build.json` membership |
+| Publish-status prose in README/CONTRIBUTING/roadmap/website | `scripts/check-publish-status.mjs` fails if a quoted version disagrees with `package.json`'s |
 
 ## Releasing a version
 
@@ -59,16 +60,18 @@ that specific package changed. Verify what would actually happen with
 `pnpm exec changeset status` before running either command; it lists which
 packages have pending changesets and what the resulting versions would be.
 
-**State as of this writing** (verified live against the npm registry, not
-assumed): the root and every `packages/*/package.json` read `0.3.0`, but only
-four packages have ever actually been published — `@qadi/core`, `@qadi/react`,
-`@qadi/promise`, `@qadi/testing` — and all four sit at `0.2.0` on npm. `.changeset/`
-holds no pending changesets. `@qadi/http`, `@qadi/devtools`, `@qadi/audit`,
-`@qadi/predicate-sql` and `@qadi/predicate-prisma` have never been published at
-all; the next `pnpm changeset-publish` ships all five for the first time,
-under the permanent fixed group above, at whatever version the other four
-land on. `pnpm publish`, never `npm publish` — AGENTS.md §16 explains why the
-workspace-time `catalog:`/`workspace:*` protocols require it.
+**State as of this writing** (verified live against the npm registry,
+2026-09-06): the root and every `packages/*/package.json` read `0.4.0`, and
+all nine packages are published at `0.4.0` on npm — the five that had never
+been published before (`@qadi/http`, `@qadi/devtools`, `@qadi/audit`,
+`@qadi/predicate-sql`, `@qadi/predicate-prisma`) went out for the first time
+in this same release, under the permanent fixed group above. `.changeset/`
+holds no pending changesets. `pnpm publish`, never `npm publish` — AGENTS.md
+§16 explains why the workspace-time `catalog:`/`workspace:*` protocols
+require it. `scripts/check-publish-status.mjs` (merge gate 24) keeps this
+paragraph's version honest going forward — it fails if a version quoted here,
+in README.md, in spec/roadmap.md, or in apps/website/PRODUCT.md ever
+disagrees with `package.json`'s again.
 
 ## Why the rules read the way they do
 

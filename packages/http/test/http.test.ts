@@ -41,6 +41,7 @@ import {
   ENFORCEMENT_ERROR_TAGS,
   PermissionRegistryLive,
   permissionRegistryRoute,
+  permissionRegistryRouteUnguarded,
   PublicEndpoint,
   RequiredPermission,
   RequirePermission,
@@ -271,6 +272,11 @@ describe("@qadi/http", () => {
       }> = yield* Effect.promise(() => response.json());
 
       const byPermission = new Map(body.map((entry) => [entry.permission, entry.endpoints]));
+      // Exactly these two keys and no others: `registerApi` walks `Api`'s own
+      // endpoints to build its `found` list before registering them, and a
+      // corrupted walk (an extra or malformed entry) would still pass a check
+      // that only ever reads two known keys back out with `.get`.
+      assert.deepStrictEqual([...byPermission.keys()].sort(), ["document:read", "document:write"]);
       assert.deepStrictEqual(byPermission.get("document:read"), [
         { method: "GET", path: "/documents", group: "documents" },
       ]);
@@ -283,6 +289,30 @@ describe("@qadi/http", () => {
         { method: "POST", path: "/documents/write2" },
       ]);
     }));
+
+  it.effect("the registry route with no guard serves the same snapshot to an anonymous caller", () =>
+    Effect.gen(function* () {
+      // `permissionRegistryRouteUnguarded` is the explicit, logged opt-out
+      // BEH-QD-180 requires — a route nothing above exercises otherwise. Its
+      // own layer, not `AppLayer`: both variants mount at `/__permissions`
+      // and cannot coexist on one router.
+      const unguardedApp = permissionRegistryRouteUnguarded("test fixture").pipe(
+        Layer.provideMerge(RegistryLayer),
+        Layer.provideMerge(HttpServer.layerServices),
+      );
+      const { handler } = HttpRouter.toWebHandler(unguardedApp);
+      const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
+      assert.strictEqual(response.status, 200);
+      const body: ReadonlyArray<{ readonly permission: string }> = yield* Effect.promise(() => response.json());
+      // This fixture composes `RegistryLayer` alone (the `HttpApi`-sourced half
+      // registerApi populates), not the `addGuardedRoute` write routes too, so
+      // only `Api`'s own annotated endpoint is expected here.
+      assert.deepStrictEqual(body.map((entry) => entry.permission), ["document:read"]);
+    }));
+
+  it("publicEndpoint carries the reason a reviewer reads later", () => {
+    assert.strictEqual(publicEndpoint("liveness probe, no subject exists yet").reason, "liveness probe, no subject exists yet");
+  });
 
   it.effect("a denied write request never reaches the handler, and gets 403", () =>
     Effect.gen(function* () {
