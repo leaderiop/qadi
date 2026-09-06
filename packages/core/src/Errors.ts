@@ -85,6 +85,23 @@ export class CircularRoleInheritance extends Data.TaggedError(
   readonly cycle: ReadonlyArray<string>;
 }> {}
 
+/**
+ * A role graph loaded from serialized form names the same role more than once.
+ *
+ * `resolveRoleGraph` built `byName` from a `Map`, so the last definition for a
+ * repeated name silently won and every earlier definition's permissions
+ * vanished with nothing said at any level — the same shape of defect an
+ * unknown parent name has, except there the surviving behavior (grant less) is
+ * defensible and here it is not: which of two same-named definitions "wins" is
+ * not a decision this library can make on a caller's behalf, so it fails
+ * instead of guessing.
+ */
+export class DuplicateRoleDefinition extends Data.TaggedError(
+  "DuplicateRoleDefinition",
+)<{
+  readonly names: ReadonlyArray<string>;
+}> {}
+
 /** A permission segment contained the reserved `:` separator. */
 export class InvalidPermissionSegment extends Data.TaggedError(
   "InvalidPermissionSegment",
@@ -178,6 +195,7 @@ export type QadiError =
   | AccessDenied
   | UndischargedObligation
   | CircularRoleInheritance
+  | DuplicateRoleDefinition
   | InvalidPermissionSegment;
 
 /**
@@ -202,6 +220,7 @@ export const ERROR_CODES = {
   "PolicyNotTranslatable": "ACL012",
   "CustomPredicateError": "ACL013",
   "SignatureHistoryUnavailable": "ACL014",
+  "DuplicateRoleDefinition": "ACL015",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

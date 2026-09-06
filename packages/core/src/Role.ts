@@ -12,7 +12,7 @@
  * than referenced. That path lives in {@link resolveRoleGraph}.
  */
 import * as Effect from "effect/Effect";
-import { CircularRoleInheritance } from "./Errors.ts";
+import { CircularRoleInheritance, DuplicateRoleDefinition } from "./Errors.ts";
 import type { Permission, PermissionKey } from "./Permission.ts";
 import { permissionKey } from "./Permission.ts";
 
@@ -38,14 +38,23 @@ export const role = <const TName extends string>(config: {
  *
  * Depth-first with a visited set, so a diamond (two parents sharing a
  * grandparent) is walked once rather than exponentially.
+ *
+ * **The visited set is keyed on identity, not on `name`.** Two distinct `Role`
+ * objects that happen to share a `name` are not the same role — a by-value
+ * graph has no registry forbidding it, unlike the name-indexed catalogues
+ * {@link resolveRoleGraph} resolves. Keying on `name` treated the second one as
+ * already visited and silently dropped its permissions from the result; keying
+ * on the object itself still collapses a true diamond (the same reference
+ * reached by two paths) while visiting two same-named-but-distinct roles
+ * separately, as their differing permissions require.
  */
 export const flattenPermissions = (self: Role): ReadonlySet<PermissionKey> => {
   const keys = new Set<PermissionKey>();
-  const seen = new Set<string>();
+  const seen = new Set<Role>();
 
   const visit = (current: Role): void => {
-    if (seen.has(current.name)) return;
-    seen.add(current.name);
+    if (seen.has(current)) return;
+    seen.add(current);
     for (const p of current.permissions) keys.add(permissionKey(p));
     for (const parent of current.inherits) visit(parent);
   };
@@ -88,15 +97,17 @@ export interface PermissionGrant {
  *
  * Diamonds resolve the same way they do there — first path wins, by the shared
  * visited-set walk. A role reachable twice is reported once, by the route
- * depth-first order reached first.
+ * depth-first order reached first — "reachable twice" meaning the same object
+ * reached by two paths, not merely two roles sharing a `name`; the visited set
+ * is keyed on identity for the same reason `flattenPermissions`'s is.
  */
 export const permissionProvenance = (self: Role): ReadonlyArray<PermissionGrant> => {
   const grants: Array<PermissionGrant> = [];
-  const seen = new Set<string>();
+  const seen = new Set<Role>();
 
   const visit = (current: Role, path: ReadonlyArray<string>): void => {
-    if (seen.has(current.name)) return;
-    seen.add(current.name);
+    if (seen.has(current)) return;
+    seen.add(current);
     const here = [...path, current.name];
     for (const p of current.permissions) {
       grants.push({ permission: permissionKey(p), grantedBy: current.name, path: here });
@@ -115,11 +126,20 @@ export const flattenAll = (roles: ReadonlyArray<Role>): ReadonlySet<PermissionKe
   return keys;
 };
 
-/** The transitive set of role names a role stands for, including its own. */
+/**
+ * The transitive set of role names a role stands for, including its own.
+ *
+ * Walked with an identity-keyed visited set, like {@link flattenPermissions} —
+ * two distinct `Role` objects sharing a `name` are still two roles to walk, so
+ * a role reachable only through the second one is not skipped just because its
+ * name was already added to the result.
+ */
 export const roleNames = (self: Role): ReadonlySet<string> => {
   const names = new Set<string>();
+  const seen = new Set<Role>();
   const visit = (current: Role): void => {
-    if (names.has(current.name)) return;
+    if (seen.has(current)) return;
+    seen.add(current);
     names.add(current.name);
     for (const parent of current.inherits) visit(parent);
   };
@@ -137,10 +157,11 @@ export interface RoleDefinition {
 /**
  * Resolves name-referenced role definitions into by-value {@link Role} values.
  *
- * This is the only place a cycle is representable, so it is the only place that
- * can fail. An unknown parent name is treated as a cycle-free no-op rather than
- * an error: partial role catalogues are a normal deployment state, and failing
- * closed here would deny every request rather than merely granting less.
+ * This is the only place a cycle or a duplicate name is representable, so it is
+ * the only place that can fail on either. An unknown parent name is treated as
+ * a cycle-free no-op rather than an error: partial role catalogues are a normal
+ * deployment state, and failing closed here would deny every request rather
+ * than merely granting less.
  *
  * **That drop is now reported.** Dropping is right; doing it silently was not.
  * A typo in one parent name produced a role granting fewer permissions than its
@@ -152,6 +173,15 @@ export interface RoleDefinition {
  * Reported once per resolve, with every unknown name, rather than once per
  * occurrence: a catalogue missing one widely-inherited role would otherwise
  * emit the same warning dozens of times and bury it.
+ *
+ * **A repeated definition name fails outright, rather than being reported.**
+ * `byName` used to be built with a `Map`, so the last definition for a repeated
+ * name silently won and every earlier definition's permissions vanished with
+ * nothing said. Unlike an unknown parent, there is no defensible "grant less"
+ * reading here — the two definitions disagree about what the name means, and
+ * silently picking one is a guess this library should not make. It fails with
+ * {@link DuplicateRoleDefinition} before any resolution happens, naming every
+ * repeated name at once.
  */
 export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
   definitions: ReadonlyArray<RoleDefinition>,
@@ -160,6 +190,18 @@ export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
     readonly onUnknownParent?: (names: ReadonlyArray<string>) => void;
   },
 ) {
+  const nameCounts = new Map<string, number>();
+  for (const definition of definitions) {
+    nameCounts.set(definition.name, (nameCounts.get(definition.name) ?? 0) + 1);
+  }
+  const duplicateNames = [...nameCounts]
+    .filter(([, count]) => count > 1)
+    .map(([name]) => name)
+    .sort();
+  if (duplicateNames.length > 0) {
+    return yield* Effect.fail(new DuplicateRoleDefinition({ names: duplicateNames }));
+  }
+
   const byName = new Map(definitions.map((d) => [d.name, d]));
   const resolved = new Map<string, Role>();
   const unknownParents = new Set<string>();

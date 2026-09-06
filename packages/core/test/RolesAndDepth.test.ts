@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import * as FastCheck from "effect/testing/FastCheck";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
@@ -13,6 +14,7 @@ import {
   permissionProvenance,
   resolveRoleGraph,
   role,
+  roleNames,
 } from "../src/Role.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
 
@@ -166,6 +168,71 @@ describe("permissionProvenance", () => {
   });
 });
 
+describe("two distinct Role objects sharing a name are not conflated", () => {
+  // Before the fix, the visited set in `flattenPermissions`, `permissionProvenance`
+  // and `roleNames` was keyed on `current.name`. Two distinct `Role` objects
+  // named "viewer" reached from different branches would make the second one
+  // look already-visited, and everything only it granted vanished silently.
+
+  it("flattenPermissions keeps both same-named roles' permissions", () => {
+    const viewerA = role({ name: "viewer", permissions: [read] });
+    const viewerB = role({ name: "viewer", permissions: [write] });
+    const left = role({ name: "left", inherits: [viewerA] });
+    const right = role({ name: "right", inherits: [viewerB] });
+    const top = role({ name: "top", inherits: [left, right] });
+
+    const flat = flattenPermissions(top);
+    assert.isTrue(flat.has("doc:read"));
+    assert.isTrue(flat.has("doc:write"));
+  });
+
+  it("permissionProvenance reports grants from both same-named roles", () => {
+    const viewerA = role({ name: "viewer", permissions: [read] });
+    const viewerB = role({ name: "viewer", permissions: [write] });
+    const left = role({ name: "left", inherits: [viewerA] });
+    const right = role({ name: "right", inherits: [viewerB] });
+    const top = role({ name: "top", inherits: [left, right] });
+
+    const grants = permissionProvenance(top);
+    assert.deepStrictEqual(
+      grants.map((g) => g.permission).sort(),
+      ["doc:read", "doc:write"],
+    );
+  });
+
+  it("roleNames still walks the second same-named role's own parents", () => {
+    const grandparent = role({ name: "superAdmin", permissions: [publish] });
+    const viewerA = role({ name: "viewer" });
+    // Distinct object, same name, but with a parent `viewerA` does not have.
+    const viewerB = role({ name: "viewer", inherits: [grandparent] });
+    const left = role({ name: "left", inherits: [viewerA] });
+    const right = role({ name: "right", inherits: [viewerB] });
+    const top = role({ name: "top", inherits: [left, right] });
+
+    const names = roleNames(top);
+    assert.isTrue(names.has("superAdmin"));
+  });
+
+  it("a true diamond — the same object reached twice — is still visited once", () => {
+    // Regression guard for the identity-keyed rewrite: this must not become
+    // exponential, and the shared parent's permission must not be double-added
+    // in a way that would be visible (Set dedups values regardless, but the
+    // traversal itself must still terminate and short-circuit on the second
+    // visit).
+    const base = role({ name: "base", permissions: [read] });
+    const left = role({ name: "left", inherits: [base] });
+    const right = role({ name: "right", inherits: [base] });
+    const top = role({ name: "top", inherits: [left, right] });
+
+    assert.deepStrictEqual([...flattenPermissions(top)], ["doc:read"]);
+    assert.strictEqual(
+      permissionProvenance(top).filter((g) => g.permission === "doc:read").length,
+      1,
+    );
+    assert.deepStrictEqual([...roleNames(top)].sort(), ["base", "left", "right", "top"]);
+  });
+});
+
 describe("resolveRoleGraph — an unknown parent is reported", () => {
   it.effect("calls onUnknownParent with the missing names, sorted and deduped", () =>
     Effect.gen(function* () {
@@ -257,6 +324,57 @@ describe("resolveRoleGraph — an unknown parent is reported", () => {
       );
 
       assert.strictEqual(result._tag, "Failure");
+    }));
+});
+
+describe("resolveRoleGraph — a duplicate definition name fails rather than shadowing", () => {
+  it.effect("fails with DuplicateRoleDefinition instead of the last definition winning", () =>
+    Effect.gen(function* () {
+      // Before the fix, `byName` was a `Map` built from `definitions`: the
+      // second "viewer" silently replaced the first, its `publish` permission
+      // vanished, and nothing reported it.
+      const result = yield* Effect.result(
+        resolveRoleGraph([
+          { name: "viewer", permissions: [read] },
+          { name: "viewer", permissions: [publish] },
+        ]),
+      );
+
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      const error = result.failure;
+      assert.strictEqual(error._tag, "DuplicateRoleDefinition");
+      if (error._tag !== "DuplicateRoleDefinition") return;
+      assert.deepStrictEqual(error.names, ["viewer"]);
+    }));
+
+  it.effect("names every repeated name at once, sorted", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        resolveRoleGraph([
+          { name: "zeta", permissions: [read] },
+          { name: "alpha", permissions: [write] },
+          { name: "zeta", permissions: [publish] },
+          { name: "alpha", permissions: [read] },
+        ]),
+      );
+
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      const error = result.failure;
+      assert.strictEqual(error._tag, "DuplicateRoleDefinition");
+      if (error._tag !== "DuplicateRoleDefinition") return;
+      assert.deepStrictEqual(error.names, ["alpha", "zeta"]);
+    }));
+
+  it.effect("a catalogue with no repeated names is unaffected", () =>
+    Effect.gen(function* () {
+      const roles = yield* resolveRoleGraph([
+        { name: "viewer", permissions: [read] },
+        { name: "editor", permissions: [write], inherits: ["viewer"] },
+      ]);
+
+      assert.strictEqual(roles.length, 2);
     }));
 });
 
