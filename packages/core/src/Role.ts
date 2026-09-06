@@ -38,14 +38,23 @@ export const role = <const TName extends string>(config: {
  *
  * Depth-first with a visited set, so a diamond (two parents sharing a
  * grandparent) is walked once rather than exponentially.
+ *
+ * **The visited set is keyed on identity, not on `name`.** Two distinct `Role`
+ * objects that happen to share a `name` are not the same role — a by-value
+ * graph has no registry forbidding it, unlike the name-indexed catalogues
+ * {@link resolveRoleGraph} resolves. Keying on `name` treated the second one as
+ * already visited and silently dropped its permissions from the result; keying
+ * on the object itself still collapses a true diamond (the same reference
+ * reached by two paths) while visiting two same-named-but-distinct roles
+ * separately, as their differing permissions require.
  */
 export const flattenPermissions = (self: Role): ReadonlySet<PermissionKey> => {
   const keys = new Set<PermissionKey>();
-  const seen = new Set<string>();
+  const seen = new Set<Role>();
 
   const visit = (current: Role): void => {
-    if (seen.has(current.name)) return;
-    seen.add(current.name);
+    if (seen.has(current)) return;
+    seen.add(current);
     for (const p of current.permissions) keys.add(permissionKey(p));
     for (const parent of current.inherits) visit(parent);
   };
@@ -88,15 +97,17 @@ export interface PermissionGrant {
  *
  * Diamonds resolve the same way they do there — first path wins, by the shared
  * visited-set walk. A role reachable twice is reported once, by the route
- * depth-first order reached first.
+ * depth-first order reached first — "reachable twice" meaning the same object
+ * reached by two paths, not merely two roles sharing a `name`; the visited set
+ * is keyed on identity for the same reason `flattenPermissions`'s is.
  */
 export const permissionProvenance = (self: Role): ReadonlyArray<PermissionGrant> => {
   const grants: Array<PermissionGrant> = [];
-  const seen = new Set<string>();
+  const seen = new Set<Role>();
 
   const visit = (current: Role, path: ReadonlyArray<string>): void => {
-    if (seen.has(current.name)) return;
-    seen.add(current.name);
+    if (seen.has(current)) return;
+    seen.add(current);
     const here = [...path, current.name];
     for (const p of current.permissions) {
       grants.push({ permission: permissionKey(p), grantedBy: current.name, path: here });
@@ -115,11 +126,20 @@ export const flattenAll = (roles: ReadonlyArray<Role>): ReadonlySet<PermissionKe
   return keys;
 };
 
-/** The transitive set of role names a role stands for, including its own. */
+/**
+ * The transitive set of role names a role stands for, including its own.
+ *
+ * Walked with an identity-keyed visited set, like {@link flattenPermissions} —
+ * two distinct `Role` objects sharing a `name` are still two roles to walk, so
+ * a role reachable only through the second one is not skipped just because its
+ * name was already added to the result.
+ */
 export const roleNames = (self: Role): ReadonlySet<string> => {
   const names = new Set<string>();
+  const seen = new Set<Role>();
   const visit = (current: Role): void => {
-    if (names.has(current.name)) return;
+    if (seen.has(current)) return;
+    seen.add(current);
     names.add(current.name);
     for (const parent of current.inherits) visit(parent);
   };
