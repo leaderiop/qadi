@@ -708,6 +708,111 @@ describe("DecisionCache", () => {
       }),
   );
 
+  it.effect(
+    "a third ask made while the post-clear compute is still in flight coalesces onto it, " +
+      "not a third compute — the stale finalizer's inFlight removal is identity-checked",
+    () =>
+      Effect.gen(function* () {
+        // The mutant this pins: `getOrCompute`'s onExit finalizer only
+        // removes its own claim from `inFlight` if it is STILL the claim at
+        // `key` (`current.value === claim`). A mutant that drops that check
+        // — unconditionally removing whatever sits at `key` — is invisible
+        // to every other test here, because they never have a SECOND ask
+        // arrive after the guard would have wrongly fired. This one does.
+        const started1 = yield* Deferred.make<void>();
+        const release1 = yield* Deferred.make<void>();
+        const started2 = yield* Deferred.make<void>();
+        const release2 = yield* Deferred.make<void>();
+        const invocations = yield* Ref.make(0);
+        // Invocation 1 is the pre-clear, stale claimant, gated on release1.
+        // Every later invocation — the legitimate post-clear claimant, and
+        // any erroneous extra compute a broken guard would let through — is
+        // gated on release2, so a duplicate compute is observable purely as
+        // an extra count in `invocations`, not as a hang or a crash.
+        const resolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.updateAndGet(invocations, (n) => n + 1).pipe(
+              Effect.flatMap((n) =>
+                n === 1
+                  ? Deferred.succeed(started1, undefined).pipe(
+                      Effect.flatMap(() => Deferred.await(release1)),
+                      Effect.as(5),
+                    )
+                  : Deferred.succeed(started2, undefined).pipe(
+                      Effect.flatMap(() => Deferred.await(release2)),
+                      Effect.as(0),
+                    ),
+              ),
+            ),
+        });
+
+        yield* Effect.gen(function* () {
+          // Ask 1: claims the key, blocks in the resolver.
+          const claimant = yield* Effect.forkChild(evaluate(needsLookup));
+          yield* Deferred.await(started1);
+
+          // Flushed while ask 1 is still in flight. Advances `generation`
+          // and empties `inFlight`, so ask 1's claim is no longer the one at
+          // `key` from this point on.
+          yield* DecisionCache.use((c) => c.clear);
+
+          // Ask 2: the fresh, post-clear claimant for the exact same
+          // question — claims `key` again since `clear` emptied `inFlight`.
+          const second = yield* Effect.forkChild(evaluate(needsLookup));
+          yield* Deferred.await(started2);
+
+          // Let ask 1 (stale) finish and fully settle BEFORE ask 2 does.
+          // Its `onExit` finalizer now runs its inFlight-removal check while
+          // ask 2's claim — not its own — sits at `key`. Under an
+          // unconditional (unguarded) removal, this erases ask 2's claim
+          // from `inFlight` right here, even though ask 2's compute is still
+          // genuinely running.
+          yield* Deferred.succeed(release1, undefined);
+          yield* Fiber.join(claimant);
+
+          assert.strictEqual(
+            yield* Ref.get(invocations),
+            2,
+            "only ask 1 and ask 2 should have reached the resolver so far",
+          );
+
+          // Ask 3: a THIRD concurrent ask for the same question, issued now
+          // — while ask 2's compute is still blocked on release2. Correct
+          // behaviour: ask 3 finds ask 2's claim still in `inFlight` and
+          // coalesces onto it without touching the resolver. Under the bug,
+          // ask 1's finalizer already erased that claim, so ask 3 finds
+          // nothing at `key` and starts a third, duplicate compute.
+          const third = yield* Effect.forkChild(evaluate(needsLookup));
+          for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+
+          assert.strictEqual(
+            yield* Ref.get(invocations),
+            2,
+            "a third ask while ask 2 is in flight must coalesce onto it, not start a third compute",
+          );
+
+          // Release ask 2 (and, if the guard failed, the spurious third
+          // compute riding the same gate) and confirm both later askers
+          // actually observed its answer.
+          yield* Deferred.succeed(release2, undefined);
+          const secondResult = yield* Fiber.join(second);
+          const thirdResult = yield* Fiber.join(third);
+          assert.isFalse(isAllowed(secondResult));
+          assert.isFalse(isAllowed(thirdResult));
+
+          // A fourth ask, now that nothing is in flight, is a clean cache
+          // hit — no further resolver call.
+          const fourth = yield* evaluate(needsLookup);
+          assert.isFalse(isAllowed(fourth));
+          assert.strictEqual(
+            yield* Ref.get(invocations),
+            2,
+            "the fourth ask should hit the entry ask 2 left behind, not recompute",
+          );
+        }).pipe(Effect.provide(testLayer(alice, { attributes: resolver })), Effect.provide(decisionCacheLayer()));
+      }),
+  );
+
   describe("capacity", () => {
     it.effect("rejects a negative capacity rather than looping forever", () =>
       Effect.gen(function* () {
