@@ -484,7 +484,7 @@ to their own model's `WhereInput` at the call site. Same refusal discipline as
 | `SequenceIntegrityError` | error | `SequenceIntegrity.ts` — renamed from `ChainIntegrityError` |
 | `archiveAuditTrail` | function | `AuditArchive.ts` |
 | `AuditArchive`, `ArchivalOptions`, `KeyMaterial` | type | `AuditArchive.ts` |
-| `createDecommissioningChecklist`, `completeDecommissioningStep` | function | `DecommissioningChecklist.ts` |
+| `makeDecommissioningChecklist`, `completeDecommissioningStep` | function | `DecommissioningChecklist.ts` |
 | `DecommissioningChecklist`, `DecommissioningStep`, `DecommissioningStepId` | type | `DecommissioningChecklist.ts` |
 | `UnknownDecommissioningStep` | error | `DecommissioningChecklist.ts` |
 | `SignatureCapturePort`, `SignatureCapturePortShape` | service | `SignatureCapturePort.ts` |
