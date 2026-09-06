@@ -137,7 +137,7 @@ export const apiRows = [
 export const bars = [
   { label: "coverage · @qadi/core", value: "95%", width: "95%" },
   { label: "coverage · workspace", value: "90%", width: "90%" },
-  { label: "merge gates passing", value: "22 / 22", width: "100%" },
+  { label: "merge gates passing", value: "24 / 24", width: "100%" },
   { label: "circular imports", value: "0", width: "100%" },
 ];
 
