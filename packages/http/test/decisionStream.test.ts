@@ -17,6 +17,7 @@ import {
   DecisionHistoryUnknown,
   DecisionRecord,
   EvaluationIdLive,
+  ObligationRecord,
   RelationshipResolverNever,
   decisionSinkFeed,
   gte,
@@ -362,5 +363,16 @@ describe("frame", () => {
 
   it("encodes a Decision record with no resource at all", () => {
     assert.isTrue(Result.isSuccess(frame(decisionRecord("no-resource"))));
+  });
+
+  it("encodes a non-Decision SinkRecord (Obligations) unconditionally, never consulting isJsonSafe", () => {
+    const obligations = new ObligationRecord({
+      evaluationId: "obl-1",
+      at: 1_000,
+      outcome: "Discharged",
+      obligationIds: ["o1"],
+    });
+
+    assert.isTrue(Result.isSuccess(frame(obligations)));
   });
 });
