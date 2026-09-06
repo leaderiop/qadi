@@ -246,15 +246,18 @@ describe("recording resolvers", () => {
       assert.deepStrictEqual([...registry.calls], ["isOwner"]);
     }));
 
-  it.effect("recordingCustomPredicate denies an unlisted name rather than erroring", () =>
+  it.effect("recordingCustomPredicate fails on an unlisted name rather than denying", () =>
     Effect.gen(function* () {
       const registry = recordingCustomPredicate({});
 
-      const d = yield* evaluate(hasCustom("isOwner")).pipe(
-        Effect.provide(qadiTestLayer(nobody, { customPredicate: registry.layer })),
+      const r = yield* Effect.result(
+        evaluate(hasCustom("isOwner")).pipe(
+          Effect.provide(qadiTestLayer(nobody, { customPredicate: registry.layer })),
+        ),
       );
 
-      assert.isFalse(isAllowed(d));
+      assert.strictEqual(r._tag, "Failure");
+      assert.deepStrictEqual([...registry.calls], ["isOwner"]);
     }));
 
   it.effect("failingCustomPredicate surfaces an error, not a denial", () =>
