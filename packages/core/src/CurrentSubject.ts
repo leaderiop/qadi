@@ -10,6 +10,14 @@ import * as Layer from "effect/Layer";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { anonymous } from "./AuthSubject.ts";
 
+// Payload is `AuthSubject` directly, not a dedicated `CurrentSubjectShape`
+// interface — a deliberate exception to AGENTS.md §2's usual "…Shape"
+// naming. `AuthSubject` is already a domain value with its own name and its
+// own doc comment (`AuthSubject.ts`); wrapping it in a same-shaped
+// `CurrentSubjectShape` would add a type whose only field is `AuthSubject`
+// itself, one hop for a reader to see through and nothing gained by it. The
+// substantive half of §2 — a separately exported type, not an inline object
+// literal — still holds: `AuthSubject` is exactly that type.
 export class CurrentSubject extends Context.Service<CurrentSubject, AuthSubject>()(
   "qadi/CurrentSubject",
 ) {}
