@@ -19,7 +19,7 @@ describe("archiveAuditTrail", () => {
       assert.strictEqual(archive.archiveVersion, "1");
       assert.strictEqual(archive.metadata.entryCount, 2);
       assert.strictEqual(archive.metadata.createdAt, 5_000);
-      assert.isTrue(archive.metadata.chainIntegrityVerified);
+      assert.isTrue(archive.metadata.sequenceIntegrityVerified);
       assert.deepStrictEqual(archive.entries, entries);
       assert.isUndefined(archive.keyMaterial);
     }));
@@ -46,7 +46,7 @@ describe("archiveAuditTrail", () => {
       const result = yield* Effect.result(archiveAuditTrail(entries, 0));
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
-        assert.strictEqual(result.failure._tag, "ChainIntegrityError");
+        assert.strictEqual(result.failure._tag, "SequenceIntegrityError");
         assert.strictEqual(result.failure.expectedSequence, 2);
       }
     }));
@@ -56,7 +56,7 @@ describe("archiveAuditTrail", () => {
       const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
       const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
       const c = yield* encodeAuditEntry(decisionRecord({ evaluationId: "c" }));
-      // Handed in reverse of their sequence numbers — verifyChainIntegrity
+      // Handed in reverse of their sequence numbers — verifySequenceIntegrity
       // tolerates this; the stored archive must not just claim to be
       // verified, it must actually be ordered.
       const outOfOrder = [

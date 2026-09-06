@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as FastCheck from "effect/testing/FastCheck";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
-import { verifyChainIntegrity } from "../src/ChainIntegrity.ts";
+import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
 import { decisionRecord } from "./helpers.ts";
 
 const entryWithSequence = (sequenceNumber: number | undefined): AuditEntry => ({
@@ -11,26 +11,26 @@ const entryWithSequence = (sequenceNumber: number | undefined): AuditEntry => ({
   sequenceNumber,
 });
 
-describe("verifyChainIntegrity", () => {
+describe("verifySequenceIntegrity", () => {
   it.effect("no entries at all is trivially intact", () =>
     Effect.gen(function* () {
-      yield* verifyChainIntegrity([]);
+      yield* verifySequenceIntegrity([]);
     }));
 
   it.effect("entries carrying no sequenceNumber at all are trivially intact", () =>
     Effect.gen(function* () {
-      yield* verifyChainIntegrity([entryWithSequence(undefined), entryWithSequence(undefined)]);
+      yield* verifySequenceIntegrity([entryWithSequence(undefined), entryWithSequence(undefined)]);
     }));
 
   it.effect("a contiguous sequence, out of write order, is intact", () =>
     Effect.gen(function* () {
-      yield* verifyChainIntegrity([entryWithSequence(3), entryWithSequence(1), entryWithSequence(2)]);
+      yield* verifySequenceIntegrity([entryWithSequence(3), entryWithSequence(1), entryWithSequence(2)]);
     }));
 
   it.effect("a gap fails with the expected and actual sequence numbers", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        verifyChainIntegrity([entryWithSequence(1), entryWithSequence(3)]),
+        verifySequenceIntegrity([entryWithSequence(1), entryWithSequence(3)]),
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
@@ -42,7 +42,7 @@ describe("verifyChainIntegrity", () => {
   it.effect("a duplicate sequence number fails too", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        verifyChainIntegrity([entryWithSequence(1), entryWithSequence(1), entryWithSequence(2)]),
+        verifySequenceIntegrity([entryWithSequence(1), entryWithSequence(1), entryWithSequence(2)]),
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
@@ -53,7 +53,7 @@ describe("verifyChainIntegrity", () => {
 
   it.effect("a mix of sequenced and unsequenced entries only checks the sequenced ones", () =>
     Effect.gen(function* () {
-      yield* verifyChainIntegrity([
+      yield* verifySequenceIntegrity([
         entryWithSequence(undefined),
         entryWithSequence(1),
         entryWithSequence(undefined),
@@ -70,7 +70,7 @@ describe("PROPERTY: gap and duplicate detection over generated sequences", () =>
         FastCheck.integer({ min: 1, max: 30 }),
         (start, length) => {
           const entries = Array.from({ length }, (_, i) => entryWithSequence(start + i));
-          const result = Effect.runSync(Effect.result(verifyChainIntegrity(entries)));
+          const result = Effect.runSync(Effect.result(verifySequenceIntegrity(entries)));
           return result._tag === "Success";
         },
       ),
@@ -88,7 +88,7 @@ describe("PROPERTY: gap and duplicate detection over generated sequences", () =>
           const removedIndex = 1 + Math.floor((length - 2) / 2); // never the first or last
           const withGap = full.filter((_, i) => i !== removedIndex);
           const entries = withGap.map((n) => entryWithSequence(n));
-          const result = Effect.runSync(Effect.result(verifyChainIntegrity(entries)));
+          const result = Effect.runSync(Effect.result(verifySequenceIntegrity(entries)));
           return result._tag === "Failure";
         },
       ),

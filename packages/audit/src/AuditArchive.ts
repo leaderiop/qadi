@@ -5,7 +5,7 @@
  */
 import * as Effect from "effect/Effect";
 import type { AuditEntry } from "./AuditEntry.ts";
-import { verifyChainIntegrity } from "./ChainIntegrity.ts";
+import { verifySequenceIntegrity } from "./SequenceIntegrity.ts";
 
 /**
  * Opaque pass-through metadata `@qadi/audit` never validates or interprets —
@@ -29,7 +29,13 @@ export interface AuditArchive {
   readonly metadata: {
     readonly createdAt: number;
     readonly entryCount: number;
-    readonly chainIntegrityVerified: boolean;
+    /**
+     * No gap or duplicate found in the caller-assigned `sequenceNumber`s at
+     * archive time. Not cryptographic tamper-evidence — see
+     * `SequenceIntegrity.ts` — and not a claim about `keyMaterial` below,
+     * which this package carries but never uses to sign or verify anything.
+     */
+    readonly sequenceIntegrityVerified: boolean;
   };
   readonly entries: ReadonlyArray<AuditEntry>;
   readonly keyMaterial?: ReadonlyArray<KeyMaterial> | undefined;
@@ -38,14 +44,15 @@ export interface AuditArchive {
 const ARCHIVE_VERSION = "1";
 
 /**
- * Verifies the chain, then bundles. Fails with `ChainIntegrityError` rather
- * than archiving a set of rows already known to have a gap or a duplicate —
- * an archive exists to be trusted later, so it refuses to be built on a
- * foundation this package can already tell is broken.
+ * Verifies sequence integrity, then bundles. Fails with
+ * `SequenceIntegrityError` rather than archiving a set of rows already known
+ * to have a gap or a duplicate — an archive exists to be trusted later, so it
+ * refuses to be built on a foundation this package can already tell is
+ * broken.
  *
- * `verifyChainIntegrity` tolerates and is tested against entries arriving
+ * `verifySequenceIntegrity` tolerates and is tested against entries arriving
  * out of write order — it checks the *sequence numbers*, not array order.
- * `metadata.chainIntegrityVerified: true` would be a false claim if the
+ * `metadata.sequenceIntegrityVerified: true` would be a false claim if the
  * archive then stored `entries` exactly as handed in: a reviewer trusting a
  * verified archive to be in sequence order would get rows in whatever order
  * the caller happened to read them back in. Sorted here, by `sequenceNumber`
@@ -58,7 +65,7 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
   now: number,
   options?: ArchivalOptions,
 ) {
-  yield* verifyChainIntegrity(entries);
+  yield* verifySequenceIntegrity(entries);
 
   const ordered = entries.toSorted(
     (a, b) => (a.sequenceNumber ?? Number.POSITIVE_INFINITY) - (b.sequenceNumber ?? Number.POSITIVE_INFINITY),
@@ -69,7 +76,7 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
     metadata: {
       createdAt: now,
       entryCount: ordered.length,
-      chainIntegrityVerified: true,
+      sequenceIntegrityVerified: true,
     },
     entries: ordered,
     ...(options?.keyMaterial === undefined ? {} : { keyMaterial: options.keyMaterial }),

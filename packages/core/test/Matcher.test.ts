@@ -147,6 +147,51 @@ describe("isObject / getByPath against null", () => {
   });
 });
 
+describe("getByPath / fieldMatch refuse the prototype chain", () => {
+  // `path`/`field` come off a `SubjectRef`/`ResourceRef` or a `FieldMatch` in
+  // a decoded `Policy` — both attacker-writable in untrusted JSON. Without an
+  // own-property guard, `__proto__.constructor` (or any inherited member name)
+  // would resolve prototype-chain values instead of reporting the field
+  // absent, breaking the isolation every other branch here assumes.
+  it("getByPath does not resolve __proto__ or constructor off a plain object", () => {
+    const input = { a: { b: 1 } };
+    assert.isUndefined(M.getByPath(input, "__proto__"));
+    assert.isUndefined(M.getByPath(input, "constructor"));
+    assert.isUndefined(M.getByPath(input, "constructor.prototype"));
+    assert.isUndefined(M.getByPath(input, "a.__proto__"));
+    assert.isUndefined(M.getByPath(input, "a.constructor"));
+    assert.isUndefined(M.getByPath(input, "toString"));
+  });
+
+  it("getByPath still reads a real own property literally named __proto__", () => {
+    // An object built with `Object.create(null, ...)` or one whose own
+    // enumerable key genuinely is the string "__proto__" (not the accessor)
+    // should still read through — the guard is "own property", not "any key
+    // that looks suspicious".
+    const input: Record<string, unknown> = Object.defineProperty({}, "__proto__", {
+      value: "not-a-prototype",
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+    assert.strictEqual(M.getByPath(input, "__proto__"), "not-a-prototype");
+  });
+
+  it("fieldMatch does not resolve an inherited member as the field's value", () => {
+    // `Object.prototype.toString` is a function; a matcher asking whether the
+    // field `exists` must not see it as a resolved (and therefore existing)
+    // value.
+    assert.isFalse(run(M.fieldMatch("toString", M.exists()), { a: 1 }));
+    assert.isFalse(run(M.fieldMatch("constructor", M.exists()), { a: 1 }));
+  });
+
+  it("fieldMatch still evaluates the inner matcher against undefined for a genuinely missing own field", () => {
+    // The fix must not change behavior for the ordinary "field absent" case —
+    // only for names that resolve on the prototype chain.
+    assert.isTrue(run(M.fieldMatch("missing", M.eq(M.literal(undefined))), { a: 1 }));
+  });
+});
+
 describe("security labels", () => {
   const label = (level: number, ...compartments: ReadonlyArray<string>): SecurityLabel => ({
     level,

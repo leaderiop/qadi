@@ -3,11 +3,14 @@
 Effect-native authorization for TypeScript. Permission tokens, a role DAG, a
 schema-derived policy ADT, and a single `Effect`-returning evaluator.
 
-> **Status: feature-complete, unpublished.** Every item the
+> **Status: feature-complete, partially published.** Every item the
 > [roadmap](./spec/roadmap.md) committed to has shipped, and every access-control
 > model in the [adoption matrix](./spec/models/00-adoption-matrix.md) is either
-> adopted or explicitly declined. The version is still `0.0.0` and nothing is on
-> npm, so the API may still move.
+> adopted or explicitly declined. All nine packages are staged at `0.3.0`;
+> `@qadi/core`, `@qadi/testing`, `@qadi/react` and `@qadi/promise` are published
+> on npm (latest release `0.2.0`), and `@qadi/audit`, `@qadi/http`,
+> `@qadi/devtools`, `@qadi/predicate-sql` and `@qadi/predicate-prisma` have not
+> been published yet — the API may still move.
 
 ## Why
 

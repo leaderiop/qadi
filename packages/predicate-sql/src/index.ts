@@ -95,6 +95,21 @@ const isSafeValue = (value: unknown): boolean =>
   typeof value === "boolean" ||
   value instanceof Date;
 
+/**
+ * A column identifier this package will quote and render.
+ *
+ * `Predicate.column` is a plain `string` on an AST that crosses a trust
+ * boundary (AGENTS.md §7: policies are persisted and re-parsed from untrusted
+ * JSON). Every dialect's `quote` wraps the identifier in a delimiter but never
+ * doubles an embedded one, so a column like `x" = $1 OR 1=1 --` would escape
+ * the identifier and start emitting SQL text. Values are parameterized and
+ * therefore safe by construction; identifiers are interpolated and are not —
+ * this is the one place `renderNode` builds SQL text from caller data, so it
+ * is refused rather than escaped, matching `isSafeValue`'s policy above.
+ */
+const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const isSafeIdentifier = (column: string): boolean => SAFE_IDENTIFIER.test(column);
+
 // ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
@@ -127,6 +142,14 @@ const renderNode = (
       // the differential property test's own interpreter re-implements
       // `===`/`!==` in JS and so agreed with the bug rather than catching it.
       Compare: (p) => {
+        if (!isSafeIdentifier(p.column)) {
+          return Effect.fail(
+            new PredicateNotRenderable({
+              predicateTag: "Compare",
+              reason: `column '${p.column}' is not a safe identifier`,
+            }),
+          );
+        }
         if (!isSafeValue(p.value)) {
           return Effect.fail(
             new PredicateNotRenderable({
@@ -152,6 +175,14 @@ const renderNode = (
       },
 
       MemberOf: (p) => {
+        if (!isSafeIdentifier(p.column)) {
+          return Effect.fail(
+            new PredicateNotRenderable({
+              predicateTag: "MemberOf",
+              reason: `column '${p.column}' is not a safe identifier`,
+            }),
+          );
+        }
         // [].includes(x) is always false — the correct, not degenerate,
         // translation, and never rendered as an invalid or ambiguous IN ().
         if (p.values.length === 0) return Effect.succeed("FALSE");

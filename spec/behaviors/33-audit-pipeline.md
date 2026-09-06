@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-33                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-25): Initial release (CCR-QD-086) |
+> | Change History | 1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
 
 _Previous: [32 — Custom Predicates](./32-custom-predicates.md)_
 
@@ -142,21 +142,21 @@ other — retention/archival/decommissioning are pure functions and data,
 caller-invoked and caller-scheduled, since `@qadi/audit` has no scheduler of
 its own.
 
-## BEH-QD-254: Chain-integrity verification detects a gap or a duplicate, and trusts neither write order
+## BEH-QD-254: Sequence-integrity verification detects a gap or a duplicate, and trusts neither write order
 
-> **Invariant:** [INV-QD-054](../invariants.md#inv-qd-054-verifychainintegrity-detects-every-gap-and-duplicate-sequence-number)
+> **Invariant:** [INV-QD-054](../invariants.md#inv-qd-054-verifysequenceintegrity-detects-every-gap-and-duplicate-sequence-number)
 
 ```
-REQUIREMENT: verifyChainIntegrity MUST fail ChainIntegrityError for any two
-             sequence numbers, sorted ascending, that are not exactly one
+REQUIREMENT: verifySequenceIntegrity MUST fail SequenceIntegrityError for any
+             two sequence numbers, sorted ascending, that are not exactly one
              apart — catching both a gap (a jump past the expected next
              number) and a duplicate (the same number twice).
 REQUIREMENT: An entry carrying no sequenceNumber MUST be ignored by
-             verifyChainIntegrity — sequencing is opt-in, assigned only by
+             verifySequenceIntegrity — sequencing is opt-in, assigned only by
              the caller's own store, never by @qadi/audit.
 REQUIREMENT: archiveAuditTrail MUST store entries sorted by sequenceNumber,
-             stably, before setting metadata.chainIntegrityVerified: true —
-             never the caller-supplied array order verifyChainIntegrity
+             stably, before setting metadata.sequenceIntegrityVerified: true —
+             never the caller-supplied array order verifySequenceIntegrity
              happens to tolerate.
 ```
 
@@ -166,6 +166,13 @@ sequence, checked as one. `sequenceNumber` is never populated by
 `@qadi/audit` itself — only the caller's own store has cross-restart
 visibility into a real write order, the same constraint that shapes
 `AuditStagingPort` ([BEH-QD-252](#beh-qd-252-staging-is-best-effort-and-provably-non-observable-in-the-happy-path)).
+
+Named for the mechanism, not for what a compliance reviewer might infer from
+a stronger name: this is gap-and-duplicate detection over caller-assigned
+sequence numbers, with no per-entry hash and nothing linking one entry to the
+next. An attacker able to modify already-persisted rows can renumber them
+and pass verification — the check protects against accidental loss or
+duplication in the caller's own store, not deliberate tampering.
 
 ## BEH-QD-255: No e-signature default ships — an unwired obligation already fails closed
 

@@ -27,17 +27,43 @@
  * production does not mount it.
  */
 import * as Effect from "effect/Effect";
+import type * as Filter from "effect/Filter";
+import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import type { Permission, Policy, SinkRecord } from "@qadi/core";
-import { toWire } from "@qadi/core";
+import { isJsonSafe, toWire } from "@qadi/core";
 import { guardRoute } from "./GuardRoute.ts";
 
-/** One record as an SSE frame: `data: <json>\n\n`. */
-const frame = (record: SinkRecord): Uint8Array =>
-  new TextEncoder().encode(`data: ${JSON.stringify(toWire(record))}\n\n`);
+/**
+ * One record as an SSE frame: `data: <json>\n\n` — or filtered out when its
+ * resource has no safe durable representation.
+ *
+ * A caller's resource is arbitrary `unknown`; a circular reference or a
+ * `BigInt` used to throw a raw `TypeError` out of `JSON.stringify` inside
+ * `Stream.map`, killing this SSE connection — and every other subscriber's,
+ * since they all read the same stream — over one bad decision. `isJsonSafe`
+ * is `@qadi/audit`'s own guard for exactly this value, shared from
+ * `@qadi/core` rather than duplicated (`SinkCodec.ts`). Refusing just the one
+ * frame rather than the whole feed matches how this route already behaves
+ * under backpressure: `decisionSinkFeed` drops the oldest entry rather than
+ * blocking, so a record failing to reach a subscriber is not a new failure
+ * mode here, only a new reason for it.
+ *
+ * A `Filter`, not a plain function returning `Option`: `Stream.filterMap`
+ * takes a `Filter` in this Effect version — `Result.succeed` keeps a value,
+ * `Result.fail` drops it (`effect/Filter`'s own doc comment).
+ *
+ * Exported so the refusal can be tested directly against a plain
+ * `SinkRecord`, rather than through a live SSE connection.
+ */
+export const frame: Filter.Filter<SinkRecord, Uint8Array> = (record) => {
+  const resource = record._tag === "Decision" ? record.resource : undefined;
+  if (resource !== undefined && !isJsonSafe(resource)) return Result.fail(record);
+  return Result.succeed(new TextEncoder().encode(`data: ${JSON.stringify(toWire(record))}\n\n`));
+};
 
 /**
  * Mounts `/__decisions`, streaming the feed to callers the policy permits.
@@ -65,7 +91,7 @@ export const decisionStreamRoute = <P extends Permission>(
         () => Effect.succeed({}),
       )(() =>
         Effect.succeed(
-          HttpServerResponse.stream(Stream.map(stream, frame), {
+          HttpServerResponse.stream(Stream.filterMap(stream, frame), {
             contentType: "text/event-stream",
             headers: {
               // Without these a proxy will buffer the stream into oblivion and

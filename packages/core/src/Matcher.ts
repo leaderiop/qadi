@@ -177,12 +177,23 @@ export const size = (matcher: Matcher): Matcher => ({ _tag: "Size", matcher });
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 
-/** Reads a dot-path out of a value, returning undefined at any missing step. */
+/**
+ * Reads a dot-path out of a value, returning undefined at any missing step.
+ *
+ * `Object.hasOwn` rather than `current[part]` alone: `path` comes off a
+ * `SubjectRef`/`ResourceRef` in a decoded `Policy`, which `Policy.ts`
+ * documents as re-parsed from untrusted JSON. Without the own-property guard,
+ * a path like `__proto__.constructor` resolves prototype-chain members
+ * instead of `undefined` — a read, not a write, but it breaks the isolation
+ * every other matcher branch assumes. `readAttribute` (`Evaluate.ts`) and
+ * `FieldPath.ts` both already guard the same way; this closed the one place
+ * that hadn't.
+ */
 export const getByPath = (input: unknown, path: string): unknown => {
   if (path === "") return input;
   let current: unknown = input;
   for (const part of path.split(".")) {
-    if (!isObject(current)) return undefined;
+    if (!isObject(current) || !Object.hasOwn(current, part)) return undefined;
     current = current[part];
   }
   return current;
@@ -322,8 +333,21 @@ export const evaluateMatcher = (
       return typeof value === "number" && value < self.value;
     case "Contains":
       return containsValue(value, self.value);
+    // `Object.hasOwn` rather than `value[self.field]` alone, for the same
+    // reason `getByPath` above needs it: `field` is attacker-writable in a
+    // decoded policy, and without the guard `self.field` naming
+    // `__proto__`/`constructor`/etc. would read the prototype chain instead
+    // of reporting the field absent. A genuinely missing own property still
+    // evaluates the inner matcher against `undefined`, exactly as before.
     case "FieldMatch":
-      return isObject(value) && evaluateMatcher(self.matcher, value[self.field], context);
+      return (
+        isObject(value) &&
+        evaluateMatcher(
+          self.matcher,
+          Object.hasOwn(value, self.field) ? value[self.field] : undefined,
+          context,
+        )
+      );
     case "SomeMatch":
       return (
         Array.isArray(value) && value.some((v) => evaluateMatcher(self.matcher, v, context))

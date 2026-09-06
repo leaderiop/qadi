@@ -18,6 +18,8 @@
  * field is exactly what went missing before.
  */
 import * as Brand from "effect/Brand";
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import { Matcher } from "./Matcher.ts";
@@ -651,14 +653,100 @@ export const PolicyFromJson = Schema.fromJsonString(Policy);
 /** Encodes a policy to a JSON string. */
 export const toJson = Schema.encodeEffect(PolicyFromJson);
 
-/** Decodes a policy from an untrusted JSON string. */
-export const fromJson = Schema.decodeUnknownEffect(PolicyFromJson);
+/**
+ * The raw JSON handed to {@link fromJson}/{@link fromJsonValue} nested deeper
+ * than {@link MAX_DECODE_DEPTH}. Distinct from `Errors.ts`'s `PolicyTooDeep`
+ * (which bounds a *decoded* policy at evaluation time) rather than imported
+ * from there, because `Errors.ts` already depends on this module transitively
+ * (via `Decision.ts`) and importing back would be circular.
+ */
+export class PolicyDecodeTooDeep extends Data.TaggedError("PolicyDecodeTooDeep")<{
+  readonly maxDepth: number;
+}> {}
+
+/**
+ * A generous structural ceiling on the raw JSON a policy decodes from,
+ * checked before `Schema.decodeUnknownEffect` ever recurses into it.
+ *
+ * {@link DEFAULT_MAX_DEPTH} bounds a *decoded* `Policy` at evaluation time
+ * (`Evaluate.ts`), but nothing bounded the decode itself: `Schema`'s own
+ * recursive descent through `PolicyRef` has no cap, so an adversarial JSON
+ * string nesting `{"_tag":"Not","policy":...}` tens of thousands deep
+ * exhausts the call stack *during decode*, before the 64-deep evaluation
+ * guard is ever consulted — confirmed empirically at 60,000 levels, where it
+ * throws a raw `RangeError`, not a typed `Effect` failure. `exceedsJsonDepth`
+ * below walks the parsed JSON with an explicit array-backed stack rather than
+ * recursion, so the guard itself cannot be the thing that overflows. The
+ * bound is 8x {@link DEFAULT_MAX_DEPTH} — generous headroom for the extra
+ * JSON nesting an array-valued node (`AllOf`/`AnyOf`/`Rules`) adds around
+ * each `Policy` position — so no policy `evaluate` would ever accept is
+ * rejected here first.
+ */
+export const MAX_DECODE_DEPTH = DEFAULT_MAX_DEPTH * 8;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const exceedsJsonDepth = (root: unknown, maxDepth: number): boolean => {
+  const stack: Array<{ readonly value: unknown; readonly depth: number }> = [
+    { value: root, depth: 0 },
+  ];
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (frame === undefined) break;
+    if (frame.depth > maxDepth) return true;
+    if (Array.isArray(frame.value)) {
+      for (const item of frame.value) stack.push({ value: item, depth: frame.depth + 1 });
+    } else if (isPlainObject(frame.value)) {
+      for (const key of Object.keys(frame.value)) {
+        stack.push({ value: frame.value[key], depth: frame.depth + 1 });
+      }
+    }
+  }
+  return false;
+};
+
+const decodePolicyUnknown = Schema.decodeUnknownEffect(Policy);
+
+/**
+ * Decodes a policy from an untrusted JSON string.
+ *
+ * Parses with the platform's own `JSON.parse` first — which, unlike
+ * `Schema`'s decoder, does not blow the stack on extreme nesting — purely to
+ * run {@link exceedsJsonDepth} over the result before `Schema` ever walks it.
+ * A parse failure here is not reported: it falls through to `Schema`'s own
+ * decoder, which already reports malformed JSON as a typed failure.
+ */
+export const fromJson = (
+  json: string,
+): Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError> =>
+  Effect.suspend((): Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError> => {
+    try {
+      if (exceedsJsonDepth(JSON.parse(json), MAX_DECODE_DEPTH)) {
+        return Effect.fail(new PolicyDecodeTooDeep({ maxDepth: MAX_DECODE_DEPTH }));
+      }
+    } catch {
+      // Malformed JSON: let Schema.fromJsonString report it its own way.
+    }
+    return Schema.decodeUnknownEffect(PolicyFromJson)(json);
+  });
 
 /** Encodes a policy to a plain JSON value. */
 export const toJsonValue = Schema.encodeEffect(Policy);
 
-/** Decodes a policy from an untrusted plain JSON value. */
-export const fromJsonValue = Schema.decodeUnknownEffect(Policy);
+/**
+ * Decodes a policy from an untrusted plain JSON value.
+ *
+ * See {@link fromJson} — the same stack-exhaustion risk applies to an
+ * already-parsed value handed in directly, so the same depth check runs
+ * first.
+ */
+export const fromJsonValue = (
+  value: unknown,
+): Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError> =>
+  exceedsJsonDepth(value, MAX_DECODE_DEPTH)
+    ? Effect.fail(new PolicyDecodeTooDeep({ maxDepth: MAX_DECODE_DEPTH }))
+    : decodePolicyUnknown(value);
 
 // ---------------------------------------------------------------------------
 // Structural queries

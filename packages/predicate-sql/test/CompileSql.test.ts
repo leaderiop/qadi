@@ -269,4 +269,34 @@ describe("compileSql — refusals", () => {
       const failure = yield* refusalOf(predicate, "postgres");
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
     }));
+
+  it.effect("a Compare column carrying a quote character refuses, never renders unescaped", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = {
+        _tag: "Compare",
+        column: 'x" = $1 OR 1=1 --',
+        op: "Eq",
+        value: 1,
+      };
+      const failure = yield* refusalOf(predicate, "postgres");
+      assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+      assert.strictEqual(failure?.predicateTag, "Compare");
+      assert.strictEqual(failure?.reason, "column 'x\" = $1 OR 1=1 --' is not a safe identifier");
+    }));
+
+  it.effect("a MemberOf column carrying a backtick refuses under mysql too", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = { _tag: "MemberOf", column: "c`.`other", values: [1] };
+      const failure = yield* refusalOf(predicate, "mysql");
+      assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+      assert.strictEqual(failure?.predicateTag, "MemberOf");
+      assert.strictEqual(failure?.reason, "column 'c`.`other' is not a safe identifier");
+    }));
+
+  it.effect("a column outside [A-Za-z_][A-Za-z0-9_]* refuses even with no special SQL characters", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = { _tag: "Compare", column: "1leadingDigit", op: "Eq", value: 1 };
+      const failure = yield* refusalOf(predicate, "postgres");
+      assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+    }));
 });

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.26                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.27                                            |
+> | Effective Date | 2026-09-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.27 (2026-09-06): INV-QD-054 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` and the implication note made explicit about the gap this does not close (CCR-QD-094)<br>1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -1744,13 +1744,13 @@ identities hold for every generated case.
 
 **Related**: [BEH-QD-253](behaviors/33-audit-pipeline.md#beh-qd-253-retention-partitions-entries-by-construction), [ADR-QD-056](decisions/056-audit-companion-package.md).
 
-## INV-QD-054: `verifyChainIntegrity` detects every gap and duplicate sequence number
+## INV-QD-054: `verifySequenceIntegrity` detects every gap and duplicate sequence number
 
-For any set of `AuditEntry` rows, `verifyChainIntegrity` fails
-`ChainIntegrityError` if and only if the defined `sequenceNumber`s, sorted
+For any set of `AuditEntry` rows, `verifySequenceIntegrity` fails
+`SequenceIntegrityError` if and only if the defined `sequenceNumber`s, sorted
 ascending, contain a gap or a duplicate.
 
-**Source**: `packages/audit/src/ChainIntegrity.ts` — sorts the defined
+**Source**: `packages/audit/src/SequenceIntegrity.ts` — sorts the defined
 sequence numbers and fails the moment one is not exactly one more than its
 predecessor, which catches a gap (a jump past the expected value) and a
 duplicate (the same value twice, which sorts to *less* than expected) with
@@ -1758,18 +1758,26 @@ the same single check.
 
 **Implication**: sequence numbers are assigned entirely by the caller's own
 store, never by `@qadi/audit`
-([BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-chain-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order)) —
+([BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order)) —
 this is the one check standing between an audit trail a compliance reviewer
 can trust and rows quietly missing or overwritten in the caller's own
 storage. A false negative here — a real gap that verification misses — is
 indistinguishable from tampering nobody caught.
+
+This is gap-and-duplicate detection, not cryptographic tamper-evidence, and
+the two are not interchangeable: nothing here hashes an entry or links it to
+its neighbor, so an attacker able to modify already-stored rows can renumber
+them and pass this check while defeating the property a reader would assume
+"integrity" promises. `keyMaterial` on `AuditArchive` is carried, never used
+to sign or verify anything — this invariant is the whole of what
+`sequenceIntegrityVerified: true` actually attests to.
 
 **Enforcement**: a `FastCheck` property over generated contiguous sequences
 (always intact) and generated sequences with one deliberately removed
 element (always caught), plus hand-written cases for a duplicate and for a
 mix of sequenced and unsequenced entries.
 
-**Related**: [BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-chain-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order), [ADR-QD-056](decisions/056-audit-companion-package.md).
+**Related**: [BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order), [ADR-QD-056](decisions/056-audit-companion-package.md).
 
 ## INV-QD-055: `signatureObligationHandler` calls `capture` exactly once, and the `ObligationRecord` matches
 

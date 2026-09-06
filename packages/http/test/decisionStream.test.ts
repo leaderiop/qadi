@@ -7,24 +7,29 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import {
+  Allow,
   AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
+  Decided,
   DecisionHistoryUnknown,
+  DecisionRecord,
   EvaluationIdLive,
   RelationshipResolverNever,
   decisionSinkFeed,
   hasPermission,
   makeSubject,
+  makeSubjectId,
   permission,
   permissionKey,
 } from "@qadi/core";
-import type { AuthSubject } from "@qadi/core";
+import type { AuthSubject, Trace } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServer from "effect/unstable/http/HttpServer";
-import { decisionStreamRoute } from "../src/DecisionStreamRoute.ts";
+import { decisionStreamRoute, frame } from "../src/DecisionStreamRoute.ts";
 import { subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 
 const readPermission = permission("devtools", "read");
@@ -44,6 +49,32 @@ const lookupSubject = (token: string): Effect.Effect<AuthSubject> =>
       : Effect.die(new Error(`unknown token: ${token}`));
 
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
+
+const allowTrace: Trace = {
+  policyTag: "HasPermission",
+  allowed: true,
+  children: [],
+  obligations: [],
+};
+
+const decisionRecord = (evaluationId: string, resource?: Record<string, unknown>) =>
+  new DecisionRecord({
+    evaluationId,
+    at: 1_000,
+    subjectId: makeSubjectId("alice"),
+    policy: readPolicy,
+    ...(resource === undefined ? {} : { resource }),
+    outcome: new Decided({
+      decision: new Allow({
+        evaluationId,
+        subjectId: makeSubjectId("alice"),
+        durationMillis: 1,
+        trace: allowTrace,
+        visibleFields: undefined,
+        obligations: [],
+      }),
+    }),
+  });
 
 const appLayer = Effect.gen(function* () {
   const feed = yield* decisionSinkFeed({ replay: 8 });
@@ -109,4 +140,33 @@ describe("/__decisions", () => {
       assert.strictEqual(response.headers.get("cache-control"), "no-cache");
       assert.strictEqual(response.headers.get("x-accel-buffering"), "no");
     }));
+});
+
+/**
+ * `frame` directly, rather than through a live SSE connection — this repo has
+ * no existing pattern for reading a real streamed HTTP response body in a
+ * test, and `effect/unstable/http`'s web-handler bridge does not appear to
+ * drive a `Response`'s `ReadableStream` under this test runner without a real
+ * transport. `frame` is a plain, exported, synchronous function, so its
+ * refusal behavior is fully covered without depending on that.
+ */
+describe("frame", () => {
+  it("encodes a Decision record with a JSON-safe resource", () => {
+    const encoded = frame(decisionRecord("good", { a: 1 }));
+    assert.isTrue(Result.isSuccess(encoded));
+    const text = Result.isSuccess(encoded) ? new TextDecoder().decode(encoded.success) : "";
+    assert.include(text, '"evaluationId":"good"');
+    assert.match(text, /^data: .*\n\n$/);
+  });
+
+  it("drops a Decision record whose resource is not JSON-safe, rather than throwing", () => {
+    const circular: Record<string, unknown> = { a: 1 };
+    circular.self = circular;
+    assert.doesNotThrow(() => frame(decisionRecord("bad", circular)));
+    assert.isTrue(Result.isFailure(frame(decisionRecord("bad", circular))));
+  });
+
+  it("encodes a Decision record with no resource at all", () => {
+    assert.isTrue(Result.isSuccess(frame(decisionRecord("no-resource"))));
+  });
 });

@@ -111,7 +111,7 @@ qadi/
   - `src/AuditDecisionSinkLive.ts` — Live decision sink implementation
   - `src/CircuitBreaker.ts` — Failure handling for sink
   - `src/SignatureCapturePort.ts` — Signature capture service
-  - `src/ChainIntegrity.ts` — Chain signing validation
+  - `src/SequenceIntegrity.ts` — Sequence gap/duplicate detection (renamed from `ChainIntegrity.ts`; not cryptographic signing)
   - `src/Retention.ts` — Audit retention policies
 
 **`packages/http/`:**

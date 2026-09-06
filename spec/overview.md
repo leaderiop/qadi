@@ -80,7 +80,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | Export | Kind | Source |
 | ------ | ---- | ------ |
 | `Policy`, `FieldStrategy` | schema + type | `Policy.ts` |
-| `DEFAULT_MAX_DEPTH` | constant | `Policy.ts` |
+| `DEFAULT_MAX_DEPTH`, `MAX_DECODE_DEPTH` | constant | `Policy.ts` |
 | `PolicyEncoded`, `RuleEncoded` | type | `Policy.ts` |
 | `RoleName`, `ActionName`, `EventName`, `RelationName`, `LabelName` | schema + type | `Policy.ts` |
 | `makeRoleName` | function | `Policy.ts` |
@@ -94,6 +94,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `rules`, `permitWhen`, `denyWhen` | function | `Policy.ts` |
 | `Combining`, `RuleEffect`, `Rule` | schema + type | `Policy.ts` |
 | `toJson`, `fromJson`, `toJsonValue`, `fromJsonValue`, `PolicyFromJson` | codec | `Policy.ts` |
+| `PolicyDecodeTooDeep` | error | `Policy.ts` |
 | `eq`, `neq`, `inArray`, `exists`, `gte`, `lt`, `contains`, `fieldMatch`, `someMatch`, `everyMatch`, `size` | function | `Matcher.ts` |
 | `dominates` | function | `Matcher.ts` |
 | `subject`, `subjectId`, `resource`, `action`, `literal` | function | `Matcher.ts` |
@@ -224,6 +225,7 @@ answered.
 | `SinkRecordWire` | schema + type | `SinkCodec.ts` |
 | `TraceSchema` | schema | `SinkCodec.ts` — reused by `@qadi/react`'s `Hydration.ts` to validate a `DehydratedEntry`'s `trace` field |
 | `toWire`, `fromWire`, `encodeRecord`, `decodeRecord`, `decodeRecordWire` | codec | `SinkCodec.ts` |
+| `isJsonSafe` | predicate | `SinkCodec.ts` — shared by `@qadi/audit`'s `encodeAuditEntry` and `@qadi/http`'s decision-stream route, both of which guard `toWire`'s one caller-supplied `unknown` field the same way |
 | `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |
 
 **Nine services, and only seven are required.** `DecisionHistory` was the one added
@@ -347,6 +349,7 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `PermissionRegistry`, `PermissionRegistryLive` | service + layer | `PermissionRegistry.ts` |
 | `registerApi`, `permissionRegistryRoute`, `permissionRegistryRouteUnguarded` | function + layer | `PermissionRegistry.ts` |
 | `decisionStreamRoute` | layer factory | `DecisionStreamRoute.ts` |
+| `frame` | function | `DecisionStreamRoute.ts` — one `SinkRecord` as an SSE frame, or `None` when its resource is not JSON-safe; exported so the refusal is testable directly rather than only through a live connection |
 | `EndpointDescriptor`, `PermissionRegistryData`, `PermissionRegistryShape` | type | `PermissionRegistry.ts` |
 | `ENFORCEMENT_ERROR_TAGS`, `toResponse` | const + function | `QadiHttpError.ts` |
 | `SubjectExtractor`, `subjectExtractorBearer` | service + layer | `SubjectExtractor.ts` |
@@ -434,8 +437,8 @@ to their own model's `WhereInput` at the call site. Same refusal discipline as
 | `AuditStagingPortTestOptions`, `AuditStagingPortTestHandle` | type | `AuditStagingPortTest.ts` |
 | `getPurgeableEntries`, `enforceRetention` | function | `Retention.ts` |
 | `RetentionPolicy` | type | `Retention.ts` |
-| `verifyChainIntegrity` | function | `ChainIntegrity.ts` |
-| `ChainIntegrityError` | error | `ChainIntegrity.ts` |
+| `verifySequenceIntegrity` | function | `SequenceIntegrity.ts` — renamed from `verifyChainIntegrity`; gap-and-duplicate detection over caller-assigned sequence numbers, not cryptographic tamper-evidence |
+| `SequenceIntegrityError` | error | `SequenceIntegrity.ts` — renamed from `ChainIntegrityError` |
 | `archiveAuditTrail` | function | `AuditArchive.ts` |
 | `AuditArchive`, `ArchivalOptions`, `KeyMaterial` | type | `AuditArchive.ts` |
 | `createDecommissioningChecklist`, `completeDecommissioningStep` | function | `DecommissioningChecklist.ts` |

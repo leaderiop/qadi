@@ -363,6 +363,38 @@ const decodeDecision = (wire: typeof DecisionSchema.Type): Decision =>
         reason: wire.reason ?? "denied",
       });
 
+/**
+ * True for a value `JSON.stringify` can round-trip without lying: no
+ * `undefined`-swallowing, no function silently dropped, no cycle recursing
+ * forever.
+ *
+ * `SinkRecord.resource` is the one caller-supplied `unknown` value that
+ * reaches the wire, and `toWire` below passes it through raw — a resource
+ * carrying a circular reference or a `BigInt` used to throw a `TypeError` out
+ * of `JSON.stringify` at whichever boundary encoded it. `@qadi/audit`'s
+ * `encodeAuditEntry` was the only caller that guarded against this; sharing
+ * the guard here means `@qadi/http`'s decision-stream route (`toWire`'s other
+ * caller) can refuse the same way instead of crashing.
+ *
+ * `seen` tracks the current recursion path, not every value visited overall —
+ * removed again after each branch returns, so a value legitimately reachable
+ * twice via two different paths (not a cycle) is never falsely refused. A
+ * value that *is* its own ancestor is refused rather than walked forever.
+ */
+export const isJsonSafe = (value: unknown, seen: ReadonlySet<object> = new Set()): boolean => {
+  if (value === null) return true;
+  const t = typeof value;
+  if (t === "string" || t === "number" || t === "boolean") return true;
+  if (value instanceof Date) return true;
+  if (Array.isArray(value) || (typeof value === "object" && value !== null)) {
+    if (seen.has(value)) return false;
+    const path = new Set(seen).add(value);
+    const children = Array.isArray(value) ? value : Object.values(value);
+    return children.every((child) => isJsonSafe(child, path));
+  }
+  return false;
+};
+
 /** The wire projection of a record, ready to be JSON-encoded. */
 export const toWire = (record: SinkRecord): SinkRecordWire =>
   record._tag === "Obligations"

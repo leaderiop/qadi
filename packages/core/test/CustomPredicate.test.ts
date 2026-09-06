@@ -3,9 +3,14 @@
  * `attributeResolverRetrying`/`attributeResolverBounded` exactly, so these
  * cases mirror `AttributeResolver.test.ts`'s. `CustomPredicateNone` and
  * `customPredicateFromRecord`'s two answers — a registered name and an
- * unregistered one — are exercised directly here rather than only through
- * `evaluateNode`'s `HasCustom` case, which `Evaluate.test.ts` and
- * `@qadi/testing`'s `TestLayers.test.ts` cover from the policy side.
+ * unregistered one — are exercised directly here, at this module's own
+ * boundary, rather than only through `evaluateNode`'s `HasCustom` case.
+ *
+ * `Evaluate.test.ts` covers `HasCustom` directly too now — deny-no-registry,
+ * registry-allow, registry-deny, and the unregistered-name failure — closing
+ * a gap that had actually been open here: this comment previously claimed
+ * that coverage already existed, but only `@qadi/testing`'s
+ * `TestLayers.test.ts` had it, which core's own `stryker` run cannot see.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";

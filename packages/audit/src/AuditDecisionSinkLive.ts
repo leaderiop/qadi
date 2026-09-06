@@ -13,7 +13,7 @@
  * fix.
  *
  * Retention/archival/decommissioning ([Retention.ts](./Retention.ts),
- * [ChainIntegrity.ts](./ChainIntegrity.ts), [AuditArchive.ts](./AuditArchive.ts),
+ * [SequenceIntegrity.ts](./SequenceIntegrity.ts), [AuditArchive.ts](./AuditArchive.ts),
  * [DecommissioningChecklist.ts](./DecommissioningChecklist.ts)) and
  * e-signature capture ([SignatureCapturePort.ts](./SignatureCapturePort.ts))
  * are deliberately **not** part of this pipeline — the former is a
