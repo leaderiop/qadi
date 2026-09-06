@@ -27,6 +27,7 @@ export const recordingAttributeResolver = (
       return recorder.calls;
     },
     layer: Layer.succeed(AttributeResolver, {
+      name: "recordingAttributeResolver",
       resolve: (_subjectId, attribute) =>
         Effect.sync(() => {
           recorder.record(attribute);

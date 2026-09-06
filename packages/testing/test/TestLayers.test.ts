@@ -1,6 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
 import { makeCallRecorder } from "../src/CallRecorder.ts";
 import {
+  AttributeResolver,
+  CustomPredicate,
+  DecisionHistory,
+  RelationshipResolver,
   anyOf,
   evaluate,
   gte,
@@ -320,6 +324,37 @@ describe("recording resolvers", () => {
       if (r._tag === "Failure")
         assert.strictEqual(r.failure._tag, "SignatureHistoryUnavailable");
     }));
+
+  it.effect("recording fixtures set a descriptive name for diagnostics", () =>
+    Effect.gen(function* () {
+      // `${inner.name ?? "?"}` is how `attributeResolverRetrying` and
+      // `relationshipResolverRetrying` (`@qadi/core`) render a wrapped
+      // resolver's identity — an omitted `name` here would silently render
+      // as "?" wherever one of those combinators wraps a recording fixture.
+      const attributeContext = yield* Layer.build(recordingAttributeResolver({}).layer);
+      assert.strictEqual(
+        Context.get(attributeContext, AttributeResolver).name,
+        "recordingAttributeResolver",
+      );
+
+      const customPredicateContext = yield* Layer.build(recordingCustomPredicate({}).layer);
+      assert.strictEqual(
+        Context.get(customPredicateContext, CustomPredicate).name,
+        "recordingCustomPredicate",
+      );
+
+      const relationshipContext = yield* Layer.build(edgeRelationshipResolver([]).layer);
+      assert.strictEqual(
+        Context.get(relationshipContext, RelationshipResolver).name,
+        "edgeRelationshipResolver",
+      );
+
+      const historyContext = yield* Layer.build(eventDecisionHistory([]).layer);
+      assert.strictEqual(
+        Context.get(historyContext, DecisionHistory).name,
+        "eventDecisionHistory",
+      );
+    }).pipe(Effect.scoped));
 });
 
 describe("eventDecisionHistory", () => {
