@@ -777,6 +777,23 @@ describe("isJsonSafe", () => {
     assert.isFalse(isJsonSafe(1n));
   });
 
+  it("refuses NaN and both infinities — JSON.stringify silently renders every one of them as null", () => {
+    assert.isFalse(isJsonSafe(Number.NaN));
+    assert.isFalse(isJsonSafe(Number.POSITIVE_INFINITY));
+    assert.isFalse(isJsonSafe(Number.NEGATIVE_INFINITY));
+    // Nested, not just at the top level — the same "round-trip without
+    // lying" contract applies at every depth the walk reaches.
+    assert.isFalse(isJsonSafe({ a: Number.NaN }));
+    assert.isFalse(isJsonSafe([1, Number.POSITIVE_INFINITY]));
+  });
+
+  it("still accepts every finite number, including zero and negatives", () => {
+    assert.isTrue(isJsonSafe(0));
+    assert.isTrue(isJsonSafe(-0));
+    assert.isTrue(isJsonSafe(-1.5));
+    assert.isTrue(isJsonSafe(Number.MAX_SAFE_INTEGER));
+  });
+
   it("walks a plain object or array recursively", () => {
     assert.isTrue(isJsonSafe({ a: 1, b: ["x", { c: null }] }));
     assert.isFalse(isJsonSafe({ a: 1, b: () => {} }));

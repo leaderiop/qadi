@@ -380,6 +380,12 @@ const decodeDecision = (wire: typeof DecisionSchema.Type): Decision =>
  * carrying a circular reference or a `BigInt` used to throw a `TypeError` out
  * of `JSON.stringify` at whichever boundary encoded it either way.
  *
+ * **`NaN`, `Infinity` and `-Infinity` are refused, not accepted as numbers.**
+ * `JSON.stringify` does not throw on them — it silently renders every one of
+ * them as `null`, which is exactly the kind of lying this guard exists to
+ * catch: a caller reading the round-tripped value back gets `null`, not the
+ * non-finite number they wrote, and nothing on the way there ever failed.
+ *
  * `seen` tracks the current recursion path, not every value visited overall —
  * removed again after each branch returns, so a value legitimately reachable
  * twice via two different paths (not a cycle) is never falsely refused. A
@@ -387,8 +393,8 @@ const decodeDecision = (wire: typeof DecisionSchema.Type): Decision =>
  */
 export const isJsonSafe = (value: unknown, seen: ReadonlySet<object> = new Set()): boolean => {
   if (value === null) return true;
-  const t = typeof value;
-  if (t === "string" || t === "number" || t === "boolean") return true;
+  if (typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
   if (value instanceof Date) return true;
   if (Array.isArray(value) || (typeof value === "object" && value !== null)) {
     if (seen.has(value)) return false;
