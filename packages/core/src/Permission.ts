@@ -43,15 +43,31 @@ export const SEGMENT_PATTERN = /^[^:]+$/;
 export const isValidSegment = (value: string): boolean => SEGMENT_PATTERN.test(value);
 
 /**
+ * A string literal type containing `:`, rejected to `never`.
+ *
+ * A non-literal `string` is never assignable to the `` `${string}:${string}` ``
+ * pattern, so this only ever rejects a literal that actually contains a
+ * colon — a variable typed as plain `string` (a dynamically constructed
+ * segment) passes through unconstrained, exactly as {@link permission}'s own
+ * doc explains.
+ */
+type NoColon<S extends string> = S extends `${string}:${string}` ? never : S;
+
+/**
  * Builds a permission token, preserving literal types.
  *
  * Total by design: segment validity is enforced at the trust boundary by
- * {@link PermissionSchema} during decoding, not here. Callers writing literals
- * in source get the compile-time guarantee instead.
+ * {@link PermissionSchema} during decoding, not here. Callers writing a colon
+ * literal in source — `permission("a:b", "c")` — get a compile error instead:
+ * `NoColon` rejects a `TResource`/`TAction` inferred as a literal containing
+ * `:` to `never`, so the argument is no longer assignable. A segment built at
+ * runtime from a non-literal `string` carries no such guarantee and must go
+ * through {@link PermissionSchema} to be validated — this constrains only
+ * what the compiler can see.
  */
 export const permission = <const TResource extends string, const TAction extends string>(
-  resource: TResource,
-  action: TAction,
+  resource: NoColon<TResource>,
+  action: NoColon<TAction>,
 ): Permission<TResource, TAction> => ({ resource, action });
 
 /** Formats a permission as its runtime lookup key. */
