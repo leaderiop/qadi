@@ -614,6 +614,32 @@ describe("the dominates matcher", () => {
   });
 });
 
+describe("subjectId() is isolated from subject()", () => {
+  // `subjectId()` is a distinct `ValueRef` variant precisely so that an
+  // attribute happening to be named `id` can never shadow the subject's real
+  // identifier, or be shadowed by it (see the doc comment on `subjectId` in
+  // `Matcher.ts`). Nothing exercised that through an actual evaluation: every
+  // other test referencing `M.subjectId()` only asserts it inside
+  // `referencesAction`/`referencesResource`'s negative lists, never resolves
+  // it via `evaluateMatcher`.
+  const context: M.MatcherContext = {
+    subject: { id: "attacker-controlled", dept: "eng" },
+    subjectId: makeSubjectId("real-u1"),
+    resource: undefined,
+    action: undefined,
+  };
+
+  it("resolves to the subject's own identifier, not an attribute named 'id'", () => {
+    assert.isTrue(M.evaluateMatcher(M.eq(M.subjectId()), makeSubjectId("real-u1"), context));
+    assert.isFalse(M.evaluateMatcher(M.eq(M.subjectId()), "attacker-controlled", context));
+  });
+
+  it("stays isolated from subject('id'), which reads the attribute instead", () => {
+    assert.isTrue(M.evaluateMatcher(M.eq(M.subject("id")), "attacker-controlled", context));
+    assert.isFalse(M.evaluateMatcher(M.eq(M.subject("id")), makeSubjectId("real-u1"), context));
+  });
+});
+
 describe("referencesAction", () => {
   // The evaluator asks this before running a matcher, because the matcher
   // itself cannot fail: an absent action would resolve to undefined, match
