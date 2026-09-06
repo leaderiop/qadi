@@ -522,6 +522,12 @@ describe("hydrateDecisions", () => {
     expect(decision?._tag).toBe("Deny");
     expect(decision?._tag === "Deny" && decision.reason).toBe("hydrated");
     expect(decision?.trace.children).toEqual([]);
+    // Pinned per `rebuild`'s doc comment: the fabricated trace's `policyTag` is
+    // an arbitrary member of the closed `Policy["_tag"]` union, not a claim that
+    // this entry was an `AllOf` policy. A future change to the sentinel is a
+    // documented, deliberate choice, not an accident this test should let pass
+    // silently.
+    expect(decision?.trace.policyTag).toBe("AllOf");
     registry.dispose();
   });
 

@@ -198,6 +198,30 @@ export const dehydrateDecisions = (
   };
 };
 
+/**
+ * Rebuilds one entry's `Decision`, fabricating a trace when the payload has none.
+ *
+ * `dehydrateDecisions` never produces an entry without a `trace`: it always sets
+ * one, either the real thing (`includeTrace: true`) or `reducedTrace`'s
+ * projection. So the `?? {...}` branch below only runs for a payload this module
+ * did not produce — hand-crafted or version-skewed input missing the field
+ * entirely, the same case `decodeEntryFields` already treats as tolerable because
+ * `trace` is `Schema.optional` on `DehydratedEntryFields`.
+ *
+ * The fallback's `policyTag` is `"AllOf"`, and that value is arbitrary rather
+ * than meaningful: `Trace.policyTag` is typed `Policy["_tag"]`, a closed union
+ * enforced structurally by `TRACE_TAGS` in `packages/core/src/SinkCodec.ts`, so
+ * there is no "unknown" or "synthetic" tag to reach for without widening that
+ * union across `@qadi/core` — a change with a much larger blast radius than this
+ * defensive branch justifies. `"AllOf"` was picked only because it is a valid
+ * member of that union; it does not claim the entry was actually an `AllOf`
+ * policy, and nothing downstream treats it as identifying one — `warnMismatch`
+ * in `HydrationWarning.ts` already documents this trace as "a stand-in, naming
+ * nothing", and `spec/devtools-spec/adr-draft-unified-stream.md`'s "Still open"
+ * section tracks it as a disclosure gap rather than a defect: the fix, if one is
+ * wanted, is a UI that renders "trace not disclosed" for a reduced or fabricated
+ * trace, not a different fabricated tag.
+ */
 const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): Decision => {
   const trace = entry.trace ?? {
     policyTag: "AllOf" as const,
