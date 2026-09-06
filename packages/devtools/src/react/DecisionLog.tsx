@@ -168,10 +168,10 @@ const PairCell: FC<{
 
 const subjectOf = (entry: TimelineEntry): string => {
   if (entry._tag !== "TimelineDecision") return "";
-  const outcome = entry.decision.outcome;
-  // A failed evaluation has no subject on it: `subjectId` lives on the
-  // `Decision`, and there is none.
-  return outcome._tag === "Decided" ? outcome.decision.subjectId : "";
+  // `subjectId` is top-level on `DecisionRecord` (`DecisionRecord.ts`), for
+  // both outcomes, so a `Failed` row names its subject exactly as a `Decided`
+  // one does.
+  return entry.decision.subjectId;
 };
 
 const resourceOf = (entry: TimelineEntry): string => {
