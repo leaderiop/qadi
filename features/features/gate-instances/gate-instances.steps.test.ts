@@ -154,12 +154,20 @@ const draw = Effect.fn("gate-instances.draw")(function* (instrument: boolean) {
   yield* patch(() => ({ view: rendered }));
 });
 
-describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
+describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When, Then }) => {
   Before(function* () {
     cleanup();
     clearGatesUnsafe();
     const { state } = yield* World;
     yield* Ref.set(state, initialState);
+  });
+
+  // vitest's `isolate: false` (features/vitest.config.ts) means this file's
+  // module scope — and the `GlobalRegistrator.register()` call above — is
+  // never re-evaluated per file, so without this the happy-dom globals would
+  // stay installed on `globalThis` for every file that runs after this one.
+  AfterAllScenarios(function* () {
+    yield* Effect.promise(() => GlobalRegistrator.unregister());
   });
 
   // -------------------------------------------------------------------------

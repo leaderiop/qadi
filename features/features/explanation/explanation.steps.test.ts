@@ -1,14 +1,12 @@
 import { describeFeature, loadFeature } from "@effect-cucumber/vitest";
 import { fileURLToPath } from "node:url";
-import { givenSteps } from "../../step-definitions/GivenSteps.ts";
+import { explanationThenSteps } from "../../step-definitions/ExplanationThenSteps.ts";
+import { explanationWhenSteps } from "../../step-definitions/ExplanationWhenSteps.ts";
 import { WorldLive } from "../../step-definitions/SharedWorldLive.ts";
-import { thenSteps } from "../../step-definitions/ThenSteps.ts";
-import { whenSteps } from "../../step-definitions/WhenSteps.ts";
 
 const feature = await loadFeature(fileURLToPath(new URL("./explanation.feature", import.meta.url)));
 
 describeFeature(feature, WorldLive, ({ use }) => {
-  use(givenSteps);
-  use(whenSteps);
-  use(thenSteps);
+  use(explanationThenSteps);
+  use(explanationWhenSteps);
 });

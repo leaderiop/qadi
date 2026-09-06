@@ -5,8 +5,10 @@
  * scenario, this is a `Context.Service` holding one `Ref` of the same field set
  * — the shape ADR-EC-009 requires for anything shared across a Scenario's
  * steps under `@effect-cucumber/vitest`. `Bridge.ts` carries the six methods
- * that used to live on the class; `GivenSteps.ts`/`WhenSteps.ts`/`ThenSteps.ts`
- * are the step-definition modules that read and write this `Ref`.
+ * that used to live on the class; the `*GivenSteps.ts`/`*WhenSteps.ts`/
+ * `*ThenSteps.ts` modules are the step-definition vocabulary, split by domain
+ * so each Feature file's runner only registers the step patterns it uses, that
+ * read and write this `Ref`.
  */
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";

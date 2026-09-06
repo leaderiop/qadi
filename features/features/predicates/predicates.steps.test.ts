@@ -1,14 +1,14 @@
 import { describeFeature, loadFeature } from "@effect-cucumber/vitest";
 import { fileURLToPath } from "node:url";
-import { givenSteps } from "../../step-definitions/GivenSteps.ts";
+import { predicateThenSteps } from "../../step-definitions/PredicateThenSteps.ts";
+import { predicateWhenSteps } from "../../step-definitions/PredicateWhenSteps.ts";
 import { WorldLive } from "../../step-definitions/SharedWorldLive.ts";
-import { thenSteps } from "../../step-definitions/ThenSteps.ts";
-import { whenSteps } from "../../step-definitions/WhenSteps.ts";
+import { subjectGivenSteps } from "../../step-definitions/SubjectGivenSteps.ts";
 
 const feature = await loadFeature(fileURLToPath(new URL("./predicates.feature", import.meta.url)));
 
 describeFeature(feature, WorldLive, ({ use }) => {
-  use(givenSteps);
-  use(whenSteps);
-  use(thenSteps);
+  use(predicateThenSteps);
+  use(predicateWhenSteps);
+  use(subjectGivenSteps);
 });

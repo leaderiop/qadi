@@ -1,14 +1,40 @@
 import { describeFeature, loadFeature } from "@effect-cucumber/vitest";
 import { fileURLToPath } from "node:url";
-import { givenSteps } from "../../step-definitions/GivenSteps.ts";
+import { accessThenSteps } from "../../step-definitions/AccessThenSteps.ts";
+import { attributionThenSteps } from "../../step-definitions/AttributionThenSteps.ts";
+import { chineseWallWhenSteps } from "../../step-definitions/ChineseWallWhenSteps.ts";
+import { concurrencyGivenSteps } from "../../step-definitions/ConcurrencyGivenSteps.ts";
+import { environmentGivenSteps } from "../../step-definitions/EnvironmentGivenSteps.ts";
+import { fieldVisibilityThenSteps } from "../../step-definitions/FieldVisibilityThenSteps.ts";
+import { fieldVisibilityWhenSteps } from "../../step-definitions/FieldVisibilityWhenSteps.ts";
+import { historyGivenSteps } from "../../step-definitions/HistoryGivenSteps.ts";
+import { requestGivenSteps } from "../../step-definitions/RequestGivenSteps.ts";
+import { ruleTableThenSteps } from "../../step-definitions/RuleTableThenSteps.ts";
+import { ruleTableWhenSteps } from "../../step-definitions/RuleTableWhenSteps.ts";
+import { securityLabelGivenSteps } from "../../step-definitions/SecurityLabelGivenSteps.ts";
+import { securityLabelWhenSteps } from "../../step-definitions/SecurityLabelWhenSteps.ts";
+import { separationOfDutyWhenSteps } from "../../step-definitions/SeparationOfDutyWhenSteps.ts";
 import { WorldLive } from "../../step-definitions/SharedWorldLive.ts";
-import { thenSteps } from "../../step-definitions/ThenSteps.ts";
-import { whenSteps } from "../../step-definitions/WhenSteps.ts";
+import { subjectGivenSteps } from "../../step-definitions/SubjectGivenSteps.ts";
+import { tbacWhenSteps } from "../../step-definitions/TBACWhenSteps.ts";
 
 const feature = await loadFeature(fileURLToPath(new URL("./concurrency.feature", import.meta.url)));
 
 describeFeature(feature, WorldLive, ({ use }) => {
-  use(givenSteps);
-  use(whenSteps);
-  use(thenSteps);
+  use(accessThenSteps);
+  use(attributionThenSteps);
+  use(chineseWallWhenSteps);
+  use(concurrencyGivenSteps);
+  use(environmentGivenSteps);
+  use(fieldVisibilityThenSteps);
+  use(fieldVisibilityWhenSteps);
+  use(historyGivenSteps);
+  use(requestGivenSteps);
+  use(ruleTableThenSteps);
+  use(ruleTableWhenSteps);
+  use(securityLabelGivenSteps);
+  use(securityLabelWhenSteps);
+  use(separationOfDutyWhenSteps);
+  use(subjectGivenSteps);
+  use(tbacWhenSteps);
 });
