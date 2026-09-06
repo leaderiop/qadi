@@ -1,10 +1,12 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   site: "https://qadi.dev",
   integrations: [
+    sitemap(),
     starlight({
       title: "Qadi",
       description: "Effect-native authorization for TypeScript.",

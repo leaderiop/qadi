@@ -5,7 +5,7 @@
  * Unlike HexDi's `createGuardHealthCheck` (`libs/guard/core/src/guard/guard.ts`,
  * researched as this feature's precedent), which probes a single required
  * port (`AuditTrailPort`), Qadi has no single analogous required port —
- * `EvaluationServices` bundles six, and every one carries a fail-closed
+ * `EvaluationServices` bundles seven, and every one carries a fail-closed
  * default that answers cleanly even when nothing real is wired
  * (INV-QD-007), so "nothing configured" is never itself unhealthy. A canary
  * evaluation exercises whichever ports are actually configured in one pass;

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-OVERVIEW                                  |
-> | Revision       | 1.8                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.10                                           |
+> | Effective Date | 2026-09-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-08-25): `hasSignature` implemented end to end — `HasSignature`/`hasSignature` (`Policy.ts`), `evaluateHasSignature` wired into `evaluateNode`, `Explanation`, `Predicate` (INV-QD-056) and `SinkCodec`; `SignatureHistory` graduates to the ninth service, seventh required; `SignatureHistoryUnavailable` joins `EvaluationError`/`QadiError`; full consumer wiring across `@qadi/testing`, `@qadi/http`, `@qadi/devtools`, the Next.js example and the Gherkin suite; `@qadi/audit` harmonized — `ElectronicSignature` retired in favor of the canonical `Signature` (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.7 (2026-08-25): `createPermissionGroup`/`PermissionGroup` (permission-bundling ergonomics) and `createGuardHealthCheck`/`GuardHealthCheckResult` (a canary-evaluation readiness probe) added — both were ruled out of scope on both `wayfinder:map` efforts as "no open decision, build directly", so neither carries a ticket (CCR-QD-088)<br>1.6 (2026-08-25): `Signature`, `SignatureHistory` and `SignatureHistoryUnavailable` added — the canonical e-signature shape and its lookup port, resolving wayfinder ticket #13 ahead of the `hasSignature` Policy leaf itself; declared but not yet wired into `EvaluationServices` or the error unions (CCR-QD-087)<br>1.5 (2026-08-25): `@qadi/audit` added to the Packages table and given its own subsection — audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` (ADR-QD-056, CCR-QD-085)<br>1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.10 (2026-09-06): `decisionStreamRoute` gains an optional `reauth` — a periodic re-extraction of the subject and re-evaluation of the policy against an open `/__decisions` connection, ending it on the first failed recheck; `DecisionStreamOptions` and `reauthCheck` added (CCR-QD-107)<br>1.9 (2026-09-06): Eleven exports the checker's wildcard-subpath blind spot had hidden from every review — `parseFieldPath`/`Containment`/`compareFieldPaths`/`project` (`@qadi/core/FieldPath.ts`), `wrapService` (`@qadi/core/RetryingLayer.ts`), `CircuitBreakerStatus`/`CircuitBreakerOptions`/`CircuitBreaker`/`makeCircuitBreaker` (`@qadi/audit/CircuitBreaker.ts`), `CallRecorder`/`makeCallRecorder` (`@qadi/testing/CallRecorder.ts`) — added to "Not listed above"; `scripts/check-api-surface.mjs` now expands a `./*` wildcard subpath to every `src/*.ts` module instead of skipping it, and the STALE check now covers every table through "Not listed above", not only "Public API surface" (CCR-QD-102)<br>1.8 (2026-08-25): `hasSignature` implemented end to end — `HasSignature`/`hasSignature` (`Policy.ts`), `evaluateHasSignature` wired into `evaluateNode`, `Explanation`, `Predicate` (INV-QD-056) and `SinkCodec`; `SignatureHistory` graduates to the ninth service, seventh required; `SignatureHistoryUnavailable` joins `EvaluationError`/`QadiError`; full consumer wiring across `@qadi/testing`, `@qadi/http`, `@qadi/devtools`, the Next.js example and the Gherkin suite; `@qadi/audit` harmonized — `ElectronicSignature` retired in favor of the canonical `Signature` (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.7 (2026-08-25): `createPermissionGroup`/`PermissionGroup` (permission-bundling ergonomics) and `createGuardHealthCheck`/`GuardHealthCheckResult` (a canary-evaluation readiness probe) added — both were ruled out of scope on both `wayfinder:map` efforts as "no open decision, build directly", so neither carries a ticket (CCR-QD-088)<br>1.6 (2026-08-25): `Signature`, `SignatureHistory` and `SignatureHistoryUnavailable` added — the canonical e-signature shape and its lookup port, resolving wayfinder ticket #13 ahead of the `hasSignature` Policy leaf itself; declared but not yet wired into `EvaluationServices` or the error unions (CCR-QD-087)<br>1.5 (2026-08-25): `@qadi/audit` added to the Packages table and given its own subsection — audit trail, staging, circuit breaker, retention and e-signature capture, composed onto `DecisionSink` (ADR-QD-056, CCR-QD-085)<br>1.4 (2026-08-25): `hasCustom`, `CustomPredicate` and its layers added — the policy tree's one escape hatch for logic the built-in matchers cannot express; eighth service, sixth required (ADR-QD-055, CCR-QD-082)<br>1.3 (2026-08-25): `@qadi/predicate-sql` and `@qadi/predicate-prisma` added to the Packages table and given their own subsections (ADR-QD-054, CCR-QD-079)<br>1.2 (2026-07-26): Drifted a second time — ten exports and `@qadi/promise` missing; the surfaces of all four public packages now listed, a "Not listed above" table added, and `scripts/check-api-surface.mjs` added as merge gate 9 so a third drift fails the build (CCR-QD-034)<br>1.1 (2026-07-26): Public API surface brought up to date — it had described the library as it was before any of the seven enablers shipped, omitting twenty-one exports and four errors; five services, not four (CCR-QD-025)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -80,7 +80,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | Export | Kind | Source |
 | ------ | ---- | ------ |
 | `Policy`, `FieldStrategy` | schema + type | `Policy.ts` |
-| `DEFAULT_MAX_DEPTH` | constant | `Policy.ts` |
+| `DEFAULT_MAX_DEPTH`, `MAX_DECODE_DEPTH` | constant | `Policy.ts` |
 | `PolicyEncoded`, `RuleEncoded` | type | `Policy.ts` |
 | `RoleName`, `ActionName`, `EventName`, `RelationName`, `LabelName` | schema + type | `Policy.ts` |
 | `makeRoleName` | function | `Policy.ts` |
@@ -94,6 +94,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `rules`, `permitWhen`, `denyWhen` | function | `Policy.ts` |
 | `Combining`, `RuleEffect`, `Rule` | schema + type | `Policy.ts` |
 | `toJson`, `fromJson`, `toJsonValue`, `fromJsonValue`, `PolicyFromJson` | codec | `Policy.ts` |
+| `PolicyDecodeTooDeep` | error | `Policy.ts` |
 | `eq`, `neq`, `inArray`, `exists`, `gte`, `lt`, `contains`, `fieldMatch`, `someMatch`, `everyMatch`, `size` | function | `Matcher.ts` |
 | `dominates` | function | `Matcher.ts` |
 | `subject`, `subjectId`, `resource`, `action`, `literal` | function | `Matcher.ts` |
@@ -224,6 +225,7 @@ answered.
 | `SinkRecordWire` | schema + type | `SinkCodec.ts` |
 | `TraceSchema` | schema | `SinkCodec.ts` — reused by `@qadi/react`'s `Hydration.ts` to validate a `DehydratedEntry`'s `trace` field |
 | `toWire`, `fromWire`, `encodeRecord`, `decodeRecord`, `decodeRecordWire` | codec | `SinkCodec.ts` |
+| `isJsonSafe` | predicate | `SinkCodec.ts` — shared by `@qadi/audit`'s `encodeAuditEntry` and `@qadi/http`'s decision-stream route, both of which guard `toWire`'s one caller-supplied `unknown` field the same way |
 | `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |
 
 **Nine services, and only seven are required.** `DecisionHistory` was the one added
@@ -346,7 +348,10 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `addGuardedRoute` | function | `PermissionRegistry.ts` |
 | `PermissionRegistry`, `PermissionRegistryLive` | service + layer | `PermissionRegistry.ts` |
 | `registerApi`, `permissionRegistryRoute`, `permissionRegistryRouteUnguarded` | function + layer | `PermissionRegistry.ts` |
-| `decisionStreamRoute` | layer factory | `DecisionStreamRoute.ts` |
+| `decisionStreamRoute` | layer factory | `DecisionStreamRoute.ts` — takes an optional `DecisionStreamOptions.reauth` to re-authorize an open connection on an interval, ending it on the first failed recheck |
+| `DecisionStreamOptions` | type | `DecisionStreamRoute.ts` |
+| `frame` | function | `DecisionStreamRoute.ts` — one `SinkRecord` as an SSE frame, or `None` when its resource is not JSON-safe; exported so the refusal is testable directly rather than only through a live connection |
+| `reauthCheck` | function | `DecisionStreamRoute.ts` — one re-authorization attempt against a request already in hand; exported for the same reason `frame` is, so the periodic recheck `reauth` drives is testable directly against `TestClock` |
 | `EndpointDescriptor`, `PermissionRegistryData`, `PermissionRegistryShape` | type | `PermissionRegistry.ts` |
 | `ENFORCEMENT_ERROR_TAGS`, `toResponse` | const + function | `QadiHttpError.ts` |
 | `SubjectExtractor`, `subjectExtractorBearer` | service + layer | `SubjectExtractor.ts` |
@@ -434,8 +439,8 @@ to their own model's `WhereInput` at the call site. Same refusal discipline as
 | `AuditStagingPortTestOptions`, `AuditStagingPortTestHandle` | type | `AuditStagingPortTest.ts` |
 | `getPurgeableEntries`, `enforceRetention` | function | `Retention.ts` |
 | `RetentionPolicy` | type | `Retention.ts` |
-| `verifyChainIntegrity` | function | `ChainIntegrity.ts` |
-| `ChainIntegrityError` | error | `ChainIntegrity.ts` |
+| `verifySequenceIntegrity` | function | `SequenceIntegrity.ts` — renamed from `verifyChainIntegrity`; gap-and-duplicate detection over caller-assigned sequence numbers, not cryptographic tamper-evidence |
+| `SequenceIntegrityError` | error | `SequenceIntegrity.ts` — renamed from `ChainIntegrityError` |
 | `archiveAuditTrail` | function | `AuditArchive.ts` |
 | `AuditArchive`, `ArchivalOptions`, `KeyMaterial` | type | `AuditArchive.ts` |
 | `createDecommissioningChecklist`, `completeDecommissioningStep` | function | `DecommissioningChecklist.ts` |
@@ -585,6 +590,10 @@ standard the rest of the specification holds itself to.
 | Export | Why not listed |
 | ------ | -------------- |
 | `Requirement`, `All`, `Any`, `Negated`, `Named`, `Owing`, `Row`, `Table` | The eight members of the `Explanation` union. A caller needs the union and the two functions over it; naming each member above would describe the shape of a tree rather than the surface of an API. They are specified in [18 — Policy Explanation](behaviors/18-explanation.md) |
+| `parseFieldPath`, `Containment`, `compareFieldPaths`, `project` (`@qadi/core/FieldPath.ts`) | Deliberately kept out of the barrel per §9 (they are the field-lattice's own internal helpers, not vocabulary a policy author reaches for), but `@qadi/core`'s `./*` wildcard subpath export still makes `@qadi/core/FieldPath` importable, so they are real exports rather than private ones. No known consumer imports this subpath today |
+| `wrapService` (`@qadi/core/RetryingLayer.ts`) | Same reasoning as `FieldPath.ts` — a service-wrapping combinator with no policy-authoring role, reachable only via `@qadi/core/RetryingLayer` |
+| `CircuitBreakerStatus`, `CircuitBreakerOptions`, `CircuitBreaker`, `makeCircuitBreaker` (`@qadi/audit/CircuitBreaker.ts`) | Same reasoning, reachable via `@qadi/audit/CircuitBreaker`; `@qadi/audit`'s barrel exposes the breaker's effect on `record`, not the breaker type itself |
+| `CallRecorder`, `makeCallRecorder` (`@qadi/testing/CallRecorder.ts`) | Same reasoning, reachable via `@qadi/testing/CallRecorder`; a test-authoring helper, not fixture vocabulary |
 
 ## Worked example
 

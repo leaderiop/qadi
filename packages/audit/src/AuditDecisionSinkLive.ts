@@ -13,7 +13,7 @@
  * fix.
  *
  * Retention/archival/decommissioning ([Retention.ts](./Retention.ts),
- * [ChainIntegrity.ts](./ChainIntegrity.ts), [AuditArchive.ts](./AuditArchive.ts),
+ * [SequenceIntegrity.ts](./SequenceIntegrity.ts), [AuditArchive.ts](./AuditArchive.ts),
  * [DecommissioningChecklist.ts](./DecommissioningChecklist.ts)) and
  * e-signature capture ([SignatureCapturePort.ts](./SignatureCapturePort.ts))
  * are deliberately **not** part of this pipeline — the former is a
@@ -102,7 +102,16 @@ export const AuditDecisionSinkLive = (
 
           // 2. Read breaker state, staging identically either way — only
           // whether write() is attempted differs.
-          const status = yield* breaker.status;
+          //
+          // A half-open breaker admits exactly one concurrent probe write:
+          // every other `record()` call racing this one while the breaker
+          // is half-open must behave as though it were still `Open`, or a
+          // recovering store would receive the whole of a `filter`/
+          // `filterStream` fan-out at once the instant `resetTimeoutMs`
+          // elapses, not the one trial write the option's own doc promises.
+          const initialStatus = yield* breaker.status;
+          const status =
+            initialStatus === "HalfOpen" && !(yield* breaker.claimProbe) ? "Open" : initialStatus;
 
           // Ties "was staged" and "how to commit it" to one value, rather
           // than a `handle` and a `stagingPort !== undefined` check that
@@ -121,7 +130,16 @@ export const AuditDecisionSinkLive = (
             }
           } else if (status === "Open") {
             // The one case worth flagging specially: unwired and open means
-            // this evaluation's row is genuinely, unrecoverably lost.
+            // this evaluation's row is genuinely, unrecoverably lost. A
+            // metric alone is indistinguishable from an encode failure on a
+            // dashboard that only samples counters — a compliance-flavored
+            // pipeline should make this the loudest failure mode it has, not
+            // one requiring an operator to already suspect it. `evaluationId`
+            // only: a correlation handle, not the subject/resource/policy the
+            // entry itself carries.
+            yield* Effect.logWarning(
+              "audit entry dropped: circuit breaker open and no staging port wired",
+            ).pipe(Effect.annotateLogs({ evaluationId: entry.record.evaluationId }));
             yield* Metric.update(stagingSkippedOpen, 1);
           }
 

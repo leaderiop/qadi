@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-06                                    |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-09-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -39,7 +39,7 @@ Note that `use` requires its callback to **return an Effect**, so it is a
 one-step method accessor. The identity form `static current = X.use((x) => x)`
 typechecks only when the Shape is itself an `Effect`, which ours are not.
 
-## BEH-QD-042: The six services, five of them required
+## BEH-QD-042: The nine services, seven of them required
 
 | Service | Tag | Purpose |
 | ------- | --- | ------- |
@@ -48,10 +48,17 @@ typechecks only when the Shape is itself an `Effect`, which ours are not.
 | `RelationshipResolver` | `qadi/RelationshipResolver` | ReBAC graph questions |
 | `DecisionHistory` | `qadi/DecisionHistory` | What this subject has already done |
 | `EvaluationId` | `qadi/EvaluationId` | Correlating identifier |
+| `CustomPredicate` | `qadi/CustomPredicate` | A named, registered escape hatch for logic the built-in matchers cannot express |
+| `SignatureHistory` | `qadi/SignatureHistory` | Electronic-signature lookups for `hasSignature` |
 | `DecisionCache` | `qadi/DecisionCache` | **Optional.** What has already been asked, within a scope the caller chooses |
+| `DecisionSink` | `qadi/DecisionSink` | **Optional.** Where a decision is forwarded for observation, once made |
 
-`DecisionHistory` arrived with E5 and is the only one added after the initial
-release. Like `RelationshipResolver` it is a **port**, not a store: the record
+`EvaluationServices` (`Evaluate.ts`) is the union of the seven required
+services; `DecisionCache` and `DecisionSink` are read through
+`Effect.serviceOption` instead, precisely so an application that never wires
+one is unaffected (`INV-QD-025`, `INV-QD-035`). `DecisionHistory` arrived with
+E5, `CustomPredicate` and `SignatureHistory` considerably later — each is a
+**port**, not a store: the record (or the registry, or the signature history)
 lives in the caller's system and Qadi never writes to it
 ([ADR-QD-020](../decisions/020-decision-history-port.md)).
 

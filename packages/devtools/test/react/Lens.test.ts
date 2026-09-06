@@ -46,8 +46,14 @@ const measuring = (rect: { top: number; left: number; width: number; height: num
   const element = document.createElement("span");
   document.body.appendChild(element);
   const original = Range.prototype.getBoundingClientRect;
-  Range.prototype.getBoundingClientRect = () =>
-    ({ ...rect, right: rect.left + rect.width, bottom: rect.top + rect.height, x: rect.left, y: rect.top, toJSON: () => ({}) }) as DOMRect;
+  Range.prototype.getBoundingClientRect = (): DOMRect => ({
+    ...rect,
+    right: rect.left + rect.width,
+    bottom: rect.top + rect.height,
+    x: rect.left,
+    y: rect.top,
+    toJSON: () => ({}),
+  });
   return { element, restore: () => { Range.prototype.getBoundingClientRect = original; } };
 };
 

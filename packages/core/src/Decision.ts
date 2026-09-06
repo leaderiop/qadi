@@ -109,14 +109,22 @@ export const project = <A extends Resource>(
 
   // Not a write through `out[field] = …` — TS permits reading a
   // generic-indexed type but not writing through one (TS2862) — but also not
-  // a fresh `{ ...out, [field]: … }` literal per field, which is the same
-  // restriction worked around at O(n²) instead of O(1) per step.
-  // `Object.assign` mutates `out` directly without ever indexing it by a
-  // generic key, so it sidesteps TS2862 at O(1) amortized per field.
+  // `Object.assign(out, { [field]: … })`: `field` is untrusted (`data`,
+  // hence `projected`, may be `JSON.parse`d and carry its own "__proto__"
+  // key), and `Object.assign`'s ordinary `[[Set]]` on a plain `out` would
+  // invoke `Object.prototype`'s inherited `__proto__` *setter* rather than
+  // create an own property, mutating `out`'s real prototype instead of
+  // storing the value. `Object.defineProperty` always defines an own data
+  // property directly, whatever `field` is.
   const out: Partial<A> = {};
   for (const field of Object.keys(projected)) {
     if (isFieldOf(data, field)) {
-      Object.assign(out, { [field]: projected[field] });
+      Object.defineProperty(out, field, {
+        value: projected[field],
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
   }
   return out;

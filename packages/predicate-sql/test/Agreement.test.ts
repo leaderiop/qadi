@@ -62,19 +62,17 @@ const leaf: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
   ),
 );
 
-const tree: FastCheck.Arbitrary<Predicate> = FastCheck.letrec((tie) => ({
+const tree: FastCheck.Arbitrary<Predicate> = FastCheck.letrec<{ node: Predicate }>((tie) => ({
   node: FastCheck.oneof(
     { maxDepth: 4, withCrossShrink: true },
     leaf,
-    FastCheck.array(tie("node") as FastCheck.Arbitrary<Predicate>, { maxLength: 3 }).map(
+    FastCheck.array(tie("node"), { maxLength: 3 }).map(
       (predicates): Predicate => ({ _tag: "And", predicates }),
     ),
-    FastCheck.array(tie("node") as FastCheck.Arbitrary<Predicate>, { maxLength: 3 }).map(
+    FastCheck.array(tie("node"), { maxLength: 3 }).map(
       (predicates): Predicate => ({ _tag: "Or", predicates }),
     ),
-    (tie("node") as FastCheck.Arbitrary<Predicate>).map(
-      (predicate): Predicate => ({ _tag: "Negate", predicate }),
-    ),
+    tie("node").map((predicate): Predicate => ({ _tag: "Negate", predicate })),
   ),
 })).node;
 

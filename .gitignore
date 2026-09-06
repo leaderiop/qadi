@@ -33,3 +33,10 @@ packages/*/test/**/*.d.ts.map
 # generate`/`db push` produce from it is not.
 packages/predicate-prisma/prisma/generated/
 packages/predicate-prisma/prisma/*.db
+
+# Local assistant/tooling state, never meant to be shared or diffed.
+.claude/
+.impeccable/
+
+# Local GSD planning state — no longer tracked in git.
+.planning/

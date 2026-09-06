@@ -198,4 +198,26 @@ describe("project", () => {
       contact: { email: "a@b.com", phone: "555" },
     });
   });
+
+  it("a data object with its own '__proto__' key (from JSON.parse) does not pollute the result's prototype", () => {
+    // JSON.parse gives an object a genuine OWN "__proto__" property without
+    // ever touching its real prototype — this is exactly the shape untrusted
+    // resource data arrives in. A "*" spec walks every own key including this
+    // one; `out[key] = …` on an ordinary `{}` would invoke the inherited
+    // `__proto__` setter instead of storing a value, so nothing here may end
+    // up with `polluted` reachable off a plain object's own prototype.
+    const data: Record<string, unknown> = JSON.parse(
+      '{"id":"1","__proto__":{"polluted":true}}',
+    );
+    const result = project(data, ["*"]);
+    // `*` redacts an object-valued child to `{}` one level down — the same
+    // rule any other key gets, not a `__proto__`-specific carve-out. Built
+    // with a computed key: `{ "__proto__": {} }` as a literal sets ITS OWN
+    // prototype instead of creating an own property, the same special case
+    // this test exists to prove `project`'s result never falls into.
+    assert.deepStrictEqual(result, { id: "1", ["__proto__"]: {} });
+    assert.isTrue(Object.hasOwn(result, "__proto__"));
+    const probe: Record<string, unknown> = {};
+    assert.isUndefined(probe["polluted"]);
+  });
 });

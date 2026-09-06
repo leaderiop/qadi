@@ -30,7 +30,7 @@ A developer lands on the homepage from a search, a link, or the npm/GitHub listi
 ## Capabilities and Constraints
 
 - Nine public packages get homepage and docs billing: `@qadi/core`, `@qadi/testing`, `@qadi/react`, `@qadi/promise`, `@qadi/http`, `@qadi/devtools`, `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/audit` — depth scaled by importance (`core`/`audit`/`react` deepest, three docs pages each).
-- The library itself is `v0.0.0` and unpublished; the website must not imply a stable, released API.
+- Four packages (`@qadi/core`, `@qadi/testing`, `@qadi/react`, `@qadi/promise`) are published on npm at `v0.2.0`; the remaining five ship at `0.1.0`, unpublished. All nine are pre-1.0; the website must not imply a stable, released API.
 - `@qadi/audit` is explicitly **not** a compliance certification of any kind — no "GxP compliant," "21 CFR Part 11 compliant," "validated," or "certified" claim may appear anywhere on the site. `hasSignature`/e-signature capture is trust-on-presence, not live cryptographic validation, and that gap is stated plainly rather than hidden.
 - The site is static content (Astro-built), not an interactive product surface itself — no live in-browser policy evaluator exists yet (a `@effect/monaco-editor`-style demo was flagged as future work, not part of the current build).
 - Live deployment (hosting, custom domain, deploy-on-merge CI) is separate follow-up work; the real domain is `qadi.dev`.
@@ -46,7 +46,7 @@ A developer lands on the homepage from a search, a link, or the npm/GitHub listi
 
 - Real GitHub repository: `https://github.com/leaderiop/qadi`.
 - Real, checkable numbers already used on-site: 95% test coverage on `@qadi/core` / 90% workspace-wide, 92% mutation score on `packages/audit` (`pnpm check` gate 20), 22 total merge gates, five formally stated invariants (INV-QD-051 through INV-QD-055) backing the audit pipeline's correctness claims.
-- No testimonials, customer logos, case studies, or pricing exist or should be fabricated — the library is unpublished and has no customers yet.
+- No testimonials, customer logos, case studies, or pricing exist or should be fabricated — the library is pre-1.0 and has no customers yet.
 
 ## Product Principles
 

@@ -383,26 +383,19 @@ describe("explain", () => {
       FastCheck.constant(P.hasSignature("approved")),
     );
 
-    const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
+    const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
       node: FastCheck.oneof(
         { maxDepth: 4, withCrossShrink: true },
         leaf,
-        FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }).map(
-          (ps) => P.allOf(ps),
-        ),
-        FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }).map(
-          (ps) => P.anyOf(ps),
-        ),
-        (tie("node") as FastCheck.Arbitrary<P.Policy>).map(P.not),
-        (tie("node") as FastCheck.Arbitrary<P.Policy>).map((p) => P.labeled("l", p)),
-        (tie("node") as FastCheck.Arbitrary<P.Policy>).map((p) =>
-          P.obliged(obligation("audit.log"), p),
-        ),
+        FastCheck.array(tie("node"), { maxLength: 3 }).map((ps) => P.allOf(ps)),
+        FastCheck.array(tie("node"), { maxLength: 3 }).map((ps) => P.anyOf(ps)),
+        tie("node").map(P.not),
+        tie("node").map((p) => P.labeled("l", p)),
+        tie("node").map((p) => P.obliged(obligation("audit.log"), p)),
         FastCheck.array(
-          FastCheck.tuple(
-            tie("node") as FastCheck.Arbitrary<P.Policy>,
-            FastCheck.boolean(),
-          ).map(([c, permits]) => (permits ? P.permitWhen(c) : P.denyWhen(c))),
+          FastCheck.tuple(tie("node"), FastCheck.boolean()).map(([c, permits]) =>
+            permits ? P.permitWhen(c) : P.denyWhen(c),
+          ),
           { maxLength: 3 },
         ).map((rs) => P.rules(rs)),
       ),

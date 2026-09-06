@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-056                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-09-06                                     |
 > | Status         | Accepted — narrows ADR-QD-016                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -129,7 +129,7 @@ skip, react to the outcome — reachable through the one call every evaluation
 already makes.
 
 **Retention, archival and decommissioning** (`Retention.ts`,
-`ChainIntegrity.ts`, `AuditArchive.ts`, `DecommissioningChecklist.ts`) sit
+`SequenceIntegrity.ts`, `AuditArchive.ts`, `DecommissioningChecklist.ts`) sit
 structurally **outside** `DecisionSink.record` entirely: pure functions and
 data, caller-invoked and caller-scheduled, since `@qadi/audit` has no
 scheduler of its own. Purge selection is parameterized on `now` rather than
@@ -187,8 +187,8 @@ deterministic `AuditTrailPortTest`/`AuditStagingPortTest` in-memory `Layer`s
   `retained ∩ purged = ∅` (`test/Retention.test.ts`, formalized as
   [INV-QD-053](../invariants.md#inv-qd-053-retained-and-purged-partition-entries));
 - gap-and-duplicate detection over generated sequence numbers
-  (`test/ChainIntegrity.test.ts`, formalized as
-  [INV-QD-054](../invariants.md#inv-qd-054-verifychainintegrity-detects-every-gap-and-duplicate-sequence-number));
+  (`test/SequenceIntegrity.test.ts`, formalized as
+  [INV-QD-054](../invariants.md#inv-qd-054-verifysequenceintegrity-detects-every-gap-and-duplicate-sequence-number));
 - a call-once property for the signature obligation handler
   (`test/SignatureCapturePort.test.ts`, formalized as
   [INV-QD-055](../invariants.md#inv-qd-055-signatureobligationhandler-calls-capture-exactly-once-and-the-obligationrecord-matches)).

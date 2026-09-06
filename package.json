@@ -1,6 +1,6 @@
 {
   "name": "qadi-monorepo",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -12,6 +12,7 @@
   "packageManager": "pnpm@10.17.1",
   "description": "Effect-native authorization: permission tokens, role DAG, schema-derived policy ADT, Effect evaluator",
   "scripts": {
+    "prepare": "effect-tsgo patch",
     "build": "tsc -b tsconfig.build.json",
     "changeset": "changeset",
     "changeset-version": "changeset version",
@@ -37,7 +38,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm circular && pnpm test:tstyche && pnpm coverage && pnpm test:bdd && pnpm spec:examples && pnpm spec:verify:strict && pnpm spec:gates && pnpm spec:claims && pnpm spec:api && pnpm spec:package && pnpm example && pnpm mutation && pnpm spec:website-examples && pnpm website",
     "spec:examples": "node scripts/check-doc-examples.mjs",
     "spec:website-examples": "node scripts/check-website-doc-examples.mjs",
-    "website": "pnpm --filter @qadi/website check",
+    "website": "node scripts/check-website-build.mjs",
     "spec:api": "node scripts/check-api-surface.mjs",
     "spec:package": "node scripts/check-package-install.mjs",
     "spec:gates": "node scripts/check-dod-table.mjs",
@@ -47,6 +48,7 @@
   "devDependencies": {
     "@changesets/cli": "^3.0.1",
     "@effect/language-service": "^0.77.0",
+    "@effect/tsgo": "0.41.0",
     "@effect/vitest": "catalog:",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",

@@ -54,6 +54,16 @@ export interface Qadi {
    * **Rejects** when the question could not be answered — a resolver failure, a
    * policy that reads an absent action, a tree past `maxDepth`. A denial is an
    * answer; a broken lookup is not.
+   *
+   * A boolean has no room for an obligation: a policy carrying one resolves
+   * `true` with the obligation silently undischarged, the same caveat core's
+   * own `check` carries. There is no `onObligations` on this facade at all —
+   * every method here takes the plain `EvaluateOptions`, never core's
+   * `EnforceOptions` that adds it. `assert`/`filter` below still discharge
+   * through core's own `assert`/`filter` (which default `onObligations` to
+   * undefined) and so can reject `UndischargedObligation`, but nothing on
+   * this facade can supply the handler that would let one succeed instead. A
+   * caller whose policies carry obligations needs `@qadi/core` directly.
    */
   readonly check: (
     subject: AuthSubject,
@@ -73,6 +83,12 @@ export interface Qadi {
    *
    * The one place a denial is exceptional, because the caller has said "proceed only
    * if permitted".
+   *
+   * Also rejects with `UndischargedObligation` for an allow carrying a
+   * **binding** obligation — see `check`'s note on obligations above. There is
+   * no way to supply a handler through this facade, so a binding obligation
+   * always rejects here; an allow with only advisory obligations still
+   * resolves, since advice never blocks.
    */
   readonly assert: (
     subject: AuthSubject,
@@ -80,7 +96,13 @@ export interface Qadi {
     options?: EvaluateOptions,
   ) => Promise<void>;
 
-  /** The items the policy admits, in order. */
+  /**
+   * The items the policy admits, in order.
+   *
+   * Same obligation caveat as `assert`: an item whose policy allows but carries
+   * a binding obligation makes the whole call reject with
+   * `UndischargedObligation`, since no handler can be supplied here.
+   */
   readonly filter: <A extends Resource>(
     subject: AuthSubject,
     policy: Policy,

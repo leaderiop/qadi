@@ -46,7 +46,10 @@ const facade = (layer = baseLayer) => {
 };
 
 afterEach(async () => {
-  while (disposers.length > 0) await disposers.pop()!();
+  while (disposers.length > 0) {
+    const dispose = disposers.pop();
+    if (dispose !== undefined) await dispose();
+  }
 });
 
 describe("makeQadi", () => {

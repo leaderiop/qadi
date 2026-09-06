@@ -17,7 +17,7 @@ short-circuiting and left an entire API unreachable.
 ```ts
 const qadi = makeQadi(runtime);
 
-if (await qadi.check(policy, subject)) {
+if (await qadi.check(subject, policy)) {
   // ...
 }
 ```

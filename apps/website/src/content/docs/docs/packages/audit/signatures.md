@@ -6,7 +6,10 @@ description: hasSignature's trust-on-presence policy check, and @qadi/audit's Si
 E-signatures in Qadi split into two separate concerns: *checking* that a
 signature exists (`@qadi/core`'s `hasSignature`), and *capturing* one at
 enforcement time (`@qadi/audit`'s `SignatureCapturePort`). Neither performs
-live cryptographic verification.
+live cryptographic verification. This page covers both; for the check side
+as a concept on its own — decomposability, the `SignatureHistory` port, and
+how it differs from `hasCustom` — see
+[Signatures](/docs/concepts/signatures/).
 
 ## `hasSignature` — the policy check
 

@@ -153,9 +153,12 @@ describe("simplify", () => {
     assert.strictEqual(result._tag, "Rules");
     if (result._tag !== "Rules") return;
     assert.strictEqual(result.rules.length, 2);
-    assert.strictEqual(result.rules[0]!.effect, "Deny");
+    const [rule] = result.rules;
+    assert.isDefined(rule);
+    if (rule === undefined) return;
+    assert.strictEqual(rule.effect, "Deny");
     // The row's condition was simplified in place.
-    assert.deepStrictEqual(result.rules[0]!.condition, P.hasRole("a"));
+    assert.deepStrictEqual(rule.condition, P.hasRole("a"));
   });
 
   it("is idempotent", () => {
@@ -196,28 +199,25 @@ describe("simplify", () => {
     "Intersection" as const,
   );
 
-  const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
+  const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
     node: FastCheck.oneof(
       { maxDepth: 4, withCrossShrink: true },
       leaf,
       FastCheck.tuple(
-        FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }),
+        FastCheck.array(tie("node"), { maxLength: 3 }),
         strategies,
       ).map(([ps, fieldStrategy]) => P.allOf(ps, { fieldStrategy })),
       FastCheck.tuple(
-        FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }),
+        FastCheck.array(tie("node"), { maxLength: 3 }),
         strategies,
       ).map(([ps, fieldStrategy]) => P.anyOf(ps, { fieldStrategy })),
-      (tie("node") as FastCheck.Arbitrary<P.Policy>).map(P.not),
-      (tie("node") as FastCheck.Arbitrary<P.Policy>).map((p) => P.labeled("l", p)),
-      (tie("node") as FastCheck.Arbitrary<P.Policy>).map((p) =>
-        P.obliged(obligation("audit.log"), p),
-      ),
+      tie("node").map(P.not),
+      tie("node").map((p) => P.labeled("l", p)),
+      tie("node").map((p) => P.obliged(obligation("audit.log"), p)),
       FastCheck.array(
-        FastCheck.tuple(
-          tie("node") as FastCheck.Arbitrary<P.Policy>,
-          FastCheck.boolean(),
-        ).map(([c, permits]) => (permits ? P.permitWhen(c) : P.denyWhen(c))),
+        FastCheck.tuple(tie("node"), FastCheck.boolean()).map(([c, permits]) =>
+          permits ? P.permitWhen(c) : P.denyWhen(c),
+        ),
         { maxLength: 3 },
       ).map((rs) => P.rules(rs)),
     ),

@@ -11,6 +11,7 @@
 // instead of the prototype's same-page anchors — see the NAV block below.
 import "../styles/landing.css";
 import HeadFonts from "../components/HeadFonts.astro";
+import SectionDivider from "../components/SectionDivider.astro";
 import SiteNav from "../components/SiteNav.astro";
 import {
   apiRows,
@@ -18,11 +19,13 @@ import {
   bars,
   features,
   marqueeItems,
+  modelCount,
   modelGlossary,
   modelsExcluded,
   modelsShipped,
   modelsWiring,
   packages,
+  pageSections,
   stepInfo,
 } from "../data/landing-content.js";
 
@@ -45,28 +48,110 @@ const glossOf = (label: string) => {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Qadi — Effect-native authorization for TypeScript</title>
   <meta name="description" content="Permission tokens, a role DAG, a schema-derived policy ADT, and a single Effect-returning evaluator. One definition per concept." />
+  <link rel="canonical" href="https://qadi.dev/" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4' fill='%234fb6c4' stroke='%234fb6c4' stroke-width='4'/%3E%3C/svg%3E" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://qadi.dev/" />
+  <meta property="og:title" content="Qadi — Effect-native authorization for TypeScript" />
+  <meta property="og:description" content="Permission tokens, a role DAG, a schema-derived policy ADT, and a single Effect-returning evaluator. One definition per concept." />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Qadi — Effect-native authorization for TypeScript" />
+  <meta name="twitter:description" content="Permission tokens, a role DAG, a schema-derived policy ADT, and a single Effect-returning evaluator. One definition per concept." />
+  <script type="application/ld+json" is:inline set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Qadi",
+    description: "Effect-native authorization for TypeScript.",
+    url: "https://qadi.dev/",
+    applicationCategory: "DeveloperApplication",
+    operatingSystem: "Any",
+    license: "https://opensource.org/licenses/MIT",
+  })} />
+  {/* Blocking and inline so it runs before body paint: `.card-extra`/
+      `.pill-extra` (landing.css) hide the models/features/packages
+      "+N more" overflow only under `.js`, so a client with JavaScript off
+      or blocked never has that content hidden with no way to reach it —
+      it renders visible, uncollapsed, from the start instead. */}
+  <script is:inline>document.documentElement.classList.add("js");</script>
   <HeadFonts />
 </head>
 <body>
-<a href="#main-content" class="mono skip-link" style="position:absolute;top:-40px;left:8px;z-index:50;padding:10px 16px;background:oklch(0.72 0.15 195);color:oklch(0.14 0.01 195);font-weight:600;font-size:13px;border-radius:6px;">Skip to content</a>
-<div style="font-family:'IBM Plex Sans',sans-serif;background:oklch(0.17 0.014 260);color:oklch(0.93 0.006 260);min-height:100vh;overflow-x:hidden;">
+<a href="#main-content" class="mono skip-link" style="position:absolute;top:-40px;left:8px;z-index:50;padding:10px 16px;background:var(--verdict-teal);color:var(--ink-void);font-weight:600;font-size:13px;border-radius:6px;">Skip to content</a>
 
-  <!-- NAV
-       Deliberate change from the prototype: same-page anchor links
-       (#problem, #features, #models, #packages, #api, #architecture,
-       #status) are replaced with the site's real top-level navigation
-       (Docs / Blog / Compliance) plus GitHub. The scroll-spy that used to
-       highlight the active anchor is dropped with it — there is nothing
-       left to spy on. The scroll-progress bar stays; it doesn't depend on
-       what the nav links to. -->
-  <SiteNav
-    links={[
-      { href: "/docs/", label: "Docs" },
-      { href: "/blog/", label: "Blog" },
-      { href: "/compliance/", label: "Compliance" },
-    ]}
-    showScrollProgress
-  />
+<!-- NAV
+     Deliberately a sibling of the wrapper below, not nested inside it. The
+     wrapper's `overflow-x: hidden` (there to contain the model marquee's
+     wide scrolling ticker) auto-promotes its own `overflow-y` to `auto` per
+     the CSS spec's "one axis visible, one not" rule — which silently turns
+     it into `position: sticky`'s containing block. A critique reproduced
+     this live: the nav scrolled away 1:1 with the page at every scroll
+     position instead of sticking, since a `sticky` element's containing
+     block never actually scrolls itself. Sitting outside the wrapper avoids
+     the trap entirely rather than trying to out-`!important` it.
+
+     Also deliberate change from the prototype: same-page anchor links
+     (#problem, #features, #models, #packages, #api, #architecture,
+     #status) are replaced with the site's real top-level navigation
+     (Docs / Blog / Compliance) plus GitHub. The scroll-spy that used to
+     highlight the active anchor was dropped with it — there was nothing
+     left in NAV to spy on. The scroll-progress bar stays; it doesn't
+     depend on what the nav links to.
+
+     A section-specific scroll-spy is back, just not here: see SECTION
+     INDEX below. That is a deliberately separate element from NAV, not a
+     revival of the anchors this comment describes dropping. -->
+<SiteNav
+  links={[
+    { href: "/docs/", label: "Docs" },
+    { href: "/blog/", label: "Blog" },
+    { href: "/compliance/", label: "Compliance" },
+  ]}
+  showScrollProgress
+/>
+
+<!-- SECTION INDEX
+     A critique found that a skimming evaluator had no way to preview how
+     much of this 10-section, ~8,000-14,500px scroll remained, or jump to
+     the one section they actually wanted — the top nav (above) points at
+     real pages, not same-page anchors, so it can't answer that. This rail
+     is additive: visible from page load (the point is gauging scope
+     *before* committing to read, not after), one dot per section with a
+     hover/focus-revealed label, and a live scroll-spy so the current
+     section is always legible without depending on visual scroll position
+     alone. Sits outside the wrapper below for the same reason NAV does —
+     see NAV's own comment; `position: fixed` isn't actually caught by
+     that trap, but staying consistent with NAV costs nothing. -->
+<nav class="section-rail" aria-label="Page sections">
+  {pageSections.map((sec) => (
+    <button
+      type="button"
+      class="section-rail-dot"
+      data-section={sec.id}
+      data-tip={`${sec.n} · ${sec.title}`}
+      aria-label={`Jump to section ${sec.n}: ${sec.title}`}
+      aria-current="false"
+    ></button>
+  ))}
+</nav>
+
+<!-- COMPARE RECAP
+     A critique found that below 900px `.problem-compare-grid` stacks its
+     two cards vertically, so by the time a reader reaches the "qadi" card
+     they've scrolled the "maintained by hand" card (and its drift warning)
+     out of view — the exact side-by-side argument the section exists to
+     make effortless collapses into a working-memory demand instead. `position:
+     fixed` (not `sticky`) for the same reason as NAV and SECTION INDEX
+     above: this would sit inside the `overflow-x: hidden` wrapper below,
+     which is the trap those two comments describe. `initCompareRecap` in
+     landing.js toggles `.visible` only below 900px and only while the
+     "qadi" card (`.compare-after`) is in view, so this never appears
+     alongside the side-by-side desktop layout that doesn't need it. -->
+<div id="compare-recap" class="compare-recap" aria-hidden="true">
+  <span class="compare-recap-tag">↑ vs. maintained by hand</span>
+  <span class="compare-recap-line">"body" dropped silently on JSON round-trip</span>
+</div>
+
+<div style="font-family:'IBM Plex Sans',sans-serif;background:var(--ink);color:var(--parchment);min-height:100vh;overflow-x:hidden;">
 
   <!-- HERO -->
   <main id="main-content" tabindex="-1" style="position:relative;outline:none;">
@@ -79,52 +164,94 @@ const glossOf = (label: string) => {
        frame) to the height of the entire page. */}
    <div style="position:relative;">
     <div style="position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0.5;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cg fill='none' stroke='%23c9a227' stroke-opacity='0.16' stroke-width='1'%3E%3Cpolygon points='50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4'/%3E%3Cpolygon points='16,0 0,16 -16,0 0,-16'/%3E%3Cpolygon points='106,0 90,16 74,0 90,-16'/%3E%3Cpolygon points='16,90 0,106 -16,90 0,74'/%3E%3Cpolygon points='106,90 90,106 74,90 90,74'/%3E%3C/g%3E%3C/svg%3E&quot;);background-size:90px 90px;-webkit-mask-image:radial-gradient(ellipse 75% 85% at 50% 32%, black, transparent 78%);mask-image:radial-gradient(ellipse 75% 85% at 50% 32%, black, transparent 78%);"></div>
-    <div style="position:absolute;inset:0;z-index:0;background:radial-gradient(ellipse 60% 55% at 72% 42%, oklch(0.72 0.15 195 / 0.11), transparent 70%),radial-gradient(ellipse 50% 45% at 10% 18%, oklch(0.75 0.13 80 / 0.08), transparent 70%);pointer-events:none;"></div>
+    {/* A critique flagged the radial-gradient color wash this block used to
+        carry as brushing against DESIGN.md's own Don't ("a gradient-heavy
+        hero background") — restrained as it was, it's still that pattern,
+        and it duplicated the angular star-pattern overlay immediately above
+        as a second, redundant ambient layer. Removed rather than tuned
+        further: the star pattern alone already carries the hero's texture,
+        with no non-angular wash competing for the same job. */}
     <div id="hero-art-mount" style="position:absolute;inset:0;z-index:0;opacity:0.55;pointer-events:none;"></div>
     <div class="hero-grid" style="position:relative;z-index:1;display:grid;grid-template-columns:1fr 1.1fr;gap:56px;align-items:center;max-width:1280px;margin:0 auto;padding:96px 48px 88px;">
       <div>
-        <div class="mono hero-in d1" style="display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid oklch(0.75 0.13 80 / 0.4);border-radius:999px;font-size:12px;color:oklch(0.75 0.13 80);margin-bottom:28px;background:oklch(0.17 0.014 260 / 0.7);">
-          <span style="width:6px;height:6px;transform:rotate(45deg);background:oklch(0.75 0.13 80);"></span>
-          all roadmap items shipped · v0.0.0 · unpublished
-        </div>
-        <h1 class="serif hero-in d2 hero-title" style="font-size:58px;line-height:1.12;font-weight:400;margin:0 0 24px;letter-spacing:0.005em;">
-          Effect-native<br /><span style="color:oklch(0.78 0.13 195);">authorization</span><br />for TypeScript.
+        {/* Was the first thing on the page, above the H1: a critique flagged
+            that a skim-reader hit "unpublished" before any differentiator
+            copy. The status is unchanged — same words, same prominence,
+            still above the fold — just reordered to the end of the hero
+            column so the pitch reads first. Animation-delay classes are
+            renumbered (d2→d5) to match this new visual order; the right
+            column's code panel (d6) is untouched. */}
+        {/* Deliberately not `.hero-in` like d2-d6 below: this is the hero's
+            (and the page's) most likely LCP element, so it paints
+            immediately rather than starting at opacity:0 under a fade-in —
+            a critique flagged the fade as inflating measured LCP for the
+            one element that matters most for it. Everything after it still
+            gets the cascading reveal. */}
+        <h1 class="serif hero-title" style="font-size:58px;line-height:1.12;font-weight:400;margin:0 0 24px;letter-spacing:0.005em;">
+          Effect-native<br /><span style="color:var(--verdict-teal-bright);">authorization</span><br />for TypeScript.
         </h1>
-        <p class="hero-in d3" style="font-size:18px;line-height:1.6;color:oklch(0.72 0.01 260);margin:0 0 36px;max-width:480px;">
-          Permission tokens, a role DAG, a schema-derived policy ADT, and a single <span class="mono" style="color:oklch(0.85 0.006 260);">Effect</span>-returning evaluator. One definition per concept: the type and the JSON codec are derived from the same schema, so they cannot drift.
+        <p class="hero-in d2" style="font-size:18px;line-height:1.6;color:var(--testimony-bright);margin:0 0 36px;max-width:480px;">
+          One call decides who can do what, and which fields they can see. Built from permission tokens, a role DAG, a schema-derived policy ADT, and a single <span class="mono" style="color:var(--parchment-dim);">Effect</span>-returning evaluator — one definition per concept, so the type and its JSON codec can't drift apart.
         </p>
-        <div class="hero-in d4" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;">
-          <a href="https://github.com/leaderiop/qadi" class="btn-primary" style="display:flex;align-items:center;gap:8px;padding:12px 20px;background:oklch(0.72 0.15 195);border-radius:6px;color:oklch(0.14 0.01 195);font-weight:600;font-size:14px;">View on GitHub</a>
-          <a href="/docs/" class="btn-outline" style="display:flex;align-items:center;gap:8px;padding:12px 20px;border:1px solid oklch(1 0 0 / 0.16);border-radius:6px;color:oklch(0.93 0.006 260);font-size:14px;background:oklch(0.17 0.014 260 / 0.7);">Read the spec</a>
+        <div class="hero-in d3" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;">
+          <a href="https://github.com/leaderiop/qadi" class="btn-primary" style="display:flex;align-items:center;gap:8px;padding:12px 20px;background:var(--verdict-teal);border-radius:6px;color:var(--ink-void);font-weight:600;font-size:14px;">View on GitHub</a>
+          <a href="/docs/" class="btn-outline" style="display:flex;align-items:center;gap:8px;padding:12px 20px;border:1px solid oklch(1 0 0 / 0.16);border-radius:6px;color:var(--parchment);font-size:14px;background:oklch(0.17 0.014 260 / 0.7);">Read the docs</a>
         </div>
-        <div class="mono hero-in d5" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:6px;font-size:13px;color:oklch(0.75 0.01 260);max-width:340px;">
-          <span style="color:oklch(0.78 0.13 195);">$</span>
+        <div class="mono hero-in d4" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--ink-void);border:1px solid var(--hairline);border-radius:6px;font-size:13px;color:var(--navlink);max-width:340px;margin-bottom:20px;">
+          <span style="color:var(--verdict-teal-bright);">$</span>
           <span style="flex:1;">pnpm add @qadi/core</span>
-          <button id="copy-install" type="button" class="copy-btn mono" style="cursor:pointer;color:oklch(0.6 0.01 260);border:none;border-left:1px solid oklch(1 0 0 / 0.08);background:transparent;padding-left:12px;font-size:13px;">copy</button>
+          <button id="copy-install" type="button" class="copy-btn mono" aria-label="Copy install command" style="cursor:pointer;color:var(--footnote);border:none;border-left:1px solid var(--hairline);background:transparent;padding-left:12px;font-size:13px;">copy</button>
+          {/* A `role="status"` region separate from the button itself: a
+              screen reader does not reliably announce an aria-live update on
+              the element the user's own focus is currently sitting on (a
+              critique reproduced this on VoiceOver/Safari), so the status
+              text lives here instead of on #copy-install. Visually hidden —
+              the button's own text already carries the sighted-user feedback. */}
+          <span id="copy-install-status" class="sr-only" role="status" aria-live="polite"></span>
         </div>
+        <div class="mono hero-in d5" style="display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid oklch(0.75 0.13 80 / 0.4);border-radius:999px;font-size:12px;color:var(--seal-gold);background:oklch(0.17 0.014 260 / 0.7);">
+          <span style="width:6px;height:6px;transform:rotate(45deg);background:var(--seal-gold);"></span>
+          v0.2.0 · pre-1.0, API may move · core + 3 more on npm
+        </div>
+        {/* The hero's ambient star-field canvas (`initHeroArt` in landing.js)
+            otherwise runs indefinitely with no stop mechanism beyond the
+            OS-level prefers-reduced-motion setting — a critique flagged that
+            as the one auto-animating element on the page without the WCAG
+            2.2.2 in-page pause every other cycle here already has. In normal
+            document flow, not absolutely positioned over the art itself, so
+            it never sits on top of the hero copy it controls. */}
+        <button id="hero-art-pause-btn" type="button" class="replay-btn mono hero-in d5" aria-pressed="false" style="margin-top:4px;font-size:11px;color:var(--footnote);cursor:pointer;border:none;background:transparent;padding:0;">⏸ pause background</button>
       </div>
 
       <div class="mono hero-in d6" style="background:oklch(0.13 0.012 260 / 0.92);border:1px solid oklch(1 0 0 / 0.1);border-radius:10px;overflow:hidden;box-shadow:0 24px 60px oklch(0 0 0 / 0.45);backdrop-filter:blur(4px);">
-        <div style="height:2px;background:linear-gradient(90deg,oklch(0.72 0.15 195),oklch(0.75 0.13 80) 50%,oklch(0.72 0.15 195));"></div>
-        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid oklch(1 0 0 / 0.08);">
-          <span style="width:9px;height:9px;transform:rotate(45deg);background:oklch(0.65 0.16 25);"></span>
-          <span style="width:9px;height:9px;transform:rotate(45deg);background:oklch(0.75 0.13 80);"></span>
-          <span style="width:9px;height:9px;transform:rotate(45deg);background:oklch(0.72 0.15 195);"></span>
-          <span style="margin-left:8px;font-size:12px;color:oklch(0.6 0.01 260);">document.ts</span>
-          <button id="replay-btn" type="button" class="replay-btn mono" style="margin-left:auto;font-size:11px;color:oklch(0.6 0.01 260);cursor:pointer;border:none;background:transparent;">↺ replay</button>
+        <div style="height:2px;background:linear-gradient(90deg,var(--verdict-teal),var(--seal-gold) 50%,var(--verdict-teal));"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--hairline);">
+          {/* These three dots echo macOS window-chrome, decoratively — not a
+              verdict. The first used to be colored with the same Deny-red
+              hue this page reserves everywhere else for an actual Deny
+              outcome (see #architecture's Allow/Deny chips); a critique
+              flagged that as the one place on the page where red carries no
+              verdict meaning at all, breaking DESIGN.md's Two-Accent Rule.
+              Recolored to a neutral gray so red stays meaning-locked. */}
+          <span style="width:9px;height:9px;transform:rotate(45deg);background:var(--window-chrome);"></span>
+          <span style="width:9px;height:9px;transform:rotate(45deg);background:var(--seal-gold);"></span>
+          <span style="width:9px;height:9px;transform:rotate(45deg);background:var(--verdict-teal);"></span>
+          <span style="margin-left:8px;font-size:12px;color:var(--footnote);">document.ts</span>
+          <button id="pause-btn" type="button" class="replay-btn mono" aria-pressed="false" style="margin-left:auto;font-size:11px;color:var(--footnote);cursor:pointer;border:none;background:transparent;">⏸ pause</button>
+          <button id="replay-btn" type="button" class="replay-btn mono" style="margin-left:12px;font-size:11px;color:var(--footnote);cursor:pointer;border:none;background:transparent;">↺ replay</button>
         </div>
         <div style="padding:22px 22px 16px;min-height:300px;"><pre id="typed-code" style="margin:0;font-size:12.5px;line-height:1.75;white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;"></pre></div>
-        <div style="border-top:1px solid oklch(1 0 0 / 0.08);padding:16px 22px 18px;">
+        <div style="border-top:1px solid var(--hairline);padding:16px 22px 18px;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-            <span id="cap-num" class="mono" style="font-size:11px;color:oklch(0.78 0.13 195);"></span>
-            <span id="cap-title" style="font-size:13.5px;font-weight:600;color:oklch(0.93 0.006 260);"></span>
+            <span id="cap-num" class="mono" style="font-size:11px;color:var(--verdict-teal-bright);"></span>
+            <span id="cap-title" style="font-size:13.5px;font-weight:600;color:var(--parchment);"></span>
             <div style="margin-left:auto;display:flex;gap:6px;">
               {stepInfo.map((info, i) => (
-                <button type="button" class="step-dot" data-idx={i} aria-label={`Go to step ${i + 1}: ${info.title}`} style="appearance:none;width:18px;height:4px;padding:0;margin:0;border:none;border-radius:999px;cursor:pointer;background:oklch(1 0 0 / 0.15);transition:background 0.3s;"></button>
+                <button type="button" class="step-dot" data-idx={i} aria-label={`Go to step ${i + 1}: ${info.title}`} aria-current={i === 0 ? "true" : "false"} style="appearance:none;width:18px;height:4px;padding:0;margin:0;border:none;border-radius:999px;cursor:pointer;background:oklch(1 0 0 / 0.15);transition:background 0.3s;"></button>
               ))}
             </div>
           </div>
-          <p id="cap-body" aria-live="polite" style="font-size:12.5px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;min-height:40px;"></p>
+          <p id="cap-body" aria-live="polite" style="font-size:12.5px;line-height:1.6;color:var(--testimony);margin:0;min-height:40px;max-width:68ch;"></p>
         </div>
       </div>
     </div>
@@ -140,12 +267,20 @@ const glossOf = (label: string) => {
      twice, back to back, for the seamless scroll loop): aria-hidden rather
      than wired for accessible discovery, since the same models get a real
      accessible gloss (aria-label + focusable tooltip) in #models below. */}
-  <div aria-hidden="true" style="overflow:hidden;border-top:1px solid oklch(1 0 0 / 0.07);border-bottom:1px solid oklch(1 0 0 / 0.07);background:oklch(0.15 0.013 260);padding:13px 0;">
-    <div id="marquee-track" style="display:flex;width:max-content;will-change:transform;">
+  {/* The scrolling track itself stays aria-hidden — decorative and
+      duplicative by construction (every item renders twice for the seamless
+      loop), with the same models given a real accessible gloss in #models
+      below. The pause button is a sibling, not hidden: an indefinitely
+      auto-scrolling ticker is WCAG 2.2.2's own canonical example of content
+      that needs an in-page stop mechanism, and every other auto-cycling
+      element on this page already has one (see #pause-btn, #arch-pause-btn,
+      #features-pause-btn, #api-pause-btn). */}
+  <div style="position:relative;overflow:hidden;border-top:1px solid oklch(1 0 0 / 0.07);border-bottom:1px solid oklch(1 0 0 / 0.07);background:var(--ink-chamber);padding:13px 0;">
+    <div id="marquee-track" aria-hidden="true" style="display:flex;width:max-content;will-change:transform;">
       <div class="mono" style="display:flex;align-items:center;gap:40px;padding-right:40px;">
         {marqueeItems.map((mq) => (
           <div style="display:flex;align-items:center;gap:40px;">
-            <span title={glossOf(mq.label)} style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:oklch(0.68 0.05 80);white-space:nowrap;cursor:help;">{mq.label}</span>
+            <span title={glossOf(mq.label)} style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--marquee-label);white-space:nowrap;cursor:help;">{mq.label}</span>
             <svg width="8" height="8" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.75 0.13 80 / 0.5)"></polygon></svg>
           </div>
         ))}
@@ -153,342 +288,419 @@ const glossOf = (label: string) => {
       <div class="mono" style="display:flex;align-items:center;gap:40px;padding-right:40px;">
         {marqueeItems.map((mq) => (
           <div style="display:flex;align-items:center;gap:40px;">
-            <span title={glossOf(mq.label)} style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:oklch(0.68 0.05 80);white-space:nowrap;cursor:help;">{mq.label}</span>
+            <span title={glossOf(mq.label)} style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--marquee-label);white-space:nowrap;cursor:help;">{mq.label}</span>
             <svg width="8" height="8" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.75 0.13 80 / 0.5)"></polygon></svg>
           </div>
         ))}
       </div>
     </div>
+    <button id="marquee-pause-btn" type="button" class="replay-btn mono" aria-pressed="false" aria-label="Pause scrolling model marquee" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--footnote);cursor:pointer;border:none;border-radius:6px;background:var(--ink-chamber);padding:2px 8px 2px 12px;">⏸</button>
   </div>
 
   <!-- PROBLEM -->
-  <div id="problem" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+  <div id="problem" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
     <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">01</div>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">01 · the problem</div>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">01 · the problem</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Two representations of one thing will drift</h2>
-    <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 40px;max-width:680px;">
+    <p style="font-size:15px;line-height:1.6;color:var(--testimony);margin:0 0 40px;max-width:68ch;">
       In the previous implementation the policy serializer and the policy type were maintained by hand, and drifted, silently narrowing field-level visibility on a JSON round-trip. Watch it happen, then watch why it can't happen here.
     </p>
     <div class="problem-compare-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-      <div style="padding:28px;background:oklch(0.19 0.014 260);border:1px solid oklch(0.65 0.16 25 / 0.3);border-radius:10px;position:relative;overflow:hidden;">
-        <div class="mono" style="font-size:12px;color:oklch(0.65 0.16 25);margin-bottom:20px;">maintained by hand</div>
+      <div style="padding:28px;background:var(--ink-raised);border:1px solid oklch(0.75 0.13 80 / 0.3);border-radius:10px;position:relative;overflow:hidden;">
+        <div class="mono" style="font-size:12px;color:var(--seal-gold);margin-bottom:20px;">maintained by hand</div>
         <div class="problem-inner-split" style="display:flex;gap:20px;align-items:stretch;">
           <div style="flex:1;min-width:0;">
-            <div class="mono" style="display:flex;align-items:center;gap:6px;font-size:11px;color:oklch(0.6 0.01 260);margin-bottom:8px;"><span style="width:6px;height:6px;transform:rotate(45deg);background:oklch(0.55 0.01 260);"></span>policy.ts — the type</div>
-            <div class="mono" style="padding:14px 16px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;font-size:12px;line-height:1.9;color:oklch(0.82 0.006 260);">
-              <div><span style="color:oklch(0.78 0.13 195)">type</span> FieldRule = &#123;</div>
+            <div class="mono" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--footnote);margin-bottom:8px;"><span style="width:6px;height:6px;transform:rotate(45deg);background:oklch(0.55 0.01 260);"></span>policy.ts: the type</div>
+            <div class="mono" style="padding:14px 16px;background:var(--ink-void);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;font-size:12px;line-height:1.9;color:var(--parchment-code);">
+              <div><span style="color:var(--verdict-teal-bright)">type</span> FieldRule = &#123;</div>
               <div style="padding-left:14px;">fields: [</div>
-              <div style="padding-left:28px;"><span style="color:oklch(0.75 0.13 80)">"id"</span>,</div>
-              <div style="padding-left:28px;"><span style="color:oklch(0.75 0.13 80)">"title"</span>,</div>
-              <div style="padding-left:28px;"><span style="color:oklch(0.75 0.13 80)">"body"</span>,</div>
+              <div style="padding-left:28px;"><span style="color:var(--seal-gold)">"id"</span>,</div>
+              <div style="padding-left:28px;"><span style="color:var(--seal-gold)">"title"</span>,</div>
+              <div style="padding-left:28px;"><span style="color:var(--seal-gold)">"body"</span>,</div>
               <div style="padding-left:14px;">]</div>
               <div>&#125;</div>
             </div>
           </div>
-          <div class="mono" style="align-self:center;color:oklch(0.65 0.16 25);font-size:16px;animation:floaty 4s ease-in-out infinite;">⇄</div>
+          <div class="mono" style="align-self:center;color:var(--seal-gold);font-size:16px;animation:floaty 4s ease-in-out infinite;">⇄</div>
           <div style="flex:1;min-width:0;">
-            <div class="mono" style="display:flex;align-items:center;gap:6px;font-size:11px;color:oklch(0.6 0.01 260);margin-bottom:8px;"><span style="width:6px;height:6px;transform:rotate(45deg);background:oklch(0.65 0.16 25);"></span>serialize.ts — by hand</div>
-            <div class="mono" style="padding:14px 16px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;font-size:12px;line-height:1.9;color:oklch(0.82 0.006 260);">
-              <div><span style="color:oklch(0.78 0.13 195)">const</span> <span style="color:oklch(0.75 0.12 200)">toJson</span> = (r) =&gt; (&#123;</div>
+            <div class="mono" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--footnote);margin-bottom:8px;"><span style="width:6px;height:6px;transform:rotate(45deg);background:var(--seal-gold);"></span>serialize.ts: by hand</div>
+            <div class="mono" style="padding:14px 16px;background:var(--ink-void);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;font-size:12px;line-height:1.9;color:var(--parchment-code);">
+              <div><span style="color:var(--verdict-teal-bright)">const</span> <span style="color:var(--code-function)">toJson</span> = (r) =&gt; (&#123;</div>
               <div style="padding-left:14px;">fields: [</div>
-              <div style="padding-left:28px;">r.fields[<span style="color:oklch(0.75 0.13 80)">0</span>], <span style="color:oklch(0.6 0.01 260)">// "id"</span></div>
-              <div style="padding-left:28px;">r.fields[<span style="color:oklch(0.75 0.13 80)">1</span>], <span style="color:oklch(0.6 0.01 260)">// "title"</span></div>
-              <div style="padding-left:28px;animation:driftOut 9s ease-in-out infinite;">r.fields[<span style="color:oklch(0.75 0.13 80)">2</span>], <span style="color:oklch(0.6 0.01 260)">// "body"</span></div>
+              <div style="padding-left:28px;">r.fields[<span style="color:var(--seal-gold)">0</span>], <span style="color:var(--footnote)">// "id"</span></div>
+              <div style="padding-left:28px;">r.fields[<span style="color:var(--seal-gold)">1</span>], <span style="color:var(--footnote)">// "title"</span></div>
+              <div style="padding-left:28px;animation:driftOut 9s ease-in-out infinite;">r.fields[<span style="color:var(--seal-gold)">2</span>], <span style="color:var(--footnote)">// "body"</span></div>
               <div style="padding-left:14px;">]</div>
               <div>&#125;)</div>
             </div>
           </div>
         </div>
-        <div class="mono" style="margin-top:18px;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid oklch(0.65 0.16 25 / 0.5);border-radius:6px;font-size:12px;color:oklch(0.7 0.16 25);animation:driftAlarm 9s ease-in-out infinite;">
+        <div class="mono" style="margin-top:18px;display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid oklch(0.75 0.13 80 / 0.5);border-radius:6px;font-size:12px;color:var(--seal-gold-bright);animation:driftAlarm 9s ease-in-out infinite;">
           ⚠ "body" silently dropped on JSON round-trip: no error, narrower visibility
         </div>
       </div>
-      <div style="padding:28px;background:oklch(0.19 0.014 260);border:1px solid oklch(0.72 0.15 195 / 0.3);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.78 0.13 195);margin-bottom:20px;">qadi: derived from one Schema</div>
+      <div class="compare-after" style="padding:28px;background:var(--ink-raised);border:1px solid oklch(0.72 0.15 195 / 0.3);border-radius:10px;">
+        <div class="mono" style="font-size:12px;color:var(--verdict-teal-bright);margin-bottom:20px;">qadi: derived from one Schema</div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
-          <div class="mono" style="padding:12px 22px;background:oklch(0.72 0.15 195 / 0.12);border:1px solid oklch(0.72 0.15 195 / 0.5);border-radius:8px;font-size:13px;color:oklch(0.82 0.13 195);">Policy — one Effect Schema</div>
+          <div class="mono" style="padding:12px 22px;background:oklch(0.72 0.15 195 / 0.12);border:1px solid oklch(0.72 0.15 195 / 0.5);border-radius:8px;font-size:13px;color:var(--verdict-teal-emphasis);">Policy: one Effect Schema</div>
           <svg width="220" height="52" viewBox="0 0 220 52" style="display:block;" aria-hidden="true">
             <path d="M110 0 L40 52" stroke="oklch(0.72 0.15 195 / 0.7)" stroke-width="1.5" stroke-dasharray="6 6" fill="none" style="animation:dashFlow 1.2s linear infinite;"></path>
             <path d="M110 0 L180 52" stroke="oklch(0.72 0.15 195 / 0.7)" stroke-width="1.5" stroke-dasharray="6 6" fill="none" style="animation:dashFlow 1.2s linear infinite;"></path>
           </svg>
           <div style="display:flex;gap:20px;width:100%;">
-            <div class="mono" style="flex:1;padding:12px;text-align:center;background:oklch(0.13 0.012 260);border:1px solid oklch(0.72 0.15 195 / 0.4);border-radius:8px;font-size:12px;color:oklch(0.82 0.13 195);">TypeScript type</div>
-            <div class="mono" style="flex:1;padding:12px;text-align:center;background:oklch(0.13 0.012 260);border:1px solid oklch(0.72 0.15 195 / 0.4);border-radius:8px;font-size:12px;color:oklch(0.82 0.13 195);">JSON codec</div>
+            <div class="mono" style="flex:1;padding:12px;text-align:center;background:var(--ink-void);border:1px solid oklch(0.72 0.15 195 / 0.4);border-radius:8px;font-size:12px;color:var(--verdict-teal-emphasis);">TypeScript type</div>
+            <div class="mono" style="flex:1;padding:12px;text-align:center;background:var(--ink-void);border:1px solid oklch(0.72 0.15 195 / 0.4);border-radius:8px;font-size:12px;color:var(--verdict-teal-emphasis);">JSON codec</div>
           </div>
         </div>
-        <p style="font-size:13.5px;line-height:1.6;color:oklch(0.68 0.01 260);margin:20px 0 0;">Both derived from the same definition. There is no second representation to drift: the defect class is removed structurally, not by discipline.</p>
+        <p style="font-size:13.5px;line-height:1.6;color:var(--testimony);margin:20px 0 0;">Both derived from the same definition. There is no second representation to drift: the defect class is removed structurally, not by discipline.</p>
       </div>
     </div>
     <div class="tricol-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px;">
-      <div style="padding:20px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.78 0.13 195);margin-bottom:6px;">failure ≠ denial</div>
-        <p style="font-size:13px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;">A broken attribute lookup is an error, never a denial. An outage reported as "not authorized" sends engineers to audit permissions instead of the backend.</p>
+      <div style="padding:20px;background:var(--ink-raised);border:1px solid var(--hairline);border-radius:10px;">
+        <div class="mono" style="font-size:12px;color:var(--verdict-teal-bright);margin-bottom:6px;">failure ≠ denial</div>
+        <p style="font-size:13px;line-height:1.6;color:var(--testimony);margin:0;">A broken attribute lookup is an error, never a denial. An outage reported as "not authorized" sends engineers to audit permissions instead of the backend.</p>
       </div>
-      <div style="padding:20px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.78 0.13 195);margin-bottom:6px;">defaults fail closed</div>
-        <p style="font-size:13px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;">An unwired resolver denies. A missing subject holds nothing. Wiring omissions surface as denials in testing, never as silent grants in production.</p>
+      <div style="padding:20px;background:var(--ink-raised);border:1px solid var(--hairline);border-radius:10px;">
+        <div class="mono" style="font-size:12px;color:var(--verdict-teal-bright);margin-bottom:6px;">defaults fail closed</div>
+        <p style="font-size:13px;line-height:1.6;color:var(--testimony);margin:0;">An unwired resolver denies. A missing subject holds nothing. Wiring omissions surface as denials in testing, never as silent grants in production.</p>
       </div>
-      <div style="padding:20px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.78 0.13 195);margin-bottom:6px;">determinism is a feature</div>
-        <p style="font-size:13px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;">Time and identifiers come from services, so a decision (including its trace and duration) is reproducible under test.</p>
+      <div style="padding:20px;background:var(--ink-raised);border:1px solid var(--hairline);border-radius:10px;">
+        <div class="mono" style="font-size:12px;color:var(--verdict-teal-bright);margin-bottom:6px;">determinism is a feature</div>
+        <p style="font-size:13px;line-height:1.6;color:var(--testimony);margin:0;">Time and identifiers come from services, so a decision (including its trace and duration) is reproducible under test.</p>
       </div>
     </div>
   </div>
 
   <!-- WHERE IT SITS -->
-  <div id="compare" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+  <div id="compare" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
     <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">02</div>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">02 · where it sits</div>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">02 · where it sits</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 40px;letter-spacing:-0.01em;">Three ways to do authorization</h2>
     <div class="tricol-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:stretch;">
-      <div style="padding:26px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
-        <div class="mono" style="font-size:13px;color:oklch(0.7 0.01 260);margin-bottom:16px;">hand-rolled checks</div>
-        <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.5;color:oklch(0.68 0.01 260);">
+      <div style="padding:26px;background:var(--ink-raised);border:1px solid var(--hairline);border-radius:10px;">
+        <div class="mono" style="font-size:13px;color:var(--comparison-body);margin-bottom:16px;">hand-rolled checks</div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.5;color:var(--testimony);">
           <div>if-statements scattered across handlers</div>
           <div>visibility rules duplicated per endpoint</div>
-          <div>no trace — "why was this denied?" is a debugging session</div>
+          <div>no trace: "why was this denied?" is a debugging session</div>
           <div>a refactor silently changes meaning</div>
         </div>
-        <div class="mono" style="margin-top:16px;padding:10px 12px;background:oklch(0.13 0.012 260);border-radius:6px;font-size:12px;color:oklch(0.78 0.01 260);">
-          if (user.role === <span style="position:relative;display:inline-block;"><span style="color:oklch(0.75 0.13 80);animation:swapA 6s infinite;">"admin"</span><span style="position:absolute;left:0;top:0;color:oklch(0.65 0.16 25);animation:swapB 6s infinite;">"editor"</span></span>)
-          <div style="font-size:11px;color:oklch(0.6 0.01 260);margin-top:5px;">the meaning drifts with every refactor</div>
+        <div class="mono" style="margin-top:16px;padding:10px 12px;background:var(--ink-void);border-radius:6px;font-size:12px;color:oklch(0.78 0.01 260);">
+          if (user.role === <span style="position:relative;display:inline-block;"><span style="color:var(--seal-gold);animation:swapA 6s infinite;">"admin"</span><span style="position:absolute;left:0;top:0;color:var(--testimony-bright);animation:swapB 6s infinite;">"editor"</span></span>)
+          <div style="font-size:11px;color:var(--footnote);margin-top:5px;">the meaning drifts with every refactor</div>
         </div>
       </div>
-      <div style="padding:26px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
-        <div class="mono" style="font-size:13px;color:oklch(0.7 0.01 260);margin-bottom:16px;">external policy engine</div>
-        <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.5;color:oklch(0.68 0.01 260);">
+      <div style="padding:26px;background:var(--ink-raised);border:1px solid var(--hairline);border-radius:10px;">
+        <div class="mono" style="font-size:13px;color:var(--comparison-body);margin-bottom:16px;">external policy engine <span style="color:var(--footnote);font-weight:400;">(OPA, Cerbos, Permit.io)</span></div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.5;color:var(--testimony);">
           <div>policy lives in another language, another process</div>
           <div>your types can't flow into it</div>
           <div>a network hop inside every decision</div>
           <div>tests need the sidecar running</div>
         </div>
-        <div class="mono" style="margin-top:16px;padding:10px 12px;background:oklch(0.13 0.012 260);border-radius:6px;font-size:12px;color:oklch(0.78 0.01 260);">
+        <div class="mono" style="margin-top:16px;padding:10px 12px;background:var(--ink-void);border-radius:6px;font-size:12px;color:oklch(0.78 0.01 260);">
           <div style="display:flex;align-items:center;gap:8px;">
             <span>app</span>
-            <span style="position:relative;flex:1;height:2px;background:oklch(1 0 0 / 0.1);border-radius:999px;"><span style="position:absolute;top:-2px;width:6px;height:6px;transform:rotate(45deg);background:oklch(0.75 0.13 80);animation:beamDot 2.2s linear infinite;"></span></span>
+            <span style="position:relative;flex:1;height:2px;background:oklch(1 0 0 / 0.1);border-radius:999px;"><span style="position:absolute;top:-2px;width:6px;height:6px;transform:rotate(45deg);background:var(--seal-gold);animation:beamDot 2.2s linear infinite;"></span></span>
             <span>engine</span>
           </div>
-          <div style="font-size:11px;color:oklch(0.6 0.01 260);margin-top:6px;">a round-trip inside every decision</div>
+          <div style="font-size:11px;color:var(--footnote);margin-top:6px;">a round-trip inside every decision</div>
         </div>
       </div>
       <div style="position:relative;overflow:hidden;padding:26px;background:oklch(0.72 0.15 195 / 0.07);border:1px solid oklch(0.72 0.15 195 / 0.5);border-radius:10px;box-shadow:0 0 40px oklch(0.72 0.15 195 / 0.12);">
         <div style="position:absolute;inset:0;pointer-events:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cg fill='none' stroke='%23c9a227' stroke-opacity='0.22' stroke-width='1.2'%3E%3Cpolygon points='50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4'/%3E%3Cpolygon points='16,0 0,16 -16,0 0,-16'/%3E%3Cpolygon points='106,0 90,16 74,0 90,-16'/%3E%3Cpolygon points='16,90 0,106 -16,90 0,74'/%3E%3Cpolygon points='106,90 90,106 74,90 90,74'/%3E%3C/g%3E%3C/svg%3E&quot;);background-size:90px 90px;"></div>
         <div style="position:relative;">
-        <div class="mono" style="font-size:13px;color:oklch(0.82 0.13 195);margin-bottom:16px;">qadi</div>
-        <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.5;color:oklch(0.8 0.01 260);">
+        <div class="mono" style="font-size:13px;color:var(--verdict-teal-emphasis);margin-bottom:16px;">qadi</div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.5;color:var(--comparison-body-bright);">
           <div>policies are typed TypeScript values in your codebase</div>
           <div>every decision carries a full trace and its visible fields</div>
-          <div>deterministic under test — clock and ids are services</div>
+          <div>deterministic under test: clock and ids are services</div>
           <div>compiles to a SQL / Prisma filter when the check belongs in the query</div>
         </div>
-        <div class="mono" style="margin-top:16px;padding:10px 12px;background:oklch(0.13 0.012 260);border-radius:6px;font-size:12px;color:oklch(0.82 0.13 195);">
-          decide(policy) → <span style="color:oklch(0.75 0.14 150);">Allow</span> · trace · fields
-          <div style="font-size:11px;color:oklch(0.6 0.01 260);margin-top:5px;">in-process, typed, traceable</div>
+        <div class="mono" style="margin-top:16px;padding:10px 12px;background:var(--ink-void);border-radius:6px;font-size:12px;color:var(--verdict-teal-emphasis);">
+          decide(policy) → <span style="color:var(--allow-green);">Allow</span> · trace · fields
+          <div style="font-size:11px;color:var(--footnote);margin-top:5px;">in-process, typed, traceable</div>
         </div>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- ROLE DAG -->
-  <div id="dag" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">03</div>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">03 · roles</div>
-    <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Permissions flow through a role DAG</h2>
-    <div class="dag-grid" style="display:grid;grid-template-columns:1.2fr 1fr;gap:48px;align-items:center;">
-      <svg viewBox="0 0 560 300" style="width:100%;" aria-hidden="true">
-        <defs>
-          <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="oklch(0.5 0.05 195)"></path></marker>
-        </defs>
-        <path id="e1" d="M120 60 C 200 60, 220 120, 280 130" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
-        <path id="e2" d="M120 60 C 180 100, 180 190, 260 210" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
-        <path id="e3" d="M320 130 C 380 130, 400 90, 450 80" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
-        <path id="e4" d="M320 145 C 390 165, 400 205, 448 220" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
-        <path id="e5" d="M300 210 C 360 230, 400 228, 445 224" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
-        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#e1"></mpath></animateMotion></rect>
-        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#e2"></mpath></animateMotion></rect>
-        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="2.2s" begin="0.6s" repeatCount="indefinite"><mpath href="#e3"></mpath></animateMotion></rect>
-        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="2.9s" begin="1.1s" repeatCount="indefinite"><mpath href="#e4"></mpath></animateMotion></rect>
-        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="oklch(0.78 0.13 195)"><animateMotion dur="2.4s" begin="0.3s" repeatCount="indefinite"><mpath href="#e5"></mpath></animateMotion></rect>
-        <g style="animation:floaty 5s ease-in-out infinite;">
-          <rect x="50" y="38" width="80" height="40" rx="8" fill="oklch(0.72 0.15 195 / 0.15)" stroke="oklch(0.72 0.15 195 / 0.6)"></rect>
-          <text x="90" y="63" text-anchor="middle" fill="oklch(0.85 0.1 195)" font-family="IBM Plex Mono" font-size="13">admin</text>
-        </g>
-        <g style="animation:floaty 5s ease-in-out 0.8s infinite;">
-          <rect x="250" y="112" width="84" height="40" rx="8" fill="oklch(0.19 0.014 260)" stroke="oklch(1 0 0 / 0.2)"></rect>
-          <text x="292" y="137" text-anchor="middle" fill="oklch(0.85 0.006 260)" font-family="IBM Plex Mono" font-size="13">editor</text>
-        </g>
-        <g style="animation:floaty 5s ease-in-out 1.6s infinite;">
-          <rect x="228" y="192" width="100" height="40" rx="8" fill="oklch(0.19 0.014 260)" stroke="oklch(1 0 0 / 0.2)"></rect>
-          <text x="278" y="217" text-anchor="middle" fill="oklch(0.85 0.006 260)" font-family="IBM Plex Mono" font-size="13">reviewer</text>
-        </g>
-        <g style="animation:floaty 5s ease-in-out 2.4s infinite;">
-          <rect x="440" y="58" width="90" height="40" rx="8" fill="oklch(0.19 0.014 260)" stroke="oklch(1 0 0 / 0.2)"></rect>
-          <text x="485" y="83" text-anchor="middle" fill="oklch(0.85 0.006 260)" font-family="IBM Plex Mono" font-size="12">doc:read</text>
-        </g>
-        <g style="animation:floaty 5s ease-in-out 3.2s infinite;">
-          <rect x="436" y="200" width="98" height="40" rx="8" fill="oklch(0.19 0.014 260)" stroke="oklch(1 0 0 / 0.2)"></rect>
-          <text x="485" y="225" text-anchor="middle" fill="oklch(0.85 0.006 260)" font-family="IBM Plex Mono" font-size="12">doc:write</text>
-        </g>
-      </svg>
-      <div>
-        <p style="font-size:15px;line-height:1.7;color:oklch(0.72 0.01 260);margin:0 0 20px;">Roles form a directed acyclic graph. A role inherits every permission reachable below it: <span class="mono" style="color:oklch(0.85 0.006 260);">flattenPermissions</span> resolves the closure, <span class="mono" style="color:oklch(0.85 0.006 260);">resolveRoleGraph</span> rejects cycles at construction.</p>
-        <div class="mono" style="padding:16px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;font-size:12.5px;line-height:1.8;color:oklch(0.82 0.006 260);">
-          <div><span style="color:oklch(0.78 0.13 195)">const</span> viewer = role(<span style="color:oklch(0.75 0.13 80)">"viewer"</span>, [readDoc]);</div>
-          <div><span style="color:oklch(0.78 0.13 195)">const</span> editor = role(<span style="color:oklch(0.75 0.13 80)">"editor"</span>, [writeDoc], [viewer]);</div>
-          <div><span style="color:oklch(0.78 0.13 195)">const</span> admin&nbsp;&nbsp;= role(<span style="color:oklch(0.75 0.13 80)">"admin"</span>,&nbsp;&nbsp;[], [editor, reviewer]);</div>
-        </div>
-      </div>
-    </div>
+    <p class="mono" style="font-size:12px;line-height:1.6;color:var(--footnote);margin:20px 0 0;max-width:68ch;">New to Effect? It's TypeScript's effect system for typed errors, dependency injection via Layers, and structured concurrency — Qadi is built directly on it, not layered on top as an afterthought.</p>
   </div>
 
   <!-- FEATURES -->
-  <div id="features" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">04</div>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">04 · features</div>
+  <div id="features" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">03</div>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">03 · features</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Everything in the box</h2>
-    <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 40px;max-width:640px;">Every capability below is implemented, wired and tested. Qadi ships nothing it cannot prove.</p>
-    <div class="card-group">
-      <div class="tricol-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+    <p style="font-size:15px;line-height:1.6;color:var(--testimony);margin:0 0 12px;max-width:68ch;">Every capability below is implemented, wired and tested. Qadi ships nothing it cannot prove.</p>
+    {/* The highlight cycling through these cards (startFeatureCycle in
+        landing.js) previously had no in-page stop mechanism, unlike the
+        hero and architecture cycles — a WCAG 2.2.2 gap those two already
+        had a fix for (#pause-btn, #arch-pause-btn). Same pattern here. */}
+    <div style="display:flex;justify-content:flex-end;margin-bottom:28px;">
+      <button id="features-pause-btn" type="button" class="replay-btn mono" aria-pressed="false" style="font-size:11px;color:var(--footnote);cursor:pointer;border:none;background:transparent;padding:0;">⏸ pause</button>
+    </div>
+    <div id="features-card-group" class="card-group">
+      <ul class="tricol-grid" role="list" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;list-style:none;margin:0;padding:0;">
         {features.map((ft, i) => (
-          <div class:list={["ornate", "feature-card", i >= 6 && "card-extra"]} tabindex="0" style="position:relative;padding:22px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);box-shadow:none;border-radius:10px;display:flex;flex-direction:column;gap:8px;transition:border-color 0.45s,transform 0.45s;">
-            <span class="mono" style="align-self:flex-start;font-size:11px;padding:3px 9px;border-radius:6px;background:oklch(0.72 0.15 195 / 0.12);color:oklch(0.82 0.13 195);">{ft.api}</span>
+          <li style="list-style:none;">
+          {/* `tabindex="0"` exists only so a keyboard user gets the same
+              pause-the-auto-cycle behavior a mouse user gets from
+              `mouseenter` (see `initFeatureCardControl` in landing.js) — the
+              card itself performs no action on activation. No `role`:
+              `role="group"` here previously announced "group, <title>" to a
+              screen reader with nothing to actually do, which reads as a
+              broken control rather than a focus-equivalence accommodation.
+              `aria-label` stays, so the accessible name is still the card's
+              title rather than its full text content. */}
+          <div class:list={["ornate", "feature-card", i >= 3 && "card-extra"]} tabindex="0" aria-label={ft.title} style="position:relative;padding:22px;background:var(--ink-raised);border:1px solid var(--hairline);box-shadow:none;border-radius:10px;display:flex;flex-direction:column;gap:8px;transition:border-color 0.45s,transform 0.45s;">
+            <span class="mono" style="align-self:flex-start;font-size:11px;padding:3px 9px;border-radius:6px;background:oklch(0.72 0.15 195 / 0.12);color:var(--verdict-teal-emphasis);">{ft.api}</span>
             <h3 style="font-size:15px;margin:4px 0 0;">{ft.title}</h3>
-            <p style="font-size:13px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0;">{ft.desc}</p>
-            <div class="mono feature-demo" style="font-size:11.5px;color:oklch(0.78 0.13 195);opacity:0;max-height:0px;overflow:hidden;transition:opacity 0.45s,max-height 0.45s;">{ft.demo}</div>
+            <p style="font-size:13px;line-height:1.6;color:var(--testimony);margin:0;">{ft.desc}</p>
+            {/* `max-height` transitions trigger layout on every frame — a
+                critique's detector flagged all 14 of these, and independently
+                the same 0.45s window was flagged as a plausible source of the
+                focus/highlight desync a prior polish pass fixed nearby.
+                `grid-template-rows: 0fr → 1fr` still triggers layout each
+                frame too — animating a track size is not compositor-only,
+                unlike `transform`/`opacity` — but it solves the actual
+                problem instead of approximating it: CSS cannot transition to
+                `height: auto`, and a track-size animation reaches the
+                content's real height exactly rather than guessing an
+                oversized cap. The inner div supplies the `min-height: 0` a
+                grid row needs to actually collapse below its content's
+                height. */}
+            <div class="mono feature-demo" style="font-size:11.5px;color:var(--verdict-teal-bright);opacity:0;display:grid;grid-template-rows:0fr;overflow:hidden;transition:opacity 0.45s,grid-template-rows 0.45s;"><div style="overflow:hidden;min-height:0;">{ft.demo}</div></div>
           </div>
+          </li>
         ))}
-      </div>
-      {features.length > 6 && (
-        <button type="button" class="card-toggle mono" data-more={`+${features.length - 6} more`} data-less="show less" style="display:block;margin:24px auto 0;font-size:12px;color:oklch(0.78 0.13 195);background:transparent;border:1px dashed oklch(0.72 0.15 195 / 0.4);border-radius:999px;padding:8px 18px;cursor:pointer;">+{features.length - 6} more</button>
+      </ul>
+      {features.length > 3 && (
+        <button type="button" class="card-toggle mono" aria-expanded="false" aria-controls="features-card-group" data-more={`+${features.length - 3} more`} data-less="show less" style="display:block;margin:24px auto 0;font-size:12px;color:var(--verdict-teal-bright);background:transparent;border:1px dashed oklch(0.72 0.15 195 / 0.4);border-radius:999px;padding:8px 18px;cursor:pointer;">+{features.length - 3} more</button>
       )}
     </div>
   </div>
 
   <!-- MODELS -->
-  <div id="models" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">05</div>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">05 · models</div>
-    <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;"><span id="model-count" class="mono" style="color:oklch(0.78 0.13 195);">0</span> access-control models — adopted or explicitly declined</h2>
-    <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 36px;max-width:680px;">The adoption matrix documents every model Qadi can express, which it cannot, and what each missing one would cost. Nothing is claimed without a test behind it.</p>
+  <div id="models" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">04</div>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">04 · models</div>
+    <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;"><span id="model-count" class="mono" style="color:var(--verdict-teal-bright);">{modelCount}</span> access-control models: adopted or explicitly declined</h2>
+    <p style="font-size:15px;line-height:1.6;color:var(--testimony);margin:0 0 36px;max-width:68ch;">Qadi decides who can do what — it does not authenticate, persist, or administer. The matrix below documents every access-control model it can express, which it cannot, and what each missing one would cost. Nothing is claimed without a test behind it.</p>
     <div style="display:flex;flex-direction:column;gap:20px;">
-      <div class="model-category" style="padding:22px 24px;background:oklch(0.19 0.014 260);border:1px solid oklch(0.72 0.15 195 / 0.3);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.78 0.13 195);margin-bottom:14px;">✓ shipped — expressible today, covered by tests</div>
-        <div class="pill-group" style="display:flex;flex-wrap:wrap;gap:8px;">
+      <div id="models-shipped" class="model-category" style="padding:22px 24px;background:var(--ink-raised);border:1px solid oklch(0.72 0.15 195 / 0.3);border-radius:10px;">
+        <div class="mono" style="font-size:12px;color:var(--verdict-teal-bright);margin-bottom:14px;">✓ shipped: expressible today, covered by tests</div>
+        <ul class="pill-group" role="list" style="display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0;">
           {modelsShipped.map((label, i) => (
-            <button type="button" class:list={["mono", "pill", "gloss-pill", i >= 8 && "pill-extra"]} data-gloss={glossOf(label)} aria-label={glossOf(label) ? `${label} — ${glossOf(label)}` : label} style="appearance:none;font-family:inherit;margin:0;font-size:12px;padding:5px 11px;border-radius:999px;background:oklch(0.13 0.012 260);border:1px solid oklch(0.72 0.15 195 / 0.3);color:oklch(0.85 0.006 260);cursor:help;">{label}</button>
+            <li style="list-style:none;"><button type="button" class:list={["mono", "pill", "gloss-pill", i >= 4 && "pill-extra"]} data-gloss={glossOf(label)} aria-label={glossOf(label) ? `${label} — ${glossOf(label)}` : label} style="appearance:none;font-family:inherit;margin:0;font-size:12px;padding:5px 11px;border-radius:999px;background:var(--ink-void);border:1px solid oklch(0.72 0.15 195 / 0.3);color:var(--parchment-dim);cursor:help;">{label}</button></li>
           ))}
-        </div>
-        {modelsShipped.length > 8 && (
-          <button type="button" class="pill-toggle mono" data-more={`+${modelsShipped.length - 8} more`} data-less="show less" style="margin-top:10px;font-size:11.5px;color:oklch(0.78 0.13 195);background:transparent;border:1px dashed oklch(0.72 0.15 195 / 0.4);border-radius:999px;padding:5px 11px;cursor:pointer;">+{modelsShipped.length - 8} more</button>
+        </ul>
+        {modelsShipped.length > 4 && (
+          <button type="button" class="pill-toggle mono" aria-expanded="false" aria-controls="models-shipped" data-more={`+${modelsShipped.length - 4} more`} data-less="show less" style="margin-top:10px;font-size:11.5px;color:var(--verdict-teal-bright);background:transparent;border:1px dashed oklch(0.72 0.15 195 / 0.4);border-radius:999px;padding:5px 11px;cursor:pointer;">+{modelsShipped.length - 4} more</button>
         )}
       </div>
-      <div class="model-category" style="padding:22px 24px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.75 0.13 80);margin-bottom:14px;">⚙ wiring recipe — expressible today with your own resolver</div>
-        <div class="pill-group" style="display:flex;flex-wrap:wrap;gap:8px;">
+      <div id="models-wiring" class="model-category" style="padding:22px 24px;background:var(--ink-raised);border:1px solid oklch(1 0 0 / 0.1);border-radius:10px;">
+        <div class="mono" style="font-size:12px;color:var(--seal-gold);margin-bottom:14px;">⚙ wiring recipe: expressible today with your own resolver</div>
+        <ul class="pill-group" role="list" style="display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0;">
           {modelsWiring.map((label, i) => (
-            <button type="button" class:list={["mono", "pill", "gloss-pill", i >= 8 && "pill-extra"]} data-gloss={glossOf(label)} aria-label={glossOf(label) ? `${label} — ${glossOf(label)}` : label} style="appearance:none;font-family:inherit;margin:0;font-size:12px;padding:5px 11px;border-radius:999px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.12);color:oklch(0.75 0.01 260);cursor:help;">{label}</button>
+            <li style="list-style:none;"><button type="button" class:list={["mono", "pill", "gloss-pill", i >= 4 && "pill-extra"]} data-gloss={glossOf(label)} aria-label={glossOf(label) ? `${label} — ${glossOf(label)}` : label} style="appearance:none;font-family:inherit;margin:0;font-size:12px;padding:5px 11px;border-radius:999px;background:var(--ink-void);border:1px solid oklch(1 0 0 / 0.12);color:var(--navlink);cursor:help;">{label}</button></li>
           ))}
-        </div>
-        {modelsWiring.length > 8 && (
-          <button type="button" class="pill-toggle mono" data-more={`+${modelsWiring.length - 8} more`} data-less="show less" style="margin-top:10px;font-size:11.5px;color:oklch(0.75 0.13 80);background:transparent;border:1px dashed oklch(1 0 0 / 0.16);border-radius:999px;padding:5px 11px;cursor:pointer;">+{modelsWiring.length - 8} more</button>
+        </ul>
+        {modelsWiring.length > 4 && (
+          <button type="button" class="pill-toggle mono" aria-expanded="false" aria-controls="models-wiring" data-more={`+${modelsWiring.length - 4} more`} data-less="show less" style="margin-top:10px;font-size:11.5px;color:var(--seal-gold);background:transparent;border:1px dashed oklch(1 0 0 / 0.16);border-radius:999px;padding:5px 11px;cursor:pointer;">+{modelsWiring.length - 4} more</button>
         )}
       </div>
-      <div style="padding:22px 24px;background:oklch(0.15 0.012 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
-        <div class="mono" style="font-size:12px;color:oklch(0.6 0.01 260);margin-bottom:14px;">✕ excluded by design — enforced by a mechanism Qadi is not</div>
-        <p style="font-size:13px;line-height:1.7;color:oklch(0.6 0.01 260);margin:0;">{modelsExcluded[0][0].toUpperCase() + modelsExcluded[0].slice(1)}, {modelsExcluded.slice(1).join(", ")}. Qadi decides. It does not authenticate, persist, or administer. Each exclusion is documented with what pairs with it instead.</p>
+      <div style="padding:22px 24px;background:oklch(0.15 0.012 260);border:1px solid var(--hairline);border-radius:10px;">
+        <div class="mono" style="font-size:12px;color:var(--footnote);margin-bottom:14px;">✕ excluded by design: enforced by a mechanism Qadi is not</div>
+        <p style="font-size:13px;line-height:1.7;color:var(--footnote);margin:0;max-width:68ch;">{modelsExcluded[0][0].toUpperCase() + modelsExcluded[0].slice(1)}, {modelsExcluded.slice(1).join(", ")}. Qadi decides. It does not authenticate, persist, or administer. Each exclusion is documented with what pairs with it instead.</p>
       </div>
     </div>
-    <p class="mono" style="font-size:11.5px;color:oklch(0.6 0.01 260);margin:16px 0 0;">* shipped in part: the remainder is named and either staged or declined, never implied.</p>
+    <p class="mono" style="font-size:11.5px;color:var(--footnote);margin:16px 0 0;max-width:68ch;">* shipped in part: the remainder is named and either staged or declined, never implied.</p>
   </div>
 
   <!-- PACKAGES -->
-  <div id="packages" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">06</div>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">06 · packages</div>
+  <div id="packages" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">05</div>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">05 · packages</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 40px;letter-spacing:-0.01em;">Nine packages, one enforcement path</h2>
-    <div class="card-group">
-      <div class="tricol-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+    <div id="packages-card-group" class="card-group">
+      <ul class="tricol-grid" role="list" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;list-style:none;margin:0;padding:0;">
         {packages.map((pkg, i) => (
-          <div class:list={["pkgcard", i >= 6 && "card-extra"]} style={`position:relative;overflow:hidden;padding:24px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;display:flex;flex-direction:column;gap:10px;animation:fadeUp 0.6s ease ${pkg.delay} both;`}>
+          <li style="list-style:none;">
+          <div class:list={["pkgcard", i >= 3 && "card-extra"]} style={`position:relative;overflow:hidden;padding:24px;background:var(--ink-raised);border:1px solid var(--hairline);border-radius:10px;display:flex;flex-direction:column;gap:10px;animation:fadeUp 0.6s ease ${pkg.delay} both;`}>
             <div style="display:flex;align-items:center;justify-content:space-between;">
-              <span class="mono" style="font-size:14px;color:oklch(0.78 0.13 195);">{pkg.name}</span>
-              <span class="mono" style="font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:oklch(0.6 0.01 260);">{pkg.tag}</span>
+              <h3 class="mono" style="font-size:14px;font-weight:400;margin:0;">
+                {/* Package cards previously named the package with no way to
+                    reach its docs page short of the footer's single "Docs"
+                    link — a critique found this the one clear gap against
+                    PRODUCT.md's own stated success metric ("finding the
+                    specific package... page they need"). */}
+                <a href={pkg.href} style="color:var(--verdict-teal-bright);">{pkg.name}</a>
+              </h3>
+              <span class="mono" style="font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:var(--footnote);">{pkg.tag}</span>
             </div>
-            <p style="font-size:13.5px;line-height:1.6;color:oklch(0.7 0.01 260);margin:0;">{pkg.desc}</p>
+            <p style="font-size:13.5px;line-height:1.6;color:var(--comparison-body);margin:0;">{pkg.desc}</p>
           </div>
+          </li>
         ))}
-      </div>
-      {packages.length > 6 && (
-        <button type="button" class="card-toggle mono" data-more={`+${packages.length - 6} more`} data-less="show less" style="display:block;margin:24px auto 0;font-size:12px;color:oklch(0.78 0.13 195);background:transparent;border:1px dashed oklch(0.72 0.15 195 / 0.4);border-radius:999px;padding:8px 18px;cursor:pointer;">+{packages.length - 6} more</button>
+      </ul>
+      {packages.length > 3 && (
+        <button type="button" class="card-toggle mono" aria-expanded="false" aria-controls="packages-card-group" data-more={`+${packages.length - 3} more`} data-less="show less" style="display:block;margin:24px auto 0;font-size:12px;color:var(--verdict-teal-bright);background:transparent;border:1px dashed oklch(0.72 0.15 195 / 0.4);border-radius:999px;padding:8px 18px;cursor:pointer;">+{packages.length - 3} more</button>
       )}
     </div>
   </div>
 
   <!-- API -->
-  <div id="api" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
-    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">07</div>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">07 · api</div>
+  <div id="api" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">06</div>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">06 · api</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Which of the six to call</h2>
-    <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 36px;max-width:640px;">
+    <p style="font-size:15px;line-height:1.6;color:var(--testimony);margin:0 0 36px;max-width:68ch;">
       The line that actually divides these: reporting versus enforcing. <span class="mono">decide</span> and <span class="mono">check</span> report: they hand back an answer and run nothing. <span class="mono">assert</span>, <span class="mono">enforce</span>, <span class="mono">enforceProjected</span> and <span class="mono">filter</span> enforce: each refuses an allow whose obligation nobody has discharged.
     </p>
-    <div class="mono" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-      <span id="api-rep-chip" style="font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:oklch(0.6 0.01 260);transition:all 0.4s;">reporting — decide · check</span>
-      <span id="api-enf-chip" style="font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:oklch(0.6 0.01 260);transition:all 0.4s;">enforcing — assert · enforce · enforceProjected · filter</span>
+    <div class="mono" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px;">
+      <span id="api-rep-chip" style="font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:var(--footnote);transition:all 0.4s;">reporting: decide · check</span>
+      <span id="api-enf-chip" style="font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid oklch(1 0 0 / 0.14);color:var(--footnote);transition:all 0.4s;">enforcing: assert · enforce · enforceProjected · filter</span>
+      <button id="api-pause-btn" type="button" class="replay-btn mono" aria-pressed="false" style="margin-left:auto;font-size:11px;color:var(--footnote);cursor:pointer;border:none;background:transparent;padding:0;">⏸ pause</button>
     </div>
-    <div class="api-table-wrap" tabindex="0" role="region" aria-label="API call reference table" style="border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;overflow-x:auto;">
+    <div class="api-table-wrap" tabindex="0" role="region" aria-label="API call reference table" style="border:1px solid var(--hairline);border-radius:10px;overflow-x:auto;padding:8px 0;">
       <table style="width:100%;min-width:560px;border-collapse:collapse;font-size:13.5px;">
         <thead>
           <tr style="background:oklch(0.21 0.014 260);">
-            <th class="mono" style="text-align:left;padding:14px 20px;color:oklch(0.63 0.01 260);font-weight:500;font-size:12px;">call</th>
-            <th style="text-align:left;padding:14px 20px;color:oklch(0.63 0.01 260);font-weight:500;font-size:12px;">use when</th>
-            <th class="mono" style="text-align:left;padding:14px 20px;color:oklch(0.63 0.01 260);font-weight:500;font-size:12px;">returns</th>
-            <th style="text-align:left;padding:14px 20px;color:oklch(0.63 0.01 260);font-weight:500;font-size:12px;">on denial</th>
+            <th scope="col" class="mono" style="text-align:left;padding:14px 20px;color:var(--table-header);font-weight:500;font-size:12px;">call</th>
+            <th scope="col" style="text-align:left;padding:14px 20px;color:var(--table-header);font-weight:500;font-size:12px;">use when</th>
+            <th scope="col" class="mono" style="text-align:left;padding:14px 20px;color:var(--table-header);font-weight:500;font-size:12px;">returns</th>
+            <th scope="col" style="text-align:left;padding:14px 20px;color:var(--table-header);font-weight:500;font-size:12px;">on denial</th>
           </tr>
         </thead>
         <tbody>
           {apiRows.map((row) => (
-            <tr class="api-row" style="border-top:1px solid oklch(1 0 0 / 0.08);background:transparent;">
+            <tr class="api-row" style="border-top:1px solid var(--hairline);background:transparent;">
               <td class="mono" style={`padding:16px 20px;color:${row.color};`}>{row.call}</td>
-              <td style="padding:16px 20px;color:oklch(0.75 0.01 260);">{row.when}</td>
-              <td class="mono" style="padding:16px 20px;color:oklch(0.85 0.006 260);">{row.returns}</td>
+              <td style="padding:16px 20px;color:var(--navlink);">{row.when}</td>
+              <td class="mono" style="padding:16px 20px;color:var(--parchment-dim);">{row.returns}</td>
               <td style="padding:16px 20px;color:oklch(0.65 0.01 260);">{row.denial}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-    <p style="font-size:13px;line-height:1.6;color:oklch(0.6 0.01 260);margin:16px 0 0;max-width:720px;">
+    <p style="font-size:13px;line-height:1.6;color:var(--footnote);margin:16px 0 0;max-width:68ch;">
       Beyond the six: <span class="mono">guard</span> hands the handler an <span class="mono">Authorized</span> witness as a value; <span class="mono">filterStream</span>, <span class="mono">decideSubjectsStream</span> and <span class="mono">filterSubjectsStream</span> are streamed siblings for collections too large to hold in memory.
     </p>
   </div>
 
+  <!-- ROLE DAG -->
+  <div id="dag" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
+    <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">07</div>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">07 · roles</div>
+    <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Permissions flow through a role DAG</h2>
+    <div class="dag-grid" style="display:grid;grid-template-columns:1.2fr 1fr;gap:48px;align-items:center;">
+      {/* Below ~640px the single-column .dag-grid gives this svg the full
+          section width, which — at width:100% with no floor — scaled the
+          13px node labels down to ~8px, under DESIGN.md's 11px Fine floor.
+          `.dag-svg-wrap` reuses `.api-table-wrap`'s own established
+          overflow-x pattern (min-width + edge fade + "scroll →" hint) rather
+          than inventing a second way to handle content that outgrows a
+          narrow viewport. */}
+      <div class="dag-svg-wrap" tabindex="0" role="region" aria-label="Role graph diagram">
+      {/* The svg below is aria-hidden (it's a decorative rendering, not
+          accessible markup) and the adjacent code sample doesn't name every
+          node it draws — a critique found a screen-reader user got the
+          general "roles form a DAG" idea but not this specific example.
+          This walks the exact graph shown, node for node, so both audiences
+          get the same example instead of two different ones. */}
+      <p class="sr-only">
+        Example role graph: admin inherits from editor and reviewer. Editor
+        holds doc:read and doc:write. Reviewer holds doc:write.
+      </p>
+      {/* Nodes stay the eight-sided chamfered tags (echoing the eight-point
+          star's own polygon count) — that shape is DESIGN.md's angular
+          motif and isn't in question here. The connectors themselves went
+          angular → curved → angular again: a critique once flagged the
+          original curved bezier edges as breaking that motif and this file
+          carried orthogonal elbow routes for a while as the fix. Direct
+          product direction reversed that call for this diagram specifically
+          ("flexible arrows are better") — the elbow corners read as too
+          rigid against the rest of the page's softer surfaces. Each edge
+          below is a cubic bezier built by smoothing the old polyline's own
+          corner(s) rather than freehanding a new route, so every curve
+          still passes through the same waypoints and still reads as the
+          same graph. */}
+      <svg id="dag-svg" viewBox="0 0 560 300" style="width:100%;" aria-hidden="true">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="oklch(0.5 0.05 195)"></path></marker>
+        </defs>
+        <path id="e1" d="M130 58 C238 58 292 76 292 112" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
+        <path id="e2" d="M90 78 C90 129 121 155 184 155 C247 155 278 167 278 192" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
+        <path id="e3" d="M334 132 C378 132 400 123 400 105 C400 87 413 78 440 78" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
+        <path id="e4" d="M334 145 C378 145 400 158 400 183 C400 208 412 220 436 220" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
+        <path id="e5" d="M328 210 C366 210 385 214 385 221 C385 228 402 232 436 232" stroke="oklch(0.5 0.05 195)" stroke-width="1.5" fill="none" marker-end="url(#arr)"></path>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="var(--verdict-teal-bright)"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#e1"></mpath></animateMotion></rect>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="var(--verdict-teal-bright)"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#e2"></mpath></animateMotion></rect>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="var(--verdict-teal-bright)"><animateMotion dur="2.2s" begin="0.6s" repeatCount="indefinite"><mpath href="#e3"></mpath></animateMotion></rect>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="var(--verdict-teal-bright)"><animateMotion dur="2.9s" begin="1.1s" repeatCount="indefinite"><mpath href="#e4"></mpath></animateMotion></rect>
+        <rect width="6" height="6" x="-3" y="-3" transform="rotate(45)" class="dag-flow-dot" fill="var(--verdict-teal-bright)"><animateMotion dur="2.4s" begin="0.3s" repeatCount="indefinite"><mpath href="#e5"></mpath></animateMotion></rect>
+        <g style="animation:floaty 5s ease-in-out infinite;">
+          <path d="M58 38 L122 38 L130 46 L130 70 L122 78 L58 78 L50 70 L50 46 Z" fill="oklch(0.72 0.15 195 / 0.15)" stroke="oklch(0.72 0.15 195 / 0.6)"></path>
+          <text x="90" y="63" text-anchor="middle" fill="oklch(0.85 0.1 195)" font-family="IBM Plex Mono" font-size="13">admin</text>
+        </g>
+        <g style="animation:floaty 5s ease-in-out 0.8s infinite;">
+          <path d="M258 112 L326 112 L334 120 L334 144 L326 152 L258 152 L250 144 L250 120 Z" fill="var(--ink-raised)" stroke="oklch(1 0 0 / 0.2)"></path>
+          <text x="292" y="137" text-anchor="middle" fill="var(--parchment-dim)" font-family="IBM Plex Mono" font-size="13">editor</text>
+        </g>
+        <g style="animation:floaty 5s ease-in-out 1.6s infinite;">
+          <path d="M236 192 L320 192 L328 200 L328 224 L320 232 L236 232 L228 224 L228 200 Z" fill="var(--ink-raised)" stroke="oklch(1 0 0 / 0.2)"></path>
+          <text x="278" y="217" text-anchor="middle" fill="var(--parchment-dim)" font-family="IBM Plex Mono" font-size="13">reviewer</text>
+        </g>
+        <g style="animation:floaty 5s ease-in-out 2.4s infinite;">
+          <path d="M448 58 L522 58 L530 66 L530 90 L522 98 L448 98 L440 90 L440 66 Z" fill="var(--ink-raised)" stroke="oklch(1 0 0 / 0.2)"></path>
+          <text x="485" y="83" text-anchor="middle" fill="var(--parchment-dim)" font-family="IBM Plex Mono" font-size="12">doc:read</text>
+        </g>
+        <g style="animation:floaty 5s ease-in-out 3.2s infinite;">
+          <path d="M444 200 L526 200 L534 208 L534 232 L526 240 L444 240 L436 232 L436 208 Z" fill="var(--ink-raised)" stroke="oklch(1 0 0 / 0.2)"></path>
+          <text x="485" y="225" text-anchor="middle" fill="var(--parchment-dim)" font-family="IBM Plex Mono" font-size="12">doc:write</text>
+        </g>
+      </svg>
+      </div>
+      <div>
+        <p style="font-size:15px;line-height:1.7;color:var(--testimony-bright);margin:0 0 20px;">Roles form a directed acyclic graph. A role inherits every permission reachable below it: <span class="mono" style="color:var(--parchment-dim);">flattenPermissions</span> resolves the closure. In-memory roles can't form a cycle by construction; <span class="mono" style="color:var(--parchment-dim);">resolveRoleGraph</span> rejects one when rebuilding a role graph from serialized (name-referenced) definitions.</p>
+        <div class="mono" style="padding:16px;background:var(--ink-void);border:1px solid oklch(1 0 0 / 0.1);border-radius:8px;font-size:12.5px;line-height:1.8;color:var(--parchment-code);">
+          <div><span style="color:var(--verdict-teal-bright)">const</span> viewer = role(&#123; name: <span style="color:var(--seal-gold)">"viewer"</span>, permissions: [readDoc] &#125;);</div>
+          <div><span style="color:var(--verdict-teal-bright)">const</span> editor = role(&#123; name: <span style="color:var(--seal-gold)">"editor"</span>, permissions: [writeDoc], inherits: [viewer] &#125;);</div>
+          <div><span style="color:var(--verdict-teal-bright)">const</span> admin&nbsp;&nbsp;= role(&#123; name: <span style="color:var(--seal-gold)">"admin"</span>, inherits: [editor, reviewer] &#125;);</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ARCHITECTURE -->
-  <div id="architecture" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+  <div id="architecture" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
     <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">08</div>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">08 · architecture</div>
-    <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 40px;letter-spacing:-0.01em;">How a decision gets made</h2>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">08 · architecture</div>
+    <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">How a decision gets made</h2>
+    <p style="font-size:15px;line-height:1.6;color:var(--testimony);margin:0 0 28px;max-width:68ch;">The same policy from the walkthrough above, now traced step by step: which service ran, what it matched — including the role DAG you just saw resolve u1's permissions — and why the verdict landed where it did.</p>
     <div style="display:flex;gap:8px;margin-bottom:20px;">
       {arch.map((sc) => (
-        <button type="button" class="mono arch-scen-btn" aria-label={`Pin scenario: ${sc.label}`} style="appearance:none;cursor:pointer;font-family:inherit;font-size:12px;padding:6px 14px;margin:0;border-radius:999px;border:1px solid oklch(1 0 0 / 0.15);color:oklch(0.6 0.01 260);background:transparent;transition:background-color 0.3s,border-color 0.3s,color 0.3s;">{sc.label}</button>
+        <button type="button" class="mono arch-scen-btn" aria-label={`Pin scenario: ${sc.label}`} style="appearance:none;cursor:pointer;font-family:inherit;font-size:12px;padding:6px 14px;margin:0;border-radius:999px;border:1px solid oklch(1 0 0 / 0.15);color:var(--footnote);background:transparent;transition:background-color 0.3s,border-color 0.3s,color 0.3s;">{sc.label}</button>
       ))}
-      <span class="mono" style="align-self:center;margin-left:8px;font-size:11px;color:oklch(0.6 0.01 260);">scenarios alternate automatically — click to pin one, click again to release</span>
+      <span class="mono" style="align-self:center;margin-left:8px;font-size:11px;color:var(--footnote);">scenarios alternate automatically; click to pin one, click again to release</span>
+      <button id="arch-pause-btn" type="button" class="replay-btn mono" aria-pressed="false" style="align-self:center;margin-left:auto;font-size:11px;color:var(--footnote);cursor:pointer;border:none;background:transparent;padding:0;">⏸ pause</button>
     </div>
     <div class="arch-grid" style="display:grid;grid-template-columns:1.15fr 1fr;gap:24px;align-items:stretch;">
-      <div id="arch-diagram" style="padding:24px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;"></div>
+      <div id="arch-diagram" style="padding:24px;background:var(--ink-raised);border:1px solid var(--hairline);border-radius:10px;"></div>
       <div style="display:flex;flex-direction:column;gap:16px;">
-        <div class="mono" style="flex:1;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.1);border-radius:10px;overflow:hidden;">
-          <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid oklch(1 0 0 / 0.08);font-size:11px;color:oklch(0.6 0.01 260);">
-            <span style="width:6px;height:6px;transform:rotate(45deg);background:oklch(0.6 0.01 260);"></span>
+        <div class="mono" style="flex:1;background:var(--ink-void);border:1px solid oklch(1 0 0 / 0.1);border-radius:10px;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--hairline);font-size:11px;color:var(--footnote);">
+            <span style="width:6px;height:6px;transform:rotate(45deg);background:var(--footnote);"></span>
             decision trace · live
           </div>
           <div id="arch-trace" aria-live="polite" style="padding:16px 18px;"></div>
@@ -496,27 +708,27 @@ const glossOf = (label: string) => {
         <div style="padding:16px 18px;background:oklch(0.72 0.15 195 / 0.08);border:1px solid oklch(0.72 0.15 195 / 0.3);border-radius:10px;">
           <p id="arch-caption" aria-live="polite" style="font-size:13.5px;line-height:1.6;color:oklch(0.82 0.01 260);margin:0;min-height:44px;"></p>
         </div>
-        <p style="font-size:12px;line-height:1.6;color:oklch(0.6 0.01 260);margin:0;">Seven services sit behind the evaluator: AttributeResolver, RelationshipResolver, DecisionHistory, EvaluationId, CurrentSubject, plus the optional DecisionCache and the write-only DecisionSink. An unwired resolver denies by default.</p>
+        <p style="font-size:12px;line-height:1.6;color:var(--footnote);margin:0;max-width:68ch;">Nine services sit behind the evaluator, seven of them required: AttributeResolver, RelationshipResolver, DecisionHistory, EvaluationId, CurrentSubject, CustomPredicate and SignatureHistory, plus the optional DecisionCache and the write-only DecisionSink. An unwired resolver denies by default.</p>
       </div>
     </div>
   </div>
 
   <!-- PROOF / GRAPHS -->
-  <div id="proof" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+  <div id="proof" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
     <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">09</div>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">09 · proof</div>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">09 · proof</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 12px;letter-spacing:-0.01em;">Measured, not asserted</h2>
-    <p style="font-size:15px;line-height:1.6;color:oklch(0.68 0.01 260);margin:0 0 36px;max-width:640px;">Numbers a merge gate actually checks, not a claim in a README.</p>
+    <p style="font-size:15px;line-height:1.6;color:var(--testimony);margin:0 0 36px;max-width:640px;">Numbers a merge gate actually checks, not a claim in a README.</p>
     <div class="proof-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px;">
       {bars.map((bar) => (
         <div>
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-            <span class="mono" style="font-size:13px;color:oklch(0.72 0.01 260);">{bar.label}</span>
-            <span class="mono" style="font-size:13px;color:oklch(0.85 0.006 260);">{bar.value}</span>
+            <span class="mono" style="font-size:13px;color:var(--testimony-bright);">{bar.label}</span>
+            <span class="mono" style="font-size:13px;color:var(--parchment-dim);">{bar.value}</span>
           </div>
-          <div style="height:8px;background:oklch(0.13 0.012 260);border-radius:4px;overflow:hidden;">
-            <div style={`height:100%;width:${bar.width};background:${bar.goalIsZero ? "oklch(0.75 0.14 150)" : "oklch(0.72 0.15 195)"};transform-origin:left;animation:barGrow 1.2s cubic-bezier(0.22,1,0.36,1) both;`}></div>
+          <div style="height:8px;background:var(--ink-void);border-radius:4px;overflow:hidden;">
+            <div style={`height:100%;width:${bar.width};background:var(--verdict-teal);transform-origin:left;animation:barGrow 1.2s cubic-bezier(0.22,1,0.36,1) both;`}></div>
           </div>
         </div>
       ))}
@@ -524,42 +736,50 @@ const glossOf = (label: string) => {
   </div>
 
   <!-- STATUS -->
-  <div id="status" class="reveal" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:52px;"><div style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,oklch(1 0 0 / 0.12) 55%,oklch(0.75 0.13 80 / 0.55) 100%);"></div><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><svg width="17" height="17" viewBox="0 0 100 100" style="animation:starSpin 45s linear infinite;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="5"></polygon></svg><div style="width:5px;height:5px;transform:rotate(45deg);background:oklch(0.75 0.13 80 / 0.75);"></div><div style="flex:1;height:1px;background:linear-gradient(90deg,oklch(0.75 0.13 80 / 0.55) 0%,oklch(1 0 0 / 0.12) 45%,transparent 100%);"></div></div>
+  <div id="status" class="reveal" tabindex="-1" style="position:relative;max-width:1280px;margin:0 auto;padding:44px 48px 76px;">
+    <SectionDivider />
     <div class="serif sec-num" aria-hidden="true" style="position:absolute;top:56px;right:48px;font-size:130px;line-height:1;color:oklch(1 0 0 / 0.035);pointer-events:none;">10</div>
-    <svg width="240" height="240" viewBox="0 0 100 100" style="position:absolute;right:24px;bottom:16px;opacity:0.05;animation:starSpin 140s linear infinite;pointer-events:none;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="oklch(0.75 0.13 80)" stroke-width="1.5"></polygon></svg>
-    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.78 0.13 195);margin-bottom:12px;">10 · status</div>
+    <svg width="240" height="240" viewBox="0 0 100 100" style="position:absolute;right:24px;bottom:16px;opacity:0.05;animation:starSpin 140s linear infinite;pointer-events:none;" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="none" stroke="var(--seal-gold)" stroke-width="1.5"></polygon></svg>
+    <div class="mono" style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--verdict-teal-bright);margin-bottom:12px;">10 · status</div>
     <h2 class="serif" style="font-size:36px;font-weight:400;margin:0 0 24px;letter-spacing:-0.01em;">Where it stands</h2>
     <div class="status-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:24px;">
-      <div style="padding:28px;background:oklch(0.19 0.014 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;">
-        <p style="font-size:15px;line-height:1.7;color:oklch(0.78 0.01 260);margin:0;">
-          Every item the roadmap committed to has shipped, and every access-control model in the adoption matrix is either adopted or explicitly declined. The version is still <span class="mono">0.0.0</span> and nothing is on npm, so the API may still move.
+      <div style="padding:28px;background:var(--ink-raised);border:1px solid var(--hairline);border-radius:10px;">
+        <p style="font-size:15px;line-height:1.7;color:oklch(0.78 0.01 260);margin:0;max-width:68ch;">
+          Every item the roadmap committed to has shipped, and every access-control model in the adoption matrix is either adopted or explicitly declined. Four packages (<span class="mono">core</span>, <span class="mono">testing</span>, <span class="mono">react</span>, <span class="mono">promise</span>) are published at <span class="mono">0.2.0</span>; the rest ship at <span class="mono">0.1.0</span>, not yet on npm. Everything is pre-1.0, so the API may still move.
         </p>
       </div>
-      <div style="padding:28px;background:oklch(0.13 0.012 260);border:1px solid oklch(1 0 0 / 0.08);border-radius:10px;display:flex;flex-direction:column;justify-content:center;gap:12px;">
+      <div style="padding:28px;background:var(--ink-void);border:1px solid var(--hairline);border-radius:10px;display:flex;flex-direction:column;justify-content:center;gap:12px;">
         <div style="display:flex;justify-content:space-between;" class="mono">
-          <span style="font-size:12px;color:oklch(0.6 0.01 260);">version</span>
-          <span style="font-size:12px;color:oklch(0.85 0.006 260);">0.0.0</span>
+          <span style="font-size:12px;color:var(--footnote);">version</span>
+          <span style="font-size:12px;color:var(--parchment-dim);">0.1.0 – 0.2.0</span>
+        </div>
+        {/* Sourced from `engines.node` in the workspace's own package.json,
+            not an estimate — the one runtime fact worth stating on a page
+            that otherwise says nothing about what a consumer needs
+            installed to use the library. */}
+        <div style="display:flex;justify-content:space-between;" class="mono">
+          <span style="font-size:12px;color:var(--footnote);">runtime</span>
+          <span style="font-size:12px;color:var(--parchment-dim);">Node.js 20+ · Effect v4</span>
         </div>
         <div style="display:flex;justify-content:space-between;" class="mono">
-          <span style="font-size:12px;color:oklch(0.6 0.01 260);">merge gate</span>
-          <span style="font-size:12px;color:oklch(0.85 0.006 260);">22 checks</span>
+          <span style="font-size:12px;color:var(--footnote);">merge gate</span>
+          <span style="font-size:12px;color:var(--parchment-dim);">22 checks</span>
         </div>
         <div style="display:flex;justify-content:space-between;" class="mono">
-          <span style="font-size:12px;color:oklch(0.6 0.01 260);">coverage</span>
-          <span style="font-size:12px;color:oklch(0.85 0.006 260);">90% / 95% core</span>
+          <span style="font-size:12px;color:var(--footnote);">coverage</span>
+          <span style="font-size:12px;color:var(--parchment-dim);">90% / 95% core</span>
         </div>
         <div style="display:flex;justify-content:space-between;" class="mono">
-          <span style="font-size:12px;color:oklch(0.6 0.01 260);">license</span>
-          <span style="font-size:12px;color:oklch(0.85 0.006 260);">MIT</span>
+          <span style="font-size:12px;color:var(--footnote);">license</span>
+          <span style="font-size:12px;color:var(--parchment-dim);">MIT</span>
         </div>
       </div>
     </div>
-    <div style="margin-top:36px;padding-top:32px;border-top:1px solid oklch(1 0 0 / 0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;">
-      <p class="mono" style="font-size:13px;color:oklch(0.6 0.01 260);margin:0;">Read the source, check the gates yourself, or start with <span style="color:oklch(0.85 0.006 260);">pnpm add @qadi/core</span>.</p>
+    <div style="margin-top:36px;padding-top:32px;border-top:1px solid var(--hairline);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;">
+      <p class="mono" style="font-size:13px;color:var(--footnote);margin:0;">Read the source, check the gates yourself, or start with <span style="color:var(--parchment-dim);">pnpm add @qadi/core</span>.</p>
       <div style="display:flex;flex-wrap:wrap;gap:12px;">
-        <a href="https://github.com/leaderiop/qadi" class="btn-primary" style="display:flex;align-items:center;gap:8px;padding:12px 20px;background:oklch(0.72 0.15 195);border-radius:6px;color:oklch(0.14 0.01 195);font-weight:600;font-size:14px;">View on GitHub</a>
-        <a href="/docs/" class="btn-outline" style="display:flex;align-items:center;gap:8px;padding:12px 20px;border:1px solid oklch(1 0 0 / 0.16);border-radius:6px;color:oklch(0.93 0.006 260);font-size:14px;background:oklch(0.17 0.014 260 / 0.7);">Read the spec</a>
+        <a href="https://github.com/leaderiop/qadi" class="btn-primary" style="display:flex;align-items:center;gap:8px;padding:12px 20px;background:var(--verdict-teal);border-radius:6px;color:var(--ink-void);font-weight:600;font-size:14px;">View on GitHub</a>
+        <a href="/docs/" class="btn-outline" style="display:flex;align-items:center;gap:8px;padding:12px 20px;border:1px solid oklch(1 0 0 / 0.16);border-radius:6px;color:var(--parchment);font-size:14px;background:oklch(0.17 0.014 260 / 0.7);">Read the docs</a>
       </div>
     </div>
   </div>
@@ -571,34 +791,48 @@ const glossOf = (label: string) => {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:32px;margin-bottom:36px;">
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;align-items:center;gap:12px;">
-          <svg width="24" height="24" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.72 0.15 195 / 0.14)" stroke="oklch(0.72 0.15 195)" stroke-width="4"></polygon><rect x="42" y="42" width="16" height="16" transform="rotate(45 50 50)" fill="oklch(0.75 0.13 80)"></rect></svg>
+          <svg width="24" height="24" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,8 56.9,33.4 79.7,20.3 66.6,43.1 92,50 66.6,56.9 79.7,79.7 56.9,66.6 50,92 43.1,66.6 20.3,79.7 33.4,56.9 8,50 33.4,43.1 20.3,20.3 43.1,33.4" fill="oklch(0.72 0.15 195 / 0.14)" stroke="var(--verdict-teal)" stroke-width="4"></polygon><rect x="42" y="42" width="16" height="16" transform="rotate(45 50 50)" fill="var(--seal-gold)"></rect></svg>
           <span class="serif" style="font-size:21px;letter-spacing:0.08em;color:oklch(0.94 0.008 260);">qadi</span>
           <span style="width:1px;height:18px;background:oklch(1 0 0 / 0.14);"></span>
-          <span class="mono" style="font-size:11px;letter-spacing:0.06em;color:oklch(0.65 0.03 80);">قاضي · the judge</span>
+          <span class="mono" style="font-size:11px;letter-spacing:0.06em;color:var(--footnote-gold);">قاضي · the judge</span>
         </div>
-        <p style="font-size:13.5px;line-height:1.6;color:oklch(0.6 0.01 260);margin:0;max-width:380px;">Effect-native authorization for TypeScript: one schema, one evaluator, decisions that explain themselves.</p>
+        <p style="font-size:13.5px;line-height:1.6;color:var(--footnote);margin:0;max-width:380px;">Effect-native authorization for TypeScript: one schema, one evaluator, decisions that explain themselves.</p>
       </div>
       <div class="footer-links" style="display:flex;gap:64px;">
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <span class="mono" style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.6 0.01 260);">project</span>
-          <a href="https://github.com/leaderiop/qadi" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">GitHub</a>
-          <a href="/docs/" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">Spec</a>
-          <a href="#status" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">Roadmap</a>
+          <span class="mono" style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--footnote);">project</span>
+          <a href="https://github.com/leaderiop/qadi" class="mono footer-link" style="font-size:13px;color:var(--testimony);">GitHub</a>
+          <a href="/docs/" class="mono footer-link" style="font-size:13px;color:var(--testimony);">Docs</a>
+          <a href="#status" class="mono footer-link" style="font-size:13px;color:var(--testimony);">Roadmap</a>
         </div>
-        <!-- Deliberately three, not all ten sections: why (the problem) →
-             what (packages) → how (architecture) is the shortest path back
-             to the page's own argument, not an arbitrary sample. -->
+        <!-- Deliberately four, not all ten sections: why (the problem) →
+             what (packages) → how (architecture) → proof (the evidence) is
+             the shortest path back to the page's own argument, not an
+             arbitrary sample. A critique found the original three-link
+             version skipped straight past the one section that answers "why
+             trust a pre-1.0 library" — a reader who scrolls straight to the
+             footer had no footer-level path back to the numbers. -->
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <span class="mono" style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:oklch(0.6 0.01 260);">explore</span>
-          <a href="#problem" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">the problem</a>
-          <a href="#packages" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">packages</a>
-          <a href="#architecture" class="mono footer-link" style="font-size:13px;color:oklch(0.68 0.01 260);">architecture</a>
+          <span class="mono" style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--footnote);">explore</span>
+          <a href="#problem" class="mono footer-link" style="font-size:13px;color:var(--testimony);">the problem</a>
+          <a href="#packages" class="mono footer-link" style="font-size:13px;color:var(--testimony);">packages</a>
+          <a href="#architecture" class="mono footer-link" style="font-size:13px;color:var(--testimony);">architecture</a>
+          <a href="#proof" class="mono footer-link" style="font-size:13px;color:var(--testimony);">proof</a>
+        </div>
+        {/* Both of these are first-class top-nav destinations (see SiteNav's
+            `links` prop above) that otherwise have zero footer presence — a
+            reader who scrolls straight to the footer had no path to either.
+            Additive: doesn't touch "project"/"explore"'s own curation above. */}
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <span class="mono" style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--footnote);">site</span>
+          <a href="/blog/" class="mono footer-link" style="font-size:13px;color:var(--testimony);">Blog</a>
+          <a href="/compliance/" class="mono footer-link" style="font-size:13px;color:var(--testimony);">Compliance</a>
         </div>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-top:1px solid oklch(1 0 0 / 0.07);padding-top:20px;">
-      <span class="mono" style="font-size:12.5px;color:oklch(0.6 0.01 260);">© 2026 Mohammad AL Mechkor · MIT License</span>
-      <span class="mono" style="font-size:12px;color:oklch(0.65 0.03 80);">Effect v4 · TypeScript</span>
+      <span class="mono" style="font-size:12.5px;color:var(--footnote);">© 2026 Mohammad AL Mechkor · MIT License</span>
+      <span class="mono" style="font-size:12px;color:var(--footnote-gold);">Effect v4 · TypeScript</span>
     </div>
   </footer>
 

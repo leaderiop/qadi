@@ -276,7 +276,9 @@ describe("what the deciding rule contributes", () => {
         Effect.provide(testLayer(subjectWith({ attributes: { tier: 3 } }))),
       );
       assert.isFalse(isAllowed(d));
-      const row = d.trace.children[0]!;
+      const [row] = d.trace.children;
+      assert.isDefined(row);
+      if (row === undefined) return;
       // The condition's own node still records both, so a reviewer can see what
       // the row matched on — the same reason `Not` keeps them on the trace.
       assert.isTrue(row.allowed);

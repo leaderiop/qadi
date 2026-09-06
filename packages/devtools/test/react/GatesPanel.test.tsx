@@ -146,11 +146,11 @@ describe("highlight — the panel points at the page", () => {
 
   it("REFUSES THE HIGHLIGHT where only hooks are asking, and says why", () => {
     render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", kind: "useCan" })]} />);
-    const control = screen.getByTestId("qadi-highlight");
+    const control = screen.getByTestId<HTMLButtonElement>("qadi-highlight");
 
     // Disabled rather than absent, and with the reason on it: a button that
     // silently did nothing is the outcome this avoids.
-    expect((control as HTMLButtonElement).disabled).toBe(true);
+    expect(control.disabled).toBe(true);
     expect(control.getAttribute("title") ?? "").toContain("no element");
   });
 

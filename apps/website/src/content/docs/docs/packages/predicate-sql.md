@@ -16,7 +16,9 @@ filter over rows the caller hasn't loaded, and stops there on purpose — Qadi
 has no database dependency and never will. This package is the optional,
 separately versioned companion that compiles that filter into a real
 fragment, so row-level security can be pushed into the query instead of
-applied by filtering rows after they're fetched.
+applied by filtering rows after they're fetched. For what a `Predicate` is
+and why some policy nodes fold away while others refuse to translate at all,
+see [Predicates](/docs/concepts/predicates/).
 
 ```ts
 import * as Effect from "effect/Effect";

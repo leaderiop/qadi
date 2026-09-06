@@ -5,11 +5,24 @@
  * Each used to hand-copy a slightly different weight list; this is the one
  * set that covers every weight any of them actually uses.
  */
+const FONT_HREF =
+  "https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap";
 ---
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-  href="https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-  rel="stylesheet"
-/>
+{/* The stylesheet `<link>` is render-blocking by default — a `display=swap`
+    font-face still can't paint any text until the CSS declaring it has
+    loaded, so the browser waits on this file before first paint regardless
+    of swap behavior. The `media="print"` + `onload` swap is the standard
+    non-blocking-stylesheet idiom: the browser still fetches it at normal
+    priority (media="print" is still a real media type, just not the one
+    that gates first paint), and `onload` flips it to `media="all"` once it
+    arrives, so a slow font fetch no longer holds up the rest of the page.
+    `<noscript>` keeps the plain blocking link as a fallback for a client
+    with JavaScript off, where the `onload` swap would never fire. */}
+<link rel="preload" as="style" href={FONT_HREF} />
+<link href={FONT_HREF} rel="stylesheet" media="print" onload="this.media='all'" />
+<noscript>
+  <link href={FONT_HREF} rel="stylesheet" />
+</noscript>

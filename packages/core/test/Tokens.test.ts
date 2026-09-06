@@ -257,7 +257,7 @@ describe("Errors", () => {
 
   it("errorCode derives from the tag", () => {
     const e = { _tag: "AccessDenied" } as const;
-    assert.strictEqual(errorCode(e as never), "ACL001");
+    assert.strictEqual(errorCode(e), "ACL001");
   });
 
   // The five classes below are only ever exercised through `Effect.result`'s

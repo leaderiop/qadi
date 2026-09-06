@@ -28,6 +28,7 @@ colors:
   deny-red-emphasis: "oklch(0.7 0.16 25)"
   seal-gold-bright: "oklch(0.85 0.08 80)"
   code-function: "oklch(0.75 0.12 200)"
+  window-chrome: "oklch(0.4 0.01 260)"
 typography:
   display:
     fontFamily: "Marcellus, Georgia, 'Times New Roman', serif"
@@ -50,6 +51,7 @@ typography:
   scale:
     watermark: "130px"
     fine: "11px"
+    fine-plus: "11.5px"
     caption: "13px"
     caption-plus: "13.5px"
     control: "14px"
@@ -147,8 +149,9 @@ Almost monochrome by design — the palette earns its two accents by rationing t
 - **Footnote, Gold** (`oklch(0.65 0.03 80)`): the gold-tinted counterpart to Footnote, for the least-important label when it sits in gold's semantic territory — the nav's "قاضي · the judge" subtitle, the footer's "Effect v4 · TypeScript" line.
 - **Marquee Label** (`oklch(0.68 0.05 80)`): the model-marquee band's uppercase labels — brighter and more saturated than Footnote Gold since the marquee band is its own fixed-architecture strip (see `Chamber`), not running prose.
 - **Footnote** (`oklch(0.6 0.01 260)`): captions, timestamps, and the least important label on a screen. Raised from an earlier `0.55` after an accessibility audit found the darker value fell as low as 3.8:1 against `Ink, Raised` — below the WCAG AA floor this site commits to (see Accessibility & Inclusion in PRODUCT.md).
+- **Window Chrome** (`oklch(0.4 0.01 260)`): the hero code panel's decorative macOS-style window-chrome dot only. Originally shared the Deny Red hue with the architecture section's actual Deny verdicts; a critique found that the one place on the page where red carried no verdict meaning at all, breaking the Two-Accent Rule below. Recolored to this neutral gray so red stays meaning-locked — the panel's other two chrome dots keep Seal Gold and Verdict Teal, since brand-accent use (not verdict semantics) was never the conflict.
 - **Hairline** (`oklch(1 0 0 / 0.08)`): the canonical value for the white-at-low-opacity border/divider scale below — every hairline border and divider is this same white, stepped only in alpha, never a solid gray.
-- White at low, stepped opacity (`oklch(1 0 0 / 0.07)` through `/ 0.16`) draws every hairline border and divider — never a solid gray. The steps in active use: `0.07` (the marquee band's top/bottom rule, the lightest touch), `0.08` (the default card/panel border — the most common step by far), `0.1` (code-block borders, secondary panel emphasis), `0.12` (divider-gradient midpoints, muted card borders), `0.14` (pill/badge borders, the install-snippet's copy-button divider), `0.15` (the hero's unlit step-dots), `0.16` (the strongest hairline — the outline button and the nav's GitHub link).
+- White at low, stepped opacity (`oklch(1 0 0 / 0.07)` through `/ 0.16`) draws every hairline border and divider — never a solid gray. The steps in active use: `0.07` (the marquee band's top/bottom rule, the lightest touch), `0.08` (the default card/panel border — the most common step by far), `0.1` (code-block borders, secondary panel emphasis), `0.12` (divider-gradient midpoints, muted card borders), `0.14` (pill/badge borders, the install-snippet's copy-button divider), `0.15` (the hero's unlit step-dots), `0.16` (the strongest hairline — the outline button and the nav's GitHub link). Two more steps reuse this same white ladder for a small filled shape rather than a border or divider — a critique found the section-rail's original `0.15` dot fill unreadable as a table of contents: `0.32` (the rail's resting dot fill) and `0.5` (the same dot on hover/focus).
 
 ### Named Rules
 **The Two-Accent Rule.** Only verdict teal and seal gold ever function as brand accents. Green and red exist solely as Allow/Deny verdict semantics inside diagrams and never appear as a generic UI accent, a link color, or a decorative highlight.
@@ -172,10 +175,11 @@ Almost monochrome by design — the palette earns its two accents by rationing t
 
 ### Extended Scale
 
-Below Label (12px), inside Body's 15-18px range, and above it, seven more steps recur often enough to be sizes rather than drift:
+Below Label (12px), inside Body's 15-18px range, and above it, eight more steps recur often enough to be sizes rather than drift:
 
 - **Watermark** (130px): the near-invisible oversized section-number digit, already named in Headline/H2 above — listed here too so it reads as one enumerated ramp rather than a one-off exception.
 - **Fine** (11px): the smallest real text on the page — table `on denial` copy, card sub-captions, the architecture trace's service labels.
+- **Fine, Plus** (11.5px): a half-step up from Fine for a cluster of small secondary text that reads slightly under Fine's own card-sub-caption role — the model-pill-group's `+N more` toggles, the models section's `* shipped in part` footnote, and each feature card's hover-revealed API-call demo line.
 - **Caption** (13px): the single most common step below Body — nav links, code-panel chrome (`document.ts`, `↺ replay`), card labels, comparison-card body text.
 - **Caption, Plus** (13.5px): a half-step up from Caption for slightly higher-emphasis captions — the package cards' description text, the hero panel's caption body.
 - **Control** (14px): interactive control text — the hero's primary/outline button labels.
@@ -198,6 +202,7 @@ Flat with colored glow, not drop-shadow elevation. Depth comes from four tonal s
 - **Accent glow, wide** (`box-shadow: 0 0 40px oklch(0.72 0.15 195 / 0.12)`): marks the single highlighted/recommended option in a side-by-side comparison.
 - **Accent glow, tight** (`box-shadow: 0 0 10px oklch(0.75 0.13 80 / 0.5)`): the nav's scroll-progress line, a small in-motion accent rather than a resting-state treatment.
 - **Accent glow, active-step** (`box-shadow: 0 0 20px oklch(<hue> / 0.25)`): marks whichever node is currently active in a live, multi-step animated walkthrough (the architecture trace's chips and eval/output boxes, the DAG's decided allow/deny chip) — teal while the step is in progress, the reached Allow-green/Deny-red once a verdict lands. Distinct from Accent glow, wide: this one is per-step and JS-driven rather than a static highlighted comparison card.
+- **Accent glow, button hover** (`box-shadow: 0 10px 28px oklch(0.72 0.15 195 / 0.35)`): the primary button's own hover-lift glow, paired with its 2px `translateY` lift (see Buttons below). Distinct from the three above: it tracks a moving, interactive element rather than marking a static one, so it carries a vertical offset the others don't.
 
 ### Named Rules
 **The Flat-Until-Marked Rule.** Every surface is flat at rest. A shadow or glow appears only to mark the one thing on screen that deserves attention — never as ambient decoration on ordinary cards.
@@ -208,6 +213,8 @@ Angular only. The system's one recurring geometric form is an eight-point star (
 
 ### Named Rules
 **The Angles-Not-Circles Rule.** Every decorative or ornamental shape is a polygon. A circle, blob, or curved medallion never appears as decoration anywhere on the site — this was a deliberate, explicit correction made during design and is a hard invariant, not a style preference.
+
+**Scope: decoration, not informational connectors.** The rule governs ornamental shapes — the eight-point star, its diamond satellites, section-divider marks — not the edges of a functional diagram. The role-DAG's connector lines (index.astro's `#dag` section) are cubic-bezier curves, not straight elbow routes: this went angular → curved → angular → curved again during design, and the current curved state is a deliberate reversal ("flexible arrows read better than rigid elbow routes against this page's softer surfaces"), not an unnoticed drift. Recorded here so a future audit doesn't flag it as one.
 
 ## Components
 

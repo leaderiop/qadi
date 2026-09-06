@@ -43,13 +43,46 @@ export class PredicateNotRenderable extends Data.TaggedError("PredicateNotRender
   readonly reason: string;
 }> {}
 
-/** `unknown`, safely: the only shapes safe to hand to Prisma's query engine as a value. */
+/**
+ * `unknown`, safely: the only shapes safe to hand to Prisma's query engine as
+ * a value.
+ *
+ * Deliberately excludes `Date`, unlike an earlier version of this function —
+ * `evaluatePredicate`'s `compare` (`@qadi/core`'s `Predicate.ts`) requires
+ * `typeof value === "number"` for `Gte`/`Lt`, so a `Date` there is always
+ * `false` in the reference evaluator, while Prisma's `{gte: date}`/`{lt:
+ * date}` performs a real date comparison against the row — INV-QD-048
+ * disagreement, and in the direction that matters: Prisma would admit rows
+ * the reference evaluator denies. `Eq`'s `===` has the same problem from the
+ * other side — two distinct `Date` instances holding the same instant are
+ * never `===`, so a `Date` `Eq` is reference-evaluator-false for any row a
+ * caller would actually construct, while Prisma's `{equals: date}` matches
+ * correctly. Refusing to compile a `Date`-valued `Compare`/`MemberOf` is the
+ * ADR-QD-024 "refuse rather than approximate" answer to a comparison the
+ * reference evaluator does not actually support.
+ */
 const isSafeValue = (value: unknown): boolean =>
   value === null ||
   typeof value === "string" ||
   typeof value === "number" ||
-  typeof value === "boolean" ||
-  value instanceof Date;
+  typeof value === "boolean";
+
+/**
+ * A column name safe to interpolate as a `WhereInput` key.
+ *
+ * `renderNode` builds `{[p.column]: …}` from `Predicate.column`, a plain
+ * `string` on an AST that crosses a trust boundary (AGENTS.md §7) — this
+ * package has no generated schema to validate a column against, unlike a
+ * caller who assigns the result to their model's own `WhereInput` type.
+ * `AND`/`OR`/`NOT` are Prisma's own combinator keys at every `WhereInput`
+ * level: a column literally named one changes what the object means instead
+ * of failing to render — `{NOT: "t-1"}` negates rather than comparing, and
+ * `{AND: …}`/`{OR: …}` collide with the array forms this compiler emits for
+ * `Predicate.And`/`Or`. Refused here rather than escaped, since there is no
+ * escaping a JS object key — only choosing not to use it as one.
+ */
+const RESERVED_PRISMA_KEYS = new Set(["AND", "OR", "NOT"]);
+const isSafeColumn = (column: string): boolean => !RESERVED_PRISMA_KEYS.has(column);
 
 /**
  * The non-null-value shape of a comparison filter.
@@ -100,6 +133,14 @@ const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, Predi
       False: () => Effect.succeed({ OR: [] }),
 
       Compare: (p) => {
+        if (!isSafeColumn(p.column)) {
+          return Effect.fail(
+            new PredicateNotRenderable({
+              predicateTag: "Compare",
+              reason: `column '${p.column}' is not a safe identifier`,
+            }),
+          );
+        }
         if (!isSafeValue(p.value)) {
           return Effect.fail(
             new PredicateNotRenderable({
@@ -125,6 +166,14 @@ const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, Predi
       },
 
       MemberOf: (p) => {
+        if (!isSafeColumn(p.column)) {
+          return Effect.fail(
+            new PredicateNotRenderable({
+              predicateTag: "MemberOf",
+              reason: `column '${p.column}' is not a safe identifier`,
+            }),
+          );
+        }
         // [].includes(x) is always false — the correct, not degenerate,
         // translation.
         if (p.values.length === 0) return Effect.succeed({ OR: [] });

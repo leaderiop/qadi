@@ -50,12 +50,22 @@ const hasProp = <K extends string>(value: object, key: K): value is Record<K, un
  *
  * Total, like everything a matcher can reach: anything that is not a label is
  * simply not a label, and the caller decides what that means.
+ *
+ * `Number.isFinite`, not `typeof === "number"`: `NaN` and `Infinity` both pass
+ * the bare `typeof` check, and `compareLabels`/`labelDominates` compare `level`
+ * with `>=`, where `Infinity` dominates every finite level and `NaN` makes
+ * every comparison false. A `NaN` level fails safe on its own (`Incomparable`
+ * everywhere), but `level: Infinity` in untrusted subject/resource data would
+ * dominate every label it is compared against — refusing it here, rather than
+ * at the comparison, means `Dominates` (`Matcher.ts`) denies instead, since
+ * neither operand is recognised as a label at all.
  */
 export const isSecurityLabel = (value: unknown): value is SecurityLabel =>
   typeof value === "object" &&
   value !== null &&
   hasProp(value, "level") &&
   typeof value.level === "number" &&
+  Number.isFinite(value.level) &&
   hasProp(value, "compartments") &&
   isStringArray(value.compartments);
 

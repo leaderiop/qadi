@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-02                                   |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-08-28                                     |
+> | Revision       | 1.8                                            |
+> | Effective Date | 2026-09-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.5 (2026-08-28): Step 22 — `apps/website` itself must type-check and build; step 21 alone only checked its embedded doc snippets (found in review, CCR-QD-091)<br>1.4 (2026-08-27): Step 21 — doc-snippet type-checking for `apps/website` (wayfinder #25, CCR-QD-090)<br>1.3 (2026-08-25): Step 20 — mutation testing for `@qadi/audit` (ADR-QD-056, CCR-QD-086)<br>1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.8 (2026-09-06): Three stale step-number references corrected — two prose mentions of "step 16" for the devtools mutation gate (it shifted to step 17 when CCR-QD-076 inserted step 15), and "Step 15 is new in CCR-QD-026" for the core mutation gate (also shifted, to step 16); the table itself was never wrong, only cross-references to it that a nearly-any-paragraph token match couldn't catch (CCR-QD-096)<br>1.7 (2026-09-04): Step 8's acceptance suite moved from the `@cucumber/cucumber` CLI to `@effect-cucumber/vitest`; the command text is unchanged (`pnpm --filter @qadi/features test`), only what it runs — and step 2 (`tsc -p tsconfig.test.json`) now also typechecks the 24 new `features/features/**/*.steps.test.ts` runner files, previously unchecked by any `tsc` invocation<br>1.6 (2026-08-30): Step 22 becomes runtime-scoped — it runs on every `check.yml` leg whose Node satisfies astro's `engines.node`, read from its manifest rather than restated (ADR-QD-059, CCR-QD-092)<br>1.5 (2026-08-28): Step 22 — `apps/website` itself must type-check and build; step 21 alone only checked its embedded doc snippets (found in review, CCR-QD-091)<br>1.4 (2026-08-27): Step 21 — doc-snippet type-checking for `apps/website` (wayfinder #25, CCR-QD-090)<br>1.3 (2026-08-25): Step 20 — mutation testing for `@qadi/audit` (ADR-QD-056, CCR-QD-086)<br>1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 
@@ -43,7 +43,7 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 19 | `stryker run stryker.predicate-prisma.mjs` | Mutation score on `packages/predicate-prisma` is at or above 80% |
 | 20 | `stryker run stryker.audit.mjs` | Mutation score on `packages/audit` is at or above 80% |
 | 21 | `node scripts/check-website-doc-examples.mjs` | Every runnable example in `apps/website`'s docs content compiles |
-| 22 | `pnpm --filter @qadi/website check` | `apps/website` itself type-checks and builds (`astro check && astro build`) |
+| 22 | `node scripts/check-website-build.mjs` | `apps/website` type-checks and builds (`astro check && astro build`) on every matrix leg whose Node satisfies astro's own `engines.node`; below that floor the step states the skip and names the leg that does build |
 
 Step 21 (`node scripts/check-website-doc-examples.mjs`) is a sibling of step 9
 (`node scripts/check-doc-examples.mjs`), not an extension of it (wayfinder
@@ -60,6 +60,17 @@ a sidebar `slug:` pointing at a file that doesn't exist would fail
 gap the same way step 15 closes it for the Next.js example — one workspace
 boundary, one step, `check-dod-table.mjs`'s stated reason for not expanding
 past `pnpm --filter`.
+
+Step 22 became runtime-scoped in CCR-QD-092: it now runs on every
+`check.yml` matrix leg whose Node satisfies the floor `apps/website`'s own
+toolchain (Astro) declares, reading that floor from the installed `astro`
+manifest rather than restating it, via `node scripts/check-website-build.mjs`.
+On a leg below that floor the step prints one line naming the running
+version, the floor, and where it was read from, rather than passing
+quietly. If no matrix leg satisfies the floor, the step fails outright
+rather than skipping on every leg. The reasoning, including the rejected
+Astro-downgrade alternative and the Starlight peer range that rules it out,
+is in [ADR-QD-059](../decisions/059-a-gate-runs-where-its-toolchain-runs.md).
 
 Both steps are appended rather than inserted, so steps 1–20 keep their
 numbers and every existing cross-reference to a gate by number stays correct.
@@ -98,7 +109,7 @@ hides; a `.tst.ts` assertion passing is not the same claim `tsc -b` makes.
 CCR-QD-026 while `pnpm check` had been running it for some time — the documented
 gate was *weaker* than the real one, which is the safe direction and still a
 defect in a normative document. It happened again with the devtools mutation run;
-see step 16.
+see step 17.
 
 **CI runs this command and nothing else** — `.github/workflows/check.yml`, added in
 CCR-QD-036. A workflow enumerating its own steps would be a second definition of
@@ -141,7 +152,7 @@ and `tsc -b` emits — so a `lib/` was always on disk looking like a build produ
 gate's first check therefore reads `tsconfig.build.json` statically, because it is the
 only check here that a stale directory cannot fool. See ADR-QD-033.
 
-Step 16 is new here in CCR-QD-075 and was **running untabled since CCR-QD-067**.
+Step 17 is new here in CCR-QD-075 and was **running untabled since CCR-QD-067**.
 `"mutation"` was `stryker run && stryker run stryker.devtools.mjs` — two configs,
 because `stryker.config.mjs` pins `vitest.dir` to `packages/core` and a mutant in
 another package would have no covering test, survive, and fail the gate for a
@@ -168,7 +179,7 @@ rather than the predicate compilers' pattern, because `@qadi/audit`'s
 `index.ts` is a real re-export barrel, not the implementation itself.
 `"mutation"` now runs all five in sequence.
 
-Step 15 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
+Step 16 is new in CCR-QD-026. It closes the gap the roadmap opened: coverage says
 which lines executed, not which assertions mean anything, and every enabler in
 this library was signed off with a mutation pass **run by hand and quoted into an
 ADR**. Quoted evidence nobody else can reproduce is the predecessor's failure mode

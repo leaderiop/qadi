@@ -9,6 +9,7 @@ import * as References from "effect/References";
 import * as Tracer from "effect/Tracer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
+import { customPredicateFromRecord } from "../src/CustomPredicate.ts";
 import {
   DecisionHistory,
   DecisionHistoryUnknown,
@@ -16,6 +17,7 @@ import {
 } from "../src/DecisionHistory.ts";
 import {
   AttributeResolveError,
+  CustomPredicateError,
   DecisionHistoryUnavailable,
   RelationshipResolveError,
   SignatureHistoryUnavailable,
@@ -377,6 +379,55 @@ describe("leaf policies", () => {
       });
       assert.isFalse(isAllowed(d));
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  // `evaluateHasCustom` (`Evaluate.ts`) had no direct test in this package's
+  // own suite — `@qadi/testing`'s `TestLayers.test.ts` covers deny/allow/fail
+  // from the policy side, but core's own `stryker` run (`vitest.dir:
+  // packages/core`) cannot see that package, so the whole arm was
+  // `NoCoverage` here despite a comment in `CustomPredicate.test.ts` claiming
+  // otherwise.
+  it.effect("HasCustom denies when no registry is wired", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasCustom("isOwner"));
+      assert.isFalse(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("HasCustom allows when the registered predicate answers true", () =>
+    Effect.gen(function* () {
+      const registry = customPredicateFromRecord({
+        isOwner: () => Effect.succeed(true),
+      });
+      const d = yield* evaluate(P.hasCustom("isOwner")).pipe(
+        Effect.provide(testLayer(subjectWith({}), { customPredicate: registry })),
+      );
+      assert.isTrue(isAllowed(d));
+    }));
+
+  it.effect("HasCustom denies, naming the predicate, when it answers false", () =>
+    Effect.gen(function* () {
+      const registry = customPredicateFromRecord({
+        isOwner: () => Effect.succeed(false),
+      });
+      const d = yield* evaluate(P.hasCustom("isOwner")).pipe(
+        Effect.provide(testLayer(subjectWith({}), { customPredicate: registry })),
+      );
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "custom predicate 'isOwner' returned false");
+    }));
+
+  it.effect("HasCustom fails, rather than denies, when the name is unregistered in a populated table", () =>
+    Effect.gen(function* () {
+      const registry = customPredicateFromRecord({});
+      const r = yield* Effect.result(
+        evaluate(P.hasCustom("isOwner")).pipe(
+          Effect.provide(testLayer(subjectWith({}), { customPredicate: registry })),
+        ),
+      );
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, CustomPredicateError);
+    }));
 });
 
 describe("composites", () => {
@@ -2837,25 +2888,24 @@ describe("concurrent evaluation", () => {
         "Intersection" as const,
       );
 
-      const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
+      const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
         node: FastCheck.oneof(
           { maxDepth: 3, withCrossShrink: true },
           leaf,
           FastCheck.tuple(
-            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }),
+            FastCheck.array(tie("node"), { maxLength: 3 }),
             strategies,
           ).map(([ps, fieldStrategy]) => P.allOf(ps, { fieldStrategy })),
           FastCheck.tuple(
-            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, { maxLength: 3 }),
+            FastCheck.array(tie("node"), { maxLength: 3 }),
             strategies,
           ).map(([ps, fieldStrategy]) => P.anyOf(ps, { fieldStrategy })),
-          (tie("node") as FastCheck.Arbitrary<P.Policy>).map(P.not),
+          tie("node").map(P.not),
           FastCheck.tuple(
             FastCheck.array(
-              FastCheck.tuple(
-                tie("node") as FastCheck.Arbitrary<P.Policy>,
-                FastCheck.boolean(),
-              ).map(([c, permits]) => (permits ? P.permitWhen(c) : P.denyWhen(c))),
+              FastCheck.tuple(tie("node"), FastCheck.boolean()).map(([c, permits]) =>
+                permits ? P.permitWhen(c) : P.denyWhen(c),
+              ),
               { maxLength: 3 },
             ),
             FastCheck.constantFrom(

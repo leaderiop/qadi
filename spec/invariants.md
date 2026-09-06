@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.26                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.28                                            |
+> | Effective Date | 2026-09-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.28 (2026-09-06): six in-page anchors repointed from pre-rename heading slugs to the current headings (INV-QD-004, INV-QD-006, INV-QD-007, INV-QD-018, INV-QD-029, plus the sibling references in traceability.md and behaviors/27-devtools-timeline.md); INV-QD-050 gained the Enforcement block and Related line its own text already implied, which the 1.26 edit had displaced onto INV-QD-056's section (CCR-QD-097)<br>1.27 (2026-09-06): INV-QD-054 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` and the implication note made explicit about the gap this does not close (CCR-QD-094)<br>1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -1200,7 +1200,7 @@ adds one at each recursive position, which is how `evaluateNode` counts.
 
 **Implication**: a second walk of the policy tree is a second interpreter of the
 same rule, and this document already treats interpreter disagreement as the
-defect worth naming ([INV-QD-018](#inv-qd-018-the-two-interpreters-agree)). Here
+defect worth naming ([INV-QD-018](#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows)). Here
 the disagreement has a direction that matters: a depth **under**-reported by one
 declares a policy safe that the evaluator then refuses, so a caller bounding
 untrusted decoded input would admit exactly the input it meant to reject.
@@ -1214,7 +1214,7 @@ against `evaluate` itself, in both directions, over five shapes: at the reported
 depth it evaluates, and one below it raises. A `FastCheck` property pins a
 right-leaning spine of arbitrary length.
 
-**Related**: [BEH-QD-191](behaviors/25-inspection.md), [INV-QD-018](#inv-qd-018-the-two-interpreters-agree).
+**Related**: [BEH-QD-191](behaviors/25-inspection.md), [INV-QD-018](#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows).
 
 ---
 
@@ -1342,7 +1342,7 @@ A field restriction is the exception, and deliberately: `hasPermission(read,
 { fields: [...] })` narrows what the *rule* grants, so it belongs in a
 structural view. Describing a field-narrowed permission as a bare requirement
 overstates the grant, which is the direction of error a reviewer acts on
-([INV-QD-004](#inv-qd-004-the-field-lattice)).
+([INV-QD-004](#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top)).
 
 **Enforcement**: `packages/devtools/test/react/PolicyExplorer.test.tsx` asserts
 no `data-status` attribute, no `never resolved` text and none of the three
@@ -1406,7 +1406,7 @@ this consulted" and cannot answer "with what".
 A captured **failure replays as a failure**. Turning an outage into a miss would
 make a snapshot disagree with the run that produced it in exactly the direction
 that matters: fail-closed defaults deny, and so a replayed outage would look like
-a correctly-denying policy rather than a broken port ([INV-QD-006](#inv-qd-006-a-failure-is-not-a-denial)).
+a correctly-denying policy rather than a broken port ([INV-QD-006](#inv-qd-006-failure-is-not-denial)).
 
 The **keys are written once** and called from both sides. Two functions deriving
 one key would make this invariant fail in a way no single test of either side
@@ -1416,7 +1416,7 @@ asked about `bob` after her `editor` role was dropped.
 
 A query the capture never saw answers the **fail-closed default** — `undefined`
 for an attribute, `Unknown` for a relationship and for history — which is what a
-real deployment gets from an unwired port ([INV-QD-007](#inv-qd-007-fail-closed)),
+real deployment gets from an unwired port ([INV-QD-007](#inv-qd-007-defaults-fail-closed)),
 so a sweep that wanders outside the captured set denies for a reason a
 deployment would rather than for one peculiar to this panel.
 
@@ -1458,7 +1458,7 @@ Same reasoning, same default, opposite boundary.
 the distinction it draws is one a reviewer acts on: an attribute the store did
 not have denies for a different reason than one it had and that compared wrong,
 and only the first sends somebody to look at their wiring
-([INV-QD-029](#inv-qd-029-an-unwired-port-names-its-own-absence)).
+([INV-QD-029](#inv-qd-029-a-denial-names-only-what-was-consulted)).
 
 **Enforcement**: `packages/core/test/Evaluate.test.ts` resolves an attribute
 whose value is a recognisable sentinel and asserts the sentinel appears in **no**
@@ -1666,6 +1666,12 @@ policy would have denied returned anyway. Because the refusal happens in
 no `HasCustom`-specific logic of their own — the node never reaches either
 package.
 
+**Enforcement**: `packages/core/test/Predicate.test.ts` asserts
+`toPredicate(hasCustom(...))` fails `PolicyNotTranslatable` naming
+`"HasCustom"`.
+
+**Related**: [BEH-QD-248](behaviors/32-custom-predicates.md#beh-qd-248-topredicate-refuses-a-hascustom-node), [ADR-QD-024](decisions/024-predicate-output.md), [ADR-QD-055](decisions/055-a-named-registered-custom-predicate.md).
+
 ## INV-QD-051: Staging presence or absence never changes the committed audit entries
 
 The same sequence of `SinkRecord`s driven through `AuditDecisionSinkLive`,
@@ -1744,13 +1750,13 @@ identities hold for every generated case.
 
 **Related**: [BEH-QD-253](behaviors/33-audit-pipeline.md#beh-qd-253-retention-partitions-entries-by-construction), [ADR-QD-056](decisions/056-audit-companion-package.md).
 
-## INV-QD-054: `verifyChainIntegrity` detects every gap and duplicate sequence number
+## INV-QD-054: `verifySequenceIntegrity` detects every gap and duplicate sequence number
 
-For any set of `AuditEntry` rows, `verifyChainIntegrity` fails
-`ChainIntegrityError` if and only if the defined `sequenceNumber`s, sorted
+For any set of `AuditEntry` rows, `verifySequenceIntegrity` fails
+`SequenceIntegrityError` if and only if the defined `sequenceNumber`s, sorted
 ascending, contain a gap or a duplicate.
 
-**Source**: `packages/audit/src/ChainIntegrity.ts` — sorts the defined
+**Source**: `packages/audit/src/SequenceIntegrity.ts` — sorts the defined
 sequence numbers and fails the moment one is not exactly one more than its
 predecessor, which catches a gap (a jump past the expected value) and a
 duplicate (the same value twice, which sorts to *less* than expected) with
@@ -1758,18 +1764,26 @@ the same single check.
 
 **Implication**: sequence numbers are assigned entirely by the caller's own
 store, never by `@qadi/audit`
-([BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-chain-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order)) —
+([BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order)) —
 this is the one check standing between an audit trail a compliance reviewer
 can trust and rows quietly missing or overwritten in the caller's own
 storage. A false negative here — a real gap that verification misses — is
 indistinguishable from tampering nobody caught.
+
+This is gap-and-duplicate detection, not cryptographic tamper-evidence, and
+the two are not interchangeable: nothing here hashes an entry or links it to
+its neighbor, so an attacker able to modify already-stored rows can renumber
+them and pass this check while defeating the property a reader would assume
+"integrity" promises. `keyMaterial` on `AuditArchive` is carried, never used
+to sign or verify anything — this invariant is the whole of what
+`sequenceIntegrityVerified: true` actually attests to.
 
 **Enforcement**: a `FastCheck` property over generated contiguous sequences
 (always intact) and generated sequences with one deliberately removed
 element (always caught), plus hand-written cases for a duplicate and for a
 mix of sequenced and unsequenced entries.
 
-**Related**: [BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-chain-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order), [ADR-QD-056](decisions/056-audit-companion-package.md).
+**Related**: [BEH-QD-254](behaviors/33-audit-pipeline.md#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order), [ADR-QD-056](decisions/056-audit-companion-package.md).
 
 ## INV-QD-055: `signatureObligationHandler` calls `capture` exactly once, and the `ObligationRecord` matches
 
@@ -1827,5 +1841,3 @@ interpreter further in.
 `"HasSignature"`.
 
 **Related**: [ADR-QD-058](decisions/058-hassignature-a-ninth-service-and-a-decomposable-leaf.md), [INV-QD-050](#inv-qd-050-a-hascustom-node-never-appears-in-a-compiled-predicate) (the same property, one leaf earlier).
-
-**Related**: [BEH-QD-248](behaviors/32-custom-predicates.md#beh-qd-248-topredicate-refuses-a-hascustom-node), [ADR-QD-024](decisions/024-predicate-output.md), [ADR-QD-055](decisions/055-a-named-registered-custom-predicate.md).

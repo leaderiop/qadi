@@ -395,13 +395,16 @@ describe("through a provider, as an application reads it", () => {
     const before = calls;
 
     answer = "suspended";
-    await act(async () => {
+    act(() => {
       screen.getByTestId("verdict").click();
-      await new Promise((resolve) => setTimeout(resolve, 30));
     });
 
-    // The whole point of the button: ask again, and notice.
-    expect(calls).toBeGreaterThan(before);
+    // The whole point of the button: ask again, and notice. A condition poll,
+    // not a fixed sleep racing the resolver's own real `Effect.sleep("1
+    // millis")` — TestClock cannot reach this real-timer resolver, so the
+    // headroom a fixed wait needs is a guess; `waitFor` polls until the count
+    // actually moves instead.
+    await waitFor(() => expect(calls).toBeGreaterThan(before));
     await waitFor(() => expect(screen.getByTestId("verdict").textContent).toBe("Deny"));
   });
 

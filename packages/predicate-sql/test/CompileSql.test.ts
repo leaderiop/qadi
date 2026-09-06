@@ -108,14 +108,6 @@ describe("compileSql — golden fragments, one row per dialect", () => {
       assert.strictEqual(fragment.text, 'NOT (NOT ("tenantId" = $1))');
     }));
 
-  it.effect("a Date value binds as a driver-native parameter, not stringified", () =>
-    Effect.gen(function* () {
-      const createdAt = new Date("2026-01-01T00:00:00.000Z");
-      const predicate: Predicate = { _tag: "Compare", column: "createdAt", op: "Gte", value: createdAt };
-      const fragment = yield* render(predicate, "postgres");
-      assert.strictEqual(fragment.params[0], createdAt);
-    }));
-
   it.effect("a null value is on the safe allowlist and compiles as IS NULL, not '= NULL'", () =>
     Effect.gen(function* () {
       // `col = NULL` is never true in SQL for any row, not even one where
@@ -266,6 +258,57 @@ describe("compileSql — refusals", () => {
           { _tag: "Negate", predicate: { _tag: "Compare", column: "x", op: "Eq", value: { bad: 1 } } },
         ],
       };
+      const failure = yield* refusalOf(predicate, "postgres");
+      assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+    }));
+
+  it.effect("a Compare column carrying a quote character refuses, never renders unescaped", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = {
+        _tag: "Compare",
+        column: 'x" = $1 OR 1=1 --',
+        op: "Eq",
+        value: 1,
+      };
+      const failure = yield* refusalOf(predicate, "postgres");
+      assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+      assert.strictEqual(failure?.predicateTag, "Compare");
+      assert.strictEqual(failure?.reason, "column 'x\" = $1 OR 1=1 --' is not a safe identifier");
+    }));
+
+  it.effect("a MemberOf column carrying a backtick refuses under mysql too", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = { _tag: "MemberOf", column: "c`.`other", values: [1] };
+      const failure = yield* refusalOf(predicate, "mysql");
+      assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+      assert.strictEqual(failure?.predicateTag, "MemberOf");
+      assert.strictEqual(failure?.reason, "column 'c`.`other' is not a safe identifier");
+    }));
+
+  it.effect("a Date value refuses rather than compiling to a query that disagrees with evaluatePredicate", () =>
+    Effect.gen(function* () {
+      // evaluatePredicate's Gte/Lt require typeof value === "number", so a
+      // Date there is always false in the reference evaluator, while a real
+      // SQL engine's >=/< performs a real comparison and would admit rows
+      // the reference evaluator denies — INV-QD-047's own disagreement.
+      const predicate: Predicate = {
+        _tag: "Compare",
+        column: "createdAt",
+        op: "Gte",
+        value: new Date("2026-01-01T00:00:00.000Z"),
+      };
+      const failure = yield* refusalOf(predicate, "postgres");
+      assert.strictEqual(failure?._tag, "PredicateNotRenderable");
+      assert.strictEqual(failure?.predicateTag, "Compare");
+      assert.strictEqual(
+        failure?.reason,
+        "value for column 'createdAt' is not a safe query parameter",
+      );
+    }));
+
+  it.effect("a column outside [A-Za-z_][A-Za-z0-9_]* refuses even with no special SQL characters", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = { _tag: "Compare", column: "1leadingDigit", op: "Eq", value: 1 };
       const failure = yield* refusalOf(predicate, "postgres");
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
     }));

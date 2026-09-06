@@ -14,8 +14,10 @@ in an Effect application.
 pnpm add @qadi/core
 ```
 
-`effect` is a peer dependency, so it will already be in your dependency tree if
-you're using Effect elsewhere in the project.
+`@qadi/core` depends on a pinned `effect` version directly (not a peer
+dependency — `@qadi/react` is the package that declares `react` as a peer), so
+it comes with `@qadi/core` either way; if you're using Effect elsewhere in the
+project, pnpm/npm will resolve both to the one version `@qadi/core` pins.
 
 ## A minimal policy
 

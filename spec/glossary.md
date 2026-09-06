@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-GLOSSARY                                  |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-08-22                                     |
+> | Revision       | 1.7                                            |
+> | Effective Date | 2026-09-06                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-08-22): Witness and Guard added; the Revision field corrected to match the latest entry, which had drifted since CCR-QD-019 (CCR-QD-043)<br>1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
+> | Change History | 1.7 (2026-09-06): Policy variant count corrected from fourteen to sixteen (`HasCustom`/`HasSignature` postdate the earlier count); Value reference corrected from three kinds to the actual five (`subjectId`/`action` were missing) (CCR-QD-101)<br>1.6 (2026-09-06): Service count corrected — said four, sixteen exist across three packages; the entry now names the pattern rather than a count that drifts every time a service is added (CCR-QD-093)<br>1.5 (2026-08-22): Witness and Guard added; the Revision field corrected to match the latest entry, which had drifted since CCR-QD-019 (CCR-QD-043)<br>1.4 (2026-07-26): Predicate, translatable subset and reference interpreter added (CCR-QD-020)<br>1.3 (2026-07-26): Rule table, rule effect and combining algorithm added; the variant count corrected (CCR-QD-019)<br>1.2 (2026-07-26): Subject set and review query added (CCR-QD-018)<br>1.1 (2026-07-26): Reactivity terms added (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-002) |
 
 ---
 
@@ -65,7 +65,7 @@ exponentially. See [BEH-QD-010](behaviors/02-roles.md).
 ## Policy
 
 A tree of authorization conditions, and the central data type of the library.
-Fourteen variants discriminated on `_tag`. A policy is **plain data**: it contains
+Sixteen variants discriminated on `_tag`. A policy is **plain data**: it contains
 no closures, so it can be stored as JSON and reloaded without loss.
 See [BEH-QD-017](behaviors/03-policy-adt.md) and [ADR-QD-002](decisions/002-schema-derived-policy-adt.md).
 
@@ -86,8 +86,9 @@ See [BEH-QD-025](behaviors/04-matchers.md).
 ## Value reference
 
 What a matcher compares against: a constant (`literal`), a field of the subject
-(`subject`), or a field of the resource (`resource`). The last is what expresses
-relational rules such as "the document's owner equals the subject's id".
+(`subject`), a field of the resource (`resource`), the subject's own id
+(`subjectId`), or the action under evaluation (`action`). `resource` is what
+expresses relational rules such as "the document's owner equals the subject's id".
 See [BEH-QD-026](behaviors/04-matchers.md).
 
 ## Evaluation
@@ -250,8 +251,15 @@ specification uses them as terms of art.
 ## Service
 
 A dependency declared with `Context.Service<Self, Shape>()("ns/Id")` and
-supplied from the environment. Qadi declares four: `CurrentSubject`,
-`AttributeResolver`, `RelationshipResolver`, `EvaluationId`.
+supplied from the environment. Sixteen exist across three packages: nine in
+`@qadi/core` (`AttributeResolver`, `CurrentSubject`, `CustomPredicate`,
+`DecisionCache`, `DecisionHistory`, `DecisionSink`, `EvaluationId`,
+`RelationshipResolver`, `SignatureHistory`), three in `@qadi/audit`
+(`AuditStagingPort`, `AuditTrailPort`, `SignatureCapturePort`), and four in
+`@qadi/http` (`PermissionRegistry`, `PublicEndpoint`, `RequiredPermission`,
+`SubjectExtractor`). The prior count of four here had gone stale by more than
+2× (CCR-QD-093) — grep `extends Context.Service` under each package's `src/`
+rather than trusting a number in prose.
 See [BEH-QD-041](behaviors/06-services.md).
 
 ## Layer

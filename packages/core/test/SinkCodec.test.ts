@@ -6,6 +6,7 @@ import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "../src/DecisionRecord.ts";
 import {
   AttributeResolveError,
+  CustomPredicateError,
   DecisionHistoryUnavailable,
   ERROR_CODES,
   MissingAction,
@@ -21,7 +22,7 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { decodeRecord, encodeRecord, fromWire, toWire } from "../src/SinkCodec.ts";
+import { decodeRecord, encodeRecord, fromWire, isJsonSafe, toWire } from "../src/SinkCodec.ts";
 
 const read = permission("doc", "read");
 
@@ -44,6 +45,7 @@ const everyError: ReadonlyArray<EvaluationError> = [
     resourceId: makeResourceId("doc-1"),
     cause: "signature store offline",
   }),
+  new CustomPredicateError({ name: "isOwner", reason: "unregistered" }),
 ];
 
 /**
@@ -58,7 +60,7 @@ const trace = (allowed: boolean) => ({
   policyTag: "HasPermission" as const,
   allowed,
   children: [],
-  ...(allowed ? { visibleFields: ["id", "title"] as ReadonlyArray<string> } : {}),
+  ...(allowed ? { visibleFields: ["id", "title"] } : {}),
   obligations: [],
 });
 
@@ -614,18 +616,18 @@ describe("round-trip property", () => {
       FastCheck.constant(P.hasAction("read")),
     );
 
-    const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
+    const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
       node: FastCheck.oneof(
         { maxDepth: 3 },
         leaf,
-        FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, {
+        FastCheck.array(tie("node"), {
           minLength: 1,
           maxLength: 3,
         }).map((ps) => P.allOf(ps)),
-        (tie("node") as FastCheck.Arbitrary<P.Policy>).map((p) => P.not(p)),
-        (tie("node") as FastCheck.Arbitrary<P.Policy>).map((p) => P.labeled("audit", p)),
+        tie("node").map((p) => P.not(p)),
+        tie("node").map((p) => P.labeled("audit", p)),
       ),
-    })).node as FastCheck.Arbitrary<P.Policy>;
+    })).node;
 
     FastCheck.assert(
       FastCheck.property(
@@ -663,5 +665,41 @@ describe("round-trip property", () => {
       ),
       { numRuns: 200 },
     );
+  });
+});
+
+describe("isJsonSafe", () => {
+  it("accepts every plain-JSON leaf, null, and Date", () => {
+    assert.isTrue(isJsonSafe(null));
+    assert.isTrue(isJsonSafe("x"));
+    assert.isTrue(isJsonSafe(1));
+    assert.isTrue(isJsonSafe(true));
+    assert.isTrue(isJsonSafe(new Date()));
+  });
+
+  it("refuses undefined, functions, and other shapes JSON.stringify silently drops or lies about", () => {
+    assert.isFalse(isJsonSafe(undefined));
+    assert.isFalse(isJsonSafe(() => {}));
+    assert.isFalse(isJsonSafe(Symbol("x")));
+    assert.isFalse(isJsonSafe(1n));
+  });
+
+  it("walks a plain object or array recursively", () => {
+    assert.isTrue(isJsonSafe({ a: 1, b: ["x", { c: null }] }));
+    assert.isFalse(isJsonSafe({ a: 1, b: () => {} }));
+    assert.isFalse(isJsonSafe([1, 2, undefined]));
+  });
+
+  it("refuses a circular reference rather than recursing forever", () => {
+    const circular: Record<string, unknown> = { a: 1 };
+    circular.self = circular;
+    assert.isFalse(isJsonSafe(circular));
+  });
+
+  it("does not falsely refuse a value reachable twice via two different paths", () => {
+    // The same non-cyclic child appearing under two keys is not a cycle —
+    // `seen` tracks the current path, not everything visited overall.
+    const shared = { x: 1 };
+    assert.isTrue(isJsonSafe({ a: shared, b: shared }));
   });
 });

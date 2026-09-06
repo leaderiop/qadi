@@ -435,7 +435,7 @@ describe("counting re-checks", () => {
         const store = AtomRegistry.make({
           initialValues: [
             [fresh.subject, alice] as const,
-            ...(hydrateDecisions(fresh, payload, alice) as Iterable<readonly [never, never]>),
+            ...hydrateDecisions(fresh, payload, alice),
           ],
         });
         currentDecision(store.get(fresh.decision(isAdmin)));
@@ -522,6 +522,6 @@ const seededRegistryFor = (
   AtomRegistry.make({
     initialValues: [
       [set.subject, alice] as const,
-      ...(hydrateDecisions(set, payload, alice) as Iterable<readonly [never, never]>),
+      ...hydrateDecisions(set, payload, alice),
     ],
   });

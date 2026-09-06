@@ -136,6 +136,32 @@ describe("Qadi.enforceProjected", () => {
       const out = yield* Effect.succeed(nested).pipe(Qadi.enforceProjected(policy));
       assert.deepStrictEqual(out, { id: "1", contact: { email: "a@b.com" } });
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+
+  it.effect("a resource with its own '__proto__' key (untrusted JSON) does not pollute the projected result", () =>
+    Effect.gen(function* () {
+      // JSON.parse gives an object a genuine OWN "__proto__" property without
+      // touching its real prototype — end to end, through `Decision.project`,
+      // this must never turn into an assignment that mutates a plain object's
+      // actual prototype instead of storing the value under that key.
+      const untrusted: { id: string } = JSON.parse(
+        '{"id":"1","__proto__":{"polluted":true}}',
+      );
+      const policy = P.hasPermission(read, { fields: ["*"] });
+      const out: Record<string, unknown> = yield* Effect.succeed(untrusted).pipe(
+        Qadi.enforceProjected(policy),
+      );
+      const expected: Record<string, unknown> = { id: "1" };
+      Object.defineProperty(expected, "__proto__", {
+        value: {},
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
+      assert.strictEqual(Object.getPrototypeOf(out), Object.prototype);
+      assert.deepStrictEqual(out, expected);
+      const probe: Record<string, unknown> = {};
+      assert.isUndefined(probe["polluted"]);
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 });
 
 describe("Qadi.guard", () => {

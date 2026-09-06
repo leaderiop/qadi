@@ -77,7 +77,22 @@ export class DecisionRecord extends Data.TaggedClass("Decision")<{
    */
   readonly subjectId: SubjectId;
   readonly policy: Policy;
-  /** The resource under consideration, if any. */
+  /**
+   * The resource under consideration, if any.
+   *
+   * **Carried whole, to every sink, with no projection or redaction** —
+   * unlike `Decision`'s own `visibleFields` lattice, which exists precisely
+   * to gate what a *caller* sees. A sink is a different audience: "a socket
+   * to a devtools page, a replica forwarding to a shared store" (`SinkCodec.ts`),
+   * and whatever this resource carries — potentially customer data — travels
+   * to whatever that sink forwards to, in full. `policy` above discloses
+   * every other rule in the deployment for the same reason. Denial reasons
+   * (`Evaluate.ts`'s `attributeReason`) deliberately withhold attribute
+   * values by contrast; this field does not have an equivalent restraint.
+   * A `DecisionSink` implementation that forwards outside a trust boundary
+   * as controlled as the enforcement path itself is the caller's own
+   * projection to add — nothing here does it for them.
+   */
   readonly resource?: Resource | undefined;
   /** What the caller was doing, if it said. */
   readonly action?: string | undefined;

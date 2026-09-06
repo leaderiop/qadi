@@ -104,6 +104,53 @@ describe("CircuitBreaker — threshold boundary, scripted rather than generated"
       assert.strictEqual(yield* breaker.status, "HalfOpen");
     }));
 
+  it.effect("claimProbe admits exactly one caller per half-open window, not the whole fan-out", () =>
+    Effect.gen(function* () {
+      const breaker = yield* makeCircuitBreaker(OPTIONS);
+      yield* breaker.recordFailure;
+      yield* breaker.recordFailure;
+      yield* breaker.recordFailure;
+      yield* TestClock.adjust("10 seconds");
+      assert.strictEqual(yield* breaker.status, "HalfOpen");
+
+      // Ten concurrent callers, the Qadi.ts filter/filterStream fan-out
+      // shape — without claimProbe every one of them would attempt a write
+      // the instant the breaker reads HalfOpen.
+      const claims = yield* Effect.all(
+        Array.from({ length: 10 }, () => breaker.claimProbe),
+        { concurrency: "unbounded" },
+      );
+      assert.strictEqual(claims.filter((c) => c).length, 1, "exactly one caller claims the probe");
+    }));
+
+  it.effect("claimProbe resets on the next half-open window, whichever direction closed the last one", () =>
+    Effect.gen(function* () {
+      const breaker = yield* makeCircuitBreaker(OPTIONS);
+      yield* breaker.recordFailure;
+      yield* breaker.recordFailure;
+      yield* breaker.recordFailure;
+      yield* TestClock.adjust("10 seconds");
+      assert.strictEqual(yield* breaker.status, "HalfOpen"); // the read that performs the transition
+      assert.isTrue(yield* breaker.claimProbe);
+      assert.isFalse(yield* breaker.claimProbe, "already claimed for this window");
+
+      // Reopen, then reach half-open again — a fresh window, a fresh probe.
+      yield* breaker.recordFailure;
+      yield* TestClock.adjust("10 seconds");
+      assert.strictEqual(yield* breaker.status, "HalfOpen");
+      assert.isTrue(yield* breaker.claimProbe, "a new half-open window admits a new probe");
+    }));
+
+  it.effect("claimProbe is false outside a half-open window", () =>
+    Effect.gen(function* () {
+      const breaker = yield* makeCircuitBreaker(OPTIONS);
+      assert.isFalse(yield* breaker.claimProbe, "closed — nothing to claim");
+      yield* breaker.recordFailure;
+      yield* breaker.recordFailure;
+      yield* breaker.recordFailure;
+      assert.isFalse(yield* breaker.claimProbe, "open, before resetTimeoutMs — nothing to claim yet");
+    }));
+
   it.effect("starts closed", () =>
     Effect.gen(function* () {
       const breaker = yield* makeCircuitBreaker(OPTIONS);

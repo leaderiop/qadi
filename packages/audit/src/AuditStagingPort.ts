@@ -26,6 +26,13 @@ import * as Data from "effect/Data";
 import type * as Effect from "effect/Effect";
 import type { AuditEntry } from "./AuditEntry.ts";
 
+/**
+ * `entry` carries the whole row — see `AuditTrailPort.ts`'s `AuditWriteError`
+ * doc comment for the same caveat: a caller that logs this error whole
+ * publishes the audited decision's contents (subject id, resource, policy)
+ * into whatever that log pipeline is. Read `cause`; reach for `entry` only
+ * to retry or reconcile it.
+ */
 export class AuditStagingError extends Data.TaggedError("AuditStagingError")<{
   readonly entry: AuditEntry;
   readonly cause: unknown;

@@ -52,21 +52,24 @@ These are pure functions and data — caller-invoked, caller-scheduled, since
 partition a set of entries: their union is the input, unchanged, and their
 intersection is empty. `now` is a parameter, never `Date.now()`.
 
-**Chain integrity** — `verifyChainIntegrity` fails `ChainIntegrityError` for
-any two `sequenceNumber`s, sorted ascending, that aren't exactly one apart —
+**Sequence integrity** — `verifySequenceIntegrity` fails `SequenceIntegrityError`
+for any two `sequenceNumber`s, sorted ascending, that aren't exactly one apart —
 catching both a gap and a duplicate. An entry with no `sequenceNumber` is
 ignored: sequencing is opt-in, assigned only by the caller's own store, never
-by `@qadi/audit` itself.
+by `@qadi/audit` itself. This is gap-and-duplicate detection, not cryptographic
+tamper-evidence: there is no per-entry hash and nothing links one entry to the
+next, so an attacker able to modify stored rows can renumber them and defeat
+this check entirely.
 
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
-before setting `metadata.chainIntegrityVerified: true`.
+before setting `metadata.sequenceIntegrityVerified: true`.
 
 **Decommissioning** — `createDecommissioningChecklist`/
 `completeDecommissioningStep` walk a six-step checklist; an unknown step id
 fails `UnknownDecommissioningStep` rather than silently no-opping.
 
 ```ts
-import { enforceRetention, verifyChainIntegrity, createDecommissioningChecklist } from "@qadi/audit";
+import { enforceRetention, verifySequenceIntegrity, createDecommissioningChecklist } from "@qadi/audit";
 
 const kept = enforceRetention(entries, { maxAgeMs: 90 * 24 * 60 * 60 * 1000 }, now);
 ```

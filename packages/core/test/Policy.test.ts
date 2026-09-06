@@ -316,6 +316,105 @@ describe("Policy serialization", () => {
       assert.strictEqual(result._tag, "Failure");
     }));
 
+  describe("decode depth bound — stack-exhaustion refusal, not a defect", () => {
+    const deeplyNestedNot = (n: number): string => {
+      let json = "";
+      for (let i = 0; i < n; i++) json += '{"_tag":"Not","policy":';
+      json += '{"_tag":"HasRole","role":"x"}';
+      json += "}".repeat(n);
+      return json;
+    };
+
+    it.effect("fromJson refuses a policy nested past MAX_DECODE_DEPTH, naming the bound", () =>
+      Effect.gen(function* () {
+        const json = deeplyNestedNot(P.MAX_DECODE_DEPTH + 10);
+        const result = yield* Effect.result(P.fromJson(json));
+        assert.strictEqual(result._tag, "Failure");
+        if (result._tag === "Failure") {
+          assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
+          if (result.failure._tag === "PolicyDecodeTooDeep") {
+            assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
+          }
+        }
+      }));
+
+    it.effect("fromJsonValue refuses an already-parsed policy nested past MAX_DECODE_DEPTH, naming the bound", () =>
+      Effect.gen(function* () {
+        const value: unknown = JSON.parse(deeplyNestedNot(P.MAX_DECODE_DEPTH + 10));
+        const result = yield* Effect.result(P.fromJsonValue(value));
+        assert.strictEqual(result._tag, "Failure");
+        if (result._tag === "Failure") {
+          assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
+          if (result.failure._tag === "PolicyDecodeTooDeep") {
+            assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
+          }
+        }
+      }));
+
+    it.effect("fromJson accepts a policy nested well within MAX_DECODE_DEPTH", () =>
+      Effect.gen(function* () {
+        const json = deeplyNestedNot(4);
+        const result = yield* Effect.result(P.fromJson(json));
+        assert.strictEqual(result._tag, "Success");
+      }));
+
+    it.effect("a policy nested exactly to MAX_DECODE_DEPTH is not refused — the bound is inclusive", () =>
+      Effect.gen(function* () {
+        // deeplyNestedNot(n) reaches structural depth n + 1 (the leaf's own
+        // fields sit one level past the last `Not`), so n = MAX_DECODE_DEPTH - 1
+        // is the deepest input the `> maxDepth` check must still accept.
+        const json = deeplyNestedNot(P.MAX_DECODE_DEPTH - 1);
+        const result = yield* Effect.result(P.fromJson(json));
+        assert.strictEqual(result._tag, "Success");
+      }));
+
+    it.effect("depth accumulates through array-valued nodes too, not only single-child ones", () =>
+      Effect.gen(function* () {
+        // `Not` nests through a plain object field; this nests through a
+        // single-element array instead (the shape `AllOf`/`AnyOf` use), so a
+        // depth-counting bug specific to the array-traversal branch would
+        // slip past every other test here.
+        let node: unknown = { leaf: true };
+        for (let i = 0; i < P.MAX_DECODE_DEPTH; i++) node = { policies: [node] };
+        const result = yield* Effect.result(P.fromJsonValue(node));
+        assert.strictEqual(result._tag, "Failure");
+        // Specifically the depth refusal, not some unrelated schema failure —
+        // this shape isn't a valid `Policy` either, so a weaker "any failure"
+        // assertion here would pass even if array depth were never counted.
+        if (result._tag === "Failure") {
+          assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
+        }
+      }));
+
+    it.effect("a null nested inside the structure is walked without throwing", () =>
+      Effect.gen(function* () {
+        // `isPlainObject` excludes `null` on purpose — `typeof null` is
+        // itself `"object"`. Without that exclusion, `Object.keys(null)`
+        // throws a raw `TypeError` synchronously out of `fromJsonValue`,
+        // which has no `try`/`catch` around the depth check the way
+        // `fromJson` does around its own `JSON.parse`.
+        let effect: Effect.Effect<P.Policy, unknown> | undefined;
+        assert.doesNotThrow(() => {
+          effect = P.fromJsonValue({ _tag: "Not", policy: null });
+        });
+        assert.isDefined(effect);
+        if (effect === undefined) return;
+        const result = yield* Effect.result(effect);
+        assert.strictEqual(result._tag, "Failure");
+      }));
+
+    // The regression this guards: 60,000 levels of `Not` nesting previously
+    // threw a raw `RangeError` out of `Schema.decodeUnknownEffect` — an
+    // uncaught defect, not an `Effect` failure — before this depth check ran
+    // ahead of it.
+    it.effect("an extreme depth (60,000) fails through the Effect channel, never throws", () =>
+      Effect.gen(function* () {
+        const json = deeplyNestedNot(60_000);
+        const result = yield* Effect.result(P.fromJson(json));
+        assert.strictEqual(result._tag, "Failure");
+      }));
+  });
+
   describe("branded ADT strings — role/event/relation/action/label", () => {
     // Every one of these five fields shares Permission's SEGMENT_PATTERN: not
     // empty, no `:`. One malformed-each-way pair per field is enough to prove
@@ -432,19 +531,19 @@ describe("Policy serialization", () => {
         ),
       );
 
-      const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec((tie) => ({
+      const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
         node: FastCheck.oneof(
           { maxDepth: 4, withCrossShrink: true },
           leaf,
           FastCheck.tuple(
-            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, {
+            FastCheck.array(tie("node"), {
               minLength: 1,
               maxLength: 3,
             }),
             FastCheck.constantFrom("Intersection" as const, "Union" as const, "First" as const),
           ).map(([ps, strategy]) => P.allOf(ps, { fieldStrategy: strategy })),
           FastCheck.tuple(
-            FastCheck.array(tie("node") as FastCheck.Arbitrary<P.Policy>, {
+            FastCheck.array(tie("node"), {
               minLength: 1,
               maxLength: 3,
             }),
@@ -455,10 +554,7 @@ describe("Policy serialization", () => {
           // mandatory in the same change that added the variant.
           FastCheck.tuple(
             FastCheck.array(
-              FastCheck.tuple(
-                tie("node") as FastCheck.Arbitrary<P.Policy>,
-                FastCheck.boolean(),
-              ).map(([condition, permits]) =>
+              FastCheck.tuple(tie("node"), FastCheck.boolean()).map(([condition, permits]) =>
                 permits ? P.permitWhen(condition) : P.denyWhen(condition),
               ),
               { minLength: 1, maxLength: 3 },
@@ -469,7 +565,7 @@ describe("Policy serialization", () => {
               "PermitOverrides" as const,
             ),
           ).map(([rs, combining]) => P.rules(rs, { combining })),
-          (tie("node") as FastCheck.Arbitrary<P.Policy>).map(P.not),
+          tie("node").map(P.not),
         ),
       })).node;
 

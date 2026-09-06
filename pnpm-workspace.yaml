@@ -4,12 +4,28 @@ packages:
   - examples/*
   - apps/*
 
+# `effect` is pinned exact, not a caret range, and every @qadi package
+# publishes that exact pin as its own runtime dependency (`pnpm pack`
+# substitutes `catalog:` at pack time — AGENTS.md §16, gate 14). This is
+# deliberate for as long as effect ships as an rc: our public API is made of
+# effect classes (`Context.Service`, `Data.TaggedError`), so a consumer on a
+# different rc — or on stable 4.0.0 once it lands — gets a resolution
+# conflict or a second effect instance in their tree, not a silent
+# type-compatible interop. A caret range would trade that loud failure for a
+# quiet one: two rc builds satisfying `^4.0.0-rc.112` are not guaranteed
+# ABI-compatible the way two semver-compatible stable releases are.
+#
+# Exit plan: once effect 4.0.0 ships stable, revisit — a caret range (or
+# moving `effect` to `peerDependencies`, as `@qadi/react` already does for
+# `react`) becomes the reasonable default the moment "any 4.x" is a real,
+# tested compatibility promise rather than an assumption about an rc series.
 catalog:
-  '@effect/vitest': 4.0.0-rc.110
+  '@effect/platform-node': 4.0.0-rc.112
+  '@effect/vitest': 4.0.0-rc.112
   '@types/react': 19.2.17
   '@types/react-dom': 19.2.4
   '@vitest/coverage-v8': 4.1.10
-  effect: 4.0.0-rc.110
+  effect: 4.0.0-rc.112
   react: 19.2.8
   react-dom: 19.2.8
   typescript: ^7.0.0

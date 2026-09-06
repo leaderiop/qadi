@@ -142,10 +142,15 @@ export interface DecisionCacheShape {
    * invalidates *atoms*, and an invalidated atom that re-evaluates through a
    * warm cache gets the same cached trace back.
    *
-   * Entries only. A `compute` already in flight keeps its claim and still
-   * settles for the fibers awaiting it — cancelling those would turn a
-   * housekeeping action into a source of failures, and they are answering
-   * questions asked before the flush.
+   * A `compute` already in flight keeps its claim and still settles for the
+   * fibers already awaiting it — cancelling those would turn a housekeeping
+   * action into a source of failures, and they are answering questions asked
+   * before the flush. But that stale answer never re-enters the cache this
+   * call just emptied, and a *new* ask for the same key arriving after this
+   * call starts its own fresh compute rather than coalescing onto the old
+   * one — both closed by an internal generation counter this call advances,
+   * so a compute racing the flush can tell whether it is still current when
+   * it finishes.
    */
   readonly clear: Effect.Effect<void>;
 }
@@ -287,6 +292,13 @@ export const decisionCacheLayer = (options?: {
       // sustained pressure stays proportional to how much was evicted, not to
       // how large the cache is.
       let insertionOrder: Chunk.Chunk<DecisionCacheKey> = Chunk.empty();
+      // Advanced by `clear` alone. A compute captures this at claim time and
+      // compares again in its `onExit` finalizer — unequal means a `clear`
+      // happened while it was running, so its result answers the fibers
+      // already awaiting its `Deferred` (below) but must not repopulate
+      // `entries` on top of a flush that already happened, nor answer a
+      // caller who asks for the same key after that flush.
+      let generation = 0;
 
       const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, compute) =>
         Effect.gen(function* () {
@@ -308,13 +320,19 @@ export const decisionCacheLayer = (options?: {
           // allocation stay inside the one atomic check instead of paying for
           // it up front on every ask.
           const claimed = yield* Effect.sync(():
-            | { readonly owned: true; readonly claim: Deferred.Deferred<Trace, EvaluationError> }
+            | {
+                readonly owned: true;
+                readonly claim: Deferred.Deferred<Trace, EvaluationError>;
+                readonly generation: number;
+              }
             | { readonly owned: false; readonly claim: Deferred.Deferred<Trace, EvaluationError> } => {
             const existing = HashMap.get(inFlight, key);
             if (Option.isSome(existing)) return { owned: false, claim: existing.value };
             const claim = Deferred.makeUnsafe<Trace, EvaluationError>();
             inFlight = HashMap.set(inFlight, key, claim);
-            return { owned: true, claim };
+            // Read in the same synchronous step the claim itself is made in —
+            // see `clear`'s own doc comment for what this closes.
+            return { owned: true, claim, generation };
           });
 
           // Someone else already claimed this key — share their result,
@@ -328,6 +346,7 @@ export const decisionCacheLayer = (options?: {
           }
           yield* Metric.update(cacheLookupsTotal, "miss");
           const claim = claimed.claim;
+          const myGeneration = claimed.generation;
 
           // `Effect.onExit`, not a plain `yield* Effect.exit(compute)` followed
           // by more steps: a fiber interrupted while `compute` is running does
@@ -348,7 +367,12 @@ export const decisionCacheLayer = (options?: {
           return yield* compute.pipe(
             Effect.onExit((exit) =>
               Effect.sync(() => {
-                if (exit._tag === "Success") {
+                // `myGeneration === generation`: no `clear` ran while this
+                // compute was in flight. One did — `clear`'s doc comment
+                // explains why this result must not repopulate the cache it
+                // flushed, even though it still settles `claim` below for
+                // whichever fibers are already awaiting it.
+                if (exit._tag === "Success" && myGeneration === generation) {
                   entries = HashMap.set(entries, key, exit.value);
                   // Recorded, and evicted from, only when `capacity` was given —
                   // the unbounded default (the common case, per this file's own
@@ -382,7 +406,15 @@ export const decisionCacheLayer = (options?: {
                 Effect.flatMap(() => Deferred.done(claim, exit)),
                 Effect.flatMap(() =>
                   Effect.sync(() => {
-                    inFlight = HashMap.remove(inFlight, key);
+                    // Removes this claim only if it is still the one at
+                    // `key` — a `clear` between this compute's claim and now
+                    // may have reset `inFlight` and let a fresh compute claim
+                    // the same key already; that claim is not this one's to
+                    // remove.
+                    const current = HashMap.get(inFlight, key);
+                    if (Option.isSome(current) && current.value === claim) {
+                      inFlight = HashMap.remove(inFlight, key);
+                    }
                   }),
                 ),
               ),
@@ -401,6 +433,12 @@ export const decisionCacheLayer = (options?: {
         clear: Effect.sync(() => {
           entries = HashMap.empty<DecisionCacheKey, Trace>();
           insertionOrder = Chunk.empty();
+          // Resetting `inFlight` here, not just `entries`, is what stops a
+          // caller asking for the same key right after this from coalescing
+          // onto a compute that started before the flush and would hand them
+          // back the exact staleness they just asked to discard.
+          inFlight = HashMap.empty<DecisionCacheKey, Deferred.Deferred<Trace, EvaluationError>>();
+          generation += 1;
         }),
       };
     }),

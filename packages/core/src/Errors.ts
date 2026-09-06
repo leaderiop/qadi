@@ -205,4 +205,5 @@ export const ERROR_CODES = {
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */
-export const errorCode = (self: QadiError): string => ERROR_CODES[self._tag];
+export const errorCode = (self: { readonly _tag: QadiError["_tag"] }): string =>
+  ERROR_CODES[self._tag];

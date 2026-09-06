@@ -23,7 +23,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import type { SinkRecord } from "@qadi/core";
-import { SinkRecordWire, toWire } from "@qadi/core";
+import { isJsonSafe, SinkRecordWire, toWire } from "@qadi/core";
 
 /**
  * A `SinkRecord` this package refuses to persist — a `resource` carrying a
@@ -47,8 +47,8 @@ export class AuditEntryNotEncodable extends Data.TaggedError("AuditEntryNotEncod
  * `sequenceNumber` is the optional gap-detection field a caller's own store
  * assigns — `@qadi/audit` never populates it. Only the caller's store has
  * cross-restart visibility into a global write order, the same constraint
- * that shapes `AuditStagingPort`. Present so `verifyChainIntegrity`
- * ([ChainIntegrity.ts](./ChainIntegrity.ts)) has something to check once the
+ * that shapes `AuditStagingPort`. Present so `verifySequenceIntegrity`
+ * ([SequenceIntegrity.ts](./SequenceIntegrity.ts)) has something to check once the
  * caller has assigned it (an autoincrement column, their own counter) and
  * read the rows back.
  */
@@ -64,36 +64,13 @@ export type AuditEntry = typeof AuditEntry.Type;
  * safety check to this one entry point mirrors `@qadi/predicate-sql`'s
  * `isSafeValue`: a fixed, explicit allowlist rather than an unbounded walk of
  * every value a caller could ever construct.
+ *
+ * `isJsonSafe` itself is `@qadi/core`'s, not this package's own — ADR-QD-054's
+ * "each companion package owns its shape" covers *error* types, not a plain
+ * predicate that `toWire`'s other caller (`@qadi/http`'s decision-stream
+ * route) needs unchanged, so a second copy here would just be the drift
+ * ADR-QD-002 warns about, one level down.
  */
-// `isJsonSafe`'s only call site already handles `null`, `Date` and arrays
-// before ever reaching this — via its own `Array.isArray(value) ||
-// isRecord(value)` short-circuit — so excluding them here too would be dead
-// code no test could ever exercise, not a second layer of safety.
-const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null;
-
-/**
- * `seen` tracks the current recursion path, not every value visited overall —
- * removed again after each branch returns, so a value legitimately reachable
- * twice via two different paths (not a cycle) is never falsely refused. A
- * value that *is* its own ancestor is refused rather than walked forever:
- * `Object.values`'s plain recursion has no base case for one, and a caller's
- * resource is arbitrary `unknown` this package does not control the shape of.
- */
-const isJsonSafe = (value: unknown, seen: ReadonlySet<object> = new Set()): boolean => {
-  if (value === null) return true;
-  const t = typeof value;
-  if (t === "string" || t === "number" || t === "boolean") return true;
-  if (value instanceof Date) return true;
-  if (Array.isArray(value) || isRecord(value)) {
-    if (seen.has(value)) return false;
-    const path = new Set(seen).add(value);
-    const children = Array.isArray(value) ? value : Object.values(value);
-    return children.every((child) => isJsonSafe(child, path));
-  }
-  return false;
-};
-
 const resourceOf = (record: SinkRecord): Readonly<Record<string, unknown>> | undefined =>
   record._tag === "Decision" ? record.resource : undefined;
 

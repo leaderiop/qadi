@@ -261,14 +261,14 @@ describe("@qadi/http", () => {
         handler(new Request("http://localhost/__permissions", { headers: bearer(ALICE_TOKEN) })),
       );
       assert.strictEqual(response.status, 200);
-      const body = (yield* Effect.promise(() => response.json())) as ReadonlyArray<{
+      const body: ReadonlyArray<{
         readonly permission: string;
         readonly endpoints: ReadonlyArray<{
           readonly method: string;
           readonly path: string;
           readonly group?: string;
         }>;
-      }>;
+      }> = yield* Effect.promise(() => response.json());
 
       const byPermission = new Map(body.map((entry) => [entry.permission, entry.endpoints]));
       assert.deepStrictEqual(byPermission.get("document:read"), [
