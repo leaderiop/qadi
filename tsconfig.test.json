@@ -1,5 +1,15 @@
 {
-  "extends": "./tsconfig.base.json",
+  // Extends `tsconfig.react-base.json`, not the plain `tsconfig.base.json`,
+  // because this is one flat compilation over every package's `src/**` and
+  // `test/**` at once (`tsc -p tsconfig.test.json`, step 2 of `pnpm check`) —
+  // it cannot give `packages/react` and `packages/devtools`'s `.tsx` files a
+  // different `lib`/`jsx` setting than `packages/core`'s `.ts` files within
+  // one invocation, the way the per-package `tsc -b` build graph now can now
+  // that `tsconfig.base.json` no longer carries `DOM`/`jsx` itself. Server-only
+  // packages get `DOM`/`jsx` here too as a result — unavoidable for this
+  // combined graph, not a regression from moving the two options out of the
+  // shared base.
+  "extends": "./tsconfig.react-base.json",
   "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx", "packages/*/test/**/*.ts", "packages/*/test/**/*.tsx", "packages/*/bench/**/*.ts", "features/features/**/*.steps.test.ts"],
   "compilerOptions": {
     "noEmit": true,

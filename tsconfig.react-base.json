@@ -1,0 +1,16 @@
+{
+  // Shared by the packages that actually render — `@qadi/react` and
+  // `@qadi/devtools`'s React panel — rather than folded into
+  // `tsconfig.base.json`. `DOM` and `jsx: "react-jsx"` have no business on a
+  // server-only package's compilation (`@qadi/core`, `@qadi/audit`,
+  // `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/http`,
+  // `@qadi/promise`, `@qadi/testing`): `DOM` widens what those packages' own
+  // sources can silently reference (a global `document`/`window` would
+  // type-check in a package that must never touch either), and `jsx` is inert
+  // there since none of them contain a `.tsx` file.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM"],
+    "jsx": "react-jsx"
+  }
+}
