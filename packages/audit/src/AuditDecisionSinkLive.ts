@@ -60,8 +60,24 @@ const stagingTotal = Metric.counter("qadi_audit_staging_total", {
   description: "AuditStagingPort.stage attempts, tagged by outcome.",
 });
 const stagingStaged = Metric.withAttributes(stagingTotal, { outcome: "staged" });
+/**
+ * `stage()` failed while the breaker was **not** Open, so `record`'s write
+ * attempt below still runs — this entry is recoverable through the trail
+ * even though staging never got a copy of it. Kept distinct from
+ * `stagingFailedOpen` because the two have different operator responses: this
+ * one says "staging is unhealthy", that one says "this entry is gone".
+ */
 const stagingFailed = Metric.withAttributes(stagingTotal, { outcome: "failed" });
 const stagingSkippedOpen = Metric.withAttributes(stagingTotal, { outcome: "skipped_open" });
+/**
+ * `stage()` failed while the breaker **was** Open — the wired sibling of
+ * `stagingSkippedOpen`. Neither staging nor the trail write (skipped below
+ * because the breaker is Open) will ever hold this entry, so it is lost as
+ * unrecoverably as the unwired case, and gets the same loud
+ * `Effect.logWarning` rather than being folded into the generic `"failed"`
+ * outcome, which also covers writes the trail still catches.
+ */
+const stagingFailedOpen = Metric.withAttributes(stagingTotal, { outcome: "failed_open" });
 /**
  * A `commit` a caller's staging port raised — a typed `AuditStagingError` or
  * an unexpected defect alike. Tracked rather than merely swallowed: `stage`'s
@@ -125,6 +141,14 @@ export const AuditDecisionSinkLive = (
               const handle = staged.success;
               commitStaged = () => stagingPort.commit(handle);
               yield* Metric.update(stagingStaged, 1);
+            } else if (status === "Open") {
+              // Staging failed and the breaker is Open, so the write below
+              // never runs either — this entry has no path to durability at
+              // all, the wired counterpart of the unwired-and-open case.
+              yield* Effect.logWarning(
+                "audit entry dropped: circuit breaker open and staging failed",
+              ).pipe(Effect.annotateLogs({ evaluationId: entry.record.evaluationId }));
+              yield* Metric.update(stagingFailedOpen, 1);
             } else {
               yield* Metric.update(stagingFailed, 1);
             }

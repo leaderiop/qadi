@@ -4,6 +4,7 @@ import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import { AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
+import { AuditStagingError } from "../src/AuditStagingPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
 import { decisionRecord, obligationRecord } from "./helpers.ts";
 
@@ -156,6 +157,32 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
 
       // 5 failed-write stages (left un-discarded) + 1 open-skip stage.
       assert.strictEqual(staged().length, 6);
+    }));
+
+  it.effect("while open, a staging failure is a genuine, unrecoverable loss too", () =>
+    Effect.gen(function* () {
+      const { layer: trail } = AuditTrailPortTest({
+        failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+      });
+      const { layer: staging, staged, committed } = AuditStagingPortTest({
+        failStageWith: (entry) =>
+          entry.record.evaluationId === "lost"
+            ? new AuditStagingError({ entry, cause: "staging offline" })
+            : undefined,
+      });
+
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        for (let i = 0; i < 5; i++) {
+          yield* sink.record(decisionRecord({ evaluationId: `fail-${i}` }));
+        }
+        // Open now; stage() also fails, so this entry has nowhere to land.
+        yield* sink.record(decisionRecord({ evaluationId: "lost" }));
+      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging));
+
+      // The 5 failed-write entries staged normally; "lost" never made it.
+      assert.strictEqual(staged().length, 5);
+      assert.strictEqual(committed().length, 0);
     }));
 
   it.effect("a custom failureThreshold is honored", () =>
