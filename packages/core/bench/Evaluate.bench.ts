@@ -15,8 +15,13 @@
  *   wide           `allOf` of 8, the shared-fold path
  *   deep           nesting 10 levels, the recursion path
  *   matcher-heavy  four refs, the only workload that reaches `resolveRef`
- *   per element    `filter` over 500 items, where §5a's "once per element on top
- *                  of that" actually happens
+ *   field-heavy    `allOf` of 8 under `Intersection`, the only workload that
+ *                  reaches `mergeFields`/`intersectFields` — O(|a|·|b|)
+ *                  pairwise `compareFieldPaths`, on the same per-node path §5a
+ *                  protects with a switch budget
+ *   per element    `filter`/`decideSubjects` over 500 items, where §5a's "once
+ *                  per element on top of that" actually happens — AGENTS.md
+ *                  names both as the sites, but only `filter` had a row here
  *   resolver miss  the port path, and the only workload that emits a
  *                  `qadi.attribute` span
  *
@@ -51,6 +56,7 @@ import { permission } from "../src/Permission.ts";
 import { allOf, anyOf, hasAttribute, hasPermission, not } from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
 import { filter } from "../src/Qadi.ts";
+import { decideSubjects } from "../src/SubjectSet.ts";
 // `RelationshipResolver.ts` used to contain literal NUL bytes as a key
 // separator, which made `grep` treat it as binary and find nothing in it — the
 // finding that made gate 9 read files with `readFileSync` rather than shelling
@@ -155,10 +161,28 @@ const matchers = allOf([
 /** Absent from the subject, so the port is asked. */
 const missed = hasAttribute("tier", gte(3));
 
+/**
+ * Eight `hasPermission` arms, each restricted to a distinct, overlapping field
+ * set, folded under `Intersection` — the only combination that reaches
+ * `mergeFields`'s `Intersection` arm and, through it, `intersectFields`'s
+ * O(|a|·|b|) pairwise `compareFieldPaths` over eight arrays instead of the
+ * single-array case `wide` above exercises with no field restriction at all.
+ */
+const fieldHeavy = allOf(
+  Array.from({ length: 8 }, (_, index) =>
+    hasPermission(read, { fields: [`id`, `field${index}`, `shared.a`, `shared.b`] }),
+  ),
+  { fieldStrategy: "Intersection" },
+);
+
 const items = Array.from({ length: 500 }, (_, index) => ({
   id: `doc-${index}`,
   ownerId: index % 2 === 0 ? "alice" : "bob",
 }));
+
+const subjects = Array.from({ length: 500 }, (_, index) =>
+  fromRoles({ id: `subject-${index}`, roles: index % 2 === 0 ? [editor] : [] }),
+);
 
 const options = { time: 1000, warmupTime: 300 };
 
@@ -167,6 +191,7 @@ describe("evaluate", () => {
   bench("wide — allOf of 8", () => run(wide), options);
   bench("deep — 10 levels", () => run(deep), options);
   bench("matcher-heavy — 4 refs", () => run(matchers), options);
+  bench("field-heavy — allOf of 8 under Intersection", () => run(fieldHeavy), options);
   bench(
     "resolver miss — one port call",
     () => {
@@ -179,5 +204,11 @@ describe("evaluate", () => {
 describe("filter — 500 items", () => {
   bench("hasPermission", () => {
     runtime.runSync(filter(one, items));
+  }, options);
+});
+
+describe("decideSubjects — 500 subjects", () => {
+  bench("hasPermission", () => {
+    runtime.runSync(decideSubjects(one, subjects));
   }, options);
 });
