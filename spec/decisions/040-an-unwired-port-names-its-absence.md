@@ -125,6 +125,14 @@ now says so:
 | present, compares wrong | `subject attribute 'level' did not match` |
 | absent or unresolved | `subject attribute 'level' has no value` |
 
+> **Corrected.** The first row held for every matcher but `Neq`, which denies
+> exactly when the value *matches* the excluded reference — so "did not match"
+> claimed the reverse of what happened for it, not merely a withheld diagnosis
+> the way the absent case was. `attributeReason` now gives `Neq`'s
+> present-and-compared denial its own sentence,
+> [INV-QD-029](../invariants.md#inv-qd-029-a-denial-names-only-what-was-consulted)'s
+> current text.
+
 `HasResourceAttribute` gets the mirror. "has no value" rather than "is not set"
 deliberately: an attribute present on the record with the value `undefined`
 reaches the same branch, and "is not set" would be a claim about the record's

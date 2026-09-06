@@ -102,8 +102,19 @@ export const TraceSchema: Schema.Codec<Trace> = Schema.suspend(
  * Carries the stable `code` beside the tag. `ERROR_CODES` exists, by its own
  * doc comment, "for logging and cross-process correlation" — this is that,
  * finally used for it. The code is written on encode and **ignored on decode**:
- * the tag is what rebuilds the error, and trusting a code from the far side to
- * choose a class would let a sender name one error and get another.
+ * the tag is what rebuilds the error (see {@link decodeError}, which never
+ * reads `wire.code`), and trusting a code from the far side to choose a class
+ * would let a sender name one error and get another.
+ *
+ * `code` is `optional`, for the same rolling-deploy reason `SinkRecordWire`'s
+ * own `subjectId` is (see that field's doc comment): it was added after this
+ * schema shipped, so an older sender's `failed` payload predates it. Since
+ * decode never reads it, requiring it bought no safety and only cost
+ * rejecting an otherwise-valid record from an old process during a deploy —
+ * a real gap this file's own tolerance rationale argues against. It stays
+ * required on `encode` in spirit (every arm of {@link encodeError} still
+ * writes one); only the wire's admission of an older sender's record needed
+ * loosening.
  *
  * `cause` is rendered to a string, and that is deliberate rather than lazy. It
  * is `unknown` — whatever a caller's resolver threw — so it may be an `Error`, a
@@ -123,7 +134,7 @@ const ErrorSchema = Schema.Struct({
     "CustomPredicateError",
     "SignatureHistoryUnavailable",
   ]),
-  code: Schema.String,
+  code: Schema.optional(Schema.String),
   attribute: Schema.optional(Schema.String),
   expected: Schema.optional(Schema.String),
   relation: Schema.optional(Schema.String),
@@ -466,6 +477,26 @@ export const fromWire = (wire: SinkRecordWire): SinkRecord => {
   // naming the malformation rather than a cast or a thrown error. A devtools row
   // saying "the sender sent neither outcome" is more useful than a dropped
   // record, and it can never be mistaken for a decision.
+  //
+  // **Known conflation, tracked rather than fixed here (audit tickets 96 and
+  // 155).** Both branches below reuse `MissingResource`/`ACL004` — a real
+  // resolver-wiring failure's tag — as a stand-in for "the sender violated
+  // the wire protocol", which is a different failure class wearing another
+  // error's identity: a devtools row or a metric bucketed by `ACL004` cannot
+  // tell "a policy read a missing attribute" from "a wire record was
+  // malformed" apart.
+  //
+  // A dedicated tag (say `MalformedWireRecord`) is the right fix, but
+  // `EvaluationError` (`Errors.ts`) is a closed union, not an open one: every
+  // member must also gain an `ERROR_CODES` entry, an arm in this file's
+  // `encodeError`/`decodeError` `Match.tagsExhaustive`/`Match.value`, *and* an
+  // arm in `@qadi/http`'s `QadiHttpError.ts` `Match.tagsExhaustive` over
+  // `EnforcementError` — by that file's own doc comment, deliberately built to
+  // fail the build until someone decides the new tag's status code. That is
+  // a cross-package, exported-type change, out of scope for this file alone.
+  // Pinned instead: `SinkCodec.test.ts`'s "the wire is untrusted" and "both
+  // outcomes present" tests assert today's `MissingResource`-shaped fallback
+  // stays exactly as it is until that dedicated marker lands.
   return new DecisionRecord({
     evaluationId: wire.evaluationId,
     at: wire.at,
@@ -478,11 +509,21 @@ export const fromWire = (wire: SinkRecordWire): SinkRecord => {
     ...(wire.action === undefined ? {} : { action: wire.action }),
     ...(wire.cache === undefined ? {} : { cache: wire.cache }),
     outcome:
+      // Ticket 155: a wire record naming BOTH `decided` and `failed` — which
+      // this module never encodes, but the wire is untrusted — silently
+      // prefers `decided`. There is no principled reason to pick one outcome
+      // over the other for a record that names both; today's preference is
+      // an artifact of check order, not a decision. See the conflation note
+      // above for why a dedicated "both present" marker isn't added here.
       wire.decided !== undefined
         ? new Decided({ decision: decodeDecision(wire.decided) })
         : wire.failed !== undefined
           ? new Failed({ error: decodeError(wire.failed) })
-          : new Failed({
+          : // Ticket 96: a wire record naming NEITHER outcome fabricates a
+            // `MissingResource` — reusing ACL004, a resolver-wiring failure's
+            // code, for what is actually a protocol violation. See the
+            // conflation note above.
+            new Failed({
               error: new MissingResource({ attribute: "<malformed record: no outcome>" }),
             }),
   });
@@ -560,9 +601,9 @@ export const decodeRecordWire = (
  * Decodes an untrusted value into a `SinkRecord`.
  *
  * Validates first, then rebuilds. A malformed payload fails with a
- * `SchemaIssue`; a payload nested past {@link decodeRecordWire}'s depth
- * guard fails with `PolicyDecodeTooDeep`. Either way it never produces a
- * half-built record.
+ * `Schema.SchemaError`; a payload nested past {@link decodeRecordWire}'s
+ * depth guard fails with `PolicyDecodeTooDeep`. Either way it never produces
+ * a half-built record.
  */
 export const decodeRecord = (input: unknown) =>
   Effect.map(decodeRecordWire(input), fromWire);

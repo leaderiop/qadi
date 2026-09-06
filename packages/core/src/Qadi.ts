@@ -216,6 +216,9 @@ export const enforce =
  * resource other than `options.resource` should re-evaluate against the
  * value actually returned, or ensure the two cannot diverge, rather than rely
  * on this call to catch it.
+ *
+ * **The return type is optimistic for a `"*"`-projected nested object** — see
+ * `Decision.ts`'s `project`, which this delegates to, for the caveat.
  */
 export const enforceProjected =
   <EO = never, RO = never>(policy: Policy, options?: EnforceOptions<EO, RO>) =>

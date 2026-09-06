@@ -20,10 +20,10 @@ import { CustomPredicate } from "./CustomPredicate.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
-import type { CacheOutcome, DecisionCacheKey } from "./DecisionCache.ts";
+import type { CacheOutcome } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
 import type { Decision, Trace } from "./Decision.ts";
-import { Allow, Deny, intersectFields, unionFields } from "./Decision.ts";
+import { Allow, Deny, intersectFields } from "./Decision.ts";
 import { Decided, DecisionRecord, Failed } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { EvaluationError } from "./Errors.ts";
@@ -35,7 +35,7 @@ import {
 } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
 import { makeResourceId } from "./Identity.ts";
-import type { MatcherContext } from "./Matcher.ts";
+import type { Matcher, MatcherContext } from "./Matcher.ts";
 import { evaluateMatcher, referencesAction, referencesResource } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
@@ -302,6 +302,16 @@ const readAttribute = (
  * produces the absent case exclusively, so naming it points at the wiring
  * (INV-QD-029, and the mirror of what `"Unknown"` does for relationships).
  *
+ * `Neq` breaks that pattern rather than fitting it: it denies exactly when the
+ * value **matches** the excluded reference — `evaluateMatcher`'s `Neq` arm
+ * returns `value !== resolveRef(...)`, so a `false` there means the two were
+ * equal. "did not match" would claim the opposite of what happened, naming a
+ * mismatch where there was none. `Qadi.guard`'s own `EVALUATES THE POLICY
+ * AGAINST THE GUARDED RESOURCE` test exercises exactly this shape — a `Neq`
+ * that denies because the compared values agree (INV-QD-032) — which is what
+ * makes the general sentence wrong for this one matcher rather than merely
+ * imprecise.
+ *
  * The value itself is still never printed. The attribute *name* was already in
  * the sentence; its contents are the subject's data and stay out of a reason
  * that reaches logs and, through `AccessDenied`, error handlers.
@@ -310,10 +320,13 @@ const attributeReason = (
   side: "subject" | "resource",
   attribute: string,
   value: unknown,
-): string =>
-  value === undefined
-    ? `${side} attribute '${attribute}' has no value`
+  matcher: Matcher,
+): string => {
+  if (value === undefined) return `${side} attribute '${attribute}' has no value`;
+  return matcher._tag === "Neq"
+    ? `${side} attribute '${attribute}' matched an excluded value`
     : `${side} attribute '${attribute}' did not match`;
+};
 
 const mergeFields = (
   strategy: FieldStrategy,
@@ -326,14 +339,23 @@ const mergeFields = (
         undefined,
       );
     case "Union": {
-      // `unionFields` is absorbing on undefined: if any allowing branch grants
-      // all fields, the union grants all fields. Seeding with sets[0] rather
-      // than undefined preserves that, since undefined is the top of the
-      // lattice, not the empty set.
+      // Absorbing on undefined: if any allowing branch grants all fields, the
+      // union grants all fields, since undefined is the top of the lattice,
+      // not the empty set.
+      //
+      // Was `sets.reduce`-shaped, folding pairwise through `unionFields` —
+      // each step spread both sides into a fresh array, wrapped that in a
+      // fresh `Set`, and spread the `Set` back out, four allocations per
+      // iteration to rebuild everything accumulated so far from scratch.
+      // Accumulating into one `Set` across a single pass and materializing
+      // the result array exactly once avoids all of that.
       if (sets.length === 0) return undefined;
-      let acc = sets[0];
-      for (let i = 1; i < sets.length; i += 1) acc = unionFields(acc, sets[i]);
-      return acc;
+      const merged = new Set<string>();
+      for (const set of sets) {
+        if (set === undefined) return undefined;
+        for (const field of set) merged.add(field);
+      }
+      return [...merged];
     }
     case "First":
       return sets.length === 0 ? undefined : sets[0];
@@ -400,6 +422,38 @@ const evaluateActed = Effect.fn("qadi.acted")(function* (
       );
 });
 
+/**
+ * Bounds `HasRelationship.depth` before it reaches `RelationshipResolver` as
+ * traversal fuel.
+ *
+ * Every other untrusted numeric at this trust boundary is bounded: the policy
+ * tree itself by `DEFAULT_MAX_DEPTH`, a raw decoded JSON value by
+ * `MAX_DECODE_DEPTH`. `depth` is `Schema.optional(Schema.Number)` with no
+ * `min`/`max`/`finite` refinement, so a hostile persisted policy can carry
+ * `1e308`, a negative number, or — once decoded through `fromJsonValue` —
+ * `NaN`/`Infinity`, and every one of those reached
+ * `RelationshipResolver.check` unclamped. Reusing `DEFAULT_MAX_DEPTH`'s value
+ * rather than inventing a second bound: nothing here argues a relationship
+ * graph should be walked deeper than a policy tree is ever allowed to be.
+ */
+const MAX_RELATIONSHIP_DEPTH = DEFAULT_MAX_DEPTH;
+
+/**
+ * Clamps a decoded `HasRelationship.depth` to `[0, MAX_RELATIONSHIP_DEPTH]`.
+ *
+ * `undefined` passes through unchanged — "the resolver decides" is a real,
+ * distinct meaning `RelationshipResolverShape.check`'s own doc comment names,
+ * not an absent value to default. `NaN` fails every comparison, including
+ * `<= 0`, so it is called out explicitly rather than silently falling through
+ * the clamp below with no bound applied at all; a fractional depth is
+ * truncated, since fuel is spent in whole hops.
+ */
+const clampRelationshipDepth = (depth: number | undefined): number | undefined => {
+  if (depth === undefined) return undefined;
+  if (Number.isNaN(depth) || depth <= 0) return 0;
+  return Math.min(Math.trunc(depth), MAX_RELATIONSHIP_DEPTH);
+};
+
 /** `HasRelationship`'s arm, extracted for the same reason `evaluateActed` is. */
 const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
   policy: Extract<Policy, { _tag: "HasRelationship" }>,
@@ -407,14 +461,16 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
   resource: Resource | undefined,
 ) {
   const rawId = resource?.["id"];
+  const depth = clampRelationshipDepth(policy.depth);
   // Before the check, for the reason `evaluateActed` gives: the span that
   // records a missing resource id should still name the relation it wanted one
-  // for.
+  // for. Annotated with the clamped value, not the raw decoded one: the span
+  // should say what was actually asked of the resolver.
   yield* Effect.annotateCurrentSpan({
     "qadi.subject_id": subject.id,
     "qadi.relation": policy.relation,
     ...(typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
-    ...(policy.depth === undefined ? {} : { "qadi.depth": policy.depth }),
+    ...(depth === undefined ? {} : { "qadi.depth": depth }),
   });
   if (typeof rawId !== "string") {
     return yield* Effect.fail(new MissingResourceId({ relation: policy.relation }));
@@ -424,7 +480,7 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
     subjectId: subject.id,
     relation: policy.relation,
     resourceId: makeResourceId(rawId),
-    depth: policy.depth,
+    depth,
   });
   yield* Effect.annotateCurrentSpan({ "qadi.answer": related });
   // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
@@ -570,7 +626,10 @@ const evaluateNode = (
       return Effect.map(readAttribute(subject, policy.attribute), (value) =>
         evaluateMatcher(policy.matcher, value, matcherContext)
           ? allow("HasAttribute", policy.fields)
-          : deny("HasAttribute", attributeReason("subject", policy.attribute, value)),
+          : deny(
+              "HasAttribute",
+              attributeReason("subject", policy.attribute, value, policy.matcher),
+            ),
       );
 
     case "HasResourceAttribute": {
@@ -593,7 +652,7 @@ const evaluateNode = (
           ? allow("HasResourceAttribute", policy.fields)
           : deny(
               "HasResourceAttribute",
-              attributeReason("resource", policy.attribute, value),
+              attributeReason("resource", policy.attribute, value, policy.matcher),
             ),
       );
     }
@@ -1046,20 +1105,6 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     Option.isSome(sink)
       ? Effect.catchCause(sink.value.record(record), () => Effect.void)
       : Effect.void;
-  // A shallower `maxDepth` can turn this same question into `PolicyTooDeep`
-  // instead of an `Allow`/`Deny`, so it belongs in the key alongside
-  // `resource` and `action` — see `DecisionCacheKey`'s own doc comment.
-  const cacheKey: DecisionCacheKey = {
-    // The whole subject, not `subject.id`: two tokens for one user carry the
-    // same id and different grants, and the id-only key served the first
-    // verdict to both (INV-QD-033).
-    subject,
-    policy,
-    resource: options?.resource,
-    action: options?.action,
-    maxDepth: options?.maxDepth ?? DEFAULT_MAX_DEPTH,
-  };
-
   // `Effect.suspend`, not a direct call: `evaluateNode` is a plain switch, not
   // an `Effect.gen`, so for a leaf tag (HasRole, HasPermission, …) calling it
   // does the real comparison — `subject.roles.has(...)`, `evaluateMatcher` —
@@ -1131,7 +1176,23 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
     EvaluationError,
     AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate | SignatureHistory
   > = Option.isSome(cache)
-    ? cache.value.getOrCompute(cacheKey, compute)
+    ? cache.value.getOrCompute(
+        {
+          // The whole subject, not `subject.id`: two tokens for one user carry
+          // the same id and different grants, and the id-only key served the
+          // first verdict to both (INV-QD-033).
+          subject,
+          policy,
+          resource: options?.resource,
+          action: options?.action,
+          // A shallower `maxDepth` can turn this same question into
+          // `PolicyTooDeep` instead of an `Allow`/`Deny`, so it belongs in the
+          // key alongside `resource` and `action` — see `DecisionCacheKey`'s
+          // own doc comment.
+          maxDepth: options?.maxDepth ?? DEFAULT_MAX_DEPTH,
+        },
+        compute,
+      )
     : Effect.map(compute, (trace) => ({ trace, outcome: undefined }));
 
   const lookup = yield* lookupEffect.pipe(

@@ -307,6 +307,17 @@ const HasCustom = Schema.TaggedStruct("HasCustom", {
  * same open-namespace treatment `HasCustom.name` and `HasAttribute.attribute`
  * get — even though the smart constructor below narrows the TypeScript
  * parameter to `string | SignatureMeaning` for editor autocomplete.
+ *
+ * `signerRole` is unbranded for a different reason than `meaning`, not the
+ * same one. It is not a closed, policy-authored vocabulary like `HasRole.role`
+ * — `evaluateHasSignature` (`Evaluate.ts`) never checks it against
+ * `subject.roles`, the `Set<RoleName>` `HasRole` matches against. It is
+ * compared, by plain equality, only to `Signature.signerRole` (`Signature.ts`),
+ * a field an external signature-capture flow populates (typically
+ * `@qadi/audit`'s `SignatureCapturePort`; ADR-QD-057, ADR-QD-058) and which is
+ * itself deliberately left an open `string` for the same reason. Branding this
+ * side of that comparison would constrain nothing the capture flow's own,
+ * unbranded field doesn't already let through.
  */
 const HasSignature = Schema.TaggedStruct("HasSignature", {
   meaning: Schema.String,
@@ -841,6 +852,22 @@ export const policyDepth: (self: Policy) => number = Match.type<Policy>().pipe(
   }),
 );
 
-/** `1 + the deepest child`, or `0` when there are none. */
-const deepest = (children: ReadonlyArray<Policy>): number =>
-  children.length === 0 ? 0 : 1 + Math.max(...children.map(policyDepth));
+/**
+ * `1 + the deepest child`, or `0` when there are none.
+ *
+ * Walks with an explicit loop rather than `Math.max(...children.map(...))`:
+ * the spread turns into a call with one argument per child, and a direct
+ * `AllOf`/`AnyOf`/`Rules` node with on the order of 100k-200k children blows
+ * the engine's argument-list limit — a raw `RangeError`, not a typed `Effect`
+ * failure, for a shape `MAX_DECODE_DEPTH` never bounded (it caps nesting
+ * depth, not sibling-array width). A `for` loop has no such ceiling.
+ */
+const deepest = (children: ReadonlyArray<Policy>): number => {
+  if (children.length === 0) return 0;
+  let max = 0;
+  for (const child of children) {
+    const depth = policyDepth(child);
+    if (depth > max) max = depth;
+  }
+  return 1 + max;
+};

@@ -66,6 +66,14 @@ describe("renderTrace", () => {
     assert.strictEqual(renderTrace(trace), "✓ HasRole, exposing only `id`, `title`");
   });
 
+  it("says an allow that discloses nothing exposes no fields", () => {
+    // An empty `visibleFields` is the bottom of the lattice, distinct from
+    // `undefined` (the top). Joining zero terms into ", exposing only "
+    // would leave a dangling, garbled sentence instead.
+    const trace = leaf({ allowed: true, visibleFields: [] });
+    assert.strictEqual(renderTrace(trace), "✓ HasRole, exposing no fields");
+  });
+
   it("RENDERS NOTHING FOR undefined FIELDS, because undefined is every field", () => {
     // INV-QD-004: `undefined` is the top of the visibility lattice. Rendering it
     // as an empty list would say the opposite of what it means.
