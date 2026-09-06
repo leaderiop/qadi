@@ -101,6 +101,53 @@ describe("effect/unstable/reactivity API canary", () => {
   });
 
   // -------------------------------------------------------------------------
+  // Atom.readable + get.once — the `combined` atom in QadiAtoms.ts
+  // -------------------------------------------------------------------------
+
+  it("Atom.readable derives a value synchronously from other atoms", () => {
+    // `combined` in `QadiAtoms.ts` is exactly this shape: a readable atom
+    // folding `computed` and `seed` into one `DecisionResult`, with no runtime
+    // of its own.
+    const base = Atom.make(1);
+    const doubled = Atom.readable((get) => get(base) * 2);
+    const registry = makeRegistry();
+
+    expect(registry.get(doubled)).toBe(2);
+    const unmount = registry.mount(doubled);
+    registry.set(base, 5);
+    expect(registry.get(doubled)).toBe(10);
+    unmount();
+  });
+
+  it("get.once reads an atom's CURRENT value without registering it as a dependency", () => {
+    // Load-bearing for two things in `QadiAtoms.ts`: carrying the server's
+    // evaluation id into a re-check, and the once-per-registry announcement
+    // latch (tickets 140/142). Both depend on `get.once` reading the seed
+    // WITHOUT making `combined` recompute every time the seed later changes —
+    // the id and the announcement are correlation metadata read at one moment,
+    // not an input the decision should keep tracking.
+    const seed = Atom.make<number | undefined>(undefined);
+    const reads: Array<number | undefined> = [];
+    const onceReader = Atom.readable((get) => {
+      const value = get.once(seed);
+      reads.push(value);
+      return value;
+    });
+    const registry = makeRegistry();
+
+    const unmount = registry.mount(onceReader);
+    expect(reads).toEqual([undefined]);
+
+    // A write to `seed` must NOT re-run `onceReader` — if it did, `reads` would
+    // grow on every seed change, and the id-correlation / once-per-registry
+    // guarantees this pattern gives `QadiAtoms.ts` would both silently break.
+    registry.set(seed, 1);
+    expect(reads).toEqual([undefined]);
+    expect(registry.get(onceReader)).toBeUndefined();
+    unmount();
+  });
+
+  // -------------------------------------------------------------------------
   // Effect.serviceOption — the optional DecisionCache on `invalidate`
   // -------------------------------------------------------------------------
 
