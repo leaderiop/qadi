@@ -141,25 +141,33 @@ export const eq = (ref: ValueRef): Matcher => ({ _tag: "Eq", ref });
  * `eq` and `neq` are both total: a `ValueRef` that cannot be resolved (a
  * typo'd `subject`/`resource` path, most commonly) resolves to `undefined`
  * rather than failing, the same way an unresolved `dominates` operand above
- * resolves to "not a `SecurityLabel`" rather than failing. The two matchers
- * are NOT symmetric under that failure, though, and this is the one place in
- * the file where the total-function convention resolves to two different
- * safety directions instead of one:
+ * resolves to "not a `SecurityLabel`" rather than failing.
  *
- * - `eq(ref)` against an unresolved `ref` compares `value === undefined`,
- *   which is `false` for every attribute value that itself isn't `undefined`
- *   — a typo'd path DENIES. Fail-safe.
- * - `neq(ref)` against the same unresolved `ref` compares `value !== undefined`,
- *   which is `true` for every attribute value that isn't `undefined` — a
- *   typo'd path ALLOWS. `hasAttribute("state", neq(subject("stae")))` reads
- *   as "state is not stae" and is actually "always true".
+ * Both now fail closed on that, symmetrically: `eq`/`neq` require **both**
+ * resolved operands to be defined before comparing, so an absent operand —
+ * on either side, including a genuinely missing attribute value, not only
+ * an unresolved ref — denies rather than participating in the comparison.
  *
- * This is accepted as-is, not treated as a bug to fix: there is no
- * resolution failure to surface (both `subject()` and `resource()` are
- * total lookups by design, per `getByPath`), so there is nothing for `neq`
- * to deny *because of*. A policy author still needs to spell the path
- * correctly, exactly as with every other matcher here. Pinned in both
- * directions in `Matcher.test.ts`.
+ * This was not always true for `neq`. `neq(ref)` against an unresolved `ref`
+ * used to compare `value !== undefined`, which is `true` for every attribute
+ * value that isn't itself `undefined` — a typo'd path ALLOWED.
+ * `hasAttribute("state", neq(subject("stae")))` read as "state is not stae"
+ * and was actually "always true" (CCR-QD-112). This supersedes an earlier
+ * call (commit `dab09bc`, ".scratch/qadi-audit-fix/issues/118-eq-neq-unresolved-ref-asymmetry.md")
+ * to document and pin the fail-open behavior as intentional rather than fix
+ * it — that reasoning considered only the ref-resolution case ("no
+ * resolution failure to surface... nothing for `neq` to deny because of")
+ * and not BEH-QD-026's general "a reference that resolves to nothing
+ * denies" requirement, `INV-QD-007`'s evidence claim (which this behavior
+ * already contradicted), or `INV-QD-032`'s prior record of the identical
+ * fail-open shape reaching production in `@qadi/http` (see
+ * https://github.com/leaderiop/qadi/issues/36 for the fuller reasoning).
+ * `Eq` had a milder version of the same gap: two absent operands compared
+ * `undefined === undefined` and matched, treating two unknowns as equal to
+ * each other. `exists()` is this DSL's purpose-built way to test for
+ * absence; `Eq` no longer doubles as an implicit second one, so
+ * `eq(literal(undefined))` no longer matches an absent value either. Pinned
+ * in both directions in `Matcher.test.ts`.
  */
 export const neq = (ref: ValueRef): Matcher => ({ _tag: "Neq", ref });
 /**
@@ -392,10 +400,20 @@ export const evaluateMatcher = (
   context: MatcherContext,
 ): boolean => {
   switch (self._tag) {
-    case "Eq":
-      return value === resolveRef(self.ref, context);
-    case "Neq":
-      return value !== resolveRef(self.ref, context);
+    case "Eq": {
+      const other = resolveRef(self.ref, context);
+      // Fails closed on either side: an absent operand is unknown, not
+      // "equal to nothing", so this denies even when `value` and `other`
+      // are undefined for the same reason (CCR-QD-112).
+      return value !== undefined && other !== undefined && value === other;
+    }
+    case "Neq": {
+      const other = resolveRef(self.ref, context);
+      // Mirrors `Eq` (CCR-QD-112): an absent operand denies rather than
+      // matching. Before this, `value !== resolveRef(...)` was `true`
+      // whenever exactly one side was `undefined`.
+      return value !== undefined && other !== undefined && value !== other;
+    }
     case "Dominates": {
       // Incomparable labels deny, which is what a dominance test means. The
       // four-valued `compareLabels` exists for explaining that; a matcher only

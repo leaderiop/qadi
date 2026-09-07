@@ -91,17 +91,23 @@ export const publicEndpoint = (reason: string): PublicDeclaration => ({ reason }
  * This comment described the former while `guard` did the latter, because the
  * resource never reached evaluation — see `guard` in `@qadi/core`.
  *
- * **That "denies" claim does not hold for a negative matcher.** `Neq` (or any
- * matcher built on it) compared against an attribute this empty resource does
- * not have resolves the comparison against `undefined`, and `undefined` is
- * unequal to anything — so the matcher is *true* and the policy **allows**,
- * exactly the [INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)
+ * **That "denies" claim used not to hold for a negative matcher, and now
+ * does.** `Neq` (or any matcher built on it) compared against an attribute
+ * this empty resource does not have used to resolve the comparison against
+ * `undefined` and read `undefined` as unequal to anything — so the matcher
+ * was *true* and the policy **allowed**, the exact
+ * [INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)
  * hazard: a resource-scoped policy meant to refuse a mismatch, evaluated
- * against no resource at all, quietly permits instead. This middleware runs
- * before any resource is loaded, so it cannot be the place that catches this —
- * a policy with a negative matcher over a resource attribute needs a
- * resource-scoped re-check in the handler, via `@qadi/core`'s `guard` directly
- * against the real resource, as defense in depth.
+ * against no resource at all, quietly permitted instead. `Neq` now denies on
+ * an absent operand the same way every other matcher already did (H2,
+ * CCR-QD-112), so this middleware's `NO_RESOURCE` placeholder now denies a
+ * resource-attribute-referencing policy of either polarity, not just a
+ * positive one. This middleware still runs before any resource is loaded,
+ * though, so a policy meant to *allow* based on the real resource's
+ * attributes cannot be satisfied here regardless — a resource-scoped
+ * re-check in the handler, via `@qadi/core`'s `guard` directly against the
+ * real resource, remains the correct way to evaluate such a policy for
+ * real, not merely defense in depth against a hazard that no longer exists.
  */
 const NO_RESOURCE: Resource = {};
 

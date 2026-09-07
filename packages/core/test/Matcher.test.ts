@@ -136,12 +136,14 @@ describe("matchers", () => {
   });
 
   it("size short-circuits on an unmeasurable value rather than running the child matcher against `undefined`", () => {
-    // `M.eq(M.literal(undefined))` is a child matcher that is TRUE against
+    // `M.inArray([undefined])` is a child matcher that is TRUE against
     // `undefined` — the one value `Size` must never hand it. `gte`/`lt` can't
     // demonstrate this: every number comparison against `undefined` is false
     // regardless of whether the short-circuit runs, which is exactly why this
-    // survived as a mutant on `length !== undefined && …`.
-    const trueOnUndefined = M.eq(M.literal(undefined));
+    // survived as a mutant on `length !== undefined && …`. (Previously this
+    // probe was `eq(literal(undefined))`; `Eq` no longer matches `undefined`
+    // as of CCR-QD-112, so `In` — untouched by that fix — takes over.)
+    const trueOnUndefined = M.inArray([undefined]);
     assert.isTrue(run(trueOnUndefined, undefined));
     assert.isFalse(run(M.size(trueOnUndefined), 42));
   });
@@ -190,24 +192,43 @@ describe("empty-collection boundaries", () => {
   });
 });
 
-describe("eq/neq against an unresolved reference", () => {
+describe("eq/neq against an unresolved reference (H2, CCR-QD-112)", () => {
   // `subject("stae")` is a typo for `subject("dept")` — no such attribute
   // exists on `ctx.subject`, so it resolves to `undefined` (see `getByPath`,
-  // which is total). `eq` and `neq` are both total over that, but NOT
-  // symmetrically safe: see the doc comments on `eq`/`neq` in `Matcher.ts`.
+  // which is total). `eq` and `neq` are both total over that, and now both
+  // fail closed on it symmetrically: see the doc comments on `eq`/`neq` in
+  // `Matcher.ts`.
   it("eq denies against an unresolved reference — fails safe", () => {
     assert.isFalse(run(M.eq(M.subject("stae")), "eng"));
   });
 
-  it("neq ALLOWS against the same unresolved reference — fails open, and is accepted as-is", () => {
+  it("neq now ALSO denies against an unresolved reference, rather than matching everything", () => {
     // `hasAttribute("state", neq(subject("stae")))` reads like "state is not
-    // stae" and is actually "always true": `value !== undefined` is true for
-    // every attribute value that itself isn't `undefined`.
-    assert.isTrue(run(M.neq(M.subject("stae")), "eng"));
-    assert.isTrue(run(M.neq(M.subject("stae")), "anything at all"));
-    // The one value it does NOT allow against is `undefined` itself — the
-    // attribute being absent, same as the reference being unresolved.
+    // stae" and used to be "always true": `value !== undefined` was true for
+    // every attribute value that itself isn't `undefined`. An unresolved
+    // reference is unknown, not "not equal to anything" — this is the exact
+    // H2 fail-open (https://github.com/leaderiop/qadi/issues/36).
+    assert.isFalse(run(M.neq(M.subject("stae")), "eng"));
+    assert.isFalse(run(M.neq(M.subject("stae")), "anything at all"));
     assert.isFalse(run(M.neq(M.subject("stae")), undefined));
+  });
+
+  it("neq denies rather than matching when the ref resolves to nothing, across every ref kind", () => {
+    // The literal H2 shape: `hasResourceAttribute("raisedBy", neq(subjectId()))`
+    // on a record missing `raisedBy` used to grant — `undefined !== "u1"` was
+    // `true`. BEH-QD-026: a reference that resolves to nothing denies.
+    assert.isFalse(run(M.neq(M.subjectId()), undefined));
+    assert.isFalse(run(M.neq(M.subject("missing")), "eng"));
+    assert.isFalse(run(M.neq(M.resource("missing")), "eng"));
+  });
+
+  it("eq denies rather than matching when both operands are absent", () => {
+    // Before the fix, `undefined === undefined` made two unknowns compare
+    // equal. An absent value is unknown, not "equal to nothing" — `Eq`/`Neq`
+    // can't assert anything about an unknown operand, including against
+    // another unknown, or against an explicit `literal(undefined)`.
+    assert.isFalse(run(M.eq(M.subject("missing")), undefined));
+    assert.isFalse(run(M.eq(M.literal(undefined)), undefined));
   });
 });
 
@@ -277,9 +298,12 @@ describe("getByPath / fieldMatch refuse the prototype chain", () => {
   });
 
   it("fieldMatch still evaluates the inner matcher against undefined for a genuinely missing own field", () => {
-    // The fix must not change behavior for the ordinary "field absent" case —
-    // only for names that resolve on the prototype chain.
-    assert.isTrue(run(M.fieldMatch("missing", M.eq(M.literal(undefined))), { a: 1 }));
+    // The __proto__/constructor fix must not change behavior for the
+    // ordinary "field absent" case — only for names that resolve on the
+    // prototype chain. `inArray([undefined])` stands in for
+    // `eq(literal(undefined))` here for the same reason as the `Size` test
+    // above: `Eq` no longer matches `undefined` (CCR-QD-112).
+    assert.isTrue(run(M.fieldMatch("missing", M.inArray([undefined])), { a: 1 }));
   });
 });
 
