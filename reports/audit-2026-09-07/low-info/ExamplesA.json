@@ -1,0 +1,86 @@
+{
+  "slice": "ExamplesA",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "examples/nextjs-newsroom/README.md",
+      "line": 39,
+      "theme": "doc-count-inaccuracy",
+      "description": "README says \"Thirteen routes under `/edge` each make one thing go wrong on purpose,\" but `app/edge/` only contains eleven route directories (action, divergent, double-count, invalidate, leakage, middleware, mixed-payload, suspense, unregistered, version-skew, wrong-subject), and the index page's own EDGES list (app/page.tsx) also enumerates exactly eleven. A reader trusting the count would expect two more scenarios than exist.",
+      "suggestedFix": "Change \"Thirteen\" to \"Eleven\" (or add the missing routes if two were intended but never built)."
+    },
+    {
+      "severity": "Low",
+      "file": "examples/nextjs-newsroom/src/domain/policies.ts",
+      "line": 171,
+      "theme": "misleading-doc-comment",
+      "description": "The doc comment on `canWriteArticle` says \"Draft editing, used by the server action route,\" but no server action or route in the example ever references `canWriteArticle` (`src/server/actions.ts` only uses `canPublishArticle`). The policy is only reachable via the `catalogue` map for the devtools Policy explorer — it is never actually enforced anywhere, contrary to what the comment claims.",
+      "suggestedFix": "Either wire `canWriteArticle` into a real write-guarding route/action, or correct the comment to say it exists for the catalogue/Policy explorer only."
+    },
+    {
+      "severity": "Low",
+      "file": "examples/nextjs-newsroom/app/spa/page.tsx",
+      "line": 31,
+      "theme": "incorrect-code-comment",
+      "description": "The comment claims \"`embargoLifted` is `false` here\" for `policyResource(article, 0)`, but `policyResource` computes `embargoLifted: nowMillis >= article.embargoUntil`. Three of the four demo articles have `embargoUntil: 0`, so `0 >= 0` evaluates to `true`, not `false` — only \"the-tender\" (far-future embargo) actually gets `false`. The comment misdescribes the runtime value for most of the fixture data, even though the surrounding point (nothing has to match a server-side decision key) is still true.",
+      "suggestedFix": "Correct the comment to state that `embargoLifted` is computed against `nowMillis=0` and varies per article (true for unembargoed articles, false for \"the-tender\"), rather than asserting it is uniformly false."
+    },
+    {
+      "severity": "Info",
+      "file": "examples/nextjs-newsroom/src/domain/articles.ts",
+      "line": 76,
+      "theme": "typo",
+      "description": "Grammar typo in fixture body text: \"a evaluation committee of two\" should be \"an evaluation committee of two.\"",
+      "suggestedFix": "Change \"a evaluation\" to \"an evaluation\"."
+    },
+    {
+      "severity": "Info",
+      "file": "examples/nextjs-newsroom/src/domain/articles.ts",
+      "line": 29,
+      "theme": "dead-export",
+      "description": "`RESTRICTED_FIELDS` is exported and its comment says it is \"named once,\" implying `PUBLIC_FIELDS` or a policy derives from it, but nothing in the example ever imports or references `RESTRICTED_FIELDS` — `PUBLIC_FIELDS` is defined independently instead. Because it's a module-level export rather than a local, `noUnusedLocals`/`noUnusedParameters` do not catch it, so it silently rots.",
+      "suggestedFix": "Either derive `PUBLIC_FIELDS` from `RESTRICTED_FIELDS` (or vice versa) so the two stay in sync, or remove the unused export."
+    },
+    {
+      "severity": "Info",
+      "file": "examples/nextjs-newsroom/src/domain/permissions.ts",
+      "line": 19,
+      "theme": "dead-export",
+      "description": "`allPermissions` is exported but never imported or referenced anywhere else in the example (no catalogue, page, or test uses it). Module-level exports aren't flagged by `noUnusedLocals`, so this has no build-time signal.",
+      "suggestedFix": "Either wire `allPermissions` into the dock's `catalogue` (if a permissions listing was intended) or remove it."
+    },
+    {
+      "severity": "Info",
+      "file": "examples/nextjs-newsroom/src/domain/permissions.ts",
+      "line": 13,
+      "theme": "unused-domain-permission",
+      "description": "`redactArticle` is defined and granted to the Editor and ChiefEditor roles (src/domain/roles.ts:16,35), but no policy in the example ever checks `hasPermission(redactArticle)`. It shows up on the Roles screen's provenance column as a grant with nothing behind it to demonstrate, unlike every other permission in `allPermissions` which has a corresponding policy.",
+      "suggestedFix": "Either add a small policy/route exercising `redactArticle` (matching the file's stated goal of covering every mechanism) or drop it from the roles until one exists."
+    },
+    {
+      "severity": "Info",
+      "file": "examples/nextjs-newsroom/tsconfig.json",
+      "line": 54,
+      "theme": "unused-config",
+      "description": "The `paths: { \"~/*\": [\"./src/*\"] }` alias is declared but no file in the example imports via `~/...` — every import uses relative paths with explicit `.ts`/`.tsx` extensions, per this repo's own convention. Dead configuration that could confuse a reader into thinking the alias is the intended import style.",
+      "suggestedFix": "Remove the unused `paths` entry, or start using it consistently and note the exception to the relative-import convention."
+    },
+    {
+      "severity": "Info",
+      "file": "examples/nextjs-newsroom/src/client/ports.ts",
+      "line": 69,
+      "theme": "inefficient-pattern",
+      "description": "`field()` reads one named property off an unknown JSON body via `Object.entries(body).find(([name]) => name === key)?.[1]`, an O(n) scan of every property instead of a direct lookup. Harmless at today's payload sizes (a handful of fields) but an odd, non-obvious way to read one field — a reader might assume there's a reason for the scan (e.g. duplicate keys) when there isn't.",
+      "suggestedFix": "Use a small type guard (`(body: unknown): body is Record<string, unknown> => typeof body === \"object\" && body !== null`) and then index directly, e.g. `isRecord(body) ? body[key] : undefined`, which avoids `as` without the O(n) scan."
+    },
+    {
+      "severity": "Info",
+      "file": "examples/nextjs-newsroom/test/hydration.test.ts",
+      "line": 74,
+      "theme": "orDie-on-evaluation-path",
+      "description": "`decideAs`'s helper pipes the real `decide(...)` evaluation call through `Effect.orDie`. AGENTS.md §4 states \"Never `Effect.orDie` in evaluation or enforcement paths — an authorization decision must never become a defect,\" and `decide` is literally the evaluation function, unlike the `Layer.orDie` uses in `src/server/ports.ts`/`src/client/ports.ts` which are explicitly justified as construction-time-only. This one is test-fixture code where a defect on setup failure is arguably fine, but it isn't called out as an exception the way the other two `orDie` usages in this example are.",
+      "suggestedFix": "Either replace `Effect.orDie` with a targeted `Effect.catchTag`/`Effect.die` with an explanatory comment (mirroring ports.ts's justification), or leave as-is with a one-line comment noting it's test-fixture-only and why that's an acceptable exception."
+    }
+  ],
+  "escalations": []
+}

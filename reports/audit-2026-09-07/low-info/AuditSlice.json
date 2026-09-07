@@ -1,0 +1,38 @@
+{
+  "slice": "AuditSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/audit/src/DecommissioningChecklist.ts",
+      "line": 38,
+      "theme": "misleading-terminology",
+      "description": "DECOMM-002's description text is \"Verify the archived chain's integrity\" — but this package deliberately renamed `verifyChainIntegrity`/`ChainIntegrityError` to `verifySequenceIntegrity`/`SequenceIntegrityError` (see SequenceIntegrity.ts's header comment and spec/behaviors/33-audit-pipeline.md's CCR-QD-094 note) specifically because \"chain\" reads as cryptographic tamper-evidence to a compliance reviewer, which this capability is not (it is gap-and-duplicate detection over caller-assigned sequence numbers only). The decommissioning checklist — a document a compliance reviewer reads and checks off — still uses the exact word the rest of the package went out of its way to stop using, undermining the rename's purpose for the one audience it was meant to protect.",
+      "suggestedFix": "Reword DECOMM-002's description to match the renamed vocabulary, e.g. \"Verify the archived entries' sequence integrity\" or \"Verify sequence integrity of the archive\", avoiding \"chain\"."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/audit/src/AuditTrailPortTest.ts",
+      "line": 27,
+      "theme": "doc-clarity",
+      "description": "The doc comment for `written()` says \"Live — reflects writes made after this is first read,\" but the implementation (`MutableRef.get(store)` on every call) reflects every write up to the moment of each call, not specifically writes \"after this is first read.\" The phrasing implies a first-read/subsequent-read distinction that doesn't exist in the code and could confuse a reader into thinking writes made before the first `written()` call might not show up.",
+      "suggestedFix": "Reword to something like \"Live — always reflects every write made so far, not a snapshot taken when the handle was created,\" which is what the implementation actually guarantees."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/audit/test/Metrics.test.ts",
+      "line": 16,
+      "theme": "test-duplication",
+      "description": "The `isolatedMetrics` helper (including its doc comment) is duplicated verbatim between `CircuitBreaker.test.ts` (lines 7-12) and `Metrics.test.ts` (lines 16-21), even though this package already has a shared `test/helpers.ts` module both files import from. A future change to the isolation strategy (e.g. adding another provided service) would need to be made in both places and could silently drift.",
+      "suggestedFix": "Move `isolatedMetrics` into `test/helpers.ts` and import it from both test files."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/audit/test/helpers.ts",
+      "line": 34,
+      "theme": "unused-test-option",
+      "description": "`decisionRecord`'s `options.policy` is accepted and placed on the `DecisionRecord`, but the fixture's `outcome.decision.trace` (`allowTrace`) always hard-codes `policyTag: \"HasPermission\"` regardless of which policy is passed. No test in this package's suite actually overrides `policy`, so the mismatch is currently latent, but a future test that does pass a custom `policy` would get a `SinkRecord` whose `policy` and `trace.policyTag` disagree with each other.",
+      "suggestedFix": "Either derive `allowTrace.policyTag` from the given `policy`'s `_tag` when one is supplied, or drop the unused `policy` option until a test actually needs to vary it."
+    }
+  ],
+  "escalations": []
+}

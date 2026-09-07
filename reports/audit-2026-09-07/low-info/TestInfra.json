@@ -1,0 +1,30 @@
+{
+  "slice": "TestInfra",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "vitest.config.ts",
+      "line": 50,
+      "theme": "missing-per-package-coverage-threshold",
+      "description": "The comment at lines 50-58 states that 'each of the remaining public packages gets its own [coverage threshold] entry' so a shortfall is measured against that package rather than absorbed into the workspace-wide 90% average. The entries that follow (lines 59-88) cover only @qadi/http, @qadi/audit, @qadi/react, @qadi/promise and @qadi/testing. @qadi/predicate-sql and @qadi/predicate-prisma are both public packages (listed in spec/overview.md's Packages table, not marked private in package.json) but have no dedicated 'packages/predicate-sql/src/**' / 'packages/predicate-prisma/src/**' entry, so their coverage floor is enforced only via the workspace-wide average — precisely the loophole the surrounding comment says this section exists to close. Unlike @qadi/devtools's react/ shell (explicitly and separately justified at lines 39-43 as intentionally relying on the default), no rationale is given for omitting these two.",
+      "suggestedFix": "Add 'packages/predicate-sql/src/**' and 'packages/predicate-prisma/src/**' threshold entries at 90/90/90/90 alongside the other five, matching AGENTS.md §10's 90% per-package floor, or add a comment explaining why they're deliberately exempt."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/devtools/vitest.config.ts",
+      "line": 1,
+      "theme": "rtl-cleanup-not-shared",
+      "description": "packages/react/test/setupTests.ts documents a specific, previously-real bug: without registering `@testing-library/react`'s `cleanup()` via `afterEach` (vitest.config.ts doesn't set `test.globals`, so RTL's own auto-cleanup never activates), a rendered tree is never unmounted between tests, and 'a manual `document.body.innerHTML = \"\"` some test files run only erases the DOM, not React's own record of what is mounted, so effect cleanups (subscriptions, GateRegistry entries, timers) leaked from one test into the next.' packages/devtools/vitest.config.ts has the identical setup (happy-dom, no `globals`, no `setupFiles`) and packages/devtools/test/react/*.test.tsx uses `@testing-library/react` just as heavily (10 files, 100+ combined `render()` calls: DevtoolsDock.test.tsx, GatesPanel.test.tsx, QuestionsPanel.test.tsx, RoleViewer.test.tsx, ServicesPanel.test.tsx, WhatIfTable.test.tsx, DecisionLog.test.tsx, PolicyExplorer.test.tsx, Simulator.test.tsx, useTimeline.test.tsx) — but every one of them hand-rolls `afterEach(() => { document.body.innerHTML = \"\"; })`, i.e. exactly the idiom react's own setupTests.ts names as the insufficient fix, rather than adopting the shared setupFiles solution. DevtoolsDock.tsx itself reads module-scope singleton state (wiringReport/portActivity in src/model/Wiring.ts, src/model/PortCalls.ts) that per-test React effect cleanup would normally help isolate.",
+      "suggestedFix": "Add a packages/devtools/test/setupTests.ts mirroring packages/react/test/setupTests.ts (afterEach(cleanup) from @testing-library/react), wire it via vitest.config.ts's `setupFiles`, and delete the ten duplicated `document.body.innerHTML = \"\"` afterEach blocks."
+    },
+    {
+      "severity": "Info",
+      "file": "vitest.config.ts",
+      "line": 24,
+      "theme": "stale-exclude-pattern",
+      "description": "coverage.exclude lists '**/*.test-d.ts', but no file anywhere in the repo uses that naming convention — this codebase's type-level tests use tstyche's `*.tst.ts` extension (e.g. packages/core/test/Qadi.tst.ts, packages/http/test/GuardRoute.tst.ts), which also live under `test/`, not `src/`, so they're already outside coverage.include's 'packages/*/src/**/*.ts' glob regardless. The exclude entry is currently inert on both counts.",
+      "suggestedFix": "Either delete the dead '**/*.test-d.ts' entry or correct it to the real convention ('**/*.tst.ts') with a comment on why it's kept as a defensive glob despite type tests already living outside src/."
+    }
+  ],
+  "escalations": []
+}

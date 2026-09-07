@@ -1,0 +1,30 @@
+{
+  "slice": "ErrorsExplain",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Explanation.ts",
+      "line": 157,
+      "theme": "stale-doc-count",
+      "description": "The doc comment on `explain` says 'Match.tagsExhaustive makes a fifteenth policy variant a compile error here' (implying 14 variants currently exist), but the `Match.tagsExhaustive` block that follows actually has 16 arms (HasPermission, HasRole, HasAttribute, HasResourceAttribute, HasRelationship, HasAction, HasActed, HasNotActed, HasCustom, HasSignature, AllOf, AnyOf, Not, Labeled, Obliged, Rules). A 17th variant, not a 15th, would be the next compile error. This is exactly the kind of stale exact-count claim AGENTS.md §5a/§15 call out as having bitten this repo before (e.g. 'two' vs 'four' switches).",
+      "suggestedFix": "Update the comment to state the correct current count (16) or drop the specific ordinal and just say 'a new policy variant is a compile error here'."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Explanation.ts",
+      "line": 25,
+      "theme": "misplaced-doc-comment",
+      "description": "The doc block at lines 25-32 ('A term: what one leaf of a policy asks for... `detail` is the leaf's own words...') describes the `Requirement` interface's `detail` field, but it is placed directly above `RequirementKind` (line 34, which has its own separate doc comment immediately below it at line 33). The `Requirement` interface itself (line 44) has no leading doc comment at all. This reads as a comment left behind by a refactor that split what used to be one doc block, and it will not attach to `Requirement` in generated docs or IDE hovers.",
+      "suggestedFix": "Move the lines 25-32 comment down to sit directly above `export interface Requirement {` (line 44), where it actually describes the shape."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Explanation.ts",
+      "line": 140,
+      "theme": "phrasing-inconsistency",
+      "description": "`matcherText`'s `SomeMatch` arm renders \"has an entry that <sub-clause>\" but the `EveryMatch` arm renders \"has every entry <sub-clause>\" (missing \"that\"), producing the grammatically inconsistent sentence \"has every entry is present\" (pinned by Explanation.test.ts line 452) instead of \"has every entry that is present\". Purely cosmetic — the sentence is still shown to a human reviewer via `renderExplanation` — but the two sibling matchers should read consistently.",
+      "suggestedFix": "Change the `EveryMatch` template to `has every entry that ${matcherText(m.matcher)}` and update the pinned assertion in Explanation.test.ts (line 452) to match."
+    }
+  ],
+  "escalations": []
+}

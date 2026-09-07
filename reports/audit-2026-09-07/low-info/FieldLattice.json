@@ -1,0 +1,30 @@
+{
+  "slice": "FieldLattice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/test/FieldPath.test.ts",
+      "line": 90,
+      "theme": "missing-edge-case-test",
+      "description": "No test in the suite exercises a `\"**\"` field spec resolving onto a scalar-valued field through a non-empty path prefix (e.g. `\"contact.email.**\"` where `email` is a string). The only `\"**\"` tests are `project(data, [\"contact.**\"])` (an object target, line 90-92) and root-level `project(data, [\"**\"])` (line 126-129) — the latter short-circuits at `FieldPath.ts`'s very first line of `projectAt` (`tails.some(tail.length===1 && tail[0]===\"**\") return value`) before ever recursing into a child, so it never touches the recursive branch at FieldPath.ts:186 where a `\"**\"` tail is handed to `projectAt` for an individual child value via `deeper.get(key)`. A grep across `packages/core/test/*.ts` confirms `\"**\"` is used nowhere outside this file, so the recursive-scalar case is untested project-wide, not just in this file.",
+      "suggestedFix": "Add a case like `project({ contact: { email: \"a@b.com\" } }, [\"contact.email.**\"])` asserting the whole scalar is returned, exercising the recursive `\"**\"` branch rather than only the root-level short-circuit."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Simplify.test.ts",
+      "line": 72,
+      "theme": "stale-comment",
+      "description": "The comment says \"All fourteen variants have an arm, so all fourteen need exercising\", but the `leaves` array immediately below it (lines 75-86) lists exactly 10 policies, matching the Policy ADT's actual 10 leaf tags (HasPermission, HasRole, HasAttribute, HasResourceAttribute, HasRelationship, HasAction, HasActed, HasNotActed, HasCustom, HasSignature — confirmed against Policy.ts's tag union). The full ADT has 16 tags total (10 leaves + 6 composites: AllOf, AnyOf, Not, Labeled, Obliged, Rules), so \"fourteen\" matches neither the leaf count nor the total. The test itself is complete (all 10 real leaves are exercised); only the number in the comment is wrong.",
+      "suggestedFix": "Change \"fourteen\" to \"ten\" (or otherwise correct the count) so the comment matches the array it describes."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/SecurityLabel.ts",
+      "line": 34,
+      "theme": "naming-inconsistency",
+      "description": "`SecurityLabel.ts`'s `LabelOrdering` (`\"Equal\" | \"Dominates\" | \"DominatedBy\" | \"Incomparable\"`) and `FieldPath.ts`'s `Containment` (`\"Equal\" | \"ALessB\" | \"BLessA\" | \"Incomparable\"`, FieldPath.ts:85) are both four-valued results of a partial-order comparison function in the same package, but use two different naming schemes for the non-Equal/non-Incomparable pair — one semantic (Dominates/DominatedBy), one positional (ALessB/BLessA). `FieldPath.ts`'s own doc comment (lines 82-84) explains the positional choice for its domain, so this isn't necessarily wrong, but a reader moving between the two sibling comparison APIs sees inconsistent vocabulary for the same shape of result.",
+      "suggestedFix": "No fix required; noted for awareness. If a third partial-order type is ever added, consider settling on one naming convention (semantic vs. positional) across the package, or documenting why the two differ."
+    }
+  ],
+  "escalations": []
+}

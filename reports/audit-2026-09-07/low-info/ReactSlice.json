@@ -1,0 +1,30 @@
+{
+  "slice": "ReactSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/react/src/components.tsx",
+      "line": 145,
+      "theme": "can-failure-null-override",
+      "description": "`Can`'s `chosen()` picks the failure-branch content with `failure ?? (typeof fallback === \"function\" ? null : fallback)`. Nullish coalescing cannot distinguish \"failure not supplied\" (undefined, which should fall back to `fallback`) from \"failure explicitly set to null\" (which a caller uses to say 'render nothing on failure even though I have a fallback for plain denial'). Confirmed empirically: rendering `<Can policy={p} fallback={<span>denied-fallback</span>} failure={null}>` against a policy whose evaluation fails shows \"denied-fallback\" instead of nothing. No test in edges.test.tsx or QadiProvider.test.tsx exercises `failure={null}` together with a non-null `fallback`, so the gap is untested as well as unfixed. Note: spec/behaviors/09-react.md:209's RECOMMENDED note literally specifies `failure ?? fallback`, so the code matches that non-normative spec line, but CanProps' own doc comment (\"Defaults to fallback... Supply this to tell them apart\") does not disclose that an explicit `null` cannot opt back out once a `fallback` node is set.",
+      "suggestedFix": "Distinguish \"omitted\" from \"explicitly null\" before defaulting, e.g. check `failure !== undefined ? failure : (typeof fallback === \"function\" ? null : fallback)`, or document plainly on CanProps.failure that passing `null` is equivalent to omitting it and does not suppress a configured `fallback`."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/react/src/useGate.ts",
+      "line": 96,
+      "theme": "double-registry-notify-per-transition",
+      "description": "The registration effect's dependency array includes `state` (`[instrument, id, kind, atom, state, wraps]`), so every time a gate's decision changes state (Pending->Allowed, Allowed->Rechecking, Rechecking->Denied, etc.) React tears down the previous registration (registerGate's cleanup calls `changed()`) and immediately re-registers (calling `changed()` again). Verified empirically with an instrumented `<Can>` and a controlled resolver: a single Pending->Allowed transition produced 2 `subscribeGates` notifications instead of 1. This only affects `instrument`-enabled trees (opt-in debug/devtools tooling, off by default) and React's own update batching likely coalesces most of the resulting re-renders, so the practical impact is minimal, but it is a real, measurable inefficiency with no test asserting notification counts across a state transition (GateRegistry.test.tsx's notification-count test only covers a same-state re-render).",
+      "suggestedFix": "Split the identity-lifecycle concern (mount/unmount, which should own registerGate's subscribe/unsubscribe) from the per-render state update (which could mutate the existing GateInstance in the map and call `changed()` once) instead of tearing down and rebuilding the registration on every state change."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/react/src/HydrationCounts.ts",
+      "line": 1,
+      "theme": "undocumented-barrel-exclusion",
+      "description": "HydrationCounts.ts is (correctly) left out of src/index.ts's barrel, same as HydrationSeed.ts, HydrationWarning.ts, settled.ts and useGate.ts — but unlike all four of those siblings, its top-of-file doc comment never states that the exclusion is deliberate (AGENTS.md §9). A reader diffing the barrel against src/ has no in-file signal that this omission is intentional scaffolding rather than an oversight, the exact ambiguity the other four files' comments exist to remove.",
+      "suggestedFix": "Add a short note to HydrationCounts.ts's doc comment (as HydrationSeed.ts and HydrationWarning.ts do) stating it is deliberately out of the barrel per AGENTS.md §9."
+    }
+  ],
+  "escalations": []
+}

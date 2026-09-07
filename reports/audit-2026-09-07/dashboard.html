@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qadi — Full Library Audit · 2026-09-07</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,600;9..144,900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F0E6; --paper2:#EDE7D8; --ink:#1D1A15; --ink2:#4A443A; --ink3:#7C7466;
+  --rule:#C9C0AC; --rule2:#B3A98F;
+  --red:#A93226; --red-bg:#F3DAD5; --amber:#9A6215; --amber-bg:#F1E3C8;
+  --green:#3E6B4F; --green-bg:#DFE8DA; --stamp:#8C2F24;
+  --serif:"Fraunces",Georgia,serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--paper); color:var(--ink); font-family:var(--mono); font-size:14px; line-height:1.55;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.045'/%3E%3C/svg%3E");
+}
+.sheet{max-width:1140px;margin:0 auto;padding:56px 40px 90px}
+.rule-heavy{border:none;border-top:3px double var(--ink);margin:14px 0 0}
+.kicker{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--ink3)}
+h1{font-family:var(--serif);font-weight:900;font-size:clamp(34px,5vw,58px);line-height:1.02;letter-spacing:-.01em;margin:10px 0 6px}
+h1 em{font-style:italic;font-weight:300}
+/* stamp */
+.stamp{
+  font-family:var(--serif);font-weight:900;color:var(--stamp);border:4px solid var(--stamp);
+  border-radius:10px;padding:10px 22px 6px;transform:rotate(-4deg);display:inline-block;
+  box-shadow:0 0 0 2px var(--paper),0 0 0 3px var(--stamp) inset;opacity:.92;
+}
+.stamp small{display:block;font-family:var(--mono);font-weight:500;font-size:10px;letter-spacing:.28em;text-transform:uppercase}
+.stamp .n{font-size:56px;line-height:1}
+.masthead{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;flex-wrap:wrap}
+.meta{font-size:12px;color:var(--ink2);text-align:right;line-height:1.7}
+.meta b{color:var(--ink)}
+.sev-row{display:flex;gap:10px;flex-wrap:wrap;margin:26px 0 0}
+.sev{font-size:12px;padding:7px 14px 6px;border:1.5px solid var(--ink);background:var(--paper2);display:flex;gap:9px;align-items:baseline;box-shadow:2px 2px 0 var(--rule2)}
+.sev .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.sev b{font-size:16px}
+.sev.crit .dot{background:var(--red)} .sev.high .dot{background:#C05621}
+.sev.med .dot{background:#C9971C} .sev.low .dot{background:#7C8A4D} .sev.info .dot{background:var(--ink3)}
+/* verdict */
+.verdict{margin:34px 0 8px;font-size:15px;max-width:64ch}
+.verdict b{background:linear-gradient(transparent 62%,var(--amber-bg) 62%)}
+h2{font-family:var(--serif);font-weight:600;font-size:26px;margin:52px 0 4px;display:flex;align-items:baseline;gap:14px}
+h2 .no{font-family:var(--mono);font-size:12px;color:var(--ink3);letter-spacing:.2em}
+h2 + p.sub{color:var(--ink2);font-size:12.5px;margin-bottom:16px}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:12.5px;background:rgba(255,255,255,.35)}
+th{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);text-align:right;padding:9px 10px;border-bottom:2px solid var(--ink);font-weight:600}
+th:first-child,td:first-child{text-align:left}
+td{padding:7px 10px;border-bottom:1px solid var(--rule);text-align:right;font-variant-numeric:tabular-nums}
+tr:hover td{background:var(--amber-bg)}
+td.pkg{font-weight:600}
+.heat{border-radius:3px;padding:2px 7px;display:inline-block;min-width:44px;font-weight:600}
+.h9{background:var(--green-bg);color:var(--green)} .h85{background:#E9EAD8;color:#55663B}
+.h8{background:#EFE9D3;color:#6B5D2E} .h7{background:var(--amber-bg);color:var(--amber)}
+.h6{background:var(--red-bg);color:var(--red)} .h5{background:var(--red);color:#FFF}
+/* finding cards */
+.card{border:1.5px solid var(--ink);background:rgba(255,255,255,.4);margin:14px 0;box-shadow:4px 4px 0 var(--rule2);break-inside:avoid}
+.card .head{display:flex;gap:12px;align-items:flex-start;padding:13px 16px 10px;border-bottom:1px dashed var(--rule2)}
+.card .body{padding:11px 16px 13px;font-size:12.5px;color:var(--ink2)}
+.card .body code, .verdict code, li code{background:var(--paper2);border:1px solid var(--rule);padding:0 4px;font-size:11.5px}
+.tag{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;padding:4px 9px 3px;white-space:nowrap}
+.tag.critical{background:var(--red);color:#fff} .tag.high{background:#C05621;color:#fff}
+.card h3{font-family:var(--serif);font-size:17.5px;font-weight:600;line-height:1.25}
+.card .fix{margin-top:8px;padding-top:8px;border-top:1px solid var(--rule);color:var(--ink)}
+.card .fix b{color:var(--stamp);letter-spacing:.14em;font-size:10.5px;text-transform:uppercase}
+/* theme groups */
+.themes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.theme{border-left:3px solid var(--ink);padding:2px 0 2px 16px}
+.theme h4{font-family:var(--serif);font-size:15.5px;margin-bottom:4px}
+.theme p{font-size:12px;color:var(--ink2)}
+/* lists */
+ol.fixlist{margin:12px 0 0 20px}
+ol.fixlist li{margin:7px 0;font-size:13px}
+ol.fixlist b{color:var(--stamp)}
+ul.good{columns:2;gap:34px;margin:12px 0 0 18px}
+ul.good li{margin:7px 0;font-size:12.5px;break-inside:avoid}
+footer{margin-top:64px;border-top:3px double var(--ink);padding-top:14px;font-size:11px;color:var(--ink3);display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+/* load reveal */
+.rv{opacity:0;transform:translateY(14px);animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.d1{animation-delay:.05s}.d2{animation-delay:.18s}.d3{animation-delay:.32s}.d4{animation-delay:.46s}.d5{animation-delay:.6s}
+@media(max-width:820px){.themes,ul.good{columns:1;grid-template-columns:1fr}.sheet{padding:36px 20px 70px}}
+@media print{body{background:#fff}.card{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="rv d1">
+  <div class="kicker">Effect-native authorization · 9 packages · 50 auditors · 2026-09-07</div>
+  <div class="masthead">
+    <div>
+      <h1>Qadi<br><em>full library audit</em></h1>
+      <hr class="rule-heavy">
+    </div>
+    <div class="stamp rv d2"><small>composite score</small><span class="n">8.43</span><small>out of 10</small></div>
+  </div>
+  <div class="sev-row rv d3">
+    <span class="sev crit"><span class="dot"></span>critical <b>1</b></span>
+    <span class="sev high"><span class="dot"></span>high <b>7</b></span>
+    <span class="sev med"><span class="dot"></span>medium <b>70</b></span>
+    <span class="sev low"><span class="dot"></span>low <b>132</b></span>
+    <span class="sev info"><span class="dot"></span>info <b>104</b></span>
+  </div>
+  <p class="verdict rv d4">
+    <b>A genuinely rigorous codebase</b> — the discipline machinery (gates, invariants, traceability, mutation testing) is real and mostly does what the docs claim. Remaining defects cluster in three places: <code>Neq</code>/absent-value semantics (the one matcher that fails open on <code>undefined</code>), <b>observability-path isolation</b> (feed, sink fan-out, audit breaker — the decision path itself stays safe), and <b>one critical dialect-compiler divergence</b> in <code>@qadi/predicate-prisma</code>.
+  </p>
+</header>
+
+<section class="rv d4">
+  <h2><span class="no">01</span>Rating matrix — package × dimension</h2>
+  <p class="sub">Cells average the auditors' per-dimension scores for each package's slices. Overall = mean of slice scores. C/H/M/L/I = finding severities.</p>
+  <table>
+    <tr><th>package</th><th>overall</th><th>correct</th><th>design</th><th>security</th><th>tests</th><th>docs</th><th>style</th><th>perf</th><th>C</th><th>H</th><th>M</th><th>L</th><th>I</th></tr>
+    <tr><td class="pkg">core (16 slices)</td><td><span class="heat h85">8.50</span></td><td>8.7</td><td>9.0</td><td>8.9</td><td>8.4</td><td>8.2</td><td>9.1</td><td>8.8</td><td>0</td><td>2</td><td>22</td><td>38</td><td>20</td></tr>
+    <tr><td class="pkg">http</td><td><span class="heat h85">8.60</span></td><td>8.5</td><td>9.0</td><td>9.0</td><td>8.5</td><td>8.0</td><td>9.5</td><td>9.0</td><td>0</td><td>0</td><td>2</td><td>7</td><td>0</td></tr>
+    <tr><td class="pkg">audit</td><td><span class="heat h7">7.50</span></td><td>7.0</td><td>9.0</td><td>9.0</td><td>8.0</td><td>8.0</td><td>9.0</td><td>8.5</td><td>0</td><td>1</td><td>4</td><td>3</td><td>2</td></tr>
+    <tr><td class="pkg">react</td><td><span class="heat h8">8.30</span></td><td>8.0</td><td>9.0</td><td>9.0</td><td>8.0</td><td>9.0</td><td>9.0</td><td>9.0</td><td>0</td><td>1</td><td>0</td><td>3</td><td>1</td></tr>
+    <tr><td class="pkg">promise</td><td><span class="heat h85">8.50</span></td><td>9.5</td><td>9.5</td><td>9.0</td><td>7.0</td><td>9.0</td><td>9.0</td><td>9.0</td><td>0</td><td>0</td><td>3</td><td>3</td><td>0</td></tr>
+    <tr><td class="pkg">devtools</td><td><span class="heat h8">8.35</span></td><td>8.0</td><td>9.0</td><td>9.0</td><td>8.5</td><td>8.5</td><td>9.0</td><td>8.0</td><td>0</td><td>0</td><td>6</td><td>6</td><td>3</td></tr>
+    <tr><td class="pkg">testing</td><td><span class="heat h8">8.20</span></td><td>9.0</td><td>7.0</td><td>9.0</td><td>7.0</td><td>9.0</td><td>9.0</td><td>9.0</td><td>0</td><td>0</td><td>2</td><td>4</td><td>1</td></tr>
+    <tr><td class="pkg">predicate-sql / prisma</td><td><span class="heat h5">5.50</span></td><td>5.0</td><td>9.0</td><td>6.0</td><td>7.0</td><td>7.0</td><td>9.0</td><td>8.0</td><td>1</td><td>1</td><td>2</td><td>1</td><td>1</td></tr>
+    <tr><td class="pkg">BDD suite</td><td><span class="heat h85">8.60</span></td><td>9.0</td><td>9.0</td><td>9.0</td><td>8.0</td><td>8.0</td><td>8.0</td><td>9.0</td><td>0</td><td>0</td><td>3</td><td>5</td><td>2</td></tr>
+    <tr><td class="pkg">examples / website</td><td><span class="heat h85">8.60</span></td><td>8.0</td><td>9.0</td><td>8.0</td><td>9.0</td><td>9.0</td><td>9.0</td><td>8.0</td><td>0</td><td>0</td><td>1</td><td>4</td><td>0</td></tr>
+    <tr><td class="pkg">security sweeps</td><td><span class="heat h7">7.60</span></td><td>7.5</td><td>8.5</td><td>7.5</td><td>7.0</td><td>8.5</td><td>8.5</td><td>7.5</td><td>0</td><td>2</td><td>4</td><td>7</td><td>1</td></tr>
+    <tr><td class="pkg">spec / docs (9 slices)</td><td><span class="heat h85">8.61</span></td><td>8.9</td><td>8.8</td><td>9.0</td><td>8.4</td><td>8.6</td><td>8.6</td><td>—</td><td>0</td><td>0</td><td>9</td><td>19</td><td>37</td></tr>
+    <tr><td class="pkg">infra / gates / CI (8)</td><td><span class="heat h8">8.40</span></td><td>8.8</td><td>8.7</td><td>8.7</td><td>8.5</td><td>8.6</td><td>8.6</td><td>8.3</td><td>0</td><td>0</td><td>9</td><td>25</td><td>22</td></tr>
+    <tr><td class="pkg">house-style sweeps</td><td><span class="heat h9">9.00</span></td><td>9.2</td><td>9.3</td><td>9.0</td><td>8.3</td><td>9.0</td><td>9.0</td><td>—</td><td>0</td><td>0</td><td>3</td><td>7</td><td>14</td></tr>
+  </table>
+</section>
+
+<section class="rv d5">
+  <h2><span class="no">02</span>Critical</h2>
+  <div class="card">
+    <div class="head"><span class="tag critical">C1 · predicate-prisma</span><h3>Nested empty-array identities invert denials into admissions</h3></div>
+    <div class="body">
+      <code>renderNode</code> emits Prisma's "vacuous identities": <code>True → {AND:[]}</code>, <code>False → {OR:[]}</code> (<code>index.ts:132-133</code>), null-Gte/Lt → <code>{OR:[]}</code> (<code>:158</code>), empty <code>MemberOf</code> → <code>{OR:[]}</code> (<code>:179</code>) — with no constant-folding when nested (<code>And</code> arm <code>:201-202</code>). Per open Prisma issues #17367 / #21856, nested empty arrays are <b>silently dropped</b> and <code>{NOT:{AND:[]}}</code> returns all rows. So <code>allOf([hasResourceAttribute("role", inArray([])), tenantEq])</code> — "deny role-less users" — compiles to a query that <b>admits them</b>. The agreement tests can't catch it: the interpreter uses the same JS <code>.every/.some</code> semantics the compiler wrongly assumes; BEH-QD-239/242 encode the same wrong belief.
+      <div class="fix"><b>Fix</b> &nbsp;Constant-fold <code>False</code> (and <code>True</code> under <code>Negate</code>) inside <code>renderNode</code>; test against an interpreter that models Prisma's actual engine semantics.</div>
+    </div>
+  </div>
+</section>
+
+<section class="rv d5">
+  <h2><span class="no">03</span>High</h2>
+  <div class="card"><div class="head"><span class="tag high">H1 · core</span><h3>Fail-open: <span style="font-family:var(--mono);font-size:14px">hasAttribute</span> + resource-referencing <span style="font-family:var(--mono);font-size:14px">neq</span> allows with no resource</h3></div>
+    <div class="body"><code>Evaluate.ts</code>'s <code>HasAttribute</code> arm guards <code>referencesAction</code> but never <code>referencesResource</code> (defined <code>Matcher.ts:284</code>, consumed only by the translator at <code>Predicate.ts:292</code>). With <code>options.resource</code> unset, <code>neq(resource("tenantId"))</code> is <code>undefined !== x → true</code> → <b>allow</b>. The exact INV-QD-032 shape <code>guard</code>'s doc says was closed — reopened via <code>enforce</code>/<code>check</code>/<code>assert</code>, which don't bind a resource.
+    <div class="fix"><b>Fix</b> &nbsp;Fail with <code>MissingResource</code> when <code>referencesResource(matcher)</code> and no resource is supplied.</div></div></div>
+  <div class="card"><div class="head"><span class="tag high">H2 · core</span><h3><span style="font-family:var(--mono);font-size:14px">Neq</span> on an unresolvable ref matches — contradicting BEH-QD-026</h3></div>
+    <div class="body"><code>Matcher.ts:316</code>: <code>value !== resolveRef(...)</code> is true whenever the ref resolves to <code>undefined</code> — <code>hasResourceAttribute("raisedBy", neq(subjectId()))</code> grants on records missing the field. The spec states "a reference that resolves to nothing denies". No test pins <code>Neq</code> on absent data; the repo's own SoD policy composes <code>not(eq(...))</code> instead.
+    <div class="fix"><b>Fix</b> &nbsp;One semantics decision closes H1+H2: scope the spec sentence to affirmative comparators or make <code>Neq</code> deny on absent operands — then pin with a test.</div></div></div>
+  <div class="card"><div class="head"><span class="tag high">H3 · core sinks</span><h3>Decision-sink feed drops the <em>newest</em> records when full</h3></div>
+    <div class="body"><code>DecisionSinkFeed.ts:78</code> uses <code>PubSub.publishUnsafe</code> ("Sliding means it always accepts"). In Effect v4 the sliding evict-oldest strategy runs only in the effectful <code>publish</code>; <code>publishUnsafe</code> returns-false-on-full. Once a subscriber lags and the buffer fills, every subsequent record is silently discarded newest-first — inverting BEH-QD-201. The eviction test exercises the zero-subscriber replay path, so the suite and mutation gate both miss it.
+    <div class="fix"><b>Fix</b> &nbsp;<code>Effect.asVoid(PubSub.publish(pubsub, record))</code> (never suspends on sliding) + a subscriber-active overflow test.</div></div></div>
+  <div class="card"><div class="head"><span class="tag high">H4 · audit</span><h3>Interrupted half-open probe write permanently bricks the circuit breaker</h3></div>
+    <div class="body">Half-open allows one probe (<code>claimProbe</code> one-shot, <code>CircuitBreaker.ts:204-207</code>); the status read (<code>:146</code>) never recovers a <code>HalfOpen</code> with <code>openedAt: undefined</code>. The probe write runs under <code>Effect.result</code> (<code>AuditDecisionSinkLive.ts:149</code>) — an interruption or defecting store adapter releases nothing. The breaker then treats every future record as open: staged rows never commit (unbounded staging growth) or entries drop, silently — exactly while the backend is flaky.
+    <div class="fix"><b>Fix</b> &nbsp;Release the probe on abnormal exit (<code>Effect.onExit</code>) and/or age out a stuck HalfOpen; test interrupting a half-open probe.</div></div></div>
+  <div class="card"><div class="head"><span class="tag high">H5 · react</span><h3><span style="font-family:var(--mono);font-size:14px">settled()</span> can suspend a remounted tree forever</h3></div>
+    <div class="body"><code>settled.ts:73-77</code> keys <code>pending</code>/<code>resolvers</code>/<code>subscribed</code> by atom only, not by registry. A <code>QadiProvider</code> remount builds a fresh registry but inherits the dead promise (returned before any freshness check) → <b>permanent suspension</b>; two concurrent providers share one listener, so the second registry's transitions never resolve.
+    <div class="fix"><b>Fix</b> &nbsp;Key by <code>(registry, atom)</code>, or validate the memo against the current registry before reuse.</div></div></div>
+  <div class="card"><div class="head"><span class="tag high">H6 · core codec</span><h3>Unbounded decode of untrusted sink records</h3></div>
+    <div class="body"><code>Policy.fromJson</code> guards with <code>exceedsJsonDepth</code> (512) precisely because Schema's recursive descent RangeErrors — but <code>decodeRecordWire</code> (<code>SinkCodec.ts:463</code>, self-recursive <code>TraceSchema</code> + embedded Policy) has no guard, and its consumers are untrusted: devtools decodes SSE frames (<code>Source.ts:206</code>), where the RangeError surfaces as a defect that freezes the live timeline.
+    <div class="fix"><b>Fix</b> &nbsp;Extract the depth guard, run it in <code>decodeRecord</code>/Hydration, fail typed so <code>malformed</code> drops the frame.</div></div></div>
+  <div class="card"><div class="head"><span class="tag high">H7 · predicates</span><h3>Gte/Lt with string values compile to live dialect comparisons</h3></div>
+    <div class="body">Reference <code>evaluatePredicate</code> requires both sides <code>number</code> (constant-false otherwise), but both compilers admit any <code>isSafeValue</code> and render <code>"title" >= $1</code> / <code>{level:{gte:"3"}}</code>. MySQL/SQLite coerce and admit rows the reference denies; Prisma string-compares. Same INV-QD-047/048 disagreement class as the handled Date/NULL cases — on the parameter side.
+    <div class="fix"><b>Fix</b> &nbsp;Constant-fold non-numeric Gte/Lt exactly like the null arm already does.</div></div></div>
+</section>
+
+<section class="rv d5">
+  <h2><span class="no">04</span>Medium themes (70 findings)</h2>
+  <div class="themes">
+    <div class="theme"><h4>Spec drift — the largest cluster (~20)</h4><p>BEH-QD-017 says 13 variants, code has 16 · BEH-QD-033 omits CustomPredicate/SignatureHistory · 07-enforcement fences predate <code>EnforceOptions</code>/<code>filterStream</code> · SSE <code>reauth</code> revocation undocumented · <code>@REQ-QD-NNN</code> tags exist only in <code>features/</code> · spec/README indexes 26 of 33 behaviors.</p></div>
+    <div class="theme"><h4>Gate blind spots</h4><p>check-dod-table misses plural refs and <code>.github/*.yml</code> (live stale "gate 22" in check.yml) · api-surface stale-check skips prose · two gates exit 0 when their input vanishes · CI uploads 5 of 6 mutation reports; JSON report overwritten by each stryker run.</p></div>
+    <div class="theme"><h4>Test gaps that explain the highs</h4><p>Feed overflow path untested · reauth wiring branch untested (survived mutants 15/25) · facade never asserts rejection <code>_tag</code>s · devtools SignatureHistory ships with zero tests · HasSignature zero codec round-trips · DecisionCache "same subject hits" control vacuous.</p></div>
+    <div class="theme"><h4>Semantics &amp; comment drift</h4><p>"Every matcher fails undefined" is false for Neq · "Unknown" denial claims "no resolver wired" for wired-but-silent resolvers · explanation rendering drops <code>fieldStrategy</code> and relationship <code>depth</code> (non-equivalent policies render identically) · TraceDiff compares obligations by id only · PortMetrics says "three closed values", there are five.</p></div>
+    <div class="theme"><h4>DecisionCache seam</h4><p>Cache key omits <code>maxDepth</code>: a cached success bypasses <code>PolicyTooDeep</code> for a stricter caller · coalesced waiters inherit the claimant's interruption · <code>onExcessProperty: ignore</code> silently strips mistyped policy keys (decode-then-persist narrows; unpinned).</p></div>
+    <div class="theme"><h4>Other notables</h4><p><code>isJsonSafe</code> itself stack-exhaustible, O(d²) · devtools CheckCard/JsonView keep stale edited text across re-seeds · Remedies offers deny-rule requirements as "strengthenings" · audit stage/write defects bypass breaker and metrics · <code>effect-tsgo patch</code> in <code>prepare</code> undocumented · engines floor drift (≥20 vs ≥20.19).</p></div>
+  </div>
+</section>
+
+<section class="rv d5">
+  <h2><span class="no">05</span>Exemplary</h2>
+  <ul class="good">
+    <li><b>Determinism 9.5</b> — zero unsanctioned forbidden-API hits in all <code>packages/*/src</code>; ids/time only via <code>EvaluationId</code>/<code>Clock</code>; both exemptions single-file, documented, gate-enforced.</li>
+    <li><b>Prior-audit follow-through 9.5</b> — every 2026-09-06 high remediated, honestly narrowed where full strength wasn't added.</li>
+    <li><b>House style 9.0</b> — 15/15 service ids namespaced, zero object-form <code>catchTag</code>, zero <code>orDie</code> in decision paths; 4-switch budget holds.</li>
+    <li><b>Invariants 9.0</b> — all 12 sampled security-critical invariants have enforcement points and pinning tests; deny-reason honesty tested at sentence level.</li>
+    <li><b>Docs compile</b> — 15+ examples trace symbol-by-symbol to real exports; the predecessor's "uniformly uncompilable docs" failure is not repeated.</li>
+    <li><b>CI honesty</b> — runs <code>pnpm check</code> and nothing else; least-privilege, frozen lockfile, measured timeout.</li>
+  </ul>
+</section>
+
+<section class="rv d5">
+  <h2><span class="no">06</span>Recommended fix order</h2>
+  <ol class="fixlist">
+    <li><b>C1</b> — predicate-prisma constant folding (wrong-authorization class, user-facing query path).</li>
+    <li><b>H1 + H2</b> — one <code>Neq</code>/absent-value semantics decision closes both, plus the pinning tests.</li>
+    <li><b>H3, H4</b> — observability-path isolation: two one-line fixes + the two missing tests.</li>
+    <li><b>H5, H6, H7</b> — react suspense keying, shared depth guard, non-numeric compare folding.</li>
+    <li>Spec-drift sweep as a single documentation pass; gate-scope fixes (dod plurals/yml, api-surface prose, silent-pass exits).</li>
+    <li>The named test gaps (feed overflow, reauth wiring, facade rejection tags, devtools SignatureHistory).</li>
+  </ol>
+</section>
+
+<footer class="rv d5">
+  <span>Method: 50 parallel auditors → strict JSON verdicts → 4 headline findings spot-verified against source. Full markdown: <code>reports/audit-2026-09-07/DASHBOARD.md</code></span>
+  <span>qadi · effect-native authorization · audit 2026-09-07</span>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "slice": "FacadeSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Qadi.ts",
+      "line": 65,
+      "theme": "effect-fn-convention",
+      "description": "The internal `discharge` helper (lines 61-119) is written as a bare `Effect.gen(function* () {...})` assigned to a const, not wrapped in `Effect.fn(...)` as AGENTS.md §5 requires ('Every effectful function is Effect.fn(function* …)'). Every comparable per-call generator function in Evaluate.ts (resolveAttribute, evaluateActed, evaluateHasRelationship, evaluateAllOf, evaluateAnyOf, evaluateRules, evaluate itself) is wrapped in a named Effect.fn(\"qadi....\") span. `discharge` runs on every obligation-carrying decision across every enforcing entry point (assert/enforce/enforceProjected/guard/filter/filterStream) yet is the only generator in this file with no tracing span, which is a real, if minor, observability gap on the enforcement hot path.",
+      "suggestedFix": "Wrap the body in Effect.fn(\"qadi.discharge\")(function* (decision, handler) { ... }) to match the convention used throughout Evaluate.ts and get it a named trace span."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Qadi.ts",
+      "line": 276,
+      "theme": "doc-comment-misattachment",
+      "description": "The JSDoc block at lines 276-291 ('Keeps only the elements a policy allows, evaluated per element as resource...') is intended to document `export const filter` (line 316), but it is placed directly above `interface FilterVerdict<A>` (line 292) instead, because the private `decideOne` helper and its own doc comment (lines 297-302) sit between them. Any tool or editor that attaches a leading `/** */` block to the immediately following declaration (hover-docs, TypeDoc, etc.) will show this description for the internal `FilterVerdict` interface and show no documentation at all for the public `filter` export.",
+      "suggestedFix": "Move the filter doc comment to sit directly above `export const filter`, or reorder the declarations so `interface FilterVerdict` and `decideOne` (with its own comment) come before filter's comment/definition without splitting them."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Qadi.test.ts",
+      "line": 68,
+      "theme": "test-title-style",
+      "description": "Two `it.effect` titles use ALL-CAPS emphasis mid-sentence — \"AccessDenied CARRIES THE TRACE, not only the root sentence\" (line 68) and \"EVALUATES THE POLICY AGAINST THE GUARDED RESOURCE\" (line 182) — while every other test description in this file (and the sibling describe blocks) uses ordinary sentence case. Purely cosmetic, but it stands out inconsistently in test-runner output.",
+      "suggestedFix": "Rephrase both titles in normal sentence case, keeping the regression-test context in the body comment instead of shouting it in the title."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Qadi.test.ts",
+      "line": 382,
+      "theme": "test-helper-duplication",
+      "description": "The `blockingResolver` helper (Ref + Deferred-gated AttributeResolver layer) is defined verbatim twice: lines 382-389 in \"Qadi.filterStream — concurrency across items\" and lines 649-656 in \"Qadi.filter — concurrency across items\". The duplication is acknowledged in a comment ('Mirrors \"Qadi.filter — concurrency across items\" below') so it is deliberate, but it still means any future change to the helper's shape has to be made in two places.",
+      "suggestedFix": "Hoist `blockingResolver` into test/helpers.ts (or a module-scope const in Qadi.test.ts) and have both describe blocks import/reference the single definition."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Qadi.ts",
+      "line": 307,
+      "theme": "line-wrapping-consistency",
+      "description": "`decideOne`'s return-type annotation is written as a single 109-column line, unlike the file's otherwise-consistent ~90-column hand-wrapping (AGENTS.md §17) — the structurally similar `filter` (lines 320-324) and `filterStream` (lines 354-358) return types just below it are wrapped across multiple lines. The other over-95-column lines in this file (209, 256) are markdown links inside doc comments that can't be wrapped cleanly, so line 307 is a genuine outlier rather than an unavoidable case.",
+      "suggestedFix": "Wrap decideOne's return type the same way filter/filterStream's are, e.g. one union member per line."
+    }
+  ],
+  "escalations": []
+}

@@ -1,0 +1,16 @@
+{
+  "slice": "MetricsHistory",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/test/DecisionCache.test.ts",
+      "line": 893,
+      "theme": "test-title-coverage-mismatch",
+      "description": "The test \"rejects a fractional or NaN capacity rather than silently disabling eviction\" (lines 893-904) only exercises `capacity: Number.NaN`. It never exercises a genuine fractional value (e.g. `capacity: 1.5`), even though the guard it is regression-testing (`Number.isInteger(options.capacity) && options.capacity >= 0` in DecisionCache.ts) rejects fractional and NaN values via the same `Number.isInteger` check but for different reasons the doc comment calls out separately (NaN makes the eviction condition permanently false; a non-integer isn't discussed by the comment at all, only implied by the check). The test name promises coverage the body doesn't provide.",
+      "suggestedFix": "Add a second assertion (or a `describe.each`/second `it.effect`) in that test passing a real fractional capacity such as `1.5` and asserting the same Failure/defect outcome, or narrow the test title to \"NaN capacity\" and add a separate \"fractional capacity\" test."
+    }
+  ],
+  "escalations": [
+    "Possible race in packages/core/src/DecisionCache.ts's getOrCompute/awaitShared (around lines 367-375 and 402-557): the last waiter's interrupt handler decides to call Fiber.interrupt(entry.fiber) based on a `waiters === 0` snapshot taken in one `Effect.sync`, then actually calls `Fiber.interrupt` in a later `Effect.flatMap` step — a genuine yield boundary. If a brand-new caller for the exact same key runs its own synchronous claim-or-join check in that window, it will find the entry still in `inFlight`, increment `waiters` back to 1, and attach to `entry.claim` via `awaitShared` — but the already-decided `Fiber.interrupt` proceeds regardless (it captured the fiber reference before the new joiner arrived), so the shared `compute` is interrupted anyway and the new joiner receives an interruption/failure result instead of either a real answer or a fresh, uncoalesced compute of its own. This isn't covered by any of the existing interruption tests (which only interleave a fixed, pre-scripted set of fibers with explicit `Effect.yieldNow` pumps) and would need a dedicated race test or a re-check of `waiters` immediately before the `Fiber.interrupt` call to confirm or rule out."
+  ]
+}

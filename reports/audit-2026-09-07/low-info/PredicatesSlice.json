@@ -1,0 +1,32 @@
+{
+  "slice": "PredicatesSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Predicate.ts",
+      "line": 354,
+      "theme": "metrics-gap",
+      "description": "translateNode's foldAttribute (line 354, AttributeResolver.resolve) and foldHistory (line 373, DecisionHistory.hasActed) call directly into these ports without updating `portCallsTotal`. The equivalent calls in Evaluate.ts (resolveAttribute at Evaluate.ts:272, evaluateActed at Evaluate.ts:408) both do `Metric.update(portCallsTotal, \"AttributeResolver\"|\"DecisionHistory\")` before the call. PortMetrics.ts's own doc frames `qadi_port_calls_total` as 'one per port Evaluate.ts can call into', so this may be by design, but nothing in Predicate.ts documents that exclusion, and an operator watching `qadi_port_calls_total` to gauge backend load on a deployment that leans on `toPredicate` (row-level security) will undercount real port traffic — exactly the 'store that was answering from one no policy ever consulted' blind spot PortMetrics.ts's own doc comment says the metric exists to close.",
+      "suggestedFix": "Either add `Metric.update(portCallsTotal, \"AttributeResolver\")` / `(\"DecisionHistory\")` at the two call sites in translateNode, or add a line to PortMetrics.ts's/Predicate.ts's doc comments explicitly noting that predicate-translation port calls are intentionally excluded from this counter."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/test/CustomPredicate.test.ts",
+      "line": 53,
+      "theme": "test-coverage-gap",
+      "description": "Every `CustomPredicate.evaluate(name, subject, resource, params)` call across the whole file (lines 38, 53, 64, 80, 108, 122, 154, 174, 183, 204, 227, 240, 251, etc.) passes `undefined` for `resource`. No test constructs a real `Resource` and asserts it reaches the registered predicate unchanged, so a bug that drops, swaps, or mis-forwards the `resource` argument in `customPredicateFromRecord`, `customPredicateRetrying`, or `customPredicateBounded` would not be caught by this suite.",
+      "suggestedFix": "Add one test that supplies a non-undefined Resource to CustomPredicate.evaluate and asserts the registered function receives that exact value in its `resource` parameter."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Predicate.ts",
+      "line": 148,
+      "theme": "doc-cross-reference",
+      "description": "dispatchPredicate's doc comment (lines 144-149) says restrictsFields 'takes a depth/maxDepth pair and stays a per-call Match.value, documented at its own definition' — pointing a reader to restrictsFields's JSDoc (lines 258-271) for why it uses `Match.value` instead of the module-scope `Match.type<Policy>()` pattern AGENTS.md §5a prefers for a per-node hot path (which restrictsFields is, recursing once per tree node exactly like the house-style-budgeted switches). But restrictsFields's own comment only explains the depth-check-must-run-first ordering versus a RangeError; it never actually discusses the Match.value-vs-Match.type choice the cross-reference promises.",
+      "suggestedFix": "Add a sentence to restrictsFields's doc comment explaining the Match.value choice (e.g. that depth/maxDepth are per-call state the arms would otherwise have to close over, mirroring dispatchPredicate's own closure-over-row rationale), or drop the 'documented at its own definition' claim from dispatchPredicate's comment if the tradeoff is considered self-evident."
+    }
+  ],
+  "escalations": [
+    "Correctness/security: Predicate.ts's `compare` function (lines 121-128) implements Gte/Lt as `typeof value === \"number\" && typeof against === \"number\" && value >= against` (and `< `), but Matcher.ts's `evaluateMatcher` Gte/Lt cases (lines 434, 436) additionally require `Number.isFinite(self.value)` — a deliberate, documented, tested guard (Matcher.ts:201-208, Matcher.test.ts:75) against a non-finite bound (reachable from untrusted JSON via `1e400` decoding to Infinity) silently dominating every row. Because `compare` lacks that guard, a `HasResourceAttribute` policy built with `M.gte(-Infinity)` (or `M.lt(Infinity)`) makes `toPredicate` compile a filter that admits every row with a numeric column value, while `evaluate()`/`evaluateMatcher` on the identical policy denies every row (Number.isFinite(-Infinity) is false). That is a direct violation of INV-QD-018 ('the two interpreters agree, row by row') and exactly the failure mode ADR-QD-024 calls out as making toPredicate worse than not having it — a caller using toPredicate for row-level security would silently expose rows the evaluator would refuse. The property-based fuzz test in Predicate.test.ts (describe 'INV-QD-018', ~line 751) never generates non-finite Gte/Lt thresholds (only `FastCheck.integer({min:0,max:5})`), so this divergence is currently untested and unnoticed."
+  ]
+}

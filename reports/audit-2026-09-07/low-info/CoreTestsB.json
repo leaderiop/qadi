@@ -1,0 +1,38 @@
+{
+  "slice": "CoreTestsB",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/test/DecisionCache.test.ts",
+      "line": 22,
+      "theme": "duplicated-test-synchronization-helper",
+      "description": "DecisionCache.test.ts factors the 'fork N effects, then yield the scheduler ~20 times so every fork reaches whatever it is blocked on' idiom into a documented helper, forkAllAndSettle (lines 22-35). The identical idiom — Effect.forkChild(...) followed by `for (let i = 0; i < 20; i++) yield* Effect.yieldNow;` — is instead inlined ad hoc, with no comment explaining the magic number, at AttributeResolver.test.ts:93-96, CustomPredicate.test.ts:153-156, and four sites in Qadi.test.ts (396-400, 421-426, 663-665, 686-689). If the '20 yields' heuristic ever needs to change (a slower scheduler, more forked fibers), every inlined site has to be found and fixed individually, and new tests copy the undocumented version rather than the documented one.",
+      "suggestedFix": "Move forkAllAndSettle (or an equivalent) into packages/core/test/helpers.ts and have AttributeResolver.test.ts, CustomPredicate.test.ts and Qadi.test.ts call the shared helper instead of re-inlining the loop."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/test/RolesAndDepth.test.ts",
+      "line": 134,
+      "theme": "unseeded-property-test",
+      "description": "Every other FastCheck-based property test in this scope pins reproducibility with an explicit seed passed to FastCheck.sample/FastCheck.assert (Explanation.test.ts:506, Policy.test.ts:700, Predicate.test.ts:831-832, Matcher.test.ts:428 and others, Simplify.test.ts:249/291, Evaluate.test.ts:3201) — a failure can be replayed byte-for-byte from the recorded seed. RolesAndDepth.test.ts:134-140 (`FastCheck.assert(FastCheck.property(FastCheck.integer(...), ...))`) and SinkCodec.test.ts:792-827 (`FastCheck.assert(..., { numRuns: 200 })`) omit the seed, so a CI failure there is reproducible only if the FastCheck-printed seed from that specific failing run happens to be captured in the log.",
+      "suggestedFix": "Add an explicit `seed` (and keep `numRuns`) to the FastCheck.assert calls in RolesAndDepth.test.ts:134 and SinkCodec.test.ts:826, matching the convention used everywhere else in the suite."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Tokens.test.ts",
+      "line": 142,
+      "theme": "test-file-organization",
+      "description": "Tokens.test.ts has no corresponding Tokens.ts source module — it bundles Permission, Role, AuthSubject and Errors coverage into one file with no header comment explaining the scope. This causes overlapping, differently-scoped coverage of the same behavior split across files with no cross-reference: resolveRoleGraph's cycle-detection is tested both in Tokens.test.ts:158-176 (asserts the full CircularRoleInheritance payload) and again in RolesAndDepth.test.ts:378-388 ('still fails on a genuine cycle', asserting only the Failure tag), and AuthSubject's makeSubject/fromRoles/withAttributes basics are tested both in Tokens.test.ts:204-250 and in the dedicated AuthSubject.test.ts. Other files in this scope that intentionally split responsibility (e.g. DecisionHistory.test.ts's header, or the RelationshipResolver.test.ts parallel it references) say so explicitly; Tokens.test.ts and RolesAndDepth.test.ts do not.",
+      "suggestedFix": "Either rename Tokens.test.ts to reflect its actual grab-bag scope with a header comment cross-referencing RolesAndDepth.test.ts and AuthSubject.test.ts (matching the pattern DecisionHistory.test.ts already uses), or fold the overlapping resolveRoleGraph/AuthSubject cases into one location."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Simplify.test.ts",
+      "line": 24,
+      "theme": "test-runner-style-inconsistency",
+      "description": "Simplify.test.ts is the only file in this scope that drives an Effect-returning test body with plain `it(\"...\", () => Effect.runPromise(Effect.gen(function* () {...})))` (lines 24-44, 46-69, and again around line 173) instead of the `it.effect(\"...\", () => Effect.gen(...))` convention every other effectful test in packages/core/test uses. It is returned/awaited correctly so nothing is silently skipped, but it bypasses @effect/vitest's it.effect harness (e.g. its TestServices wiring) that the rest of the suite relies on uniformly, and is the only 3 call sites of Effect.runPromise across the entire assigned scope.",
+      "suggestedFix": "Convert the three Effect.runPromise(Effect.gen(...)) bodies in Simplify.test.ts to it.effect(...) for consistency with the rest of the suite."
+    }
+  ],
+  "escalations": []
+}

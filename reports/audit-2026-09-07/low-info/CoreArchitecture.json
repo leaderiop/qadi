@@ -1,0 +1,30 @@
+{
+  "slice": "CoreArchitecture",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Role.ts",
+      "line": 321,
+      "theme": "stale-comment",
+      "description": "The comment attached to `resolveRoleGraph`'s `visit` function (the `definition === undefined` unknown-parent branch) says: \"A `stack.length > 0` guard was written first and mutation testing removed it with every test still passing — it was unreachable, not defensive.\" `resolveRoleGraph`'s `visit` is a plain recursive function driven by `Effect.gen`/`yield*` (per its own doc: \"already trampolined and does not grow the JS stack, unlike the three walkers above\") — there is no `stack` variable anywhere in this function. `stack: Array<...>` only exists in the three *other* walkers above it in the same file (`flattenPermissions`, `permissionProvenance`, `roleNames`), which use an explicit stack and each carry their own, different, `noUncheckedIndexedAccess`-shaped guard comments. This looks like a copy-pasted/misattributed comment: it references code structure that does not exist in the function it documents, which would mislead a reader trying to locate the guard it describes or verify the mutation-testing claim against this function's actual shape.",
+      "suggestedFix": "Rewrite the comment to describe the actual guard in this function (the `definition === undefined` check itself being unconditionally reachable only via a missing *parent* name, as the rest of the comment correctly explains) without the dangling `stack.length > 0` reference, or move/copy the correct rationale from whichever of the three iterative walkers it was actually written for."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/test/TraceDiff.test.ts",
+      "line": 178,
+      "theme": "missing-edge-case-test",
+      "description": "`diffTraces` (src/TraceDiff.ts) checks `policyTag` and `label` independently and pushes a separate `PolicyTagChanged` and/or `LabelChanged` entry for each mismatch on the same node (src/TraceDiff.ts:199-216). The test suite covers `LabelChanged` alone (a `Labeled` node whose label changes, line 162) and `PolicyTagChanged` alone (two differently-tagged, unlabeled nodes, line 178) but never the combination: comparing a `Labeled` node (which carries a non-undefined `label`) against a differently-tagged node that has no `label` (e.g. `P.labeled(\"x\", P.hasRole(\"editor\"))` vs `P.hasAction(\"read\")`). That is a realistic what-if scenario (an author renames a wrapper's label and swaps its node kind in the same edit) and currently produces two diff entries (`PolicyTagChanged` + `LabelChanged`) at the same path, which is plausibly correct but is asserted nowhere.",
+      "suggestedFix": "Add a case to the 'a policy-tag-only change is reported' / 'a label-only change is reported' describe block that diffs a labeled node against a differently-tagged, unlabeled one and asserts both `PolicyTagChanged` and `LabelChanged` appear (documenting that combination as intended rather than incidental)."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Obligation.ts",
+      "line": 74,
+      "theme": "undocumented-complexity",
+      "description": "`unionObligations` dedups via `out.some((seen) => Equal.equals(seen, candidate))` inside a loop over `b`, which is O(|a|+|b| choose pairs) — the same O(n·m)-shaped tradeoff that `TraceDiff.ts`'s `sameObligationSet` makes for the equivalent obligation-set comparison, except that function explicitly documents why the quadratic cost is acceptable (\"Obligation lists are short... not a cost worth avoiding here\"). `unionObligations` has no equivalent note, which is a minor documentation-depth inconsistency between two functions solving the same kind of problem on the same data shape in the same file/module pair.",
+      "suggestedFix": "Add a one-line note to `unionObligations` mirroring `sameObligationSet`'s rationale (short obligation lists in practice, so the pairwise scan is not worth replacing with a hash-based structure), so both call sites document the same reasoning instead of only one."
+    }
+  ],
+  "escalations": []
+}

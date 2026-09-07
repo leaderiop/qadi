@@ -1,0 +1,22 @@
+{
+  "slice": "TypeSafety",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "scripts/check-house-style.mjs",
+      "line": 286,
+      "theme": "stale-tstyche-exclusion",
+      "description": "The `collect()` helper (and its doc comment at line 268) excludes files matching `.test-d.ts` from the no-type-assertion / no-non-null-assertion scan on the stated grounds that 'a tstyche type-level test file exists to exercise the type system at compile time and has no runtime behavior a cast or a non-null assertion could hide a defect behind.' But this repository does not use the `.test-d.ts` suffix anywhere (verified: zero matches for `find packages -name '*.test-d.ts'`). Its actual tstyche convention is `.tst.ts` (packages/core/test/DecisionSink.tst.ts, packages/core/test/Qadi.tst.ts, packages/http/test/GuardRoute.tst.ts, packages/http/test/RequirePermission.tst.ts), none of which are excluded by this pattern. Today none of the four `.tst.ts` files happen to contain an `as`/`!` (they only use tstyche's `expect<...>().type.toBeAssignableTo<...>()` API and `import * as X` lines, which are separately exempted), so the merge gate currently passes — but the exemption the tool's own comment describes as intentional does not actually apply to any file in the repo, and the first legitimate type-level assertion written in one of these `.tst.ts` files (a common tstyche idiom, e.g. building a fixture value with `as` before asserting its type) will fail `pnpm check` for a reason the codebase's own reasoning says it should not.",
+      "suggestedFix": "Change the exclusion regex from `/\\.test-d\\.ts$/` to match this repo's real convention, e.g. `/\\.tst\\.ts$/`, and update the doc comment above `collect()` to say `.tst.ts` instead of `.test-d.ts`."
+    },
+    {
+      "severity": "Info",
+      "file": "scripts/check-house-style.mjs",
+      "line": 387,
+      "theme": "single-line-regex-blind-spot",
+      "description": "`no-type-assertion` and `no-non-null-assertion` (and every other RULES entry) are matched with `rule.re.test(line)` against one source line at a time (the `lines.forEach` loop starting around line 330). A type assertion or non-null assertion whose keyword and operand are split across two lines by hand-wrapping — e.g. `const x = value as\\n  SomeVeryLongGenericType<Foo, Bar>;` — would not be flagged: the first line ends in bare `as` with no operand for `\\bas\\s+(?!const\\b)(?:[A-Za-z_$]|[([{])` to match, and the second line contains no `as`/`!` token at all. AGENTS.md §17 documents this codebase's own convention of hand-wrapping long lines at ~90 columns rather than reformatting, which is exactly the style that would produce this split. No current file in packages/*/src or packages/*/test actually does this (the gate currently reports 241 files clean with zero violations), so there is no live defect today — this is a structural blind spot in the enforcement mechanism itself, not a bypassed assertion.",
+      "suggestedFix": "Either note the limitation in the doc comment above RULES so a future reviewer doesn't assume line-by-line regex matching is exhaustive, or join each logical statement (tracking parens/generics balance the way the import-span logic already does) before testing the no-type-assertion/no-non-null-assertion rules."
+    }
+  ],
+  "escalations": []
+}

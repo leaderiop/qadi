@@ -1,0 +1,38 @@
+{
+  "slice": "CoreTestsA",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/test/Tokens.test.ts",
+      "line": 263,
+      "theme": "misleading-test-comment",
+      "description": "The comment introducing the five direct-construction error tests ('The five classes below are only ever exercised through Effect.result's own \"Failure\" wrapper elsewhere in the suite') is inaccurate for one of the five: InvalidPermissionSegment. Per its own doc comment in packages/core/src/Errors.ts (~lines 106-116), InvalidPermissionSegment is 'not currently raised by any code path' anywhere in the library — a repo-wide grep confirms the only `new InvalidPermissionSegment(...)` call site in the whole codebase is this test file's line 300. It is therefore never 'exercised elsewhere in the suite' via Effect.result at all, unlike the other four (MissingResource, RelationshipResolveError, PolicyTooDeep, CircularRoleInheritance), which genuinely are raised and asserted-on elsewhere. A reader trusting this comment would wrongly assume InvalidPermissionSegment has a real trigger path covered by other tests.",
+      "suggestedFix": "Split the comment: state that four of the five are exercised elsewhere via Effect.result, and separately note that InvalidPermissionSegment is currently dead/reserved (per Errors.ts's own doc) so this unit test is its only exercise anywhere in the codebase."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Tokens.test.ts",
+      "line": 1,
+      "theme": "test-file-naming",
+      "description": "Tokens.test.ts contains describe blocks for Permission, Role, resolveRoleGraph, AuthSubject, and Errors — four unrelated source modules — under a filename that matches none of them; there is no Tokens.ts source module in packages/core/src. Every other file in packages/core/test/ follows a 1:1 name-matches-source-module convention (AttributeResolver.test.ts, CustomPredicate.test.ts, Matcher.test.ts, Policy.test.ts, etc.), so a contributor searching for Permission.test.ts, Role.test.ts, or Errors.test.ts will find nothing. This is compounded by AuthSubject already having its own separate, differently-scoped test file (AuthSubject.test.ts, covering copy-on-build immutability) — so AuthSubject coverage is split across two files with no naming link between them.",
+      "suggestedFix": "Either rename Tokens.test.ts to reflect what it actually covers (e.g. split into Permission.test.ts/Role.test.ts/Errors.test.ts, merging the AuthSubject describe block into the existing AuthSubject.test.ts), or add a header comment explaining the 'Tokens' grouping rationale so the name isn't a dead end for searches."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Layers.test.ts",
+      "line": 151,
+      "theme": "misplaced-test",
+      "description": "\"resolver is consulted only when the subject lacks the attribute\" (lines 151-170) is nested inside describe(\"field-strategy edge cases\", ...) (opened at line 90) alongside five tests that are genuinely about fieldStrategy (Union/First/Intersection merge behavior). This test is unrelated to field strategy — it verifies that AttributeResolver.resolve is not called when the subject already carries the attribute — so it reads as though it were testing a field-strategy interaction when it is not.",
+      "suggestedFix": "Move this test into its own describe block (e.g. \"attribute resolution\") or into the \"default layers\" describe above, alongside the other AttributeResolver-focused tests."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Layers.test.ts",
+      "line": 118,
+      "theme": "weak-assertion",
+      "description": "\"AllOf accepts an explicit First strategy\" (lines 118-129) only asserts isAllowed(d) is true; it never inspects d.visibleFields, so it does not actually verify the First field-strategy behavior its comment describes ('take the first child's field set rather than intersecting'). Because both children (hasRole(\"a\"), hasRole(\"b\")) carry no field restriction, visibleFields is undefined under every strategy, so this test cannot distinguish First from Intersection/Union — the real behavioral check is done properly by the very next test (131-149) using path-shaped field specs. As written this test only proves the policy doesn't crash when First is selected, not that First does anything specific.",
+      "suggestedFix": "Either drop this test as redundant with the following one, or strengthen it to assert d.visibleFields against a case where First's choice of the first child actually differs from what Intersection/Union would produce."
+    }
+  ],
+  "escalations": []
+}

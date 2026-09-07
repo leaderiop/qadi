@@ -1,0 +1,22 @@
+{
+  "slice": "PriorAudit",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "vitest.config.ts",
+      "line": 44,
+      "theme": "coverage-threshold-pooling-gap",
+      "description": "Ticket 183 (issue #33 Medium sweep) added dedicated per-package coverage-threshold globs for core, devtools/model, http, audit, @qadi/react, promise and testing specifically to close the 'a well-tested package can carry an undertested one to a green run' loophole the comment at lines 50-58 describes. `packages/devtools/src/react/**` was left out of that list, so it still falls into the leftover pool together with `packages/predicate-sql/src/**` and `packages/predicate-prisma/src/**` (neither of which has its own entry either), which are checked only against the generic top-level 90/90/90/90. Running `npx vitest run --coverage` on current main (exit 0, all thresholds green) shows `packages/devtools/src/react` aggregating to 88.71% branches / 98.23% functions, and its `ServicesPanel.tsx` alone at 59.37% branches / 81.25% functions (uncovered lines 190, 198-202: four of the five `describe` Match arms for different PortCall tags are never exercised) and `DevtoolsDock.tsx` at 85.71% branches — none of which fails the run because predicate-sql/prisma's ~98% branch coverage in the same unpinned pool absorbs the shortfall. This is exactly the failure mode the ticket 183 fix's own comment warns about, just for a source tree the fix didn't enumerate.",
+      "suggestedFix": "Add a \"packages/devtools/src/react/**\" entry (90% to match the comment's stated floor for the React shell, or 95% to match devtools/model if it should be held to the same bar) to vitest.config.ts's thresholds map, and consider giving predicate-sql/src and predicate-prisma/src their own explicit 90% entries too so no source tree is left in the implicit leftover pool."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/README.md",
+      "line": 259,
+      "theme": "doc-currency",
+      "description": "spec/README.md's master 'Document history register' table (the document AGENTS.md §15 and CCR-QD-075/scripts/check-devtools-claims.mjs-style gating exists to keep honest) currently has its highest row at CCR-QD-111, but spec/invariants.md already cites CCR-QD-112 (line 1085) and CCR-QD-114 (lines 936, 1027) in its own per-document Change History and body text. This is the same lag issue #33's map.md flagged as 'Not yet specified' when it was written (then a gap from CCR-QD-082 to a high of 114); the register has since been partially backfilled to 111, narrowing the gap to CCR-QD-112 through 114 (3 records) rather than closing it. Zero behavioral impact — it is an index document, not code — but a reader consulting spec/README.md's register as the CCR index will not find the two most recent records referenced elsewhere in the spec.",
+      "suggestedFix": "Add rows for CCR-QD-112, 113 and 114 to spec/README.md's Document history register table (sourcing the summaries from spec/invariants.md's own Change History entries for 1.29-1.31), or fold this into the backlog item map.md already tracks so it isn't independently rediscovered again."
+    }
+  ],
+  "escalations": []
+}

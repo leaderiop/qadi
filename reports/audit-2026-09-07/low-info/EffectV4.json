@@ -1,0 +1,30 @@
+{
+  "slice": "EffectV4",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/audit/test/Agreement.test.ts",
+      "line": 39,
+      "theme": "chained-effect-provide",
+      "description": "`tsc -b` (Effect v4's own compiler diagnostics) flags roughly 100 call sites across ~14 test files with TS377033 'multipleEffectProvide': chaining `.pipe(Effect.provide(A), Effect.provide(B))` instead of a single `Effect.provide(Layer.mergeAll(A, B))`. Confirmed example: `program.pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail))` at packages/audit/test/Agreement.test.ts:39. The diagnostic's own text explains the risk: sequential provides can build/finalize layers independently rather than as one scope, which can diverge from a single merged provide's lifecycle (double construction, mismatched finalization order). `pnpm typecheck` (run inside `pnpm check` per AGENTS.md §15/CI) emits these as warnings and exits 0, so nothing in the merge gate currently catches or prevents the pattern from spreading. Every occurrence found (grep for `.pipe(Effect.provide(...), Effect.provide(` across packages/ and features/) is confined to test files — packages/audit/test/*, packages/core/test/{DecisionSink,DecisionCache}.test.ts and others, packages/devtools/test/model/*, packages/http/test/*, packages/promise/test/facade.test.ts, features/features/port-calls/*; no production `src/` file chains `Effect.provide` this way.",
+      "suggestedFix": "Replace chained `Effect.provide(A), Effect.provide(B)` with one `Effect.provide(Layer.mergeAll(A, B))` (or a single combined layer constant) at each flagged site; consider adding a check for TS377033 to `pnpm check` so the pattern can't reappear silently."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Qadi.test.ts",
+      "line": 513,
+      "theme": "untagged-error-in-effect-channel",
+      "description": "`onObligations: () => Effect.fail(new Error(\"audit log unreachable\"))` puts a raw `Error` (not a `Data.TaggedError`) into an Effect failure channel. `tsc -b` flags it as TS377023 'globalErrorInEffectFailure' — the v4 compiler's own diagnostic for exactly the pattern AGENTS.md §4 asks for (`Data.TaggedError`, matched via `Match`/`catchTag`, never a bare `Error`). Confirmed this is the only `Effect.fail(new Error(...))` occurrence in the whole tree (grepped across all non-node_modules `.ts` files). It is test-only scaffolding whose result is discarded — the test only asserts `started` stayed false — so it has no behavioral consequence, but it is inconsistent with the house style the rest of this same test file otherwise follows.",
+      "suggestedFix": "Use a local `Data.TaggedError` (or an existing core error) in place of `new Error(...)` for the simulated obligation-discharge failure, matching AGENTS.md §4."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/bench/Dispatch.bench.ts",
+      "line": 139,
+      "theme": "non-null-assertion",
+      "description": "`refs[index % refs.length]!` uses a non-null assertion (`!`), which AGENTS.md §6's forbidden list bans outright (`as`, `as any`, `!`, `any` — fix the type). Confirmed via a repo-wide grep that this is the only non-null assertion in any non-test `.ts` source file. The access is provably safe (`index % refs.length` is always a valid array index), and this is dev-only benchmark code never shipped or exercised by `pnpm check`'s test/coverage gates, so the impact is purely stylistic.",
+      "suggestedFix": "Replace with an equivalent that doesn't need the assertion, e.g. destructure via `Array.from({ length: 64 }, (_, index) => refs[index % refs.length] ?? refs[0])` guarded to a known-non-empty `refs`, or add a small `at(i)` helper on a non-empty-array type."
+    }
+  ],
+  "escalations": []
+}

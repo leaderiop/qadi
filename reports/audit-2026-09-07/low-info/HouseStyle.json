@@ -1,0 +1,30 @@
+{
+  "slice": "HouseStyle",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/audit/src/AuditTrailPort.ts",
+      "line": 47,
+      "theme": "static-accessor-readonly",
+      "description": "The one-step `Context.Service` accessor pattern (AGENTS.md §2) is declared `static write = (...)` with no `readonly` modifier. Every other package's services using this exact pattern declare it `static readonly` — packages/core/src/SignatureHistory.ts:52, DecisionHistory.ts:64, AttributeResolver.ts:54, CustomPredicate.ts:52, RelationshipResolver.ts:72, EvaluationId.ts:21, and packages/http/src/SubjectExtractor.ts:45, PermissionRegistry.ts:64/66 (8 instances across core+http, all `static readonly`). The same bare-`static` form repeats in packages/audit/src/AuditStagingPort.ts:56-57 and packages/audit/src/SignatureCapturePort.ts:100/102 — every accessor in @qadi/audit lacks `readonly`, while every accessor outside it has one. Without `readonly`, TypeScript permits `AuditTrailPort.write = somethingElse` to compile elsewhere in the codebase, silently replacing the service's one-step accessor — the exact class of accidental-reassignment mistake `readonly` exists to catch at compile time, and the guard is present everywhere except this one package.",
+      "suggestedFix": "Add `readonly` to the five static accessor declarations in packages/audit/src/AuditTrailPort.ts, AuditStagingPort.ts, and SignatureCapturePort.ts to match the `static readonly` convention used by every other Context.Service in the codebase."
+    },
+    {
+      "severity": "Info",
+      "file": "AGENTS.md",
+      "line": 66,
+      "theme": "doc-example-drift",
+      "description": "AGENTS.md §2's canonical `Context.Service` example (the block corrected in CCR-QD-077 to match the real `AttributeResolverShape` signature) writes `static resolve = (subjectId: SubjectId, attribute: string) => ...` with no `readonly`. The real file it was corrected against, packages/core/src/AttributeResolver.ts:54, reads `static readonly resolve = (...)`, and every other service in packages/core and packages/http follows `static readonly` too (see the AuditTrailPort.ts finding above for the full list). This `ts` fence is reference material, not compiled by check-doc-examples.mjs, so the mismatch cannot be caught mechanically.",
+      "suggestedFix": "Add `readonly` to AGENTS.md's example (`static readonly resolve = ...`) so the documented pattern matches the real, universally-followed convention."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/react/src/index.ts",
+      "line": 5,
+      "theme": "barrel-file-naming",
+      "description": "`./components.tsx` and `./hooks.ts` are the only two entries in this barrel (and in packages/devtools/src/react/index.ts's `useLens.ts`/`useTimeline.ts`) that are lowercase, multi-export \"grouping\" files rather than one-PascalCase-file-per-domain-concept, which is the naming convention every other file in every other package barrel follows (GateRegistry.ts, QadiAtoms.ts, DecisionSink.ts, etc.). Unlike packages/http/src/RequirePermission.ts's `PermissionRequirement`/`PublicDeclaration` §2 exception, which carries an explicit comment justifying the deviation, no comment here explains why `components`/`hooks` (and devtools' `theme.ts`) depart from the per-concept file convention. (The barrel ordering itself is not a problem — both barrels sort ASCII-consistently, uppercase-first then lowercase, in every occurrence.)",
+      "suggestedFix": "Either add a short comment noting these are deliberate multi-export grouping files (the way RequirePermission.ts documents its Shape-naming exception), or split components.tsx/hooks.ts into one file per exported component/hook to match the rest of the codebase."
+    }
+  ],
+  "escalations": []
+}

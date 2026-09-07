@@ -1,0 +1,46 @@
+{
+  "slice": "CoreSurface",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Role.ts",
+      "line": 99,
+      "theme": "doc-inaccuracy",
+      "description": "The doc comment for flattenAllWithPaths (the block starting 'Kept separate from flattenPermissions rather than replacing it') says flattenPermissions 'runs inside makeSubject, once per subject — per request, on a server'. That is not where it runs: makeSubject (packages/core/src/AuthSubject.ts:57-67) takes an already-flattened Iterable<PermissionKey> and never touches Role objects or flattenAll/flattenPermissions at all. flattenAll (which calls flattenPermissions per role) is invoked from fromRoles (AuthSubject.ts:75-96), the sibling constructor that accepts ReadonlyArray<Role>. A reader trying to find or optimize the per-request role-flattening hot path this comment describes would look in the wrong function.",
+      "suggestedFix": "Change 'runs inside `makeSubject`' to 'runs inside `fromRoles`' in the Role.ts comment."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Identity.ts",
+      "line": 14,
+      "theme": "doc-inaccuracy",
+      "description": "The file header claims 'both SubjectId and ResourceId are needed from files on both sides of that pair (DecisionHistory.ts, Errors.ts, DecisionCache.ts, RelationshipResolver.ts, Decision.ts)'. Checked against the actual imports: DecisionCache.ts does not import SubjectId or ResourceId from Identity.ts at all (no reference to either name in the file), and Decision.ts imports only SubjectId, not ResourceId. Only DecisionHistory.ts, Errors.ts and RelationshipResolver.ts actually import both. Two of the five cited files don't support the claim as written.",
+      "suggestedFix": "Either drop DecisionCache.ts from the list (it needs neither brand directly) and note Decision.ts needs only SubjectId, or point to the actual files that need both."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/test/SubjectSet.test.ts",
+      "line": 384,
+      "theme": "missing-test-coverage",
+      "description": "decideSubjects/filterSubjects (the array forms) each have an explicit test proving sequential, one-at-a-time processing ('evaluates one subject at a time', line 308) and two tests proving a resolver failure fails the whole batch rather than silently denying an element ('a resolver failure fails the batch...', line 288; 'stops at the first failing element', line 334). SubjectSet.ts's own doc comment for decideSubjectsStream explicitly claims the same sequential behavior applies to the streaming siblings ('Sequential, for the same reason decideSubjects itself is... matching decideSubjects's deliberate choice'), but decideSubjectsStream/filterSubjectsStream (tested at lines 384-444) have no equivalent test for either invariant. A regression that added implicit concurrency to the Stream.mapEffect call, or that let a resolver failure be silently swallowed by the stream instead of failing it, would not be caught here.",
+      "suggestedFix": "Add a decideSubjectsStream test mirroring 'evaluates one subject at a time' (interleaved log via a yielding resolver) and one mirroring the array form's resolver-failure propagation test (assert the stream fails via Effect.result/Stream.runCollect rejecting)."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/SubjectSet.test.ts",
+      "line": 431,
+      "theme": "formatting",
+      "description": "Line is 100 characters, over the ~90-column hand-wrap convention AGENTS.md §17 documents as this codebase's settled style (`filterSubjectsStream(canRead, Stream.fromIterable([reader(\"a\"), nobody(\"b\"), reader(\"c\")])),`). Zero behavioral impact, but it's the one line in the eight files of this slice that doesn't follow the convention every surrounding line does.",
+      "suggestedFix": "Wrap the Stream.fromIterable argument list onto its own line, consistent with the wrapping already used a few lines above at line 388."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/AuthSubject.ts",
+      "line": 57,
+      "theme": "naming-consistency",
+      "description": "makeSubject's config and fromRoles's config both name a field `roles`, but the two types are unrelated: `Iterable<string>` (bare role names, branded but not validated) on makeSubject versus `ReadonlyArray<Role>` (full role objects with their own permissions/parents) on fromRoles. TypeScript prevents misuse at any real call site, so this has no behavioral effect, but a reader skimming both signatures side by side (as the file's own doc comments encourage, since both builders are documented together) can momentarily read the two `roles` fields as the same shape.",
+      "suggestedFix": "No fix required; consider a doc-comment note on one or the other config type calling out that fromRoles's `roles` takes full Role objects, not name strings, if this comes up in practice."
+    }
+  ],
+  "escalations": []
+}

@@ -1,0 +1,30 @@
+{
+  "slice": "PortsSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/AttributeResolver.ts",
+      "line": 135,
+      "theme": "duplicated-bounded-wrapper-ceremony",
+      "description": "`attributeResolverBounded` (AttributeResolver.ts:135-154), `relationshipResolverBounded` (RelationshipResolver.ts:196-214), and `customPredicateBounded` (CustomPredicate.ts, which explicitly says in its own doc comment 'Mirrors attributeResolverBounded exactly') all hand-roll the identical permit-validation + `Layer.build`/`Context.get` + `Semaphore.make` ceremony. RetryingLayer.ts exists specifically to share this exact shape of boilerplate for the three `*Retrying` combinators ('the part that is byte-for-byte identical across the three'), but no equivalent helper was built for the three `*Bounded` combinators, so the same permit-validation logic (and its error path) now lives in three separate places that must be kept in sync by hand.",
+      "suggestedFix": "Add a `wrapServiceEffect` (or similarly named) helper to RetryingLayer.ts that takes an effectful `(inner: Shape) => Effect<Shape, E>` wrap function (unlike the existing sync `wrapService`), and rebuild all three `*Bounded` combinators on top of it so the permit-validation logic has one definition."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/src/EvaluationServicesNone.ts",
+      "line": 32,
+      "theme": "missing-test-coverage",
+      "description": "`EvaluationServicesNone` is a public export (listed in spec/overview.md's API table and re-exported from packages/core/src/index.ts) that merges six fail-closed default layers via `Layer.mergeAll`, but no test anywhere in the repository references it (confirmed via a repo-wide grep for the identifier outside its own definition/barrel/spec entry). Nothing verifies it actually type-checks against `Exclude<EvaluationServices, CurrentSubject>`, that the six layers merge without a duplicate/missing service, or that a policy evaluated under `EvaluationServicesNone` plus a `CurrentSubject` behaves like the six individual fail-closed defaults combined.",
+      "suggestedFix": "Add a small test (e.g. in Ports.test.ts) that provides `EvaluationServicesNone` plus a subject layer and evaluates a policy touching each wrapped port (attribute, relationship, history, custom predicate, signature), asserting each denies/behaves per its own fail-closed default."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/test/GuardHealthCheck.test.ts",
+      "line": 1,
+      "theme": "missing-testclock-determinism-test",
+      "description": "GuardHealthCheck.ts's doc comment for `GuardHealthCheckResult.checkedAt` stresses it comes 'from `Clock`' specifically for reproducibility (matching AGENTS.md §6's `TestClock` determinism rule), and `DecisionSink.test.ts` has a dedicated test ('`at` is the clock's start time, and records are ordered by it') that uses `TestClock.adjust` to pin exact timestamps for the analogous field. GuardHealthCheck.test.ts never imports or uses `TestClock` at all — its only assertions are `assert.isNumber(result.checkedAt)` and `assert.isAtLeast(result.latencyMillis, 0)`, which would pass identically whether or not `checkedAt`/`latencyMillis` actually derived from `Clock` versus e.g. `Date.now()`, so the determinism property this field exists to have is untested here.",
+      "suggestedFix": "Add a test using `TestClock.adjust` before calling `createGuardHealthCheck` to assert `checkedAt` equals the expected simulated epoch millis, mirroring DecisionSink.test.ts's pattern for `at`."
+    }
+  ],
+  "escalations": []
+}

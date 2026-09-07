@@ -1,0 +1,30 @@
+{
+  "slice": "Traceability",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "spec/traceability.md",
+      "line": 336,
+      "theme": "stale-coverage-table",
+      "description": "§6 'Coverage targets' lists only packages/core/src (95%), packages/predicate-sql/src (90%), packages/predicate-prisma/src (90%) and the workspace default (90%). vitest.config.ts (as of commit dab09bc, 2026-09-07) added six more explicit per-package threshold globs that §6 never gained: packages/devtools/src/model/** at 95% (the same bar as core, and higher than the workspace default a reader of §6 would otherwise assume applies), plus packages/http/src/**, packages/audit/src/**, packages/react/src/**, packages/promise/src/** and packages/testing/src/** all explicitly pinned at 90%. traceability.md has been edited several times since that commit (including a dedicated 'spec-drift sweep' PR, bd1923a) without §6 being brought current. verify-traceability.sh explicitly does not check §6 against vitest.config.ts, so nothing catches this drift mechanically.",
+      "suggestedFix": "Add rows to §6 for packages/devtools/src/model/** (95/95) and for the explicit packages/http/src/**, packages/audit/src/**, packages/react/src/**, packages/promise/src/** and packages/testing/src/** entries (90/90 each), or at minimum note that these are pinned explicitly rather than relying on the workspace default."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/traceability.md",
+      "line": 202,
+      "theme": "orphaned-test-file",
+      "description": "Three test files on disk are not referenced anywhere in spec/traceability.md (not in §4, not elsewhere): packages/core/test/AuthSubject.test.ts (pins AuthSubject's copy-on-build guarantee, ticket 179 — no BEH-QD id exists for this invariant either), packages/devtools/test/react/DecisionLog.test.tsx (tests the DecisionLog component that spec/overview.md and spec/devtools-spec/02-screens.md both document as real), and packages/http/test/v4-http-smoke.test.ts (an API canary for effect/unstable/http and effect/unstable/httpapi, exactly analogous to v4-api-smoke.test.ts and v4-reactivity-smoke.test.ts, both of which DO have §4 rows). The traceability chain (Behavior -> Source -> Test -> Invariant -> Decision -> Acceptance) has no entry point for any of these three, so a reader trusting §4 as the index of what is tested would miss them.",
+      "suggestedFix": "Add §4 rows for all three: v4-http-smoke.test.ts as 'Effect v4 unstable/http API canary' (matching the two existing canary rows' phrasing), AuthSubject.test.ts as 'AuthSubject copy-on-build guarantee' (and consider whether it warrants its own BEH-QD id under behaviour 02), and DecisionLog.test.tsx tied to whichever devtools-timeline/screens BEH-QD id it actually exercises."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/scripts/verify-traceability.sh",
+      "line": 195,
+      "theme": "anchor-validation-gap",
+      "description": "The relative-link check (section 5) strips everything after '#' before testing existence (`path=\"${target%%#*}\"`), so it only verifies the target *file* exists, never that the anchor/fragment resolves to a real heading in it. This is a real, previously-realized blind spot rather than a hypothetical one: traceability.md's own 1.56 changelog entry records discovering and fixing exactly this failure mode after the fact ('the stale #inv-qd-018-the-two-interpreters-agree anchor at the ADR-QD-048 row repointed to the current heading (CCR-QD-099)'). A spot-check of all 56 invariants.md anchors currently used in traceability.md found zero live mismatches today, so nothing needs fixing right now, but the gate would silently let a future stale anchor merge.",
+      "suggestedFix": "Extend the link checker to, when a target has a '#slug' fragment, also grep the target file for a heading that slugifies to it (same slugification the check-doc-examples tooling likely already needs), failing if none matches."
+    }
+  ],
+  "escalations": []
+}

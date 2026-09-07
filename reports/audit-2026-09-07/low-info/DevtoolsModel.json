@@ -1,0 +1,38 @@
+{
+  "slice": "DevtoolsModel",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/devtools/src/model/Capture.ts",
+      "line": 148,
+      "theme": "redundant-layer-construction",
+      "description": "capturing() wraps the caller's `ports` layer with five separate `Layer.effect` blocks (AttributeResolver, RelationshipResolver, DecisionHistory, CustomPredicate, SignatureHistory), and each one independently calls `yield* Layer.build(ports)` (lines 152, 164, 176, 188, 204) to pull out just one service. `Layer.build` called five separate times outside a shared MemoMap does not dedupe against the other four calls, so the underlying `ports` layer (typically a LiveSource's real resolver wiring) is constructed five times instead of once whenever the returned `layer` is provided. If constructing that layer has any side effect (opening a connection, running setup logic, incrementing a counter), that side effect now runs 5x for what the module's own doc comment describes as a single capture pass.",
+      "suggestedFix": "Build `ports` once (e.g. via `Layer.build(ports)` inside one shared `Effect.gen`/`Layer.effect(Layer.empty, ...)` at the top of `capturing`, or `Layer.memoize`) and derive all five wrapped services from that single built Context, rather than calling `Layer.build(ports)` independently in each of the five `Layer.effect` blocks."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/devtools/src/model/Filters.ts",
+      "line": 16,
+      "theme": "doc-inaccuracy",
+      "description": "The `Filters.text` doc comment says the free-text filter is \"matched literally and case-insensitively against subject, action, resource and ids\" — but `partsOf`/`searchTextOf` (lines 96-111) also fold `entry.environment` and `entry.evaluationId` into the searched haystack for both `TimelineDecision` and `TimelineOrphan` rows, and `Filters.test.ts` (\"matches the evaluation id and the environment\", lines 192-200) explicitly asserts that typing an environment name (e.g. \"Client\") matches rows purely through the text filter. A reader relying on the doc comment's enumerated field list would not expect free text to match on environment at all, even though there is a separate `environment` filter chip that might reasonably be assumed to be the only way to narrow by environment.",
+      "suggestedFix": "Update the `text` field's doc comment to also name `environment` and `evaluationId` among the matched fields, so the enumerated list matches what `partsOf` actually includes."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/devtools/src/model/PortCalls.ts",
+      "line": 260,
+      "theme": "dispatch-style-inconsistency",
+      "description": "`rowOf` dispatches on the closed `PortSpan` literal union (`\"qadi.attribute\" | \"qadi.acted\" | \"qadi.hasCustom\" | \"qadi.hasSignature\" | \"qadi.hasRelationship\"`) via a chain of `if` statements ending in a `const exhaustive: \"qadi.hasRelationship\" = name` assignment, rather than `Match.value(name).pipe(Match.when(...), Match.exhaustive)` as AGENTS.md §5a's own example prescribes for \"a plain literal union [with] no `_tag`\" (its `compare`/`CompareOp` example). Exhaustiveness is still enforced at compile time via the trailing assignment, so this is not a correctness bug, but it is the same kind of manual, non-Match dispatch §5a exists to eliminate, and because it uses `if` rather than a literal `switch (`, it is invisible to `scripts/check-house-style.mjs`'s `SWITCH_BUDGET` gate (which only greps for `\\bswitch\\s*\\(`).",
+      "suggestedFix": "Convert `rowOf`'s if-chain to a module-scope `Match.value(name).pipe(Match.when(\"qadi.attribute\", ...), ..., Match.exhaustive)` (or `Match.type<PortSpan>()` with `Match.exhaustive`), matching the style already used for `witness`/`refValue` in Remedies.ts and `dispatch` in SimulationSource.ts."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/devtools/src/model/Selection.ts",
+      "line": 1,
+      "theme": "test-file-organization",
+      "description": "22 of the 26 files in this scope's src/model follow a strict one-source-file-to-one-test-file naming convention (Capture.ts/Capture.test.ts, Gates.ts/Gates.test.ts, etc.). `Selection.ts`, `SimulationEdit.ts`, `SimulationInput.ts` and `Verdict.ts` break that pattern: none has its own `*.test.ts`. Their exports are still exercised, but only indirectly, from other files' suites (`selectionOf`/`Evicted`/`Selected` from `Filters.test.ts`; `composeEdits`/`applyEdits`/`editParts` from `Edits.test.ts`; `subjectOf`/`evaluationOptionsOf` from `Simulation.test.ts`; `verdictOf`/`countsOf` scattered across `Filters.test.ts`, `Pairing.test.ts`, `Replay.test.ts` and `WhatIf.test.ts`). This is defensible for leaf/vocabulary modules but is inconsistent with the rest of the directory and makes it harder to find or extend the tests for those specific functions.",
+      "suggestedFix": "Either add dedicated `Selection.test.ts`/`SimulationEdit.test.ts`/`SimulationInput.test.ts`/`Verdict.test.ts` files (even if thin, mirroring the pattern used everywhere else), or note in each leaf module's doc comment where its behavior is actually tested so a reader is not left to search for it."
+    }
+  ],
+  "escalations": []
+}

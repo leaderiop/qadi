@@ -1,0 +1,38 @@
+{
+  "slice": "SpecProcess",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "spec/process/requirement-id-scheme.md",
+      "line": 34,
+      "theme": "undocumented-identifier-series",
+      "description": "The §2 Identifier Registry table lists BEH, URS, INV, ADR, REQ, MOD, DoD and CCR prefixes but omits `NFR-QD-NNN`, which is a real, actively-used identifier series: `spec/urs.md` declares 5 `### NFR-QD-NNN` headings (grep confirms), and `spec/scripts/verify-traceability.sh` mechanically traces them (its `urs -> traceability table` check matches `^### (URS|NFR)-QD-[0-9]{3}` and fails the strict gate on an untraced one). A reader consulting this table to learn what identifier prefixes exist would not know NFR requirements are a real, gated series.",
+      "suggestedFix": "Add an `NFR-QD-NNN` row to the §2 table (\"Non-functional requirement\", defined in `urs.md`, range 001–), alongside the existing `URS-QD-NNN` row."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/process/requirement-id-scheme.md",
+      "line": 75,
+      "theme": "undercounted-mechanical-checks",
+      "description": "§4 \"Cross-Reference Obligations\" lists exactly 6 checks performed by `spec/scripts/verify-traceability.sh`, but the script actually performs at least 8 distinct check families (verified by reading the script and running it: it prints `urs -> traceability table` and `§4 test files -> disk` as separate PASS rows not covered by any of the 6 listed items). The URS/NFR-traceability check (every `URS-QD-NNN`/`NFR-QD-NNN` heading in `urs.md` has a row in its traceability table) and the §4 test-file-existence check (every `packages/...` path cited in `traceability.md` §4 exists on disk) are both real, currently-enforced gates with no corresponding bullet in this list. This is the same class of defect the sibling document (`definitions-of-done.md`, re step 9/17) explicitly calls out as dangerous when it runs the other way (documented gate weaker than the real one) — here the real gate is stronger than documented, which is the safe direction but still means this doc undercounts what's actually verified.",
+      "suggestedFix": "Add two bullets to the §4 list: one for URS/NFR-to-traceability-table tracing, one for §4 test-file-path existence, matching the script's actual behavior."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/process/definitions-of-done.md",
+      "line": 124,
+      "theme": "stale-format-check-count",
+      "description": "The doc states `pnpm format:check` \"fails on 127 of 145 files\" as a fixed fact. Running it live in this working tree today reports 675 of 844 files with issues, roughly 5-6x higher. The cause: `oxfmt` (invoked as `oxfmt packages features` / `oxfmt --check packages features`) does not respect `.gitignore` and therefore rescans the gitignored `packages/*/lib/` and `features/lib/` build-output directories (confirmed: `.gitignore` lines 2-4 exclude them, but they exist on disk after any `pnpm build`/`pnpm check` run and oxfmt still counts their `.js`/`.d.ts` files). Since `format:check` is explicitly not a merge gate, this doesn't break CI, but the specific numbers recorded here are not a stable fact about the source tree — they vary by roughly 6x depending on whether build artifacts happen to be present, so the quoted figures mislead a reader trying to gauge the real scope of the formatting gap in `packages/*/src` and `packages/*/test`.",
+      "suggestedFix": "Either scope the documented command to `oxfmt --check packages/*/src packages/*/test features/features features/step-definitions` (source-only, matching what a reader actually cares about) and requote the resulting count, or add a caveat that the reported count includes gitignored `lib/` build output and is therefore build-state-dependent, not a fixed source-tree property."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/process/definitions-of-done.md",
+      "line": 262,
+      "theme": "coverage-threshold-per-package-gap",
+      "description": "The Coverage Policy section states \"`packages/core` is held at 95%... the rest of the workspace at 90%\", implying every other package individually meets a 90% floor. In `vitest.config.ts` (lines 32-89), individual per-package threshold overrides (turning the pass/fail unit from \"workspace average\" into \"this package\", per that file's own comment at lines 50-58) exist only for `packages/core` (95%), `packages/devtools/src/model/**` (95%), and `packages/http`, `packages/audit`, `packages/react`, `packages/promise`, `packages/testing` (90% each). `@qadi/predicate-sql`, `@qadi/predicate-prisma` (both public, published packages exercised in `scripts/check-package-install.mjs`), and the non-model part of `@qadi/devtools` (its React dock, `index.ts` barrels) have no per-package override, so their coverage rides only on the top-level 90% workspace-wide average and could individually fall below 90% without failing `pnpm coverage`, contrary to the blanket \"the rest of the workspace at 90%\" claim.",
+      "suggestedFix": "Add explicit `packages/predicate-sql/src/**`, `packages/predicate-prisma/src/**`, and `packages/devtools/src/**` (or at least the non-model paths) threshold entries at 90% in `vitest.config.ts`, matching the pattern already used for http/audit/react/promise/testing, or adjust the Coverage Policy prose to name the gap."
+    }
+  ],
+  "escalations": []
+}

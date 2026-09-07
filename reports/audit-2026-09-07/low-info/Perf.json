@@ -1,0 +1,46 @@
+{
+  "slice": "Perf",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "AGENTS.md",
+      "line": 205,
+      "theme": "stale-benchmark-figures",
+      "description": "§5a presents the end-to-end regression estimate ('about 2–4% on a matcher-heavy policy and under 1% on a simple one') as current, unqualified fact. But ADR-QD-034's own 2026-09-07 addendum (spec/decisions/034-the-switch-exception-is-measured.md) explicitly flags this exact figure as stale and not reproducible: it was derived from a workload description ('four refs', 'seventeen dispatches') that no longer matches the current benchmark, which now resolves 3 refs and dispatches ~13 times per evaluation. The addendum is explicit that only the per-dispatch ratios (1.6-2.4x, 3.5-7.7x) survive; the end-to-end 2-4%/under-1% numbers do not. AGENTS.md, which this codebase treats as load-bearing house style ('code that violates them does not merge'), still states the discredited figures without the caveat, so a reader following AGENTS.md alone (rather than opening the ADR) is misled into thinking the end-to-end cost is a currently-verified 2-4%.",
+      "suggestedFix": "Either drop the specific end-to-end percentages from AGENTS.md and keep only the per-dispatch ratios (which the ADR says still hold), or add the same 'stale, not reproducible as stated' caveat AGENTS.md's own §15 philosophy would demand, pointing at the ADR addendum."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/bench/Evaluate.bench.ts",
+      "line": 11,
+      "theme": "bench-doc-staleness",
+      "description": "The file header says 'Five workloads' (line 11), but the list it introduces (lines 14-26) names seven: one node, wide, deep, matcher-heavy, field-heavy, per element, resolver miss — and the code below has bench entries for all seven (three describe blocks, 8 total bench() calls). Compounding it, the 'per element' row (lines 22-24) claims 'AGENTS.md names both [filter and decideSubjects] as the sites, but only `filter` had a row here' — but the `decideSubjects — 500 subjects` describe block at lines 212-216 of this same file already has a row, so the claim is false at HEAD, not just imprecise.",
+      "suggestedFix": "Update 'Five workloads' to the actual count (seven), and rewrite the 'per element' bullet to state both filter and decideSubjects have bench rows, since both do."
+    },
+    {
+      "severity": "Low",
+      "file": "scripts/check-house-style.mjs",
+      "line": 293,
+      "theme": "gate-blind-spot-bench",
+      "description": "check-house-style.mjs's file-collection only walks `packages/<pkg>/src` and `packages/<pkg>/test` (lines 293-298) — `packages/*/bench/**` is never scanned. AGENTS.md §6's ban on `as`/`as any`/`!`/`any` is stated with no bench carve-out, and `no-non-null-assertion` even says it deliberately runs over src AND test 'since AGENTS.md §6 states no test exemption' — but bench is silently excluded from that same reasoning. There is a live violation this gap hides: packages/core/bench/Dispatch.bench.ts:139 (`(_, index) => refs[index % refs.length]!,`) is a bare non-null assertion that would trip the `no-non-null-assertion` rule verbatim if bench files were in scope. `pnpm check`'s typecheck step does cover bench/ (tsconfig.test.json includes `packages/*/bench/**/*.ts`), so this is specifically a house-style gap, not a compile gap.",
+      "suggestedFix": "Either add `packages/<pkg>/bench` to check-house-style.mjs's file collection (extending testScope-style rules to it), or fix the one violation and add an explicit EXEMPTIONS-style note documenting that bench is intentionally out of scope, so the omission is a decision rather than an accident."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Decision.ts",
+      "line": 179,
+      "theme": "duplicate-comment",
+      "description": "The four-line comment explaining why `intersectFields` pairs each spec with its own precomputed shape ('Paired with its own shape rather than parallel arrays walked by index...') is duplicated verbatim immediately after itself (lines 179-182 and 183-186), directly above `const shapedA = ...`. Zero behavioral impact, but it is dead documentation weight on the one function this file's own doc comment calls out as the O(|a|*|b|) hot path optimized specifically to avoid redundant work.",
+      "suggestedFix": "Delete one copy of the duplicated comment block."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Obligation.ts",
+      "line": 66,
+      "theme": "bench-coverage-gap",
+      "description": "`unionObligations` (used by `stepAllOf`/`stepAnyOf` and the `Obliged` arm of `evaluateNode` in Evaluate.ts, at lines 728/785/878) dedupes with a linear `.some(Equal.equals(...))` scan per incoming obligation, making the merge O(n*m) per composite node folded on every evaluation of an `allOf`/`anyOf` with obligations — the same per-node cost profile that motivated adding the dedicated 'field-heavy' workload for `mergeFields`/`intersectFields` in Evaluate.bench.ts. No equivalent obligation-heavy workload (a policy whose children carry several distinct obligations under `allOf`/`anyOf`) exists in packages/core/bench/, so this cost is currently unmeasured even though it sits on the same evaluation hot path AGENTS.md §5a and the bench suite otherwise take pains to quantify.",
+      "suggestedFix": "Add a bench workload exercising allOf/anyOf over several Obliged children with distinct obligations, mirroring how fieldHeavy was added for the field-merge path."
+    }
+  ],
+  "escalations": []
+}

@@ -1,0 +1,14 @@
+{
+  "slice": "Determinism",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/predicate-sql/src/index.ts",
+      "line": 275,
+      "theme": "undocumented-order-dependency",
+      "description": "renderNode's `And`/`Or` arms (lines 273-283) run `Effect.forEach(p.predicates, (inner) => renderNode(inner, syntax, params, maxInValues))` where `params` is a single mutable array shared and pushed into by every recursive call (see the file's own doc comment at line 147, 'params is mutated rather than threaded'). This is only safe because `Effect.forEach` defaults to sequential execution, so each child's `params.push` happens in the same order its placeholder text is emitted. Nothing in this file states that invariant. `packages/devtools/src/model/WhatIf.ts:221` documents the exact same reliance on Effect.forEach's sequential default explicitly as 'load-bearing'; this file has no equivalent note. A future change adding `{ concurrency: ... }` to either forEach call here (e.g. for a perceived perf win) would silently reorder which value lands at which array index while the rendered SQL text's placeholder numbers stay fixed to render order, binding parameter values to the wrong placeholders.",
+      "suggestedFix": "Add a comment at the `And`/`Or` arms (mirroring WhatIf.ts:221-225) stating that these forEach calls must stay sequential because `params` push order must match rendered placeholder order; consider also asserting `params.length` grows monotonically by exactly one per leaf if a cheap runtime guard is desired."
+    }
+  ],
+  "escalations": []
+}

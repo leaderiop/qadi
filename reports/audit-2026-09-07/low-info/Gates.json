@@ -1,0 +1,62 @@
+{
+  "slice": "Gates",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "scripts/check-house-style.mjs",
+      "line": 293,
+      "theme": "house-style-scope-gap",
+      "description": "`srcSources`/`testSources` are built by walking only `readdirSync(packagesDir)` (`packages/*`). `pnpm-workspace.yaml` also lists `features` (and `examples/*`, `apps/*`) as workspace members outside `packages/`. `features/step-definitions/*.ts` alone has 43 non-test `.ts` files (BDD step implementations) that are never scanned, so none of AGENTS.md's Effect-specific rules — no async/await, no type assertions, no raw Promise, Context.Service/Data.TaggedError enforcement, no node:fs — are ever checked there. `.oxlintrc.json`'s `ignorePatterns` (only `features/lib/**`) confirms the toolchain otherwise treats `features/` as in-scope for linting, so this is a real gap rather than a deliberate exclusion. This is the same shape of blind spot CCR-QD-105 already found and fixed for `packages/*/test` (a scope that silently hid violations), just one directory root over.",
+      "suggestedFix": "Also collect `features/step-definitions` (and decide deliberately about `examples/*`/`apps/*`) into `srcSources`/`testSources`, or document the exclusion explicitly the way EXEMPTIONS documents per-file exceptions."
+    },
+    {
+      "severity": "Low",
+      "file": "scripts/check-house-style.mjs",
+      "line": 141,
+      "theme": "regex-bypass",
+      "description": "`no-node-fs-import`'s regex is `/from\\s+[\"']node:fs[\"']/`, which matches only the exact specifier `\"node:fs\"`. `import { readFile } from \"node:fs/promises\"` or `import fs from \"fs\"` (the un-prefixed legacy specifier) reach the identical banned Node filesystem API and are not caught — the gate can be defeated by a one-word change to the import specifier while violating exactly the AGENTS.md §6 rule it exists to enforce (\"use the FileSystem service, not node:fs directly\").",
+      "suggestedFix": "Broaden the pattern to something like /from\\s+[\"'](?:node:)?fs(?:\\/promises)?[\"']/ so the promises subpath and the unprefixed specifier are both caught."
+    },
+    {
+      "severity": "Low",
+      "file": "scripts/check-devtools-claims.mjs",
+      "line": 100,
+      "theme": "non-recursive-scan",
+      "description": "`readdirSync(FOLDER).filter((entry) => entry.endsWith(\".md\"))` only looks at the top level of `spec/devtools-spec/` — it does not recurse into subdirectories the way the sibling collectors do (`check-dod-table.mjs`'s and `check-doc-examples.mjs`'s `collectMarkdown` both recurse). Today `spec/devtools-spec/` happens to have no subdirectories (verified: `find spec/devtools-spec -type d` returns only the folder itself), so this passes now, but a claim of absence written into a future subdirectory of that folder would never be scanned by this gate — a silent gap in exactly the \"no silent omission\" guarantee this script exists to provide (its own doc comment cites CCR-QD-074's seven false claims as the reason it exists).",
+      "suggestedFix": "Recurse into subdirectories the same way check-dod-table.mjs's collectMarkdown does, or add a comment explaining why the folder is guaranteed to stay flat."
+    },
+    {
+      "severity": "Low",
+      "file": "scripts/check-publish-status.mjs",
+      "line": 83,
+      "theme": "missing-anchor-not-checked",
+      "description": "Only a missing `start` anchor raises a `[missing-anchor]` failure (`if (from === -1) fail(...)`). There is no equivalent check on `to` — if `content.indexOf(end, from) === -1`, the code silently falls back to `section = content.slice(from)`, scanning from the anchor to the end of the file. If any of the four `end` markers (e.g. README.md's `\"\\n\\n## Why\"`) is ever renamed or reworded, the gate will not report the drift the way it does for a missing `start`; instead it silently widens the scanned window to the rest of the document, which can pick up unrelated version literals or \"unpublished\"-type phrasing from later sections (e.g. a changelog excerpt) as spurious matches, or fail to notice that the real publish-status paragraph moved past where `TARGETS` expects it.",
+      "suggestedFix": "Fail loudly when `to === -1` too (mirroring the `from === -1` check), the same way check-dod-table.mjs and check-devtools-claims.mjs treat 'checker found nothing to check' as a hard error rather than a silent widen."
+    },
+    {
+      "severity": "Low",
+      "file": "scripts/check-website-build.mjs",
+      "line": 112,
+      "theme": "nan-parsing-bug",
+      "description": "`parseLeg` does `leg.split(\".\").map(Number)` then `parts[1] ?? 0` for the minor version. `??` only substitutes on `null`/`undefined`, not `NaN`, so a non-numeric segment (e.g. a matrix leg written as `\"20.x\"`, a common CI shorthand) produces `minor: NaN` rather than falling back to `0`. Verified directly: `satisfiesFloor(parseLeg(\"20.x\"))` against the current `>=20.19.0` floor returns `false` (major ties at 20, then `NaN - 19` is `NaN`, and `NaN >= 0` is `false`), even though \"20.x\" in practice resolves to a patch of Node 20 well above 20.19.0. The current workflow matrix (`[\"20.19.0\", \"26\"]`) doesn't hit this, but if a maintainer ever writes a matrix leg with a non-numeric segment, the script would silently misjudge that leg as not satisfying the floor, and — if it were the matrix's only leg — would incorrectly `die()` claiming no leg in the matrix satisfies astro's floor.",
+      "suggestedFix": "Guard each parsed segment with Number.isNaN before defaulting (e.g. `Number.isNaN(parts[1]) ? 0 : parts[1]`), or reject/fail loudly on a leg whose segments don't all parse as integers, consistent with the script's own \"fail loud rather than silently misjudge\" approach to the `>=MAJOR.MINOR.PATCH` floor format."
+    },
+    {
+      "severity": "Low",
+      "file": "scripts/check-package-install.mjs",
+      "line": 278,
+      "theme": "unexercised-package",
+      "description": "The Check-4 `FIXTURE` (the TypeScript consumer that type-checks against the shipped `.d.ts` and then actually authorizes) imports from `@qadi/core`, `@qadi/promise`, `@qadi/testing`, `@qadi/react`, `@qadi/devtools` (both entry points), `@qadi/predicate-sql`, `@qadi/predicate-prisma`, and `@qadi/audit` — eight of the nine public packages. `@qadi/http` is packed, protocol-checked, exports-checked and runtime-import-probed in checks 0-3 like every other package, but it is never imported by the consumer fixture, so its shipped `.d.ts` is never type-checked against a real consumer and its behavior is never exercised end-to-end the way the doc comment says checks 3-4 are meant to (\"@qadi/devtools ships TWO entry points... exercised here or nowhere\" shows the FIXTURE is deliberately built to cover every package/entry point). A broken `.d.ts` or a regression in @qadi/http's published surface would pass this merge gate silently.",
+      "suggestedFix": "Add a small @qadi/http import/usage to FIXTURE (e.g. build and mount its Effect-platform HTTP middleware against a test route) so all nine public packages are exercised by check 4, not eight."
+    },
+    {
+      "severity": "Info",
+      "file": "scripts/check-house-style.mjs",
+      "line": 123,
+      "theme": "rule-convention-collision",
+      "description": "`no-static-layer-or-default`'s regex `/\\bstatic\\s+layer\\b|\\.Default\\b/` bans any `.Default` member access unconditionally. That is correct for the `Effect.Service`-derived `.Default` static accessor the rule exists to forbid, but AGENTS.md §3 itself sanctions naming a plain standalone layer `Default` (\"Default (the layer of a namespace-imported module)\"). If such a layer were ever imported with a namespace import and accessed as `ModuleName.Default` (as opposed to being destructured), this rule would flag it as a violation even though it is the AGENTS.md-sanctioned pattern, not the banned one. No such usage exists in the codebase today (`grep -rn \"\\.Default\\b\" packages/*/src packages/*/test` returns nothing), so this is latent rather than live.",
+      "suggestedFix": "Narrow the second alternative to the actual pattern being banned (e.g. requiring the preceding identifier to look like a service/class reference such as `XxxService.Default`) or note in a comment that a namespace-imported `Default` layer should be destructured on import to avoid tripping this rule."
+    }
+  ],
+  "escalations": []
+}

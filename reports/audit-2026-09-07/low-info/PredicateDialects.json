@@ -1,0 +1,40 @@
+{
+  "slice": "PredicateDialects",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/predicate-prisma/test/CompilePrismaWhere.test.ts",
+      "line": 521,
+      "theme": "missing-test-coverage",
+      "description": "RESERVED_PRISMA_KEYS (packages/predicate-prisma/src/index.ts:130-144) lists 13 reserved Prisma keys (AND, OR, NOT, equals, not, in, notIn, lt, lte, gt, gte, is, isNot), but the refusal tests in this file only exercise 6 of them: NOT (line 499), AND/OR (line 507), and gte/not/in (line 521-534). 'equals', 'notIn', 'lt', 'lte', 'gt', 'is' and 'isNot' are never asserted to refuse. A regression that dropped one of these from the Set (e.g. a typo, or an incomplete refactor) would compile a column collision into a structurally-valid-but-wrong WhereInput fragment (the exact failure mode this whole guard exists to prevent) without any test catching it.",
+      "suggestedFix": "Extend the 'a column matching a Prisma scalar-filter operator keyword refuses' test (or add a parametrized loop over the full RESERVED_PRISMA_KEYS set) to assert a refusal for the remaining untested keys: equals, notIn, lt, lte, gt, is, isNot."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/predicate-prisma/src/index.ts",
+      "line": 253,
+      "theme": "match-hoisting",
+      "description": "renderNode's dispatch is `Match.value(predicate).pipe(Match.tagsExhaustive({...}))`, rebuilt on every call — and renderNode calls itself recursively once per Predicate node via the And/Or arms' `Effect.forEach(p.predicates, renderNode)`. That is exactly the 'per-node evaluation path' shape AGENTS.md §5a says is 'worth avoiding' for a rebuilt Match.value, in favor of a module-scope `Match.type<Predicate>()` built once. `packages/predicate-sql/src/index.ts`'s renderNode (line 157) has the identical shape and the same gap. Neither is in the §5a SWITCH_BUDGET exception table (that table only covers Evaluate.ts/Matcher.ts), so as written this reads as an oversight relative to the stated house style rather than a deliberate, documented exception — though per AGENTS.md's own benchmark the end-to-end cost of this class of choice is small (under ~4%).",
+      "suggestedFix": "Hoist a module-scope `Match.type<Predicate>()` matcher (mirroring the `referencesAction` example in AGENTS.md §5a) and reuse it from renderNode in both packages, or add an explicit note (like the SWITCH_BUDGET table) documenting why these two dispatch sites are exempt."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/predicate-prisma/test/CompilePrismaWhere.test.ts",
+      "line": 8,
+      "theme": "result-idiom",
+      "description": "The `refusalOf` helper (line 7-10 here; the identical helper at packages/predicate-sql/test/CompileSql.test.ts:11-14) narrows the `Effect.result` output with a direct `r._tag === \"Failure\"` comparison rather than `Result.isFailure(r)`. AGENTS.md §6 names the replacement idiom for the forbidden `Effect.either` as '`Effect.result` + `Result.isSuccess/isFailure`' specifically (not a raw `_tag` check), so both helpers are functionally correct but drift from the stated idiom. Zero behavioral difference — `Result` is a real discriminated union here, not `unknown`, so this isn't the structural-check-on-unknown anti-pattern §4 warns about — but it's the literal pattern named in the style guide.",
+      "suggestedFix": "Use `Result.isFailure(r) ? r.failure : undefined` (importing `effect/Result`) in both helpers to match the idiom AGENTS.md §6 names."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/predicate-prisma/test/matchesPrismaWhereEngine.ts",
+      "line": 38,
+      "theme": "unverified-test-assumption",
+      "description": "The module doc comment (lines 38-44) states plainly that neither Prisma issue #17367 nor #21856 exercises a vacuous identity nested inside an OR array — only AND arrays and NOT — so this reader's OR handling is an extrapolation from the AND/NOT evidence rather than something confirmed against a live Prisma engine trace. That's honestly disclosed in the comment, but it means the differential property in Agreement.test.ts that relies on this reader (the 'matchesPrismaWhereEngine(compilePrismaWhere(P), R) equals evaluatePredicate(P, R)' property) is only as trustworthy for OR-nested-vacuous shapes as this unverified assumption, not as trustworthy as the AND/NOT cases which do have a cited live-engine repro.",
+      "suggestedFix": "If/when a real Prisma engine is available in CI, add a black-box confirmation (the same way #17367/#21856 were confirmed) for a vacuous identity nested inside an OR array specifically, or note explicitly in Agreement.test.ts that the OR case rests on extrapolation rather than a confirmed repro."
+    }
+  ],
+  "escalations": [
+    "packages/predicate-sql/src/index.ts: isSafeValue (lines 119-123) does not exclude NaN/Infinity the way the sibling predicate-prisma package's isSafeValue does (ticket 138), and the Gte/Lt-specific NaN guard (lines 201-206) only covers those two operators — so a Compare with op Eq or Neq and value NaN compiles to a real `col = $1` / `(col != $1 OR col IS NULL)` binding NaN as a bound parameter. On PostgreSQL, `NaN = NaN` is documented to evaluate true (Postgres explicitly treats NaN as equal to itself, unlike IEEE 754), while evaluatePredicate's `===` treats `NaN === NaN` as false — a real INV-QD-047 authorization-decision divergence for Eq/Neq specifically that is untested (Agreement.test.ts's leaf arbitrary never generates NaN for Eq; CompileSql.test.ts only covers the Gte/Lt NaN refusal). Recommend widening isSafeValue's number branch to require Number.isFinite, mirroring predicate-prisma, and adding an Eq/Neq NaN refusal test to CompileSql.test.ts."
+  ]
+}

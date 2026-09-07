@@ -1,0 +1,78 @@
+{
+  "slice": "ExamplesB",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "apps/website/src/pages/index.astro",
+      "line": 214,
+      "theme": "stale-publish-status",
+      "description": "The homepage hero badge reads \"v0.2.0 · pre-1.0, API may move · core + 3 more on npm\", and the Status section (lines 748 and 754) repeats the same stale claim in prose (\"Four packages (core, testing, react, promise) are published at 0.2.0; the rest ship at 0.1.0, not yet on npm\") and in a version chip (\"0.1.0 – 0.2.0\"). The actual state (package.json, verified in PRODUCT.md) is that all nine packages are published at 0.4.0 as of 2026-09-06. This is exactly the publish-status drift class scripts/check-publish-status.mjs (pnpm check gate 24) exists to catch, but that gate's TARGETS list only checks README.md, CONTRIBUTING.md, spec/roadmap.md and apps/website/PRODUCT.md — it does not check apps/website/src/pages/index.astro, so this page's own marketing copy slipped through un-caught and now misleads a homepage visitor about the library's release maturity.",
+      "suggestedFix": "Update the hero badge and Status section copy to reflect 0.4.0 / all nine packages published, and add apps/website/src/pages/index.astro (or derive the badge text from landing-content.js at build time) to check-publish-status.mjs's TARGETS so this can't silently drift again."
+    },
+    {
+      "severity": "Low",
+      "file": "apps/website/src/pages/index.astro",
+      "line": 766,
+      "theme": "internal-inconsistency",
+      "description": "The Status section's stat row reads \"merge gate: 22 checks\", but the Proof section directly above it on the same page (bars.map, backed by the `merge gates passing` entry in src/data/landing-content.js line 140) displays \"24 / 24\", and PRODUCT.md's Evidence on Hand section states \"24 total merge gates\". spec/process/definitions-of-done.md's table currently lists 24 numbered steps. So the same page contradicts itself about how many gates exist.",
+      "suggestedFix": "Change \"22 checks\" to \"24 checks\" (or derive it from the same source as the Proof section's 24/24 bar so the two can't diverge again)."
+    },
+    {
+      "severity": "Low",
+      "file": "apps/website/src/pages/compliance.astro",
+      "line": 614,
+      "theme": "stale-terminology",
+      "description": "The Compliance page's evidence table and its \"What Qadi assembles\" section (line 482, \"chain-integrity checking across sequence numbers\") both still use \"chain-integrity\" language for INV-QD-054. spec/invariants.md's changelog (entry 1.27) records that the underlying function/error were deliberately renamed from `verifyChainIntegrity`/`ChainIntegrityError` to `verifySequenceIntegrity`/`SequenceIntegrityError` specifically because \"chain-integrity\" reads as cryptographic tamper-evidence to a compliance reviewer and is not (see packages/audit/src/SequenceIntegrity.ts's own doc comment). The Compliance page is precisely the document aimed at that GxP/compliance-reviewer audience, so it is the one place on the site where this exact misleading term should least appear. The same stale term also appears in apps/website/src/content/docs/docs/packages/audit/capabilities.md line 3 (frontmatter description) and apps/website/src/content/docs/docs/packages/audit/index.md line 28, even though capabilities.md's own body text (lines 55-62) already correctly uses \"Sequence integrity\"/`verifySequenceIntegrity`.",
+      "suggestedFix": "Replace \"chain-integrity\" with \"sequence integrity\" in compliance.astro (lines 482, 614), capabilities.md's frontmatter description, and audit/index.md line 28, matching the renamed terminology already used in capabilities.md's body and in the actual source."
+    },
+    {
+      "severity": "Low",
+      "file": "apps/website/src/content/docs/docs/packages/react/index.md",
+      "line": 30,
+      "theme": "unverified-example",
+      "description": "The one code example on @qadi/react's overview page (using Can, QadiProvider, makeQadiAtoms) is fenced as ```jsx. scripts/lib/extract-code-fences.mjs (shared by check-doc-examples.mjs and check-website-doc-examples.mjs, gate 22) only extracts and compiles ```typescript and ```tsx fences — ```jsx is not in COMPILED_EXTENSIONS, so this snippet is silently skipped by the merge gate and never checked against the real API. Every other JSX example in this same docs tree (e.g. packages/react/hooks.md lines 42 and 111) correctly uses ```tsx and does get compiled (with `declare const` stubs for the pattern used throughout docs/concepts/*.md). This one page is the outlier, so a future prop rename on Can/QadiProvider/makeQadiAtoms would not be caught here the way it would be everywhere else.",
+      "suggestedFix": "Convert the fence to ```tsx and add `declare const`/import stubs for AppLayer, currentUser, canPublish, PublishButton and Disabled (matching the pattern already used in docs/concepts/*.md) so it compiles under check-website-doc-examples.mjs."
+    },
+    {
+      "severity": "Low",
+      "file": "apps/website/src/styles/starlight.css",
+      "line": 1,
+      "theme": "render-blocking-fonts",
+      "description": "starlight.css (Starlight's customCss, used by every /docs/* page) loads the same Google Fonts stylesheet via a plain CSS `@import`, which is render-blocking. src/components/HeadFonts.astro — used by the homepage, blog, and compliance pages — implements a deliberate non-blocking pattern for the identical font URL specifically to avoid this (preconnect + preload + `media=\"print\"`/`onload` swap, with a documented rationale that a plain blocking `<link>` \"still can't paint any text until the CSS declaring it has loaded\"). Docs pages get none of that optimization and pay the render-blocking cost the rest of the site was deliberately engineered to avoid.",
+      "suggestedFix": "Replace the `@import` in starlight.css with the same preconnect+preload+swap `<link>` pattern HeadFonts.astro uses (Starlight supports injecting extra `<head>` tags via its `head` config option), or extract HeadFonts.astro's links into a partial both the marketing pages and Starlight's head config can share."
+    },
+    {
+      "severity": "Info",
+      "file": "apps/website/CONCEPTS-STYLE.md",
+      "line": 22,
+      "theme": "doc-accuracy",
+      "description": "This internal working doc claims \"`pnpm spec:website-examples` type-checks every fenced ```ts`/```typescript` block\" (repeated in the verification checklist at line 102). scripts/lib/extract-code-fences.mjs, which that command runs, explicitly does the opposite: its own doc comment says it extracts ```typescript and ```tsx blocks \"ignoring ```ts fragments (an explicit opt-out for illustrative snippets)\", and COMPILED_EXTENSIONS only maps `typescript`/`tsx`. A future page author following this checklist could believe a ```ts fragment they wrote is being verified when it never compiles.",
+      "suggestedFix": "Correct both mentions to say only ```typescript`/```tsx` fences are compiled, and that ```ts` is the deliberate uncompiled-fragment convention (matching AGENTS.md §12's own description)."
+    },
+    {
+      "severity": "Info",
+      "file": "apps/website/src/components/SiteNav.astro",
+      "line": 31,
+      "theme": "duplicated-markup",
+      "description": "The `chrome ? (...) : (...)` branches (lines 32-73 and 75-114) render byte-for-byte identical brand-link/nav-toggle/nav-links/GitHub-pill markup, differing only in whether it's wrapped in a `<header class=\"site-nav\">`. This component's own header comment explains it was extracted specifically because four pages had \"already drifted\" from hand-copying this same markup independently — the two branches here reintroduce that exact risk inside the one component meant to prevent it: a future edit to a nav link, aria attribute, or icon made in one branch and missed in the other would silently diverge the docs-header nav from the marketing-page nav.",
+      "suggestedFix": "Factor the shared inner markup (brand link, toggle button, nav-links list, GitHub pill) into one block and wrap it conditionally in the `<header>`, e.g. via a small inner component or a single JSX expression reused by both branches, rather than duplicating it."
+    },
+    {
+      "severity": "Info",
+      "file": "apps/website/DESIGN.md",
+      "line": 244,
+      "theme": "stale-count",
+      "description": "States Starlight's docs chrome exists for \"wayfinding through ~26 pages\". The actual docs content tree (apps/website/src/content/docs/docs/**/*.md) currently has 39 pages (20 Concepts pages per CONCEPTS-PLAN.md's own inventory, plus 15 Packages pages, 3 Reference pages, and the Getting Started index) — roughly 50% more than stated. This is an internal design-system doc, not user-facing, so the impact is limited to a future contributor's mental model of the docs' scope.",
+      "suggestedFix": "Update \"~26 pages\" to the current page count, or phrase it without a specific number to avoid future drift as more Concepts/Packages pages are added."
+    },
+    {
+      "severity": "Info",
+      "file": "apps/website/src/content.config.ts",
+      "line": 15,
+      "theme": "naming-inconsistency",
+      "description": "The blog collection's default `author` is \"Mohammad Almechkor\" (one word, lowercase 'm'), matching the one existing blog post's frontmatter (src/content/blog/introducing-qadi.md line 5). Everywhere else on the site the same person is credited as \"Mohammad AL Mechkor\" (package.json's `author` field, and the copyright line repeated in index.astro line 834, blog pages, and PRODUCT.md's Brand Commitments). Purely cosmetic — the blog currently always sets `author` explicitly rather than relying on the default — but the two spellings of one name sitting in the same small site is worth reconciling.",
+      "suggestedFix": "Pick one spelling (\"Mohammad AL Mechkor\" matches package.json and the footers) and use it consistently in content.config.ts's default and any future blog post frontmatter."
+    }
+  ],
+  "escalations": []
+}
