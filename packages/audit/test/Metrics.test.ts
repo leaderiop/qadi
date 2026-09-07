@@ -8,7 +8,7 @@ import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
-import { AuditWriteError } from "../src/AuditTrailPort.ts";
+import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
 import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts";
 import { decisionRecord } from "./helpers.ts";
@@ -80,6 +80,37 @@ describe("qadi_audit_writes_total", () => {
       assert.strictEqual(failed?.state.count, 1);
     }));
 
+  it.effect(
+    "a write defect — not just a typed AuditWriteError — is tagged 'write_failed', never silent (ticket #47)",
+    () =>
+      Effect.gen(function* () {
+        // A caller's own bug (a thrown error, not the port's typed
+        // `AuditWriteError`), the same class of thing `trailPort.commit`'s
+        // `Effect.catchCause` already guards against below. Before ticket
+        // #47, `record()` ran `trailPort.write` under `Effect.result`, which
+        // only catches the typed `E` channel — a defect unwound straight
+        // past both `writesWriteFailed` and the breaker's `recordFailure`.
+        const brokenTrail = Layer.succeed(AuditTrailPort, {
+          write: () => Effect.die(new Error("caller's trail store bug")),
+        });
+
+        const snapshots = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            const sink = yield* DecisionSink;
+            yield* sink.record(decisionRecord());
+            return yield* Metric.snapshot;
+          }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(brokenTrail)),
+        );
+
+        // record() itself must not defect — Metric.snapshot above only ran
+        // because the whole pipeline completed normally.
+        const rows = counters(snapshots, "qadi_audit_writes_total");
+        const failed = rows.find((r) => r.attributes?.outcome === "write_failed");
+        assert.isDefined(failed);
+        assert.strictEqual(failed?.state.count, 1);
+      }),
+  );
+
   it.effect("carries its documented description", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest();
@@ -119,6 +150,36 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
       assert.isDefined(toOpen);
       assert.strictEqual(toOpen?.state.count, 1);
     }));
+
+  it.effect(
+    "the breaker also trips on a write defect, not just a typed AuditWriteError (ticket #47)",
+    () =>
+      Effect.gen(function* () {
+        // Every write dies rather than failing with the port's own typed
+        // error — before ticket #47, `Effect.result` around `trailPort.write`
+        // let this unwind past `breaker.recordFailure` entirely, so the
+        // breaker would never trip no matter how unhealthy the store was.
+        const brokenTrail = Layer.succeed(AuditTrailPort, {
+          write: () => Effect.die(new Error("caller's trail store bug")),
+        });
+
+        const snapshots = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            const sink = yield* DecisionSink;
+            for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
+            return yield* Metric.snapshot;
+          }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(brokenTrail)),
+        );
+
+        const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
+        assert.strictEqual(gauge?.state.value, 2);
+
+        const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
+        const toOpen = transitions.find((r) => r.attributes?.to === "Open");
+        assert.isDefined(toOpen);
+        assert.strictEqual(toOpen?.state.count, 1);
+      }),
+  );
 
   it.effect("the gauge and both counters carry their documented descriptions", () =>
     Effect.gen(function* () {
@@ -281,6 +342,39 @@ describe("qadi_audit_staging_total", () => {
       // The write itself still went through — staging is best-effort.
       assert.strictEqual(written().length, 1);
     }));
+
+  it.effect(
+    "a stage() defect — not just a typed AuditStagingError — is tagged 'failed', and never blocks " +
+      "the write (ticket #47)",
+    () =>
+      Effect.gen(function* () {
+        const { layer: trail, written } = AuditTrailPortTest();
+        // A caller's own bug, not this package's error type — before ticket
+        // #47, `record()` ran `stagingPort.stage` under `Effect.result`,
+        // which only catches the typed `E` channel, so this used to unwind
+        // straight past both branches below (`stagingFailed` and
+        // `stagingFailedOpen`) rather than landing in either.
+        const brokenStaging = Layer.succeed(AuditStagingPort, {
+          stage: () => Effect.die(new Error("caller's staging store bug")),
+          commit: () => Effect.void,
+        });
+
+        const snapshots = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            const sink = yield* DecisionSink;
+            yield* sink.record(decisionRecord());
+            return yield* Metric.snapshot;
+          }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(brokenStaging)),
+        );
+
+        const rows = counters(snapshots, "qadi_audit_staging_total");
+        const failed = rows.find((r) => r.attributes?.outcome === "failed");
+        assert.isDefined(failed);
+        assert.strictEqual(failed?.state.count, 1);
+        // The write itself still went through — staging is best-effort.
+        assert.strictEqual(written().length, 1);
+      }),
+  );
 
   it.effect("wired and stage() succeeds is tagged 'staged'", () =>
     Effect.gen(function* () {

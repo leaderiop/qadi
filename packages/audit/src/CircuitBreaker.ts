@@ -19,11 +19,14 @@
  * `Date.now()` usage were — kept as-is: `closed → open` after
  * `failureThreshold` consecutive failures, `open → half-open` after
  * `resetTimeoutMs`, `half-open → closed` on the next success, `half-open →
- * open` on the next failure. Added since (ticket #38 / H4): `half-open →
- * open` also on a probe that never resolves at all — released by
- * `releaseProbe` (the primary path, from `AuditDecisionSinkLive.ts`'s
- * `Effect.onExit`) or by `status`'s own age-out check (the fallback) — so an
- * interrupted or defecting probe cannot wedge the breaker `HalfOpen` forever.
+ * open` on the next failure. Added since (ticket #38 / H4, narrowed by
+ * ticket #47): `half-open → open` also on a probe that never resolves at
+ * all — `recordFailure` itself now covers a defecting or interrupted probe
+ * write directly (`AuditDecisionSinkLive.ts` runs `trailPort.write` under
+ * `Effect.exit`), with `releaseProbe` (from `AuditDecisionSinkLive.ts`'s
+ * `Effect.onExit`) and `status`'s own age-out check left as fallbacks for
+ * whatever settles *after* that — so an interrupted or defecting probe
+ * cannot wedge the breaker `HalfOpen` forever.
  *
  * Not exported from the package barrel — this module is assembly-internal.
  */
@@ -83,26 +86,34 @@ export interface CircuitBreaker {
    * reachable again after `resetTimeoutMs`, rather than the probe's caller
    * holding the one slot forever.
    *
-   * **Ticket #38 (H4).** The probe write in `AuditDecisionSinkLive.ts` runs
-   * under `Effect.result`, which only catches the write's own `E` channel —
-   * an interruption (client disconnect, `Effect.timeout`, filter fan-out) or
-   * a defecting store adapter unwinds past it without ever reaching
-   * `recordSuccess`/`recordFailure`, and `status`'s own read never recovers
-   * a `HalfOpen` whose `openedAt` is `undefined` (it is only ever set while
-   * `Open`). Before this fix that wedged the breaker permanently `HalfOpen`:
-   * every later call would lose `claimProbe`, re-read `status` as `HalfOpen`
-   * (not `Closed`), and so treat itself as `Open` forever — staged rows
-   * never committed, or entries dropped silently, and the backend could
-   * recover and it would make no difference.
+   * **Ticket #38 (H4).** The probe write in `AuditDecisionSinkLive.ts` used
+   * to run under `Effect.result`, which only catches the write's own `E`
+   * channel — an interruption (client disconnect, `Effect.timeout`, filter
+   * fan-out) or a defecting store adapter unwound past it without ever
+   * reaching `recordSuccess`/`recordFailure`, and `status`'s own read never
+   * recovers a `HalfOpen` whose `openedAt` is `undefined` (it is only ever
+   * set while `Open`). Before this fix that wedged the breaker permanently
+   * `HalfOpen`: every later call would lose `claimProbe`, re-read `status`
+   * as `HalfOpen` (not `Closed`), and so treat itself as `Open` forever —
+   * staged rows never committed, or entries dropped silently, and the
+   * backend could recover and it would make no difference.
+   *
+   * **Narrowed by ticket #47.** `trailPort.write` now runs under
+   * `Effect.exit` instead, so a defecting or interrupted write already
+   * reaches `recordFailure` directly — which reopens a `HalfOpen` breaker
+   * exactly as this method does. `releaseProbe` remains the fallback for the
+   * narrower window *after* that `Exit` is captured (`recordFailure` itself,
+   * or a metric update after it, getting interrupted before completing),
+   * rather than the primary path for the write's own failure.
    *
    * `AuditDecisionSinkLive.ts` calls this from an `Effect.onExit` wrapped
-   * around the probe's write, so it fires on every abnormal exit — the
-   * primary release path. It is a no-op unless the breaker is still
-   * `HalfOpen` **and** this window's claim is still held: a probe that
-   * already settled normally (`recordSuccess`/`recordFailure` already ran,
-   * moving `status` off `HalfOpen`) leaves this call nothing to do, so a
-   * finalizer that runs after a normal completion cannot double-transition
-   * the state or restart the reset-timeout window a second time.
+   * around the probe's write, so it fires on every abnormal exit. It is a
+   * no-op unless the breaker is still `HalfOpen` **and** this window's claim
+   * is still held: a probe that already settled normally
+   * (`recordSuccess`/`recordFailure` already ran, moving `status` off
+   * `HalfOpen`) leaves this call nothing to do, so a finalizer that runs
+   * after a normal completion cannot double-transition the state or restart
+   * the reset-timeout window a second time.
    */
   readonly releaseProbe: Effect.Effect<void>;
 }
