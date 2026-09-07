@@ -125,8 +125,17 @@ the evaluator sees one.
 React state: the registry holds who is asking, never what the answer was, and
 nothing re-renders because a guard registered. The React glue is still **one**
 `useSyncExternalStore` call in `QadiProvider.tsx` — the registry exposes
-`subscribe` and a snapshot, and it is `@qadi/devtools`, a DOM package already,
-that subscribes.
+`subscribe` and a snapshot for exactly that purpose.
+
+> **Correction.** This paragraph previously went on to say present-tense "and
+> it is `@qadi/devtools`, a DOM package already, that subscribes." `@qadi/devtools`
+> has no dependency on `@qadi/react` — `GateRegistry.ts` lives in `@qadi/react` —
+> and `DevtoolsDock.tsx` takes `gates` as a plain, one-shot prop, not a
+> subscription. The `useSyncExternalStore(subscribeGates, gateInstances,
+> gateInstances)` call is the **host**'s to make, wiring the two packages
+> together — `examples/nextjs-newsroom/src/client/Dock.tsx` does exactly this.
+> That is the correct place for it: `@qadi/devtools`'s panel is meant to render
+> for a host with no `@qadi/react` at all, fed `gates` from wherever it likes.
 
 **Enumerable is not the same as locatable.** A hook has no node of its own, so it
 appears in the list and its highlight is disabled with the reason on it. A panel
