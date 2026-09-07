@@ -104,6 +104,41 @@ describe("CircuitBreaker — threshold boundary, scripted rather than generated"
       assert.strictEqual(yield* breaker.status, "HalfOpen");
     }));
 
+  it.effect(
+    "a claimed probe that never releases (crash, or a caller that forgot) still ages out of half-open",
+    () =>
+      Effect.gen(function* () {
+        // Defense-in-depth path (H4, ticket #38): if `releaseProbe`'s
+        // `Effect.onExit` somehow never runs — the caller's process crashed
+        // between claiming and running, say — the claim would otherwise wedge
+        // `HalfOpen` forever. `status` itself ages a stale claim out once
+        // `resetTimeoutMs` has elapsed since `halfOpenAt`, independent of
+        // `releaseProbe` ever being called.
+        const breaker = yield* makeCircuitBreaker(OPTIONS);
+        yield* breaker.recordFailure;
+        yield* breaker.recordFailure;
+        yield* breaker.recordFailure;
+        yield* TestClock.adjust("10 seconds");
+        assert.strictEqual(yield* breaker.status, "HalfOpen");
+        assert.isTrue(yield* breaker.claimProbe, "claim the one probe, then never release it");
+
+        // Still within the window: the claim stands, nothing ages out yet.
+        yield* TestClock.adjust("9999 millis");
+        assert.strictEqual(yield* breaker.status, "HalfOpen");
+
+        // Past resetTimeoutMs since halfOpenAt, with the claim never released:
+        // the fallback in `status` reopens it rather than leaving it wedged.
+        yield* TestClock.adjust("1 milli");
+        assert.strictEqual(yield* breaker.status, "Open");
+
+        // And the reopened window behaves like an ordinary Open→HalfOpen
+        // transition — a fresh claim is available once it elapses again.
+        yield* TestClock.adjust("10 seconds");
+        assert.strictEqual(yield* breaker.status, "HalfOpen");
+        assert.isTrue(yield* breaker.claimProbe, "the aged-out window issues a fresh claim");
+      }),
+  );
+
   it.effect("claimProbe admits exactly one caller per half-open window, not the whole fan-out", () =>
     Effect.gen(function* () {
       const breaker = yield* makeCircuitBreaker(OPTIONS);
