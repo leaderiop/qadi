@@ -1,7 +1,7 @@
 /**
  * The vocabulary a simulation is described in — a leaf module, owned by nobody.
  *
- * `Simulation.ts` runs one, `Sources.ts` decides where its answers come from and
+ * `Simulation.ts` runs one, `SimulationSource.ts` decides where its answers come from and
  * `Capture.ts` records them, and all three need these three names. Defining them
  * in any one of the three made an import cycle
  * ([madge](../../../../package.json) is merge gate 5), which is the same

@@ -66,17 +66,32 @@ export const decisionSinkFeed = (options?: {
     );
   }
 
+  const replay = options?.replay ?? 0;
+  if (!(Number.isInteger(replay) && replay >= 0)) {
+    // Non-negative, not positive: 0 is the documented default — a subscriber
+    // that gets no backlog — so unlike `capacity` above, zero is coherent and
+    // only negative or fractional counts are the mistake being caught here.
+    throw new Error(
+      `decisionSinkFeed: replay must be a non-negative integer, got ${options?.replay}`,
+    );
+  }
+
   return Effect.map(
-    PubSub.sliding<SinkRecord>({ capacity, replay: options?.replay ?? 0 }),
+    PubSub.sliding<SinkRecord>({ capacity, replay }),
     (pubsub) => ({
       layer: Layer.succeed(DecisionSink, {
-        record: (record) =>
-          Effect.sync(() => {
-            // `publishUnsafe`, not `publish`: the awaiting form would make the
-            // evaluation wait on a full buffer, which is the exact hazard this
-            // module exists to remove. Sliding means it always accepts.
-            PubSub.publishUnsafe(pubsub, record);
-          }),
+        // `publish`, not `publishUnsafe`. `publishUnsafe` only tries the raw
+        // ring buffer and returns `false` on a full one without ever
+        // consulting the pubsub's configured strategy — sliding eviction
+        // lives entirely in `SlidingStrategy.handleSurplus`, which only
+        // `publish` reaches. That made `publishUnsafe` refuse the *newest*
+        // record on a full buffer and keep the stale backlog, inverting this
+        // module's documented newest-wins policy. `publish` still never
+        // blocks here: for a `PubSub.sliding` — the only kind this module
+        // builds — `handleSurplus` is `Effect.sync` all the way down
+        // (`slidingPublishUnsafe` evicts and republishes synchronously), so
+        // switching to the awaited form costs nothing.
+        record: (record) => Effect.asVoid(PubSub.publish(pubsub, record)),
       }),
       stream: Stream.fromPubSub(pubsub),
     }),

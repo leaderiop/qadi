@@ -91,6 +91,38 @@ describe("leaf policies", () => {
       assert.strictEqual(d.reason, "subject attribute 'level' has no value");
     }).pipe(Effect.provide(testLayer(subjectWith({ attributes: {} })))));
 
+  it.effect("A Neq DENIAL SAYS THE VALUE MATCHED, not 'did not match'", () =>
+    Effect.gen(function* () {
+      // `evaluateMatcher`'s `Neq` arm returns `value !== resolveRef(...)`, so
+      // a `Neq` denial fires exactly when the two values are EQUAL — the
+      // opposite direction from every other matcher, where denial means no
+      // match was found. "did not match" would claim the reverse of what
+      // happened; `Qadi.test.ts`'s "EVALUATES THE POLICY AGAINST THE GUARDED
+      // RESOURCE" exercises the same shape (INV-QD-032).
+      const d = yield* evaluate(P.hasAttribute("homeTenant", M.neq(M.literal("evil"))));
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject attribute 'homeTenant' matched an excluded value");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { homeTenant: "evil" } })))));
+
+  it.effect(
+    "the Neq mirror holds for a resource attribute too",
+    () =>
+      Effect.gen(function* () {
+        const policy = P.hasResourceAttribute("tenant", M.neq(M.literal("evil")));
+        const d = yield* evaluate(policy, { resource: { tenant: "evil" } });
+        assert.isFalse(isAllowed(d));
+        if (d._tag !== "Deny") return;
+        assert.strictEqual(d.reason, "resource attribute 'tenant' matched an excluded value");
+      }).pipe(Effect.provide(testLayer(subjectWith({})))),
+  );
+
+  it.effect("a Neq ALLOW is unaffected — only the denial sentence changed", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasAttribute("homeTenant", M.neq(M.literal("evil"))));
+      assert.isTrue(isAllowed(d));
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { homeTenant: "good" } })))));
+
   it.effect("an absent resource attribute says so too", () =>
     Effect.gen(function* () {
       const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
@@ -124,6 +156,37 @@ describe("leaf policies", () => {
       Effect.provide(testLayer(subjectWith({ attributes: { allowedOp: "approve" } }))),
     ));
 
+  it.effect(
+    "a HasAttribute matcher referencing the resource fails, rather than denies, without one",
+    () =>
+      Effect.gen(function* () {
+        // The `HasResourceAttribute` mirror of "a matcher referencing action()
+        // without one fails rather than denying": `evaluateMatcher` is total,
+        // so without the pre-check the `resource(...)` reference would resolve
+        // to `undefined`, compare false, and read as an ordinary denial rather
+        // than the caller error INV-QD-011 asks for.
+        const policy = P.hasAttribute("op", M.eq(M.resource("requiredOp")));
+        const r = yield* Effect.result(evaluate(policy));
+        assert.strictEqual(r._tag, "Failure");
+        if (r._tag !== "Failure") return;
+        assert.strictEqual(r.failure._tag, "MissingResource");
+        if (r.failure._tag !== "MissingResource") return;
+        assert.strictEqual(r.failure.attribute, "op");
+      }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { op: "approve" } })))),
+  );
+
+  it.effect(
+    "a HasAttribute matcher referencing the resource allows once one is supplied",
+    () =>
+      Effect.gen(function* () {
+        // The positive half: supplying a resource must actually let evaluation
+        // proceed to the match, not merely avoid the MissingResource failure.
+        const policy = P.hasAttribute("op", M.eq(M.resource("requiredOp")));
+        const d = yield* evaluate(policy, { resource: { requiredOp: "approve" } });
+        assert.isTrue(isAllowed(d));
+      }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { op: "approve" } })))),
+  );
+
   it.effect("HasResourceAttribute matches against the resource", () =>
     Effect.gen(function* () {
       const policy = P.hasResourceAttribute("state", M.eq(M.literal("open")));
@@ -141,6 +204,20 @@ describe("leaf policies", () => {
       assert.strictEqual(d.trace.policyTag, "HasResourceAttribute");
       if (d._tag !== "Deny") return;
       assert.strictEqual(d.reason, "resource attribute 'state' did not match");
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("HasResourceAttribute does not resolve an inherited prototype member", () =>
+    Effect.gen(function* () {
+      // A decoded policy's `attribute` is untrusted input. Without an
+      // `Object.hasOwn` guard, naming a prototype-chain key such as
+      // `toString` resolves `Object.prototype.toString` — a function — as
+      // though the resource carried it, rather than reporting absence the
+      // way every other missing attribute does.
+      const policy = P.hasResourceAttribute("toString", M.exists());
+      const d = yield* evaluate(policy, { resource: { id: "doc-1" } });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "resource attribute 'toString' has no value");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
   it.effect("HasResourceAttribute fails when no resource is in context", () =>
@@ -213,6 +290,55 @@ describe("leaf policies", () => {
       // `testLayer` defaults to RelationshipResolverNever, which is the point —
       // this is what a caller who wired nothing actually gets.
     }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
+
+  it.effect(
+    "a hostile depth is clamped before it reaches the resolver as traversal fuel",
+    () =>
+      Effect.gen(function* () {
+        // `HasRelationship.depth` decodes via a bare `Schema.optional(Schema.Number)`
+        // — no `min`/`max`/`finite` refinement — so a persisted policy can carry
+        // `1e308`, a negative number, or (via `fromJsonValue`) `NaN`/`Infinity`.
+        // Every other untrusted numeric at this boundary is bounded
+        // (`DEFAULT_MAX_DEPTH`, `MAX_DECODE_DEPTH`); this proves `depth` now is
+        // too, by recording exactly what `evaluateHasRelationship` forwards to
+        // the port rather than what the policy claimed.
+        const depths: Array<number | undefined> = [];
+        const recordingResolver = Layer.succeed(RelationshipResolver, {
+          check: (request) =>
+            Effect.sync(() => {
+              depths.push(request.depth);
+              return "Related";
+            }),
+        });
+
+        for (const depth of [
+          1e308,
+          -5,
+          Number.NaN,
+          Number.POSITIVE_INFINITY,
+          Number.NEGATIVE_INFINITY,
+          0,
+          3.9,
+        ]) {
+          yield* evaluate(P.hasRelationship("owner", { depth }), {
+            resource: { id: "doc-1" },
+          }).pipe(
+            Effect.provide(
+              testLayer(subjectWith({ id: "u1" }), { relationships: recordingResolver }),
+            ),
+          );
+        }
+        // No `depth` at all still means "the resolver decides" — clamping must
+        // not invent a bound where the caller asked for none.
+        yield* evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
+          Effect.provide(
+            testLayer(subjectWith({ id: "u1" }), { relationships: recordingResolver }),
+          ),
+        );
+
+        assert.deepStrictEqual(depths, [64, 0, 0, 64, 0, 0, 3, undefined]);
+      }),
+  );
 
   it.effect("HasRelationship fails without resource.id, naming the relation", () =>
     Effect.gen(function* () {
@@ -805,6 +931,70 @@ describe("field visibility", () => {
       Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
     ));
 
+  it.effect(
+    "AnyOf/Union dedupes overlapping fields across three or more allowing children",
+    () =>
+      Effect.gen(function* () {
+        // `mergeFields`'s `Union` arm accumulates into a single `Set` across
+        // every child in one pass rather than folding pairwise through
+        // `unionFields` — this exercises that with three sets, two of which
+        // overlap, so a bug that rebuilt from the wrong starting point or
+        // dropped a set partway through would either lose "b" or keep a
+        // duplicate.
+        const policy = P.anyOf(
+          [
+            P.hasPermission(read, { fields: ["a", "b"] }),
+            P.hasPermission(write, { fields: ["b", "c"] }),
+            P.hasAttribute("level", M.gte(1), { fields: ["d"] }),
+          ],
+          { fieldStrategy: "Union" },
+        );
+        const d = yield* evaluate(policy);
+        assert.strictEqual(d.trace.policyTag, "AnyOf");
+        if (d._tag !== "Allow") return;
+        assert.deepStrictEqual([...(d.visibleFields ?? [])].sort(), ["a", "b", "c", "d"]);
+      }).pipe(
+        Effect.provide(
+          testLayer(
+            subjectWith({ permissions: ["doc:read", "doc:write"], attributes: { level: 5 } }),
+          ),
+        ),
+      ),
+  );
+
+  it.effect(
+    "AnyOf/Union stays absorbing on undefined even with other sets ahead of it",
+    () =>
+      Effect.gen(function* () {
+        // `unionFields` is absorbing on `undefined` — an unrestricted allowing
+        // child means "all fields" no matter what the others grant. Proven
+        // with the unrestricted child in the middle of the list, not first or
+        // last, so a single-pass rewrite cannot short-circuit correctly by
+        // accident only for an edge position.
+        const policy = P.anyOf(
+          [
+            P.hasPermission(read, { fields: ["a"] }),
+            P.hasRole("editor"),
+            P.hasAttribute("level", M.gte(1), { fields: ["d"] }),
+          ],
+          { fieldStrategy: "Union" },
+        );
+        const d = yield* evaluate(policy);
+        if (d._tag !== "Allow") return;
+        assert.isUndefined(d.visibleFields);
+      }).pipe(
+        Effect.provide(
+          testLayer(
+            subjectWith({
+              permissions: ["doc:read"],
+              roles: ["editor"],
+              attributes: { level: 5 },
+            }),
+          ),
+        ),
+      ),
+  );
+
   it.effect("an unrestricted child means all fields", () =>
     Effect.gen(function* () {
       const policy = P.allOf([
@@ -912,6 +1102,31 @@ describe("decision metadata", () => {
       assert.isTrue(isAllowed(d));
       assert.strictEqual(d.durationMillis, 10);
     }));
+
+  it.effect(
+    "decides correctly with no DecisionCache wired, exercising every field the cache key would otherwise carry",
+    () =>
+      Effect.gen(function* () {
+        // The cache key — subject, policy, resource, action, maxDepth — is now
+        // built only inside the `Option.isSome(cache)` branch of `evaluate`,
+        // rather than unconditionally before the cache-hit check. This asks a
+        // question that touches every one of those fields (a resource, an
+        // action, and a non-default `maxDepth`) with no `DecisionCache`
+        // provided at all, so a mistake that made the no-cache path depend on
+        // the now-conditional key would show up as a wrong answer here rather
+        // than merely as a skipped allocation.
+        const policy = P.allOf([
+          P.hasResourceAttribute("owner", M.eq(M.subjectId())),
+          P.hasAction("approve"),
+        ]);
+        const d = yield* evaluate(policy, {
+          resource: { owner: "u1" },
+          action: "approve",
+          maxDepth: 5,
+        });
+        assert.isTrue(isAllowed(d));
+      }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))),
+  );
 });
 
 describe("subject identity references", () => {
@@ -1044,6 +1259,38 @@ describe("the action dimension", () => {
       const d = yield* evaluate(policy, { action: "write" });
       assert.isTrue(isAllowed(d));
     }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] })))));
+
+  it.effect(
+    "subject, resource and action references all resolve correctly through Not/Rules/Labeled",
+    () =>
+      Effect.gen(function* () {
+        // `matcherContext` is now built once, in `evaluate`'s `Effect.suspend`,
+        // and threaded as a parameter through `evaluateNode` and its
+        // `AllOf`/`Rules` helpers rather than rebuilt inside every
+        // `evaluateNode` call. This exercises every shape that threading has
+        // to survive in one tree: two nested `Not`s (each a `depth + 1`
+        // recursive call), a `Rules` table's sequential walk, and `Labeled`'s
+        // wrapper — with a leaf under each reading a different one of
+        // `subject()`/`resource()`/`action()`. A mis-threaded parameter at any
+        // one of those call sites would make its leaf compare against stale
+        // or wrong data.
+        const policy = P.allOf([
+          P.not(P.not(P.hasResourceAttribute("owner", M.eq(M.subjectId())))),
+          P.rules([P.permitWhen(P.hasAttribute("op", M.eq(M.action())))]),
+          P.labeled("action-check", P.hasResourceAttribute("requiredOp", M.eq(M.action()))),
+        ]);
+
+        const d = yield* evaluate(policy, {
+          resource: { owner: "u1", requiredOp: "approve" },
+          action: "approve",
+        });
+        assert.isTrue(isAllowed(d));
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1", attributes: { op: "approve" } })),
+        ),
+      ),
+  );
 
   it.effect("read-down and write-up are expressible in one stored policy", () =>
     Effect.gen(function* () {
@@ -2521,9 +2768,11 @@ describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
       assert.isUndefined(counterOf(snapshots, { outcome: "deny" }));
     }));
 
-  it.effect("records the denying node's policy tag in the frequency", () =>
+  it.effect("records the top-level policy's tag in the frequency", () =>
     Effect.gen(function* () {
-      // Not the free-text reason: `evaluateActed`/`evaluateHasRelationship`
+      // The top-level policy `evaluate` was asked to decide, not whichever
+      // node deep in its tree actually produced the denial, and not the
+      // free-text reason either: `evaluateActed`/`evaluateHasRelationship`
       // both build theirs from caller-supplied identifiers, which would make
       // a frequency keyed on the raw sentence grow one entry per distinct
       // (subject, resource) pair ever denied — see the doc comment on

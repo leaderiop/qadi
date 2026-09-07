@@ -41,13 +41,14 @@
  * `guardRoute`'s full check again on the new connection, with no protocol of
  * ours. Off by default: it is meaningless without a `SubjectExtractor` whose
  * `lookup` actually consults something that can change (a real deployment's
- * does; `subjectExtractorNone`/an in-memory test double does not), so an
- * interval a caller did not ask for would only be needless load for one that
- * has no revocation source to notice.
+ * does; an in-memory lookup test double, like `decisionStream.test.ts`'s
+ * `lookupSubject`, does not), so an interval a caller did not ask for would
+ * only be needless load for one that has no revocation source to notice.
  */
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
+import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
@@ -55,24 +56,36 @@ import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import type { CurrentSubject, EvaluationServices, Permission, Policy, Resource, SinkRecord } from "@qadi/core";
-import { currentSubjectLayer, evaluate, isAllowed, isJsonSafe, toWire } from "@qadi/core";
+import { assert, currentSubjectLayer, isRecordJsonSafe, toWire } from "@qadi/core";
 import { guardRoute } from "./GuardRoute.ts";
+import { PermissionRegistry } from "./PermissionRegistry.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
- * One record as an SSE frame: `data: <json>\n\n` — or filtered out when its
- * resource has no safe durable representation.
+ * A single `TextEncoder`, reused for every frame — this runs once per
+ * streamed record on the hot SSE path, and a `TextEncoder` carries no
+ * per-call state worth re-allocating for.
+ */
+const encoder = new TextEncoder();
+
+/**
+ * One record as an SSE frame: `data: <json>\n\n` — or filtered out when it
+ * has no safe durable representation.
  *
- * A caller's resource is arbitrary `unknown`; a circular reference or a
- * `BigInt` used to throw a raw `TypeError` out of `JSON.stringify` inside
- * `Stream.map`, killing this SSE connection — and every other subscriber's,
- * since they all read the same stream — over one bad decision. `isJsonSafe`
- * is `@qadi/audit`'s own guard for exactly this value, shared from
- * `@qadi/core` rather than duplicated (`SinkCodec.ts`). Refusing just the one
- * frame rather than the whole feed matches how this route already behaves
- * under backpressure: `decisionSinkFeed` drops the oldest entry rather than
- * blocking, so a record failing to reach a subscriber is not a new failure
- * mode here, only a new reason for it.
+ * A caller's resource, and a policy's `HasCustom.params`/`Obligation.attributes`,
+ * are all arbitrary `unknown`; a circular reference or a `BigInt` used to throw
+ * a raw `TypeError` out of `JSON.stringify` inside `Stream.map`, killing this
+ * SSE connection — and every other subscriber's, since they all read the same
+ * stream — over one bad decision. `isRecordJsonSafe` is `@qadi/core`'s own
+ * guard for exactly this ([SinkCodec.ts](../../core/src/SinkCodec.ts)) — it
+ * walks `resource` **and** `policy`, not `resource` alone, which an earlier
+ * version of this guard missed: a policy's own `HasCustom.params` or an
+ * `Obligation`'s `attributes` reaches the same `JSON.stringify` call and can
+ * carry the same unsafe values. Refusing just the one frame rather than the
+ * whole feed matches how this route already behaves under backpressure:
+ * `decisionSinkFeed` drops the oldest entry rather than blocking, so a record
+ * failing to reach a subscriber is not a new failure mode here, only a new
+ * reason for it.
  *
  * A `Filter`, not a plain function returning `Option`: `Stream.filterMap`
  * takes a `Filter` in this Effect version — `Result.succeed` keeps a value,
@@ -82,9 +95,8 @@ import { SubjectExtractor } from "./SubjectExtractor.ts";
  * `SinkRecord`, rather than through a live SSE connection.
  */
 export const frame: Filter.Filter<SinkRecord, Uint8Array> = (record) => {
-  const resource = record._tag === "Decision" ? record.resource : undefined;
-  if (resource !== undefined && !isJsonSafe(resource)) return Result.fail(record);
-  return Result.succeed(new TextEncoder().encode(`data: ${JSON.stringify(toWire(record))}\n\n`));
+  if (!isRecordJsonSafe(record)) return Result.fail(record);
+  return Result.succeed(encoder.encode(`data: ${JSON.stringify(toWire(record))}\n\n`));
 };
 
 export interface DecisionStreamOptions {
@@ -101,7 +113,23 @@ export interface DecisionStreamOptions {
 
 /**
  * One re-authorization attempt: re-extract the subject from the same
- * request, re-evaluate the policy against it, succeed only on an allow.
+ * request, re-check the policy against it on **`assert`'s** semantics —
+ * succeed only on an allow whose obligations, if any, are discharged.
+ *
+ * Built on `assert` rather than `evaluate` + `isAllowed`, deliberately: the
+ * latter reports whether the policy allowed and stops there, which is not
+ * what connect-time `guardRoute` does — `guardRoute` enforces through
+ * `@qadi/core`'s `guard`, which refuses an allow carrying a binding
+ * obligation nobody discharged. An `evaluate`-based recheck and a
+ * `guard`-based connect check would disagree about the same policy on the
+ * same subject the moment one is `Obliged`: connect refuses, but every
+ * later recheck would report the bare allow as sufficient and let the
+ * connection continue past the point connecting fresh would have refused it.
+ * Currently latent — no live path lets an `Obliged` policy reach this route
+ * at all — but the two enforcement points must not implement different
+ * semantics regardless. `assert` is `@qadi/core`'s own exported
+ * enforcement-semantics primitive for exactly this: evaluate, refuse a
+ * denial, discharge (or refuse) obligations, report nothing back.
  *
  * Re-extracting is the point, not a formality — for a `SubjectExtractor`
  * backed by a real token/session lookup, this calls that lookup again rather
@@ -110,6 +138,12 @@ export interface DecisionStreamOptions {
  * credential store itself broken) ends the stream the same as a denial: an
  * outage on the recheck path is not a reason to keep serving decisions on
  * the strength of a subject this process can no longer confirm.
+ *
+ * Both failure paths are logged before being collapsed to their literal —
+ * mirroring `GuardRoute.ts`/`RequirePermission.ts`'s
+ * `Effect.logError(...error.reason)` for `SubjectExtractionFailed` — so an
+ * outage on this path leaves a trace instead of silently ending the SSE
+ * connection with zero diagnostics.
  *
  * Exported for the same reason `frame` is: testing the merged `Stream`
  * through a real, live SSE connection has no existing pattern in this repo
@@ -126,14 +160,17 @@ export const reauthCheck = (
   Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
 > =>
   SubjectExtractor.extract(request).pipe(
+    Effect.tapError((error) =>
+      Effect.logError(`qadi/http: subject extraction failed during reauth — ${error.reason}`),
+    ),
     Effect.mapError(() => "extraction-failed" as const),
     Effect.flatMap((subject) =>
-      evaluate(policy, { resource }).pipe(
+      assert(policy, { resource }).pipe(
         Effect.provide(currentSubjectLayer(subject)),
-        Effect.mapError(() => "denied" as const),
-        Effect.flatMap((decision) =>
-          isAllowed(decision) ? Effect.void : Effect.fail("denied" as const),
+        Effect.tapError((error) =>
+          Effect.logError(`qadi/http: reauth check failed (${error._tag}), reporting a denial`),
         ),
+        Effect.mapError(() => "denied" as const),
       ),
     ),
   );
@@ -147,6 +184,12 @@ export const reauthCheck = (
  *
  * Every subscriber gets its own subscription, so two open devtools pages do not
  * steal records from one another.
+ *
+ * Registers with `PermissionRegistry`, the same way `addGuardedRoute` does for
+ * a bare `HttpRouter` route — otherwise `/__permissions`'s own claim to list
+ * "every permission this application enforces, and the routes that require
+ * it" would be false of exactly the one route that publishes decisions rather
+ * than the topology.
  */
 export const decisionStreamRoute = <P extends Permission>(
   permission: P,
@@ -154,56 +197,61 @@ export const decisionStreamRoute = <P extends Permission>(
   stream: Stream.Stream<SinkRecord>,
   options?: DecisionStreamOptions,
 ) =>
-  HttpRouter.add(
-    "GET",
-    "/__decisions",
-    Effect.gen(function* () {
-      const request = yield* HttpServerRequest.HttpServerRequest;
-      return yield* guardRoute(
-        permission,
-        policy,
-        () => Effect.succeed({}),
-      )(() =>
-        Effect.gen(function* () {
-          const frames = Stream.filterMap(stream, frame);
-          // `Stream.mergeEffect`: the recheck loop runs concurrently for the
-          // stream's lifetime, fails the whole stream the moment it fails,
-          // and is itself interrupted the moment the stream ends for any
-          // other reason (the client disconnecting) — never an orphaned
-          // fiber still polling a connection nobody is reading anymore.
-          const guarded =
-            options?.reauth === undefined
-              ? frames
-              : frames.pipe(
-                  Stream.mergeEffect(
-                    Effect.repeat(
-                      reauthCheck(request, policy, {}),
-                      Schedule.spaced(options.reauth.interval),
+  Layer.merge(
+    HttpRouter.add(
+      "GET",
+      "/__decisions",
+      Effect.gen(function* () {
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        return yield* guardRoute(
+          permission,
+          policy,
+          () => Effect.succeed({}),
+        )(() =>
+          Effect.gen(function* () {
+            const frames = Stream.filterMap(stream, frame);
+            // `Stream.mergeEffect`: the recheck loop runs concurrently for the
+            // stream's lifetime, fails the whole stream the moment it fails,
+            // and is itself interrupted the moment the stream ends for any
+            // other reason (the client disconnecting) — never an orphaned
+            // fiber still polling a connection nobody is reading anymore.
+            const guarded =
+              options?.reauth === undefined
+                ? frames
+                : frames.pipe(
+                    Stream.mergeEffect(
+                      Effect.repeat(
+                        reauthCheck(request, policy, {}),
+                        Schedule.spaced(options.reauth.interval),
+                      ),
                     ),
-                  ),
-                );
-          // `HttpServerResponse.stream` takes no requirement channel at
-          // all — it needs a fully discharged `Stream`, unlike
-          // `Effect.Effect`, which threads `R` through. The reauth loop's
-          // services are already in this handler's own ambient context
-          // (that is what `guardRoute`/`HttpRouter.add` provide them for),
-          // so capturing and re-providing that context is what discharges
-          // them here rather than leaving them for a caller who cannot see
-          // this route's internals to supply.
-          const context = yield* Effect.context<
-            Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
-          >();
-          return HttpServerResponse.stream(Stream.provideContext(guarded, context), {
-            contentType: "text/event-stream",
-            headers: {
-              // Without these a proxy will buffer the stream into oblivion and
-              // the feed appears to hang rather than to work slowly.
-              "cache-control": "no-cache",
-              connection: "keep-alive",
-              "x-accel-buffering": "no",
-            },
-          });
-        }),
-      )(request);
-    }),
+                  );
+            // `HttpServerResponse.stream` takes no requirement channel at
+            // all — it needs a fully discharged `Stream`, unlike
+            // `Effect.Effect`, which threads `R` through. The reauth loop's
+            // services are already in this handler's own ambient context
+            // (that is what `guardRoute`/`HttpRouter.add` provide them for),
+            // so capturing and re-providing that context is what discharges
+            // them here rather than leaving them for a caller who cannot see
+            // this route's internals to supply.
+            const context = yield* Effect.context<
+              Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
+            >();
+            return HttpServerResponse.stream(Stream.provideContext(guarded, context), {
+              contentType: "text/event-stream",
+              headers: {
+                // Without these a proxy will buffer the stream into oblivion and
+                // the feed appears to hang rather than to work slowly.
+                "cache-control": "no-cache",
+                connection: "keep-alive",
+                "x-accel-buffering": "no",
+              },
+            });
+          }),
+        )(request);
+      }),
+    ),
+    Layer.effectDiscard(
+      PermissionRegistry.register(permission, { method: "GET", path: "/__decisions", group: undefined }),
+    ),
   );

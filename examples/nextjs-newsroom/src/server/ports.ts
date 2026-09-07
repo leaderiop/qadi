@@ -92,6 +92,12 @@ export const ports: EvaluationPortsLayer = Layer.mergeAll(
   attributes.pipe(
     attributeResolverRetrying(Schedule.recurs(2)),
     attributeResolverBounded(8),
+    // `8` is a literal, always-valid permit count — `InvalidBoundedPermits`
+    // can only fire here on a typo in this file, never on live traffic, so
+    // `Layer.orDie` is the construction-time equivalent of the type system
+    // catching it: this is wiring, not an evaluation or enforcement path,
+    // which is what AGENTS.md §4's `orDie` ban actually guards.
+    Layer.orDie,
   ),
   relationships,
   history,

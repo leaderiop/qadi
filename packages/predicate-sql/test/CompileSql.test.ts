@@ -83,11 +83,11 @@ describe("compileSql — golden fragments, one row per dialect", () => {
         ],
       };
       assert.deepStrictEqual(yield* render(compound, "postgres"), {
-        text: '("tenantId" = $1 AND "tag" IN ($2, $3) AND NOT ("sealed" = $4))',
+        text: '("tenantId" = $1 AND "tag" IN ($2, $3) AND CASE WHEN ("sealed" = $4) THEN FALSE ELSE TRUE END)',
         params: ["t-1", "red", "blue", true],
       });
       assert.deepStrictEqual(yield* render(compound, "sqlite"), {
-        text: '("tenantId" = ? AND "tag" IN (?, ?) AND NOT ("sealed" = ?))',
+        text: '("tenantId" = ? AND "tag" IN (?, ?) AND CASE WHEN ("sealed" = ?) THEN FALSE ELSE TRUE END)',
         params: ["t-1", "red", "blue", true],
       });
 
@@ -99,13 +99,19 @@ describe("compileSql — golden fragments, one row per dialect", () => {
   it.effect("nested Negate renders exactly what the AST says, no elimination", () =>
     Effect.gen(function* () {
       // Reachable since Predicate.ts's negate() only inverts constants, not
-      // arbitrary sub-trees. Simplify.ts never runs on a Predicate.
+      // arbitrary sub-trees. Simplify.ts never runs on a Predicate. The
+      // rendered shape is the NULL-safe CASE form (see the dedicated
+      // NULL-handling describe block below), not a bare "NOT (NOT (...))" —
+      // but the nesting itself is still preserved rather than cancelled.
       const doubled: Predicate = {
         _tag: "Negate",
         predicate: { _tag: "Negate", predicate: eq },
       };
       const fragment = yield* render(doubled, "postgres");
-      assert.strictEqual(fragment.text, 'NOT (NOT ("tenantId" = $1))');
+      assert.strictEqual(
+        fragment.text,
+        'CASE WHEN (CASE WHEN ("tenantId" = $1) THEN FALSE ELSE TRUE END) THEN FALSE ELSE TRUE END',
+      );
     }));
 
   it.effect("a null value is on the safe allowlist and compiles as IS NULL, not '= NULL'", () =>
@@ -181,6 +187,61 @@ describe("compileSql — NULL handling agrees with evaluatePredicate's ===/!==",
       });
     }));
 
+  // evaluatePredicate's compare requires typeof === "number" on BOTH sides
+  // for Gte/Lt and is always False otherwise — a real DB coerces a string
+  // (PostgreSQL: `int_col >= '10'` → 10) or orders NaN specially (above every
+  // number, in PostgreSQL) rather than refusing, admitting rows the reference
+  // evaluator denies for every row regardless of column type. Rendering FALSE
+  // — never binding the value into a real comparison — is what keeps the
+  // compiled SQL from ever running that coercing/ordering comparison at all.
+  it.effect("Gte/Lt with a non-number, non-null value renders FALSE, never a real comparison", () =>
+    Effect.gen(function* () {
+      const nonNumberValues: ReadonlyArray<unknown> = ["10", true, false, Number.NaN];
+      for (const value of nonNumberValues) {
+        assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Gte", value }, "postgres"), {
+          text: "FALSE",
+          params: [],
+        });
+        assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Lt", value }, "postgres"), {
+          text: "FALSE",
+          params: [],
+        });
+      }
+    }));
+
+  // ticket 157 — the same guard above already excludes both `string` and
+  // `boolean` alongside NaN, not merely non-finite numbers; this pins that
+  // through the And/Negate composition path too, not only a bare Compare, so
+  // the guard's placement inside renderNode's Compare case (reached once per
+  // leaf regardless of nesting) cannot regress unnoticed.
+  it.effect("a string or boolean Gte/Lt value renders FALSE even nested under And/Negate", () =>
+    Effect.gen(function* () {
+      const nested: Predicate = {
+        _tag: "And",
+        predicates: [
+          { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" },
+          { _tag: "Negate", predicate: { _tag: "Compare", column: "score", op: "Gte", value: "10" } },
+          { _tag: "Compare", column: "sealed", op: "Lt", value: true },
+        ],
+      };
+      assert.deepStrictEqual(yield* render(nested, "postgres"), {
+        text: '("tenantId" = $1 AND CASE WHEN (FALSE) THEN FALSE ELSE TRUE END AND FALSE)',
+        params: ["t-1"],
+      });
+    }));
+
+  it.effect("Gte/Lt with a genuine number still compiles to a real comparison", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Gte", value: 10 }, "postgres"), {
+        text: '"c" >= $1',
+        params: [10],
+      });
+      assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Lt", value: 10 }, "postgres"), {
+        text: '"c" < $1',
+        params: [10],
+      });
+    }));
+
   it.effect("Neq against a non-null value also admits a NULL-valued column", () =>
     Effect.gen(function* () {
       // Plain "c" != $1 alone would exclude a NULL-valued row; `null !== 1`
@@ -204,6 +265,32 @@ describe("compileSql — NULL handling agrees with evaluatePredicate's ===/!==",
       assert.deepStrictEqual(fragment, {
         text: '("c" IN ($1, $2) OR "c" IS NULL)',
         params: ["red", "blue"],
+      });
+    }));
+
+  // A plain "NOT (...)" is not NULL-safe: `NOT ("status" = $1)` is UNKNOWN,
+  // not TRUE, for a NULL-valued "status" column, and WHERE excludes UNKNOWN
+  // the same as FALSE — dropping a row `evaluatePredicate`'s two-valued
+  // negation admits (`null === 'archived'` is `false`, negated is `true`).
+  // Fixed by rendering `CASE WHEN (<inner>) THEN FALSE ELSE TRUE END`, which
+  // never evaluates to UNKNOWN: an UNKNOWN `WHEN` condition falls to `ELSE`
+  // exactly as a `FALSE` one would. This is a golden-text assertion rather
+  // than a property-test one on purpose — `interpretSqlFragment` re-derives
+  // `compare`/`isNull` results straight from `row`, so it (and the property
+  // test in `Agreement.test.ts` that drives it) would silently agree with the
+  // old, wrong "NOT (...)" text too, exactly like `matchesPrismaWhere.ts` did
+  // for the sibling Prisma defect (ticket 06) — only the exact rendered SQL
+  // shape distinguishes NULL-safe from NULL-unsafe here.
+  it.effect("Negate renders NULL-safe CASE WHEN, not a bare NOT", () =>
+    Effect.gen(function* () {
+      const negated: Predicate = {
+        _tag: "Negate",
+        predicate: { _tag: "Compare", column: "status", op: "Eq", value: "archived" },
+      };
+      const fragment = yield* render(negated, "postgres");
+      assert.deepStrictEqual(fragment, {
+        text: 'CASE WHEN ("status" = $1) THEN FALSE ELSE TRUE END',
+        params: ["archived"],
       });
     }));
 });

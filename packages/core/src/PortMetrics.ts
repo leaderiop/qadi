@@ -19,8 +19,13 @@
  * ([INV-QD-005](../../../spec/invariants.md#inv-qd-005-short-circuit-preservation))
  * for a panel. The Services screen gets aggregates; the inspector does without.
  *
- * Keyed on the port name — three closed values — for the cardinality reason
- * `Evaluate.ts` gives for keying denials on the policy tag.
+ * Keyed on the port name — a closed set of values — for the cardinality reason
+ * `Evaluate.ts` gives for keying denials on the policy tag. `portCallsTotal`
+ * carries five: `AttributeResolver`, `DecisionHistory`, `RelationshipResolver`,
+ * `CustomPredicate` and `SignatureHistory` — one per port `Evaluate.ts` can
+ * call into. `portRetriesTotal` carries three: only the ports with a retrying
+ * wrapper (`AttributeResolver.ts`, `RelationshipResolver.ts`,
+ * `CustomPredicate.ts`) ever update it.
  *
  * The `description` strings below survive mutation testing, as `DecisionCache`'s
  * do: nothing reads them back, so no test can distinguish a metric carrying one

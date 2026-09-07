@@ -51,6 +51,33 @@
  *    mid-retry. `resolvers` holds the one function that current call should
  *    invoke, so a later re-check (ADR-QD-017) is resolved by the same
  *    long-lived listener rather than by a second, competing one.
+ *
+ * 3. A third defect, found by reproducing a route change over a module-scope
+ *    `makeQadiAtoms()` call — the documented usage, and exactly what fix 2's
+ *    "family entries are never pruned" reasoning depends on: fix 2's three
+ *    structures were keyed by *atom alone*, but every `QadiProvider` instance
+ *    builds its own `AtomRegistry` over those same shared atom objects. The
+ *    once-per-atom subscription in fix 2 therefore attaches to whichever
+ *    registry first called {@link settled}, not to the registry the *current*
+ *    caller passed in. When that first registry unmounts, its deferred
+ *    `dispose()` runs `reset()`, which tears down every node and, with it, the
+ *    only listener that could ever resolve the promise. A second provider
+ *    generation over the same atom set then calls `settled(registry2, atom)`
+ *    for a question that is genuinely pending: `pending.get(atom)` is empty
+ *    (the first generation's resolve already deleted it), so the fast path
+ *    correctly declines, but `subscribed.has(atom)` is still `true` from the
+ *    first generation, so `registry2.subscribe` is never called — the promise
+ *    can only be resolved by a listener that no longer exists, and the
+ *    Suspense boundary hangs forever. The same starvation hits two
+ *    *concurrently* mounted providers sharing one atom set.
+ *
+ *    Fixed by keying all three structures per registry instead of per atom:
+ *    `pending`, `resolvers` and `subscribed` each live behind a
+ *    `WeakMap<AtomRegistry.AtomRegistry, …>`, so every registry gets its own
+ *    once-per-atom subscription. That preserves fix 2's guarantee — the
+ *    listener count for an atom never reaches zero — within one registry's
+ *    lifetime, while letting a later registry generation establish its own
+ *    listener rather than depend on a dead one.
  */
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import type * as Atom from "effect/unstable/reactivity/Atom";
@@ -70,23 +97,45 @@ import type { DecisionResult } from "./QadiAtoms.ts";
 export const isPending = (result: DecisionResult): boolean =>
   AsyncResult.isInitial(result) || result.waiting;
 
-const pending = new WeakMap<Atom.Atom<DecisionResult>, Promise<void>>();
-/** The resolver the atom's one long-lived listener should call right now. */
-const resolvers = new WeakMap<Atom.Atom<DecisionResult>, () => void>();
-/** Atoms this module has already attached its one long-lived listener to. */
-const subscribed = new WeakSet<Atom.Atom<DecisionResult>>();
+/** Per-registry copies of the three structures below — see defect 3 above. */
+interface RegistryState {
+  readonly pending: WeakMap<Atom.Atom<DecisionResult>, Promise<void>>;
+  /** The resolver the atom's one long-lived listener should call right now. */
+  readonly resolvers: WeakMap<Atom.Atom<DecisionResult>, () => void>;
+  /** Atoms this registry has already attached its one long-lived listener to. */
+  readonly subscribed: WeakSet<Atom.Atom<DecisionResult>>;
+}
+
+const registryState = new WeakMap<AtomRegistry.AtomRegistry, RegistryState>();
+
+/** The state for `registry`, created on first use and kept for its lifetime. */
+const stateFor = (registry: AtomRegistry.AtomRegistry): RegistryState => {
+  const existing = registryState.get(registry);
+  if (existing !== undefined) return existing;
+  const created: RegistryState = {
+    pending: new WeakMap(),
+    resolvers: new WeakMap(),
+    subscribed: new WeakSet(),
+  };
+  registryState.set(registry, created);
+  return created;
+};
 
 /**
  * A promise that resolves when the decision for `atom` leaves `Initial`.
  *
- * Memoised per atom, because React re-renders on every throw and a fresh
- * promise per throw would suspend forever.
+ * Memoised per atom *and* per registry, because React re-renders on every
+ * throw and a fresh promise per throw would suspend forever — and because a
+ * registry that has torn down cannot be the one a later registry generation
+ * waits on (defect 3 above).
  */
 export const settled = (
   registry: AtomRegistry.AtomRegistry,
   atom: Atom.Atom<DecisionResult>,
 ): Promise<void> => {
-  const existing = pending.get(atom);
+  const state = stateFor(registry);
+
+  const existing = state.pending.get(atom);
   if (existing !== undefined) return existing;
 
   // Read the atom's current value before subscribing to it, in one
@@ -100,22 +149,23 @@ export const settled = (
   if (!isPending(registry.get(atom))) return Promise.resolve();
 
   const promise = new Promise<void>((resolve) => {
-    resolvers.set(atom, resolve);
-    if (subscribed.has(atom)) return;
-    subscribed.add(atom);
-    // Established once per atom and never unsubscribed — see this module's
-    // doc comment for why tearing it down is the second defect, not a cleanup
-    // opportunity. `resolvers` is what lets one long-lived listener answer
-    // whichever call is current, including a later re-check's fresh promise.
+    state.resolvers.set(atom, resolve);
+    if (state.subscribed.has(atom)) return;
+    state.subscribed.add(atom);
+    // Established once per atom per registry and never unsubscribed — see
+    // this module's doc comment for why tearing it down is the second defect,
+    // not a cleanup opportunity. `resolvers` is what lets one long-lived
+    // listener answer whichever call is current, including a later
+    // re-check's fresh promise.
     registry.subscribe(atom, (result) => {
       if (isPending(result)) return;
-      const resolveCurrent = resolvers.get(atom);
+      const resolveCurrent = state.resolvers.get(atom);
       if (resolveCurrent === undefined) return;
-      resolvers.delete(atom);
-      pending.delete(atom);
+      state.resolvers.delete(atom);
+      state.pending.delete(atom);
       resolveCurrent();
     });
   });
-  pending.set(atom, promise);
+  state.pending.set(atom, promise);
   return promise;
 };

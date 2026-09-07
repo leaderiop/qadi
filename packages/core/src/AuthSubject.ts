@@ -43,7 +43,17 @@ export interface AuthSubject {
   readonly attributes: Readonly<Record<string, unknown>>;
 }
 
-/** Builds a subject from explicit permission keys. */
+/**
+ * Builds a subject from explicit permission keys.
+ *
+ * `roles` and `permissions` are already safe by construction — `new Set(...)`
+ * copies the caller's iterable into a fresh `Set` at build time, so a caller
+ * mutating whatever they passed in afterward cannot reach back into this
+ * subject. `attributes` gets the same treatment explicitly: without the
+ * spread, this stored the caller's own record by reference, so a caller
+ * mutating that object after the call would silently change what this
+ * "immutable" subject answers.
+ */
 export const makeSubject = (config: {
   readonly id: string;
   readonly roles?: Iterable<string>;
@@ -53,7 +63,7 @@ export const makeSubject = (config: {
   id: makeSubjectId(config.id),
   roles: new Set([...(config.roles ?? [])].map(makeRoleName)),
   permissions: new Set(config.permissions ?? []),
-  attributes: config.attributes ?? {},
+  attributes: { ...config.attributes },
 });
 
 /**
@@ -78,7 +88,10 @@ export const fromRoles = (config: {
     id: makeSubjectId(config.id),
     roles: names,
     permissions: keys,
-    attributes: config.attributes ?? {},
+    // Copied for the same reason `makeSubject` copies it: stored by
+    // reference, this would let a caller mutate the config object they
+    // passed in and silently change what this subject answers afterward.
+    attributes: { ...config.attributes },
   };
 };
 
@@ -90,7 +103,15 @@ export const anonymous: AuthSubject = {
   attributes: {},
 };
 
-/** A copy of the subject with additional attributes merged in. */
+/**
+ * A copy of the subject with additional attributes merged in.
+ *
+ * Already safe against the reference-aliasing `makeSubject`/`fromRoles` guard
+ * against: the merge spread builds a brand new record from `self.attributes`
+ * and `attributes`'s own enumerable properties, so neither the caller's
+ * `attributes` argument nor `self.attributes` is retained by reference on the
+ * result.
+ */
 export const withAttributes = (
   self: AuthSubject,
   attributes: Readonly<Record<string, unknown>>,

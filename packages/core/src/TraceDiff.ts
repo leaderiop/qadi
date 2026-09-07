@@ -46,6 +46,24 @@ export interface ReasonChanged {
   readonly after?: string | undefined;
 }
 
+/** The node's own policy tag changed — a different kind of node sits here now. */
+export interface PolicyTagChanged {
+  readonly _tag: "PolicyTagChanged";
+  readonly path: TracePath;
+  readonly policyTag: Trace["policyTag"];
+  readonly before: Trace["policyTag"];
+  readonly after: Trace["policyTag"];
+}
+
+/** The label an author gave this node — present only on a `Labeled` node — changed. */
+export interface LabelChanged {
+  readonly _tag: "LabelChanged";
+  readonly path: TracePath;
+  readonly policyTag: Trace["policyTag"];
+  readonly before: string | undefined;
+  readonly after: string | undefined;
+}
+
 /** The two trees disagree in shape here, so neither side can be walked further. */
 export interface ChildCountChanged {
   readonly _tag: "ChildCountChanged";
@@ -77,9 +95,30 @@ export interface ObligationsChanged {
 export type TraceDifference =
   | VerdictChanged
   | ReasonChanged
+  | PolicyTagChanged
+  | LabelChanged
   | ChildCountChanged
   | FieldsChanged
   | ObligationsChanged;
+
+/**
+ * Whether two string collections hold the same elements, ignoring order.
+ *
+ * `FieldsChanged` and `ObligationsChanged` both document SET semantics — "the
+ * set of fields this node makes visible", "the duties this node contributed" —
+ * but a positional array comparison reports a reorder as a change. Sorting a
+ * copy of each side before comparing element-wise gives set equality (and,
+ * incidentally, multiset equality, which is the stricter and still-correct
+ * behavior if a caller's array ever carried a duplicate) without depending on
+ * `effect/HashSet`, which buys nothing extra for elements that are already
+ * primitive strings comparable with `===`.
+ */
+const sameStringSet = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean => {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((f, i) => f === sortedB[i]);
+};
 
 const sameFields = (
   a: ReadonlyArray<string> | undefined,
@@ -88,7 +127,7 @@ const sameFields = (
   // `undefined` and `[]` are opposite ends of the field lattice — all fields
   // versus none — so they must never compare equal here (INV-QD-004).
   if (a === undefined || b === undefined) return a === b;
-  return a.length === b.length && a.every((f, i) => f === b[i]);
+  return sameStringSet(a, b);
 };
 
 /**
@@ -107,6 +146,32 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
   const out: Array<TraceDifference> = [];
 
   const walk = (a: Trace, b: Trace, path: TracePath): void => {
+    // The node's own identity, checked before anything about its outcome: a
+    // node whose policy tag or label changed is a real difference even when
+    // its verdict, reason, fields and obligations all happen to coincide —
+    // the gap this pins. A label-only rename (`Labeled`'s `label`) or a node
+    // swapped for a different kind that evaluates the same way both used to
+    // vanish into an empty diff, contradicting "empty means the two
+    // evaluations agree at every node".
+    if (a.policyTag !== b.policyTag) {
+      out.push({
+        _tag: "PolicyTagChanged",
+        path,
+        policyTag: b.policyTag,
+        before: a.policyTag,
+        after: b.policyTag,
+      });
+    }
+    if (a.label !== b.label) {
+      out.push({
+        _tag: "LabelChanged",
+        path,
+        policyTag: b.policyTag,
+        before: a.label,
+        after: b.label,
+      });
+    }
+
     if (a.allowed !== b.allowed) {
       out.push({
         _tag: "VerdictChanged",
@@ -140,10 +205,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
 
     const beforeObligations = a.obligations.map((o) => o.id);
     const afterObligations = b.obligations.map((o) => o.id);
-    if (
-      beforeObligations.length !== afterObligations.length ||
-      beforeObligations.some((id, i) => id !== afterObligations[i])
-    ) {
+    if (!sameStringSet(beforeObligations, afterObligations)) {
       out.push({
         _tag: "ObligationsChanged",
         path,

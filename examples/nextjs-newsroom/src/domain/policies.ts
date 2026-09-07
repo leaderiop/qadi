@@ -33,6 +33,7 @@ import {
   rules,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
+import { PUBLIC_FIELDS } from "./articles.ts";
 import {
   publishArticle,
   readArticle,
@@ -116,9 +117,7 @@ export const viewArticle: Policy = labeled(
           hasPermission(readSource),
           // The branch that restricts. Below Editor this is the only satisfied
           // arm, and its `fields` is what the intersection lands on.
-          hasPermission(readArticle, {
-            fields: ["id", "title", "status", "authorId", "embargoUntil", "classification", "body"],
-          }),
+          hasPermission(readArticle, { fields: PUBLIC_FIELDS }),
         ]),
       ),
     ],

@@ -123,6 +123,32 @@ describe("CircuitBreaker — threshold boundary, scripted rather than generated"
       assert.strictEqual(claims.filter((c) => c).length, 1, "exactly one caller claims the probe");
     }));
 
+  it.effect(
+    "a lost claim's re-read can show Closed, not just HalfOpen or Open — ticket #46's disambiguation",
+    () =>
+      Effect.gen(function* () {
+        const breaker = yield* makeCircuitBreaker(OPTIONS);
+        yield* breaker.recordFailure;
+        yield* breaker.recordFailure;
+        yield* breaker.recordFailure;
+        yield* TestClock.adjust("10 seconds");
+        assert.strictEqual(yield* breaker.status, "HalfOpen");
+
+        // Two concurrent record() calls would both have read "HalfOpen"
+        // here; only one of them goes on to claim the probe.
+        assert.isTrue(yield* breaker.claimProbe, "the prober claims the slot");
+        assert.isFalse(yield* breaker.claimProbe, "a second caller's claim is refused");
+
+        // The prober's write then succeeds, closing the breaker. A caller
+        // who lost the claim and assumed "still HalfOpen, so behave as
+        // Open" would be wrong the instant it re-reads status: it is
+        // Closed, not HalfOpen or Open — the exact ambiguity
+        // AuditDecisionSinkLive.ts's record() re-reads status to resolve.
+        yield* breaker.recordSuccess;
+        assert.strictEqual(yield* breaker.status, "Closed");
+      }),
+  );
+
   it.effect("claimProbe resets on the next half-open window, whichever direction closed the last one", () =>
     Effect.gen(function* () {
       const breaker = yield* makeCircuitBreaker(OPTIONS);

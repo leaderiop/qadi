@@ -194,6 +194,23 @@ describe("sourceFromFeed", () => {
       assert.strictEqual(got[0]?._tag, "Obligations");
       assert.strictEqual(got[0]?.environment, "Server");
     }));
+
+  // A plain `{ ...record, environment }` spread of a `Data.TaggedClass` instance
+  // lands on `Object.prototype`, silently dropping `.pipe`/`Equal.equals`/
+  // `Hash.hash` — the exact failure `DecisionSinkRing.ts`'s `stampRecord`
+  // documents and exists to avoid. This pins that `sourceFromFeed` stamps
+  // through core's own `stampRecord` rather than re-implementing the spread.
+  it.effect("stamps through core's stampRecord, not a spread that drops the prototype", () =>
+    Effect.gen(function* () {
+      const { environment: _dropped, ...bare } = decisionRecord({ evaluationId: "a" });
+      const source = sourceFromFeed({
+        stream: Stream.fromArray<SinkRecord>([bare]),
+        environment: "Client",
+      });
+
+      const got = Array.from(yield* Stream.runCollect(source.live));
+      assert.strictEqual(typeof got[0]?.pipe, "function");
+    }));
 });
 
 describe("sourceFromEventSource", () => {
@@ -205,6 +222,9 @@ describe("sourceFromEventSource", () => {
       assert.strictEqual(got.length, 1);
       assert.strictEqual(got[0]?.evaluationId, "a");
       assert.strictEqual(got[0]?.environment, "Server");
+      // Same prototype-preservation guarantee `sourceFromFeed` pins: a
+      // `{ ...record, environment }` spread would silently drop `.pipe`.
+      assert.strictEqual(typeof got[0]?.pipe, "function");
     }));
 
   // E1.1 — a frame that is not JSON at all: a broken transport.
@@ -565,6 +585,28 @@ describe("mergeSources", () => {
       assert.deepStrictEqual(
         got.map((record) => record.evaluationId),
         ["first", "second", "third"],
+      );
+    }));
+
+  // INV-QD-039: an unknown time sorts after every known one. `a.at - b.at`
+  // would leave a `NaN` row wherever `Array.prototype.sort` happened to place
+  // it, which is not the total order this timeline documents.
+  it.effect("sorts a NaN-timed row after every known time", () =>
+    Effect.gen(function* () {
+      const merged = mergeSources([
+        withBacklog([
+          decisionRecord({ evaluationId: "unknown", at: Number.NaN }),
+          decisionRecord({ evaluationId: "third", at: 3_000 }),
+        ]),
+        withBacklog([decisionRecord({ evaluationId: "first", at: 1_000 })]),
+      ]);
+
+      assert.isDefined(merged.backlog);
+      const got = merged.backlog === undefined ? [] : yield* merged.backlog;
+
+      assert.deepStrictEqual(
+        got.map((record) => record.evaluationId),
+        ["first", "third", "unknown"],
       );
     }));
 

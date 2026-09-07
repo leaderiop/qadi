@@ -11,7 +11,7 @@ import { isAllowed, project } from "@qadi/core";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import { useCallback, useEffect, useMemo } from "react";
-import type { DecisionResult } from "./QadiAtoms.ts";
+import type { DecisionResult, QadiAtoms } from "./QadiAtoms.ts";
 import { currentDecision } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
 import { isPending, settled } from "./settled.ts";
@@ -71,6 +71,32 @@ export const useDecisionSuspense = (policy: Policy, resource?: Resource): Decisi
 };
 
 /**
+ * The combined atom `usePolicies` reads, keyed structurally.
+ *
+ * `Atom.family` compares its argument with `Equal.equals` — a plain record
+ * hashes and compares by its own contents, recursively, down to each
+ * `Policy`'s own structural equality — so two components asking for the same
+ * named set of policies share one underlying atom even when each built its
+ * `policies` record as a fresh object literal in render. Keyed first by
+ * `atoms`, because the combined atom reads through `atoms.decision`, which is
+ * specific to one `makeQadiAtoms` context; keying by record identity alone,
+ * the way this hook used to, is exactly the inline churn the family keying
+ * everywhere else in this package (`bare`/`byResource` in `QadiAtoms.ts`)
+ * exists to eliminate.
+ */
+const combinedFamily = Atom.family((atoms: QadiAtoms) =>
+  Atom.family((policies: Readonly<Record<string, Policy>>) =>
+    Atom.make((get) => {
+      const out: Record<string, DecisionResult> = {};
+      for (const [key, policy] of Object.entries(policies)) {
+        out[key] = get(atoms.decision(policy));
+      }
+      return out;
+    }),
+  ),
+);
+
+/**
  * Evaluates several policies as one unit.
  *
  * Each decision is still shared with every other component asking the same
@@ -81,17 +107,11 @@ export const usePolicies = (
   policies: Readonly<Record<string, Policy>>,
 ): Readonly<Record<string, DecisionResult>> => {
   const { registry, atoms } = useQadiContext("usePolicies");
-  const atom = useMemo(
-    () =>
-      Atom.make((get) => {
-        const out: Record<string, DecisionResult> = {};
-        for (const [key, policy] of Object.entries(policies)) {
-          out[key] = get(atoms.decision(policy));
-        }
-        return out;
-      }),
-    [atoms, policies],
-  );
+  // `useMemo` here is a performance hoist, not the source of correctness —
+  // `combinedFamily` already memoises structurally, so calling it fresh every
+  // render would still return the same atom. This only spares re-walking the
+  // policy records' hashes on every render (AGENTS.md §13).
+  const atom = useMemo(() => combinedFamily(atoms)(policies), [atoms, policies]);
   return useAtomValue(registry, atom);
 };
 

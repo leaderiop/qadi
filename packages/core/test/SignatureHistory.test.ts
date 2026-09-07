@@ -119,5 +119,20 @@ describe("SignatureHistory", () => {
         const [signature] = yield* query(withTimestamp, "alice", "doc-1");
         assert.strictEqual(signature?.signedAt, 1_700_000_000_000);
       }));
+
+    it.effect("returns a fresh array per query, not the layer's own internal reference", () =>
+      Effect.gen(function* () {
+        // `signaturesFor` used to hand back the layer's own internal array
+        // directly — a caller's push/splice on the returned list would
+        // corrupt every future answer for the same (subjectId, resourceId)
+        // key. Two calls returning distinct array instances is what rules
+        // that out; `ReadonlyArray` in the type only stops this test suite
+        // from mutating it, not an external caller with `unknown`-typed code
+        // or a `.d.ts`-unaware consumer.
+        const first = yield* query(history, "alice", "doc-1");
+        const second = yield* query(history, "alice", "doc-1");
+        assert.notStrictEqual(first, second);
+        assert.deepStrictEqual(first, second);
+      }));
   });
 });

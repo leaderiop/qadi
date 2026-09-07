@@ -11,9 +11,9 @@
  * The line that divides this module is **reporting versus enforcing**.
  * `decide` and `check` report: they hand back an answer and run nothing, so an
  * obligation they cannot discharge is the caller's to read off the decision.
- * `assert`, `enforce`, `enforceProjected` and `filter` enforce: each either runs
- * work or hands over data, so each must refuse an allow whose obligation nobody
- * has met (ADR-QD-019).
+ * `assert`, `enforce`, `enforceProjected`, `guard`, `filter` and `filterStream`
+ * enforce: each either runs work or hands over data, so each must refuse an
+ * allow whose obligation nobody has met (ADR-QD-019).
  */
 import * as Brand from "effect/Brand";
 import * as Clock from "effect/Clock";
@@ -202,6 +202,23 @@ export const enforce =
  * This is where field-level authorization earns its keep: the policy decides
  * both *whether* the caller may read the record and *which* of its fields come
  * back, in one pass.
+ *
+ * **Two channels, and they are not reconciled.** The policy is evaluated
+ * against `options.resource` — the caller's own responsibility to set, unlike
+ * `guard`, which pins the evaluated resource and the handler's resource
+ * together by construction ([INV-QD-032](../../../spec/invariants.md#inv-qd-032-a-guarded-resource-is-the-evaluated-resource)).
+ * Here, `self`'s eventual value is a second, independent channel: the
+ * `visibleFields` this call computes from `options.resource` are applied to
+ * whatever `self` resolves to, with no check that the two describe the same
+ * record. A `self` that fetches a different or staler resource than
+ * `options.resource` still gets projected — silently, under that mismatched
+ * decision's field visibility. Callers whose wrapped effect can return a
+ * resource other than `options.resource` should re-evaluate against the
+ * value actually returned, or ensure the two cannot diverge, rather than rely
+ * on this call to catch it.
+ *
+ * **The return type is optimistic for a `"*"`-projected nested object** — see
+ * `Decision.ts`'s `project`, which this delegates to, for the caveat.
  */
 export const enforceProjected =
   <EO = never, RO = never>(policy: Policy, options?: EnforceOptions<EO, RO>) =>

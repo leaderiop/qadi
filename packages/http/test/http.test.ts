@@ -18,6 +18,7 @@ import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
 import * as HttpApiGroup from "effect/unstable/httpapi/HttpApiGroup";
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServer from "effect/unstable/http/HttpServer";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import {
   AttributeResolver,
@@ -26,6 +27,7 @@ import {
   EvaluationIdLive,
   RelationshipResolverNever,
   SignatureHistoryNone,
+  anonymous,
   decisionCacheLayer,
   guard,
   gte,
@@ -47,7 +49,9 @@ import {
   RequirePermission,
   RequirePermissionLive,
   SubjectExtractionFailed,
+  SubjectExtractor,
   addGuardedRoute,
+  guardRoute,
   publicEndpoint,
   registerApi,
   requiresPermission,
@@ -277,8 +281,14 @@ describe("@qadi/http", () => {
       // corrupted walk (an extra or malformed entry) would still pass a check
       // that only ever reads two known keys back out with `.get`.
       assert.deepStrictEqual([...byPermission.keys()].sort(), ["document:read", "document:write"]);
+      // `permissionRegistryRoute` itself is guarded by `readPermission`
+      // ("document:read" in this fixture), so it registers itself alongside
+      // the `Api` endpoint sharing that permission — the point of ticket
+      // 31's fix: `/__permissions` no longer omits itself from its own
+      // snapshot.
       assert.deepStrictEqual(byPermission.get("document:read"), [
         { method: "GET", path: "/documents", group: "documents" },
+        { method: "GET", path: "/__permissions" },
       ]);
       // `group: undefined` has no JSON representation — it round-trips as an
       // absent key, not as `group: undefined`. Two entries: `WriteRoute` and
@@ -322,6 +332,46 @@ describe("@qadi/http", () => {
       );
       assert.strictEqual(response.status, 403);
     }));
+
+  it.effect(
+    "guardRoute extracts the subject BEFORE loading the resource, so a broken credential " +
+      "store never pays loadResource's cost",
+    () =>
+      Effect.gen(function* () {
+        // A denial still runs `loadResource` either way — the policy can't be
+        // evaluated without the resource it might read. What ticket 150 fixes
+        // is specifically the *order* relative to `SubjectExtractor.extract`:
+        // an extraction failure (an outage, not a denial) must short-circuit
+        // before `loadResource` runs, not after.
+        let resourceLoads = 0;
+        const brokenStore = subjectExtractorBearer(() =>
+          Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
+        );
+        const route = HttpRouter.add(
+          "GET",
+          "/order-check",
+          guardRoute(readPermission, readPolicy, () =>
+            Effect.sync(() => {
+              resourceLoads += 1;
+              return {};
+            }),
+          )(() => Effect.succeed(HttpServerResponse.text("ok"))),
+        );
+        const app = route.pipe(
+          Layer.provideMerge(brokenStore),
+          Layer.provideMerge(EvaluationServicesTest),
+          Layer.provideMerge(HttpServer.layerServices),
+        );
+        const { handler } = HttpRouter.toWebHandler(app);
+
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/order-check", { headers: bearer(ALICE_TOKEN) })),
+        );
+
+        assert.strictEqual(response.status, 502);
+        assert.strictEqual(resourceLoads, 0);
+      }),
+  );
 
   it.effect("a defense-in-depth recheck inside the handler hits DecisionCache", () =>
     Effect.gen(function* () {
@@ -391,6 +441,37 @@ describe("@qadi/http", () => {
       );
       assert.strictEqual(response.status, 204);
     }));
+
+  it.effect(
+    "a bearer token is trimmed before reaching lookup, and a bare 'Bearer ' is anonymous " +
+      "rather than lookup('')",
+    () =>
+      Effect.gen(function* () {
+        const seen: Array<string> = [];
+        const layer = subjectExtractorBearer((token) => {
+          seen.push(token);
+          return Effect.succeed(alice);
+        });
+        const extractVia = (authorization: string) =>
+          SubjectExtractor.extract(
+            HttpServerRequest.fromWeb(
+              new Request("http://localhost/documents", { headers: { authorization } }),
+            ),
+          ).pipe(Effect.provide(layer));
+
+        // Two spaces after the scheme, and trailing whitespace: `lookup` sees
+        // the clean token, not " alice-token " or "alice-token ".
+        const trimmed = yield* extractVia(`Bearer  ${ALICE_TOKEN}  `);
+        assert.deepStrictEqual(seen, [ALICE_TOKEN]);
+        assert.strictEqual(trimmed.id, alice.id);
+
+        // A bare "Bearer " (no token at all) is treated as no credential —
+        // `anonymous` — rather than forwarded to `lookup` as `lookup("")`.
+        const bare = yield* extractVia("Bearer ");
+        assert.strictEqual(bare.id, anonymous.id);
+        assert.deepStrictEqual(seen, [ALICE_TOKEN]); // lookup was not called a second time
+      }),
+  );
 
   it("requiresPermission throws at construction time on a duplicate requirement", () => {
     const endpoint = HttpApiEndpoint.get("duplicate", "/duplicate").pipe((e) =>

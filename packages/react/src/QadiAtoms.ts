@@ -118,11 +118,22 @@ export interface QadiAtoms {
    * This paragraph read "an instance registry would breach [AGENTS.md §13]
    * twice over", and it does not. Decisions are still not in React state and the
    * React glue is still one `useSyncExternalStore` call in `QadiProvider.tsx`;
-   * the registry exposes `subscribe`/`snapshot` and it is `@qadi/devtools` that
-   * subscribes. What the argument above actually establishes is that the *atom
-   * layer* cannot see instances, which is true and is why this screen is keyed
-   * by question. A component knows perfectly well that it exists; nothing was
-   * asking it (CCR-QD-073, corrected here in CCR-QD-076).
+   * the registry exposes `subscribe`/`snapshot` for exactly that purpose. What
+   * the argument above actually establishes is that the *atom layer* cannot see
+   * instances, which is true and is why this screen is keyed by question. A
+   * component knows perfectly well that it exists; nothing was asking it
+   * (CCR-QD-073, corrected here in CCR-QD-076).
+   *
+   * **Correction:** this comment, ADR-QD-053 and AGENTS.md §13 all previously
+   * went on to claim "and it is `@qadi/devtools`, a DOM package already, that
+   * subscribes" — present tense, as if already wired. It is not: nothing under
+   * `packages/devtools/src` calls `subscribeGates`, and `DevtoolsDock.tsx`
+   * takes `gates` as a plain, one-shot prop rather than subscribing itself.
+   * `GateRegistry.ts`'s `subscribeGates`/`gateInstances` contract is correct
+   * and exercised by `GateRegistry.test.tsx`; what is missing is the
+   * consumer, in a package this file does not own. Flagged rather than
+   * silently reworded, per AGENTS.md §15's reason for gating claims like this
+   * one at all.
    *
    * Read the current verdict for each with `decision`/`decisionFor` — that is
    * what keeps a stale entry rendering as re-checking rather than as its old
@@ -225,34 +236,63 @@ export const makeQadiAtoms = (
       })
       .pipe(runtime.factory.withReactivity([DECISIONS_KEY]));
 
-    // Announced once per question, the first time this client answers it for
-    // itself. A closure flag rather than a read of the atom's own previous
-    // value: `seededDecision` runs once per `Atom.family` key, so the flag
-    // outlives every read of `combined` — and it absorbs StrictMode's double
-    // render, which a value comparison would report twice.
-    let announced = false;
-
     /**
-     * The seed, as this atom first saw it.
+     * Announcement state for one question, kept **per registry**.
      *
-     * Kept because `get.once(seed)` below can read `undefined` for a seed that
-     * was definitely there: a registry may drop the value of an atom nothing
-     * mounted, and the seed atom is only ever a *dependency* of this one. Under
-     * `registry.mount` it survives and the disagreement is reported; under a
-     * `QadiProvider`, which subscribes rather than mounts, it does not and the
-     * report is silently skipped.
+     * Two providers over the same atom set — two tabs, or a server render
+     * followed by the client's own registry — each get their own first answer,
+     * and each must report its own first disagreement. A single closure flag
+     * shared across every registry that ever reads this atom would let only the
+     * first registry's first answer ever be announced or counted; every other
+     * registry's genuinely-first re-check would silently join the "already
+     * announced" branch of a flag it never flipped.
      *
-     * That made whether a disagreement is announced a fact about registry
-     * lifetime rather than about the decision, which is the defect. Remembering
-     * the first non-absent reading makes the announcement depend only on what
-     * was seeded and what this client then decided.
-     *
-     * Written in the branch that already reads the seed reactively, so it costs
-     * nothing and adds no dependency of its own.
+     * This is the same defect `settled.ts` documents at length for its own
+     * `pending`/`resolvers`/`subscribed` state, and the fix is the same shape:
+     * a `WeakMap<AtomRegistry.AtomRegistry, …>` rather than a bare closure
+     * variable. Scoped inside `seededDecision` (so once per `Atom.family` key,
+     * as the flag it replaces was) rather than at module scope, because nothing
+     * outside this one question's state needs to share the map.
      */
-    let observedSeed: Decision | undefined;
+    interface AnnounceState {
+      /**
+       * Announced once per question **per registry**, the first time that
+       * registry's client answers it for itself — absorbing StrictMode's double
+       * render, which a value comparison would report twice.
+       */
+      announced: boolean;
+      /**
+       * The seed, as this registry first saw it.
+       *
+       * Kept because `get.once(seed)` below can read `undefined` for a seed that
+       * was definitely there: a registry may drop the value of an atom nothing
+       * mounted, and the seed atom is only ever a *dependency* of this one. Under
+       * `registry.mount` it survives and the disagreement is reported; under a
+       * `QadiProvider`, which subscribes rather than mounts, it does not and the
+       * report is silently skipped.
+       *
+       * That made whether a disagreement is announced a fact about registry
+       * lifetime rather than about the decision, which is the defect. Remembering
+       * the first non-absent reading makes the announcement depend only on what
+       * was seeded and what this client then decided.
+       *
+       * Written in the branch that already reads the seed reactively, so it costs
+       * nothing and adds no dependency of its own.
+       */
+      observedSeed: Decision | undefined;
+    }
+
+    const announceState = new WeakMap<AtomRegistry.AtomRegistry, AnnounceState>();
+    const announceStateFor = (registry: AtomRegistry.AtomRegistry): AnnounceState => {
+      const existing = announceState.get(registry);
+      if (existing !== undefined) return existing;
+      const created: AnnounceState = { announced: false, observedSeed: undefined };
+      announceState.set(registry, created);
+      return created;
+    };
 
     const combined = Atom.readable((get): DecisionResult => {
+      const state = announceStateFor(get.registry);
       const result = get(computed);
       // `Initial` is the only state in which this client has never answered for
       // itself. The moment it has — allow, deny or failure — that answer is
@@ -261,8 +301,8 @@ export const makeQadiAtoms = (
       // previous decision, and falling back to the seed there would resurrect
       // something older still.
       if (!AsyncResult.isInitial(result)) {
-        if (!announced) {
-          announced = true;
+        if (!state.announced) {
+          state.announced = true;
           // `get.once`, not `get`. This block previously ran only when a
           // reporter was wired, and was guarded that way so an atom set without
           // one "reads exactly the atoms it read before — no reporter, no added
@@ -271,9 +311,9 @@ export const makeQadiAtoms = (
           // promise it was protecting, because it registers no dependency. It is
           // also the honest read here: the seed is already spent in this branch,
           // so re-running on a later seed change could not change the answer.
-          // `?? observedSeed`: the registry's copy is authoritative when it has
-          // one, and the first reading stands in when it has dropped it.
-          const seeded = get.once(seed) ?? observedSeed;
+          // `?? state.observedSeed`: the registry's copy is authoritative when it
+          // has one, and the first reading stands in when it has dropped it.
+          const seeded = get.once(seed) ?? state.observedSeed;
           if (seeded !== undefined) {
             // A failure is not a disagreement. The client could not answer, so
             // there is nothing for the server's answer to disagree with, and
@@ -290,7 +330,7 @@ export const makeQadiAtoms = (
         return result;
       }
       const seeded = get(seed);
-      if (seeded !== undefined) observedSeed = seeded;
+      if (seeded !== undefined) state.observedSeed = seeded;
       return seeded === undefined ? result : AsyncResult.success(seeded);
     });
 

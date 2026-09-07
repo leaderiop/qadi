@@ -80,6 +80,20 @@ describe("the role viewer", () => {
     assert.deepStrictEqual(screen.queryAllByTestId("qadi-role-chip"), []);
   });
 
+  // A stale index held past the list shrinking must not fall off the end:
+  // `roles[selected]` reading `undefined` made the screen falsely claim there
+  // were no roles at all, even with one still present.
+  it("clamps a selection that outlives the list shrinking", async () => {
+    const view = render(<RoleViewer roles={[editor, commenter]} />);
+    await click(screen.getAllByTestId("qadi-role-chip")[1] ?? fail());
+    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "commenter");
+
+    view.rerender(<RoleViewer roles={[editor]} />);
+
+    assert.isNull(screen.queryByTestId("qadi-roles-empty"));
+    assert.include(screen.getByTestId("qadi-role-counts").textContent ?? "", "editor");
+  });
+
   // E3.3, rendered.
   it("marks a diamond's second arm as already reached", () => {
     render(<RoleViewer roles={[role({ name: "both", inherits: [viewer, editor] })]} />);

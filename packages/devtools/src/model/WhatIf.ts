@@ -38,7 +38,7 @@ import { simulate } from "./Simulation.ts";
 import type { SimulationOptions } from "./Simulation.ts";
 import type { SimulationEdit } from "./SimulationEdit.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
-import { causesIO, fixtures } from "./Sources.ts";
+import { causesIO, fixtures } from "./SimulationSource.ts";
 
 /** Both runs decided, so the two traces can be walked against each other. */
 export interface Compared {
@@ -228,30 +228,29 @@ export interface WhatIfReport extends SweepPlan {
  * same input sweeps to the same rows in the same places, and two sweeps can be
  * read side by side.
  */
-export const whatIf = (
+export const whatIf = Effect.fn("qadi.devtools.whatIf")(function* (
   policy: Policy,
   input: SimulationInput,
   options?: WhatIfOptions,
-): Effect.Effect<WhatIfReport> =>
-  Effect.gen(function* () {
-    const plan = sweepPlan(policy, input, options);
-    const baseline = yield* simulate(policy, input, options);
+) {
+  const plan = sweepPlan(policy, input, options);
+  const baseline = yield* simulate(policy, input, options);
 
-    const rows = yield* Effect.forEach(plan.edits, (edit) =>
-      Effect.gen(function* () {
-        const edited = edit.apply(input);
-        const outcome = yield* simulate(policy, edited, options);
-        return {
-          edit,
-          input: edited,
-          outcome,
-          comparison: compareOutcomes(baseline, outcome),
-        };
-      }),
-    );
+  const rows = yield* Effect.forEach(plan.edits, (edit) =>
+    Effect.gen(function* () {
+      const edited = edit.apply(input);
+      const outcome = yield* simulate(policy, edited, options);
+      return {
+        edit,
+        input: edited,
+        outcome,
+        comparison: compareOutcomes(baseline, outcome),
+      };
+    }),
+  );
 
-    return { ...plan, baseline, rows };
-  });
+  return { ...plan, baseline, rows };
+});
 
 /** The rows that made a difference — usually the only ones worth showing first. */
 export const changedRows = (self: WhatIfReport): ReadonlyArray<WhatIfRow> =>

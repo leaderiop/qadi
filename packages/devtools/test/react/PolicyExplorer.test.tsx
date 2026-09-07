@@ -316,6 +316,20 @@ describe("selection and drafts", () => {
     const item = screen.getAllByTestId("qadi-policy-rail-item")[0] ?? fail();
     assert.notInclude(item.getAttribute("style") ?? "", "background: rgb(28, 31, 38)");
   });
+
+  // A stale index held past the list shrinking must not fall off the end:
+  // `sightings[selected]` reading `undefined` made the whole screen falsely
+  // claim there was nothing to show, even with policies still present.
+  it("clamps a selection that outlives the list shrinking", async () => {
+    const view = mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
+    await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
+    assert.include(nodes()[0]?.textContent ?? "", "doc:write");
+
+    view.rerender(<PolicyExplorer sightings={[sighting(hasPermission(read))]} />);
+
+    assert.isNull(screen.queryByTestId("qadi-policies-empty"));
+    assert.include(nodes()[0]?.textContent ?? "", "doc:read");
+  });
 });
 
 const fail = (): never => {

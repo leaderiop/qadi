@@ -182,6 +182,32 @@ describe("DecisionCache", () => {
       assert.isFalse(isAllowed(write));
     }));
 
+  it.effect("maxDepth is part of the question — a shallower limit is not a cache hit", () =>
+    Effect.gen(function* () {
+      // The key documents itself as "everything that can change an answer",
+      // and maxDepth can: the same subject, policy, resource and action can
+      // still turn Allow into PolicyTooDeep under a shallower limit. Three
+      // levels of Not evaluates fine at maxDepth 3 and overflows at maxDepth 2.
+      let policy: P.Policy = P.hasRole("a");
+      for (let i = 0; i < 3; i++) policy = P.not(policy);
+      const subject = subjectWith({ id: "u-1", roles: ["a"] });
+
+      const [atLimit, shallower] = yield* Effect.gen(function* () {
+        const a = yield* Effect.result(evaluate(policy, { maxDepth: 3 }));
+        const b = yield* Effect.result(evaluate(policy, { maxDepth: 2 }));
+        return [a, b] as const;
+      }).pipe(Effect.provide(testLayer(subject)), Effect.provide(decisionCacheLayer()));
+
+      assert.strictEqual(atLimit._tag, "Success");
+      // Under the bug, this hit the entry the first ask left behind instead of
+      // re-evaluating under its own (shallower) limit.
+      assert.strictEqual(shallower._tag, "Failure");
+      if (shallower._tag !== "Failure") return;
+      assert.strictEqual(shallower.failure._tag, "PolicyTooDeep");
+      if (shallower.failure._tag !== "PolicyTooDeep") return;
+      assert.strictEqual(shallower.failure.maxDepth, 2);
+    }));
+
   it.effect("a denial is cached too, and stays a denial", () =>
     Effect.gen(function* () {
       // A cache that only remembered allows would re-ask every denial, which is the
@@ -269,24 +295,80 @@ describe("DecisionCache", () => {
       assert.deepStrictEqual(yield* both(scoped, full), [false, true]);
     }));
 
+  it.effect(
+    "equal grants held in different Set objects still hit — not a HashSet, but Effect treats built-in Set structurally",
+    () =>
+      Effect.gen(function* () {
+        // DecisionCache.ts's own doc comment used to call this field
+        // `HashSet`. It is not: `AuthSubject.roles`/`.permissions` are the
+        // built-in JS `Set` (`ReadonlySet<RoleName>` / `ReadonlySet<PermissionKey>`).
+        // What actually makes two subjects with equal-content grants the same
+        // cache key is that `effect@4.0.0-rc.112`'s `Equal`/`Hash` special-case
+        // `instanceof Set` and fold its elements order-independently — verified
+        // directly here, not assumed, since a naive audit of "is this a
+        // HashSet?" would answer "no" and wrongly conclude this degrades to
+        // reference equality (a cache-miss-only failure mode, but still a
+        // wrong diagnosis worth pinning against regressing either way: if a
+        // future Effect version stops special-casing built-in `Set`, this
+        // test starts failing where it used to pass, not silently degrading).
+        const calls: Array<string> = [];
+        // Two independently-built subjects: same content, but `makeSubject`
+        // allocates a fresh `Set` on every call, so `roles`/`permissions` are
+        // never the same object between them.
+        const rebuilt = () =>
+          subjectWith({ id: "alice", roles: ["admin"], permissions: ["doc:read"] });
+        const first = rebuilt();
+        const second = rebuilt();
+        assert.notStrictEqual(first.roles, second.roles, "must be two distinct Set objects");
+        assert.notStrictEqual(
+          first.permissions,
+          second.permissions,
+          "must be two distinct Set objects",
+        );
+
+        yield* Effect.gen(function* () {
+          yield* evaluate(needsLookup).pipe(
+            Effect.provide(testLayer(first, { attributes: counting(calls) })),
+          );
+          yield* evaluate(needsLookup).pipe(
+            Effect.provide(testLayer(second, { attributes: counting(calls) })),
+          );
+        }).pipe(Effect.provide(decisionCacheLayer()));
+
+        assert.strictEqual(
+          calls.length,
+          1,
+          "equal-content grants in different Set objects must still hit",
+        );
+      }),
+  );
+
   it.effect("the same subject still hits, so the cache still caches", () =>
     Effect.gen(function* () {
       // The control. Keying on the whole subject would be worthless if two
       // requests carrying equal subjects missed — `AuthSubject` compares
-      // structurally, HashSet grants included, so a subject rebuilt per
-      // request from the same token is the same key.
+      // structurally, grants included (Effect treats built-in `Set`
+      // structurally too — see the dedicated test above), so a subject
+      // rebuilt per request from the same token is the same key.
+      //
+      // The resolver has to be reachable from THIS layer, not an outer one:
+      // `Effect.provide` merges the provided context OVER the ambient one, so
+      // an outer counting resolver would be shadowed by whatever the inner
+      // `testLayer` supplies by default (`AttributeResolverNone`) and could
+      // never be asked at all — the vacuous shape this test used to have.
       const calls: Array<string> = [];
       const rebuilt = () => subjectWith({ id: "alice", attributes: { tier: "gold" } });
 
       yield* Effect.gen(function* () {
-        yield* evaluate(needsLookup).pipe(Effect.provide(testLayer(rebuilt())));
-        yield* evaluate(needsLookup).pipe(Effect.provide(testLayer(rebuilt())));
-      }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-        Effect.provide(decisionCacheLayer()),
-      );
+        yield* evaluate(needsLookup).pipe(
+          Effect.provide(testLayer(rebuilt(), { attributes: counting(calls) })),
+        );
+        yield* evaluate(needsLookup).pipe(
+          Effect.provide(testLayer(rebuilt(), { attributes: counting(calls) })),
+        );
+      }).pipe(Effect.provide(decisionCacheLayer()));
 
-      assert.strictEqual(calls.length, 0, "resolved from the subject, never the resolver");
+      assert.strictEqual(calls.length, 1, "first ask misses and resolves; second hits and does not");
     }));
 
   it.effect("TWO DIFFERENT QUESTIONS NEVER SHARE A KEY", () =>
@@ -622,6 +704,111 @@ describe("DecisionCache", () => {
           const third = yield* evaluate(needsLookup);
           assert.strictEqual(yield* Ref.get(invocations), 2, "the third ask was a cache hit, not a third compute");
           assert.isFalse(isAllowed(third), "a clear mid-compute must not let that compute's stale result win");
+        }).pipe(Effect.provide(testLayer(alice, { attributes: resolver })), Effect.provide(decisionCacheLayer()));
+      }),
+  );
+
+  it.effect(
+    "a third ask made while the post-clear compute is still in flight coalesces onto it, " +
+      "not a third compute — the stale finalizer's inFlight removal is identity-checked",
+    () =>
+      Effect.gen(function* () {
+        // The mutant this pins: `getOrCompute`'s onExit finalizer only
+        // removes its own claim from `inFlight` if it is STILL the claim at
+        // `key` (`current.value === claim`). A mutant that drops that check
+        // — unconditionally removing whatever sits at `key` — is invisible
+        // to every other test here, because they never have a SECOND ask
+        // arrive after the guard would have wrongly fired. This one does.
+        const started1 = yield* Deferred.make<void>();
+        const release1 = yield* Deferred.make<void>();
+        const started2 = yield* Deferred.make<void>();
+        const release2 = yield* Deferred.make<void>();
+        const invocations = yield* Ref.make(0);
+        // Invocation 1 is the pre-clear, stale claimant, gated on release1.
+        // Every later invocation — the legitimate post-clear claimant, and
+        // any erroneous extra compute a broken guard would let through — is
+        // gated on release2, so a duplicate compute is observable purely as
+        // an extra count in `invocations`, not as a hang or a crash.
+        const resolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.updateAndGet(invocations, (n) => n + 1).pipe(
+              Effect.flatMap((n) =>
+                n === 1
+                  ? Deferred.succeed(started1, undefined).pipe(
+                      Effect.flatMap(() => Deferred.await(release1)),
+                      Effect.as(5),
+                    )
+                  : Deferred.succeed(started2, undefined).pipe(
+                      Effect.flatMap(() => Deferred.await(release2)),
+                      Effect.as(0),
+                    ),
+              ),
+            ),
+        });
+
+        yield* Effect.gen(function* () {
+          // Ask 1: claims the key, blocks in the resolver.
+          const claimant = yield* Effect.forkChild(evaluate(needsLookup));
+          yield* Deferred.await(started1);
+
+          // Flushed while ask 1 is still in flight. Advances `generation`
+          // and empties `inFlight`, so ask 1's claim is no longer the one at
+          // `key` from this point on.
+          yield* DecisionCache.use((c) => c.clear);
+
+          // Ask 2: the fresh, post-clear claimant for the exact same
+          // question — claims `key` again since `clear` emptied `inFlight`.
+          const second = yield* Effect.forkChild(evaluate(needsLookup));
+          yield* Deferred.await(started2);
+
+          // Let ask 1 (stale) finish and fully settle BEFORE ask 2 does.
+          // Its `onExit` finalizer now runs its inFlight-removal check while
+          // ask 2's claim — not its own — sits at `key`. Under an
+          // unconditional (unguarded) removal, this erases ask 2's claim
+          // from `inFlight` right here, even though ask 2's compute is still
+          // genuinely running.
+          yield* Deferred.succeed(release1, undefined);
+          yield* Fiber.join(claimant);
+
+          assert.strictEqual(
+            yield* Ref.get(invocations),
+            2,
+            "only ask 1 and ask 2 should have reached the resolver so far",
+          );
+
+          // Ask 3: a THIRD concurrent ask for the same question, issued now
+          // — while ask 2's compute is still blocked on release2. Correct
+          // behaviour: ask 3 finds ask 2's claim still in `inFlight` and
+          // coalesces onto it without touching the resolver. Under the bug,
+          // ask 1's finalizer already erased that claim, so ask 3 finds
+          // nothing at `key` and starts a third, duplicate compute.
+          const third = yield* Effect.forkChild(evaluate(needsLookup));
+          for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+
+          assert.strictEqual(
+            yield* Ref.get(invocations),
+            2,
+            "a third ask while ask 2 is in flight must coalesce onto it, not start a third compute",
+          );
+
+          // Release ask 2 (and, if the guard failed, the spurious third
+          // compute riding the same gate) and confirm both later askers
+          // actually observed its answer.
+          yield* Deferred.succeed(release2, undefined);
+          const secondResult = yield* Fiber.join(second);
+          const thirdResult = yield* Fiber.join(third);
+          assert.isFalse(isAllowed(secondResult));
+          assert.isFalse(isAllowed(thirdResult));
+
+          // A fourth ask, now that nothing is in flight, is a clean cache
+          // hit — no further resolver call.
+          const fourth = yield* evaluate(needsLookup);
+          assert.isFalse(isAllowed(fourth));
+          assert.strictEqual(
+            yield* Ref.get(invocations),
+            2,
+            "the fourth ask should hit the entry ask 2 left behind, not recompute",
+          );
         }).pipe(Effect.provide(testLayer(alice, { attributes: resolver })), Effect.provide(decisionCacheLayer()));
       }),
   );

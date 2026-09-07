@@ -86,7 +86,11 @@ export const compileFencedExamples = ({ root, outDir, files, label }) => {
     join(outDir, "tsconfig.json"),
     JSON.stringify(
       {
-        extends: "../tsconfig.base.json",
+        // `tsconfig.react-base.json`, not `tsconfig.base.json` directly: a
+        // `tsx`-fenced example needs `jsx`/`DOM`, which live only in the
+        // react-base config now that tsconfig.base.json no longer carries
+        // them for every package (ticket 56 of the 2026-09-06 audit sweep).
+        extends: "../tsconfig.react-base.json",
         include: ["*.ts", "*.tsx"],
         compilerOptions: {
           noEmit: true,

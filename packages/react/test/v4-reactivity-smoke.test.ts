@@ -15,6 +15,7 @@ import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
@@ -97,6 +98,70 @@ describe("effect/unstable/reactivity API canary", () => {
     const registry = makeRegistry({ initialValues: [[atom, "seeded"] as const] });
 
     expect(registry.get(atom)).toBe("seeded");
+  });
+
+  // -------------------------------------------------------------------------
+  // Atom.readable + get.once — the `combined` atom in QadiAtoms.ts
+  // -------------------------------------------------------------------------
+
+  it("Atom.readable derives a value synchronously from other atoms", () => {
+    // `combined` in `QadiAtoms.ts` is exactly this shape: a readable atom
+    // folding `computed` and `seed` into one `DecisionResult`, with no runtime
+    // of its own.
+    const base = Atom.make(1);
+    const doubled = Atom.readable((get) => get(base) * 2);
+    const registry = makeRegistry();
+
+    expect(registry.get(doubled)).toBe(2);
+    const unmount = registry.mount(doubled);
+    registry.set(base, 5);
+    expect(registry.get(doubled)).toBe(10);
+    unmount();
+  });
+
+  it("get.once reads an atom's CURRENT value without registering it as a dependency", () => {
+    // Load-bearing for two things in `QadiAtoms.ts`: carrying the server's
+    // evaluation id into a re-check, and the once-per-registry announcement
+    // latch (tickets 140/142). Both depend on `get.once` reading the seed
+    // WITHOUT making `combined` recompute every time the seed later changes —
+    // the id and the announcement are correlation metadata read at one moment,
+    // not an input the decision should keep tracking.
+    const seed = Atom.make<number | undefined>(undefined);
+    const reads: Array<number | undefined> = [];
+    const onceReader = Atom.readable((get) => {
+      const value = get.once(seed);
+      reads.push(value);
+      return value;
+    });
+    const registry = makeRegistry();
+
+    const unmount = registry.mount(onceReader);
+    expect(reads).toEqual([undefined]);
+
+    // A write to `seed` must NOT re-run `onceReader` — if it did, `reads` would
+    // grow on every seed change, and the id-correlation / once-per-registry
+    // guarantees this pattern gives `QadiAtoms.ts` would both silently break.
+    registry.set(seed, 1);
+    expect(reads).toEqual([undefined]);
+    expect(registry.get(onceReader)).toBeUndefined();
+    unmount();
+  });
+
+  // -------------------------------------------------------------------------
+  // Effect.serviceOption — the optional DecisionCache on `invalidate`
+  // -------------------------------------------------------------------------
+
+  it("Effect.serviceOption resolves Some when the service is provided, None when it is absent", async () => {
+    // `QadiAtoms.ts`'s `invalidate` clears an optional `DecisionCache` with
+    // exactly this: `Effect.serviceOption(DecisionCache)`, so an atom set
+    // without one — most of them — must not fail to invalidate at all.
+    const withTicker = await Effect.runPromise(
+      Effect.serviceOption(Ticker).pipe(Effect.provide(tickerLayer({ count: 0 }))),
+    );
+    expect(Option.isSome(withTicker)).toBe(true);
+
+    const withoutTicker = await Effect.runPromise(Effect.serviceOption(Ticker));
+    expect(Option.isNone(withoutTicker)).toBe(true);
   });
 
   // -------------------------------------------------------------------------

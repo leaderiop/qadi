@@ -102,11 +102,16 @@ export interface Qadi {
    * Same obligation caveat as `assert`: an item whose policy allows but carries
    * a binding obligation makes the whole call reject with
    * `UndischargedObligation`, since no handler can be supplied here.
+   *
+   * `options.concurrency` reaches core's own `filter` unchanged, the same as
+   * any other option here — a Promise consumer filtering many items is not
+   * forced into sequential resolution.
    */
   readonly filter: <A extends Resource>(
     subject: AuthSubject,
     policy: Policy,
     items: ReadonlyArray<A>,
+    options?: EvaluateOptions,
   ) => Promise<ReadonlyArray<A>>;
 
   /**
@@ -140,7 +145,8 @@ export const makeQadi = (layer: QadiLayer): Qadi => {
     check: (subject, policy, options) => run(subject, checkCore(policy, options)),
     decide: (subject, policy, options) => run(subject, decideCore(policy, options)),
     assert: (subject, policy, options) => run(subject, assertCore(policy, options)),
-    filter: (subject, policy, items) => run(subject, filterCore(policy, items)),
+    filter: (subject, policy, items, options) =>
+      run(subject, filterCore(policy, items, options)),
     dispose: () => runtime.dispose(),
   };
 };

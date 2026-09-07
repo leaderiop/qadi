@@ -51,7 +51,7 @@ const STEP_IDS: ReadonlyArray<DecommissioningStepId> = [
   "DECOMM-006",
 ];
 
-export const createDecommissioningChecklist = (
+export const makeDecommissioningChecklist = (
   checklistId: string,
   now: number,
 ): DecommissioningChecklist => ({

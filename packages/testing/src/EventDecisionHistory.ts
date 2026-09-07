@@ -1,13 +1,16 @@
 /**
  * A history port over a static event list, recording its queries.
  *
- * A closed world: anything not listed is `"NotActed"`. `DecisionHistoryUnknown`
- * is the layer that says *nobody can say*, and it denies both polarities.
+ * The closed-world matching rule lives in `@qadi/core`'s
+ * `decisionHistoryFromEvents` — this only adds call recording on top, the same
+ * relationship `recordingSignatureHistory` and `edgeRelationshipResolver` have
+ * with their own core-level plain builders. `DecisionHistoryUnknown` is the
+ * layer that says *nobody can say*, and it denies both polarities.
  */
-import { ActedAnywhere, ActedEvent, DecisionHistory } from "@qadi/core";
+import { DecisionHistory, decisionHistoryFromEvents } from "@qadi/core";
 import type { ActedEventInput } from "@qadi/core";
+import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 import { makeCallRecorder } from "./CallRecorder.ts";
 
@@ -17,39 +20,30 @@ export const eventDecisionHistory = (
   readonly layer: Layer.Layer<DecisionHistory>;
   readonly calls: ReadonlyArray<string>;
 } => {
-  const keyed = HashSet.fromIterable(events.map((event) => new ActedEvent(event)));
-  const anywhere = HashSet.fromIterable(
-    events.map(({ subjectId, event }) => new ActedAnywhere({ subjectId, event })),
-  );
   const recorder = makeCallRecorder();
-  return {
-    get calls() {
-      return recorder.calls;
-    },
-    layer: Layer.succeed(DecisionHistory, {
-      hasActed: (query) =>
-        Effect.sync(() => {
+  const layer = Layer.effect(
+    DecisionHistory,
+    Effect.gen(function* () {
+      const context = yield* Layer.build(decisionHistoryFromEvents(events));
+      const inner = Context.get(context, DecisionHistory);
+      return {
+        name: "eventDecisionHistory",
+        hasActed: (query) => {
           recorder.record(
             query.resourceId === undefined
               ? `${query.subjectId} ${query.event}`
               : `${query.subjectId} ${query.event} ${query.resourceId}`,
           );
-          const found =
-            query.resourceId === undefined
-              ? HashSet.has(
-                  anywhere,
-                  new ActedAnywhere({ subjectId: query.subjectId, event: query.event }),
-                )
-              : HashSet.has(
-                  keyed,
-                  new ActedEvent({
-                    subjectId: query.subjectId,
-                    event: query.event,
-                    resourceId: query.resourceId,
-                  }),
-                );
-          return found ? "Acted" : "NotActed";
-        }),
+          return inner.hasActed(query);
+        },
+      };
     }),
+  );
+
+  return {
+    get calls() {
+      return recorder.calls;
+    },
+    layer,
   };
 };

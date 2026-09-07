@@ -141,10 +141,17 @@ REQUIREMENT: A denial's reason MUST NOT assert a fact about a store that was not
 | --------- | ------------ |
 | a wired relationship store holds no such edge | `subject 'u1' has no 'owner' relation to 'doc-1'` |
 | no relationship resolver is wired | `no relationship resolver is wired, so no 'owner' relation to 'doc-1' can be confirmed` |
-| an attribute is present and compares wrong | `subject attribute 'level' did not match` |
+| a non-`Neq` attribute is present and compares wrong | `subject attribute 'level' did not match` |
+| a `Neq` attribute is present and equals the excluded value | `subject attribute 'homeTenant' matched an excluded value` |
 | an attribute is absent or unresolved | `subject attribute 'level' has no value` |
 
-Both relationship rows **deny**, and so do both attribute rows. Nothing here
+> **Corrected.** `Neq` denies exactly when the value **matches** the excluded
+> reference, so the general "did not match" row was backwards for it — it
+> claimed the opposite of what happened rather than merely withholding a
+> diagnosis, the way the absent-attribute case does. `attributeReason` now
+> takes the matcher and gives `Neq`'s resolved-and-compared denial its own row.
+
+Both relationship rows **deny**, and so do all three attribute rows. Nothing here
 changes a verdict — [BEH-QD-043](#beh-qd-043-defaults-fail-closed) and
 [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) are untouched —
 which is exactly why it needs stating: no assertion about a verdict can observe

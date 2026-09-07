@@ -55,7 +55,7 @@ import {
 } from "../../src/model/Capture.ts";
 import { simulate } from "../../src/model/Simulation.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
-import { live, snapshot } from "../../src/model/Sources.ts";
+import { live, snapshot } from "../../src/model/SimulationSource.ts";
 
 const decisionOf = (outcome: DecisionOutcome): Decision => {
   if (outcome._tag !== "Decided") throw new Error("expected a decision");

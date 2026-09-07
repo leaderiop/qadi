@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import * as FastCheck from "effect/testing/FastCheck";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
@@ -13,7 +14,9 @@ import {
   permissionProvenance,
   resolveRoleGraph,
   role,
+  roleNames,
 } from "../src/Role.ts";
+import type { Role } from "../src/Role.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
@@ -110,6 +113,23 @@ describe("policyDepth", () => {
       }
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
+  it("a wide tree (250k direct children) does not overflow the argument list", () => {
+    // Regression for the `Math.max(...children.map(policyDepth))` spread:
+    // spreading turns into one call argument per child, which throws a raw
+    // `RangeError` well before 250k. `deepest` now walks with a plain loop,
+    // so this must both return without throwing and report the right depth —
+    // 1 above every (leaf, depth-0) child.
+    const children: ReadonlyArray<P.Policy> = Array.from({ length: 250_000 }, () =>
+      P.hasPermission(read),
+    );
+    const wide = P.anyOf(children);
+    let depth: number | undefined;
+    assert.doesNotThrow(() => {
+      depth = P.policyDepth(wide);
+    });
+    assert.strictEqual(depth, 1);
+  });
+
   it("a right-leaning spine counts its own length", () => {
     FastCheck.assert(
       FastCheck.property(FastCheck.integer({ min: 0, max: 30 }), (n) => {
@@ -163,6 +183,114 @@ describe("permissionProvenance", () => {
 
   it("a role granting nothing produces no grants", () => {
     assert.deepStrictEqual(permissionProvenance(role({ name: "empty" })), []);
+  });
+});
+
+describe("two distinct Role objects sharing a name are not conflated", () => {
+  // Before the fix, the visited set in `flattenPermissions`, `permissionProvenance`
+  // and `roleNames` was keyed on `current.name`. Two distinct `Role` objects
+  // named "viewer" reached from different branches would make the second one
+  // look already-visited, and everything only it granted vanished silently.
+
+  it("flattenPermissions keeps both same-named roles' permissions", () => {
+    const viewerA = role({ name: "viewer", permissions: [read] });
+    const viewerB = role({ name: "viewer", permissions: [write] });
+    const left = role({ name: "left", inherits: [viewerA] });
+    const right = role({ name: "right", inherits: [viewerB] });
+    const top = role({ name: "top", inherits: [left, right] });
+
+    const flat = flattenPermissions(top);
+    assert.isTrue(flat.has("doc:read"));
+    assert.isTrue(flat.has("doc:write"));
+  });
+
+  it("permissionProvenance reports grants from both same-named roles", () => {
+    const viewerA = role({ name: "viewer", permissions: [read] });
+    const viewerB = role({ name: "viewer", permissions: [write] });
+    const left = role({ name: "left", inherits: [viewerA] });
+    const right = role({ name: "right", inherits: [viewerB] });
+    const top = role({ name: "top", inherits: [left, right] });
+
+    const grants = permissionProvenance(top);
+    assert.deepStrictEqual(
+      grants.map((g) => g.permission).sort(),
+      ["doc:read", "doc:write"],
+    );
+  });
+
+  it("roleNames still walks the second same-named role's own parents", () => {
+    const grandparent = role({ name: "superAdmin", permissions: [publish] });
+    const viewerA = role({ name: "viewer" });
+    // Distinct object, same name, but with a parent `viewerA` does not have.
+    const viewerB = role({ name: "viewer", inherits: [grandparent] });
+    const left = role({ name: "left", inherits: [viewerA] });
+    const right = role({ name: "right", inherits: [viewerB] });
+    const top = role({ name: "top", inherits: [left, right] });
+
+    const names = roleNames(top);
+    assert.isTrue(names.has("superAdmin"));
+  });
+
+  it("a true diamond — the same object reached twice — is still visited once", () => {
+    // Regression guard for the identity-keyed rewrite: this must not become
+    // exponential, and the shared parent's permission must not be double-added
+    // in a way that would be visible (Set dedups values regardless, but the
+    // traversal itself must still terminate and short-circuit on the second
+    // visit).
+    const base = role({ name: "base", permissions: [read] });
+    const left = role({ name: "left", inherits: [base] });
+    const right = role({ name: "right", inherits: [base] });
+    const top = role({ name: "top", inherits: [left, right] });
+
+    assert.deepStrictEqual([...flattenPermissions(top)], ["doc:read"]);
+    assert.strictEqual(
+      permissionProvenance(top).filter((g) => g.permission === "doc:read").length,
+      1,
+    );
+    assert.deepStrictEqual([...roleNames(top)].sort(), ["base", "left", "right", "top"]);
+  });
+});
+
+describe("the three walkers survive a very deep inheritance chain", () => {
+  // Ticket 86: flattenPermissions, roleNames and permissionProvenance used to
+  // recurse directly, one JS call frame per level of `inherits`. A chain this
+  // deep overflowed the native stack (`RangeError: Maximum call stack size
+  // exceeded`) well before Node's default limit. Built with a loop, not
+  // recursion, so constructing the fixture itself does not hit the same limit.
+  const DEPTH = 50_000;
+
+  const buildChain = (depth: number): Role => {
+    let current: Role = role({ name: "role-0", permissions: [read] });
+    for (let i = 1; i < depth; i += 1) {
+      current = role({ name: `role-${i}`, inherits: [current] });
+    }
+    return current;
+  };
+
+  it("flattenPermissions completes without a stack overflow", () => {
+    const top = buildChain(DEPTH);
+    const flat = flattenPermissions(top);
+    assert.strictEqual(flat.size, 1);
+    assert.isTrue(flat.has("doc:read"));
+  });
+
+  it("roleNames completes without a stack overflow", () => {
+    const top = buildChain(DEPTH);
+    const names = roleNames(top);
+    assert.strictEqual(names.size, DEPTH);
+    assert.isTrue(names.has("role-0"));
+    assert.isTrue(names.has(`role-${DEPTH - 1}`));
+  });
+
+  it("permissionProvenance completes without a stack overflow", () => {
+    const top = buildChain(DEPTH);
+    const grants = permissionProvenance(top);
+    assert.strictEqual(grants.length, 1);
+    assert.strictEqual(grants[0]?.grantedBy, "role-0");
+    // The path runs from the queried (top) role down to the granting one.
+    assert.strictEqual(grants[0]?.path.length, DEPTH);
+    assert.strictEqual(grants[0]?.path[0], `role-${DEPTH - 1}`);
+    assert.strictEqual(grants[0]?.path[DEPTH - 1], "role-0");
   });
 });
 
@@ -257,6 +385,57 @@ describe("resolveRoleGraph — an unknown parent is reported", () => {
       );
 
       assert.strictEqual(result._tag, "Failure");
+    }));
+});
+
+describe("resolveRoleGraph — a duplicate definition name fails rather than shadowing", () => {
+  it.effect("fails with DuplicateRoleDefinition instead of the last definition winning", () =>
+    Effect.gen(function* () {
+      // Before the fix, `byName` was a `Map` built from `definitions`: the
+      // second "viewer" silently replaced the first, its `publish` permission
+      // vanished, and nothing reported it.
+      const result = yield* Effect.result(
+        resolveRoleGraph([
+          { name: "viewer", permissions: [read] },
+          { name: "viewer", permissions: [publish] },
+        ]),
+      );
+
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      const error = result.failure;
+      assert.strictEqual(error._tag, "DuplicateRoleDefinition");
+      if (error._tag !== "DuplicateRoleDefinition") return;
+      assert.deepStrictEqual(error.names, ["viewer"]);
+    }));
+
+  it.effect("names every repeated name at once, sorted", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        resolveRoleGraph([
+          { name: "zeta", permissions: [read] },
+          { name: "alpha", permissions: [write] },
+          { name: "zeta", permissions: [publish] },
+          { name: "alpha", permissions: [read] },
+        ]),
+      );
+
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      const error = result.failure;
+      assert.strictEqual(error._tag, "DuplicateRoleDefinition");
+      if (error._tag !== "DuplicateRoleDefinition") return;
+      assert.deepStrictEqual(error.names, ["alpha", "zeta"]);
+    }));
+
+  it.effect("a catalogue with no repeated names is unaffected", () =>
+    Effect.gen(function* () {
+      const roles = yield* resolveRoleGraph([
+        { name: "viewer", permissions: [read] },
+        { name: "editor", permissions: [write], inherits: ["viewer"] },
+      ]);
+
+      assert.strictEqual(roles.length, 2);
     }));
 });
 

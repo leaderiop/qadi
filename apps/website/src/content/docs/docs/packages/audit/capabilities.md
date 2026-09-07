@@ -64,12 +64,12 @@ this check entirely.
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
 before setting `metadata.sequenceIntegrityVerified: true`.
 
-**Decommissioning** — `createDecommissioningChecklist`/
+**Decommissioning** — `makeDecommissioningChecklist`/
 `completeDecommissioningStep` walk a six-step checklist; an unknown step id
 fails `UnknownDecommissioningStep` rather than silently no-opping.
 
 ```ts
-import { enforceRetention, verifySequenceIntegrity, createDecommissioningChecklist } from "@qadi/audit";
+import { enforceRetention, verifySequenceIntegrity, makeDecommissioningChecklist } from "@qadi/audit";
 
 const kept = enforceRetention(entries, { maxAgeMs: 90 * 24 * 60 * 60 * 1000 }, now);
 ```

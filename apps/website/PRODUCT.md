@@ -45,7 +45,7 @@ A developer lands on the homepage from a search, a link, or the npm/GitHub listi
 ## Evidence on Hand
 
 - Real GitHub repository: `https://github.com/leaderiop/qadi`.
-- Real, checkable numbers already used on-site: 95% test coverage on `@qadi/core` / 90% workspace-wide, 92% mutation score on `packages/audit` (`pnpm check` gate 20), 22 total merge gates, five formally stated invariants (INV-QD-051 through INV-QD-055) backing the audit pipeline's correctness claims.
+- Real, checkable numbers already used on-site: 95% test coverage on `@qadi/core` / 90% workspace-wide, 92% mutation score on `packages/audit` (`pnpm check` gate 20), 24 total merge gates, five formally stated invariants (INV-QD-051 through INV-QD-055) backing the audit pipeline's correctness claims.
 - No testimonials, customer logos, case studies, or pricing exist or should be fabricated — the library is pre-1.0 and has no customers yet.
 
 ## Product Principles

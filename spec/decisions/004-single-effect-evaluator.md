@@ -42,3 +42,33 @@ service is a first-class implementation rather than an unreachable branch.
 **Trade-off accepted**: a synchronous fast path for RBAC-only policies would
 reintroduce exactly the fork that produced the dead `checkAsync` API. One path
 is worth the ceremony.
+
+## Amendment (2026-09-07)
+
+The canonical signature above names four environment services. The evaluator
+has grown since: `evaluate` now returns
+`Effect<Decision, EvaluationError, EvaluationServices>`, where
+
+```ts
+export type EvaluationServices =
+  | CurrentSubject
+  | AttributeResolver
+  | RelationshipResolver
+  | DecisionHistory
+  | EvaluationId
+  | CustomPredicate
+  | SignatureHistory;
+```
+
+— seven services in total, added one at a time by later ADRs
+([ADR-QD-012](./012-deterministic-time-and-ids.md) for `EvaluationId`,
+[ADR-QD-020](./020-decision-history-port.md) for `DecisionHistory`,
+[ADR-QD-055](./055-a-named-registered-custom-predicate.md) for `CustomPredicate`,
+and [ADR-QD-058](./058-hassignature-a-ninth-service-and-a-decomposable-leaf.md)
+for `SignatureHistory`). This does not change the
+decision above — there is still exactly one evaluator, and it still returns a
+single `Effect` rather than forking a synchronous path — it only updates the
+type this document quotes to match `packages/core/src/Evaluate.ts` as it
+stands today, rather than as it stood the day this ADR was written. The
+original four-service signature is left above, unedited, as a record of what
+was true then.

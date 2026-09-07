@@ -17,13 +17,17 @@ import {
   DecisionHistoryUnknown,
   DecisionRecord,
   EvaluationIdLive,
+  ObligationRecord,
   RelationshipResolverNever,
   decisionSinkFeed,
   gte,
   hasAttribute,
+  hasCustom,
   hasPermission,
   makeSubject,
   makeSubjectId,
+  obligation,
+  obliged,
   permission,
   permissionKey,
 } from "@qadi/core";
@@ -39,6 +43,7 @@ import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServer from "effect/unstable/http/HttpServer";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import { decisionStreamRoute, frame, reauthCheck } from "../src/DecisionStreamRoute.ts";
+import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 
 const readPermission = permission("devtools", "read");
@@ -85,24 +90,30 @@ const decisionRecord = (evaluationId: string, resource?: Record<string, unknown>
     }),
   });
 
+// Composed through named intermediate steps, deliberately: chaining every
+// `Layer.provideMerge` inline in one expression is an instantiation-depth
+// failure mode this codebase has already hit once (see http.test.ts's
+// `RoutesLayer`/`WithRegistry`/`WithSubjects` comment) — TypeScript can
+// silently mis-infer the result's remaining requirement rather than raising
+// a diagnostic at the chain itself, only surfacing downstream (as it did
+// here, at the one call site that runs `Layer.build` directly on `layer`).
+const EvaluationServicesTest = Layer.mergeAll(
+  AttributeResolverNone,
+  RelationshipResolverNever,
+  DecisionHistoryUnknown,
+  EvaluationIdLive,
+  CustomPredicateNone,
+  SignatureHistoryNone,
+);
+
 const appLayer = Effect.gen(function* () {
   const feed = yield* decisionSinkFeed({ replay: 8 });
   const route = decisionStreamRoute(readPermission, readPolicy, feed.stream);
 
-  const layer = route.pipe(
-    Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
-    Layer.provideMerge(
-      Layer.mergeAll(
-        AttributeResolverNone,
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      ),
-    ),
-    Layer.provideMerge(HttpServer.layerServices),
-  );
+  const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
+  const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
+  const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
+  const layer = withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
 
   return { feed, layer };
 });
@@ -149,6 +160,41 @@ describe("/__decisions", () => {
       assert.strictEqual(response.headers.get("cache-control"), "no-cache");
       assert.strictEqual(response.headers.get("connection"), "keep-alive");
       assert.strictEqual(response.headers.get("x-accel-buffering"), "no");
+    }));
+
+  it.effect("registers with PermissionRegistry, so /__permissions is not silently incomplete", () =>
+    Effect.gen(function* () {
+      // `Layer.build` + `Context.get` doesn't work here: `HttpRouter.add`'s
+      // handler requirement is tracked as a `Request<"Requires", _>`-branded
+      // entry in the layer's requirement channel — a per-route marker only
+      // `HttpRouter.toWebHandler` (and the request-driven pattern the rest of
+      // this codebase's `/__permissions` assertions already use, e.g.
+      // http.test.ts) knows how to resolve; `Layer.build` demands it be
+      // satisfied literally, which no ordinary `Layer.provide` call can do.
+      // So this asks the same question `/__permissions` itself answers,
+      // through an actual request to that route, exactly like every other
+      // registry assertion in this package.
+      const { layer: decisionsLayer } = yield* appLayer;
+      const layer = Layer.merge(decisionsLayer, permissionRegistryRouteUnguarded("test"));
+      const { handler } = HttpRouter.toWebHandler(layer);
+
+      const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
+      const body: ReadonlyArray<{
+        readonly permission: string;
+        readonly endpoints: ReadonlyArray<{
+          readonly method: string;
+          readonly path: string;
+          readonly group?: string;
+        }>;
+      }> = yield* Effect.promise(() => response.json());
+      const entry = body.find((row) => row.permission === permissionKey(readPermission));
+
+      assert.isDefined(entry);
+      if (entry !== undefined) {
+        // `group: undefined` doesn't survive `jsonUnsafe`'s JSON.stringify —
+        // an absent key round-trips, not a `group: undefined` key.
+        assert.deepStrictEqual(entry.endpoints, [{ method: "GET", path: "/__decisions" }]);
+      }
     }));
 });
 
@@ -275,6 +321,40 @@ describe("reauth", () => {
     })),
   );
 
+  it.effect(
+    "refuses a binding obligation the recheck cannot discharge — the same semantics " +
+      "connect-time guardRoute already enforces",
+    () =>
+      Effect.gen(function* () {
+        // `isAllowed`-based semantics would have succeeded here: the decision
+        // IS an allow. `reauthCheck` is now built on `assert`, which refuses an
+        // allow carrying a binding obligation nobody discharged — matching
+        // what `guardRoute`'s `@qadi/core` `guard` already does at connect, so
+        // the two enforcement points can no longer disagree about the same
+        // `Obliged` policy.
+        const obligedPolicy = obliged(obligation("must-log"), readPolicy);
+        const request = HttpServerRequest.fromWeb(
+          new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
+        );
+        const layer = Layer.mergeAll(
+          subjectExtractorBearer(lookupSubject),
+          AttributeResolverNone,
+          RelationshipResolverNever,
+          DecisionHistoryUnknown,
+          EvaluationIdLive,
+          CustomPredicateNone,
+          SignatureHistoryNone,
+        );
+
+        const result = yield* reauthCheck(request, obligedPolicy, {}).pipe(
+          Effect.provide(layer),
+          Effect.result,
+        );
+        assert.strictEqual(result._tag, "Failure");
+        if (result._tag === "Failure") assert.strictEqual(result.failure, "denied");
+      }),
+  );
+
   // `decisionStreamRoute`'s own `options?.reauth === undefined ? frames : ...`
   // branch — the one call site that actually wires `reauthCheck` into a live
   // route, as opposed to the two tests above, which exercise `reauthCheck` and
@@ -320,5 +400,52 @@ describe("frame", () => {
 
   it("encodes a Decision record with no resource at all", () => {
     assert.isTrue(Result.isSuccess(frame(decisionRecord("no-resource"))));
+  });
+
+  it(
+    "drops a Decision record whose POLICY carries a JSON-unsafe HasCustom.params, " +
+      "even when the resource itself is safe",
+    () => {
+      // The defect three separate audit tickets (148, 154, 159) found: the old
+      // guard checked only `record.resource`, but `JSON.stringify(toWire(record))`
+      // also serializes the raw `policy` — and `HasCustom.params` is
+      // `Schema.Unknown`, so a circular value there threw the same raw
+      // `TypeError` out of `Stream.filterMap` a bad resource used to, killing
+      // the shared feed for every subscriber. `frame` now delegates to
+      // `@qadi/core`'s `isRecordJsonSafe`, which walks `policy` too.
+      const circular: Record<string, unknown> = { a: 1 };
+      circular.self = circular;
+      const record = new DecisionRecord({
+        evaluationId: "bad-policy",
+        at: 1_000,
+        subjectId: makeSubjectId("alice"),
+        policy: hasCustom("weird-check", circular),
+        resource: { a: 1 }, // JSON-safe on its own — the old guard would have passed this through
+        outcome: new Decided({
+          decision: new Allow({
+            evaluationId: "bad-policy",
+            subjectId: makeSubjectId("alice"),
+            durationMillis: 1,
+            trace: allowTrace,
+            visibleFields: undefined,
+            obligations: [],
+          }),
+        }),
+      });
+
+      assert.doesNotThrow(() => frame(record));
+      assert.isTrue(Result.isFailure(frame(record)));
+    },
+  );
+
+  it("encodes a non-Decision SinkRecord (Obligations) unconditionally, never consulting isJsonSafe", () => {
+    const obligations = new ObligationRecord({
+      evaluationId: "obl-1",
+      at: 1_000,
+      outcome: "Discharged",
+      obligationIds: ["o1"],
+    });
+
+    assert.isTrue(Result.isSuccess(frame(obligations)));
   });
 });

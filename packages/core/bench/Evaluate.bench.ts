@@ -14,7 +14,7 @@
  *   one node       the floor — how much of an evaluation is fixed overhead
  *   wide           `allOf` of 8, the shared-fold path
  *   deep           nesting 10 levels, the recursion path
- *   matcher-heavy  four refs, the only workload that reaches `resolveRef`
+ *   matcher-heavy  three refs, the only workload that reaches `resolveRef`
  *   field-heavy    `allOf` of 8 under `Intersection`, the only workload that
  *                  reaches `mergeFields`/`intersectFields` — O(|a|·|b|)
  *                  pairwise `compareFieldPaths`, on the same per-node path §5a
@@ -148,8 +148,10 @@ const deep: Policy = Array.from({ length: 10 }).reduce<Policy>(
  * which carries no matcher and so dispatches through `evaluateNode` only — a
  * denominator taken from those alone would be answering about the wrong path.
  *
- * `eq(subject(...))` and `dominates(...)` each resolve a ref per evaluation, and
- * `fieldMatch` nests a second dispatch inside the first.
+ * `eq(subject(...))`, `neq(literal(...))` and `eq(subjectId())` each resolve a
+ * ref per evaluation — three in total. `fieldMatch("level", gte(2))` nests a
+ * second dispatch inside the first, but `gte` compares its literal `number`
+ * directly and never calls `resolveRef`, so it does not add a fourth.
  */
 const matchers = allOf([
   hasAttribute("department", eq(subject("department"))),
@@ -190,7 +192,7 @@ describe("evaluate", () => {
   bench("one node", () => run(one), options);
   bench("wide — allOf of 8", () => run(wide), options);
   bench("deep — 10 levels", () => run(deep), options);
-  bench("matcher-heavy — 4 refs", () => run(matchers), options);
+  bench("matcher-heavy — 3 refs", () => run(matchers), options);
   bench("field-heavy — allOf of 8 under Intersection", () => run(fieldHeavy), options);
   bench(
     "resolver miss — one port call",

@@ -50,6 +50,12 @@ the decommissioning checklist are pure functions and data — caller-invoked,
 caller-scheduled, since this package has no scheduler of its own. E-signature
 capture is wired through `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`:
 
+Nothing here connects the two: `getPurgeableEntries` selects by age alone and
+has no idea whether an entry was ever handed to `archiveAuditTrail`. **Archive
+before you purge** is a documented invariant a caller must uphold itself, not
+one this package can check — see the doc comments on `Retention.ts`'s
+exports.
+
 ```ts
 import { signatureObligationHandler, SIGNATURE_MEANINGS } from "@qadi/audit";
 import * as Qadi from "@qadi/core";

@@ -60,8 +60,24 @@ const stagingTotal = Metric.counter("qadi_audit_staging_total", {
   description: "AuditStagingPort.stage attempts, tagged by outcome.",
 });
 const stagingStaged = Metric.withAttributes(stagingTotal, { outcome: "staged" });
+/**
+ * `stage()` failed while the breaker was **not** Open, so `record`'s write
+ * attempt below still runs — this entry is recoverable through the trail
+ * even though staging never got a copy of it. Kept distinct from
+ * `stagingFailedOpen` because the two have different operator responses: this
+ * one says "staging is unhealthy", that one says "this entry is gone".
+ */
 const stagingFailed = Metric.withAttributes(stagingTotal, { outcome: "failed" });
 const stagingSkippedOpen = Metric.withAttributes(stagingTotal, { outcome: "skipped_open" });
+/**
+ * `stage()` failed while the breaker **was** Open — the wired sibling of
+ * `stagingSkippedOpen`. Neither staging nor the trail write (skipped below
+ * because the breaker is Open) will ever hold this entry, so it is lost as
+ * unrecoverably as the unwired case, and gets the same loud
+ * `Effect.logWarning` rather than being folded into the generic `"failed"`
+ * outcome, which also covers writes the trail still catches.
+ */
+const stagingFailedOpen = Metric.withAttributes(stagingTotal, { outcome: "failed_open" });
 /**
  * A `commit` a caller's staging port raised — a typed `AuditStagingError` or
  * an unexpected defect alike. Tracked rather than merely swallowed: `stage`'s
@@ -109,9 +125,24 @@ export const AuditDecisionSinkLive = (
           // recovering store would receive the whole of a `filter`/
           // `filterStream` fan-out at once the instant `resetTimeoutMs`
           // elapses, not the one trial write the option's own doc promises.
+          //
+          // A lost `claimProbe` has two distinct causes a single `"Open"`
+          // fallback would conflate: another caller already holds this
+          // half-open window's one slot (still `HalfOpen`), or the breaker
+          // moved on entirely while this call was in flight — most notably,
+          // the prober's write just succeeded and closed it. Re-reading
+          // `status` tells them apart: a `Closed` read means this entry can
+          // just write normally, rather than being logged and metered below
+          // as lost to a breaker that, by the time this line runs, is not
+          // open at all. Anything else (still `HalfOpen`, or re-`Open`ed by
+          // the prober's own failure) still means "not my probe to attempt",
+          // so it collapses to `"Open"` exactly as before.
           const initialStatus = yield* breaker.status;
-          const status =
-            initialStatus === "HalfOpen" && !(yield* breaker.claimProbe) ? "Open" : initialStatus;
+          let status = initialStatus;
+          if (initialStatus === "HalfOpen" && !(yield* breaker.claimProbe)) {
+            const current = yield* breaker.status;
+            status = current === "Closed" ? "Closed" : "Open";
+          }
 
           // Ties "was staged" and "how to commit it" to one value, rather
           // than a `handle` and a `stagingPort !== undefined` check that
@@ -125,6 +156,14 @@ export const AuditDecisionSinkLive = (
               const handle = staged.success;
               commitStaged = () => stagingPort.commit(handle);
               yield* Metric.update(stagingStaged, 1);
+            } else if (status === "Open") {
+              // Staging failed and the breaker is Open, so the write below
+              // never runs either — this entry has no path to durability at
+              // all, the wired counterpart of the unwired-and-open case.
+              yield* Effect.logWarning(
+                "audit entry dropped: circuit breaker open and staging failed",
+              ).pipe(Effect.annotateLogs({ evaluationId: entry.record.evaluationId }));
+              yield* Metric.update(stagingFailedOpen, 1);
             } else {
               yield* Metric.update(stagingFailed, 1);
             }

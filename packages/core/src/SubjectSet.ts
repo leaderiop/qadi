@@ -118,6 +118,12 @@ export const filterSubjects = (
  * caller who does want concurrent fan-out here is asking for something this
  * library has chosen not to default to, on both the array and streamed form
  * alike — not a gap in the streaming sibling specifically.
+ *
+ * Carries `qadi.policy_tag`, the one `decideSubjects` annotation known before
+ * a single element runs. `qadi.subject_count` has no batch-level equivalent
+ * here: `subjects` is a `Stream`, so its length is not known in advance and
+ * may not even be finite — a span annotated with a count would either block
+ * on consuming the whole stream first or lie about what has been seen so far.
  */
 export const decideSubjectsStream = <E2 = never, R2 = never>(
   policy: Policy,
@@ -131,6 +137,9 @@ export const decideSubjectsStream = <E2 = never, R2 = never>(
         (decision): SubjectDecision => ({ subject, decision }),
       ),
     ),
+    Stream.withSpan("qadi.decideSubjectsStream", {
+      attributes: { "qadi.policy_tag": policy._tag },
+    }),
   );
 
 /** The streamed sibling of `filterSubjects` — see `decideSubjectsStream`. */

@@ -21,7 +21,7 @@ import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import type { SinkRecord, StoredRecord } from "@qadi/core";
-import { decodeRecord } from "@qadi/core";
+import { decodeRecord, stampRecord } from "@qadi/core";
 
 export interface Source {
   /**
@@ -54,8 +54,12 @@ export const sourceFromRecords = (records: ReadonlyArray<StoredRecord>): Source 
  *
  * The stamping happens here because core does not do it: `decisionSinkFeed`
  * yields `SinkRecord`, deliberately, since core cannot know whether it is in a
- * browser, on a server or at an edge. This is the same stamping
- * `decisionSinkRing` performs, at the same boundary, for the same reason.
+ * browser, on a server or at an edge. It reuses core's own `stampRecord`
+ * ([DecisionSinkRing.ts](../../../core/src/DecisionSinkRing.ts)) rather than a
+ * local `{ ...record, environment }` spread — spreading a `Data.TaggedClass`
+ * instance lands the result on `Object.prototype`, silently losing `.pipe`,
+ * `Equal.equals` and `Hash.hash`, which is exactly the failure that module
+ * documents and `stampRecord` exists to avoid.
  */
 export const sourceFromFeed = (options: {
   readonly stream: Stream.Stream<SinkRecord>;
@@ -64,13 +68,7 @@ export const sourceFromFeed = (options: {
   readonly backlog?: Effect.Effect<ReadonlyArray<StoredRecord>>;
 }): Source => ({
   ...(options.backlog === undefined ? {} : { backlog: options.backlog }),
-  live: Stream.map(options.stream, (record) => stamp(record, options.environment)),
-});
-
-/** A record plus where it ran. The one place the badge is applied. */
-const stamp = (record: SinkRecord, environment: string): StoredRecord => ({
-  ...record,
-  environment,
+  live: Stream.map(options.stream, (record) => stampRecord(record, options.environment)),
 });
 
 /**
@@ -172,6 +170,24 @@ export const sourceFromEventSource = (options: {
  * re-delivers and `EventSource` reconnects, and the timeline already folds by
  * evaluation id — doing it here as well would be two places to be wrong.
  */
+/**
+ * Ascending order for backlog rows, `NaN` included.
+ *
+ * `a.at - b.at` sorts `NaN` unpredictably — every comparison against it is
+ * `false`, so `Array.prototype.sort` leaves such a row wherever it happened to
+ * land. `Timeline.ts`'s `isAfter` gives this log its documented total order
+ * (INV-QD-039: an unknown time sorts after every known one, and two unknowns
+ * keep the order they arrived in), and a merged backlog is read as the same
+ * kind of ordered list, so it owes the same guarantee. `sort` is stable, so
+ * returning `0` for two unknowns is what "keep arrival order" means here.
+ */
+const compareByAt = (a: { readonly at: number }, b: { readonly at: number }): number => {
+  const aUnknown = Number.isNaN(a.at);
+  const bUnknown = Number.isNaN(b.at);
+  if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;
+  return a.at - b.at;
+};
+
 export const mergeSources = (sources: ReadonlyArray<Source>): Source => {
   const backlogs = sources.flatMap((source) =>
     source.backlog === undefined ? [] : [source.backlog]
@@ -179,7 +195,7 @@ export const mergeSources = (sources: ReadonlyArray<Source>): Source => {
 
   const backlog = backlogs.length === 0
     ? undefined
-    : Effect.map(Effect.all(backlogs), (parts) => parts.flat().sort((a, b) => a.at - b.at));
+    : Effect.map(Effect.all(backlogs), (parts) => parts.flat().sort(compareByAt));
 
   return {
     ...(backlog === undefined ? {} : { backlog }),
@@ -206,7 +222,7 @@ const decodeFrame = (
     const decoded = yield* Effect.result(decodeRecord(parsed.success));
     if (Result.isFailure(decoded)) return yield* malformed(frame, "not-a-record", onMalformed);
 
-    return Result.succeed(stamp(decoded.success, environment));
+    return Result.succeed(stampRecord(decoded.success, environment));
   });
 
 /**

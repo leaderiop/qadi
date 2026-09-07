@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import * as Effect from "effect/Effect";
-import { resolveRoleGraph } from "@qadi/core";
+import { permissionKey, resolveRoleGraph } from "@qadi/core";
 import type { Role } from "@qadi/core";
 import {
   hydrationActivity,
@@ -31,6 +31,7 @@ import type { HydrationActivity, PortActivity, PortCallLog, WiringReport } from 
 import { DevtoolsDock } from "@qadi/devtools/react";
 import { gateInstances, subscribeGates, useInvalidate, useSubject } from "@qadi/react";
 import { catalogue } from "../domain/policies.ts";
+import { readDevtools } from "../domain/permissions.ts";
 import { allRoles } from "../domain/roles.ts";
 import {
   atoms,
@@ -162,7 +163,7 @@ export const Dock = () => {
   // and the legal reviewer hold — there is deliberately no environment-variable
   // gate and no unguarded variant (BEH-QD-174), so a reader without the
   // permission sees their own browser's decisions and none of the server's.
-  const mayReadServer = subject?.permissions.has("devtools:read") ?? false;
+  const mayReadServer = subject?.permissions.has(permissionKey(readDevtools)) ?? false;
 
   return (
     <>

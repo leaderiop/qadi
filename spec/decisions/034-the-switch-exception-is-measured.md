@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-034                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-27                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-07-27): Initial release (CCR-QD-040) |
+> | Change History | 1.1 (2026-09-07): Addendum — the cited benchmark has drifted since this ADR was written and was never re-run; the workload and end-to-end figures below are historical, not currently reproducible<br>1.0 (2026-07-27): Initial release (CCR-QD-040) |
 
 ---
 
@@ -141,6 +141,50 @@ Two lines of `packages/core` are permanently uncovered by construction, and that
 intended. A later reader tempted to "fix" the coverage by deleting a guard should read
 the table above first: two of these four dispatchers accept a new tag silently, and one
 of them widens field visibility when it does.
+
+## Addendum (2026-09-07): the benchmark has drifted and was never re-run
+
+The figures above were recorded against a single run of the original
+`packages/core/bench/Evaluate.bench.ts` — 134 lines, four benches — on the day
+this ADR was written. Neither file has been re-measured since, and both have
+changed under it:
+
+- `Evaluate.bench.ts` is now 214 lines across five later commits, and at least
+  two of those changed the measured path itself: per-port `qadi.attribute`
+  spans were added, and a ninth service (`SignatureHistory`) was added to
+  every bench layer merge. Either can move the denominator; neither was
+  re-measured after landing.
+- The "four refs" / "on the order of seventeen dispatches" arithmetic
+  describes that original workload, not the current one. Against today's
+  matchers policy, `resolveRef` fires **3** times per evaluation, not four,
+  and the total switch-dispatch count for that policy is **~13**, not
+  seventeen.
+
+So the specific figures that should be read as **stale, not reproducible as
+stated**: the "four refs" / "seventeen dispatches" workload description, and
+the end-to-end denominators derived from it — 7 µs single-node, 14 µs
+four-ref, 65 µs ten-level-deep, 7.5 µs/element under `filter` — along with the
+2–4% / under-1% end-to-end regression estimates that divide the per-dispatch
+cost by those denominators.
+
+**What is not stale:** the per-dispatch ratios themselves (`switch` vs.
+hoisted `Match` vs. `Match.value`) were measured directly by
+`Dispatch.bench.ts` against a transcription of `resolveRef`, which is a much
+smaller surface and has not materially changed. Those ratios, and the
+exhaustiveness argument in "The finding that mattered more," stand on their
+own regardless of the evaluator denominator.
+
+**No stored baseline exists either.** `pnpm bench` runs `vitest bench --run`;
+nothing here persists a baseline file for `vitest bench --compare`, and
+`reports/` (where a run's raw output would land) is gitignored. So there is no
+artifact anywhere in this repository that reproduces the "1.6–2.4×",
+"3.5–7.7×", "19–36 ns/dispatch" or "~30% run-to-run variance" numbers, or that
+a later change could diff against. "Measured" in this ADR's title should be
+read as **measured once, unreproduced** — a snapshot of a run on one machine
+on one day — rather than a continuously verified property. Re-running the
+benchmark and updating this addendum with fresh numbers is out of scope for
+this audit pass; this note only flags that the exercise is due, not what its
+result would be.
 
 ---
 

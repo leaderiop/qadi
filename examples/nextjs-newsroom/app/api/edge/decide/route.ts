@@ -84,9 +84,12 @@ export const GET = async (request: Request): Promise<Response> => {
   const outcome = await Effect.runPromise(
     Effect.gen(function* () {
       // The clock is the evaluator's. `Date.now()` here would be the one place
-      // in this app where an evaluation could not be reproduced.
+      // in this app where an evaluation could not be reproduced. Captured
+      // before `decide` runs so it doubles as the record's start-of-evaluation
+      // timestamp below.
       const now = yield* Clock.currentTimeMillis;
-      return yield* decide(canReadArticle, { resource: policyResource(article, now) });
+      const decision = yield* decide(canReadArticle, { resource: policyResource(article, now) });
+      return { now, decision };
     }).pipe(Effect.provide(layer), Effect.result),
   );
 
@@ -102,7 +105,7 @@ export const GET = async (request: Request): Promise<Response> => {
     }, { status: 503 });
   }
 
-  const decision = outcome.success;
+  const { now, decision } = outcome.success;
   return Response.json({
     article: article.id,
     subject: user.subject.id,
@@ -112,7 +115,7 @@ export const GET = async (request: Request): Promise<Response> => {
     wire: toWire(
       new DecisionRecord({
         evaluationId: decision.evaluationId,
-        at: decision.durationMillis,
+        at: now,
         subjectId: decision.subjectId,
         policy: canReadArticle,
         outcome: new Decided({ decision }),

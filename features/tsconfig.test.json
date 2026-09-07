@@ -1,5 +1,19 @@
 {
-  "extends": "../tsconfig.base.json",
+  // `../tsconfig.react-base.json`, not the plain `../tsconfig.base.json`:
+  // the generated runner files this include picks up (e.g.
+  // `features/hydration-counts/hydration-counts.steps.test.ts`) import
+  // `@qadi/react`, and `@qadi/react`'s own source resolves through
+  // `tsconfig.base.json`'s `paths` map — so this graph needs `DOM`/`jsx` for
+  // the same reason `tsconfig.test.json` at the repository root does.
+  "extends": "../tsconfig.react-base.json",
+  // "features/**/*.steps.test.ts" here is the same *.steps.test.ts runner
+  // files the root tsconfig.test.json also includes (as
+  // "features/features/**/*.steps.test.ts", from the repository root). That
+  // duplication is intentional, not drift: each config is its own standalone
+  // graph — this one is what `pnpm --filter @qadi/features typecheck` runs on
+  // its own, and dropping the glob here would make that command incomplete
+  // for a developer who runs it without also running the root's
+  // `tsc -p tsconfig.test.json` (the one `pnpm check` actually gates on).
   "include": ["step-definitions/**/*.ts", "features/**/*.steps.test.ts"],
   "compilerOptions": {
     "noEmit": true,

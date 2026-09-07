@@ -22,7 +22,14 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { decodeRecord, encodeRecord, fromWire, isJsonSafe, toWire } from "../src/SinkCodec.ts";
+import {
+  decodeRecord,
+  encodeRecord,
+  fromWire,
+  isJsonSafe,
+  isRecordJsonSafe,
+  toWire,
+} from "../src/SinkCodec.ts";
 
 const read = permission("doc", "read");
 
@@ -329,6 +336,31 @@ describe("every error variant crosses, and carries its code", () => {
     }
   });
 
+  it.effect("a wire error record missing `code` still decodes — ticket 163, code is never read on decode", () =>
+    Effect.gen(function* () {
+      // `code` is written on encode but never read on decode (`decodeError`
+      // dispatches purely on `_tag`), and `SinkRecordWire` otherwise tolerates
+      // an older sender's payload predating a field (see `subjectId`'s own
+      // doc comment). Requiring `code` bought no safety and only cost
+      // rejecting an otherwise-valid `failed` payload from a sender that
+      // predates the code being added.
+      const back = yield* decodeRecord({
+        _tag: "Decision",
+        evaluationId: "e",
+        at: 0,
+        subjectId: "u1",
+        policy: P.hasPermission(read),
+        failed: { _tag: "MissingResource", attribute: "owner" },
+      });
+
+      assert.strictEqual(back._tag, "Decision");
+      if (back._tag === "Decision" && back.outcome._tag === "Failed") {
+        const error = back.outcome.error;
+        assert.strictEqual(error._tag, "MissingResource");
+        if (error._tag === "MissingResource") assert.strictEqual(error.attribute, "owner");
+      }
+    }));
+
   it("a cause that cannot be stringified does not take the record down", () => {
     // A sink must never break the thing it observes, and that includes the
     // encoder a transport calls.
@@ -575,10 +607,16 @@ describe("the wire is untrusted", () => {
     }
   });
 
-  it("a record naming neither outcome becomes a Failed that says so", () => {
+  it("a record naming neither outcome becomes a Failed that says so (ticket 96: pins the current MissingResource/ACL004 stand-in)", () => {
     // Unreachable for anything this module encoded, but the wire is untrusted.
     // A row saying "the sender sent neither outcome" beats a dropped record, and
     // can never be mistaken for a decision.
+    //
+    // This pins today's *known-conflated* behavior (see the doc comment on
+    // `fromWire`'s `outcome` fallback): a protocol violation is reported by
+    // reusing `MissingResource`, a genuine resolver-wiring failure's tag and
+    // `ACL004` code. A future dedicated marker replacing this should update
+    // this test alongside it, not merely satisfy it by accident.
     const back = fromWire({
       _tag: "Decision",
       evaluationId: "e",
@@ -593,11 +631,133 @@ describe("the wire is untrusted", () => {
       // able to tell a malformed payload from a real failure.
       const error = back.outcome.error;
       assert.strictEqual(error._tag, "MissingResource");
+      assert.strictEqual(ERROR_CODES[error._tag], "ACL004");
       if (error._tag === "MissingResource") {
         assert.include(error.attribute, "malformed record");
       }
     }
   });
+
+  it("a record naming BOTH outcomes silently prefers `decided` (ticket 155: pins current behavior)", () => {
+    // Unreachable for anything this module encodes, but the wire is
+    // untrusted, and nothing today rejects a record naming both. See the
+    // conflation note on `fromWire`'s `outcome` fallback: there is no
+    // principled reason `decided` wins over `failed` here — it is an
+    // artifact of check order, not a decision — and a dedicated "both
+    // present" marker is the right fix, tracked rather than built in this
+    // change (it would require a new `EvaluationError` tag touched by
+    // `@qadi/http`'s exhaustive `EnforcementError` match, among other call
+    // sites). This test exists so that changing the preference, or rejecting
+    // the record outright, is a deliberate edit to this test rather than an
+    // unnoticed behavior change.
+    const back = fromWire({
+      _tag: "Decision",
+      evaluationId: "e",
+      at: 0,
+      subjectId: "u1",
+      policy: P.hasPermission(read),
+      decided: {
+        _tag: "Deny",
+        evaluationId: "e",
+        subjectId: "u1",
+        durationMillis: 1,
+        trace: trace(false),
+        obligations: [],
+      },
+      failed: { _tag: "MissingResource", code: "ACL004", attribute: "owner" },
+    });
+
+    assert.strictEqual(back._tag, "Decision");
+    if (back._tag === "Decision") {
+      assert.strictEqual(back.outcome._tag, "Decided");
+    }
+  });
+});
+
+describe("the wire's recursive positions are depth-bounded before Schema recurses", () => {
+  // Nests a policy `n` `Not`s deep, terminating in a leaf — the same shape
+  // `Policy.test.ts` uses to pin `Policy.ts`'s own `fromJson`/`fromJsonValue`
+  // guard, reused here because `decodeRecordWire`'s guard must refuse at the
+  // identical bound.
+  const wireWithNestedPolicy = (depth: number): unknown => {
+    let policy: unknown = { _tag: "HasRole", role: "x" };
+    for (let i = 0; i < depth; i++) policy = { _tag: "Not", policy };
+    return { _tag: "Decision", evaluationId: "e", at: 0, policy };
+  };
+
+  // Nests a `Trace` `depth` deep through its own recursive `children` array —
+  // the position `Policy.ts`'s guard was never asked to cover, since
+  // `TraceSchema` does not exist there.
+  const wireWithNestedTrace = (depth: number): unknown => {
+    let trace: unknown = {
+      policyTag: "HasRole",
+      allowed: true,
+      children: [],
+      obligations: [],
+    };
+    for (let i = 0; i < depth; i++) {
+      trace = { policyTag: "Not", allowed: true, children: [trace], obligations: [] };
+    }
+    return {
+      _tag: "Decision",
+      evaluationId: "e",
+      at: 0,
+      policy: { _tag: "HasRole", role: "x" },
+      decided: {
+        _tag: "Allow",
+        evaluationId: "e",
+        subjectId: "u1",
+        durationMillis: 0,
+        trace,
+        obligations: [],
+      },
+    };
+  };
+
+  it.effect("a policy nested past MAX_DECODE_DEPTH fails typed, naming the bound", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        decodeRecord(wireWithNestedPolicy(P.MAX_DECODE_DEPTH + 10)),
+      );
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") {
+        assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
+        if (result.failure._tag === "PolicyDecodeTooDeep") {
+          assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
+        }
+      }
+    }));
+
+  it.effect("a trace nested past MAX_DECODE_DEPTH fails typed, naming the bound", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        decodeRecord(wireWithNestedTrace(P.MAX_DECODE_DEPTH + 10)),
+      );
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") {
+        assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
+        if (result.failure._tag === "PolicyDecodeTooDeep") {
+          assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
+        }
+      }
+    }));
+
+  it.effect("a policy nested well within the bound still decodes", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(decodeRecord(wireWithNestedPolicy(4)));
+      assert.strictEqual(result._tag, "Success");
+    }));
+
+  // The regression this guards: before this guard ran ahead of `Schema`, a
+  // deeply-nested policy or trace on the wire raised a raw `RangeError` out
+  // of `Schema.decodeUnknownEffect` — an uncaught defect, not a typed
+  // `Effect` failure. Mirrors `Policy.test.ts`'s identical test for
+  // `fromJson`.
+  it.effect("an extreme depth (60,000) fails through the Effect channel, never as a defect", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(decodeRecord(wireWithNestedPolicy(60_000)));
+      assert.strictEqual(result._tag, "Failure");
+    }));
 });
 
 describe("round-trip property", () => {
@@ -684,6 +844,23 @@ describe("isJsonSafe", () => {
     assert.isFalse(isJsonSafe(1n));
   });
 
+  it("refuses NaN and both infinities — JSON.stringify silently renders every one of them as null", () => {
+    assert.isFalse(isJsonSafe(Number.NaN));
+    assert.isFalse(isJsonSafe(Number.POSITIVE_INFINITY));
+    assert.isFalse(isJsonSafe(Number.NEGATIVE_INFINITY));
+    // Nested, not just at the top level — the same "round-trip without
+    // lying" contract applies at every depth the walk reaches.
+    assert.isFalse(isJsonSafe({ a: Number.NaN }));
+    assert.isFalse(isJsonSafe([1, Number.POSITIVE_INFINITY]));
+  });
+
+  it("still accepts every finite number, including zero and negatives", () => {
+    assert.isTrue(isJsonSafe(0));
+    assert.isTrue(isJsonSafe(-0));
+    assert.isTrue(isJsonSafe(-1.5));
+    assert.isTrue(isJsonSafe(Number.MAX_SAFE_INTEGER));
+  });
+
   it("walks a plain object or array recursively", () => {
     assert.isTrue(isJsonSafe({ a: 1, b: ["x", { c: null }] }));
     assert.isFalse(isJsonSafe({ a: 1, b: () => {} }));
@@ -701,5 +878,71 @@ describe("isJsonSafe", () => {
     // `seen` tracks the current path, not everything visited overall.
     const shared = { x: 1 };
     assert.isTrue(isJsonSafe({ a: shared, b: shared }));
+  });
+});
+
+describe("isRecordJsonSafe", () => {
+  it("is true for an ObligationRecord, which carries neither unknown field", () => {
+    const record: SinkRecord = new ObligationRecord({
+      evaluationId: "e",
+      at: 0,
+      outcome: "Refused",
+      obligationIds: ["audit.log"],
+    });
+    assert.isTrue(isRecordJsonSafe(record));
+  });
+
+  it("is true for a Decision record whose resource and policy are both safe", () => {
+    const record: SinkRecord = new DecisionRecord({
+      evaluationId: "e",
+      at: 0,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasPermission(read),
+      resource: { id: "doc-1" },
+      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
+    });
+    assert.isTrue(isRecordJsonSafe(record));
+  });
+
+  it("is false when resource carries an unsafe value", () => {
+    const record: SinkRecord = new DecisionRecord({
+      evaluationId: "e",
+      at: 0,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasPermission(read),
+      resource: { fn: () => {} },
+      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
+    });
+    assert.isFalse(isRecordJsonSafe(record));
+  });
+
+  it("is false when a HasCustom policy node's params carries an unsafe value — the gap a resource-only check misses", () => {
+    // The regression this pins: a record whose `resource` is absent (or
+    // perfectly safe) but whose `policy` carries a `HasCustom` node with an
+    // unsafe `params` used to pass a `resource`-only check like the one
+    // `@qadi/audit`'s `encodeAuditEntry` and `@qadi/http`'s decision-stream
+    // route each had.
+    const record: SinkRecord = new DecisionRecord({
+      evaluationId: "e",
+      at: 0,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasCustom("isOwner", { onFail: () => {} }),
+      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
+    });
+
+    // The old, incomplete check would have let this through.
+    assert.isTrue(record.resource === undefined || isJsonSafe(record.resource));
+    assert.isFalse(isRecordJsonSafe(record));
+  });
+
+  it("is true when a HasCustom policy node's params is itself JSON-safe", () => {
+    const record: SinkRecord = new DecisionRecord({
+      evaluationId: "e",
+      at: 0,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasCustom("isOwner", { minClearance: 3 }),
+      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
+    });
+    assert.isTrue(isRecordJsonSafe(record));
   });
 });

@@ -21,7 +21,6 @@
     "typecheck": "tsc -b tsconfig.json && tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:types": "vitest run --typecheck",
     "test:tstyche": "tstyche",
     "coverage": "vitest run --coverage",
     "bench": "vitest bench --run",

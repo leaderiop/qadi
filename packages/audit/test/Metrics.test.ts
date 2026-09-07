@@ -1,7 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
 import * as Metric from "effect/Metric";
+import * as References from "effect/References";
 import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
@@ -215,6 +217,47 @@ describe("qadi_audit_staging_total", () => {
       assert.isDefined(skipped);
       assert.strictEqual(skipped?.state.count, 1);
     }));
+
+  it.effect(
+    "unwired and the breaker open also logs the actual drop warning, not just the metric",
+    () =>
+      Effect.gen(function* () {
+        const { layer: trail } = AuditTrailPortTest({
+          failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
+        });
+        const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+
+        yield* Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          for (let i = 0; i < 6; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
+        }).pipe(
+          Effect.provide(AuditDecisionSinkLive()),
+          Effect.provide(trail),
+          Effect.provide(
+            Logger.layer([
+              Logger.make((o) => {
+                logs.push({
+                  message: o.message,
+                  annotations: o.fiber.getRef(References.CurrentLogAnnotations),
+                });
+              }),
+            ]),
+          ),
+        );
+
+        // The metric alone (asserted above) would still pass if a mutant
+        // deleted the `Effect.logWarning` call in AuditDecisionSinkLive.ts —
+        // this pins the log itself, the 0.4.0 fix ticket #47 names. Exactly
+        // one warning: the 6th record, dropped while the breaker is Open
+        // and no staging port is wired.
+        assert.strictEqual(logs.length, 1);
+        const [entry] = logs;
+        assert.isDefined(entry);
+        if (entry === undefined) return;
+        assert.include(String(entry.message), "circuit breaker open and no staging port wired");
+        assert.strictEqual(entry.annotations["evaluationId"], "e-5");
+      }),
+  );
 
   it.effect("wired but a stage() failure is tagged 'failed', and never blocks the write", () =>
     Effect.gen(function* () {

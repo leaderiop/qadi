@@ -18,7 +18,7 @@ import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import type { AuthSubject } from "./AuthSubject.ts";
-import { CustomPredicateError } from "./Errors.ts";
+import { CustomPredicateError, InvalidBoundedPermits } from "./Errors.ts";
 import { portRetriesTotal } from "./PortMetrics.ts";
 import type { Resource } from "./Resource.ts";
 import { wrapService } from "./RetryingLayer.ts";
@@ -130,13 +130,24 @@ export const customPredicateRetrying =
 /**
  * Wraps a registry layer so no more than `permits` calls to `evaluate` run at
  * once, queuing the rest. Mirrors `attributeResolverBounded` exactly.
+ *
+ * Rejects `permits <= 0` rather than building a layer that deadlocks every
+ * call. `Semaphore.make` performs no validation of its own — with `permits`
+ * zero, negative, `NaN` or infinite, `free` is permanently below the `1`
+ * every `withPermit` call needs, so every wrapped `evaluate` enqueues forever
+ * with nothing able to wake it. Failing here, at layer construction, turns
+ * that into a diagnosable {@link InvalidBoundedPermits} instead of an
+ * unexplained hang the first time a caller reaches the wrapped predicate.
  */
 export const customPredicateBounded =
   (permits: number) =>
-  (layer: Layer.Layer<CustomPredicate>): Layer.Layer<CustomPredicate> =>
+  (layer: Layer.Layer<CustomPredicate>): Layer.Layer<CustomPredicate, InvalidBoundedPermits> =>
     Layer.effect(
       CustomPredicate,
       Effect.gen(function* () {
+        if (!(Number.isInteger(permits) && permits > 0)) {
+          return yield* Effect.fail(new InvalidBoundedPermits({ permits }));
+        }
         const semaphore = yield* Semaphore.make(permits);
         const inner = yield* Layer.build(layer).pipe(
           Effect.map((context) => Context.get(context, CustomPredicate)),

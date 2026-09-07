@@ -21,6 +21,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { isDevelopment } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
 export interface QadiContextValue {
@@ -38,6 +39,37 @@ export interface QadiContextValue {
 }
 
 const QadiContext = createContext<QadiContextValue | null>(null);
+
+/**
+ * Whether the production-instrumentation warning below has already fired.
+ *
+ * Module scope, not per-provider: several `QadiProvider`s can share one
+ * process, and the point is a single signal that instrumentation reached a
+ * production bundle at all, not one line per provider instance.
+ */
+let warnedInstrumentedInProduction = false;
+
+/**
+ * Warns once when `instrument` is `true` outside development.
+ *
+ * `instrument` guards a debug affordance that hands any script on the page a
+ * list of what the current user may and may not do (`QadiProviderProps.instrument`'s
+ * own doc comment). Every other prod-visible conditional in this codebase says
+ * so out loud — `isDevelopment()` gates `HydrationWarning.ts`'s console warnings,
+ * and `permissionRegistryRouteUnguarded` logs per request in `@qadi/http` — and
+ * this one did not, so a build that accidentally ships `instrument` had nothing
+ * naming the leak.
+ */
+const warnInstrumentedInProduction = (): void => {
+  if (warnedInstrumentedInProduction) return;
+  warnedInstrumentedInProduction = true;
+  console.warn(
+    "[qadi] <QadiProvider instrument> is true outside development. This is a debug " +
+      "affordance: it registers every guarded control's policy, resource and verdict " +
+      "for @qadi/devtools, readable by any script on the page. Pass instrument only in " +
+      "development, or gate it the way you gate the devtools dock itself.",
+  );
+};
 
 /** Raised when a hook is used outside a provider. */
 export class MissingQadiProviderError extends Error {
@@ -141,6 +173,30 @@ export const QadiProvider = ({
     ],
   }));
 
+  // Reverted from a render-phase write (ticket 34): that version reproducibly
+  // hung an in-flight re-check forever on a page where `subject` never
+  // changes at all — `settled()`'s listener never delivered the final answer
+  // even though the underlying port request completed — confirmed by
+  // bisecting `examples/nextjs-newsroom`'s "a seeded allow is replaced by
+  // this client's own denial" e2e test down to this exact commit and
+  // reproducing it with a clean rebuild in both directions. The render-phase
+  // write's own guard (`previousSubject.current !== subject`) never even
+  // fired in the failing case, so the regression is in some effect of
+  // reading/writing the registry during render that this investigation did
+  // not fully isolate before time ran out — recorded rather than silently
+  // worked around. A one-frame flash of the previous subject's verdicts on a
+  // genuine subject change (the real, narrower case ticket 34 was written
+  // for) is the known tradeoff of reverting to this effect.
+  useEffect(() => {
+    if (registry.get(atoms.subject) !== subject) {
+      registry.set(atoms.subject, subject);
+    }
+  }, [registry, atoms, subject]);
+
+  useEffect(() => {
+    if (instrument && !isDevelopment()) warnInstrumentedInProduction();
+  }, [instrument]);
+
   const disposeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     // Disposal is deferred by a tick and cancelled on remount, so React's
@@ -156,12 +212,6 @@ export const QadiProvider = ({
       }, 0);
     };
   }, [registry]);
-
-  useEffect(() => {
-    if (registry.get(atoms.subject) !== subject) {
-      registry.set(atoms.subject, subject);
-    }
-  }, [registry, atoms, subject]);
 
   // Memoised, or every render of the provider gives every consumer a new
   // context value and re-renders the whole guarded subtree.

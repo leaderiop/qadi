@@ -89,7 +89,18 @@ const Row: FC<{
       data-testid="qadi-log-row"
       data-evaluation={row.entry.evaluationId}
       data-selected={selected}
+      tabIndex={0}
+      aria-selected={selected}
       onClick={() => onSelect(key)}
+      // A mouse-only `onClick` leaves keyboard and switch users with no way to
+      // cross-link a decision to the inspector (WCAG 2.1.1). `<tr>`'s implicit
+      // role is already `row`, which supports `aria-selected`, so this needs no
+      // role override — only the interaction the row was missing.
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onSelect(key);
+      }}
       style={{
         cursor: "pointer",
         background: selected
@@ -168,10 +179,10 @@ const PairCell: FC<{
 
 const subjectOf = (entry: TimelineEntry): string => {
   if (entry._tag !== "TimelineDecision") return "";
-  const outcome = entry.decision.outcome;
-  // A failed evaluation has no subject on it: `subjectId` lives on the
-  // `Decision`, and there is none.
-  return outcome._tag === "Decided" ? outcome.decision.subjectId : "";
+  // `subjectId` is top-level on `DecisionRecord` (`DecisionRecord.ts`), for
+  // both outcomes, so a `Failed` row names its subject exactly as a `Decided`
+  // one does.
+  return entry.decision.subjectId;
 };
 
 const resourceOf = (entry: TimelineEntry): string => {

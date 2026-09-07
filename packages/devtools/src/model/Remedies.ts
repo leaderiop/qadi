@@ -127,7 +127,7 @@ const mapValue = (self: Synthesised, f: (v: unknown) => Synthesised): Synthesise
 const witness: (self: Matcher) => (input: SimulationInput) => Synthesised = Match.type<Matcher>()
   .pipe(
     Match.tagsExhaustive({
-      Eq: (m) => (input: SimulationInput) => refValue(m.ref, input),
+      Eq: (m) => (input: SimulationInput) => refValue(m.ref)(input),
       // Conservative on purpose. Where the reference does resolve, any distinct
       // value serves and `null` is distinct from everything except itself.
       // Where it does not, this declines rather than guessing: an unresolvable
@@ -135,9 +135,9 @@ const witness: (self: Matcher) => (input: SimulationInput) => Synthesised = Matc
       // fact match — but relying on that would make a remedy's correctness
       // depend on a coincidence between two modules.
       Neq: (m) => (input: SimulationInput) =>
-        mapValue(refValue(m.ref, input), (v) => value(v === null ? false : null)),
+        mapValue(refValue(m.ref)(input), (v) => value(v === null ? false : null)),
       Dominates: (m) => (input: SimulationInput) =>
-        mapValue(refValue(m.ref, input), (v) =>
+        mapValue(refValue(m.ref)(input), (v) =>
           isSecurityLabel(v)
             ? // A label dominates itself, so the reference's own value is the
               // least witness — and the only one derivable without the lattice.
@@ -150,7 +150,17 @@ const witness: (self: Matcher) => (input: SimulationInput) => Synthesised = Matc
           : value(m.values[0]),
       Exists: () => () => value(true),
       Gte: (m) => () => value(m.value),
-      Lt: (m) => () => value(m.value - 1),
+      // `m.value - 1` is not a witness for every threshold: float rounding
+      // swallows the subtraction once `m.value` is large enough (1e308 and its
+      // own predecessor are the same float), and `Infinity`/`NaN` have no
+      // predecessor at all — `Infinity - 1` is still `Infinity`, which does
+      // not satisfy `lt`. The finiteness check and the strict-decrease check
+      // together catch both: BEH-QD-223 requires a synthesised value to
+      // actually satisfy the matcher, and declining beats a row that lies.
+      Lt: (m) => () =>
+        Number.isFinite(m.value) && m.value - 1 < m.value
+          ? value(m.value - 1)
+          : cannot(`no value less than ${String(m.value)} can be synthesised`),
       Contains: (m) => () => value([m.value]),
       FieldMatch: (m) => (input: SimulationInput) =>
         mapValue(witness(m.matcher)(input), (v) => value({ [m.field]: v })),
@@ -187,21 +197,32 @@ const MAX_SYNTHESISED_LENGTH = 64;
  * `SubjectRef` reads the subject's **attributes**, not the resolver's fixtures:
  * that is what `resolveRef` does, and a witness derived from a different source
  * than the comparison uses would be a second implementation of the same lookup.
+ *
+ * A `Match` rather than an if-chain, per AGENTS.md §5a: `ValueRef` is a
+ * five-tag union, and an if-chain compiles a sixth tag as an unhandled
+ * `undefined` instead of a build error. Built once at module scope, mirroring
+ * `witness` above.
  */
-const refValue = (ref: ValueRef, input: SimulationInput): Synthesised => {
-  if (ref._tag === "LiteralRef") return value(ref.value);
-  if (ref._tag === "SubjectIdRef") return value(input.subject.id);
-  if (ref._tag === "ActionRef") {
-    return input.action === undefined
-      ? cannot("the check names no action")
-      : value(input.action);
-  }
-  const from = ref._tag === "SubjectRef" ? input.subject.attributes : input.resource;
-  const found = getByPath(from, ref.path);
-  return found === undefined
-    ? cannot(`nothing at ${ref._tag === "SubjectRef" ? "subject" : "resource"} path ${ref.path}`)
-    : value(found);
-};
+const refValue: (ref: ValueRef) => (input: SimulationInput) => Synthesised = Match.type<ValueRef>().pipe(
+  Match.tagsExhaustive({
+    LiteralRef: (ref) => (_input: SimulationInput) => value(ref.value),
+    SubjectIdRef: () => (input: SimulationInput) => value(input.subject.id),
+    ActionRef: () => (input: SimulationInput) =>
+      input.action === undefined ? cannot("the check names no action") : value(input.action),
+    SubjectRef: (ref) => (input: SimulationInput) => {
+      const found = getByPath(input.subject.attributes, ref.path);
+      return found === undefined
+        ? cannot(`nothing at subject path ${ref.path}`)
+        : value(found);
+    },
+    ResourceRef: (ref) => (input: SimulationInput) => {
+      const found = getByPath(input.resource, ref.path);
+      return found === undefined
+        ? cannot(`nothing at resource path ${ref.path}`)
+        : value(found);
+    },
+  }),
+);
 
 // ---------------------------------------------------------------------------
 // What the policy asks for

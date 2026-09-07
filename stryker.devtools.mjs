@@ -38,6 +38,7 @@ export default {
   tsconfigFile: "tsconfig.stryker-disabled.json",
   reporters: ["html", "json", "clear-text", "progress"],
   htmlReporter: { fileName: "reports/mutation-devtools/index.html" },
+  jsonReporter: { fileName: "reports/mutation-devtools/mutation.json" },
   coverageAnalysis: "perTest",
 
   mutate: ["packages/devtools/src/model/**/*.ts"],

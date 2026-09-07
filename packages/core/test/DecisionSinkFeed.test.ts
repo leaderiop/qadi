@@ -12,7 +12,9 @@
  * semantics bounds itself with a timeout rather than trusting a publisher.
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
 import { isAllowed } from "../src/Decision.ts";
@@ -103,6 +105,55 @@ describe("decisionSinkFeed", () => {
       );
     }).pipe(Effect.provide(testLayer(allowed))));
 
+  it.effect(
+    "with an ACTIVE reader already subscribed, overflow evicts the oldest UNREAD record, not the newest",
+    () =>
+      Effect.gen(function* () {
+        // `replay` populates a subscriber's backlog from a *separate* buffer
+        // that a `PubSub` fills regardless of whether anyone has subscribed
+        // yet — it can never observe the defect this pins, because a pubsub
+        // with no subscriber never reports its own ring full in the first
+        // place. Only a reader that has already subscribed makes the ring
+        // itself fill, which is the one place `publishUnsafe`'s missing
+        // sliding eviction was ever observable.
+        const feed = yield* decisionSinkFeed({ capacity: 2 });
+        const drained = yield* Deferred.make<void>();
+
+        // `startImmediately` runs the forked fiber synchronously, right here,
+        // up to its first real suspension. Subscribing happens inside that
+        // first `pull`, fused with waiting for a first record to exist — so
+        // this reader unavoidably consumes one record as soon as it arrives,
+        // then deliberately stalls on `drained` rather than pulling again,
+        // exactly like an SSE route that reads one chunk and is slow to ask
+        // for the next: subscribed and idle while five more records publish.
+        const reading = yield* Effect.forkChild(
+          Effect.gen(function* () {
+            const pull = yield* Stream.toPull(feed.stream);
+            const first = yield* pull;
+            yield* Deferred.await(drained);
+            const rest = yield* pull;
+            return [...first, ...rest];
+          }).pipe(Effect.scoped),
+          { startImmediately: true },
+        );
+
+        for (const id of ["a", "b", "c", "d", "e"]) {
+          yield* evaluate(policy, { evaluationId: id }).pipe(Effect.provide(feed.layer));
+        }
+        yield* Deferred.succeed(drained, undefined);
+
+        const records = yield* Fiber.join(reading);
+        // `a` is the one record the reader consumed before it stalled. `b`
+        // and `c` are the middle records a full buffer had to make room for;
+        // `d` and `e` are the newest two, and the ones a newest-wins policy
+        // must never be the pair sacrificed to admit nothing.
+        assert.deepStrictEqual(
+          records.map((r) => r.evaluationId),
+          ["a", "d", "e"],
+        );
+      }).pipe(Effect.provide(testLayer(allowed))),
+  );
+
   it("rejects a capacity that is not a positive integer", () => {
     // Positive, not merely non-negative: a zero-capacity feed would be silently
     // dead rather than coherently empty. Thrown at the call site, as the ring's
@@ -112,6 +163,20 @@ describe("decisionSinkFeed", () => {
         () => decisionSinkFeed({ capacity }),
         /positive integer/,
         `capacity ${capacity}`,
+      );
+    }
+  });
+
+  it("rejects a replay that is not a non-negative integer", () => {
+    // Same failure shape as the capacity check above — thrown synchronously at
+    // the call site, not deferred into the returned Effect — so a negative or
+    // fractional `replay` can't be silently coerced into something PubSub
+    // accepts. Unlike capacity, 0 is valid here (it's the documented default).
+    for (const replay of [-1, 1.5, Number.NaN]) {
+      assert.throws(
+        () => decisionSinkFeed({ replay }),
+        /non-negative integer/,
+        `replay ${replay}`,
       );
     }
   });

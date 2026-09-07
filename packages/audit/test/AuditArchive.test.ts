@@ -90,5 +90,44 @@ describe("archiveAuditTrail", () => {
     Effect.gen(function* () {
       const archive = yield* archiveAuditTrail([], 0);
       assert.strictEqual(archive.metadata.entryCount, 0);
+      assert.isFalse(archive.metadata.sequenceIntegrityVerified);
+    }));
+
+  it.effect("no sequenced entries: sequenceIntegrityVerified is false, not a vacuous true", () =>
+    Effect.gen(function* () {
+      const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
+      const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
+
+      // Neither entry carries a sequenceNumber — verifySequenceIntegrity's
+      // loop never runs, so nothing was actually verified.
+      const archive = yield* archiveAuditTrail([a, b], 0);
+
+      assert.isFalse(archive.metadata.sequenceIntegrityVerified);
+    }));
+
+  it.effect("exactly one sequenced entry: still nothing to compare, so still false", () =>
+    Effect.gen(function* () {
+      const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
+      const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
+
+      const archive = yield* archiveAuditTrail([{ ...a, sequenceNumber: 1 }, b], 0);
+
+      assert.isFalse(archive.metadata.sequenceIntegrityVerified);
+    }));
+
+  it.effect("two or more sequenced entries that pass verification: true", () =>
+    Effect.gen(function* () {
+      const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
+      const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
+      const c = yield* encodeAuditEntry(decisionRecord({ evaluationId: "c" }));
+
+      // A mix of sequenced and unsequenced entries — the two sequenced ones
+      // are contiguous, which is enough to actually verify something.
+      const archive = yield* archiveAuditTrail(
+        [{ ...a, sequenceNumber: 1 }, b, { ...c, sequenceNumber: 2 }],
+        0,
+      );
+
+      assert.isTrue(archive.metadata.sequenceIntegrityVerified);
     }));
 });

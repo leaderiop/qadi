@@ -27,6 +27,7 @@ import { Suspense } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import {
+  Can,
   QadiProvider,
   currentDecision,
   dehydrateDecisions,
@@ -173,6 +174,39 @@ describe("usePolicies", () => {
       </QadiProvider>,
     );
     expect(screen.getByText("read=? admin=?")).toBeDefined();
+  });
+
+  it("shares its combined atom across components asking an equal but independently built policy set", async () => {
+    // The combined atom used to be `Atom.make` inside a `useMemo` keyed on
+    // `[atoms, policies]` — identity-keyed, so two components each building
+    // their own structurally-equal `policies` record got two separate combined
+    // atoms, defeating the structural family keying every other read path in
+    // this package relies on (AGENTS.md §13). Proven here through the
+    // registry's own referential-stability contract: reads of the same atom
+    // return the same cached value reference, so two components sharing one
+    // underlying atom must observe `Object.is`-equal results, not merely
+    // deep-equal ones.
+    let seenA: unknown;
+    let seenB: unknown;
+
+    const ProbeA = () => {
+      seenA = usePolicies({ read: canRead, admin: isAdmin });
+      return null;
+    };
+    const ProbeB = () => {
+      seenB = usePolicies({ read: canRead, admin: isAdmin });
+      return null;
+    };
+
+    render(
+      <QadiProvider atoms={working} subject={reader}>
+        <ProbeA />
+        <ProbeB />
+      </QadiProvider>,
+    );
+
+    await waitFor(() => expect(seenA).toBeDefined());
+    expect(seenB).toBe(seenA);
   });
 });
 
@@ -406,6 +440,74 @@ describe("through a provider, as an application reads it", () => {
     // actually moves instead.
     await waitFor(() => expect(calls).toBeGreaterThan(before));
     await waitFor(() => expect(screen.getByTestId("verdict").textContent).toBe("Deny"));
+  });
+
+  it("<Can> shows pending during a re-check, not the stale Allowed verdict (ticket 144)", async () => {
+    // `classify`'s `|| result.waiting` check in `components.tsx` is the
+    // ADR-QD-017 rule at the component layer: a decision being re-checked is
+    // not yet an answer, whichever answer it held before. This drives that
+    // exact path through `<Can>` rather than through the atom graph directly.
+    //
+    // The resolver is held open by hand rather than timed, so the "waiting"
+    // window is deterministic: `waitFor`'s real-time polling could otherwise
+    // step over a re-check that settles in a millisecond, as it does with
+    // `slow` above, and observe only the before and after.
+    let release: ((value: string) => void) | undefined;
+    const controlled = Layer.succeed(AttributeResolver, {
+      resolve: (_id: unknown, attribute: string) =>
+        attribute === "standing"
+          ? Effect.promise(
+              () => new Promise<string | undefined>((resolve) => (release = resolve)),
+            )
+          : Effect.succeed(undefined),
+    });
+
+    const atoms = makeQadiAtoms(
+      Layer.mergeAll(
+        controlled,
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+        CustomPredicateNone,
+        SignatureHistoryNone,
+        decisionCacheLayer(),
+      ),
+    );
+
+    const Invalidate = () => {
+      const invalidate = useInvalidate();
+      return <button type="button" data-testid="invalidate" onClick={invalidate} />;
+    };
+
+    render(
+      <QadiProvider atoms={atoms} subject={reader}>
+        <Can policy={standing} pending={<span>pending</span>} fallback={<span>denied</span>}>
+          <span>allowed</span>
+        </Can>
+        <Invalidate />
+      </QadiProvider>,
+    );
+
+    await waitFor(() => expect(release).toBeDefined());
+    act(() => release?.("good"));
+    await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
+
+    // Reset the capture so the assertions below observe the RE-CHECK's own
+    // resolver being registered, not the spent one from the initial decision.
+    release = undefined;
+    act(() => {
+      screen.getByTestId("invalidate").click();
+    });
+
+    // The re-check is genuinely in flight — the resolver has not been released
+    // yet — and this is the moment the stale "allowed" verdict must NOT still
+    // be on screen.
+    await waitFor(() => expect(screen.getByText("pending")).toBeDefined());
+    expect(screen.queryByText("allowed")).toBeNull();
+
+    await waitFor(() => expect(release).toBeDefined());
+    act(() => release?.("suspended"));
+    await waitFor(() => expect(screen.getByText("denied")).toBeDefined());
   });
 
   it("REPORTS a seeded allow this client denies, asynchronously", async () => {

@@ -16,6 +16,7 @@ import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import type { RelationshipResolveError } from "./Errors.ts";
+import { InvalidBoundedPermits } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { portRetriesTotal } from "./PortMetrics.ts";
 import { wrapService } from "./RetryingLayer.ts";
@@ -180,13 +181,21 @@ export const relationshipResolverRetrying =
  * heavy policy evaluated over a large collection under `concurrency:
  * "unbounded"` has nothing else standing between it and this resolver's
  * backing store.
+ *
+ * `permits <= 0` fails fast with `InvalidBoundedPermits` instead of an
+ * unexplained hang the first time a caller reaches the wrapped resolver — the
+ * same fix as `attributeResolverBounded`'s, for the identical reason:
+ * `Semaphore.make` performs no validation of its own.
  */
 export const relationshipResolverBounded =
   (permits: number) =>
-  (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver> =>
+  (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver, InvalidBoundedPermits> =>
     Layer.effect(
       RelationshipResolver,
       Effect.gen(function* () {
+        if (!(Number.isInteger(permits) && permits > 0)) {
+          return yield* Effect.fail(new InvalidBoundedPermits({ permits }));
+        }
         const semaphore = yield* Semaphore.make(permits);
         const inner = yield* Layer.build(layer).pipe(
           Effect.map((context) => Context.get(context, RelationshipResolver)),

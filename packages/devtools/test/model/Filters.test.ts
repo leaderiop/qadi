@@ -47,18 +47,22 @@ const denyRecord = (options: {
   readonly evaluationId: string;
   readonly at: number;
   readonly subjectId?: string;
-}) =>
-  decisionRecord({
-    ...options,
+}) => {
+  // Distinct from the allow row's subject, so a search for one subject proves
+  // it narrows rather than merely returning something. Passed to both the
+  // record's own top-level `subjectId` and the embedded `Deny`, the way a real
+  // record always agrees between the two — a genuine `evaluate` run resolves
+  // `CurrentSubject` once and stamps both from it.
+  const subjectId = options.subjectId ?? "bob";
+  return decisionRecord({
+    evaluationId: options.evaluationId,
+    at: options.at,
+    subjectId,
     outcome: new Decided({
-      decision: deny({
-        evaluationId: options.evaluationId,
-        // Distinct from the allow row's subject, so a search for one subject
-        // proves it narrows rather than merely returning something.
-        subjectId: options.subjectId ?? "bob",
-      }),
+      decision: deny({ evaluationId: options.evaluationId, subjectId }),
     }),
   });
+};
 
 const ids = (entries: ReadonlyArray<{ readonly evaluationId: string }>) =>
   entries.map((e) => e.evaluationId);
@@ -73,7 +77,9 @@ const populated = fold([
     resource: { id: "invoice-42", tenantId: "acme" },
   }),
   denyRecord({ evaluationId: "b", at: 200 }),
-  failedRecord({ evaluationId: "c", at: 300, environment: "Client" }),
+  // A subject distinct from row "a"'s, so a search for one proves the failed
+  // row is reached by its own subject rather than colliding with another row.
+  failedRecord({ evaluationId: "c", at: 300, environment: "Client", subjectId: "carol" }),
   obligationRecord({ evaluationId: "ghost", at: 400, environment: "Client" }),
 ]);
 
@@ -100,9 +106,9 @@ describe("searchTextOf", () => {
     assert.strictEqual(searchTextOf(timeline.entries[0] ?? fail()), "bare server bob");
   });
 
-  it("omits the subject of a failed evaluation", () => {
-    const timeline = fold([failedRecord({ evaluationId: "e", at: 100 })]);
-    assert.strictEqual(searchTextOf(timeline.entries[0] ?? fail()), "e server");
+  it("includes the subject of a failed evaluation, same as a decided one", () => {
+    const timeline = fold([failedRecord({ evaluationId: "e", at: 100, subjectId: "dana" })]);
+    assert.strictEqual(searchTextOf(timeline.entries[0] ?? fail()), "e server dana");
   });
 
   it("omits a resource value JSON cannot represent, keeping its key", () => {
@@ -300,17 +306,15 @@ describe("free text", () => {
   });
 
   /**
-   * A named limit rather than a gap. `subjectId` lives on the `Decision` and a
-   * `Failed` outcome has none, so filtering by subject cannot reach the rows
-   * where that subject's lookup broke — often the interesting ones.
+   * `subjectId` is top-level on `DecisionRecord` for both outcomes
+   * (`DecisionRecord.ts`), so a `Failed` row is reachable by subject exactly
+   * like a `Decided` one — including the rows where that subject's lookup
+   * broke, often the interesting ones.
    */
-  it("a failed row has no subject to match, and says so by not matching", () => {
-    assert.strictEqual(
-      applyFilters(populated.entries, { ...noFilters, text: "alice" }).filter(
-        (e) => e.evaluationId === "c",
-      ).length,
-      0,
-    );
+  it("a failed row's subject matches too", () => {
+    assert.deepStrictEqual(ids(applyFilters(populated.entries, { ...noFilters, text: "carol" })), [
+      "c",
+    ]);
   });
 });
 

@@ -15,7 +15,7 @@ that decides can, and the predecessor's second evaluation path destroyed
 short-circuiting and left an entire API unreachable.
 
 ```ts
-const qadi = makeQadi(runtime);
+const qadi = makeQadi(layer);
 
 if (await qadi.check(subject, policy)) {
   // ...

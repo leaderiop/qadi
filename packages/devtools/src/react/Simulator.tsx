@@ -41,7 +41,7 @@ import { baselineDiff, matchesBaseline, replayInput } from "../model/Replay.ts";
 import type { Baseline, UnseededField } from "../model/Replay.ts";
 import { simulate, type SimulationClock } from "../model/Simulation.ts";
 import type { EvaluationPortsLayer, SimulationInput } from "../model/SimulationInput.ts";
-import { fixtures, live, snapshot, type SimulationSource } from "../model/Sources.ts";
+import { fixtures, live, snapshot, type SimulationSource } from "../model/SimulationSource.ts";
 import type { TimelineEntry } from "../model/Timeline.ts";
 import { verdictOfOutcome } from "../model/Verdict.ts";
 import { sweepPlan, whatIf, type WhatIfReport } from "../model/WhatIf.ts";
@@ -124,7 +124,12 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
     }
   }
 
-  const policy = seeded?.policy ?? sightings[chosen]?.policy;
+  // `chosen` is state and `sightings` can shrink under it, the same shape as
+  // PolicyExplorer's rail selection — clamped at render rather than trusted,
+  // so a stale index reads the same policy the dropdown now shows instead of
+  // silently falling through to "no policy chosen".
+  const clampedChosen = sightings.length === 0 ? undefined : Math.min(chosen, sightings.length - 1);
+  const policy = seeded?.policy ?? (clampedChosen === undefined ? undefined : sightings[clampedChosen]?.policy);
 
   const fiber = useRef<{ readonly interruptUnsafe: () => void }>(undefined);
   /**
@@ -219,7 +224,7 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
     <div style={{ padding: 12 }} data-testid="qadi-simulator">
       <Controls
         sightings={sightings}
-        chosen={chosen}
+        chosen={clampedChosen ?? chosen}
         onChoose={(index) => {
           setChosen(index);
           // A seeded policy belongs to the row it came from; choosing another
@@ -270,7 +275,7 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
  * reachable, which is the mode a sweep should actually use — one round of I/O
  * instead of one per edit.
  */
-const runProgram = (options: {
+const runProgram = Effect.fn("qadi.devtools.runProgram")(function* (options: {
   readonly policy: Policy;
   readonly input: SimulationInput;
   readonly sweep: boolean;
@@ -278,32 +283,26 @@ const runProgram = (options: {
   readonly source: SourceChoice;
   readonly ports: EvaluationPortsLayer | undefined;
   readonly captured: CapturedAnswers | undefined;
-}): Effect.Effect<{
-  readonly result: Omit<Extract<RunResult, { _tag: "Ran" }>, "input">;
-  readonly answers: CapturedAnswers | undefined;
-}> =>
-  Effect.gen(function* () {
-    const recorder =
-      options.source === "Live" && options.ports !== undefined
-        ? capturing(options.ports)
-        : undefined;
-    const source =
-      recorder === undefined
-        ? sourceOf(options.source, options.ports, options.captured)
-        : live(recorder.layer);
+}) {
+  const recorder =
+    options.source === "Live" && options.ports !== undefined ? capturing(options.ports) : undefined;
+  const source =
+    recorder === undefined
+      ? sourceOf(options.source, options.ports, options.captured)
+      : live(recorder.layer);
 
-    const run = { clock: options.clock, ...(source === undefined ? {} : { source }) };
+  const run = { clock: options.clock, ...(source === undefined ? {} : { source }) };
 
-    const report = options.sweep
-      ? yield* whatIf(options.policy, options.input, { ...run, pairs: true })
-      : undefined;
-    const outcome = report?.baseline ?? (yield* simulate(options.policy, options.input, run));
+  const report = options.sweep
+    ? yield* whatIf(options.policy, options.input, { ...run, pairs: true })
+    : undefined;
+  const outcome = report?.baseline ?? (yield* simulate(options.policy, options.input, run));
 
-    return {
-      result: { _tag: "Ran" as const, outcome, report, clock: options.clock, policy: options.policy },
-      answers: recorder === undefined ? undefined : yield* recorder.answers,
-    };
-  });
+  return {
+    result: { _tag: "Ran" as const, outcome, report, clock: options.clock, policy: options.policy },
+    answers: recorder === undefined ? undefined : yield* recorder.answers,
+  };
+});
 
 /**
  * The source a choice names, or nothing when it cannot be honoured.

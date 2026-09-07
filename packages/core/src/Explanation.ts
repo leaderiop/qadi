@@ -260,6 +260,51 @@ const combiningText: (self: Combining) => string = (self) =>
   );
 
 /**
+ * How a composite's `fieldStrategy` merges its parts' visible fields — the
+ * detail an `All`/`Any` node's own rendering used to drop entirely (the defect
+ * this fixes, INV-QD-031: two policies differing only in this field rendered
+ * to the same sentence, since neither arm mentioned it at all).
+ */
+const fieldStrategyText: (self: FieldStrategy) => string = (self) =>
+  Match.value(self).pipe(
+    Match.when("Intersection", () => "keeping only fields every part grants"),
+    Match.when("Union", () => "combining every part's granted fields"),
+    Match.when("First", () => "keeping the first allowing part's fields"),
+    Match.exhaustive,
+  );
+
+/**
+ * What `fieldStrategy` a bare `allOf`/`anyOf` call implies absent an explicit
+ * override (`Policy.ts`'s `CombinatorOptions` doc: `Intersection` for `allOf`,
+ * `First` for `anyOf`). Two composites that agree on the strategy actually in
+ * force are the same rule however they got there, so only a departure from
+ * this default needs a word in the sentence.
+ */
+const isDefaultFieldStrategy = (kind: "All" | "Any", strategy: FieldStrategy): boolean =>
+  kind === "All" ? strategy === "Intersection" : strategy === "First";
+
+/**
+ * The clause naming a composite's `fieldStrategy`, or nothing when it would
+ * describe a difference that cannot exist.
+ *
+ * Two conditions must both hold before the strategy is worth a word: fewer
+ * than two parts and `mergeFields` (`Evaluate.ts`) already agrees on every
+ * result regardless of strategy — merging zero or one field set is the same
+ * answer under `Intersection`, `Union` and `First` alike — so a single-part
+ * composite's strategy is not a real difference to report. And the default
+ * strategy needs no mention because that is what a bare "and"/"either…or" has
+ * always meant; only a departure from it changes what the sentence must say
+ * to keep two non-equivalent policies from rendering identically.
+ */
+const fieldStrategyClause = (
+  kind: "All" | "Any",
+  e: { readonly fieldStrategy: FieldStrategy; readonly parts: ReadonlyArray<Explanation> },
+): string =>
+  e.parts.length < 2 || isDefaultFieldStrategy(kind, e.fieldStrategy)
+    ? ""
+    : `, ${fieldStrategyText(e.fieldStrategy)}`;
+
+/**
  * Whether this node reads as one unit and so needs no parentheses as a child.
  *
  * A `Requirement` is a single clause. The three empty composites render fixed
@@ -299,8 +344,14 @@ export const renderExplanation = (
 ): string => {
   const term = options?.term ?? ((t: string) => `\`${t}\``);
 
-  const fieldsText = (fields: ReadonlyArray<string> | undefined) =>
-    fields === undefined ? "" : `, exposing only ${fields.map(term).join(", ")}`;
+  const fieldsText = (fields: ReadonlyArray<string> | undefined): string => {
+    if (fields === undefined) return "";
+    // An empty array is the bottom of the lattice, not a missing list — say
+    // so outright rather than joining zero terms into a dangling
+    // ", exposing only ".
+    if (fields.length === 0) return ", exposing no fields";
+    return `, exposing only ${fields.map(term).join(", ")}`;
+  };
 
   const go = (self: Explanation): string =>
     Match.value(self).pipe(
@@ -313,7 +364,7 @@ export const renderExplanation = (
         All: (e) =>
           e.parts.length === 0
             ? "always allows (an empty conjunction)"
-            : e.parts.map(embed).join(" and "),
+            : `${e.parts.map(embed).join(" and ")}${fieldStrategyClause("All", e)}`,
 
         // "either" opens a disjunction but nothing closes it, so a following
         // " and …" reads as part of the last alternative rather than as a
@@ -321,7 +372,7 @@ export const renderExplanation = (
         Any: (e) =>
           e.parts.length === 0
             ? "never allows (an empty disjunction)"
-            : `either ${e.parts.map(embed).join(" or ")}`,
+            : `either ${e.parts.map(embed).join(" or ")}${fieldStrategyClause("Any", e)}`,
 
         Negated: (e) => `does not hold that ${embed(e.part)}`,
 

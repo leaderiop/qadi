@@ -111,12 +111,14 @@ export const failedRecord = (options?: {
   readonly evaluationId?: string;
   readonly at?: number;
   readonly environment?: string;
+  readonly subjectId?: string;
   readonly error?: EvaluationError;
 }): StoredRecord =>
   decisionRecord({
     ...(options?.evaluationId === undefined ? {} : { evaluationId: options.evaluationId }),
     ...(options?.at === undefined ? {} : { at: options.at }),
     ...(options?.environment === undefined ? {} : { environment: options.environment }),
+    ...(options?.subjectId === undefined ? {} : { subjectId: options.subjectId }),
     outcome: new Failed({
       error: options?.error ?? new MissingResource({ attribute: "doc.ownerId" }),
     }),

@@ -1,4 +1,4 @@
-import { assert, describe, it } from "@effect/vitest";
+import { assert, describe, it, vi } from "@effect/vitest";
 import * as FastCheck from "effect/testing/FastCheck";
 import {
   intersectFields,
@@ -7,6 +7,7 @@ import {
   Allow,
   Deny,
 } from "../src/Decision.ts";
+import * as FieldPath from "../src/FieldPath.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import {
@@ -71,6 +72,19 @@ describe("matchers", () => {
     assert.isFalse(run(M.lt(3), 3));
   });
 
+  it("gte and lt reject a non-finite bound, mirroring SecurityLabel's Infinity/NaN guard", () => {
+    // A decoded policy is untrusted JSON (§7, ADR-QD-002): JSON has no literal
+    // spelling for `Infinity`, but `1e400` still decodes to it, so an
+    // `Infinity`/`NaN` bound is exactly as reachable here as an `Infinity`
+    // `SecurityLabel.level` is. Without the guard an `Infinity` bound would
+    // dominate every finite attribute value via `>=`.
+    assert.isFalse(run(M.gte(Number.POSITIVE_INFINITY), 1_000_000));
+    assert.isFalse(run(M.gte(Number.NaN), 5));
+    assert.isFalse(run(M.lt(Number.POSITIVE_INFINITY), 5));
+    assert.isFalse(run(M.lt(Number.NaN), 5));
+    assert.isFalse(run(M.lt(Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY));
+  });
+
   it("contains works on arrays and strings only", () => {
     assert.isTrue(run(M.contains("a"), ["a", "b"]));
     assert.isTrue(run(M.contains("ell"), "hello"));
@@ -130,6 +144,83 @@ describe("matchers", () => {
     const trueOnUndefined = M.eq(M.literal(undefined));
     assert.isTrue(run(trueOnUndefined, undefined));
     assert.isFalse(run(M.size(trueOnUndefined), 42));
+  });
+});
+
+describe("empty-collection boundaries", () => {
+  // None of this is a bug: it is standard JS `Array.prototype.every`/`.some`
+  // semantics, applied to a matcher whose input array can itself be absent.
+  // Pinned because the two facts compound into something a policy author
+  // could easily get backwards, and nothing was asserting either half.
+  it("everyMatch on a present but empty array is vacuously true (ALLOWS)", () => {
+    // "every element of tags matches X" has no counterexample when `tags` is
+    // `[]` — `[].every(...)` is `true` regardless of the predicate.
+    assert.isTrue(run(M.everyMatch(M.eq(M.literal("nonexistent"))), []));
+  });
+
+  it("everyMatch DENIES an absent attribute, unlike the present-but-empty array above", () => {
+    // `Array.isArray(undefined)` is `false`, so the `&&` short-circuits to
+    // `false` before "every" gets to be vacuously true over anything. A
+    // present `tags: []` and an absent `tags` are therefore NOT
+    // interchangeable under `everyMatch`, even though a reader might expect
+    // "nothing to check" to mean the same thing in both cases.
+    assert.isFalse(run(M.everyMatch(M.eq(M.literal("nonexistent"))), undefined));
+  });
+
+  it("someMatch on a present but empty array is false, not vacuously true", () => {
+    // The mirror of everyMatch: "at least one element matches" has no witness
+    // when there are no elements, so `[].some(...)` is `false`.
+    assert.isFalse(run(M.someMatch(M.exists()), []));
+  });
+
+  it("someMatch on an absent attribute is also false", () => {
+    // Same `Array.isArray` short-circuit as everyMatch's absent case, but
+    // here it agrees with (rather than contradicts) the present-empty-array
+    // result — both deny.
+    assert.isFalse(run(M.someMatch(M.exists()), undefined));
+  });
+
+  it("inArray with an empty candidate list matches nothing, including undefined", () => {
+    // `values` here is the matcher's OWN literal list (from `inArray(...)`),
+    // not the attribute under test. `inArray([])` is therefore a matcher that
+    // can never allow, for any resolved value — `[].includes(x)` is `false`
+    // for every `x`.
+    assert.isFalse(run(M.inArray([]), "anything"));
+    assert.isFalse(run(M.inArray([]), undefined));
+  });
+});
+
+describe("eq/neq against an unresolved reference", () => {
+  // `subject("stae")` is a typo for `subject("dept")` — no such attribute
+  // exists on `ctx.subject`, so it resolves to `undefined` (see `getByPath`,
+  // which is total). `eq` and `neq` are both total over that, but NOT
+  // symmetrically safe: see the doc comments on `eq`/`neq` in `Matcher.ts`.
+  it("eq denies against an unresolved reference — fails safe", () => {
+    assert.isFalse(run(M.eq(M.subject("stae")), "eng"));
+  });
+
+  it("neq ALLOWS against the same unresolved reference — fails open, and is accepted as-is", () => {
+    // `hasAttribute("state", neq(subject("stae")))` reads like "state is not
+    // stae" and is actually "always true": `value !== undefined` is true for
+    // every attribute value that itself isn't `undefined`.
+    assert.isTrue(run(M.neq(M.subject("stae")), "eng"));
+    assert.isTrue(run(M.neq(M.subject("stae")), "anything at all"));
+    // The one value it does NOT allow against is `undefined` itself — the
+    // attribute being absent, same as the reference being unresolved.
+    assert.isFalse(run(M.neq(M.subject("stae")), undefined));
+  });
+});
+
+describe("eq vs inArray: NaN diverges under === vs SameValueZero", () => {
+  it("eq never matches NaN, even against itself — === defines NaN unequal to NaN", () => {
+    assert.isFalse(run(M.eq(M.literal(Number.NaN)), Number.NaN));
+  });
+
+  it("inArray DOES match NaN — Array.prototype.includes uses SameValueZero, not ===", () => {
+    // For a single element, `inArray([x])` looks like it should be
+    // equivalent to `eq(literal(x))`. It is, for every `x` except `NaN`.
+    assert.isTrue(run(M.inArray([Number.NaN]), Number.NaN));
+    assert.isFalse(run(M.eq(M.literal(Number.NaN)), Number.NaN));
   });
 });
 
@@ -523,6 +614,32 @@ describe("the dominates matcher", () => {
   });
 });
 
+describe("subjectId() is isolated from subject()", () => {
+  // `subjectId()` is a distinct `ValueRef` variant precisely so that an
+  // attribute happening to be named `id` can never shadow the subject's real
+  // identifier, or be shadowed by it (see the doc comment on `subjectId` in
+  // `Matcher.ts`). Nothing exercised that through an actual evaluation: every
+  // other test referencing `M.subjectId()` only asserts it inside
+  // `referencesAction`/`referencesResource`'s negative lists, never resolves
+  // it via `evaluateMatcher`.
+  const context: M.MatcherContext = {
+    subject: { id: "attacker-controlled", dept: "eng" },
+    subjectId: makeSubjectId("real-u1"),
+    resource: undefined,
+    action: undefined,
+  };
+
+  it("resolves to the subject's own identifier, not an attribute named 'id'", () => {
+    assert.isTrue(M.evaluateMatcher(M.eq(M.subjectId()), makeSubjectId("real-u1"), context));
+    assert.isFalse(M.evaluateMatcher(M.eq(M.subjectId()), "attacker-controlled", context));
+  });
+
+  it("stays isolated from subject('id'), which reads the attribute instead", () => {
+    assert.isTrue(M.evaluateMatcher(M.eq(M.subject("id")), "attacker-controlled", context));
+    assert.isFalse(M.evaluateMatcher(M.eq(M.subject("id")), makeSubjectId("real-u1"), context));
+  });
+});
+
 describe("referencesAction", () => {
   // The evaluator asks this before running a matcher, because the matcher
   // itself cannot fail: an absent action would resolve to undefined, match
@@ -616,6 +733,23 @@ describe("getByPath", () => {
     assert.isUndefined(M.getByPath({ a: 1 }, "a.b.c"));
     assert.isUndefined(M.getByPath(undefined, "a"));
   });
+
+  // These three pin the boundaries `path.split(".")` used to produce, so the
+  // `indexOf`-based walk (added to avoid allocating a segment array on every
+  // call — the most frequently called allocator in the library) provably
+  // matches it rather than merely resembling it.
+  it("resolves a single segment with no dot at all", () => {
+    assert.strictEqual(M.getByPath({ a: 1 }, "a"), 1);
+  });
+
+  it("treats a trailing dot as an empty final segment", () => {
+    assert.strictEqual(M.getByPath({ a: { "": 5 } }, "a."), 5);
+    assert.isUndefined(M.getByPath({ a: { b: 5 } }, "a."));
+  });
+
+  it("treats a doubled dot as an empty middle segment", () => {
+    assert.strictEqual(M.getByPath({ a: { "": { b: 9 } } }, "a..b"), 9);
+  });
 });
 
 describe("field lattice", () => {
@@ -644,6 +778,24 @@ describe("field lattice", () => {
 
   it("intersection stays conservative at the '*' depth boundary", () => {
     assert.deepStrictEqual(intersectFields(["address.*"], ["address.street.zip"]), []);
+  });
+
+  it("PERFORMANCE: computes each spec's shape once, not once per pair", () => {
+    // The defect this pins: `compareFieldPaths` alone computes `shapeOf` on
+    // BOTH operands — `split(".")` plus two array allocations — every single
+    // call, and `intersectFields`'s comparison is O(|a|·|b|), so a naive
+    // implementation calling `compareFieldPaths` in the nested loop would call
+    // `shapeOf` `2·|a|·|b|` times. Hoisted, it is called exactly `|a|+|b|`
+    // times — once per spec, however many pairs that spec is compared across.
+    const spy = vi.spyOn(FieldPath, "shapeOf");
+    try {
+      const a = ["a", "b", "c", "d"];
+      const b = ["w", "x", "y"];
+      intersectFields(a, b);
+      assert.strictEqual(spy.mock.calls.length, a.length + b.length);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

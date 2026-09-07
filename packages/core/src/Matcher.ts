@@ -121,9 +121,46 @@ export const Matcher: Schema.Codec<Matcher> = Schema.Union([
 // Constructors
 // ---------------------------------------------------------------------------
 
-/** Attribute equals the referenced value. */
+/**
+ * Attribute equals the referenced value.
+ *
+ * Compares with `===`, so an attribute resolved to `NaN` never equals
+ * anything — including another `NaN`. `inArray` below compares with
+ * `Array.prototype.includes` (SameValueZero), under which `NaN` DOES match
+ * itself, so `inArray([x])` is not a drop-in replacement for `eq(literal(x))`
+ * when `x` is `NaN`. Left as `===` deliberately rather than unified with
+ * `inArray`: `predicate-sql` compiles `Eq` to SQL `=`, whose own NaN
+ * comparison is likewise always false, and switching to SameValueZero here
+ * would decouple in-process evaluation from what the compiled query actually
+ * does. Pinned in `Matcher.test.ts`, not fixed.
+ */
 export const eq = (ref: ValueRef): Matcher => ({ _tag: "Eq", ref });
-/** Attribute does not equal the referenced value. */
+/**
+ * Attribute does not equal the referenced value.
+ *
+ * `eq` and `neq` are both total: a `ValueRef` that cannot be resolved (a
+ * typo'd `subject`/`resource` path, most commonly) resolves to `undefined`
+ * rather than failing, the same way an unresolved `dominates` operand above
+ * resolves to "not a `SecurityLabel`" rather than failing. The two matchers
+ * are NOT symmetric under that failure, though, and this is the one place in
+ * the file where the total-function convention resolves to two different
+ * safety directions instead of one:
+ *
+ * - `eq(ref)` against an unresolved `ref` compares `value === undefined`,
+ *   which is `false` for every attribute value that itself isn't `undefined`
+ *   — a typo'd path DENIES. Fail-safe.
+ * - `neq(ref)` against the same unresolved `ref` compares `value !== undefined`,
+ *   which is `true` for every attribute value that isn't `undefined` — a
+ *   typo'd path ALLOWS. `hasAttribute("state", neq(subject("stae")))` reads
+ *   as "state is not stae" and is actually "always true".
+ *
+ * This is accepted as-is, not treated as a bug to fix: there is no
+ * resolution failure to surface (both `subject()` and `resource()` are
+ * total lookups by design, per `getByPath`), so there is nothing for `neq`
+ * to deny *because of*. A policy author still needs to spell the path
+ * correctly, exactly as with every other matcher here. Pinned in both
+ * directions in `Matcher.test.ts`.
+ */
 export const neq = (ref: ValueRef): Matcher => ({ _tag: "Neq", ref });
 /**
  * The attribute's security label **dominates** the referenced one — at least as
@@ -150,9 +187,25 @@ export const dominates = (ref: ValueRef): Matcher => ({ _tag: "Dominates", ref }
 export const inArray = (values: ReadonlyArray<unknown>): Matcher => ({ _tag: "In", values });
 /** Attribute is present and not null. */
 export const exists = (): Matcher => ({ _tag: "Exists" });
-/** Numeric attribute is >= value. */
+/**
+ * Numeric attribute is >= value.
+ *
+ * The bound is checked with `Number.isFinite` at evaluation time (see
+ * `evaluateMatcher`'s `Gte` case), mirroring `SecurityLabel.isSecurityLabel`'s
+ * rejection of `Infinity`/`NaN` levels. A `Matcher` crosses the same
+ * untrusted-JSON trust boundary a `Policy` does (§7 of AGENTS.md,
+ * ADR-QD-002): JSON has no literal spelling for `Infinity`, but `1e400`
+ * still decodes to it, so a bound is exactly as reachable from untrusted
+ * data as a `SecurityLabel` level is. Left unguarded, an `Infinity` bound
+ * would dominate every finite attribute value via `>=` — the identical
+ * failure mode `isSecurityLabel` closes.
+ */
 export const gte = (value: number): Matcher => ({ _tag: "Gte", value });
-/** Numeric attribute is < value. */
+/**
+ * Numeric attribute is < value.
+ *
+ * See {@link gte} — the bound is checked the same way, for the same reason.
+ */
 export const lt = (value: number): Matcher => ({ _tag: "Lt", value });
 /** Array or string attribute contains the value. */
 export const contains = (value: unknown): Matcher => ({ _tag: "Contains", value });
@@ -164,7 +217,19 @@ export const fieldMatch = (field: string, matcher: Matcher): Matcher => ({
 });
 /** At least one element of an array attribute satisfies the matcher. */
 export const someMatch = (matcher: Matcher): Matcher => ({ _tag: "SomeMatch", matcher });
-/** Every element of an array attribute satisfies the matcher. */
+/**
+ * Every element of an array attribute satisfies the matcher.
+ *
+ * A present but empty array ALLOWS: `[].every(...)` is vacuously `true` in
+ * JS regardless of the predicate, and `everyMatch` inherits that rather than
+ * special-casing it away. This is the same vacuous-truth convention `allOf`
+ * uses elsewhere in this codebase for an empty conjunction — deliberate, not
+ * an oversight, though the two are NOT interchangeable: `everyMatch` still
+ * DENIES an *absent* attribute (`Array.isArray(undefined)` is `false`, which
+ * short-circuits before "every" gets a chance to be vacuous), so a present
+ * `tags: []` and a missing `tags` are not equivalent inputs the way a reader
+ * might expect. Pinned in `Matcher.test.ts`, both directions.
+ */
 export const everyMatch = (matcher: Matcher): Matcher => ({ _tag: "EveryMatch", matcher });
 /** Applies a matcher to the length of an array or string attribute. */
 export const size = (matcher: Matcher): Matcher => ({ _tag: "Size", matcher });
@@ -188,15 +253,32 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
  * every other matcher branch assumes. `readAttribute` (`Evaluate.ts`) and
  * `FieldPath.ts` both already guard the same way; this closed the one place
  * that hadn't.
+ *
+ * Walks `path` with `indexOf` rather than `path.split(".")`: this is the most
+ * frequently called allocator in the library — once per `SubjectRef`/
+ * `ResourceRef` resolution, per matcher node, per evaluation, and once more
+ * per element under `filter`/`decideSubjects` — and `split` pays for an
+ * intermediate segment array on every call in addition to the per-segment
+ * substrings, which are unavoidable since a property lookup needs an actual
+ * string key. Same segments, same order, same behavior at every boundary
+ * `split` produced (a trailing dot's empty final segment, a doubled dot's
+ * empty middle segment, a single segment with no dot at all) — pinned in
+ * `Matcher.test.ts` rather than merely asserted here.
  */
 export const getByPath = (input: unknown, path: string): unknown => {
   if (path === "") return input;
   let current: unknown = input;
-  for (const part of path.split(".")) {
+  let start = 0;
+  const length = path.length;
+  for (;;) {
+    const dot = path.indexOf(".", start);
+    const end = dot === -1 ? length : dot;
+    const part = path.slice(start, end);
     if (!isObject(current) || !Object.hasOwn(current, part)) return undefined;
     current = current[part];
+    if (dot === -1) return current;
+    start = dot + 1;
   }
-  return current;
 };
 
 const lengthOf = (value: unknown): number | undefined => {
@@ -328,9 +410,9 @@ export const evaluateMatcher = (
     case "Exists":
       return value !== undefined && value !== null;
     case "Gte":
-      return typeof value === "number" && value >= self.value;
+      return typeof value === "number" && Number.isFinite(self.value) && value >= self.value;
     case "Lt":
-      return typeof value === "number" && value < self.value;
+      return typeof value === "number" && Number.isFinite(self.value) && value < self.value;
     case "Contains":
       return containsValue(value, self.value);
     // `Object.hasOwn` rather than `value[self.field]` alone, for the same

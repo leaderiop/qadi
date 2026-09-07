@@ -2,12 +2,12 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import {
   completeDecommissioningStep,
-  createDecommissioningChecklist,
+  makeDecommissioningChecklist,
 } from "../src/DecommissioningChecklist.ts";
 
-describe("createDecommissioningChecklist", () => {
+describe("makeDecommissioningChecklist", () => {
   it("creates all six steps, none completed, in order", () => {
-    const checklist = createDecommissioningChecklist("system-1", 1_000);
+    const checklist = makeDecommissioningChecklist("system-1", 1_000);
     assert.strictEqual(checklist.checklistId, "system-1");
     assert.strictEqual(checklist.createdAt, 1_000);
     assert.deepStrictEqual(
@@ -18,12 +18,12 @@ describe("createDecommissioningChecklist", () => {
   });
 
   it("HexDi's scope-disposal step is not present — no scope concept in this domain", () => {
-    const checklist = createDecommissioningChecklist("system-1", 0);
+    const checklist = makeDecommissioningChecklist("system-1", 0);
     assert.strictEqual(checklist.steps.length, 6);
   });
 
   it("each step carries its own real, distinct description text", () => {
-    const checklist = createDecommissioningChecklist("system-1", 0);
+    const checklist = makeDecommissioningChecklist("system-1", 0);
     assert.deepStrictEqual(
       checklist.steps.map((s) => s.description),
       [
@@ -41,7 +41,7 @@ describe("createDecommissioningChecklist", () => {
 describe("completeDecommissioningStep", () => {
   it.effect("marks the named step completed, leaving the rest untouched", () =>
     Effect.gen(function* () {
-      const checklist = createDecommissioningChecklist("system-1", 0);
+      const checklist = makeDecommissioningChecklist("system-1", 0);
       const updated = yield* completeDecommissioningStep(checklist, "DECOMM-002", "alice", 5_000);
 
       const step = updated.steps.find((s) => s.id === "DECOMM-002");
@@ -54,7 +54,7 @@ describe("completeDecommissioningStep", () => {
 
   it.effect("an unknown stepId refuses rather than silently no-opping", () =>
     Effect.gen(function* () {
-      const checklist = createDecommissioningChecklist("system-1", 0);
+      const checklist = makeDecommissioningChecklist("system-1", 0);
       const result = yield* Effect.result(
         completeDecommissioningStep(checklist, "DECOMM-999", "alice", 0),
       );
@@ -68,7 +68,7 @@ describe("completeDecommissioningStep", () => {
 
   it.effect("the original checklist object is left unmodified", () =>
     Effect.gen(function* () {
-      const checklist = createDecommissioningChecklist("system-1", 0);
+      const checklist = makeDecommissioningChecklist("system-1", 0);
       yield* completeDecommissioningStep(checklist, "DECOMM-001", "alice", 5_000);
       assert.isTrue(checklist.steps.every((s) => s.completedAt === undefined));
     }));

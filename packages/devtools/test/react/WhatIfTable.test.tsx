@@ -35,7 +35,7 @@ import {
   RelationshipResolverNever,
 } from "@qadi/core";
 import type { DecisionOutcome, Policy } from "@qadi/core";
-import { live } from "../../src/model/Sources.ts";
+import { live } from "../../src/model/SimulationSource.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { whatIf } from "../../src/model/WhatIf.ts";
 import type { Comparison, WhatIfReport, WhatIfRow } from "../../src/model/WhatIf.ts";

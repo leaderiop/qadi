@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
+import type { Trace } from "../src/Decision.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -15,6 +16,20 @@ const read = permission("doc", "read");
 /** Resolves `clearance` to whatever is given, so one input can be varied. */
 const clearance = (value: unknown) =>
   Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(value) });
+
+/**
+ * A minimal `Trace` node, for tests that compare two hand-built traces
+ * directly rather than evaluating a policy — needed where what matters is the
+ * shape of a single node's `visibleFields`/`obligations`, not how a policy
+ * tree produces them.
+ */
+const baseTrace = (overrides: Partial<Trace> = {}): Trace => ({
+  policyTag: "HasPermission",
+  allowed: true,
+  children: [],
+  obligations: [],
+  ...overrides,
+});
 
 describe("diffTraces", () => {
   it.effect("two identical evaluations differ nowhere", () =>
@@ -142,6 +157,37 @@ describe("diffTraces", () => {
       );
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
+  it.effect("a label-only change is reported, even though nothing else about the node differs", () =>
+    Effect.gen(function* () {
+      // The defect this pins: same verdict, same reason, same fields, same
+      // obligations, same shape — the ONLY thing that changed is the label an
+      // author gave the `Labeled` wrapper. Before the fix this produced an
+      // empty diff, contradicting "empty means the two evaluations agree at
+      // every node".
+      const a = yield* evaluate(P.labeled("sod.role", P.hasRole("editor")));
+      const b = yield* evaluate(P.labeled("sod.role.v2", P.hasRole("editor")));
+
+      const diff = diffTraces(a.trace, b.trace);
+      assert.deepStrictEqual(diff, [
+        { _tag: "LabelChanged", path: [], policyTag: "Labeled", before: "sod.role", after: "sod.role.v2" },
+      ]);
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));
+
+  it.effect("a policy-tag-only change is reported, even when the two nodes decide identically", () =>
+    Effect.gen(function* () {
+      // Two different node types that happen to allow the same way: same
+      // verdict, no reason, no fields, no obligations, no children — the ONLY
+      // difference is which kind of check sits at this node. Before the fix
+      // this, too, produced an empty diff.
+      const a = yield* evaluate(P.hasRole("editor"));
+      const b = yield* evaluate(P.hasAction("read"), { action: "read" });
+
+      const diff = diffTraces(a.trace, b.trace);
+      assert.deepStrictEqual(diff, [
+        { _tag: "PolicyTagChanged", path: [], policyTag: "HasAction", before: "HasRole", after: "HasAction" },
+      ]);
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));
+
   it.effect("parents are listed before children", () =>
     Effect.gen(function* () {
       const policy = P.allOf([P.hasAttribute("clearance", M.gte(3))]);
@@ -204,6 +250,33 @@ describe("diffTraces — the comparisons themselves", () => {
 
       assert.isDefined(diffTraces(a.trace, b.trace).find((d) => d._tag === "FieldsChanged"));
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+
+  it("field sets with the same elements in a different order do not differ", () => {
+    // `FieldsChanged` documents SET semantics — "the set of fields this node
+    // makes visible" — so a reorder alone must not report a change. Before
+    // the fix, `sameFields` compared positionally and these two would have
+    // produced a spurious `FieldsChanged`.
+    const a = baseTrace({ visibleFields: ["id", "title"] });
+    const b = baseTrace({ visibleFields: ["title", "id"] });
+
+    assert.deepStrictEqual(diffTraces(a, b), []);
+  });
+
+  it("obligation sets with the same ids in a different order do not differ", () => {
+    // Same set semantics as fields, and the same defect: two evaluations of
+    // the same policy against differently-ordered attribute stores, or a
+    // future change to `unionObligations`'s insertion order, must not turn
+    // into a reported change. Before the fix, the positional comparison
+    // would have reported this as an `ObligationsChanged`.
+    const a = baseTrace({
+      obligations: [obligation("audit.log"), obligation("notify.owner")],
+    });
+    const b = baseTrace({
+      obligations: [obligation("notify.owner"), obligation("audit.log")],
+    });
+
+    assert.deepStrictEqual(diffTraces(a, b), []);
+  });
 
   it.effect("identical non-empty obligations produce no difference", () =>
     Effect.gen(function* () {

@@ -31,7 +31,15 @@
 /** Splits a field spec into segments. */
 export const parseFieldPath = (spec: string): ReadonlyArray<string> => spec.split(".");
 
-interface SpecShape {
+/**
+ * A spec's shape — the concrete path leading to its terminal, and how far past
+ * it the spec reaches. Exported so a caller comparing the same spec against
+ * many others — `Decision.ts`'s `intersectFields`, pairwise over two whole
+ * arrays — can compute each side's shape once with {@link shapeOf} and reuse
+ * it across every pair via {@link compareShapes}, instead of paying
+ * `parseFieldPath` + two array allocations again on every single comparison.
+ */
+export interface SpecShape {
   /** The concrete (non-wildcard) segments leading to this spec's terminal. */
   readonly path: ReadonlyArray<string>;
   /** How many levels past `path` this spec reaches: 1 for `"*"`, else ∞. */
@@ -47,7 +55,7 @@ interface SpecShape {
 // same function. This makes several mutations here resistant to detection
 // through `compareFieldPaths`'s external result alone — verified by hand
 // against a wide set of inputs, not assumed.
-const shapeOf = (spec: string): SpecShape => {
+export const shapeOf = (spec: string): SpecShape => {
   const segments = parseFieldPath(spec);
   const terminal = segments[segments.length - 1];
   if (terminal === "*") return { path: segments.slice(0, -1), reach: 1 };
@@ -101,10 +109,22 @@ export type Containment = "Equal" | "ALessB" | "BLessA" | "Incomparable";
  * `Intersection` merge means "drop both" — an authorization library fails
  * closed here, not open, whenever the relationship isn't provably safe.
  */
-export const compareFieldPaths = (specA: string, specB: string): Containment => {
-  const a = shapeOf(specA);
-  const b = shapeOf(specB);
+export const compareFieldPaths = (specA: string, specB: string): Containment =>
+  compareShapes(shapeOf(specA), shapeOf(specB));
 
+/**
+ * {@link compareFieldPaths}'s comparison, taking each side's already-computed
+ * {@link SpecShape} rather than the raw spec strings.
+ *
+ * The split exists for `Decision.ts`'s `intersectFields`: comparing every spec
+ * in one field set against every spec in another is O(|a|·|b|), and
+ * `compareFieldPaths` alone would recompute `shapeOf` on both operands — a
+ * `split(".")` plus two array allocations — on every single pair, most of them
+ * redundant (each spec's shape depends on nothing but the spec itself). A
+ * caller that hoists `shapeOf` outside its own loop and calls this instead
+ * pays for each shape once, however many pairs it is compared across.
+ */
+export const compareShapes = (a: SpecShape, b: SpecShape): Containment => {
   if (samePath(a.path, b.path)) {
     if (a.reach === b.reach) return "Equal";
     // `reach` only ever holds one of two values (1 or Infinity), and the
@@ -192,6 +212,18 @@ const projectAt = (value: unknown, tails: ReadonlyArray<ReadonlyArray<string>>):
     if (childTails !== undefined) {
       const projected = projectAt(child, childTails);
       if (projected !== OMIT) out[key] = projected;
+      else if (starOne) {
+        // The two conditions compose rather than exclude one another: a
+        // sibling `"*"` grants this same key too, and the deeper spec's own
+        // projection failing — `child` isn't a plain object, so descending
+        // into `childTails` hits `!isPlainObject(value)` and returns `OMIT`
+        // above — must not also erase the `"*"` grant that reached here
+        // independently. Without this arm a policy author combining
+        // `"contact.*"` with `"contact.employer.name"` would see `employer`
+        // vanish entirely whenever it's a scalar, rather than the whole value
+        // `"*"` alone would have shown it.
+        out[key] = isPlainObject(child) ? {} : child;
+      }
     } else if (starOne) {
       // `starOne` is always true here, not decoration: when it's false,
       // `keys` was built from `deeper.keys()` alone, so every iterated key
