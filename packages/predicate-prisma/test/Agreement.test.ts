@@ -4,6 +4,7 @@ import * as FastCheck from "effect/testing/FastCheck";
 import { evaluatePredicate, type Predicate } from "@qadi/core";
 import { compilePrismaWhere } from "../src/index.ts";
 import { matchesPrismaWhere } from "./matchesPrismaWhere.ts";
+import { matchesPrismaWhereEngine } from "./matchesPrismaWhereEngine.ts";
 
 type Row = Record<string, unknown>;
 
@@ -89,4 +90,38 @@ describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the p
         }
       }
     }));
+
+  // C1 (issue 34, CCR-QD-111): `matchesPrismaWhere` above implements JS
+  // `.every`/`.some` at every depth — the same semantics `renderNode`
+  // wrongly assumed before this fix, so it cannot see the difference
+  // between a correct render and one that nests a vacuous identity where
+  // Prisma's real engine silently drops or fails to negate it. The `tree`
+  // generator already produces `And`/`Or`/`Negate` nodes containing `True`/
+  // `False`/empty-`MemberOf` leaves at every depth — exactly the shapes C1
+  // was about — so this is the same sample, checked against
+  // `matchesPrismaWhereEngine` (`./matchesPrismaWhereEngine.ts`), which
+  // models Prisma's actual nested-empty-array stripping instead. This
+  // property fails against the pre-fix `renderNode` (nested `parts`
+  // verbatim) for exactly the predicates C1 describes, and passes here only
+  // because `renderNode` now guarantees no vacuous identity is ever nested
+  // in what it emits.
+  it.effect(
+    "PROPERTY: matchesPrismaWhereEngine(compilePrismaWhere(P), R) equals evaluatePredicate(P, R)",
+    () =>
+      Effect.gen(function* () {
+        const predicates = FastCheck.sample(tree, { numRuns: 150, seed: 4096 });
+        const sample = FastCheck.sample(rows, { numRuns: 12, seed: 4096 });
+
+        for (const predicate of predicates) {
+          const where = yield* compilePrismaWhere(predicate);
+          for (const row of sample) {
+            assert.strictEqual(
+              matchesPrismaWhereEngine(where, row),
+              evaluatePredicate(predicate, row),
+              JSON.stringify({ predicate, row, where }),
+            );
+          }
+        }
+      }),
+  );
 });

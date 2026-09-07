@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-31                                    |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
+> | Change History | 1.4 (2026-09-07): BEH-QD-239 and BEH-QD-242 corrected — both encoded the belief that a vacuous `{OR: []}`/`{AND: []}` behaves the same nested inside `AND`/`OR`/`NOT` as it does at the top of the query; per real Prisma engine behavior it does not (Prisma issues #17367, #21856), and `@qadi/predicate-prisma`'s `renderNode` nested it verbatim, an audit's Critical finding (C1, issue 34). `renderNode` now constant-folds every `And`/`Or` child so a vacuous identity is never left nested, and `BEH-QD-242`'s agreement property is checked against a second, engine-accurate test reader in addition to the original JS-semantics one, since the original alone shares the same wrong belief and cannot see the difference (CCR-QD-111)<br>1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
 
 _Previous: [30 — Port Calls](./30-port-calls.md)_
 
@@ -145,12 +145,32 @@ REQUIREMENT: `MemberOf` with an empty `values` array MUST compile to a
              predicate that admits no rows (`"FALSE"` for SQL, `{OR:[]}` for
              Prisma), never to `IN ()` or an equivalent invalid or
              ambiguous fragment.
+REQUIREMENT: For `compilePrismaWhere`, this `{OR: []}` identity MUST NOT
+             appear nested inside a compiled `AND`/`OR`/`NOT` — only ever at
+             the top of the emitted `WhereInput`, or after `compilePrismaWhere`
+             has folded whatever contains it down to the identity itself.
 ```
 
 `[].includes(x)` is always `false`; a query engine's `IN ()` is invalid syntax
 in some dialects and a vacuous truth in others. Compiling to the engine's own
 vacuous-false identity is the correct translation, not a degenerate case
 requiring a caller-side guard.
+
+**The second requirement is not implied by the first, and this document
+originally missed that (C1, issue 34, CCR-QD-111).** `evaluatePredicate`'s
+own `.every`/`.some` semantics treat a nested `{OR: []}` exactly like a
+top-level one — no distinction to miss — but Prisma's real query engine does
+not: a vacuous `{AND: []}`/`{OR: []}` reached below the top level of the
+query is silently dropped from an `AND`/`OR` list, or fails to be negated
+under `NOT` (Prisma issues #17367, #21856). An empty `MemberOf` nested
+inside `allOf([hasResourceAttribute("role", inArray([])), tenantEq])` —
+meant to deny role-less users unconditionally — is exactly this shape:
+compiled as `{AND: [{OR: []}, {tenantId: ...}]}` before this fix, a real
+Prisma engine drops the `{OR: []}` member and admits every tenant-matching
+row regardless of role. `compilePrismaWhere`'s `renderNode` now
+constant-folds every `And`/`Or` child so this identity is never left
+nested — see `@qadi/predicate-prisma`'s `src/index.ts` and
+[BEH-QD-242](#beh-qd-242-the-compiled-prisma-whereinput-agrees-with-the-reference-interpreter).
 
 ## BEH-QD-240: `maxInValues` bounds an unbounded `IN`
 
@@ -189,7 +209,8 @@ against `toPredicate`'s input a second time.
 ```
 REQUIREMENT: For every `Predicate` P that `compilePrismaWhere` renders, and
              every row R, interpreting the rendered `WhereInput` against R
-             MUST equal `evaluatePredicate(P, R)`.
+             the way Prisma's real query engine does MUST equal
+             `evaluatePredicate(P, R)`.
 ```
 
 The same property as [BEH-QD-241](#beh-qd-241-the-compiled-sql-fragment-agrees-with-the-reference-interpreter),
@@ -197,6 +218,26 @@ against the other grammar. There is no `Predicate` shape that renders to one
 target and not the other — both grammars are equally expressive over this
 AST, so the two properties differ only in which compiler and which test-only
 interpreter they run.
+
+**"Interpreting... the way Prisma's real query engine does" is deliberate
+wording, corrected from a bare "interpreting" (C1, issue 34, CCR-QD-111).**
+The obvious test-only interpreter for this grammar — recursive JS
+`.every`/`.some`, `packages/predicate-prisma/test/matchesPrismaWhere.ts` —
+is exactly `evaluatePredicate`'s own semantics one grammar over, and a
+compiler that shares its author's wrong belief about the grammar will agree
+with that interpreter regardless: `renderNode` once nested a vacuous
+`{OR: []}`/`{AND: []}` inside a compiled `AND`/`OR`/`NOT` verbatim, which
+`matchesPrismaWhere` reads exactly as designed but Prisma's real engine
+silently drops or fails to negate (Prisma issues #17367, #21856) — this
+property, checked only against `matchesPrismaWhere`, passed against that
+defect the whole time. `Agreement.test.ts` now also checks
+`packages/predicate-prisma/test/matchesPrismaWhereEngine.ts`, a second
+reader modeling Prisma's actual nested-empty-array stripping instead of
+`evaluatePredicate`'s. `renderNode` now guarantees a vacuous identity is
+never nested — see [BEH-QD-239](#beh-qd-239-an-empty-memberof-is-false-never-in) —
+so the two readers can only ever disagree on a shape this compiler no
+longer produces, and agreement between them is itself the regression
+signal this requirement now depends on.
 
 ## BEH-QD-243: Worked example
 
