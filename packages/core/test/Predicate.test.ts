@@ -90,8 +90,21 @@ describe("evaluatePredicate — the reference semantics", () => {
     assert.isFalse(
       evaluatePredicate({ _tag: "Compare", column: "nope", op: "Eq", value: "x" }, row),
     );
-    assert.isTrue(
+    // Denies rather than matching (CCR-QD-110): an absent column is unknown,
+    // not "not equal to x". Before the fix this was `isTrue` — the same
+    // fail-open H2 found in `evaluateMatcher`'s `Neq`, mirrored here because
+    // `evaluatePredicate` is a second interpreter over the same semantics.
+    assert.isFalse(
       evaluatePredicate({ _tag: "Compare", column: "nope", op: "Neq", value: "x" }, row),
+    );
+  });
+
+  it("a Compare against an undefined constant always denies, on either op (CCR-QD-110)", () => {
+    assert.isFalse(
+      evaluatePredicate({ _tag: "Compare", column: "level", op: "Eq", value: undefined }, row),
+    );
+    assert.isFalse(
+      evaluatePredicate({ _tag: "Compare", column: "level", op: "Neq", value: undefined }, row),
     );
   });
 

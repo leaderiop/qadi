@@ -109,8 +109,13 @@ const negate = (predicate: Predicate): Predicate => {
 
 const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
   Match.value(op).pipe(
-    Match.when("Eq", () => value === against),
-    Match.when("Neq", () => value !== against),
+    // Mirrors `Matcher.ts`'s `Eq`/`Neq` (CCR-QD-110): an absent operand —
+    // either a missing column or a subject-side ref that resolved to
+    // nothing — denies rather than comparing. Without this, `evaluatePredicate`
+    // and `evaluateMatcher` would disagree on exactly the shapes
+    // `PROPERTY: the two interpreters agree, row by row` fuzzes.
+    Match.when("Eq", () => value !== undefined && against !== undefined && value === against),
+    Match.when("Neq", () => value !== undefined && against !== undefined && value !== against),
     // Mirrors `Gte`/`Lt` in the matcher, which are false for a non-number: a
     // divergence here is a row the evaluator would have refused.
     Match.when(

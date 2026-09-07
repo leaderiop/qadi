@@ -310,10 +310,23 @@ export const evaluateMatcher = (
   context: MatcherContext,
 ): boolean => {
   switch (self._tag) {
-    case "Eq":
-      return value === resolveRef(self.ref, context);
-    case "Neq":
-      return value !== resolveRef(self.ref, context);
+    case "Eq": {
+      const other = resolveRef(self.ref, context);
+      // Fails closed on either side: an unresolved operand is unknown, not
+      // "equal to nothing" — the caller cannot assert anything about it, so
+      // this denies even when `value` and `other` are undefined for the same
+      // reason (CCR-QD-110). `In` is unaffected and is what a policy author
+      // wanting to test for `undefined` specifically should reach for; `Eq`
+      // deliberately no longer serves as a backdoor for that.
+      return value !== undefined && other !== undefined && value === other;
+    }
+    case "Neq": {
+      const other = resolveRef(self.ref, context);
+      // Mirrors `Eq` (CCR-QD-110): an absent operand denies rather than
+      // matching. Before this, `value !== resolveRef(...)` was `true`
+      // whenever exactly one side was `undefined` — the H2 fail-open.
+      return value !== undefined && other !== undefined && value !== other;
+    }
     case "Dominates": {
       // Incomparable labels deny, which is what a dominance test means. The
       // four-valued `compareLabels` exists for explaining that; a matcher only
