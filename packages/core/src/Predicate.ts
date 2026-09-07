@@ -268,6 +268,14 @@ type TooDeep = typeof TOO_DEEP;
  * which runs inside `Effect.gen` and is trampolined by the runtime, this is a
  * plain synchronous function — its recursion genuinely consumes the native
  * call stack, so the depth check has to run first, not merely exist.
+ *
+ * Dispatches with a per-call `Match.value(policy)` rather than a hoisted
+ * `Match.type<Policy>()`, for the same reason `dispatchPredicate` above
+ * closes over `row`: `depth` and `maxDepth` are state specific to this call,
+ * and `child`/`anyChild` close over them, so a matcher built once at module
+ * scope would have nowhere to put that closure. `depth`/`maxDepth` change on
+ * every recursive call, unlike `dispatchPredicate`'s `row`, which is why this
+ * is documented separately rather than pointing back at that comment alone.
  */
 const restrictsFields = (policy: Policy, depth: number, maxDepth: number): boolean | TooDeep => {
   if (depth > maxDepth) return TOO_DEEP;
@@ -312,6 +320,18 @@ const restrictsFields = (policy: Policy, depth: number, maxDepth: number): boole
  */
 type PredicateError = AttributeResolveError | DecisionHistoryUnavailable | MissingAction | PolicyTooDeep;
 
+/**
+ * Recursively folds one `Policy` node into a `Predicate`.
+ *
+ * `foldAttribute` and `foldHistory` below call directly into
+ * `AttributeResolver`/`DecisionHistory` without updating `PortMetrics.ts`'s
+ * `portCallsTotal` — unlike `Evaluate.ts`'s equivalent calls, which do.
+ * That is deliberate, not an oversight: `PortMetrics.ts`'s own doc frames the
+ * counter as "one per port `Evaluate.ts` can call into", and this is a
+ * second interpreter over the same tree (ADR-QD-024), not `Evaluate.ts`
+ * itself. A deployment leaning on `toPredicate` for row-level security should
+ * not read `qadi_port_calls_total` as its port-traffic total.
+ */
 const translateNode = (
   policy: Policy,
   subject: AuthSubject,

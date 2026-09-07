@@ -198,24 +198,36 @@ export const exists = (): Matcher => ({ _tag: "Exists" });
 /**
  * Numeric attribute is >= value.
  *
- * The bound is checked with `Number.isFinite` at evaluation time (see
- * `evaluateMatcher`'s `Gte` case), mirroring `SecurityLabel.isSecurityLabel`'s
- * rejection of `Infinity`/`NaN` levels. A `Matcher` crosses the same
- * untrusted-JSON trust boundary a `Policy` does (§7 of AGENTS.md,
- * ADR-QD-002): JSON has no literal spelling for `Infinity`, but `1e400`
- * still decodes to it, so a bound is exactly as reachable from untrusted
- * data as a `SecurityLabel` level is. Left unguarded, an `Infinity` bound
- * would dominate every finite attribute value via `>=` — the identical
- * failure mode `isSecurityLabel` closes.
+ * Both the bound and the resolved attribute value are checked with
+ * `Number.isFinite` at evaluation time (see `evaluateMatcher`'s `Gte` case),
+ * mirroring `SecurityLabel.isSecurityLabel`'s rejection of `Infinity`/`NaN`
+ * levels. A `Matcher` crosses the same untrusted-JSON trust boundary a
+ * `Policy` does (§7 of AGENTS.md, ADR-QD-002): JSON has no literal spelling
+ * for `Infinity`, but `1e400` still decodes to it, so a bound is exactly as
+ * reachable from untrusted data as a `SecurityLabel` level is — and so is a
+ * resolved attribute stored the same way and read back with `JSON.parse`.
+ * Left unguarded on either side, an `Infinity` operand would dominate every
+ * finite value it is compared against via `>=` — the identical failure mode
+ * `isSecurityLabel` closes (CCR-QD-115: the value side was unguarded until
+ * this, so an `Infinity`-valued attribute satisfied every `gte(...)` bound
+ * regardless of the bound itself).
  */
 export const gte = (value: number): Matcher => ({ _tag: "Gte", value });
 /**
  * Numeric attribute is < value.
  *
- * See {@link gte} — the bound is checked the same way, for the same reason.
+ * See {@link gte} — both operands are checked the same way, for the same
+ * reason.
  */
 export const lt = (value: number): Matcher => ({ _tag: "Lt", value });
-/** Array or string attribute contains the value. */
+/**
+ * Array or string attribute contains the value.
+ *
+ * String containment requires a same-kind (string) needle: `contains(1)`
+ * against the string attribute `"1"` denies, with no numeric-to-string
+ * coercion the way `Array.prototype.includes` doesn't require type matching
+ * against array elements. See `containsValue` below.
+ */
 export const contains = (value: unknown): Matcher => ({ _tag: "Contains", value });
 /** Applies a matcher to a nested field of an object attribute. */
 export const fieldMatch = (field: string, matcher: Matcher): Matcher => ({
@@ -431,9 +443,25 @@ export const evaluateMatcher = (
     case "Exists":
       return value !== undefined && value !== null;
     case "Gte":
-      return typeof value === "number" && Number.isFinite(self.value) && value >= self.value;
+      // `value` is guarded the same way the bound is (see `gte`'s doc
+      // comment): an attribute that itself decoded to `Infinity` must not
+      // dominate every bound the way an unguarded one would (CCR-QD-115).
+      return (
+        typeof value === "number" &&
+        Number.isFinite(value) &&
+        Number.isFinite(self.value) &&
+        value >= self.value
+      );
     case "Lt":
-      return typeof value === "number" && Number.isFinite(self.value) && value < self.value;
+      // Symmetric with `Gte` above, for the same reason and the same doc
+      // comment — `Infinity < finiteBound` already fails closed without this,
+      // but the guard is added for consistency rather than left asymmetric.
+      return (
+        typeof value === "number" &&
+        Number.isFinite(value) &&
+        Number.isFinite(self.value) &&
+        value < self.value
+      );
     case "Contains":
       return containsValue(value, self.value);
     // `Object.hasOwn` rather than `value[self.field]` alone, for the same

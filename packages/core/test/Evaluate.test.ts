@@ -117,6 +117,28 @@ describe("leaf policies", () => {
       }).pipe(Effect.provide(testLayer(subjectWith({})))),
   );
 
+  it.effect(
+    "a Neq NESTED under someMatch reads the generic sentence, not the excluded-value one",
+    () =>
+      Effect.gen(function* () {
+        // `attributeReason` only special-cases a BARE `Neq` at the policy's
+        // top level (issue #67): `matcher` here is `someMatch(...)`, not the
+        // `neq(...)` nested inside it, so this denial reads "did not match"
+        // even though what actually happened is that every tag equaled the
+        // excluded value. Imprecise, not backwards — the composite genuinely
+        // did not match, plural, over its elements — so this pins the current
+        // behavior rather than asserting the (also true, but unclaimed)
+        // excluded-value phrasing.
+        const policy = P.hasAttribute("tags", M.someMatch(M.neq(M.literal("blocked"))));
+        const d = yield* evaluate(policy);
+        assert.isFalse(isAllowed(d));
+        if (d._tag !== "Deny") return;
+        assert.strictEqual(d.reason, "subject attribute 'tags' did not match");
+      }).pipe(
+        Effect.provide(testLayer(subjectWith({ attributes: { tags: ["blocked", "blocked"] } }))),
+      ),
+  );
+
   it.effect("a Neq ALLOW is unaffected — only the denial sentence changed", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasAttribute("homeTenant", M.neq(M.literal("evil"))));

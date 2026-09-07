@@ -69,7 +69,7 @@ describe("simplify", () => {
     ));
 
   it("leaves every leaf variant exactly as it found it", () => {
-    // All fourteen variants have an arm, so all fourteen need exercising — an
+    // All ten leaf variants have an arm, so all ten need exercising — an
     // unexercised leaf arm would be a variant `simplify` silently mishandles, and
     // the arms are one-liners precisely because nothing should happen in them.
     const leaves: ReadonlyArray<P.Policy> = [
