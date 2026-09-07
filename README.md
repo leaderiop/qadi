@@ -242,6 +242,19 @@ pnpm mutation      # Stryker on packages/core, the devtools model, predicate-sql
 pnpm check         # all twenty-four gates, in order
 ```
 
+`pnpm install` runs the root `prepare` script, `effect-tsgo patch`. That command
+belongs to `@effect/tsgo` (a devDependency, not something this repo wrote) and it
+mutates `node_modules` on purpose: it backs up `node_modules/typescript/lib/tsc`
+as `tsc.original` and replaces it with `@effect/tsgo`'s own build — TypeScript-Go
+plus the Effect Language Service plugin — so `pnpm typecheck`, `tsc -b`, and any
+editor pointed at this workspace's `typescript` get Effect-specific diagnostics
+(missing context, floating effects, `catchTags`' object form, and the rest of
+`@effect/language-service`'s rule set) for free, with no second toolchain to
+install or keep in sync. The patch does not survive a reinstall — `prepare` reapplies
+it every time `node_modules` is rebuilt, which is why it is wired there rather than
+run once by hand. `npx @effect/tsgo unpatch` restores the original `tsc`; see
+`node_modules/@effect/tsgo/README.md` for the rest of its CLI.
+
 `pnpm check` is the merge gate, and [CI](./.github/workflows/check.yml) runs that
 one command — not its own list of steps, so the two cannot drift apart. Every number
 in the specification up to CCR-QD-035 was produced by a person running it by hand.

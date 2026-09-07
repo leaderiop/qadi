@@ -453,6 +453,40 @@ describe("seeding from a logged row — JOB 5 on screen", () => {
 
     assert.isNotNull(screen.queryByTestId("qadi-simulator-empty"));
   });
+
+  /**
+   * The bug this pins: `CheckCard` buffers the resource textarea's raw text
+   * locally, independent of `draft`, so typing unparseable JSON does not lose
+   * a keystroke (E7.3). That buffer used to survive a re-seed — so replaying a
+   * *different* row would go on showing whatever the reviewer had typed, and
+   * not yet submitted, for the row they left. The form would be lying about
+   * what it runs: the resource field on screen would name neither the old row
+   * nor the new one.
+   */
+  it("clears an edited-but-unsubmitted resource across a re-seed", () => {
+    const other = entryOf(
+      decisionRecord({
+        evaluationId: "ev-92",
+        policy: hasPermission(read),
+        action: "read",
+        resource: { id: "doc-2" },
+      }),
+    );
+    const view = render(<Simulator sightings={[]} seed={decided} />);
+
+    act(() => {
+      fireEvent.change(screen.getByTestId("qadi-resource"), { target: { value: "{oops" } });
+    });
+    assert.isNotNull(screen.queryByTestId("qadi-resource-error"));
+
+    view.rerender(<Simulator sightings={[]} seed={other} />);
+
+    assert.isNull(screen.queryByTestId("qadi-resource-error"));
+    assert.strictEqual(
+      screen.getByTestId("qadi-resource").getAttribute("value"),
+      '{"id":"doc-2"}',
+    );
+  });
 });
 
 describe("unmounting mid-run — E7.8", () => {

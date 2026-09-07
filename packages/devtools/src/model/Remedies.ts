@@ -58,10 +58,11 @@ export interface RemedySweep {
  * and the sweep reports it as *no change*. That is a finding too: it says the
  * attribute was never the problem.
  *
- * **`Not` is not descended into.** Satisfying a requirement under a negation
- * makes the enclosing node deny, so a remedy there is a removal — and every
- * removal expressible over a subject's own grants is already offered by
- * `singleEdits`. Descending would relabel anti-remedies as strengthenings,
+ * **`Not` is not descended into**, and neither is a `Rules` row whose `effect`
+ * is `"Deny"`. Satisfying a requirement under a negation, or under a deny row's
+ * condition, makes the enclosing node deny, so a remedy there is a removal —
+ * and every removal expressible over a subject's own grants is already offered
+ * by `singleEdits`. Descending would relabel anti-remedies as strengthenings,
  * which inverts the one thing this table is read for.
  */
 export const remedyEdits = (policy: Policy, input: SimulationInput): RemedySweep => {
@@ -271,7 +272,13 @@ const requirementsOf: (self: Policy) => ReadonlyArray<Requirement> = Match.type<
     HasSignature: () => [],
     AllOf: (p) => p.policies.flatMap(requirementsOf),
     AnyOf: (p) => p.policies.flatMap(requirementsOf),
-    Rules: (p) => p.rules.flatMap((rule) => requirementsOf(rule.condition)),
+    // Only `Permit` rows: a rule's `condition` is evaluated for applicability,
+    // and satisfying a `Deny` row's condition makes *that* row apply, which
+    // means denying, not allowing. Descending into it here would offer "grant
+    // this" as a fix for exactly the thing that would trigger the deny — the
+    // same anti-remedy `Not` is excluded for below, and for the same reason.
+    Rules: (p) =>
+      p.rules.filter((rule) => rule.effect === "Permit").flatMap((rule) => requirementsOf(rule.condition)),
     Not: () => [],
     Obliged: (p) => requirementsOf(p.policy),
     Labeled: (p) => requirementsOf(p.policy),

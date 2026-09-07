@@ -282,6 +282,37 @@ describe("the JSON view", () => {
     const encoded = Effect.runSync(toJson(policy));
     assert.isTrue(Equal.equals(Effect.runSync(Effect.orDie(fromJson(encoded))), policy));
   });
+
+  /**
+   * The bug this pins: `JsonView` buffers the textarea's raw text locally, so
+   * a paste that has not been loaded yet is not lost while the reviewer keeps
+   * typing. That buffer used to survive switching rail items — so the textarea
+   * would go on showing text edited against the *previous* policy, unloaded,
+   * under the newly selected one's name. The screen's own claim is that this is
+   * "the real codec, not an approximation" — text belonging to a different
+   * policy fails that on its face.
+   */
+  it("clears an edited-but-unloaded paste when a different policy is selected", async () => {
+    mount([sighting(hasPermission(read)), sighting(hasPermission(write))]);
+    await click(screen.getByRole("button", { name: "Tree" }));
+
+    await act(async () => {
+      fireEvent.change(screen.getByTestId("qadi-policy-json"), {
+        target: { value: "not yet loaded" },
+      });
+    });
+    assert.strictEqual(
+      screen.getByTestId<HTMLTextAreaElement>("qadi-policy-json").value,
+      "not yet loaded",
+    );
+
+    await click(screen.getAllByTestId("qadi-policy-rail-item")[1] ?? fail());
+
+    assert.strictEqual(
+      screen.getByTestId<HTMLTextAreaElement>("qadi-policy-json").value,
+      Effect.runSync(toJson(hasPermission(write))),
+    );
+  });
 });
 
 describe("selection and drafts", () => {

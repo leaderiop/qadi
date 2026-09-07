@@ -441,7 +441,7 @@ describe("remedyEdits — what the policy asks for", () => {
 });
 
 describe("remedyEdits — walking the tree", () => {
-  it("descends into every combinator", () => {
+  it("descends into every combinator, and only the Permit row of a Rules table", () => {
     assert.deepStrictEqual(
       labels(
         allOf([
@@ -451,7 +451,7 @@ describe("remedyEdits — walking the tree", () => {
           rules([permitWhen(hasRole("e")), denyWhen(hasRole("f"))], { combining: "DenyOverrides" }),
         ]),
       ),
-      ["with role a", "with role b", "with role c", "with role d", "with role e", "with role f"],
+      ["with role a", "with role b", "with role c", "with role d", "with role e"],
     );
   });
 
@@ -466,6 +466,28 @@ describe("remedyEdits — walking the tree", () => {
     assert.deepStrictEqual(labels(allOf([hasRole("editor"), not(hasRole("banned"))])), [
       "with role editor",
     ]);
+  });
+
+  /**
+   * A rule's `condition` is evaluated for *applicability*: for a `Deny` row,
+   * satisfying it makes that row apply, and applying a `Deny` row means
+   * denying. Offering "grant this" as a remedy for it would be exactly the
+   * anti-remedy `Not` is excluded above to avoid — same defect, reached
+   * through `Rules` instead of `Not`.
+   */
+  it("does not descend into a Deny row's condition", () => {
+    assert.deepStrictEqual(
+      labels(rules([denyWhen(hasRole("banned"))], { combining: "DenyOverrides" })),
+      [],
+    );
+    assert.deepStrictEqual(
+      labels(
+        rules([permitWhen(hasRole("editor")), denyWhen(hasRole("banned"))], {
+          combining: "DenyOverrides",
+        }),
+      ),
+      ["with role editor"],
+    );
   });
 
   it("proposes nothing for hasNotActed, whose remedy is a removal", () => {

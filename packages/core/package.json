@@ -40,8 +40,7 @@
   "scripts": {
     "build": "tsc -b tsconfig.json",
     "typecheck": "tsc -b tsconfig.json",
-    "test": "vitest run",
-    "test:types": "vitest run --typecheck"
+    "test": "vitest run"
   },
   "dependencies": {
     "effect": "catalog:"
