@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-07                                    |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.6                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.6 (2026-09-08): BEH-QD-056 gains a fourth requirement — projecting a record never exhausts the call stack; `FieldPath.ts`'s `projectAt` walked recursively over a `fields` spec's uncapped segment count and raised a raw `RangeError` out of the enforcement path, and now uses the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, INV-QD-004, CCR-QD-115)<br>1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -268,7 +268,32 @@ REQUIREMENT: Comparing a "*" spec against a spec at a different depth on the
              cannot say. The safe answer under ambiguity is the same one
              `PolicyNotTranslatable` gives elsewhere in this library: refuse
              to claim it, rather than guess.
+REQUIREMENT: Projecting a record MUST NOT exhaust the call stack, whatever a
+             field spec's segment count or the projected resource's nesting
+             depth. A spec deeper than the data omits, and a spec deeper than
+             any stack would hold projects — neither raises a `RangeError`.
 ```
+
+The fourth requirement is a hardening, not a change of meaning: the
+projection is identical node for node, and only the mechanism moved. It is
+stated here because the property is not obvious from the projection rules
+above and nothing else in this document implies it.
+
+`FieldPath.ts`'s `projectAt` used real function-call recursion, one frame per
+matching segment, over two inputs a policy author controls — a `fields` spec,
+which `parseFieldPath` splits with no length cap, and the resource it
+descends. Both arrive inside a `Policy` that
+[ADR-QD-002](../decisions/002-schema-derived-policy-adt.md) says is persisted
+and re-parsed from untrusted JSON, and a dot-path's segment count is invisible
+to `MAX_DECODE_DEPTH`, which bounds a policy's *structural* nesting and never
+looks inside one long string. A crafted spec against a correspondingly deep
+resource therefore raised a raw `RangeError` out of the enforcement path
+itself — `Decision.ts`'s `project`, reached on every field-restricted allow —
+crashing the evaluating process instead of failing the one decision closed.
+It now walks with an explicit array-backed stack, the same shape
+`DecodeDepthGuard.ts`'s `exceedsJsonDepth` and `SinkCodec.ts`'s `isJsonSafe`
+were converted to for exactly this reason; this was the walk that had been
+missed (CCR-QD-115).
 
 The third requirement was not a simplification decided in advance — it was a
 defect caught by a differential test: an earlier version of this rule assumed
