@@ -67,8 +67,22 @@ export const PACKAGE_PATHS = {
  * Returns nothing — exits the process directly (0 on success or "nothing to
  * check", 1 with the compiler's own output on failure), matching how both
  * checkers already behave as standalone merge-gate scripts.
+ *
+ * `failOnEmpty` (default `false`) governs what "nothing to check" means for
+ * the caller: `check-doc-examples.mjs` passes `true`, because `spec/` is
+ * normative and AGENTS.md §12 makes running examples the strong default
+ * there ("Prefer `typescript` wherever an example can be made to compile");
+ * a `spec/` walk turning up zero blocks is `check-dod-table.mjs`'s own
+ * reasoning for a hard-failing empty result — "a checker that finds nothing
+ * to check is looking in the wrong place" (a renamed/emptied `spec/`, a
+ * broken walk) — not a legitimate zero. `check-website-doc-examples.mjs`
+ * leaves this `false`: a documentation site can legitimately carry a page
+ * with no compiled snippet (prose-only content), so an all-prose docs tree
+ * is not by itself evidence of a broken checker the way an empty `spec/`
+ * would be. (A *missing* docs directory is a different, always-wrong case,
+ * handled by that script itself before this function ever runs.)
  */
-export const compileFencedExamples = ({ root, outDir, files, label }) => {
+export const compileFencedExamples = ({ root, outDir, files, label, failOnEmpty = false }) => {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
@@ -108,6 +122,15 @@ export const compileFencedExamples = ({ root, outDir, files, label }) => {
   );
 
   if (count === 0) {
+    if (failOnEmpty) {
+      console.error(
+        `${label}: no \`\`\`typescript/\`\`\`tsx blocks found across ${files.length} file(s). ` +
+          `That is almost certainly this checker looking in the wrong place — a moved or ` +
+          `emptied directory — rather than a spec with legitimately zero runnable examples ` +
+          `(AGENTS.md §12: "Prefer typescript wherever an example can be made to compile").`,
+      );
+      process.exit(1);
+    }
     console.log(`${label}: no \`\`\`typescript blocks found`);
     process.exit(0);
   }
