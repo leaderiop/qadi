@@ -120,6 +120,24 @@ describe("SignatureHistory", () => {
         assert.strictEqual(signature?.signedAt, 1_700_000_000_000);
       }));
 
+    it.effect(
+      "collision-immune: a subject/resource split that would collide under a colon-joined key does not",
+      () =>
+        Effect.gen(function* () {
+          // `signatureHistoryFromSignatures` keys on
+          // `JSON.stringify([subjectId, resourceId ?? null])`, not a
+          // delimited string — its own doc comment gives `["a:b", "c"]` vs
+          // `["a", "b:c"]` as the pair a naive `${a}:${b}` join would
+          // conflate. Proven here directly, the same way
+          // `DecisionHistory.test.ts` and `RelationshipResolver.test.ts`
+          // prove collision-immunity for their own sibling key builders.
+          const collidable = signatureHistoryFromSignatures([
+            { subjectId: "a:b", resourceId: "c", meaning: "approved" },
+          ]);
+          assert.deepStrictEqual(yield* query(collidable, "a", "b:c"), []);
+        }),
+    );
+
     it.effect("returns a fresh array per query, not the layer's own internal reference", () =>
       Effect.gen(function* () {
         // `signaturesFor` used to hand back the layer's own internal array

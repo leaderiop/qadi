@@ -15,11 +15,13 @@ import {
   filter as filterCore,
   hasAttribute,
   hasPermission,
+  hasRelationship,
   hasRole,
   gte,
   isAllowed,
   makeSubject,
   permission,
+  relationshipResolverFromEdges,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -100,6 +102,9 @@ describe("makeQadi", () => {
     const failure = await rejection(qadi.check(alice, hasAttribute("clearance", gte(1))));
     assert.instanceOf(failure, AttributeResolveError);
     if (failure instanceof AttributeResolveError) {
+      // Not just "some Error subclass" — the caller needs the `_tag` to
+      // `catchTag`/dispatch on, and nothing here asserted it before.
+      assert.strictEqual(failure._tag, "AttributeResolveError");
       assert.strictEqual(failure.attribute, "clearance");
       assert.strictEqual(failure.cause, "down");
     }
@@ -134,10 +139,44 @@ describe("makeQadi", () => {
     );
 
     assert.instanceOf(failure, AccessDenied);
+    if (failure instanceof AccessDenied) {
+      assert.strictEqual(failure._tag, "AccessDenied");
+    }
     assert.strictEqual(Result.isFailure(coreResult), true);
     if (Result.isFailure(coreResult)) {
       assert.deepStrictEqual(failure, coreResult.failure);
     }
+  });
+
+  it("exercises the relationship (hasRelationship) path, not just synchronous checks", async () => {
+    // ADR-QD-004 / this file's own header: the predecessor's second evaluation
+    // path left the asynchronous relationship API unreachable through the
+    // facade, and nothing here noticed. `RelationshipResolverNever` is what
+    // every other test in this file wires — it always denies, so it cannot
+    // tell "the relationship path is unreachable" apart from "the relationship
+    // path was reached and correctly denied". This wires an edge instead and
+    // checks both outcomes: found, and not found.
+    const owner = hasRelationship("owner");
+    const withRelationships = Layer.mergeAll(
+      AttributeResolverNone,
+      relationshipResolverFromEdges([{ subjectId: "u-1", relation: "owner", resourceId: "doc-1" }]),
+      DecisionHistoryUnknown,
+      EvaluationIdLive,
+      CustomPredicateNone,
+      SignatureHistoryNone,
+    );
+    const qadi = facade(withRelationships);
+
+    await expect(
+      qadi.check(alice, owner, { resource: { id: "doc-1" } }),
+    ).resolves.toBe(true);
+    await expect(
+      qadi.check(alice, owner, { resource: { id: "doc-2" } }),
+    ).resolves.toBe(false);
+
+    const decision = await qadi.decide(alice, owner, { resource: { id: "doc-1" } });
+    assert.isTrue(isAllowed(decision));
+    assert.strictEqual(decision.trace.policyTag, "HasRelationship");
   });
 
   it("filter keeps the admitted items in order", async () => {

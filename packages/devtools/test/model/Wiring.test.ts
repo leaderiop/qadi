@@ -23,9 +23,11 @@ import {
   gte,
   hasAttribute,
   hasPermission,
+  hasSignature,
   permission,
   portCallsTotal,
   portRetriesTotal,
+  signatureHistoryFromSignatures,
 } from "@qadi/core";
 import { qadiTestLayer, subjectWith } from "@qadi/testing";
 import { portActivity, wiringReport } from "../../src/model/Wiring.ts";
@@ -173,6 +175,29 @@ describe("wiringReport", () => {
       const card = report.ports.find((port) => port.port === "CurrentSubject");
       assert.isTrue(card?.present);
     }).pipe(Effect.provide(currentSubjectLayer(subjectWith({})))));
+
+  // SignatureHistory — the ninth EvaluationServices port, and the one this
+  // module's own dedicated coverage skipped when hasSignature shipped
+  // (wayfinder ticket #14): it appeared only in the aggregate "required" list
+  // above, never wired and checked on its own the way AttributeResolver,
+  // DecisionCache, DecisionSink and CurrentSubject all are.
+  it.effect("a wired signature history is present, by name", () =>
+    Effect.gen(function* () {
+      const report = yield* wiringReport;
+      const signature = report.ports.find((port) => port.port === "SignatureHistory");
+
+      assert.isTrue(signature?.present);
+      assert.strictEqual(signature?.name, "signatureHistoryFromSignatures");
+    }).pipe(Effect.provide(signatureHistoryFromSignatures([]))));
+
+  it.effect("SignatureHistory's absence says every hasSignature node denies", () =>
+    Effect.gen(function* () {
+      const report = yield* wiringReport;
+      const card = report.ports.find((port) => port.port === "SignatureHistory");
+
+      assert.isFalse(card?.present);
+      assert.include(card?.consequence ?? "", "every hasSignature node denies");
+    }));
 });
 
 describe("portActivity", () => {
@@ -212,6 +237,23 @@ describe("portActivity", () => {
         const attribute = activity.find((entry) => entry.port === "AttributeResolver");
         assert.strictEqual(attribute?.calls, 1);
         assert.strictEqual(attribute?.retries, 0);
+      }),
+    ));
+
+  it.effect("counts a hasSignature evaluation's port call under SignatureHistory", () =>
+    isolated(
+      Effect.gen(function* () {
+        const history = signatureHistoryFromSignatures([
+          { subjectId: "u-1", resourceId: "doc-1", meaning: "approved" },
+        ]);
+        yield* evaluate(hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
+          Effect.provide(qadiTestLayer(subjectWith({ id: "u-1" }), { signatureHistory: history })),
+        );
+
+        const activity = yield* portActivity;
+        const signature = activity.find((entry) => entry.port === "SignatureHistory");
+        assert.strictEqual(signature?.calls, 1);
+        assert.strictEqual(signature?.retries, 0);
       }),
     ));
 
