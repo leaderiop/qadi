@@ -20,9 +20,6 @@
       ],
       "@qadi/core": [
         "../../packages/core/src/index.ts"
-      ],
-      "@qadi/testing": [
-        "../../packages/testing/src/index.ts"
       ]
     }
   },

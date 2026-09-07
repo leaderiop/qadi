@@ -213,7 +213,14 @@ const link = (dependency) => {
   }
   const destination = join(modules, dependency);
   mkdirSync(dirname(destination), { recursive: true });
-  symlinkSync(source, destination);
+  // `fs.symlinkSync` with no `type` defaults to a "file" symlink on win32,
+  // which fails outright when the target is a directory (every dependency
+  // here is one) unless the process holds `SeCreateSymbolicLinkPrivilege` —
+  // granted only to admins or an account with Developer Mode enabled. A
+  // "junction" needs neither: it is a directory-only reparse point Windows
+  // resolves without elevation, so passing it explicitly on win32 is what
+  // lets this gate run on an ordinary, non-elevated contributor machine.
+  symlinkSync(source, destination, process.platform === "win32" ? "junction" : undefined);
   linked.add(dependency);
 };
 
@@ -277,6 +284,12 @@ try {
 
 const FIXTURE = `import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as HttpApi from "effect/unstable/httpapi/HttpApi";
+import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
+import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
+import * as HttpApiGroup from "effect/unstable/httpapi/HttpApiGroup";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServer from "effect/unstable/http/HttpServer";
 import {
   AttributeResolverNone,
   currentSubjectLayer,
@@ -303,6 +316,13 @@ import { DevtoolsDock } from "@qadi/devtools/react";
 import { compileSql } from "@qadi/predicate-sql";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
 import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
+import {
+  RequiredPermission,
+  RequirePermission,
+  RequirePermissionLive,
+  requiresPermission,
+  subjectExtractorBearer,
+} from "@qadi/http";
 
 const read = permission("document", "read");
 const write = permission("document", "write");
@@ -395,6 +415,37 @@ const auditDecision = await Effect.runPromise(
 );
 expect("audit decision allow", auditDecision._tag, "Allow");
 expect("audit trail wrote one entry", written().length, 1);
+
+// @qadi/http: a real request/response round trip through HttpRouter.toWebHandler
+// (standard Web Request/Response, no @effect/platform-node dependency needed) —
+// the ninth and last public package, previously the only one this fixture never
+// imported.
+const HttpFixtureGroup = HttpApiGroup.make("documents").add(
+  HttpApiEndpoint.get("read", "/documents").pipe((endpoint) =>
+    endpoint.annotate(
+      RequiredPermission,
+      requiresPermission(endpoint, { permission: read, policy: hasPermission(read) }),
+    ),
+  ),
+);
+const HttpFixtureApi = HttpApi.make("consumer-fixture").add(HttpFixtureGroup).middleware(RequirePermission);
+const HttpFixtureHandlers = HttpApiBuilder.group(HttpFixtureApi, "documents", (handlers) =>
+  handlers.handle("read", () => Effect.void),
+);
+const HttpFixtureRoutes = HttpApiBuilder.layer(HttpFixtureApi).pipe(
+  Layer.provide(HttpFixtureHandlers),
+  Layer.provide(RequirePermissionLive),
+);
+const HttpFixtureLayer = HttpFixtureRoutes.pipe(
+  Layer.provideMerge(subjectExtractorBearer(() => Effect.succeed(alice))),
+  Layer.provideMerge(services),
+  Layer.provideMerge(HttpServer.layerServices),
+);
+const { handler } = HttpRouter.toWebHandler(HttpFixtureLayer);
+const httpAllowed = await handler(new Request("http://localhost/documents", { headers: { authorization: "Bearer any" } }));
+expect("http allowed request", httpAllowed.status, 204);
+const httpDenied = await handler(new Request("http://localhost/documents"));
+expect("http anonymous request denied", httpDenied.status, 403);
 
 console.log("consumer: the published artifact authorizes correctly");
 `;
