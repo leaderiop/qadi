@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-24                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 _Previous: [23 — HTTP Enforcement](./23-http.md)_
 
@@ -35,10 +35,14 @@ optional, absent unless wired, contributing nothing to `EvaluationServices`. See
 
 ```ts
 export interface DecisionSinkShape {
-  readonly record: (record: DecisionRecord) => Effect.Effect<void>;
+  readonly record: (record: SinkRecord) => Effect.Effect<void>;
 }
 export class DecisionSink extends Context.Service<DecisionSink, DecisionSinkShape>()(…) {}
 ```
+
+`SinkRecord` is `DecisionRecord | ObligationRecord` ([DecisionRecord.ts](../../packages/core/src/DecisionRecord.ts)):
+what happened at the obligation gate is a distinct record from the decision
+itself, and a sink is written to for both.
 
 ```
 REQUIREMENT: `DecisionSink` MUST be read through `Effect.serviceOption`, and MUST

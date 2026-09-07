@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-07                                    |
-> | Revision       | 1.4                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -19,12 +19,12 @@
 > **See:** [ADR-QD-011](../decisions/011-enforce-as-aspect.md)
 
 ```ts
-export const enforce: (
+export const enforce: <EO = never, RO = never>(
   policy: Policy,
-  options?: EvaluateOptions,
+  options?: EnforceOptions<EO, RO>,
 ) => <A, E, R>(
   self: Effect.Effect<A, E, R>,
-) => Effect.Effect<A, E | EvaluationError | AccessDenied, R | EvaluationServices>;
+) => Effect.Effect<A, E | EnforcementError | EO, R | EvaluationServices | RO>;
 ```
 
 ```ts
@@ -41,15 +41,43 @@ REQUIREMENT: When the policy denies, the guarded effect MUST NOT run. It is not
 ```ts
 export const decide: (policy: Policy, options?: EvaluateOptions) => Effect.Effect<Decision, ...>;
 export const check: (policy: Policy, options?: EvaluateOptions) => Effect.Effect<boolean, ...>;
-export const assert: (policy: Policy, options?: EnforceOptions) => Effect.Effect<void, ...>;
-export const filter: <A extends Record<string, unknown>>(
+export const assert: <E = never, R = never>(
+  policy: Policy,
+  options?: EnforceOptions<E, R>,
+) => Effect.Effect<void, EnforcementError | E, EvaluationServices | R>;
+export const filter: <A extends Resource, EO = never, RO = never>(
   policy: Policy,
   items: ReadonlyArray<A>,
-) => Effect.Effect<ReadonlyArray<A>, ...>;
+  options?: EnforceOptions<EO, RO>,
+) => Effect.Effect<
+  ReadonlyArray<A>,
+  EvaluationError | UndischargedObligation | EO,
+  EvaluationServices | RO
+>;
+export const filterStream: <A extends Resource, E2 = never, R2 = never, EO = never, RO = never>(
+  policy: Policy,
+  items: Stream.Stream<A, E2, R2>,
+  options?: EnforceOptions<EO, RO>,
+) => Stream.Stream<
+  A,
+  EvaluationError | UndischargedObligation | EO | E2,
+  EvaluationServices | RO | R2
+>;
 ```
 
 `filter` evaluates the policy once per element, with the element as the
-resource, which expresses row-level authorization over a collection.
+resource, which expresses row-level authorization over a collection. An
+element whose allow carries a binding obligation fails the whole call rather
+than being silently dropped — dropping it would report a wiring mistake as a
+denial, which [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)
+exists to prevent.
+
+`filterStream` is `filter`'s streamed sibling, for a collection too large to
+hold as a `ReadonlyArray` or too large to wait on in full before the first
+admitted item is usable — paginated rows from a database, say. It shares
+`filter`'s per-item decision logic, so the two can never disagree about who
+passes, and it is additive: `filter` is unchanged and stays the default entry
+point for a collection already in hand.
 
 ## BEH-QD-051: Field-level projection
 
@@ -175,14 +203,14 @@ const guarded = deleteDocument("doc-1").pipe(
 > [ADR-QD-035](../decisions/035-witness-guard-primitive.md)
 
 ```ts
-export const guard: <P extends Permission>(
+export const guard: <P extends Permission, EO = never, RO = never>(
   permission: P,
   policy: Policy,
-  options?: EnforceOptions,
+  options?: EnforceOptions<EO, RO>,
 ) => <A extends Resource, B, E, R>(
   resource: A,
   handler: (authorized: Authorized<P>, resource: A) => Effect.Effect<B, E, R>,
-) => Effect.Effect<B, E | EnforcementError, R | EvaluationServices>;
+) => Effect.Effect<B, E | EnforcementError | EO, R | EvaluationServices | RO>;
 ```
 
 ```
