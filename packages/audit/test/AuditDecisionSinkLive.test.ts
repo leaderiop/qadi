@@ -1,8 +1,12 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as Layer from "effect/Layer";
+import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
-import { AuditWriteError } from "../src/AuditTrailPort.ts";
+import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditStagingError } from "../src/AuditStagingPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
@@ -234,4 +238,83 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       yield* program;
       assert.strictEqual(written().length, 1);
     }));
+
+  it.effect(
+    "an interrupted half-open probe releases its claim — H4 (ticket #38): a later probe " +
+      "attempt is still possible, and the breaker doesn't wedge Open forever",
+    () =>
+      Effect.gen(function* () {
+        let writeAttempts = 0;
+        const probeStarted = yield* Deferred.make<void>();
+        // Only write attempt 6 — the half-open probe, once the breaker has
+        // tripped on the default failureThreshold of 5 — hangs, standing in
+        // for a client disconnect / `Effect.timeout` cutting the write off
+        // mid-flight. `probeStarted` lets the test wait until the probe
+        // genuinely holds the claim, not merely forked.
+        const trail = Layer.succeed(AuditTrailPort, {
+          write: (entry) => {
+            writeAttempts++;
+            if (writeAttempts <= 5) {
+              return Effect.fail(new AuditWriteError({ entry, cause: "offline" }));
+            }
+            if (writeAttempts === 6) {
+              return Deferred.succeed(probeStarted, undefined).pipe(
+                Effect.flatMap(() => Effect.never),
+              );
+            }
+            return Effect.void;
+          },
+        });
+        const { layer: staging, staged, committed } = AuditStagingPortTest();
+
+        yield* Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+
+          // Trip the breaker: failureThreshold (default 5) consecutive
+          // failures.
+          for (let i = 0; i < 5; i++) {
+            yield* sink.record(decisionRecord({ evaluationId: `fail-${i}` }));
+          }
+          // Past resetTimeoutMs (default 30 000ms): the next status read
+          // moves Open -> HalfOpen.
+          yield* TestClock.adjust("30 seconds");
+
+          // The probe write, forked so the test can interrupt it mid-flight
+          // — exactly the shape a client disconnect or `Effect.timeout`
+          // wrapping `sink.record` produces in production.
+          const probeFiber = yield* Effect.forkChild(
+            sink.record(decisionRecord({ evaluationId: "probe" })),
+          );
+          yield* Deferred.await(probeStarted);
+          yield* Fiber.interrupt(probeFiber);
+
+          // Under the bug, `claimProbe` is never released: `status` stays
+          // wedged at `"HalfOpen"` forever, so every later call loses
+          // `claimProbe`, re-reads `status` as still `"HalfOpen"` (not
+          // `"Closed"`), and treats itself as `Open` — no write is ever
+          // attempted again, no matter how long the backend has recovered.
+          yield* sink.record(decisionRecord({ evaluationId: "still-recovering" }));
+          assert.strictEqual(
+            writeAttempts,
+            6,
+            "immediately after the interrupted probe, the reopened breaker still honors resetTimeoutMs",
+          );
+
+          // Once resetTimeoutMs elapses again, a fresh half-open window — and
+          // a fresh probe — must be reachable. Under the bug this call would
+          // never attempt write() at all, and writeAttempts would stay at 6.
+          yield* TestClock.adjust("30 seconds");
+          yield* sink.record(decisionRecord({ evaluationId: "recovered" }));
+          assert.strictEqual(writeAttempts, 7, "a later probe attempt is still possible");
+        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging));
+
+        // The recovered write actually committed its staged entry — full
+        // round-trip recovery, not just an unstuck status read. Staging
+        // itself stays bounded: it only ever grew by the calls this test
+        // made (interrupted probe + one open-window entry + the recovered
+        // one), never by an ever-growing backlog with no path to durability.
+        assert.strictEqual(committed().length, 1, "the recovered probe's entry committed");
+        assert.isBelow(staged().length, 10, "staging did not grow unbounded while the breaker recovered");
+      }),
+  );
 });
