@@ -81,6 +81,7 @@ describe("simplify", () => {
       P.hasAction("read"),
       P.hasActed("raised"),
       P.hasNotActed("approved", { scope: "Any" }),
+      P.hasCustom("weird-check", { threshold: 1 }),
       P.hasSignature("approved"),
     ];
 
