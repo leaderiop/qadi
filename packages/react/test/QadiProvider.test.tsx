@@ -215,34 +215,16 @@ describe("hooks", () => {
     await waitFor(() => expect(screen.getByText("admin=true")).toBeDefined());
   });
 
-  it("commits a changed subject before children render it, not after paint in an effect", async () => {
-    // A write in a passive `useEffect` runs after paint, so a frame commits
-    // and paints with the *previous* subject's verdicts still on screen —
-    // here, `useSubject` itself still reporting the old id — for the gap
-    // between the new `subject` prop landing and the effect catching up. This
-    // records every render `Probe3` makes and asserts none of them, after the
-    // prop change, still hold the old subject: the write must land before this
-    // subtree renders, not in a subsequent commit.
-    const seen: Array<string | undefined> = [];
-    const Probe3 = () => {
-      const current = useSubject();
-      seen.push(current?.id);
-      return <span>{current?.id ?? "none"}</span>;
-    };
-
-    const { rerender } = wrap(reader, <Probe3 />);
-    await waitFor(() => expect(screen.getByText("u1")).toBeDefined());
-
-    seen.length = 0;
-    rerender(
-      <QadiProvider atoms={atoms} subject={nobody}>
-        <Probe3 />
-      </QadiProvider>,
-    );
-    await waitFor(() => expect(screen.getByText("u2")).toBeDefined());
-
-    expect(seen.every((id) => id === "u2")).toBe(true);
-  });
+  // Ticket 34 tried writing a changed `subject` prop to the registry
+  // synchronously during render instead of in this passive `useEffect`, to
+  // close a one-frame flash of the previous subject's verdicts on a genuine
+  // subject change. That version reproducibly hung an in-flight re-check
+  // forever on a page where `subject` never changes at all — a regression
+  // this suite's happy-dom environment could not see, only found by
+  // bisecting `examples/nextjs-newsroom`'s own e2e suite down to that commit.
+  // Reverted in favor of this effect, which is what the rest of this describe
+  // block already exercises; the flash ticket 34 targeted is a known,
+  // narrower open issue rather than a regression this file pins.
 });
 
 describe("instrument in a production bundle", () => {

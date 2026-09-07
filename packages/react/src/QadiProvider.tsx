@@ -173,31 +173,25 @@ export const QadiProvider = ({
     ],
   }));
 
-  // A changed `subject` prop is written to the registry here, during render,
-  // rather than in a passive `useEffect`. `useEffect` runs after paint, so a
-  // frame would commit and paint with the *previous* subject's verdicts still
-  // on screen for the gap between the new prop landing and the effect
-  // catching up — exactly the guarded controls this package exists to keep
-  // honest, briefly showing someone else's answer. Comparing against a ref
-  // and writing synchronously here closes that gap: children render after
-  // this line, in the same pass, so they read the new subject on their first
-  // render rather than a subsequent one.
-  //
-  // This mutates during render, which is fine here specifically because
-  // `registry` is not React state — it is the same external, imperative
-  // object `registryRef.current ??= …` above already constructs during
-  // render. `registry.set` only ever writes the exact value this render was
-  // given, so a discarded render (an aborted or replayed one, under
-  // concurrent rendering) writes nothing a later, committed render would not
-  // have written anyway — unlike calling a `useState` setter here, which
-  // would race React's own re-render loop.
-  const previousSubject = useRef(subject);
-  if (previousSubject.current !== subject) {
-    previousSubject.current = subject;
+  // Reverted from a render-phase write (ticket 34): that version reproducibly
+  // hung an in-flight re-check forever on a page where `subject` never
+  // changes at all — `settled()`'s listener never delivered the final answer
+  // even though the underlying port request completed — confirmed by
+  // bisecting `examples/nextjs-newsroom`'s "a seeded allow is replaced by
+  // this client's own denial" e2e test down to this exact commit and
+  // reproducing it with a clean rebuild in both directions. The render-phase
+  // write's own guard (`previousSubject.current !== subject`) never even
+  // fired in the failing case, so the regression is in some effect of
+  // reading/writing the registry during render that this investigation did
+  // not fully isolate before time ran out — recorded rather than silently
+  // worked around. A one-frame flash of the previous subject's verdicts on a
+  // genuine subject change (the real, narrower case ticket 34 was written
+  // for) is the known tradeoff of reverting to this effect.
+  useEffect(() => {
     if (registry.get(atoms.subject) !== subject) {
       registry.set(atoms.subject, subject);
     }
-  }
+  }, [registry, atoms, subject]);
 
   useEffect(() => {
     if (instrument && !isDevelopment()) warnInstrumentedInProduction();
