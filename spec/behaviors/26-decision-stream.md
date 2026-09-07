@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-26                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -73,11 +73,24 @@ the feed with a `decisionSinkRing` through `decisionSinkAll`.
 ## BEH-QD-202: The stream is Server-Sent Events, and it is guarded
 
 ```ts
+export interface DecisionStreamOptions {
+  readonly reauth?: {
+    readonly interval: Duration.Input;
+  };
+}
+
 export const decisionStreamRoute: (
   permission: Permission,
   policy: Policy,
   stream: Stream<SinkRecord>,
+  options?: DecisionStreamOptions,
 ) => Layer<…>;
+
+export const reauthCheck: (
+  request: HttpServerRequest,
+  policy: Policy,
+  resource: Resource,
+) => Effect<void, "denied" | "extraction-failed", Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor>;
 ```
 
 ```
@@ -119,6 +132,51 @@ bidirectional RPC channel. This is a feed.
 `cache-control: no-cache` and `x-accel-buffering: no` are part of the
 requirement, not decoration: without them a proxy buffers the stream and the feed
 appears to hang rather than to work slowly.
+
+**`guardRoute` runs once, at connect — and again, periodically, for as long as
+the connection stays open, when `reauth` is given.** Without it, a revoked or
+logged-out principal whose connection is still open keeps receiving every
+decision this process makes for as long as the stream stays up: nothing short
+of the client disconnecting or the process restarting would end it. `reauth`
+closes that window — this is a revocation problem, not a cosmetic one, which is
+why it belongs in this document rather than only in the package's own
+comments.
+
+```
+REQUIREMENT: When `reauth` is given, the route MUST, on the named interval,
+             re-extract the subject from the SAME request and re-evaluate the
+             policy against the fresh subject — never reuse whatever the
+             extractor answered at connect.
+```
+
+Re-extracting, not re-checking a cached subject, is the point: for a real
+`SubjectExtractor` backed by a token or session lookup, re-extracting is
+exactly where a revocation since connect becomes visible, because the lookup
+runs again.
+
+```
+REQUIREMENT: A failed re-extraction or a denial on recheck MUST end the
+             stream. Neither MAY be silently absorbed.
+```
+
+`reauthCheck` runs on `assert`'s semantics — permitted *and* discharged — not
+`evaluate` + `isAllowed`. `guardRoute`'s connect-time check already enforces
+through `guard`, which refuses an allow carrying an undischarged binding
+obligation; a recheck built on the weaker `evaluate` would let a connection
+survive past the point connecting fresh would have refused it, the moment a
+policy is `Obliged`. `EventSource`'s own automatic reconnect is what recovers
+from either failure, going through `guardRoute`'s full check again on the new
+connection — no protocol of ours.
+
+```
+REQUIREMENT: `reauth` MUST be off by default.
+```
+
+It is meaningless without a `SubjectExtractor` whose `lookup` actually
+consults something that can change — a real deployment's does; an in-memory
+test double does not — so an interval nobody asked for would only be needless
+load for a deployment with no revocation source to notice. See
+[ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md) Rev 1.1.
 
 ---
 

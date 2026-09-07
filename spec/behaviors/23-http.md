@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-23                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
+> | Change History | 1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
 
 _Previous: [22 — The Promise Facade](./22-promise-facade.md)_
 
@@ -124,8 +124,14 @@ REQUIREMENT: `toResponse` MUST be exhaustive over `EnforcementError`, and MUST
 | Error | Status | Because |
 | ----- | ------ | ------- |
 | `AccessDenied`, `UndischargedObligation` | 403 | the policy's answer |
-| `AttributeResolveError`, `RelationshipResolveError`, `DecisionHistoryUnavailable` | 502 | a dependency of this service broke |
+| `AttributeResolveError`, `RelationshipResolveError`, `DecisionHistoryUnavailable`, `CustomPredicateError`, `SignatureHistoryUnavailable` | 502 | a dependency of this service broke |
 | `MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep` | 500 | a wiring mistake in this service |
+
+`CustomPredicateError` covers both causes it carries — an unregistered name and
+the registered predicate's own logic failing — under the same status the other
+resolver outages get, since the common case is the latter. `SignatureHistoryUnavailable`
+is a wired signature-history store that could not be reached, the same outage
+shape as the rest of the row.
 
 The 403/502 split is [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)
 at the wire: a broken attribute store must never be reported as "not permitted".

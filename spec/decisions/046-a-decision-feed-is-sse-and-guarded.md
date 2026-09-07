@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-046                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.1 (2026-09-07): `decisionStreamRoute` gains an optional `reauth` — periodic re-extraction of the subject and re-evaluation of the policy against an open connection, closing the window a connect-time-only check leaves for a principal revoked after connecting; documented here and in BEH-QD-202, having shipped in code (`DecisionStreamOptions`, `reauthCheck`) without either being updated (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 ---
 
@@ -50,6 +50,19 @@ route in the package — which is what makes the paragraph above cheap to honour
 rather than something to reimplement. `EventSource` reconnects on its own, and
 that pairs with the feed's `replay` to recover a dropped connection with no
 protocol of ours.
+
+**`guardRoute` at connect is not enough on its own, for a connection that
+outlives the principal's authorization.** SSE connections are long-lived by
+design — that is the whole point of a feed over polling — and a check that
+runs once, at connect, cannot see a revocation that happens afterward: nothing
+short of the client disconnecting or the process restarting would end a
+connection for a principal revoked mid-stream. `decisionStreamRoute` takes an
+optional `reauth: { interval }` that re-extracts the subject from the same
+request and re-evaluates the policy on that interval, ending the stream on
+the first failed recheck. It is additive and off by default — the original,
+connect-only behavior is unchanged when it is not given, and it is only
+meaningful for a `SubjectExtractor` whose lookup actually consults something
+that can change.
 
 ## Alternatives considered
 
