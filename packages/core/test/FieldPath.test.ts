@@ -1,6 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
 import { compareFieldPaths, parseFieldPath, project } from "../src/FieldPath.ts";
 
+/** Narrows a projected value so a deep assertion can walk into it without `as`. */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
 describe("parseFieldPath", () => {
   it("splits on dots", () => {
     assert.deepStrictEqual(parseFieldPath("address.street"), ["address", "street"]);
@@ -245,5 +249,48 @@ describe("project", () => {
     assert.isTrue(Object.hasOwn(result, "__proto__"));
     const probe: Record<string, unknown> = {};
     assert.isUndefined(probe["polluted"]);
+  });
+
+  it("a field spec with more dot-segments than the call stack has frames does not overflow it", () => {
+    // The finding this pins (issue #66): `projectAt` used real function-call
+    // recursion, one frame per matching segment, over two inputs a policy
+    // author controls — a `fields` spec, which `parseFieldPath` splits with no
+    // length cap, and the resource it descends. A spec with enough dot-segments
+    // against a correspondingly deep resource raised a raw `RangeError` out of
+    // the *enforcement* path, crashing the evaluating process rather than
+    // failing the one decision closed. 20,000 is comfortably past Node's
+    // default frame budget: the pre-fix implementation threw here, the
+    // explicit-stack walk projects the value.
+    const depth = 20_000;
+    let data: Record<string, unknown> = { leaf: "visible" };
+    for (let i = 0; i < depth; i++) data = { a: data };
+    const spec = `${Array.from({ length: depth }, () => "a").join(".")}.leaf`;
+
+    const result = project(data, [spec]);
+
+    // The projection is not merely non-throwing — it is the whole correct
+    // answer, `depth` levels of a single `a` key with `leaf` at the bottom.
+    let node: unknown = result;
+    let levels = 0;
+    while (isRecord(node) && Object.keys(node).length === 1 && Object.hasOwn(node, "a")) {
+      node = node["a"];
+      levels += 1;
+    }
+    assert.strictEqual(levels, depth);
+    assert.deepStrictEqual(node, { leaf: "visible" });
+  });
+
+  it("a deep spec whose terminal matches nothing omits, unwinding every frame it pushed", () => {
+    // The failing-closed mirror of the case above, at the same depth: the walk
+    // descends all 20,000 levels and only then finds the terminal segment
+    // absent, so `OMIT` has to propagate back up through every frame — an
+    // empty projection at each level erasing the key that reached it. Failing
+    // closed at depth must be exactly as stack-safe as succeeding at depth.
+    const depth = 20_000;
+    let data: Record<string, unknown> = { leaf: "visible" };
+    for (let i = 0; i < depth; i++) data = { a: data };
+    const spec = `${Array.from({ length: depth }, () => "a").join(".")}.absent`;
+
+    assert.deepStrictEqual(project(data, [spec]), {});
   });
 });

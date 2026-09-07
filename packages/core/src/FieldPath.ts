@@ -159,8 +159,9 @@ const groupByHead = (
   const groups = new Map<string, Array<ReadonlyArray<string>>>();
   for (const tail of tails) {
     const head = tail[0];
-    // Unreachable, not decoration: `projectAt` already returns before ever
-    // calling this for a length-0 tail, so `head` is never `undefined` here.
+    // Unreachable, not decoration: `projectAt` checks `grantsWhole` before any
+    // frame is built, so a length-0 tail never reaches here and `head` is
+    // never `undefined`.
     if (head === undefined) continue;
     const rest = tail.slice(1);
     const existing = groups.get(head);
@@ -171,68 +172,178 @@ const groupByHead = (
 };
 
 /**
- * Projects `value` under every tail that reached it.
+ * True when some tail grants whatever it reached whole — an empty tail, or a
+ * bare `"**"`.
  *
- * A tail is what remains of one field spec's segments after consuming
- * whatever led here. An empty tail means some spec's literal path ends
- * exactly at `value` — grant it whole, unrestricted beneath. A `"**"` tail
- * means the same, at any remaining depth. A `"*"` tail grants existence at
- * exactly one more level and no further: an object-valued child reached only
- * by `"*"` is shown present but empty, its own contents one level beyond
- * what `"*"` reaches.
+ * An empty tail means some spec's literal path ends exactly there; a `"**"`
+ * tail means the same, at any remaining depth. Either way there is nothing
+ * left to redact beneath, whatever shape the value turns out to have — so this
+ * is the one question answered before a value's own shape is even looked at.
  */
-const projectAt = (value: unknown, tails: ReadonlyArray<ReadonlyArray<string>>): unknown => {
-  if (tails.some((tail) => tail.length === 0)) return value;
-  if (tails.some((tail) => tail.length === 1 && tail[0] === "**")) return value;
-  if (!isPlainObject(value)) return OMIT;
+const grantsWhole = (tails: ReadonlyArray<ReadonlyArray<string>>): boolean =>
+  tails.some((tail) => tail.length === 0) ||
+  tails.some((tail) => tail.length === 1 && tail[0] === "**");
 
+/**
+ * One level of {@link projectAt}'s walk: the object being projected, the specs
+ * still descending into it, and the result being assembled for it.
+ *
+ * `cursor` is the frame's own position in `keys`, so the driver loop can leave
+ * a frame on the stack, descend into a child, and resume exactly where it left
+ * off — which is what a function-call frame used to hold implicitly.
+ */
+interface Frame {
+  readonly value: Record<string, unknown>;
+  /** Path tails still descending, grouped by the key each descends into. */
+  readonly deeper: ReadonlyMap<string, ReadonlyArray<ReadonlyArray<string>>>;
+  /** Whether a bare `"*"` tail terminated at this level. */
+  readonly starOne: boolean;
+  readonly keys: ReadonlyArray<string>;
+  cursor: number;
+  /**
+   * `Object.create(null)` rather than `{}`: `key` comes from
+   * `Object.keys(value)` (untrusted data — JSON.parse gives an object its own
+   * "__proto__" key without ever touching the real prototype, so
+   * `Object.hasOwn` sees it) or from a policy-authored field spec segment this
+   * module's own doc says is never validated. Either source can produce the
+   * literal string "__proto__", and `out[key] = ...` on an ordinary object
+   * literal would invoke `Object.prototype`'s `__proto__` *setter* rather than
+   * create an own property — a null-prototype `out` has no such setter to
+   * invoke, so the assignment is always a plain data property, whatever `key`
+   * is.
+   */
+  readonly out: Record<string, unknown>;
+  /** Where this frame's finished projection belongs; `undefined` at the root. */
+  readonly parent: Frame | undefined;
+  readonly parentKey: string;
+}
+
+const makeFrame = (
+  value: Record<string, unknown>,
+  tails: ReadonlyArray<ReadonlyArray<string>>,
+  parent: Frame | undefined,
+  parentKey: string,
+): Frame => {
   const starOne = tails.some((tail) => tail.length === 1 && tail[0] === "*");
-  // The `"**"` half of this filter's exclusion is unreachable, not
-  // decoration: a length-1 `"**"` tail always triggers the early return two
-  // lines above this function's start, before any tail ever reaches here.
+  // The `"**"` half of this filter's exclusion is unreachable, not decoration:
+  // a length-1 `"**"` tail is `grantsWhole`, which every caller checks before
+  // building a frame, so no such tail ever reaches here.
   const deeper = groupByHead(
     tails.filter((tail) => !(tail.length === 1 && (tail[0] === "*" || tail[0] === "**"))),
   );
+  return {
+    value,
+    deeper,
+    starOne,
+    keys: starOne ? Object.keys(value) : [...deeper.keys()],
+    cursor: 0,
+    out: Object.create(null),
+    parent,
+    parentKey,
+  };
+};
 
-  // `Object.create(null)` rather than `{}`: `key` comes from `Object.keys(value)`
-  // (untrusted data — JSON.parse gives an object its own "__proto__" key without
-  // ever touching the real prototype, so `Object.hasOwn` below sees it) or from a
-  // policy-authored field spec segment this module's own doc says is never
-  // validated. Either source can produce the literal string "__proto__", and
-  // `out[key] = ...` on an ordinary object literal would invoke
-  // `Object.prototype`'s `__proto__` *setter* rather than create an own
-  // property — a null-prototype `out` has no such setter to invoke, so the
-  // assignment is always a plain data property, whatever `key` is.
-  const out: Record<string, unknown> = Object.create(null);
-  const keys = starOne ? Object.keys(value) : [...deeper.keys()];
-  for (const key of keys) {
-    if (!Object.hasOwn(value, key)) continue;
-    const child = value[key];
-    const childTails = deeper.get(key);
-    if (childTails !== undefined) {
-      const projected = projectAt(child, childTails);
-      if (projected !== OMIT) out[key] = projected;
-      else if (starOne) {
-        // The two conditions compose rather than exclude one another: a
-        // sibling `"*"` grants this same key too, and the deeper spec's own
-        // projection failing — `child` isn't a plain object, so descending
-        // into `childTails` hits `!isPlainObject(value)` and returns `OMIT`
-        // above — must not also erase the `"*"` grant that reached here
-        // independently. Without this arm a policy author combining
-        // `"contact.*"` with `"contact.employer.name"` would see `employer`
-        // vanish entirely whenever it's a scalar, rather than the whole value
-        // `"*"` alone would have shown it.
-        out[key] = isPlainObject(child) ? {} : child;
+/**
+ * What a `"*"` alone discloses of `child` — the fallback when a deeper spec on
+ * the same key contributed nothing.
+ *
+ * The two conditions compose rather than exclude one another: a sibling `"*"`
+ * grants this key too, and the deeper spec's own projection failing must not
+ * also erase the `"*"` grant that reached here independently. Without this a
+ * policy author combining `"contact.*"` with `"contact.employer.name"` would
+ * see `employer` vanish entirely whenever it's a scalar, rather than the whole
+ * value `"*"` alone would have shown it.
+ */
+const starOneView = (child: unknown): unknown => (isPlainObject(child) ? {} : child);
+
+/**
+ * Projects `root` under every tail that reached it.
+ *
+ * A tail is what remains of one field spec's segments after consuming whatever
+ * led here. A `"*"` tail grants existence at exactly one more level and no
+ * further: an object-valued child reached only by `"*"` is shown present but
+ * empty, its own contents one level beyond what `"*"` reaches.
+ *
+ * **Walks with an explicit array-backed stack, mirroring `exceedsJsonDepth`
+ * (`DecodeDepthGuard.ts`) and `SinkCodec.ts`'s `isJsonSafe`, rather than
+ * recursing.** This was function-call recursion, one frame per matching
+ * segment, over two inputs a policy author controls: a `fields` spec, which
+ * {@link parseFieldPath} splits with no length cap, and the resource it
+ * descends. Both reach here from a `Policy` that ADR-QD-002 says is persisted
+ * and re-parsed from untrusted JSON — and a dot-path's segment count is
+ * invisible to `MAX_DECODE_DEPTH`, which bounds a policy's *structural*
+ * nesting and never sees inside one long string. A crafted spec against a
+ * correspondingly deep resource therefore raised a raw `RangeError` out of the
+ * enforcement path itself (`Decision.ts`'s `project`, on every field-restricted
+ * allow) — a crashed process rather than one decision failed closed, which is
+ * the one outcome an authorization library must never produce. Every other
+ * recursive walk over untrusted-derived input in this codebase had already been
+ * converted for exactly this reason; this one had been missed (CCR-QD-115).
+ *
+ * The projection stays identical, node for node. Depth is now bounded by the
+ * heap rather than the call stack, and the walk is still linear in the number
+ * of nodes visited.
+ */
+const projectAt = (
+  root: Record<string, unknown>,
+  rootTails: ReadonlyArray<ReadonlyArray<string>>,
+): unknown => {
+  if (grantsWhole(rootTails)) return root;
+
+  let result: unknown = OMIT;
+  const stack: Array<Frame> = [makeFrame(root, rootTails, undefined, "")];
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame === undefined) break;
+
+    if (frame.cursor >= frame.keys.length) {
+      stack.pop();
+      const projected = Object.keys(frame.out).length === 0 ? OMIT : frame.out;
+      const parent = frame.parent;
+      if (parent === undefined) {
+        result = projected;
+      } else if (projected !== OMIT) {
+        parent.out[frame.parentKey] = projected;
+      } else if (parent.starOne) {
+        // A frame is only ever pushed for a plain-object child, so the
+        // `starOne` fallback here is always the `{}` half of `starOneView`.
+        parent.out[frame.parentKey] = {};
       }
-    } else if (starOne) {
-      // `starOne` is always true here, not decoration: when it's false,
-      // `keys` was built from `deeper.keys()` alone, so every iterated key
-      // already took the `childTails !== undefined` branch above — this one
-      // never runs.
-      out[key] = isPlainObject(child) ? {} : child;
+      continue;
     }
+
+    const key = frame.keys[frame.cursor];
+    frame.cursor += 1;
+    // Unreachable, not decoration: `cursor` is bounded by `keys.length` above,
+    // and `keys` holds no holes.
+    if (key === undefined) continue;
+    if (!Object.hasOwn(frame.value, key)) continue;
+
+    const child = frame.value[key];
+    const childTails = frame.deeper.get(key);
+    if (childTails === undefined) {
+      // `frame.starOne` is always true here, not decoration: when it's false,
+      // `keys` was built from `deeper.keys()` alone, so every iterated key has
+      // a `childTails` and this branch never runs.
+      frame.out[key] = starOneView(child);
+      continue;
+    }
+    if (grantsWhole(childTails)) {
+      frame.out[key] = child;
+      continue;
+    }
+    if (!isPlainObject(child)) {
+      // The deeper spec expects more depth than the data has, so it discloses
+      // nothing — but a sibling `"*"` that also reached this key still shows
+      // the whole scalar, per {@link starOneView}.
+      if (frame.starOne) frame.out[key] = starOneView(child);
+      continue;
+    }
+    stack.push(makeFrame(child, childTails, frame, key));
   }
-  return Object.keys(out).length === 0 ? OMIT : out;
+
+  return result;
 };
 
 /**
