@@ -2,10 +2,11 @@
  * The port calls an evaluation made, read out of its spans.
  *
  * `portActivity` counts calls per port and can say nothing else: `PortMetrics.ts`
- * keys its frequencies on the **port name** — three closed values — precisely
- * for cardinality, so an attribute name could never live there. Its doc comment
- * also rejects the other obvious reader, a per-call sink, because that "would
- * put a write on the evaluation's hot path for a debug view".
+ * keys its frequencies on the **port name** — `portCallsTotal`'s five closed
+ * values — precisely for cardinality, so an attribute name could never live
+ * there. Its doc comment also rejects the other obvious reader, a per-call
+ * sink, because that "would put a write on the evaluation's hot path for a
+ * debug view".
  *
  * A collecting tracer answers both objections. The span already exists and is
  * already annotated ([BEH-QD-227](../../../../spec/behaviors/30-port-calls.md)),

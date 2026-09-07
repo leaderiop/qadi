@@ -20,7 +20,9 @@
  * one side has no node 3. That is a real finding about the evaluation, not a
  * limitation to work around.
  */
+import * as Equal from "effect/Equal";
 import type { Trace } from "./Decision.ts";
+import type { Obligation } from "./Obligation.ts";
 
 /** Where a node sits: the child indices walked from the root, outermost first. */
 export type TracePath = ReadonlyArray<number>;
@@ -83,13 +85,23 @@ export interface FieldsChanged {
   readonly after: ReadonlyArray<string> | undefined;
 }
 
-/** The duties this node contributed changed. */
+/**
+ * The duties this node contributed changed — added, removed, or one kept its
+ * `id` but changed underneath it.
+ *
+ * `before`/`after` carry the whole `Obligation`, not just `id`. `Obligation.ts`
+ * is explicit that `id` is "not an identity: two duties may share one id", and
+ * `unionObligations` already compares by the whole value for the same reason —
+ * an id-only diff here would report no change when the same-named duty's
+ * `attributes` or `advisory` flag moved underneath it, which is exactly the
+ * kind of change a what-if or a replay exists to surface (issue 45).
+ */
 export interface ObligationsChanged {
   readonly _tag: "ObligationsChanged";
   readonly path: TracePath;
   readonly policyTag: Trace["policyTag"];
-  readonly before: ReadonlyArray<string>;
-  readonly after: ReadonlyArray<string>;
+  readonly before: ReadonlyArray<Obligation>;
+  readonly after: ReadonlyArray<Obligation>;
 }
 
 export type TraceDifference =
@@ -128,6 +140,37 @@ const sameFields = (
   // versus none — so they must never compare equal here (INV-QD-004).
   if (a === undefined || b === undefined) return a === b;
   return sameStringSet(a, b);
+};
+
+/**
+ * Whether two obligation multisets hold the same duties.
+ *
+ * Compared by the **whole value**, never by `id` alone — the same rule
+ * `unionObligations` (`Obligation.ts`) already draws when it decides whether a
+ * duty reached twice through a diamond is one duty or two. An id-only
+ * comparison would treat `obligation("audit.log", { level: "info" })` and
+ * `obligation("audit.log", { level: "warn" })` as identical, which is the
+ * defect this function exists to not have.
+ *
+ * Order-insensitive for the same reason `sameStringSet` is — `unionObligations`'s
+ * insertion order is not part of what a duty *is* — and, unlike
+ * `sameStringSet`, cannot sort first: an `Obligation` has no total order, so
+ * this consumes matches out of a mutable copy of `b` instead. Obligation lists
+ * are short (a handful of duties per node at most), so the resulting O(n²) is
+ * not a cost worth avoiding here.
+ */
+const sameObligationSet = (
+  a: ReadonlyArray<Obligation>,
+  b: ReadonlyArray<Obligation>,
+): boolean => {
+  if (a.length !== b.length) return false;
+  const remaining = [...b];
+  for (const candidate of a) {
+    const index = remaining.findIndex((seen) => Equal.equals(seen, candidate));
+    if (index === -1) return false;
+    remaining.splice(index, 1);
+  }
+  return true;
 };
 
 /**
@@ -203,15 +246,13 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
       });
     }
 
-    const beforeObligations = a.obligations.map((o) => o.id);
-    const afterObligations = b.obligations.map((o) => o.id);
-    if (!sameStringSet(beforeObligations, afterObligations)) {
+    if (!sameObligationSet(a.obligations, b.obligations)) {
       out.push({
         _tag: "ObligationsChanged",
         path,
         policyTag: b.policyTag,
-        before: beforeObligations,
-        after: afterObligations,
+        before: a.obligations,
+        after: b.obligations,
       });
     }
 

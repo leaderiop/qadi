@@ -495,13 +495,18 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
         `subject '${subject.id}' has no '${policy.relation}' relation to '${rawId}'`,
       ),
     ),
-    // Not "has no relation": nothing looked. Naming the absent resolver is the
-    // whole of INV-QD-029 — the sentence above would send a reader to audit a
-    // graph they had never connected.
+    // Not "has no relation": nothing confirmed one. `"Unknown"` does not mean
+    // "unwired" specifically — `RelationshipResolverNever` is the common source,
+    // but a wired resolver may answer it too (a graph store with no namespace
+    // for this relation, say; `RelationshipResolver.ts`'s `RelatedResult` doc
+    // says so). The port cannot tell the two apart, so the sentence does not
+    // claim wiring is the cause — that would be exactly the kind of unverified
+    // claim about a store INV-QD-029 forbids, the same defect this arm was
+    // added to fix in the first place (BEH-QD-045).
     Match.when("Unknown", () =>
       deny(
         "HasRelationship",
-        `no relationship resolver is wired, so no '${policy.relation}' relation to '${rawId}' can be confirmed`,
+        `no relationship resolver could confirm the '${policy.relation}' relation to '${rawId}'`,
       ),
     ),
     Match.exhaustive,

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-041                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-08-23): Initial release (CCR-QD-056) |
+> | Change History | 1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-112)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
 
 _Follows: [ADR-QD-039](./039-a-seed-is-not-an-authority.md), which made the
 client's answer supersede the seed and said nothing about telling anyone._
@@ -124,7 +124,12 @@ seed's tag and printed the wrong policy name; the test caught it.
 The trailing clause is `decided.reason`, which is where
 [ADR-QD-040](./040-an-unwired-port-names-its-absence.md) pays off: a client with
 no relationship resolver now says so in that slot, turning "why did this button
-vanish" into "no relationship resolver is wired" in one line.
+vanish" into "no relationship resolver could confirm the relation" in one line.
+
+> **Corrected (CCR-QD-112).** This paraphrase quoted ADR-QD-040's denial text
+> as "no relationship resolver is wired" before that ADR's own table was
+> corrected — see its 1.1 revision — to stop asserting a wiring state the
+> evaluator cannot confirm. The example below is updated to match.
 
 ## Consequences
 

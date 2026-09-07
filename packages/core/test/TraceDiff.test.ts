@@ -151,9 +151,11 @@ describe("diffTraces", () => {
       const diff = diffTraces(a.trace, b.trace);
       const obligations = diff.find((d) => d._tag === "ObligationsChanged");
       assert.isDefined(obligations);
+      // The whole `Obligation`, not just its `id` — `ObligationsChanged` is
+      // compared and reported by full value (issue 45).
       assert.deepStrictEqual(
         obligations?._tag === "ObligationsChanged" ? obligations.after : undefined,
-        ["audit.log"],
+        [obligation("audit.log")],
       );
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
@@ -276,6 +278,41 @@ describe("diffTraces — the comparisons themselves", () => {
     });
 
     assert.deepStrictEqual(diffTraces(a, b), []);
+  });
+
+  it("two obligations sharing an id but differing in attributes DO differ", () => {
+    // The defect an id-only comparison has: `Obligation.ts` is explicit that
+    // `id` is "not an identity: two duties may share one id", and
+    // `unionObligations` already compares by the whole value for exactly that
+    // reason. Before this fix, `diffTraces` compared obligations by `id`
+    // alone and would have reported these two traces as identical, hiding a
+    // real change to what the caller must discharge (issue 45).
+    const a = baseTrace({ obligations: [obligation("audit.log", { level: "info" })] });
+    const b = baseTrace({ obligations: [obligation("audit.log", { level: "warn" })] });
+
+    const diff = diffTraces(a, b);
+    const changed = diff.find((d) => d._tag === "ObligationsChanged");
+    assert.isDefined(changed);
+    assert.deepStrictEqual(diff, [
+      {
+        _tag: "ObligationsChanged",
+        path: [],
+        policyTag: "HasPermission",
+        before: [obligation("audit.log", { level: "info" })],
+        after: [obligation("audit.log", { level: "warn" })],
+      },
+    ]);
+  });
+
+  it("two obligations sharing an id and attributes but differing in advisory DO differ", () => {
+    // The mirror case: `attributes` held equal, only `advisory` moved. A
+    // caller distinguishing a binding duty from one it may ignore needs this
+    // reported — `bindingObligations` (`Obligation.ts`) filters on exactly this
+    // flag.
+    const a = baseTrace({ obligations: [obligation("audit.log", {}, { advisory: true })] });
+    const b = baseTrace({ obligations: [obligation("audit.log", {}, { advisory: false })] });
+
+    assert.isDefined(diffTraces(a, b).find((d) => d._tag === "ObligationsChanged"));
   });
 
   it.effect("identical non-empty obligations produce no difference", () =>

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-040                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-08-23): Initial release (CCR-QD-055) |
+> | Change History | 1.1 (2026-09-07): The `"Unknown"` row's denial text corrected — it claimed a resolver was unwired, which this ADR's own "Positive" consequence already says is not the only source of `"Unknown"` (BEH-QD-045, issue 45, CCR-QD-112)<br>1.0 (2026-08-23): Initial release (CCR-QD-055) |
 
 _Extends: [ADR-QD-020](./020-decision-history-port.md), which made the history
 port three-valued and explicitly left the relationship port boolean._
@@ -72,7 +72,16 @@ else.
 | ------------ | ----------------- | ------------ |
 | `"Related"` | allow | — |
 | `"Unrelated"` | deny | `subject 'u1' has no 'owner' relation to 'doc-1'` |
-| `"Unknown"` | deny | `no relationship resolver is wired, so no 'owner' relation to 'doc-1' can be confirmed` |
+| `"Unknown"` | deny | `no relationship resolver could confirm the 'owner' relation to 'doc-1'` |
+
+> **Corrected (CCR-QD-112).** The `"Unknown"` row read "no relationship
+> resolver is wired, so no 'owner' relation to 'doc-1' can be confirmed" — true
+> under `RelationshipResolverNever`, the case this ADR was written against, but
+> this document's own "Positive" consequence below already notes that a
+> *wired* resolver can answer `"Unknown"` too. The sentence asserted a wiring
+> state the evaluator has no way to confirm and has been corrected to claim
+> only what every `"Unknown"` answer has in common — that nothing confirmed
+> the relation (BEH-QD-045, issue 45).
 
 **The verdicts are unchanged.** Both new arms deny exactly where the boolean
 denied, so [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) holds

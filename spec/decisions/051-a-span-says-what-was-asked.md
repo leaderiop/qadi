@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-051                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-112)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 ---
 
@@ -35,9 +35,18 @@ The obvious readers were both already ruled out in this repository, by
 `PortMetrics.ts`'s own doc comment:
 
 - **Richer metrics cannot carry it.** The frequencies are keyed on the port name
-  — three closed values — deliberately, for cardinality. An attribute name is
-  unbounded, and a frequency keyed on one grows a permanent entry per distinct
-  attribute ever read, in a structure held for the life of the registry.
+  — `portCallsTotal`'s five closed values — deliberately, for cardinality. An
+  attribute name is unbounded, and a frequency keyed on one grows a permanent
+  entry per distinct attribute ever read, in a structure held for the life of
+  the registry.
+
+  > **Corrected (CCR-QD-112).** This context section quoted `PortMetrics.ts`'s
+  > doc comment as "three closed values" — accurate on 2026-08-24, when this
+  > ADR was written and `portCallsTotal` covered `AttributeResolver`,
+  > `DecisionHistory` and `RelationshipResolver` only. `CustomPredicate`
+  > (ADR-QD-055) and `SignatureHistory` (ADR-QD-057/058) were added afterward,
+  > and `PortMetrics.ts`'s own doc comment now says five; this quote had not
+  > been updated to match.
 - **A per-call sink was rejected** because it "would put a write on the
   evaluation's hot path for a debug view", and per-decision correlation because
   it "risks the short-circuit guarantee for a panel".

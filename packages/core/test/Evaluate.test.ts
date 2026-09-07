@@ -282,7 +282,7 @@ describe("leaf policies", () => {
       if (d._tag !== "Deny") return;
       assert.strictEqual(
         d.reason,
-        "no relationship resolver is wired, so no 'owner' relation to 'doc-1' can be confirmed",
+        "no relationship resolver could confirm the 'owner' relation to 'doc-1'",
       );
       // Still a denial, not an error: an unwired port is a structural absence,
       // and INV-QD-007 has it fail closed rather than fail loud.
@@ -290,6 +290,37 @@ describe("leaf policies", () => {
       // `testLayer` defaults to RelationshipResolverNever, which is the point —
       // this is what a caller who wired nothing actually gets.
     }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))));
+
+  it.effect(
+    "A WIRED RESOLVER answering Unknown gets the same sentence, not a false wiring claim",
+    () =>
+      Effect.gen(function* () {
+        // BEH-QD-045's drift: the denial used to read "no relationship resolver
+        // is wired" whenever the port answered `"Unknown"`, which is true under
+        // `RelationshipResolverNever` but not in general — `RelatedResult`'s own
+        // doc says a wired resolver may answer `"Unknown"` too (a graph store
+        // with no namespace for this relation, say). A resolver that IS wired,
+        // named, and answers `"Unknown"` must not get a sentence claiming
+        // nothing is wired.
+        const d = yield* evaluate(P.hasRelationship("owner"), {
+          resource: { id: "doc-1" },
+        }).pipe(
+          Effect.provide(
+            Layer.succeed(RelationshipResolver, {
+              name: "aGraphStoreWithNoNamespaceForThisRelation",
+              check: () => Effect.succeed("Unknown"),
+            }),
+          ),
+        );
+        assert.isFalse(isAllowed(d));
+        if (d._tag !== "Deny") return;
+        assert.strictEqual(
+          d.reason,
+          "no relationship resolver could confirm the 'owner' relation to 'doc-1'",
+        );
+        assert.notInclude(d.reason, "is wired");
+      }).pipe(Effect.provide(testLayer(subjectWith({ id: "u1" })))),
+  );
 
   it.effect(
     "a hostile depth is clamped before it reaches the resolver as traversal fuel",

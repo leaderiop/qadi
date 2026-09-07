@@ -61,8 +61,8 @@ const verdict = (decision: Decision): string =>
 
 const warnMismatch = (mismatch: HydrationMismatch): void => {
   // The client's reason is the payload: after a `HasRelationship` policy meets
-  // an unwired resolver it reads "no relationship resolver is wired, so no
-  // 'owner' relation to 'doc-1' can be confirmed", which is the diagnosis.
+  // an unwired resolver it reads "no relationship resolver could confirm the
+  // 'owner' relation to 'doc-1'", which is the diagnosis.
   const because =
     mismatch.decided._tag === "Deny" ? ` — ${mismatch.decided.reason}` : "";
   // The **client's** trace names the policy, not the seed's. A hydrated trace is
