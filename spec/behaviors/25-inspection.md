@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -186,6 +186,26 @@ export const flippedAt: (before: Trace, after: Trace) => VerdictChanged | undefi
 REQUIREMENT: `diffTraces` MUST report verdict, reason, field and obligation
              changes, each addressed by a path from the root.
 ```
+
+```
+REQUIREMENT: An obligation change MUST be judged by the whole duty — `id`,
+             `attributes` and `advisory` — not by `id` alone. Two duties
+             sharing an `id` with different `attributes` or a different
+             `advisory` flag are different duties (`Obligation.ts`'s own "not
+             an identity" note), and `ObligationsChanged` MUST report that
+             difference.
+```
+
+> **Corrected (CCR-QD-114).** `diffTraces` originally reduced each side to
+> `obligations.map((o) => o.id)` and compared those id lists, so two
+> evaluations whose obligation kept its `id` but changed `attributes` or
+> `advisory` underneath it produced an empty diff — "nothing changed" for a
+> caller whose duty had, in fact, changed. `ObligationsChanged.before`/`after`
+> now carry the whole `Obligation`, compared as a multiset by value
+> (`Equal.equals`, the same comparison `unionObligations` already uses), which
+> is the judgment call issue 45 asked for: content diffing, not documenting
+> id-only comparison as intended, because this codebase's own obligation
+> semantics already say `id` is not an identity.
 
 ```
 REQUIREMENT: Differences MUST be ordered parents before children.

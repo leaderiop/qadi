@@ -146,6 +146,27 @@ describe("explain", () => {
     assert.strictEqual(requirement.detail, "the subject is owner of the resource");
   });
 
+  it("states HasRelationship's depth when the policy carries one (INV-QD-031)", () => {
+    // The defect this pins: `hasRelationship("owner")` (unbounded, the
+    // resolver decides) and `hasRelationship("owner", { depth: 1 })` (direct
+    // edges only) are different policies, and the explanation used to render
+    // them to the same sentence because `depth` never reached it.
+    const unbounded = asRequirement(explain(P.hasRelationship("owner")));
+    const bounded = asRequirement(explain(P.hasRelationship("owner", { depth: 1 })));
+    assert.strictEqual(unbounded.detail, "the subject is owner of the resource");
+    assert.strictEqual(
+      bounded.detail,
+      "the subject is owner of the resource within a traversal depth of 1",
+    );
+    assert.notStrictEqual(unbounded.detail, bounded.detail);
+  });
+
+  it("distinguishes two HasRelationship policies differing only in depth (INV-QD-031)", () => {
+    const shallow = renderExplanation(explain(P.hasRelationship("owner", { depth: 1 })));
+    const deep = renderExplanation(explain(P.hasRelationship("owner", { depth: 5 })));
+    assert.notStrictEqual(shallow, deep);
+  });
+
   it("gives HasAction the exact kind and detail sentence", () => {
     const requirement = asRequirement(explain(P.hasAction("read")));
     assert.strictEqual(requirement.kind, "action");

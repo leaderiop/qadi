@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.30                                            |
+> | Revision       | 1.31                                            |
 > | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.30 (2026-09-07): INV-QD-032 updated — "`neq` on `undefined` is `true`" was the wiring bug's mechanism, not just a description of it; the mechanism itself is now closed at the source, not only the resource-wiring path (CCR-QD-112)<br>1.29 (2026-09-07): INV-QD-048's Enforcement corrected — the test-only `matchesPrismaWhere` reader it named implements the same JS `.every`/`.some` semantics `evaluatePredicate` does, and so could not by itself catch `renderNode` nesting a vacuous identity where Prisma's real engine silently mishandles it (C1, issue 34); a second, engine-accurate reader now checks this invariant too (BEH-QD-239, BEH-QD-242, CCR-QD-112)<br>1.28 (2026-09-06): six in-page anchors repointed from pre-rename heading slugs to the current headings (INV-QD-004, INV-QD-006, INV-QD-007, INV-QD-018, INV-QD-029, plus the sibling references in traceability.md and behaviors/27-devtools-timeline.md); INV-QD-050 gained the Enforcement block and Related line its own text already implied, which the 1.26 edit had displaced onto INV-QD-056's section (CCR-QD-097)<br>1.27 (2026-09-06): INV-QD-054 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` and the implication note made explicit about the gap this does not close (CCR-QD-094)<br>1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.31 (2026-09-07): INV-QD-031 extended — `fieldStrategy` and `HasRelationship.depth` named as the same shape of gap the invariant already covered, `depth` having been dropped from the rendering entirely; INV-QD-029's `RelationshipResolver` denial no longer claims an unverifiable wiring state (issue 45, CCR-QD-114)<br>1.30 (2026-09-07): INV-QD-032 updated — "`neq` on `undefined` is `true`" was the wiring bug's mechanism, not just a description of it; the mechanism itself is now closed at the source, not only the resource-wiring path (CCR-QD-112)<br>1.29 (2026-09-07): INV-QD-048's Enforcement corrected — the test-only `matchesPrismaWhere` reader it named implements the same JS `.every`/`.some` semantics `evaluatePredicate` does, and so could not by itself catch `renderNode` nesting a vacuous identity where Prisma's real engine silently mishandles it (C1, issue 34); a second, engine-accurate reader now checks this invariant too (BEH-QD-239, BEH-QD-242, CCR-QD-111)<br>1.28 (2026-09-06): six in-page anchors repointed from pre-rename heading slugs to the current headings (INV-QD-004, INV-QD-006, INV-QD-007, INV-QD-018, INV-QD-029, plus the sibling references in traceability.md and behaviors/27-devtools-timeline.md); INV-QD-050 gained the Enforcement block and Related line its own text already implied, which the 1.26 edit had displaced onto INV-QD-056's section (CCR-QD-097)<br>1.27 (2026-09-06): INV-QD-054 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` and the implication note made explicit about the gap this does not close (CCR-QD-094)<br>1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -933,13 +933,26 @@ nothing was false there; the diagnosis was merely withheld, and a misconfigured
 > `'<attribute>' matched an excluded value` for `Neq`'s resolved-and-compared
 > case; every other matcher's denial is unchanged.
 
+> **Corrected (CCR-QD-114).** The relationship sentence quoted above —
+> `"no relationship resolver is wired, so no 'owner' relation to 'doc-1' can be
+> confirmed"` — was itself an unverified claim: `RelationshipResolver.ts`'s
+> `RelatedResult` doc already documented that a *wired* resolver may answer
+> `"Unknown"` too, so a wired-but-uncertain resolver reaching this same arm was
+> told it did not exist. This invariant's own rule caught its own violation.
+> The sentence is now `"no relationship resolver could confirm the 'owner'
+> relation to 'doc-1'"`, which asserts nothing about wiring — see
+> [BEH-QD-045](behaviors/06-services.md#beh-qd-045-a-denials-reason-names-only-what-was-consulted).
+
 **Enforcement**: `packages/core/test/Evaluate.test.ts` pins both sentences
 against each other — an unwired resolver beside a wired store that looked and
 found nothing, an absent attribute beside a present one that compares wrong —
-and, separately, a `Neq` denial's sentence against a same-shaped non-`Neq` one.
-A single sentence for both cases passes any test asserting only the verdict,
-which is how the original gap survived to be found by reading.
-`features/features/rebac/relationships.feature` carries the unwired/wired pair.
+and, separately, a `Neq` denial's sentence against a same-shaped non-`Neq` one,
+and a wired resolver that itself answers `"Unknown"` against the unwired
+default, to pin that both reach the identical sentence rather than one naming
+a wiring state the other cannot have. A single sentence for both cases passes
+any test asserting only the verdict, which is how the original gap survived to
+be found by reading. `features/features/rebac/relationships.feature` carries
+the unwired/wired pair.
 
 **Related**: [BEH-QD-045](behaviors/06-services.md), [BEH-QD-043](behaviors/06-services.md), [ADR-QD-040](decisions/040-an-unwired-port-names-its-absence.md), [ADR-QD-020](decisions/020-decision-history-port.md), [INV-QD-014](#inv-qd-014-an-unwired-history-port-denies-both-polarities).
 
@@ -996,7 +1009,9 @@ Two policies that are not equivalent never render to the same sentence.
 child through one `embed` helper, which parenthesises anything that is not
 atomic. Only a `Requirement` and the empty `All`/`Any`/`Table` render bare, the
 latter because their fixed sentences have no loose end for a following word to
-attach to.
+attach to. `fieldStrategyClause` and `HasRelationship`'s `explain` arm are the
+two places a policy field can affect *what a node says* rather than how it
+nests, and both are covered below.
 
 **Implication**: the reverse shipped. `anyOf([a, allOf([b, c])])` and
 `allOf([anyOf([a, b]), c])` produced a byte-identical sentence, and they are not
@@ -1008,6 +1023,15 @@ which policy they were reading.
 The same flattening left an obligation ambiguous: `allOf([x, obliged(o, y)])`
 read as though the whole policy owed `o`, when only the second branch does.
 
+An `All`/`Any` composite's `fieldStrategy` and a `HasRelationship` policy's
+`depth` are the same shape of gap, found later (CCR-QD-114): neither field
+reached the sentence at all, so `allOf(parts, { fieldStrategy: "Union" })` and
+the same parts under `"Intersection"` — or `hasRelationship("owner")` against
+`hasRelationship("owner", { depth: 1 })` — rendered identically though they are
+not the same policy. `fieldStrategy` is now named whenever it departs from the
+default a bare `allOf`/`anyOf` implies; `depth` is now named whenever the
+policy carries one.
+
 **The top level is deliberately never wrapped.** Nothing follows it, so there is
 nothing to run into, and wrapping it would put brackets around every sentence in
 the library for no gain.
@@ -1017,6 +1041,9 @@ above and asserts their renderings differ, one case per embedding position so a
 site that reverted to bare joining fails on its own shape, and the atomic cases
 in the other direction so parentheses cannot spread to ordinary sentences.
 `features/features/explanation/explanation.feature` carries the pair as scenarios.
+The same file also pins a non-default `fieldStrategy` and a defined
+`HasRelationship.depth` each appearing in the rendering, and two policies
+differing only in one of those fields rendering to different sentences.
 
 **Related**: [BEH-QD-137](behaviors/18-explanation.md), [ADR-QD-042](decisions/042-a-projection-is-not-an-identity.md), [ADR-QD-027](decisions/027-policy-explanation.md).
 

@@ -45,9 +45,15 @@ export interface RelationshipCheck {
  * contents of a store nobody had wired
  * ([INV-QD-029](../../../spec/invariants.md#inv-qd-029-a-denial-names-only-what-was-consulted)).
  *
- * `"Unknown"` means *nobody can say* — no resolver is wired. A resolver that is
- * wired and unreachable is a `RelationshipResolveError`, which is an error, not
- * an answer.
+ * `"Unknown"` means *nobody can say*. `RelationshipResolverNever` — the unwired
+ * default — is the common source, but not the only one: a wired resolver may
+ * answer it too, for a relation it has genuinely no answer for (a graph store
+ * with no namespace for this relation, say). The port cannot tell the two
+ * apart, which is why `evaluateHasRelationship` (`Evaluate.ts`) does not name
+ * wiring as the cause in the denial it produces (BEH-QD-045) — doing so would
+ * assert a fact about a store INV-QD-029 forbids asserting without having
+ * consulted it. A resolver that is wired and unreachable is a
+ * `RelationshipResolveError`, which is an error, not an answer.
  */
 export type RelatedResult = "Related" | "Unrelated" | "Unknown";
 

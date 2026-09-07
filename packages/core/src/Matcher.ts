@@ -327,9 +327,12 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
       // Unreachable, and not decoration. The return type is `unknown` — a
       // resolved attribute may legitimately be `undefined` — so an unhandled tag
       // would compile and silently resolve to `undefined`, which every matcher
-      // then compares against and denies. This is the only thing standing where
-      // `Match.tagsExhaustive` would stand, and it costs nothing at runtime
-      // (ADR-QD-034). A tag was added here once already: `ActionRef`.
+      // then compares against and denies. That was not true of `Neq` until
+      // CCR-QD-112: its absent-operand case matched rather than denied, so an
+      // unhandled tag would have widened access instead of merely refusing
+      // silently. This is the only thing standing where `Match.tagsExhaustive`
+      // would stand, and it costs nothing at runtime (ADR-QD-034). A tag was
+      // added here once already: `ActionRef`.
       const exhaustive: never = ref;
       return exhaustive;
     }

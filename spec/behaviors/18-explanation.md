@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-18                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
+> | Change History | 1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
 
 _Previous: [17 — Concurrent Evaluation](./17-concurrency.md)_
 
@@ -94,13 +94,29 @@ The signature carries the requirement — there is no services parameter to pass
 
 ## BEH-QD-139: Restrictions are stated, not only requirements
 
-> **Invariant:** [INV-QD-021](../invariants.md#inv-qd-021-every-policy-explains)
+> **Invariant:** [INV-QD-021](../invariants.md#inv-qd-021-every-policy-explains),
+> [INV-QD-031](../invariants.md#inv-qd-031-a-rendered-explanation-denotes-exactly-one-policy)
 
 ```
 REQUIREMENT: A field set, an obligation, a label and a rule table's combining
              algorithm MUST each appear in the explanation of a policy carrying
              them.
 ```
+
+```
+REQUIREMENT: An `All`/`Any` composite's `fieldStrategy` and a `HasRelationship`
+             policy's `depth` MUST each appear when they depart from the
+             default, since two non-equivalent policies differing only there
+             would otherwise render identically (INV-QD-031).
+```
+
+> **Corrected (CCR-QD-114).** Neither requirement above was written down before
+> now, and `HasRelationship.depth` was dropped from the rendering entirely
+> until this change — `hasRelationship("owner")` and
+> `hasRelationship("owner", { depth: 1 })` rendered to the same sentence.
+> `fieldStrategy` had already been fixed in code (`Explanation.ts`'s
+> `fieldStrategyClause`) without this document ever saying so was a
+> requirement, which is the gap this correction closes for both at once.
 
 Rendering `hasPermission(read, { fields: ["id"] })` as "requires permission
 doc:read" **overstates the grant**. The error direction matters: understating a

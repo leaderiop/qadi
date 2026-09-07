@@ -176,8 +176,19 @@ export const explain: (policy: Policy) => Explanation = Match.type<Policy>().pip
         p.fields,
       ),
 
+    // `depth` is part of the question, not decoration, the same reason
+    // `HasActed`/`HasNotActed` state their scope below: `hasRelationship("owner")`
+    // and `hasRelationship("owner", { depth: 1 })` are different policies — one
+    // traverses as far as the resolver decides, the other stops at a direct
+    // edge — and dropping the bound would render both to one sentence
+    // (INV-QD-031).
     HasRelationship: (p) =>
-      requirement("relationship", `the subject is ${p.relation} of the resource`, p.fields),
+      requirement(
+        "relationship",
+        `the subject is ${p.relation} of the resource` +
+          (p.depth === undefined ? "" : ` within a traversal depth of ${p.depth}`),
+        p.fields,
+      ),
 
     HasAction: (p) => requirement("action", p.action, p.fields),
 
