@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-115)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-116)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -124,7 +124,7 @@ REQUIREMENT: `gte` and `lt` MUST return false unless BOTH operands — the
              an `Infinity`-valued attribute regardless of the bound
              (`Infinity >= 3` is `true`); `lt` already failed closed in the
              mirror case, but is guarded the same way for consistency
-             (CCR-QD-115).
+             (CCR-QD-116).
 ```
 
 ```
