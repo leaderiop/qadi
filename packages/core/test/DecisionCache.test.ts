@@ -1044,4 +1044,187 @@ describe("DecisionCache", () => {
         assert.strictEqual(lookups?.state.occurrences.get("coalesced"), 1);
       }));
   });
+
+  it.effect(
+    "a fresh ask racing the last waiter's interrupt decision never inherits that " +
+      "interruption — REGRESSION PIN for issue #64",
+    () =>
+      Effect.gen(function* () {
+        // issue #64 (a Low/Info re-audit finding, part of the #33 wayfinder map)
+        // read `awaitShared`'s onInterrupt handler as racy: the last waiter's
+        // `waiters === 0` snapshot is taken in one `Effect.sync`, and
+        // `Fiber.interrupt(entry.fiber)` is only actually called in a later
+        // `Effect.flatMap` step — read as source text, that looks like a gap a
+        // brand-new joiner could land in, re-attaching to `entry.claim` after
+        // the decision to interrupt was already made but before the compute's
+        // own finalizer had removed the entry from `inFlight`.
+        //
+        // It is not exploitable, and this pins why rather than just asserting
+        // the outcome. `effect@4.0.0-rc.112`'s `FiberImpl.interruptUnsafe`
+        // (`node_modules/effect/src/internal/effect.ts`) evaluates an
+        // interrupted fiber's continuation **synchronously, in the same JS
+        // call stack**, whenever that fiber is not currently `_running` —
+        // i.e. whenever it is idle, suspended on something like
+        // `Deferred.await`, which is exactly `awaitShared`'s own state and
+        // exactly the state `compute`'s fiber is in while blocked inside a
+        // resolver. So the last waiter's decrement, its decision, the nested
+        // `Fiber.interrupt(entry.fiber)` call, and that compute fiber's own
+        // `onExit` finalizer (removing `inFlight`, settling `claim`) all run
+        // as ONE uninterrupted synchronous cascade — there is no scheduler
+        // dispatch boundary in the middle of it for a separately-scheduled
+        // joiner to be interleaved into, because JS has one call stack and
+        // Effect only yields at an actual async suspension or an op-count
+        // budget neither of which this short cascade can reach.
+        //
+        // Tried across every interleaving this suite can force — both
+        // orders of "fork the joiner" vs. "fork the interrupt", and eight
+        // amounts of extra `Effect.yieldNow` slack in between — and,
+        // separately, across fully independent `Effect.runFork` roots raced
+        // via real Node.js `setImmediate` macrotasks rather than nested
+        // fibers sharing one scheduler queue (so this is not an artifact of
+        // one particular scheduler). Neither ever produced the interrupted
+        // outcome the finding describes; this loop is the surviving,
+        // deterministic half of that exploration.
+        for (let shift = 0; shift < 8; shift++) {
+          for (const forkJoinerFirst of [true, false]) {
+            const invocations = yield* Ref.make(0);
+            const gate = yield* Deferred.make<void>();
+            const blockingResolver = Layer.succeed(AttributeResolver, {
+              resolve: () =>
+                Ref.update(invocations, (n) => n + 1).pipe(
+                  Effect.flatMap(() => Deferred.await(gate)),
+                  Effect.as(5),
+                ),
+            });
+
+            const joinerResult = yield* Effect.gen(function* () {
+              const fiberA = yield* Effect.forkChild(evaluate(needsLookup));
+              const fiberB = yield* Effect.forkChild(evaluate(needsLookup));
+              for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+
+              // fiberA leaves first — fiberB becomes the sole remaining waiter.
+              yield* Fiber.interrupt(fiberA);
+
+              // A brand-new ask for the exact same key, raced against
+              // interrupting fiberB (the now-last waiter). Which is forked
+              // first is exactly the ordering the finding's window depends
+              // on, so both are tried.
+              const [joinerFiber, interruptingFiber] = forkJoinerFirst
+                ? yield* Effect.gen(function* () {
+                    const j = yield* Effect.forkChild(evaluate(needsLookup));
+                    const i = yield* Effect.forkChild(Fiber.interrupt(fiberB));
+                    return [j, i] as const;
+                  })
+                : yield* Effect.gen(function* () {
+                    const i = yield* Effect.forkChild(Fiber.interrupt(fiberB));
+                    const j = yield* Effect.forkChild(evaluate(needsLookup));
+                    return [j, i] as const;
+                  });
+              for (let i = 0; i < shift; i++) yield* Effect.yieldNow;
+
+              // Let any surviving or freshly-started compute actually finish.
+              yield* Deferred.succeed(gate, undefined);
+
+              yield* Fiber.join(interruptingFiber);
+              return yield* Effect.result(Fiber.join(joinerFiber));
+            }).pipe(
+              Effect.provide(testLayer(alice, { attributes: blockingResolver })),
+              Effect.provide(decisionCacheLayer()),
+            );
+
+            // The joiner asked fresh and was never itself interrupted, so it
+            // must get a real answer — either the surviving shared compute's
+            // result, or its own uncoalesced fresh compute — and never an
+            // interruption inherited from fiberB's unrelated decision.
+            assert.strictEqual(
+              joinerResult._tag,
+              "Success",
+              `shift=${shift} forkJoinerFirst=${forkJoinerFirst}: joiner got ${JSON.stringify(joinerResult)} instead of a real answer`,
+            );
+          }
+        }
+      }),
+  );
+
+  it(
+    "a fresh ask racing the last waiter's interrupt across independent runtimes " +
+      "still never inherits that interruption — REGRESSION PIN for issue #64",
+    async () => {
+      // The same property as the test above, forced through real Node.js
+      // event-loop scheduling instead of Effect's in-process fiber scheduler:
+      // two fully independent `ManagedRuntime` roots, so the joiner's ask and
+      // fiberB's interrupt are literally separate `Effect.runPromise`
+      // invocations raced via `setImmediate`, not two fibers sharing one
+      // scheduler queue. Confirms the safety argument in the test above is
+      // not an artifact of nested-fiber scheduling specifically.
+      const ManagedRuntime = await import("effect/ManagedRuntime");
+
+      for (const joinerDelay of [0, 1, 2, 3, 5, 10]) {
+        const invocations = { n: 0 };
+        const gate = Deferred.makeUnsafe<void>();
+        const blockingResolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.sync(() => {
+              invocations.n += 1;
+            }).pipe(
+              Effect.flatMap(() => Deferred.await(gate)),
+              Effect.as(5),
+            ),
+        });
+
+        const runtime = ManagedRuntime.make(
+          Layer.mergeAll(testLayer(alice, { attributes: blockingResolver }), decisionCacheLayer()),
+        );
+
+        const fiberA = runtime.runFork(evaluate(needsLookup));
+        const fiberB = runtime.runFork(evaluate(needsLookup));
+        for (let i = 0; i < 3; i++) await new Promise((resolve) => setImmediate(resolve));
+
+        await Effect.runPromise(Fiber.interrupt(fiberA));
+
+        // The interrupt fires on the very next macrotask; the joiner is
+        // delayed by `joinerDelay` further macrotask turns on top of that,
+        // trying to land its claim-or-join check inside the window between
+        // "interrupt signal sent to the compute fiber" and "the compute
+        // fiber's own finalizer removes the entry from inFlight".
+        const interrupted = new Promise<void>((resolve) => {
+          setImmediate(() => {
+            void Effect.runPromise(Fiber.interrupt(fiberB)).then(() => resolve());
+          });
+        });
+        const joined = new Promise<string>((resolve) => {
+          let remaining = joinerDelay;
+          const step = () => {
+            if (remaining <= 0) {
+              runtime.runPromiseExit(evaluate(needsLookup)).then((exit) => resolve(exit._tag));
+              return;
+            }
+            remaining -= 1;
+            setImmediate(step);
+          };
+          setImmediate(step);
+        });
+
+        // Only await the interrupt here — the joiner may have coalesced onto
+        // a compute that is still legitimately blocked on the gate, and
+        // awaiting it before releasing the gate would deadlock this test.
+        await interrupted;
+        for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+        await Effect.runPromise(Deferred.succeed(gate, undefined));
+
+        const joinerTag = await Promise.race([
+          joined,
+          new Promise<string>((resolve) => setTimeout(() => resolve("TIMEOUT"), 2000)),
+        ]);
+        await runtime.dispose();
+
+        assert.strictEqual(
+          joinerTag,
+          "Success",
+          `joinerDelay=${joinerDelay}: joiner got ${joinerTag} instead of a real answer`,
+        );
+      }
+    },
+    30000,
+  );
 });
