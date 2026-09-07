@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-112)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
+> | Change History | 1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
 
 _Follows: [ADR-QD-039](./039-a-seed-is-not-an-authority.md), which made the
 client's answer supersede the seed and said nothing about telling anyone._
@@ -126,7 +126,7 @@ The trailing clause is `decided.reason`, which is where
 no relationship resolver now says so in that slot, turning "why did this button
 vanish" into "no relationship resolver could confirm the relation" in one line.
 
-> **Corrected (CCR-QD-112).** This paraphrase quoted ADR-QD-040's denial text
+> **Corrected (CCR-QD-114).** This paraphrase quoted ADR-QD-040's denial text
 > as "no relationship resolver is wired" before that ADR's own table was
 > corrected — see its 1.1 revision — to stop asserting a wiring state the
 > evaluator cannot confirm. The example below is updated to match.

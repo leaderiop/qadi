@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-112)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-114)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 ---
 
@@ -40,7 +40,7 @@ The obvious readers were both already ruled out in this repository, by
   entry per distinct attribute ever read, in a structure held for the life of
   the registry.
 
-  > **Corrected (CCR-QD-112).** This context section quoted `PortMetrics.ts`'s
+  > **Corrected (CCR-QD-114).** This context section quoted `PortMetrics.ts`'s
   > doc comment as "three closed values" — accurate on 2026-08-24, when this
   > ADR was written and `portCallsTotal` covered `AttributeResolver`,
   > `DecisionHistory` and `RelationshipResolver` only. `CustomPredicate`
