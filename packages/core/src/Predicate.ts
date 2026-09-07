@@ -118,13 +118,35 @@ const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
     Match.when("Neq", () => value !== undefined && against !== undefined && value !== against),
     // Mirrors `Gte`/`Lt` in the matcher, which are false for a non-number: a
     // divergence here is a row the evaluator would have refused.
+    //
+    // `Number.isFinite` on the *bound* is the second half of that mirror
+    // (CCR-QD-120). `evaluateMatcher`'s `Gte`/`Lt` cases carry it — a bound is
+    // reachable from untrusted JSON (`1e400` decodes to `Infinity`; see
+    // `Matcher.ts`'s `gte` doc comment), and left unguarded an `Infinity`
+    // bound dominates every finite attribute value. `compare` had only the
+    // `typeof` half, so `translateMatcher` compiling `M.gte(-Infinity)` to
+    // `{op: "Gte", value: -Infinity}` gave a predicate that admitted every
+    // numeric row while `evaluate` on the identical policy denied every one —
+    // an INV-QD-018 divergence, and in the worst direction. The bound is the
+    // only side that needs it: a non-finite *row* value already agrees, since
+    // `NaN >= x` is false in both interpreters and `Infinity >= x` is true in
+    // both. `typeof against === "number"` stays for the narrowing
+    // `Number.isFinite(unknown)` does not perform.
     Match.when(
       "Gte",
-      () => typeof value === "number" && typeof against === "number" && value >= against,
+      () =>
+        typeof value === "number" &&
+        typeof against === "number" &&
+        Number.isFinite(against) &&
+        value >= against,
     ),
     Match.when(
       "Lt",
-      () => typeof value === "number" && typeof against === "number" && value < against,
+      () =>
+        typeof value === "number" &&
+        typeof against === "number" &&
+        Number.isFinite(against) &&
+        value < against,
     ),
     Match.exhaustive,
   );

@@ -85,12 +85,18 @@ export class PredicateNotRenderable extends Data.TaggedError("PredicateNotRender
  * than approximate" answer as the `Date` case above, applied before either
  * question needs answering empirically.
  *
- * `@qadi/predicate-sql`'s own `isSafeValue` does not carry this check — only
- * its `Gte`/`Lt`-specific render guard excludes `NaN`, and only for those two
- * operators, leaving `Eq`/`MemberOf` against `NaN` unaddressed there. This is
- * a deliberate widening at the `isSafeValue` gate itself, ahead of, and
- * covering more ground than, that precedent — not a claim that the two
- * packages agree.
+ * `@qadi/predicate-sql`'s own `isSafeValue` now carries the same check
+ * (CCR-QD-120), so the two dialect packages do agree on which values compile.
+ *
+ * > Until CCR-QD-120 this paragraph read: "`@qadi/predicate-sql`'s own
+ * > `isSafeValue` does not carry this check — only its `Gte`/`Lt`-specific
+ * > render guard excludes `NaN`, and only for those two operators, leaving
+ * > `Eq`/`MemberOf` against `NaN` unaddressed there. This is a deliberate
+ * > widening at the `isSafeValue` gate itself, ahead of, and covering more
+ * > ground than, that precedent — not a claim that the two packages agree."
+ * > That gap was the INV-QD-047 divergence issue #65 closed: a `NaN`-valued
+ * > `Eq` bound a real parameter, and PostgreSQL's `NaN = NaN` is true where
+ * > `evaluatePredicate`'s `===` is false.
  */
 const isSafeValue = (value: unknown): boolean =>
   value === null ||
