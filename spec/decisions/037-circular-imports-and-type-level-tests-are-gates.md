@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-037                                   |
-> | Revision       | 1.0                                             |
-> | Effective Date | 2026-08-22                                     |
+> | Revision       | 1.1                                             |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-08-22): Initial release (CCR-QD-048) |
+> | Change History | 1.1 (2026-09-07): "`pnpm check` steps 5 and 6" now names `madge`/`tstyche` in the same sentence — extending `scripts/check-dod-table.mjs`'s reference check to plural forms ("steps 5 and 6", not just "step 11") turned this line's un-named pair into a real finding rather than a silent gap (CCR-QD-111)<br>1.0 (2026-08-22): Initial release (CCR-QD-048) |
 
 ---
 
@@ -48,9 +48,10 @@ unformalized, the next such investigation starts from zero again.
 
 ## Decision
 
-**Two new merge gates**, `pnpm check` steps 5 and 6, run between the
-lint family and the runtime test suite — cheap enough that a drift in
-either fails before the slower gates even start, the same reasoning
+**Two new merge gates**, `pnpm check` steps 5 and 6 (`madge` and `tstyche`
+below), run between the lint family and the runtime test suite — cheap
+enough that a drift in either fails before the slower gates even start, the
+same reasoning
 [Definitions of Done](../process/definitions-of-done.md) already gives for
 running the doc-examples check before mutation testing.
 

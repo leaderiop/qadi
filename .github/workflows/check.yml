@@ -97,6 +97,16 @@ jobs:
       # and thrown away silently (found in review: only `reports/mutation/`,
       # core's own, was ever uploaded).
       #
+      # `name` carries `matrix.node-version`. `upload-artifact@v4` rejects a
+      # second upload to a name already used earlier in the same workflow run
+      # (no per-matrix-leg suffix, unlike v3) — `fail-fast: false` above keeps
+      # both legs of this matrix running to completion, so without the suffix
+      # whichever leg's upload lands second collides with the first and errors,
+      # silently (`continue-on-error` below), dropping that leg's six reports
+      # rather than the one this comment already names. Both legs mutate the
+      # same source, but a survivor set can still differ by runtime, so both
+      # are worth keeping.
+      #
       # `continue-on-error` because this is diagnostics, not a gate: if the gate
       # passed, the build passed, and a transient upload failure should not turn
       # that red. It also means a local `act` run is green — act cannot supply
@@ -106,7 +116,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: mutation-report
+          name: mutation-report-node${{ matrix.node-version }}
           path: |
             reports/mutation/
             reports/mutation-devtools/

@@ -35,4 +35,8 @@ compileFencedExamples({
   outDir: OUT,
   files: collectMarkdown(SPEC),
   label: "doc-examples",
+  // `spec/` is normative and AGENTS.md §12 makes running examples the
+  // default there — a walk turning up zero blocks means this checker is
+  // looking in the wrong place, not that `spec/` legitimately has none.
+  failOnEmpty: true,
 });

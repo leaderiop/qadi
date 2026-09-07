@@ -138,8 +138,21 @@ const identifiers = steps.map((step) => {
   return tokens;
 });
 
-/** `gate 9`, `merge gate 10`, `step 11 of \`pnpm check\``, `gate 1–2`. */
-const REFERENCE = /\b(?:merge )?(?:gate|step) (\d+)(?:\s*[–-]\s*(\d+))?\b/gi;
+/**
+ * `gate 9`, `merge gate 10`, `step 11 of \`pnpm check\``, `gate 1–2`,
+ * `steps 17–20`, `gates 18 and 19`.
+ *
+ * The plural forms ("steps"/"gates") are not a cosmetic variant of the
+ * singular ones — this codebase uses them for a genuinely different claim.
+ * `step 11` asserts *this specific number is that specific command*; `steps
+ * 17–20` (see `spec/process/definitions-of-done.md`'s own prose) asserts
+ * *this whole family of numbers exists for one shared reason*, and the
+ * paragraph making that claim routinely names only the family's anchor
+ * (`` `mutation` ``, one representative `stryker.*.mjs`) rather than every
+ * member. See the range-vs-single split below, where that distinction earns
+ * its own code path rather than being flattened into one.
+ */
+const REFERENCE = /\b(?:merge )?(?:gates?|steps?) (\d+)(?:\s*[–-]\s*(\d+))?\b/gi;
 
 /**
  * Lines that record what was true at a moment, not what is true.
@@ -217,22 +230,49 @@ for (const file of scanned) {
     for (const match of line.matchAll(REFERENCE)) {
       const first = Number(match[1]);
       const last = match[2] === undefined ? first : Number(match[2]);
+      const isRange = last > first;
+
+      // Bounds are checked per number regardless of range vs. single — a
+      // number past the end of `pnpm check` is wrong no matter how the
+      // reference names it.
+      const inBounds = [];
       for (let n = first; n <= last; n += 1) {
-        const tokens = identifiers[n - 1];
-        if (tokens === undefined) {
+        if (identifiers[n - 1] === undefined) {
           fail(`${rel}:${index + 1}`, `[range] names gate ${n}, and \`pnpm check\` has ${steps.length} steps.\n    ${line.trim()}`);
           continue;
         }
-        references += 1;
-        if ([...tokens].some((token) => paragraph.includes(token))) continue;
-        const named = identifiers.findIndex((set) => [...set].some((token) => paragraph.includes(token)));
+        inBounds.push(n);
+      }
+      if (inBounds.length === 0) continue;
+      references += inBounds.length;
+
+      const namesNumber = (n) => [...identifiers[n - 1]].some((token) => paragraph.includes(token));
+      const named = () => identifiers.findIndex((set) => [...set].some((token) => paragraph.includes(token)));
+
+      if (isRange) {
+        // A plural range is a claim about the family, not about every member
+        // individually (see the `REFERENCE` doc comment) — one recognisable
+        // member of the family named in the paragraph is enough.
+        if (inBounds.some(namesNumber)) continue;
+        const namedIndex = named();
         fail(
           `${rel}:${index + 1}`,
-          named === -1
-            ? `[unnamed] names gate ${n} without naming the command it means, so nothing can check it. Name the script or the command.\n    ${line.trim()}`
-            : `[stale] names gate ${n}, and the command in this paragraph is step ${named + 1}.\n    ${line.trim()}`,
+          namedIndex === -1
+            ? `[unnamed] names gates ${first}–${last} without naming a command any of them means, so nothing can check it. Name a script or command in the range.\n    ${line.trim()}`
+            : `[stale] names gates ${first}–${last}, and the command in this paragraph is step ${namedIndex + 1}.\n    ${line.trim()}`,
         );
+        continue;
       }
+
+      const n = first;
+      if (namesNumber(n)) continue;
+      const namedIndex = named();
+      fail(
+        `${rel}:${index + 1}`,
+        namedIndex === -1
+          ? `[unnamed] names gate ${n} without naming the command it means, so nothing can check it. Name the script or the command.\n    ${line.trim()}`
+          : `[stale] names gate ${n}, and the command in this paragraph is step ${namedIndex + 1}.\n    ${line.trim()}`,
+      );
     }
   }
 }

@@ -39,8 +39,19 @@ try {
   files = collectContent(DOCS);
 } catch (error) {
   if (error.code === "ENOENT") {
-    console.log("website-doc-examples: apps/website/src/content/docs does not exist yet");
-    process.exit(0);
+    // A missing directory is not "zero examples, all pass" — it means this
+    // checker (`node scripts/check-website-doc-examples.mjs`) is not
+    // checking what its own DoD-table row promises ("Every runnable example
+    // in apps/website's docs content compiles"), which the docs directory
+    // vanishing (moved, renamed, an Astro content-collection restructure)
+    // would otherwise pass silently. Fail loud instead.
+    console.error(
+      `website-doc-examples: ${DOCS} does not exist. If apps/website/src/content/docs ` +
+        `was intentionally removed or relocated, update this script's DOCS path ` +
+        `(and its row in spec/process/definitions-of-done.md) rather than letting ` +
+        `the gate report a false pass.`,
+    );
+    process.exit(1);
   }
   throw error;
 }
