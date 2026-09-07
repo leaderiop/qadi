@@ -196,3 +196,72 @@ describe("provider lifetime", () => {
     await waitFor(() => expect(document.body.textContent).toBe(""));
   });
 });
+
+// H5: `settled()` used to memoise its subscription per atom rather than per
+// registry (`packages/react/src/settled.ts`, defect 3 in its doc comment). A
+// `QadiProvider` remount builds a fresh `AtomRegistry` over the *same*
+// module-scope `atoms` — `Atom.family` means `atoms.decision(policy)` returns
+// the identical `Atom` object across both generations — so these two tests
+// reproduce exactly the scenario the bug needed: one atom, two registries.
+describe("registry generations", () => {
+  it("resolves a suspended decision after the provider remounts with a fresh registry", async () => {
+    const Probe = () => <span>{`decided:${useDecisionSuspense(needsClearance)._tag}`}</span>;
+
+    const first = render(
+      <QadiProvider atoms={slow} subject={reader}>
+        <Suspense fallback={<span>suspended</span>}>
+          <Probe />
+        </Suspense>
+      </QadiProvider>,
+    );
+    expect(screen.getByText("suspended")).toBeDefined();
+
+    // Unmount while the decision is still pending: the first generation's
+    // registry — and the one long-lived listener `settled()` attached to it
+    // — is torn down before it ever resolves. Against the pre-fix,
+    // atom-only keying, the second generation below would see `subscribed`
+    // already `true` for this atom and never subscribe its own registry,
+    // hanging forever.
+    first.unmount();
+
+    const second = render(
+      <QadiProvider atoms={slow} subject={reader}>
+        <Suspense fallback={<span>suspended</span>}>
+          <Probe />
+        </Suspense>
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("decided:Deny")).toBeDefined());
+    second.unmount();
+  });
+
+  it("resolves independently for two concurrently mounted providers sharing the same atoms", async () => {
+    const ProbeA = () => <span>{`a:${useDecisionSuspense(needsClearance)._tag}`}</span>;
+    const ProbeB = () => <span>{`b:${useDecisionSuspense(needsClearance)._tag}`}</span>;
+
+    const both = render(
+      <>
+        <QadiProvider atoms={slow} subject={reader}>
+          <Suspense fallback={<span>suspended-a</span>}>
+            <ProbeA />
+          </Suspense>
+        </QadiProvider>
+        <QadiProvider atoms={slow} subject={reader}>
+          <Suspense fallback={<span>suspended-b</span>}>
+            <ProbeB />
+          </Suspense>
+        </QadiProvider>
+      </>,
+    );
+
+    expect(screen.getByText("suspended-a")).toBeDefined();
+    expect(screen.getByText("suspended-b")).toBeDefined();
+
+    // Two registries over the same atom set must each get their own
+    // listener — sharing one means the second registry's transitions never
+    // resolve.
+    await waitFor(() => expect(screen.getByText("a:Deny")).toBeDefined());
+    await waitFor(() => expect(screen.getByText("b:Deny")).toBeDefined());
+    both.unmount();
+  });
+});
