@@ -1,0 +1,22 @@
+{
+  "slice": "EvaluateSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Evaluate.ts",
+      "line": 323,
+      "theme": "misleading-denial-reason-for-composed-neq",
+      "description": "attributeReason(side, attribute, value, matcher) only special-cases the excluded-value phrasing when the top-level matcher._tag is exactly 'Neq' (line 330: `matcher._tag === \"Neq\"`). A Neq nested inside FieldMatch, SomeMatch, EveryMatch or Size (e.g. `M.someMatch(M.neq(M.literal(\"x\")))` or `M.fieldMatch(\"y\", M.neq(...))`) is a real, already-used composition — Matcher.test.ts exercises `M.everyMatch(M.neq(M.action()))` and `M.someMatch(M.neq(M.resource(\"x\")))` for referencesAction/referencesResource — but when such a composed matcher denies because the wrapped Neq's excluded value actually matched, evaluateNode (via evaluateMatcher in Matcher.ts) still passes the *outer* matcher (FieldMatch/SomeMatch/EveryMatch/Size, not the inner Neq) to attributeReason, so the outer tag check fails and the denial reads the generic 'did not match' — the exact backwards claim INV-QD-029/INV-QD-032 and the surrounding doc comment (lines 294-333) say was fixed for 'every matcher... Neq included'. The doc comment's claim is therefore inaccurate for this composed case, and no test in Evaluate.test.ts exercises a Neq nested under FieldMatch/SomeMatch/EveryMatch/Size to catch it.",
+      "suggestedFix": "Either walk the matcher tree to find whether the deciding comparison was a Neq (e.g. thread the innermost matcher tag out of evaluateMatcher, or have attributeReason recurse into FieldMatch/SomeMatch/EveryMatch/Size to find a Neq at the point of failure), or narrow the doc comment's claim to 'a bare Neq' and add a regression test pinning the current (imprecise but not opposite-in-effect) behavior for the composed case."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Evaluate.ts",
+      "line": 391,
+      "theme": "duplicated-scope-guard",
+      "description": "evaluateActed (lines 391-406) and evaluateHasSignature (lines 557-568) each repeat the identical `const scoped = policy.scope === \"Resource\"; const rawId = resource?.[\"id\"]; ... if (scoped && typeof rawId !== \"string\") return yield* Effect.fail(new MissingResourceId({ relation: ... }))` pattern verbatim (differing only in which field supplies the `relation` string). No behavioral impact, but it is the kind of near-duplicate that tends to drift if the resource-id guard is ever tightened in one arm and not the other.",
+      "suggestedFix": "Factor the scoped/rawId extraction and MissingResourceId guard into a small shared helper (e.g. `requireScopedResourceId(policy, resource, relation)`) used by both evaluateActed and evaluateHasSignature."
+    }
+  ],
+  "escalations": []
+}

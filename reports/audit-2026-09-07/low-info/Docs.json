@@ -1,0 +1,46 @@
+{
+  "slice": "Docs",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "apps/website/src/content/docs/docs/reference/glossary.md",
+      "line": 50,
+      "theme": "stale-doc-count",
+      "description": "The website glossary says the Policy ADT has \"Fourteen variants discriminated on `_tag`\". The actual `Policy` union in packages/core/src/Policy.ts has sixteen `_tag` variants (AllOf, AnyOf, HasActed, HasAction, HasAttribute, HasCustom, HasNotActed, HasPermission, HasRelationship, HasResourceAttribute, HasRole, HasSignature, Labeled, Not, Obliged, Rules). The normative spec/glossary.md already says \"Sixteen variants\" (line 68), and the root README.md correctly says \"sixteen policy constructors\" — only this website page is stale, apparently not updated when HasCustom (CCR-QD-082) and HasSignature (ADR-QD-058) were added as new leaf variants.",
+      "suggestedFix": "Change \"Fourteen variants\" to \"Sixteen variants\" in the website glossary's Policy entry, matching spec/glossary.md."
+    },
+    {
+      "severity": "Low",
+      "file": "apps/website/src/content/docs/docs/concepts/explanation-simplification.md",
+      "line": 113,
+      "theme": "wrong-example-output",
+      "description": "The `simplify` example shows `const tidy = simplify(verbose)` for `verbose = allOf([allOf([hasRole(\"editor\")])])` producing a comment `// { _tag: \"AllOf\", policies: [{ _tag: \"HasRole\", role: \"editor\" }], ... } — two fewer AllOf wrappers`. This is wrong: per packages/core/src/Simplify.ts, a single-child AllOf/AnyOf collapses fully to its own child (confirmed by packages/core/test/Simplify.test.ts's \"unwraps a single-child composite\" test: `simplify(P.allOf([P.hasRole(\"a\")]))` deepStrictEqual `P.hasRole(\"a\")`, not an AllOf wrapping it). Applying that twice to the doubly-nested single-child example yields a bare `{ _tag: \"HasRole\", role: \"editor\" }` with zero AllOf wrappers, not one. The accompanying \"before/after\" SVG diagram earlier in the same file repeats the same wrong picture (an AllOf still wrapping HasRole in the \"AFTER\" box). Since this is a `typescript` fence, check-doc-examples.mjs type-checks it but does not execute it or verify the comment, so this runtime-behavior error is undetected by the merge gate.",
+      "suggestedFix": "Correct the comment (and the SVG's \"AFTER\" box) to show simplify(verbose) === hasRole(\"editor\") with no AllOf wrapper remaining, or use an example whose outer AllOf has more than one child so a wrapper genuinely survives."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/http/README.md",
+      "line": 33,
+      "theme": "stale-error-table",
+      "description": "The status-mapping table lists only `AttributeResolveError`, `RelationshipResolveError`, `DecisionHistoryUnavailable`, `SubjectExtractionFailed` as mapping to 502. packages/http/src/QadiHttpError.ts's actual `toResponse` Match.tagsExhaustive also maps `CustomPredicateError` and `SignatureHistoryUnavailable` to 502 (added alongside `hasCustom`/`hasSignature`). The website's newer docs/packages/http.md page already lists all five 502-mapped EnforcementError tags correctly; only this package README is stale.",
+      "suggestedFix": "Add `CustomPredicateError` and `SignatureHistoryUnavailable` to the 502 row of packages/http/README.md's status table, matching apps/website/src/content/docs/docs/packages/http.md and the real Match.tagsExhaustive in QadiHttpError.ts."
+    },
+    {
+      "severity": "Low",
+      "file": "apps/website/src/content/docs/docs/concepts/predicates.md",
+      "line": 60,
+      "theme": "wrong-api-shape-in-diagram",
+      "description": "The inline SVG diagram's label reads `compileSql(predicate, \"postgres\") →`. The real `compileSql` signature (packages/predicate-sql/src/index.ts, `CompileSqlOptions`) takes an options object, not a bare dialect string: `compileSql(predicate, { dialect: \"postgres\" })` — confirmed by the correct usage shown in this same page's own runnable example just below and in packages/predicate-sql/README.md. A reader who copies the diagram's call shape would get a type error.",
+      "suggestedFix": "Change the SVG label to `compileSql(predicate, { dialect: \"postgres\" }) →` to match the real signature and the page's own code example."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/devtools/README.md",
+      "line": 101,
+      "theme": "stale-field-count",
+      "description": "The README says \"examples/nextjs-newsroom mounts the dock with every one of DevtoolsDockProps' twelve fields wired,\" and examples/nextjs-newsroom/src/client/Dock.tsx's own doc comment (line 5) states outright \"DevtoolsDockProps has twelve optional fields.\" The interface in packages/devtools/src/react/DevtoolsDock.tsx actually declares thirteen optional fields (source, capacity, catalogue, wiring, activity, portCalls, questions, gates, unknownParents, hydration, hydrationMismatches, onInvalidate, ports). Dock.tsx wires twelve of them (all except `capacity`, which has a sensible default), so \"all twelve wired\" is accurate but the stated total field count of the interface (\"has twelve optional fields\") is off by one.",
+      "suggestedFix": "Say \"twelve of the interface's thirteen optional fields\" (or similar) in packages/devtools/README.md and examples/nextjs-newsroom/src/client/Dock.tsx, rather than implying DevtoolsDockProps has only twelve fields total."
+    }
+  ],
+  "escalations": []
+}

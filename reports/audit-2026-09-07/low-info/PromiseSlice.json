@@ -1,0 +1,22 @@
+{
+  "slice": "PromiseSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/promise/test/facade.test.ts",
+      "line": 82,
+      "theme": "missing-edge-case-test",
+      "description": "The facade's `check` doc comment (packages/promise/src/index.ts:54-56) names three distinct causes for a rejection — 'a resolver failure, a policy that reads an absent action, a tree past maxDepth' — mapping to core's AttributeResolveError, MissingAction, and PolicyTooDeep respectively (verified in packages/core/src/Evaluate.ts: MissingAction at line 676, PolicyTooDeep at line 602). Only the resolver-failure case ('A DENIAL RESOLVES; A FAILURE REJECTS', line 82) is exercised at the facade level. A regression that turned MissingAction or PolicyTooDeep into a silent denial when crossing the Promise boundary (the exact defect class this package exists to prevent, per ADR-QD-032 and INV-QD-006) would not be caught by this package's own test suite.",
+      "suggestedFix": "Add facade-level cases asserting qadi.check(...) rejects (not resolves false) for a policy referencing an absent action and for a policy tree exceeding maxDepth, mirroring the existing AttributeResolveError rejection test."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/promise/test/facade.test.ts",
+      "line": 122,
+      "theme": "missing-edge-case-test",
+      "description": "The Qadi interface documents obligation-crossing behavior in detail: check (index.ts:58-66) says a boolean allow silently discards an undischarged obligation, and assert/filter (index.ts:87-91, 102-104) say a binding obligation causes the promise to reject with UndischargedObligation because no onObligations handler can be supplied through this facade. Core exposes P.obliged(obligation(...), policy) (packages/core/src/Policy.ts:655, exercised in packages/core/test/DecisionSink.test.ts and TraceDiff.test.ts) making this easy to construct, but no test in facade.test.ts builds an obliged policy at all — the assert-rejection test (line 122) and filter tests (lines 182, 271) only cover plain AccessDenied/allow-all-items paths.",
+      "suggestedFix": "Add a test that calls qadi.assert (and/or qadi.filter) with a P.obliged(...) policy carrying a binding obligation and asserts the promise rejects with UndischargedObligation, confirming the documented no-handler-available behavior actually holds through the Promise boundary."
+    }
+  ],
+  "escalations": []
+}

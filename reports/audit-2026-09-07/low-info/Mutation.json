@@ -1,0 +1,60 @@
+{
+  "slice": "Mutation",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/http/src/SubjectExtractor.ts",
+      "line": 93,
+      "theme": "weak-test-empty-bearer-token",
+      "description": "`Option.filter((token) => token.length > 0)` at line 93 is the documented defense against a bare `\"Bearer \"` header being forwarded to `lookup` as `lookup(\"\")` (see the doc comment at lines 73-83, and the test `packages/http/test/http.test.ts:445-474` titled \"a bearer token is trimmed before reaching lookup, and a bare 'Bearer ' is anonymous rather than lookup('')\"). Verified live: `pnpm stryker run stryker.http.mjs` reports this exact mutant (`token.length > 0` -> `true`, and `>= 0`) as Survived. I reproduced it by hand — applying the mutation and re-running `test/http.test.ts` still passes, including that specific test. Root cause: the WHATWG Fetch `Headers` implementation strips the trailing space from the literal `\"Bearer \"` header value before this code ever sees it (confirmed: `new Request(url,{headers:{authorization:\"Bearer \"}}).headers.get(\"authorization\")` returns `\"Bearer\"`, 6 chars, not 7). So `\"bearer\".startsWith(\"bearer \")` is false and the request is rejected by the *scheme-prefix* filter on line 91, never reaching the length-filter on line 93 at all. The test's assertion (`bare.id === anonymous.id` and `seen` unchanged) still passes, but for a reason unrelated to the code path it claims to pin — if the line-93 filter were ever removed, this test would not catch it.",
+      "suggestedFix": "Add a second case to that test that reaches line 93 directly, e.g. an `authorization` header of `\"Bearer  \"` (two trailing spaces, which Fetch's Headers does not fully strip) or construct the `HttpServerRequest` from a raw header map that bypasses `Request`/`Headers` normalization, then assert `lookup` is not called and the result is `anonymous`."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/http/src/RequirePermission.ts",
+      "line": 179,
+      "theme": "stryker-static-mutant-false-survivor",
+      "description": "A cluster of `[Survived]` mutants from a live `stryker run stryker.http.mjs` (85.96% score, 24 survivors) sit in module-top-level code: `RequirePermission.ts:179` (`if (Option.isSome(...))` -> `if (true)` inside `requiresPermission`) and `PermissionRegistry.ts`'s `registerApi`/`addGuardedRoute` (whole-arrow-function mutants at lines 105-127 and 138-155). I verified both by hand: manually applying the `179` mutation and running `npx vitest run test/http.test.ts` crashes the entire file at import time (`requiresPermission: endpoint \"read\" already has a permission requirement...`, thrown from the module-scope `DocumentsGroup` construction at `test/http.test.ts:81-86`) — this should be Killed, not Survived. Same result mutating `registerApi` to `() => undefined`: `TypeError: Cannot read properties of undefined (reading 'pipe')` at `test/http.test.ts:157`, again an import-time crash. Both are called at module scope (executed exactly once, before any test runs), which is Stryker's documented \"static mutant\" case; the vitest-runner's `coverageAnalysis: \"perTest\"` mode appears to mis-classify these as Survived despite the code demonstrably crashing every test in the file when actually mutated. This means roughly a third of `@qadi/http`'s reported 24 survivors (the module-top-level ones — also the three service-tag `StringLiteral`s at lines 47, 56, 208) are likely tooling false negatives rather than real test gaps, which cuts against ADR-QD-025's \"no ignore list — a survivor that cannot be killed is a finding to record\" principle: right now nothing distinguishes a real survivor from one of these, so a reviewer either has to hand-verify each one (as done here) or risks dismissing a real future survivor as \"probably another static-mutant artifact\".",
+      "suggestedFix": "File this as a known Stryker/vitest-runner limitation (module-scope/static mutants under `coverageAnalysis: \"perTest\"`) in an ADR or a comment in `stryker.http.mjs`, and manually classify the current module-scope survivors in `RequirePermission.ts`/`PermissionRegistry.ts` as verified-false-negatives so the true survivor count for `@qadi/http` (the non-static ones, e.g. `SubjectExtractor.ts:93` above) isn't diluted by tooling noise."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/decisions/025-mutation-testing.md",
+      "line": 44,
+      "theme": "adr-stale-decision-statement",
+      "description": "ADR-QD-025's \"Decision\" section (revision 1.1, still current) states: \"Stryker runs on `packages/core` as the last step of `pnpm check`, breaking below 80%\" and the \"Scoped to `packages/core`\" subsection explains why only that package is mutated. Neither is true anymore: `package.json`'s `mutation` script now chains six `stryker run` invocations across six packages (core, devtools' model, predicate-sql, predicate-prisma, audit, http — see CCR-QD-075/080/086/108, each recorded in `spec/process/definitions-of-done.md`'s steps 16-21), and `pnpm check` runs `spec:website-examples`, `website` and `spec:publish` *after* `mutation` (`package.json`'s `check` script), so mutation testing is not \"the last step\" either. A reader of this ADR alone would believe mutation testing covers only `packages/core` and runs last, both false.",
+      "suggestedFix": "Bump ADR-QD-025 to a new revision that either (a) updates the Decision/Scoped-to-`packages/core` sections to describe the current six-package gate and its position in `pnpm check`'s chain, with a cross-reference to ADR-QD-036/054/056 for the later additions, or (b) adds a `>` correction blockquote per AGENTS.md §15's exemption pattern, the way other stale-claim corrections in this codebase are handled."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/react/src",
+      "theme": "mutation-coverage-gap-react",
+      "description": "No `stryker.*.mjs` config exists for `@qadi/react`, and `stryker.config.mjs`'s doc comment justifies the omission with \"`@qadi/react` is a binding over `effect/unstable/reactivity`... so mutating [it] mostly measures the test doubles\". But `stryker.devtools.mjs`'s own doc comment draws exactly the render-vs-decide line inside `@qadi/devtools` (\"on exactly the reasoning `stryker.config.mjs` uses to exclude `@qadi/react`\") to justify scoping *that* package's gate to `src/model/` rather than skipping it — and `@qadi/react` has the same split internally: `QadiAtoms.ts` (409 lines, atom-family keying and decision-staleness per ADR-QD-017/AGENTS.md §13), `GateRegistry.ts` (136 lines, ADR-QD-053's guard-existence registry) and `Hydration.ts`/`HydrationWarning.ts` (367+215 lines, ADR-QD-041/052's mismatch-announcement logic) are non-rendering, invariant-bearing modules with no mutation coverage at all, held only to the package's 90% line-coverage bar.",
+      "suggestedFix": "Either add a `stryker.react.mjs` scoped to the non-render files (mirroring `stryker.devtools.mjs`'s model/react split), or record in an ADR that `@qadi/react`'s atom/hydration logic is deliberately held to coverage-only rigor rather than mutation rigor, and why."
+    },
+    {
+      "severity": "Info",
+      "file": "stryker.config.mjs",
+      "line": 11,
+      "theme": "doc-comment-conflates-two-exclusions",
+      "description": "\"`@qadi/react` is a binding over `effect/unstable/reactivity`... and `@qadi/testing` exists to be used by tests, so mutating either mostly measures the test doubles\" gives one shared justification for two different packages, but \"measures the test doubles\" is only literally true of `@qadi/testing` (its `src/` — `CallRecorder.ts`, `FailingAttributeResolver.ts`, etc. — is fixtures). `@qadi/react` contains no test doubles; it is excluded for a different reason (thin binding over reactivity + render code). Conflating the two makes the `@qadi/react` exclusion read as more airtight than it is.",
+      "suggestedFix": "Split into two sentences with independent, accurate reasons, e.g. \"`@qadi/testing` exists to be used by tests, so mutating it mostly measures the test doubles\" plus a separate, accurate sentence for `@qadi/react`."
+    },
+    {
+      "severity": "Info",
+      "file": "scripts/check-api-surface.mjs",
+      "line": 90,
+      "theme": "comment-understates-sandbox-scope",
+      "description": "The comment justifying why `check-api-surface.mjs` drives its package list off `package.json` files rather than a glob says \"`.stryker-tmp/` holds full copies of `packages/core/src` between mutation runs and a glob would count them twice.\" Checked against the actual sandbox on disk (`.stryker-tmp/sandbox-*/packages/`): it holds full copies of **all nine** workspace packages' `src`/`test`/`lib` directories (audit, core, devtools, http, predicate-prisma, predicate-sql, promise, react, testing), not just `packages/core/src`. The stated reasoning is still directionally correct (a glob would double-count), but understates the actual duplication, which could mislead someone debugging a different `.stryker-tmp`-related glob issue into thinking only `core` is affected.",
+      "suggestedFix": "Reword to \"holds full copies of every workspace package\" (or similar) rather than naming only `packages/core/src`."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/decisions/032-promise-facade.md",
+      "theme": "undocumented-mutation-exclusion",
+      "description": "`@qadi/promise` (`packages/promise/src/index.ts`) has no Stryker config and is not mentioned in any `stryker.*.mjs` header or in ADR-QD-032, which never mentions mutation testing at all. Likely a correct omission — AGENTS.md §14 forbids any branch in that package (\"Every method is `runtime.runPromise(coreFunction(...))`\"), leaving little for a mutant to meaningfully hit — but nothing records that reasoning anywhere, unlike the (partial) rationale given for `@qadi/react`/`@qadi/testing` in `stryker.config.mjs`.",
+      "suggestedFix": "Add one clause to `stryker.config.mjs`'s doc comment or a line in ADR-QD-032 noting `@qadi/promise` is excluded because it is a pure one-line-per-method forwarding facade with no branches, per AGENTS.md §14."
+    }
+  ],
+  "escalations": []
+}

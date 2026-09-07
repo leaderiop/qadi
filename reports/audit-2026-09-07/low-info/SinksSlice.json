@@ -1,0 +1,30 @@
+{
+  "slice": "SinksSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/SinkCodec.ts",
+      "line": 76,
+      "theme": "false-exhaustiveness-guarantee",
+      "description": "The doc comment on TRACE_TAGS (lines 54-57) claims 'TRACE_TAGS satisfies below makes a missing one a compile error, so this cannot drift from the ADT even though it repeats it.' That is not what `as const satisfies ReadonlyArray<Policy[\"_tag\"]>` does: `satisfies` only checks that every listed string is a valid member of `Policy[\"_tag\"]` (a subset check), never that every member of the union is present (no completeness/superset check). Today TRACE_TAGS happens to list exactly the 16 current Policy tags (verified against Policy.ts's Schema.TaggedStruct declarations), so nothing is broken yet, but if a new Policy variant is added without also adding it here, TypeScript will not flag it. At runtime, `TraceSchema`'s `policyTag: Schema.Literals(TRACE_TAGS)` would then reject (on encode) any Decision whose trace carries the new tag, so a perfectly valid decision using the new policy type would fail to encode through decisionSinkForwarding/encodeRecord — the exact ADR-QD-002 schema/type drift this file otherwise takes pains to prevent. This is unlike encodeError's own tag list (ErrorSchema), which genuinely is protected: encodeError's `Match.tagsExhaustive` handlers are type-checked against the `ErrorWire` return type, so a new EvaluationError arm returning an unlisted `_tag` is a real compile error. TRACE_TAGS has no equivalent forcing check.",
+      "suggestedFix": "Replace the satisfies check with something that actually enforces completeness, e.g. build TRACE_TAGS from a `Record<Policy[\"_tag\"], true>` object (whose keys TypeScript will force to include every union member) and derive the array via `Object.keys(...)`, or add a small `type _AssertComplete = Exclude<Policy[\"_tag\"], (typeof TRACE_TAGS)[number]> extends never ? true : never` assignment that fails to compile when a tag is missing. Also correct the doc comment's claim in the meantime if the check isn't changed."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/src/DecisionSinkForwarding.ts",
+      "line": 61,
+      "theme": "onfailure-leaks-effect-cause",
+      "description": "`decisionSinkForwarding`'s `record` catches failures with `Effect.catchCause((cause) => ...)` and, when the caller supplied `onFailure`, calls it as `onFailure(cause)` (line 70). `cause` here is an Effect `Cause.Cause<unknown>` (Effect's internal fail/die/interrupt ADT), not the underlying value the caller's `send` failed or died with. The option is typed and documented as `onFailure?: (error: unknown) => void` — 'Called when a record could not be delivered' — which reads as 'you get the error', and the sibling conventions this same file's doc comment cites (`onDropped` on dehydrateDecisions, `onUnknownParent` on Role.ts's resolveRoleGraph, at packages/core/src/Role.ts:275) both hand their callback a plain, meaningful domain value (e.g. `ReadonlyArray<string>`), not an Effect-internal wrapper. A caller writing `onFailure: (error) => Sentry.captureException(error)` or `onFailure: (error) => logger.error(error.message)` gets a `Cause` object instead of the thrown/failed value, and `.message` is `undefined` on it. `DecisionSinkForwarding.test.ts`'s 'a failure is reported through onFailure' test (lines 70-86) only asserts `seen.length === 1` and never inspects what was pushed, so this mismatch is untested.",
+      "suggestedFix": "Unwrap the Cause before handing it to onFailure, e.g. `onFailure(Cause.squash(cause))` (or `Cause.failureOrCause`/`Cause.pretty` as appropriate), so the callback receives the same kind of plain value `onDropped`/`onUnknownParent` do; alternatively, document explicitly that onFailure receives a raw Effect Cause and rename the parameter/type accordingly so callers aren't misled."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/DecisionSinkForwarding.test.ts",
+      "line": 70,
+      "theme": "missing-assertion",
+      "description": "'a failure is reported through onFailure' only asserts `seen.length === 1`; it never asserts what `seen[0]` actually is. As a result the test would pass unchanged whether `onFailure` receives the plain failed value (`\"unreachable\"`), an Effect `Cause` wrapping it, or any other shape — it can't catch the Cause-vs-plain-value question raised for DecisionSinkForwarding.ts's `onFailure` handling.",
+      "suggestedFix": "Assert on the content of `seen[0]` (e.g. that it equals or contains \"unreachable\"), which would also pin down whatever the resolution of the onFailure/Cause finding above turns out to be."
+    }
+  ],
+  "escalations": []
+}

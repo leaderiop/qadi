@@ -1,0 +1,14 @@
+{
+  "slice": "SignatureGuard",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/test/Signature.test.ts",
+      "line": 15,
+      "theme": "missing-decode-failure-tests",
+      "description": "The `Signature` describe block only exercises successful decodes (fully-populated, minimal, open `meaning`, round-trip). It never asserts that `Schema.decodeUnknownEffect(Signature)` fails on a missing required field (`signerId`, `meaning`, `signedAt`) or a wrong-typed one (e.g. `signedAt` as a string). `Signature.ts`'s own doc comment (lines 6-13) states it meets the same ADR-QD-002 trust-boundary condition as `Policy`/`Obligation` — and `Policy.test.ts` (e.g. \"the Obligation schema rejects a malformed payload via decode\", line 123) does cover exactly this class of negative case for its own struct schemas. `Signature` is the one Schema-derived type in this sweep's scope with zero decode-failure coverage.",
+      "suggestedFix": "Add a test (or a few) asserting `Effect.result(Schema.decodeUnknownEffect(Signature)(...))` is a Failure for a payload missing `signerId`/`meaning`/`signedAt` and for one with a wrong-typed field (e.g. `signedAt: \"now\"`)."
+    }
+  ],
+  "escalations": []
+}

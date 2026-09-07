@@ -1,0 +1,14 @@
+{
+  "slice": "ErrorTaxonomy",
+  "findings": [
+    {
+      "severity": "Info",
+      "file": "packages/audit/src/SignatureCapturePort.ts",
+      "line": 79,
+      "theme": "error-field-optionality-inconsistency",
+      "description": "SignatureCaptureError declares `readonly cause?: unknown` (optional key). Every other cause-carrying error in the taxonomy — AttributeResolveError, RelationshipResolveError, DecisionHistoryUnavailable, SignatureHistoryUnavailable (all packages/core/src/Errors.ts), plus AuditStagingError and AuditWriteError (packages/audit/src/AuditStagingPort.ts:38, AuditTrailPort.ts:37) — declares `readonly cause: unknown` as a required field, so a caller must at least pass `cause: undefined` explicitly. SignatureCaptureError is the one place in the taxonomy where the key can be omitted entirely, and packages/audit/test/SignatureCapturePort.test.ts:115 and :216 both construct it without `cause`, confirming the omission is actually exercised rather than latent. Cosmetic/shape-only difference (Data.TaggedError still treats `cause: unknown` as accepting undefined), but it is a real inconsistency in how the error taxonomy models a field with identical semantics across six otherwise-identical declarations.",
+      "suggestedFix": "Make `cause` required (`readonly cause: unknown`) on SignatureCaptureError to match the rest of the taxonomy, or add a one-line doc note on SignatureCaptureError explaining why this one field is optional (e.g. some capture failures — a declined signature — never have an underlying cause to report)."
+    }
+  ],
+  "escalations": []
+}

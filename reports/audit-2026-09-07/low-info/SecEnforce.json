@@ -1,0 +1,22 @@
+{
+  "slice": "SecEnforce",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/http/src/SubjectExtractor.ts",
+      "line": 67,
+      "theme": "auth-scheme-status-code",
+      "description": "In `subjectExtractorBearer`, a present-but-non-Bearer `Authorization` header (e.g. `Basic ...`) is treated identically to no credential at all and resolves to `anonymous` (lines 90-98). This is a real, if narrow, signal-fidelity gap: a client that actually attempted authentication with the wrong scheme gets the same 403 an unauthenticated caller gets, with no `WWW-Authenticate` challenge or 401 to tell it apart, because `AccessDenied` (QadiHttpError.ts) carries no authentication-vs-authorization distinction. The gap is already named in spec/behaviors/23-http.md (BEH-QD-176, 'Known gap, recorded rather than accepted silently') and in this file's own doc comment, but there is still no test in packages/http/test/http.test.ts exercising a `Basic ...` (or any non-Bearer) Authorization header, so a future refactor of the `Option.filter` chain here could silently change this documented behavior with nothing to catch it.",
+      "suggestedFix": "Add a regression test asserting a `Basic ...` (or other non-Bearer scheme) Authorization header resolves to `anonymous` via `subjectExtractorBearer`, pinning the documented BEH-QD-176 gap the same way the case-insensitive-scheme and trimming behaviors are already pinned in http.test.ts."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Qadi.ts",
+      "line": 206,
+      "theme": "missing-edge-case-test",
+      "description": "`enforceProjected`'s own doc comment (lines 206-218) documents a real hazard: the policy is evaluated against `options.resource`, but the wrapped effect `self` is an independent second channel with 'no check that the two describe the same record' — a `self` that resolves to a different or staler resource than `options.resource` is still silently projected under that mismatched decision's field visibility. `packages/core/test/Qadi.test.ts`'s `describe(\"Qadi.enforceProjected\", ...)` block (starting line 98) never exercises a case where `self`'s resolved value differs from `options.resource` — every test either passes no `resource` option or effectively projects the same object the policy was evaluated against — so a regression that made this mismatch leak more broadly (or a future change to `project` that accidentally started reconciling the two channels, silently changing documented behavior) would go undetected by the suite.",
+      "suggestedFix": "Add a test to Qadi.test.ts that sets `options.resource` to one record and has `self` resolve to a structurally different record with a field the policy would otherwise hide, asserting the documented (if surprising) 'projected under the wrong decision' behavior — so the caveat is pinned by a test, not only by prose."
+    }
+  ],
+  "escalations": []
+}

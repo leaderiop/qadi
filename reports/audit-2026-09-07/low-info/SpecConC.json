@@ -1,0 +1,46 @@
+{
+  "slice": "SpecConC",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "spec/behaviors/30-port-calls.md",
+      "line": 79,
+      "theme": "stale-port-call-union",
+      "description": "BEH-QD-227's span list and BEH-QD-228's `PortCall` type signature (`export type PortCall = AttributeCall | ActedCall | RelationshipCall;`) document only three port-touching leaves and their spans (qadi.attribute, qadi.acted, qadi.hasRelationship). The shipped code has five: packages/devtools/src/model/PortCalls.ts's `PortCall` union (line 138) also includes `CustomPredicateCall` (_tag \"CustomPredicate\", span \"qadi.hasCustom\") and `SignatureHistoryCall` (_tag \"SignatureHistory\", span \"qadi.hasSignature\"), added by ADR-QD-055 and ADR-QD-058 respectively but never folded back into this behavior doc (still Revision 1.0, dated 2026-08-24, unrevised since). A reader relying on BEH-QD-227/228 to know which ports emit spans would miss two of the five and could wrongly conclude hasCustom/hasSignature calls are invisible to the port-call collector.",
+      "suggestedFix": "Bump 30-port-calls.md to a new revision adding qadi.hasCustom/qadi.hasSignature to the BEH-QD-227 span table and widening BEH-QD-228's PortCall signature to the real five-member union, noting the two custom/signature leaves reuse the same `Effect.fn` span-and-collect pattern."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/decisions/059-a-gate-runs-where-its-toolchain-runs.md",
+      "line": 94,
+      "theme": "adr-self-contradiction",
+      "description": "The ADR's own text disagrees with itself about which merge-gate number `scripts/check-website-build.mjs` occupies: the Decision section (line 35) says \"the command behind the `website` alias and gate 23\", but the Implemented line at the bottom (line 94) still says \"spec/process/definitions-of-done.md row 22\" for the same script. Commit 5067408 updated \"gate 22\" to \"gate 23\" in the Decision section (to track the CCR-QD-108/109 renumbering that inserted a new step 21) but missed the parallel reference in the Implemented line, even though the commit message claims to have \"fix[ed] every cross-reference check-dod-table.mjs verifies\". The DoD table (spec/process/definitions-of-done.md line 47) confirms step 23 is correct today, so \"row 22\" is the stale one.",
+      "suggestedFix": "Change the Implemented line to \"row 23\" to match the Decision section and the current DoD table, and consider whether check-dod-table.mjs should also scan ADR prose (not just the DoD table itself) for step/gate cross-references."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/behaviors/24-decision-sink.md",
+      "line": 105,
+      "theme": "incomplete-signature-listing",
+      "description": "BEH-QD-183's `DecisionRecord` ts fence (lines 105-113) lists evaluationId, at, policy, resource, action and outcome, but omits `subjectId` and `cache`, both of which are real fields on the shipped `packages/core/src/DecisionRecord.ts` class (added in commit dc767f2, \"six questions the library could pose and could not answer\" — the same feature wave BEH-QD-189's CacheOutcome and this very document's own BEH-QD-186 cover). The doc's own revision 1.2 (2026-09-07, CCR-QD-110) touched this exact requirement to fix the sink's `record` signature but did not update the DecisionRecord shape shown just below it.",
+      "suggestedFix": "Add `subjectId: SubjectId` and `cache?: CacheOutcome | undefined` to the ts fence under BEH-QD-183 so the reference shape matches DecisionRecord.ts."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/behaviors/25-inspection.md",
+      "line": 358,
+      "theme": "incomplete-signature-listing",
+      "description": "BEH-QD-199's ts fence signature is `export const decodeRecord: (input: unknown) => Effect<SinkRecord, SchemaIssue>;`, but the shipped signature (packages/core/src/SinkCodec.ts, decodeRecordWire/decodeRecord) is `Effect.Effect<SinkRecord, PolicyDecodeTooDeep | Schema.SchemaError>` — the `PolicyDecodeTooDeep` depth-guard error (added by commit ef0a0f4, \"share the untrusted-decode depth guard between Policy and SinkCodec (H6)\", merged before this doc's own 2026-09-07 revision 1.3) is missing from the documented error channel entirely.",
+      "suggestedFix": "Update the decodeRecord ts fence to `Effect<SinkRecord, PolicyDecodeTooDeep | SchemaIssue>` and mention the depth guard alongside the existing untrusted-decode discussion."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/decisions/016-gxp-out-of-scope.md",
+      "line": 3,
+      "theme": "adr-status-not-cross-referenced",
+      "description": "ADR-QD-056 (\"a companion package narrows ADR-QD-016\") carries the status \"Accepted — narrows ADR-QD-016\", following the same pattern ADR-QD-024/ADR-QD-054 already established (024's own Status line reads \"Accepted — narrowed by [ADR-QD-054]\"). ADR-QD-016 itself was never updated to reciprocate: its Status line still just reads \"Accepted\" with no back-reference to being narrowed by 056, unlike 024's Status line pointing forward to 054. A reader opening 016 alone (rather than discovering 056 first) has no signal that its scope has since been narrowed.",
+      "suggestedFix": "Add \"— narrowed by [ADR-QD-056](./056-audit-companion-package.md)\" to ADR-QD-016's Status line, mirroring ADR-QD-024's own convention."
+    }
+  ],
+  "escalations": []
+}

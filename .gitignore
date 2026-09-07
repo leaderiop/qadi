@@ -16,7 +16,8 @@ features/reports/
 .doc-examples/
 .website-doc-examples/
 .package-check/
-reports/
+reports/*
+!reports/audit-2026-09-07/
 .stryker-tmp/
 .scratch/
 

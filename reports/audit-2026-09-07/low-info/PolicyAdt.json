@@ -1,0 +1,46 @@
+{
+  "slice": "PolicyAdt",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Policy.ts",
+      "line": 800,
+      "theme": "doc-inaccuracy",
+      "description": "The `policyDepth` doc comment says '`Policy.test.ts` asserts that agreement in both directions rather than asserting a number', referring to the bidirectional policyDepth<->evaluate maxDepth agreement property. That test does not exist in Policy.test.ts — it lives in packages/core/test/RolesAndDepth.test.ts (`it.effect(\"agrees with the evaluator's bound exactly, in both directions\", ...)`, lines 86-114 there). A reader following the doc's pointer to verify the guarantee will look in the wrong file.",
+      "suggestedFix": "Update the comment to name RolesAndDepth.test.ts (or move the policyDepth tests into Policy.test.ts to match the doc)."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/test/Policy.test.ts",
+      "line": 584,
+      "theme": "test-coverage-gap",
+      "description": "The FastCheck property-based round-trip test's `leaf` generator (lines 584-653) covers HasPermission, HasRole, HasAttribute, HasAction, HasCustom, HasActed/HasNotActed, HasRelationship, HasSignature and Obliged, but never generates a `HasResourceAttribute` node. The file explicitly calls out closing exactly this kind of gap for other tags (e.g. the HasSignature comment at line 640: 'HasSignature had zero codec round-trip coverage anywhere in this suite... before this case', and the Labeled comment at line 690) — HasResourceAttribute is the one remaining tag left out of the fuzz generator, exercised only by the single hand-written 'round-trips a deeply nested tree' test (line 208).",
+      "suggestedFix": "Add a `HasResourceAttribute` leaf case to the FastCheck `leaf` oneof (mirroring the existing `HasAttribute` cases) so the property test exercises its encode/decode independently of the one hand-written nested-tree test."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Policy.ts",
+      "line": 759,
+      "theme": "redundant-work",
+      "description": "`fromJson` calls `JSON.parse(json)` once to run the pre-decode depth check (line 764), then discards that parsed value and calls `Schema.decodeUnknownEffect(PolicyFromJson, UNTRUSTED_DECODE_OPTIONS)(json)` (line 770), which internally calls `JSON.parse` on the same string again via `fromJsonString`. Every successful decode therefore parses the same JSON text twice. `decodePolicyUnknown` (line 745, `Schema.decodeUnknownEffect(Policy, UNTRUSTED_DECODE_OPTIONS)`) already exists and operates on an already-parsed value — exactly what `fromJsonValue` uses to avoid this — but `fromJson` doesn't reuse it.",
+      "suggestedFix": "Keep the `JSON.parse(json)` result in a local variable and, when the depth check passes, decode it with `decodePolicyUnknown(parsed)` instead of re-parsing via `Schema.decodeUnknownEffect(PolicyFromJson, ...)(json)`; fall back to the string-based decode only in the `catch` branch (malformed JSON) so its error reporting is unchanged."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Policy.ts",
+      "line": 192,
+      "theme": "line-wrapping-inconsistency",
+      "description": "The `Policy` and `PolicyEncoded` union type declarations (lines 192-207 and 228-243) are written as single lines up to 188 columns wide, far past the ~90-column hand-wrapping convention AGENTS.md §17 documents as this codebase's settled, consistently-followed style (and that the rest of Policy.ts follows — e.g. the combinator functions below wrap arguments across multiple lines). These two blocks are the only place in the file exceeding ~97 columns.",
+      "suggestedFix": "Hand-wrap each union member's fields one per line the way the rest of the file wraps multi-field structures, or split each variant onto its own named interface as `Rule`/`RuleEncoded` already are."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Policy.ts",
+      "line": 181,
+      "theme": "naming-inconsistency",
+      "description": "`makeRoleName` (exported, line 181) and its four unexported siblings `mkActionName`, `mkEventName`, `mkRelationName`, `mkLabelName` (lines 182-185) are all the identical pattern — `Brand.nominal<X>()` — but use two different prefixes ('make' vs 'mk') for structurally identical helpers. AGENTS.md §8 documents `make…` as the builder-naming convention; the abbreviated `mk…` form used for four of the five is a one-off not seen elsewhere in the naming table.",
+      "suggestedFix": "Pick one prefix for all five (either rename the four to `makeActionName`/etc., or shorten `makeRoleName` to `mkRoleName` and adjust its exported name at call sites)."
+    }
+  ],
+  "escalations": []
+}

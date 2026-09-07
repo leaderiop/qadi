@@ -1,0 +1,38 @@
+{
+  "slice": "HttpSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/http/test/QadiHttpError.test.ts",
+      "line": 6,
+      "theme": "stale-doc-count",
+      "description": "The file's doc comment says a live round trip would re-test 'every one of Match.tagsExhaustive's nine arms', but the actual Match.tagsExhaustive in src/QadiHttpError.ts's toResponse has 11 arms (AccessDenied, UndischargedObligation, AttributeResolveError, RelationshipResolveError, DecisionHistoryUnavailable, CustomPredicateError, SignatureHistoryUnavailable, MissingAction, MissingResource, MissingResourceId, PolicyTooDeep) — confirmed by both the ENFORCEMENT_ERROR_TAGS array (11 entries) and this same test file's own `cases` array (11 entries). The comment's rationale is still correct, only the count is stale — the same class of count-drift AGENTS.md §5a documents happening elsewhere in this codebase (the switch-budget table drifting from 'two' to 'four').",
+      "suggestedFix": "Update 'nine arms' to 'eleven arms' (or drop the specific number and just say 'every arm') so the comment doesn't understate the mapping's size for a future reader deciding whether this test still needs updating."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/http/src/SubjectExtractor.ts",
+      "line": 67,
+      "theme": "missing-edge-case-test",
+      "description": "subjectExtractorBearer's doc comment explicitly calls out a known, deliberate-but-incomplete behavior: 'A present-but-non-Bearer credential (Basic …) is still treated as absent rather than as a failure... Recorded rather than silently accepted.' No test in packages/http/test exercises this path — http.test.ts and decisionStream.test.ts only cover Bearer-prefixed and fully-absent Authorization headers (grep for 'Basic' across packages/http/test returns nothing). The behavior is currently correct (fails closed to anonymous) but is exactly the kind of edge the doc comment flags as worth watching, and a future refactor of the Option.filter chain could silently change it (e.g. start forwarding 'Basic xyz' to lookup()) with no test to catch the regression.",
+      "suggestedFix": "Add a test asserting that `Authorization: Basic xyz` resolves to the anonymous subject (same as no header at all) rather than being forwarded to `lookup`."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/http/src/DecisionStreamRoute.ts",
+      "line": 204,
+      "theme": "route-wiring-duplication",
+      "description": "decisionStreamRoute (DecisionStreamRoute.ts:200-257) and permissionRegistryRoute (PermissionRegistry.ts:199-216) both hand-roll the same 'HttpRouter.add(method, path, Effect.gen(function*(){ const request = yield* HttpServerRequest.HttpServerRequest; return yield* guardRoute(...)(...)(request); })) + Layer.effectDiscard(PermissionRegistry.register(...))' shape that addGuardedRoute (PermissionRegistry.ts:138-155, in the very same file as one of the duplicates) already exists to encapsulate. HttpRouter.add's handler parameter natively accepts a `(request) => Effect` function (confirmed in effect@4.0.0-rc.112's HttpRouter.d.ts and used exactly that way by addGuardedRoute), so the extra `Effect.gen` wrapper that manually pulls `HttpServerRequest.HttpServerRequest` out of context just to hand it to `guardRoute(...)(...)` is unnecessary — `guardRoute(...)(...)` could be passed directly as the third argument. The duplication means a bug fix or shape change to the 'guard + register' wiring has to be re-applied by hand in two extra call sites instead of flowing from the one shared factory.",
+      "suggestedFix": "Have permissionRegistryRoute and decisionStreamRoute call addGuardedRoute (or pass guardRoute(permission, policy, loadResource)(handler) directly as HttpRouter.add's third argument) instead of re-deriving the request and re-invoking guardRoute by hand."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/http/src/RequirePermission.ts",
+      "line": 112,
+      "theme": "duplicated-empty-resource",
+      "description": "The 'no resource is available yet' placeholder is independently reimplemented in three places with no shared export: RequirePermission.ts's local `const NO_RESOURCE: Resource = {}`, and an inline `() => Effect.succeed({})` loadResource in both DecisionStreamRoute.ts (line 209) and PermissionRegistry.ts's permissionRegistryRoute (line 209). All three exist for the same reason (a route has no real resource to load before evaluating a contract-level policy) but express it three separate ways, so a future change to what 'no resource' should mean here (e.g. a sentinel value instead of `{}`) would have to be found and updated in three places by convention rather than one export.",
+      "suggestedFix": "Export NO_RESOURCE (or an equivalent `noResource` helper) from one module and reuse it at all three call sites."
+    }
+  ],
+  "escalations": []
+}

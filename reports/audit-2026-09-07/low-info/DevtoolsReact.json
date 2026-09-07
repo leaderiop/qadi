@@ -1,0 +1,54 @@
+{
+  "slice": "DevtoolsReact",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/devtools/src/react/ServicesPanel.tsx",
+      "line": 11,
+      "theme": "doc-accuracy",
+      "description": "The file doc-comment says '\"unwired\" appears nowhere for a required port. Six of the eight are in `EvaluationServices`' — but the actual counts are wrong on both numbers. `wiringReport` (packages/devtools/src/model/Wiring.ts, lines 86-104) emits nine ports total (AttributeResolver, RelationshipResolver, DecisionHistory, EvaluationId, CustomPredicate, SignatureHistory, CurrentSubject as `required`, plus DecisionCache and DecisionSink as `optional`), not eight. And `EvaluationServices` (packages/core/src/Evaluate.ts, lines 200-207) is a union of seven services, not six — matching `GuardHealthCheck.ts`'s own comment 'EvaluationServices bundles seven'. A reader trusting this docstring would under-count both the total ports shown on this screen and how many of them are load-bearing.",
+      "suggestedFix": "Change the comment to 'Seven of the nine are in `EvaluationServices`' (or derive the counts from `wiringReport`/`EvaluationServices` directly so they cannot drift again)."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/devtools/src/react/Simulator.tsx",
+      "line": 167,
+      "theme": "unsafe-fiber-interrupt",
+      "description": "`fiber.current?.interruptUnsafe()` is called directly (lines 167 and 194, with the ref typed as `{ readonly interruptUnsafe: () => void }` at line 149) instead of going through `Fiber.interrupt`. Effect's own `Fiber.ts` doc-comment (\"Gotchas\" section) says: \"Prefer the exported functions in this module over calling `interruptUnsafe` or `pollUnsafe` directly. The unsafe methods are immediate runtime hooks and do not provide the same Effect-based sequencing guarantees\" — specifically, `Fiber.interrupt` only resolves once the interrupted fiber's finalizers have actually run, while `interruptUnsafe()` merely signals interruption and returns immediately. `useTimeline.ts` in this same package does it the recommended way (`Effect.runFork(Fiber.interrupt(fiber))`, lines 55-57) for the identical unmount-interrupt case. For a `Live` source doing real I/O through the host's ports, firing `interruptUnsafe()` on unmount/supersede gives no guarantee that any acquired resource has finished tearing down before the caller moves on.",
+      "suggestedFix": "Interrupt via `Effect.runFork(Fiber.interrupt(fiber.current))` as `useTimeline.ts` does, and hold the real `Fiber.RuntimeFiber` type in the ref instead of the ad hoc `{ interruptUnsafe: () => void }` shape."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/devtools/src/react/QuestionsPanel.tsx",
+      "line": 100,
+      "theme": "formatting-inconsistency",
+      "description": "The JSX returned by `QuestionsPanel` (lines 99-155) is under-indented by one level: the outer `<div>` sits at the same column as `return (` instead of one level deeper, and every child inside it is consequently indented only one level instead of two. Every sibling component in this directory (DecisionLog.tsx, Inspector.tsx, RoleViewer.tsx, ServicesPanel.tsx, etc.) indents its returned JSX one level deeper than `return (`. Purely cosmetic — no behavioral impact — but it stands out against the rest of the file and the rest of the package.",
+      "suggestedFix": "Re-indent lines 100-154 one level deeper to match the rest of the file's JSX nesting."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/devtools/src/react/DecisionLog.tsx",
+      "line": 113,
+      "theme": "hardcoded-color-duplicate",
+      "description": "The 'Continuation' row tint hardcodes `\"rgba(78, 161, 255, 0.06)\"`, which is the RGB decomposition of `colors.accent` (\"#4ea1ff\" in theme.ts) at a different alpha, rather than deriving from the token. The same pattern recurs in `packages/devtools/src/react/Lens.ts` (lines 118-120), where the overlay's border/background colors hardcode `#4ea1ff` and `#e3a008` — the exact hex values of `colors.accent` and `colors.error` — as string literals instead of importing them. Both are plain JS values with no React dependency, so nothing prevents importing `colors` in either file; as written, the theme's own accent/error colors could be changed in `theme.ts` without these two call sites following, silently drifting out of sync with the rest of the dock's palette.",
+      "suggestedFix": "Import `colors` from `./theme.ts` in both files and build the strings from `colors.accent` / `colors.error` (e.g. via a small helper that adds an alpha channel) instead of repeating the hex/rgb literals."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/devtools/test/react/GatesPanel.test.tsx",
+      "line": 14,
+      "theme": "test-style-inconsistency",
+      "description": "This file imports `{ afterEach, describe, expect, it } from \"vitest\"` and asserts with jest-style `expect(...)`, where every other test in `packages/devtools/test/react/` (DecisionLog, DevtoolsDock, Lens, PolicyExplorer, QuestionsPanel, RoleViewer, ServicesPanel, Simulator, WhatIfTable, useTimeline) imports `{ assert, describe, it } from \"@effect/vitest\"` and only pulls `afterEach` (and occasionally `vi`) from `\"vitest\"`, asserting with `assert.*`. It is also the only test file in the directory whose name does not match the source module it exercises (it tests `QuestionsPanel.tsx`, not a `GatesPanel.tsx`), unlike every sibling test file which is named for its counterpart in `src/react/`.",
+      "suggestedFix": "Switch to `{ assert, describe, it } from \"@effect/vitest\"` with `assert.*` assertions to match the rest of the suite, and consider a name that signals it is `QuestionsPanel.tsx`'s second test file (e.g. `QuestionsPanel.gates.test.tsx`) or a leading comment cross-reference is enough if the split name is intentional."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/devtools/src/react/Lens.ts",
+      "line": 58,
+      "theme": "doc-accuracy",
+      "description": "The doc-comment for `isMeasurable` (lines 53-59) says the check is \"duck-typed on the two methods actually used, so a test double works\" — implying `boxOf` calls both `ownerDocument` and `getBoundingClientRect` on the candidate element. In fact `boxOf` (lines 75-92) only reads `element.ownerDocument`; it never calls `element.getBoundingClientRect()` — it measures via `document.createRange().selectNodeContents(element)` and calls `getBoundingClientRect()` on the resulting `Range`, not on `element`. The `\"getBoundingClientRect\" in value` check in `isMeasurable` is therefore stricter than what `boxOf` actually needs from its argument, and the comment overstates what is used.",
+      "suggestedFix": "Reword the comment to say the check narrows to \"something with an owner document that can stand in for a DOM node\" rather than \"the two methods actually used\", or drop the `getBoundingClientRect` check if the extra strictness isn't intentional signature-matching."
+    }
+  ],
+  "escalations": []
+}

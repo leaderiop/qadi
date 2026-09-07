@@ -1,0 +1,46 @@
+{
+  "slice": "Platform",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "scripts/check-package-install.mjs",
+      "line": 216,
+      "theme": "windows-symlink-privilege",
+      "description": "check-package-install.mjs (run as `spec:package`, part of `pnpm check`) links each packed package's third-party runtime dependencies into a sandbox via `symlinkSync(source, destination)` with no `type` argument. On Windows, `fs.symlinkSync` requires `SeCreateSymbolicLinkPrivilege` — granted only to admins or accounts with Developer Mode enabled — so on a non-elevated Windows machine this throws EPERM. `engines` declares only a Node floor (`>=20.19.0`) with no `os` restriction, and CONTRIBUTING.md tells every contributor to run `pnpm check` first, but nothing documents that this step needs elevated privileges/Developer Mode on Windows, and CI only exercises ubuntu-latest so the gap is never caught there either.",
+      "suggestedFix": "Pass an explicit symlink type (e.g. `symlinkSync(source, destination, process.platform === \"win32\" ? \"junction\" : undefined)`) or fall back to copying the dependency tree on win32, and note the Developer Mode requirement (if symlinks are kept) in CONTRIBUTING.md's `pnpm check` section."
+    },
+    {
+      "severity": "Low",
+      "file": "scripts/check-house-style.mjs",
+      "line": 304,
+      "theme": "crlf-comment-strip-failure",
+      "description": "The `strip()` helper used to remove `//` line comments before running house-style regex checks uses `/\\/\\/.*$/` against a line read via `readFileSync(file, \"utf8\").split(\"\\n\")` (line 323) — i.e. the raw line, not trimmed. On a CRLF-terminated line the trailing `\\r` survives the split, and because JS `.` never matches `\\r` and `$` (no `/m` flag) anchors only to the true end of the string, `.*$` cannot match through to the end and the whole regex silently fails to match, leaving the `//...` comment content un-stripped. Verified empirically: `\"const x = 1; // comment\\r\".replace(/\\/\\/.*$/, \"\")` returns the string unchanged. The repo has no `.gitattributes`/`.editorconfig` normalizing line endings, so a source file saved with CRLF (e.g. authored on Windows) has its trailing-`$`-anchored content — comments included — checked verbatim by the house-style rules that follow, risking a false positive/negative in this merge-gate script (`pnpm lint:style`, part of `pnpm check`).",
+      "suggestedFix": "Normalize line endings once up front, e.g. `readFileSync(file, \"utf8\").replace(/\\r\\n/g, \"\\n\").split(\"\\n\")`, so `strip()` and every other `$`-anchored check in this file behave the same regardless of the file's line-ending style."
+    },
+    {
+      "severity": "Info",
+      "file": "package.json",
+      "line": 42,
+      "theme": "missing-engines-field",
+      "description": "Every publishable package (root plus all nine `packages/*` and `examples/nextjs-newsroom`) declares `\"engines\": { \"node\": \">=20.19.0\" }`, but `apps/website/package.json` and `features/package.json` declare no `engines` field at all. Both are `private: true` so this doesn't block a publish, but it's an inconsistency in an otherwise uniformly-enforced convention, and either package could in principle be run standalone (e.g. `pnpm --filter @qadi/website dev`) with no floor signalled.",
+      "suggestedFix": "Add the same `\"engines\": { \"node\": \">=20.19.0\" }` to apps/website/package.json and features/package.json for consistency, or note in AGENTS.md/CONTRIBUTING that private workspace packages are deliberately exempt."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/scripts/verify-traceability.sh",
+      "line": 1,
+      "theme": "bash-only-check-step",
+      "description": "`spec:verify:strict` (invoked by root `pnpm check`, and directly by CONTRIBUTING.md's \"Before anything: run `pnpm check`\") shells out to a `#!/usr/bin/env bash` script — the only non-Node, non-`tar` external-binary dependency in the whole check pipeline. Stock Windows (cmd.exe/PowerShell without WSL or Git Bash on PATH) has no `bash`, and neither `package.json`'s `engines` (Node-only, no `os` field) nor README/CONTRIBUTING mention this requirement. CI itself only runs on `ubuntu-latest`, so a native-Windows contributor cannot complete the documented \"definition of done\" locally, and nothing surfaces that constraint anywhere.",
+      "suggestedFix": "Either port verify-traceability.sh's checks to a Node script (consistent with every other scripts/*.mjs gate) or add a one-line platform note to CONTRIBUTING.md / README's Development section that `pnpm check` requires a POSIX shell (WSL/Git Bash) on Windows."
+    },
+    {
+      "severity": "Info",
+      "file": "examples/nextjs-newsroom/package.json",
+      "line": 14,
+      "theme": "playwright-with-deps-linux-only",
+      "description": "The example's `check` script (run by root `pnpm check` via `pnpm example`) runs `playwright install --with-deps chromium`. Playwright's `--with-deps` flag only installs the browser's OS package dependencies on Linux (and needs passwordless sudo, which GitHub's ubuntu-latest runners have but a local machine may not) — on macOS/Windows it installs the browser binary but silently skips the dependency step. This is fine in CI (ubuntu-latest) but means a contributor running `pnpm check` locally on macOS or Windows gets different, undocumented behavior from this step than CI does, with nothing in the example's README or root CONTRIBUTING calling that out.",
+      "suggestedFix": "Add a short note in examples/nextjs-newsroom/README.md (or CONTRIBUTING.md) that `--with-deps` is a Linux-only convenience and that local Playwright runs on macOS/Windows may need `npx playwright install-deps` equivalents or manual browser dependency setup."
+    }
+  ],
+  "escalations": []
+}

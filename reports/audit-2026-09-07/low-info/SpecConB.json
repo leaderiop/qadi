@@ -1,0 +1,38 @@
+{
+  "slice": "SpecConB",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "spec/behaviors/21-decision-cache.md",
+      "line": 237,
+      "theme": "stale-hashset-claim",
+      "description": "BEH-QD-168's prose says 'AuthSubject compares structurally, `HashSet` grants included' when describing why the cache key hits correctly. `AuthSubject.roles`/`.permissions` are actually `ReadonlySet<RoleName>`/`ReadonlySet<PermissionKey>` (the built-in JS `Set`), not `effect/HashSet` — see packages/core/src/AuthSubject.ts lines 40/42/64-65. The implementation file this behavior documents (packages/core/src/DecisionCache.ts, the DecisionCacheKey doc comment) explicitly records that an earlier version of its own comment made this exact 'HashSet' claim and was corrected after being 'verified empirically against the installed effect build, not assumed from the Equal/Hash docs' — but the correction was never carried back into the spec prose, which still asserts the disproven claim.",
+      "suggestedFix": "Update BEH-QD-168's sentence to say 'built-in Set grants included' (or similar) matching DecisionCache.ts's corrected doc comment, and note that Equal/Hash special-case `instanceof Set` rather than assuming HashSet."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/behaviors/21-decision-cache.md",
+      "line": 210,
+      "theme": "stale-cache-key-shape",
+      "description": "BEH-QD-168's DecisionCacheKey listing (and BEH-QD-163's requirement text, 'the cache key MUST comprise the subject id, the policy, the resource and the action') omits `maxDepth`, which packages/core/src/DecisionCache.ts now includes as a fifth field (added by the prior 2026-09-06 audit fix, commit dab09bc, 'include maxDepth in DecisionCacheKey', to close a real collision: two callers with different maxDepth values could otherwise share a cache entry and get the wrong PolicyTooDeep/Allow/Deny verdict). The spec's requirement and type listing were never updated to reflect the shipped fifth field.",
+      "suggestedFix": "Add `readonly maxDepth: number;` to the DecisionCacheKey interface shown in BEH-QD-168 and extend BEH-QD-163's requirement sentence to mention maxDepth, matching packages/core/src/DecisionCache.ts's DecisionCacheKey and its doc comment ('maxDepth is in the key for the same reason action is')."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/behaviors/19-hydration.md",
+      "line": 330,
+      "theme": "undercounted-drop-reasons",
+      "description": "BEH-QD-230 states 'There are three [hydrate-side silent exits]' and enumerates exactly three: wrong subject, an atom set makeQadiAtoms did not build, and an entry whose policy would not decode. The shipped implementation (packages/react/src/Hydration.ts, hydrateDecisions) actually has four distinct client-side drop reasons — it also drops entries via a fourth path, 'MalformedEntry' ('A field other than policy did not match DehydratedEntry's shape', decodeEntryFields check before decodePolicy), which is a real, separately-counted metric bucket in packages/core/src/HydrationMetrics.ts's ClientHydrationDropReason union and hydrationDropReasons array (5 total reasons across both ends, not the 4 implied by the spec's '3 + the dehydrate-side 4th' framing). MalformedEntry was added in commit bbfd7da (2026-08-25 19:36), after this spec section's last edit (2026-08-25 05:15) as tracked in the Change History table, and the prose was never revised to mention it.",
+      "suggestedFix": "Revise BEH-QD-230's opening paragraph to say 'four' hydrate-side exits (or 'five' total including the dehydrate-side ForeignSubject reason) and add MalformedEntry to the enumerated list, matching packages/core/src/HydrationMetrics.ts's ClientHydrationDropReason union."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/behaviors/16-predicates.md",
+      "line": 97,
+      "theme": "stale-translation-table",
+      "description": "BEH-QD-123's translation-subset table lists every Policy node tag that existed when this document was last revised (2026-08-25) but omits `HasCustom` and `HasSignature`, two Policy variants added afterward (bbfd7da, 2026-08-25 19:36, and f86f028, 2026-08-26) that are both untranslatable in packages/core/src/Predicate.ts (translateNode's HasCustom and HasSignature arms both call untranslatable(...)). HasCustom's own untranslatable behavior is separately documented in spec/behaviors/32-custom-predicates.md (BEH-QD-248), but HasSignature's toPredicate behavior has no equivalent cross-reference anywhere, and this document's own table — the canonical 'here is the whole translatable subset' listing — does not mention either tag.",
+      "suggestedFix": "Add rows for HasCustom (untranslatable — opaque externally-registered logic, cross-reference BEH-QD-248) and HasSignature (untranslatable — looked up through an external port, keyed by subject/resource) to BEH-QD-123's table."
+    }
+  ],
+  "escalations": []
+}

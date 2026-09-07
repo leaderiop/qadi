@@ -1,0 +1,30 @@
+{
+  "slice": "MatcherSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Matcher.ts",
+      "line": 434,
+      "theme": "gte-lt-infinity-asymmetric-guard",
+      "description": "The `Gte`/`Lt` cases in `evaluateMatcher` (lines 433-436) guard `self.value` (the policy-authored bound) with `Number.isFinite`, per the doc comment on `gte`/`lt` explaining that an untrusted-JSON-decoded bound like `1e400` must not be allowed to dominate every finite value the way an unguarded `SecurityLabel.level` would. The same finiteness check is not applied to the resolved attribute `value` on the other side of the comparison. If a resolved attribute itself decodes to `Infinity` (reachable the identical way, e.g. an attacker-influenced numeric field stored as `1e400` in the underlying data store and parsed back with `JSON.parse`), `Gte` returns true unconditionally regardless of the bound (`Infinity >= anyFiniteBound`), silently satisfying every `gte(...)` threshold matcher. `Lt` happens to fail closed in the mirror case (`Infinity < finiteBound` is false), so only `Gte` is affected. No test in Matcher.test.ts exercises a non-finite *value* (only a non-finite *bound*, at lines 75-86), so this asymmetry is untested as well as unguarded.",
+      "suggestedFix": "Add `Number.isFinite(value)` to the `Gte` (and, for symmetry/documentation clarity, `Lt`) condition in `evaluateMatcher`, and add a test alongside the existing bound-side Infinity/NaN test asserting `gte(3)` denies against `Number.POSITIVE_INFINITY`."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Matcher.ts",
+      "line": 218,
+      "theme": "contains-doc-type-nuance",
+      "description": "The doc comment for `contains` (\"Array or string attribute contains the value.\") doesn't mention that `containsValue` (lines 298-302) requires the needle to be the same primitive kind as a string attribute: `contains(1)` against the string attribute `\"1\"` returns false (pinned at Matcher.test.ts line 92), not true via any numeric-to-string coercion. A reader skimming the one-line doc could reasonably expect substring-style coercion the way `Array.prototype.includes` doesn't require type matching against array elements.",
+      "suggestedFix": "Add a short note to the `contains` doc comment (or inline on `containsValue`) stating that string containment requires a string needle; non-string needles against a string attribute always deny."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/Matcher.test.ts",
+      "line": 779,
+      "theme": "misplaced-decision-tests",
+      "description": "The \"field lattice\" (lines 779-824) and \"project\" (lines 826-871) describe blocks test `intersectFields`, `unionFields`, `project`, `Allow`, and `Deny` — all exported from `Decision.ts`, which has zero references to `Matcher.ts` (confirmed: `grep -c \"Matcher\" packages/core/src/Decision.ts` returns 0). There is no `Decision.test.ts` in `packages/core/test/` (only `DecisionCache.test.ts`, `DecisionHistory.test.ts`, and `DecisionSink*.test.ts`), so a reader relying on the `X.test.ts` ↔ `X.ts` naming convention used everywhere else in this test directory (e.g. `FieldPath.test.ts` for `FieldPath.ts`) would not find this coverage and could wrongly conclude `project`/`intersectFields`/`unionFields` are untested.",
+      "suggestedFix": "Move the \"field lattice\" and \"project\" describe blocks into a new `Decision.test.ts`, or rename/split this file so its contents match its name."
+    }
+  ],
+  "escalations": []
+}

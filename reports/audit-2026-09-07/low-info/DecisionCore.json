@@ -1,0 +1,38 @@
+{
+  "slice": "DecisionCore",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Decision.ts",
+      "line": 120,
+      "theme": "aliasing-vs-copy",
+      "description": "In `project`, the unrestricted-fields branch (`decision.visibleFields === undefined`) does `return data;` — the caller's original resource object, by reference. The restricted branch just below builds a fresh `out` object via `Object.defineProperty` and returns that instead. So the two branches of the same function have different aliasing behavior: a caller that mutates the `Partial<A>` returned by `project` will silently mutate the original `data` argument whenever the decision was unrestricted, but not when it was field-restricted. Nothing in the doc comment calls out this asymmetry (it only discusses the `Partial<A>`-vs-`\"*\"`-cap type caveat).",
+      "suggestedFix": "Either document explicitly that the unrestricted case returns the same reference (so callers must not mutate it), or return a shallow copy (`{ ...data }`) for consistency with the restricted branch."
+    },
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Decision.ts",
+      "line": 190,
+      "theme": "match-vs-if-else",
+      "description": "`intersectFields`'s inner loop dispatches on `compareShapes`'s return value (`FieldPath.ts`'s `Containment = \"Equal\" | \"ALessB\" | \"BLessA\" | \"Incomparable\"`, a plain literal union) with an `if (cmp === \"Equal\" || cmp === \"BLessA\") … else if (cmp === \"ALessB\") …` chain instead of `effect/Match`. AGENTS.md §5a gives exactly this shape of dispatch (a plain literal union with no `_tag`) as its own worked example (`compare` over `CompareOp`, matched with `Match.value`/`Match.exhaustive`), so this is a real deviation from house style. It also isn't a `switch`, so `scripts/check-house-style.mjs`'s `SWITCH_BUDGET`/`no-switch` check (which only scans for the literal `switch` keyword) does not catch it — a legitimate but unenforced gap. There is also no exhaustiveness guard: the `Incomparable` case (and any future addition to `Containment`, which today has no other consumer in `packages/core/src`) falls through silently with no `default`/`never` assertion, unlike the deliberate `default` guards §5a calls out for `resolveRef`/`mergeFields`.",
+      "suggestedFix": "Convert to `Match.value(cmp).pipe(Match.when(...), Match.exhaustive)` (or add a `default`-to-`never` fallthrough) for consistency with §5a and to make a future `Containment` addition a compile error instead of a silent no-op."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/src/Decision.ts",
+      "line": 179,
+      "theme": "duplicate-comment",
+      "description": "The four-line comment beginning \"Paired with its own shape rather than parallel arrays walked by index…\" is duplicated verbatim back-to-back (lines 179-182 and again 183-186) immediately above `shapedA`/`shapedB`. Pure copy-paste artifact with no behavioral effect, but it reads as if two different remarks were intended.",
+      "suggestedFix": "Delete one of the two identical comment blocks."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/test/DecisionHistory.test.ts",
+      "line": 67,
+      "theme": "redundant-test-fixture",
+      "description": "The \"collision-immune\" test builds two separate `decisionHistoryFromEvents` layers, `collidable` (line 67) and `collidableAnywhere` (line 72), from the exact same single-event input array, purely so one can be queried with a `resourceId` and the other with `undefined`. The second layer is unnecessary — `collidable` alone would serve both assertions in the same `it.effect` block.",
+      "suggestedFix": "Reuse `collidable` for both the keyed and \"anywhere\" assertions instead of constructing an identical second layer."
+    }
+  ],
+  "escalations": []
+}

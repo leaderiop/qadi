@@ -1,0 +1,46 @@
+{
+  "slice": "Invariants",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/core/src/Evaluate.ts",
+      "line": 330,
+      "theme": "misleading-denial-reason",
+      "description": "`attributeReason` labels every `Neq` denial with a defined `value` as \"matched an excluded value\" without checking whether the matcher's reference side (`m.ref`) actually resolved. Since CCR-QD-112 (packages/core/src/Matcher.ts lines 413-418), `Neq` also denies when its *reference* operand is `undefined` (e.g. `M.neq(M.subject(\"missingPath\"))` or `M.neq(M.resource(\"missingPath\"))`) — a case where nothing was actually compared, let alone matched. In that scenario `attributeReason` still emits \"matched an excluded value\", asserting a comparison outcome that never happened, which is exactly what INV-QD-029 (\"a denial names only what was consulted\") says must not occur. `packages/core/test/Evaluate.test.ts`'s Neq-reason tests (lines 94-122) only exercise `M.neq(M.literal(...))`, so this path is untested.",
+      "suggestedFix": "Have `attributeReason` (or its caller) also resolve/pass the reference side's definedness for `Neq`, and fall back to a \"has no value\"/wiring-style sentence when the reference itself is unresolved, mirroring how the `value === undefined` case is already handled."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/invariants.md",
+      "line": 297,
+      "theme": "invariant-source-drift",
+      "description": "INV-QD-013's Source paragraph claims \"`assert`, `enforce`, `enforceProjected` and `filter` all route through one internal `permitted`... None of them can implement half the rule, because none of them implements it.\" This is no longer true of `filter`: `packages/core/src/Qadi.ts`'s `filter` (line 316) and `filterStream` (line 350, not mentioned in the invariant at all) both go through a separate helper, `decideOne` (line 303), which independently re-implements evaluate → isAllowed → discharge rather than calling `permitted`. The invariant's stated safety argument (a single shared implementation makes half-implementing the rule impossible) does not hold for these two entry points — they are a second, independently maintained implementation of the same obligation-discharge logic, the exact shape of drift this codebase treats elsewhere as a defect (see INV-QD-038, INV-QD-043's \"two functions answering one question\" reasoning). It happens to be correctly tested separately (`packages/core/test/Qadi.test.ts`'s dedicated filter/filterStream obligation tests), so no live bug follows, but the documented enforcement mechanism misdescribes the code.",
+      "suggestedFix": "Update INV-QD-013's Source section to name `decideOne` as the second place this rule is implemented (covering `filter`/`filterStream`), or note explicitly why it's a deliberate second implementation rather than folding into `permitted`."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/invariants.md",
+      "line": 211,
+      "theme": "invariant-source-drift",
+      "description": "INV-QD-009's Source says `enforce` is `Effect.flatMap(assert(policy), () => self)`. The actual implementation in `packages/core/src/Qadi.ts` (line 197) is `Effect.flatMap(permitted(policy, options), () => self)` — `enforce` never calls `assert`; both `assert` (line 179) and `enforce` independently call the shared internal `permitted(policy, options)`. The externally observable behavior described by the invariant still holds (guarded effect never starts before the policy allows), but the formula as written omits `options` entirely and describes a call graph (`enforce` → `assert`) that doesn't exist in the source.",
+      "suggestedFix": "Correct the Source text to `Effect.flatMap(permitted(policy, options), () => self)`, matching the actual line in Qadi.ts."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/invariants.md",
+      "line": 1669,
+      "theme": "broken-doc-anchor",
+      "description": "The link `[BEH-QD-239](behaviors/31-predicate-compilation.md#beh-qd-239-an-empty-memberof-is-false-never-in)` is missing a trailing hyphen. The actual heading in `spec/behaviors/31-predicate-compilation.md` line 141 is \"## BEH-QD-239: An empty `MemberOf` is `False`, never `IN ()`\", whose GitHub-generated anchor slug ends in `...never-in-` (a trailing hyphen produced by the trailing `()` after `IN`), matching the anchor style already used elsewhere in this same document (e.g. BEH-QD-247's double-hyphen anchor a few lines earlier resolves correctly). This anchor does not resolve to the heading when clicked in a rendered view. No script in `pnpm check` validates in-doc markdown anchors, so this class of drift isn't caught by any gate.",
+      "suggestedFix": "Add the missing trailing hyphen: `#beh-qd-239-an-empty-memberof-is-false-never-in-`."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/invariants.md",
+      "line": 1758,
+      "theme": "invariant-completeness-gap",
+      "description": "INV-QD-052's Source describes only three atomic operations (`status`, `recordSuccess`, `recordFailure`) as single-`Ref.modify` transitions on the circuit breaker. `packages/audit/src/CircuitBreaker.ts` has since grown two more operations with the same atomicity property and the same concurrency motivation — `claimProbe` (line 297) and `releaseProbe` (line 309), added per tickets #38/#46/#47 to bound a half-open window to exactly one concurrent probe. Both are well tested (`packages/audit/test/CircuitBreaker.test.ts`, e.g. \"claimProbe admits exactly one caller per half-open window, not the whole fan-out\"), but the invariant text names only the original three, so a reader relying on INV-QD-052 to know what the breaker's atomicity covers would not learn about the half-open single-probe guarantee at all.",
+      "suggestedFix": "Either extend INV-QD-052 to mention `claimProbe`/`releaseProbe`'s atomicity, or add a short new invariant for the single-probe-per-half-open-window property and cross-reference it from INV-QD-052."
+    }
+  ],
+  "escalations": []
+}

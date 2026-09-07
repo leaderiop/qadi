@@ -1,0 +1,30 @@
+{
+  "slice": "ApiSurface",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "spec/overview.md",
+      "line": 648,
+      "theme": "explanation-union-miscount",
+      "description": "The \"Not listed above\" table describes `Requirement, All, Any, Negated, Named, Owing, Row, Table` as \"the eight members of the `Explanation` union.\" That is wrong on two counts: the real union (`packages/core/src/Explanation.ts:111`, `export type Explanation = Requirement | All | Any | Negated | Named | Owing | Table;`) has seven members, not eight, and `Row` is not one of them at all — `Row` (Explanation.ts:99) is the shape of one entry in `Table.rows: ReadonlyArray<Row>`, a field type, not a union alternative. A reader relying on this row to understand `Explanation`'s shape would misjudge both its arity and its structure (e.g. expect a bare `Row`-tagged member to appear where `explain`/`renderExplanation` never produce one).",
+      "suggestedFix": "Say \"the seven members of the Explanation union, plus Row, the shape of one entry in a Table's rows\" (or similar), and drop the \"eight\" count."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/overview.md",
+      "line": 564,
+      "theme": "kind-column-malformed",
+      "description": "In the `@qadi/devtools` Export table, the row for `mergeSources` has a description sentence (\"several sources as one, so a server's decisions and a browser's re-checks share a timeline\") sitting in the **Kind** column instead of a kind label like the neighboring rows (`type`, `constructor`, `function`, ...). `mergeSources` (packages/devtools/src/model/Source.ts:191) is an ordinary function, `(sources: ReadonlyArray<Source>) => Source`. The table's own header note in the doc says Kind/Source mismatches are prose bugs the merge gate (`scripts/check-api-surface.mjs`) does not catch, and this is exactly that case — a stray description landed in the wrong cell during an edit.",
+      "suggestedFix": "Change the Kind cell to `function` and move the descriptive clause into surrounding prose (or a trailing note cell) the way other annotated rows in the same tables do (e.g. the `frame`/`reauthCheck` rows under `@qadi/http`)."
+    },
+    {
+      "severity": "Info",
+      "file": "spec/overview.md",
+      "line": 365,
+      "theme": "source-column-names-reexporter-not-definer",
+      "description": "The `@qadi/react` table lists (lines 365, 374) `QadiAtomsOptions, HydrationMismatch, HydrationMismatchReporter | type | QadiAtoms.ts` and `HydrateOptions, HydrationDrop, HydrationDropReporter | type | Hydration.ts`. The last two pairs are actually declared in `packages/react/src/HydrationWarning.ts` (`HydrationMismatch`/`HydrationMismatchReporter` at lines 21 and further down, `HydrationDrop`/`HydrationDropReporter`) and only re-exported via `export type { ... } from \"./HydrationWarning.ts\";` in `QadiAtoms.ts:40` and `Hydration.ts:33`. `HydrationWarning.ts` is never named anywhere in spec/overview.md, unlike the codebase's own established convention elsewhere in the same document for a re-export (e.g. the `SignatureInput | type, re-exported from @qadi/core | RecordingSignatureHistory.ts` row), which flags the Kind column with \"re-exported from X\" so the Source column's file can be read as the re-exporting site rather than the definition site.",
+      "suggestedFix": "Either point the Source column at `HydrationWarning.ts` for these four names, or annotate Kind as \"type, re-exported from ./HydrationWarning.ts\" the way the SignatureInput row does, so a reader knows where the type is actually declared."
+    }
+  ],
+  "escalations": []
+}

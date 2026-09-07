@@ -1,0 +1,22 @@
+{
+  "slice": "TestingSlice",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "packages/testing/src/FailingAttributeResolver.ts",
+      "line": 14,
+      "theme": "missing-diagnostic-name",
+      "description": "None of the five 'Failing*' fixtures (FailingAttributeResolver.ts:14, FailingCustomPredicate.ts:15, FailingDecisionHistory.ts:14, FailingRelationshipResolver.ts:14, FailingSignatureHistory.ts:14) set the optional `name` field on the service object they return via `Layer.succeed`, while every 'Recording*'/'Edge'/'Event' fixture in the same package does (recordingAttributeResolver, recordingCustomPredicate, edgeRelationshipResolver, eventDecisionHistory, recordingSignatureHistory all set a descriptive `name`). TestLayers.test.ts's own 'recording fixtures set a descriptive name for diagnostics' test explains why this matters: `attributeResolverRetrying`/`relationshipResolverRetrying` in @qadi/core render a wrapped resolver's identity as `${inner.name ?? \"?\"}` for diagnostics. The Failing* fixtures are the most natural candidates to be wrapped by a retry combinator (to exercise retry-on-failure behavior), yet doing so would silently render \"?\" instead of a descriptive name in any resulting diagnostic output or trace.",
+      "suggestedFix": "Add a `name` field (e.g. \"failingAttributeResolver\", \"failingCustomPredicate\", \"failingDecisionHistory\", \"failingRelationshipResolver\", \"failingSignatureHistory\") to each of the five Layer.succeed(...) service objects, mirroring the Recording*/Edge/Event fixtures."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/testing/src/Fixtures.ts",
+      "line": 19,
+      "theme": "fixture-identity-inconsistency",
+      "description": "`roles.editor` and `roles.admin` are declared as getters (lines 19-32) that call `role({...})` afresh on every property access, so `roles.editor !== roles.editor` and `roles.admin !== roles.admin` (different object references each read, though structurally equal) — unlike `roles.viewer`, which is a plain value computed once. The getters exist only to break the forward-reference cycle needed to point `editor`/`admin` at sibling roles before the `roles` object literal has finished evaluating; the recomputation isn't required by anything (`hasRole` matches by role name string, not object identity), but a consumer of this exported fixture object who caches or compares by `===` on `roles.editor`/`roles.admin` would get surprised.",
+      "suggestedFix": "If reference stability isn't needed, leave as-is but note it in the doc comment; otherwise memoize each getter's result on first access (e.g. compute once into a local `let` and return the cached value)."
+    }
+  ],
+  "escalations": []
+}

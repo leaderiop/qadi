@@ -1,0 +1,46 @@
+{
+  "slice": "FeaturesBdd",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "features/step-definitions/AccessThenSteps.ts",
+      "line": 5,
+      "theme": "duplicated-helper",
+      "description": "The `describeOutcome` helper (formats `{allowed, denied, errored, reason}` as JSON for an assertion message) is defined byte-identically in three separate files: AccessThenSteps.ts:5-11, AttributionThenSteps.ts:5-11, and ErrorThenSteps.ts:5-11. If a field on `Outcome` is renamed or a new diagnostic field is added, all three copies have to be found and updated in lockstep or assertion failure messages silently drift out of sync with each other.",
+      "suggestedFix": "Move `describeOutcome` into SharedWorld.ts (which already owns `WorldState`/`Outcome`) and import it from the three Then-step files."
+    },
+    {
+      "severity": "Low",
+      "file": "features/step-definitions/SubjectGivenSteps.ts",
+      "line": 17,
+      "theme": "duplicated-parsing-logic",
+      "description": "The `\"resource:action\"` split-and-validate logic (split on `:`, throw `malformed permission key` if either half is undefined) is reimplemented separately in SubjectGivenSteps.ts:17-20, SubjectSetGivenSteps.ts:19-22, and twice inline in FieldVisibilityWhenSteps.ts:11-14 and :22-26/:42-46 — even though PermissionWhenSteps.ts already exports a `permissionPolicy`/parsing helper for exactly this, and CompositionWhenSteps.ts demonstrates the reuse pattern by importing it. The duplicated copies have also drifted: three include the offending key in the error message (`malformed permission key: ${key}`) while FieldVisibilityWhenSteps.ts's two inline copies drop it (`\"malformed permission key\"`), so debugging a bad Gherkin table row gives a less useful message depending on which file failed.",
+      "suggestedFix": "Extract a shared `parsePermissionKey(key: string): readonly [string, string]` (or reuse `permissionPolicy` where a `Policy` is what's actually wanted) in SharedWorld.ts or PermissionWhenSteps.ts, and import it from the four other call sites instead of re-deriving the split/validate logic."
+    },
+    {
+      "severity": "Low",
+      "file": "features/step-definitions/IntegrityGivenSteps.ts",
+      "line": 4,
+      "theme": "doc-comment-inaccuracy",
+      "description": "The `label(level, compartments)` helper at IntegrityGivenSteps.ts:4-7 is a byte-identical copy of the one already defined in SecurityLabelGivenSteps.ts:5-8, not an import of it — yet the comment at IntegrityGivenSteps.ts:9-13 states \"these reuse the `label` helper `SecurityLabelGivenSteps.ts` also defines\", which reads as if the two files share one implementation. They don't: there is no import between the files, and a future change to the label shape (e.g. adding a field) made in one file silently does not apply to the other.",
+      "suggestedFix": "Either export `label` from SecurityLabelGivenSteps.ts and import it here so the comment's claim becomes true, or reword the comment to say the two files independently define an identical helper (and why that independence is intentional, if it is)."
+    },
+    {
+      "severity": "Info",
+      "file": "features/step-definitions/RuleTableWhenSteps.ts",
+      "line": 26,
+      "theme": "house-style-switch",
+      "description": "`condition(text)` dispatches on the plain string literal `head` with a raw `switch` statement. AGENTS.md §5a requires `effect/Match` for this (\"A plain literal union has no `_tag`, so match the values\" — shown with `Match.value(op).pipe(Match.when(...), Match.exhaustive)`), and the four switches the codebase deliberately keeps are named and counted in `SWITCH_BUDGET` inside scripts/check-house-style.mjs, none of which is this file. This one goes uncaught because check-house-style.mjs's `no-switch` rule (and every per-line RULES entry) only scans `packages/<pkg>/src` and `packages/<pkg>/test` (see check-house-style.mjs:293-301) — the `features/` tree is outside the gate's file list entirely, so this switch (and any future `as`/non-null-assertion/etc. violation under features/) would never fail `pnpm check`.",
+      "suggestedFix": "Convert to `Match.value(head).pipe(Match.when(\"role\", ...), Match.when(\"owner\", ...), Match.when(\"always\", ...), Match.orElse(() => { throw new Error(...) }))` for house-style consistency, or explicitly document that check-house-style.mjs's scope excludes features/ (and decide whether that's intended)."
+    },
+    {
+      "severity": "Info",
+      "file": "features/features/merged-sources/merged-sources.feature",
+      "line": 48,
+      "theme": "gherkin-prose-grammar",
+      "description": "Grammatical number mismatch in Then-step text: \"Then the timeline holds 1 rows\" (line 48) and \"a producer streaming 1 records live\" (line 64) both pair the singular count `1` with a plural noun, unlike every other count in this suite (e.g. devtools.feature consistently uses \"the timeline has 1 row\" / \"2 rows\"). Purely cosmetic — the step definition parses the number regardless of the noun's grammatical number — but it's inconsistent with the rest of the spec's careful prose.",
+      "suggestedFix": "Reword to \"the timeline holds 1 row\" and \"a producer streaming 1 record live\" (or make the step text plural-agnostic, e.g. \"holds 1 row(s)\", if that's simpler than pluralizing correctly for every count)."
+    }
+  ],
+  "escalations": []
+}

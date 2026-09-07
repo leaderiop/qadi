@@ -1,0 +1,38 @@
+{
+  "slice": "Deps",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "features/package.json",
+      "line": 21,
+      "theme": "unused-dependency",
+      "description": "`@effect/platform-node` (catalog: 4.0.0-rc.112) is declared as a devDependency of `@qadi/features` but is never imported anywhere: no `platform-node` reference exists in `features/step-definitions/`, `features/**/*.steps.test.ts`, or `features/vitest.config.ts`, and no `.feature`/step-definition file exercises an HTTP server. It isn't mentioned in spec/README.md or CONTRIBUTING.md as an intentional placeholder either, unlike the documented typescript/tstyche version gaps elsewhere in the repo.",
+      "suggestedFix": "Remove `@effect/platform-node` from features/package.json devDependencies (and drop it from the pnpm-workspace.yaml catalog if nothing else in the workspace ends up using it)."
+    },
+    {
+      "severity": "Info",
+      "file": "pnpm-workspace.yaml",
+      "line": 20,
+      "theme": "catalog-coverage-gap",
+      "description": "`@testing-library/react` (^16.3.2) and `happy-dom` (^20.11.1) are repeated as identical literal version strings across packages/devtools/package.json, packages/react/package.json, features/package.json and examples/nextjs-newsroom/package.json, instead of being added to the pnpm-workspace.yaml catalog the way effect/react/react-dom/vitest/typescript already are. Nothing enforces the four copies stay in sync if one is bumped without the others — the exact drift-prevention problem the catalog exists to solve for the other shared deps.",
+      "suggestedFix": "Add `@testing-library/react` and `happy-dom` to the pnpm-workspace.yaml catalog and switch the four consuming package.json files to `catalog:`."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/predicate-prisma/package.json",
+      "line": 51,
+      "theme": "inconsistent-version-pinning",
+      "description": "Within the same devDependencies block, `prisma` is pinned to an exact version (`7.10.0`, line 52) while its companion `@prisma/client` uses a caret range (`^7.10.0`, line 51). These two packages are published together by Prisma and are expected to stay in lockstep (a `@prisma/client` minor bump resolving ahead of the pinned `prisma` CLI is the classic way the two drift apart), so the two pinning styles sitting side by side in one file is an avoidable inconsistency.",
+      "suggestedFix": "Pin both to the same exact version (`7.10.0`) or both with the same caret range, whichever matches this repo's general preference for exact pins on dev tooling."
+    },
+    {
+      "severity": "Info",
+      "file": "package.json",
+      "line": 55,
+      "theme": "types-runtime-floor-mismatch",
+      "description": "`@types/node` is pinned to `^25.7.0` (also in features/package.json:25 and examples/nextjs-newsroom/package.json:30) while every package's `engines.node` and the CI matrix's floor leg (.github/workflows/check.yml:48, \"20.19.0\") require only Node >=20.19.0. Editors and `tsc` will therefore permit calls to Node 25/26-only APIs that aren't guaranteed present on the documented minimum runtime; a real such call would still be caught by the CI matrix's 20.19.0 leg at test time, so the risk is narrow, but the type surface itself doesn't reflect the floor.",
+      "suggestedFix": "Either raise engines.node to match the @types/node major, or pin @types/node to a ^20.x range matching the documented floor."
+    }
+  ],
+  "escalations": []
+}

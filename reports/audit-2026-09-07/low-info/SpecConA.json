@@ -1,0 +1,38 @@
+{
+  "slice": "SpecConA",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "spec/behaviors/02-roles.md",
+      "line": 79,
+      "theme": "stale-signature-missing-error-type",
+      "description": "BEH-QD-012's `resolveRoleGraph` signature is listed as `(definitions) => Effect.Effect<ReadonlyArray<Role>, CircularRoleInheritance>`, and the two REQUIREMENT blocks below it describe only the cycle and unknown-parent behaviors. The real implementation (packages/core/src/Role.ts:271-363) also takes a second `options?: { onUnknownParent?: (names) => void }` parameter, and fails with `DuplicateRoleDefinition` (tested extensively in packages/core/test/RolesAndDepth.test.ts, describe block starting at line 391) when two definitions share a name — a third failure mode with no defensible fallback, unlike the unknown-parent case. Neither the parameter nor the error type appears anywhere in the doc.",
+      "suggestedFix": "Update BEH-QD-012's signature to `resolveRoleGraph: (definitions, options?: { onUnknownParent?: (names: ReadonlyArray<string>) => void }) => Effect.Effect<ReadonlyArray<Role>, CircularRoleInheritance | DuplicateRoleDefinition>` and add a REQUIREMENT for the duplicate-name failure alongside the existing cycle/unknown-parent ones."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/behaviors/08-serialization.md",
+      "line": 25,
+      "theme": "stale-signature-missing-error-type",
+      "description": "BEH-QD-057 lists `fromJson: (json: unknown) => Effect.Effect<Policy, SchemaError>` and `fromJsonValue: (value: unknown) => Effect.Effect<Policy, SchemaError>`. In packages/core/src/Policy.ts the real signatures are `fromJson: (json: string) => Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError>` (line 759) and `fromJsonValue: (value: unknown) => Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError>` (line 784) — `fromJson` takes a `string`, not `unknown`, and both can fail with `PolicyDecodeTooDeep`. That error is exactly the mechanism implementing BEH-QD-059's own next requirement (\"Decoding MUST bound recursion\"), so a reader relying on this signature listing would not know to handle it.",
+      "suggestedFix": "Correct the two signatures: `fromJson: (json: string) => Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError>` and `fromJsonValue: (value: unknown) => Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError>`, and mention `PolicyDecodeTooDeep` in BEH-QD-059's bounded-recursion requirement."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/behaviors/09-react.md",
+      "line": 47,
+      "theme": "incomplete-interface-listing",
+      "description": "BEH-QD-065's `QadiAtoms` interface block (revision 2.5, dated 2026-08-30) lists only `runtime`, `subject`, `decision`, `decisionFor` and `invalidate`. The real `QadiAtoms` interface (packages/react/src/QadiAtoms.ts:92-143) also has a documented `asked: () => ReadonlyArray<AskedQuestion>` member, added and normatively described by BEH-QD-198 in spec/behaviors/25-inspection.md (that doc's own change history dates the addition to 2026-08-24, CCR-QD-062 — before 09-react.md's latest revision). A reader consulting 09-react.md for the atom set's shape gets an incomplete interface.",
+      "suggestedFix": "Add `readonly asked: () => ReadonlyArray<AskedQuestion>;` to BEH-QD-065's `QadiAtoms` listing (or a one-line cross-reference to BEH-QD-198) so the interface shown matches the real export."
+    },
+    {
+      "severity": "Low",
+      "file": "spec/behaviors/11-obligations.md",
+      "line": 152,
+      "theme": "incomplete-entry-point-table",
+      "description": "BEH-QD-085's \"Entry point / Kind / On a binding obligation\" table (doc revision 1.0, dated 2026-07-26) lists only `decide`, `check`, `assert`, `enforce`, `enforceProjected`, `filter`. Two later enforcing entry points are missing: `guard` (added per spec/behaviors/07-enforcement.md's changelog, ADR-QD-035/043, 2026-08-23) and `filterStream` (07-enforcement.md changelog, 2026-09-07). Both discharge obligations exactly like their siblings — `guard` is built directly on `enforce` (per 07-enforcement.md's own commentary: \"the same obligation discharge and denial handling every enforcing entry point in this file shares\"), and `filterStream` shares `filter`'s `decideOne` helper (packages/core/src/Qadi.ts:303-365), which calls `discharge`. Neither row exists in this table.",
+      "suggestedFix": "Add `guard` and `filterStream` rows to the BEH-QD-085 table, both marked \"enforces / fails\" to match `enforce`/`filter`."
+    }
+  ],
+  "escalations": []
+}

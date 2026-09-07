@@ -1,0 +1,38 @@
+{
+  "slice": "BuildPublish",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": "scripts/check-package-install.mjs",
+      "line": 278,
+      "theme": "publish-gate-coverage-gap",
+      "description": "Check 4's TypeScript consumer fixture (`FIXTURE`, starting ~line 278) imports and exercises @qadi/core, @qadi/promise, @qadi/testing, @qadi/react, @qadi/devtools (both entry points), @qadi/predicate-sql, @qadi/predicate-prisma and @qadi/audit — but never imports @qadi/http. It is the only one of the 9 publicly published packages excluded from the type-checked-and-run consumer program. A broken or drifted `.d.ts`, a renamed export, or subtly wrong published behavior in @qadi/http would only be caught by check 3's generic import probe (which just asserts `Object.keys(module).length > 0` at runtime) rather than by the type-check-against-shipped-.d.ts-and-authorize-correctly verification every other package gets.",
+      "suggestedFix": "Add an @qadi/http import to the FIXTURE (e.g. build a minimal HttpApiMiddleware/enforcement check using the same `alice`/`hasPermission` fixtures already in scope) so its published .d.ts and runtime behavior are exercised the same way as the other 8 packages."
+    },
+    {
+      "severity": "Low",
+      "file": "AGENTS.md",
+      "line": 293,
+      "theme": "stale-doc-metric",
+      "description": "AGENTS.md §17 states `.oxfmtrc.json` sets a `lineWidth` that \"cut the count to 55 but did not stop it producing 92-column lines\" — but no `.oxfmtrc.json` file exists anywhere in the repository (verified with a repo-wide search). A reader following this doc to inspect or tune that setting will find nothing. Separately, the same section's raw counts (\"147 of 169 files\", \"113 of 169 files\") disagree with `spec/process/definitions-of-done.md`'s note on the identical command (\"127 of 145 files\"), and neither matches the actual current result of `pnpm format:check` on a clean checkout (348 of 517 files, verified by running it after removing generated `packages/*/lib` output).",
+      "suggestedFix": "Either restore `.oxfmtrc.json` if the lineWidth experiment is still meant to be live, or update AGENTS.md §17 to say it was tried and reverted; reconcile the file/pass counts between AGENTS.md §17 and definitions-of-done.md's own note, or mark both explicitly as a snapshot taken on a given date rather than an evergreen fact, since neither is gated (no script checks these numbers, unlike the DoD table, devtools claims, and publish-status gates that were built for exactly this class of drift)."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/core/tsconfig.src.json",
+      "line": 15,
+      "theme": "dead-tsconfig-paths",
+      "description": "`packages/core/tsconfig.src.json` (and identically `packages/react/tsconfig.src.json`, line ~24) declares a `paths` entry mapping `@qadi/testing` to `../../packages/testing/src/index.ts` inside the **src-only** compile project (`include: [\"src/**/*.ts\"]`). Neither package's `src/` actually imports `@qadi/testing` (grep finds only prose comments referencing it in `DecisionHistory.ts`, `DecisionSinkRing.ts`, `RelationshipResolver.ts`, none of them an import), and neither `tsconfig.src.json` lists a project `references` entry for `packages/testing` the way it would need to if the mapping were ever exercised. The other 7 packages' `tsconfig.src.json` files carry no such entry.",
+      "suggestedFix": "Remove the unused `@qadi/testing` paths entry from `packages/core/tsconfig.src.json` and `packages/react/tsconfig.src.json`, or add the matching `references` entry and a real usage if it's meant to stay."
+    },
+    {
+      "severity": "Info",
+      "file": "packages/predicate-prisma/package.json",
+      "line": 44,
+      "theme": "devdep-version-strategy-mismatch",
+      "description": "`prisma` is pinned exact (`\"7.10.0\"`) while `@prisma/client` is a caret range (`\"^7.10.0\"`) in the same devDependencies block. Prisma's own guidance is to keep the CLI and client at identical versions; currently both resolve to 7.10.0 in pnpm-lock.yaml, so there is no live drift, but the caret leaves room for `@prisma/client` to advance past the pinned CLI on a future `pnpm install` (a fresh lockfile update, a `pnpm up`), which Prisma treats as an unsupported combination.",
+      "suggestedFix": "Pin @prisma/client to the same exact version as prisma (or move both to a shared caret range) so a future install can't silently separate them."
+    }
+  ],
+  "escalations": []
+}

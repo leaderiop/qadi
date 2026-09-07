@@ -1,0 +1,22 @@
+{
+  "slice": "CIAudit",
+  "findings": [
+    {
+      "severity": "Low",
+      "file": ".github/workflows/check.yml",
+      "line": 48,
+      "theme": "node-version-not-actually-pinned",
+      "description": "The comment at lines 59-63 claims both matrix legs are 'pinned exactly rather than floating on `latest`... a gate whose toolchain changes underneath it reports failures that are not about the change under test.' The `20.19.0` leg is a true exact pin, but the `26` leg (line 48, `node-version: [\"20.19.0\", \"26\"]\") is only a major-version specifier: `actions/setup-node@v4` resolves it to whatever the newest `26.x.y` release is at job-run time, so that leg's Node toolchain can and will change between CI runs (a new Node 26 patch/minor landing) without any commit to this file — exactly the failure mode the comment says the exact-pin discipline exists to prevent. spec/README.md's CCR-QD-036 entry even records a concrete resolved version ('Node 26.5.0') from one run, underscoring that '26' floats rather than pins.",
+      "suggestedFix": "Pin the second leg to a specific patch version (e.g. \"26.x.y\", the version currently used in development) and update it deliberately when moving forward, the same way \"20.19.0\" is handled; or reword the comment to say the major is pinned but patch/minor float, if that is the actually intended behavior."
+    },
+    {
+      "severity": "Low",
+      "file": ".github/workflows/check.yml",
+      "line": 51,
+      "theme": "actions-not-pinned-to-sha",
+      "description": "All four third-party actions (`actions/checkout@v4` line 51, `pnpm/action-setup@v4` line 55, `actions/setup-node@v4` line 57, `actions/upload-artifact@v4` line 117) are pinned to mutable version tags rather than immutable commit SHAs. A tag can be re-pointed (by the action owner or, in a supply-chain compromise, by an attacker) to different code without this workflow file changing, which is the standard 'pin your actions' hardening gap flagged by GitHub's own security hardening guide and tools like zizmor/OSSF Scorecard. Impact here is narrowed by `permissions: contents: read` at the top of the file (no write scope, no secrets referenced anywhere in the workflow), but the gap is still real and directly in this audit's stated scope (\"pinned action versions\").",
+      "suggestedFix": "Pin each action to a full commit SHA with the version as a trailing comment, e.g. `uses: actions/checkout@<sha> # v4`, and use Dependabot/Renovate's action-pinning update mode to keep them current."
+    }
+  ],
+  "escalations": []
+}
