@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-04                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -74,6 +74,18 @@ REQUIREMENT: Paths MUST be dot-separated and MUST yield `undefined` at any
              missing step rather than throwing. A reference that resolves to
              nothing denies; it is not an error, because an unset attribute is a
              legitimate answer rather than a policy defect.
+```
+
+```
+REQUIREMENT: `Eq` and `Neq` MUST deny when either operand is `undefined` —
+             the resolved reference, the value being compared, or both. An
+             absent operand is unknown, not "equal to nothing"; asserting
+             equality or inequality about an unknown would treat an
+             unchecked attribute as though it had been checked (CCR-QD-112).
+             This holds even for a `literal` reference explicitly
+             constructed as `undefined`: `exists()` is the DSL's
+             purpose-built way to test for absence, and `Eq` MUST NOT double
+             as an implicit second one.
 ```
 
 ## BEH-QD-027: Constructors and semantics
