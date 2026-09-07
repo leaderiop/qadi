@@ -17,6 +17,7 @@ import * as Chunk from "effect/Chunk";
 import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
@@ -143,6 +144,16 @@ export interface DecisionCacheShape {
    * failure included, per the fail-shared design of `DecisionCache.test.ts`'s
    * concurrency tests. `compute` failing does not poison the cache: the next
    * call for that key, once nothing is in flight for it, runs fresh.
+   *
+   * **One caller's interruption is not every caller's interruption.**
+   * `compute` runs on a fiber of its own — detached from whichever caller
+   * happened to claim the key — so a caller who stops waiting (a timeout, a
+   * cancelled request) only ever detaches itself; it does not cancel the
+   * answer every other coalesced caller is still waiting on. Only once the
+   * last waiter detaches does the shared `compute` itself get interrupted,
+   * so an evaluation nobody wants any more does not keep running for no one.
+   * `DecisionCache.test.ts`'s "one caller interrupted, the other still gets
+   * a result" pins this.
    */
   readonly getOrCompute: (
     key: DecisionCacheKey,
@@ -203,6 +214,25 @@ export class DecisionCache extends Context.Service<
 const cacheLookupsTotal = Metric.frequency("qadi_decision_cache_lookups_total", {
   description: "DecisionCache.getOrCompute lookups, by outcome (hit / coalesced / miss).",
 });
+
+/**
+ * One key's shared, in-flight `compute` — the claiming fiber's own ask, and
+ * every later fiber that coalesced onto it instead of starting a second one.
+ *
+ * `fiber` is the detached fiber actually running `compute` (see the
+ * `Effect.forkDetach` call in `getOrCompute`) — `undefined` only in the
+ * narrow window between claiming the key and that fork completing, which
+ * `getOrCompute`'s `Effect.uninterruptibleMask` closes before any waiter can
+ * be interrupted. `waiters` is how many fibers (the claimant included) are
+ * currently attached to `claim`; it is what tells the last one to leave
+ * whether interrupting `fiber` would abandon someone else's answer or just
+ * its own.
+ */
+interface InFlightClaim {
+  readonly claim: Deferred.Deferred<Trace, EvaluationError>;
+  fiber: Fiber.Fiber<Trace, EvaluationError> | undefined;
+  waiters: number;
+}
 
 /**
  * A fresh cache, held for as long as the layer it is provided through.
@@ -298,7 +328,7 @@ export const decisionCacheLayer = (options?: {
       // reorders fiber execution at `yield*` boundaries — never mid-callback —
       // so a direct reassignment inside `Effect.sync` is exactly as atomic as
       // `Ref.modify` would be here.
-      let inFlight = HashMap.empty<DecisionCacheKey, Deferred.Deferred<Trace, EvaluationError>>();
+      let inFlight = HashMap.empty<DecisionCacheKey, InFlightClaim>();
       // Parallel to `entries`, in insertion order, so a bounded cache knows what
       // to evict without walking `entries` itself — a `HashMap` has no order to
       // walk. Only ever grows where `entries` does, and only ever shrinks by
@@ -321,6 +351,29 @@ export const decisionCacheLayer = (options?: {
       // caller who asks for the same key after that flush.
       let generation = 0;
 
+      /**
+       * Attaches this fiber's interest in `entry`'s shared computation and
+       * waits for it — the one path both the claimant and every coalescing
+       * follower take, so no fiber has a privileged relationship with
+       * `compute` any more (see `getOrCompute`'s own doc comment on
+       * `Effect.forkDetach` for what that privilege used to cost).
+       *
+       * A fiber interrupted while waiting here just detaches (`waiters -=
+       * 1`) and stops — `compute` is unaffected, which is the fix — UNLESS
+       * it was the last one still attached, in which case nobody is left to
+       * want `compute`'s answer, and its fiber is interrupted along with it
+       * so an abandoned evaluation does not keep running for no one.
+       */
+      const awaitShared = (entry: InFlightClaim): Effect.Effect<Trace, EvaluationError> =>
+        Deferred.await(entry.claim).pipe(
+          Effect.onInterrupt(() =>
+            Effect.sync(() => {
+              entry.waiters -= 1;
+              return entry.waiters === 0 ? entry.fiber : undefined;
+            }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),
+          ),
+        );
+
       const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, compute) =>
         Effect.gen(function* () {
           const cached = HashMap.get(entries, key);
@@ -329,122 +382,178 @@ export const decisionCacheLayer = (options?: {
             return { trace: cached.value, outcome: "hit" };
           }
 
-          // `Deferred.makeUnsafe` inside the same synchronous check as the
-          // claim itself, not `yield* Deferred.make` before it: allocating a
-          // Deferred is only useful for whichever fiber actually becomes the
-          // owner, so it happens *inside* the "nobody has claimed this key
-          // yet" branch — a follower, the common case on the concurrent-ask
-          // path this cache exists for, never allocates one it will discard.
-          // `Deferred.make` is a synchronous allocation under the hood
-          // regardless (`effect/Deferred`'s own source defines it as
-          // `Effect.sync(() => makeUnsafe())`); `makeUnsafe` just lets that
-          // allocation stay inside the one atomic check instead of paying for
-          // it up front on every ask.
-          const claimed = yield* Effect.sync(():
-            | {
-                readonly owned: true;
-                readonly claim: Deferred.Deferred<Trace, EvaluationError>;
-                readonly generation: number;
-              }
-            | { readonly owned: false; readonly claim: Deferred.Deferred<Trace, EvaluationError> } => {
-            const existing = HashMap.get(inFlight, key);
-            if (Option.isSome(existing)) return { owned: false, claim: existing.value };
-            const claim = Deferred.makeUnsafe<Trace, EvaluationError>();
-            inFlight = HashMap.set(inFlight, key, claim);
-            // Read in the same synchronous step the claim itself is made in —
-            // see `clear`'s own doc comment for what this closes.
-            return { owned: true, claim, generation };
-          });
-
-          // Someone else already claimed this key — share their result,
-          // success or failure, rather than compute a second time.
-          if (!claimed.owned) {
-            yield* Metric.update(cacheLookupsTotal, "coalesced");
-            return {
-              trace: yield* Deferred.await(claimed.claim),
-              outcome: "coalesced",
-            };
-          }
-          yield* Metric.update(cacheLookupsTotal, "miss");
-          const claim = claimed.claim;
-          const myGeneration = claimed.generation;
-
-          // `Effect.onExit`, not a plain `yield* Effect.exit(compute)` followed
-          // by more steps: a fiber interrupted while `compute` is running does
-          // not return control to the surrounding generator at all — confirmed
-          // empirically, not assumed — so any settle-and-clear logic placed
-          // *after* an `Effect.exit(compute)` yield, even wrapped in
-          // `Effect.uninterruptible`, silently never runs, leaving `claim`
-          // permanently unresolved and its key permanently stuck in
-          // `inFlight`. `Effect.onExit`'s finalizer is different: it is
-          // guaranteed to run on every path `compute` can end on, interruption
-          // included, which is exactly the guarantee this needs. Settling the
-          // claim (and, on failure, sharing that same failure with every
-          // waiter) *before* clearing it from `inFlight` is still the order
-          // that matters inside the finalizer: a fiber arriving in the gap
-          // between the two either sees the finished entry or awaits an
-          // already-resolved `Deferred`, never starts a redundant third
-          // compute.
-          return yield* compute.pipe(
-            Effect.onExit((exit) =>
-              Effect.sync(() => {
-                // `myGeneration === generation`: no `clear` ran while this
-                // compute was in flight. One did — `clear`'s doc comment
-                // explains why this result must not repopulate the cache it
-                // flushed, even though it still settles `claim` below for
-                // whichever fibers are already awaiting it.
-                if (exit._tag === "Success" && myGeneration === generation) {
-                  entries = HashMap.set(entries, key, exit.value);
-                  // Recorded, and evicted from, only when `capacity` was given —
-                  // the unbounded default (the common case, per this file's own
-                  // doc comment) has nothing that will ever read this array, so
-                  // it stays empty rather than growing in lockstep with `entries`
-                  // for the life of the cache.
-                  if (options?.capacity === undefined) return;
-                  insertionOrder = Chunk.append(insertionOrder, key);
-                  // FIFO eviction: a `while` rather than an `if` because a caller
-                  // who lowers `capacity` between two `decisionCacheLayer()`
-                  // calls is not a case this loop should special-case to "evict
-                  // one" and leave still over budget. Always terminates:
-                  // `capacity` is validated non-negative-integer at construction,
-                  // so `size(entries)` — a non-negative integer that strictly
-                  // decreases each iteration — reaches it in finitely many steps.
-                  while (HashMap.size(entries) > options.capacity) {
-                    // `Chunk.size(insertionOrder) === HashMap.size(entries)`
-                    // always — every append here has exactly one corresponding
-                    // `entries` insert, and eviction always removes one of each —
-                    // so this loop's own condition (`size(entries) > capacity >=
-                    // 0`) guarantees `insertionOrder` is non-empty. The `Option`
-                    // check exists for that same reason `noUncheckedIndexedAccess`
-                    // forced a guard on the old `Array` version, not because this
-                    // can happen.
-                    const oldest = Chunk.head(insertionOrder);
-                    insertionOrder = Chunk.drop(insertionOrder, 1);
-                    if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value);
-                  }
+          // The claim-or-join step, the fork that starts `compute` (owner
+          // only), and the assignment of `entry.fiber` all live inside one
+          // `Effect.uninterruptibleMask` — not because any single step needs
+          // it, but because the SEQUENCE does. Each is a separate `yield*`,
+          // and Effect can act on a pending interrupt at any `yield*`
+          // boundary; without the mask there would be a window where this
+          // fiber could be torn down after joining/owning the entry but
+          // before `awaitShared` (the one part of this that decrements
+          // `waiters` again) ever ran — leaking a waiter forever, or, for the
+          // owner, leaving `entry.fiber` `undefined` with the key stuck in
+          // `inFlight` and nothing left to ever compute it.
+          //
+          // `restore` re-enables interruption only for the final
+          // `awaitShared` call, which is the one part of this that MUST stay
+          // interruptible: it is what lets a single coalesced waiter's own
+          // cancellation return control to its caller instead of blocking on
+          // someone else's answer forever.
+          return yield* Effect.uninterruptibleMask((restore) =>
+            Effect.gen(function* () {
+              // `Deferred.makeUnsafe` inside the same synchronous check as the
+              // claim itself, not `yield* Deferred.make` before it: allocating a
+              // Deferred is only useful for whichever fiber actually becomes the
+              // owner, so it happens *inside* the "nobody has claimed this key
+              // yet" branch — a follower, the common case on the concurrent-ask
+              // path this cache exists for, never allocates one it will discard.
+              // `Deferred.make` is a synchronous allocation under the hood
+              // regardless (`effect/Deferred`'s own source defines it as
+              // `Effect.sync(() => makeUnsafe())`); `makeUnsafe` just lets that
+              // allocation stay inside the one atomic check instead of paying for
+              // it up front on every ask.
+              const claimed = yield* Effect.sync(():
+                | { readonly owned: true; readonly entry: InFlightClaim; readonly generation: number }
+                | { readonly owned: false; readonly entry: InFlightClaim } => {
+                const existing = HashMap.get(inFlight, key);
+                if (Option.isSome(existing)) {
+                  // Joining, not claiming: one more fiber now cares about
+                  // this entry's eventual answer — see `awaitShared`.
+                  existing.value.waiters += 1;
+                  return { owned: false, entry: existing.value };
                 }
-              }).pipe(
-                Effect.flatMap(() => Deferred.done(claim, exit)),
-                Effect.flatMap(() =>
+                const entry: InFlightClaim = {
+                  claim: Deferred.makeUnsafe<Trace, EvaluationError>(),
+                  fiber: undefined,
+                  waiters: 1,
+                };
+                inFlight = HashMap.set(inFlight, key, entry);
+                // Read in the same synchronous step the claim itself is made in —
+                // see `clear`'s own doc comment for what this closes.
+                return { owned: true, entry, generation };
+              });
+
+              // Someone else already claimed this key — share their result,
+              // success or failure, rather than compute a second time.
+              if (!claimed.owned) {
+                yield* Metric.update(cacheLookupsTotal, "coalesced");
+                return { trace: yield* restore(awaitShared(claimed.entry)), outcome: "coalesced" as const };
+              }
+              yield* Metric.update(cacheLookupsTotal, "miss");
+              const entry = claimed.entry;
+              const myGeneration = claimed.generation;
+
+              // `Effect.forkDetach`, not run directly on this fiber: `compute`
+              // now belongs to every fiber that coalesces onto `entry.claim`,
+              // not just the one that happened to claim the key, so it must
+              // not die because THIS fiber's own caller stopped waiting.
+              // `forkDetach` attaches the new fiber to the global scope
+              // rather than this one, so interrupting this fiber — which
+              // `awaitShared`, below, is the only interruptible point where
+              // that can happen — does not cascade into it the way a plain
+              // `Effect.forkChild` would. This is the actual fix for
+              // coalesced waiters inheriting the claimant's interruption:
+              // under the previous version `compute` ran directly on the
+              // claiming fiber, so interrupting *that one caller* interrupted
+              // `compute` itself and every other waiter's `Deferred.await`
+              // resolved to that same, unwanted interruption.
+              //
+              // `Effect.onExit`, not a plain `yield* Effect.exit(compute)`
+              // followed by more steps: a fiber interrupted while `compute` is
+              // running does not return control to the surrounding generator
+              // at all — confirmed empirically, not assumed — so any
+              // settle-and-clear logic placed *after* an `Effect.exit(compute)`
+              // yield, even wrapped in `Effect.uninterruptible`, silently
+              // never runs, leaving `claim` permanently unresolved and its key
+              // permanently stuck in `inFlight`. `Effect.onExit`'s finalizer is
+              // different: it is guaranteed to run on every path `compute` can
+              // end on, interruption included, which is exactly the guarantee
+              // this needs — and interruption is now a live path here again,
+              // since the detached fiber running `compute` is itself
+              // interruptible (`awaitShared` reaches for `Fiber.interrupt` on
+              // it once the last waiter leaves).
+              //
+              // Clearing `inFlight` now happens *before* `Deferred.done`,
+              // reversed from the order this finalizer used when it ran
+              // directly on the claiming fiber. That version's caller only
+              // ever resumed once the WHOLE finalizer — settle, then clear —
+              // had finished, so nothing could observe the gap between the
+              // two steps except a genuinely separate fiber, which the
+              // identity check below already protects. Detaching `compute`
+              // onto its own fiber breaks that: `Deferred.done` now resumes
+              // the claimant's fiber concurrently with whatever the rest of
+              // *this* finalizer still has to do, so a claimant that
+              // immediately asks the same failed-and-not-cached (or
+              // capacity-evicted) question again could race its own
+              // finalizer's `inFlight` removal and wrongly coalesce onto an
+              // entry that has already settled instead of retrying fresh.
+              // Clearing first closes that: by the time anything can resume
+              // from `Deferred.done`, `inFlight` no longer holds this claim.
+              const fiber = yield* compute.pipe(
+                Effect.onExit((exit) =>
                   Effect.sync(() => {
-                    // Removes this claim only if it is still the one at
-                    // `key` — a `clear` between this compute's claim and now
-                    // may have reset `inFlight` and let a fresh compute claim
-                    // the same key already; that claim is not this one's to
-                    // remove.
-                    const current = HashMap.get(inFlight, key);
-                    if (Option.isSome(current) && current.value === claim) {
-                      inFlight = HashMap.remove(inFlight, key);
+                    // `myGeneration === generation`: no `clear` ran while this
+                    // compute was in flight. One did — `clear`'s doc comment
+                    // explains why this result must not repopulate the cache it
+                    // flushed, even though it still settles `claim` below for
+                    // whichever fibers are already awaiting it.
+                    if (exit._tag === "Success" && myGeneration === generation) {
+                      entries = HashMap.set(entries, key, exit.value);
+                      // Recorded, and evicted from, only when `capacity` was given —
+                      // the unbounded default (the common case, per this file's own
+                      // doc comment) has nothing that will ever read this array, so
+                      // it stays empty rather than growing in lockstep with `entries`
+                      // for the life of the cache.
+                      if (options?.capacity === undefined) return;
+                      insertionOrder = Chunk.append(insertionOrder, key);
+                      // FIFO eviction: a `while` rather than an `if` because a caller
+                      // who lowers `capacity` between two `decisionCacheLayer()`
+                      // calls is not a case this loop should special-case to "evict
+                      // one" and leave still over budget. Always terminates:
+                      // `capacity` is validated non-negative-integer at construction,
+                      // so `size(entries)` — a non-negative integer that strictly
+                      // decreases each iteration — reaches it in finitely many steps.
+                      while (HashMap.size(entries) > options.capacity) {
+                        // `Chunk.size(insertionOrder) === HashMap.size(entries)`
+                        // always — every append here has exactly one corresponding
+                        // `entries` insert, and eviction always removes one of each —
+                        // so this loop's own condition (`size(entries) > capacity >=
+                        // 0`) guarantees `insertionOrder` is non-empty. The `Option`
+                        // check exists for that same reason `noUncheckedIndexedAccess`
+                        // forced a guard on the old `Array` version, not because this
+                        // can happen.
+                        const oldest = Chunk.head(insertionOrder);
+                        insertionOrder = Chunk.drop(insertionOrder, 1);
+                        if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value);
+                      }
                     }
-                  }),
+                  }).pipe(
+                    Effect.flatMap(() =>
+                      Effect.sync(() => {
+                        // Removes this claim only if it is still the one at
+                        // `key` — a `clear` between this compute's claim and now
+                        // may have reset `inFlight` and let a fresh compute claim
+                        // the same key already; that claim is not this one's to
+                        // remove.
+                        const current = HashMap.get(inFlight, key);
+                        if (Option.isSome(current) && current.value === entry) {
+                          inFlight = HashMap.remove(inFlight, key);
+                        }
+                      }),
+                    ),
+                    Effect.flatMap(() => Deferred.done(entry.claim, exit)),
+                  ),
                 ),
-              ),
-            ),
-            // After `onExit`, deliberately: the finalizer stores the raw `Trace`
-            // in `entries` and settles the claim with it, so it must run on the
-            // un-wrapped value. Mapping first would cache a `CacheLookup` and
-            // hand every coalescing waiter one whose `outcome` said "miss".
-            Effect.map((trace): CacheLookup => ({ trace, outcome: "miss" })),
+                Effect.forkDetach,
+              );
+              // Set before `restore`, still inside the uninterruptible part of
+              // this mask — see the doc comment above this block for why.
+              yield* Effect.sync(() => {
+                entry.fiber = fiber;
+              });
+
+              return { trace: yield* restore(awaitShared(entry)), outcome: "miss" as const };
+            }),
           );
         });
 
@@ -458,7 +567,7 @@ export const decisionCacheLayer = (options?: {
           // caller asking for the same key right after this from coalescing
           // onto a compute that started before the flush and would hand them
           // back the exact staleness they just asked to discard.
-          inFlight = HashMap.empty<DecisionCacheKey, Deferred.Deferred<Trace, EvaluationError>>();
+          inFlight = HashMap.empty<DecisionCacheKey, InFlightClaim>();
           generation += 1;
         }),
       };

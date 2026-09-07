@@ -643,6 +643,63 @@ describe("DecisionCache", () => {
   );
 
   it.effect(
+    "a coalesced waiter's interruption does not interrupt the shared compute — the other waiter still gets a result",
+    () =>
+      Effect.gen(function* () {
+        // The bug this pins: `compute` used to run directly on whichever
+        // fiber claimed the key, so interrupting THAT ONE caller interrupted
+        // `compute` itself — and every other fiber coalesced onto the same
+        // claim inherited that same, unwanted interruption instead of the
+        // answer it was waiting for.
+        const invocations = yield* Ref.make(0);
+        const gate = yield* Deferred.make<void>();
+        const blockingResolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.update(invocations, (n) => n + 1).pipe(
+              Effect.flatMap(() => Deferred.await(gate)),
+              Effect.as(5),
+            ),
+        });
+
+        const survivorResult = yield* Effect.gen(function* () {
+          const fiberA = yield* Effect.forkChild(evaluate(needsLookup));
+          const fiberB = yield* Effect.forkChild(evaluate(needsLookup));
+          // Give both fibers enough scheduler turns to actually reach the
+          // gate inside the resolver, so they are genuinely coalesced
+          // rather than one still queued to start.
+          for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+          // Both askers are now coalesced onto the same in-flight compute —
+          // one resolver call, not two.
+          assert.strictEqual(
+            yield* Ref.get(invocations),
+            1,
+            "both askers should have coalesced onto a single compute",
+          );
+
+          // Interrupt ONE of the two. Which of them physically claimed the
+          // key and which merely joined is an implementation detail the fix
+          // must not depend on — either way, the other must be unaffected.
+          yield* Fiber.interrupt(fiberA);
+
+          // The shared compute is still wanted by fiberB, so it must still
+          // be running — release it and confirm fiberB gets a real answer
+          // rather than also being interrupted.
+          yield* Deferred.succeed(gate, undefined);
+          return yield* Fiber.join(fiberB);
+        }).pipe(
+          Effect.provide(testLayer(alice, { attributes: blockingResolver })),
+          Effect.provide(decisionCacheLayer()),
+        );
+
+        assert.isTrue(isAllowed(survivorResult));
+        // The resolver was invoked exactly once — fiberA's interruption
+        // neither killed fiberB's answer nor forced an independent,
+        // uncoalesced recompute for it.
+        assert.strictEqual(yield* Ref.get(invocations), 1);
+      }),
+  );
+
+  it.effect(
     "a clear mid-compute is not undone by that compute finishing last, with the stale answer",
     () =>
       Effect.gen(function* () {
