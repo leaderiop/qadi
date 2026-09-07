@@ -363,6 +363,29 @@ export const decisionCacheLayer = (options?: {
        * it was the last one still attached, in which case nobody is left to
        * want `compute`'s answer, and its fiber is interrupted along with it
        * so an abandoned evaluation does not keep running for no one.
+       *
+       * **The `waiters === 0` check and the `Fiber.interrupt` call below are
+       * two separate steps, and that is not a race** (issue #64, part of the
+       * #33 wayfinder map — a Low/Info re-audit finding, read from source
+       * rather than reproduced). A reader could imagine a brand-new caller
+       * for this same key claiming or joining in the gap between them,
+       * re-incrementing `waiters` too late to stop an interrupt that was
+       * already decided. It cannot happen: `effect@4.0.0-rc.112`'s
+       * `FiberImpl.interruptUnsafe` (`internal/effect.ts`) evaluates an
+       * idle fiber's interrupt **synchronously, in the caller's own call
+       * stack**, whenever that fiber is not currently `_running` — and a
+       * fiber suspended in `Deferred.await` (this fiber, and the `compute`
+       * fiber `Fiber.interrupt` targets below) is exactly "idle". So the
+       * decrement, the decision, the nested interrupt of `entry.fiber`, and
+       * that fiber's own `onExit` finalizer (removing `inFlight`, settling
+       * `claim`) all run as one uninterrupted synchronous cascade — there is
+       * no scheduler dispatch boundary inside it for another, independently
+       * scheduled fiber's claim-or-join to land in. `DecisionCache.test.ts`'s
+       * two "REGRESSION PIN for issue #64" tests race a fresh joiner against
+       * this exact cascade — one through nested fibers on this runtime's own
+       * scheduler, one through fully independent `ManagedRuntime` roots on
+       * real Node.js `setImmediate` macrotasks — and neither ever produces
+       * the interrupted outcome the finding describes.
        */
       const awaitShared = (entry: InFlightClaim): Effect.Effect<Trace, EvaluationError> =>
         Deferred.await(entry.claim).pipe(
