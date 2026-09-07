@@ -297,8 +297,20 @@ const srcSources = readdirSync(packagesDir).flatMap((pkg) =>
 const testSources = readdirSync(packagesDir).flatMap((pkg) =>
   collect(join(packagesDir, pkg, "test"), { includeTests: true })
 );
-const testSourceSet = new Set(testSources);
-const sources = [...srcSources, ...testSources];
+// `packages/<pkg>/bench` gets the same `testScope`-rule treatment as `test`:
+// AGENTS.md §6's ban on `as`/`as any`/`!`/`any` states no bench carve-out, and
+// `pnpm check`'s typecheck step already covers it (`tsconfig.test.json`
+// includes `packages/*/bench/**/*.ts`) — this closes the matching house-style
+// gap rather than leaving it a silent omission (CCR-QD-115). Folded into the
+// same set as `test/`, not a third bucket: nothing here needs `SWITCH_BUDGET`/
+// `HAS_CUSTOM_BUDGET` tracking or the non-`testScope` rules (`no-async` and
+// friends are as legitimate in a bench body as in a test one), so treating
+// bench as test-scoped is exactly the right amount of coverage.
+const benchSources = readdirSync(packagesDir).flatMap((pkg) =>
+  collect(join(packagesDir, pkg, "bench"), { includeTests: true })
+);
+const testSourceSet = new Set([...testSources, ...benchSources]);
+const sources = [...srcSources, ...testSources, ...benchSources];
 
 /** Strip line comments, block comments and string literals to cut false positives. */
 const strip = (line) =>

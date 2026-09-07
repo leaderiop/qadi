@@ -26,11 +26,11 @@
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/node": "^25.7.0",
+    "@testing-library/react": "catalog:",
+    "@types/node": "^20.19.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "happy-dom": "^20.11.1",
+    "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

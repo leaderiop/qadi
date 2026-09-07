@@ -211,6 +211,17 @@ on a development machine moves by ~30% between runs, so only the direction
 transfers. Small, then, but not noise — and not worth paying for style on an
 authorization hot path.
 
+> **The end-to-end 2–4%/under-1% figures are stale, not reproducible as stated
+> (CCR-QD-115).** ADR-QD-034's 2026-09-07 addendum found the workload they were
+> derived from ("four refs", "seventeen dispatches") no longer matches
+> `Evaluate.bench.ts`, which now resolves 3 refs and dispatches ~13 times per
+> evaluation — and that neither file had been re-measured since the ADR was
+> written. Only the per-dispatch ratios above (**1.6–2.4×**, **3.5–7.7×**)
+> survive that addendum; the end-to-end percentages do not and should not be
+> treated as current without re-running `pnpm bench` against today's workload.
+
+**Each of these switches must remain exhaustive by construction.** Two of the four
+
 **Each of these switches must remain exhaustive by construction.** Two of the four
 were not, and they were the two this section had failed to declare: `resolveRef`
 returns `unknown` and `mergeFields` returns `… | undefined`, so a new tag compiled

@@ -87,8 +87,8 @@ const fail = (where, message) => failures.push(`${where}  ${message}`);
  * Every workspace package, public or not.
  *
  * Driven by `packages/*&#47;package.json` rather than a glob over `**\/*.ts`, because
- * `.stryker-tmp/` holds full copies of `packages/core/src` between mutation runs and a
- * glob would count them twice.
+ * `.stryker-tmp/` holds full copies of every workspace package's `src`/`test`/`lib`
+ * directories between mutation runs (CCR-QD-115) and a glob would count them twice.
  */
 const packages = readdirSync(join(ROOT, "packages"))
   .map((dir) => {

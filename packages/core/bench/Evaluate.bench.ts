@@ -8,22 +8,26 @@
  * caller, and AGENTS.md §5a's exception is not worth the words it takes to
  * describe. This file supplies the denominator.
  *
- * Five workloads, chosen because each stresses a different part of the evaluator
- * rather than because they are realistic policies:
+ * Eight workloads, chosen because each stresses a different part of the
+ * evaluator rather than because they are realistic policies:
  *
- *   one node       the floor — how much of an evaluation is fixed overhead
- *   wide           `allOf` of 8, the shared-fold path
- *   deep           nesting 10 levels, the recursion path
- *   matcher-heavy  three refs, the only workload that reaches `resolveRef`
- *   field-heavy    `allOf` of 8 under `Intersection`, the only workload that
- *                  reaches `mergeFields`/`intersectFields` — O(|a|·|b|)
- *                  pairwise `compareFieldPaths`, on the same per-node path §5a
- *                  protects with a switch budget
- *   per element    `filter`/`decideSubjects` over 500 items, where §5a's "once
- *                  per element on top of that" actually happens — AGENTS.md
- *                  names both as the sites, but only `filter` had a row here
- *   resolver miss  the port path, and the only workload that emits a
- *                  `qadi.attribute` span
+ *   one node          the floor — how much of an evaluation is fixed overhead
+ *   wide              `allOf` of 8, the shared-fold path
+ *   deep              nesting 10 levels, the recursion path
+ *   matcher-heavy     three refs, the only workload that reaches `resolveRef`
+ *   field-heavy       `allOf` of 8 under `Intersection`, the only workload
+ *                     that reaches `mergeFields`/`intersectFields` —
+ *                     O(|a|·|b|) pairwise `compareFieldPaths`, on the same
+ *                     per-node path §5a protects with a switch budget
+ *   obligation-heavy  `allOf` of 8 distinct `Obliged` children, the only
+ *                     workload that folds `unionObligations`'s linear
+ *                     `.some(Equal.equals(...))` scan over several obligations
+ *                     per node instead of the usual zero or one (CCR-QD-115)
+ *   per element       `filter`/`decideSubjects` over 500 items, where §5a's
+ *                     "once per element on top of that" actually happens —
+ *                     both sites AGENTS.md names have a row here
+ *   resolver miss     the port path, and the only workload that emits a
+ *                     `qadi.attribute` span
  *
  * The layers are the deterministic ones, so nothing here measures I/O: no
  * attribute store, no relationship graph. That is deliberate — a benchmark whose
@@ -52,8 +56,9 @@ import { DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
 import { EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { eq, fieldMatch, gte, literal, neq, subject, subjectId } from "../src/Matcher.ts";
+import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
-import { allOf, anyOf, hasAttribute, hasPermission, not } from "../src/Policy.ts";
+import { allOf, anyOf, hasAttribute, hasPermission, not, obliged } from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
 import { filter } from "../src/Qadi.ts";
 import { decideSubjects } from "../src/SubjectSet.ts";
@@ -177,6 +182,22 @@ const fieldHeavy = allOf(
   { fieldStrategy: "Intersection" },
 );
 
+/**
+ * Eight `Obliged` arms, each carrying a distinct obligation, folded under
+ * `AllOf` — the only workload that gives `stepAllOf`'s
+ * `unionObligations(fold.obligations, trace.obligations)` fold more than
+ * zero or one obligation to scan against. `unionObligations` dedupes with a
+ * linear `.some(Equal.equals(...))` scan per incoming obligation, so this is
+ * O(n²) in the obligation count per node — the same cost profile `fieldHeavy`
+ * above measures for `mergeFields`/`intersectFields`, previously unmeasured
+ * here (CCR-QD-115).
+ */
+const obligationHeavy = allOf(
+  Array.from({ length: 8 }, (_, index) =>
+    obliged(obligation(`log-${index}`, { field: `value${index}` }), hasPermission(read)),
+  ),
+);
+
 const items = Array.from({ length: 500 }, (_, index) => ({
   id: `doc-${index}`,
   ownerId: index % 2 === 0 ? "alice" : "bob",
@@ -194,6 +215,7 @@ describe("evaluate", () => {
   bench("deep — 10 levels", () => run(deep), options);
   bench("matcher-heavy — 3 refs", () => run(matchers), options);
   bench("field-heavy — allOf of 8 under Intersection", () => run(fieldHeavy), options);
+  bench("obligation-heavy — allOf of 8 distinct obligations", () => run(obligationHeavy), options);
   bench(
     "resolver miss — one port call",
     () => {

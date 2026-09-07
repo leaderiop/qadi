@@ -7,17 +7,12 @@
  * drift the model-level fixes in `Replay.ts` and `Filters.ts` correct.
  */
 import { assert, describe, it } from "@effect/vitest";
-import { afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { PairedEntry } from "../../src/model/Pairing.ts";
 import { emptyTimeline, entryKey, ingestAll } from "../../src/model/Timeline.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { DecisionLog } from "../../src/react/DecisionLog.tsx";
 import { decisionRecord, failedRecord } from "../helpers.ts";
-
-afterEach(() => {
-  document.body.innerHTML = "";
-});
 
 const entryOf = (record: Parameters<typeof ingestAll>[1][number]): TimelineEntry => {
   const [entry] = ingestAll(emptyTimeline(), [record]).entries;

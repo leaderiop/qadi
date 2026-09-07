@@ -17,5 +17,10 @@ export default defineConfig({
     // definition of one package's test run.
     environment: "happy-dom",
     include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
+    // `@testing-library/react`'s auto-cleanup registers via a global
+    // `afterEach`, which only exists when `test.globals` is `true`. This
+    // config does not set `globals`, so the cleanup is registered explicitly
+    // here instead — see `test/setupTests.ts` (CCR-QD-115).
+    setupFiles: ["./test/setupTests.ts"],
   },
 });

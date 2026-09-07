@@ -16,6 +16,7 @@ import * as HttpApi from "effect/unstable/httpapi/HttpApi";
 import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
 import * as HttpApiGroup from "effect/unstable/httpapi/HttpApiGroup";
+import * as Headers from "effect/unstable/http/Headers";
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServer from "effect/unstable/http/HttpServer";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
@@ -470,6 +471,24 @@ describe("@qadi/http", () => {
         const bare = yield* extractVia("Bearer ");
         assert.strictEqual(bare.id, anonymous.id);
         assert.deepStrictEqual(seen, [ALICE_TOKEN]); // lookup was not called a second time
+
+        // The case above does not actually reach the length filter it claims
+        // to pin: the WHATWG `Headers` implementation strips trailing OWS from
+        // a header value before this code ever sees it, so
+        // `new Request(url, { headers: { authorization: "Bearer " } })`
+        // .headers.get("authorization") comes back `"Bearer"` — 6 characters,
+        // not 7 — and the scheme-prefix filter rejects it first.
+        // `Headers.fromInput` performs no such normalization, so overriding
+        // the request's headers through `modify` (bypassing `Request`/`Headers`
+        // entirely) is what actually drives an empty post-trim token into the
+        // length filter.
+        const bareViaRawHeaders = yield* SubjectExtractor.extract(
+          HttpServerRequest.fromWeb(new Request("http://localhost/documents")).modify({
+            headers: Headers.fromInput({ authorization: "Bearer  " }),
+          }),
+        ).pipe(Effect.provide(layer));
+        assert.strictEqual(bareViaRawHeaders.id, anonymous.id);
+        assert.deepStrictEqual(seen, [ALICE_TOKEN]); // still not called a second time
       }),
   );
 

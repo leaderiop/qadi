@@ -8,7 +8,6 @@
  * A screen describing a rule must state no verdict (INV-QD-041).
  */
 import { assert, describe, it } from "@effect/vitest";
-import { afterEach } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
@@ -27,10 +26,6 @@ import type { Policy } from "@qadi/core";
 import { PolicyExplorer } from "../../src/react/PolicyExplorer.tsx";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
 import { policyLabel } from "../../src/model/Catalogue.ts";
-
-afterEach(() => {
-  document.body.innerHTML = "";
-});
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");

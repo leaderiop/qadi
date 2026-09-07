@@ -11,16 +11,11 @@
  * replacing the other.
  */
 import { assert, describe, it } from "@effect/vitest";
-import { afterEach } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { hasPermission, hasRole, permission } from "@qadi/core";
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
-
-afterEach(() => {
-  document.body.innerHTML = "";
-});
 
 const read = permission("doc", "read");
 

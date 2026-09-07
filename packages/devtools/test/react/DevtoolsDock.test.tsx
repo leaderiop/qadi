@@ -13,7 +13,6 @@
  * "miss".
  */
 import { assert, describe, it } from "@effect/vitest";
-import { afterEach } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -41,10 +40,6 @@ import type { Decision, Policy, StoredRecord } from "@qadi/core";
 import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";
 import { sourceFromRecords } from "../../src/model/Source.ts";
 import { decisionRecord, obligationRecord } from "../helpers.ts";
-
-afterEach(() => {
-  document.body.innerHTML = "";
-});
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");

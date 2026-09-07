@@ -8,9 +8,13 @@
  *
  * Scoped to `packages/core/src` deliberately. It is the only package where a
  * surviving mutant is an authorization defect rather than an ergonomics one, and
- * it is the package held at 95% line coverage. `@qadi/react` is a binding over
- * `effect/unstable/reactivity` and `@qadi/testing` exists to be used by tests,
- * so mutating either mostly measures the test doubles.
+ * it is the package held at 95% line coverage. `@qadi/testing` exists to be
+ * used by tests, so mutating it mostly measures the test doubles. `@qadi/react`
+ * is excluded for a different reason: it is a thin binding over
+ * `effect/unstable/reactivity` plus render code, neither of which a mutant here
+ * would be scoring against a test double (CCR-QD-115) — see
+ * `spec/decisions/032-promise-facade.md` for `@qadi/promise`'s own reason, a
+ * third and different one again.
  *
  * @type {import('@stryker-mutator/api/core').PartialStrykerOptions}
  */
