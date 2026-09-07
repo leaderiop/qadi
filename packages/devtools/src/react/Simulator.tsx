@@ -112,8 +112,23 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
    * reviewer opens.
    */
   const [seenSeed, setSeenSeed] = useState<TimelineEntry | undefined>(undefined);
+  /**
+   * Bumped on every re-seed, and handed to `CheckCard` as its `key`.
+   *
+   * `CheckCard` buffers the resource textarea's raw text locally, independent
+   * of `draft`, so it can hold text that has not parsed as JSON yet without
+   * losing a keystroke (E7.3). That buffer surviving a re-seed is the bug: the
+   * card would go on showing whatever the reviewer last typed for the *previous*
+   * row under the new one's heading — the form lying about what it runs, for
+   * the one field whose state a prop change alone cannot reach. Changing `key`
+   * remounts `CheckCard`, which is React's own reset for exactly this shape of
+   * problem — simpler and harder to miss a case in than threading a second
+   * "did the row change" comparison down into the card itself.
+   */
+  const [seedGeneration, setSeedGeneration] = useState(0);
   if (seed !== seenSeed) {
     setSeenSeed(seed);
+    setSeedGeneration((generation) => generation + 1);
     setResult(undefined);
     const replay = seed === undefined ? undefined : replayInput(seed);
     if (replay?._tag === "Replayable") {
@@ -249,7 +264,7 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
       />
 
       <SubjectCard input={draft} onChange={edit} />
-      <CheckCard input={draft} onChange={edit} />
+      <CheckCard key={seedGeneration} input={draft} onChange={edit} />
       <FixturesCard input={draft} onChange={edit} />
       {seeded === undefined ? null : <UnseededCard unseeded={seeded.unseeded} />}
 

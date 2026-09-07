@@ -237,6 +237,21 @@ const JsonView: FC<{
 }> = ({ policy, error, onLoad }) => {
   const encoded = useMemo(() => Effect.runSync(Effect.result(toJson(policy))), [policy]);
   const [text, setText] = useState<string | undefined>(undefined);
+  /**
+   * Adjusting state while rendering, the same idiom `Simulator` uses to reset
+   * on a re-seed: `policy` changes out from under this textarea whenever the
+   * reviewer picks a different rail entry, applies a simplification, or loads
+   * a new paste — and unlike `Simulator`'s `draft`, nothing else in this
+   * screen mutates `policy` on every keystroke, so comparing it directly here
+   * is safe. Without this, an edit typed but never loaded keeps showing after
+   * the policy underneath it has changed — the form claiming to be JSON for a
+   * policy it no longer is.
+   */
+  const [seenPolicy, setSeenPolicy] = useState(policy);
+  if (!Equal.equals(policy, seenPolicy)) {
+    setSeenPolicy(policy);
+    setText(undefined);
+  }
   const shown = text ?? (Result.isSuccess(encoded) ? encoded.success : String(encoded.failure));
 
   return (
