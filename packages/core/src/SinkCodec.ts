@@ -380,8 +380,8 @@ const decodeDecision = (wire: typeof DecisionSchema.Type): Decision =>
  * `undefined`-swallowing, no function silently dropped, no cycle recursing
  * forever.
  *
- * A general recursive walk, not one specialized to `resource` — it accepts
- * any `unknown` and descends through arbitrary nesting, which is what lets
+ * A general walk, not one specialized to `resource` — it accepts any
+ * `unknown` and descends through arbitrary nesting, which is what lets
  * {@link isRecordJsonSafe} below reuse it unchanged for `policy` too. This
  * doc comment used to claim `SinkRecord.resource` was "the one caller-supplied
  * `unknown` value that reaches the wire", which was false: `HasCustom.params`
@@ -398,23 +398,67 @@ const decodeDecision = (wire: typeof DecisionSchema.Type): Decision =>
  * catch: a caller reading the round-tripped value back gets `null`, not the
  * non-finite number they wrote, and nothing on the way there ever failed.
  *
- * `seen` tracks the current recursion path, not every value visited overall —
- * removed again after each branch returns, so a value legitimately reachable
- * twice via two different paths (not a cycle) is never falsely refused. A
- * value that *is* its own ancestor is refused rather than walked forever.
+ * **Walks with an explicit array-backed stack, mirroring {@link exceedsJsonDepth}
+ * (`DecodeDepthGuard.ts`), rather than recursing.** A guard meant to stand
+ * between an adversarial value and the caller had the exact class of problem
+ * it exists to guard against: a function-call-recursive walk exhausts the
+ * call stack on the same deep-nesting input the depth guard was written to
+ * catch before `Schema` ever saw it, and `isJsonSafe` sat downstream of that
+ * guard on the audit-encode path without one of its own. `seen` used to track
+ * the current path by copying it — `new Set(seen).add(value)` — into a fresh
+ * `Set` at every node along the walk, which made the whole walk O(d²) even
+ * with no sharing or cycles at all: a value nested `d` levels deep with no
+ * branching copies a same-sized set `d` times. The stack below tracks the
+ * current path with one mutable `Set` instead, added to on descent and
+ * removed from on backtrack, so cycle detection and the walk itself are both
+ * linear in the number of nodes visited. A value legitimately reachable twice
+ * via two different paths (not a cycle) is still never falsely refused: it is
+ * only ever in `onPath` while one of its occurrences is being walked.
  */
-export const isJsonSafe = (value: unknown, seen: ReadonlySet<object> = new Set()): boolean => {
+const isJsonContainer = (value: unknown): value is object =>
+  typeof value === "object" && value !== null && !(value instanceof Date);
+
+const isJsonScalarSafe = (value: unknown): boolean => {
   if (value === null) return true;
   if (typeof value === "string" || typeof value === "boolean") return true;
   if (typeof value === "number") return Number.isFinite(value);
   if (value instanceof Date) return true;
-  if (Array.isArray(value) || (typeof value === "object" && value !== null)) {
-    if (seen.has(value)) return false;
-    const path = new Set(seen).add(value);
-    const children = Array.isArray(value) ? value : Object.values(value);
-    return children.every((child) => isJsonSafe(child, path));
-  }
   return false;
+};
+
+const childrenOf = (value: object): ReadonlyArray<unknown> =>
+  Array.isArray(value) ? value : Object.values(value);
+
+export const isJsonSafe = (value: unknown): boolean => {
+  if (!isJsonContainer(value)) return isJsonScalarSafe(value);
+
+  const onPath = new Set<object>([value]);
+  const stack: Array<{
+    readonly value: object;
+    readonly children: ReadonlyArray<unknown>;
+    index: number;
+  }> = [{ value, children: childrenOf(value), index: 0 }];
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame === undefined) break;
+    if (frame.index >= frame.children.length) {
+      onPath.delete(frame.value);
+      stack.pop();
+      continue;
+    }
+    const child = frame.children[frame.index];
+    frame.index += 1;
+    if (isJsonContainer(child)) {
+      if (onPath.has(child)) return false;
+      onPath.add(child);
+      stack.push({ value: child, children: childrenOf(child), index: 0 });
+    } else if (!isJsonScalarSafe(child)) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 /**

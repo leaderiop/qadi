@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-33                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-09-06                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
+> | Change History | 1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-112)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
 
 _Previous: [32 — Custom Predicates](./32-custom-predicates.md)_
 
@@ -62,16 +62,30 @@ already refuses rather than approximates one layer of that; a `resource` is
 the same shape of caller-supplied `unknown` one layer further out, and gets
 the same discipline. A circular reference is refused the same way as a
 function — not merely stringified badly, and not left to overflow the call
-stack: the safety walk tracks its own recursion path and returns "unsafe"
+stack: the safety walk tracks its own ancestor path and returns "unsafe"
 the moment a value is found to be its own ancestor, rather than recursing
 forever.
+
+`isJsonSafe` (`SinkCodec.ts`) walks with an explicit array-backed stack
+rather than function recursion, so this holds for a merely-deep, entirely
+non-cyclic value too — not only a cycle. Before this, the walk itself
+recursed one call frame per level of nesting and could exhaust the call
+stack on adversarial-but-acyclic input before ever reaching the "unsafe"
+verdict this requirement promises; the ancestor-tracking `Set` was also
+copied whole at every level along the way, making the walk quadratic in
+depth even on ordinary input. Both are fixed together: the stack is bounded
+by heap rather than call-stack depth, and the ancestor set is one mutable
+`Set` pushed to and popped from as the walk descends and backtracks, so both
+time and space are linear in the number of nodes visited.
 
 ## BEH-QD-251: A tripped circuit breaker skips the write, not the stage, and its transitions are atomic under concurrency
 
 > **Invariant:** [INV-QD-052](../invariants.md#inv-qd-052-once-a-circuit-breaker-trips-write-is-never-attempted-again-until-reset)
 
 ```
-REQUIREMENT: The breaker MUST trip only on AuditWriteError — never on
+REQUIREMENT: The breaker MUST trip on any AuditTrailPort.write failure — a
+             typed AuditWriteError or an unexpected defect/interruption from
+             a misbehaving store adapter alike — and MUST NOT trip on
              AuditStagingError, which is tracked separately.
 REQUIREMENT: While open, record() MUST still call stage() if AuditStagingPort
              is wired, and MUST skip write() entirely.
@@ -98,6 +112,17 @@ No public error type, unlike a first instinct borrowed from HexDi's
 thrown by its real enforcement path — reachable only in principle, the exact
 defect this whole package exists to avoid repeating.
 
+`AuditDecisionSinkLive.ts`'s `record()` runs `AuditTrailPort.write` under
+`Effect.exit`, not `Effect.result`: the latter only catches `write`'s own
+typed `E` channel, so a defect or an interruption from a misbehaving store
+adapter used to unwind straight past `breaker.recordFailure` and the
+`qadi_audit_writes_total` `write_failed` counter alike — a store that never
+resolves observably, and never tripped the one mechanism that exists to
+detect it. `Effect.exit` folds every way `write` can conclude — success,
+typed failure, defect, interruption — into one `Exit` value the same code
+path branches on, so a defect reaches `recordFailure` exactly as a typed
+`AuditWriteError` does.
+
 ## BEH-QD-252: Staging is best-effort, and provably non-observable in the happy path
 
 > **Invariant:** [INV-QD-051](../invariants.md#inv-qd-051-staging-presence-or-absence-never-changes-the-committed-audit-entries)
@@ -114,6 +139,10 @@ REQUIREMENT: A commit() failure — a typed AuditStagingError or an unexpected
              defect alike — MUST be tracked (qadi_audit_staging_total,
              outcome commit_failed) rather than silently discarded with no
              trace at all.
+REQUIREMENT: A stage() failure — a typed AuditStagingError or an unexpected
+             defect alike — MUST be tracked (qadi_audit_staging_total,
+             outcome failed or failed_open) exactly as a typed failure is,
+             rather than unwinding past both outcomes unmetered.
 ```
 
 "WAL" is deliberately not this port's name: `@qadi/audit` owns no storage of
@@ -123,6 +152,12 @@ its own, so it cannot promise database-WAL-style durability the way HexDi's
 `AuditStagingPort` is a durability *protocol* a caller with a real durable
 staging store can plug into; a caller who does not wire one pays nothing and
 observes nothing different.
+
+`stage()`, like `write()` above, runs under `Effect.exit` rather than
+`Effect.result` — the same reasoning `commit()`'s own `Effect.catchCause`
+already applied to `commit_failed`, extended to `stage()`'s two outcomes
+(`failed`, `failed_open`) instead of leaving them the one path in this
+pipeline still blind to a defecting adapter.
 
 ## BEH-QD-253: Retention partitions entries, by construction
 

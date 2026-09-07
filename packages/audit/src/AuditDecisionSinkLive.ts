@@ -158,9 +158,15 @@ export const AuditDecisionSinkLive = (
           // edit could let drift apart.
           let commitStaged: (() => Effect.Effect<void, AuditStagingError>) | undefined;
           if (stagingPort !== undefined) {
-            const staged = yield* Effect.result(stagingPort.stage(entry));
-            if (Result.isSuccess(staged)) {
-              const handle = staged.success;
+            // `Effect.exit`, not `Effect.result`: a `stage()` that defects —
+            // a misbehaving staging adapter throwing rather than failing with
+            // its typed `AuditStagingError` — must land in the same
+            // `stagingFailed`/`stagingFailedOpen` metric a typed failure
+            // does, not unwind straight out of `record()` unmetered. See
+            // `attemptWrite` below for the identical reasoning on `write()`.
+            const staged = yield* Effect.exit(stagingPort.stage(entry));
+            if (Exit.isSuccess(staged)) {
+              const handle = staged.value;
               commitStaged = () => stagingPort.commit(handle);
               yield* Metric.update(stagingStaged, 1);
             } else if (status === "Open") {
@@ -192,9 +198,24 @@ export const AuditDecisionSinkLive = (
           if (status === "Open") return;
 
           // 3/4. Attempt the write and react.
+          //
+          // `Effect.exit`, not `Effect.result` (ticket #47): the latter only
+          // catches `trailPort.write`'s own `E` channel, so a defecting store
+          // adapter — the same class of problem `commitStaged`'s
+          // `Effect.catchCause` above already guards against for `commit` —
+          // used to unwind straight past the `else` branch below, leaving
+          // both `breaker.recordFailure` and `writesWriteFailed` unrun. A
+          // write that never resolves observably is exactly what the breaker
+          // exists to detect, so a defect has to reach `recordFailure` the
+          // same as a typed `AuditWriteError` does — not disappear into an
+          // unhandled defect the breaker and the metrics both stay blind to.
+          // The `Effect.onExit` around this whole block (below) still runs
+          // regardless, as a second line of defense for the probe claim
+          // specifically — `releaseProbe` is a no-op once `recordFailure`
+          // has already turned the half-open window back to `Open` itself.
           const attemptWrite = Effect.gen(function* () {
-            const written = yield* Effect.result(trailPort.write(entry));
-            if (Result.isSuccess(written)) {
+            const written = yield* Effect.exit(trailPort.write(entry));
+            if (Exit.isSuccess(written)) {
               yield* breaker.recordSuccess;
               if (commitStaged !== undefined) {
                 yield* Effect.catchCause(commitStaged(), () => Metric.update(stagingCommitFailed, 1));
@@ -208,19 +229,23 @@ export const AuditDecisionSinkLive = (
             }
           });
 
-          // Ticket #38 (H4). `Effect.result` above only catches
-          // `trailPort.write`'s own `E` channel — an interruption (client
-          // disconnect, `Effect.timeout`, a `filter`/`filterStream` fan-out)
-          // or a defect from a misbehaving store adapter unwinds straight
-          // past it, so `recordSuccess`/`recordFailure` never runs. For a
-          // normal write that just loses a data point the breaker already
-          // tolerates; for the one call holding the half-open probe
-          // (`isProbe`) it previously wedged the breaker `HalfOpen` forever,
-          // since nothing else ever releases that claim. `Effect.onExit`
-          // guarantees a finalizer on every path `attemptWrite` can end on,
-          // interruption and defects included (confirmed by this file's own
-          // interruption test, and already relied on the same way in
-          // `DecisionCache.ts`) — unlike a plain `Effect.exit` followed by
+          // Ticket #38 (H4), narrowed by ticket #47. `trailPort.write`
+          // itself now runs under `Effect.exit` (above), so a write that
+          // defects or is interrupted already reaches `recordFailure` — and,
+          // for the one call holding the half-open probe, `recordFailure`
+          // reopens the breaker exactly as `releaseProbe` would, leaving
+          // `releaseProbe` nothing to do. What this `Effect.onExit` still
+          // guards against is narrower than it was before #47: `written`'s
+          // `Exit` is only ever captured *after* `trailPort.write` itself has
+          // settled, so `recordSuccess`/`recordFailure`, `commitStaged`'s
+          // `Effect.catchCause`, and the metric updates that follow are all
+          // still ordinary interruptible steps a fiber can be cut off inside
+          // — e.g. interrupted after `written` resolves but before
+          // `recordFailure`'s own `Ref.modify` completes. `Effect.onExit`
+          // guarantees a finalizer on every path `attemptWrite` can end on
+          // regardless of where inside it that happens (confirmed by this
+          // file's own interruption test, and already relied on the same way
+          // in `DecisionCache.ts`) — unlike a plain `Effect.exit` followed by
           // more steps, which a fiber interrupted mid-`attemptWrite` would
           // never return to run. `breaker.releaseProbe` is itself a no-op
           // once `attemptWrite` already settled normally, so this costs
