@@ -19,7 +19,11 @@
  * `Date.now()` usage were — kept as-is: `closed → open` after
  * `failureThreshold` consecutive failures, `open → half-open` after
  * `resetTimeoutMs`, `half-open → closed` on the next success, `half-open →
- * open` on the next failure.
+ * open` on the next failure. Added since (ticket #38 / H4): `half-open →
+ * open` also on a probe that never resolves at all — released by
+ * `releaseProbe` (the primary path, from `AuditDecisionSinkLive.ts`'s
+ * `Effect.onExit`) or by `status`'s own age-out check (the fallback) — so an
+ * interrupted or defecting probe cannot wedge the breaker `HalfOpen` forever.
  *
  * Not exported from the package barrel — this module is assembly-internal.
  */
@@ -72,6 +76,35 @@ export interface CircuitBreaker {
    * loss as `Open` — see the comment there (ticket #46).
    */
   readonly claimProbe: Effect.Effect<boolean>;
+  /**
+   * Releases a claimed probe that never resolved through `recordSuccess` or
+   * `recordFailure` — reopens the breaker exactly as a failed probe would,
+   * so a fresh `HalfOpen` window (and a fresh `claimProbe`) becomes
+   * reachable again after `resetTimeoutMs`, rather than the probe's caller
+   * holding the one slot forever.
+   *
+   * **Ticket #38 (H4).** The probe write in `AuditDecisionSinkLive.ts` runs
+   * under `Effect.result`, which only catches the write's own `E` channel —
+   * an interruption (client disconnect, `Effect.timeout`, filter fan-out) or
+   * a defecting store adapter unwinds past it without ever reaching
+   * `recordSuccess`/`recordFailure`, and `status`'s own read never recovers
+   * a `HalfOpen` whose `openedAt` is `undefined` (it is only ever set while
+   * `Open`). Before this fix that wedged the breaker permanently `HalfOpen`:
+   * every later call would lose `claimProbe`, re-read `status` as `HalfOpen`
+   * (not `Closed`), and so treat itself as `Open` forever — staged rows
+   * never committed, or entries dropped silently, and the backend could
+   * recover and it would make no difference.
+   *
+   * `AuditDecisionSinkLive.ts` calls this from an `Effect.onExit` wrapped
+   * around the probe's write, so it fires on every abnormal exit — the
+   * primary release path. It is a no-op unless the breaker is still
+   * `HalfOpen` **and** this window's claim is still held: a probe that
+   * already settled normally (`recordSuccess`/`recordFailure` already ran,
+   * moving `status` off `HalfOpen`) leaves this call nothing to do, so a
+   * finalizer that runs after a normal completion cannot double-transition
+   * the state or restart the reset-timeout window a second time.
+   */
+  readonly releaseProbe: Effect.Effect<void>;
 }
 
 interface State {
@@ -79,6 +112,12 @@ interface State {
   readonly consecutiveFailures: number;
   /** Set only while `Open`, so `status`'s reset check has a moment to measure from. */
   readonly openedAt: number | undefined;
+  /**
+   * Set only while `HalfOpen`, mirroring `openedAt` — gives `status`'s
+   * age-out check (see below) a moment to measure a stuck window from.
+   * Reset to `undefined` on every transition away from `HalfOpen`.
+   */
+  readonly halfOpenAt: number | undefined;
   /** Meaningful only while `status === "HalfOpen"`; see `claimProbe`. */
   readonly probeClaimed: boolean;
 }
@@ -126,6 +165,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
     status: "Closed",
     consecutiveFailures: 0,
     openedAt: undefined,
+    halfOpenAt: undefined,
     probeClaimed: false,
   });
 
@@ -145,6 +185,27 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
     const [current, justTransitioned] = yield* Ref.modify(
       ref,
       (state): readonly [readonly [CircuitBreakerStatus, boolean], State] => {
+        // Defense in depth alongside `releaseProbe` (ticket #38 / H4): a
+        // half-open window that has outlived `resetTimeoutMs` without
+        // resolving — claimed but neither `recordSuccess`, `recordFailure`
+        // nor `releaseProbe` ever ran — is reopened here too, on the next
+        // status read, rather than left to wedge forever. `releaseProbe`
+        // (called from `AuditDecisionSinkLive.ts`'s `Effect.onExit` around
+        // the probe write) is the primary release path; this is the
+        // fallback for a claim that somehow never reached it.
+        if (state.status === "HalfOpen") {
+          if (state.halfOpenAt === undefined || now - state.halfOpenAt < options.resetTimeoutMs) {
+            return [[state.status, false], state];
+          }
+          const reopened: State = {
+            status: "Open",
+            consecutiveFailures: state.consecutiveFailures + 1,
+            openedAt: now,
+            halfOpenAt: undefined,
+            probeClaimed: false,
+          };
+          return [["Open", true], reopened];
+        }
         // `openedAt` is set if and only if `status === "Open"` — this Ref's
         // own invariant — so checking it alone already answers "not open",
         // with no separate `state.status !== "Open"` clause needed (and no
@@ -157,6 +218,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
           status: "HalfOpen",
           consecutiveFailures: state.consecutiveFailures,
           openedAt: undefined,
+          halfOpenAt: now,
           probeClaimed: false,
         };
         return [["HalfOpen", true], next];
@@ -175,6 +237,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
             status: "Closed" as const,
             consecutiveFailures: 0,
             openedAt: undefined,
+            halfOpenAt: undefined,
             probeClaimed: false,
           },
         ];
@@ -190,14 +253,26 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
       if (state.status === "HalfOpen") {
         return [
           true,
-          { status: "Open" as const, consecutiveFailures: 1, openedAt: now, probeClaimed: false },
+          {
+            status: "Open" as const,
+            consecutiveFailures: 1,
+            openedAt: now,
+            halfOpenAt: undefined,
+            probeClaimed: false,
+          },
         ];
       }
       const consecutiveFailures = state.consecutiveFailures + 1;
       if (consecutiveFailures >= options.failureThreshold) {
         return [
           true,
-          { status: "Open" as const, consecutiveFailures, openedAt: now, probeClaimed: false },
+          {
+            status: "Open" as const,
+            consecutiveFailures,
+            openedAt: now,
+            halfOpenAt: undefined,
+            probeClaimed: false,
+          },
         ];
       }
       return [false, { ...state, consecutiveFailures }];
@@ -213,5 +288,30 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
     return [true, { ...state, probeClaimed: true }];
   });
 
-  return { status, recordSuccess, recordFailure, claimProbe } satisfies CircuitBreaker;
+  // See the interface doc comment (ticket #38 / H4). Guarded so a finalizer
+  // that runs after the probe already settled normally has nothing left to
+  // undo: the `state.status !== "HalfOpen" || !state.probeClaimed` check is
+  // the same shape `claimProbe` itself uses, and holds for the same reason —
+  // a genuinely new half-open window is only ever reachable after this (or
+  // `recordSuccess`/`recordFailure`) has already reset `probeClaimed`, so
+  // there is no window in which this call could steal a *different* claim.
+  const releaseProbe: Effect.Effect<void> = Effect.gen(function* () {
+    const now = yield* Clock.currentTimeMillis;
+    const reopened = yield* Ref.modify(ref, (state) => {
+      if (state.status !== "HalfOpen" || !state.probeClaimed) return [false, state];
+      return [
+        true,
+        {
+          status: "Open" as const,
+          consecutiveFailures: state.consecutiveFailures + 1,
+          openedAt: now,
+          halfOpenAt: undefined,
+          probeClaimed: false,
+        },
+      ];
+    });
+    if (reopened) yield* announceTransition("Open");
+  });
+
+  return { status, recordSuccess, recordFailure, claimProbe, releaseProbe } satisfies CircuitBreaker;
 });

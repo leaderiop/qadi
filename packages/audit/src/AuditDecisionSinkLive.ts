@@ -21,6 +21,7 @@
  * `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`.
  */
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
@@ -143,6 +144,12 @@ export const AuditDecisionSinkLive = (
             const current = yield* breaker.status;
             status = current === "Closed" ? "Closed" : "Open";
           }
+          // This call holds the half-open window's one probe claim exactly
+          // when `status` is still `"HalfOpen"` here: the branch above only
+          // ever reassigns it away (to `"Closed"` or `"Open"`) when
+          // `claimProbe` was lost to another caller. See the write attempt
+          // below (ticket #38 / H4) for why this distinction matters.
+          const isProbe = status === "HalfOpen";
 
           // Ties "was staged" and "how to commit it" to one value, rather
           // than a `handle` and a `stagingPort !== undefined` check that
@@ -185,19 +192,44 @@ export const AuditDecisionSinkLive = (
           if (status === "Open") return;
 
           // 3/4. Attempt the write and react.
-          const written = yield* Effect.result(trailPort.write(entry));
-          if (Result.isSuccess(written)) {
-            yield* breaker.recordSuccess;
-            if (commitStaged !== undefined) {
-              yield* Effect.catchCause(commitStaged(), () => Metric.update(stagingCommitFailed, 1));
+          const attemptWrite = Effect.gen(function* () {
+            const written = yield* Effect.result(trailPort.write(entry));
+            if (Result.isSuccess(written)) {
+              yield* breaker.recordSuccess;
+              if (commitStaged !== undefined) {
+                yield* Effect.catchCause(commitStaged(), () => Metric.update(stagingCommitFailed, 1));
+              }
+              yield* Metric.update(writesWritten, 1);
+            } else {
+              yield* breaker.recordFailure;
+              // The staged entry, if any, is left alone — ticket #5's
+              // reconciliation contract, not this pipeline's to discard.
+              yield* Metric.update(writesWriteFailed, 1);
             }
-            yield* Metric.update(writesWritten, 1);
-          } else {
-            yield* breaker.recordFailure;
-            // The staged entry, if any, is left alone — ticket #5's
-            // reconciliation contract, not this pipeline's to discard.
-            yield* Metric.update(writesWriteFailed, 1);
-          }
+          });
+
+          // Ticket #38 (H4). `Effect.result` above only catches
+          // `trailPort.write`'s own `E` channel — an interruption (client
+          // disconnect, `Effect.timeout`, a `filter`/`filterStream` fan-out)
+          // or a defect from a misbehaving store adapter unwinds straight
+          // past it, so `recordSuccess`/`recordFailure` never runs. For a
+          // normal write that just loses a data point the breaker already
+          // tolerates; for the one call holding the half-open probe
+          // (`isProbe`) it previously wedged the breaker `HalfOpen` forever,
+          // since nothing else ever releases that claim. `Effect.onExit`
+          // guarantees a finalizer on every path `attemptWrite` can end on,
+          // interruption and defects included (confirmed by this file's own
+          // interruption test, and already relied on the same way in
+          // `DecisionCache.ts`) — unlike a plain `Effect.exit` followed by
+          // more steps, which a fiber interrupted mid-`attemptWrite` would
+          // never return to run. `breaker.releaseProbe` is itself a no-op
+          // once `attemptWrite` already settled normally, so this costs
+          // nothing on the ordinary path.
+          yield* isProbe
+            ? Effect.onExit(attemptWrite, (exit) =>
+                Exit.isFailure(exit) ? breaker.releaseProbe : Effect.void,
+              )
+            : attemptWrite;
         });
 
       return { record };
