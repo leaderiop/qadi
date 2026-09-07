@@ -17,7 +17,7 @@ import * as Effect from "effect/Effect";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Stream from "effect/Stream";
-import { toWire } from "@qadi/core";
+import { MAX_DECODE_DEPTH, toWire } from "@qadi/core";
 import type { SinkRecord, StoredRecord } from "@qadi/core";
 import {
   type DecisionEventSource,
@@ -268,6 +268,53 @@ describe("sourceFromEventSource", () => {
       assert.strictEqual(reported[0]?.[1], "not-a-record");
       assert.strictEqual(got[0]?.evaluationId, "after");
     }));
+
+  /**
+   * H6 — `decodeRecord`'s depth guard, exercised through the real SSE path.
+   *
+   * Before `SinkCodec.ts`'s `decodeRecordWire` gained a depth guard ahead of
+   * `Schema`'s recursive descent, a frame nesting a policy past the call
+   * stack's limit raised a raw `RangeError` *defect* out of `decodeRecord` —
+   * and `decodeFrame`'s `Effect.result` only catches the typed error channel,
+   * not a defect, so that `RangeError` would kill the whole `live` stream
+   * rather than drop one row, freezing the timeline for every other frame
+   * still arriving. This pins the fix from the consumer's side: the same
+   * shape `SinkCodec.test.ts`'s `wireWithNestedPolicy` builds, decoded here
+   * through `sourceFromEventSource` rather than a direct `decodeRecord` call,
+   * must be reported and dropped like any other malformed frame — and the
+   * stream must keep delivering what comes after it.
+   */
+  it.effect(
+    "a policy nested past MAX_DECODE_DEPTH is dropped, not a stream-killing defect",
+    () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        const reported: Array<[string, string]> = [];
+
+        let policy: unknown = { _tag: "HasRole", role: "x" };
+        for (let i = 0; i < MAX_DECODE_DEPTH + 10; i++) {
+          policy = { _tag: "Not", policy };
+        }
+        const deepFrame = JSON.stringify({
+          _tag: "Decision",
+          evaluationId: "too-deep",
+          at: 0,
+          subjectId: "attacker",
+          policy,
+        });
+
+        const got = yield* collect(
+          fake,
+          [deepFrame, frameOf(decisionRecord({ evaluationId: "after" }))],
+          1,
+          { onMalformed: (frame, reason) => reported.push([frame, reason]) },
+        );
+
+        assert.strictEqual(reported.length, 1);
+        assert.strictEqual(reported[0]?.[1], "not-a-record");
+        assert.strictEqual(got[0]?.evaluationId, "after");
+      }),
+  );
 
   // E1.3 — the one malformation the codec tolerates rather than rejects.
   it.effect("a Decision frame with no outcome arrives as Failed, never as a verdict", () =>

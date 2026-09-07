@@ -30,6 +30,7 @@ import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny } from "./Decision.ts";
 import type { SinkRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "./DecisionRecord.ts";
+import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import type { EvaluationError } from "./Errors.ts";
 import {
   AttributeResolveError,
@@ -532,63 +533,34 @@ export const fromWire = (wire: SinkRecordWire): SinkRecord => {
 /** Encodes a record to a plain JSON value. */
 export const encodeRecord = Schema.encodeEffect(SinkRecordWire);
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
-/**
- * Structural depth check over the raw, not-yet-`Schema`-walked wire value.
- *
- * Mirrors `Policy.ts`'s own `exceedsJsonDepth` line for line: same
- * explicit-stack traversal (so the guard itself cannot be the thing that
- * overflows), same non-recursive reason for existing. Kept as a second,
- * local copy rather than an import — `Policy.ts`'s version is not exported,
- * and this file's ownership boundary (see the audit fix that added this
- * guard) is deliberately narrow — but the two must stay in lock-step, which
- * is why every line otherwise matches.
- *
- * `SinkRecordWire` recurses through two positions `Policy.ts`'s own guard
- * was never asked to cover: `policy` (through `PolicyRef`, embedding the
- * whole `Policy` union) and the self-recursive `TraceSchema` (`children`).
- * Without this check, `Schema`'s own descent through `Schema.suspend` has no
- * depth cap on either, so an adversarial payload nested past the call
- * stack's limit raises a raw `RangeError` defect during decode — the exact
- * class of stack-overflow the 0.4.0 hardening fixed for
- * `Policy.fromJson`/`fromJsonValue`, still reachable through every
- * sink/hydration decode path that went through this file instead.
- */
-const exceedsJsonDepth = (root: unknown, maxDepth: number): boolean => {
-  const stack: Array<{ readonly value: unknown; readonly depth: number }> = [
-    { value: root, depth: 0 },
-  ];
-  while (stack.length > 0) {
-    const frame = stack.pop();
-    if (frame === undefined) break;
-    if (frame.depth > maxDepth) return true;
-    if (Array.isArray(frame.value)) {
-      for (const item of frame.value) stack.push({ value: item, depth: frame.depth + 1 });
-    } else if (isPlainObject(frame.value)) {
-      for (const key of Object.keys(frame.value)) {
-        stack.push({ value: frame.value[key], depth: frame.depth + 1 });
-      }
-    }
-  }
-  return false;
-};
-
 const decodeSinkRecordWireUnknown = Schema.decodeUnknownEffect(SinkRecordWire);
 
 /**
  * Decodes a record's wire form from **untrusted** input.
  *
- * Pre-checks structural depth with {@link exceedsJsonDepth} before `Schema`
- * ever recurses into the input — the same order `Policy.ts`'s own
- * `fromJson`/`fromJsonValue` run their guard in, and for the same reason:
+ * Pre-checks structural depth with {@link exceedsJsonDepth}
+ * (`DecodeDepthGuard.ts`) before `Schema` ever recurses into the input — the
+ * same shared guard, in the same order, `Policy.ts`'s own
+ * `fromJson`/`fromJsonValue` run it in, and for the same reason:
  * `SinkRecordWire` embeds `Policy` and the self-recursive `TraceSchema`, and
- * neither has a depth cap of its own. Fails with `PolicyDecodeTooDeep`
- * rather than a second, look-alike error type — the failure is the
- * identical shape in both places, raw JSON nested deeper than a decoder can
- * safely walk, so a second class here would just be the drift ADR-QD-002's
- * reasoning warns about, one error type over.
+ * neither has a depth cap of its own. Without this check, `Schema`'s own
+ * descent through `Schema.suspend` raises a raw `RangeError` defect on a
+ * payload nested past the call stack's limit — the exact class of
+ * stack-overflow the 0.4.0 hardening fixed for
+ * `Policy.fromJson`/`fromJsonValue`, still reachable through every
+ * sink/hydration decode path that went through this file instead. Fails
+ * with `PolicyDecodeTooDeep` rather than a second, look-alike error type —
+ * the failure is the identical shape in both places, raw JSON nested deeper
+ * than a decoder can safely walk, so a second class here would just be the
+ * drift ADR-QD-002's reasoning warns about, one error type over.
+ *
+ * The guard itself used to be a second, hand-copied implementation kept in
+ * lock-step with `Policy.ts`'s by doc comment alone rather than by the
+ * compiler — exactly the drift ADR-QD-002 exists to rule out for the codec
+ * it sits beside. `DecodeDepthGuard.ts` is the fix: one implementation,
+ * imported by both call sites (and available to a third, `@qadi/react`'s
+ * `Hydration.ts`, which decodes the same two recursive shapes from a
+ * dehydrated payload and does not yet guard them — tracked separately).
  */
 export const decodeRecordWire = (
   input: unknown,

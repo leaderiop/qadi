@@ -23,6 +23,7 @@ import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type * as SchemaAST from "effect/SchemaAST";
+import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import { Matcher } from "./Matcher.ts";
 import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
@@ -699,9 +700,10 @@ export class PolicyDecodeTooDeep extends Data.TaggedError("PolicyDecodeTooDeep")
  * string nesting `{"_tag":"Not","policy":...}` tens of thousands deep
  * exhausts the call stack *during decode*, before the 64-deep evaluation
  * guard is ever consulted — confirmed empirically at 60,000 levels, where it
- * throws a raw `RangeError`, not a typed `Effect` failure. `exceedsJsonDepth`
- * below walks the parsed JSON with an explicit array-backed stack rather than
- * recursion, so the guard itself cannot be the thing that overflows.
+ * throws a raw `RangeError`, not a typed `Effect` failure.
+ * {@link exceedsJsonDepth} (`DecodeDepthGuard.ts`) walks the parsed JSON with
+ * an explicit array-backed stack rather than recursion, so the guard itself
+ * cannot be the thing that overflows.
  *
  * The bound is 4x {@link DEFAULT_MAX_DEPTH} — headroom for the extra JSON
  * nesting an array-valued node (`AllOf`/`AnyOf`/`Rules`) adds around each
@@ -720,28 +722,6 @@ export class PolicyDecodeTooDeep extends Data.TaggedError("PolicyDecodeTooDeep")
  * `evaluate`-depth-64 policy needs.
  */
 export const MAX_DECODE_DEPTH = DEFAULT_MAX_DEPTH * 4;
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
-const exceedsJsonDepth = (root: unknown, maxDepth: number): boolean => {
-  const stack: Array<{ readonly value: unknown; readonly depth: number }> = [
-    { value: root, depth: 0 },
-  ];
-  while (stack.length > 0) {
-    const frame = stack.pop();
-    if (frame === undefined) break;
-    if (frame.depth > maxDepth) return true;
-    if (Array.isArray(frame.value)) {
-      for (const item of frame.value) stack.push({ value: item, depth: frame.depth + 1 });
-    } else if (isPlainObject(frame.value)) {
-      for (const key of Object.keys(frame.value)) {
-        stack.push({ value: frame.value[key], depth: frame.depth + 1 });
-      }
-    }
-  }
-  return false;
-};
 
 /**
  * Untrusted-input decode options, shared by every entry point below.
