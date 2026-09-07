@@ -297,15 +297,19 @@ const readAttribute = (
  * Two sentences rather than one, because an absent attribute and a present one
  * that compares wrong are different problems with the same fix rate of roughly
  * zero when they are reported identically. "did not match" is *true* of
- * `undefined` — every matcher fails it — which is why this was never a defect,
- * only a diagnosis withheld. An unwired or misconfigured `AttributeResolver`
- * produces the absent case exclusively, so naming it points at the wiring
- * (INV-QD-029, and the mirror of what `"Unknown"` does for relationships).
+ * `undefined` — every matcher fails it — so naming the absent case points at
+ * the wiring, not at a comparison (INV-QD-029, and the mirror of what
+ * `"Unknown"` does for relationships). This was not always true of `Neq`:
+ * before CCR-QD-112, `Neq`'s absent-operand case matched rather than failed,
+ * a real defect this comment did not describe as one. It is now fixed at the
+ * source in `evaluateMatcher`, so the claim holds for every matcher again,
+ * `Neq` included.
  *
- * `Neq` breaks that pattern rather than fitting it: it denies exactly when the
- * value **matches** the excluded reference — `evaluateMatcher`'s `Neq` arm
- * returns `value !== resolveRef(...)`, so a `false` there means the two were
- * equal. "did not match" would claim the opposite of what happened, naming a
+ * `Neq` still breaks the pattern in its *defined*-value case, which CCR-QD-112
+ * left alone because it was never wrong: it denies exactly when the value
+ * **matches** the excluded reference — `evaluateMatcher`'s `Neq` arm returns
+ * `value !== resolveRef(...)`, so a `false` there means the two were equal.
+ * "did not match" would claim the opposite of what happened, naming a
  * mismatch where there was none. `Qadi.guard`'s own `EVALUATES THE POLICY
  * AGAINST THE GUARDED RESOURCE` test exercises exactly this shape — a `Neq`
  * that denies because the compared values agree (INV-QD-032) — which is what
