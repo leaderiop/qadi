@@ -162,6 +162,43 @@ describe("/__decisions", () => {
       assert.strictEqual(response.headers.get("x-accel-buffering"), "no");
     }));
 
+  it.effect(
+    "builds the reauth-guarded stream when options.reauth is given, not just the bare feed",
+    () =>
+      Effect.gen(function* () {
+        // Branch coverage only — this exercises `decisionStreamRoute`'s
+        // `options?.reauth === undefined ? frames : frames.pipe(Stream
+        // .mergeEffect(...))` ternary's *other* arm, the one call site that
+        // wires `reauthCheck` into a live route. It is deliberately not
+        // asking the recheck to actually fire: `HttpServerResponse.stream`'s
+        // bridge to a web `ReadableStream` runs `Schedule.spaced` on real
+        // wall-clock time, not `TestClock` (confirmed above, in the "reauth"
+        // describe block's closing comment) — an interval far longer than
+        // this test's own runtime keeps that firing outside the window a
+        // fast, deterministic test can afford, while still exercising the
+        // branch that builds the merge. `reauthCheck` and the merge
+        // mechanism's actual recheck-driven behavior are already covered
+        // directly, on `TestClock`, by the "reauth" describe block above.
+        const feed = yield* decisionSinkFeed({ replay: 8 });
+        const route = decisionStreamRoute(readPermission, readPolicy, feed.stream, {
+          reauth: { interval: "1 hour" },
+        });
+        const withRegistry = route.pipe(Layer.provideMerge(PermissionRegistryLive));
+        const withSubjects = withRegistry.pipe(Layer.provideMerge(subjectExtractorBearer(lookupSubject)));
+        const withServices = withSubjects.pipe(Layer.provideMerge(EvaluationServicesTest));
+        const layer = withServices.pipe(Layer.provideMerge(HttpServer.layerServices));
+        const { handler } = HttpRouter.toWebHandler(layer);
+
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/__decisions", { headers: bearer(ALICE) })),
+        );
+
+        assert.strictEqual(response.status, 200);
+        assert.include(response.headers.get("content-type") ?? "", "text/event-stream");
+        yield* Effect.promise(() => response.body?.cancel() ?? Promise.resolve());
+      }),
+  );
+
   it.effect("registers with PermissionRegistry, so /__permissions is not silently incomplete", () =>
     Effect.gen(function* () {
       // `Layer.build` + `Context.get` doesn't work here: `HttpRouter.add`'s

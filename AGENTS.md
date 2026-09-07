@@ -368,8 +368,19 @@ state-management layer of its own. The rules that keep it that way:
   twice over."* It would not, and the two rules it was said to breach are both
   still intact. Decisions are still not in React state. The React glue is still
   **one** `useSyncExternalStore` call in `QadiProvider.tsx` — the registry
-  exposes `subscribe`/`snapshot` and it is `@qadi/devtools`, a DOM package
-  already, that subscribes.
+  exposes `subscribe`/`snapshot` for exactly this.
+
+  **Correction:** this section, and ADR-QD-053, previously went on to say
+  present-tense "and it is `@qadi/devtools`, a DOM package already, that
+  subscribes." `@qadi/devtools` has no dependency on `@qadi/react` at all
+  (`GateRegistry.ts` lives in `@qadi/react`) and `DevtoolsDock.tsx` takes
+  `gates` as a plain, one-shot prop — it does not subscribe to anything.
+  What subscribes is the **host** wiring the two packages together:
+  `examples/nextjs-newsroom/src/client/Dock.tsx` calls `useSyncExternalStore(
+  subscribeGates, gateInstances, gateInstances)` and passes the result down as
+  `gates`. That is the correct place for it — `@qadi/devtools`'s panel is
+  meant to render for a host that has no `@qadi/react` at all, fed `gates`
+  from wherever it likes — not a gap in `@qadi/devtools` to close.
 
   What the argument actually established is that the **atom layer** cannot see
   instances, which is true and is why the panel is still keyed by question. A

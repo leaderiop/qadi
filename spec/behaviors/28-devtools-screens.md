@@ -268,8 +268,16 @@ layer* cannot distinguish instances. It was read as establishing that nothing
 can, and the original note went further still: *"an instance registry would
 breach AGENTS.md §13 twice over."* It breaches neither. Decisions stay out of
 React state — the registry holds who is asking, never what the answer was — and
-the React glue is still one `useSyncExternalStore` call in `QadiProvider.tsx`,
-because it is `@qadi/devtools` that subscribes.
+the React glue is still one `useSyncExternalStore` call in `QadiProvider.tsx`.
+
+> **Correction.** This paragraph previously ended "because it is `@qadi/devtools`
+> that subscribes." `@qadi/devtools` has no dependency on `@qadi/react` and
+> `DevtoolsDock.tsx` takes `gates` as a plain, one-shot prop — it subscribes to
+> nothing. The `useSyncExternalStore(subscribeGates, gateInstances,
+> gateInstances)` call is made by the **host**, wiring the two packages
+> together (`examples/nextjs-newsroom/src/client/Dock.tsx` does this); that is
+> the correct place for it, since `@qadi/devtools`'s panel renders for any host,
+> including one with no `@qadi/react` at all.
 
 A component knows perfectly well that it exists. Nothing was asking it.
 
