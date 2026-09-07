@@ -7,6 +7,19 @@
  * A stronger guarantee than the SQL interpreter's: `WhereInput` is a plain
  * object, so there is no serialization step to separately parse — this reads
  * the rendered structure directly.
+ *
+ * **This reader implements JS `.every`/`.some` at every depth — the same
+ * semantics `evaluatePredicate` uses, and, before C1's fix (issue 34,
+ * CCR-QD-111), the same wrong semantics `renderNode`'s `And`/`Or` arms
+ * assumed too.** A nested `{OR: []}`/`{AND: []}` behaves correctly under
+ * this reader regardless of depth, which is exactly why it could not, on
+ * its own, distinguish a correct render from a query Prisma's real engine
+ * silently mishandles (Prisma issues #17367, #21856). `./matchesPrismaWhereEngine.ts`
+ * is the reader that models Prisma's real, buggy nested-empty-array
+ * behavior; `renderNode` now guarantees the two agree on anything it emits,
+ * by never emitting a vacuous identity anywhere but the top of the query —
+ * this reader stays useful as the simpler, `evaluatePredicate`-shaped
+ * baseline for everything else `WhereInput` renders.
  */
 import type { PrismaWhereInput } from "../src/index.ts";
 

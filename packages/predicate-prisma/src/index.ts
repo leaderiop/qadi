@@ -150,20 +150,39 @@ const isSafeColumn = (column: string): boolean => !RESERVED_PRISMA_KEYS.has(colu
  * `False`'s and an empty `Or`'s rendering, and `MemberOf`'s own empty-values
  * case).
  *
- * `Negate` special-cases these because the real Prisma query-compiler does
- * not treat `{NOT: {AND: []}}` as "not always-true" the way `evaluatePredicate`
- * does. Verified against Prisma 7.10's engine source: `extract_filter`
+ * `And`, `Or` and `Negate` all special-case these — not `Negate` alone —
+ * because the real Prisma query-compiler does not treat a vacuous identity
+ * *reached below the top level of the compiled query* as its designed
+ * meaning. Verified against Prisma 7.10's engine source: `extract_filter`
  * (query-compiler/core/src/query_graph_builder/extractors/filters/mod.rs)
- * strips an empty `AND`/`OR` filter reached below the top level as
- * `Filter::Empty`, so the `{AND: []}` inside `{NOT: {AND: []}}` is dropped
- * before `NOT` ever sees it, leaving `Filter::not([])`; `filter/visitor.rs`
- * maps that to `ConditionTree::NoCondition` — no WHERE restriction, every row
- * — where `evaluatePredicate(Negate(True), row)` is `false` for every row.
- * The inverse (`{NOT: {OR: []}}`, `evaluatePredicate(Negate(False))` always
- * `true`) folds through the same mechanism to the opposite wrong answer.
- * Rendering the correct opposite identity directly — instead of leaning on
- * `NOT` to survive the engine's own folding — sidesteps it rather than
- * fighting it.
+ * strips an empty `AND`/`OR` filter reached below the top level to
+ * `Filter::Empty` ("no restriction"), regardless of which of the two it is
+ * or which combinator contains it — confirmed black-box against a live
+ * engine, not merely read from source: Prisma issue #17367's own repro is
+ * `{AND: [{email: "…"}, {OR: []}]}` returning the `email` row (the `{OR:
+ * []}` member is *dropped* from the `AND` list rather than forcing it
+ * false), and a comment on that issue confirms an empty `AND` array
+ * nested the same way is dropped identically, not merely `OR`'s. Issue
+ * #21856 shows the `NOT` case: `{NOT: {AND: []}}}` — a `Filter::not([])`
+ * once the inner empty `AND` strips to nothing — incorrectly returns every
+ * row instead of none (`filter/visitor.rs` maps `Filter::not([])` to
+ * `ConditionTree::NoCondition`, not a negation of the stripped filter), and
+ * `{AND: {OR: []}}}` (an `AND` wrapping a single vacuous-false operand)
+ * incorrectly returns every row too, the same "stripped to no restriction"
+ * mechanism from the other combinator.
+ *
+ * `renderNode`'s answer is to never let a vacuous identity be *reached*
+ * below the top level in the first place, rather than lean on the engine to
+ * survive folding it does not perform correctly: `And`/`Or` constant-fold
+ * every child immediately (see the `And`/`Or` arms below) so a `{AND: []}`/
+ * `{OR: []}` produced anywhere in the tree either collapses the whole
+ * combinator at that level or is dropped from it before the result is ever
+ * handed to a caller — a vacuous identity in this compiler's output can
+ * only ever be the very shape returned to the caller, never a member deeper
+ * in it. `Negate` still special-cases its own immediate child on top of
+ * that, for the same reason: `And`/`Or` fold what they build themselves,
+ * but `Negate`'s child could independently already reduce to a bare `True`/
+ * `False`/empty `MemberOf` leaf, which nothing else folds.
  */
 const isVacuousTrue = (where: PrismaWhereInput): boolean => {
   const keys = Object.keys(where);
@@ -204,6 +223,20 @@ const compareFilter = (op: Exclude<CompareOp, "Neq">, value: unknown): unknown =
  * zero conditions: true) and `{OR: []}` (any of zero conditions: false) —
  * matching `evaluatePredicate`'s own `.every`/`.some` on an empty array, the
  * same choice `@qadi/predicate-sql` makes for its empty `And`/`Or` case.
+ * **This is only ever the emitted shape at the top of the compiled query.**
+ * A vacuous identity is never left nested inside `AND`/`OR`/`NOT` in this
+ * compiler's output — see `isVacuousTrue`/`isVacuousFalse` above for why a
+ * nested one is not safe to hand to Prisma's real query engine (CCR-QD-111):
+ * `And`/`Or` constant-fold every rendered child before
+ * returning, and `Negate` folds its own child on top of that, so the only
+ * place `{AND: []}`/`{OR: []}` can appear in a value this function returns
+ * is the value itself, never inside one of its own `AND`/`OR`/`NOT` members.
+ * An earlier version of this function nested children verbatim — correct
+ * against `evaluatePredicate`'s own semantics, wrong against Prisma's, which
+ * silently drops a nested vacuous identity or fails to negate it (Prisma
+ * issues #17367, #21856) — so e.g. `allOf([hasResourceAttribute("role",
+ * inArray([])), tenantEq])`, meant to deny role-less users unconditionally,
+ * compiled to a query that admitted them.
  *
  * `Neq`/`MemberOf` against a `null`-capable column need more than Prisma's
  * own filter shape: `{col: {not: value}}` alone excludes a row where `col`
@@ -302,17 +335,46 @@ const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, Predi
 
       // An empty `predicates` array is unreachable through `toPredicate`, but
       // `Predicate` is directly constructible — `{AND: []}`/`{OR: []}` still
-      // agree with `evaluatePredicate`'s `.every`/`.some` on that input.
+      // agree with `evaluatePredicate`'s `.every`/`.some` on that input, and
+      // is exactly the case `nonVacuousTrue`/`nonVacuousFalse` below reduce
+      // an all-vacuous or already-empty `parts` list to.
+      //
+      // Constant-folds every rendered child rather than nesting `parts`
+      // verbatim (C1, CCR-QD-111) — see `isVacuousTrue`/`isVacuousFalse`
+      // above for why a nested `{AND: []}`/`{OR: []}` is not safe to hand to
+      // Prisma's real query engine. A genuinely-false child forces the
+      // whole `And` false unconditionally, so it is reported at THIS level
+      // (`{OR: []}`) rather than left nested where the engine silently
+      // drops it; a genuinely-true child changes nothing about an `And`, so
+      // it is dropped from the array — both are recursive by construction,
+      // since each child was itself already fully folded by this same arm
+      // (or `Or`'s) before `renderNode` returns it here.
       And: (p) =>
-        Effect.map(Effect.forEach(p.predicates, renderNode), (parts) => ({ AND: parts })),
+        Effect.map(Effect.forEach(p.predicates, renderNode), (parts) => {
+          if (parts.some(isVacuousFalse)) return { OR: [] };
+          const nonVacuousTrue = parts.filter((part) => !isVacuousTrue(part));
+          return nonVacuousTrue.length === 0 ? { AND: [] } : { AND: nonVacuousTrue };
+        }),
 
-      Or: (p) => Effect.map(Effect.forEach(p.predicates, renderNode), (parts) => ({ OR: parts })),
+      // The `Or` mirror of `And` above: a genuinely-true child forces the
+      // whole `Or` true unconditionally (reported at this level, `{AND:
+      // []}`), and a genuinely-false child is dropped, since it changes
+      // nothing about an `Or`.
+      Or: (p) =>
+        Effect.map(Effect.forEach(p.predicates, renderNode), (parts) => {
+          if (parts.some(isVacuousTrue)) return { AND: [] };
+          const nonVacuousFalse = parts.filter((part) => !isVacuousFalse(part));
+          return nonVacuousFalse.length === 0 ? { OR: [] } : { OR: nonVacuousFalse };
+        }),
 
       // No double-negation elimination — `Simplify.ts` never runs on a
       // `Predicate`, and this compiler renders exactly what the AST says.
       // The one exception is the vacuous-identity shapes themselves: see
       // `isVacuousTrue`/`isVacuousFalse` for why `{NOT: {AND: []}}`/`{NOT:
-      // {OR: []}}` cannot be left for the real Prisma engine to fold.
+      // {OR: []}}` cannot be left for the real Prisma engine to fold. Folding
+      // here only ever sees `p.predicate`'s own top-level shape — `And`/`Or`
+      // above already guarantee nothing nested inside it is vacuous, so this
+      // check is exactly as much as `Negate` needs, not a partial guard.
       Negate: (p) =>
         Effect.map(renderNode(p.predicate), (inner) => {
           if (isVacuousTrue(inner)) return { OR: [] };

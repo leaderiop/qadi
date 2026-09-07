@@ -1,7 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import type { Predicate } from "@qadi/core";
+import { evaluatePredicate, type Predicate } from "@qadi/core";
 import { compilePrismaWhere } from "../src/index.ts";
+import { matchesPrismaWhereEngine } from "./matchesPrismaWhereEngine.ts";
 
 const refusalOf = (predicate: Predicate) =>
   Effect.map(Effect.result(compilePrismaWhere(predicate)), (r) =>
@@ -266,6 +267,139 @@ describe("compilePrismaWhere — Negate over a vacuous identity avoids the engin
       });
       assert.deepStrictEqual(where, { NOT: { tenantId: "t-1" } });
     }));
+});
+
+// C1 (issue 34, spot-verified in DASHBOARD.md's Critical finding): before
+// this fix, `And`/`Or` nested a rendered `parts` array verbatim, so a
+// `False`/empty-`MemberOf` child anywhere below the top rendered as a
+// *nested* `{OR: []}` — which Prisma's real query engine silently drops
+// from an `AND`/`OR` list rather than treating as always-false (Prisma
+// issues #17367, #21856; see `isVacuousTrue`/`isVacuousFalse` in
+// `../src/index.ts`). A policy meaning "deny role-less users" could compile
+// to a query that admitted them instead. `renderNode` now constant-folds
+// every `And`/`Or` child so a vacuous identity is never left nested — these
+// assertions pin the exact shapes that guarantee, and the last one proves
+// it against `matchesPrismaWhereEngine`, the reader that models Prisma's
+// real nested-empty-array behavior rather than `matchesPrismaWhere`'s naive
+// JS `.every`/`.some` (which cannot distinguish the fix from the defect).
+describe("compilePrismaWhere — nested vacuous identities constant-fold (C1)", () => {
+  it.effect("a False nested inside And folds to the top-level False identity, not a nested {OR: []}", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = {
+        _tag: "And",
+        predicates: [
+          { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" },
+          { _tag: "False" },
+        ],
+      };
+      assert.deepStrictEqual(yield* compilePrismaWhere(predicate), { OR: [] });
+    }));
+
+  it.effect("a True nested inside Or folds to the top-level True identity, not a nested {AND: []}", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = {
+        _tag: "Or",
+        predicates: [
+          { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" },
+          { _tag: "True" },
+        ],
+      };
+      assert.deepStrictEqual(yield* compilePrismaWhere(predicate), { AND: [] });
+    }));
+
+  it.effect("a True nested inside And is dropped, not left as a nested {AND: []}", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = {
+        _tag: "And",
+        predicates: [
+          { _tag: "True" },
+          { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" },
+        ],
+      };
+      assert.deepStrictEqual(yield* compilePrismaWhere(predicate), { AND: [{ tenantId: "t-1" }] });
+    }));
+
+  it.effect("a False nested inside Or is dropped, not left as a nested {OR: []}", () =>
+    Effect.gen(function* () {
+      const predicate: Predicate = {
+        _tag: "Or",
+        predicates: [
+          { _tag: "False" },
+          { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" },
+        ],
+      };
+      assert.deepStrictEqual(yield* compilePrismaWhere(predicate), { OR: [{ tenantId: "t-1" }] });
+    }));
+
+  it.effect("folding happens at every depth, not only directly under the outermost And/Or", () =>
+    Effect.gen(function* () {
+      // Or([And([False, X]), Y]) — the inner And must itself already have
+      // collapsed to {OR: []} by the time the outer Or looks at its parts,
+      // so the outer Or drops it rather than nesting {AND: [{OR: []}, ...]}.
+      const predicate: Predicate = {
+        _tag: "Or",
+        predicates: [
+          {
+            _tag: "And",
+            predicates: [
+              { _tag: "False" },
+              { _tag: "Compare", column: "sealed", op: "Eq", value: true },
+            ],
+          },
+          { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" },
+        ],
+      };
+      assert.deepStrictEqual(yield* compilePrismaWhere(predicate), { OR: [{ tenantId: "t-1" }] });
+    }));
+
+  it.effect("Negate over a nested-vacuous And still avoids the NOT-folding bug", () =>
+    Effect.gen(function* () {
+      // Negate(And([False, X])) — And([False, X]) folds to {OR: []} before
+      // Negate ever sees it, so Negate's own isVacuousFalse check (not a
+      // literal {NOT: {AND: [{OR: []}, ...]}}) is what fires.
+      const predicate: Predicate = {
+        _tag: "Negate",
+        predicate: {
+          _tag: "And",
+          predicates: [
+            { _tag: "False" },
+            { _tag: "Compare", column: "sealed", op: "Eq", value: true },
+          ],
+        },
+      };
+      assert.deepStrictEqual(yield* compilePrismaWhere(predicate), { AND: [] });
+    }));
+
+  it.effect(
+    "the ticket's own example — an impossible role MemberOf inside an And — denies every row, verified against Prisma's real nested-empty-array behavior",
+    () =>
+      Effect.gen(function* () {
+        // allOf([hasResourceAttribute("role", inArray([])), tenantEq]) —
+        // "deny role-less users" — must render as unconditionally false,
+        // never as a nested {OR: []} a real engine would silently drop from
+        // the AND, admitting every tenant-matching row regardless of role.
+        const predicate: Predicate = {
+          _tag: "And",
+          predicates: [
+            { _tag: "MemberOf", column: "role", values: [] },
+            { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" },
+          ],
+        };
+        const where = yield* compilePrismaWhere(predicate);
+        assert.deepStrictEqual(where, { OR: [] });
+
+        const rows: ReadonlyArray<Record<string, unknown>> = [
+          { role: "admin", tenantId: "t-1" },
+          { role: "member", tenantId: "t-1" },
+          { tenantId: "t-1" },
+          { role: "admin", tenantId: "t-2" },
+        ];
+        for (const row of rows) {
+          assert.strictEqual(matchesPrismaWhereEngine(where, row), false, JSON.stringify(row));
+          assert.strictEqual(evaluatePredicate(predicate, row), false, JSON.stringify(row));
+        }
+      }),
+  );
 });
 
 describe("compilePrismaWhere — refusals", () => {
