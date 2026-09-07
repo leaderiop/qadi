@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { Signature, SIGNATURE_MEANINGS } from "../src/Signature.ts";
 
@@ -50,6 +51,39 @@ describe("Signature", () => {
         JSON.parse(JSON.stringify(encoded)),
       );
       assert.deepStrictEqual(roundTripped, decoded);
+    }));
+
+  // Signature.ts's own doc comment claims the same ADR-QD-002 trust-boundary
+  // condition as Policy/Obligation — decoded from untrusted, persisted JSON —
+  // so a missing required field or a wrong-typed one must fail decode rather
+  // than silently produce a malformed value.
+  it.effect("rejects a payload missing signerId", () =>
+    Effect.gen(function* () {
+      const { signerId: _signerId, ...missingSignerId } = raw;
+      const result = yield* Effect.result(Schema.decodeUnknownEffect(Signature)(missingSignerId));
+      assert.isTrue(Result.isFailure(result));
+    }));
+
+  it.effect("rejects a payload missing meaning", () =>
+    Effect.gen(function* () {
+      const { meaning: _meaning, ...missingMeaning } = raw;
+      const result = yield* Effect.result(Schema.decodeUnknownEffect(Signature)(missingMeaning));
+      assert.isTrue(Result.isFailure(result));
+    }));
+
+  it.effect("rejects a payload missing signedAt", () =>
+    Effect.gen(function* () {
+      const { signedAt: _signedAt, ...missingSignedAt } = raw;
+      const result = yield* Effect.result(Schema.decodeUnknownEffect(Signature)(missingSignedAt));
+      assert.isTrue(Result.isFailure(result));
+    }));
+
+  it.effect("rejects a payload with a wrong-typed signedAt", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        Schema.decodeUnknownEffect(Signature)({ ...raw, signedAt: "now" }),
+      );
+      assert.isTrue(Result.isFailure(result));
     }));
 });
 

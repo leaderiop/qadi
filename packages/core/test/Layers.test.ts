@@ -115,18 +115,30 @@ describe("field-strategy edge cases", () => {
       assert.isUndefined(d.visibleFields);
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] })))));
 
-  it.effect("AllOf accepts an explicit First strategy", () =>
+  it.effect("AllOf accepts an explicit First strategy, taking the first child's fields", () =>
     Effect.gen(function* () {
       // Unusual but representable: take the first child's field set rather
       // than intersecting. Reachable only through allOf, since anyOf/First
-      // short-circuits before any merge happens.
+      // short-circuits before any merge happens. The two children carry
+      // *different* field sets so First's choice is distinguishable from
+      // what Intersection (`["b"]`) or Union (`["a", "b", "c"]`) would
+      // produce — the general "accepts an explicit strategy" case, sitting
+      // apart from the following path-shaped-field test's unmerged-verbatim
+      // guarantee.
       const policy = P.allOf(
-        [P.hasRole("a"), P.hasRole("b")],
+        [
+          P.hasPermission(permission("doc", "read"), { fields: ["a", "b"] }),
+          P.hasPermission(permission("doc", "write"), { fields: ["b", "c"] }),
+        ],
         { fieldStrategy: "First" },
       );
       const d = yield* evaluate(policy);
       assert.isTrue(isAllowed(d));
-    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] })))));
+      if (d._tag !== "Allow") return;
+      assert.deepStrictEqual(d.visibleFields, ["a", "b"]);
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
+    ));
 
   it.effect("AllOf/First takes the first child's path-shaped field set verbatim, unmerged", () =>
     Effect.gen(function* () {
@@ -147,7 +159,9 @@ describe("field-strategy edge cases", () => {
     }).pipe(
       Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
     ));
+});
 
+describe("attribute resolution", () => {
   it.effect("resolver is consulted only when the subject lacks the attribute", () =>
     Effect.gen(function* () {
       let calls = 0;

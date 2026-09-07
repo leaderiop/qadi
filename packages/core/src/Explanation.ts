@@ -22,14 +22,6 @@ import type { Obligation } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
 import type { Combining, FieldStrategy, Policy } from "./Policy.ts";
 
-/**
- * A term: what one leaf of a policy asks for.
- *
- * `detail` is the leaf's own words — a permission key, a role name, an attribute
- * comparison — already flattened to a string, because a matcher is a value
- * grammar rather than a policy and rendering it structurally would double the
- * size of this union for no reader's benefit.
- */
 /** What kind of leaf a {@link Requirement} came from. */
 export type RequirementKind =
   | "permission"
@@ -41,6 +33,14 @@ export type RequirementKind =
   | "custom"
   | "signature";
 
+/**
+ * A term: what one leaf of a policy asks for.
+ *
+ * `detail` is the leaf's own words — a permission key, a role name, an attribute
+ * comparison — already flattened to a string, because a matcher is a value
+ * grammar rather than a policy and rendering it structurally would double the
+ * size of this union for no reader's benefit.
+ */
 export interface Requirement {
   readonly _tag: "Requirement";
   readonly kind: RequirementKind;
@@ -137,7 +137,7 @@ const matcherText: (self: Matcher) => string = Match.type<Matcher>().pipe(
     Size: (m) => `has a size that ${matcherText(m.matcher)}`,
     FieldMatch: (m) => `has ${m.field} that ${matcherText(m.matcher)}`,
     SomeMatch: (m) => `has an entry that ${matcherText(m.matcher)}`,
-    EveryMatch: (m) => `has every entry ${matcherText(m.matcher)}`,
+    EveryMatch: (m) => `has every entry that ${matcherText(m.matcher)}`,
   }),
 );
 
@@ -154,8 +154,8 @@ const requirement = (
 /**
  * Describes a policy without evaluating it.
  *
- * Total by construction: `Match.tagsExhaustive` makes a fifteenth policy variant
- * a compile error here rather than a silently unexplained node. Unlike
+ * Total by construction: `Match.tagsExhaustive` makes a new policy variant a
+ * compile error here rather than a silently unexplained node. Unlike
  * `toPredicate`, which refuses what it cannot translate, this refuses nothing — a
  * policy a reviewer cannot read is worse than one they can only partly act on.
  */

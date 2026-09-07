@@ -21,52 +21,46 @@ describe("simplify", () => {
     assert.deepStrictEqual(simplify(doubled), doubled);
   });
 
-  it("the double negation it refuses to remove really does differ", () =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        // The counterexample, spelled out. Same verdict, different field set.
-        const inner = P.hasPermission(permission("doc", "meta"), { fields: ["author"] });
-        const subject = subjectWith({ id: "u-1", permissions: ["doc:meta"] });
-        const run = (p: P.Policy) =>
-          evaluate(p).pipe(Effect.provide(testLayer(subject)));
+  it.effect("the double negation it refuses to remove really does differ", () =>
+    Effect.gen(function* () {
+      // The counterexample, spelled out. Same verdict, different field set.
+      const inner = P.hasPermission(permission("doc", "meta"), { fields: ["author"] });
+      const subject = subjectWith({ id: "u-1", permissions: ["doc:meta"] });
+      const run = (p: P.Policy) => evaluate(p).pipe(Effect.provide(testLayer(subject)));
 
-        const direct = yield* run(inner);
-        const doubled = yield* run(P.not(P.not(inner)));
+      const direct = yield* run(inner);
+      const doubled = yield* run(P.not(P.not(inner)));
 
-        assert.isTrue(isAllowed(direct));
-        assert.isTrue(isAllowed(doubled));
-        if (!isAllowed(direct) || !isAllowed(doubled)) return;
-        assert.deepStrictEqual(direct.visibleFields, ["author"]);
-        // All fields, not `["author"]` — so eliminating the negation would have
-        // narrowed what the caller may read.
-        assert.isUndefined(doubled.visibleFields);
-      }),
-    ));
+      assert.isTrue(isAllowed(direct));
+      assert.isTrue(isAllowed(doubled));
+      if (!isAllowed(direct) || !isAllowed(doubled)) return;
+      assert.deepStrictEqual(direct.visibleFields, ["author"]);
+      // All fields, not `["author"]` — so eliminating the negation would have
+      // narrowed what the caller may read.
+      assert.isUndefined(doubled.visibleFields);
+    }));
 
-  it("the double-negation guard holds identically for a path-shaped field", () =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        // Same counterexample as above, with a dot-path field spec instead of
-        // a flat name — the guard keys off Not always setting
-        // `visibleFields: undefined`, never off what the field strings
-        // inside a restriction mean, so this must hold identically.
-        const inner = P.hasPermission(permission("doc", "meta"), {
-          fields: ["contact.email"],
-        });
-        const subject = subjectWith({ id: "u-1", permissions: ["doc:meta"] });
-        const run = (p: P.Policy) =>
-          evaluate(p).pipe(Effect.provide(testLayer(subject)));
+  it.effect("the double-negation guard holds identically for a path-shaped field", () =>
+    Effect.gen(function* () {
+      // Same counterexample as above, with a dot-path field spec instead of
+      // a flat name — the guard keys off Not always setting
+      // `visibleFields: undefined`, never off what the field strings
+      // inside a restriction mean, so this must hold identically.
+      const inner = P.hasPermission(permission("doc", "meta"), {
+        fields: ["contact.email"],
+      });
+      const subject = subjectWith({ id: "u-1", permissions: ["doc:meta"] });
+      const run = (p: P.Policy) => evaluate(p).pipe(Effect.provide(testLayer(subject)));
 
-        const direct = yield* run(inner);
-        const doubled = yield* run(P.not(P.not(inner)));
+      const direct = yield* run(inner);
+      const doubled = yield* run(P.not(P.not(inner)));
 
-        assert.isTrue(isAllowed(direct));
-        assert.isTrue(isAllowed(doubled));
-        if (!isAllowed(direct) || !isAllowed(doubled)) return;
-        assert.deepStrictEqual(direct.visibleFields, ["contact.email"]);
-        assert.isUndefined(doubled.visibleFields);
-      }),
-    ));
+      assert.isTrue(isAllowed(direct));
+      assert.isTrue(isAllowed(doubled));
+      if (!isAllowed(direct) || !isAllowed(doubled)) return;
+      assert.deepStrictEqual(direct.visibleFields, ["contact.email"]);
+      assert.isUndefined(doubled.visibleFields);
+    }));
 
   it("leaves every leaf variant exactly as it found it", () => {
     // All fourteen variants have an arm, so all fourteen need exercising — an
@@ -169,16 +163,14 @@ describe("simplify", () => {
     assert.deepStrictEqual(once, P.hasRole("a"));
   });
 
-  it("survives a round trip through JSON, because it produces ordinary policies", () =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const simplified = simplify(
-          P.allOf([P.hasRole("a"), P.allOf([P.hasPermission(permission("doc", "read"))])]),
-        );
-        const restored = yield* Effect.flatMap(P.toJson(simplified), P.fromJson);
-        assert.deepStrictEqual(restored, simplified);
-      }),
-    ));
+  it.effect("survives a round trip through JSON, because it produces ordinary policies", () =>
+    Effect.gen(function* () {
+      const simplified = simplify(
+        P.allOf([P.hasRole("a"), P.allOf([P.hasPermission(permission("doc", "read"))])]),
+      );
+      const restored = yield* Effect.flatMap(P.toJson(simplified), P.fromJson);
+      assert.deepStrictEqual(restored, simplified);
+    }));
 
   // -------------------------------------------------------------------------
   // INV-QD-024

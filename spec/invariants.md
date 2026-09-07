@@ -1302,6 +1302,14 @@ They are kept separate rather than one derived from the other because
 on a server — and building a path array per permission there would charge every
 caller for what only an explorer wants.
 
+> **Corrected (CCR-QD-115).** `flattenPermissions` does not run inside
+> `makeSubject`: `makeSubject` (`packages/core/src/AuthSubject.ts`) takes an
+> already-flattened `Iterable<PermissionKey>` and never touches `Role` objects
+> or `flattenAll`/`flattenPermissions` at all. `flattenPermissions` runs inside
+> `fromRoles`, the sibling constructor that accepts `ReadonlyArray<Role>` —
+> once per subject, so per request on a server — which is where the
+> per-permission path-array cost this paragraph is explaining would land.
+
 **Enforcement**: `packages/core/test/RolesAndDepth.test.ts` compares the two
 sets directly over an inheritance chain, and asserts a diamond yields one grant
 rather than two.

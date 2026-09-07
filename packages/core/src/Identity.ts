@@ -12,10 +12,10 @@
  * event names, one hop closer to the trust boundary.
  *
  * Kept in their own leaf file rather than `AuthSubject.ts`/`Evaluate.ts`: both
- * `SubjectId` and `ResourceId` are needed from files on both sides of that
- * pair (`DecisionHistory.ts`, `Errors.ts`, `DecisionCache.ts`,
- * `RelationshipResolver.ts`, `Decision.ts`), and neither owning file should
- * have to depend on the other just to name the sibling brand.
+ * `SubjectId` and `ResourceId` are needed together by files on both sides of
+ * that pair (`DecisionHistory.ts`, `Errors.ts`, `RelationshipResolver.ts` —
+ * `Decision.ts` needs only `SubjectId`), and neither owning file should have
+ * to depend on the other just to name the sibling brand.
  */
 import * as Brand from "effect/Brand";
 

@@ -96,7 +96,7 @@ export interface PermissionGrant {
  * traversal order that might not match.
  *
  * **Kept separate from `flattenPermissions` rather than replacing it.** That one
- * runs inside `makeSubject`, once per subject — per request, on a server — and
+ * runs inside `fromRoles`, once per subject — per request, on a server — and
  * allocating a path array per permission there would make every caller pay for
  * what only an explorer wants. Two functions, one traversal shape.
  *
@@ -317,9 +317,10 @@ export const resolveRoleGraph = Effect.fn("qadi.resolveRoleGraph")(function* (
     if (definition === undefined) {
       // Unconditionally a missing *parent*. `byName` is built from
       // `definitions` and the loop below only visits names drawn from it, so
-      // every name reaching here came from an `inherits` list. A
-      // `stack.length > 0` guard was written first and mutation testing removed
-      // it with every test still passing — it was unreachable, not defensive.
+      // every name reaching here came from an `inherits` list — never a
+      // top-level definition name, which would instead have hit the
+      // `existing`/`resolved` check above. There is no narrower guard to
+      // write here.
       unknownParents.add(name);
       return Effect.succeed(undefined);
     }

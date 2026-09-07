@@ -29,6 +29,7 @@ import {
   customPredicateRetrying,
 } from "../src/CustomPredicate.ts";
 import { CustomPredicateError } from "../src/Errors.ts";
+import { forkAllAndSettle } from "./helpers.ts";
 
 const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
 
@@ -150,10 +151,11 @@ describe("customPredicateBounded", () => {
       const bounded = customPredicateBounded(2)(blocking);
 
       const results = yield* Effect.gen(function* () {
-        const fibers = yield* Effect.forEach(Array.from({ length: 5 }, (_, i) => i), () =>
-          Effect.forkChild(CustomPredicate.evaluate("x", alice, undefined, undefined)),
+        const fibers = yield* forkAllAndSettle(
+          Array.from({ length: 5 }, () =>
+            CustomPredicate.evaluate("x", alice, undefined, undefined),
+          ),
         );
-        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
         assert.strictEqual(yield* Ref.get(inFlight), 2);
         assert.strictEqual(yield* Ref.get(peak), 2);
         yield* Deferred.succeed(gate, undefined);

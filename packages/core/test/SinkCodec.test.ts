@@ -823,7 +823,11 @@ describe("round-trip property", () => {
           return JSON.stringify(fromWire(toWire(record))) === JSON.stringify(record);
         },
       ),
-      { numRuns: 200 },
+      // Explicit seed, matching every other FastCheck-based property test in
+      // this scope: a CI failure must replay byte-for-byte from a recorded
+      // seed, not only from whatever FastCheck happened to print on that
+      // run's log.
+      { numRuns: 200, seed: 1032 },
     );
   });
 });

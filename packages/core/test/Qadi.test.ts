@@ -13,7 +13,7 @@ import * as Qadi from "../src/Qadi.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { subjectWith, testLayer } from "./helpers.ts";
+import { forkAndSettle, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
 const canRead = P.hasPermission(read);
@@ -394,10 +394,9 @@ describe("Qadi.filterStream — concurrency across items", () => {
       const gate = yield* Deferred.make<void>();
 
       yield* Effect.gen(function* () {
-        const fiber = yield* Effect.forkChild(
+        const fiber = yield* forkAndSettle(
           Stream.runCollect(Qadi.filterStream(policy, Stream.fromIterable(items))),
         );
-        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
         assert.strictEqual(
           yield* Ref.get(invocations),
           1,
@@ -418,12 +417,11 @@ describe("Qadi.filterStream — concurrency across items", () => {
       const gate = yield* Deferred.make<void>();
 
       yield* Effect.gen(function* () {
-        const fiber = yield* Effect.forkChild(
+        const fiber = yield* forkAndSettle(
           Stream.runCollect(
             Qadi.filterStream(policy, Stream.fromIterable(items), { concurrency: "unbounded" }),
           ),
         );
-        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
         assert.strictEqual(
           yield* Ref.get(invocations),
           items.length,
@@ -661,8 +659,7 @@ describe("Qadi.filter — concurrency across items", () => {
       const gate = yield* Deferred.make<void>();
 
       yield* Effect.gen(function* () {
-        const fiber = yield* Effect.forkChild(Qadi.filter(policy, items));
-        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+        const fiber = yield* forkAndSettle(Qadi.filter(policy, items));
         assert.strictEqual(
           yield* Ref.get(invocations),
           1,
@@ -683,10 +680,9 @@ describe("Qadi.filter — concurrency across items", () => {
       const gate = yield* Deferred.make<void>();
 
       yield* Effect.gen(function* () {
-        const fiber = yield* Effect.forkChild(
+        const fiber = yield* forkAndSettle(
           Qadi.filter(policy, items, { concurrency: "unbounded" }),
         );
-        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
         assert.strictEqual(
           yield* Ref.get(invocations),
           items.length,

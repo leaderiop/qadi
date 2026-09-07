@@ -190,6 +190,48 @@ describe("diffTraces", () => {
       ]);
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));
 
+  it.effect(
+    "a label rename combined with a tag swap reports PolicyTagChanged and LabelChanged together",
+    () =>
+      Effect.gen(function* () {
+        // The realistic what-if the two single-change tests above don't cover
+        // together: an author renames a wrapper's label and swaps its node
+        // kind in the same edit. `policyTag` and `label` are checked
+        // independently (src/TraceDiff.ts), so a labeled node compared
+        // against a differently-tagged, unlabeled one produces both entries
+        // at the same path. A `Labeled` node also always wraps exactly one
+        // child while `HasAction` is a leaf, so `ChildCountChanged` fires
+        // too — documenting all three as intended rather than incidental.
+        const a = yield* evaluate(P.labeled("sod.role", P.hasRole("editor")));
+        const b = yield* evaluate(P.hasAction("read"), { action: "read" });
+
+        const diff = diffTraces(a.trace, b.trace);
+        assert.deepStrictEqual(diff, [
+          {
+            _tag: "PolicyTagChanged",
+            path: [],
+            policyTag: "HasAction",
+            before: "Labeled",
+            after: "HasAction",
+          },
+          {
+            _tag: "LabelChanged",
+            path: [],
+            policyTag: "HasAction",
+            before: "sod.role",
+            after: undefined,
+          },
+          {
+            _tag: "ChildCountChanged",
+            path: [],
+            policyTag: "HasAction",
+            before: 1,
+            after: 0,
+          },
+        ]);
+      }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))),
+  );
+
   it.effect("parents are listed before children", () =>
     Effect.gen(function* () {
       const policy = P.allOf([P.hasAttribute("clearance", M.gte(3))]);

@@ -18,6 +18,7 @@ import {
   attributeResolverRetrying,
 } from "../src/AttributeResolver.ts";
 import { makeSubjectId } from "../src/Identity.ts";
+import { forkAllAndSettle } from "./helpers.ts";
 
 /** A resolver that fails `failures` times, then succeeds, counting attempts via `attempts`. */
 const flakyLayer = (failures: number, attempts: Ref.Ref<number>): Layer.Layer<AttributeResolver> =>
@@ -90,10 +91,11 @@ describe("attributeResolverBounded", () => {
       // independent semaphore, sharing nothing (the same trap
       // `DecisionCache.test.ts` documents for a per-evaluation cache).
       const results = yield* Effect.gen(function* () {
-        const fibers = yield* Effect.forEach(Array.from({ length: 5 }, (_, i) => i), (i) =>
-          Effect.forkChild(AttributeResolver.resolve(makeSubjectId(`u${i}`), "dept")),
+        const fibers = yield* forkAllAndSettle(
+          Array.from({ length: 5 }, (_, i) =>
+            AttributeResolver.resolve(makeSubjectId(`u${i}`), "dept"),
+          ),
         );
-        for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
         // 5 askers, 2 permits: exactly 2 should have made it through to the
         // resolver, the other 3 still queued on the semaphore.
         assert.strictEqual(yield* Ref.get(inFlight), 2);

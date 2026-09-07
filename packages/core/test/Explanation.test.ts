@@ -449,7 +449,7 @@ describe("explain", () => {
       [P.hasAttribute("a", M.size(M.gte(2))), "has a size that is at least 2"],
       [P.hasAttribute("a", M.fieldMatch("f", M.exists())), "has f that is present"],
       [P.hasAttribute("a", M.someMatch(M.exists())), "has an entry that is present"],
-      [P.hasAttribute("a", M.everyMatch(M.exists())), "has every entry is present"],
+      [P.hasAttribute("a", M.everyMatch(M.exists())), "has every entry that is present"],
     ];
 
     for (const [policy, expected] of cases) {
