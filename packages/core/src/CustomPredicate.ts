@@ -21,7 +21,7 @@ import type { AuthSubject } from "./AuthSubject.ts";
 import { CustomPredicateError, InvalidBoundedPermits } from "./Errors.ts";
 import { portRetriesTotal } from "./PortMetrics.ts";
 import type { Resource } from "./Resource.ts";
-import { wrapService } from "./RetryingLayer.ts";
+import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
 
 export interface CustomPredicateShape {
   /**
@@ -142,20 +142,10 @@ export const customPredicateRetrying =
 export const customPredicateBounded =
   (permits: number) =>
   (layer: Layer.Layer<CustomPredicate>): Layer.Layer<CustomPredicate, InvalidBoundedPermits> =>
-    Layer.effect(
-      CustomPredicate,
-      Effect.gen(function* () {
-        if (!(Number.isInteger(permits) && permits > 0)) {
-          return yield* Effect.fail(new InvalidBoundedPermits({ permits }));
-        }
-        const semaphore = yield* Semaphore.make(permits);
-        const inner = yield* Layer.build(layer).pipe(
-          Effect.map((context) => Context.get(context, CustomPredicate)),
-        );
-        return {
-          name: `${inner.name ?? "?"} (bounded ${permits})`,
-          evaluate: (name, subject, resource, params) =>
-            Semaphore.withPermit(semaphore)(inner.evaluate(name, subject, resource, params)),
-        };
-      }),
+    wrapServiceEffect(CustomPredicate, layer, (inner) =>
+      Effect.map(boundedPermits(permits), (semaphore) => ({
+        name: `${inner.name ?? "?"} (bounded ${permits})`,
+        evaluate: (name, subject, resource, params) =>
+          Semaphore.withPermit(semaphore)(inner.evaluate(name, subject, resource, params)),
+      })),
     );

@@ -18,6 +18,21 @@ import { forkAndSettle, subjectWith, testLayer } from "./helpers.ts";
 const read = permission("doc", "read");
 const canRead = P.hasPermission(read);
 
+// Shared by "Qadi.filterStream — concurrency across items" and
+// "Qadi.filter — concurrency across items" below: both prove that
+// `options.concurrency` reaches the per-item fan-out (`Stream.mapEffect` /
+// `Effect.forEach`), not just each item's own `evaluate` call, by blocking a
+// resolver on a shared gate so "how many lookups are in flight" is observed
+// directly, not inferred.
+const blockingResolver = (invocations: Ref.Ref<number>, gate: Deferred.Deferred<void>) =>
+  Layer.succeed(AttributeResolver, {
+    resolve: () =>
+      Ref.update(invocations, (n) => n + 1).pipe(
+        Effect.flatMap(() => Deferred.await(gate)),
+        Effect.as(5),
+      ),
+  });
+
 describe("Qadi.check / decide", () => {
   it.effect("check reduces a decision to a boolean", () =>
     Effect.gen(function* () {
@@ -65,11 +80,11 @@ describe("Qadi.enforce", () => {
       assert.include(recovered, "doc:read");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
-  it.effect("AccessDenied CARRIES THE TRACE, not only the root sentence", () =>
+  it.effect("AccessDenied carries the trace, not only the root sentence", () =>
     Effect.gen(function* () {
-      // `Errors.ts` promised this in a doc comment long before the field
-      // existed. The whole subtree was built and then discarded at the one place
-      // most callers meet a denial.
+      // Regression test: `Errors.ts` promised this in a doc comment long before
+      // the field existed. The whole subtree was built and then discarded at
+      // the one place most callers meet a denial.
       const nested = P.allOf([P.hasRole("admin"), canRead]);
       const result = yield* Effect.result(Effect.succeed("x").pipe(Qadi.enforce(nested)));
 
@@ -179,13 +194,14 @@ describe("Qadi.guard", () => {
       assert.deepStrictEqual(out.resource, doc);
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 
-  it.effect("EVALUATES THE POLICY AGAINST THE GUARDED RESOURCE", () =>
+  it.effect("evaluates the policy against the guarded resource", () =>
     Effect.gen(function* () {
-      // The resource used to reach only the handler. `enforce` ran with
-      // `options.resource`, which nothing set, so a resource-scoped policy was
-      // evaluated against no resource — and an absent resource does not deny:
-      // `neq` on `undefined` is true. A rule written to refuse a mismatched
-      // tenant therefore allowed one (INV-QD-032).
+      // Regression test: the resource used to reach only the handler.
+      // `enforce` ran with `options.resource`, which nothing set, so a
+      // resource-scoped policy was evaluated against no resource — and an
+      // absent resource does not deny: `neq` on `undefined` is true. A rule
+      // written to refuse a mismatched tenant therefore allowed one
+      // (INV-QD-032).
       const sameTenant = P.hasAttribute("homeTenant", M.neq(M.resource("tenant")));
       let leaked = false;
 
@@ -372,21 +388,8 @@ describe("Qadi.filterStream", () => {
 });
 
 describe("Qadi.filterStream — concurrency across items", () => {
-  // Mirrors "Qadi.filter — concurrency across items" below: `options.concurrency`
-  // has to reach `Stream.mapEffect`'s own options, not just get threaded into each
-  // item's `evaluate` call. Proven the same way — a resolver blocking on a shared
-  // gate, so "how many lookups are in flight" is observed directly, not inferred.
   const policy = P.hasAttribute("clearance", M.gte(1));
   const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
-
-  const blockingResolver = (invocations: Ref.Ref<number>, gate: Deferred.Deferred<void>) =>
-    Layer.succeed(AttributeResolver, {
-      resolve: () =>
-        Ref.update(invocations, (n) => n + 1).pipe(
-          Effect.flatMap(() => Deferred.await(gate)),
-          Effect.as(5),
-        ),
-    });
 
   it.effect("without a concurrency option, one item's lookup is in flight at a time", () =>
     Effect.gen(function* () {
@@ -643,15 +646,6 @@ describe("Qadi.filter — concurrency across items", () => {
   // `AttributeResolver` — the call this test needs to observe.
   const policy = P.hasAttribute("clearance", M.gte(1));
   const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
-
-  const blockingResolver = (invocations: Ref.Ref<number>, gate: Deferred.Deferred<void>) =>
-    Layer.succeed(AttributeResolver, {
-      resolve: () =>
-        Ref.update(invocations, (n) => n + 1).pipe(
-          Effect.flatMap(() => Deferred.await(gate)),
-          Effect.as(5),
-        ),
-    });
 
   it.effect("without a concurrency option, one item's lookup is in flight at a time", () =>
     Effect.gen(function* () {

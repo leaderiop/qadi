@@ -25,6 +25,7 @@
  */
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
+import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
 import type { Decision, Trace } from "./Decision.ts";
 import { Allow, Deny } from "./Decision.ts";
@@ -51,29 +52,41 @@ import { MAX_DECODE_DEPTH, Policy, PolicyDecodeTooDeep } from "./Policy.ts";
 /**
  * Every tag a `Trace` node can carry — the policy union's tags.
  *
- * Written out rather than derived from `Policy`: a schema needs the literals at
- * construction, and `Policy` is a union of structs rather than a list of tags.
- * `TRACE_TAGS satisfies` below makes a missing one a compile error, so this
- * cannot drift from the ADT even though it repeats it.
+ * Written out as a `Record<Policy["_tag"], true>` rather than an array
+ * literal: a schema needs the literals at construction, and `Policy` is a
+ * union of structs rather than a list of tags, so this still repeats the
+ * ADT's tags by hand. What changed is which direction is checked. A bare
+ * `as const satisfies ReadonlyArray<Policy["_tag"]>` on an array only checks
+ * that every *listed* string is a valid tag — a subset check — never that
+ * every tag in the union is listed, so a new `Policy` variant added without
+ * a matching entry here compiled cleanly and silently rejected (on encode)
+ * any Decision whose trace carried it. `Record<Policy["_tag"], true>` forces
+ * the reverse: TypeScript requires every key of the type to be present in the
+ * object literal (TS2741 otherwise), so a missing tag is a compile error here
+ * instead of a `TraceSchema` encode failure the first time a Decision using
+ * the new tag reaches it.
  */
-const TRACE_TAGS = [
-  "HasPermission",
-  "HasRole",
-  "HasAttribute",
-  "HasResourceAttribute",
-  "HasRelationship",
-  "HasAction",
-  "HasActed",
-  "HasNotActed",
-  "HasCustom",
-  "HasSignature",
-  "AllOf",
-  "AnyOf",
-  "Rules",
-  "Not",
-  "Obliged",
-  "Labeled",
-] as const satisfies ReadonlyArray<Policy["_tag"]>;
+const TRACE_TAGS_BY_TAG: Record<Policy["_tag"], true> = {
+  HasPermission: true,
+  HasRole: true,
+  HasAttribute: true,
+  HasResourceAttribute: true,
+  HasRelationship: true,
+  HasAction: true,
+  HasActed: true,
+  HasNotActed: true,
+  HasCustom: true,
+  HasSignature: true,
+  AllOf: true,
+  AnyOf: true,
+  Rules: true,
+  Not: true,
+  Obliged: true,
+  Labeled: true,
+};
+
+/** `TRACE_TAGS_BY_TAG`'s keys, in the array form `Schema.Literals` takes. */
+const TRACE_TAGS: ReadonlyArray<Policy["_tag"]> = Record.keys(TRACE_TAGS_BY_TAG);
 
 /**
  * A `Trace` on the wire. Recursive through `children`, like the policy codec.

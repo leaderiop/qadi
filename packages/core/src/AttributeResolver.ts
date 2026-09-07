@@ -17,7 +17,7 @@ import type { AttributeResolveError } from "./Errors.ts";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
 import { portRetriesTotal } from "./PortMetrics.ts";
-import { wrapService } from "./RetryingLayer.ts";
+import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
 
 export interface AttributeResolverShape {
   /**
@@ -135,20 +135,10 @@ export const attributeResolverRetrying =
 export const attributeResolverBounded =
   (permits: number) =>
   (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver, InvalidBoundedPermits> =>
-    Layer.effect(
-      AttributeResolver,
-      Effect.gen(function* () {
-        if (!(Number.isInteger(permits) && permits > 0)) {
-          return yield* Effect.fail(new InvalidBoundedPermits({ permits }));
-        }
-        const semaphore = yield* Semaphore.make(permits);
-        const inner = yield* Layer.build(layer).pipe(
-          Effect.map((context) => Context.get(context, AttributeResolver)),
-        );
-        return {
-          name: `${inner.name ?? "?"} (bounded ${permits})`,
-          resolve: (subjectId, attribute) =>
-            Semaphore.withPermit(semaphore)(inner.resolve(subjectId, attribute)),
-        };
-      }),
+    wrapServiceEffect(AttributeResolver, layer, (inner) =>
+      Effect.map(boundedPermits(permits), (semaphore) => ({
+        name: `${inner.name ?? "?"} (bounded ${permits})`,
+        resolve: (subjectId, attribute) =>
+          Semaphore.withPermit(semaphore)(inner.resolve(subjectId, attribute)),
+      })),
     );

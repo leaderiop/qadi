@@ -58,65 +58,64 @@ export interface EnforceOptions<E = never, R = never> extends EvaluateOptions {
 /** Errors any enforcing entry point can produce. */
 export type EnforcementError = EvaluationError | AccessDenied | UndischargedObligation;
 
-const discharge = <E, R>(
+const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
   decision: Allow,
   handler: ObligationHandler<E, R> | undefined,
-): Effect.Effect<void, UndischargedObligation | E, R> =>
-  Effect.gen(function* () {
-    // Nothing to discharge and nothing to report, so an allow carrying no duties
-    // costs exactly what it did before this existed.
-    if (decision.obligations.length === 0) return;
+): Effect.fn.Return<void, UndischargedObligation | E, R> {
+  // Nothing to discharge and nothing to report, so an allow carrying no duties
+  // costs exactly what it did before this existed.
+  if (decision.obligations.length === 0) return;
 
-    // Read the same way `evaluate` reads it: optional, contributing nothing to
-    // the requirements, and unable to change the outcome (INV-QD-035).
-    const sink = yield* Effect.serviceOption(DecisionSink);
-    const at = yield* Clock.currentTimeMillis;
-    const obligationIds = decision.obligations.map((o) => o.id);
+  // Read the same way `evaluate` reads it: optional, contributing nothing to
+  // the requirements, and unable to change the outcome (INV-QD-035).
+  const sink = yield* Effect.serviceOption(DecisionSink);
+  const at = yield* Clock.currentTimeMillis;
+  const obligationIds = decision.obligations.map((o) => o.id);
 
-    const emit = (outcome: ObligationOutcome): Effect.Effect<void> =>
-      Option.isSome(sink)
-        ? Effect.catchCause(
-            sink.value.record(
-              new ObligationRecord({
-                evaluationId: decision.evaluationId,
-                at,
-                outcome,
-                obligationIds,
-              }),
-            ),
-            () => Effect.void,
-          )
-        : Effect.void;
+  const emit = (outcome: ObligationOutcome): Effect.Effect<void> =>
+    Option.isSome(sink)
+      ? Effect.catchCause(
+          sink.value.record(
+            new ObligationRecord({
+              evaluationId: decision.evaluationId,
+              at,
+              outcome,
+              obligationIds,
+            }),
+          ),
+          () => Effect.void,
+        )
+      : Effect.void;
 
-    // The handler sees advisory obligations too: advice is information the caller
-    // may act on, and only its *binding* siblings can block.
-    if (handler !== undefined) {
-      return yield* handler(decision.obligations).pipe(
-        // `tapError` before `tap`, so a handler that fails reports
-        // `HandlerFailed` and then fails unchanged — the sink cannot convert a
-        // caller's error into a success or vice versa.
-        Effect.tapError(() => emit("HandlerFailed")),
-        Effect.tap(() => emit("Discharged")),
-      );
-    }
-
-    const binding = bindingObligations(decision.obligations);
-    if (binding.length === 0) {
-      // Advisory only, so nothing blocked — distinct from having been met.
-      yield* emit("NotRequired");
-      return;
-    }
-
-    // The case the decision log could not show: this request was recorded as an
-    // ALLOW and the caller received an error.
-    yield* emit("Refused");
-    return yield* Effect.fail(
-      new UndischargedObligation({
-        subjectId: decision.subjectId,
-        obligationIds: binding.map((o) => o.id),
-      }),
+  // The handler sees advisory obligations too: advice is information the caller
+  // may act on, and only its *binding* siblings can block.
+  if (handler !== undefined) {
+    return yield* handler(decision.obligations).pipe(
+      // `tapError` before `tap`, so a handler that fails reports
+      // `HandlerFailed` and then fails unchanged — the sink cannot convert a
+      // caller's error into a success or vice versa.
+      Effect.tapError(() => emit("HandlerFailed")),
+      Effect.tap(() => emit("Discharged")),
     );
-  });
+  }
+
+  const binding = bindingObligations(decision.obligations);
+  if (binding.length === 0) {
+    // Advisory only, so nothing blocked — distinct from having been met.
+    yield* emit("NotRequired");
+    return;
+  }
+
+  // The case the decision log could not show: this request was recorded as an
+  // ALLOW and the caller received an error.
+  yield* emit("Refused");
+  return yield* Effect.fail(
+    new UndischargedObligation({
+      subjectId: decision.subjectId,
+      obligationIds: binding.map((o) => o.id),
+    }),
+  );
+});
 
 /**
  * Evaluates, refuses a denial, and discharges what the allow obliges.
@@ -273,6 +272,34 @@ export const guard =
       handler(Brand.nominal<Authorized<P>>()({ permission }), resource),
     );
 
+interface FilterVerdict<A> {
+  readonly item: A;
+  readonly allowed: boolean;
+}
+
+/**
+ * Evaluates one item against `policy` and discharges its obligations if it
+ * allows. The one place `filter` and `filterStream` share this logic, so an
+ * item's fate can't be decided one way for the array form and another for the
+ * streamed one.
+ */
+const decideOne = <A extends Resource, EO, RO>(
+  policy: Policy,
+  item: A,
+  options: EnforceOptions<EO, RO> | undefined,
+): Effect.Effect<
+  FilterVerdict<A>,
+  EvaluationError | UndischargedObligation | EO,
+  EvaluationServices | RO
+> =>
+  Effect.flatMap(
+    evaluate(policy, { ...options, resource: item }),
+    (decision): Effect.Effect<FilterVerdict<A>, UndischargedObligation | EO, RO> =>
+      isAllowed(decision)
+        ? Effect.as(discharge(decision, options?.onObligations), { item, allowed: true })
+        : Effect.succeed({ item, allowed: false }),
+  );
+
 /**
  * Keeps only the elements a policy allows, evaluated per element as resource.
  *
@@ -289,30 +316,6 @@ export const guard =
  * item finished first, so there is no INV-QD-005-shaped invariant a second,
  * independent option would need to preserve.
  */
-interface FilterVerdict<A> {
-  readonly item: A;
-  readonly allowed: boolean;
-}
-
-/**
- * Evaluates one item against `policy` and discharges its obligations if it
- * allows. The one place `filter` and `filterStream` share this logic, so an
- * item's fate can't be decided one way for the array form and another for the
- * streamed one.
- */
-const decideOne = <A extends Resource, EO, RO>(
-  policy: Policy,
-  item: A,
-  options: EnforceOptions<EO, RO> | undefined,
-): Effect.Effect<FilterVerdict<A>, EvaluationError | UndischargedObligation | EO, EvaluationServices | RO> =>
-  Effect.flatMap(
-    evaluate(policy, { ...options, resource: item }),
-    (decision): Effect.Effect<FilterVerdict<A>, UndischargedObligation | EO, RO> =>
-      isAllowed(decision)
-        ? Effect.as(discharge(decision, options?.onObligations), { item, allowed: true })
-        : Effect.succeed({ item, allowed: false }),
-  );
-
 export const filter = <A extends Resource, EO = never, RO = never>(
   policy: Policy,
   items: ReadonlyArray<A>,

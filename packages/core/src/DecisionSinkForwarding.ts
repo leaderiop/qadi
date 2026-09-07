@@ -14,6 +14,7 @@
  * beyond it — which socket, which store, which encoding on the wire — belongs to
  * the caller. `@qadi/core` learns nothing about transports.
  */
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -67,7 +68,14 @@ export const decisionSinkForwarding = (options: {
             ? Effect.logWarning("qadi: a decision record could not be forwarded").pipe(
                 Effect.annotateLogs({ "qadi.cause": String(cause) }),
               )
-            : Effect.sync(() => onFailure(cause));
+            : // `Cause.squash`, not the raw `cause`: `onFailure` is typed and
+              // documented as receiving `error: unknown` — the value `send`
+              // failed or died with — matching `onDropped`/`onUnknownParent`'s
+              // sibling conventions, both of which hand their callback a plain
+              // domain value rather than an Effect-internal `Cause`. A caller
+              // otherwise gets a `Cause` object with no `.message`, however
+              // `send` actually failed (BEH-QD-187, CCR-QD-115).
+              Effect.sync(() => onFailure(Cause.squash(cause)));
         }),
       ),
   });

@@ -10,6 +10,8 @@ import {
   attributeResolverFromRecord,
   attributeResolverRetrying,
 } from "../src/AttributeResolver.ts";
+import { currentSubjectLayer } from "../src/CurrentSubject.ts";
+import { isAllowed } from "../src/Decision.ts";
 import {
   DecisionHistory,
   DecisionHistoryUnknown,
@@ -17,6 +19,7 @@ import {
 } from "../src/DecisionHistory.ts";
 import { AttributeResolveError, RelationshipResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
 import { makeResourceId } from "../src/Identity.ts";
 import {
   EvaluationId,
@@ -317,4 +320,81 @@ describe("port activity is counted", () => {
       const calls = frequencyOf(snapshots, "qadi_port_calls_total");
       assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
     }));
+});
+
+describe("EvaluationServicesNone", () => {
+  // Nothing in the repository referenced this export outside its own
+  // definition/barrel/spec entry before this test: it type-checked against
+  // `Exclude<EvaluationServices, CurrentSubject>` but nothing proved the
+  // `Layer.mergeAll` actually merges without a duplicate/missing service, or
+  // that a policy touching every wrapped port behaves under it exactly like
+  // the six individual fail-closed defaults it bundles.
+  const layer = (subject = subjectWith({})) =>
+    Layer.merge(EvaluationServicesNone, currentSubjectLayer(subject));
+  // `HasActed`/`HasNotActed`/`HasSignature` default to `scope: "Resource"`,
+  // which requires a resource with an `id` to ask about — unrelated to which
+  // port answers the question, so every leaf below is asked against the same
+  // resource rather than each leaf test having to discover that on its own.
+  const resource = { id: makeResourceId("doc-1") };
+
+  it.effect("HasAttribute denies via AttributeResolverNone", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(P.hasAttribute("clearance", M.gte(1)), { resource });
+      assert.isFalse(isAllowed(decision));
+    }).pipe(Effect.provide(layer())));
+
+  it.effect("HasRelationship denies via RelationshipResolverNever", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(P.hasRelationship("owner"), { resource });
+      assert.isFalse(isAllowed(decision));
+    }).pipe(Effect.provide(layer())));
+
+  it.effect("HasActed denies via DecisionHistoryUnknown", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(P.hasActed("raised"), { resource });
+      assert.isFalse(isAllowed(decision));
+    }).pipe(Effect.provide(layer())));
+
+  it.effect("HasNotActed also denies via DecisionHistoryUnknown", () =>
+    Effect.gen(function* () {
+      // Both directions fail closed on an unwired history port (ADR-QD-020) —
+      // `hasActed` and `hasNotActed` must not disagree just because nobody
+      // wired `DecisionHistory`.
+      const decision = yield* evaluate(P.hasNotActed("raised"), { resource });
+      assert.isFalse(isAllowed(decision));
+    }).pipe(Effect.provide(layer())));
+
+  it.effect("HasCustom denies via CustomPredicateNone", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(P.hasCustom("some-check"), { resource });
+      assert.isFalse(isAllowed(decision));
+    }).pipe(Effect.provide(layer())));
+
+  it.effect("HasSignature denies via SignatureHistoryNone", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(P.hasSignature("approved"), { resource });
+      assert.isFalse(isAllowed(decision));
+    }).pipe(Effect.provide(layer())));
+
+  it.effect("EvaluationId still mints ids — the one port with no 'none' shape", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(P.hasAttribute("clearance", M.gte(1)), { resource });
+      assert.isString(decision.evaluationId);
+      assert.isNotEmpty(decision.evaluationId);
+    }).pipe(Effect.provide(layer())));
+
+  it.effect("a policy touching every wrapped port denies exactly as each default would alone", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(
+        P.allOf([
+          P.hasAttribute("clearance", M.gte(1)),
+          P.hasRelationship("owner"),
+          P.hasActed("raised"),
+          P.hasCustom("some-check"),
+          P.hasSignature("approved"),
+        ]),
+        { resource },
+      );
+      assert.isFalse(isAllowed(decision));
+    }).pipe(Effect.provide(layer())));
 });
