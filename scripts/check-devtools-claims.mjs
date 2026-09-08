@@ -42,7 +42,7 @@
  * unreviewable since the commit that introduced it. The escape is semantically
  * identical and costs nothing.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -97,7 +97,26 @@ const record = (rel, phrase, line) => {
   found.set(key, existing);
 };
 
-const files = readdirSync(FOLDER).filter((entry) => entry.endsWith(".md")).sort();
+/**
+ * Every `.md` under `FOLDER`, recursively — the same shape
+ * `check-dod-table.mjs`'s and `check-doc-examples.mjs`'s own `collectMarkdown`
+ * already use. `spec/devtools-spec/` has no subdirectory today (`find
+ * spec/devtools-spec -type d` returns only the folder itself), so a top-level
+ * `readdirSync` happened to see everything — but a claim of absence written
+ * into a future subdirectory would have gone unscanned by a checker whose own
+ * purpose is "no silent omission," which is the gap this closes.
+ */
+const collectMarkdown = (dir) => {
+  const out = [];
+  for (const entry of readdirSync(dir).sort()) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) out.push(...collectMarkdown(full));
+    else if (entry.endsWith(".md")) out.push(full);
+  }
+  return out;
+};
+
+const files = collectMarkdown(FOLDER).map((full) => relative(FOLDER, full));
 
 if (files.length === 0) {
   // A checker with nothing to check is looking in the wrong place, and reporting

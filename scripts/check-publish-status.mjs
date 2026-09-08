@@ -50,7 +50,7 @@ const { version } = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"))
  * excerpt, a worked example) is not a publish-status claim.
  */
 const TARGETS = [
-  { file: "README.md", start: "> **Status:", end: "\n\n## Why" },
+  { file: "README.md", start: "> **Status:", end: "\n\n## Development" },
   { file: "CONTRIBUTING.md", start: "**State as of this writing**", end: "\n\n## Why the rules read the way they do" },
   { file: "spec/roadmap.md", start: "\n## Current state", end: "\n\n| Gate | Status |" },
   { file: "apps/website/PRODUCT.md", start: "## Capabilities and Constraints", end: "\n\n## Brand Commitments" },
@@ -90,7 +90,18 @@ for (const { file, start, end } of TARGETS) {
     continue;
   }
   const to = content.indexOf(end, from);
-  const section = to === -1 ? content.slice(from) : content.slice(from, to);
+  if (to === -1) {
+    fail(
+      rel,
+      `[missing-anchor] found "${start}" but not "${end}" after it — has the end of the ` +
+        "publish-status paragraph moved or been reworded? A missing end anchor silently " +
+        "widens the scanned window to the rest of the document, which can pick up an " +
+        "unrelated version literal or stale-claim phrase from later prose (a changelog " +
+        "excerpt, say) rather than reporting the drift. Update this script's TARGETS to match.",
+    );
+    continue;
+  }
+  const section = content.slice(from, to);
 
   for (const match of section.matchAll(VERSION)) {
     if (match[1] !== version) {

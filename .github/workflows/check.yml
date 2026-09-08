@@ -48,26 +48,40 @@ jobs:
         node-version: ["20.19.0", "26"]
 
     steps:
-      - uses: actions/checkout@v4
+      # Every third-party action below is pinned to a full commit SHA, not a
+      # mutable version tag — a tag can be re-pointed, by its owner or by a
+      # supply-chain compromise, to different code with no change to this
+      # file, which a SHA cannot. The trailing comment names the tag the SHA
+      # resolved to, for a human reading this file; it plays no role in what
+      # actually runs. Verified live against each action's GitHub repository
+      # (`gh api repos/<owner>/<repo>/git/ref/tags/<tag>`) rather than copied
+      # from memory.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # Takes the version from `packageManager` in package.json, so the lockfile
       # and the installer cannot disagree.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          # Two legs, both pinned exactly rather than floating on `latest`, for
-          # the reason this comment already gave for a single version: a gate
-          # whose toolchain changes underneath it reports failures that are not
-          # about the change under test.
+          # Two legs, for the reason this comment already gave for a single
+          # version: a gate whose toolchain changes underneath it reports
+          # failures that are not about the change under test. That discipline
+          # only fully holds for the first leg — `20.19.0` is an exact pin, the
+          # declared floor from `engines` in package.json (where `oxlint`'s
+          # `^20.19.0` requirement bites), and is now actually exercised, not
+          # just declared: this leg is what turns `engines` into a verified
+          # claim rather than a promise with nothing behind it.
           #
-          # `20.19.0` is the declared floor from `engines` in package.json —
-          # where `oxlint`'s `^20.19.0` requirement bites — and is now actually
-          # exercised, not just declared: this leg is what turns `engines` into
-          # a verified claim rather than a promise with nothing behind it.
-          # `26` is the latest stable major, and the one development actually
-          # happens on. Both are required, blocking legs of this one job — no
-          # informational grace period on either.
+          # `26` is a bare major, not an exact pin: `actions/setup-node@v4`
+          # resolves it to whichever `26.x.y` is newest at job-run time, so
+          # this leg's toolchain deliberately floats forward as Node ships new
+          # `26.x` patches and minors — it is meant to track "the latest stable
+          # major, and the one development actually happens on" (still true),
+          # not to be reproducible run to run the way `20.19.0` is. Both are
+          # required, blocking legs of this one job — no informational grace
+          # period on either — but only one of the two is exempt from toolchain
+          # drift as a source of unrelated failure.
           #
           # One step of `pnpm check` is runtime-scoped rather than identical
           # on both legs: the website build (`node scripts/check-website-build.mjs`,
@@ -114,7 +128,7 @@ jobs:
       - name: Upload mutation reports
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mutation-report-node${{ matrix.node-version }}
           path: |

@@ -1,5 +1,6 @@
 import { type DataTable, decodeHashes } from "@effect-cucumber/gherkin";
 import { defineSteps } from "@effect-cucumber/vitest";
+import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type { Combining, Policy, Rule } from "@qadi/core";
 import { allOf, denyWhen, eq, hasResourceAttribute, hasRole, permitWhen, rules, subjectId } from "@qadi/core";
@@ -23,18 +24,16 @@ const ownership = (): Policy => hasResourceAttribute("owner", eq(subjectId()));
  */
 const condition = (text: string): Policy => {
   const [head, ...rest] = text.trim().split(/\s+/);
-  switch (head) {
-    case "role":
-      return hasRole(rest.join(" "));
-    case "owner":
-      return ownership();
+  return Match.value(head).pipe(
+    Match.when("role", () => hasRole(rest.join(" "))),
+    Match.when("owner", () => ownership()),
     // `allOf([])` allows vacuously, which is the catch-all row. There is no
     // `always()` variant, and the awkwardness falls on the widening side.
-    case "always":
-      return allOf([]);
-    default:
+    Match.when("always", () => allOf([])),
+    Match.orElse(() => {
       throw new Error(`unknown rule condition: ${text}`);
-  }
+    }),
+  );
 };
 
 const RuleRow = Schema.Struct({ effect: Schema.String, condition: Schema.String });

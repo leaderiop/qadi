@@ -500,3 +500,19 @@ reformatting the other 56 to match `oxfmt` would be a large, purely cosmetic
 diff with no correctness or readability payoff. **`oxfmt` does not go in
 `pnpm check`.** If a future change wants to revisit this, it needs a reason
 beyond taste — this section existing is not license to reopen it without one.
+
+> **Corrected in CCR-QD-121.** The counts above (147/169, 113/169, the
+> `.oxfmtrc.json` `lineWidth` experiment) were a snapshot from when this
+> section was written, stated as if evergreen. No script gates them — unlike
+> the DoD table, devtools claims, and publish-status facts §15 gates for
+> exactly this reason — so they drifted twice over: no `.oxfmtrc.json` file
+> exists anywhere in this repository any more (the `lineWidth` experiment was
+> tried and reverted, not left live), and `spec/process/definitions-of-done.md`'s
+> own note on the identical command had separately drifted to a *different*
+> pair of numbers ("127 of 145 files"). Neither matched a fresh run: on
+> 2026-09-08, `pnpm format:check` on a clean checkout (`packages/*/lib`
+> removed) reported **207 of 376 files**. The settled choice this section
+> exists to record — hand-wrapping over `oxfmt`, `oxfmt` staying out of
+> `pnpm check` — does not depend on which exact count is current, so rather
+> than replace one evergreen-sounding snapshot with another, both this section
+> and the DoD table's note now say "as of 2026-09-08" beside the number.

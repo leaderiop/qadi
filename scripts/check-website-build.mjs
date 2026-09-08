@@ -108,13 +108,37 @@ const legs = matrixMatch[1]
   .map((entry) => entry.trim().replace(/^["']|["']$/g, ""))
   .filter((entry) => entry.length > 0);
 
-/** A bare major (`"26"`) is that major with zero minor and patch. */
+/**
+ * A bare major (`"26"`) is that major with zero minor and patch.
+ *
+ * `?? 0` alone is not enough: it only substitutes on `null`/`undefined`, and a
+ * non-numeric segment (a matrix leg written as `"20.x"`, common CI shorthand)
+ * parses to `NaN`, which `??` passes straight through — `NaN >= 0` is
+ * `false`, so a floor comparison against it silently misjudges the leg as not
+ * satisfying, even where the real resolved version would (`"20.x"` resolves
+ * to a real Node 20 patch well above a `>=20.19.0` floor). Defaulting a
+ * non-numeric segment to `0` would only trade one silent misjudgment for
+ * another — `"20.x"` would then read as `20.0.0`, still failing a floor it
+ * would actually satisfy. Consistent with this script's own "fail loud rather
+ * than silently misjudge" approach to the floor format (see the `die()` calls
+ * around it), a leg with any non-integer segment fails the run outright
+ * instead.
+ */
 const parseLeg = (leg) => {
-  const parts = leg.split(".").map(Number);
+  const parts = leg.split(".");
+  if (parts.length === 0 || parts.some((part) => !/^\d+$/.test(part))) {
+    die(
+      `${WORKFLOW}'s matrix has a leg "${leg}" this gate cannot parse as MAJOR[.MINOR[.PATCH]] ` +
+        "of plain integers — widen this parser deliberately rather than guess which runtimes " +
+        "a shorthand like \"20.x\" admits.",
+    );
+    return { major: 0, minor: 0, patch: 0 }; // unreachable: die() exits the process
+  }
+  const numbers = parts.map(Number);
   return {
-    major: parts[0] ?? 0,
-    minor: parts[1] ?? 0,
-    patch: parts[2] ?? 0,
+    major: numbers[0] ?? 0,
+    minor: numbers[1] ?? 0,
+    patch: numbers[2] ?? 0,
   };
 };
 

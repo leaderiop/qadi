@@ -11,6 +11,22 @@ starting fresh.
 `AGENTS.md` §15 for why there is deliberately no separate CI step list to
 drift out of sync with it.
 
+**Platform notes**, since CI only ever runs `pnpm check` on `ubuntu-latest`
+and these do not surface there:
+
+- `pnpm spec:verify:strict` (step 10) shells out to `spec/scripts/verify-traceability.sh`,
+  a `#!/usr/bin/env bash` script — the one non-Node, non-`tar` external
+  binary the whole gate depends on. Stock Windows (cmd.exe/PowerShell with no
+  WSL or Git Bash on `PATH`) has no `bash`, so completing `pnpm check` locally
+  on native Windows needs one of those installed.
+- `examples/nextjs-newsroom`'s own `check` (step 15) runs
+  `playwright install --with-deps chromium`. `--with-deps` installs the
+  browser's OS-level dependencies only on Linux (and needs passwordless
+  `sudo`, which `ubuntu-latest` has and a local machine may not) — on macOS
+  or Windows it installs the browser binary and silently skips that step. A
+  local Playwright run failing to launch Chromium on macOS/Windows likely
+  needs its OS dependencies installed by hand instead.
+
 ## "I'm changing..."
 
 | ...this | Start here |
@@ -33,6 +49,7 @@ drift out of sync with it.
 | Package `dependencies`/publishing | `AGENTS.md` §16 — `pnpm publish` only, `tsconfig.build.json` membership |
 | Publish-status prose in README/CONTRIBUTING/roadmap/website | `scripts/check-publish-status.mjs` fails if a quoted version disagrees with `package.json`'s |
 | Why `pnpm install` patches `node_modules/typescript` | `README.md`'s Development section — `effect-tsgo patch` is `@effect/tsgo`'s own `prepare` step, not this repo's |
+| Why `apps/website/package.json` has no `engines` field, unlike every published package | Deliberate, not an oversight: Astro's own floor (`>=22.12.0` as of this writing, read live by `scripts/check-website-build.mjs` rather than restated) is above the workspace's `>=20.19.0`, which is a claim about the nine *published* packages — `apps/website` is `private: true` and publishes nothing, so pinning either number here would either understate Astro's real requirement or duplicate a fact that script already reads from Astro's manifest and could drift from. `features/package.json`, which has no such mismatch, does carry the workspace floor |
 
 ## Releasing a version
 

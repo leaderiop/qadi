@@ -21,9 +21,12 @@
  * not find a real violation. `no-extensionless-relative-import` has the same
  * problem in reverse: it fails `import manifest from "../package.json"`,
  * a real, correct import with no `.ts` extension to add. `SWITCH_BUDGET` and
- * `HAS_CUSTOM_BUDGET` below are unaffected either way — both stay keyed to
- * `packages/<pkg>/src` files only, since no test file declares a budgeted
- * switch or an out-of-package `hasCustom` call today.
+ * `HAS_CUSTOM_BUDGET` below apply to every `src`-scope file, `features/
+ * step-definitions` included (see "Scope beyond `packages`" below) — a
+ * `test`-scope file (`packages/<pkg>/test`) never contributes to either
+ * budget, since `testScope`-only rules apply there and a vitest body's
+ * `switch`/`hasCustom` usage, if one ever appeared, is not what either budget
+ * tracks.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -31,6 +34,30 @@
  * them has a legitimate test-only form, so there was no reason to hold them
  * back once the file list included tests. Verified free: zero matches in any
  * test file at the time this scope changed.
+ *
+ * **Scope beyond `packages`.** `pnpm-workspace.yaml` lists `features`,
+ * `examples/*` and `apps/*` as workspace members too, and only `features/
+ * step-definitions` is scanned here (as a test-scoped tree, alongside
+ * `packages/<pkg>/test`). That is a deliberate, considered split rather than
+ * an oversight of the same shape CCR-QD-105 already found and fixed once for
+ * `packages/<pkg>/test`:
+ *
+ *   - `features/step-definitions` implements the BDD acceptance suite
+ *     against `@qadi/core`'s own public API — it is library-adjacent code
+ *     this repository owns, written to the same AGENTS.md conventions
+ *     (`Effect.fn`, no `switch` on a dispatch, `hasCustom` as a reviewed
+ *     escape hatch), and a violation there hides in acceptance tests the
+ *     same way one hid in `packages/<pkg>/test` before CCR-QD-105.
+ *   - `examples/*` and `apps/*` are deliberately **not** scanned. They are
+ *     consumer-facing code — a Next.js app and an Astro site — that
+ *     legitimately uses idioms AGENTS.md bans everywhere else in this
+ *     repository (`async`/`await` route handlers, `new Date()` in a blog
+ *     frontmatter helper, framework-mandated `switch`es): a stranger
+ *     consuming the published packages, not this library's own
+ *     implementation. `examples/nextjs-newsroom` is exercised instead by
+ *     `pnpm --filter @qadi/example-nextjs check` (step 15 of `pnpm check`)
+ *     and `apps/website` by `scripts/check-website-build.mjs` (step 23) —
+ *     both hold it to its own toolchain's rules, not this library's.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -121,6 +148,18 @@ const RULES = [
   },
   {
     id: "no-static-layer-or-default",
+    // `.Default` here means the `Effect.Service`-derived static accessor this
+    // rule exists to forbid. AGENTS.md §3 also sanctions naming a plain,
+    // standalone layer `Default` ("the layer of a namespace-imported
+    // module") — if one were ever read back as `ModuleName.Default` rather
+    // than destructured on import, this regex cannot tell the two apart and
+    // would flag the sanctioned form. Latent, not live: no such usage exists
+    // today (`grep -rn "\.Default\b" packages/*/src packages/*/test` is
+    // empty). The rule is deliberately left broad rather than narrowed to a
+    // heuristic that could itself miss the real `XxxService.Default` case —
+    // a future namespace-imported `Default` layer should destructure it on
+    // import (`import { Default } from "./Foo.ts"`) to stay outside this
+    // pattern entirely.
     re: /\bstatic\s+layer\b|\.Default\b/,
     message: 'No "static layer" or ".Default" on a service — layers are standalone consts.',
   },
@@ -139,8 +178,12 @@ const RULES = [
   },
   {
     id: "no-node-fs-import",
-    re: /from\s+["']node:fs["']/,
-    message: "Use the FileSystem service, not node:fs directly.",
+    // Both the `node:`-prefixed and legacy unprefixed specifiers reach the
+    // identical banned API, as does the `/promises` subpath — `"fs"` and
+    // `"node:fs/promises"` were previously invisible to this rule despite
+    // being the same violation AGENTS.md §6 bans.
+    re: /from\s+["'](?:node:)?fs(?:\/promises)?["']/,
+    message: "Use the FileSystem service, not node:fs (or node:fs/promises) directly.",
     raw: true,
   },
   {
@@ -214,7 +257,14 @@ const SWITCH = /\bswitch\s*\(/;
  *
  * @type {Readonly<Record<string, number>>}
  */
-const HAS_CUSTOM_BUDGET = {};
+const HAS_CUSTOM_BUDGET = {
+  // The BDD acceptance step that exercises `hasCustom` itself — the feature
+  // this ADR's own escape hatch describes needs a scenario, and this is the
+  // one call site that drives it. Newly visible rather than newly written:
+  // `features/step-definitions` was not scanned by this gate until this
+  // budget's own file also gained it in scope.
+  "features/step-definitions/CustomPredicateWhenSteps.ts": 1,
+};
 
 const HAS_CUSTOM_CALL = /\bhasCustom\s*\(/;
 
@@ -291,9 +341,16 @@ const collect = (dir, { includeTests = false } = {}) => {
 };
 
 const packagesDir = join(ROOT, "packages");
-const srcSources = readdirSync(packagesDir).flatMap((pkg) =>
-  collect(join(packagesDir, pkg, "src"))
-);
+const srcSources = [
+  ...readdirSync(packagesDir).flatMap((pkg) => collect(join(packagesDir, pkg, "src"))),
+  // `features/step-definitions` gets `src`-scope treatment, not `test`-scope:
+  // these are `Effect.fn`/`function*` implementations written to the same
+  // conventions as library source (no async, no raw Promise, no ambient
+  // time), not vitest bodies with a legitimate `await waitFor(...)` idiom —
+  // see the doc comment above. `examples/*`/`apps/*` stay deliberately
+  // excluded entirely, for the reason given there.
+  ...collect(join(ROOT, "features", "step-definitions")),
+];
 const testSources = readdirSync(packagesDir).flatMap((pkg) =>
   collect(join(packagesDir, pkg, "test"), { includeTests: true })
 );
@@ -320,7 +377,14 @@ for (const file of sources) {
   const rel = relative(ROOT, file);
   const isTestFile = testSourceSet.has(file);
   const exempt = EXEMPTIONS[rel] ?? [];
-  const lines = readFileSync(file, "utf8").split("\n");
+  // Normalized once, up front: a CRLF-terminated line's trailing `\r` survives
+  // a plain `.split("\n")`, and `.` never matches `\r` — so every `$`-anchored
+  // check below (strip()'s own `//.*$`, no-extensionless-relative-import,
+  // etc.) would silently fail to match all the way to the true end of line on
+  // a file saved with Windows line endings. This repo has no
+  // .gitattributes/.editorconfig forcing LF, so a CRLF-authored file is a real
+  // possibility, not a hypothetical.
+  const lines = readFileSync(file, "utf8").replace(/\r\n/g, "\n").split("\n");
   let inBlockComment = false;
   let inImport = false;
   let importSpan = 0;
