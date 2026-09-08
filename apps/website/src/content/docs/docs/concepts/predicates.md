@@ -57,7 +57,7 @@ survive into the `Predicate` tree.
   <text x="520" y="190" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="10" fill="var(--sl-color-white)">Compare(status, Eq, "published")</text>
   <text x="170" y="218" text-anchor="middle" font-family="var(--sl-font, 'IBM Plex Sans', sans-serif)" font-size="10" fill="var(--sl-color-gray-3)">dropped by and() — adds nothing to the row filter</text>
   <path d="M 520 202 L 460 248" fill="none" stroke="var(--sl-color-accent)" stroke-width="1" marker-end="url(#pred-arrow-accent)"/>
-  <text x="320" y="246" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="9.5" fill="var(--sl-color-gray-3)">compileSql(predicate, "postgres") →</text>
+  <text x="320" y="246" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="9.5" fill="var(--sl-color-gray-3)">compileSql(predicate, { dialect: "postgres" }) →</text>
   <rect x="320" y="252" width="280" height="46" rx="7" fill="oklch(0.13 0.012 260)" stroke="var(--sl-color-hairline)"/>
   <text x="460" y="280" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="11" fill="var(--sl-color-white)">WHERE status = 'published'</text>
 </svg>

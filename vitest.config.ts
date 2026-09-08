@@ -103,6 +103,18 @@ export default defineConfig({
           branches: 90,
           statements: 90,
         },
+        // The React shell renders what `devtools/src/model` computed and
+        // decides nothing (see that entry's comment above), so it stays at
+        // the 90% default rather than the model's 95% — but it still needs
+        // its own entry, or its coverage rides on the top-level average
+        // alongside every other unpinned package and can fall below 90%
+        // individually without failing the run.
+        "packages/devtools/src/react/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
       },
     },
   },

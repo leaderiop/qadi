@@ -47,7 +47,7 @@ role graph. See [Roles](/docs/concepts/roles/).
 ### Policy
 
 A tree of authorization conditions, and the central data type of the
-library. Fourteen variants discriminated on `_tag`. A policy is plain data —
+library. Sixteen variants discriminated on `_tag`. A policy is plain data —
 no closures — so it can be stored as JSON and reloaded without loss. See
 [The Policy ADT](/docs/concepts/policy-adt/).
 

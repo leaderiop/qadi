@@ -98,7 +98,8 @@ one degrades to an unfamiliar badge rather than to a wrong answer.
 ## Status
 
 All seven screens are built, and `examples/nextjs-newsroom` mounts the dock with
-every one of `DevtoolsDockProps`' twelve fields wired. See
+twelve of `DevtoolsDockProps`' thirteen optional fields wired (all but
+`capacity`, which has a sensible default). See
 [`spec/devtools-spec/`](../../spec/devtools-spec) for the design and
 [behaviour 27](../../spec/behaviors/27-devtools-timeline.md) for the normative
 rules.

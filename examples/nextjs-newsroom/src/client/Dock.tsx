@@ -2,11 +2,12 @@
 /**
  * The dock, with every prop supplied.
  *
- * `DevtoolsDockProps` has twelve optional fields and a dock mounted with none of
- * them still renders every tab — each empty screen saying why it is empty
+ * `DevtoolsDockProps` has thirteen optional fields and a dock mounted with none
+ * of them still renders every tab — each empty screen saying why it is empty
  * ([BEH-QD-218](../../../../spec/behaviors/28-devtools-screens.md)). That is the
  * right default and it is not what this example is for: the point here is to
- * wire all twelve, because the wiring is the part no unit test can prove and the
+ * wire twelve of the thirteen (all but `capacity`, which has a sensible
+ * default), because the wiring is the part no unit test can prove and the
  * part a reader actually has to copy.
  *
  * **The source is two sources.** The server's decisions arrive over SSE from

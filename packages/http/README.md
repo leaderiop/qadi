@@ -30,7 +30,7 @@ reviewer can see that someone chose this.
 | Error | Status | Because |
 | ----- | ------ | ------- |
 | `AccessDenied`, `UndischargedObligation` | 403 | the policy's answer |
-| `AttributeResolveError`, `RelationshipResolveError`, `DecisionHistoryUnavailable`, `SubjectExtractionFailed` | 502 | a dependency of this service broke |
+| `AttributeResolveError`, `RelationshipResolveError`, `DecisionHistoryUnavailable`, `SubjectExtractionFailed`, `CustomPredicateError`, `SignatureHistoryUnavailable` | 502 | a dependency of this service broke |
 | `MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep` | 500 | a wiring mistake in this service |
 
 The 403/502 split is the library's central rule at the wire: a broken attribute
