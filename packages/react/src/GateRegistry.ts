@@ -124,6 +124,26 @@ export const registerGate = (instance: GateInstance): (() => void) => {
 };
 
 /**
+ * Updates an already-registered instance's render state in place, without
+ * tearing it down and rebuilding it.
+ *
+ * `useGate` splits identity lifecycle (mount/unmount, owned by `registerGate`)
+ * from the per-render state update, which this is: a decision's state changes
+ * far more often than a component mounts or unmounts, and routing every state
+ * transition through `registerGate`'s cleanup-then-register would unregister
+ * and immediately re-register the same instance for each one — one `changed()`
+ * call becomes two. A no-op when `id` is not currently registered (e.g. a
+ * state update effect firing after the corresponding unregister effect, which
+ * ordering does not otherwise prevent).
+ */
+export const updateGateState = (id: string, state: GateRenderState): void => {
+  const existing = instances.get(id);
+  if (existing === undefined || existing.state === state) return;
+  instances.set(id, { ...existing, state });
+  changed();
+};
+
+/**
  * Empties the registry.
  *
  * For tests, which mount and unmount trees in one process and would otherwise

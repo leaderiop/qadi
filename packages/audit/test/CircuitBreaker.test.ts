@@ -3,13 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
 import { makeCircuitBreaker } from "../src/CircuitBreaker.ts";
-
-/** Isolates one test's counts from the process-wide registry every other test shares. */
-const isolatedMetrics = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  effect.pipe(
-    Effect.provideService(Metric.MetricRegistry, new Map()),
-    Effect.provideService(Metric.CurrentMetricAttributes, { test: "isolated" }),
-  );
+import { isolatedMetrics } from "./helpers.ts";
 
 type CounterSnapshot = Extract<Metric.Metric.Snapshot, { type: "Counter" }>;
 

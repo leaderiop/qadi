@@ -12,6 +12,7 @@ export const failingRelationshipResolver = (
   cause: unknown = "test failure",
 ): Layer.Layer<RelationshipResolver> =>
   Layer.succeed(RelationshipResolver, {
+    name: "failingRelationshipResolver",
     check: (request) =>
       Effect.fail(
         new RelationshipResolveError({

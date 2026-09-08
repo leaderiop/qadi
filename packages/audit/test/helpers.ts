@@ -4,6 +4,8 @@
  * evaluator to get a record, since the pipeline's whole contract is that it
  * consumes `SinkRecord`s.
  */
+import * as Effect from "effect/Effect";
+import * as Metric from "effect/Metric";
 import {
   Allow,
   Decided,
@@ -16,6 +18,13 @@ import {
   permission,
 } from "@qadi/core";
 import type { ObligationOutcome, Policy, SinkRecord, Trace } from "@qadi/core";
+
+/** Isolates one test's counts from the process-wide registry every other test shares. */
+export const isolatedMetrics = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  effect.pipe(
+    Effect.provideService(Metric.MetricRegistry, new Map()),
+    Effect.provideService(Metric.CurrentMetricAttributes, { test: "isolated" }),
+  );
 
 export const read = permission("doc", "read");
 export const readPolicy: Policy = hasPermission(read);
@@ -45,7 +54,10 @@ export const decisionRecord = (options?: {
         evaluationId: options?.evaluationId ?? "ev-1",
         subjectId: makeSubjectId(options?.subjectId ?? "alice"),
         durationMillis: 1,
-        trace: allowTrace,
+        trace: {
+          ...allowTrace,
+          policyTag: options?.policy?._tag ?? allowTrace.policyTag,
+        },
         visibleFields: undefined,
         obligations: [],
       }),

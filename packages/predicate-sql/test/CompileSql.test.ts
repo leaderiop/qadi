@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import type { Predicate } from "@qadi/core";
 import { compileSql, type SqlDialect } from "../src/index.ts";
 
@@ -10,7 +11,7 @@ const render = (predicate: Predicate, dialect: SqlDialect, maxInValues?: number)
 
 const refusalOf = (predicate: Predicate, dialect: SqlDialect, maxInValues?: number) =>
   Effect.map(Effect.result(render(predicate, dialect, maxInValues)), (r) =>
-    r._tag === "Failure" ? r.failure : undefined,
+    Result.isFailure(r) ? r.failure : undefined,
   );
 
 describe("compileSql — golden fragments, one row per dialect", () => {

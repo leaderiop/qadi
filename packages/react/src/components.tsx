@@ -102,15 +102,23 @@ export interface CanProps {
   /**
    * Rendered when the decision could not be determined at all.
    *
-   * Defaults to `fallback`, so the interface fails closed. That default is
-   * safe but lossy — an outage and a denial look identical to the user. Supply
-   * this to tell them apart, or use `useDecision` and handle the failure.
+   * Defaults to `fallback` when **omitted**, so the interface fails closed.
+   * That default is safe but lossy — an outage and a denial look identical to
+   * the user. Supply this to tell them apart, or use `useDecision` and handle
+   * the failure.
    *
    * The default does **not** apply when `fallback` is a function: there is no
    * denial to hand it, and a fallback written to explain one would describe a
    * refusal that never happened. A function fallback with no `failure` renders
    * nothing, which is still closed. This is INV-QD-006 at the component layer —
    * failure is not denial.
+   *
+   * **Passing `null` explicitly is not the same as omitting it.** An omitted
+   * `failure` (`undefined`) falls back to `fallback`; an explicit `null` opts
+   * out of that fallback and renders nothing on failure even though `fallback`
+   * is configured for plain denial. (Corrected in CCR-QD-138 — nullish
+   * coalescing previously could not tell the two apart, so `failure={null}`
+   * silently rendered `fallback` instead of nothing.)
    */
   readonly failure?: ReactNode;
   readonly children: ReactNode;
@@ -142,7 +150,9 @@ const chosen = (
 ): ReactNode => {
   const outcome = classify(result);
   if (outcome._tag === "Pending") return pending;
-  if (outcome._tag === "Failure") return failure ?? (typeof fallback === "function" ? null : fallback);
+  if (outcome._tag === "Failure") {
+    return failure !== undefined ? failure : typeof fallback === "function" ? null : fallback;
+  }
   return isAllowed(outcome.decision) ? children : renderDenied(fallback, outcome.decision);
 };
 

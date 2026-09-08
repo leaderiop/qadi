@@ -28,7 +28,7 @@ import type * as HttpApiGroup from "effect/unstable/httpapi/HttpApiGroup";
 import type { Authorized, Permission, PermissionKey, Policy, Resource } from "@qadi/core";
 import { permissionKey } from "@qadi/core";
 import { guardRoute } from "./GuardRoute.ts";
-import { RequiredPermission } from "./RequirePermission.ts";
+import { NO_RESOURCE, RequiredPermission } from "./RequirePermission.ts";
 
 /** One route that requires a permission, as recorded in `PermissionRegistry`. */
 export interface EndpointDescriptor {
@@ -195,25 +195,20 @@ const snapshotResponse = Effect.map(PermissionRegistry.snapshot, (data) =>
  * claims to list "every permission this application enforces, and the routes
  * that require it", would omit the one route guaranteed to require a
  * permission: itself.
+ *
+ * Built on `addGuardedRoute` rather than hand-rolling the same
+ * `HttpRouter.add` + `Layer.effectDiscard(PermissionRegistry.register(...))`
+ * shape again — this route is exactly one more `addGuardedRoute` caller, not
+ * a special case.
  */
 export const permissionRegistryRoute = <P extends Permission>(permission: P, policy: Policy) =>
-  Layer.merge(
-    HttpRouter.add(
-      "GET",
-      "/__permissions",
-      Effect.gen(function* () {
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        return yield* guardRoute(
-          permission,
-          policy,
-          () => Effect.succeed({}),
-        )(() => snapshotResponse)(request);
-      }),
-    ),
-    Layer.effectDiscard(
-      PermissionRegistry.register(permission, { method: "GET", path: "/__permissions", group: undefined }),
-    ),
-  );
+  addGuardedRoute(
+    "GET",
+    "/__permissions",
+    permission,
+    policy,
+    () => Effect.succeed(NO_RESOURCE),
+  )(() => snapshotResponse);
 
 /**
  * The `/__permissions` route with **no** guard, which must be chosen explicitly.

@@ -176,6 +176,19 @@ describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the p
   // verbatim) for exactly the predicates C1 describes, and passes here only
   // because `renderNode` now guarantees no vacuous identity is ever nested
   // in what it emits.
+  //
+  // Trust level of the `Or`-nested case specifically: `matchesPrismaWhereEngine`'s
+  // own module doc says plainly that neither Prisma issue #17367 nor #21856
+  // exercises a vacuous identity nested inside an `Or` array — both linked
+  // repros are `And`-array and `Not` cases. This property's `tree` generator
+  // does produce `Or`-nested vacuous shapes (the same `treeOf` builds `And`,
+  // `Or`, and `Negate` uniformly), and it passes against those too, but that
+  // is a pass against `matchesPrismaWhereEngine`'s *extrapolation* of the
+  // `And`/`Not` stripping rule to `Or` — not a pass against a confirmed
+  // live-engine repro of the `Or` case, since no live Prisma engine runs in
+  // CI. A future reader relying on this property to mean "verified against a
+  // real engine" for the `Or` branch specifically would be trusting more
+  // than this test, or its interpreter, actually establishes.
   it.effect(
     "PROPERTY: matchesPrismaWhereEngine(compilePrismaWhere(P), R) equals evaluatePredicate(P, R)",
     () =>

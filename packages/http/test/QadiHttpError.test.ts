@@ -3,8 +3,8 @@
  * than through an HTTP round trip. The spec's "one seam" testing decision is
  * about the *stateful* HTTP integration paths (`http.test.ts`); a pure
  * error-to-status mapping needs no live request to exercise meaningfully,
- * and going through one for every one of `Match.tagsExhaustive`'s nine arms
- * would only re-test `RequirePermission`/`guardRoute`'s own plumbing nine
+ * and going through one for every one of `Match.tagsExhaustive`'s eleven arms
+ * would only re-test `RequirePermission`/`guardRoute`'s own plumbing eleven
  * times over.
  */
 import {

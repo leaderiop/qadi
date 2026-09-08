@@ -12,6 +12,7 @@ export const failingAttributeResolver = (
   cause: unknown = "test failure",
 ): Layer.Layer<AttributeResolver> =>
   Layer.succeed(AttributeResolver, {
+    name: "failingAttributeResolver",
     resolve: (_subjectId, attribute) =>
       Effect.fail(new AttributeResolveError({ attribute, cause })),
   });

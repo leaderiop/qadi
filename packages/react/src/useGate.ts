@@ -18,7 +18,7 @@ import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import { useEffect, useId, useMemo, useRef } from "react";
 import type { RefObject } from "react";
 import type { GateKind, GateRenderState } from "./GateRegistry.ts";
-import { registerGate } from "./GateRegistry.ts";
+import { registerGate, updateGateState } from "./GateRegistry.ts";
 import type { DecisionResult } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
 
@@ -93,6 +93,12 @@ export const useGate = (kind: GateKind, policy: Policy, resource?: Resource): Ga
   const resourceRef = useRef(resource);
   resourceRef.current = resource;
 
+  // Identity lifecycle only: mount registers, unmount unregisters. `state` is
+  // deliberately not in this dependency array — see the effect below, and
+  // `updateGateState`'s doc comment. Re-running this one (on `id`, `kind`,
+  // `atom` or `wraps` changing) unregisters and re-registers, which is the
+  // right cost only when what is being asked has actually changed, not on
+  // every answer to the same question.
   useEffect(() => {
     if (!instrument) return;
     return registerGate({
@@ -106,7 +112,20 @@ export const useGate = (kind: GateKind, policy: Policy, resource?: Resource): Ga
       // says absent — two spellings of nothing are one too many.
       element: wraps ? (marker.current ?? undefined) : undefined,
     });
-  }, [instrument, id, kind, atom, state, wraps]);
+  }, [instrument, id, kind, atom, wraps]);
+
+  // The per-render state update, split from the effect above (AGENTS.md §13
+  // still holds: this mutates the registered instance's `state` field and
+  // calls `changed()` at most once, it does not decide what anything renders).
+  // Without this split, every decision state transition tore the instance down
+  // and rebuilt it — two `changed()` notifications (unregister, then
+  // re-register) where one update is enough. `updateGateState` itself no-ops
+  // when the state hasn't actually changed, so this also covers the case where
+  // this effect's first run coincides with the mount effect's own registration.
+  useEffect(() => {
+    if (!instrument) return;
+    updateGateState(id, state);
+  }, [instrument, id, state]);
 
   return { result, id, ref: instrument && wraps ? marker : undefined };
 };

@@ -1,6 +1,10 @@
 /**
  * The write half of `@qadi/core`'s hydration metrics.
  *
+ * Deliberately out of the barrel (AGENTS.md §9), same as `HydrationSeed.ts`,
+ * `settled.ts` and `useGate.ts`: this is the write side of an internal metric,
+ * not something a consumer should be updating directly.
+ *
  * Every function here is **synchronous and total**, because its callers are.
  * `dehydrateDecisions` and `hydrateDecisions` are documented as pure and
  * synchronous and their callers are a server rendering a page and a client's

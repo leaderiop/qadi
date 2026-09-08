@@ -28,7 +28,7 @@ describe("makeDecommissioningChecklist", () => {
       checklist.steps.map((s) => s.description),
       [
         "Export the full audit trail to an archive",
-        "Verify the archived chain's integrity",
+        "Verify the archived entries' sequence integrity",
         "Transfer the archive to long-term storage",
         "Revoke signing keys",
         "Record the final audit entry",

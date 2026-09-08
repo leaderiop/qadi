@@ -48,17 +48,15 @@
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
-import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import type { CurrentSubject, EvaluationServices, Permission, Policy, Resource, SinkRecord } from "@qadi/core";
 import { assert, currentSubjectLayer, isRecordJsonSafe, toWire } from "@qadi/core";
-import { guardRoute } from "./GuardRoute.ts";
-import { PermissionRegistry } from "./PermissionRegistry.ts";
+import { addGuardedRoute } from "./PermissionRegistry.ts";
+import { NO_RESOURCE } from "./RequirePermission.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
@@ -185,11 +183,11 @@ export const reauthCheck = (
  * Every subscriber gets its own subscription, so two open devtools pages do not
  * steal records from one another.
  *
- * Registers with `PermissionRegistry`, the same way `addGuardedRoute` does for
- * a bare `HttpRouter` route — otherwise `/__permissions`'s own claim to list
- * "every permission this application enforces, and the routes that require
- * it" would be false of exactly the one route that publishes decisions rather
- * than the topology.
+ * Built on `addGuardedRoute`, which registers with `PermissionRegistry` the
+ * same way it does for any other bare `HttpRouter` route — otherwise
+ * `/__permissions`'s own claim to list "every permission this application
+ * enforces, and the routes that require it" would be false of exactly the
+ * one route that publishes decisions rather than the topology.
  */
 export const decisionStreamRoute = <P extends Permission>(
   permission: P,
@@ -197,61 +195,52 @@ export const decisionStreamRoute = <P extends Permission>(
   stream: Stream.Stream<SinkRecord>,
   options?: DecisionStreamOptions,
 ) =>
-  Layer.merge(
-    HttpRouter.add(
-      "GET",
-      "/__decisions",
-      Effect.gen(function* () {
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        return yield* guardRoute(
-          permission,
-          policy,
-          () => Effect.succeed({}),
-        )(() =>
-          Effect.gen(function* () {
-            const frames = Stream.filterMap(stream, frame);
-            // `Stream.mergeEffect`: the recheck loop runs concurrently for the
-            // stream's lifetime, fails the whole stream the moment it fails,
-            // and is itself interrupted the moment the stream ends for any
-            // other reason (the client disconnecting) — never an orphaned
-            // fiber still polling a connection nobody is reading anymore.
-            const guarded =
-              options?.reauth === undefined
-                ? frames
-                : frames.pipe(
-                    Stream.mergeEffect(
-                      Effect.repeat(
-                        reauthCheck(request, policy, {}),
-                        Schedule.spaced(options.reauth.interval),
-                      ),
-                    ),
-                  );
-            // `HttpServerResponse.stream` takes no requirement channel at
-            // all — it needs a fully discharged `Stream`, unlike
-            // `Effect.Effect`, which threads `R` through. The reauth loop's
-            // services are already in this handler's own ambient context
-            // (that is what `guardRoute`/`HttpRouter.add` provide them for),
-            // so capturing and re-providing that context is what discharges
-            // them here rather than leaving them for a caller who cannot see
-            // this route's internals to supply.
-            const context = yield* Effect.context<
-              Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
-            >();
-            return HttpServerResponse.stream(Stream.provideContext(guarded, context), {
-              contentType: "text/event-stream",
-              headers: {
-                // Without these a proxy will buffer the stream into oblivion and
-                // the feed appears to hang rather than to work slowly.
-                "cache-control": "no-cache",
-                connection: "keep-alive",
-                "x-accel-buffering": "no",
-              },
-            });
-          }),
-        )(request);
-      }),
-    ),
-    Layer.effectDiscard(
-      PermissionRegistry.register(permission, { method: "GET", path: "/__decisions", group: undefined }),
-    ),
+  addGuardedRoute(
+    "GET",
+    "/__decisions",
+    permission,
+    policy,
+    () => Effect.succeed(NO_RESOURCE),
+  )(() =>
+    Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest;
+      const frames = Stream.filterMap(stream, frame);
+      // `Stream.mergeEffect`: the recheck loop runs concurrently for the
+      // stream's lifetime, fails the whole stream the moment it fails,
+      // and is itself interrupted the moment the stream ends for any
+      // other reason (the client disconnecting) — never an orphaned
+      // fiber still polling a connection nobody is reading anymore.
+      const guarded =
+        options?.reauth === undefined
+          ? frames
+          : frames.pipe(
+              Stream.mergeEffect(
+                Effect.repeat(
+                  reauthCheck(request, policy, NO_RESOURCE),
+                  Schedule.spaced(options.reauth.interval),
+                ),
+              ),
+            );
+      // `HttpServerResponse.stream` takes no requirement channel at
+      // all — it needs a fully discharged `Stream`, unlike
+      // `Effect.Effect`, which threads `R` through. The reauth loop's
+      // services are already in this handler's own ambient context
+      // (that is what `guardRoute`/`HttpRouter.add` provide them for,
+      // via `addGuardedRoute`), so capturing and re-providing that
+      // context is what discharges them here rather than leaving them
+      // for a caller who cannot see this route's internals to supply.
+      const context = yield* Effect.context<
+        Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
+      >();
+      return HttpServerResponse.stream(Stream.provideContext(guarded, context), {
+        contentType: "text/event-stream",
+        headers: {
+          // Without these a proxy will buffer the stream into oblivion and
+          // the feed appears to hang rather than to work slowly.
+          "cache-control": "no-cache",
+          connection: "keep-alive",
+          "x-accel-buffering": "no",
+        },
+      });
+    }),
   );
