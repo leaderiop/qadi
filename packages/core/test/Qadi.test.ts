@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Data from "effect/Data";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -506,12 +507,16 @@ describe("Qadi obligations", () => {
   it.effect("a failing handler stops the guarded effect", () =>
     Effect.gen(function* () {
       let started = false;
+      // AGENTS.md §4: a simulated failure still needs a Data.TaggedError, not
+      // a bare Error, even though the test only asserts `started` stayed
+      // false and never inspects the failure's shape.
+      class AuditLogUnreachable extends Data.TaggedError("AuditLogUnreachable")<{}> {}
       const r = yield* Effect.result(
         Effect.sync(() => {
           started = true;
         }).pipe(
           Qadi.enforce(audited, {
-            onObligations: () => Effect.fail(new Error("audit log unreachable")),
+            onObligations: () => Effect.fail(new AuditLogUnreachable()),
           }),
         ),
       );

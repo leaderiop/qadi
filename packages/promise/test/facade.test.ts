@@ -132,8 +132,7 @@ describe("makeQadi", () => {
     const coreResult = await Effect.runPromise(
       Effect.result(
         assertCore(isAdmin).pipe(
-          Effect.provide(baseLayer),
-          Effect.provide(currentSubjectLayer(alice)),
+          Effect.provide(Layer.mergeAll(baseLayer, currentSubjectLayer(alice))),
         ),
       ),
     );
@@ -216,8 +215,7 @@ describe("makeQadi", () => {
       for (const policy of policies) {
         const viaCore = await Effect.runPromise(
           checkCore(policy).pipe(
-            Effect.provide(baseLayer),
-            Effect.provide(currentSubjectLayer(subject)),
+            Effect.provide(Layer.mergeAll(baseLayer, currentSubjectLayer(subject))),
           ),
         );
         const viaFacade = await qadi.check(subject, policy);
@@ -229,8 +227,7 @@ describe("makeQadi", () => {
 
         const decisionViaCore = await Effect.runPromise(
           decideCore(policy).pipe(
-            Effect.provide(baseLayer),
-            Effect.provide(currentSubjectLayer(subject)),
+            Effect.provide(Layer.mergeAll(baseLayer, currentSubjectLayer(subject))),
           ),
         );
         const decisionViaFacade = await qadi.decide(subject, policy);
@@ -281,8 +278,7 @@ describe("makeQadi", () => {
     });
     const viaCore = await Effect.runPromise(
       filterCore(owned, items, { concurrency: "unbounded" }).pipe(
-        Effect.provide(baseLayer),
-        Effect.provide(currentSubjectLayer(alice)),
+        Effect.provide(Layer.mergeAll(baseLayer, currentSubjectLayer(alice))),
       ),
     );
 

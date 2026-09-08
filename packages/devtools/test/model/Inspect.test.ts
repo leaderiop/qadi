@@ -70,8 +70,7 @@ const services = Layer.mergeAll(
 const decide = (policy: Policy): Promise<Decision> =>
   Effect.runPromise(
     evaluate(policy).pipe(
-      Effect.provide(currentSubjectLayer(alice)),
-      Effect.provide(services),
+      Effect.provide(Layer.mergeAll(currentSubjectLayer(alice), services)),
     ),
   );
 

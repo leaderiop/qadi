@@ -114,19 +114,14 @@ describe("decisionSinkForwarding", () => {
       const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
 
       yield* evaluate(policy).pipe(
-        Effect.provide(
-          decisionSinkForwarding({ send: () => Effect.fail("unreachable") }),
-        ),
-        Effect.provide(
-          Logger.layer([
+        Effect.provide(Layer.mergeAll(decisionSinkForwarding({ send: () => Effect.fail("unreachable") }), Logger.layer([
             Logger.make((o) => {
               logs.push({
                 message: o.message,
                 annotations: o.fiber.getRef(References.CurrentLogAnnotations),
               });
             }),
-          ]),
-        ),
+          ]))),
       );
 
       assert.strictEqual(logs.length, 1);
@@ -144,8 +139,12 @@ describe("decisionSinkForwarding", () => {
       const logs: Array<unknown> = [];
 
       yield* evaluate(policy).pipe(
-        Effect.provide(decisionSinkForwarding({ send: () => Effect.void })),
-        Effect.provide(Logger.layer([Logger.make((o) => { logs.push(o.message); })])),
+        Effect.provide(
+          Layer.mergeAll(
+            decisionSinkForwarding({ send: () => Effect.void }),
+            Logger.layer([Logger.make((o) => { logs.push(o.message); })]),
+          ),
+        ),
       );
 
       assert.deepStrictEqual(logs, []);

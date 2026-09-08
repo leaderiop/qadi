@@ -36,7 +36,7 @@ describe("qadi_audit_writes_total", () => {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       const rows = counters(snapshots, "qadi_audit_writes_total");
@@ -53,7 +53,7 @@ describe("qadi_audit_writes_total", () => {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord({ resource: { handler: () => "nope" } }));
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       const rows = counters(snapshots, "qadi_audit_writes_total");
@@ -71,7 +71,7 @@ describe("qadi_audit_writes_total", () => {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       const rows = counters(snapshots, "qadi_audit_writes_total");
@@ -99,7 +99,7 @@ describe("qadi_audit_writes_total", () => {
             const sink = yield* DecisionSink;
             yield* sink.record(decisionRecord());
             return yield* Metric.snapshot;
-          }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(brokenTrail)),
+          }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), brokenTrail))),
         );
 
         // record() itself must not defect — Metric.snapshot above only ran
@@ -119,7 +119,7 @@ describe("qadi_audit_writes_total", () => {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       const rows = counters(snapshots, "qadi_audit_writes_total");
@@ -139,7 +139,7 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
           const sink = yield* DecisionSink;
           for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
@@ -168,7 +168,7 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
             const sink = yield* DecisionSink;
             for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
             return yield* Metric.snapshot;
-          }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(brokenTrail)),
+          }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), brokenTrail))),
         );
 
         const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
@@ -192,7 +192,7 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
           const sink = yield* DecisionSink;
           for (let i = 0; i < 5; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
@@ -228,7 +228,7 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
           // write then closes it.
           yield* sink.record(decisionRecord({ evaluationId: "recovers" }));
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
@@ -250,7 +250,7 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
@@ -270,7 +270,7 @@ describe("qadi_audit_staging_total", () => {
           const sink = yield* DecisionSink;
           for (let i = 0; i < 6; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       const rows = counters(snapshots, "qadi_audit_staging_total");
@@ -292,18 +292,14 @@ describe("qadi_audit_staging_total", () => {
           const sink = yield* DecisionSink;
           for (let i = 0; i < 6; i++) yield* sink.record(decisionRecord({ evaluationId: `e-${i}` }));
         }).pipe(
-          Effect.provide(AuditDecisionSinkLive()),
-          Effect.provide(trail),
-          Effect.provide(
-            Logger.layer([
+          Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, Logger.layer([
               Logger.make((o) => {
                 logs.push({
                   message: o.message,
                   annotations: o.fiber.getRef(References.CurrentLogAnnotations),
                 });
               }),
-            ]),
-          ),
+            ])))),
         );
 
         // The metric alone (asserted above) would still pass if a mutant
@@ -332,7 +328,7 @@ describe("qadi_audit_staging_total", () => {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging)))),
       );
 
       const rows = counters(snapshots, "qadi_audit_staging_total");
@@ -364,7 +360,9 @@ describe("qadi_audit_staging_total", () => {
             const sink = yield* DecisionSink;
             yield* sink.record(decisionRecord());
             return yield* Metric.snapshot;
-          }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(brokenStaging)),
+          }).pipe(
+            Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, brokenStaging))),
+          ),
         );
 
         const rows = counters(snapshots, "qadi_audit_staging_total");
@@ -386,7 +384,7 @@ describe("qadi_audit_staging_total", () => {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging)))),
       );
 
       const rows = counters(snapshots, "qadi_audit_staging_total");
@@ -410,7 +408,9 @@ describe("qadi_audit_staging_total", () => {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(brokenStaging)),
+        }).pipe(
+          Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, brokenStaging))),
+        ),
       );
 
       // The write itself still succeeded — a caller's commit bug must not
@@ -432,7 +432,7 @@ describe("qadi_audit_staging_total", () => {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
           return yield* Metric.snapshot;
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging)))),
       );
 
       const rows = counters(snapshots, "qadi_audit_staging_total");

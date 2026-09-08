@@ -44,5 +44,5 @@ export interface AuditTrailPortShape {
 export class AuditTrailPort extends Context.Service<AuditTrailPort, AuditTrailPortShape>()(
   "qadi/audit/AuditTrailPort",
 ) {
-  static write = (entry: AuditEntry) => AuditTrailPort.use((p) => p.write(entry));
+  static readonly write = (entry: AuditEntry) => AuditTrailPort.use((p) => p.write(entry));
 }

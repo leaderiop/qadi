@@ -2334,8 +2334,12 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* evaluate(P.hasRole("editor")).pipe(
-        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1", roles: ["editor"] })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       const span = named(spans, "qadi.evaluate");
@@ -2356,8 +2360,12 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* evaluate(P.hasPermission(write)).pipe(
-        Effect.provide(testLayer(subjectWith({ id: "u2" }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u2" })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       const span = named(spans, "qadi.evaluate");
@@ -2378,8 +2386,12 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* evaluate(P.hasAction("write"), { action: "write" }).pipe(
-        Effect.provide(testLayer(subjectWith({ id: "u1" }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       const span = named(spans, "qadi.evaluate");
@@ -2401,8 +2413,12 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* evaluate(P.hasRole("editor")).pipe(
-        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1", roles: ["editor"] })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       const span = named(spans, "qadi.evaluate");
@@ -2423,8 +2439,12 @@ describe("observability", () => {
       ]);
 
       yield* evaluate(policy).pipe(
-        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["auditor"] }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1", roles: ["auditor"] })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       const span = named(spans, "qadi.evaluate");
@@ -2441,8 +2461,12 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* evaluate(P.hasRole("editor")).pipe(
-        Effect.provide(testLayer(subjectWith({ id: "u1", roles: ["editor"] }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1", roles: ["editor"] })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       const span = named(spans, "qadi.evaluate");
@@ -2457,8 +2481,12 @@ describe("observability", () => {
 
       const policy = P.allOf([P.hasRole("a"), P.anyOf([P.hasRole("b"), P.hasRole("c")])]);
       yield* evaluate(policy).pipe(
-        Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ roles: ["a", "b"] })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       // Named spans exist so a slow branch is attributable in a trace viewer,
@@ -2491,8 +2519,12 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
-        Effect.provide(testLayer(subjectWith({ attributes: { tier: 5 } }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ attributes: { tier: 5 } })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       assert.isUndefined(named(spans, "qadi.attribute"));
@@ -2505,9 +2537,11 @@ describe("observability", () => {
 
       yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
         Effect.provide(
-          testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({ tier: 5 }) }),
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({ tier: 5 }) }),
+            collectingTracer(spans),
+          ),
         ),
-        Effect.provide(collectingTracer(spans)),
       );
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
@@ -2522,8 +2556,12 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
-        Effect.provide(testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({}) })),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({}) }),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       assert.strictEqual(attributes(named(spans, "qadi.attribute"))["qadi.resolved"], false);
@@ -2536,16 +2574,13 @@ describe("observability", () => {
 
       yield* Effect.result(
         evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
-          Effect.provide(
-            testLayer(subjectWith({ id: "u1" }), {
+          Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" }), {
               attributes: Layer.succeed(AttributeResolver, {
                 name: "broken",
                 resolve: (_subjectId, attribute: string) =>
                   Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
               }),
-            }),
-          ),
-          Effect.provide(collectingTracer(spans)),
+            }), collectingTracer(spans))),
         ),
       );
 
@@ -2570,9 +2605,11 @@ describe("observability", () => {
         P.anyOf([P.hasRole("editor"), P.hasAttribute("tier", M.gte(3))]),
       ).pipe(
         Effect.provide(
-          testLayer(subjectWith({ roles: ["editor"] }), { attributes: resolverOf({ tier: 5 }) }),
+          Layer.mergeAll(
+            testLayer(subjectWith({ roles: ["editor"] }), { attributes: resolverOf({ tier: 5 }) }),
+            collectingTracer(spans),
+          ),
         ),
-        Effect.provide(collectingTracer(spans)),
       );
 
       assert.isUndefined(named(spans, "qadi.attribute"));
@@ -2587,14 +2624,11 @@ describe("observability", () => {
       yield* evaluate(P.hasActed("raised", { scope: "Any" }), {
         resource: { id: "doc-1" },
       }).pipe(
-        Effect.provide(
-          testLayer(subjectWith({ id: "u1" }), {
+        Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" }), {
             history: decisionHistoryFromEvents([
               { subjectId: "u1", event: "raised", resourceId: "doc-9" },
             ]),
-          }),
-        ),
-        Effect.provide(collectingTracer(spans)),
+          }), collectingTracer(spans))),
       );
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
@@ -2610,8 +2644,12 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* evaluate(P.hasActed("raised"), { resource: { id: "doc-1" } }).pipe(
-        Effect.provide(testLayer(subjectWith({ id: "u1" }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
@@ -2637,8 +2675,12 @@ describe("observability", () => {
 
       yield* Effect.result(
         evaluate(P.hasActed("raised"), { resource: { name: "no id" } }).pipe(
-          Effect.provide(testLayer(subjectWith({ id: "u1" }))),
-          Effect.provide(collectingTracer(spans)),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(subjectWith({ id: "u1" })),
+              collectingTracer(spans),
+            ),
+          ),
         ),
       );
 
@@ -2657,14 +2699,11 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
-        Effect.provide(
-          testLayer(subjectWith({ id: "u1" }), {
+        Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" }), {
             relationships: relationshipResolverFromEdges([
               { subjectId: "u1", relation: "owner", resourceId: "doc-1" },
             ]),
-          }),
-        ),
-        Effect.provide(collectingTracer(spans)),
+          }), collectingTracer(spans))),
       );
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.hasRelationship")), {
@@ -2682,8 +2721,12 @@ describe("observability", () => {
       yield* evaluate(P.hasRelationship("owner", { depth: 3 }), {
         resource: { id: "doc-1" },
       }).pipe(
-        Effect.provide(testLayer(subjectWith({ id: "u1" }))),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" })),
+            collectingTracer(spans),
+          ),
+        ),
       );
 
       assert.strictEqual(attributes(named(spans, "qadi.hasRelationship"))["qadi.depth"], 3);
@@ -2696,8 +2739,12 @@ describe("observability", () => {
 
       yield* Effect.result(
         evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
-          Effect.provide(testLayer(subjectWith({ id: "u1" }))),
-          Effect.provide(collectingTracer(spans)),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(subjectWith({ id: "u1" })),
+              collectingTracer(spans),
+            ),
+          ),
         ),
       );
 
@@ -2724,12 +2771,9 @@ describe("observability", () => {
       const secret = "sentinel-8f21-do-not-disclose";
 
       yield* evaluate(P.hasAttribute("clearance", M.eq(M.literal(secret)))).pipe(
-        Effect.provide(
-          testLayer(subjectWith({ id: "u1" }), {
+        Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" }), {
             attributes: resolverOf({ clearance: secret }),
-          }),
-        ),
-        Effect.provide(collectingTracer(spans)),
+          }), collectingTracer(spans))),
       );
 
       const rendered = spans
@@ -2747,8 +2791,7 @@ describe("observability", () => {
       // must close regardless, or a failing dependency would leave traces open.
       yield* Effect.result(
         evaluate(P.hasRelationship("owner"), { resource: { name: "no id" } }).pipe(
-          Effect.provide(testLayer(subjectWith({}))),
-          Effect.provide(collectingTracer(spans)),
+          Effect.provide(Layer.mergeAll(testLayer(subjectWith({})), collectingTracer(spans))),
         ),
       );
 

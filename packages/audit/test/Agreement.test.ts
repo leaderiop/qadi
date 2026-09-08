@@ -8,6 +8,7 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as FastCheck from "effect/testing/FastCheck";
 import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
@@ -36,7 +37,7 @@ const runPipeline = (
     const program = Effect.gen(function* () {
       const sink = yield* DecisionSink;
       for (const record of sequence) yield* sink.record(record);
-    }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail));
+    }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
 
     yield* (wireStaging ? program.pipe(Effect.provide(staging.layer)) : program);
     return written().map((entry) => ({

@@ -292,6 +292,14 @@ const renderNode = (
       // is real input. "TRUE"/"FALSE" match `evaluatePredicate`'s own
       // `.every`/`.some` on an empty array, so the compiled fragment and the
       // reference interpreter still agree on this shape.
+      // **Sequential**, which is `Effect.forEach`'s default and is load-bearing
+      // here (mirrors WhatIf.ts:221's note on the same default): `params` is
+      // mutated rather than threaded (see the doc comment above this
+      // function), so each child's `params.push` must happen in the same
+      // order its placeholder text is emitted below. Adding `{ concurrency }`
+      // to either `forEach` would let children push out of render order while
+      // the rendered SQL's placeholder numbers stay fixed to that order,
+      // silently binding parameter values to the wrong placeholders.
       And: (p) =>
         Effect.map(
           Effect.forEach(p.predicates, (inner) => renderNode(inner, syntax, params, maxInValues)),

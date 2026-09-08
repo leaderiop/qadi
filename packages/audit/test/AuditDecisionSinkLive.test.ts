@@ -20,7 +20,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
         yield* sink.record(decisionRecord({ evaluationId: "e1" }));
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
 
       assert.strictEqual(written().length, 1);
       assert.strictEqual(written()[0]?.record.evaluationId, "e1");
@@ -33,7 +33,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
         yield* sink.record(obligationRecord({ evaluationId: "e2" }));
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
 
       assert.strictEqual(written()[0]?.record._tag, "Obligations");
     }));
@@ -48,7 +48,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         Effect.gen(function* () {
           const sink = yield* DecisionSink;
           yield* sink.record(decisionRecord());
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail)),
+        }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
       assert.strictEqual(result._tag, "Success");
@@ -63,7 +63,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
         yield* sink.record(decisionRecord());
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
 
       assert.strictEqual(written().length, 0);
     }));
@@ -76,7 +76,9 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
         yield* sink.record(decisionRecord());
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging));
+      }).pipe(
+        Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging))),
+      );
 
       assert.strictEqual(staged().length, 0);
       assert.strictEqual(committed().length, 1);
@@ -92,7 +94,9 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
         yield* sink.record(decisionRecord());
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging));
+      }).pipe(
+        Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging))),
+      );
 
       assert.strictEqual(staged().length, 1);
       assert.strictEqual(committed().length, 0);
@@ -120,7 +124,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         yield* sink.record(decisionRecord({ evaluationId: "skipped-1" }));
         yield* sink.record(decisionRecord({ evaluationId: "skipped-2" }));
         assert.strictEqual(writeAttempts, 5);
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
 
       assert.strictEqual(written().length, 0);
     }));
@@ -138,7 +142,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         }
         // Open now; this one is dropped, not staged (nothing to stage into).
         yield* sink.record(decisionRecord({ evaluationId: "lost" }));
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
 
       assert.strictEqual(written().length, 0);
     }));
@@ -157,7 +161,9 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         }
         // Open now; write() is skipped but stage() still runs.
         yield* sink.record(decisionRecord({ evaluationId: "recoverable" }));
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging));
+      }).pipe(
+        Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging))),
+      );
 
       // 5 failed-write stages (left un-discarded) + 1 open-skip stage.
       assert.strictEqual(staged().length, 6);
@@ -182,7 +188,9 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         }
         // Open now; stage() also fails, so this entry has nowhere to land.
         yield* sink.record(decisionRecord({ evaluationId: "lost" }));
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging));
+      }).pipe(
+        Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging))),
+      );
 
       // The 5 failed-write entries staged normally; "lost" never made it.
       assert.strictEqual(staged().length, 5);
@@ -207,8 +215,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         yield* sink.record(decisionRecord({ evaluationId: "c" }));
         assert.strictEqual(writeAttempts, 2);
       }).pipe(
-        Effect.provide(AuditDecisionSinkLive({ failureThreshold: 2 })),
-        Effect.provide(trail),
+        Effect.provide(Layer.provideMerge(AuditDecisionSinkLive({ failureThreshold: 2 }), trail)),
       );
     }));
 
@@ -219,7 +226,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       yield* Effect.gen(function* () {
         const sink = yield* DecisionSink;
         yield* sink.record(decisionRecord({ resource: { handler: () => "nope" } }));
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
 
       assert.strictEqual(written().length, 0);
     }));
@@ -233,7 +240,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       const program = Effect.gen(function* () {
         const sink = yield* DecisionSink;
         yield* sink.record(decisionRecord());
-      }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
 
       yield* program;
       assert.strictEqual(written().length, 1);
@@ -306,7 +313,9 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
           yield* TestClock.adjust("30 seconds");
           yield* sink.record(decisionRecord({ evaluationId: "recovered" }));
           assert.strictEqual(writeAttempts, 7, "a later probe attempt is still possible");
-        }).pipe(Effect.provide(AuditDecisionSinkLive()), Effect.provide(trail), Effect.provide(staging));
+        }).pipe(
+          Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), Layer.mergeAll(trail, staging))),
+        );
 
         // The recovered write actually committed its staged entry — full
         // round-trip recovery, not just an unstuck status read. Staging

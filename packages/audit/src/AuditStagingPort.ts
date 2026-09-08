@@ -53,6 +53,7 @@ export interface AuditStagingPortShape {
 export class AuditStagingPort extends Context.Service<AuditStagingPort, AuditStagingPortShape>()(
   "qadi/audit/AuditStagingPort",
 ) {
-  static stage = (entry: AuditEntry) => AuditStagingPort.use((p) => p.stage(entry));
-  static commit = (handle: AuditStagingHandle) => AuditStagingPort.use((p) => p.commit(handle));
+  static readonly stage = (entry: AuditEntry) => AuditStagingPort.use((p) => p.stage(entry));
+  static readonly commit = (handle: AuditStagingHandle) =>
+    AuditStagingPort.use((p) => p.commit(handle));
 }

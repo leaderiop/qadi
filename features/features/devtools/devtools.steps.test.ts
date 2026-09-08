@@ -240,8 +240,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     function* (_first: string, _second: string) {
       const policy = allOf([hasPermission(write), hasPermission(read)]);
       const decision = yield* evaluate(policy).pipe(
-        Effect.provide(currentSubjectLayer(alice)),
-        Effect.provide(services),
+        Effect.provide(Layer.mergeAll(currentSubjectLayer(alice), services)),
       );
       const record = new DecisionRecord({
         evaluationId: "ev-100",
