@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -384,6 +384,20 @@ than the raw `RangeError` `Schema.suspend`'s own descent would otherwise raise.
 The wire shape lives beside the record it describes rather than inside whichever
 transport carries it first, because it is a contract two processes agree on, not
 a transport detail.
+
+```
+REQUIREMENT: `decodeRecord` MUST reject an excess property inside its embedded
+             `Policy`, not silently strip it.
+```
+
+`SinkRecordWire` embeds the same `Policy` schema across the identical trust
+boundary ADR-QD-002 describes, so it shares `Policy.ts`'s
+`UNTRUSTED_DECODE_OPTIONS` (`{ onExcessProperty: "error" }`) rather than
+decoding with `Schema`'s default `"ignore"`. Before CCR-QD-139 it did not: a
+wire record whose embedded policy carried a typo'd field —
+`{"_tag":"HasPermission","permision":...}` — decoded successfully, silently
+dropping the grant rather than reporting the typo, exactly the class of silent
+data loss ADR-QD-002 exists to rule out.
 
 ```
 REQUIREMENT: An `EvaluationError` MUST cross carrying its tag and its stable

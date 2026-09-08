@@ -492,6 +492,43 @@ describe("@qadi/http", () => {
       }),
   );
 
+  it.effect("a non-Bearer scheme (e.g. Basic) is anonymous, same as no credential (BEH-QD-176)", () =>
+    Effect.gen(function* () {
+      // Documented, deliberate gap: `subjectExtractorBearer`'s own doc comment
+      // and spec/behaviors/23-http.md's BEH-QD-176 both name this. Nothing
+      // pinned it, so a refactor of the `Option.filter` chain could silently
+      // change it. `Basic dXNlcjpwYXNz` is a real, well-formed credential for
+      // a different scheme — not a malformed Bearer header — and it still
+      // resolves to `anonymous`, not a failure.
+      const seen: Array<string> = [];
+      const layer = subjectExtractorBearer((token) => {
+        seen.push(token);
+        return Effect.succeed(alice);
+      });
+      const extractVia = (authorization: string) =>
+        SubjectExtractor.extract(
+          HttpServerRequest.fromWeb(
+            new Request("http://localhost/documents", { headers: { authorization } }),
+          ),
+        ).pipe(Effect.provide(layer));
+
+      const viaBasic = yield* extractVia("Basic dXNlcjpwYXNz");
+      assert.strictEqual(viaBasic.id, anonymous.id);
+      assert.deepStrictEqual(seen, []); // lookup is never reached for a non-Bearer scheme
+
+      // End to end, the same as the unauthenticated case: no challenge, no
+      // 401 — a 403, indistinguishable from having sent nothing at all.
+      const { handler } = HttpRouter.toWebHandler(AppLayer);
+      const response = yield* Effect.promise(() =>
+        handler(
+          new Request("http://localhost/documents", {
+            headers: { authorization: "Basic dXNlcjpwYXNz" },
+          }),
+        ),
+      );
+      assert.strictEqual(response.status, 403);
+    }));
+
   it("requiresPermission throws at construction time on a duplicate requirement", () => {
     const endpoint = HttpApiEndpoint.get("duplicate", "/duplicate").pipe((e) =>
       e.annotate(RequiredPermission, requiresPermission(e, { permission: readPermission, policy: readPolicy })),

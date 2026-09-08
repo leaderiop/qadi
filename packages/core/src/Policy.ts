@@ -851,8 +851,13 @@ export const MAX_DECODE_DEPTH = DEFAULT_MAX_DEPTH * 4;
  * excess-property switch), and `options` propagates through every nested
  * struct a decode recurses into — `Matcher`, `Obligation`, `RuleStruct` — so
  * setting it once at each public entry point below covers the whole tree.
+ *
+ * Exported (CCR-QD-139) so `SinkCodec.ts`'s `decodeSinkRecordWireUnknown` — which
+ * embeds this same `Policy` schema across the same trust boundary — can share it
+ * rather than decode with `Schema`'s default `onExcessProperty: "ignore"`, the
+ * exact silent-data-loss shape this option exists to rule out.
  */
-const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: "error" };
+export const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: "error" };
 
 const decodePolicyUnknown = Schema.decodeUnknownEffect(Policy, UNTRUSTED_DECODE_OPTIONS);
 

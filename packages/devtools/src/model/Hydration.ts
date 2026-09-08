@@ -75,6 +75,7 @@ const MEANINGS: Record<HydrationDropReason, string> = {
   UnregisteredAtoms: "hydrateDecisions was handed an atom set makeQadiAtoms did not build",
   MalformedEntry: "an entry's shape didn't match what this client expects, apart from its policy",
   UndecodablePolicy: "a policy shape the client's schema does not know — usually version skew",
+  EntryTooDeep: "an entry nested past the client's structural depth guard, before any decode ran",
 };
 
 const UNRECOGNISED = "not a reason this build knows — something else writes to this metric";
@@ -106,7 +107,7 @@ export const hydrationActivity: Effect.Effect<HydrationActivity> = Effect.gen(fu
     mismatched: mismatched.count,
     // The metric's **own** keys, rather than a walk of `hydrationDropReasons`
     // defaulting each miss to zero. Pre-registration is exactly what makes that
-    // walk unnecessary: it puts all four in the map at zero when the hooks are
+    // walk unnecessary: it puts all five in the map at zero when the hooks are
     // created, so a reader that also defaulted would be a second mechanism doing
     // the first one's job — and its default could never fire, which is how the
     // mutation gate found it. Insertion order is the order `hydrationDropReasons`

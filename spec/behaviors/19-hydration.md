@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-19                                    |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
+> | Change History | 1.6 (2026-09-08): BEH-QD-259 — a fifth hydrate-side drop reason, `EntryTooDeep`: `hydrateDecisions` now runs `exceedsJsonDepth` ahead of any recursive `Schema` decode, closing the one recursive decode boundary left unguarded; the total across both ends is six, not five (issue #78, CCR-QD-139)<br>1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
 
 _Previous: [18 — Policy Explanation](./18-explanation.md)_
 
@@ -327,14 +327,15 @@ REQUIREMENT: Every exit by which `hydrateDecisions` declines to seed an entry
              MUST be announced.
 ```
 
-There are **four**, and until now only the fifth — the one on the dehydrate
+There are **five**, and until now only the sixth — the one on the dehydrate
 side ([BEH-QD-146](#beh-qd-146-a-payload-is-bound-to-one-subject-and-fails-closed))
 — had ever been closed. A payload could name the wrong subject, reach an atom set
 `makeQadiAtoms` did not build, carry an entry whose non-`policy` field did not
-match `DehydratedEntry`'s shape, or carry entries whose policy would not decode,
-and in every case the function returned and said nothing at all. The page then
-re-decided everything from scratch, which is *correct* and is also
-indistinguishable from a page with nothing to hydrate.
+match `DehydratedEntry`'s shape, carry entries whose policy would not decode, or
+nest an entry past the structural depth guard, and in every case the function
+returned and said nothing at all. The page then re-decided everything from
+scratch, which is *correct* and is also indistinguishable from a page with
+nothing to hydrate.
 
 > **Corrected in CCR-QD-129.** This originally enumerated three hydrate-side
 > exits and named the dehydrate-side one "the fourth" — a fifth,
@@ -346,16 +347,25 @@ indistinguishable from a page with nothing to hydrate.
 > (`ClientHydrationDropReason`'s four plus `DehydrationDropReason`'s one, per
 > `HydrationMetrics.ts`'s `hydrationDropReasons`), not four.
 
+> **Extended in CCR-QD-139.** A fifth hydrate-side reason, `EntryTooDeep`,
+> joined the set in
+> [BEH-QD-259](#beh-qd-259-an-entry-nested-past-the-structural-depth-guard-is-dropped-not-a-defect):
+> an entry nested past the structural depth guard is dropped the same way,
+> rather than raising an uncaught defect. The total across dehydrate and
+> hydrate is now **six**, not five.
+
 ```
 REQUIREMENT: A drop MUST carry a reason.
 ```
 
-Not a count. The four have four causes and four different fixes: a payload
+Not a count. The five have five causes and five different fixes: a payload
 reaching the wrong client is a cache-key bug on the server, an unregistered atom
 set is a wiring mistake in the call, a malformed entry is envelope corruption or
-a shape the two ends have drifted on below the policy, and an undecodable policy
-is version skew between the two ends. A number cannot tell a developer which of
-those they have, and it is the only thing they will see.
+a shape the two ends have drifted on below the policy, an undecodable policy is
+version skew between the two ends, and an entry nested past the structural depth
+guard is an adversarial or corrupt payload rather than a version-skew signal. A
+number cannot tell a developer which of those they have, and it is the only
+thing they will see.
 
 ```
 REQUIREMENT: Undecodable entries MUST be reported once, not once each.
@@ -482,8 +492,64 @@ instead.
 REQUIREMENT: A clean reading MUST be stated, not left blank.
 ```
 
-"Nothing was dropped, all five reasons are watched" is a finding. An empty area
-reads as *not implemented*, which is what the panel used to have to admit to.
+"Nothing was dropped, all N reasons are watched" is a finding — the panel states
+the count it read rather than a number written into its source, so a reason
+joining the set (as `EntryTooDeep` did, CCR-QD-139) changes what it reports with
+no edit to this file. An empty area reads as *not implemented*, which is what the
+panel used to have to admit to.
+
+## BEH-QD-259: An entry nested past the structural depth guard is dropped, not a defect
+
+> **Invariant:** [INV-QD-045](../invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for)
+
+```ts
+// packages/core/src/DecodeDepthGuard.ts
+export const exceedsJsonDepth: (root: unknown, maxDepth: number) => boolean;
+// packages/core/src/Policy.ts
+export const MAX_DECODE_DEPTH: number;
+```
+
+```
+REQUIREMENT: `hydrateDecisions` MUST reject a structurally-too-deep entry before
+             any recursive `Schema` decode touches it, and MUST drop it the same
+             way the other four hydrate-side reasons are dropped rather than let
+             the decode raise.
+```
+
+`decodeEntryFields` and `decodePolicy` both recurse through a `Schema.suspend`
+shape — `DehydratedEntryFields`'s `trace` and `PolicySchema` itself — with no
+depth cap of its own, the same gap `Policy.ts`'s `fromJson`/`fromJsonValue` and
+`SinkCodec.ts`'s `decodeRecordWire` guard against for the identical reason: an
+adversarial payload nested past the call stack's limit makes `Schema`'s own
+descent raise a raw `RangeError` *defect*, not a typed failure, confirmed
+empirically at 60,000 levels. This module's own doc comments (`DecodeDepthGuard.ts`,
+`SinkCodec.ts`) had named `Hydration.ts` as the one recursive decode boundary
+still missing the guard, "tracked separately" — a payload is authorization state
+crossing a network
+([ADR-QD-028](../decisions/028-decision-hydration.md)), and a page rendering it
+should not be one crafted-deep entry away from an uncaught exception.
+
+```
+REQUIREMENT: The guard MUST run ahead of `decodeEntryFields`/`decodePolicy`, not
+             after — mirroring `SinkCodec.ts`'s `decodeRecordWire` order for the
+             identical trust boundary.
+```
+
+A depth check that ran after either decode would already have let `Schema`
+recurse into the offending shape, which is exactly the crash this exists to
+prevent. `exceedsJsonDepth` walks the parsed entry with an explicit
+array-backed stack, so the guard itself cannot be what overflows.
+
+```
+REQUIREMENT: `exceedsJsonDepth` and `MAX_DECODE_DEPTH` MUST be reachable from
+             `@qadi/core`'s own barrel, not only its `./DecodeDepthGuard` and
+             `./Policy` wildcard subpaths.
+```
+
+A third consumer needing a depth guard cannot share `Policy.ts`'s and
+`SinkCodec.ts`'s implementation without importing it, and `@qadi/react` — which
+has no reason to reach into `@qadi/core`'s internal module layout — is exactly
+that consumer.
 
 ---
 

@@ -760,6 +760,40 @@ describe("the wire's recursive positions are depth-bounded before Schema recurse
     }));
 });
 
+describe("decodeRecord rejects an excess property inside its embedded Policy, matching Policy.ts", () => {
+  // `decodeSinkRecordWireUnknown` used to decode with no `ParseOptions` at all,
+  // unlike every one of `Policy.ts`'s own untrusted entry points — so a wire
+  // record whose embedded policy carried a typo'd field decoded successfully,
+  // silently dropping the grant rather than reporting the typo. Threading
+  // `UNTRUSTED_DECODE_OPTIONS` through closes it; this pins that it stays
+  // closed the same way `Policy.test.ts`'s own excess-property suite does.
+  it.effect("a typo'd field inside the embedded policy is a decode failure, not a silent drop", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        decodeRecord({
+          _tag: "Decision",
+          evaluationId: "e",
+          at: 0,
+          policy: { _tag: "HasRole", role: "admin", rloe: "admin" },
+        }),
+      );
+      assert.strictEqual(result._tag, "Failure");
+    }));
+
+  it.effect("the positive control: the same embedded policy with no excess key still decodes", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        decodeRecord({
+          _tag: "Decision",
+          evaluationId: "e",
+          at: 0,
+          policy: { _tag: "HasRole", role: "admin" },
+        }),
+      );
+      assert.strictEqual(result._tag, "Success");
+    }));
+});
+
 describe("round-trip property", () => {
   it("holds over generated policies", () => {
     // The drift-catcher. The mapping between `SinkRecord` and its wire form is

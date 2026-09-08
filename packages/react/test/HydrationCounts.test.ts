@@ -28,6 +28,7 @@ import {
   hasRole,
   makeSubject,
   makeSubjectId,
+  MAX_DECODE_DEPTH,
   permission,
   RelationshipResolverNever,
 } from "@qadi/core";
@@ -327,6 +328,19 @@ describe("a payload that seeds nothing says so", () => {
       dropped("UndecodablePolicy", () =>
         quietly(() => hydrateDecisions(atoms, undecodable, alice)),
       ),
+    ).toBe(1);
+  });
+
+  it("counts an entry nested past the structural depth guard against its own reason", () => {
+    let policy: unknown = { _tag: "HasRole", role: "x" };
+    for (let i = 0; i < MAX_DECODE_DEPTH + 10; i++) policy = { _tag: "Not", policy };
+    const tooDeep: DehydratedDecisions = {
+      subjectId: "u1",
+      entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: 0 }],
+    };
+
+    expect(
+      dropped("EntryTooDeep", () => quietly(() => hydrateDecisions(atoms, tooDeep, alice))),
     ).toBe(1);
   });
 

@@ -178,6 +178,48 @@ describe("Qadi.enforceProjected", () => {
       const probe: Record<string, unknown> = {};
       assert.isUndefined(probe["polluted"]);
     }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+
+  it.effect(
+    "projects under options.resource's decision even when self resolves to a different record " +
+      "(documented, unreconciled two-channel hazard)",
+    () =>
+      Effect.gen(function* () {
+        // `enforceProjected`'s own doc comment names this: the policy is
+        // evaluated against `options.resource`, and `self`'s eventual value is
+        // an independent second channel with no check that the two describe
+        // the same record. Here `options.resource` is a "public" record, whose
+        // branch of the policy grants `fields` including "secret" (harmless,
+        // since a public record has none); `self` resolves to a structurally
+        // different "private" record that actually carries a secret — one the
+        // policy's "private" branch would have hidden, had it been the one
+        // evaluated. Nothing reconciles the two, so the secret is projected
+        // anyway.
+        const policy = P.anyOf([
+          P.allOf([
+            P.hasResourceAttribute("kind", M.eq(M.literal("public"))),
+            P.hasPermission(read, { fields: ["id", "title", "secret"] }),
+          ]),
+          P.allOf([
+            P.hasResourceAttribute("kind", M.eq(M.literal("private"))),
+            P.hasPermission(read, { fields: ["id", "title"] }),
+          ]),
+        ]);
+
+        const evaluatedResource = { kind: "public", id: "1", title: "public title" };
+        const actualResource = { kind: "private", id: "1", title: "T", secret: "TOP-SECRET" };
+
+        const out = yield* Effect.succeed(actualResource).pipe(
+          Qadi.enforceProjected(policy, { resource: evaluatedResource }),
+        );
+
+        // Had the policy been evaluated against `self`'s actual value, the
+        // "private" branch would have granted only `["id", "title"]` and
+        // `secret` would never have been visible. Because the two channels are
+        // not reconciled, it leaks through under the "public" decision's field
+        // list instead.
+        assert.strictEqual(out.secret, "TOP-SECRET");
+      }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))),
+  );
 });
 
 describe("Qadi.guard", () => {

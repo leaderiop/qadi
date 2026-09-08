@@ -47,7 +47,7 @@ import {
 } from "./Errors.ts";
 import { makeResourceId, makeSubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
-import { MAX_DECODE_DEPTH, Policy, PolicyDecodeTooDeep } from "./Policy.ts";
+import { MAX_DECODE_DEPTH, Policy, PolicyDecodeTooDeep, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 
 /**
  * Every tag a `Trace` node can carry — the policy union's tags.
@@ -590,7 +590,7 @@ export const fromWire = (wire: SinkRecordWire): SinkRecord => {
 /** Encodes a record to a plain JSON value. */
 export const encodeRecord = Schema.encodeEffect(SinkRecordWire);
 
-const decodeSinkRecordWireUnknown = Schema.decodeUnknownEffect(SinkRecordWire);
+const decodeSinkRecordWireUnknown = Schema.decodeUnknownEffect(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
 
 /**
  * Decodes a record's wire form from **untrusted** input.
@@ -617,7 +617,14 @@ const decodeSinkRecordWireUnknown = Schema.decodeUnknownEffect(SinkRecordWire);
  * it sits beside. `DecodeDepthGuard.ts` is the fix: one implementation,
  * imported by both call sites (and available to a third, `@qadi/react`'s
  * `Hydration.ts`, which decodes the same two recursive shapes from a
- * dehydrated payload and does not yet guard them — tracked separately).
+ * dehydrated payload and now guards them the same way).
+ *
+ * Also decodes with {@link UNTRUSTED_DECODE_OPTIONS} (CCR-QD-139), for the same
+ * reason `Policy.ts`'s own untrusted entry points do: `SinkRecordWire` embeds
+ * `Policy` across the identical trust boundary ADR-QD-002 describes, and without
+ * it an excess property on an otherwise-valid tag — a typo'd
+ * `{"_tag":"HasPermission","permision":...}` — decoded silently rather than
+ * failing, dropping the grant rather than reporting the typo.
  */
 export const decodeRecordWire = (
   input: unknown,

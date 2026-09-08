@@ -181,6 +181,12 @@ const explain: (reason: ClientHydrationDropReason) => string = Match.type<
       "their policies did not decode. The usual cause is version skew: the server " +
       "encoded a policy shape this client's schema does not know",
   ),
+  Match.when(
+    "EntryTooDeep",
+    () =>
+      "an entry nested deeper than this client will walk. That is not a shape a " +
+      "well-behaved server produces — check what fed this payload",
+  ),
   Match.exhaustive,
 );
 
