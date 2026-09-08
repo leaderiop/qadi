@@ -319,6 +319,21 @@ const readAttribute = (
  * The value itself is still never printed. The attribute *name* was already in
  * the sentence; its contents are the subject's data and stay out of a reason
  * that reaches logs and, through `AccessDenied`, error handlers.
+ *
+ * The excluded-value phrasing only fires for a **bare** `Neq` — `matcher`
+ * here is whatever `HasAttribute`/`HasResourceAttribute` was given at the
+ * policy's top level, not whatever comparison actually decided the result
+ * several levels down. A `Neq` nested inside `FieldMatch`/`SomeMatch`/
+ * `EveryMatch`/`Size` (e.g. `someMatch(neq(...))`, both already exercised by
+ * `referencesAction`/`referencesResource` in `Matcher.test.ts`) still reads
+ * the generic "did not match" when it denies, because `matcher._tag` here is
+ * the outer combinator's tag, not `Neq`'s. That is imprecise, not backwards:
+ * unlike the bare case CCR-QD-112 fixed, nothing here claims the opposite of
+ * what happened, so it is left as a known imprecision (pinned in
+ * `Evaluate.test.ts`) rather than a walk into the matcher tree to find the
+ * deciding node — the composite's own denial is well described by the
+ * generic sentence, since it genuinely is the composite that "did not
+ * match", plural, over its elements.
  */
 const attributeReason = (
   side: "subject" | "resource",
@@ -383,6 +398,27 @@ const mergeFields = (
  * the twenty-odd lines of what a given tag actually *does* move to a name
  * instead of living inline in the arm.
  */
+/**
+ * Fails with `MissingResourceId` when a Resource-scoped policy has no usable
+ * resource id.
+ *
+ * Takes the already-extracted `scoped`/`rawId` pair rather than a `policy`
+ * and `resource` of its own: `evaluateActed` and `evaluateHasSignature` both
+ * need `scoped`/`rawId` before this guard runs, to annotate the current span
+ * with whatever was actually asked even when the guard is about to fail it —
+ * so extraction stays at each call site and only the guard itself, which had
+ * drifted into two verbatim copies, is shared here.
+ */
+const requireScopedResourceId = Effect.fn("qadi.requireScopedResourceId")(function* (
+  scoped: boolean,
+  rawId: unknown,
+  relation: string,
+) {
+  if (scoped && typeof rawId !== "string") {
+    return yield* Effect.fail(new MissingResourceId({ relation }));
+  }
+});
+
 const evaluateActed = Effect.fn("qadi.acted")(function* (
   policy: Extract<Policy, { _tag: "HasActed" | "HasNotActed" }>,
   subject: AuthSubject,
@@ -401,9 +437,7 @@ const evaluateActed = Effect.fn("qadi.acted")(function* (
     "qadi.scope": policy.scope,
     ...(scoped && typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
   });
-  if (scoped && typeof rawId !== "string") {
-    return yield* Effect.fail(new MissingResourceId({ relation: policy.event }));
-  }
+  yield* requireScopedResourceId(scoped, rawId, policy.event);
   const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
   yield* Metric.update(portCallsTotal, "DecisionHistory");
   const answer = yield* DecisionHistory.hasActed({
@@ -563,9 +597,7 @@ const evaluateHasSignature = Effect.fn("qadi.hasSignature")(function* (
     ...(policy.signerRole === undefined ? {} : { "qadi.signer_role": policy.signerRole }),
     ...(scoped && typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
   });
-  if (scoped && typeof rawId !== "string") {
-    return yield* Effect.fail(new MissingResourceId({ relation: policy.meaning }));
-  }
+  yield* requireScopedResourceId(scoped, rawId, policy.meaning);
   yield* Metric.update(portCallsTotal, "SignatureHistory");
   const signatures = yield* SignatureHistory.signaturesFor({
     subjectId: subject.id,

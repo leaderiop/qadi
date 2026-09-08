@@ -56,6 +56,25 @@ describe("customPredicateFromRecord", () => {
       assert.isTrue(allowed);
     }));
 
+  it.effect("forwards a real resource to the registered function unchanged", () =>
+    Effect.gen(function* () {
+      // Every other case in this suite passes `undefined` for `resource`
+      // (issue #67), which would not catch a bug that drops, swaps, or
+      // mis-forwards the argument in `customPredicateFromRecord`.
+      const resource = { id: "doc-1", owner: "alice" };
+      const layer = customPredicateFromRecord({
+        isOwner: (_subject, seenResource, _params) => Effect.succeed(seenResource === resource),
+      });
+
+      const allowed = yield* CustomPredicate.evaluate(
+        "isOwner",
+        alice,
+        resource,
+        undefined,
+      ).pipe(Effect.provide(layer));
+      assert.isTrue(allowed);
+    }));
+
   it.effect("fails, rather than denies, on a name the table does not recognize", () =>
     Effect.gen(function* () {
       const layer = customPredicateFromRecord({});

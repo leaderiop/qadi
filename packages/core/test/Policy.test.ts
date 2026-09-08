@@ -598,6 +598,10 @@ describe("Policy serialization", () => {
           P.hasPermission(permission(segment(r), segment(a)), { fields: [field] }),
         ),
         FastCheck.integer().map((n) => P.hasAttribute("lvl", M.gte(n))),
+        // `HasResourceAttribute` was the one remaining leaf tag exercised only
+        // by the single hand-written "round-trips a deeply nested tree" test,
+        // never by this property (issue #67).
+        FastCheck.integer().map((n) => P.hasResourceAttribute("lvl", M.gte(n))),
         FastCheck.string().map((s) => P.hasAction(segment(s))),
         // A matcher carrying an ActionRef: the variant lives in ValueRef rather
         // than in Policy, so a leaf that never nests one would leave it out of

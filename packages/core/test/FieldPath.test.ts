@@ -96,6 +96,15 @@ describe("project", () => {
     assert.deepStrictEqual(project(data, ["contact"]), project(data, ["contact.**"]));
   });
 
+  it("'**' through a non-empty path prefix grants a scalar leaf whole", () => {
+    // Unlike root-level `["**"]`, which short-circuits at `projectAt`'s very
+    // first check before ever recursing, `"contact.email.**"` has to descend
+    // through `contact` first, exercising the recursive `"**"` branch that
+    // hands a child value back to `projectAt` (issue #67).
+    const data = { contact: { email: "a@b.com" } };
+    assert.deepStrictEqual(project(data, ["contact.email.**"]), data);
+  });
+
   it("a literal one segment deeper grants only that subtree", () => {
     const data = { contact: { email: "a@b.com", employer: { name: "Acme", id: 9 } } };
     assert.deepStrictEqual(project(data, ["contact.employer"]), {

@@ -179,29 +179,85 @@ export type LabelName = typeof LabelName.Type;
  * reason to reach both call sites.
  */
 export const makeRoleName = Brand.nominal<RoleName>();
-const mkActionName = Brand.nominal<ActionName>();
-const mkEventName = Brand.nominal<EventName>();
-const mkRelationName = Brand.nominal<RelationName>();
-const mkLabelName = Brand.nominal<LabelName>();
+const makeActionName = Brand.nominal<ActionName>();
+const makeEventName = Brand.nominal<EventName>();
+const makeRelationName = Brand.nominal<RelationName>();
+const makeLabelName = Brand.nominal<LabelName>();
 
 // ---------------------------------------------------------------------------
 // The policy union
 // ---------------------------------------------------------------------------
 
 export type Policy =
-  | { readonly _tag: "HasPermission"; readonly permission: Permission; readonly fields?: ReadonlyArray<string> | undefined }
+  | {
+      readonly _tag: "HasPermission";
+      readonly permission: Permission;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
   | { readonly _tag: "HasRole"; readonly role: RoleName }
-  | { readonly _tag: "HasAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasResourceAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasRelationship"; readonly relation: RelationName; readonly depth?: number | undefined; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasAction"; readonly action: ActionName; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasActed"; readonly event: EventName; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasNotActed"; readonly event: EventName; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasCustom"; readonly name: string; readonly params?: unknown; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasSignature"; readonly meaning: string; readonly signerRole?: string | undefined; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
-  | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<Policy>; readonly fieldStrategy: FieldStrategy }
-  | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<Rule>; readonly combining: Combining }
+  | {
+      readonly _tag: "HasAttribute";
+      readonly attribute: string;
+      readonly matcher: Matcher;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasResourceAttribute";
+      readonly attribute: string;
+      readonly matcher: Matcher;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasRelationship";
+      readonly relation: RelationName;
+      readonly depth?: number | undefined;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasAction";
+      readonly action: ActionName;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasActed";
+      readonly event: EventName;
+      readonly scope: HistoryScope;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasNotActed";
+      readonly event: EventName;
+      readonly scope: HistoryScope;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasCustom";
+      readonly name: string;
+      readonly params?: unknown;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasSignature";
+      readonly meaning: string;
+      readonly signerRole?: string | undefined;
+      readonly scope: HistoryScope;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "AllOf";
+      readonly policies: ReadonlyArray<Policy>;
+      readonly fieldStrategy: FieldStrategy;
+    }
+  | {
+      readonly _tag: "AnyOf";
+      readonly policies: ReadonlyArray<Policy>;
+      readonly fieldStrategy: FieldStrategy;
+    }
+  | {
+      readonly _tag: "Rules";
+      readonly rules: ReadonlyArray<Rule>;
+      readonly combining: Combining;
+    }
   | { readonly _tag: "Not"; readonly policy: Policy }
   | { readonly _tag: "Obliged"; readonly obligation: Obligation; readonly policy: Policy }
   | { readonly _tag: "Labeled"; readonly label: LabelName; readonly policy: Policy };
@@ -225,19 +281,75 @@ export interface RuleEncoded {
  * one that was encoded.
  */
 export type PolicyEncoded =
-  | { readonly _tag: "HasPermission"; readonly permission: Permission; readonly fields?: ReadonlyArray<string> | undefined }
+  | {
+      readonly _tag: "HasPermission";
+      readonly permission: Permission;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
   | { readonly _tag: "HasRole"; readonly role: string }
-  | { readonly _tag: "HasAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasResourceAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasRelationship"; readonly relation: string; readonly depth?: number | undefined; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasAction"; readonly action: string; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasNotActed"; readonly event: string; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasCustom"; readonly name: string; readonly params?: unknown; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "HasSignature"; readonly meaning: string; readonly signerRole?: string | undefined; readonly scope: HistoryScope; readonly fields?: ReadonlyArray<string> | undefined }
-  | { readonly _tag: "AllOf"; readonly policies: ReadonlyArray<PolicyEncoded>; readonly fieldStrategy: FieldStrategy }
-  | { readonly _tag: "AnyOf"; readonly policies: ReadonlyArray<PolicyEncoded>; readonly fieldStrategy: FieldStrategy }
-  | { readonly _tag: "Rules"; readonly rules: ReadonlyArray<RuleEncoded>; readonly combining: Combining }
+  | {
+      readonly _tag: "HasAttribute";
+      readonly attribute: string;
+      readonly matcher: Matcher;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasResourceAttribute";
+      readonly attribute: string;
+      readonly matcher: Matcher;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasRelationship";
+      readonly relation: string;
+      readonly depth?: number | undefined;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasAction";
+      readonly action: string;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasActed";
+      readonly event: string;
+      readonly scope: HistoryScope;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasNotActed";
+      readonly event: string;
+      readonly scope: HistoryScope;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasCustom";
+      readonly name: string;
+      readonly params?: unknown;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "HasSignature";
+      readonly meaning: string;
+      readonly signerRole?: string | undefined;
+      readonly scope: HistoryScope;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
+  | {
+      readonly _tag: "AllOf";
+      readonly policies: ReadonlyArray<PolicyEncoded>;
+      readonly fieldStrategy: FieldStrategy;
+    }
+  | {
+      readonly _tag: "AnyOf";
+      readonly policies: ReadonlyArray<PolicyEncoded>;
+      readonly fieldStrategy: FieldStrategy;
+    }
+  | {
+      readonly _tag: "Rules";
+      readonly rules: ReadonlyArray<RuleEncoded>;
+      readonly combining: Combining;
+    }
   | { readonly _tag: "Not"; readonly policy: PolicyEncoded }
   | { readonly _tag: "Obliged"; readonly obligation: Obligation; readonly policy: PolicyEncoded }
   | { readonly _tag: "Labeled"; readonly label: string; readonly policy: PolicyEncoded };
@@ -459,7 +571,7 @@ export const hasRelationship = (
   options?: FieldOptions & { readonly depth?: number },
 ): Policy => ({
   _tag: "HasRelationship",
-  relation: mkRelationName(relation),
+  relation: makeRelationName(relation),
   ...depthKey(options?.depth),
   ...fieldsKey(options?.fields),
 });
@@ -474,7 +586,7 @@ export const hasRelationship = (
  */
 export const hasAction = (action: string, options?: FieldOptions): Policy => ({
   _tag: "HasAction",
-  action: mkActionName(action),
+  action: makeActionName(action),
   ...fieldsKey(options?.fields),
 });
 
@@ -491,7 +603,7 @@ export interface HistoryOptions extends FieldOptions {
  */
 export const hasActed = (event: string, options?: HistoryOptions): Policy => ({
   _tag: "HasActed",
-  event: mkEventName(event),
+  event: makeEventName(event),
   scope: options?.scope ?? "Resource",
   ...fieldsKey(options?.fields),
 });
@@ -508,7 +620,7 @@ export const hasActed = (event: string, options?: HistoryOptions): Policy => ({
  */
 export const hasNotActed = (event: string, options?: HistoryOptions): Policy => ({
   _tag: "HasNotActed",
-  event: mkEventName(event),
+  event: makeEventName(event),
   scope: options?.scope ?? "Resource",
   ...fieldsKey(options?.fields),
 });
@@ -661,7 +773,7 @@ export const obliged = (obligation: Obligation, policy: Policy): Policy => ({
 /** Attaches a human-readable label, surfaced in the evaluation trace. */
 export const labeled = (label: string, policy: Policy): Policy => ({
   _tag: "Labeled",
-  label: mkLabelName(label),
+  label: makeLabelName(label),
   policy,
 });
 
@@ -760,14 +872,23 @@ export const fromJson = (
   json: string,
 ): Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError> =>
   Effect.suspend((): Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError> => {
+    // Keeps the parsed value rather than discarding it (CCR-QD-116): every
+    // successful decode used to run `JSON.parse` a second time, inside
+    // `PolicyFromJson`'s own `fromJsonString`, on the exact string just
+    // parsed here. `decodePolicyUnknown` — already used by `fromJsonValue`
+    // for the same already-parsed-value case — reuses it instead.
+    let parsed: unknown;
     try {
-      if (exceedsJsonDepth(JSON.parse(json), MAX_DECODE_DEPTH)) {
-        return Effect.fail(new PolicyDecodeTooDeep({ maxDepth: MAX_DECODE_DEPTH }));
-      }
+      parsed = JSON.parse(json);
     } catch {
-      // Malformed JSON: let Schema.fromJsonString report it its own way.
+      // Malformed JSON: let Schema.fromJsonString report it its own way, with
+      // its own error reporting for this case unchanged.
+      return Schema.decodeUnknownEffect(PolicyFromJson, UNTRUSTED_DECODE_OPTIONS)(json);
     }
-    return Schema.decodeUnknownEffect(PolicyFromJson, UNTRUSTED_DECODE_OPTIONS)(json);
+    if (exceedsJsonDepth(parsed, MAX_DECODE_DEPTH)) {
+      return Effect.fail(new PolicyDecodeTooDeep({ maxDepth: MAX_DECODE_DEPTH }));
+    }
+    return decodePolicyUnknown(parsed);
   });
 
 /** Encodes a policy to a plain JSON value. */
@@ -797,8 +918,8 @@ export const fromJsonValue = (
  *
  * A leaf is `0`; each recursive position adds one. So `policyDepth(p) <= n` is
  * exactly the condition under which `evaluate(p, { maxDepth: n })` will not
- * raise `PolicyTooDeep`, and `Policy.test.ts` asserts that agreement in both
- * directions rather than asserting a number.
+ * raise `PolicyTooDeep`, and `RolesAndDepth.test.ts` asserts that agreement
+ * in both directions rather than asserting a number.
  *
  * That agreement is the whole point, and the reason this lives beside the ADT
  * rather than in a caller. `maxDepth` is an evaluation *input* with a default of

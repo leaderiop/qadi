@@ -27,6 +27,14 @@
  * wrapper (`AttributeResolver.ts`, `RelationshipResolver.ts`,
  * `CustomPredicate.ts`) ever update it.
  *
+ * `Predicate.ts`'s `translateNode` also calls into `AttributeResolver` and
+ * `DecisionHistory` — it is a second interpreter over the same tree
+ * (ADR-QD-024), not `Evaluate.ts` — and deliberately does not update
+ * `portCallsTotal` for those calls, per the "`Evaluate.ts` can call into"
+ * scoping above. A deployment that leans on `toPredicate` for row-level
+ * security will see fewer calls counted here than actually reached a port.
+ *
+
  * The `description` strings below survive mutation testing, as `DecisionCache`'s
  * do: nothing reads them back, so no test can distinguish a metric carrying one
  * from a metric carrying none. They are for whoever reads the exported metric,
