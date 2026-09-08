@@ -35,8 +35,13 @@ import {
 } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
 import { makeResourceId } from "./Identity.ts";
-import type { Matcher, MatcherContext } from "./Matcher.ts";
-import { evaluateMatcher, referencesAction, referencesResource } from "./Matcher.ts";
+import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
+import {
+  evaluateMatcher,
+  getByPath,
+  referencesAction,
+  referencesResource,
+} from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
@@ -334,18 +339,50 @@ const readAttribute = (
  * deciding node — the composite's own denial is well described by the
  * generic sentence, since it genuinely is the composite that "did not
  * match", plural, over its elements.
+ *
+ * Even a bare `Neq` with a **defined** `value` is not always the "matched an
+ * excluded value" case. `evaluateMatcher`'s `Neq` arm denies on either side
+ * being unresolved (CCR-QD-112), so `value !== undefined` alone does not mean
+ * the two operands were actually compared — `m.ref` (`M.subject("missing")`,
+ * an unwired `ActionRef`, …) can resolve to `undefined` just as an attribute
+ * can. Claiming a match there would repeat exactly the mistake INV-QD-029
+ * names for the absent-`value` case, one level over: a denial asserting a
+ * comparison that never ran. `refIsUnresolved` re-derives that from the ref
+ * alone rather than threading a second return value out of `evaluateMatcher`,
+ * whose boolean verdict does not say which operand (if either) was absent.
  */
 const attributeReason = (
   side: "subject" | "resource",
   attribute: string,
   value: unknown,
   matcher: Matcher,
+  context: MatcherContext,
 ): string => {
   if (value === undefined) return `${side} attribute '${attribute}' has no value`;
-  return matcher._tag === "Neq"
-    ? `${side} attribute '${attribute}' matched an excluded value`
-    : `${side} attribute '${attribute}' did not match`;
+  if (matcher._tag !== "Neq") return `${side} attribute '${attribute}' did not match`;
+  return refIsUnresolved(matcher.ref, context)
+    ? `${side} attribute '${attribute}' has no reference value to compare against`
+    : `${side} attribute '${attribute}' matched an excluded value`;
 };
+
+/**
+ * Whether a `Neq` matcher's reference side resolves to `undefined`.
+ *
+ * `Matcher.ts`'s own ref-resolver (`resolveRef`) is not exported — it is
+ * internal to that module's `evaluateMatcher` — so this answers only the
+ * narrower question `attributeReason` needs, on the same tags, rather than
+ * duplicating a general-purpose resolver as public surface neither this file
+ * nor any other caller needs.
+ */
+const refIsUnresolved = (ref: ValueRef, context: MatcherContext): boolean =>
+  Match.value(ref).pipe(
+    Match.tag("SubjectRef", (r) => getByPath(context.subject, r.path) === undefined),
+    Match.tag("SubjectIdRef", () => false),
+    Match.tag("ResourceRef", (r) => getByPath(context.resource, r.path) === undefined),
+    Match.tag("ActionRef", () => context.action === undefined),
+    Match.tag("LiteralRef", (r) => r.value === undefined),
+    Match.exhaustive,
+  );
 
 const mergeFields = (
   strategy: FieldStrategy,
@@ -669,7 +706,13 @@ const evaluateNode = (
           ? allow("HasAttribute", policy.fields)
           : deny(
               "HasAttribute",
-              attributeReason("subject", policy.attribute, value, policy.matcher),
+              attributeReason(
+                "subject",
+                policy.attribute,
+                value,
+                policy.matcher,
+                matcherContext,
+              ),
             ),
       );
 
@@ -693,7 +736,13 @@ const evaluateNode = (
           ? allow("HasResourceAttribute", policy.fields)
           : deny(
               "HasResourceAttribute",
-              attributeReason("resource", policy.attribute, value, policy.matcher),
+              attributeReason(
+                "resource",
+                policy.attribute,
+                value,
+                policy.matcher,
+                matcherContext,
+              ),
             ),
       );
     }

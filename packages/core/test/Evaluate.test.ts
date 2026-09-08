@@ -118,6 +118,29 @@ describe("leaf policies", () => {
   );
 
   it.effect(
+    "a Neq DENIAL WITH AN UNRESOLVED REFERENCE does not claim a match (INV-QD-029)",
+    () =>
+      Effect.gen(function* () {
+        // `value` ("known") is defined, so the old `value === undefined` guard
+        // alone would fall through to "matched an excluded value" — but the
+        // matcher's reference side, `M.subject("missingPath")`, resolves to
+        // `undefined` because the subject has no such attribute. Nothing was
+        // actually compared: `evaluateMatcher`'s `Neq` arm denies on an
+        // unresolved operand from either side (CCR-QD-112), so this denial
+        // must not assert that the two values matched.
+        const policy = P.hasAttribute("homeTenant", M.neq(M.subject("missingPath")));
+        const d = yield* evaluate(policy);
+        assert.isFalse(isAllowed(d));
+        if (d._tag !== "Deny") return;
+        assert.notInclude(d.reason, "matched an excluded value");
+        assert.strictEqual(
+          d.reason,
+          "subject attribute 'homeTenant' has no reference value to compare against",
+        );
+      }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { homeTenant: "known" } })))),
+  );
+
+  it.effect(
     "a Neq NESTED under someMatch reads the generic sentence, not the excluded-value one",
     () =>
       Effect.gen(function* () {

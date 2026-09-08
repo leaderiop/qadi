@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-132)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -355,7 +355,7 @@ rather than bought at that price.
 export const SinkRecordWire: Schema.Codec<…>;
 export const toWire: (record: SinkRecord) => SinkRecordWire;
 export const fromWire: (wire: SinkRecordWire) => SinkRecord;
-export const decodeRecord: (input: unknown) => Effect<SinkRecord, SchemaIssue>;
+export const decodeRecord: (input: unknown) => Effect<SinkRecord, PolicyDecodeTooDeep | SchemaIssue>;
 ```
 
 ```
@@ -373,6 +373,13 @@ exactly the reasoning [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md
 applies to policies. So the wire form is a Schema and decoding validates rather
 than casts: a payload naming a policy shape the ADT does not have is refused,
 not walked.
+
+`decodeRecord` also pre-checks structural depth before `Schema` ever recurses
+into the input — the same `DecodeDepthGuard.ts` guard, in the same order,
+`Policy.ts`'s own `fromJson`/`fromJsonValue` run, since `SinkRecordWire` embeds
+`Policy` and the self-recursive `TraceSchema` and neither has a depth cap of its
+own. A payload nested past that guard fails with `PolicyDecodeTooDeep` rather
+than the raw `RangeError` `Schema.suspend`'s own descent would otherwise raise.
 
 The wire shape lives beside the record it describes rather than inside whichever
 transport carries it first, because it is a contract two processes agree on, not

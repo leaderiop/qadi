@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-059                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-30                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-30): Initial release (CCR-QD-092) |
+> | Change History | 1.1 (2026-09-08): Implemented line corrected from "row 22" to "row 23" — self-contradicted the Decision section's own "gate 23" and `definitions-of-done.md`'s actual row for `check-website-build.mjs` (CCR-QD-133)<br>1.0 (2026-08-30): Initial release (CCR-QD-092) |
 
 ---
 
@@ -91,4 +91,4 @@ about the declared, verified Node floor changes.
   boundary rather than a new one.
 
 **Implemented**: `scripts/check-website-build.mjs`, `package.json`'s
-`website` script, `spec/process/definitions-of-done.md` row 22.
+`website` script, `spec/process/definitions-of-done.md` row 23.

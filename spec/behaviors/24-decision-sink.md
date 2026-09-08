@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-24                                    |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-131)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 _Previous: [23 — HTTP Enforcement](./23-http.md)_
 
@@ -106,9 +106,11 @@ observer must never be able to deny.**
 export interface DecisionRecord {
   readonly evaluationId: string;
   readonly at: number;
+  readonly subjectId: SubjectId;
   readonly policy: Policy;
   readonly resource?: Resource | undefined;
   readonly action?: string | undefined;
+  readonly cache?: CacheOutcome | undefined;
   readonly outcome: DecisionOutcome;
 }
 ```
@@ -132,6 +134,15 @@ A `Decision` alone cannot be interpreted, and the gaps are specific:
 `TestClock` for the reason [ADR-QD-012](../decisions/012-deterministic-time-and-ids.md)
 gives. It is the **start** time, so record order matches ask order; the end is
 `at + durationMillis`.
+
+`subjectId` is top-level rather than read off `Decision`'s own payload, because
+a `Failed` record has no `Decision` to read it from — `evaluate` resolves
+`CurrentSubject` before the code that can fail, so a consumer reads one field
+regardless of outcome. `cache` is optional and observability-only: **absent**
+means no `DecisionCache` was consulted at all, a different fact from a recorded
+`"miss"`, which means one was asked and did not have it — a hit still produces
+the same verdict, trace and fields as a miss
+([INV-QD-025](../invariants.md#inv-qd-025-a-cache-hit-differs-from-a-miss-only-in-speed-and-identity)).
 
 ```
 REQUIREMENT: A record MUST NOT claim an environment.

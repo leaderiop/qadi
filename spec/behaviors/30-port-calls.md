@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-30                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-130)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 _Previous: [29 — The Subject Simulator](./29-devtools-simulator.md)_
 
@@ -30,6 +30,8 @@ the **port name** for cardinality, so an attribute name could never live in it.
 "qadi.attribute"        // qadi.attribute, qadi.subject_id, qadi.resolved
 "qadi.acted"            // qadi.subject_id, qadi.event, qadi.scope, qadi.resource_id, qadi.answer
 "qadi.hasRelationship"  // qadi.subject_id, qadi.relation, qadi.resource_id, qadi.depth, qadi.answer
+"qadi.hasCustom"        // qadi.custom_predicate, qadi.subject_id, qadi.answer
+"qadi.hasSignature"     // qadi.subject_id, qadi.meaning, qadi.scope, qadi.signer_role, qadi.resource_id, qadi.matched
 ```
 
 ```
@@ -77,8 +79,21 @@ has one, because the span says what was **asked** rather than what was available
 
 ```ts
 export const collectPortCalls: (options?: { capacity?: number }) => PortCallCollector;
-export type PortCall = AttributeCall | ActedCall | RelationshipCall;
+export type PortCall =
+  | AttributeCall
+  | ActedCall
+  | RelationshipCall
+  | CustomPredicateCall
+  | SignatureHistoryCall;
 ```
+
+`CustomPredicateCall` and `SignatureHistoryCall` reuse the same `Effect.fn`
+span-and-collect pattern as the other three: `evaluateHasCustom` and
+`evaluateHasSignature` in `Evaluate.ts` are `Effect.fn("qadi.hasCustom")` /
+`Effect.fn("qadi.hasSignature")` just as `evaluateHasRelationship` is, and
+`PortCalls.ts`'s single collector loop and `rowOf` dispatch handle all five
+span names uniformly — there is no second mechanism for the two custom/signature
+leaves.
 
 ```
 REQUIREMENT: The collector MUST delegate every span to the tracer already in scope.

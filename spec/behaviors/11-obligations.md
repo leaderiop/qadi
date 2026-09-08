@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-11                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-015) |
+> | Change History | 1.1 (2026-09-08): BEH-QD-085 — the entry-point table was missing `guard` and `filterStream`, both of which enforce and fail on an undischarged obligation (CCR-QD-126)<br>1.0 (2026-07-26): Initial release (CCR-QD-015) |
 
 _Previous: [10 — The Action Dimension](./10-actions.md)_
 
@@ -156,7 +156,9 @@ load-bearing:
 | `assert` | enforces | fails |
 | `enforce` | enforces | fails; the guarded effect never starts |
 | `enforceProjected` | enforces | fails |
+| `guard` | enforces | fails |
 | `filter` | enforces | fails |
+| `filterStream` | enforces | fails |
 
 ```
 REQUIREMENT: An entry point that runs work or hands back data MUST fail with

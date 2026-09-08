@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-127)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -59,9 +59,18 @@ REQUIREMENT: A hit MUST equal a miss in verdict, visible fields, obligations and
 ## BEH-QD-163: The key includes the subject
 
 ```
-REQUIREMENT: The cache key MUST comprise the subject id, the policy, the resource
-             and the action.
+REQUIREMENT: The cache key MUST comprise the subject id, the policy, the resource,
+             the action, and `maxDepth`.
 ```
+
+> **Extended in CCR-QD-127.** `maxDepth` is in the key for the same reason `action`
+> is: it is an `evaluate` option, not part of the `Policy` or the subject, but it
+> can still change the answer — the same subject asking the same policy with a
+> shallower `maxDepth` can turn an `Allow`/`Deny` into `PolicyTooDeep`. Omitting it
+> would let a shallow-limited caller's ask hit an entry a deeper-limited caller
+> left behind, the same class of cross-question collision `resource` and `action`
+> are already here to prevent. See the `DecisionCacheKey` listing under
+> [BEH-QD-168](#beh-qd-168-the-key-carries-the-subject-not-the-subjects-id).
 
 > **Amended in CCR-QD-058.** "the subject id" is now **the subject** — see
 > [BEH-QD-168](#beh-qd-168-the-key-carries-the-subject-not-the-subjects-id). An
@@ -213,6 +222,7 @@ export interface DecisionCacheKey {
   readonly policy: Policy;
   readonly resource: Readonly<Record<string, unknown>> | undefined;
   readonly action: string | undefined;
+  readonly maxDepth: number;
 }
 ```
 
@@ -234,8 +244,18 @@ REQUIREMENT: Two structurally equal subjects MUST still hit.
 ```
 
 Stated because the fix would otherwise be indistinguishable from disabling the
-cache. `AuthSubject` compares structurally, `HashSet` grants included, so a
+cache. `AuthSubject` compares structurally, built-in `Set` grants included, so a
 subject rebuilt per request from the same token is the same key.
+
+> **Corrected in CCR-QD-127.** `AuthSubject.roles`/`.permissions` are
+> `ReadonlySet<RoleName>`/`ReadonlySet<PermissionKey>` — the built-in JS `Set`,
+> not `effect/HashSet`. That is not a gap: `effect@4.0.0-rc.112`'s
+> `Equal.equals`/`Hash.hash` special-case `self instanceof Set` and fold over its
+> elements order-independently, so this still holds. See `DecisionCache.ts`'s own
+> `DecisionCacheKey` doc comment, which records the same correction against a
+> prior version of that comment that made the identical mistake, "verified
+> empirically against the installed `effect` build, not assumed from the
+> `Equal`/`Hash` docs."
 
 Staleness is narrower than BEH-QD-164 implies and the boundary is worth stating:
 a grant revoked in the **subject** changes the key and is picked up on the next

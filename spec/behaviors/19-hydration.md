@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-19                                    |
-> | Revision       | 1.4                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
+> | Change History | 1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-128)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
 
 _Previous: [18 — Policy Explanation](./18-explanation.md)_
 
@@ -327,23 +327,35 @@ REQUIREMENT: Every exit by which `hydrateDecisions` declines to seed an entry
              MUST be announced.
 ```
 
-There are **three**, and until now only the fourth — the one on the dehydrate
+There are **four**, and until now only the fifth — the one on the dehydrate
 side ([BEH-QD-146](#beh-qd-146-a-payload-is-bound-to-one-subject-and-fails-closed))
 — had ever been closed. A payload could name the wrong subject, reach an atom set
-`makeQadiAtoms` did not build, or carry entries whose policy would not decode,
+`makeQadiAtoms` did not build, carry an entry whose non-`policy` field did not
+match `DehydratedEntry`'s shape, or carry entries whose policy would not decode,
 and in every case the function returned and said nothing at all. The page then
 re-decided everything from scratch, which is *correct* and is also
 indistinguishable from a page with nothing to hydrate.
+
+> **Corrected in CCR-QD-128.** This originally enumerated three hydrate-side
+> exits and named the dehydrate-side one "the fourth" — a fifth,
+> `MalformedEntry`, was missing from both the count and the list.
+> `hydrateDecisions` checks a decoded entry's non-`policy` fields against
+> `DehydratedEntry`'s shape *before* attempting `decodePolicy`, and reports that
+> failure under its own reason rather than folding it into `UndecodablePolicy`.
+> The total across dehydrate and hydrate is **five**
+> (`ClientHydrationDropReason`'s four plus `DehydrationDropReason`'s one, per
+> `HydrationMetrics.ts`'s `hydrationDropReasons`), not four.
 
 ```
 REQUIREMENT: A drop MUST carry a reason.
 ```
 
-Not a count. The three have three causes and three different fixes: a payload
+Not a count. The four have four causes and four different fixes: a payload
 reaching the wrong client is a cache-key bug on the server, an unregistered atom
-set is a wiring mistake in the call, and an undecodable policy is version skew
-between the two ends. A number cannot tell a developer which of those they have,
-and it is the only thing they will see.
+set is a wiring mistake in the call, a malformed entry is envelope corruption or
+a shape the two ends have drifted on below the policy, and an undecodable policy
+is version skew between the two ends. A number cannot tell a developer which of
+those they have, and it is the only thing they will see.
 
 ```
 REQUIREMENT: Undecodable entries MUST be reported once, not once each.
@@ -470,7 +482,7 @@ instead.
 REQUIREMENT: A clean reading MUST be stated, not left blank.
 ```
 
-"Nothing was dropped, all four reasons are watched" is a finding. An empty area
+"Nothing was dropped, all five reasons are watched" is a finding. An empty area
 reads as *not implemented*, which is what the panel used to have to admit to.
 
 ---
