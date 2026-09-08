@@ -9,6 +9,11 @@
  *
  * The predecessor collapsed the two, which is why `Failed` exists as its own
  * variant of `DecisionOutcome` rather than as a `Deny` with a reason.
+ *
+ * A leaf/vocabulary module without its own `Verdict.test.ts` — `verdictOf` and
+ * `countsOf` are exercised across `Filters.test.ts`, `Pairing.test.ts`,
+ * `Replay.test.ts` and `WhatIfTable.test.ts`, wherever a caller needs the
+ * classification rather than owns it.
  */
 import * as Match from "effect/Match";
 import { isAllowed } from "@qadi/core";

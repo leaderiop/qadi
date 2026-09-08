@@ -32,6 +32,7 @@ import {
 } from "react";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import { isAllowed } from "@qadi/core";
 import type { Allow, DecisionOutcome, PermissionKey, Policy } from "@qadi/core";
 import type { PolicySighting } from "../model/Catalogue.ts";
@@ -146,7 +147,7 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
   const clampedChosen = sightings.length === 0 ? undefined : Math.min(chosen, sightings.length - 1);
   const policy = seeded?.policy ?? (clampedChosen === undefined ? undefined : sightings[clampedChosen]?.policy);
 
-  const fiber = useRef<{ readonly interruptUnsafe: () => void }>(undefined);
+  const fiber = useRef<RunFiber>(undefined);
   /**
    * Which run's result is still wanted.
    *
@@ -164,7 +165,7 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
   useEffect(
     () => () => {
       token.current += 1;
-      fiber.current?.interruptUnsafe();
+      interruptCurrent(fiber.current);
     },
     [],
   );
@@ -191,7 +192,7 @@ export const Simulator: FC<SimulatorProps> = ({ sightings, seed, ports }) => {
       token.current = mine;
       // Supersedes rather than queues: the reader pressed run again, so the
       // answer to the older question is no longer the one on screen.
-      fiber.current?.interruptUnsafe();
+      interruptCurrent(fiber.current);
 
       setRunning(true);
       const started = Effect.runFork(program);
@@ -318,6 +319,27 @@ const runProgram = Effect.fn("qadi.devtools.runProgram")(function* (options: {
     answers: recorder === undefined ? undefined : yield* recorder.answers,
   };
 });
+
+/** The fiber one run of `runProgram` is held in, typed from the program itself. */
+type RunFiber = Fiber.Fiber<
+  Effect.Success<ReturnType<typeof runProgram>>,
+  Effect.Error<ReturnType<typeof runProgram>>
+>;
+
+/**
+ * Interrupts a run in flight, the way `useTimeline.ts` interrupts its own
+ * fiber on unmount: `Effect.runFork(Fiber.interrupt(fiber))`, not
+ * `interruptUnsafe()`.
+ *
+ * `Fiber.interrupt` only resolves once the interrupted fiber's finalizers have
+ * actually run, where `interruptUnsafe` merely signals interruption and
+ * returns immediately — a difference that matters here because `Live` mode
+ * does real I/O through the host's ports, and nothing should assume that I/O
+ * has torn down just because the signal was sent.
+ */
+const interruptCurrent = (fiber: RunFiber | undefined): void => {
+  if (fiber !== undefined) Effect.runFork(Fiber.interrupt(fiber));
+};
 
 /**
  * The source a choice names, or nothing when it cannot be honoured.

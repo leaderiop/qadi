@@ -41,6 +41,22 @@ export const colors = {
   disagree: "rgba(227, 160, 8, 0.12)",
 } as const;
 
+/**
+ * A `colors` token plus an alpha channel, as a `rgba(...)` string.
+ *
+ * The token is a `#rrggbb` hex literal — every value in `colors` is — so this
+ * only ever has to decompose that one shape, never a general CSS color. Shared
+ * so a call site building a tint from `colors.accent` or `colors.error` derives
+ * it rather than repeating the hex/rgb literal, which would drift out of sync
+ * with this file if the token changed.
+ */
+export const withAlpha = (hex: string, alpha: number): string => {
+  const r = Number.parseInt(hex.slice(1, 3), 16);
+  const g = Number.parseInt(hex.slice(3, 5), 16);
+  const b = Number.parseInt(hex.slice(5, 7), 16);
+  return `rgba(${String(r)},${String(g)},${String(b)},${String(alpha)})`;
+};
+
 export const font = {
   family:
     'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',

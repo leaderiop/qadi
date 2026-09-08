@@ -12,6 +12,10 @@
  * expressible as one. A function composes for free, which is the whole of
  * `composeEdits`, and it is what makes second-order sweeps two lines rather
  * than a second implementation of merging.
+ *
+ * A leaf/vocabulary module without its own `SimulationEdit.test.ts` —
+ * `composeEdits`, `applyEdits` and `editParts` are exercised through
+ * `Edits.test.ts`, which is where the weakenings that use them are built.
  */
 import type { SimulationInput } from "./SimulationInput.ts";
 

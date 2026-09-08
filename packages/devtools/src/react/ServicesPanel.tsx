@@ -8,9 +8,9 @@
  * is wired but never consulted and one that is not wired at all both render as
  * an empty screen otherwise.
  *
- * **The word "unwired" appears nowhere for a required port.** Six of the eight
- * are in `EvaluationServices`, so a program that has not provided them does not
- * run; what a card can truthfully say is *defaulted to a fail-closed
+ * **The word "unwired" appears nowhere for a required port.** Seven of the
+ * nine are in `EvaluationServices`, so a program that has not provided them
+ * does not run; what a card can truthfully say is *defaulted to a fail-closed
  * implementation*.
  */
 import type { CSSProperties, FC } from "react";
