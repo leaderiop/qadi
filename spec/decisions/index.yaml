@@ -238,3 +238,7 @@ entries:
     file: "059-a-gate-runs-where-its-toolchain-runs.md"
     title: "A gate runs where its toolchain runs, and says so where it does not"
     status: "Accepted"
+  - id: "ADR-QD-060"
+    file: "060-schema-taggederror-for-the-nine-wire-crossing-errors.md"
+    title: "Schema.TaggedError for the nine wire-crossing errors"
+    status: "Accepted"

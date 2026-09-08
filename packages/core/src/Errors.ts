@@ -4,16 +4,25 @@
  * `_tag` is the identity. The stable `ACL###` code is derived from the tag by a
  * single exhaustive map, so a code can never be assigned to two unrelated
  * failures — the defect that produced ACL007 collisions in the predecessor.
+ *
+ * **Nine `EvaluationError` members are `Schema.TaggedError`, not
+ * `Data.TaggedError`** — the narrow, named exception to AGENTS.md §4
+ * (ADR-QD-060): these nine cross a process boundary as part of a
+ * `SinkRecord` (`SinkCodec.ts`), and the class is now the wire schema rather
+ * than a second, hand-mapped one beside it. Every other error in this file
+ * stays `Data.TaggedError`.
  */
 import * as Data from "effect/Data";
+import * as Schema from "effect/Schema";
 import type { Trace } from "./Decision.ts";
-import type { ResourceId, SubjectId } from "./Identity.ts";
+import type { SubjectId } from "./Identity.ts";
+import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { PolicyDecodeTooDeep } from "./Policy.ts";
 
 /** A policy referenced a resource attribute but no resource was in context. */
-export class MissingResource extends Data.TaggedError("MissingResource")<{
-  readonly attribute: string;
-}> {}
+export class MissingResource extends Schema.TaggedError<MissingResource>()("MissingResource", {
+  attribute: Schema.String,
+}) {}
 
 /**
  * A policy read the action but the caller supplied none.
@@ -21,24 +30,34 @@ export class MissingResource extends Data.TaggedError("MissingResource")<{
  * `expected` is the action the policy required, when it named one; a matcher
  * referencing `action()` compares rather than requires, so it names nothing.
  */
-export class MissingAction extends Data.TaggedError("MissingAction")<{
-  readonly expected: string | undefined;
-}> {}
+export class MissingAction extends Schema.TaggedError<MissingAction>()("MissingAction", {
+  // `Schema.optional`, not `Schema.UndefinedOr`: `Schema.encodeEffect` writing
+  // `expected: undefined` survives a `JSON.stringify` round-trip as an
+  // ABSENT key (JSON has no `undefined`), and `UndefinedOr` only tolerates a
+  // *present* key whose value is `undefined` — it still requires the key on
+  // decode. `optional` tolerates the key being genuinely missing, which is
+  // exactly what a `JSON.parse(JSON.stringify(...))` round-trip produces.
+  expected: Schema.optional(Schema.String),
+}) {}
 
 /** Resolving a subject or resource attribute failed. */
-export class AttributeResolveError extends Data.TaggedError("AttributeResolveError")<{
-  readonly attribute: string;
-  readonly cause: unknown;
-}> {}
+export class AttributeResolveError extends Schema.TaggedError<AttributeResolveError>()(
+  "AttributeResolveError",
+  {
+    attribute: Schema.String,
+    cause: Schema.Defect(),
+  },
+) {}
 
 /** A relationship check failed to execute. Distinct from the check returning false. */
-export class RelationshipResolveError extends Data.TaggedError(
+export class RelationshipResolveError extends Schema.TaggedError<RelationshipResolveError>()(
   "RelationshipResolveError",
-)<{
-  readonly relation: string;
-  readonly resourceId: ResourceId;
-  readonly cause: unknown;
-}> {}
+  {
+    relation: Schema.String,
+    resourceId: ResourceIdSchema,
+    cause: Schema.Defect(),
+  },
+) {}
 
 /**
  * A policy needing `resource.id` was evaluated without one.
@@ -48,35 +67,43 @@ export class RelationshipResolveError extends Data.TaggedError(
  * the same diagnosis, and a second code meaning the same thing would be worse
  * than a field named for the more general case.
  */
-export class MissingResourceId extends Data.TaggedError("MissingResourceId")<{
-  /** The relation or event the policy asked about. */
-  readonly relation: string;
-}> {}
+export class MissingResourceId extends Schema.TaggedError<MissingResourceId>()(
+  "MissingResourceId",
+  {
+    /** The relation or event the policy asked about. */
+    relation: Schema.String,
+  },
+) {}
 
 /** A wired history store could not be reached. Distinct from it saying "Unknown". */
-export class DecisionHistoryUnavailable extends Data.TaggedError(
+export class DecisionHistoryUnavailable extends Schema.TaggedError<DecisionHistoryUnavailable>()(
   "DecisionHistoryUnavailable",
-)<{
-  readonly event: string;
-  readonly cause: unknown;
-}> {}
+  {
+    event: Schema.String,
+    cause: Schema.Defect(),
+  },
+) {}
 
 /**
  * A wired `SignatureHistory` store could not be reached. Distinct from it
  * legitimately answering "no matching signatures" — see `SignatureHistory.ts`.
  */
-export class SignatureHistoryUnavailable extends Data.TaggedError(
+export class SignatureHistoryUnavailable extends Schema.TaggedError<SignatureHistoryUnavailable>()(
   "SignatureHistoryUnavailable",
-)<{
-  readonly subjectId: SubjectId;
-  readonly resourceId: ResourceId | undefined;
-  readonly cause: unknown;
-}> {}
+  {
+    subjectId: SubjectIdSchema,
+    // `Schema.optional`, not `Schema.UndefinedOr` — see `MissingAction.expected`'s
+    // doc comment above for why: a JSON round-trip turns `undefined` into an
+    // absent key, which only `optional` tolerates on decode.
+    resourceId: Schema.optional(ResourceIdSchema),
+    cause: Schema.Defect(),
+  },
+) {}
 
 /** The policy tree is deeper than the configured limit. Guards against cyclic input. */
-export class PolicyTooDeep extends Data.TaggedError("PolicyTooDeep")<{
-  readonly maxDepth: number;
-}> {}
+export class PolicyTooDeep extends Schema.TaggedError<PolicyTooDeep>()("PolicyTooDeep", {
+  maxDepth: Schema.Number,
+}) {}
 
 /** A role graph loaded from serialized form contains a cycle. */
 export class CircularRoleInheritance extends Data.TaggedError(
@@ -168,10 +195,13 @@ export class UndischargedObligation extends Data.TaggedError(
  * applies to a misconfigured or broken custom predicate exactly as it does to
  * a broken attribute lookup.
  */
-export class CustomPredicateError extends Data.TaggedError("CustomPredicateError")<{
-  readonly name: string;
-  readonly reason: string;
-}> {}
+export class CustomPredicateError extends Schema.TaggedError<CustomPredicateError>()(
+  "CustomPredicateError",
+  {
+    name: Schema.String,
+    reason: Schema.String,
+  },
+) {}
 
 /**
  * A policy could not be translated into a row predicate.
