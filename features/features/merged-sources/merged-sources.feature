@@ -45,7 +45,7 @@ Feature: One timeline from a server and a browser
     And a producer that keeps no history
     When the two sources are merged
     Then the merged source can answer for the past
-    And the timeline holds 1 rows
+    And the timeline holds 1 row
 
   Scenario: The past is ordered by time, not by producer
     Given a producer whose records are at 3000 and 1000
@@ -61,6 +61,6 @@ Feature: One timeline from a server and a browser
 
   Scenario: Live records from both producers arrive
     Given a producer streaming 2 records live
-    And a producer streaming 1 records live
+    And a producer streaming 1 record live
     When the two sources are merged
     Then 3 records arrive live

@@ -208,7 +208,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     yield* pushSource(pastOnly([stamped(at, "Client")]));
   });
 
-  Given("a producer streaming {int} records live", function* (count: number) {
+  Given("a producer streaming {int} record(s) live", function* (count: number) {
     const s = yield* read_();
     const offset = s.sources.length * 100;
     yield* pushSource(
@@ -229,7 +229,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   // Then
   // -------------------------------------------------------------------------
 
-  Then("the timeline holds {int} rows", function* (count: number) {
+  Then("the timeline holds {int} row(s)", function* (count: number) {
     const timeline = ingestAll(emptyTimeline(), yield* past());
     assert.equal(timeline.entries.length, count);
   });

@@ -1,5 +1,5 @@
 import { defineSteps } from "@effect-cucumber/vitest";
-import { patch, readState, World } from "./SharedWorld.ts";
+import { parsePermissionKey, patch, readState, World } from "./SharedWorld.ts";
 
 /**
  * Basic subject setup: identity, permissions, roles, attributes.
@@ -14,10 +14,7 @@ export const subjectGivenSteps = defineSteps<World>(({ Given }) => {
   });
 
   Given("the subject has permission {string}", function* (key: string) {
-    const [resource, action] = key.split(":");
-    if (resource === undefined || action === undefined) {
-      throw new Error(`malformed permission key: ${key}`);
-    }
+    const [resource, action] = parsePermissionKey(key);
     const s = yield* readState();
     yield* patch(() => ({ permissions: [...s.permissions, `${resource}:${action}`] }));
   });

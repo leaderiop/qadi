@@ -1,10 +1,6 @@
 import { defineSteps } from "@effect-cucumber/vitest";
+import { label } from "./SecurityLabelGivenSteps.ts";
 import { patch, readState, World } from "./SharedWorld.ts";
-
-const label = (level: number, compartments: string) => ({
-  level,
-  compartments: compartments === "" ? [] : compartments.split(",").map((c) => c.trim()),
-});
 
 // Biba is an integrity model, so it says `integrity` rather than `clearance` and
 // `artefact` rather than `document`. The same lattice underneath — these reuse
