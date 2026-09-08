@@ -246,3 +246,7 @@ entries:
     file: "072-schema-taggederror-for-accessdenied-and-undischargedobligation.md"
     title: "Schema.TaggedError for AccessDenied and UndischargedObligation"
     status: "Accepted — narrows ADR-QD-060"
+  - id: "ADR-QD-073"
+    file: "073-the-fnuntraced-exception-is-measured.md"
+    title: "The fnUntraced exception is measured, and drawn at exactly three functions"
+    status: "Accepted"
