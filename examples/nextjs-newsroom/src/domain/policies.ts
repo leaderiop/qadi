@@ -168,7 +168,7 @@ export const canReadDevtools: Policy = labeled(
   hasPermission(readDevtools),
 );
 
-/** Draft editing, used by the server action route. */
+/** Draft editing. Not wired to a route — exists for the catalogue and Policy explorer only. */
 export const canWriteArticle: Policy = labeled(
   "may write this article",
   allOf([

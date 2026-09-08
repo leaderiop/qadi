@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Fails when README.md, CONTRIBUTING.md, spec/roadmap.md or
- * apps/website/PRODUCT.md quote a package version, or a "not published"
- * claim, that disagrees with `package.json`.
+ * Fails when README.md, CONTRIBUTING.md, spec/roadmap.md,
+ * apps/website/PRODUCT.md or apps/website/src/pages/index.astro quote a
+ * package version, or a "not published" claim, that disagrees with
+ * `package.json`.
  *
  * This exists because it already happened: commit `22c19f0` bumped the root
  * and every package's `package.json` under `packages/` to `0.4.0` via
@@ -54,10 +55,20 @@ const TARGETS = [
   { file: "CONTRIBUTING.md", start: "**State as of this writing**", end: "\n\n## Why the rules read the way they do" },
   { file: "spec/roadmap.md", start: "\n## Current state", end: "\n\n| Gate | Status |" },
   { file: "apps/website/PRODUCT.md", start: "## Capabilities and Constraints", end: "\n\n## Brand Commitments" },
+  // The homepage states the same publish facts in prose, not Markdown, so
+  // its version literals are never backticked — the hero badge and the
+  // "Where it stands" status card. Two anchors rather than one: the two
+  // paragraphs sit ~500 lines apart, and matching them separately keeps an
+  // unrelated version-shaped token in between out of scope.
+  { file: "apps/website/src/pages/index.astro", start: 'class="mono hero-in d5"', end: "{/* The hero's ambient star-field canvas" },
+  { file: "apps/website/src/pages/index.astro", start: "Every item the roadmap committed to has shipped", end: ">merge gate<" },
 ];
 
-/** A version literal, backticked, an optional leading `v` (`` `v0.2.0` ``). */
-const VERSION = /`v?(\d+\.\d+\.\d+)`/g;
+/**
+ * A version literal, backticked or not, with an optional leading `v`
+ * (`` `v0.2.0` `` in Markdown prose, `v0.4.0` in `index.astro`'s hero badge).
+ */
+const VERSION = /`?v?(\d+\.\d+\.\d+)`?/g;
 
 /**
  * Phrases that mean "at least one package here is not published". Registered
@@ -125,8 +136,9 @@ for (const { file, start, end } of TARGETS) {
 if (failures.length > 0) {
   for (const line of failures) console.error(line);
   console.error(
-    `\n${failures.length} publish-status drift(s). README.md, CONTRIBUTING.md, spec/roadmap.md and ` +
-      "apps/website/PRODUCT.md must agree with package.json's version and with what is actually published.",
+    `\n${failures.length} publish-status drift(s). README.md, CONTRIBUTING.md, spec/roadmap.md, ` +
+      "apps/website/PRODUCT.md and apps/website/src/pages/index.astro must agree with package.json's " +
+      "version and with what is actually published.",
   );
   process.exit(1);
 }

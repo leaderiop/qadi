@@ -13,7 +13,6 @@ import {
   readArticle,
   readDevtools,
   readSource,
-  redactArticle,
   writeArticle,
 } from "./permissions.ts";
 
@@ -32,7 +31,7 @@ export const editor: Role<"Editor"> = role({
   name: "Editor",
   // `source:read` enters the graph here, which is why a `visibleFields`
   // restriction below Editor hides `sourceContact` and above it does not.
-  permissions: [readSource, redactArticle],
+  permissions: [readSource],
   inherits: [author],
 });
 

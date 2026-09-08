@@ -30,8 +30,11 @@ const Page = async () => {
   const payload = emptyPayload(user.subject);
 
   // The resources still cross, because the browser has to ask about something.
-  // `embargoLifted` is `false` here and that is fine: this page is not seeding,
-  // so nothing has to match a server-side decision key.
+  // `policyResource(article, 0)` computes `embargoLifted` against clock `0`,
+  // so it is `true` for every article whose `embargoUntil` is at or before
+  // that (all of them but "the-tender", still far in the future) — and that
+  // is fine: this page is not seeding, so nothing has to match a server-side
+  // decision key.
   const resources = articles.map((article) => policyResource(article, 0));
 
   return (

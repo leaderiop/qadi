@@ -36,7 +36,7 @@ Four topologies are hosted: client-only (`/spa`), SSR/hydration (`/newsroom`),
 separate-origin-over-SSE (the dock's own feed), and serverless
 (`/api/edge/decide`, which forwards each record before the invocation ends).
 
-Thirteen routes under `/edge` each make one thing go wrong on purpose. The index
+Eleven routes under `/edge` each make one thing go wrong on purpose. The index
 lists them.
 
 ---

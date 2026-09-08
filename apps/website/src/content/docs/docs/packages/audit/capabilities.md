@@ -1,6 +1,6 @@
 ---
 title: Capabilities
-description: The assembled DecisionSink pipeline, and the retention, chain-integrity, archival and decommissioning functions outside it.
+description: The assembled DecisionSink pipeline, and the retention, sequence-integrity, archival and decommissioning functions outside it.
 ---
 
 ## The assembled pipeline

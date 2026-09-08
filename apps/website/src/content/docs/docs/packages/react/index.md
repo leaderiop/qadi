@@ -27,8 +27,17 @@ policy *and* resource), and an `invalidate` function atom. `QadiProvider` owns
 an `AtomRegistry`, seeds the subject into it at construction, and disposes it
 on unmount. Every hook is a read of an atom.
 
-```jsx
+```tsx
+import type { AuthSubject, Policy } from "@qadi/core";
 import { Can, QadiProvider, makeQadiAtoms } from "@qadi/react";
+import type { QadiLayer } from "@qadi/react";
+
+declare const AppLayer: QadiLayer;
+declare const currentUser: AuthSubject;
+declare const canPublish: Policy;
+
+const PublishButton = () => <button>Publish</button>;
+const Disabled = () => <span>You may not publish.</span>;
 
 const atoms = makeQadiAtoms(AppLayer); // once, at module scope
 
