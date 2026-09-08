@@ -371,7 +371,7 @@ because this section is called the *public API surface*, and a reader looking fo
 | `useSubject`, `useDecision`, `useCan`, `useDecisionSuspense` | hook | `hooks.ts` |
 | `usePolicies`, `useProjected`, `useInvalidate` | hook | `hooks.ts` |
 | `dehydrateDecisions`, `hydrateDecisions` | function | `Hydration.ts` |
-| `gateInstances`, `subscribeGates`, `registerGate`, `clearGatesUnsafe` | function | `GateRegistry.ts` |
+| `gateInstances`, `subscribeGates`, `registerGate`, `updateGateState`, `clearGatesUnsafe` | function | `GateRegistry.ts` |
 | `GateInstance`, `GateKind`, `GateRenderState` | type | `GateRegistry.ts` |
 | `DehydratedDecisions`, `DehydratedEntry`, `DecisionEntry`, `DehydrateOptions` | type | `Hydration.ts` |
 | `HydrateOptions` | type | `Hydration.ts` |
@@ -400,6 +400,7 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `RequiredPermission`, `PermissionRequirement` | service + type | `RequirePermission.ts` |
 | `RequirePermission`, `RequirePermissionLive` | middleware + layer | `RequirePermission.ts` |
 | `PublicEndpoint`, `publicEndpoint`, `PublicDeclaration` | service + function + type | `RequirePermission.ts` |
+| `NO_RESOURCE` | const | `RequirePermission.ts` — the shared "no resource is available yet" placeholder every route that evaluates before a real resource exists (`RequirePermission`'s own middleware, `decisionStreamRoute`, `permissionRegistryRoute`) passes as `loadResource`'s result, rather than each reimplementing `{}` |
 | `guardRoute` | function | `GuardRoute.ts` |
 | `addGuardedRoute` | function | `PermissionRegistry.ts` |
 | `PermissionRegistry`, `PermissionRegistryLive` | service + layer | `PermissionRegistry.ts` |

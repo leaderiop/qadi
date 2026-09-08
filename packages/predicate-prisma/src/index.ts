@@ -255,8 +255,16 @@ const compareFilter = (op: Exclude<CompareOp, "Neq">, value: unknown): unknown =
  * translation rather than catching it — the same lesson that compiler's own
  * fix already carries, one grammar over.
  */
-const renderNode = (predicate: Predicate): Effect.Effect<PrismaWhereInput, PredicateNotRenderable> =>
-  Match.value(predicate).pipe(
+// A module-scope `Match.type<Predicate>()`, built once (AGENTS.md §5a) rather
+// than `Match.value(predicate)` rebuilt on every call — `renderNode` recurses
+// once per `Predicate` node (`And`/`Or`'s `Effect.forEach` below), the exact
+// per-node-evaluation shape §5a calls out. No per-call state to close over
+// here (unlike `@qadi/predicate-sql`'s sibling, which threads `syntax`/
+// `params`/`maxInValues`), so the recursive dispatcher annotation alone
+// (`: (self: X) => Y`, breaking the inference cycle) is enough; the arms'
+// own recursive calls to `renderNode` are fine since they only run later.
+const renderNode: (predicate: Predicate) => Effect.Effect<PrismaWhereInput, PredicateNotRenderable> =
+  Match.type<Predicate>().pipe(
     Match.tagsExhaustive({
       True: () => Effect.succeed({ AND: [] }),
       False: () => Effect.succeed({ OR: [] }),

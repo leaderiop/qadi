@@ -11,14 +11,7 @@ import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
 import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts";
-import { decisionRecord } from "./helpers.ts";
-
-/** Isolates one test's counts from the process-wide registry every other test shares. */
-const isolatedMetrics = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  effect.pipe(
-    Effect.provideService(Metric.MetricRegistry, new Map()),
-    Effect.provideService(Metric.CurrentMetricAttributes, { test: "isolated" }),
-  );
+import { decisionRecord, isolatedMetrics } from "./helpers.ts";
 
 type CounterSnapshot = Extract<Metric.Metric.Snapshot, { type: "Counter" }>;
 type GaugeSnapshot = Extract<Metric.Metric.Snapshot, { type: "Gauge" }>;

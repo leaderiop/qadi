@@ -14,6 +14,21 @@ export const permissions = {
   deleteDoc: permission("doc", "delete"),
 } as const satisfies Record<string, Permission>;
 
+/**
+ * `editor` and `admin` are getters, not plain values like `viewer`, solely to
+ * break the forward reference each needs to a sibling role that has not
+ * finished being defined yet in this same object literal.
+ *
+ * **Not reference-stable.** Each access calls `role({...})` afresh, so
+ * `roles.editor !== roles.editor` even though the two are structurally equal.
+ * This is harmless today: `hasRole` (`@qadi/core`'s `Policy.ts`) matches by
+ * the role's `name` string, never by object identity, and nothing in this
+ * package's tests compares a fixture role with `===`. If a future test needs
+ * the same `Role` object across accesses — e.g. to exercise
+ * `flattenPermissions`'s identity-keyed diamond collapsing (see the doc
+ * comment on that function in `@qadi/core`'s `Role.ts`) — memoize into a
+ * local `const` instead of relying on these getters.
+ */
 export const roles = {
   viewer: role({ name: "viewer", permissions: [permissions.readDoc] }),
   get editor(): Role {

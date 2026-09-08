@@ -101,6 +101,28 @@ describe("failure rendering", () => {
     await waitFor(() => expect(screen.getByText("denied")).toBeDefined());
   });
 
+  it("Can renders nothing on failure when failure is explicitly null, even with a fallback configured", async () => {
+    render(
+      <QadiProvider atoms={broken} subject={reader}>
+        <Can
+          policy={needsClearance}
+          fallback={<span>denied</span>}
+          pending={<span>loading</span>}
+          failure={null}
+        >
+          allowed
+        </Can>
+      </QadiProvider>,
+    );
+    // Wait until the decision has actually left the pending state — otherwise
+    // this would trivially pass without ever reaching the Failure branch.
+    await waitFor(() => expect(screen.queryByText("loading")).toBeNull());
+    // An explicit `null` opts out of the `fallback` default for failure —
+    // it is not the same as omitting `failure` altogether (CCR-QD-138).
+    expect(screen.queryByText("denied")).toBeNull();
+    expect(screen.queryByText("allowed")).toBeNull();
+  });
+
   it("Cannot renders nothing on failure rather than the denial notice", async () => {
     render(
       <QadiProvider atoms={broken} subject={reader}>

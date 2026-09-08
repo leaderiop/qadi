@@ -35,7 +35,7 @@ export interface DecommissioningChecklist {
 
 const STEP_DESCRIPTIONS: Record<DecommissioningStepId, string> = {
   "DECOMM-001": "Export the full audit trail to an archive",
-  "DECOMM-002": "Verify the archived chain's integrity",
+  "DECOMM-002": "Verify the archived entries' sequence integrity",
   "DECOMM-003": "Transfer the archive to long-term storage",
   "DECOMM-004": "Revoke signing keys",
   "DECOMM-005": "Record the final audit entry",

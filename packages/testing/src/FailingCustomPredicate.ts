@@ -13,5 +13,6 @@ export const failingCustomPredicate = (
   reason: string = "test failure",
 ): Layer.Layer<CustomPredicate> =>
   Layer.succeed(CustomPredicate, {
+    name: "failingCustomPredicate",
     evaluate: (name) => Effect.fail(new CustomPredicateError({ name, reason })),
   });

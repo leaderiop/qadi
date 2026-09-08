@@ -170,16 +170,28 @@ const isSafeIdentifier = (column: string): boolean => SAFE_IDENTIFIER.test(colum
  * `and`/`or` (`const kept: Array<Predicate> = []`) — this is a single-pass,
  * single-owner accumulator local to one `compileSql` call, not shared state.
  */
-const renderNode = (
+// A module-scope `Match.type<Predicate>()`, built once (AGENTS.md §5a) rather
+// than `Match.value(predicate)` rebuilt on every call — `renderNode` recurses
+// once per `Predicate` node (`And`/`Or`'s `Effect.forEach` below), the exact
+// per-node-evaluation shape §5a calls out. Unlike `@qadi/predicate-prisma`'s
+// sibling, each call here also carries per-call state (`syntax`, `params`,
+// `maxInValues`) that cannot be closed over by a matcher built once at module
+// scope — so `dispatchNode` matches on the `Predicate` alone and every arm
+// returns a function of that per-call state instead, mirroring how
+// `Evaluate.ts`'s own `evaluateNode` receives its per-call arguments
+// (`subject`, `request`, …) as plain parameters rather than closing over
+// them. `renderNode` below is the curried, argument-taking entry point
+// callers (and the arms' own recursive calls) actually use.
+const dispatchNode: (
   predicate: Predicate,
+) => (
   syntax: DialectSyntax,
   params: Array<unknown>,
   maxInValues: number,
-): Effect.Effect<string, PredicateNotRenderable> =>
-  Match.value(predicate).pipe(
-    Match.tagsExhaustive({
-      True: () => Effect.succeed("TRUE"),
-      False: () => Effect.succeed("FALSE"),
+) => Effect.Effect<string, PredicateNotRenderable> = Match.type<Predicate>().pipe(
+  Match.tagsExhaustive({
+    True: () => () => Effect.succeed("TRUE"),
+    False: () => () => Effect.succeed("FALSE"),
 
       // `null` is on the safe allowlist but is not a value SQL's `=`/`!=`
       // can bind: `col = NULL` and `col != NULL` are never true for any row,
@@ -190,7 +202,7 @@ const renderNode = (
       // compiled SQL against a real engine, not designed in from the start:
       // the differential property test's own interpreter re-implements
       // `===`/`!==` in JS and so agreed with the bug rather than catching it.
-      Compare: (p) => {
+      Compare: (p) => (syntax: DialectSyntax, params: Array<unknown>, _maxInValues: number) => {
         if (!isSafeIdentifier(p.column)) {
           return Effect.fail(
             new PredicateNotRenderable({
@@ -242,7 +254,7 @@ const renderNode = (
         return Effect.succeed(`${column} ${compareOperator(p.op)} ${placeholder}`);
       },
 
-      MemberOf: (p) => {
+      MemberOf: (p) => (syntax: DialectSyntax, params: Array<unknown>, maxInValues: number) => {
         if (!isSafeIdentifier(p.column)) {
           return Effect.fail(
             new PredicateNotRenderable({
@@ -300,13 +312,13 @@ const renderNode = (
       // to either `forEach` would let children push out of render order while
       // the rendered SQL's placeholder numbers stay fixed to that order,
       // silently binding parameter values to the wrong placeholders.
-      And: (p) =>
+      And: (p) => (syntax: DialectSyntax, params: Array<unknown>, maxInValues: number) =>
         Effect.map(
           Effect.forEach(p.predicates, (inner) => renderNode(inner, syntax, params, maxInValues)),
           (parts) => (parts.length === 0 ? "TRUE" : `(${parts.join(" AND ")})`),
         ),
 
-      Or: (p) =>
+      Or: (p) => (syntax: DialectSyntax, params: Array<unknown>, maxInValues: number) =>
         Effect.map(
           Effect.forEach(p.predicates, (inner) => renderNode(inner, syntax, params, maxInValues)),
           (parts) => (parts.length === 0 ? "FALSE" : `(${parts.join(" OR ")})`),
@@ -336,13 +348,27 @@ const renderNode = (
       // placeholder is bound twice (`?`-style dialects consume placeholders
       // positionally; duplicating rendered text would double the `?` count
       // without doubling `params`).
-      Negate: (p) =>
+      Negate: (p) => (syntax: DialectSyntax, params: Array<unknown>, maxInValues: number) =>
         Effect.map(
           renderNode(p.predicate, syntax, params, maxInValues),
           (inner) => `CASE WHEN (${inner}) THEN FALSE ELSE TRUE END`,
         ),
     }),
   );
+
+/**
+ * `renderNode`'s curried, argument-taking entry point — every call site
+ * (`compileSql` below, and the arms' own recursive `And`/`Or`/`Negate` calls
+ * above) uses this, not `dispatchNode` directly, so the per-call `syntax`/
+ * `params`/`maxInValues` thread exactly as they did before the matcher was
+ * hoisted to module scope.
+ */
+const renderNode = (
+  predicate: Predicate,
+  syntax: DialectSyntax,
+  params: Array<unknown>,
+  maxInValues: number,
+): Effect.Effect<string, PredicateNotRenderable> => dispatchNode(predicate)(syntax, params, maxInValues);
 
 /**
  * Compile volume and refusal rate, by outcome. Both declared once, module

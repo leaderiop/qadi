@@ -7,12 +7,16 @@ import {
   SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  MissingAction,
+  PolicyTooDeep,
   RelationshipResolverNever,
+  UndischargedObligation,
   assert as assertCore,
   check as checkCore,
   currentSubjectLayer,
   decide as decideCore,
   filter as filterCore,
+  hasAction,
   hasAttribute,
   hasPermission,
   hasRelationship,
@@ -20,6 +24,9 @@ import {
   gte,
   isAllowed,
   makeSubject,
+  not,
+  obligation,
+  obliged,
   permission,
   relationshipResolverFromEdges,
 } from "@qadi/core";
@@ -110,6 +117,34 @@ describe("makeQadi", () => {
     }
   });
 
+  it("a policy that reads an absent action rejects, rather than resolving false", async () => {
+    // The doc comment's second named cause, exercised at the facade level:
+    // `hasAction("write")` reads the request's action, and no action was
+    // supplied — `MissingAction`, not a denial.
+    const qadi = facade();
+    const failure = await rejection(qadi.check(alice, hasAction("write")));
+    assert.instanceOf(failure, MissingAction);
+    if (failure instanceof MissingAction) {
+      assert.strictEqual(failure._tag, "MissingAction");
+      assert.strictEqual(failure.expected, "write");
+    }
+  });
+
+  it("a tree past maxDepth rejects, rather than resolving false", async () => {
+    // The doc comment's third named cause: a policy nested deeper than
+    // `maxDepth` fails the evaluation outright, rather than being denied.
+    const qadi = facade();
+    let deep = hasRole("a");
+    for (let i = 0; i < 10; i++) deep = not(deep);
+
+    const failure = await rejection(qadi.check(alice, deep, { maxDepth: 3 }));
+    assert.instanceOf(failure, PolicyTooDeep);
+    if (failure instanceof PolicyTooDeep) {
+      assert.strictEqual(failure._tag, "PolicyTooDeep");
+      assert.strictEqual(failure.maxDepth, 3);
+    }
+  });
+
   it("decide carries the trace, the fields and the obligations", async () => {
     const qadi = facade();
     const decision = await qadi.decide(alice, canRead);
@@ -144,6 +179,30 @@ describe("makeQadi", () => {
     assert.strictEqual(Result.isFailure(coreResult), true);
     if (Result.isFailure(coreResult)) {
       assert.deepStrictEqual(failure, coreResult.failure);
+    }
+  });
+
+  it("a binding obligation rejects with UndischargedObligation through assert and filter, since no handler reaches this facade", async () => {
+    // `Qadi`'s doc comment: `assert`/`filter` discharge through core's own
+    // `assert`/`filter`, which default `onObligations` to undefined, so an
+    // allow carrying a *binding* obligation always rejects here — there is no
+    // way to supply a handler through this facade. Built with `obliged`
+    // (core's `P.obliged`) the same way `DecisionSink.test.ts` and
+    // `TraceDiff.test.ts` do.
+    const qadi = facade();
+    const bound = obliged(obligation("audit.log"), canRead);
+
+    const assertFailure = await rejection(qadi.assert(alice, bound));
+    assert.instanceOf(assertFailure, UndischargedObligation);
+    if (assertFailure instanceof UndischargedObligation) {
+      assert.strictEqual(assertFailure._tag, "UndischargedObligation");
+      assert.strictEqual(assertFailure.subjectId, "u-1");
+    }
+
+    const filterFailure = await rejection(qadi.filter(alice, bound, [{ id: "a" }]));
+    assert.instanceOf(filterFailure, UndischargedObligation);
+    if (filterFailure instanceof UndischargedObligation) {
+      assert.strictEqual(filterFailure._tag, "UndischargedObligation");
     }
   });
 

@@ -23,7 +23,10 @@ export interface AuditTrailPortTestOptions {
 
 export interface AuditTrailPortTestHandle {
   readonly layer: Layer.Layer<AuditTrailPort>;
-  /** Every entry written so far, in call order. Live — reflects writes made after this is first read. */
+  /**
+   * Every entry written so far, in call order. Live — always reflects every
+   * write made so far, not a snapshot taken when the handle was created.
+   */
   readonly written: () => ReadonlyArray<AuditEntry>;
 }
 

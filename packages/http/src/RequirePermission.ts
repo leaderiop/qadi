@@ -108,8 +108,14 @@ export const publicEndpoint = (reason: string): PublicDeclaration => ({ reason }
  * re-check in the handler, via `@qadi/core`'s `guard` directly against the
  * real resource, remains the correct way to evaluate such a policy for
  * real, not merely defense in depth against a hazard that no longer exists.
+ *
+ * Exported so `DecisionStreamRoute.ts` and `PermissionRegistry.ts`'s
+ * `permissionRegistryRoute` share this exact placeholder rather than each
+ * reimplementing `() => Effect.succeed({})` as their own `loadResource` — all
+ * three routes evaluate before any real resource exists, for the same
+ * `Neq`-denies-on-absence reasoning this comment gives.
  */
-const NO_RESOURCE: Resource = {};
+export const NO_RESOURCE: Resource = {};
 
 /**
  * The minimal shape `requiresPermission` needs from an endpoint. See the

@@ -12,6 +12,7 @@ export const failingSignatureHistory = (
   cause: unknown = "test failure",
 ): Layer.Layer<SignatureHistory> =>
   Layer.succeed(SignatureHistory, {
+    name: "failingSignatureHistory",
     signaturesFor: (query) =>
       Effect.fail(
         new SignatureHistoryUnavailable({

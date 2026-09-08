@@ -1,12 +1,13 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import { evaluatePredicate, type Predicate } from "@qadi/core";
 import { compilePrismaWhere } from "../src/index.ts";
 import { matchesPrismaWhereEngine } from "./matchesPrismaWhereEngine.ts";
 
 const refusalOf = (predicate: Predicate) =>
   Effect.map(Effect.result(compilePrismaWhere(predicate)), (r) =>
-    r._tag === "Failure" ? r.failure : undefined,
+    Result.isFailure(r) ? r.failure : undefined,
   );
 
 describe("compilePrismaWhere — golden shapes", () => {
@@ -531,6 +532,30 @@ describe("compilePrismaWhere — refusals", () => {
       const inCol = yield* refusalOf({ _tag: "MemberOf", column: "in", values: ["a", "b"] });
       assert.strictEqual(inCol?._tag, "PredicateNotRenderable");
       assert.strictEqual(inCol?.reason, "column 'in' is not a safe identifier");
+    }));
+
+  // RESERVED_PRISMA_KEYS lists 13 keys in total; the assertions above (plus
+  // the dedicated AND/OR/NOT test) exercise only 6 of them. This loop covers
+  // the remaining 7 — equals, notIn, lt, lte, gt, is, isNot — so every entry
+  // in the set is actually pinned by a refusal, not merely declared in
+  // ../src/index.ts.
+  it.effect("every remaining Prisma scalar-filter operator keyword refuses too", () =>
+    Effect.gen(function* () {
+      const remainingKeys: ReadonlyArray<string> = [
+        "equals",
+        "notIn",
+        "lt",
+        "lte",
+        "gt",
+        "is",
+        "isNot",
+      ];
+      for (const column of remainingKeys) {
+        const failure = yield* refusalOf({ _tag: "Compare", column, op: "Eq", value: 1 });
+        assert.strictEqual(failure?._tag, "PredicateNotRenderable", column);
+        assert.strictEqual(failure?.predicateTag, "Compare", column);
+        assert.strictEqual(failure?.reason, `column '${column}' is not a safe identifier`, column);
+      }
     }));
 
   it.effect("matching is case-sensitive, same as the existing AND/OR/NOT check", () =>

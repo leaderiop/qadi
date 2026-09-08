@@ -12,6 +12,7 @@ export const failingDecisionHistory = (
   cause: unknown = "test failure",
 ): Layer.Layer<DecisionHistory> =>
   Layer.succeed(DecisionHistory, {
+    name: "failingDecisionHistory",
     hasActed: (query) =>
       Effect.fail(new DecisionHistoryUnavailable({ event: query.event, cause })),
   });
