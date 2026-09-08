@@ -15,7 +15,15 @@
  * **dropped** rather than trusted.
  */
 import type { AuthSubject, Decision, Policy, Resource, SubjectId, Trace } from "@qadi/core";
-import { Allow, Deny, Obligation, Policy as PolicySchema, TraceSchema } from "@qadi/core";
+import {
+  Allow,
+  Deny,
+  MAX_DECODE_DEPTH,
+  Obligation,
+  Policy as PolicySchema,
+  TraceSchema,
+  exceedsJsonDepth,
+} from "@qadi/core";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import type * as Atom from "effect/unstable/reactivity/Atom";
@@ -39,6 +47,14 @@ const encodePolicy = Schema.encodeSync(PolicySchema);
  * Decoding is the untrusted side, so it returns an Option and a malformed entry
  * is dropped rather than thrown on — the same fail-closed treatment a mismatched
  * subject gets.
+ *
+ * `Schema`'s own recursive descent through `PolicySchema`'s `Schema.suspend` has
+ * no depth cap of its own — `hydrateDecisions` runs {@link exceedsJsonDepth}
+ * over each entry before this (and before {@link decodeEntryFields}, which
+ * shares the same recursive `TraceSchema`) so a payload nested past the call
+ * stack's limit is dropped as a typed reason rather than raising a raw
+ * `RangeError` defect, mirroring the guard-then-decode order `SinkCodec.ts`'s
+ * `decodeRecordWire` already uses for the identical trust boundary.
  */
 const decodePolicy = Schema.decodeUnknownOption(PolicySchema);
 
@@ -254,12 +270,13 @@ export interface HydrateOptions {
    * Called with the entries this client refused to seed, and why.
    *
    * The sibling of {@link DehydrateOptions.onDropped}, and it carries a reason
-   * because the four ways a payload fails to seed have four different causes:
+   * because the five ways a payload fails to seed have five different causes:
    * the payload naming another subject is a cache-key bug, an unregistered atom
    * set is a wiring mistake, an entry malformed apart from its policy is
-   * usually version skew, and an undecodable policy is version skew of the
-   * policy shape specifically. A bare count cannot tell them apart, and each
-   * wants a different fix.
+   * usually version skew, an undecodable policy is version skew of the
+   * policy shape specifically, and an entry nested past the structural depth
+   * guard is not a shape a well-behaved server produces at all. A bare count
+   * cannot tell them apart, and each wants a different fix.
    *
    * Supplying this replaces the development-mode console warning and runs in
    * production, exactly as {@link DehydrateOptions.onDropped} and
@@ -324,10 +341,23 @@ export const hydrateDecisions = (
   }
 
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
+  const tooDeep: Array<DehydratedEntry> = [];
   const malformed: Array<DehydratedEntry> = [];
   const undecodable: Array<DehydratedEntry> = [];
 
   for (const entry of dehydrated.entries) {
+    // Checked ahead of any `Schema` decode, mirroring the guard-then-decode
+    // order `SinkCodec.ts`'s `decodeRecordWire` uses for the identical
+    // trust boundary: `decodeEntryFields`/`decodePolicy` both recurse through
+    // a `Schema.suspend`-based shape with no depth cap of its own, so a
+    // payload nested past the call stack's limit would otherwise raise a raw
+    // `RangeError` defect here instead of the fail-closed "drop the entry"
+    // every other malformed-payload path in this module gets.
+    if (exceedsJsonDepth(entry, MAX_DECODE_DEPTH)) {
+      tooDeep.push(entry);
+      continue;
+    }
+
     const fields = decodeEntryFields(entry);
     // Checked before the policy: an envelope malformed at this level — a string
     // where durationMillis belongs, an obligations value that isn't an array, a
@@ -349,6 +379,11 @@ export const hydrateDecisions = (
     const policy = decoded.value;
 
     seeded.push([seedFor(policy, entry.resource), rebuild(entry, subject.id)]);
+  }
+
+  if (tooDeep.length > 0) {
+    countDropped("EntryTooDeep", tooDeep.length);
+    report?.({ reason: "EntryTooDeep", entries: tooDeep });
   }
 
   if (malformed.length > 0) {

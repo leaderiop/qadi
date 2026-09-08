@@ -161,6 +161,7 @@ describe("HydrationMetrics", () => {
       "UnregisteredAtoms",
       "MalformedEntry",
       "UndecodablePolicy",
+      "EntryTooDeep",
     ] as const;
 
     it.effect("names every drop reason, in order", () =>

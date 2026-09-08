@@ -14,6 +14,7 @@ import {
   DecisionHistoryUnknown,
   Deny,
   EvaluationIdLive,
+  MAX_DECODE_DEPTH,
   RelationshipResolverNever,
   eq,
   hasAttribute,
@@ -375,6 +376,46 @@ describe("hydrateDecisions", () => {
     const onDropped = vi.fn();
     hydrateDecisions(atoms, dehydrated, alice, { onDropped });
     expect(onDropped).toHaveBeenCalledWith(expect.objectContaining({ reason: "MalformedEntry" }));
+  });
+
+  // The regression this guards: `Schema`'s own recursive descent through
+  // `PolicySchema`'s `Schema.suspend` has no depth cap, so before
+  // `hydrateDecisions` ran `exceedsJsonDepth` ahead of any decode, a payload
+  // nested past the call stack's limit raised a raw `RangeError` defect here
+  // instead of the fail-closed "drop the entry" every other malformed-payload
+  // path in this module gets — the exact gap `Policy.ts`'s own
+  // `fromJson`/`fromJsonValue` and `SinkCodec.ts`'s `decodeRecordWire` guard
+  // against, and this module's own doc comments named as "tracked separately".
+  it("drops an entry nested past MAX_DECODE_DEPTH rather than raising a raw RangeError", () => {
+    let policy: unknown = { _tag: "HasRole", role: "x" };
+    for (let i = 0; i < MAX_DECODE_DEPTH + 10; i++) policy = { _tag: "Not", policy };
+
+    const dehydrated = {
+      subjectId: "u1",
+      entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: 0 }],
+    };
+
+    const onDropped = vi.fn();
+    let seeded: InitialValues = [];
+    expect(() => {
+      seeded = hydrateDecisions(atoms, dehydrated, alice, { onDropped });
+    }).not.toThrow();
+
+    expect([...seeded]).toEqual([]);
+    expect(onDropped).toHaveBeenCalledWith(expect.objectContaining({ reason: "EntryTooDeep" }));
+  });
+
+  it("still seeds a policy nested well within MAX_DECODE_DEPTH", () => {
+    let policy: unknown = { _tag: "HasRole", role: "x" };
+    for (let i = 0; i < 4; i++) policy = { _tag: "Not", policy };
+
+    const dehydrated = {
+      subjectId: "u1",
+      entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: 0 }],
+    };
+
+    const seeded = hydrateDecisions(atoms, dehydrated, alice);
+    expect([...seeded]).toHaveLength(1);
   });
 
   it("a hydrated denial reads as a denial, not as pending", () => {

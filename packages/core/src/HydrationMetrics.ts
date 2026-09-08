@@ -62,7 +62,17 @@ export type ClientHydrationDropReason =
   /** A field other than `policy` did not match `DehydratedEntry`'s shape. */
   | "MalformedEntry"
   /** The entry's policy did not decode. */
-  | "UndecodablePolicy";
+  | "UndecodablePolicy"
+  /**
+   * The entry nested deeper than {@link exceedsJsonDepth} (`DecodeDepthGuard.ts`)
+   * allows, checked before `decodeEntryFields`/`decodePolicy` ever recurse into
+   * it — the same guard-then-decode order `SinkCodec.ts`'s `decodeRecordWire`
+   * uses for the identical trust boundary. Distinct from `MalformedEntry`: a
+   * shape this schema cannot describe is a version-skew signal, while this one
+   * is what an adversarial payload would try, and the two want different
+   * follow-up.
+   */
+  | "EntryTooDeep";
 
 /**
  * Every reason a decision failed to survive the trip, from either end.
@@ -81,6 +91,7 @@ export const hydrationDropReasons: ReadonlyArray<HydrationDropReason> = [
   "UnregisteredAtoms",
   "MalformedEntry",
   "UndecodablePolicy",
+  "EntryTooDeep",
 ];
 
 /**

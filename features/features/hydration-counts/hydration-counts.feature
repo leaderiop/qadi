@@ -74,7 +74,7 @@ Feature: Hydration accounts for every entry, and says when it seeds nothing
 
   Scenario: Every reason is reported, including the ones that never fired
     When the hydration counts are read
-    Then all 5 drop reasons appear
+    Then all 6 drop reasons appear
     And each reason carries a distinct explanation
 
   Scenario: The panel refuses a subtraction that would go negative
