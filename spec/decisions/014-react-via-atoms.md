@@ -6,6 +6,9 @@
 > **Amended:** 2026-08-24 by [ADR-QD-053](./053-a-gate-can-be-found.md) — a guard
 > may record that it exists. Two stale claims in the Consequences below corrected
 > at the same time (CCR-QD-073).
+> **Amended:** 2026-09-08 — records why `@qadi/react` carries no `stryker.*.mjs`,
+> a reason `stryker.config.mjs`'s doc comment had stated only jointly with
+> `@qadi/testing`'s, and inaccurately at that (CCR-QD-119).
 
 ## Context
 
@@ -116,3 +119,18 @@ reimplementation of the same graph, which is what the first version already was.
 same `useSyncExternalStore` glue written here, plus Suspense helpers, hydration
 and scoped atoms this package does not use. Fifty lines of binding is not worth
 a dependency and a `scheduler` peer.
+
+**Held to coverage, not mutation, rigor.** `@qadi/react` has no `stryker.*.mjs`.
+`stryker.devtools.mjs` draws a render-vs-decide line inside `@qadi/devtools` —
+mutation-test the model, skip the render code — and `@qadi/react` has the same
+split internally: `QadiAtoms.ts` (atom-family keying and decision staleness,
+ADR-QD-017/AGENTS.md §13), `GateRegistry.ts` (ADR-QD-053's guard-existence
+registry) and `Hydration.ts`/`HydrationWarning.ts` (ADR-QD-041/052's
+mismatch-announcement logic) are non-rendering and invariant-bearing, same as
+`@qadi/devtools`'s `src/model/`. The line is not drawn here for a different
+reason than devtools's: this package is small enough, and thin enough over
+`effect/unstable/reactivity`, that a sixth Stryker config and its own CI leg was
+judged not worth its cost against the 90% line-coverage floor already held —
+not a claim that a mutant here would be uninteresting. Revisit if the
+non-rendering modules grow past what `v4-reactivity-smoke.test.ts` and
+`QadiAtoms.test.ts`'s no-DOM suite can keep pinned by inspection.

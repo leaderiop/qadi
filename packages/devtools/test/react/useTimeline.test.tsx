@@ -9,7 +9,7 @@
  * nothing either (AGENTS.md §13).
  */
 import { assert, describe, it } from "@effect/vitest";
-import { afterEach, vi } from "vitest";
+import { vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { toWire } from "@qadi/core";
 import { useMemo } from "react";
@@ -19,12 +19,6 @@ import { useTimeline, useTimelineStore } from "../../src/react/useTimeline.ts";
 import { decisionRecord } from "../helpers.ts";
 
 const frame = JSON.stringify(toWire(decisionRecord({ evaluationId: "streamed", at: 100 })));
-
-// The idiom `@qadi/react`'s component tests already use: this project does not
-// enable vitest globals, so testing-library's automatic cleanup never registers.
-afterEach(() => {
-  document.body.innerHTML = "";
-});
 
 const Panel = ({ source }: { readonly source: Source }) => {
   const { timeline, paused } = useTimeline(source);

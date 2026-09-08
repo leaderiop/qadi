@@ -13,7 +13,7 @@
  */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { hasPermission, hasRole, permission } from "@qadi/core";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { GateInstanceLike } from "../../src/model/Gates.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
@@ -36,10 +36,6 @@ const gate = (
   policy: canRead,
   state: "Allowed",
   ...fields,
-});
-
-afterEach(() => {
-  document.body.innerHTML = "";
 });
 
 describe("the two views, side by side", () => {

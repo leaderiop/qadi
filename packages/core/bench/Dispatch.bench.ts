@@ -134,10 +134,18 @@ describe("resolveRef — one dispatch", () => {
  * difference is. 64 keeps it representative of a non-trivial policy rather than
  * of a microbenchmark.
  */
+const treeSize = 64;
+// `refs` cycled and truncated to `treeSize`, rather than indexed by
+// `index % refs.length` — the same rotation, without a lookup
+// `noUncheckedIndexedAccess` would otherwise type as possibly `undefined` for
+// an invariant (the modulus never exceeds `refs.length`) the loop already
+// guarantees outright.
 const tree: ReadonlyArray<ValueRef> = Array.from(
-  { length: 64 },
-  (_, index) => refs[index % refs.length]!,
-);
+  { length: Math.ceil(treeSize / refs.length) },
+  () => refs,
+)
+  .flat()
+  .slice(0, treeSize);
 
 describe("resolveRef — 64 dispatches, one policy tree", () => {
   bench("switch", () => {

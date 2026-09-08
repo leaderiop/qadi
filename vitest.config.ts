@@ -21,7 +21,12 @@ export default defineConfig({
         "packages/devtools/src/index.ts",
         "packages/devtools/src/react/index.ts",
         "packages/audit/src/index.ts",
-        "**/*.test-d.ts",
+        // Defensive: this codebase's type-level tests use tstyche's `*.tst.ts`
+        // extension (e.g. `packages/core/test/Qadi.tst.ts`), which already lives
+        // under `test/`, outside `coverage.include`'s `packages/*/src/**` glob —
+        // so this entry is currently inert on both counts, kept only in case a
+        // type-test ever lands under `src/` (CCR-QD-115).
+        "**/*.tst.ts",
       ],
       // A shortfall is a failure, not a report.
       thresholds: {
@@ -81,6 +86,18 @@ export default defineConfig({
           statements: 90,
         },
         "packages/testing/src/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
+        "packages/predicate-sql/src/**": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
+        "packages/predicate-prisma/src/**": {
           lines: 90,
           functions: 90,
           branches: 90,

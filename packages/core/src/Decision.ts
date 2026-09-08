@@ -180,10 +180,6 @@ export const intersectFields = (
   // `noUncheckedIndexedAccess` would otherwise type every lookup as possibly
   // `undefined`, for an invariant (same length, same order) a pairing already
   // guarantees outright.
-  // Paired with its own shape rather than parallel arrays walked by index:
-  // `noUncheckedIndexedAccess` would otherwise type every lookup as possibly
-  // `undefined`, for an invariant (same length, same order) a pairing already
-  // guarantees outright.
   const shapedA = a.map((spec) => ({ spec, shape: shapeOf(spec) }));
   const shapedB = b.map((spec) => ({ spec, shape: shapeOf(spec) }));
   const kept: Array<string> = [];

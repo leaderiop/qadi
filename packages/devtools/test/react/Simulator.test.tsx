@@ -10,7 +10,6 @@
  * so `act` around the click is enough and nothing here waits on a timer.
  */
 import { assert, describe, it } from "@effect/vitest";
-import { afterEach } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -43,10 +42,6 @@ import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { Simulator } from "../../src/react/Simulator.tsx";
 import { decisionRecord, failedRecord, obligationRecord } from "../helpers.ts";
-
-afterEach(() => {
-  document.body.innerHTML = "";
-});
 
 const read = permission("doc", "read");
 

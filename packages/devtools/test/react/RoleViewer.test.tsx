@@ -8,14 +8,9 @@
  * is why the screen says something else instead.
  */
 import { assert, describe, it } from "@effect/vitest";
-import { afterEach } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import { permission, role } from "@qadi/core";
 import { RoleViewer } from "../../src/react/RoleViewer.tsx";
-
-afterEach(() => {
-  document.body.innerHTML = "";
-});
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");

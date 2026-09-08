@@ -9,7 +9,6 @@
  * fixture-backed sweep cannot reach.
  */
 import { assert, describe, it } from "@effect/vitest";
-import { afterEach } from "vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -41,10 +40,6 @@ import { whatIf } from "../../src/model/WhatIf.ts";
 import type { Comparison, WhatIfReport, WhatIfRow } from "../../src/model/WhatIf.ts";
 import { WhatIfTable } from "../../src/react/WhatIfTable.tsx";
 import { allow, deny } from "../helpers.ts";
-
-afterEach(() => {
-  document.body.innerHTML = "";
-});
 
 const read = permission("doc", "read");
 

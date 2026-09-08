@@ -7,15 +7,10 @@
  * have. Both are asserted as *absences of words*, because that is what they are.
  */
 import { assert, describe, it } from "@effect/vitest";
-import { afterEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { ServicesPanel } from "../../src/react/ServicesPanel.tsx";
 import type { PortCall, PortCallLog } from "../../src/model/PortCalls.ts";
 import type { PortActivity, WiringReport } from "../../src/model/Wiring.ts";
-
-afterEach(() => {
-  document.body.innerHTML = "";
-});
 
 const wiring: WiringReport = {
   ports: [

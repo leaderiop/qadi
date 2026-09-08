@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-032                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-07-26): Signature listing corrected — it omitted the `subject` parameter that the section below it insists on (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.2 (2026-09-08): Added "No mutation-testing config" recording why `@qadi/promise` carries no `stryker.*.mjs`, the reasoning having existed only as an inference from AGENTS.md §14 rather than anywhere written down (CCR-QD-119)<br>1.1 (2026-07-26): Signature listing corrected — it omitted the `subject` parameter that the section below it insists on (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 ---
 
@@ -89,6 +89,16 @@ typing per call, and impossible to get wrong by construction.
 releases them, and the facade does not call it — a facade that closed its own runtime
 would be guessing at the process lifetime, which is the same mistake
 [ADR-QD-031](./031-decision-cache.md) declined to make about the request lifetime.
+
+### No mutation-testing config
+
+`@qadi/promise` has no `stryker.*.mjs`, and unlike `stryker.config.mjs`'s doc
+comment for `@qadi/react`/`@qadi/testing` this was never written down anywhere.
+AGENTS.md §14 leaves the package no branch to mutate — "Every method is
+`runtime.runPromise(coreFunction(...))`" — so a mutant here would either be
+killed trivially by the pass-through test in `packages/promise/test/facade.test.ts`
+or, per that same rule, would itself be the defect a review should flag rather
+than a survivor mutation testing exists to find.
 
 ## Alternatives considered
 
