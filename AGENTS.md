@@ -220,6 +220,21 @@ authorization hot path.
 > survive that addendum; the end-to-end percentages do not and should not be
 > treated as current without re-running `pnpm bench` against today's workload.
 
+**A sibling question, same discipline, separate axis.** This section's benchmark
+discipline was about `switch` vs `Match` on `_tag` dispatch. It was never extended
+to `Effect.fn` vs `Effect.fnUntraced` — every effectful function in this codebase is
+a *named* `Effect.fn` (§5), and `Effect.fnUntraced` is used zero times, despite the
+former capturing an `Error()` and allocating a span and a stack-frame record on
+every call, none of which the latter does. `packages/core/bench/EffectFn.bench.ts`
+measures that question the same way `Dispatch.bench.ts` measures this one: per-call
+overhead isolated (**≈2.7–2.9 µs/call**, ≈8.6–11.5× slower than `fnUntraced`), then
+put in proportion against `Evaluate.bench.ts`'s real end-to-end numbers
+(**≈30–35%** estimated tracing share on a single-node evaluation, up to **≈54–66%**
+on a ten-level-deep one — larger than the switch/`Match` figures above because an
+`evaluate` call is itself only ≈9 µs, so a ≈2.7–2.9 µs fixed cost is a large
+fraction of it). Measured, not decided: whether to adopt `fnUntraced` anywhere is a
+separate question the bench file's own doc comment leaves open.
+
 **Each of these switches must remain exhaustive by construction.** Two of the four
 
 **Each of these switches must remain exhaustive by construction.** Two of the four
