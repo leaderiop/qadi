@@ -5,12 +5,12 @@
 > | Property       | Value                                        |
 > | -------------- | -------------------------------------------- |
 > | Document ID    | QADI-PROC-01                                 |
-> | Revision       | 1.1                                          |
-> | Effective Date | 2026-07-25                                   |
+> | Revision       | 1.2                                          |
+> | Effective Date | 2026-09-08                                   |
 > | Status         | Effective                                    |
 > | Author         | Qadi Engineering                             |
 > | Classification | Process Specification                        |
-> | Change History | 1.1 (2026-07-26): Infix EG → QD; MOD-QD series registered (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.2 (2026-09-08): §2's Identifier Registry table was missing `NFR-QD-NNN`, a real series `urs.md` declares and `verify-traceability.sh` mechanically traces — added. §4's Cross-Reference Obligations listed six checks while the script performs at least eight; the URS/NFR-to-traceability-table trace and the §4 test-file-path existence check were real, enforced gates with no corresponding bullet — both added (issue #73, CCR-QD-123)<br>1.1 (2026-07-26): Infix EG → QD; MOD-QD series registered (CCR-QD-004, CCR-QD-005)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -35,6 +35,7 @@ reused or withdrawn in the change.
 | ------ | ------- | ---------- | ----- |
 | `BEH-QD-NNN` | Functional behavior requirement | `behaviors/NN-*.md` headings | 001– |
 | `URS-QD-NNN` | User requirement | `urs.md` | 001– |
+| `NFR-QD-NNN` | Non-functional requirement | `urs.md` | 001– |
 | `INV-QD-NNN` | Runtime invariant | `invariants.md` | 001– |
 | `ADR-QD-NNN` | Architecture decision | `decisions/NNN-*.md` | 001– |
 | `REQ-QD-NNN` | BDD-testable acceptance requirement | `features/**/*.feature` tags | 001– |
@@ -81,6 +82,8 @@ checked mechanically by `spec/scripts/verify-traceability.sh`:
 4. Every `.md` file referenced by a relative link resolves.
 5. Every directory's `index.yaml` matches the files actually present.
 6. Every `REQ-QD-NNN` tag used in a `.feature` file is defined in `traceability.md` §6.
+7. Every `URS-QD-NNN`/`NFR-QD-NNN` heading in `urs.md` has a row in its traceability table.
+8. Every `packages/...` test-file path cited in `traceability.md` §4 exists on disk.
 
 ## 5. Reference Syntax
 

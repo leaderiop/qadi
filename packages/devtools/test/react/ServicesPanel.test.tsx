@@ -333,4 +333,118 @@ describe("recent port calls", () => {
     assert.include(footer, "process-wide aggregates");
     assert.include(footer, "read from spans");
   });
+
+  // Closes the branches `describe`'s RelationshipResolver arm leaves untested
+  // above — a depth-bearing call and an unanswered one, the two ternaries the
+  // "owner on doc-1" / "Related" case above does not exercise.
+  it("names the depth when one was asked, and says 'no answer' when none came back", () => {
+    render(
+      <ServicesPanel
+        wiring={wiring}
+        activity={[]}
+        portCalls={logOf([
+          {
+            _tag: "RelationshipResolver",
+            span: "qadi.hasRelationship",
+            at: 1_002,
+            durationMillis: 0.4,
+            subjectId: "alice",
+            relation: "member",
+            resourceId: "team-1",
+            depth: 2,
+            answer: undefined,
+          },
+        ])}
+      />,
+    );
+
+    const relationships = within(cardFor("RelationshipResolver") ?? fail());
+    const text = relationships.getByTestId("qadi-port-call").textContent ?? "";
+    assert.include(text, "(depth 2)");
+    assert.include(text, "no answer");
+  });
+
+  // CustomPredicate and SignatureHistory are otherwise untested arms of the
+  // same `describe` matcher — a distinct wiring fixture because the shared
+  // one above only wires AttributeResolver/RelationshipResolver/DecisionCache.
+  it("describes CustomPredicate and SignatureHistory calls, recorded and not", () => {
+    const customAndSignatureWiring: WiringReport = {
+      ports: [
+        {
+          port: "CustomPredicate",
+          name: "customPredicateFromRecord",
+          required: false,
+          present: true,
+          consequence: "an unregistered predicate name is an error, never a denial",
+        },
+        {
+          port: "SignatureHistory",
+          name: undefined,
+          required: false,
+          present: true,
+          consequence: "a hasSignature node is never compiled to a Predicate",
+        },
+      ],
+      cache: { present: false, size: undefined },
+    };
+
+    render(
+      <ServicesPanel
+        wiring={customAndSignatureWiring}
+        activity={[]}
+        portCalls={logOf([
+          {
+            _tag: "CustomPredicate",
+            span: "qadi.hasCustom",
+            at: 1_003,
+            durationMillis: 0.2,
+            subjectId: "alice",
+            name: "isBusinessHours",
+            answer: true,
+          },
+          {
+            _tag: "CustomPredicate",
+            span: "qadi.hasCustom",
+            at: 1_004,
+            durationMillis: 0.2,
+            subjectId: "alice",
+            name: undefined,
+            answer: undefined,
+          },
+          {
+            _tag: "SignatureHistory",
+            span: "qadi.hasSignature",
+            at: 1_005,
+            durationMillis: 0.3,
+            subjectId: "alice",
+            meaning: "approval",
+            signerRole: "manager",
+            matched: false,
+          },
+          {
+            _tag: "SignatureHistory",
+            span: "qadi.hasSignature",
+            at: 1_006,
+            durationMillis: 0.3,
+            subjectId: "alice",
+            meaning: undefined,
+            signerRole: undefined,
+            matched: undefined,
+          },
+        ])}
+      />,
+    );
+
+    const customRows = within(cardFor("CustomPredicate") ?? fail())
+      .getAllByTestId("qadi-port-call")
+      .map((row) => row.textContent ?? "");
+    assert.include(customRows[1] ?? "", "isBusinessHours → true");
+    assert.include(customRows[0] ?? "", "not recorded → no answer");
+
+    const signatureRows = within(cardFor("SignatureHistory") ?? fail())
+      .getAllByTestId("qadi-port-call")
+      .map((row) => row.textContent ?? "");
+    assert.include(signatureRows[1] ?? "", "approval from a 'manager' → no match");
+    assert.include(signatureRows[0] ?? "", "not recorded → no answer");
+  });
 });

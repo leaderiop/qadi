@@ -100,10 +100,8 @@ its own.
   <text x="320" y="76" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="10" fill="var(--sl-color-accent-high)">simplify</text>
   <rect x="340" y="20" width="260" height="130" rx="8" fill="none" stroke="var(--sl-color-hairline)"/>
   <text x="360" y="42" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="10" font-weight="500" style="letter-spacing:0.08em" fill="var(--sl-color-gray-3)">AFTER</text>
-  <rect x="360" y="70" width="220" height="26" rx="6" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
-  <text x="470" y="87" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="10" fill="var(--sl-color-white)">allOf([ ... ])</text>
-  <rect x="380" y="104" width="180" height="26" rx="6" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
-  <text x="470" y="121" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="10" fill="var(--sl-color-white)">hasRole("editor")</text>
+  <rect x="380" y="87" width="180" height="26" rx="6" fill="oklch(0.19 0.014 260)" stroke="var(--sl-color-hairline-light)"/>
+  <text x="470" y="104" text-anchor="middle" font-family="var(--sl-font-mono, 'IBM Plex Mono', monospace)" font-size="10" fill="var(--sl-color-white)">hasRole("editor")</text>
 </svg>
 
 ```typescript
@@ -111,7 +109,7 @@ import { allOf, hasRole, simplify } from "@qadi/core";
 
 const verbose = allOf([allOf([hasRole("editor")])]);
 const tidy = simplify(verbose);
-// { _tag: "AllOf", policies: [{ _tag: "HasRole", role: "editor" }], ... }
+// { _tag: "HasRole", role: "editor" }
 // — two fewer AllOf wrappers, same verdict, same field set, same obligations.
 ```
 
