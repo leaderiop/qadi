@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-129)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
+> | Change History | 1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
 
 _Previous: [15 — Rule Tables](./15-rules.md)_
 

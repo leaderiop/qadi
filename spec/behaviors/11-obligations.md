@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-09-08): BEH-QD-085 — the entry-point table was missing `guard` and `filterStream`, both of which enforce and fail on an undischarged obligation (CCR-QD-126)<br>1.0 (2026-07-26): Initial release (CCR-QD-015) |
+> | Change History | 1.1 (2026-09-08): BEH-QD-085 — the entry-point table was missing `guard` and `filterStream`, both of which enforce and fail on an undischarged obligation (CCR-QD-127)<br>1.0 (2026-07-26): Initial release (CCR-QD-015) |
 
 _Previous: [10 — The Action Dimension](./10-actions.md)_
 

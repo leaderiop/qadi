@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-09-08): BEH-QD-012 — `resolveRoleGraph` signature was missing the `onUnknownParent` options parameter and `DuplicateRoleDefinition` from the error channel; added the duplicate-name REQUIREMENT (CCR-QD-123)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-09-08): BEH-QD-012 — `resolveRoleGraph` signature was missing the `onUnknownParent` options parameter and `DuplicateRoleDefinition` from the error channel; added the duplicate-name REQUIREMENT (CCR-QD-124)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [01 — Permission Tokens](./01-permissions.md)_
 

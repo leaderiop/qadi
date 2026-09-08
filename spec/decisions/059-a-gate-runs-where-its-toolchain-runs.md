@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-09-08): Implemented line corrected from "row 22" to "row 23" — self-contradicted the Decision section's own "gate 23" and `definitions-of-done.md`'s actual row for `check-website-build.mjs` (CCR-QD-133)<br>1.0 (2026-08-30): Initial release (CCR-QD-092) |
+> | Change History | 1.1 (2026-09-08): Implemented line corrected from "row 22" to "row 23" — self-contradicted the Decision section's own "gate 23" and `definitions-of-done.md`'s actual row for `check-website-build.mjs` (CCR-QD-134)<br>1.0 (2026-08-30): Initial release (CCR-QD-092) |
 
 ---
 

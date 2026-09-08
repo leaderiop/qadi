@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-127)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -63,7 +63,7 @@ REQUIREMENT: The cache key MUST comprise the subject id, the policy, the resourc
              the action, and `maxDepth`.
 ```
 
-> **Extended in CCR-QD-127.** `maxDepth` is in the key for the same reason `action`
+> **Extended in CCR-QD-128.** `maxDepth` is in the key for the same reason `action`
 > is: it is an `evaluate` option, not part of the `Policy` or the subject, but it
 > can still change the answer — the same subject asking the same policy with a
 > shallower `maxDepth` can turn an `Allow`/`Deny` into `PolicyTooDeep`. Omitting it
@@ -247,7 +247,7 @@ Stated because the fix would otherwise be indistinguishable from disabling the
 cache. `AuthSubject` compares structurally, built-in `Set` grants included, so a
 subject rebuilt per request from the same token is the same key.
 
-> **Corrected in CCR-QD-127.** `AuthSubject.roles`/`.permissions` are
+> **Corrected in CCR-QD-128.** `AuthSubject.roles`/`.permissions` are
 > `ReadonlySet<RoleName>`/`ReadonlySet<PermissionKey>` — the built-in JS `Set`,
 > not `effect/HashSet`. That is not a gap: `effect@4.0.0-rc.112`'s
 > `Equal.equals`/`Hash.hash` special-case `self instanceof Set` and fold over its
