@@ -115,11 +115,33 @@ const compareOperator = (op: Exclude<CompareOp, "Neq">): string =>
  * Refusing to compile a `Date`-valued `Compare`/`MemberOf` is the ADR-QD-024
  * "refuse rather than approximate" answer to a comparison the reference
  * evaluator does not actually support.
+ *
+ * The `number` branch requires `Number.isFinite` for the same reason
+ * (CCR-QD-120), catching this package up to `@qadi/predicate-prisma`'s
+ * already-correct sibling. `NaN`/`Infinity`/`-Infinity` all satisfy bare
+ * `typeof value === "number"`, and the `Gte`/`Lt` render guard below excluded
+ * only `NaN`, and only for those two operators — so a `Compare` with op
+ * `Eq`/`Neq` (or a `MemberOf`) against `NaN` reached `params.push` and bound
+ * `NaN` as a real parameter. PostgreSQL documents `NaN = NaN` as **true**,
+ * unlike IEEE 754 and unlike `evaluatePredicate`'s `===`, which is false for
+ * every row: an INV-QD-047 disagreement in the admit-more direction.
+ * `Infinity`/`-Infinity` are ordinary numbers to `>=`/`<` on both sides, so
+ * whether they diverge needs a real engine to settle — refusing all three
+ * here is the same "refuse rather than approximate" answer as the `Date` case
+ * above, given before that question has to be answered empirically.
+ *
+ * This widening supersedes the `Gte`/`Lt` guard's own `NaN` arm: a `NaN`
+ * bound now *refuses* rather than rendering `FALSE`. `FALSE` was correct and
+ * more precise, but it was correct for two operators out of four, and a
+ * compiler that refuses a value in `Eq` while quietly folding it in `Gte` is
+ * a second definition of "safe value" in one file. `@qadi/predicate-prisma`
+ * already refuses all four; the two dialect packages now agree on which
+ * predicates compile at all.
  */
 const isSafeValue = (value: unknown): boolean =>
   value === null ||
   typeof value === "string" ||
-  typeof value === "number" ||
+  (typeof value === "number" && Number.isFinite(value)) ||
   typeof value === "boolean";
 
 /**
@@ -191,17 +213,17 @@ const renderNode = (
         // `===`, where any of those compare validly) straight into a real
         // range comparison: PostgreSQL coerces `int_col >= '10'` to a number,
         // and SQLite/MySQL coerce via type affinity, admitting rows the
-        // reference evaluator refused. `NaN` is `typeof === "number"` but
-        // fails the same way from the numeric side: PostgreSQL orders NaN
-        // above every other value rather than refusing the comparison, while
-        // `NaN >= x`/`NaN < x` is always false in evaluatePredicate. Refusing
-        // here mirrors the established doctrine for this class — the Date
-        // refusal in isSafeValue above, and this file's own FALSE for a
-        // null-literal Gte/Lt just below.
-        if (
-          (p.op === "Gte" || p.op === "Lt") &&
-          (typeof p.value !== "number" || Number.isNaN(p.value))
-        ) {
+        // reference evaluator refused. `NaN` used to be excluded here too, on
+        // the same numeric side — PostgreSQL orders NaN above every other
+        // value rather than refusing the comparison, while `NaN >= x`/
+        // `NaN < x` is always false in evaluatePredicate. It is excluded
+        // earlier now, by `isSafeValue` itself (CCR-QD-120), which covers
+        // Eq/Neq/MemberOf as well and refuses rather than folding to FALSE;
+        // anything reaching this line that is `typeof === "number"` is
+        // therefore already finite, so a plain `typeof` guard is all that is
+        // left to do. Mirrors `@qadi/predicate-prisma`'s identical guard, and
+        // this file's own FALSE for a null-literal Gte/Lt just below.
+        if ((p.op === "Gte" || p.op === "Lt") && typeof p.value !== "number") {
           return Effect.succeed("FALSE");
         }
         const column = syntax.quote(p.column);

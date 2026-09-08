@@ -784,6 +784,38 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
       P.hasResourceAttribute("level", M.gte(n)),
     ),
     FastCheck.integer({ min: 0, max: 5 }).map((n) => P.hasResourceAttribute("level", M.lt(n))),
+    // Not just finite integers (CCR-QD-115). `Matcher.ts`'s `gte`/`lt` guard
+    // their bound with `Number.isFinite` because a bound arrives from
+    // untrusted JSON, where `1e400` decodes to `Infinity`; `compare` in
+    // `Predicate.ts` did not, so `M.gte(-Infinity)` admitted every numeric row
+    // through `toPredicate` while `evaluate` denied every one — this property
+    // stated exactly that disagreement and never sampled the value that shows
+    // it. `-Infinity`/`NaN` are the two that mattered: `-Infinity` is the
+    // dominating bound for `Gte` (and `Infinity` for `Lt`), `NaN` is false
+    // under the raw operator either way and so pins the guard is not
+    // redundant with `>=`/`<` themselves.
+    FastCheck.constantFrom(
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      Number.NaN,
+    ).map((n) => P.hasResourceAttribute("level", M.gte(n))),
+    FastCheck.constantFrom(
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      Number.NaN,
+    ).map((n) => P.hasResourceAttribute("level", M.lt(n))),
+    // Eq/Neq against NaN: `===`/`!==` on both sides, so the two interpreters
+    // already agree — sampled so a future change to either one that special-
+    // cases NaN (SameValueZero, say, which `inArray` genuinely does use — see
+    // Matcher.test.ts's "eq vs inArray" block) breaks this property instead
+    // of shipping.
+    FastCheck.constant(P.hasResourceAttribute("level", M.eq(M.literal(Number.NaN)))),
+    FastCheck.constant(P.hasResourceAttribute("level", M.neq(M.literal(Number.NaN)))),
+    // The subject side folds to a constant before a Compare is ever built, so
+    // a non-finite bound there exercises `translateMatcher`'s other branch.
+    FastCheck.constantFrom(Number.POSITIVE_INFINITY, Number.NaN).map((n) =>
+      P.hasAttribute("riskScore", M.gte(n)),
+    ),
     FastCheck.subarray(["red", "blue", "green"]).map((vs) =>
       P.hasResourceAttribute("tag", M.inArray(vs)),
     ),
@@ -844,6 +876,32 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
             `disagreement on ${JSON.stringify({ policy, row, predicate })}`,
           );
         }
+      }
+    }));
+
+  // The named case the property above now samples, kept as its own test
+  // because a seeded sample is not evidence a reader can check by eye
+  // (CCR-QD-115, issue #65). Before the `Number.isFinite` guard in `compare`,
+  // `toPredicate` on this policy admitted every row with a numeric `level`
+  // while `evaluate` on the identical policy denied every one — the exact
+  // failure mode ADR-QD-024 warns would make `toPredicate` worse than not
+  // having it, since a filter that admits everything is a silent bypass.
+  it.effect("a non-finite Gte/Lt bound denies on both sides, never admits on one", () =>
+    Effect.gen(function* () {
+      const row = { level: 3 };
+      const cases = [
+        P.hasResourceAttribute("level", M.gte(Number.NEGATIVE_INFINITY)),
+        P.hasResourceAttribute("level", M.gte(Number.POSITIVE_INFINITY)),
+        P.hasResourceAttribute("level", M.gte(Number.NaN)),
+        P.hasResourceAttribute("level", M.lt(Number.POSITIVE_INFINITY)),
+        P.hasResourceAttribute("level", M.lt(Number.NEGATIVE_INFINITY)),
+        P.hasResourceAttribute("level", M.lt(Number.NaN)),
+      ];
+      for (const policy of cases) {
+        const predicate = yield* translate(policy);
+        const decision = yield* evaluate(policy, { resource: row }).pipe(Effect.provide(layer));
+        assert.isFalse(isAllowed(decision));
+        assert.isFalse(evaluatePredicate(predicate, row));
       }
     }));
 });

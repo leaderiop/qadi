@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-31                                    |
-> | Revision       | 1.4                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-07): BEH-QD-239 and BEH-QD-242 corrected — both encoded the belief that a vacuous `{OR: []}`/`{AND: []}` behaves the same nested inside `AND`/`OR`/`NOT` as it does at the top of the query; per real Prisma engine behavior it does not (Prisma issues #17367, #21856), and `@qadi/predicate-prisma`'s `renderNode` nested it verbatim, an audit's Critical finding (C1, issue 34). `renderNode` now constant-folds every `And`/`Or` child so a vacuous identity is never left nested, and `BEH-QD-242`'s agreement property is checked against a second, engine-accurate test reader in addition to the original JS-semantics one, since the original alone shares the same wrong belief and cannot see the difference (CCR-QD-111)<br>1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
+> | Change History | 1.5 (2026-09-08): BEH-QD-238's allowlist corrected again — the `number` branch is *finite* numbers, in both compilers. `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`/`±Infinity`, and its only exclusion was a `Gte`/`Lt`-specific guard, so a `NaN`-valued `Eq`/`Neq`/`MemberOf` bound `NaN` as a real parameter — and PostgreSQL's `NaN = NaN` is TRUE where `evaluatePredicate`'s `===` is false for every row (INV-QD-047). `@qadi/predicate-prisma` already refused all three; the two compilers now share one allowlist across all four `CompareOp`s, and a `NaN`-valued `Gte`/`Lt` refuses where it used to render `FALSE` (issue #65, CCR-QD-120)<br>1.4 (2026-09-07): BEH-QD-239 and BEH-QD-242 corrected — both encoded the belief that a vacuous `{OR: []}`/`{AND: []}` behaves the same nested inside `AND`/`OR`/`NOT` as it does at the top of the query; per real Prisma engine behavior it does not (Prisma issues #17367, #21856), and `@qadi/predicate-prisma`'s `renderNode` nested it verbatim, an audit's Critical finding (C1, issue 34). `renderNode` now constant-folds every `And`/`Or` child so a vacuous identity is never left nested, and `BEH-QD-242`'s agreement property is checked against a second, engine-accurate test reader in addition to the original JS-semantics one, since the original alone shares the same wrong belief and cannot see the difference (CCR-QD-111)<br>1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
 
 _Previous: [30 — Port Calls](./30-port-calls.md)_
 
@@ -88,9 +88,10 @@ the cheap part.
 
 ```
 REQUIREMENT: A `Compare`/`MemberOf` value or member that is not on the safe
-             allowlist (`string | number | boolean | null`) MUST fail
+             allowlist (`string | finite number | boolean | null`) MUST fail
              `PredicateNotRenderable`. It MUST NOT be stringified into the
-             fragment or `WhereInput`.
+             fragment or `WhereInput`. Both compilers MUST apply the same
+             allowlist, for every `CompareOp`.
 ```
 
 A `Predicate`'s `value`/`values` are `unknown`. Approximating an unsafe value
@@ -113,6 +114,27 @@ construct, while the compiled query matches correctly. Both compilers now
 refuse a `Date`-valued `Compare`/`MemberOf` rather than compile a comparison
 the reference evaluator does not support — the same "refuse rather than
 approximate" answer this requirement already gives every other unsafe value.
+
+**A non-finite number is off the allowlist for the same reason, and the two
+compilers now agree that it is.** `NaN`, `Infinity` and `-Infinity` all
+satisfy `typeof value === "number"`. `@qadi/predicate-prisma` has excluded
+all three at its `isSafeValue` gate since that gate was written;
+`@qadi/predicate-sql` did not, and carried instead a `Gte`/`Lt`-specific
+guard that excluded only `NaN`, and only for those two operators — so a
+`Compare` with op `Eq`/`Neq`, or a `MemberOf`, against `NaN` reached
+`params.push` and bound `NaN` as a real query parameter. PostgreSQL documents
+`NaN = NaN` as **true**, unlike IEEE 754 and unlike `evaluatePredicate`'s
+`===`, which is false for every row: an
+[INV-QD-047](../invariants.md#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits)
+disagreement in the admit-more direction. Both compilers now refuse all three
+values on all four `CompareOp`s.
+
+One consequence is visible to a caller and is deliberate: `@qadi/predicate-sql`
+previously rendered `FALSE` for a `NaN`-valued `Gte`/`Lt` and now refuses it.
+`FALSE` was correct and more precise, but it was correct for two operators out
+of four, and a compiler that refuses a value under `Eq` while quietly folding
+it under `Gte` is two definitions of "safe value" in one file. The dialect
+packages now agree on which predicates compile at all.
 
 ## BEH-QD-258: A `Compare`/`MemberOf` column refuses rather than colliding with the target's own syntax
 

@@ -189,14 +189,18 @@ describe("compileSql — NULL handling agrees with evaluatePredicate's ===/!==",
 
   // evaluatePredicate's compare requires typeof === "number" on BOTH sides
   // for Gte/Lt and is always False otherwise — a real DB coerces a string
-  // (PostgreSQL: `int_col >= '10'` → 10) or orders NaN specially (above every
-  // number, in PostgreSQL) rather than refusing, admitting rows the reference
-  // evaluator denies for every row regardless of column type. Rendering FALSE
-  // — never binding the value into a real comparison — is what keeps the
-  // compiled SQL from ever running that coercing/ordering comparison at all.
+  // (PostgreSQL: `int_col >= '10'` → 10) rather than refusing, admitting rows
+  // the reference evaluator denies for every row regardless of column type.
+  // Rendering FALSE — never binding the value into a real comparison — is
+  // what keeps the compiled SQL from ever running that coercing comparison at
+  // all.
+  //
+  // `Number.NaN` was in this list until CCR-QD-115, when `isSafeValue` took
+  // over every non-finite number for every operator; it now *refuses* rather
+  // than folding to FALSE, and is asserted in the refusals block below.
   it.effect("Gte/Lt with a non-number, non-null value renders FALSE, never a real comparison", () =>
     Effect.gen(function* () {
-      const nonNumberValues: ReadonlyArray<unknown> = ["10", true, false, Number.NaN];
+      const nonNumberValues: ReadonlyArray<unknown> = ["10", true, false];
       for (const value of nonNumberValues) {
         assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Gte", value }, "postgres"), {
           text: "FALSE",
@@ -312,6 +316,61 @@ describe("compileSql — refusals", () => {
       assert.strictEqual(failure?._tag, "PredicateNotRenderable");
       assert.strictEqual(failure?.predicateTag, "MemberOf");
       assert.strictEqual(failure?.reason, "a value for column 'x' is not a safe query parameter");
+    }));
+
+  // CCR-QD-115 — isSafeValue's number branch requires Number.isFinite, not
+  // bare typeof, catching this package up to @qadi/predicate-prisma's sibling.
+  // NaN satisfies `typeof === "number"` and used to reach `params.push` for
+  // Eq/Neq/MemberOf (only Gte/Lt had a NaN guard, and only there): the
+  // compiled `col = $1` binds NaN, and PostgreSQL documents `NaN = NaN` as
+  // TRUE while evaluatePredicate's `===` is false for every row — an
+  // INV-QD-047 divergence in the admit-more direction. All four operators
+  // refuse now, from the one gate.
+  it.effect("a NaN value refuses on every operator, not only Gte/Lt", () =>
+    Effect.gen(function* () {
+      for (const op of ["Eq", "Neq", "Gte", "Lt"] as const) {
+        const failure = yield* refusalOf(
+          { _tag: "Compare", column: "score", op, value: Number.NaN },
+          "postgres",
+        );
+        assert.strictEqual(failure?._tag, "PredicateNotRenderable", op);
+        assert.strictEqual(failure?.predicateTag, "Compare");
+        assert.strictEqual(failure?.reason, "value for column 'score' is not a safe query parameter");
+      }
+
+      const memberOf = yield* refusalOf(
+        { _tag: "MemberOf", column: "score", values: [1, Number.NaN] },
+        "postgres",
+      );
+      assert.strictEqual(memberOf?._tag, "PredicateNotRenderable");
+      assert.strictEqual(memberOf?.predicateTag, "MemberOf");
+      assert.strictEqual(
+        memberOf?.reason,
+        "a value for column 'score' is not a safe query parameter",
+      );
+    }));
+
+  // Infinity/-Infinity are ordinary numbers to `>=`/`<` on both sides, so
+  // whether they diverge would need a real engine to settle — refused ahead
+  // of that question, exactly as the Date case is, and exactly as
+  // @qadi/predicate-prisma refuses them. Without this, `M.gte(-Infinity)`
+  // translated by toPredicate compiled to `"score" >= $1` with -Infinity
+  // bound as a parameter.
+  it.effect("Infinity and -Infinity refuse too, alongside NaN, on every dialect", () =>
+    Effect.gen(function* () {
+      for (const dialect of DIALECTS) {
+        for (const value of [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+          const failure = yield* refusalOf(
+            { _tag: "Compare", column: "score", op: "Gte", value },
+            dialect,
+          );
+          assert.strictEqual(failure?._tag, "PredicateNotRenderable", dialect);
+          assert.strictEqual(
+            failure?.reason,
+            "value for column 'score' is not a safe query parameter",
+          );
+        }
+      }
     }));
 
   it.effect("MemberOf past maxInValues refuses rather than rendering an unbounded IN", () =>

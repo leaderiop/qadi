@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
 import * as FastCheck from "effect/testing/FastCheck";
 import { evaluatePredicate, type Predicate } from "@qadi/core";
 import { compilePrismaWhere } from "../src/index.ts";
@@ -59,19 +60,89 @@ const leaf: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
   ),
 );
 
-const tree: FastCheck.Arbitrary<Predicate> = FastCheck.letrec<{ node: Predicate }>((tie) => ({
-  node: FastCheck.oneof(
-    { maxDepth: 4, withCrossShrink: true },
-    leaf,
-    FastCheck.array(tie("node"), { maxLength: 3 }).map(
-      (predicates): Predicate => ({ _tag: "And", predicates }),
+/**
+ * The non-finite operands `leaf` deliberately does not produce (CCR-QD-115).
+ *
+ * `isSafeValue` here has excluded `NaN`/`±Infinity` since ticket 138, so these
+ * are `compilePrismaWhere`'s refusal path and cannot live in `leaf` — the two
+ * agreement properties below need a `WhereInput` to interpret. What this
+ * package gains from fuzzing them is the same thing `@qadi/predicate-sql`
+ * gained by adopting the guard (issue #65): the refusal is now a *property*
+ * over whole trees rather than three hand-written examples in
+ * `CompilePrismaWhere.test.ts`, so a widening of `isSafeValue` cannot pass
+ * unnoticed here either.
+ */
+const nonFiniteLeaf: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
+  FastCheck.tuple(
+    FastCheck.constantFrom("Eq" as const, "Neq" as const, "Gte" as const, "Lt" as const),
+    FastCheck.constantFrom(
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
     ),
-    FastCheck.array(tie("node"), { maxLength: 3 }).map(
-      (predicates): Predicate => ({ _tag: "Or", predicates }),
-    ),
-    tie("node").map((predicate): Predicate => ({ _tag: "Negate", predicate })),
+  ).map(([op, value]): Predicate => ({ _tag: "Compare", column: "level", op, value })),
+  FastCheck.constantFrom(Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY).map(
+    (v): Predicate => ({ _tag: "MemberOf", column: "level", values: [0, v] }),
   ),
-})).node;
+);
+
+const treeOf = (node: FastCheck.Arbitrary<Predicate>): FastCheck.Arbitrary<Predicate> =>
+  FastCheck.letrec<{ node: Predicate }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth: 4, withCrossShrink: true },
+      node,
+      FastCheck.array(tie("node"), { maxLength: 3 }).map(
+        (predicates): Predicate => ({ _tag: "And", predicates }),
+      ),
+      FastCheck.array(tie("node"), { maxLength: 3 }).map(
+        (predicates): Predicate => ({ _tag: "Or", predicates }),
+      ),
+      tie("node").map((predicate): Predicate => ({ _tag: "Negate", predicate })),
+    ),
+  })).node;
+
+const tree: FastCheck.Arbitrary<Predicate> = treeOf(leaf);
+
+/** The same shapes, with non-finite operands mixed in at every depth. */
+const mixedTree: FastCheck.Arbitrary<Predicate> = treeOf(FastCheck.oneof(leaf, nonFiniteLeaf));
+
+const isNonFinite = (value: unknown): boolean =>
+  typeof value === "number" && !Number.isFinite(value);
+
+/**
+ * Whether any operand anywhere in the tree is a non-finite number.
+ *
+ * The justification half of the refusal property: a compiler that refused
+ * every predicate would satisfy "never emits a non-finite filter value" and
+ * nothing else, so a refusal has to point at a value that earned it.
+ */
+const hasNonFiniteOperand: (self: Predicate) => boolean = Match.type<Predicate>().pipe(
+  Match.tagsExhaustive({
+    True: () => false,
+    False: () => false,
+    Compare: (p) => isNonFinite(p.value),
+    MemberOf: (p) => p.values.some(isNonFinite),
+    And: (p) => p.predicates.some(hasNonFiniteOperand),
+    Or: (p) => p.predicates.some(hasNonFiniteOperand),
+    Negate: (p) => hasNonFiniteOperand(p.predicate),
+  }),
+);
+
+/**
+ * Whether a compiled `WhereInput` carries a non-finite number anywhere.
+ *
+ * Unlike `@qadi/predicate-sql`, whose values all arrive in one flat `params`
+ * array, a Prisma filter nests its operands inside the object it emits — so
+ * this walks the emitted structure rather than reading a list.
+ */
+const emitsNonFinite = (value: unknown): boolean => {
+  if (isNonFinite(value)) return true;
+  if (Array.isArray(value)) return value.some(emitsNonFinite);
+  if (typeof value === "object" && value !== null) {
+    return Object.values(value).some(emitsNonFinite);
+  }
+  return false;
+};
 
 describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the predicate admits", () => {
   it.effect("PROPERTY: matchesPrismaWhere(compilePrismaWhere(P), R) equals evaluatePredicate(P, R)", () =>
@@ -124,4 +195,53 @@ describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the p
         }
       }),
   );
+
+  // CCR-QD-115, issue #65. Neither property above can state this one: a
+  // non-finite operand has no `WhereInput` to interpret, because `isSafeValue`
+  // refuses it. Nor could either have *found* the defect it guards, even had
+  // the value been compiled — `matchesPrismaWhere` re-derives `===` from
+  // `row`, so a `{level: NaN}` filter reads back exactly as
+  // `evaluatePredicate` does and the two agree; it is a real engine that
+  // disagrees. So what has to hold is that a non-finite value is refused
+  // rather than emitted, asserted in both directions so it cannot pass by
+  // refusing everything.
+  it.effect("PROPERTY: a non-finite operand is refused, never emitted into a filter", () =>
+    Effect.gen(function* () {
+      const predicates = FastCheck.sample(mixedTree, { numRuns: 200, seed: 4096 });
+      const sample = FastCheck.sample(rows, { numRuns: 12, seed: 4096 });
+
+      let refusals = 0;
+      let compiled = 0;
+      for (const predicate of predicates) {
+        const result = yield* Effect.result(compilePrismaWhere(predicate));
+        if (result._tag === "Failure") {
+          refusals += 1;
+          assert.strictEqual(result.failure._tag, "PredicateNotRenderable");
+          assert.isTrue(
+            hasNonFiniteOperand(predicate),
+            `refused a predicate with no non-finite operand: ${JSON.stringify(predicate)}`,
+          );
+          continue;
+        }
+        compiled += 1;
+        const where = result.success;
+        assert.isFalse(
+          emitsNonFinite(where),
+          `emitted a non-finite filter value: ${JSON.stringify({ predicate, where })}`,
+        );
+        // A predicate that survives the gate must still agree row by row —
+        // the mixed tree is not a licence to stop checking the invariant
+        // this file exists for.
+        for (const row of sample) {
+          assert.strictEqual(
+            matchesPrismaWhereEngine(where, row),
+            evaluatePredicate(predicate, row),
+            JSON.stringify({ predicate, row, where }),
+          );
+        }
+      }
+      // Neither branch may be vacuous: the sample must exercise both.
+      assert.isAbove(refusals, 0);
+      assert.isAbove(compiled, 0);
+    }));
 });
