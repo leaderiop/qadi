@@ -8,12 +8,12 @@ import {
   Allow,
   AttributeResolveError,
   AttributeResolver,
-  AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
   DecisionHistoryUnknown,
   Deny,
   EvaluationIdLive,
+  EvaluationServicesNone,
   MAX_DECODE_DEPTH,
   RelationshipResolverNever,
   eq,
@@ -44,16 +44,7 @@ const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });
 /** Deliberately holds NOTHING, so a leaked allow is visible as an allow. */
 const bob = makeSubject({ id: "u2" });
 
-const atoms = makeQadiAtoms(
-  Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-);
+const atoms = makeQadiAtoms(EvaluationServicesNone);
 
 /** A server-side allow, as `evaluate` would have produced it. */
 const serverAllow = (subjectId: string) =>
@@ -615,14 +606,7 @@ describe("hydrateDecisions", () => {
 });
 
 describe("hydration mismatch", () => {
-  const base = Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  );
+  const base = EvaluationServicesNone;
 
   /** An atom set reporting into `seen`, with the subject already known. */
   const watching = () => {

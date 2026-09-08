@@ -5,11 +5,11 @@
 import {
   AttributeResolveError,
   AttributeResolver,
-  AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
   EvaluationIdLive,
   DecisionHistoryUnknown,
+  EvaluationServicesNone,
   RelationshipResolverNever,
   gte,
   hasAttribute,
@@ -35,16 +35,7 @@ const needsClearance = hasAttribute("clearance", gte(1));
 const canRead = hasPermission(permission("doc", "read"));
 const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
 
-const working = makeQadiAtoms(
-  Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-);
+const working = makeQadiAtoms(EvaluationServicesNone);
 
 const broken = makeQadiAtoms(
   Layer.mergeAll(

@@ -9,11 +9,11 @@
  */
 import {
   AttributeResolver,
-  AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  EvaluationServicesNone,
   eq,
   hasAttribute,
   hasPermission,
@@ -39,17 +39,7 @@ const isAdmin = hasRole("admin");
 
 const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });
 
-const atoms = () =>
-  makeQadiAtoms(
-    Layer.mergeAll(
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
-      EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
-    ),
-  );
+const atoms = () => makeQadiAtoms(EvaluationServicesNone);
 
 const mount = (children: ReactNode, instrument: boolean) =>
   render(

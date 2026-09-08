@@ -47,14 +47,8 @@ and the pipeline fails with `AccessDenied` instead.
 
 ```typescript
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
+  EvaluationServicesNone,
   allOf,
   currentSubjectLayer,
   enforceProjected,
@@ -80,15 +74,9 @@ declare const loadDocument: (id: string) => Effect.Effect<{
 }>;
 
 // Every evaluation reads seven services. Six of them have a fail-closed
-// default when nothing more specific applies to your app.
-const services = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+// default when nothing more specific applies to your app — `EvaluationServicesNone`
+// bundles exactly those six.
+const services = EvaluationServicesNone;
 
 const program = loadDocument("doc-1").pipe(
   enforceProjected(canReadTitle),

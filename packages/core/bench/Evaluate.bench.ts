@@ -47,7 +47,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
 import { bench, describe } from "vitest";
-import { AttributeResolver, AttributeResolverNone } from "../src/AttributeResolver.ts";
+import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { CustomPredicateNone } from "../src/CustomPredicate.ts";
@@ -55,6 +55,7 @@ import { SignatureHistoryNone } from "../src/SignatureHistory.ts";
 import { DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
 import { EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
 import { eq, fieldMatch, gte, literal, neq, subject, subjectId } from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
@@ -82,15 +83,7 @@ const alice = fromRoles({
   attributes: { department: "cardiology", clearance: { level: 3 } },
 });
 
-const services = Layer.mergeAll(
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  currentSubjectLayer(alice),
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const services = Layer.mergeAll(EvaluationServicesNone, currentSubjectLayer(alice));
 
 /**
  * The same environment with an attribute resolver that actually answers.

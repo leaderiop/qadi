@@ -25,19 +25,14 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Stream from "effect/Stream";
 import {
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
   decisionSinkRing,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
+  EvaluationServicesNone,
   evaluate,
   hasPermission,
   makeSubject,
   ObligationRecord,
   permission,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
   stampRecord,
 } from "@qadi/core";
 import type { Decision, StoredRecord } from "@qadi/core";
@@ -53,14 +48,7 @@ const alice = makeSubject({ id: "alice", permissions: ["doc:read"] });
 /** The same subject without the grant — how a re-check comes out differently. */
 const stripped = makeSubject({ id: "alice" });
 
-const ports = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const ports = EvaluationServicesNone;
 
 /** A source that answers for the past and nothing else — a ring's shape. */
 const pastOnly = (records: ReadonlyArray<StoredRecord>): Source => ({

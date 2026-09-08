@@ -15,15 +15,12 @@ import * as Ref from "effect/Ref";
 import {
   Allow,
   allOf,
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
   Decided,
-  DecisionHistoryUnknown,
   DecisionRecord,
   Deny,
   evaluate,
-  EvaluationIdLive,
+  EvaluationServicesNone,
   Failed,
   fromRoles,
   hasPermission,
@@ -31,9 +28,7 @@ import {
   MissingResource,
   ObligationRecord,
   permission,
-  RelationshipResolverNever,
   role,
-  SignatureHistoryNone,
   stampRecord,
 } from "@qadi/core";
 import type { StoredRecord, Trace } from "@qadi/core";
@@ -55,14 +50,7 @@ const write = permission("doc", "write");
 const reader = role({ name: "reader", permissions: [read] });
 const alice = fromRoles({ id: "alice", roles: [reader] });
 
-const services = Layer.mergeAll(
-  AttributeResolverNone,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
-);
+const services = EvaluationServicesNone;
 
 const trace = (allowed: boolean): Trace => ({
   policyTag: "HasPermission",

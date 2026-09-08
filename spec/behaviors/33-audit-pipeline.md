@@ -253,17 +253,12 @@ path.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
   evaluate,
-  EvaluationIdLive,
+  EvaluationServicesNone,
   hasPermission,
   makeSubject,
   permission,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
 } from "@qadi/core";
 import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
 
@@ -276,15 +271,7 @@ const { layer: auditTrail, written } = AuditTrailPortTest();
 // second Effect.provide, not merged alongside it: Layer.mergeAll combines
 // what layers provide, it does not thread one's output into a sibling's
 // unmet requirement the way a second Effect.provide does.
-const services = Layer.mergeAll(
-  currentSubjectLayer(alice),
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const services = Layer.mergeAll(currentSubjectLayer(alice), EvaluationServicesNone);
 
 const program = evaluate(hasPermission(read)).pipe(
   Effect.provide(services),

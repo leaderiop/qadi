@@ -17,31 +17,12 @@ one atom.
 
 ```tsx
 import type { AuthSubject } from "@qadi/core";
-import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
-  hasPermission,
-  permission,
-} from "@qadi/core";
+import { EvaluationServicesNone, hasPermission, permission } from "@qadi/core";
 import { Can, QadiProvider, makeQadiAtoms } from "@qadi/react";
-import * as Layer from "effect/Layer";
 
 const canPublish = hasPermission(permission("post", "publish"));
 
-const atoms = makeQadiAtoms(
-  Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-); // once, at module scope
+const atoms = makeQadiAtoms(EvaluationServicesNone); // once, at module scope
 
 export const App = ({ currentUser }: { readonly currentUser: AuthSubject | undefined }) => (
   <QadiProvider atoms={atoms} subject={currentUser}>

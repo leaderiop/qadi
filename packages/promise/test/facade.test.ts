@@ -7,6 +7,7 @@ import {
   SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  EvaluationServicesNone,
   MissingAction,
   PolicyTooDeep,
   RelationshipResolverNever,
@@ -50,14 +51,7 @@ const rejection = async (p: Promise<unknown>): Promise<unknown> => {
   throw new Error("expected the promise to reject, but it resolved");
 };
 
-const baseLayer = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const baseLayer = EvaluationServicesNone;
 
 const alice = makeSubject({ id: "u-1", roles: ["editor"], permissions: ["doc:read"] });
 const bob = makeSubject({ id: "u-2" });

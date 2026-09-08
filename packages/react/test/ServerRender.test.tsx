@@ -19,11 +19,11 @@
 import {
   Allow,
   AttributeResolver,
-  AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  EvaluationServicesNone,
   RelationshipResolverNever,
   eq,
   hasAttribute,
@@ -51,16 +51,7 @@ import {
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
 
-const atoms = makeQadiAtoms(
-  Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-);
+const atoms = makeQadiAtoms(EvaluationServicesNone);
 
 const reader: AuthSubject = makeSubject({ id: "u1", permissions: ["doc:read"] });
 

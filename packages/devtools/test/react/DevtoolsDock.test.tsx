@@ -18,14 +18,10 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   allOf,
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   Decided,
-  DecisionHistoryUnknown,
   evaluate,
-  EvaluationIdLive,
+  EvaluationServicesNone,
   Failed,
   fromRoles,
   hasPermission,
@@ -33,7 +29,6 @@ import {
   obligation,
   obliged,
   permission,
-  RelationshipResolverNever,
   role,
 } from "@qadi/core";
 import type { Decision, Policy, StoredRecord } from "@qadi/core";
@@ -46,14 +41,7 @@ const write = permission("doc", "write");
 const reader = role({ name: "reader", permissions: [read] });
 const alice = fromRoles({ id: "alice", roles: [reader] });
 
-const services = Layer.mergeAll(
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const services = EvaluationServicesNone;
 
 const decide = (policy: Policy): Promise<Decision> =>
   Effect.runPromise(
