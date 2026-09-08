@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-02                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-09-08): BEH-QD-012 — `resolveRoleGraph` signature was missing the `onUnknownParent` options parameter and `DuplicateRoleDefinition` from the error channel; added the duplicate-name REQUIREMENT (CCR-QD-124)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [01 — Permission Tokens](./01-permissions.md)_
 
@@ -78,7 +78,10 @@ export interface RoleDefinition {
 
 export const resolveRoleGraph: (
   definitions: ReadonlyArray<RoleDefinition>,
-) => Effect.Effect<ReadonlyArray<Role>, CircularRoleInheritance>;
+  options?: {
+    readonly onUnknownParent?: (names: ReadonlyArray<string>) => void;
+  },
+) => Effect.Effect<ReadonlyArray<Role>, CircularRoleInheritance | DuplicateRoleDefinition>;
 ```
 
 ```
@@ -90,6 +93,14 @@ REQUIREMENT: A cycle among named parents MUST fail with
 REQUIREMENT: An unknown parent name MUST NOT fail. A partial role catalogue is
              a normal deployment state; failing would deny every request rather
              than merely granting less.
+```
+
+```
+REQUIREMENT: A repeated definition name MUST fail with
+             `DuplicateRoleDefinition` naming every repeated name at once,
+             sorted, before any resolution happens. There is no defensible
+             "grant less" reading when two definitions disagree about what a
+             name means, so this is unlike the unknown-parent case above.
 ```
 
 ---

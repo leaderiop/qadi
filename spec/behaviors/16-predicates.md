@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-16                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
+> | Change History | 1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
 
 _Previous: [15 — Rule Tables](./15-rules.md)_
 
@@ -106,6 +106,8 @@ where failing loudly costs one error and says the same thing.
 | `Rules` | [BEH-QD-126](#beh-qd-126-a-rule-table-becomes-a-set-based-formula) |
 | `HasRelationship` | **untranslatable** — keyed by `resourceId`, one lookup per row |
 | `HasActed`/`HasNotActed`, `scope: "Resource"` | **untranslatable**, for the same reason |
+| `HasCustom` | **untranslatable** — opaque, externally-registered logic; see [BEH-QD-248](./32-custom-predicates.md#beh-qd-248-topredicate-refuses-a-hascustom-node) |
+| `HasSignature` | **untranslatable** — looked up through an external port, keyed by subject/resource, not a column any row carries |
 | `Obliged` | **untranslatable** — [BEH-QD-124](#beh-qd-124-a-duty-and-a-column-restriction-both-refuse) |
 | any `fields` in the tree | **untranslatable** — [BEH-QD-124](#beh-qd-124-a-duty-and-a-column-restriction-both-refuse) |
 

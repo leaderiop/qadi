@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-08                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-25                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.1 (2026-09-08): BEH-QD-057 — `fromJson` took `json: unknown`, not `string`, and both `fromJson`/`fromJsonValue` were missing `PolicyDecodeTooDeep` from the error channel; BEH-QD-059 now names `PolicyDecodeTooDeep` as the error enforcing the recursion bound (CCR-QD-125)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -22,9 +22,13 @@
 ```ts
 export const PolicyFromJson: Schema.Codec<Policy, string>;
 export const toJson: (policy: Policy) => Effect.Effect<string, SchemaError>;
-export const fromJson: (json: unknown) => Effect.Effect<Policy, SchemaError>;
+export const fromJson: (
+  json: string,
+) => Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError>;
 export const toJsonValue: (policy: Policy) => Effect.Effect<unknown, SchemaError>;
-export const fromJsonValue: (value: unknown) => Effect.Effect<Policy, SchemaError>;
+export const fromJsonValue: (
+  value: unknown,
+) => Effect.Effect<Policy, PolicyDecodeTooDeep | Schema.SchemaError>;
 ```
 
 ```
@@ -54,7 +58,9 @@ REQUIREMENT: Decoding MUST reject an unknown `_tag`, a permission segment
 
 ```
 REQUIREMENT: Decoding MUST bound recursion, so a deeply nested payload cannot
-             exhaust the stack.
+             exhaust the stack. `fromJson` and `fromJsonValue` MUST fail with
+             `PolicyDecodeTooDeep` — rather than raising a raw `RangeError` —
+             once the raw JSON nests past the bound.
 ```
 
 ---

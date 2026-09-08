@@ -1,6 +1,6 @@
 # ADR-QD-016: GxP compliance is out of scope
 
-> **Status:** Accepted
+> **Status:** Accepted — narrowed by [ADR-QD-056](./056-audit-companion-package.md)
 > **Date:** 2026-07-25
 
 ## Context
