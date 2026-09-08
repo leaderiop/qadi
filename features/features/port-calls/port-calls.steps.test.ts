@@ -18,6 +18,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
+import type * as Result from "effect/Result";
 import * as Tracer from "effect/Tracer";
 import {
   anyOf,
@@ -38,7 +39,7 @@ import {
   relationshipResolverFromEdges,
   SignatureHistoryNone,
 } from "@qadi/core";
-import type { Policy, RelationshipResolver } from "@qadi/core";
+import type { Decision, EvaluationError, Policy, RelationshipResolver } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
 import type { PortCall, PortCallLog } from "@qadi/devtools";
 
@@ -81,6 +82,7 @@ interface PortCallsWorldState {
   readonly hostSaw: Array<string> | undefined;
   readonly log: PortCallLog | undefined;
   readonly spanValues: ReadonlyArray<unknown>;
+  readonly result: Result.Result<Decision, EvaluationError> | undefined;
 }
 
 const initialState: PortCallsWorldState = {
@@ -94,6 +96,7 @@ const initialState: PortCallsWorldState = {
   hostSaw: undefined,
   log: undefined,
   spanValues: [],
+  result: undefined,
 };
 
 export interface WorldShape {
@@ -180,7 +183,7 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
     }),
   );
 
-  yield* Effect.result(
+  const result = yield* Effect.result(
     evaluate(policyNamed(name), resource === undefined ? {} : { resource }).pipe(
       Effect.provide(Layer.mergeAll(services, Layer.provideMerge(collector.layer, outer))),
     ),
@@ -188,7 +191,7 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
 
   const log = yield* collector.snapshot;
   const spanValues = collected.flatMap((span) => [...span.attributes.values()]);
-  yield* patch(() => ({ log, spanValues, hostSaw: seenHost }));
+  yield* patch(() => ({ log, spanValues, hostSaw: seenHost, result }));
 });
 
 describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
@@ -237,6 +240,18 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
         name: "broken",
         resolve: (_id: string, attribute: string) =>
           Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+      }),
+    }));
+  });
+
+  // A `resolve` that throws rather than failing — the shape `Evaluate.ts`'s
+  // `resolveAttribute` must catch and convert into `AttributeResolveError`
+  // (issue #100), not the shape any implementation is asked to produce.
+  Given("a resolver that dies unexpectedly", function* () {
+    yield* patch(() => ({
+      attributes: Layer.succeed(AttributeResolver, {
+        name: "dying",
+        resolve: () => Effect.die(new Error("boom")),
       }),
     }));
   });
@@ -372,5 +387,17 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Then("the log reports {int} dropped", function* (dropped: number) {
     const s = yield* read();
     assert.equal(s.log?.dropped, dropped);
+  });
+
+  // Proves the dying resolver failed *typed*, rather than dying straight
+  // through `Effect.result` as an unrecoverable defect (which `Effect.result`
+  // cannot represent as a `Failure` at all — it would have thrown out of this
+  // step instead of landing in `s.result`).
+  Then("evaluation fails with an AttributeResolveError, not a defect", function* () {
+    const s = yield* read();
+    assert.ok(s.result !== undefined, "no evaluation ran");
+    assert.equal(s.result?._tag, "Failure");
+    if (s.result?._tag !== "Failure") return;
+    assert.ok(s.result.failure instanceof AttributeResolveError);
   });
 });

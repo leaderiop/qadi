@@ -60,6 +60,15 @@ export type RelatedResult = "Related" | "Unrelated" | "Unknown";
 export interface RelationshipResolverShape {
   /** Which implementation this is. A label only — see `AttributeResolverShape`. */
   readonly name?: string | undefined;
+  /**
+   * Answers a relationship question.
+   *
+   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
+   * `evaluateHasRelationship` catches a defect from this call and converts it
+   * into this same `RelationshipResolveError`, matching
+   * `AttributeResolverShape.resolve`'s own contract — see its doc comment for
+   * why (issue #100).
+   */
   readonly check: (
     request: RelationshipCheck,
   ) => Effect.Effect<RelatedResult, RelationshipResolveError>;

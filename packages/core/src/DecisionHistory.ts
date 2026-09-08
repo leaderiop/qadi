@@ -52,6 +52,14 @@ export interface ActedQuery {
 export interface DecisionHistoryShape {
   /** Which implementation this is. A label only — see `AttributeResolverShape`. */
   readonly name?: string | undefined;
+  /**
+   * Answers `hasActed`/`hasNotActed`.
+   *
+   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
+   * `evaluateActed` catches a defect from this call and converts it into this
+   * same `DecisionHistoryUnavailable`, matching `AttributeResolverShape.resolve`'s
+   * own contract — see its doc comment for why (issue #100).
+   */
   readonly hasActed: (
     query: ActedQuery,
   ) => Effect.Effect<ActedResult, DecisionHistoryUnavailable>;

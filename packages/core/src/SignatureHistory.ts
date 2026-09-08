@@ -40,6 +40,15 @@ export interface SignatureQuery {
 export interface SignatureHistoryShape {
   /** Which implementation this is. A label only — see `AttributeResolverShape`. */
   readonly name?: string | undefined;
+  /**
+   * Returns every signature on file matching the query.
+   *
+   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
+   * `evaluateHasSignature` catches a defect from this call and converts it
+   * into this same `SignatureHistoryUnavailable`, matching
+   * `AttributeResolverShape.resolve`'s own contract — see its doc comment for
+   * why (issue #100).
+   */
   readonly signaturesFor: (
     query: SignatureQuery,
   ) => Effect.Effect<ReadonlyArray<Signature>, SignatureHistoryUnavailable>;

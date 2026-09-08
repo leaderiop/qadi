@@ -46,12 +46,27 @@ export interface GuardHealthCheckResult {
  *
  * Never fails: a typed `EvaluationError` from the probed evaluation is
  * captured into the result rather than propagated — a health check that
- * itself needs error handling has defeated its own purpose. A **defect** (a
- * resolver's own implementation throwing, rather than failing with a typed
- * error) is not caught here and still propagates: converting a real bug into
- * a clean "unhealthy" would hide it instead of surfacing it, the same
- * reasoning AGENTS.md §4 gives for never `Effect.orDie`-ing a typed failure
- * away on an evaluation path — this just runs in the other direction.
+ * itself needs error handling has defeated its own purpose.
+ *
+ * **Corrected (issue #100, BEH-QD-261).** This doc comment previously drew a
+ * line at *how* a probed port refused: a typed `EvaluationError` was
+ * captured, but a **defect** (a resolver's own implementation throwing
+ * rather than failing with a typed error) was said to be left uncaught here,
+ * propagating and failing this Effect outright. That was true only because
+ * `Evaluate.ts` itself had the same gap — the defect reached this function
+ * because nothing between the resolver and here had converted it. Now that
+ * `Evaluate.ts`'s five port calls each catch a defect and convert it into
+ * that port's own typed error (`AttributeResolveError` and its four
+ * siblings), a dying port is a typed `EvaluationError` by the time it
+ * reaches `Effect.result` below, same as one that failed cleanly — so this
+ * function reports it as `healthy: false`, not a crashed probe. That is
+ * strictly better for a health check: an operator polling this now learns
+ * "the resolver is broken" instead of the probe itself dying, with no
+ * change needed here to get it. A defect from something `Evaluate.ts` does
+ * not wrap (a bug in this library's own evaluation logic, say, rather than
+ * in a port implementation) is not converted by anything and still
+ * propagates — that half of the original claim stands, narrowed to what it
+ * was actually ever true of.
  *
  * Named `createGuardHealthCheck`, not left unprefixed like `evaluate`/
  * `decide`/`enforce`/`guard`: this is the exact identifier two independent
