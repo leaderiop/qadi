@@ -87,7 +87,7 @@ describe("decisionSinkForwarding", () => {
       // unknown) => void`, receiving the value `send` failed with — not an
       // Effect-internal `Cause` wrapping it. Asserting only `seen.length`
       // would pass unchanged whether `seen[0]` were `"unreachable"` or a
-      // `Cause` object with no `.message` (BEH-QD-187, CCR-QD-115).
+      // `Cause` object with no `.message` (BEH-QD-187, CCR-QD-122).
       assert.strictEqual(seen[0], "unreachable");
     }).pipe(Effect.provide(testLayer(allowed))));
 

@@ -74,7 +74,7 @@ export const decisionSinkForwarding = (options: {
               // sibling conventions, both of which hand their callback a plain
               // domain value rather than an Effect-internal `Cause`. A caller
               // otherwise gets a `Cause` object with no `.message`, however
-              // `send` actually failed (BEH-QD-187, CCR-QD-115).
+              // `send` actually failed (BEH-QD-187, CCR-QD-122).
               Effect.sync(() => onFailure(Cause.squash(cause)));
         }),
       ),
