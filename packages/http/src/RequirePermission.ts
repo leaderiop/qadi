@@ -27,7 +27,21 @@ import type {
   SignatureHistory,
 } from "@qadi/core";
 import { currentSubjectLayer, guard } from "@qadi/core";
-import { handleMiddlewareEnforcementErrors } from "./QadiHttpError.ts";
+import {
+  AccessDeniedRefused,
+  AttributeResolveErrorResponse,
+  CustomPredicateErrorResponse,
+  DecisionHistoryUnavailableResponse,
+  MissingActionResponse,
+  MissingResourceIdResponse,
+  MissingResourceResponse,
+  PolicyTooDeepResponse,
+  RelationshipResolveErrorResponse,
+  SignatureHistoryUnavailableResponse,
+  SubjectExtractionRefused,
+  UndischargedObligationRefused,
+  subjectExtractionFailedResponse,
+} from "./QadiHttpError.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 // Named `PermissionRequirement`/`PublicDeclaration`, not the usual
@@ -199,6 +213,27 @@ export const requiresPermission = (
  * the application already merges into its server (`AttributeResolver`,
  * `RelationshipResolver`, `DecisionHistory`, `EvaluationId`, `CustomPredicate`,
  * `SignatureHistory`).
+ *
+ * **`error` declares every response this middleware can produce that isn't
+ * the wrapped handler's own** (ADR-QD-072, H4). Nine are the
+ * `httpApiStatus`-annotated `EnforcementError` schemas `QadiHttpError.ts`
+ * exports — `RequirePermissionLive` lets a failure of one of those nine
+ * *propagate*, and `HttpApiMiddleware`'s own response encoder produces the
+ * response and the OpenAPI entry from the schema, not from a hand-built
+ * `Match.tagsExhaustive` table. The other three — {@link AccessDeniedRefused},
+ * {@link UndischargedObligationRefused}, {@link SubjectExtractionRefused} —
+ * are declared for the same OpenAPI visibility, and each is a real,
+ * `_tag`-discriminating schema rather than `HttpApiSchema.Empty`
+ * specifically so its presence here cannot swallow the nine real schemas
+ * beside it (see {@link AccessDeniedRefused}'s own doc comment for why a
+ * bare no-content schema does exactly that). None of the three is expected
+ * to actually reach this union at runtime either way —
+ * `RequirePermissionLive` hand-converts `AccessDenied`/
+ * `UndischargedObligation`/`SubjectExtractionFailed` to a response itself,
+ * before the failure ever gets this far, because those three must not carry
+ * their real fields into a response body. Declaring them anyway, rather than
+ * leaving them off this list, is what keeps OpenAPI honest about every
+ * status this endpoint can actually return.
  */
 export class RequirePermission extends HttpApiMiddleware.Service<
   RequirePermission,
@@ -211,7 +246,22 @@ export class RequirePermission extends HttpApiMiddleware.Service<
       | CustomPredicate
       | SignatureHistory;
   }
->()("qadi/http/RequirePermission") {}
+>()("qadi/http/RequirePermission", {
+  error: [
+    AccessDeniedRefused,
+    UndischargedObligationRefused,
+    SubjectExtractionRefused,
+    AttributeResolveErrorResponse,
+    RelationshipResolveErrorResponse,
+    DecisionHistoryUnavailableResponse,
+    CustomPredicateErrorResponse,
+    SignatureHistoryUnavailableResponse,
+    MissingActionResponse,
+    MissingResourceResponse,
+    MissingResourceIdResponse,
+    PolicyTooDeepResponse,
+  ],
+}) {}
 
 export const RequirePermissionLive: Layer.Layer<RequirePermission, never, SubjectExtractor> = Layer.effect(
   RequirePermission,
@@ -238,14 +288,25 @@ export const RequirePermissionLive: Layer.Layer<RequirePermission, never, Subjec
 
       const { permission, policy } = required.value;
 
-      return handleMiddlewareEnforcementErrors(
-        Effect.gen(function* () {
-          const request = yield* HttpServerRequest.HttpServerRequest;
-          const subject = yield* extractor.extract(request);
-          return yield* guard(permission, policy)(NO_RESOURCE, () => httpEffect).pipe(
-            Effect.provide(currentSubjectLayer(subject)),
-          );
-        }),
+      // `AccessDenied`/`UndischargedObligation`/`SubjectExtractionFailed` are
+      // hand-caught and converted here rather than left to propagate:
+      // `RequirePermission`'s own doc comment explains why their real fields
+      // must not reach a response body. Everything else in `EnforcementError`
+      // — the nine tags the other declared schemas cover — propagates typed,
+      // and `HttpApiMiddleware`'s response encoder builds the actual response
+      // from whichever declared schema matches, using its `httpApiStatus`
+      // annotation.
+      return Effect.gen(function* () {
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        const subject = yield* extractor.extract(request);
+        return yield* guard(permission, policy)(NO_RESOURCE, () => httpEffect).pipe(
+          Effect.provide(currentSubjectLayer(subject)),
+        );
+      }).pipe(
+        Effect.catchTag(["AccessDenied", "UndischargedObligation"], () =>
+          Effect.succeed(HttpServerResponse.empty({ status: 403 })),
+        ),
+        Effect.catchTag("SubjectExtractionFailed", subjectExtractionFailedResponse),
       );
     };
   }),

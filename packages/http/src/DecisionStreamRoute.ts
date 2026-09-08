@@ -51,6 +51,7 @@ import type * as Filter from "effect/Filter";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
+import * as Sse from "effect/unstable/encoding/Sse";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import type { CurrentSubject, EvaluationServices, Permission, Policy, Resource, SinkRecord } from "@qadi/core";
@@ -60,15 +61,32 @@ import { NO_RESOURCE } from "./RequirePermission.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
- * A single `TextEncoder`, reused for every frame — this runs once per
- * streamed record on the hot SSE path, and a `TextEncoder` carries no
- * per-call state worth re-allocating for.
- */
-const encoder = new TextEncoder();
-
-/**
- * One record as an SSE frame: `data: <json>\n\n` — or filtered out when it
- * has no safe durable representation.
+ * One record as an SSE frame — `data: <json>\n\n`, produced by
+ * `effect/unstable/encoding/Sse`'s own `encoder.write` rather than a hand-
+ * built template string (H6, ADR-QD-072). This is the same encoder
+ * `HttpApiBuilder`'s own `HttpApiSchema.StreamSse` machinery calls
+ * internally (`HttpApiBuilder.ts`'s `renderSseEvent`) — reused directly here
+ * rather than through `StreamSse`/`HttpApiEndpoint` themselves, because that
+ * machinery is inseparable from the full `HttpApi`/`HttpApiBuilder` request
+ * pipeline (confirmed by reading the source, not assumed: `makeSseEncoder`/
+ * `encodeSseStream` are internal, unexported functions reached only through
+ * an `HttpApiEndpoint`'s declared `success` schema). Adopting it here would
+ * mean moving this route off bare `HttpRouter`/`guardRoute` entirely — the
+ * same move `RequirePermission.ts`'s doc comment on `handleEnforcementErrors`
+ * explains bare `HttpRouter` was never a candidate for, and this route has
+ * an additional reason of its own: the `reauth` recheck loop below is a
+ * `Stream.mergeEffect` over the *response* stream, wired through
+ * `guardRoute`'s connect-time check and this module's own periodic one,
+ * with no `HttpApiMiddleware` equivalent for a mid-stream re-authorization.
+ * Reusing the platform's own frame encoder gets the real fix this section
+ * asked for — no more hand-built `data: …\n\n` template — without that
+ * larger, separately-scoped migration.
+ *
+ * `id` is always `undefined` and `event` is always `"message"` (SSE's
+ * default), matching what `data:`-mode `StreamSse` produces and what this
+ * route always sent before: `Sse.encoder.write` omits both the `id:` and
+ * `event:` lines for that combination, leaving `data: <json>\n\n` — byte for
+ * byte what the old template produced.
  *
  * A caller's resource, and a policy's `HasCustom.params`/`Obligation.attributes`,
  * are all arbitrary `unknown`; a circular reference or a `BigInt` used to throw
@@ -90,11 +108,22 @@ const encoder = new TextEncoder();
  * `Result.fail` drops it (`effect/Filter`'s own doc comment).
  *
  * Exported so the refusal can be tested directly against a plain
- * `SinkRecord`, rather than through a live SSE connection.
+ * `SinkRecord`, rather than through a live SSE connection. Returns the
+ * framed `string` now, not a `Uint8Array` — `decisionStreamRoute` pipes the
+ * whole filtered stream through `Stream.encodeText` once, the same
+ * UTF-8-encoding step `HttpApiBuilder`'s own `encodeSseStream` ends with,
+ * rather than each frame carrying its own `TextEncoder` call.
  */
-export const frame: Filter.Filter<SinkRecord, Uint8Array> = (record) => {
+export const frame: Filter.Filter<SinkRecord, string> = (record) => {
   if (!isRecordJsonSafe(record)) return Result.fail(record);
-  return Result.succeed(encoder.encode(`data: ${JSON.stringify(toWire(record))}\n\n`));
+  return Result.succeed(
+    Sse.encoder.write({
+      _tag: "Event",
+      event: "message",
+      id: undefined,
+      data: JSON.stringify(toWire(record)),
+    }),
+  );
 };
 
 export interface DecisionStreamOptions {
@@ -204,7 +233,10 @@ export const decisionStreamRoute = <P extends Permission>(
   )(() =>
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
-      const frames = Stream.filterMap(stream, frame);
+      // `Stream.encodeText` — UTF-8 bytes, the same final step
+      // `HttpApiBuilder`'s own `encodeSseStream` ends with — rather than each
+      // frame carrying its own `TextEncoder.encode` call.
+      const frames = Stream.filterMap(stream, frame).pipe(Stream.encodeText);
       // `Stream.mergeEffect`: the recheck loop runs concurrently for the
       // stream's lifetime, fails the whole stream the moment it fails,
       // and is itself interrupted the moment the stream ends for any

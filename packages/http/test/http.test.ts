@@ -16,12 +16,14 @@ import * as HttpApi from "effect/unstable/httpapi/HttpApi";
 import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
 import * as HttpApiGroup from "effect/unstable/httpapi/HttpApiGroup";
+import * as OpenApi from "effect/unstable/httpapi/OpenApi";
 import * as Headers from "effect/unstable/http/Headers";
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServer from "effect/unstable/http/HttpServer";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import {
+  AttributeResolveError,
   AttributeResolver,
   CustomPredicateNone,
   DecisionHistoryUnknown,
@@ -538,4 +540,95 @@ describe("@qadi/http", () => {
       /already has a permission requirement/,
     );
   });
+
+  // ADR-QD-072 / H4: the middleware's `error:` declaration replaces the old
+  // hand-built status table for OpenAPI purposes. Before this change,
+  // `RequirePermission` declared no `error` at all, so `OpenApi.fromApi(Api)`
+  // documented only the 204 success response — a caller reading the spec had
+  // no way to learn a denial was even possible.
+  it("OpenApi.fromApi documents every status RequirePermission can answer with", () => {
+    const spec = OpenApi.fromApi(Api);
+    const responses = spec.paths["/documents"]?.get?.responses;
+    assert.isDefined(responses);
+    const statuses = Object.keys(responses ?? {}).sort();
+    // 204 is the handler's own success; 403 (AccessDeniedRefused and
+    // UndischargedObligationRefused share the one status), 500 (the four
+    // wiring-mistake tags share one status entry) and 502
+    // (SubjectExtractionRefused, plus the five outage tags) are every status
+    // RequirePermissionLive can now actually return, all visible without
+    // running the server at all.
+    assert.deepStrictEqual(statuses, ["204", "403", "500", "502"]);
+  });
+
+  it.effect("an outage propagates typed through the middleware, and the body carries real fields", () =>
+    Effect.gen(function* () {
+      // A dedicated, minimal fixture rather than `AppLayer`: the shared
+      // fixture's own "read" endpoint uses `hasPermission`, which never
+      // touches `AttributeResolver` — this scenario needs a policy that does,
+      // to reach `RequirePermissionLive`'s now-uncaught nine-tag path rather
+      // than its hand-caught `AccessDenied`/`SubjectExtractionFailed` arms.
+      const attributePolicy = hasAttribute("clearance", gte(1));
+      const AttributeGroup = HttpApiGroup.make("attribute-checked").add(
+        HttpApiEndpoint.get("read", "/attribute-checked").pipe((endpoint) =>
+          endpoint.annotate(
+            RequiredPermission,
+            requiresPermission(endpoint, { permission: readPermission, policy: attributePolicy }),
+          ),
+        ),
+      );
+      const AttributeApi = HttpApi.make("attribute-test").add(AttributeGroup).middleware(RequirePermission);
+      const AttributeHandlers = HttpApiBuilder.group(AttributeApi, "attribute-checked", (handlers) =>
+        handlers.handle("read", () => Effect.void),
+      );
+      const AttributeRoutes = HttpApiBuilder.layer(AttributeApi).pipe(
+        Layer.provide(AttributeHandlers),
+        Layer.provide(RequirePermissionLive),
+      );
+
+      // Unlike AccessDenied/UndischargedObligation, an AttributeResolveError
+      // is not hand-caught any more — it propagates to HttpApiMiddleware's
+      // own encoder, which is what actually puts real field data in the body
+      // instead of the empty one `toResponse` always sent.
+      const failingResolver = Layer.succeed(AttributeResolver, {
+        resolve: (_subjectId, attribute) =>
+          Effect.fail(new AttributeResolveError({ attribute, cause: "attribute store unreachable" })),
+      });
+
+      const app = AttributeRoutes.pipe(
+        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
+        Layer.provideMerge(
+          Layer.mergeAll(
+            failingResolver,
+            RelationshipResolverNever,
+            DecisionHistoryUnknown,
+            EvaluationIdLive,
+            CustomPredicateNone,
+            SignatureHistoryNone,
+          ),
+        ),
+        Layer.provideMerge(decisionCacheLayer()),
+        Layer.provideMerge(HttpServer.layerServices),
+      );
+      const { handler } = HttpRouter.toWebHandler(app);
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/attribute-checked", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 502);
+      const body: { readonly _tag?: string; readonly attribute?: string } = yield* Effect.promise(() =>
+        response.json(),
+      );
+      assert.strictEqual(body._tag, "AttributeResolveError");
+      assert.strictEqual(body.attribute, "clearance");
+    }));
+
+  it.effect("a denial's body stays empty — the trace never reaches the wire (disclosure, ADR-QD-072)", () =>
+    Effect.gen(function* () {
+      const { handler } = HttpRouter.toWebHandler(AppLayer);
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/documents", { headers: bearer(BOB_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 403);
+      const text = yield* Effect.promise(() => response.text());
+      assert.strictEqual(text, "");
+    }));
 });

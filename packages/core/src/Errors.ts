@@ -5,17 +5,20 @@
  * single exhaustive map, so a code can never be assigned to two unrelated
  * failures — the defect that produced ACL007 collisions in the predecessor.
  *
- * **Nine `EvaluationError` members are `Schema.TaggedError`, not
- * `Data.TaggedError`** — the narrow, named exception to AGENTS.md §4
- * (ADR-QD-060): these nine cross a process boundary as part of a
- * `SinkRecord` (`SinkCodec.ts`), and the class is now the wire schema rather
- * than a second, hand-mapped one beside it. Every other error in this file
- * stays `Data.TaggedError`.
+ * **Eleven `EnforcementError` members are `Schema.TaggedError`, not
+ * `Data.TaggedError`** — the narrow, named exception to AGENTS.md §4. Nine of
+ * them (ADR-QD-060) cross a process boundary as part of a `SinkRecord`
+ * (`SinkCodec.ts`); the remaining two, `AccessDenied` and
+ * `UndischargedObligation`, do not cross that wire but do cross a second,
+ * independent trust boundary — `@qadi/http`'s response body — and ADR-QD-072
+ * narrows ADR-QD-060 to cover them too, for the same reason: the class is the
+ * schema `httpApiStatus` annotates, rather than a second, hand-mapped
+ * description of the same eleven shapes living beside it in `@qadi/http`.
+ * Every other error in this file stays `Data.TaggedError`.
  */
 import * as Data from "effect/Data";
 import * as Schema from "effect/Schema";
-import type { Trace } from "./Decision.ts";
-import type { SubjectId } from "./Identity.ts";
+import { TraceSchema } from "./Decision.ts";
 import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { PolicyDecodeTooDeep } from "./Policy.ts";
 
@@ -164,12 +167,12 @@ export class InvalidPermissionSegment extends Data.TaggedError(
  * test failure, not in a response body. `toResponse` returns an empty body for
  * exactly that reason.
  */
-export class AccessDenied extends Data.TaggedError("AccessDenied")<{
-  readonly subjectId: SubjectId;
-  readonly policyTag: string;
-  readonly reason: string;
-  readonly trace: Trace;
-}> {}
+export class AccessDenied extends Schema.TaggedError<AccessDenied>()("AccessDenied", {
+  subjectId: SubjectIdSchema,
+  policyTag: Schema.String,
+  reason: Schema.String,
+  trace: TraceSchema,
+}) {}
 
 /**
  * Enforcement met an obligation it could not discharge.
@@ -179,12 +182,13 @@ export class AccessDenied extends Data.TaggedError("AccessDenied")<{
  * the protected work believing the policy permitted it unconditionally. Failing
  * is the only honest option: the permission had a condition nobody met.
  */
-export class UndischargedObligation extends Data.TaggedError(
+export class UndischargedObligation extends Schema.TaggedError<UndischargedObligation>()(
   "UndischargedObligation",
-)<{
-  readonly subjectId: SubjectId;
-  readonly obligationIds: ReadonlyArray<string>;
-}> {}
+  {
+    subjectId: SubjectIdSchema,
+    obligationIds: Schema.Array(Schema.String),
+  },
+) {}
 
 /**
  * A `HasCustom` node's registered predicate could not produce an answer.
