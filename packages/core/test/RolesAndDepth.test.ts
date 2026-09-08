@@ -1,3 +1,11 @@
+/**
+ * The iterative-walker and deep-chain depth of `Role.ts`/`resolveRoleGraph`.
+ * `Tokens.test.ts` covers the same two areas' basic behavior (a normal-depth
+ * cycle's full `CircularRoleInheritance` payload, `AuthSubject` construction
+ * from resolved roles) — this file is the deeper, iteration-and-depth-focused
+ * sibling, matching the pattern `DecisionHistory.test.ts` documents against
+ * `RelationshipResolver.test.ts`.
+ */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
@@ -137,6 +145,12 @@ describe("policyDepth", () => {
         for (let i = 0; i < n; i += 1) policy = P.not(policy);
         return P.policyDepth(policy) === n;
       }),
+      // Explicit seed, matching every other FastCheck-based property test in
+      // this scope (Explanation.test.ts, Policy.test.ts, Predicate.test.ts,
+      // Matcher.test.ts, Simplify.test.ts, Evaluate.test.ts): a CI failure
+      // must replay byte-for-byte from a recorded seed, not only from
+      // whatever FastCheck happened to print on that run's log.
+      { seed: 1031 },
     );
   });
 });

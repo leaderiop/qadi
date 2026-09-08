@@ -1,3 +1,19 @@
+/**
+ * A grab bag, not a per-module test file: `Permission`, `Role`,
+ * `resolveRoleGraph`, `AuthSubject` and `Errors` basics, grouped here rather
+ * than split one-file-per-module because they are the small, closely related
+ * "token" types the rest of the suite builds policies and subjects out of.
+ *
+ * Coverage overlaps two other files rather than replacing them, deliberately:
+ * `resolveRoleGraph`'s cycle detection is asserted here against the full
+ * `CircularRoleInheritance` payload, and again in `RolesAndDepth.test.ts`
+ * ("still fails on a genuine cycle") against only the `Failure` tag — the
+ * deeper, iterative-walker-focused sibling of this file's basic-behavior
+ * coverage. `AuthSubject`'s `makeSubject`/`fromRoles`/`withAttributes` basics
+ * are asserted here and again, more narrowly, in `AuthSubject.test.ts`
+ * (copy-on-build immutability). Matches the split `DecisionHistory.test.ts`
+ * documents against `RelationshipResolver.test.ts`.
+ */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import { anonymous, fromRoles, makeSubject, withAttributes } from "../src/AuthSubject.ts";
@@ -260,10 +276,16 @@ describe("Errors", () => {
     assert.strictEqual(errorCode(e), "ACL001");
   });
 
-  // The five classes below are only ever exercised through `Effect.result`'s
-  // own "Failure" wrapper elsewhere in the suite, so their own `_tag` — the
-  // real `Effect.catchTag` dispatch discriminant, unlike a `Context.Service`
-  // tag id — and payload never got asserted directly against the real class.
+  // Four of the five classes below (all but `InvalidPermissionSegment`) are
+  // also exercised elsewhere in the suite through `Effect.result`'s own
+  // "Failure" wrapper, so their own `_tag` — the real `Effect.catchTag`
+  // dispatch discriminant, unlike a `Context.Service` tag id — and payload
+  // never got asserted directly against the real class there.
+  //
+  // `InvalidPermissionSegment` is different: per its own doc comment
+  // (`Errors.ts`), it is "reserved for this purpose but not currently raised
+  // by any code path" — no call site anywhere in the library constructs one
+  // outside this test. This unit test is its only exercise in the codebase.
   it("MissingResource carries the attribute and its own tag", () => {
     const e = new MissingResource({ attribute: "clearance" });
     assert.strictEqual(e._tag, "MissingResource");

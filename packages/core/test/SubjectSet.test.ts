@@ -422,13 +422,65 @@ describe("decideSubjectsStream", () => {
         "qadi.policy_tag": "HasPermission",
       });
     }).pipe(Effect.provide(subjectSetLayer())));
+
+  it.effect("evaluates one subject at a time, same as decideSubjects", () =>
+    Effect.gen(function* () {
+      const log: Array<string> = [];
+      // Mirrors "evaluates one subject at a time" above: a resolver that
+      // yields between entering and answering. Sequentially the log
+      // interleaves not at all; any concurrency in the `Stream.mapEffect`
+      // call would start every element before the first finished.
+      const slow = Layer.succeed(AttributeResolver, {
+        resolve: (subjectId) =>
+          Effect.gen(function* () {
+            log.push(`start:${subjectId}`);
+            yield* Effect.yieldNow;
+            log.push(`end:${subjectId}`);
+            return 0;
+          }),
+      });
+
+      yield* Stream.runDrain(
+        decideSubjectsStream(
+          P.hasAttribute("level", M.gte(3)),
+          Stream.fromIterable([nobody("a"), nobody("b")]),
+        ).pipe(Stream.provide(subjectSetLayer({ attributes: slow }))),
+      );
+
+      assert.deepStrictEqual(log, ["start:a", "end:a", "start:b", "end:b"]);
+    }));
+
+  it.effect("a resolver failure fails the stream rather than denying an element", () =>
+    Effect.gen(function* () {
+      // Mirrors the array form's "a resolver failure fails the batch rather
+      // than denying an element": the streamed sibling must not silently
+      // swallow the failure into an empty or partial result.
+      const broken = Layer.succeed(AttributeResolver, {
+        resolve: (_subjectId, attribute) =>
+          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+      });
+
+      const r = yield* Effect.result(
+        Stream.runCollect(
+          decideSubjectsStream(
+            P.hasAttribute("level", M.gte(3)),
+            Stream.fromIterable([nobody("a"), nobody("b")]),
+          ).pipe(Stream.provide(subjectSetLayer({ attributes: broken }))),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+    }));
 });
 
 describe("filterSubjectsStream", () => {
   it.effect("keeps the subjects the policy allows, same as filterSubjects", () =>
     Effect.gen(function* () {
       const allowed = yield* Stream.runCollect(
-        filterSubjectsStream(canRead, Stream.fromIterable([reader("a"), nobody("b"), reader("c")])),
+        filterSubjectsStream(
+          canRead,
+          Stream.fromIterable([reader("a"), nobody("b"), reader("c")]),
+        ),
       );
       assert.deepStrictEqual(ids(allowed), ["a", "c"]);
     }).pipe(Effect.provide(subjectSetLayer())));

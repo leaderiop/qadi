@@ -118,3 +118,40 @@ export const isolatedMetrics = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
     Effect.provideService(Metric.MetricRegistry, new Map()),
     Effect.provideService(Metric.CurrentMetricAttributes, { test: "isolated" }),
   );
+
+/**
+ * How many scheduler turns {@link forkAndSettle}/{@link forkAllAndSettle} yield
+ * before assuming every forked fiber has reached whatever it is blocked on.
+ *
+ * A magic number in name only: it is the one place this test suite's
+ * blocking-resolver tests (`AttributeResolver.test.ts`, `CustomPredicate.test.ts`,
+ * `Qadi.test.ts`, and this file's own callers) tune it, rather than each
+ * inlining its own copy of the loop and its own guess at how many turns are
+ * enough.
+ */
+const SETTLE_TURNS = 20;
+
+/**
+ * Forks `effect`, yields enough scheduler turns for it to run up to whatever
+ * it is blocked on, then returns the fiber — still running, not yet joined.
+ * The caller opens whatever gate they are blocked on and joins it afterward.
+ */
+export const forkAndSettle = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    const fiber = yield* Effect.forkChild(effect);
+    for (let i = 0; i < SETTLE_TURNS; i++) yield* Effect.yieldNow;
+    return fiber;
+  });
+
+/**
+ * Forks every effect in `effects`, yields enough scheduler turns for all of
+ * them to run up to whatever they are blocked on, then returns the fibers —
+ * still running, not yet joined. The caller opens whatever gate they are
+ * blocked on and joins them afterward.
+ */
+export const forkAllAndSettle = <A, E, R>(effects: ReadonlyArray<Effect.Effect<A, E, R>>) =>
+  Effect.gen(function* () {
+    const fibers = yield* Effect.forEach(effects, (e) => Effect.forkChild(e));
+    for (let i = 0; i < SETTLE_TURNS; i++) yield* Effect.yieldNow;
+    return fibers;
+  });

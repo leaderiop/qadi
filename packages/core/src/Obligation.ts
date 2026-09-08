@@ -62,6 +62,11 @@ export const obligation = (
  * Identity is the whole value rather than the `id`: the same obligation reached
  * twice through a diamond appears once, while two duties sharing an id with
  * different attributes are two duties and both survive.
+ *
+ * The `out.some(...)` scan is O(|a|·|b|), the same tradeoff `TraceDiff.ts`'s
+ * `sameObligationSet` makes for the equivalent obligation-set comparison:
+ * obligation lists are short (a handful of duties per node at most), so the
+ * quadratic cost is not worth replacing with a hash-based structure here.
  */
 export const unionObligations = (
   a: ReadonlyArray<Obligation>,

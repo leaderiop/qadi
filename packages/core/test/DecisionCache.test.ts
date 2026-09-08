@@ -17,22 +17,7 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
-
-/**
- * Forks `count` copies of `effect`, yields enough scheduler turns for every
- * fork to actually run up to whatever it is blocked on, then returns the
- * fibers — still running, not yet joined. The caller opens whatever gate
- * they are blocked on and joins them afterward.
- */
-const forkAllAndSettle = <A, E, R>(effect: Effect.Effect<A, E, R>, count: number) =>
-  Effect.gen(function* () {
-    const fibers = yield* Effect.forEach(Array.from({ length: count }, () => effect), (e) =>
-      Effect.forkChild(e),
-    );
-    for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
-    return fibers;
-  });
+import { forkAllAndSettle, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 describe("DecisionCache", () => {
   /** Answerable only through the resolver, so lookups are countable. */
@@ -495,7 +480,9 @@ describe("DecisionCache", () => {
         });
 
         const decisions = yield* Effect.gen(function* () {
-          const fibers = yield* forkAllAndSettle(evaluate(needsLookup), 5);
+          const fibers = yield* forkAllAndSettle(
+            Array.from({ length: 5 }, () => evaluate(needsLookup)),
+          );
           // Every fiber is now blocked inside the resolver, on the gate — if
           // coalescing worked, that's one fiber, not five.
           assert.strictEqual(
@@ -562,7 +549,9 @@ describe("DecisionCache", () => {
         });
 
         const results = yield* Effect.gen(function* () {
-          const fibers = yield* forkAllAndSettle(evaluate(needsLookup), 5);
+          const fibers = yield* forkAllAndSettle(
+            Array.from({ length: 5 }, () => evaluate(needsLookup)),
+          );
           assert.strictEqual(
             yield* Ref.get(invocations),
             1,
@@ -1028,7 +1017,9 @@ describe("DecisionCache", () => {
 
         const snapshots = yield* isolatedMetrics(
           Effect.gen(function* () {
-            const fibers = yield* forkAllAndSettle(evaluate(needsLookup), 2);
+            const fibers = yield* forkAllAndSettle(
+              Array.from({ length: 2 }, () => evaluate(needsLookup)),
+            );
             yield* Deferred.succeed(gate, undefined);
             yield* Effect.forEach(fibers, Fiber.join);
             return yield* Metric.snapshot;
