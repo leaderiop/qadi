@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-05                                    |
-> | Revision       | 1.4                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-09-09                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -173,6 +173,42 @@ const program: Effect.Effect<boolean, EvaluationError> = evaluate(
   hasPermission(readDoc),
 ).pipe(Effect.map(isAllowed), Effect.provide(services));
 ```
+
+## BEH-QD-261: A defecting port fails typed, not dead
+
+> **Invariant:** [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)
+> **See:** [BEH-QD-036](#beh-qd-036-failure-is-not-denial)
+
+```
+REQUIREMENT: Each of the five port calls `evaluate` makes — `AttributeResolver.resolve`,
+             `DecisionHistory.hasActed`, `RelationshipResolver.check`,
+             `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor` —
+             MUST convert a defect from the underlying implementation (a
+             throw, a rejected promise, an `Effect.die`) into that port's own
+             typed `EvaluationError`, exactly as a well-behaved implementation
+             failing with that error already does. An already-typed failure,
+             and an interruption, MUST pass through unchanged.
+```
+
+```
+REQUIREMENT: This conversion MUST be visible to a caller's own `Effect.retry`
+             wrapped around `evaluate` — `Effect.retry` only ever inspects the
+             typed error channel, so a defect that reached it unconverted
+             could never be retried, unlike an ordinary `Effect.fail`.
+```
+
+BEH-QD-036 already required a *typed* failure not to read as a denial; this
+closes the gap one level under it — a port that dies instead of failing is not
+`Effect.orDie` (AGENTS.md §4 forbids that explicitly), but reaches the same
+place by omission if nothing catches it. `CustomPredicateError` has no `cause`
+field, unlike its four siblings; its `reason` renders the defect
+(`Cause.pretty`) the same way it already renders an unregistered name as a
+sentence, rather than a second shape invented for the defect case.
+
+Each port's `Shape` interface documents this as part of its own contract —
+`AttributeResolverShape.resolve`'s doc comment states it first, and the other
+four cross-reference it — so an implementer reads the guarantee at the method
+they are writing, not only here.
 
 ---
 

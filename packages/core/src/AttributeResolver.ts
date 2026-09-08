@@ -39,6 +39,15 @@ export interface AttributeResolverShape {
    * Returning `undefined` means "no value", which is a legitimate answer and
    * will simply fail the matcher. Failing the Effect means the lookup itself
    * broke, which propagates as an evaluation error rather than a denial.
+   *
+   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
+   * `resolveAttribute` catches a defect from this call — a throw, a rejected
+   * promise lifted through `Effect.tryPromise`, an `Effect.die` — and
+   * converts it into this same `AttributeResolveError`, so a caller wrapping
+   * `evaluate` in `Effect.retry` sees a typed, retryable failure either way
+   * (issue #100). An implementation that already fails with
+   * `AttributeResolveError` pays nothing extra for this; one that dies
+   * instead is no longer a silent gap in that guarantee.
    */
   readonly resolve: (
     subjectId: SubjectId,

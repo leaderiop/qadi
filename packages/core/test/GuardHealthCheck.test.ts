@@ -1,5 +1,4 @@
 import { assert, describe, it } from "@effect/vitest";
-import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as TestClock from "effect/testing/TestClock";
@@ -50,26 +49,28 @@ describe("createGuardHealthCheck", () => {
       assert.isTrue(result.healthy);
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
-  it.effect("a defect from a resolver is not swallowed into 'unhealthy' — it still propagates", () => {
-    // Pins the doc comment's central claim: only a *typed* EvaluationError
-    // becomes `healthy: false`. A resolver that dies outright (a real bug, not
-    // a reported failure) must still surface as a defect, or the probe would
-    // report a broken port as merely "unhealthy" — indistinguishable from a
-    // clean typed failure.
-    const dying: Layer.Layer<AttributeResolver> = Layer.succeed(AttributeResolver, {
-      resolve: () => Effect.die(new Error("resolver exploded")),
-    });
-    const policy = P.hasAttribute("plan", M.eq(M.literal("pro")));
+  it.effect(
+    "a resolver that dies outright is reported unhealthy, not left to crash the probe",
+    () => {
+      // Corrected alongside issue #100 (BEH-QD-261): this pinned the opposite
+      // claim before — that a dying resolver was *not* caught here and
+      // crashed the probe as a defect. `Evaluate.ts`'s five port calls now
+      // convert a defect into that port's own typed `EvaluationError` before
+      // it ever reaches this function, so a probe against a broken port now
+      // reports `healthy: false` exactly as it does for a port that fails
+      // cleanly — an operator polling this learns the resolver is broken
+      // instead of the health check itself dying.
+      const dying: Layer.Layer<AttributeResolver> = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.die(new Error("resolver exploded")),
+      });
+      const policy = P.hasAttribute("plan", M.eq(M.literal("pro")));
 
-    return Effect.gen(function* () {
-      const exit = yield* Effect.exit(createGuardHealthCheck(policy));
+      return Effect.gen(function* () {
+        const result = yield* createGuardHealthCheck(policy);
 
-      assert.strictEqual(exit._tag, "Failure");
-      if (exit._tag !== "Failure") return;
-      const defect = Cause.squash(exit.cause);
-      assert.instanceOf(defect, Error);
-      if (!(defect instanceof Error)) return;
-      assert.match(defect.message, /resolver exploded/);
-    }).pipe(Effect.provide(testLayer(subjectWith({}), { attributes: dying })));
-  });
+        assert.isFalse(result.healthy);
+        assert.deepStrictEqual(result.errors, ["AttributeResolveError"]);
+      }).pipe(Effect.provide(testLayer(subjectWith({}), { attributes: dying })));
+    },
+  );
 });

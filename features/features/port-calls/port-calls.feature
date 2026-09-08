@@ -49,6 +49,14 @@ Feature: Seeing what the ports were asked
     Then that call names the attribute "clearance"
     And that call reports no answer at all
 
+  Scenario: A resolver that dies rather than fails is still recorded, and still an error
+    Given a subject "alice" carrying no attributes
+    And a resolver that dies unexpectedly
+    When the "clearance" policy is evaluated under a collector
+    Then one AttributeResolver call is recorded
+    And that call names the attribute "clearance"
+    And evaluation fails with an AttributeResolveError, not a defect
+
   Scenario: A relationship question records what it asked and what it heard
     Given a subject "alice" carrying no attributes
     And an edge making "alice" the "owner" of "doc-1"

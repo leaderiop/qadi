@@ -5,11 +5,13 @@ import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Metric from "effect/Metric";
+import * as Ref from "effect/Ref";
 import * as References from "effect/References";
+import * as Schedule from "effect/Schedule";
 import * as Tracer from "effect/Tracer";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
-import { customPredicateFromRecord } from "../src/CustomPredicate.ts";
+import { CustomPredicate, customPredicateFromRecord } from "../src/CustomPredicate.ts";
 import {
   DecisionHistory,
   DecisionHistoryUnknown,
@@ -3309,4 +3311,196 @@ describe("concurrent evaluation", () => {
       // for a `concurrency` option that did nothing at all.
       assert.isAbove(composites, 10);
     }));
+});
+
+/**
+ * The five bare `yield*` calls into `AttributeResolver`, `DecisionHistory`,
+ * `RelationshipResolver`, `CustomPredicate` and `SignatureHistory` had no
+ * `catchCause` wrapper: a port that *dies* — throws out of its own Effect
+ * construction, or `Effect.die`s deliberately — passed the defect straight
+ * through `Effect.retry`, which only ever inspects the typed error channel,
+ * and reached `@qadi/http` as a bare 500 rather than the taxonomy's 502
+ * (issue #100). Each test below proves the fix at one call site: a dying
+ * port surfaces as the port's own typed `EvaluationError`, indistinguishable
+ * in shape from a well-behaved `Effect.fail`, never as an unrecoverable
+ * defect — and the last test proves `Effect.retry` can actually see and
+ * retry it.
+ */
+describe("port defects become typed errors", () => {
+  it.effect("a dying AttributeResolver surfaces as AttributeResolveError", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.die(new Error("boom")),
+      });
+
+      const r = yield* Effect.result(
+        evaluate(P.hasAttribute("x", M.exists())).pipe(
+          Effect.provide(testLayer(subjectWith({}), { attributes: dying })),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, AttributeResolveError);
+      if (!(r.failure instanceof AttributeResolveError)) return;
+      assert.strictEqual(r.failure.attribute, "x");
+    }));
+
+  it.effect("a dying DecisionHistory surfaces as DecisionHistoryUnavailable", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(DecisionHistory, {
+        hasActed: () => Effect.die(new Error("boom")),
+      });
+
+      const r = yield* Effect.result(
+        evaluate(P.hasActed("raised"), { resource: { id: "inv-1" } }).pipe(
+          Effect.provide(testLayer(subjectWith({}), { history: dying })),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, DecisionHistoryUnavailable);
+      if (!(r.failure instanceof DecisionHistoryUnavailable)) return;
+      assert.strictEqual(r.failure.event, "raised");
+    }));
+
+  it.effect("a dying RelationshipResolver surfaces as RelationshipResolveError", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(RelationshipResolver, {
+        check: () => Effect.die(new Error("boom")),
+      });
+
+      const r = yield* Effect.result(
+        evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
+          Effect.provide(testLayer(subjectWith({}), { relationships: dying })),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, RelationshipResolveError);
+      if (!(r.failure instanceof RelationshipResolveError)) return;
+      assert.strictEqual(r.failure.relation, "owner");
+    }));
+
+  it.effect("a dying CustomPredicate surfaces as CustomPredicateError", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(CustomPredicate, {
+        evaluate: () => Effect.die(new Error("boom")),
+      });
+
+      const r = yield* Effect.result(
+        evaluate(P.hasCustom("isOwner")).pipe(
+          Effect.provide(testLayer(subjectWith({}), { customPredicate: dying })),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, CustomPredicateError);
+      if (!(r.failure instanceof CustomPredicateError)) return;
+      assert.strictEqual(r.failure.name, "isOwner");
+      // The reason renders the defect rather than staying silent about it,
+      // matching this tag's other failure mode ("no predicate is registered
+      // under this name") — a string a reader can act on, not a fresh shape
+      // invented for the defect case.
+      assert.match(r.failure.reason, /boom/);
+    }));
+
+  it.effect("a dying SignatureHistory surfaces as SignatureHistoryUnavailable", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(SignatureHistory, {
+        signaturesFor: () => Effect.die(new Error("boom")),
+      });
+
+      const r = yield* Effect.result(
+        evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
+          Effect.provide(testLayer(subjectWith({ id: "u1" }), { signatureHistory: dying })),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, SignatureHistoryUnavailable);
+      if (!(r.failure instanceof SignatureHistoryUnavailable)) return;
+      assert.strictEqual(r.failure.subjectId, "u1");
+    }));
+
+  it.effect("a port's own typed failure is not re-wrapped as a second layer", () =>
+    Effect.gen(function* () {
+      // `catchCause` intercepts every cause, including an already-typed
+      // `Fail` — this proves it is not double-wrapping the one case that
+      // must reach the caller exactly as the port raised it.
+      const original = new AttributeResolveError({ attribute: "x", cause: "down" });
+      const failing = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.fail(original),
+      });
+
+      const r = yield* Effect.result(
+        evaluate(P.hasAttribute("x", M.exists())).pipe(
+          Effect.provide(testLayer(subjectWith({}), { attributes: failing })),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure, original);
+    }));
+
+  it.effect(
+    "Effect.retry sees a typed, retryable failure even when the port dies",
+    () =>
+      Effect.gen(function* () {
+        // Before this fix, a dying port's defect passed straight through
+        // `Effect.retry` — which only ever inspects the typed error channel
+        // — so a caller wrapping `evaluate` in a retry schedule could never
+        // recover from an adapter that threw instead of failing. A resolver
+        // that dies twice and then succeeds is retried exactly as one that
+        // *fails* twice and then succeeds would be (mirrors
+        // `AttributeResolver.test.ts`'s `attributeResolverRetrying` proof,
+        // one layer up: `Effect.retry` here wraps `evaluate` itself, not the
+        // port layer).
+        const attempts = yield* Ref.make(0);
+        const flaky = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Ref.updateAndGet(attempts, (n) => n + 1).pipe(
+              Effect.flatMap((n) => (n <= 2 ? Effect.die(new Error("boom")) : Effect.succeed(9))),
+            ),
+        });
+
+        const decision = yield* evaluate(P.hasAttribute("x", M.gte(5))).pipe(
+          Effect.provide(testLayer(subjectWith({}), { attributes: flaky })),
+          Effect.retry(Schedule.recurs(2)),
+        );
+
+        assert.strictEqual(yield* Ref.get(attempts), 3);
+        assert.isTrue(isAllowed(decision));
+      }),
+  );
+
+  it.effect(
+    "Effect.retry exhausts and still surfaces the typed error, not the defect",
+    () =>
+      Effect.gen(function* () {
+        const attempts = yield* Ref.make(0);
+        const alwaysDies = Layer.succeed(AttributeResolver, {
+          resolve: () => Ref.updateAndGet(attempts, (n) => n + 1).pipe(Effect.andThen(Effect.die(new Error("boom")))),
+        });
+
+        const r = yield* Effect.result(
+          evaluate(P.hasAttribute("x", M.gte(5))).pipe(
+            Effect.provide(testLayer(subjectWith({}), { attributes: alwaysDies })),
+            Effect.retry(Schedule.recurs(2)),
+          ),
+        );
+
+        // 1 initial call + 2 retries = 3 attempts, matching
+        // `attributeResolverRetrying`'s own exhaustion test.
+        assert.strictEqual(yield* Ref.get(attempts), 3);
+        assert.strictEqual(r._tag, "Failure");
+        if (r._tag !== "Failure") return;
+        assert.instanceOf(r.failure, AttributeResolveError);
+      }),
+  );
 });

@@ -8,6 +8,7 @@
  * `Effect` collapses both paths: resolution happens lazily, at the node that
  * needs it, and `anyOf` stops at its first allowing child.
  */
+import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
@@ -28,10 +29,15 @@ import { Decided, DecisionRecord, Failed } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { EvaluationError } from "./Errors.ts";
 import {
+  AttributeResolveError,
+  CustomPredicateError,
+  DecisionHistoryUnavailable,
   MissingAction,
   MissingResource,
   MissingResourceId,
   PolicyTooDeep,
+  RelationshipResolveError,
+  SignatureHistoryUnavailable,
 } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
 import { makeResourceId } from "./Identity.ts";
@@ -246,6 +252,49 @@ const deny = (
 });
 
 /**
+ * Converts a port call's defect into its own typed error, leaving an
+ * already-typed failure — or an interruption — to pass through unchanged.
+ *
+ * A port's declared error channel (`AttributeResolveError`, and its four
+ * siblings below) is a promise about what a *failure* looks like; nothing in
+ * that promise said what happens when an adapter throws instead of failing,
+ * so a defecting port sailed straight past `Effect.retry` (which only ever
+ * sees typed errors) and reached `@qadi/http` as a bare 500 instead of the
+ * taxonomy's 502 (issue #100). Wrapping each of the five call sites below
+ * with this closes that gap without changing what a well-behaved port
+ * already promised.
+ *
+ * Only a genuine defect is rewritten:
+ * - `Cause.hasFails` — the port already failed with its declared error —
+ *   passes through via `Effect.failCause`, unchanged, rather than being
+ *   wrapped a second time. `retry`, `catchTag`, and everything downstream
+ *   must keep seeing exactly the value the port raised.
+ * - a cause with no `Fail` reason at all (a pure interruption, or an empty
+ *   cause) also passes through unchanged: converting an interruption into an
+ *   ordinary typed failure would let a caller's `Effect.retry` retry work
+ *   that was deliberately cancelled — worse than the defect this function
+ *   exists to catch, and not what "an authorization decision must never
+ *   become a defect" (AGENTS.md §4) asks for.
+ * - only a cause carrying a `Die` and no `Fail` becomes `onDefect(cause)`.
+ *
+ * Mirrors `DecisionSinkForwarding.ts`'s `Effect.catchCause` in spirit — a
+ * port adapter can die as easily as `send` can — but where that swallows
+ * every cause into `void`, a port call must still fail with something a
+ * caller's `Effect.retry` can see, so a defect becomes the port's own typed
+ * error instead of being silently absorbed.
+ */
+const catchPortDefect =
+  <E>(onDefect: (cause: Cause.Cause<E>) => E) =>
+  <A, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+    effect.pipe(
+      Effect.catchCause((cause) =>
+        Cause.hasFails(cause) || !Cause.hasDies(cause)
+          ? Effect.failCause(cause)
+          : Effect.fail(onDefect(cause)),
+      ),
+    );
+
+/**
  * The port call, when the subject did not already have the attribute.
  *
  * A span here and not in `readAttribute` above it, so that a **subject hit
@@ -275,7 +324,11 @@ const resolveAttribute = Effect.fn("qadi.attribute")(function* (
     "qadi.subject_id": subject.id,
   });
   yield* Metric.update(portCallsTotal, "AttributeResolver");
-  const value = yield* AttributeResolver.resolve(subject.id, attribute);
+  const value = yield* AttributeResolver.resolve(subject.id, attribute).pipe(
+    catchPortDefect(
+      (cause) => new AttributeResolveError({ attribute, cause: Cause.squash(cause) }),
+    ),
+  );
   // `undefined` is the absent sentinel every fail-closed default answers with;
   // `null` is a value a store genuinely returned.
   yield* Effect.annotateCurrentSpan({ "qadi.resolved": value !== undefined });
@@ -481,7 +534,11 @@ const evaluateActed = Effect.fn("qadi.acted")(function* (
     subjectId: subject.id,
     event: policy.event,
     resourceId: scoped && typeof rawId === "string" ? makeResourceId(rawId) : undefined,
-  });
+  }).pipe(
+    catchPortDefect(
+      (cause) => new DecisionHistoryUnavailable({ event: policy.event, cause: Cause.squash(cause) }),
+    ),
+  );
   // A closed three-valued enum, so this discloses nothing a policy tag does not.
   yield* Effect.annotateCurrentSpan({ "qadi.answer": answer });
   // `"Unknown"` matches neither, so both polarities deny under an unwired
@@ -556,7 +613,16 @@ const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
     relation: policy.relation,
     resourceId: makeResourceId(rawId),
     depth,
-  });
+  }).pipe(
+    catchPortDefect(
+      (cause) =>
+        new RelationshipResolveError({
+          relation: policy.relation,
+          resourceId: makeResourceId(rawId),
+          cause: Cause.squash(cause),
+        }),
+    ),
+  );
   yield* Effect.annotateCurrentSpan({ "qadi.answer": related });
   // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
   // the arms close over `policy`, `subject` and `rawId`, so there is nothing to
@@ -602,7 +668,17 @@ const evaluateHasCustom = Effect.fn("qadi.hasCustom")(function* (
     "qadi.subject_id": subject.id,
   });
   yield* Metric.update(portCallsTotal, "CustomPredicate");
-  const allowed = yield* CustomPredicate.evaluate(policy.name, subject, resource, policy.params);
+  const allowed = yield* CustomPredicate.evaluate(policy.name, subject, resource, policy.params).pipe(
+    catchPortDefect(
+      // `CustomPredicateError` has no `cause` field — unlike the other four
+      // port errors, it already represents its other failure mode (an
+      // unregistered name) as a human sentence in `reason`
+      // (`customPredicateFromRecord`, `Evaluate.test.ts`), not as a raw
+      // defect value. `Cause.pretty` matches that convention for a defect
+      // too, rather than inventing a second shape `reason` can hold.
+      (cause) => new CustomPredicateError({ name: policy.name, reason: Cause.pretty(cause) }),
+    ),
+  );
   yield* Effect.annotateCurrentSpan({ "qadi.answer": allowed });
   return allowed
     ? allow("HasCustom", policy.fields)
@@ -636,10 +712,21 @@ const evaluateHasSignature = Effect.fn("qadi.hasSignature")(function* (
   });
   yield* requireScopedResourceId(scoped, rawId, policy.meaning);
   yield* Metric.update(portCallsTotal, "SignatureHistory");
+  const signatureResourceId =
+    scoped && typeof rawId === "string" ? makeResourceId(rawId) : undefined;
   const signatures = yield* SignatureHistory.signaturesFor({
     subjectId: subject.id,
-    resourceId: scoped && typeof rawId === "string" ? makeResourceId(rawId) : undefined,
-  });
+    resourceId: signatureResourceId,
+  }).pipe(
+    catchPortDefect(
+      (cause) =>
+        new SignatureHistoryUnavailable({
+          subjectId: subject.id,
+          resourceId: signatureResourceId,
+          cause: Cause.squash(cause),
+        }),
+    ),
+  );
   const matched = signatures.some(
     (s) =>
       s.meaning === policy.meaning &&
