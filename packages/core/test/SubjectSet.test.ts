@@ -362,8 +362,7 @@ describe("observability", () => {
       const spans: Array<Tracer.Span> = [];
 
       yield* decideSubjects(canRead, [reader("a"), nobody("b")]).pipe(
-        Effect.provide(subjectSetLayer()),
-        Effect.provide(collectingTracer(spans)),
+        Effect.provide(Layer.mergeAll(subjectSetLayer(), collectingTracer(spans))),
       );
 
       const batch = spans.find((s) => s.name === "qadi.decideSubjects");

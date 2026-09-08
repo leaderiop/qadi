@@ -68,6 +68,18 @@ const ROOT = new URL("..", import.meta.url).pathname;
  * `raw: true` tests the unstripped line. Needed for rules that match inside
  * string literals (import specifiers), which `strip()` blanks out.
  *
+ * Every rule here (`no-type-assertion` and `no-non-null-assertion` included)
+ * matches one physical source line at a time (see the `lines.forEach` loop
+ * below). AGENTS.md §17 documents this codebase's own convention of
+ * hand-wrapping long lines at ~90 columns rather than reformatting, so an
+ * `as <Type>` or a trailing `!` whose keyword and operand a hand-wrap splits
+ * across two lines is invisible to these two rules — the opening line ends in
+ * a bare `as` with no operand for the pattern to match, and the continuation
+ * line carries no `as`/`!` token at all. No file today does this (241 files
+ * scan clean), so this is a structural blind spot in the mechanism, not a
+ * live bypass — a future reviewer should not assume line-by-line regex
+ * matching here is exhaustive.
+ *
  * @type {ReadonlyArray<{ id: string, re: RegExp, message: string, raw?: boolean, testScope?: boolean }>}
  */
 const RULES = [
@@ -315,7 +327,7 @@ const IMPORT_MAX_LINES = 200;
 /**
  * Recursively collect .ts/.tsx files under a directory.
  *
- * `.test-d.ts` stays excluded even where `includeTests` is set: a tstyche
+ * `.tst.ts` stays excluded even where `includeTests` is set: a tstyche
  * type-level test file exists to exercise the type system at compile time and
  * has no runtime behavior a cast or a non-null assertion could hide a defect
  * behind.
@@ -333,7 +345,7 @@ const collect = (dir, { includeTests = false } = {}) => {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       out.push(...collect(full, { includeTests }));
-    } else if (/\.tsx?$/.test(full) && !/\.test-d\.ts$/.test(full)) {
+    } else if (/\.tsx?$/.test(full) && !/\.tst\.ts$/.test(full)) {
       if (includeTests || !/\.test\.tsx?$/.test(full)) out.push(full);
     }
   }

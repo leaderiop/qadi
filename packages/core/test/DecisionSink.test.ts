@@ -240,7 +240,7 @@ describe("DecisionSink — record ordering", () => {
       });
 
       yield* isolatedMetrics(
-        evaluate(P.hasPermission(read)).pipe(Effect.provide(sink), Effect.provide(testLayer(allowed))),
+        evaluate(P.hasPermission(read)).pipe(Effect.provide(Layer.mergeAll(sink, testLayer(allowed)))),
       );
 
       // Not merely defined: exactly 1, since this is the only evaluation the
@@ -264,8 +264,7 @@ describe("DecisionSink — record ordering", () => {
 
       yield* isolatedMetrics(
         evaluate(P.hasPermission(read)).pipe(
-          Effect.provide(sink),
-          Effect.provide(testLayer(subjectWith({}))),
+          Effect.provide(Layer.mergeAll(sink, testLayer(subjectWith({})))),
         ),
       );
 

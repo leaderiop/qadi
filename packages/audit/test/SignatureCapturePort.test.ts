@@ -196,7 +196,7 @@ describe("signatureObligationHandler — wired through Qadi.enforce's discharge"
 
       yield* qadiAssert(policy, {
         onObligations: signatureObligationHandler(port, SIGNATURE_MEANINGS.APPROVED),
-      }).pipe(Effect.provide(testEnv(alice)), Effect.provide(sink));
+      }).pipe(Effect.provide(Layer.mergeAll(testEnv(alice), sink)));
 
       assert.strictEqual(records.length, 1);
       assert.strictEqual(records[0]?.outcome, "Discharged");
@@ -220,7 +220,7 @@ describe("signatureObligationHandler — wired through Qadi.enforce's discharge"
       const result = yield* Effect.result(
         qadiAssert(policy, {
           onObligations: signatureObligationHandler(port, SIGNATURE_MEANINGS.APPROVED),
-        }).pipe(Effect.provide(testEnv(alice)), Effect.provide(sink)),
+        }).pipe(Effect.provide(Layer.mergeAll(testEnv(alice), sink))),
       );
 
       assert.strictEqual(result._tag, "Failure");

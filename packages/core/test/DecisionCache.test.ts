@@ -53,8 +53,12 @@ describe("DecisionCache", () => {
       const [first, second] = yield* Effect.gen(function* () {
         return [yield* evaluate(needsLookup), yield* evaluate(needsLookup)] as const;
       }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { attributes: counting(calls) }),
+            decisionCacheLayer(),
+          ),
+        ),
       );
 
       assert.isTrue(isAllowed(first));
@@ -72,8 +76,12 @@ describe("DecisionCache", () => {
       const calls: Array<string> = [];
       const perEvaluation = () =>
         evaluate(needsLookup).pipe(
-          Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-          Effect.provide(decisionCacheLayer()),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: counting(calls) }),
+              decisionCacheLayer(),
+            ),
+          ),
         );
 
       yield* perEvaluation();
@@ -91,8 +99,12 @@ describe("DecisionCache", () => {
         const opts = { resource: { id: "doc-1" } };
         return [yield* evaluate(needsLookup, opts), yield* evaluate(needsLookup, opts)] as const;
       }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting([]) })),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { attributes: counting([]) }),
+            decisionCacheLayer(),
+          ),
+        ),
       );
 
       assert.deepStrictEqual(hit.trace, miss.trace);
@@ -141,8 +153,7 @@ describe("DecisionCache", () => {
         const b = yield* evaluate(policy, { resource: { id: "b", tenantId: "t-2" } });
         return [a, b] as const;
       }).pipe(
-        Effect.provide(testLayer(alice)),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(Layer.mergeAll(testLayer(alice), decisionCacheLayer())),
       );
 
       // Same subject, same policy, different resource — different answers.
@@ -159,8 +170,7 @@ describe("DecisionCache", () => {
         const b = yield* evaluate(policy, { action: "write" });
         return [a, b] as const;
       }).pipe(
-        Effect.provide(testLayer(alice)),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(Layer.mergeAll(testLayer(alice), decisionCacheLayer())),
       );
 
       assert.isTrue(isAllowed(read));
@@ -181,7 +191,7 @@ describe("DecisionCache", () => {
         const a = yield* Effect.result(evaluate(policy, { maxDepth: 3 }));
         const b = yield* Effect.result(evaluate(policy, { maxDepth: 2 }));
         return [a, b] as const;
-      }).pipe(Effect.provide(testLayer(subject)), Effect.provide(decisionCacheLayer()));
+      }).pipe(Effect.provide(Layer.mergeAll(testLayer(subject), decisionCacheLayer())));
 
       assert.strictEqual(atLimit._tag, "Success");
       // Under the bug, this hit the entry the first ask left behind instead of
@@ -201,8 +211,12 @@ describe("DecisionCache", () => {
       const [first, second] = yield* Effect.gen(function* () {
         return [yield* evaluate(needsLookup), yield* evaluate(needsLookup)] as const;
       }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting(calls, 0) })),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { attributes: counting(calls, 0) }),
+            decisionCacheLayer(),
+          ),
+        ),
       );
 
       assert.isFalse(isAllowed(first));
@@ -220,7 +234,7 @@ describe("DecisionCache", () => {
 
       const [miss, hit] = yield* Effect.gen(function* () {
         return [yield* evaluate(policy), yield* evaluate(policy)] as const;
-      }).pipe(Effect.provide(testLayer(subject)), Effect.provide(decisionCacheLayer()));
+      }).pipe(Effect.provide(Layer.mergeAll(testLayer(subject), decisionCacheLayer())));
 
       assert.isTrue(isAllowed(miss));
       assert.isTrue(isAllowed(hit));
@@ -244,8 +258,12 @@ describe("DecisionCache", () => {
         yield* evaluate(needsLookup, { resource: { a: 1, b: 2 } });
         yield* evaluate(needsLookup, { resource: { b: 2, a: 1 } });
       }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { attributes: counting(calls) }),
+            decisionCacheLayer(),
+          ),
+        ),
       );
 
       assert.strictEqual(calls.length, 1, "same question, one evaluation");
@@ -368,8 +386,12 @@ describe("DecisionCache", () => {
         yield* evaluate(needsLookup, { resource: { d: new Date(0) } });
         yield* evaluate(needsLookup, { resource: { d: "1970-01-01T00:00:00.000Z" } });
       }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { attributes: counting(calls) }),
+            decisionCacheLayer(),
+          ),
+        ),
       );
 
       assert.strictEqual(calls.length, 2, "a Date is not its ISO string");
@@ -385,8 +407,12 @@ describe("DecisionCache", () => {
         yield* evaluate(needsLookup, { resource: { a: 1, b: undefined } });
         yield* evaluate(needsLookup, { resource: { a: 1 } });
       }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { attributes: counting(calls) }),
+            decisionCacheLayer(),
+          ),
+        ),
       );
 
       assert.strictEqual(calls.length, 2, "an explicit undefined is part of the question");
@@ -400,8 +426,12 @@ describe("DecisionCache", () => {
         yield* evaluate(needsLookup, { resource: { id: "doc-1" } }); // a different question
         return yield* DecisionCache.use((c) => c.size);
       }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting([]) })),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { attributes: counting([]) }),
+            decisionCacheLayer(),
+          ),
+        ),
       );
 
       assert.strictEqual(held, 2);
@@ -433,7 +463,7 @@ describe("DecisionCache", () => {
         yield* Effect.gen(function* () {
           yield* evaluate(P.hasRole("admin")); // miss: evaluateNode runs, roles.has called once
           yield* evaluate(P.hasRole("admin")); // hit: must not call roles.has again
-        }).pipe(Effect.provide(testLayer(subject)), Effect.provide(decisionCacheLayer()));
+        }).pipe(Effect.provide(Layer.mergeAll(testLayer(subject), decisionCacheLayer())));
 
         assert.strictEqual(
           roles.hasCalls,
@@ -453,8 +483,12 @@ describe("DecisionCache", () => {
         const b = yield* evaluate(policy, { concurrency: "unbounded" });
         return [a, b] as const;
       }).pipe(
-        Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { attributes: counting(calls) }),
+            decisionCacheLayer(),
+          ),
+        ),
       );
 
       // The second ask differs only in `concurrency`, which is NOT part of the key —
@@ -493,8 +527,12 @@ describe("DecisionCache", () => {
           yield* Deferred.succeed(gate, undefined);
           return yield* Effect.forEach(fibers, Fiber.join);
         }).pipe(
-          Effect.provide(testLayer(alice, { attributes: blockingResolver })),
-          Effect.provide(decisionCacheLayer()),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: blockingResolver }),
+              decisionCacheLayer(),
+            ),
+          ),
         );
 
         for (const decision of decisions) assert.isTrue(isAllowed(decision));
@@ -519,8 +557,12 @@ describe("DecisionCache", () => {
         const b = yield* Effect.result(evaluate(needsLookup));
         return [a, b, yield* DecisionCache.use((c) => c.size)] as const;
       }).pipe(
-        Effect.provide(testLayer(alice, { attributes: alwaysFails })),
-        Effect.provide(decisionCacheLayer()),
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { attributes: alwaysFails }),
+            decisionCacheLayer(),
+          ),
+        ),
       );
 
       assert.strictEqual(first._tag, "Failure");
@@ -560,8 +602,12 @@ describe("DecisionCache", () => {
           yield* Deferred.succeed(gate, undefined);
           return yield* Effect.forEach(fibers, (f) => Effect.result(Fiber.join(f)));
         }).pipe(
-          Effect.provide(testLayer(alice, { attributes: failingResolver })),
-          Effect.provide(decisionCacheLayer()),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: failingResolver }),
+              decisionCacheLayer(),
+            ),
+          ),
         );
 
         for (const result of results) assert.strictEqual(result._tag, "Failure");
@@ -619,8 +665,12 @@ describe("DecisionCache", () => {
           // never complete — a permanent hang, not just a slow answer.
           return yield* Effect.timeoutOption(500)(Effect.exit(evaluate(needsLookup)));
         }).pipe(
-          Effect.provide(testLayer(alice, { attributes: resolver })),
-          Effect.provide(decisionCacheLayer()),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: resolver }),
+              decisionCacheLayer(),
+            ),
+          ),
         );
 
         assert.strictEqual(
@@ -676,8 +726,12 @@ describe("DecisionCache", () => {
           yield* Deferred.succeed(gate, undefined);
           return yield* Fiber.join(fiberB);
         }).pipe(
-          Effect.provide(testLayer(alice, { attributes: blockingResolver })),
-          Effect.provide(decisionCacheLayer()),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: blockingResolver }),
+              decisionCacheLayer(),
+            ),
+          ),
         );
 
         assert.isTrue(isAllowed(survivorResult));
@@ -750,7 +804,14 @@ describe("DecisionCache", () => {
           const third = yield* evaluate(needsLookup);
           assert.strictEqual(yield* Ref.get(invocations), 2, "the third ask was a cache hit, not a third compute");
           assert.isFalse(isAllowed(third), "a clear mid-compute must not let that compute's stale result win");
-        }).pipe(Effect.provide(testLayer(alice, { attributes: resolver })), Effect.provide(decisionCacheLayer()));
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: resolver }),
+              decisionCacheLayer(),
+            ),
+          ),
+        );
       }),
   );
 
@@ -855,7 +916,14 @@ describe("DecisionCache", () => {
             2,
             "the fourth ask should hit the entry ask 2 left behind, not recompute",
           );
-        }).pipe(Effect.provide(testLayer(alice, { attributes: resolver })), Effect.provide(decisionCacheLayer()));
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: resolver }),
+              decisionCacheLayer(),
+            ),
+          ),
+        );
       }),
   );
 
@@ -867,8 +935,12 @@ describe("DecisionCache", () => {
         // loop inside `Effect.sync`, not a small cache.
         const exit = yield* Effect.exit(
           evaluate(needsLookup).pipe(
-            Effect.provide(testLayer(alice, { attributes: counting([]) })),
-            Effect.provide(decisionCacheLayer({ capacity: -1 })),
+            Effect.provide(
+              Layer.mergeAll(
+                testLayer(alice, { attributes: counting([]) }),
+                decisionCacheLayer({ capacity: -1 }),
+              ),
+            ),
           ),
         );
         assert.strictEqual(exit._tag, "Failure");
@@ -885,8 +957,12 @@ describe("DecisionCache", () => {
         // NaN capacity made eviction a silent no-op — "bounded" in name only.
         const exit = yield* Effect.exit(
           evaluate(needsLookup).pipe(
-            Effect.provide(testLayer(alice, { attributes: counting([]) })),
-            Effect.provide(decisionCacheLayer({ capacity: Number.NaN })),
+            Effect.provide(
+              Layer.mergeAll(
+                testLayer(alice, { attributes: counting([]) }),
+                decisionCacheLayer({ capacity: Number.NaN }),
+              ),
+            ),
           ),
         );
         assert.strictEqual(exit._tag, "Failure");
@@ -903,8 +979,12 @@ describe("DecisionCache", () => {
         // NaN) without also requiring an integer would slip through unnoticed.
         const exit = yield* Effect.exit(
           evaluate(needsLookup).pipe(
-            Effect.provide(testLayer(alice, { attributes: counting([]) })),
-            Effect.provide(decisionCacheLayer({ capacity: 1.5 })),
+            Effect.provide(
+              Layer.mergeAll(
+                testLayer(alice, { attributes: counting([]) }),
+                decisionCacheLayer({ capacity: 1.5 }),
+              ),
+            ),
           ),
         );
         assert.strictEqual(exit._tag, "Failure");
@@ -922,8 +1002,12 @@ describe("DecisionCache", () => {
           yield* evaluate(needsLookup);
           yield* evaluate(needsLookup);
         }).pipe(
-          Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-          Effect.provide(decisionCacheLayer({ capacity: 0 })),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: counting(calls) }),
+              decisionCacheLayer({ capacity: 0 }),
+            ),
+          ),
         );
 
         assert.deepStrictEqual(calls, ["u-1:clearance", "u-1:clearance"]);
@@ -937,8 +1021,12 @@ describe("DecisionCache", () => {
           yield* evaluate(needsLookup, { resource: { id: "doc-3" } });
           return yield* DecisionCache.use((c) => c.size);
         }).pipe(
-          Effect.provide(testLayer(alice, { attributes: counting([]) })),
-          Effect.provide(decisionCacheLayer()),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: counting([]) }),
+              decisionCacheLayer(),
+            ),
+          ),
         );
 
         assert.strictEqual(held, 3);
@@ -961,8 +1049,12 @@ describe("DecisionCache", () => {
           yield* ask("doc-2"); // still held — a hit, no resolver call
           yield* ask("doc-1"); // evicted — a miss, one more resolver call
         }).pipe(
-          Effect.provide(testLayer(alice, { attributes: counting(calls) })),
-          Effect.provide(decisionCacheLayer({ capacity: 2 })),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: counting(calls) }),
+              decisionCacheLayer({ capacity: 2 }),
+            ),
+          ),
         );
 
         assert.deepStrictEqual(calls, [
@@ -990,8 +1082,12 @@ describe("DecisionCache", () => {
           yield* Deferred.succeed(gate, undefined);
           return [yield* Fiber.join(fiberA), yield* Fiber.join(fiberB)] as const;
         }).pipe(
-          Effect.provide(testLayer(alice, { attributes: blockingResolver })),
-          Effect.provide(decisionCacheLayer({ capacity: 1 })),
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(alice, { attributes: blockingResolver }),
+              decisionCacheLayer({ capacity: 1 }),
+            ),
+          ),
         );
 
         assert.isTrue(isAllowed(first));
@@ -1014,8 +1110,12 @@ describe("DecisionCache", () => {
             yield* evaluate(needsLookup);
             return yield* Metric.snapshot;
           }).pipe(
-            Effect.provide(testLayer(alice, { attributes: counting([]) })),
-            Effect.provide(decisionCacheLayer()),
+            Effect.provide(
+              Layer.mergeAll(
+                testLayer(alice, { attributes: counting([]) }),
+                decisionCacheLayer(),
+              ),
+            ),
           ),
         );
 
@@ -1047,8 +1147,12 @@ describe("DecisionCache", () => {
             yield* Effect.forEach(fibers, Fiber.join);
             return yield* Metric.snapshot;
           }).pipe(
-            Effect.provide(testLayer(alice, { attributes: blockingResolver })),
-            Effect.provide(decisionCacheLayer()),
+            Effect.provide(
+              Layer.mergeAll(
+                testLayer(alice, { attributes: blockingResolver }),
+                decisionCacheLayer(),
+              ),
+            ),
           ),
         );
 
@@ -1142,8 +1246,12 @@ describe("DecisionCache", () => {
               yield* Fiber.join(interruptingFiber);
               return yield* Effect.result(Fiber.join(joinerFiber));
             }).pipe(
-              Effect.provide(testLayer(alice, { attributes: blockingResolver })),
-              Effect.provide(decisionCacheLayer()),
+              Effect.provide(
+                Layer.mergeAll(
+                  testLayer(alice, { attributes: blockingResolver }),
+                  decisionCacheLayer(),
+                ),
+              ),
             );
 
             // The joiner asked fresh and was never itself interrupted, so it

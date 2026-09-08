@@ -63,7 +63,7 @@ export class AttributeResolver extends Context.Service<
 >()("qadi/AttributeResolver") {
   // `use` requires its callback to RETURN an Effect — it is a one-step method
   // accessor, not an identity read.
-  static resolve = (subjectId: SubjectId, attribute: string) =>
+  static readonly resolve = (subjectId: SubjectId, attribute: string) =>
     AttributeResolver.use((r) => r.resolve(subjectId, attribute));
 }
 ```

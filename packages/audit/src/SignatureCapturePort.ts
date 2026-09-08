@@ -73,6 +73,12 @@ export interface SignatureValidationResult {
  * Covers both `capture` and `validate` failures under one tag — unlike the
  * audit-write split (encode vs. I/O), there is no analogous second failure
  * *kind* here to distinguish.
+ *
+ * `cause` is optional here, unlike the rest of the error taxonomy (see
+ * `AttributeResolveError`, `AuditWriteError`, etc., which all require it): a
+ * capture or validation failure is often a business decision — a declined
+ * signature, a reauthentication prompt — with no underlying technical cause
+ * to report, not an I/O or codec failure wrapping one.
  */
 export class SignatureCaptureError extends Data.TaggedError("SignatureCaptureError")<{
   readonly reason: string;
@@ -97,9 +103,9 @@ export class SignatureCapturePort extends Context.Service<
   SignatureCapturePort,
   SignatureCapturePortShape
 >()("qadi/audit/SignatureCapturePort") {
-  static capture = (request: SignatureCaptureRequest) =>
+  static readonly capture = (request: SignatureCaptureRequest) =>
     SignatureCapturePort.use((p) => p.capture(request));
-  static validate = (signature: Signature) =>
+  static readonly validate = (signature: Signature) =>
     SignatureCapturePort.use((p) => p.validate(signature));
 }
 

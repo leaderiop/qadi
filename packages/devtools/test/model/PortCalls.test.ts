@@ -92,8 +92,7 @@ const watch = (
 
     yield* Effect.result(
       evaluate(policy, options?.resource === undefined ? {} : { resource: options.resource }).pipe(
-        Effect.provide(services(options?.layers)),
-        Effect.provide(collector.layer),
+        Effect.provide(Layer.mergeAll(services(options?.layers), collector.layer)),
       ),
     );
 
@@ -131,11 +130,14 @@ describe("the collector wraps rather than replaces", () => {
       const collector = collectPortCalls();
 
       yield* evaluate(hasAttribute("tier", gte(3))).pipe(
-        Effect.provide(services({ attributes: resolverOf({ tier: 5 }) })),
         // The collector is inside, so it is the tracer the evaluation sees —
         // and it must hand every span on to the one outside it.
-        Effect.provide(collector.layer),
-        Effect.provide(hostTracer),
+        Effect.provide(
+          Layer.mergeAll(
+            services({ attributes: resolverOf({ tier: 5 }) }),
+            Layer.provideMerge(collector.layer, hostTracer),
+          ),
+        ),
       );
 
       assert.include(hostSaw, "qadi.evaluate");
@@ -346,8 +348,7 @@ describe("decoding a span this evaluator did not write", () => {
       let midFlight: PortCall | undefined;
 
       yield* evaluate(hasAttribute("tier", gte(3))).pipe(
-        Effect.provide(
-          services({
+        Effect.provide(Layer.mergeAll(services({
             attributes: Layer.succeed(AttributeResolver, {
               name: "observing",
               resolve: () =>
@@ -356,9 +357,7 @@ describe("decoding a span this evaluator did not write", () => {
                   return 5;
                 }),
             }),
-          }),
-        ),
-        Effect.provide(collector.layer),
+          }), collector.layer)),
       );
 
       assert.isDefined(midFlight);
@@ -475,8 +474,12 @@ describe("what the collector keeps", () => {
     Effect.gen(function* () {
       const collector = collectPortCalls();
       const run = evaluate(hasAttribute("tier", gte(3))).pipe(
-        Effect.provide(services({ attributes: resolverOf({ tier: 5 }) })),
-        Effect.provide(collector.layer),
+        Effect.provide(
+          Layer.mergeAll(
+            services({ attributes: resolverOf({ tier: 5 }) }),
+            collector.layer,
+          ),
+        ),
       );
 
       yield* run;

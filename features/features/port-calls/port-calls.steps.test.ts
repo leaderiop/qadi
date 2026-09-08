@@ -182,9 +182,7 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
 
   yield* Effect.result(
     evaluate(policyNamed(name), resource === undefined ? {} : { resource }).pipe(
-      Effect.provide(services),
-      Effect.provide(collector.layer),
-      Effect.provide(outer),
+      Effect.provide(Layer.mergeAll(services, Layer.provideMerge(collector.layer, outer))),
     ),
   );
 
