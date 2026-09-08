@@ -30,6 +30,7 @@ import {
   obliged,
   permission,
   permissionKey,
+  toWire,
 } from "@qadi/core";
 import type { AuthSubject, Trace } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -39,6 +40,7 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
+import * as Sse from "effect/unstable/encoding/Sse";
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServer from "effect/unstable/http/HttpServer";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
@@ -423,9 +425,28 @@ describe("frame", () => {
   it("encodes a Decision record with a JSON-safe resource", () => {
     const encoded = frame(decisionRecord("good", { a: 1 }));
     assert.isTrue(Result.isSuccess(encoded));
-    const text = Result.isSuccess(encoded) ? new TextDecoder().decode(encoded.success) : "";
+    const text = Result.isSuccess(encoded) ? encoded.success : "";
     assert.include(text, '"evaluationId":"good"');
     assert.match(text, /^data: .*\n\n$/);
+  });
+
+  it("frames through the platform's own SSE encoder (Sse.encoder.write), not a hand-built template", () => {
+    // H6 / ADR-QD-072: the `data: ${json}\n\n` template string is gone.
+    // `frame` now builds an `Sse.Event` and hands it to `Sse.encoder.write` —
+    // the same function `HttpApiBuilder`'s own SSE stream encoder calls
+    // internally. Proven by construction: this asserts `frame`'s output is
+    // *exactly* what calling the real encoder on the equivalent event
+    // produces, not merely a string that happens to look similar.
+    const record = decisionRecord("matches-real-encoder", { a: 1 });
+    const encoded = frame(record);
+    assert.isTrue(Result.isSuccess(encoded));
+    const expected = Sse.encoder.write({
+      _tag: "Event",
+      event: "message",
+      id: undefined,
+      data: JSON.stringify(toWire(record)),
+    });
+    assert.strictEqual(Result.isSuccess(encoded) ? encoded.success : undefined, expected);
   });
 
   it("drops a Decision record whose resource is not JSON-safe, rather than throwing", () => {

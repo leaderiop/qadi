@@ -8,9 +8,11 @@
  */
 import * as Data from "effect/Data";
 import * as Match from "effect/Match";
+import * as Record from "effect/Record";
+import * as Schema from "effect/Schema";
 import { compareShapes, project as projectPaths, shapeOf } from "./FieldPath.ts";
 import type { SubjectId } from "./Identity.ts";
-import type { Obligation } from "./Obligation.ts";
+import { Obligation } from "./Obligation.ts";
 import type { Policy } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
 
@@ -47,6 +49,72 @@ export interface Trace {
    */
   readonly obligations: ReadonlyArray<Obligation>;
 }
+
+/**
+ * Every tag a `Trace` node can carry — the policy union's tags.
+ *
+ * Written out as a `Record<Policy["_tag"], true>` rather than an array
+ * literal: a schema needs the literals at construction, and `Policy` is a
+ * union of structs rather than a list of tags, so this still repeats the
+ * ADT's tags by hand. What changed is which direction is checked. A bare
+ * `as const satisfies ReadonlyArray<Policy["_tag"]>` on an array only checks
+ * that every *listed* string is a valid tag — a subset check — never that
+ * every tag in the union is listed, so a new `Policy` variant added without
+ * a matching entry here compiled cleanly and silently rejected (on encode)
+ * any Decision whose trace carried it. `Record<Policy["_tag"], true>` forces
+ * the reverse: TypeScript requires every key of the type to be present in the
+ * object literal (TS2741 otherwise), so a missing tag is a compile error here
+ * instead of a `TraceSchema` encode failure the first time a Decision using
+ * the new tag reaches it.
+ */
+const TRACE_TAGS_BY_TAG: Record<Policy["_tag"], true> = {
+  HasPermission: true,
+  HasRole: true,
+  HasAttribute: true,
+  HasResourceAttribute: true,
+  HasRelationship: true,
+  HasAction: true,
+  HasActed: true,
+  HasNotActed: true,
+  HasCustom: true,
+  HasSignature: true,
+  AllOf: true,
+  AnyOf: true,
+  Rules: true,
+  Not: true,
+  Obliged: true,
+  Labeled: true,
+};
+
+/** `TRACE_TAGS_BY_TAG`'s keys, in the array form `Schema.Literals` takes. */
+const TRACE_TAGS: ReadonlyArray<Policy["_tag"]> = Record.keys(TRACE_TAGS_BY_TAG);
+
+/**
+ * A `Trace` on the wire. Recursive through `children`, like the policy codec.
+ *
+ * Lives beside `Trace` itself rather than beside whichever boundary first
+ * needed it: `SinkCodec.ts`'s wire form of a `Decision`, `@qadi/react`'s
+ * `Hydration.ts` (a `Trace` crosses a trust boundary there too), and now
+ * `Errors.ts`'s `AccessDenied` (ADR-QD-072) all import this one definition
+ * rather than each describing `Trace`'s shape again — duplicating
+ * `TRACE_TAGS`/this recursion in a second file is exactly the drift
+ * ADR-QD-002's reasoning warns about. Originally defined in `SinkCodec.ts`;
+ * moved here so `Errors.ts` can reach it too without a
+ * `Errors.ts` → `SinkCodec.ts` → `Errors.ts` cycle (`SinkCodec.ts` already
+ * imports several of `Errors.ts`'s classes).
+ */
+export const TraceSchema: Schema.Codec<Trace> = Schema.suspend(
+  (): Schema.Codec<Trace> =>
+    Schema.Struct({
+      policyTag: Schema.Literals(TRACE_TAGS),
+      label: Schema.optional(Schema.String),
+      allowed: Schema.Boolean,
+      reason: Schema.optional(Schema.String),
+      children: Schema.Array(TraceSchema),
+      visibleFields: Schema.optional(Schema.Array(Schema.String)),
+      obligations: Schema.Array(Obligation),
+    }),
+);
 
 export class Allow extends Data.TaggedClass("Allow")<{
   readonly evaluationId: string;
