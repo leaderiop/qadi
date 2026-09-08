@@ -156,6 +156,20 @@ export const initialWorldState: WorldState = {
   restored: undefined,
 };
 
+/**
+ * Splits a `"resource:action"` permission key into its two halves.
+ *
+ * Shared so a malformed row fails the same way — same message, same halves
+ * validated — no matter which step definition parses it.
+ */
+export const parsePermissionKey = (key: string): readonly [string, string] => {
+  const [resource, action] = key.split(":");
+  if (resource === undefined || action === undefined) {
+    throw new Error(`malformed permission key: ${key}`);
+  }
+  return [resource, action];
+};
+
 export const subjectOf = (w: WorldState): AuthSubject =>
   makeSubject({
     id: w.subjectId,
@@ -174,6 +188,15 @@ export const deniedLabels = (trace: Trace): ReadonlyArray<string> => [
   ...(!trace.allowed && trace.label !== undefined ? [trace.label] : []),
   ...trace.children.flatMap(deniedLabels),
 ];
+
+/** Renders an `Outcome`'s decision fields as JSON, for assertion failure messages. */
+export const describeOutcome = (s: WorldState): string =>
+  JSON.stringify({
+    allowed: s.outcome.allowed,
+    denied: s.outcome.denied,
+    errored: s.outcome.errored,
+    reason: s.outcome.reason,
+  });
 
 export const toOutcome = (decision: Decision): Outcome => ({
   allowed: isAllowed(decision),

@@ -1,5 +1,5 @@
 import { defineSteps } from "@effect-cucumber/vitest";
-import { patch, readState, World } from "./SharedWorld.ts";
+import { parsePermissionKey, patch, readState, World } from "./SharedWorld.ts";
 
 /** Candidates for a subject-set review (`filterSubjects`/`decideSubjects`). */
 export const subjectSetGivenSteps = defineSteps<World>(({ Given }) => {
@@ -16,10 +16,7 @@ export const subjectSetGivenSteps = defineSteps<World>(({ Given }) => {
   });
 
   Given("the candidate {string} with permission {string}", function* (id: string, key: string) {
-    const [resource, action] = key.split(":");
-    if (resource === undefined || action === undefined) {
-      throw new Error(`malformed permission key: ${key}`);
-    }
+    const [resource, action] = parsePermissionKey(key);
     const s = yield* readState();
     yield* patch(() => ({
       candidates: [...s.candidates, { id, roles: [], permissions: [`${resource}:${action}`] }],

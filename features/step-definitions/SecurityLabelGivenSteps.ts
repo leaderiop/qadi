@@ -2,7 +2,15 @@ import { defineSteps } from "@effect-cucumber/vitest";
 import { join } from "@qadi/core";
 import { patch, readState, World } from "./SharedWorld.ts";
 
-const label = (level: number, compartments: string) => ({
+/**
+ * Builds a `{level, compartments}` label from a level and a comma-separated
+ * compartment list.
+ *
+ * Exported so `IntegrityGivenSteps.ts` imports this rather than redefining
+ * it — the Biba (integrity) and Bell-LaPadula (clearance) scenarios use the
+ * same lattice shape under different attribute names.
+ */
+export const label = (level: number, compartments: string) => ({
   level,
   compartments: compartments === "" ? [] : compartments.split(",").map((c) => c.trim()),
 });
