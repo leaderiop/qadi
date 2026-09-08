@@ -65,11 +65,11 @@ const ask = (path: string, query: Record<string, string>): Effect.Effect<unknown
       return response.json();
     });
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
 /** Reads one property off an unknown JSON body without an `as`. */
-const field = (body: unknown, key: string): unknown =>
-  typeof body === "object" && body !== null && key in body
-    ? Object.entries(body).find(([name]) => name === key)?.[1]
-    : undefined;
+const field = (body: unknown, key: string): unknown => (isRecord(body) ? body[key] : undefined);
 
 const attributes: Layer.Layer<AttributeResolver> = Layer.succeed(AttributeResolver, {
   name: "newsroom directory (over HTTP)",

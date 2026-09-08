@@ -25,11 +25,8 @@ export interface Article extends Resource {
   readonly legalNotes: string;
 }
 
-/** The fields nobody below Editor may see, named once. */
-export const RESTRICTED_FIELDS = ["sourceContact", "legalNotes"] as const;
-
-/** Everything a reader may see of any article they may read at all. */
-export const PUBLIC_FIELDS = [
+/** Every field an `Article` carries — the two lists below partition it. */
+const ALL_FIELDS = [
   "id",
   "title",
   "status",
@@ -37,7 +34,23 @@ export const PUBLIC_FIELDS = [
   "embargoUntil",
   "classification",
   "body",
+  "sourceContact",
+  "legalNotes",
 ] as const;
+
+/** The fields nobody below Editor may see, named once. */
+export const RESTRICTED_FIELDS = ["sourceContact", "legalNotes"] as const;
+
+/**
+ * Everything a reader may see of any article they may read at all.
+ *
+ * Derived from `ALL_FIELDS` minus `RESTRICTED_FIELDS`, rather than listed a
+ * second time by hand, so the two lists cannot drift apart.
+ */
+const restricted = new Set<string>(RESTRICTED_FIELDS);
+export const PUBLIC_FIELDS: ReadonlyArray<string> = ALL_FIELDS.filter(
+  (field) => !restricted.has(field),
+);
 
 const label = (level: number, compartments: ReadonlyArray<string> = []) => ({ level, compartments });
 
@@ -73,7 +86,7 @@ export const articles: ReadonlyArray<Article> = [
     embargoUntil: 4_102_444_800_000,
     authorId: "omar",
     classification: label(1, ["finance"]),
-    body: "Four bidders, one afternoon, and a evaluation committee of two.",
+    body: "Four bidders, one afternoon, and an evaluation committee of two.",
     sourceContact: "ministry aide, +212 6 61 00 00 00",
     legalNotes: "Legal review pending. Embargo until the tender is published.",
   },

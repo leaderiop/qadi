@@ -20,9 +20,11 @@ Every Concepts page follows the same shape as the 6 existing pages
    flow, a before/after. Not decorative: if a diagram doesn't teach
    something the prose doesn't already say as clearly, cut it.
 4. **At least one example that compiles.** `pnpm spec:website-examples`
-   type-checks every fenced ` ```ts `/` ```typescript ` block against the
+   type-checks every fenced ` ```typescript `/` ```tsx ` block against the
    real published package types — an example that doesn't import what it
-   uses, or calls a signature that doesn't exist, fails the build. Prefer
+   uses, or calls a signature that doesn't exist, fails the build. A ` ```ts `
+   fence is a deliberate uncompiled exception (AGENTS.md §12), never checked.
+   Prefer
    ` ```typescript ` (fully compiled) over ` ```ts ` (reference fragment)
    wherever the snippet can stand alone; see the 6 existing pages for both
    styles in use.
@@ -99,8 +101,9 @@ new one from scratch.
 
 - [ ] `pnpm --filter website build` (or `pnpm build` from `apps/website/`)
       succeeds with the new/changed page included.
-- [ ] Every ` ```ts `/` ```typescript ` fence type-checks:
-      `pnpm spec:website-examples` from the repo root.
+- [ ] Every ` ```typescript `/` ```tsx ` fence type-checks:
+      `pnpm spec:website-examples` from the repo root (a ` ```ts ` fence is
+      the deliberate uncompiled convention, per AGENTS.md §12).
 - [ ] Diagram renders (spot-check the built HTML, or `pnpm --filter website dev`
       and look at it) — an unescaped `<svg>` should appear in the output,
       not `&lt;svg&gt;`.

@@ -15,12 +15,3 @@ export const readSource = permission("source", "read");
 
 /** What `/__decisions` and `/__permissions` are guarded by. Not a debug flag. */
 export const readDevtools = permission("devtools", "read");
-
-export const allPermissions = [
-  readArticle,
-  writeArticle,
-  publishArticle,
-  redactArticle,
-  readSource,
-  readDevtools,
-] as const;

@@ -73,6 +73,8 @@ const decideAs = (subject: AuthSubject, entries: ReadonlyArray<{
           decision,
         })))).pipe(
       Effect.provide(Layer.mergeAll(ports, currentSubjectLayer(subject))),
+      // Test-fixture setup, not an enforcement path: a failure here means this
+      // test's own layers are wired wrong, never that a real decision failed.
       Effect.orDie,
     ),
   );

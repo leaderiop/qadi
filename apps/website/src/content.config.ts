@@ -12,7 +12,7 @@ export const collections = {
       title: z.string(),
       description: z.string(),
       date: z.coerce.date(),
-      author: z.string().default("Mohammad Almechkor"),
+      author: z.string().default("Mohammad AL Mechkor"),
       tags: z.array(z.string()).optional(),
       draft: z.boolean().optional(),
     }),
