@@ -68,12 +68,8 @@ describe("DecisionHistory", () => {
             { subjectId: "a b", event: "raised", resourceId: "c" },
           ]);
           assert.strictEqual(yield* query(collidable, "b raised", "c", "a"), "NotActed");
-
-          const collidableAnywhere = decisionHistoryFromEvents([
-            { subjectId: "a b", event: "raised", resourceId: "c" },
-          ]);
           assert.strictEqual(
-            yield* query(collidableAnywhere, "b raised", undefined, "a"),
+            yield* query(collidable, "b raised", undefined, "a"),
             "NotActed",
           );
         }),

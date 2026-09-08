@@ -7,6 +7,7 @@
  * could not be asserted on at all.
  */
 import * as Data from "effect/Data";
+import * as Match from "effect/Match";
 import { compareShapes, project as projectPaths, shapeOf } from "./FieldPath.ts";
 import type { SubjectId } from "./Identity.ts";
 import type { Obligation } from "./Obligation.ts";
@@ -117,7 +118,14 @@ export const project = <A extends Resource>(
   data: A,
 ): Partial<A> => {
   if (!isAllowed(decision)) return {};
-  if (decision.visibleFields === undefined) return data;
+  // A shallow copy, not `return data` — the restricted branch below always
+  // builds a fresh `out` object, and returning the caller's own reference
+  // here would let a caller who mutates the unrestricted result silently
+  // mutate `data` too, an aliasing behavior the two branches must not
+  // disagree on. `BEH-QD-051`'s requirement ("MUST project to the whole
+  // record") is unaffected either way — it says nothing about aliasing — so
+  // this is an implementation fix, not a documented-behavior change.
+  if (decision.visibleFields === undefined) return { ...data };
 
   const projected = projectPaths(data, decision.visibleFields);
 
@@ -186,8 +194,17 @@ export const intersectFields = (
   for (const specA of shapedA) {
     for (const specB of shapedB) {
       const cmp = compareShapes(specA.shape, specB.shape);
-      if (cmp === "Equal" || cmp === "BLessA") kept.push(specB.spec);
-      else if (cmp === "ALessB") kept.push(specA.spec);
+      // `Incomparable` contributes nothing — the conservative, fails-closed
+      // direction the doc comment above describes — and is handled by
+      // `Match.exhaustive` finding no arm for it rather than a silent
+      // fallthrough, so a future addition to `Containment` is a compile
+      // error here instead of a no-op (AGENTS.md §5a).
+      Match.value(cmp).pipe(
+        Match.whenOr("Equal", "BLessA", () => kept.push(specB.spec)),
+        Match.when("ALessB", () => kept.push(specA.spec)),
+        Match.when("Incomparable", () => undefined),
+        Match.exhaustive,
+      );
     }
   }
   return [...new Set(kept)];

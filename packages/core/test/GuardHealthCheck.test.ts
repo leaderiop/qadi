@@ -2,6 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as TestClock from "effect/testing/TestClock";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { createGuardHealthCheck } from "../src/GuardHealthCheck.ts";
 import * as M from "../src/Matcher.ts";
@@ -19,6 +20,17 @@ describe("createGuardHealthCheck", () => {
       assert.deepStrictEqual(result.errors, []);
       assert.isNumber(result.checkedAt);
       assert.isAtLeast(result.latencyMillis, 0);
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("checkedAt is the simulated clock's time, not wall-clock time", () =>
+    Effect.gen(function* () {
+      // Mirrors DecisionSink.test.ts's "`at` is the clock's start time" test:
+      // `checkedAt`'s doc comment says it comes from `Clock` specifically for
+      // TestClock reproducibility, and `assert.isNumber` alone would pass
+      // identically whether the field came from `Clock` or `Date.now()`.
+      yield* TestClock.adjust("5 seconds");
+      const result = yield* createGuardHealthCheck(canRead);
+      assert.strictEqual(result.checkedAt, 5000);
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
   it.effect("unhealthy when the probed evaluation fails with a typed EvaluationError", () =>

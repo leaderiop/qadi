@@ -83,6 +83,30 @@ describe("decisionSinkForwarding", () => {
       // A forwarder dropping every record while looking healthy is the defect
       // `onDropped` and `onUnknownParent` exist to prevent elsewhere.
       assert.strictEqual(seen.length, 1);
+      // Regression test: `onFailure` is typed and documented as `(error:
+      // unknown) => void`, receiving the value `send` failed with — not an
+      // Effect-internal `Cause` wrapping it. Asserting only `seen.length`
+      // would pass unchanged whether `seen[0]` were `"unreachable"` or a
+      // `Cause` object with no `.message` (BEH-QD-187, CCR-QD-122).
+      assert.strictEqual(seen[0], "unreachable");
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a failure that DIES is also reported as its plain defect, not a Cause", () =>
+    Effect.gen(function* () {
+      const seen: Array<unknown> = [];
+      const boom = new Error("socket exploded");
+
+      yield* evaluate(policy).pipe(
+        Effect.provide(
+          decisionSinkForwarding({
+            send: () => Effect.die(boom),
+            onFailure: (error) => seen.push(error),
+          }),
+        ),
+      );
+
+      assert.strictEqual(seen.length, 1);
+      assert.strictEqual(seen[0], boom);
     }).pipe(Effect.provide(testLayer(allowed))));
 
   it.effect("with no onFailure it warns rather than going quiet", () =>

@@ -879,7 +879,7 @@ describe("DecisionCache", () => {
         assert.match(defect.message, /capacity/i);
       }));
 
-    it.effect("rejects a fractional or NaN capacity rather than silently disabling eviction", () =>
+    it.effect("rejects a NaN capacity rather than silently disabling eviction", () =>
       Effect.gen(function* () {
         // Regression: `size(entries) > NaN` is always false, so an unvalidated
         // NaN capacity made eviction a silent no-op — "bounded" in name only.
@@ -890,6 +890,29 @@ describe("DecisionCache", () => {
           ),
         );
         assert.strictEqual(exit._tag, "Failure");
+      }));
+
+    it.effect("rejects a fractional capacity, not just NaN", () =>
+      Effect.gen(function* () {
+        // The guard is `Number.isInteger(options.capacity) && options.capacity
+        // >= 0` — one check covering two distinct reasons: NaN makes the
+        // eviction condition permanently false (above), while a genuine
+        // fraction like `1.5` isn't discussed by the doc comment at all, only
+        // implied by `Number.isInteger`. Exercised separately so a future
+        // change that narrows the guard to "finite and non-negative" (fixing
+        // NaN) without also requiring an integer would slip through unnoticed.
+        const exit = yield* Effect.exit(
+          evaluate(needsLookup).pipe(
+            Effect.provide(testLayer(alice, { attributes: counting([]) })),
+            Effect.provide(decisionCacheLayer({ capacity: 1.5 })),
+          ),
+        );
+        assert.strictEqual(exit._tag, "Failure");
+        if (exit._tag !== "Failure") return;
+        const defect = Cause.squash(exit.cause);
+        assert.instanceOf(defect, Error);
+        if (!(defect instanceof Error)) return;
+        assert.match(defect.message, /capacity/i);
       }));
 
     it.effect("capacity: 0 is a legal, degenerate cache that retains nothing", () =>

@@ -19,7 +19,7 @@ import type { RelationshipResolveError } from "./Errors.ts";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import { portRetriesTotal } from "./PortMetrics.ts";
-import { wrapService } from "./RetryingLayer.ts";
+import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
 
 export interface RelationshipCheck {
   readonly subjectId: SubjectId;
@@ -196,19 +196,9 @@ export const relationshipResolverRetrying =
 export const relationshipResolverBounded =
   (permits: number) =>
   (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver, InvalidBoundedPermits> =>
-    Layer.effect(
-      RelationshipResolver,
-      Effect.gen(function* () {
-        if (!(Number.isInteger(permits) && permits > 0)) {
-          return yield* Effect.fail(new InvalidBoundedPermits({ permits }));
-        }
-        const semaphore = yield* Semaphore.make(permits);
-        const inner = yield* Layer.build(layer).pipe(
-          Effect.map((context) => Context.get(context, RelationshipResolver)),
-        );
-        return {
-          name: `${inner.name ?? "?"} (bounded ${permits})`,
-          check: (request) => Semaphore.withPermit(semaphore)(inner.check(request)),
-        };
-      }),
+    wrapServiceEffect(RelationshipResolver, layer, (inner) =>
+      Effect.map(boundedPermits(permits), (semaphore) => ({
+        name: `${inner.name ?? "?"} (bounded ${permits})`,
+        check: (request) => Semaphore.withPermit(semaphore)(inner.check(request)),
+      })),
     );
