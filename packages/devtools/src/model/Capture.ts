@@ -128,10 +128,19 @@ export const signatureHistoryKey = (query: SignatureQuery): string =>
  * Wraps live ports so every answer they give is recorded.
  *
  * The `Layer.build` + `Context.get` shape `decisionSinkAll` uses to wrap a
- * layer it was handed. State lives in this function's closure rather than the
- * layer's, so `answers` can read what the layer wrote — the same arrangement
- * `decisionSinkRing` uses, and the reason providing the returned layer twice
- * shares one capture.
+ * layer it was handed — but built **once**, via `Layer.unwrap`, rather than
+ * once per wrapped service. Five independent `Layer.effect` blocks each
+ * calling `Layer.build(ports)` do not share a `MemoMap`, so the underlying
+ * `ports` layer was constructed five times per capture instead of once; if
+ * building it has a side effect (opening a connection, running setup logic),
+ * that side effect ran 5x for what this module's own doc comment describes as
+ * a single capture pass. `Layer.unwrap` runs one `Effect.gen` that builds
+ * `ports` a single time and derives all five wrapped services from that one
+ * `Context` via `Layer.succeed`, so no further build ever happens.
+ *
+ * State lives in this function's closure rather than the layer's, so `answers`
+ * can read what the layer wrote — the same arrangement `decisionSinkRing` uses,
+ * and the reason providing the returned layer twice shares one capture.
  */
 export const capturing = (
   ports: Layer.Layer<EvaluationPorts>,
@@ -145,71 +154,51 @@ export const capturing = (
   const custom = new Map<string, Answer<boolean>>();
   const signatures = new Map<string, Answer<ReadonlyArray<Signature>>>();
 
-  const layer = Layer.mergeAll(
-    Layer.effect(
-      AttributeResolver,
-      Effect.gen(function* () {
-        const context = yield* Layer.build(ports);
-        const inner = Context.get(context, AttributeResolver);
-        return {
-          name: `${inner.name ?? "?"} (capturing)`,
-          resolve: (subjectId: SubjectId, attribute: string) =>
-            record(attributes, attributeKey(subjectId, attribute), inner.resolve(subjectId, attribute)),
-        };
-      }),
-    ),
-    Layer.effect(
-      RelationshipResolver,
-      Effect.gen(function* () {
-        const context = yield* Layer.build(ports);
-        const inner = Context.get(context, RelationshipResolver);
-        return {
-          name: `${inner.name ?? "?"} (capturing)`,
+  const layer = Layer.unwrap(
+    Effect.gen(function* () {
+      const context = yield* Layer.build(ports);
+      const attribute = Context.get(context, AttributeResolver);
+      const relationship = Context.get(context, RelationshipResolver);
+      const decisionHistory = Context.get(context, DecisionHistory);
+      const customPredicate = Context.get(context, CustomPredicate);
+      const signatureHistory = Context.get(context, SignatureHistory);
+
+      return Layer.mergeAll(
+        Layer.succeed(AttributeResolver, {
+          name: `${attribute.name ?? "?"} (capturing)`,
+          resolve: (subjectId: SubjectId, attributeName: string) =>
+            record(
+              attributes,
+              attributeKey(subjectId, attributeName),
+              attribute.resolve(subjectId, attributeName),
+            ),
+        }),
+        Layer.succeed(RelationshipResolver, {
+          name: `${relationship.name ?? "?"} (capturing)`,
           check: (request: RelationshipCheck) =>
-            record(relationships, relationshipKey(request), inner.check(request)),
-        };
-      }),
-    ),
-    Layer.effect(
-      DecisionHistory,
-      Effect.gen(function* () {
-        const context = yield* Layer.build(ports);
-        const inner = Context.get(context, DecisionHistory);
-        return {
-          name: `${inner.name ?? "?"} (capturing)`,
+            record(relationships, relationshipKey(request), relationship.check(request)),
+        }),
+        Layer.succeed(DecisionHistory, {
+          name: `${decisionHistory.name ?? "?"} (capturing)`,
           hasActed: (query: ActedQuery) =>
-            record(history, historyKey(query), inner.hasActed(query)),
-        };
-      }),
-    ),
-    Layer.effect(
-      CustomPredicate,
-      Effect.gen(function* () {
-        const context = yield* Layer.build(ports);
-        const inner = Context.get(context, CustomPredicate);
-        return {
-          name: `${inner.name ?? "?"} (capturing)`,
+            record(history, historyKey(query), decisionHistory.hasActed(query)),
+        }),
+        Layer.succeed(CustomPredicate, {
+          name: `${customPredicate.name ?? "?"} (capturing)`,
           evaluate: (name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown) =>
             record(
               custom,
               customPredicateKey(subject.id, name, params),
-              inner.evaluate(name, subject, resource, params),
+              customPredicate.evaluate(name, subject, resource, params),
             ),
-        };
-      }),
-    ),
-    Layer.effect(
-      SignatureHistory,
-      Effect.gen(function* () {
-        const context = yield* Layer.build(ports);
-        const inner = Context.get(context, SignatureHistory);
-        return {
-          name: `${inner.name ?? "?"} (capturing)`,
+        }),
+        Layer.succeed(SignatureHistory, {
+          name: `${signatureHistory.name ?? "?"} (capturing)`,
           signaturesFor: (query: SignatureQuery) =>
-            record(signatures, signatureHistoryKey(query), inner.signaturesFor(query)),
-        };
-      }),
-    ),
+            record(signatures, signatureHistoryKey(query), signatureHistory.signaturesFor(query)),
+        }),
+      );
+    }),
   );
 
   return {

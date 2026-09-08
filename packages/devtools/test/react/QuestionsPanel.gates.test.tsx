@@ -11,9 +11,9 @@
  * What is asserted is which instance a point resolves to and what the panel then
  * does, never a measured pixel.
  */
+import { assert, describe, it } from "@effect/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { hasPermission, hasRole, permission } from "@qadi/core";
-import { describe, expect, it } from "vitest";
 import type { GateInstanceLike } from "../../src/model/Gates.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
@@ -41,7 +41,8 @@ const gate = (
 describe("the two views, side by side", () => {
   it("says where live guards come from when none were handed in", () => {
     render(<QuestionsPanel questions={asked} />);
-    expect(screen.getByTestId("qadi-gates-absent").textContent ?? "").toContain(
+    assert.include(
+      screen.getByTestId("qadi-gates-absent").textContent ?? "",
       "gateInstances()",
     );
   });
@@ -50,9 +51,7 @@ describe("the two views, side by side", () => {
     // Two different missing props with two different fixes. A single message
     // would send half its readers to the wrong file.
     render(<QuestionsPanel questions={asked} gates={[]} />);
-    expect(screen.getByTestId("qadi-gates-absent").textContent ?? "").toContain(
-      "instrument",
-    );
+    assert.include(screen.getByTestId("qadi-gates-absent").textContent ?? "", "instrument");
   });
 
   it("no longer claims a per-instance count would be invented", () => {
@@ -61,11 +60,11 @@ describe("the two views, side by side", () => {
     render(<QuestionsPanel questions={asked} gates={[gate({ id: "a" })]} />);
     const note = screen.getByTestId("qadi-keying-note").textContent ?? "";
 
-    expect(note).toContain("per question");
-    expect(note).not.toContain("would be invented");
+    assert.include(note, "per question");
+    assert.notInclude(note, "would be invented");
     // Both halves said: the row count is questions, the nested count is
     // components, and they are different numbers on purpose.
-    expect(note).toContain("underneath");
+    assert.include(note, "underneath");
   });
 
   it("lists each guard asking a question, with what it rendered", () => {
@@ -77,10 +76,11 @@ describe("the two views, side by side", () => {
     );
 
     const rows = screen.getAllByTestId("qadi-instance");
-    expect(rows).toHaveLength(2);
-    expect(
+    assert.strictEqual(rows.length, 2);
+    assert.deepStrictEqual(
       screen.getAllByTestId("qadi-instance-state").map((one) => one.textContent),
-    ).toEqual(["Allowed", "Denied"]);
+      ["Allowed", "Denied"],
+    );
   });
 
   it("KEEPS ONE ROW PER QUESTION while listing two guards", () => {
@@ -89,15 +89,16 @@ describe("the two views, side by side", () => {
     render(
       <QuestionsPanel questions={asked} gates={[gate({ id: "a" }), gate({ id: "b" })]} />,
     );
-    expect(screen.getAllByTestId("qadi-question")).toHaveLength(1);
-    expect(screen.getAllByTestId("qadi-instance")).toHaveLength(2);
+    assert.strictEqual(screen.getAllByTestId("qadi-question").length, 1);
+    assert.strictEqual(screen.getAllByTestId("qadi-instance").length, 2);
   });
 
   it("says a question is asked with nothing mounted, rather than looking broken", () => {
     // A component that asked and unmounted leaves its question behind in the
     // atom layer. Real and common, not an error.
     render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", policy: isAdmin })]} />);
-    expect(screen.getByTestId("qadi-question-unmounted").textContent ?? "").toContain(
+    assert.include(
+      screen.getByTestId("qadi-question-unmounted").textContent ?? "",
       "nothing mounted",
     );
   });
@@ -111,7 +112,7 @@ describe("highlight — the panel points at the page", () => {
         gates={[gate({ id: "a", element: marker() }), gate({ id: "b", element: marker() })]}
       />,
     );
-    expect(screen.getByTestId("qadi-highlight").textContent).toContain("2");
+    assert.include(screen.getByTestId("qadi-highlight").textContent ?? "", "2");
   });
 
   it("draws an overlay per locatable guard", () => {
@@ -125,7 +126,7 @@ describe("highlight — the panel points at the page", () => {
     act(() => {
       screen.getByTestId("qadi-highlight").click();
     });
-    expect(document.querySelectorAll("[data-qadi-lens]")).toHaveLength(2);
+    assert.strictEqual(document.querySelectorAll("[data-qadi-lens]").length, 2);
   });
 
   it("counts only what it can point at", () => {
@@ -137,7 +138,7 @@ describe("highlight — the panel points at the page", () => {
         gates={[gate({ id: "a", element: marker() }), gate({ id: "b", kind: "useCan" })]}
       />,
     );
-    expect(screen.getByTestId("qadi-highlight").textContent).toContain("1");
+    assert.include(screen.getByTestId("qadi-highlight").textContent ?? "", "1");
   });
 
   it("REFUSES THE HIGHLIGHT where only hooks are asking, and says why", () => {
@@ -146,13 +147,13 @@ describe("highlight — the panel points at the page", () => {
 
     // Disabled rather than absent, and with the reason on it: a button that
     // silently did nothing is the outcome this avoids.
-    expect(control.disabled).toBe(true);
-    expect(control.getAttribute("title") ?? "").toContain("no element");
+    assert.isTrue(control.disabled);
+    assert.include(control.getAttribute("title") ?? "", "no element");
   });
 
   it("says beside each hook that it has no element", () => {
     render(<QuestionsPanel questions={asked} gates={[gate({ id: "a", kind: "useCan" })]} />);
-    expect(screen.getByTestId("qadi-instance-unlocatable")).toBeDefined();
+    assert.isDefined(screen.getByTestId("qadi-instance-unlocatable"));
   });
 
   it("removes its overlays when the panel unmounts", () => {
@@ -162,11 +163,11 @@ describe("highlight — the panel points at the page", () => {
     act(() => {
       screen.getByTestId("qadi-highlight").click();
     });
-    expect(document.querySelectorAll("[data-qadi-lens]").length).toBeGreaterThan(0);
+    assert.isAbove(document.querySelectorAll("[data-qadi-lens]").length, 0);
 
     view.unmount();
     // A dock that left overlays behind would deface the page it was debugging.
-    expect(document.querySelectorAll("[data-qadi-lens]")).toHaveLength(0);
+    assert.strictEqual(document.querySelectorAll("[data-qadi-lens]").length, 0);
   });
 });
 
@@ -181,7 +182,7 @@ describe("pick — the page points at the panel", () => {
 
   it("offers picking only when there are guards to pick", () => {
     render(<QuestionsPanel questions={asked} gates={[]} />);
-    expect(screen.queryByTestId("qadi-pick")).toBeNull();
+    assert.isNull(screen.queryByTestId("qadi-pick"));
   });
 
   it("enters and announces the mode", () => {
@@ -192,7 +193,7 @@ describe("pick — the page points at the panel", () => {
     });
     // Names the two exits, because a debugging mode that can be entered and not
     // left makes the page unusable until it is reloaded.
-    expect(screen.getByTestId("qadi-pick").textContent ?? "").toContain("Escape");
+    assert.include(screen.getByTestId("qadi-pick").textContent ?? "", "Escape");
   });
 
   it("highlights whatever the pointer is over", () => {
@@ -207,7 +208,7 @@ describe("pick — the page points at the panel", () => {
       act(() => {
         fireEvent.pointerMove(document, { clientX: 5, clientY: 5 });
       });
-      expect(document.querySelectorAll("[data-qadi-lens]")).toHaveLength(1);
+      assert.strictEqual(document.querySelectorAll("[data-qadi-lens]").length, 1);
     } finally {
       restore();
     }
@@ -226,8 +227,11 @@ describe("pick — the page points at the panel", () => {
         fireEvent.click(document, { clientX: 5, clientY: 5 });
       });
 
-      expect(screen.getByTestId("qadi-instance").getAttribute("data-qadi-picked")).toBe("true");
-      expect(screen.getByTestId("qadi-pick").textContent ?? "").not.toContain("Escape");
+      assert.strictEqual(
+        screen.getByTestId("qadi-instance").getAttribute("data-qadi-picked"),
+        "true",
+      );
+      assert.notInclude(screen.getByTestId("qadi-pick").textContent ?? "", "Escape");
     } finally {
       restore();
     }
@@ -252,7 +256,7 @@ describe("pick — the page points at the panel", () => {
       act(() => {
         element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
       });
-      expect(pressed).toBe(0);
+      assert.strictEqual(pressed, 0);
     } finally {
       restore();
     }
@@ -276,7 +280,7 @@ describe("pick — the page points at the panel", () => {
       act(() => {
         stray.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
       });
-      expect(pressed).toBe(1);
+      assert.strictEqual(pressed, 1);
     } finally {
       restore();
     }
@@ -291,7 +295,7 @@ describe("pick — the page points at the panel", () => {
     act(() => {
       fireEvent.keyDown(document, { key: "Escape" });
     });
-    expect(screen.getByTestId("qadi-pick").textContent ?? "").not.toContain("Escape —");
+    assert.notInclude(screen.getByTestId("qadi-pick").textContent ?? "", "Escape —");
   });
 
   it("stops listening when the panel unmounts", () => {
@@ -315,7 +319,7 @@ describe("pick — the page points at the panel", () => {
         element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
       });
       // A dock that kept swallowing clicks after unmounting would break the page.
-      expect(pressed).toBe(1);
+      assert.strictEqual(pressed, 1);
     } finally {
       restore();
     }

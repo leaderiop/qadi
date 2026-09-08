@@ -335,6 +335,34 @@ describe("what a capture records", () => {
       );
     }).pipe(Effect.scoped));
 
+  it.effect("builds the wrapped ports exactly once, no matter how many of the five services a run reaches", () =>
+    Effect.gen(function* () {
+      let builds = 0;
+      const counted = Layer.effect(
+        AttributeResolver,
+        Effect.sync(() => {
+          builds += 1;
+          return { resolve: () => Effect.succeed(undefined) };
+        }),
+      ).pipe(
+        Layer.merge(Layer.succeed(RelationshipResolver, { check: () => Effect.succeed(unknownRelated) })),
+        Layer.merge(Layer.succeed(DecisionHistory, { hasActed: () => Effect.succeed(unknownActed) })),
+        Layer.merge(Layer.succeed(CustomPredicate, { evaluate: () => Effect.succeed(false) })),
+        Layer.merge(Layer.succeed(SignatureHistory, { signaturesFor: () => Effect.succeed([]) })),
+      );
+
+      const context = yield* Layer.build(capturing(counted).layer);
+      // Reaching all five wrapped services is what the five separate
+      // `Layer.build(ports)` calls used to do independently — one per wrapper.
+      Context.get(context, AttributeResolver);
+      Context.get(context, RelationshipResolver);
+      Context.get(context, DecisionHistory);
+      Context.get(context, CustomPredicate);
+      Context.get(context, SignatureHistory);
+
+      assert.strictEqual(builds, 1);
+    }).pipe(Effect.scoped));
+
   it.effect("wrapping something unnamed says so rather than dropping the stack", () =>
     Effect.gen(function* () {
       const anonymous = Layer.mergeAll(

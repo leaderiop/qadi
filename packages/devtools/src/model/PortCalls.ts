@@ -24,6 +24,7 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Tracer from "effect/Tracer";
 
 /** The five ports an evaluation can touch, named as `wiringReport` names them. */
@@ -244,10 +245,14 @@ export const collectPortCalls = (options?: {
 /**
  * One span as a row.
  *
- * Total over `PortSpan`, so adding a sixth name to `PORT_SPANS` without an arm
- * here does not compile — the `never` assignment below is what makes that true,
- * and it is free at runtime (the shape AGENTS.md §5a prescribes for the two
- * switches whose return type could otherwise absorb `undefined`).
+ * Total over `PortSpan` via `Match.value(name).pipe(..., Match.exhaustive)`
+ * (AGENTS.md §5a — a plain literal union has no `_tag`, so the values rather
+ * than a tag are matched), so adding a sixth name to `PORT_SPANS` without an
+ * arm here is a compile error rather than a blank row. `Match.value` rather
+ * than a module-scope `Match.type<PortSpan>()`: this runs once per span read
+ * out of the collector's bounded log, not once per policy-node dispatch on an
+ * evaluation's hot path, so the per-call rebuild §5a warns against there costs
+ * nothing here.
  */
 const rowOf = (span: Tracer.Span, name: PortSpan): PortCall => {
   const base = {
@@ -257,51 +262,59 @@ const rowOf = (span: Tracer.Span, name: PortSpan): PortCall => {
     subjectId: stringAt(span, "qadi.subject_id"),
   };
 
-  if (name === "qadi.attribute") {
-    return {
-      ...base,
-      _tag: "AttributeResolver",
-      attribute: stringAt(span, "qadi.attribute"),
-      resolved: booleanAt(span, "qadi.resolved"),
-    };
-  }
-  if (name === "qadi.acted") {
-    return {
-      ...base,
-      _tag: "DecisionHistory",
-      event: stringAt(span, "qadi.event"),
-      scope: stringAt(span, "qadi.scope"),
-      resourceId: stringAt(span, "qadi.resource_id"),
-      answer: stringAt(span, "qadi.answer"),
-    };
-  }
-  if (name === "qadi.hasCustom") {
-    return {
-      ...base,
-      _tag: "CustomPredicate",
-      name: stringAt(span, "qadi.custom_predicate"),
-      answer: booleanAt(span, "qadi.answer"),
-    };
-  }
-  if (name === "qadi.hasSignature") {
-    return {
-      ...base,
-      _tag: "SignatureHistory",
-      meaning: stringAt(span, "qadi.meaning"),
-      signerRole: stringAt(span, "qadi.signer_role"),
-      matched: booleanAt(span, "qadi.matched"),
-    };
-  }
-  const exhaustive: "qadi.hasRelationship" = name;
-  return {
-    ...base,
-    span: exhaustive,
-    _tag: "RelationshipResolver",
-    relation: stringAt(span, "qadi.relation"),
-    resourceId: stringAt(span, "qadi.resource_id"),
-    depth: numberAt(span, "qadi.depth"),
-    answer: stringAt(span, "qadi.answer"),
-  };
+  return Match.value(name).pipe(
+    Match.when(
+      "qadi.attribute",
+      (): PortCall => ({
+        ...base,
+        _tag: "AttributeResolver",
+        attribute: stringAt(span, "qadi.attribute"),
+        resolved: booleanAt(span, "qadi.resolved"),
+      }),
+    ),
+    Match.when(
+      "qadi.acted",
+      (): PortCall => ({
+        ...base,
+        _tag: "DecisionHistory",
+        event: stringAt(span, "qadi.event"),
+        scope: stringAt(span, "qadi.scope"),
+        resourceId: stringAt(span, "qadi.resource_id"),
+        answer: stringAt(span, "qadi.answer"),
+      }),
+    ),
+    Match.when(
+      "qadi.hasCustom",
+      (): PortCall => ({
+        ...base,
+        _tag: "CustomPredicate",
+        name: stringAt(span, "qadi.custom_predicate"),
+        answer: booleanAt(span, "qadi.answer"),
+      }),
+    ),
+    Match.when(
+      "qadi.hasSignature",
+      (): PortCall => ({
+        ...base,
+        _tag: "SignatureHistory",
+        meaning: stringAt(span, "qadi.meaning"),
+        signerRole: stringAt(span, "qadi.signer_role"),
+        matched: booleanAt(span, "qadi.matched"),
+      }),
+    ),
+    Match.when(
+      "qadi.hasRelationship",
+      (): PortCall => ({
+        ...base,
+        _tag: "RelationshipResolver",
+        relation: stringAt(span, "qadi.relation"),
+        resourceId: stringAt(span, "qadi.resource_id"),
+        depth: numberAt(span, "qadi.depth"),
+        answer: stringAt(span, "qadi.answer"),
+      }),
+    ),
+    Match.exhaustive,
+  );
 };
 
 /** Nanoseconds to milliseconds, and `undefined` while the span is open. */

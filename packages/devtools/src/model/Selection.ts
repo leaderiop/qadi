@@ -5,6 +5,10 @@
  * points at is replaced whenever its obligation outcome arrives — the timeline
  * is immutable, so joining a duty to a decision builds a new entry. Holding the
  * old object would leave the inspector showing a row the log no longer contains.
+ *
+ * A leaf/vocabulary module without its own `Selection.test.ts` — `selectionOf`,
+ * `Evicted` and `Selected` are exercised through `Filters.test.ts` instead,
+ * which is where a selection interacts with the filtering it has to survive.
  */
 import * as Data from "effect/Data";
 import { entryKey, type Timeline, type TimelineEntry } from "./Timeline.ts";

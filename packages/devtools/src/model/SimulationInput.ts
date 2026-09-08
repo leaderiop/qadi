@@ -8,6 +8,10 @@
  * situation `Resource.ts` was extracted to fix and it is resolved the same way:
  * a leaf the engine does not own, in the shape `Identity.ts`, `Permission.ts`
  * and `Obligation.ts` already follow.
+ *
+ * A leaf/vocabulary module without its own `SimulationInput.test.ts` —
+ * `subjectOf` and `evaluationOptionsOf` are exercised through
+ * `Simulation.test.ts`, which is where they feed the run they build.
  */
 import type * as Layer from "effect/Layer";
 import { makeSubject } from "@qadi/core";

@@ -13,7 +13,11 @@ import type { TimelineEntry } from "./Timeline.ts";
 import { verdictOf, type Verdict } from "./Verdict.ts";
 
 export interface Filters {
-  /** Matched literally and case-insensitively against subject, action, resource and ids. */
+  /**
+   * Matched literally and case-insensitively against subject, action,
+   * resource, ids, environment and evaluation id — see `partsOf` for the
+   * exact field list `searchTextOf` folds in.
+   */
   readonly text: string;
   /** A specific environment, or `undefined` for all of them. */
   readonly environment: string | undefined;

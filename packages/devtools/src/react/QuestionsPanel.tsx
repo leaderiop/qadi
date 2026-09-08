@@ -97,61 +97,61 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   const lens = useLens(instances);
 
   return (
-  <div style={{ padding: 12 }} data-testid="qadi-questions">
-    <p style={{ ...muted, fontSize: font.sizeSmall, marginTop: 0 }} data-testid="qadi-keying-note">
-      {/* Said up front, because a reader counting rows against components in
-          their tree would otherwise conclude the panel is broken. Both halves
-          have to be said: the row count is questions, the nested count is
-          components, and they are different numbers on purpose. */}
-      One row per <em>question</em>, not per component. Atoms are keyed
-      structurally, so ten gates on the same policy are one atom — that is what
-      the evaluator sees. The guards asking each question are listed underneath.
-    </p>
-
-    {instances.length === 0 ? (
-      <p style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-gates-absent">
-        {gates === undefined
-          ? "No live guards were handed to the dock. Pass gates — usually gateInstances() — to list who is asking."
-          : "No guard is registered. Pass instrument to QadiProvider to let them say that they exist."}
+    <div style={{ padding: 12 }} data-testid="qadi-questions">
+      <p style={{ ...muted, fontSize: font.sizeSmall, marginTop: 0 }} data-testid="qadi-keying-note">
+        {/* Said up front, because a reader counting rows against components in
+            their tree would otherwise conclude the panel is broken. Both halves
+            have to be said: the row count is questions, the nested count is
+            components, and they are different numbers on purpose. */}
+        One row per <em>question</em>, not per component. Atoms are keyed
+        structurally, so ten gates on the same policy are one atom — that is what
+        the evaluator sees. The guards asking each question are listed underneath.
       </p>
-    ) : (
-      <PickButton lens={lens} />
-    )}
 
-    {questions === undefined ? (
-      <p style={muted} data-testid="qadi-questions-absent">
-        No atom set was handed to the dock. Pass <code>questions</code> — usually{" "}
-        <code>atoms.asked()</code> — to list what has been asked.
-      </p>
-    ) : questions.length === 0 ? (
-      <p style={muted} data-testid="qadi-questions-empty">
-        Nothing has been asked yet. A question appears here the first time a
-        component reads its decision.
-      </p>
-    ) : (
-      questions.map((question, index) => (
-        <Question
-          key={`${policyLabel(question.policy)}-${index}`}
-          question={question}
-          groups={groups}
-          lens={lens}
-        />
-      ))
-    )}
+      {instances.length === 0 ? (
+        <p style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-gates-absent">
+          {gates === undefined
+            ? "No live guards were handed to the dock. Pass gates — usually gateInstances() — to list who is asking."
+            : "No guard is registered. Pass instrument to QadiProvider to let them say that they exist."}
+        </p>
+      ) : (
+        <PickButton lens={lens} />
+      )}
 
-    <Hydration activity={hydration} mismatches={hydrationMismatches} />
+      {questions === undefined ? (
+        <p style={muted} data-testid="qadi-questions-absent">
+          No atom set was handed to the dock. Pass <code>questions</code> — usually{" "}
+          <code>atoms.asked()</code> — to list what has been asked.
+        </p>
+      ) : questions.length === 0 ? (
+        <p style={muted} data-testid="qadi-questions-empty">
+          Nothing has been asked yet. A question appears here the first time a
+          component reads its decision.
+        </p>
+      ) : (
+        questions.map((question, index) => (
+          <Question
+            key={`${policyLabel(question.policy)}-${index}`}
+            question={question}
+            groups={groups}
+            lens={lens}
+          />
+        ))
+      )}
 
-    {onInvalidate === undefined ? null : (
-      <button
-        type="button"
-        style={{ ...button(false), marginTop: 8 }}
-        data-testid="qadi-invalidate"
-        onClick={onInvalidate}
-      >
-        invalidate all
-      </button>
-    )}
-  </div>
+      <Hydration activity={hydration} mismatches={hydrationMismatches} />
+
+      {onInvalidate === undefined ? null : (
+        <button
+          type="button"
+          style={{ ...button(false), marginTop: 8 }}
+          data-testid="qadi-invalidate"
+          onClick={onInvalidate}
+        >
+          invalidate all
+        </button>
+      )}
+    </div>
   );
 };
 

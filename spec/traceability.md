@@ -266,7 +266,7 @@ is still a contract for readability, even where nothing enforces it.
 | `packages/react/test/GateRegistry.test.tsx` | BEH-QD-233, INV-QD-046, ADR-QD-053 |
 | `packages/devtools/test/model/Gates.test.ts` | BEH-QD-217 (the keying that survives), BEH-QD-233 |
 | `packages/devtools/test/react/Lens.test.ts` | BEH-QD-234, ADR-QD-053 |
-| `packages/devtools/test/react/GatesPanel.test.tsx` | BEH-QD-233, BEH-QD-234 |
+| `packages/devtools/test/react/QuestionsPanel.gates.test.tsx` | BEH-QD-233, BEH-QD-234 |
 | `packages/devtools/test/react/ServicesPanel.test.tsx` | BEH-QD-215, BEH-QD-216, BEH-QD-229 |
 | `packages/devtools/test/manifest.test.ts` | BEH-QD-210 |
 | `packages/http/test/QadiHttpError.test.ts` | BEH-QD-177 |

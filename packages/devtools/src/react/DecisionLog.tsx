@@ -10,7 +10,7 @@ import type { CSSProperties, FC } from "react";
 import type { PairedEntry } from "../model/Pairing.ts";
 import { entryKey, type TimelineEntry } from "../model/Timeline.ts";
 import { verdictOf } from "../model/Verdict.ts";
-import { colors, font, muted, truncate } from "./theme.ts";
+import { colors, font, muted, truncate, withAlpha } from "./theme.ts";
 import { EnvironmentTag, VerdictTag } from "./VerdictTag.tsx";
 
 export interface DecisionLogProps {
@@ -110,7 +110,7 @@ const Row: FC<{
             // A continuation is tinted so a pair reads as one story rather than
             // as two rows that happen to share an id.
             : row.role === "Continuation"
-              ? "rgba(78, 161, 255, 0.06)"
+              ? withAlpha(colors.accent, 0.06)
               : "transparent",
         borderBottom: `1px solid ${colors.border}`,
       }}

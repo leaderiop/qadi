@@ -32,6 +32,7 @@
  * point**, and that is not a failure to handle away: it is the answer to "why is
  * this button missing", which is where the control would have been.
  */
+import { colors, withAlpha } from "./theme.ts";
 
 /** What the lens found for one instance. */
 export interface GateBox {
@@ -55,8 +56,13 @@ export interface GateBox {
  *
  * A type predicate rather than a cast: the model carries `element` as `unknown`
  * because a headless model has no business knowing what one is, and narrowing it
- * is this file's job. Duck-typed on the two methods actually used, so a test
- * double works and so a node from another document does too.
+ * is this file's job. Duck-typed on `ownerDocument` and `getBoundingClientRect` —
+ * something with an owner document that can stand in for a DOM node — rather
+ * than on only what `boxOf` reads from the element itself: `boxOf` measures via
+ * a `Range` over the element's contents and calls `getBoundingClientRect()` on
+ * that `Range`, not on `element`, so this check is stricter than what `boxOf`
+ * strictly needs. A test double satisfying both still works, and so does a node
+ * from another document.
  */
 export const isMeasurable = (value: unknown): value is Element =>
   typeof value === "object" &&
@@ -116,8 +122,8 @@ const overlayStyle = (box: GateBox): string =>
     "z-index:2147483000",
     "box-sizing:border-box",
     box.empty
-      ? "border-left:2px solid #e3a008;background:rgba(227,160,8,0.25)"
-      : "border:2px solid #4ea1ff;background:rgba(78,161,255,0.16)",
+      ? `border-left:2px solid ${colors.error};background:${withAlpha(colors.error, 0.25)}`
+      : `border:2px solid ${colors.accent};background:${withAlpha(colors.accent, 0.16)}`,
   ].join(";");
 
 /**
