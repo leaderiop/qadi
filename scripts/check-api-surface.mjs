@@ -88,7 +88,7 @@ const fail = (where, message) => failures.push(`${where}  ${message}`);
  *
  * Driven by `packages/*&#47;package.json` rather than a glob over `**\/*.ts`, because
  * `.stryker-tmp/` holds full copies of every workspace package's `src`/`test`/`lib`
- * directories between mutation runs (CCR-QD-115) and a glob would count them twice.
+ * directories between mutation runs (CCR-QD-119) and a glob would count them twice.
  */
 const packages = readdirSync(join(ROOT, "packages"))
   .map((dir) => {

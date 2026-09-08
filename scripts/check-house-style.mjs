@@ -301,7 +301,7 @@ const testSources = readdirSync(packagesDir).flatMap((pkg) =>
 // AGENTS.md §6's ban on `as`/`as any`/`!`/`any` states no bench carve-out, and
 // `pnpm check`'s typecheck step already covers it (`tsconfig.test.json`
 // includes `packages/*/bench/**/*.ts`) — this closes the matching house-style
-// gap rather than leaving it a silent omission (CCR-QD-115). Folded into the
+// gap rather than leaving it a silent omission (CCR-QD-119). Folded into the
 // same set as `test/`, not a third bucket: nothing here needs `SWITCH_BUDGET`/
 // `HAS_CUSTOM_BUDGET` tracking or the non-`testScope` rules (`no-async` and
 // friends are as legitimate in a bench body as in a test one), so treating

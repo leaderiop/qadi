@@ -8,7 +8,7 @@
 > at the same time (CCR-QD-073).
 > **Amended:** 2026-09-08 — records why `@qadi/react` carries no `stryker.*.mjs`,
 > a reason `stryker.config.mjs`'s doc comment had stated only jointly with
-> `@qadi/testing`'s, and inaccurately at that (CCR-QD-115).
+> `@qadi/testing`'s, and inaccurately at that (CCR-QD-119).
 
 ## Context
 

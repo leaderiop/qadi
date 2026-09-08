@@ -13,7 +13,7 @@
  * package gets one for the same reason.
  *
  * **Known limitation: module-scope ("static") mutants under `coverageAnalysis:
- * "perTest"` (CCR-QD-115).** A run against this config reports survivors in code
+ * "perTest"` (CCR-QD-119).** A run against this config reports survivors in code
  * that executes once, at import time, before any test runs — `RequirePermission.ts`'s
  * `requiresPermission` (called inline while `test/http.test.ts`'s `DocumentsGroup`
  * builds its endpoints) and `PermissionRegistry.ts`'s `registerApi`/`addGuardedRoute`

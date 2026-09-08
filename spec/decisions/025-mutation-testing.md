@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.2 (2026-09-08): Added a correction blockquote under "Decision" — five more `stryker run` invocations (`@qadi/devtools`'s model, `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/audit`, `@qadi/http`) joined the original `packages/core` one since 1.1, and `mutation` no longer runs last in `pnpm check`'s chain (CCR-QD-115)<br>1.1 (2026-07-26): Named the step by position rather than index — it said "step 9" while the gate table had it at 10, and a new gate has since made it 11 (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-026) |
+> | Change History | 1.2 (2026-09-08): Added a correction blockquote under "Decision" — five more `stryker run` invocations (`@qadi/devtools`'s model, `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/audit`, `@qadi/http`) joined the original `packages/core` one since 1.1, and `mutation` no longer runs last in `pnpm check`'s chain (CCR-QD-119)<br>1.1 (2026-07-26): Named the step by position rather than index — it said "step 9" while the gate table had it at 10, and a new gate has since made it 11 (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-026) |
 
 ---
 
@@ -43,7 +43,7 @@ exercised.
 
 **Stryker runs on `packages/core` as the last step of `pnpm check`, breaking below 80%.**
 
-> **Correction (revision 1.2, CCR-QD-115).** Both halves of the sentence above are
+> **Correction (revision 1.2, CCR-QD-119).** Both halves of the sentence above are
 > now stale. `package.json`'s `mutation` script chains **six** `stryker run`
 > invocations — `packages/core`, `@qadi/devtools`'s `src/model/`,
 > `packages/predicate-sql`, `packages/predicate-prisma`, `packages/audit` and

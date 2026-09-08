@@ -22,7 +22,7 @@
  *   obligation-heavy  `allOf` of 8 distinct `Obliged` children, the only
  *                     workload that folds `unionObligations`'s linear
  *                     `.some(Equal.equals(...))` scan over several obligations
- *                     per node instead of the usual zero or one (CCR-QD-115)
+ *                     per node instead of the usual zero or one (CCR-QD-119)
  *   per element       `filter`/`decideSubjects` over 500 items, where §5a's
  *                     "once per element on top of that" actually happens —
  *                     both sites AGENTS.md names have a row here
@@ -190,7 +190,7 @@ const fieldHeavy = allOf(
  * linear `.some(Equal.equals(...))` scan per incoming obligation, so this is
  * O(n²) in the obligation count per node — the same cost profile `fieldHeavy`
  * above measures for `mergeFields`/`intersectFields`, previously unmeasured
- * here (CCR-QD-115).
+ * here (CCR-QD-119).
  */
 const obligationHeavy = allOf(
   Array.from({ length: 8 }, (_, index) =>

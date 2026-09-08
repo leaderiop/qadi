@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.2 (2026-09-08): Added "No mutation-testing config" recording why `@qadi/promise` carries no `stryker.*.mjs`, the reasoning having existed only as an inference from AGENTS.md §14 rather than anywhere written down (CCR-QD-115)<br>1.1 (2026-07-26): Signature listing corrected — it omitted the `subject` parameter that the section below it insists on (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.2 (2026-09-08): Added "No mutation-testing config" recording why `@qadi/promise` carries no `stryker.*.mjs`, the reasoning having existed only as an inference from AGENTS.md §14 rather than anywhere written down (CCR-QD-119)<br>1.1 (2026-07-26): Signature listing corrected — it omitted the `subject` parameter that the section below it insists on (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 ---
 

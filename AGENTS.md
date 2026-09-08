@@ -212,7 +212,7 @@ transfers. Small, then, but not noise — and not worth paying for style on an
 authorization hot path.
 
 > **The end-to-end 2–4%/under-1% figures are stale, not reproducible as stated
-> (CCR-QD-115).** ADR-QD-034's 2026-09-07 addendum found the workload they were
+> (CCR-QD-119).** ADR-QD-034's 2026-09-07 addendum found the workload they were
 > derived from ("four refs", "seventeen dispatches") no longer matches
 > `Evaluate.bench.ts`, which now resolves 3 refs and dispatches ~13 times per
 > evaluation — and that neither file had been re-measured since the ADR was

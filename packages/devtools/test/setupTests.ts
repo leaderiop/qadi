@@ -10,7 +10,7 @@
  * DOM but not React's own record of what is mounted — effect cleanups
  * (subscriptions, `GateRegistry` entries, timers) leaked from one test into the
  * next, the same defect `packages/react/test/setupTests.ts`'s doc comment
- * names (CCR-QD-115).
+ * names (CCR-QD-119).
  *
  * A plain `afterEach(cleanup)` here, wired through `test.setupFiles` in
  * `vitest.config.ts`, is the fix vitest's own docs recommend for exactly this
