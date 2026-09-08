@@ -501,7 +501,7 @@ diff with no correctness or readability payoff. **`oxfmt` does not go in
 `pnpm check`.** If a future change wants to revisit this, it needs a reason
 beyond taste — this section existing is not license to reopen it without one.
 
-> **Corrected in CCR-QD-115.** The counts above (147/169, 113/169, the
+> **Corrected in CCR-QD-121.** The counts above (147/169, 113/169, the
 > `.oxfmtrc.json` `lineWidth` experiment) were a snapshot from when this
 > section was written, stated as if evergreen. No script gates them — unlike
 > the DoD table, devtools claims, and publish-status facts §15 gates for
