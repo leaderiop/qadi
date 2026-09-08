@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Predicate from "effect/Predicate";
 import * as FastCheck from "effect/testing/FastCheck";
 import { Allow, Deny } from "../src/Decision.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
@@ -9,6 +10,7 @@ import {
   CustomPredicateError,
   DecisionHistoryUnavailable,
   ERROR_CODES,
+  errorCode,
   MissingAction,
   MissingResource,
   MissingResourceId,
@@ -33,26 +35,42 @@ import {
 
 const read = permission("doc", "read");
 
-/** Every `EvaluationError` variant, so none can be forgotten by the mapping. */
+/**
+ * One factory per `EvaluationError` tag (ADR-QD-060) — `Record`, not an array,
+ * so a tenth tag added to the union without a matching entry here is a
+ * compile error (TS2741) rather than a fixture someone forgot to extend.
+ */
+const everyErrorFactory: Record<EvaluationError["_tag"], () => EvaluationError> = {
+  MissingResource: () => new MissingResource({ attribute: "owner" }),
+  MissingAction: () => new MissingAction({ expected: "read" }),
+  AttributeResolveError: () =>
+    new AttributeResolveError({ attribute: "clearance", cause: "store offline" }),
+  RelationshipResolveError: () =>
+    new RelationshipResolveError({
+      relation: "owner",
+      resourceId: makeResourceId("doc-1"),
+      cause: "graph offline",
+    }),
+  MissingResourceId: () => new MissingResourceId({ relation: "owner" }),
+  DecisionHistoryUnavailable: () =>
+    new DecisionHistoryUnavailable({ event: "approved", cause: "history offline" }),
+  PolicyTooDeep: () => new PolicyTooDeep({ maxDepth: 64 }),
+  SignatureHistoryUnavailable: () =>
+    new SignatureHistoryUnavailable({
+      subjectId: makeSubjectId("u1"),
+      resourceId: makeResourceId("doc-1"),
+      cause: "signature store offline",
+    }),
+  CustomPredicateError: () => new CustomPredicateError({ name: "isOwner", reason: "unregistered" }),
+};
+
+/** Every `EvaluationError` variant, for tests that just need to iterate them. */
 const everyError: ReadonlyArray<EvaluationError> = [
-  new MissingResource({ attribute: "owner" }),
-  new MissingAction({ expected: "read" }),
+  ...Object.values(everyErrorFactory).map((make) => make()),
+  // A second `MissingAction` with `expected: undefined` — the factory record
+  // above is one-per-tag, but this tag has an internal absent/present split
+  // worth covering twice.
   new MissingAction({ expected: undefined }),
-  new AttributeResolveError({ attribute: "clearance", cause: "store offline" }),
-  new RelationshipResolveError({
-    relation: "owner",
-    resourceId: makeResourceId("doc-1"),
-    cause: "graph offline",
-  }),
-  new MissingResourceId({ relation: "owner" }),
-  new DecisionHistoryUnavailable({ event: "approved", cause: "history offline" }),
-  new PolicyTooDeep({ maxDepth: 64 }),
-  new SignatureHistoryUnavailable({
-    subjectId: makeSubjectId("u1"),
-    resourceId: makeResourceId("doc-1"),
-    cause: "signature store offline",
-  }),
-  new CustomPredicateError({ name: "isOwner", reason: "unregistered" }),
 ];
 
 /**
@@ -250,7 +268,7 @@ describe("optional fields normalise", () => {
     }));
 });
 
-describe("every error variant crosses, and carries its code", () => {
+describe("every error variant crosses, and its stable code is derivable from _tag", () => {
   it.effect("each one round-trips to the same tag and fields", () =>
     Effect.gen(function* () {
       for (const error of everyError) {
@@ -276,46 +294,24 @@ describe("every error variant crosses, and carries its code", () => {
         const rebuilt = back.outcome.error;
         assert.strictEqual(rebuilt._tag, error._tag);
 
-        // Every field, not just the tag. Asserting the tag alone would pass
-        // even if the mapping scrambled every value it carries — which is
-        // exactly what mutation testing found it doing.
-        //
-        // `cause` is excluded because it is rendered to a string on purpose;
-        // it has its own tests.
-        const fieldsOf = (e: EvaluationError): Record<string, unknown> => {
-          const { _tag, cause, ...rest } = { cause: undefined, ...e };
-          void _tag;
-          void cause;
-          return rest;
-        };
-        assert.deepStrictEqual(fieldsOf(rebuilt), fieldsOf(error), error._tag);
+        // Every field, not just the tag — asserting the tag alone would pass
+        // even if the mapping scrambled every value it carries. `cause` is
+        // included: `Schema.Defect()` round-trips a plain string (every
+        // fixture's cause) unchanged, unlike the old hand-rendered version
+        // this replaced (ADR-QD-060), which is why it no longer needs
+        // excluding here.
+        assert.deepStrictEqual(rebuilt, error, error._tag);
+
+        // `ERROR_CODES`/`errorCode` exist, per their own comment, "for
+        // logging and cross-process correlation" — derived from the decoded
+        // `_tag`, not carried on the wire (ADR-QD-060).
+        assert.strictEqual(errorCode(rebuilt), ERROR_CODES[error._tag]);
       }
     }));
 
-  it("the wire carries the stable code for every variant", () => {
-    for (const error of everyError) {
-      const wire = toWire(
-        new DecisionRecord({
-          evaluationId: "e",
-          at: 0,
-          subjectId: makeSubjectId("u1"),
-          policy: P.hasPermission(read),
-          outcome: new Failed({ error }),
-        }),
-      );
-
-      assert.strictEqual(wire._tag, "Decision");
-      if (wire._tag === "Decision") {
-        // `ERROR_CODES` exists, per its own comment, "for logging and
-        // cross-process correlation". This is that use.
-        assert.strictEqual(wire.failed?.code, ERROR_CODES[error._tag]);
-      }
-    }
-  });
-
-  it("a non-string cause is rendered, and the loss is deliberate", () => {
-    const wire = toWire(
-      new DecisionRecord({
+  it.effect("an Error cause survives round-trip recognizably, via Schema.Defect", () =>
+    Effect.gen(function* () {
+      const record: SinkRecord = new DecisionRecord({
         evaluationId: "e",
         at: 0,
         subjectId: makeSubjectId("u1"),
@@ -326,52 +322,39 @@ describe("every error variant crosses, and carries its code", () => {
             cause: new Error("connection reset"),
           }),
         }),
-      }),
-    );
-
-    assert.strictEqual(wire._tag, "Decision");
-    if (wire._tag === "Decision") {
-      // An `Error` keeps its message, which is the part a reader wants.
-      assert.strictEqual(wire.failed?.cause, "connection reset");
-    }
-  });
-
-  it.effect("a wire error record missing `code` still decodes — ticket 163, code is never read on decode", () =>
-    Effect.gen(function* () {
-      // `code` is written on encode but never read on decode (`decodeError`
-      // dispatches purely on `_tag`), and `SinkRecordWire` otherwise tolerates
-      // an older sender's payload predating a field (see `subjectId`'s own
-      // doc comment). Requiring `code` bought no safety and only cost
-      // rejecting an otherwise-valid `failed` payload from a sender that
-      // predates the code being added.
-      const back = yield* decodeRecord({
-        _tag: "Decision",
-        evaluationId: "e",
-        at: 0,
-        subjectId: "u1",
-        policy: P.hasPermission(read),
-        failed: { _tag: "MissingResource", attribute: "owner" },
       });
+
+      const back = yield* decodeRecord(
+        JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
+      );
 
       assert.strictEqual(back._tag, "Decision");
       if (back._tag === "Decision" && back.outcome._tag === "Failed") {
         const error = back.outcome.error;
-        assert.strictEqual(error._tag, "MissingResource");
-        if (error._tag === "MissingResource") assert.strictEqual(error.attribute, "owner");
+        assert.strictEqual(error._tag, "AttributeResolveError");
+        if (error._tag === "AttributeResolveError") {
+          // `Schema.Defect()` reconstructs a real `Error`, not a plain string —
+          // strictly more capable than the hand-rendered version it replaced.
+          assert.instanceOf(error.cause, Error);
+          if (error.cause instanceof Error) {
+            assert.strictEqual(error.cause.message, "connection reset");
+          }
+        }
       }
     }));
 
-  it("a cause that cannot be stringified does not take the record down", () => {
-    // A sink must never break the thing it observes, and that includes the
-    // encoder a transport calls.
-    const hostile = {
-      toString() {
-        throw new Error("no");
-      },
-    };
+  it.effect("a cause that cannot be JSON-represented does not take the record down", () =>
+    Effect.gen(function* () {
+      // A sink must never break the thing it observes, and that includes the
+      // encoder a transport calls — `Schema.Defect()`'s own fallback (not a
+      // hand-rolled one) is what is exercised here now (ADR-QD-060).
+      const hostile = {
+        toString() {
+          throw new Error("no");
+        },
+      };
 
-    const wire = toWire(
-      new DecisionRecord({
+      const record: SinkRecord = new DecisionRecord({
         evaluationId: "e",
         at: 0,
         subjectId: makeSubjectId("u1"),
@@ -379,14 +362,16 @@ describe("every error variant crosses, and carries its code", () => {
         outcome: new Failed({
           error: new AttributeResolveError({ attribute: "x", cause: hostile }),
         }),
-      }),
-    );
+      });
 
-    assert.strictEqual(wire._tag, "Decision");
-    if (wire._tag === "Decision") {
-      assert.strictEqual(wire.failed?.cause, "<unrenderable cause>");
-    }
-  });
+      const encoded = yield* encodeRecord(toWire(record));
+      assert.strictEqual(encoded._tag, "Decision");
+      if (encoded._tag === "Decision") {
+        // Reached JSON at all — a hostile `cause` did not throw the encoder —
+        // and round-trips through JSON.stringify without throwing either.
+        assert.doesNotThrow(() => JSON.stringify(encoded));
+      }
+    }));
 });
 
 describe("every literal the wire admits is exercised", () => {
@@ -448,37 +433,54 @@ describe("every literal the wire admits is exercised", () => {
     }
   });
 
-  it("an absent MissingAction expectation stays absent", () => {
-    const wire = toWire(
-      new DecisionRecord({
-        evaluationId: "e",
-        at: 0,
-        subjectId: makeSubjectId("u1"),
-        policy: P.hasPermission(read),
-        outcome: new Failed({ error: new MissingAction({ expected: undefined }) }),
-      }),
-    );
+  it.effect("an absent MissingAction expectation is absent on the JSON wire", () =>
+    Effect.gen(function* () {
+      // `expected: undefined` is present-with-`undefined` on the `Schema.TaggedError`
+      // instance itself (`Schema.UndefinedOr`, not an absent key) — the omission
+      // this pins happens where it always has for every other optional field in
+      // this file: `JSON.stringify` drops an `undefined`-valued key.
+      const encoded = yield* encodeRecord(
+        toWire(
+          new DecisionRecord({
+            evaluationId: "e",
+            at: 0,
+            subjectId: makeSubjectId("u1"),
+            policy: P.hasPermission(read),
+            outcome: new Failed({ error: new MissingAction({ expected: undefined }) }),
+          }),
+        ),
+      );
+      const json: unknown = JSON.parse(JSON.stringify(encoded));
 
-    assert.strictEqual(wire._tag, "Decision");
-    if (wire._tag === "Decision") {
-      assert.isFalse(Object.hasOwn(wire.failed ?? {}, "expected"));
-    }
-  });
+      assert.strictEqual(encoded._tag, "Decision");
+      if (
+        Predicate.isObject(json) &&
+        Predicate.hasProperty(json, "failed") &&
+        Predicate.isObject(json.failed)
+      ) {
+        assert.isFalse(Object.hasOwn(json.failed, "expected"));
+      }
+    }));
 
-  it("a present MissingAction expectation is carried", () => {
-    const wire = toWire(
-      new DecisionRecord({
-        evaluationId: "e",
-        at: 0,
-        subjectId: makeSubjectId("u1"),
-        policy: P.hasPermission(read),
-        outcome: new Failed({ error: new MissingAction({ expected: "read" }) }),
-      }),
-    );
+  it.effect("a present MissingAction expectation is carried onto the JSON wire", () =>
+    Effect.gen(function* () {
+      const encoded = yield* encodeRecord(
+        toWire(
+          new DecisionRecord({
+            evaluationId: "e",
+            at: 0,
+            subjectId: makeSubjectId("u1"),
+            policy: P.hasPermission(read),
+            outcome: new Failed({ error: new MissingAction({ expected: "read" }) }),
+          }),
+        ),
+      );
 
-    assert.strictEqual(wire._tag, "Decision");
-    if (wire._tag === "Decision") assert.strictEqual(wire.failed?.expected, "read");
-  });
+      assert.strictEqual(encoded._tag, "Decision");
+      if (encoded._tag === "Decision" && encoded.failed?._tag === "MissingAction") {
+        assert.strictEqual(encoded.failed.expected, "read");
+      }
+    }));
 });
 
 describe("the wire is untrusted", () => {
@@ -521,44 +523,38 @@ describe("the wire is untrusted", () => {
       assert.strictEqual(result._tag, "Failure");
     }));
 
-  it("every error tag missing its fields decodes to empty ones, not undefined", () => {
-    // One case per fallback. `undefined` reaching `makeResourceId` would produce
-    // a branded value of `undefined`, which is worse than an empty one because
-    // it type-checks everywhere downstream.
-    const cases = [
-      { _tag: "MissingResource" as const, code: "ACL004", read: (e: EvaluationError) =>
-        e._tag === "MissingResource" ? e.attribute : "?" },
-      { _tag: "RelationshipResolveError" as const, code: "ACL003", read: (e: EvaluationError) =>
-        e._tag === "RelationshipResolveError" ? `${e.relation}|${e.resourceId}` : "?" },
-      { _tag: "MissingResourceId" as const, code: "ACL005", read: (e: EvaluationError) =>
-        e._tag === "MissingResourceId" ? e.relation : "?" },
-      { _tag: "DecisionHistoryUnavailable" as const, code: "ACL011", read: (e: EvaluationError) =>
-        e._tag === "DecisionHistoryUnavailable" ? e.event : "?" },
-      { _tag: "PolicyTooDeep" as const, code: "ACL006", read: (e: EvaluationError) =>
-        e._tag === "PolicyTooDeep" ? String(e.maxDepth) : "?" },
-      { _tag: "SignatureHistoryUnavailable" as const, code: "ACL014", read: (e: EvaluationError) =>
-        e._tag === "SignatureHistoryUnavailable" ? e.subjectId : "?" },
-    ];
+  it.effect("a decode refuses an error payload missing a field its tag requires", () =>
+    Effect.gen(function* () {
+      // Pre-ADR-QD-060, one all-optional struct served all nine tags, so a
+      // sender omitting a field a tag actually requires decoded to an empty
+      // string via `?? ""` rather than failing. Each tag is now its own
+      // precisely-typed `Schema.TaggedError`, so the same omission is a
+      // decode failure instead — closer to what `decodeRecord`'s own doc
+      // comment already promises ("validates; does not cast").
+      const payloads: ReadonlyArray<unknown> = [
+        { _tag: "MissingResource" }, // missing `attribute`
+        { _tag: "RelationshipResolveError", relation: "owner" }, // missing `resourceId`/`cause`
+        { _tag: "MissingResourceId" }, // missing `relation`
+        { _tag: "DecisionHistoryUnavailable", event: "approved" }, // missing `cause`
+        { _tag: "PolicyTooDeep" }, // missing `maxDepth`
+        { _tag: "SignatureHistoryUnavailable" }, // missing `subjectId`/`cause`
+        { _tag: "AttributeResolveError", attribute: "x" }, // missing `cause`
+      ];
 
-    const expected = ["", "|", "", "", "0", ""];
-
-    cases.forEach((c, i) => {
-      const back = fromWire({
-        _tag: "Decision",
-        evaluationId: "e",
-        at: 0,
-        subjectId: "u1",
-        policy: P.hasPermission(read),
-        failed: { _tag: c._tag, code: c.code },
-      });
-
-      assert.strictEqual(back._tag, "Decision");
-      if (back._tag === "Decision" && back.outcome._tag === "Failed") {
-        assert.strictEqual(back.outcome.error._tag, c._tag);
-        assert.strictEqual(c.read(back.outcome.error), expected[i], c._tag);
+      for (const failed of payloads) {
+        const result = yield* Effect.result(
+          decodeRecord({
+            _tag: "Decision",
+            evaluationId: "e",
+            at: 0,
+            subjectId: "u1",
+            policy: P.hasPermission(read),
+            failed,
+          }),
+        );
+        assert.strictEqual(result._tag, "Failure", JSON.stringify(failed));
       }
-    });
-  });
+    }));
 
   it("a Deny arriving with no reason gets the same default the evaluator uses", () => {
     const back = fromWire({
@@ -582,28 +578,6 @@ describe("the wire is untrusted", () => {
       const decision = back.outcome.decision;
       assert.strictEqual(decision._tag, "Deny");
       if (decision._tag === "Deny") assert.strictEqual(decision.reason, "denied");
-    }
-  });
-
-  it("an error payload missing a field its tag requires decodes to an empty one", () => {
-    // The `?? ""` fallbacks. Unreachable for anything this module encodes — the
-    // schema types every field optional because one struct serves seven shapes —
-    // so a sender omitting a field yields an empty string rather than letting
-    // `undefined` reach a branded constructor.
-    const back = fromWire({
-      _tag: "Decision",
-      evaluationId: "e",
-      at: 0,
-      subjectId: "u1",
-      policy: P.hasPermission(read),
-      failed: { _tag: "AttributeResolveError", code: "ACL002" },
-    });
-
-    assert.strictEqual(back._tag, "Decision");
-    if (back._tag === "Decision" && back.outcome._tag === "Failed") {
-      const error = back.outcome.error;
-      assert.strictEqual(error._tag, "AttributeResolveError");
-      if (error._tag === "AttributeResolveError") assert.strictEqual(error.attribute, "");
     }
   });
 
@@ -664,7 +638,7 @@ describe("the wire is untrusted", () => {
         trace: trace(false),
         obligations: [],
       },
-      failed: { _tag: "MissingResource", code: "ACL004", attribute: "owner" },
+      failed: new MissingResource({ attribute: "owner" }),
     });
 
     assert.strictEqual(back._tag, "Decision");
@@ -796,11 +770,12 @@ describe("decodeRecord rejects an excess property inside its embedded Policy, ma
 
 describe("round-trip property", () => {
   it("holds over generated policies", () => {
-    // The drift-catcher. The mapping between `SinkRecord` and its wire form is
-    // hand-written — AGENTS.md §4 requires `Data.TaggedError`, so the errors
-    // cannot be Schema-derived at their definition — and a hand-written codec
-    // drifting from its type is the defect this library was rewritten to
-    // remove. This is what stands in for the gate the policy codec gets.
+    // The drift-catcher for what is still hand-written: `Decision`/`Allow`/`Deny`
+    // are ordinary domain classes, not `Schema.TaggedError`, so `encodeDecision`/
+    // `decodeDecision` still hand-map them the way the nine `EvaluationError`
+    // tags no longer need (ADR-QD-060). A hand-written codec drifting from its
+    // type is the defect this library was rewritten to remove — this is what
+    // stands in for the gate the policy codec gets, for the part still hand-written.
     const leaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
       FastCheck.constant(P.hasPermission(read)),
       FastCheck.constantFrom("editor", "admin").map((r) => P.hasRole(r)),

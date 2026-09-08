@@ -17,14 +17,14 @@
  * this library was rewritten to remove. `decodeRecord` therefore validates; it
  * does not cast.
  *
- * The errors are the one part that cannot be Schema-derived at their definition:
- * [AGENTS.md §4](../../../AGENTS.md) requires `Data.TaggedError`, explicitly not
- * `Schema.TaggedErrorClass`. So the mapping between the two lives here, in one
- * place, with a round-trip property test over generated records as the
- * drift-catcher — the same job the gate does for the policy codec.
+ * **The nine `EvaluationError` tags are the one exception to "hand-written
+ * class, Schema at the boundary"** ([AGENTS.md §4](../../../AGENTS.md),
+ * [ADR-QD-060](../../../spec/decisions/060-schema-taggederror-for-the-nine-wire-crossing-errors.md)):
+ * they are `Schema.TaggedError` classes, so the class already *is* the wire
+ * schema and {@link EvaluationErrorSchema} below is nothing more than their
+ * union — no second, hand-mapped description to drift from the first.
  */
 import * as Effect from "effect/Effect";
-import * as Match from "effect/Match";
 import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
 import type { Decision, Trace } from "./Decision.ts";
@@ -32,12 +32,10 @@ import { Allow, Deny } from "./Decision.ts";
 import type { SinkRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "./DecisionRecord.ts";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
-import type { EvaluationError } from "./Errors.ts";
 import {
   AttributeResolveError,
   CustomPredicateError,
   DecisionHistoryUnavailable,
-  ERROR_CODES,
   MissingAction,
   MissingResource,
   MissingResourceId,
@@ -45,7 +43,7 @@ import {
   RelationshipResolveError,
   SignatureHistoryUnavailable,
 } from "./Errors.ts";
-import { makeResourceId, makeSubjectId } from "./Identity.ts";
+import { makeSubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
 import { MAX_DECODE_DEPTH, Policy, PolicyDecodeTooDeep, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 
@@ -111,64 +109,36 @@ export const TraceSchema: Schema.Codec<Trace> = Schema.suspend(
 );
 
 /**
- * An `EvaluationError` on the wire.
+ * An `EvaluationError` on the wire — the union of the nine wire-crossing
+ * classes themselves (ADR-QD-060), not a second description of them.
  *
- * Carries the stable `code` beside the tag. `ERROR_CODES` exists, by its own
- * doc comment, "for logging and cross-process correlation" — this is that,
- * finally used for it. The code is written on encode and **ignored on decode**:
- * the tag is what rebuilds the error (see {@link decodeError}, which never
- * reads `wire.code`), and trusting a code from the far side to choose a class
- * would let a sender name one error and get another.
+ * `cause` (`AttributeResolveError`, `RelationshipResolveError`,
+ * `DecisionHistoryUnavailable`, `SignatureHistoryUnavailable`) is
+ * `Schema.Defect()` on each class, not a hand-rolled renderer: an `Error`
+ * encodes to `{ name, message, cause? }` and decodes back to one; anything
+ * else — a circular object, a function, a thrown non-`Error` — is formatted
+ * and falls back to a string, the same "never break the thing observing it"
+ * guarantee the old `renderCause` gave, from a maintained library schema
+ * instead of one this file owned alone.
  *
- * `code` is `optional`, for the same rolling-deploy reason `SinkRecordWire`'s
- * own `subjectId` is (see that field's doc comment): it was added after this
- * schema shipped, so an older sender's `failed` payload predates it. Since
- * decode never reads it, requiring it bought no safety and only cost
- * rejecting an otherwise-valid record from an old process during a deploy —
- * a real gap this file's own tolerance rationale argues against. It stays
- * required on `encode` in spirit (every arm of {@link encodeError} still
- * writes one); only the wire's admission of an older sender's record needed
- * loosening.
- *
- * `cause` is rendered to a string, and that is deliberate rather than lazy. It
- * is `unknown` — whatever a caller's resolver threw — so it may be an `Error`, a
- * circular object, or a function, none of which survive JSON. Rendering it keeps
- * the diagnostic and makes the loss visible in the type instead of at the first
- * unserializable value.
+ * **No wire-embedded `code`.** The deleted `ErrorSchema`'s `code` field was,
+ * by its own doc comment, written on encode and ignored on decode — a value
+ * nothing ever validated. A reader wanting the stable `ACL###` now derives it
+ * from the decoded error's `_tag` via `errorCode()`/`ERROR_CODES`
+ * (`Errors.ts`), which cannot drift from the tag the way a second,
+ * independently-written wire value could.
  */
-const ErrorSchema = Schema.Struct({
-  _tag: Schema.Literals([
-    "MissingResource",
-    "MissingAction",
-    "AttributeResolveError",
-    "RelationshipResolveError",
-    "MissingResourceId",
-    "DecisionHistoryUnavailable",
-    "PolicyTooDeep",
-    "CustomPredicateError",
-    "SignatureHistoryUnavailable",
-  ]),
-  code: Schema.optional(Schema.String),
-  attribute: Schema.optional(Schema.String),
-  expected: Schema.optional(Schema.String),
-  relation: Schema.optional(Schema.String),
-  resourceId: Schema.optional(Schema.String),
-  event: Schema.optional(Schema.String),
-  maxDepth: Schema.optional(Schema.Number),
-  /** `CustomPredicateError`'s registered predicate name. */
-  name: Schema.optional(Schema.String),
-  /** `SignatureHistoryUnavailable`'s subject. */
-  subjectId: Schema.optional(Schema.String),
-  /**
-   * `CustomPredicateError`'s own reason — distinct from `cause`, which is
-   * always a rendered `unknown` thrown by someone else's code.
-   */
-  reason: Schema.optional(Schema.String),
-  /** Always a string here, whatever it was in the process that raised it. */
-  cause: Schema.optional(Schema.String),
-});
-
-type ErrorWire = typeof ErrorSchema.Type;
+export const EvaluationErrorSchema = Schema.Union([
+  MissingResource,
+  MissingAction,
+  AttributeResolveError,
+  RelationshipResolveError,
+  MissingResourceId,
+  DecisionHistoryUnavailable,
+  PolicyTooDeep,
+  CustomPredicateError,
+  SignatureHistoryUnavailable,
+]);
 
 const DecisionSchema = Schema.Struct({
   _tag: Schema.Literals(["Allow", "Deny"]),
@@ -201,7 +171,7 @@ export const SinkRecordWire = Schema.Union([
     action: Schema.optional(Schema.String),
     cache: Schema.optional(Schema.Literals(["hit", "coalesced", "miss"])),
     decided: Schema.optional(DecisionSchema),
-    failed: Schema.optional(ErrorSchema),
+    failed: Schema.optional(EvaluationErrorSchema),
   }),
   Schema.Struct({
     _tag: Schema.Literal("Obligations"),
@@ -213,143 +183,6 @@ export const SinkRecordWire = Schema.Union([
 ]);
 
 export type SinkRecordWire = typeof SinkRecordWire.Type;
-
-/**
- * Renders whatever a resolver threw into something a wire can carry.
- *
- * An `Error` keeps its message, since that is the part a reader wants; anything
- * else is stringified. A thrown value that cannot even be stringified — an
- * object with a throwing `toString` — yields a fixed marker rather than taking
- * the whole record down with it, because a sink must never be able to break the
- * thing it observes.
- */
-const renderCause = (cause: unknown): string => {
-  if (cause instanceof Error) return cause.message;
-  try {
-    return String(cause);
-  } catch {
-    return "<unrenderable cause>";
-  }
-};
-
-/**
- * Built once at module scope with `Match.type`, per AGENTS.md §5a. The measured
- * exception that keeps four `switch`es in the evaluator is a hot-path argument,
- * and this is not one: it runs once per record forwarded, not once per node per
- * evaluation.
- */
-const encodeError: (error: EvaluationError) => ErrorWire = Match.type<EvaluationError>().pipe(
-  Match.tagsExhaustive({
-    MissingResource: (e) => ({
-      _tag: "MissingResource" as const,
-      code: ERROR_CODES.MissingResource,
-      attribute: e.attribute,
-    }),
-    MissingAction: (e) => ({
-      _tag: "MissingAction" as const,
-      code: ERROR_CODES.MissingAction,
-      // Absent rather than the string "undefined": `expected` is genuinely
-      // optional, and `Schema.optional` drops an absent key on decode.
-      ...(e.expected === undefined ? {} : { expected: e.expected }),
-    }),
-    AttributeResolveError: (e) => ({
-      _tag: "AttributeResolveError" as const,
-      code: ERROR_CODES.AttributeResolveError,
-      attribute: e.attribute,
-      cause: renderCause(e.cause),
-    }),
-    RelationshipResolveError: (e) => ({
-      _tag: "RelationshipResolveError" as const,
-      code: ERROR_CODES.RelationshipResolveError,
-      relation: e.relation,
-      resourceId: e.resourceId,
-      cause: renderCause(e.cause),
-    }),
-    MissingResourceId: (e) => ({
-      _tag: "MissingResourceId" as const,
-      code: ERROR_CODES.MissingResourceId,
-      relation: e.relation,
-    }),
-    DecisionHistoryUnavailable: (e) => ({
-      _tag: "DecisionHistoryUnavailable" as const,
-      code: ERROR_CODES.DecisionHistoryUnavailable,
-      event: e.event,
-      cause: renderCause(e.cause),
-    }),
-    PolicyTooDeep: (e) => ({
-      _tag: "PolicyTooDeep" as const,
-      code: ERROR_CODES.PolicyTooDeep,
-      maxDepth: e.maxDepth,
-    }),
-    CustomPredicateError: (e) => ({
-      _tag: "CustomPredicateError" as const,
-      code: ERROR_CODES.CustomPredicateError,
-      name: e.name,
-      reason: e.reason,
-    }),
-    SignatureHistoryUnavailable: (e) => ({
-      _tag: "SignatureHistoryUnavailable" as const,
-      code: ERROR_CODES.SignatureHistoryUnavailable,
-      subjectId: e.subjectId,
-      ...(e.resourceId === undefined ? {} : { resourceId: e.resourceId }),
-      cause: renderCause(e.cause),
-    }),
-  }),
-);
-
-/**
- * The tag decides which class is rebuilt; `code` is never read.
- *
- * `ErrorWire` is one struct with a literal-union `_tag` rather than a union of
- * structs, so this matches the **value** of the tag — the form AGENTS.md §5a
- * prescribes for a plain literal union — and closes over `wire` for the fields.
- *
- * The `?? ""` fallbacks cannot fire on anything this module encoded. They exist
- * because the schema types every field optional (one struct serving seven
- * shapes), so a sender omitting a field a tag requires yields an error carrying
- * an empty string rather than `undefined` reaching a branded constructor.
- */
-const decodeError = (wire: ErrorWire): EvaluationError =>
-  Match.value(wire._tag).pipe(
-    Match.when("MissingResource", () => new MissingResource({ attribute: wire.attribute ?? "" })),
-    Match.when("MissingAction", () => new MissingAction({ expected: wire.expected })),
-    Match.when(
-      "AttributeResolveError",
-      () => new AttributeResolveError({ attribute: wire.attribute ?? "", cause: wire.cause }),
-    ),
-    Match.when(
-      "RelationshipResolveError",
-      () =>
-        new RelationshipResolveError({
-          relation: wire.relation ?? "",
-          resourceId: makeResourceId(wire.resourceId ?? ""),
-          cause: wire.cause,
-        }),
-    ),
-    Match.when(
-      "MissingResourceId",
-      () => new MissingResourceId({ relation: wire.relation ?? "" }),
-    ),
-    Match.when(
-      "DecisionHistoryUnavailable",
-      () => new DecisionHistoryUnavailable({ event: wire.event ?? "", cause: wire.cause }),
-    ),
-    Match.when("PolicyTooDeep", () => new PolicyTooDeep({ maxDepth: wire.maxDepth ?? 0 })),
-    Match.when(
-      "CustomPredicateError",
-      () => new CustomPredicateError({ name: wire.name ?? "", reason: wire.reason ?? "" }),
-    ),
-    Match.when(
-      "SignatureHistoryUnavailable",
-      () =>
-        new SignatureHistoryUnavailable({
-          subjectId: makeSubjectId(wire.subjectId ?? ""),
-          resourceId: wire.resourceId === undefined ? undefined : makeResourceId(wire.resourceId),
-          cause: wire.cause,
-        }),
-    ),
-    Match.exhaustive,
-  );
 
 const encodeDecision = (decision: Decision): typeof DecisionSchema.Type => {
   const base = {
@@ -517,7 +350,7 @@ export const toWire = (record: SinkRecord): SinkRecordWire =>
         ...(record.cache === undefined ? {} : { cache: record.cache }),
         ...(record.outcome._tag === "Decided"
           ? { decided: encodeDecision(record.outcome.decision) }
-          : { failed: encodeError(record.outcome.error) }),
+          : { failed: record.outcome.error }),
       };
 
 /** Rebuilds a record from its wire projection. */
@@ -546,15 +379,15 @@ export const fromWire = (wire: SinkRecordWire): SinkRecord => {
   //
   // A dedicated tag (say `MalformedWireRecord`) is the right fix, but
   // `EvaluationError` (`Errors.ts`) is a closed union, not an open one: every
-  // member must also gain an `ERROR_CODES` entry, an arm in this file's
-  // `encodeError`/`decodeError` `Match.tagsExhaustive`/`Match.value`, *and* an
-  // arm in `@qadi/http`'s `QadiHttpError.ts` `Match.tagsExhaustive` over
-  // `EnforcementError` — by that file's own doc comment, deliberately built to
-  // fail the build until someone decides the new tag's status code. That is
-  // a cross-package, exported-type change, out of scope for this file alone.
-  // Pinned instead: `SinkCodec.test.ts`'s "the wire is untrusted" and "both
-  // outcomes present" tests assert today's `MissingResource`-shaped fallback
-  // stays exactly as it is until that dedicated marker lands.
+  // member must also gain an `ERROR_CODES` entry, a member in this file's
+  // `EvaluationErrorSchema` union (ADR-QD-060), *and* an arm in `@qadi/http`'s
+  // `QadiHttpError.ts` `Match.tagsExhaustive` over `EnforcementError` — by that
+  // file's own doc comment, deliberately built to fail the build until someone
+  // decides the new tag's status code. That is a cross-package, exported-type
+  // change, out of scope for this file alone. Pinned instead:
+  // `SinkCodec.test.ts`'s "the wire is untrusted" and "both outcomes present"
+  // tests assert today's `MissingResource`-shaped fallback stays exactly as it
+  // is until that dedicated marker lands.
   return new DecisionRecord({
     evaluationId: wire.evaluationId,
     at: wire.at,
@@ -576,7 +409,7 @@ export const fromWire = (wire: SinkRecordWire): SinkRecord => {
       wire.decided !== undefined
         ? new Decided({ decision: decodeDecision(wire.decided) })
         : wire.failed !== undefined
-          ? new Failed({ error: decodeError(wire.failed) })
+          ? new Failed({ error: wire.failed })
           : // Ticket 96: a wire record naming NEITHER outcome fabricates a
             // `MissingResource` — reusing ACL004, a resolver-wiring failure's
             // code, for what is actually a protocol violation. See the
