@@ -966,7 +966,44 @@ const finishAllOf = (
     fold.obligations,
   );
 
-const evaluateAllOf = Effect.fn("qadi.allOf")(function* (
+/**
+ * `Effect.fnUntraced`, not `Effect.fn("qadi.allOf")` — the one composite
+ * dispatcher of the three this ticket (#102) converts that has its own fold
+ * logic in `stepAllOf`/`finishAllOf` above.
+ *
+ * Ticket #101's `EffectFn.bench.ts` measured what the named `Effect.fn` form
+ * costs on exactly this call shape — one wrapped call per composite node,
+ * recursing through `evaluateNode` — and found ≈2.7–2.9 µs/call go to a
+ * second `Error()` capture, a span allocation and a `CurrentStackFrame`
+ * record, none of which `Effect.fnUntraced` performs. Put in proportion
+ * against `Evaluate.bench.ts`'s real numbers, that is an estimated ≈30–43% of
+ * a matcher-heavy or wide evaluation and ≈54–66% of a ten-level-deep one —
+ * `evaluateAllOf`/`evaluateAnyOf`/`evaluateRules` are exactly the functions
+ * that pay this cost once per policy node, on every evaluation this library
+ * performs, which is why the boundary is drawn at these three and not
+ * elsewhere in this file. AGENTS.md §5 records the exception and the exact
+ * function list; `scripts/check-house-style.mjs`'s `UNTRACED_BUDGET` enforces
+ * it.
+ *
+ * `resolveAttribute`, `evaluateActed`, `evaluateHasRelationship`,
+ * `evaluateHasCustom`, `evaluateHasSignature` (the port-call wrappers) and the
+ * root `evaluate` all stay traced — ADR-QD-051 ("a span says what was asked,
+ * and a tracer is what reads it back") is product observability a caller
+ * wires a real tracer to consume, not incidental cost, and none of those six
+ * run once per policy *node* the way these three do. `requireScopedResourceId`
+ * is a small helper called from inside `evaluateActed`, not a per-node
+ * dispatch point, and stays traced too — converting it was considered and
+ * rejected as out of scope (issue #102).
+ *
+ * The behavior this does **not** change: `Trace.children`/`policyTag`/
+ * `reason`/`visibleFields`/`obligations` are built by `allow`/`deny`/
+ * `stepAllOf`/`finishAllOf` themselves, independent of whatever wraps this
+ * generator, so the evaluator's structure remains fully reconstructable from
+ * `decision.trace` with no `qadi.allOf` span to read it from — proven in
+ * `Evaluate.test.ts`'s "observability" suite, not just asserted here or in
+ * ADR-QD-073.
+ */
+const evaluateAllOf = Effect.fnUntraced(function* (
   policy: Extract<Policy, { _tag: "AllOf" }>,
   subject: AuthSubject,
   request: Evaluation,
@@ -1080,7 +1117,14 @@ const finishAnyOf = (
  * `Intersection` on an `anyOf` is honoured rather than silently downgraded to
  * `First`, which is what the predecessor did.
  */
-const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
+/**
+ * `Effect.fnUntraced` — see `evaluateAllOf`'s doc comment above for why this
+ * and `evaluateRules` join it: the same measured per-call cost (issue #101),
+ * the same boundary (composite dispatchers only, ADR-QD-051's port calls and
+ * root `evaluate` excluded), the same AGENTS.md §5 / `UNTRACED_BUDGET`
+ * bookkeeping, and the same proof that `Trace` fidelity does not depend on it.
+ */
+const evaluateAnyOf = Effect.fnUntraced(function* (
   policy: Extract<Policy, { _tag: "AnyOf" }>,
   subject: AuthSubject,
   request: Evaluation,
@@ -1122,7 +1166,14 @@ const evaluateAnyOf = Effect.fn("qadi.anyOf")(function* (
  * nothing later can beat, and must otherwise ask every rule — which inverts the
  * cost profile of the rest of the library, where allowing is the cheap outcome.
  */
-const evaluateRules = Effect.fn("qadi.rules")(function* (
+/**
+ * `Effect.fnUntraced` — see `evaluateAllOf`'s doc comment above for why this
+ * and `evaluateAnyOf` join it: the same measured per-call cost (issue #101),
+ * the same boundary (composite dispatchers only, ADR-QD-051's port calls and
+ * root `evaluate` excluded), the same AGENTS.md §5 / `UNTRACED_BUDGET`
+ * bookkeeping, and the same proof that `Trace` fidelity does not depend on it.
+ */
+const evaluateRules = Effect.fnUntraced(function* (
   policy: Extract<Policy, { _tag: "Rules" }>,
   subject: AuthSubject,
   request: Evaluation,

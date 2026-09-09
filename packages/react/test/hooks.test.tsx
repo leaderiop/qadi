@@ -44,6 +44,14 @@ const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
 const needsClearance = hasAttribute("clearance", gte(1));
 
+/**
+ * A wider real-time budget than `waitFor`'s 1000ms default, for the one
+ * assertion in this file (`useDecisionSuspense`'s "stays suspended…" test)
+ * that observed a genuine CI-only timeout under a busy shared runner rather
+ * than a wrong result — see that test's own comment.
+ */
+const GENEROUS_TIMEOUT = 5000;
+
 const working = makeQadiAtoms(
   Layer.mergeAll(
     Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
@@ -287,6 +295,18 @@ describe("useDecisionSuspense", () => {
     // wall-clock time against `waitFor`'s polling instead of an explicit
     // handoff. This exercises `settled`'s "still Initial/waiting, keep
     // waiting" branch, not just its "done" one, without timing dependence.
+    //
+    // The handoff itself is still deterministic — `resolveAttribute` only
+    // becomes callable once the fiber has actually started, and resolving it
+    // is the only thing that can make "decided:Allow" appear — but observing
+    // that outcome still means `waitFor` polling real wall-clock time for the
+    // Promise resolution to propagate through the Effect fiber, the atom, and
+    // a React commit. `waitFor`'s 1000ms default was tight enough that a busy
+    // CI runner (mutation testing and both Node matrix legs sharing one host)
+    // once missed it — a genuine timeout under contention, not a wrong
+    // result: the DOM read "suspended" a moment too early, never anything
+    // else. `GENEROUS_TIMEOUT` below gives the same deterministic assertion
+    // more real time to land without weakening what it checks.
     let resolveAttribute: (() => void) | undefined;
     const controlled = makeQadiAtoms(
       Layer.mergeAll(
@@ -317,11 +337,15 @@ describe("useDecisionSuspense", () => {
         </Suspense>
       </QadiProvider>,
     );
-    await waitFor(() => expect(resolveAttribute).toBeDefined());
+    await waitFor(() => expect(resolveAttribute).toBeDefined(), {
+      timeout: GENEROUS_TIMEOUT,
+    });
     expect(screen.getByText("suspended")).toBeDefined();
 
     act(() => resolveAttribute?.());
-    await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined());
+    await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined(), {
+      timeout: GENEROUS_TIMEOUT,
+    });
   });
 });
 

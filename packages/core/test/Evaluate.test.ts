@@ -2500,11 +2500,24 @@ describe("observability", () => {
       assert.notProperty(Object.fromEntries(span.attributes), "qadi.obligations");
     }));
 
-  it.effect("combinators emit their own spans beneath the evaluation", () =>
+  /**
+   * Was "combinators emit their own spans beneath the evaluation", asserting
+   * `qadi.allOf`/`qadi.anyOf` spans existed. Ticket #102 converted
+   * `evaluateAllOf`/`evaluateAnyOf`/`evaluateRules` to `Effect.fnUntraced`
+   * (ADR-QD-073, AGENTS.md §5) — those spans no longer exist, by design, and
+   * this test now asserts their absence instead of their presence. Only
+   * `qadi.evaluate` (the root, still a named `Effect.fn` per ADR-QD-051) and
+   * the port-call spans remain.
+   */
+  it.effect("combinators no longer emit their own spans beneath the evaluation", () =>
     Effect.gen(function* () {
       const spans: Array<Tracer.Span> = [];
 
-      const policy = P.allOf([P.hasRole("a"), P.anyOf([P.hasRole("b"), P.hasRole("c")])]);
+      const policy = P.allOf([
+        P.hasRole("a"),
+        P.anyOf([P.hasRole("b"), P.hasRole("c")]),
+        P.rules([P.permitWhen(P.hasRole("a"))]),
+      ]);
       yield* evaluate(policy).pipe(
         Effect.provide(
           Layer.mergeAll(
@@ -2514,12 +2527,158 @@ describe("observability", () => {
         ),
       );
 
-      // Named spans exist so a slow branch is attributable in a trace viewer,
-      // not merely a slow evaluation overall.
       assert.isDefined(named(spans, "qadi.evaluate"));
-      assert.isDefined(named(spans, "qadi.allOf"));
-      assert.isDefined(named(spans, "qadi.anyOf"));
+      assert.isUndefined(named(spans, "qadi.allOf"));
+      assert.isUndefined(named(spans, "qadi.anyOf"));
+      assert.isUndefined(named(spans, "qadi.rules"));
     }));
+
+  /**
+   * The claim ADR-QD-073 rests on, proven rather than asserted: with the span
+   * gone, the `Trace` tree `stepAllOf`/`finishAllOf`/`stepAnyOf`/`finishAnyOf`/
+   * `evaluateRules` itself build is application data, constructed the same way
+   * regardless of what wraps the generator — so the evaluator's structure
+   * (which node was which combinator, what each one decided, why, which
+   * fields and obligations it carried) is still fully reconstructable from
+   * `decision.trace` alone. A policy that drives all three converted
+   * dispatchers at once, each under a fold that actually merges something
+   * (`Intersection`/`Union` field strategies, `PermitOverrides` combining, a
+   * carried obligation), checked against a literal expected tree byte for
+   * byte.
+   */
+  it.effect(
+    "a policy driving allOf/anyOf/rules reconstructs fully from the trace alone, with no per-combinator span",
+    () =>
+      Effect.gen(function* () {
+        const spans: Array<Tracer.Span> = [];
+        const audited = obligation("audit.log");
+
+        const policy = P.allOf(
+          [
+            P.hasPermission(read, { fields: ["id", "title", "body"] }),
+            P.anyOf(
+              [P.hasRole("zzz"), P.hasPermission(write, { fields: ["id", "title"] })],
+              { fieldStrategy: "Union" },
+            ),
+            P.rules(
+              [
+                P.permitWhen(
+                  P.obliged(audited, P.hasAttribute("tier", M.gte(3), { fields: ["id"] })),
+                ),
+              ],
+              { combining: "PermitOverrides" },
+            ),
+          ],
+          { fieldStrategy: "Intersection" },
+        );
+
+        const decision = yield* evaluate(policy).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(
+                subjectWith({
+                  roles: ["a"],
+                  permissions: ["doc:read", "doc:write"],
+                  attributes: { tier: 5 },
+                }),
+              ),
+              collectingTracer(spans),
+            ),
+          ),
+        );
+
+        // No span for any of the three combinators this ticket converted —
+        // only the root, which stays traced per ADR-QD-051.
+        assert.isDefined(named(spans, "qadi.evaluate"));
+        assert.isUndefined(named(spans, "qadi.allOf"));
+        assert.isUndefined(named(spans, "qadi.anyOf"));
+        assert.isUndefined(named(spans, "qadi.rules"));
+
+        assert.isTrue(isAllowed(decision));
+        assert.deepStrictEqual(decision.trace, {
+          policyTag: "AllOf",
+          label: undefined,
+          allowed: true,
+          reason: undefined,
+          visibleFields: ["id"],
+          obligations: [audited],
+          children: [
+            {
+              policyTag: "HasPermission",
+              label: undefined,
+              allowed: true,
+              reason: undefined,
+              visibleFields: ["id", "title", "body"],
+              obligations: [],
+              children: [],
+            },
+            {
+              policyTag: "AnyOf",
+              label: undefined,
+              allowed: true,
+              reason: undefined,
+              visibleFields: ["id", "title"],
+              obligations: [],
+              children: [
+                {
+                  policyTag: "HasRole",
+                  label: undefined,
+                  allowed: false,
+                  reason: "subject lacks role 'zzz'",
+                  visibleFields: undefined,
+                  obligations: [],
+                  children: [],
+                },
+                {
+                  policyTag: "HasPermission",
+                  label: undefined,
+                  allowed: true,
+                  reason: undefined,
+                  visibleFields: ["id", "title"],
+                  obligations: [],
+                  children: [],
+                },
+              ],
+            },
+            {
+              // No `label` key at all here — unlike every other node, the
+              // allowing branch of `evaluateRules` returns a raw object
+              // literal rather than going through the `allow()` helper, so it
+              // never sets `label: undefined` the way the rest of the tree
+              // does. `assert.deepStrictEqual` treats an absent key and one
+              // explicitly set to `undefined` as different, so this is not a
+              // trimming choice — it is the real shape.
+              policyTag: "Rules",
+              allowed: true,
+              reason: "rules[0] permitted",
+              visibleFields: ["id"],
+              obligations: [audited],
+              children: [
+                {
+                  policyTag: "Obliged",
+                  label: undefined,
+                  allowed: true,
+                  reason: undefined,
+                  visibleFields: ["id"],
+                  obligations: [audited],
+                  children: [
+                    {
+                      policyTag: "HasAttribute",
+                      label: undefined,
+                      allowed: true,
+                      reason: undefined,
+                      visibleFields: ["id"],
+                      obligations: [],
+                      children: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+      }),
+  );
 
   /**
    * JOB 1's ledger — the port spans.

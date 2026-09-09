@@ -20,13 +20,13 @@
  * fixture value) — extending it as-is would fail on ordinary test fixtures,
  * not find a real violation. `no-extensionless-relative-import` has the same
  * problem in reverse: it fails `import manifest from "../package.json"`,
- * a real, correct import with no `.ts` extension to add. `SWITCH_BUDGET` and
- * `HAS_CUSTOM_BUDGET` below apply to every `src`-scope file, `features/
- * step-definitions` included (see "Scope beyond `packages`" below) — a
- * `test`-scope file (`packages/<pkg>/test`) never contributes to either
- * budget, since `testScope`-only rules apply there and a vitest body's
- * `switch`/`hasCustom` usage, if one ever appeared, is not what either budget
- * tracks.
+ * a real, correct import with no `.ts` extension to add. `SWITCH_BUDGET`,
+ * `HAS_CUSTOM_BUDGET` and `UNTRACED_BUDGET` below apply to every `src`-scope
+ * file, `features/step-definitions` included (see "Scope beyond `packages`"
+ * below) — a `test`-scope file (`packages/<pkg>/test`) never contributes to
+ * any of the three, since `testScope`-only rules apply there and a vitest
+ * body's `switch`/`hasCustom`/`Effect.fnUntraced` usage, if one ever
+ * appeared, is not what any of the budgets track.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -283,6 +283,40 @@ const HAS_CUSTOM_CALL = /\bhasCustom\s*\(/;
 /** `hasCustom` is defined and fixture-used here; only usage elsewhere is budgeted. */
 const HAS_CUSTOM_EXEMPT_PREFIXES = ["packages/core/src/", "packages/testing/src/"];
 
+/**
+ * `Effect.fnUntraced(...)` call sites, by file and exact count (ADR-QD-073,
+ * AGENTS.md §5).
+ *
+ * AGENTS.md §5 defaults every effectful function to a *named* `Effect.fn`, so
+ * it always gets a span. `Effect.fnUntraced` is the deliberate, measured
+ * exception — issue #101's `EffectFn.bench.ts` found the named form costs
+ * ≈2.7–2.9 µs/call more (a second `Error()` capture, a span allocation, a
+ * `CurrentStackFrame` record) than the untraced one, and issue #102 spent
+ * that saving on exactly three per-policy-node dispatch functions in
+ * `Evaluate.ts` — `evaluateAllOf`, `evaluateAnyOf`, `evaluateRules` — after
+ * confirming with `Evaluate.bench.ts` that the end-to-end improvement (≈28–74%
+ * depending on policy shape) actually shows up, not just the isolated
+ * per-call number. This is the same discipline `SWITCH_BUDGET` and
+ * `HAS_CUSTOM_BUDGET` enforce for their own exceptions: an escape hatch with
+ * no friction becomes the default, so a new `Effect.fnUntraced` call site
+ * anywhere is a conscious, reviewed edit to this list and to AGENTS.md §5's
+ * table, not a convention left to be remembered. The port-call wrappers
+ * (`resolveAttribute`, `evaluateActed`, `evaluateHasRelationship`,
+ * `evaluateHasCustom`, `evaluateHasSignature`) and the root `evaluate` are
+ * deliberately **not** in this budget — ADR-QD-051 keeps those traced as
+ * product observability, not incidental cost — and neither is
+ * `requireScopedResourceId`, a helper rather than a per-node dispatch point.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const UNTRACED_BUDGET = {
+  // evaluateAllOf, evaluateAnyOf, evaluateRules — see the doc comment above
+  // each in Evaluate.ts.
+  "packages/core/src/Evaluate.ts": 3,
+};
+
+const UNTRACED_CALL = /\bEffect\.fnUntraced\s*\(/;
+
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
 // this script scans — reuses the identical `as` keyword for namespacing, not
@@ -372,9 +406,10 @@ const testSources = readdirSync(packagesDir).flatMap((pkg) =>
 // includes `packages/*/bench/**/*.ts`) — this closes the matching house-style
 // gap rather than leaving it a silent omission (CCR-QD-119). Folded into the
 // same set as `test/`, not a third bucket: nothing here needs `SWITCH_BUDGET`/
-// `HAS_CUSTOM_BUDGET` tracking or the non-`testScope` rules (`no-async` and
-// friends are as legitimate in a bench body as in a test one), so treating
-// bench as test-scoped is exactly the right amount of coverage.
+// `HAS_CUSTOM_BUDGET`/`UNTRACED_BUDGET` tracking or the non-`testScope` rules
+// (`no-async` and friends are as legitimate in a bench body as in a test
+// one), so treating bench as test-scoped is exactly the right amount of
+// coverage.
 const benchSources = readdirSync(packagesDir).flatMap((pkg) =>
   collect(join(packagesDir, pkg, "bench"), { includeTests: true })
 );
@@ -396,6 +431,9 @@ const switchLines = new Map();
 
 /** @type {Map<string, number[]>} */
 const hasCustomLines = new Map();
+
+/** @type {Map<string, number[]>} */
+const untracedLines = new Map();
 
 for (const file of sources) {
   const rel = relative(ROOT, file);
@@ -449,9 +487,10 @@ for (const file of sources) {
       importSpan = 0;
     }
 
-    // Both budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET are
-    // keyed to specific src files) — a test file's switch or hasCustom call,
-    // if one ever appears, is not what either budget tracks.
+    // All three budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
+    // UNTRACED_BUDGET are keyed to specific src files) — a test file's switch,
+    // hasCustom or Effect.fnUntraced call, if one ever appears, is not what
+    // any budget tracks.
     if (!isTestFile && SWITCH.test(line)) {
       const found = switchLines.get(rel) ?? [];
       found.push(index + 1);
@@ -466,6 +505,14 @@ for (const file of sources) {
       const found = hasCustomLines.get(rel) ?? [];
       found.push(index + 1);
       hasCustomLines.set(rel, found);
+    }
+
+    // Src-only, like the two budgets above — a test file's own use of
+    // `Effect.fnUntraced` (none exists today) is not what this budget tracks.
+    if (!isTestFile && UNTRACED_CALL.test(line)) {
+      const found = untracedLines.get(rel) ?? [];
+      found.push(index + 1);
+      untracedLines.set(rel, found);
     }
 
     for (const rule of RULES) {
@@ -541,6 +588,37 @@ for (const [rel, found] of hasCustomLines) {
     `${rel}:${found.join(", ")}  [hasCustom-budget] New hasCustom(...) usage outside core/testing.\n` +
       `    Add it to HAS_CUSTOM_BUDGET in scripts/check-house-style.mjs with its exact count — a ` +
       `conscious, reviewed opt-in, not a silent grep hit (ADR-QD-055).`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ADR-QD-073 — `Effect.fnUntraced(...)` is AGENTS.md §5's measured, budgeted
+// exception to "every effectful function is a named Effect.fn". Checked in
+// both directions like SWITCH_BUDGET/HAS_CUSTOM_BUDGET above: too few means a
+// declared site was converted back or removed and AGENTS.md §5 now overstates
+// the exception; too many means a new, unreviewed site adopted it without
+// updating the table and the budget together.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(UNTRACED_BUDGET)) {
+  const found = untracedLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [untraced-budget] declares ${budget} Effect.fnUntraced(...) call(s), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update UNTRACED_BUDGET in scripts/check-house-style.mjs and AGENTS.md §5's table so all three agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of untracedLines) {
+  if (rel in UNTRACED_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [untraced-budget] New Effect.fnUntraced(...) usage.\n` +
+      `    Add it to UNTRACED_BUDGET in scripts/check-house-style.mjs and AGENTS.md §5's table with a ` +
+      `benchmark backing it — a conscious, reviewed opt-in, not a silent grep hit (ADR-QD-073).`,
   );
 }
 

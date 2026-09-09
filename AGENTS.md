@@ -152,6 +152,59 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (policy: Policy) {
 
 `Effect.gen` to construct; `.pipe` for the error/retry tail of a single expression.
 
+**Three exceptions, measured and budgeted** (ADR-QD-073). `Effect.fnUntraced`
+replaces `Effect.fn(name)` on exactly the composite-dispatch functions below —
+the same discipline §5a's `SWITCH_BUDGET` applies to `switch`: an exact,
+enforced list rather than a convention left to be remembered.
+
+| Location | Why untraced |
+| -------- | ------------ |
+| `Evaluate.ts` — `evaluateAllOf` | Runs once per `AllOf` node, every evaluation. |
+| `Evaluate.ts` — `evaluateAnyOf` | Runs once per `AnyOf` node, every evaluation. |
+| `Evaluate.ts` — `evaluateRules` | Runs once per `Rules` node, every evaluation. |
+
+Ticket #101's `packages/core/bench/EffectFn.bench.ts` measured what a *named*
+`Effect.fn(name)(...)` call adds over `Effect.fnUntraced` on this exact call
+shape — a second `new Error()` capture, a span allocation through
+`makeSpanUnsafe`, and a `CurrentStackFrame` record, on every call — at
+**≈2.7–2.9 µs/call**. Ticket #102 converted the three functions above and
+re-ran `Evaluate.bench.ts` before and after on the same machine, same day
+(2026-09-09, 2–3 runs each, mean of the runs):
+
+| Workload | Wrapped calls converted | Before | After | Change |
+| -------- | ----------------------- | ------ | ----- | ------ |
+| `one node` (no composite) | 0 | ≈8.3 µs | ≈8.1 µs | ~unchanged (control) |
+| `resolver miss` (no composite) | 0 | ≈15.1 µs | ≈14.5 µs | ~unchanged (control) |
+| `wide` — `allOf` of 8 | 1 | ≈14.1 µs | ≈9.9 µs | **≈−30%** |
+| `matcher-heavy` — 3 refs | 1 | ≈17.6 µs | ≈11.9 µs | **≈−32%** |
+| `obligation-heavy` — `allOf` of 8 | 1 | ≈18.5 µs | ≈13.3 µs | **≈−28%** |
+| `field-heavy` — `allOf` of 8, `Intersection` | 1 | ≈34.0 µs | ≈28.0 µs | **≈−18%** |
+| `deep` — 10 nested combinator levels | 10 | ≈49.2 µs | ≈12.6 µs | **≈−74%** |
+
+The two zero-conversion workloads (`one node`, `resolver miss`, neither of
+which reaches `evaluateAllOf`/`evaluateAnyOf`/`evaluateRules`) move by less
+than the run-to-run noise either direction — the control confirming the
+measured improvement is attributable to this conversion and not to
+machine variance. The rest land close to, or (on `deep`) better than,
+ticket #101's own end-to-end estimate (≈30–43% single-combinator, ≈54–66%
+ten-level-deep) — real, not merely predicted.
+
+The boundary stops exactly at these three. `resolveAttribute`, `evaluateActed`,
+`evaluateHasRelationship`, `evaluateHasCustom`, `evaluateHasSignature` (the
+port-call wrappers) and the root `evaluate` stay `Effect.fn` and traced:
+ADR-QD-051 ("a span says what was asked, and a tracer is what reads it back")
+treats those spans as product observability a deployment wires a real tracer
+to consume, not incidental cost, and none of the six runs once per policy
+*node* the way the three above do. `requireScopedResourceId` is a small
+helper called from inside `evaluateActed`, not a per-node dispatch point, and
+was considered and rejected for conversion on the same grounds (issue #102).
+
+Converting anything not in the table above needs a benchmark first, the same
+qualifier §5a's `SWITCH_BUDGET` carries — `scripts/check-house-style.mjs`'s
+`UNTRACED_BUDGET` enforces the count in both directions, so a new
+`Effect.fnUntraced` call site anywhere in `packages/*/src` fails the gate
+until this table and the budget agree.
+
 ## 5a. Dispatch — `Match`, not `switch`
 
 Dispatching on a `_tag` uses `effect/Match`, never a `switch`.
