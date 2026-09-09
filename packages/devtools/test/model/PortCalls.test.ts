@@ -41,6 +41,7 @@ import {
   relationshipResolverFromEdges,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
+import { collectingTracer } from "@qadi/testing";
 import { collectPortCalls, DEFAULT_PORT_CALL_CAPACITY } from "../../src/index.ts";
 import type {
   ActedCall,
@@ -117,16 +118,7 @@ describe("the collector wraps rather than replaces", () => {
    */
   it.effect("the host's tracer still sees every span", () =>
     Effect.gen(function* () {
-      const hostSaw: Array<string> = [];
-      const hostTracer = Layer.succeed(
-        Tracer.Tracer,
-        Tracer.make({
-          span: (options) => {
-            hostSaw.push(options.name);
-            return new Tracer.NativeSpan(options);
-          },
-        }),
-      );
+      const hostSaw: Array<Tracer.Span> = [];
       const collector = collectPortCalls();
 
       yield* evaluate(hasAttribute("tier", gte(3))).pipe(
@@ -135,13 +127,14 @@ describe("the collector wraps rather than replaces", () => {
         Effect.provide(
           Layer.mergeAll(
             services({ attributes: resolverOf({ tier: 5 }) }),
-            Layer.provideMerge(collector.layer, hostTracer),
+            Layer.provideMerge(collector.layer, collectingTracer(hostSaw)),
           ),
         ),
       );
 
-      assert.include(hostSaw, "qadi.evaluate");
-      assert.include(hostSaw, "qadi.attribute");
+      const hostSawNames = hostSaw.map((span) => span.name);
+      assert.include(hostSawNames, "qadi.evaluate");
+      assert.include(hostSawNames, "qadi.attribute");
       assert.strictEqual((yield* collector.snapshot).calls.length, 1);
     }));
 });

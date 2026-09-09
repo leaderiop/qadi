@@ -1,3 +1,4 @@
+export * from "./CollectingTracer.ts";
 export * from "./EdgeRelationshipResolver.ts";
 export * from "./EventDecisionHistory.ts";
 export * from "./FailingAttributeResolver.ts";

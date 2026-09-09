@@ -42,6 +42,7 @@ import {
 import type { Decision, EvaluationError, Policy, RelationshipResolver } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
 import type { PortCall, PortCallLog } from "@qadi/devtools";
+import { collectingTracer } from "@qadi/testing";
 
 const feature = await loadFeature(fileURLToPath(new URL("./port-calls.feature", import.meta.url)));
 
@@ -139,7 +140,7 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
 ) {
   const s = yield* read();
   const collector = collectPortCalls(s.capacity === undefined ? undefined : { capacity: s.capacity });
-  const seenHost = s.hostSaw;
+  const hostWired = s.hostSaw !== undefined;
   const collected: Array<Tracer.Span> = [];
 
   const services = Layer.mergeAll(
@@ -171,17 +172,7 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
   // drop-count and span-capture scenarios (6 failures, caught by `pnpm check`
   // during the migration). Sequential `Effect.provide` calls, preserved
   // unchanged from the original Cucumber-CLI suite, do not.
-  const outer = Layer.succeed(
-    Tracer.Tracer,
-    Tracer.make({
-      span: (options) => {
-        if (seenHost !== undefined) seenHost.push(options.name);
-        const span = new Tracer.NativeSpan(options);
-        collected.push(span);
-        return span;
-      },
-    }),
-  );
+  const outer = collectingTracer(collected);
 
   const result = yield* Effect.result(
     evaluate(policyNamed(name), resource === undefined ? {} : { resource }).pipe(
@@ -191,7 +182,13 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
 
   const log = yield* collector.snapshot;
   const spanValues = collected.flatMap((span) => [...span.attributes.values()]);
-  yield* patch(() => ({ log, spanValues, hostSaw: seenHost, result }));
+  // Only "the host has wired its own tracer" turns this on (`hostSaw: []`);
+  // every other scenario leaves it `undefined` and this stays `undefined`.
+  // Names only, and only `.includes` is ever asserted against them, so
+  // deriving the list from `collected` once the run has finished is the same
+  // observation the old inline push made span by span, during the run.
+  const hostSaw = hostWired ? collected.map((span) => span.name) : undefined;
+  yield* patch(() => ({ log, spanValues, hostSaw, result }));
 });
 
 describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {

@@ -32,6 +32,7 @@ import {
   RelationshipResolverNever,
 } from "@qadi/core";
 import type { DecisionOutcome } from "@qadi/core";
+import { collectingTracer } from "@qadi/testing";
 import {
   changedRows,
   compareOutcomes,
@@ -459,19 +460,9 @@ describe("a sweep is sealed, forty rows at a time", () => {
   it.effect("emits a qadi.devtools.whatIf span around the sweep", () =>
     Effect.gen(function* () {
       const spans: Array<Tracer.Span> = [];
-      const collectingTracer = Layer.succeed(
-        Tracer.Tracer,
-        Tracer.make({
-          span: (options) => {
-            const span = new Tracer.NativeSpan(options);
-            spans.push(span);
-            return span;
-          },
-        }),
-      );
 
       yield* whatIf(hasPermission(read), alice, { remedies: false }).pipe(
-        Effect.provide(collectingTracer),
+        Effect.provide(collectingTracer(spans)),
       );
 
       assert.isDefined(spans.find((s) => s.name === "qadi.devtools.whatIf"));

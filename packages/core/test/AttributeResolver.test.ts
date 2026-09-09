@@ -4,9 +4,9 @@
  * shipped resolver that would otherwise exercise it.
  */
 import { assert, describe, it } from "@effect/vitest";
-import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
@@ -69,7 +69,7 @@ describe("attributeResolverBounded", () => {
       const inFlight = yield* Ref.make(0);
       const peak = yield* Ref.make(0);
       const total = yield* Ref.make(0);
-      const gate = yield* Deferred.make<void>();
+      const gate = yield* Latch.make();
 
       const blocking: Layer.Layer<AttributeResolver> = Layer.succeed(AttributeResolver, {
         resolve: () =>
@@ -77,7 +77,7 @@ describe("attributeResolverBounded", () => {
             yield* Ref.update(total, (n) => n + 1);
             const current = yield* Ref.updateAndGet(inFlight, (n) => n + 1);
             yield* Ref.update(peak, (max) => Math.max(max, current));
-            yield* Deferred.await(gate);
+            yield* gate.await;
             yield* Ref.update(inFlight, (n) => n - 1);
             return "resolved";
           }),
@@ -100,7 +100,7 @@ describe("attributeResolverBounded", () => {
         // resolver, the other 3 still queued on the semaphore.
         assert.strictEqual(yield* Ref.get(inFlight), 2);
         assert.strictEqual(yield* Ref.get(peak), 2);
-        yield* Deferred.succeed(gate, undefined);
+        yield* gate.open;
         return yield* Effect.forEach(fibers, (f) => Effect.result(Fiber.join(f)));
       }).pipe(Effect.provide(bounded));
 
