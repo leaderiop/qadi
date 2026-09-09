@@ -12,9 +12,9 @@
  * semantics bounds itself with a timeout rather than trusting a publisher.
  */
 import { assert, describe, it } from "@effect/vitest";
-import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Latch from "effect/Latch";
 import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
 import { isAllowed } from "../src/Decision.ts";
@@ -117,7 +117,7 @@ describe("decisionSinkFeed", () => {
         // itself fill, which is the one place `publishUnsafe`'s missing
         // sliding eviction was ever observable.
         const feed = yield* decisionSinkFeed({ capacity: 2 });
-        const drained = yield* Deferred.make<void>();
+        const drained = yield* Latch.make();
 
         // `startImmediately` runs the forked fiber synchronously, right here,
         // up to its first real suspension. Subscribing happens inside that
@@ -130,7 +130,7 @@ describe("decisionSinkFeed", () => {
           Effect.gen(function* () {
             const pull = yield* Stream.toPull(feed.stream);
             const first = yield* pull;
-            yield* Deferred.await(drained);
+            yield* drained.await;
             const rest = yield* pull;
             return [...first, ...rest];
           }).pipe(Effect.scoped),
@@ -140,7 +140,7 @@ describe("decisionSinkFeed", () => {
         for (const id of ["a", "b", "c", "d", "e"]) {
           yield* evaluate(policy, { evaluationId: id }).pipe(Effect.provide(feed.layer));
         }
-        yield* Deferred.succeed(drained, undefined);
+        yield* drained.open;
 
         const records = yield* Fiber.join(reading);
         // `a` is the one record the reader consumed before it stalled. `b`

@@ -22,6 +22,7 @@ import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as TestClock from "effect/testing/TestClock";
 import {
   administrator,
   edgeRelationshipResolver,
@@ -176,6 +177,27 @@ describe("the clock", () => {
       const decision = yield* evaluate(policies.canRead);
 
       assert.strictEqual(decision.evaluationId, "eval-1");
+    }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "test" }))));
+
+  /**
+   * `QadiReviewLayer.ts`'s `clock` option previously documented that driving
+   * this inner clock forward — not just observing its frozen zero — was not
+   * possible without an unsafe cast, and told a caller to fall back to
+   * `it.live` and read time only. That claim was wrong: `TestClock.adjust`
+   * reads whichever `Clock` is current via the same fiber ref
+   * `Clock.currentTimeMillis` above already reads correctly, so calling it
+   * from *inside* the same effect this layer is provided to reaches the inner
+   * clock, not `it.effect`'s ambient one — no handle, no cast, and `it.effect`
+   * rather than `it.live`.
+   */
+  it.effect("can be driven forward via TestClock.adjust from inside the provided effect", () =>
+    Effect.gen(function* () {
+      yield* TestClock.adjust("2 hours");
+      const decision = yield* evaluate(policies.canRead);
+
+      assert.isTrue(isAllowed(decision));
+      assert.strictEqual(yield* Clock.currentTimeMillis, 2 * 60 * 60 * 1000);
+      assert.strictEqual(decision.durationMillis, 0);
     }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "test" }))));
 });
 

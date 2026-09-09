@@ -34,7 +34,7 @@ import {
   relationshipResolverFromEdges,
 } from "../src/RelationshipResolver.ts";
 import { SignatureHistory, signatureHistoryFromSignatures } from "../src/SignatureHistory.ts";
-import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -2330,27 +2330,6 @@ describe("obligations", () => {
 });
 
 describe("observability", () => {
-  /**
-   * Collects the spans an evaluation emits.
-   *
-   * `Tracer.Tracer` is a `Context.Reference`, so substituting it captures every
-   * span without an exporter or a network. Until this existed, URS-QD-012 was
-   * satisfied by inspection only: `evaluate` annotated a span and nothing
-   * asserted that it did, which is exactly the kind of claim this project is
-   * meant not to make.
-   */
-  const collectingTracer = (spans: Array<Tracer.Span>) =>
-    Layer.succeed(
-      Tracer.Tracer,
-      Tracer.make({
-        span: (options) => {
-          const span = new Tracer.NativeSpan(options);
-          spans.push(span);
-          return span;
-        },
-      }),
-    );
-
   const named = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
     spans.find((s) => s.name === name);
 

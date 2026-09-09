@@ -1,6 +1,7 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as Tracer from "effect/Tracer";
 import { AttributeResolver, AttributeResolverNone } from "../src/AttributeResolver.ts";
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
@@ -98,6 +99,30 @@ export const subjectWith = (config: {
     permissions: config.permissions ?? [],
     attributes: config.attributes ?? {},
   });
+
+/**
+ * A `Tracer` that replaces whatever is ambient and records every span it
+ * sees. Provide it anywhere the evaluations to be watched will run, then read
+ * `spans` afterward.
+ *
+ * The identical implementation `@qadi/testing`'s `CollectingTracer.ts`
+ * exports, hand-copied here rather than imported for the same
+ * circular-import reason `testLayer`/`subjectWith` above cross-reference:
+ * `@qadi/core` cannot depend on `@qadi/testing`, which depends on it. Both
+ * copies are two lines of body; a divergence between them would show up as a
+ * span this file's own tests stopped seeing, not as a silent drift.
+ */
+export const collectingTracer = (spans: Array<Tracer.Span>): Layer.Layer<never> =>
+  Layer.succeed(
+    Tracer.Tracer,
+    Tracer.make({
+      span: (options) => {
+        const span = new Tracer.NativeSpan(options);
+        spans.push(span);
+        return span;
+      },
+    }),
+  );
 
 /**
  * Gives an effect its own `MetricRegistry` for the duration of a test.

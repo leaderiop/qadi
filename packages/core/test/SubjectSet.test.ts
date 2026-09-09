@@ -18,7 +18,7 @@ import {
   filterSubjects,
   filterSubjectsStream,
 } from "../src/SubjectSet.ts";
-import { subjectSetLayer, subjectWith, testLayer } from "./helpers.ts";
+import { collectingTracer, subjectSetLayer, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
 const canRead = P.hasPermission(read);
@@ -28,18 +28,6 @@ const nobody = (id: string) => subjectWith({ id });
 
 const ids = (subjects: ReadonlyArray<{ readonly id: string }>) =>
   subjects.map((s) => s.id);
-
-const collectingTracer = (spans: Array<Tracer.Span>) =>
-  Layer.succeed(
-    Tracer.Tracer,
-    Tracer.make({
-      span: (options) => {
-        const span = new Tracer.NativeSpan(options);
-        spans.push(span);
-        return span;
-      },
-    }),
-  );
 
 describe("filterSubjects", () => {
   it.effect("keeps the subjects the policy allows", () =>

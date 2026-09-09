@@ -71,32 +71,42 @@ export interface TestLayerOptions {
    * is already correct, and layering another over it would only be a way to get
    * it wrong.
    *
-   * **`test` under `it.effect` shadows the ambient `TestClock`, and does not
-   * expose the one it builds.** `@effect/vitest`'s `it.effect` already provides
-   * a `TestClock` to the test effect. `clock: "test"` builds a *second*
-   * `TestClock.layer()` inside this fixture and provides it alongside the rest
-   * of the environment — Effect's "innermost provide wins" rule means the
-   * evaluation this layer feeds runs against *this* clock, not the ambient one.
-   * `qadiReviewLayer`/`qadiTestLayer` return a plain `Layer.Layer<...>` with no
-   * way to hand back the inner clock, so a test that calls
-   * `TestClock.adjust`/`TestClock.setTime` reaches only the ambient clock and
-   * silently no-ops against the clock actually driving evaluation.
+   * **`test` under `it.effect` shadows the ambient `TestClock`.**
+   * `@effect/vitest`'s `it.effect` already provides a `TestClock` to the test
+   * effect. `clock: "test"` builds a *second* `TestClock.layer()` inside this
+   * fixture and provides it alongside the rest of the environment — Effect's
+   * "innermost provide wins" rule means the evaluation this layer feeds runs
+   * against *this* clock, not the ambient one.
    *
-   * A caller who needs to control time — not just get a reproducible zero —
-   * must use `it.live` instead of `it.effect` (as this package's own suite
-   * does; see the `describe("the clock", ...)` block in `TestLayers.test.ts`)
-   * and read the time back through `Clock.currentTimeMillis`/the decision's own
-   * fields rather than driving it forward, or wire a `TestClock` of their own
-   * through `attributeResolver`/`relationshipResolver`/etc.'s "supply the layer
-   * directly" options instead of this one. Exposing the built `TestClock`
-   * alongside the layer was considered and rejected here: `qadiReviewLayer`'s
-   * return type is a plain `Layer.Layer<...>` consumed directly by
-   * `qadiTestLayer` and by every existing caller, and effect v4's
-   * `TestClock.layer()` registers its handle under the `Clock.Clock` tag rather
-   * than a separately reachable one, so recovering a `TestClock`-typed handle
-   * from the built context would need an unsafe cast this codebase forbids
-   * (§6). That makes a "return the handle too" API a breaking change for a fix
-   * this narrow; documenting the constraint is the change that ships.
+   * **Corrected.** This comment previously went on to say that driving the
+   * inner clock forward — not just observing its frozen zero — needed a
+   * handle this fixture had no way to hand back, and that recovering one from
+   * the built context "would need an unsafe cast this codebase forbids (§6)",
+   * so a caller was told to fall back to `it.live` and read time only, never
+   * drive it. Both claims are refuted by `TestClock.testClockWith` itself
+   * (`effect/testing/TestClock.ts`): it is exactly a cast-free accessor for
+   * "the `TestClock` currently in scope" —
+   * `Effect.withFiber((fiber) => f(fiber.getRef(Clock.Clock) as TestClock))`
+   * — and the one unsafe cast it performs is internal to the library, never
+   * something a caller of this option writes. `TestClock.adjust`/
+   * `TestClock.setTime` are both built on `testClockWith`, so they read
+   * whichever `Clock` is current at the point they are *called* — the same
+   * fiber ref `Clock.currentTimeMillis` already reads correctly under
+   * `clock: "test"` (see "makes durations reproducible when asked for" in
+   * `TestLayers.test.ts`). Calling them from *inside* the same effect this
+   * option's layer is provided to — before `evaluate`, in the same `pipe` —
+   * reaches the inner clock, not the ambient one, because "innermost provide
+   * wins" applies to every read of `Clock.Clock`, not only the one
+   * `durationMillis` happens to make. `it.effect` works fine for this; `it.live`
+   * was never required to drive it, only to observe the *default*, unshadowed
+   * runtime clock (the "defaults to the runtime's own" case above, which
+   * genuinely does need `it.live` — `it.effect`'s ambient `TestClock` would
+   * otherwise be what `live` claims *not* to provide). The one thing still
+   * true: calling `TestClock.adjust` from *outside* the provided effect —
+   * after the layer has already been built and run, or from a sibling effect
+   * — reaches the ambient clock instead, because "current" is scoped to the
+   * fiber executing inside the `Effect.provide`, and a call outside it is a
+   * different fiber's current context.
    */
   readonly clock?: "live" | "test";
   /**

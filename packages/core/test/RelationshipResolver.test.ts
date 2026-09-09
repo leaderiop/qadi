@@ -3,9 +3,9 @@
  * `RelationshipResolver`'s own depth, matching `DecisionCache.test.ts`.
  */
 import { assert, describe, it } from "@effect/vitest";
-import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
@@ -242,14 +242,14 @@ describe("RelationshipResolver", () => {
       Effect.gen(function* () {
         const inFlight = yield* Ref.make(0);
         const peak = yield* Ref.make(0);
-        const gate = yield* Deferred.make<void>();
+        const gate = yield* Latch.make();
 
         const blocking: Layer.Layer<RelationshipResolver> = Layer.succeed(RelationshipResolver, {
           check: () =>
             Effect.gen(function* () {
               const current = yield* Ref.updateAndGet(inFlight, (n) => n + 1);
               yield* Ref.update(peak, (max) => Math.max(max, current));
-              yield* Deferred.await(gate);
+              yield* gate.await;
               yield* Ref.update(inFlight, (n) => n - 1);
               // `Effect.gen` infers from the generator's return, so the literal
               // needs pinning — the object literal's contextual type does not
@@ -277,7 +277,7 @@ describe("RelationshipResolver", () => {
           for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
           assert.strictEqual(yield* Ref.get(inFlight), 2);
           assert.strictEqual(yield* Ref.get(peak), 2);
-          yield* Deferred.succeed(gate, undefined);
+          yield* gate.open;
           return yield* Effect.forEach(fibers, (f) => Effect.result(Fiber.join(f)));
         }).pipe(Effect.provide(bounded));
 

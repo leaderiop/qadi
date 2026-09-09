@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
-import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
 import * as TestClock from "effect/testing/TestClock";
 import { DecisionSink } from "@qadi/core";
@@ -252,7 +252,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
     () =>
       Effect.gen(function* () {
         let writeAttempts = 0;
-        const probeStarted = yield* Deferred.make<void>();
+        const probeStarted = yield* Latch.make();
         // Only write attempt 6 — the half-open probe, once the breaker has
         // tripped on the default failureThreshold of 5 — hangs, standing in
         // for a client disconnect / `Effect.timeout` cutting the write off
@@ -265,9 +265,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
               return Effect.fail(new AuditWriteError({ entry, cause: "offline" }));
             }
             if (writeAttempts === 6) {
-              return Deferred.succeed(probeStarted, undefined).pipe(
-                Effect.flatMap(() => Effect.never),
-              );
+              return probeStarted.open.pipe(Effect.flatMap(() => Effect.never));
             }
             return Effect.void;
           },
@@ -292,7 +290,7 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
           const probeFiber = yield* Effect.forkChild(
             sink.record(decisionRecord({ evaluationId: "probe" })),
           );
-          yield* Deferred.await(probeStarted);
+          yield* probeStarted.await;
           yield* Fiber.interrupt(probeFiber);
 
           // Under the bug, `claimProbe` is never released: `status` stays
