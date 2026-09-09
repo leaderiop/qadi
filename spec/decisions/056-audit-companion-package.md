@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-056                                   |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-09-06                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-09-09                                     |
 > | Status         | Accepted — narrows ADR-QD-016                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -96,11 +96,11 @@ Schema exception. It is built on `@qadi/core`'s own `SinkRecordWire` rather
 than re-deriving `Policy`/`Trace`/`Obligation` schemas a second time. Each
 `SinkRecord` — `Decided`, `Failed`, and `Obligations` alike — writes as its
 own independent, immutable row; `evaluationId` correlation happens at read
-time. Encoding refuses rather than approximates: a `resource` carrying a
-value with no safe durable representation fails `AuditEntryNotEncodable`
-rather than being partially written, coerced, or silently dropped — the same
-rule ADR-QD-054 generalized for predicate compilation, one layer further from
-the wire.
+time. Encoding refuses rather than approximates: a `resource`, or `policy`'s
+`HasCustom.params` (ADR-QD-055's escape hatch), carrying a value with no safe
+durable representation fails `AuditEntryNotEncodable` rather than being
+partially written, coerced, or silently dropped — the same rule ADR-QD-054
+generalized for predicate compilation, one layer further from the wire.
 
 **Staging** (`AuditStagingPort`, optional) — what the predecessor and HexDi
 both called a write-ahead log, renamed because "WAL" implies a durability
