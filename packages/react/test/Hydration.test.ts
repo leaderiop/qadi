@@ -369,6 +369,61 @@ describe("hydrateDecisions", () => {
     expect(onDropped).toHaveBeenCalledWith(expect.objectContaining({ reason: "MalformedEntry" }));
   });
 
+  // The regression this guards: `decodeEntryFields` called
+  // `Schema.decodeUnknownOption` with no `ParseOptions`, so it inherited
+  // `Schema`'s default `onExcessProperty: "ignore"` rather than sharing
+  // `Policy.ts`'s `UNTRUSTED_DECODE_OPTIONS` — the exact silent-data-loss shape
+  // `UNTRUSTED_DECODE_OPTIONS`'s own doc comment exists to rule out, just reached
+  // through this module's decode call instead of one of `Policy.ts`'s own entry
+  // points.
+  it("refuses an entry carrying an excess, unrecognized field rather than silently accepting it", () => {
+    const policy = first(
+      dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]).entries,
+    ).policy;
+    const dehydrated = JSON.parse(
+      JSON.stringify({
+        subjectId: "u1",
+        entries: [
+          {
+            policy,
+            allowed: true,
+            evaluationId: "e",
+            durationMillis: 0,
+            sneaky: "not a real field",
+          },
+        ],
+      }),
+    );
+    const onDropped = vi.fn();
+    const seeded = hydrateDecisions(atoms, dehydrated, alice, { onDropped });
+    expect([...seeded]).toEqual([]);
+    expect(onDropped).toHaveBeenCalledWith(expect.objectContaining({ reason: "MalformedEntry" }));
+  });
+
+  // Same regression, on `decodePolicy`'s side of the same call: a policy JSON
+  // value carrying an unrecognized key alongside an otherwise-valid `HasRole`
+  // used to decode to a valid `Policy` with the excess key silently dropped,
+  // instead of being refused as undecodable.
+  it("refuses a policy carrying an excess, unrecognized field rather than silently accepting it", () => {
+    const dehydrated = {
+      subjectId: "u1",
+      entries: [
+        {
+          policy: { _tag: "HasRole", role: "admin", sneaky: "not a real field" },
+          allowed: true,
+          evaluationId: "e",
+          durationMillis: 0,
+        },
+      ],
+    };
+    const onDropped = vi.fn();
+    const seeded = hydrateDecisions(atoms, dehydrated, alice, { onDropped });
+    expect([...seeded]).toEqual([]);
+    expect(onDropped).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "UndecodablePolicy" }),
+    );
+  });
+
   // The regression this guards: `Schema`'s own recursive descent through
   // `PolicySchema`'s `Schema.suspend` has no depth cap, so before
   // `hydrateDecisions` ran `exceedsJsonDepth` ahead of any decode, a payload

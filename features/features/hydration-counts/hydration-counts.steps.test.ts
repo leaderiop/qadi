@@ -90,6 +90,26 @@ const malformed = (index: number): DehydratedEntry =>
     }),
   );
 
+/**
+ * A well-formed entry apart from one field this schema has never declared —
+ * the shape `UNTRUSTED_DECODE_OPTIONS`'s `onExcessProperty: "error"` stance
+ * now refuses instead of silently decoding with the extra key dropped (issue
+ * #105). The policy is deliberately the same undecodable shape `gibberish`
+ * uses: the field-level excess-property check runs ahead of the policy decode
+ * in `hydrateDecisions`, so this is refused as `MalformedEntry` regardless of
+ * whether the policy itself would also fail to decode.
+ */
+const excessField = (index: number): DehydratedEntry =>
+  JSON.parse(
+    JSON.stringify({
+      policy: { _tag: "NotAPolicy", index },
+      allowed: true,
+      evaluationId: `x${String(index)}`,
+      durationMillis: 1,
+      sneaky: "not a real field",
+    }),
+  );
+
 const freshAtoms = () => makeQadiAtoms(EvaluationServicesNone);
 
 interface HydrationCountsWorldState {
@@ -242,6 +262,18 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
         payload: {
           subjectId: id,
           entries: Array.from({ length: count }, (_unused, index) => malformed(index)),
+        },
+      }));
+    },
+  );
+
+  Given(
+    "a payload for {string} carrying {int} entries with an unexpected extra field",
+    function* (id: string, count: number) {
+      yield* patch(() => ({
+        payload: {
+          subjectId: id,
+          entries: Array.from({ length: count }, (_unused, index) => excessField(index)),
         },
       }));
     },

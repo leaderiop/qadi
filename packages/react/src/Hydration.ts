@@ -22,6 +22,7 @@ import {
   Obligation,
   Policy as PolicySchema,
   TraceSchema,
+  UNTRUSTED_DECODE_OPTIONS,
   exceedsJsonDepth,
 } from "@qadi/core";
 import * as Option from "effect/Option";
@@ -55,23 +56,36 @@ const encodePolicy = Schema.encodeSync(PolicySchema);
  * stack's limit is dropped as a typed reason rather than raising a raw
  * `RangeError` defect, mirroring the guard-then-decode order `SinkCodec.ts`'s
  * `decodeRecordWire` already uses for the identical trust boundary.
+ *
+ * Decodes with {@link UNTRUSTED_DECODE_OPTIONS} — without it, `Schema`'s default
+ * `onExcessProperty: "ignore"` would silently strip an unrecognized key from an
+ * otherwise-valid tag instead of refusing to decode it, the same silent-data-loss
+ * shape `UNTRUSTED_DECODE_OPTIONS`'s own doc comment in `Policy.ts` exists to
+ * rule out, reached here through this module's own decode call rather than one
+ * of `Policy.ts`'s or `SinkCodec.ts`'s.
  */
-const decodePolicy = Schema.decodeUnknownOption(PolicySchema);
+const decodePolicy = Schema.decodeUnknownOption(PolicySchema, UNTRUSTED_DECODE_OPTIONS);
 
 /**
- * Every field of a `DehydratedEntry` except `policy`, which keeps its own
- * decode path above — it needs a type transformation (`unknown` to `Policy`)
- * this struct doesn't perform, so folding it in here would just re-run
- * `PolicySchema` a second time for no benefit.
+ * Every field of a `DehydratedEntry`, decoded against the whole entry object —
+ * `policy` included, even though this struct doesn't validate it. `policy`
+ * keeps its own decode path above: it needs a type transformation (`unknown`
+ * to `Policy`) this struct doesn't perform, so folding it in here would just
+ * re-run `PolicySchema` a second time for no benefit. It is declared as
+ * `Schema.Unknown` rather than left off the struct entirely so that decoding
+ * with {@link UNTRUSTED_DECODE_OPTIONS} below — `onExcessProperty: "error"` —
+ * flags a genuinely unrecognized key without also flagging `policy` itself as
+ * one on every single entry.
  *
- * Field-for-field with the interface's own optionality: `resource` follows the
- * inline `Schema.Record(Schema.String, Schema.Unknown)` convention
+ * Field-for-field with the interface's own optionality otherwise: `resource`
+ * follows the inline `Schema.Record(Schema.String, Schema.Unknown)` convention
  * `SinkCodec.ts` already uses for the same shape — no named `Resource` schema
  * exists to import. `obligations` and `trace` reuse `Obligation` and
  * `TraceSchema` from `@qadi/core` rather than re-describing either union here,
  * for the same drift reason `SinkCodec.ts`'s own doc comment gives.
  */
 const DehydratedEntryFields = Schema.Struct({
+  policy: Schema.Unknown,
   resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   allowed: Schema.Boolean,
   evaluationId: Schema.String,
@@ -87,8 +101,16 @@ const DehydratedEntryFields = Schema.Struct({
  * Option and a malformed entry is dropped rather than thrown on. Every field
  * but `policy` used to reach `rebuild` compile-time-typed and runtime-unchecked;
  * this closes that gap.
+ *
+ * Decodes with {@link UNTRUSTED_DECODE_OPTIONS}, for the same reason
+ * `decodePolicy` above does: an entry carrying an excess key alongside
+ * otherwise-valid fields must be refused, not silently accepted with the extra
+ * key ignored.
  */
-const decodeEntryFields = Schema.decodeUnknownOption(DehydratedEntryFields);
+const decodeEntryFields = Schema.decodeUnknownOption(
+  DehydratedEntryFields,
+  UNTRUSTED_DECODE_OPTIONS,
+);
 
 /** One decision the server made, ready to be dehydrated. */
 export interface DecisionEntry {
