@@ -287,66 +287,79 @@ describe("useDecisionSuspense", () => {
     await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined());
   });
 
-  it("stays suspended through an intermediate still-pending notification", async () => {
-    // A resolver held open under the test's own control, rather than a real
-    // timer, gives the registry a deterministic gap between "evaluation
-    // started" and "evaluation resolved" — a real-clock delay hit this same
-    // branch in isolation but was flaky under full-suite load, since it raced
-    // wall-clock time against `waitFor`'s polling instead of an explicit
-    // handoff. This exercises `settled`'s "still Initial/waiting, keep
-    // waiting" branch, not just its "done" one, without timing dependence.
-    //
-    // The handoff itself is still deterministic — `resolveAttribute` only
-    // becomes callable once the fiber has actually started, and resolving it
-    // is the only thing that can make "decided:Allow" appear — but observing
-    // that outcome still means `waitFor` polling real wall-clock time for the
-    // Promise resolution to propagate through the Effect fiber, the atom, and
-    // a React commit. `waitFor`'s 1000ms default was tight enough that a busy
-    // CI runner (mutation testing and both Node matrix legs sharing one host)
-    // once missed it — a genuine timeout under contention, not a wrong
-    // result: the DOM read "suspended" a moment too early, never anything
-    // else. `GENEROUS_TIMEOUT` below gives the same deterministic assertion
-    // more real time to land without weakening what it checks.
-    let resolveAttribute: (() => void) | undefined;
-    const controlled = makeQadiAtoms(
-      Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.promise(
-              () =>
-                new Promise<number>((resolve) => {
-                  resolveAttribute = () => resolve(1);
-                }),
-            ),
-        }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      ),
-    );
-    const SlowProbe = () => (
-      <span>{`decided:${useDecisionSuspense(needsClearance)._tag}`}</span>
-    );
+  it(
+    "stays suspended through an intermediate still-pending notification",
+    async () => {
+      // A resolver held open under the test's own control, rather than a real
+      // timer, gives the registry a deterministic gap between "evaluation
+      // started" and "evaluation resolved" — a real-clock delay hit this same
+      // branch in isolation but was flaky under full-suite load, since it raced
+      // wall-clock time against `waitFor`'s polling instead of an explicit
+      // handoff. This exercises `settled`'s "still Initial/waiting, keep
+      // waiting" branch, not just its "done" one, without timing dependence.
+      //
+      // The handoff itself is still deterministic — `resolveAttribute` only
+      // becomes callable once the fiber has actually started, and resolving it
+      // is the only thing that can make "decided:Allow" appear — but observing
+      // that outcome still means `waitFor` polling real wall-clock time for the
+      // Promise resolution to propagate through the Effect fiber, the atom, and
+      // a React commit. `waitFor`'s 1000ms default was tight enough that a busy
+      // CI runner (mutation testing and both Node matrix legs sharing one host)
+      // once missed it — a genuine timeout under contention, not a wrong
+      // result: the DOM read "suspended" a moment too early, never anything
+      // else. `GENEROUS_TIMEOUT` below gives the same deterministic assertion
+      // more real time to land without weakening what it checks.
+      let resolveAttribute: (() => void) | undefined;
+      const controlled = makeQadiAtoms(
+        Layer.mergeAll(
+          Layer.succeed(AttributeResolver, {
+            resolve: () =>
+              Effect.promise(
+                () =>
+                  new Promise<number>((resolve) => {
+                    resolveAttribute = () => resolve(1);
+                  }),
+              ),
+          }),
+          RelationshipResolverNever,
+          DecisionHistoryUnknown,
+          EvaluationIdLive,
+          CustomPredicateNone,
+          SignatureHistoryNone,
+        ),
+      );
+      const SlowProbe = () => (
+        <span>{`decided:${useDecisionSuspense(needsClearance)._tag}`}</span>
+      );
 
-    render(
-      <QadiProvider atoms={controlled} subject={reader}>
-        <Suspense fallback={<span>suspended</span>}>
-          <SlowProbe />
-        </Suspense>
-      </QadiProvider>,
-    );
-    await waitFor(() => expect(resolveAttribute).toBeDefined(), {
-      timeout: GENEROUS_TIMEOUT,
-    });
-    expect(screen.getByText("suspended")).toBeDefined();
+      render(
+        <QadiProvider atoms={controlled} subject={reader}>
+          <Suspense fallback={<span>suspended</span>}>
+            <SlowProbe />
+          </Suspense>
+        </QadiProvider>,
+      );
+      await waitFor(() => expect(resolveAttribute).toBeDefined(), {
+        timeout: GENEROUS_TIMEOUT,
+      });
+      expect(screen.getByText("suspended")).toBeDefined();
 
-    act(() => resolveAttribute?.());
-    await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined(), {
-      timeout: GENEROUS_TIMEOUT,
-    });
-  });
+      act(() => resolveAttribute?.());
+      await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined(), {
+        timeout: GENEROUS_TIMEOUT,
+      });
+    },
+    // This test's own timeout, not just `waitFor`'s, needs raising: Vitest's
+    // default per-test timeout (5000ms) was never widened when `GENEROUS_TIMEOUT`
+    // was introduced, and the two `waitFor` calls above run sequentially, each
+    // budgeted up to `GENEROUS_TIMEOUT` on its own. So the test could — and, a
+    // second time, did — hit its own 5000ms ceiling ("Test timed out in 5000ms",
+    // Vitest's message, not testing-library's "Timed out in waitFor") before
+    // either `waitFor` call got to use the budget it was already claiming to
+    // have. Sizing the test's own timeout past what both polls could need in
+    // the worst case is what actually makes `GENEROUS_TIMEOUT` generous.
+    GENEROUS_TIMEOUT * 2 + 5000,
+  );
 });
 
 describe("useInvalidate", () => {
