@@ -54,6 +54,13 @@ Feature: Hydration accounts for every entry, and says when it seeds nothing
     And 2 entries are counted as dropped for "MalformedEntry"
     And the reported reason is "MalformedEntry"
 
+  Scenario: An entry carrying an unexpected extra field is refused, not silently accepted
+    Given a payload for "alice" carrying 2 entries with an unexpected extra field
+    When the payload is hydrated by "alice"
+    Then nothing is seeded
+    And 2 entries are counted as dropped for "MalformedEntry"
+    And the reported reason is "MalformedEntry"
+
   Scenario: Undecodable entries are reported once, not once each
     Given a payload for "alice" carrying 3 entries the client cannot decode
     When the payload is hydrated by "alice"

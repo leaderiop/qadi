@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-19                                    |
-> | Revision       | 1.6                                            |
-> | Effective Date | 2026-09-08                                     |
+> | Revision       | 1.7                                            |
+> | Effective Date | 2026-09-09                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-09-08): BEH-QD-259 — a fifth hydrate-side drop reason, `EntryTooDeep`: `hydrateDecisions` now runs `exceedsJsonDepth` ahead of any recursive `Schema` decode, closing the one recursive decode boundary left unguarded; the total across both ends is six, not five (issue #78, CCR-QD-139)<br>1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
+> | Change History | 1.7 (2026-09-09): BEH-QD-230 gains an explicit requirement that `decodeEntryFields`/`decodePolicy` reject an excess property in an entry or its embedded `Policy` — both called `Schema.decodeUnknownOption` with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points and `SinkCodec.ts`'s `decodeSinkRecordWireUnknown` (CCR-QD-139); an excess-carrying entry now decodes with `UNTRUSTED_DECODE_OPTIONS` and is refused rather than silently accepted with the extra key dropped (issue #105, CCR-QD-144)<br>1.6 (2026-09-08): BEH-QD-259 — a fifth hydrate-side drop reason, `EntryTooDeep`: `hydrateDecisions` now runs `exceedsJsonDepth` ahead of any recursive `Schema` decode, closing the one recursive decode boundary left unguarded; the total across both ends is six, not five (issue #78, CCR-QD-139)<br>1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
 
 _Previous: [18 — Policy Explanation](./18-explanation.md)_
 
@@ -353,6 +353,32 @@ nothing to hydrate.
 > an entry nested past the structural depth guard is dropped the same way,
 > rather than raising an uncaught defect. The total across dehydrate and
 > hydrate is now **six**, not five.
+
+```
+REQUIREMENT: `decodeEntryFields` and `decodePolicy` MUST reject an excess
+             property in an entry or its embedded `Policy`, not silently
+             strip it.
+```
+
+Both share `Policy.ts`'s `UNTRUSTED_DECODE_OPTIONS`
+(`{ onExcessProperty: "error" }`) — the same stance `SinkCodec.ts`'s
+`decodeSinkRecordWireUnknown` adopted in CCR-QD-139, and the same reasoning:
+`Schema`'s default (`"ignore"`) would silently strip an unrecognized key from
+an otherwise-valid entry or policy tag instead of refusing to decode it, the
+class of silent data loss ADR-QD-002 exists to rule out. Before CCR-QD-144
+neither call passed any `ParseOptions` at all — a hydrated entry, or a policy
+inside one, carrying a typo'd field decoded successfully with the typo'd key
+dropped, rather than being refused. An entry failing this check is reported as
+`MalformedEntry`; a policy failing it, as `UndecodablePolicy` — the same two
+reasons an entry or policy failing any other part of the shape check already
+gets, since this is one more way that check can fail, not a new exit.
+
+`DehydratedEntryFields` (the schema `decodeEntryFields` runs) declares `policy`
+as `Schema.Unknown` rather than omitting it, even though `policy`'s own decode
+happens separately through `decodePolicy`: `decodeEntryFields` runs against the
+whole entry object, `policy` included, and with `onExcessProperty: "error"` an
+omitted field is indistinguishable from a genuinely unrecognized one — every
+entry would otherwise be refused for carrying its own required field.
 
 ```
 REQUIREMENT: A drop MUST carry a reason.
