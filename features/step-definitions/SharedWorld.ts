@@ -113,10 +113,19 @@ export interface WorldState {
     readonly roles: ReadonlyArray<string>;
     readonly permissions: ReadonlyArray<`${string}:${string}`>;
   }>;
+  /**
+   * Candidate ids whose attribute lookup fails outright, rather than
+   * resolving to a value (issue #107: `decideSubjects`/`filterSubjects` now
+   * accumulate a per-candidate failure instead of discarding the whole
+   * review).
+   */
+  readonly brokenCandidates: ReadonlyArray<string>;
   /** Every candidate and the decision it received. */
   readonly review: ReadonlyArray<Reviewed>;
   /** The candidates `filterSubjects` kept, in order. */
   readonly answer: ReadonlyArray<string>;
+  /** Candidate ids `decideSubjects`/`filterSubjects` could not evaluate at all. */
+  readonly failedCandidates: ReadonlyArray<string>;
   /** The filter a policy compiled to, when it compiled. */
   readonly predicate: Predicate | undefined;
   /** The policy tag compilation refused, when it refused. */
@@ -147,8 +156,10 @@ export const initialWorldState: WorldState = {
   concurrency: undefined,
   outcome: NO_OUTCOME,
   candidates: [],
+  brokenCandidates: [],
   review: [],
   answer: [],
+  failedCandidates: [],
   predicate: undefined,
   refusedTag: undefined,
   explanation: undefined,

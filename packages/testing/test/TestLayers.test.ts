@@ -488,7 +488,7 @@ describe("qadiReviewLayer", () => {
     Effect.gen(function* () {
       // Nothing here names a current subject, and that is the point: an access
       // review has no requester to name (ADR-QD-022).
-      const allowed = yield* filterSubjects(policies.canRead, [viewer, nobody]);
+      const { subjects: allowed } = yield* filterSubjects(policies.canRead, [viewer, nobody]);
       assert.deepStrictEqual(allowed.map((s) => s.id), [viewer.id]);
     }).pipe(Effect.provide(qadiReviewLayer())));
 
@@ -497,7 +497,9 @@ describe("qadiReviewLayer", () => {
       // One element, deliberately: `recordingAttributeResolver` answers every
       // subject from one table, so a longer list here would demonstrate the
       // leak INV-QD-016 names rather than the option pass-through.
-      const allowed = yield* filterSubjects(hasAttribute("tier", gte(3)), [nobody]);
+      const { subjects: allowed } = yield* filterSubjects(hasAttribute("tier", gte(3)), [
+        nobody,
+      ]);
       assert.deepStrictEqual(allowed.map((s) => s.id), [nobody.id]);
     }).pipe(Effect.provide(qadiReviewLayer({ attributes: { tier: 5 } }))));
 });

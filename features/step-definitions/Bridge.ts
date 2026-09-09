@@ -10,6 +10,8 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import {
+  AttributeResolver,
+  AttributeResolveError,
   customPredicateFromRecord,
   decideSubjects,
   DecisionHistory,
@@ -138,22 +140,36 @@ export const runSubjectSet = Effect.fn("features.runSubjectSet")(function* (poli
     makeSubject({ id: c.id, roles: c.roles, permissions: c.permissions }),
   );
 
+  // Keyed by subject id, not by `recordingAttributeResolver`'s flat table,
+  // so `w.brokenCandidates` can single out one candidate's lookup — the
+  // flaky-resolver scenario `decideSubjects`/`filterSubjects` now survive
+  // (issue #107). Behaves exactly like `qadiReviewLayer({ attributes:
+  // w.resolvedAttributes })` when `brokenCandidates` is empty, which every
+  // scenario before this one is.
+  const attributeResolver = Layer.succeed(AttributeResolver, {
+    resolve: (candidateId: string, attribute: string) =>
+      w.brokenCandidates.includes(candidateId)
+        ? Effect.fail(new AttributeResolveError({ attribute, cause: "down" }))
+        : Effect.succeed(w.resolvedAttributes[attribute]),
+  });
+
   // Both entry points, every scenario. `filterSubjects` is derived from
   // `decideSubjects`, so running the pair here means every scenario also
   // asserts they agree.
   const [reviewed, kept] = yield* Effect.all([
     decideSubjects(policy, subjects, options),
     filterSubjects(policy, subjects, options),
-  ]).pipe(Effect.provide(qadiReviewLayer()));
+  ]).pipe(Effect.provide(qadiReviewLayer({ attributeResolver })));
 
-  const review = reviewed.map(({ subject, decision }) => ({
+  const review = reviewed.decisions.map(({ subject, decision }) => ({
     id: subject.id,
     allowed: isAllowed(decision),
     reason: decision._tag === "Deny" ? decision.reason : undefined,
     obligations: decision._tag === "Allow" ? decision.obligations.map((o) => o.id) : [],
   }));
-  const answer = kept.map((s) => s.id);
-  yield* Ref.update(state, (s) => ({ ...s, review, answer }));
+  const answer = kept.subjects.map((s) => s.id);
+  const failedCandidates = reviewed.failures.map((f) => f.subject.id);
+  yield* Ref.update(state, (s) => ({ ...s, review, answer, failedCandidates }));
 });
 
 /**

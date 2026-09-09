@@ -279,7 +279,10 @@ describe("port activity is counted", () => {
 
       const retries = frequencyOf(snapshots, "qadi_port_retries_total");
       assert.strictEqual(retries?.state.occurrences.get("RelationshipResolver"), 1);
-      assert.isUndefined(retries?.state.occurrences.get("AttributeResolver"));
+      // Not "undefined" — `preregisteredWords` puts every retrying port in
+      // the snapshot at zero once the metric is touched at all, rather than
+      // letting an untouched one stay a silently missing word.
+      assert.strictEqual(retries?.state.occurrences.get("AttributeResolver"), 0);
     }));
 
   it.effect("a retried attempt counts against the retry frequency", () =>

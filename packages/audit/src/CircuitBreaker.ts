@@ -31,15 +31,24 @@
  * Not exported from the package barrel — this module is assembly-internal.
  */
 import * as Clock from "effect/Clock";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Metric from "effect/Metric";
+import * as Record from "effect/Record";
 import * as Ref from "effect/Ref";
 
 export type CircuitBreakerStatus = "Closed" | "Open" | "HalfOpen";
 
 export interface CircuitBreakerOptions {
   readonly failureThreshold: number;
-  readonly resetTimeoutMs: number;
+  /**
+   * `Duration.Input`, not a bare `number` — `@qadi/http`'s `DecisionStreamOptions.reauth.interval`
+   * is the convention this now matches (issue #107). The field keeps its
+   * `Ms`-suffixed name for source compatibility (every existing caller
+   * passing a plain millisecond number is still valid `Duration.Input`,
+   * unchanged); only the type widened.
+   */
+  readonly resetTimeoutMs: Duration.Input;
 }
 
 export interface CircuitBreaker {
@@ -134,44 +143,73 @@ interface State {
 }
 
 /**
- * `0 = Closed`, `1 = HalfOpen`, `2 = Open` — a `Metric.gauge` carries a plain
- * number, so the state is reported as one, documented here rather than left
- * to be reverse-engineered from an operator dashboard.
+ * Every `CircuitBreakerStatus` — {@link transitionsTotal}'s closed domain.
+ *
+ * A `Record<CircuitBreakerStatus, true>` rather than an array literal, the
+ * `Decision.ts`/`Evaluate.ts` `*_BY_TAG` idiom: TypeScript requires every key
+ * of the type to be present (TS2741 otherwise), so a fourth status added to
+ * the state machine without a matching entry here is a compile error rather
+ * than a word silently missing from this metric's snapshot.
  */
-const GAUGE_VALUE: Record<CircuitBreakerStatus, number> = { Closed: 0, HalfOpen: 1, Open: 2 };
-
-const breakerStateGauge = Metric.gauge("qadi_audit_circuit_breaker_state", {
-  description: "Current circuit breaker state: 0 = closed, 1 = half-open, 2 = open.",
-});
-
-const transitionsTotal = Metric.counter("qadi_audit_circuit_breaker_transitions_total", {
-  description: "Circuit breaker state transitions, tagged by the state transitioned to.",
-});
-const transitionsToOpen = Metric.withAttributes(transitionsTotal, { to: "Open" });
-const transitionsToHalfOpen = Metric.withAttributes(transitionsTotal, { to: "HalfOpen" });
-const transitionsToClosed = Metric.withAttributes(transitionsTotal, { to: "Closed" });
-
-const transitionMetric: Record<CircuitBreakerStatus, Metric.Counter<number>> = {
-  Open: transitionsToOpen,
-  HalfOpen: transitionsToHalfOpen,
-  Closed: transitionsToClosed,
+const CIRCUIT_BREAKER_STATUSES_BY_STATUS: Record<CircuitBreakerStatus, true> = {
+  Closed: true,
+  HalfOpen: true,
+  Open: true,
 };
 
+const CIRCUIT_BREAKER_STATUSES: ReadonlyArray<CircuitBreakerStatus> = Record.keys(
+  CIRCUIT_BREAKER_STATUSES_BY_STATUS,
+);
+
 /**
- * Emits the gauge and transition-counter update for a status this call
- * actually caused — never called for a `Ref.modify` that left status
- * unchanged, so reading `status` while already half-open does not re-count
- * a transition that happened on an earlier call.
+ * Circuit breaker state transitions, by the state transitioned to.
+ *
+ * **A tagged frequency, not a `0 = Closed, 1 = HalfOpen, 2 = Open` gauge**
+ * (issue #107). The gauge encoded state as a number a reader could only
+ * decode against this file's own comment — exactly the "unregistered word"
+ * problem `preregisteredWords` exists to close, just for a metric whose
+ * words were digits instead of names. This also retires the hand-rolled
+ * `Metric.withAttributes`-per-status dispatch table the counter version
+ * needed (`transitionsToOpen`/`transitionsToHalfOpen`/`transitionsToClosed`,
+ * looked up through a `Record<CircuitBreakerStatus, Metric.Counter<number>>`)
+ * — a `Metric.frequency` already *is* "count occurrences, by name," which is
+ * what that table was building by hand.
+ *
+ * **What this trades away, deliberately.** A gauge is queryable for its
+ * *current* value; a frequency's `occurrences` are cumulative counts with no
+ * per-word timestamp, so "which state is the breaker in right now" is no
+ * longer answerable from this metric alone the way `qadi_audit_circuit_breaker_state
+ * == 2` could answer it before. `CircuitBreaker.status` is the channel for
+ * that question — a live, in-process `Effect.Effect<CircuitBreakerStatus>`
+ * this metric was never the only way to reach — and `AuditDecisionSinkLive.ts`
+ * already reads it directly rather than through the metrics registry. What
+ * this metric answers, and what a gauge snapshot alone could not without a
+ * second time series to diff against, is churn: how many times has this
+ * breaker gone `Open`, not just whether it is `Open` at this instant.
+ */
+const transitionsTotal = Metric.frequency("qadi_audit_circuit_breaker_transitions_total", {
+  description: "Circuit breaker state transitions, by the state transitioned to.",
+  preregisteredWords: CIRCUIT_BREAKER_STATUSES,
+});
+
+/**
+ * Emits the transition-frequency update for a status this call actually
+ * caused — never called for a `Ref.modify` that left status unchanged, so
+ * reading `status` while already half-open does not re-count a transition
+ * that happened on an earlier call.
  */
 const announceTransition = (to: CircuitBreakerStatus): Effect.Effect<void> =>
-  Effect.gen(function* () {
-    yield* Metric.update(breakerStateGauge, GAUGE_VALUE[to]);
-    yield* Metric.update(transitionMetric[to], 1);
-  });
+  Metric.update(transitionsTotal, to);
 
 export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(function* (
   options: CircuitBreakerOptions,
 ) {
+  // Decoded once, here, rather than on every `Ref.modify` comparison below:
+  // `Duration.toMillis` is cheap, but `status` runs on every `record()` call,
+  // and the plain `Ref.modify` callback it runs inside is not the place to
+  // re-decode a caller-supplied `Duration.Input` on each read.
+  const resetTimeoutMillis = Duration.toMillis(options.resetTimeoutMs);
+
   const ref = yield* Ref.make<State>({
     status: "Closed",
     consecutiveFailures: 0,
@@ -205,7 +243,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
         // the probe write) is the primary release path; this is the
         // fallback for a claim that somehow never reached it.
         if (state.status === "HalfOpen") {
-          if (state.halfOpenAt === undefined || now - state.halfOpenAt < options.resetTimeoutMs) {
+          if (state.halfOpenAt === undefined || now - state.halfOpenAt < resetTimeoutMillis) {
             return [[state.status, false], state];
           }
           const reopened: State = {
@@ -222,7 +260,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
         // with no separate `state.status !== "Open"` clause needed (and no
         // narrower one TypeScript could use anyway, since `openedAt` isn't
         // typed as discriminated by `status`).
-        if (state.openedAt === undefined || now - state.openedAt < options.resetTimeoutMs) {
+        if (state.openedAt === undefined || now - state.openedAt < resetTimeoutMillis) {
           return [[state.status, false], state];
         }
         const next: State = {

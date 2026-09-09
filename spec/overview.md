@@ -144,12 +144,13 @@ for why that is a deliberate, open trade rather than an oversight.
 | `enforce`, `enforceProjected`, `check`, `decide`, `assert`, `filter`, `filterStream`, `guard` | function | `Qadi.ts` |
 | `EvaluateOptions` | type | `Evaluate.ts` |
 | `Resource` | type | `Resource.ts` |
-| `decideSubjects`, `filterSubjects`, `decideSubjectsStream`, `filterSubjectsStream` | function | `SubjectSet.ts` |
-| `SubjectDecision`, `SubjectSetServices` | type | `SubjectSet.ts` |
+| `decideSubjects`, `filterSubjects`, `decideSubjectsStream`, `filterSubjectsStream` | function | `SubjectSet.ts` — `decideSubjects`/`filterSubjects` now use `Effect.partition` and never fail; a resolver failure for one subject is reported in the returned `failures`, and the rest of the batch's decisions are no longer discarded with it (issue #107). The streamed siblings are unchanged and still fail the stream on a resolver error |
+| `SubjectDecision`, `SubjectSetServices`, `SubjectEvaluationFailure`, `SubjectSetOutcome`, `FilteredSubjects` | type | `SubjectSet.ts` — `SubjectEvaluationFailure` pairs a subject with the `EvaluationError` its own evaluation raised; `SubjectSetOutcome` (`decideSubjects`'s return shape) is `{ decisions, failures }`, `FilteredSubjects` (`filterSubjects`'s) is `{ subjects, failures }` |
 | `toPredicate`, `evaluatePredicate` | function | `Predicate.ts` |
 | `Predicate`, `CompareOp`, `PredicateOptions`, `PredicateServices` | type | `Predicate.ts` |
 | `EvaluationServices` | type | `Evaluate.ts` |
 | `intersectFields`, `unionFields` | function | `Decision.ts` |
+| `VisibleFields` | type | `Decision.ts` — a named `ReadonlyArray<string> \| undefined`: `undefined` is the field-visibility lattice's top ("all fields"), not "none"; `intersectFields`/`unionFields` and `Trace`/`Allow`'s `visibleFields` field are typed against it rather than restating the union at each site (D8, issue #107) |
 | `renderTrace` | function | `Decision.ts` |
 | `RenderTraceOptions` | type | `Decision.ts` |
 | `EnforceOptions`, `EnforcementError`, `ObligationHandler` | type | `Qadi.ts` |
@@ -228,7 +229,8 @@ answered.
 | `decisionSinkRing`, `DEFAULT_RING_CAPACITY` | layer factory + constant | `DecisionSinkRing.ts` |
 | `decisionSinkForwarding`, `decisionSinkAll` | layer factory | `DecisionSinkForwarding.ts` |
 | `decisionSinkFeed`, `DEFAULT_FEED_CAPACITY` | layer factory + constant | `DecisionSinkFeed.ts` |
-| `portCallsTotal`, `portRetriesTotal` | metric | `PortMetrics.ts` |
+| `portCallsTotal`, `portRetriesTotal` | metric | `PortMetrics.ts` — both now carry `preregisteredWords` (issue #107), `portCallsTotal`'s five `PortName` values and `portRetriesTotal`'s three `RetryingPortName` values |
+| `PortName`, `RetryingPortName` | type | `PortMetrics.ts` — `portCallsTotal`/`portRetriesTotal`'s closed domains; `RetryingPortName` is the three-member subset of `PortName` with a `*Retrying` combinator |
 | `hydrationDehydratedTotal`, `hydrationSeededTotal` | metric | `HydrationMetrics.ts` |
 | `hydrationDroppedTotal`, `hydrationRechecksTotal`, `hydrationMismatchesTotal` | metric | `HydrationMetrics.ts` |
 | `DehydrationDropReason`, `ClientHydrationDropReason`, `HydrationDropReason` | type | `HydrationMetrics.ts` |
@@ -251,7 +253,7 @@ answered.
 | `SinkRecordWire` | schema + type | `SinkCodec.ts` |
 | `TraceSchema` | schema | `Decision.ts` — moved from `SinkCodec.ts` (ADR-QD-072), so `Errors.ts`'s `AccessDenied` can reuse it without an `Errors.ts` → `SinkCodec.ts` → `Errors.ts` import cycle; still reused by `SinkCodec.ts`'s own `Decision` wire form and by `@qadi/react`'s `Hydration.ts` to validate a `DehydratedEntry`'s `trace` field |
 | `EvaluationErrorSchema` | schema | `SinkCodec.ts` — the union of the nine wire-crossing `EvaluationError` classes themselves (ADR-QD-060), not a second description of them |
-| `toWire`, `fromWire`, `encodeRecord`, `decodeRecord`, `decodeRecordWire` | codec | `SinkCodec.ts` |
+| `toWire`, `fromWire`, `encodeRecord`, `encodeRecordSync`, `decodeRecord`, `decodeRecordWire` | codec | `SinkCodec.ts` — `encodeRecordSync` is `encodeRecord`'s synchronous sibling, for a caller (`DecisionSinkForwarding.ts`) who already knows the encode is total and does not want to pay for the `Effect` wrapping (issue #107) |
 | `isJsonSafe` | predicate | `SinkCodec.ts` — a general recursive walk over any `unknown` value, not specialized to one field; `isRecordJsonSafe` below is its only caller |
 | `isRecordJsonSafe` | predicate | `SinkCodec.ts` — `isJsonSafe` over **both** of a `SinkRecord`'s caller-supplied `unknown` surfaces, `resource` and `policy`'s `HasCustom.params`; `@qadi/audit`'s `encodeAuditEntry` and `@qadi/http`'s decision-stream route both call this, not `isJsonSafe` directly, closing the gap left by `encodeAuditEntry`'s previous `resource`-only check (issue #104, CCR-QD-143) |
 | `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |

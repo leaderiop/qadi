@@ -1,4 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 import * as FastCheck from "effect/testing/FastCheck";
 import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
@@ -76,6 +78,36 @@ describe("matchers", () => {
     assert.isFalse(run(M.lt(Number.NaN), 5));
     assert.isFalse(run(M.lt(Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY));
   });
+
+  it.effect(
+    "the Matcher schema rejects a non-finite Gte/Lt bound at decode, not only at evaluation",
+    () =>
+      Effect.gen(function* () {
+        // Item 3, core-adoption-sweep (issue #107): `Schema.Finite` replaced
+        // `Schema.Number` on `Gte`/`Lt`'s `value` field, so a bound of
+        // `Infinity`/`NaN` — reachable from untrusted JSON via `1e400`, per
+        // `gte`'s doc comment — now fails to decode at all rather than
+        // decoding into a `Matcher` that only fails closed once evaluated.
+        const infiniteGte = yield* Effect.result(
+          Schema.decodeUnknownEffect(M.Matcher)({
+            _tag: "Gte",
+            value: Number.POSITIVE_INFINITY,
+          }),
+        );
+        assert.strictEqual(infiniteGte._tag, "Failure");
+
+        const nanLt = yield* Effect.result(
+          Schema.decodeUnknownEffect(M.Matcher)({ _tag: "Lt", value: Number.NaN }),
+        );
+        assert.strictEqual(nanLt._tag, "Failure");
+
+        // The positive control: a finite bound still decodes.
+        const finiteGte = yield* Effect.result(
+          Schema.decodeUnknownEffect(M.Matcher)({ _tag: "Gte", value: 3 }),
+        );
+        assert.strictEqual(finiteGte._tag, "Success");
+      }),
+  );
 
   it("gte and lt reject a non-finite resolved value, not only a non-finite bound", () => {
     // CCR-QD-115: an attribute that itself decoded to `Infinity` (e.g. stored

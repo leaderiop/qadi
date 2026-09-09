@@ -19,7 +19,6 @@
  */
 import type {
   AuthSubject,
-  CurrentSubject,
   Decision,
   EvaluateOptions,
   EvaluationServices,
@@ -29,7 +28,7 @@ import type {
 import {
   assert as assertCore,
   check as checkCore,
-  currentSubjectLayer,
+  CurrentSubject,
   decide as decideCore,
   filter as filterCore,
 } from "@qadi/core";
@@ -139,7 +138,7 @@ export const makeQadi = (layer: QadiLayer): Qadi => {
     subject: AuthSubject,
     effect: Effect.Effect<A, E, EvaluationServices>,
   ): Promise<A> =>
-    runtime.runPromise(Effect.provide(effect, currentSubjectLayer(subject)));
+    runtime.runPromise(Effect.provideService(effect, CurrentSubject, subject));
 
   return {
     check: (subject, policy, options) => run(subject, checkCore(policy, options)),

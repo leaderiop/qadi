@@ -14,11 +14,14 @@ import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts"
 import { decisionRecord, isolatedMetrics } from "./helpers.ts";
 
 type CounterSnapshot = Extract<Metric.Metric.Snapshot, { type: "Counter" }>;
-type GaugeSnapshot = Extract<Metric.Metric.Snapshot, { type: "Gauge" }>;
+type FrequencySnapshot = Extract<Metric.Metric.Snapshot, { type: "Frequency" }>;
 const counters = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string): ReadonlyArray<CounterSnapshot> =>
   snapshots.filter((s): s is CounterSnapshot => s.type === "Counter" && s.id === id);
-const gaugeOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string): GaugeSnapshot | undefined =>
-  snapshots.find((s): s is GaugeSnapshot => s.type === "Gauge" && s.id === id);
+const frequencyOf = (
+  snapshots: ReadonlyArray<Metric.Metric.Snapshot>,
+  id: string,
+): FrequencySnapshot | undefined =>
+  snapshots.find((s): s is FrequencySnapshot => s.type === "Frequency" && s.id === id);
 
 describe("qadi_audit_writes_total", () => {
   it.effect("a successful write is tagged 'written'", () =>
@@ -120,8 +123,16 @@ describe("qadi_audit_writes_total", () => {
     }));
 });
 
-describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
-  it.effect("the gauge reports Open (2) once tripped, and a transition-to-Open is counted", () =>
+describe("qadi_audit_circuit_breaker_transitions_total", () => {
+  // Issue #107: the `0 = Closed, 1 = HalfOpen, 2 = Open` gauge this describe
+  // block used to assert on is gone, replaced by this one tagged frequency
+  // (`CircuitBreaker.ts`'s own doc comment on `transitionsTotal` explains the
+  // trade). "Current state" is still checked below, through
+  // `AuditDecisionSinkLive`'s own `breaker.status` read where a test needs
+  // it — the channel that trade-off comment says is the right one for that
+  // question, not a metrics-registry snapshot.
+
+  it.effect("tripping to Open counts exactly one transition to 'Open'", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest({
         failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
@@ -135,13 +146,8 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
-      const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
-      assert.strictEqual(gauge?.state.value, 2);
-
-      const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
-      const toOpen = transitions.find((r) => r.attributes?.to === "Open");
-      assert.isDefined(toOpen);
-      assert.strictEqual(toOpen?.state.count, 1);
+      const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
+      assert.strictEqual(transitions?.state.occurrences.get("Open"), 1);
     }));
 
   it.effect(
@@ -164,18 +170,20 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
           }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), brokenTrail))),
         );
 
-        const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
-        assert.strictEqual(gauge?.state.value, 2);
-
-        const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
-        const toOpen = transitions.find((r) => r.attributes?.to === "Open");
-        assert.isDefined(toOpen);
-        assert.strictEqual(toOpen?.state.count, 1);
+        const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
+        assert.strictEqual(transitions?.state.occurrences.get("Open"), 1);
       }),
   );
 
-  it.effect("the gauge and both counters carry their documented descriptions", () =>
+  it.effect("carries its documented description, and every status is pre-registered at zero", () =>
     Effect.gen(function* () {
+      // A single trip to Open is what materializes the metric in this test's
+      // isolated registry at all — `Metric.update` is what registers a metric
+      // Effect's own registry, not merely being defined at module scope, so a
+      // breaker that never transitions (the sibling test below) never
+      // populates this frequency's entry either. Once materialized,
+      // `preregisteredWords` is what puts `Closed`/`HalfOpen` in the snapshot
+      // at zero alongside the one word that actually fired.
       const { layer: trail } = AuditTrailPortTest({
         failWith: (entry) => new AuditWriteError({ entry, cause: "offline" }),
       });
@@ -188,20 +196,22 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
-      const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
+      const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
       assert.strictEqual(
-        gauge?.description,
-        "Current circuit breaker state: 0 = closed, 1 = half-open, 2 = open.",
+        transitions?.description,
+        "Circuit breaker state transitions, by the state transitioned to.",
       );
-
-      const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
-      assert.strictEqual(
-        transitions[0]?.description,
-        "Circuit breaker state transitions, tagged by the state transitioned to.",
+      assert.deepStrictEqual(
+        [...(transitions?.state.occurrences.entries() ?? [])].sort(([a], [b]) => a.localeCompare(b)),
+        [
+          ["Closed", 0],
+          ["HalfOpen", 0],
+          ["Open", 1],
+        ],
       );
     }));
 
-  it.effect("closing from half-open transitions the gauge to 0 and counts a transition to 'Closed'", () =>
+  it.effect("closing from half-open counts a transition to 'HalfOpen' and one to 'Closed'", () =>
     Effect.gen(function* () {
       // Only the first five writes fail — the recovery write must succeed,
       // or the breaker reopens instead of closing.
@@ -224,14 +234,9 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
-      const gauge = gaugeOf(snapshots, "qadi_audit_circuit_breaker_state");
-      assert.strictEqual(gauge?.state.value, 0);
-
-      const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
-      const toHalfOpen = transitions.find((r) => r.attributes?.to === "HalfOpen");
-      const toClosed = transitions.find((r) => r.attributes?.to === "Closed");
-      assert.strictEqual(toHalfOpen?.state.count, 1);
-      assert.strictEqual(toClosed?.state.count, 1);
+      const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
+      assert.strictEqual(transitions?.state.occurrences.get("HalfOpen"), 1);
+      assert.strictEqual(transitions?.state.occurrences.get("Closed"), 1);
     }));
 
   it.effect("a success on an already-closed breaker announces no transition at all", () =>
@@ -246,8 +251,12 @@ describe("qadi_audit_circuit_breaker_state / _transitions_total", () => {
         }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail))),
       );
 
-      const transitions = counters(snapshots, "qadi_audit_circuit_breaker_transitions_total");
-      assert.strictEqual(transitions.length, 0);
+      // `announceTransition` never ran at all — not even once, to record a
+      // zero — so the metric was never touched in this test's isolated
+      // registry and does not appear in the snapshot. See the "documented
+      // description" test above for the case where it does.
+      const transitions = frequencyOf(snapshots, "qadi_audit_circuit_breaker_transitions_total");
+      assert.isUndefined(transitions);
     }));
 });
 

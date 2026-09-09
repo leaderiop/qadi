@@ -125,6 +125,15 @@ export interface PortActivity {
  * The counts are **process-wide aggregates**, not per request and not per
  * decision. A panel that implied otherwise would be inviting a reader to
  * attribute one number to one row.
+ *
+ * **Filtered to ports actually reached** (issue #107). `portCallsTotal`/
+ * `portRetriesTotal` gained `preregisteredWords` — every port name is a key in
+ * `occurrences` the moment either metric is first read, whether or not
+ * anything ever called into it — so `calls.occurrences.keys()` alone would
+ * report every port on every call to this Effect, silently widening from
+ * "reached" to "known to exist". The `> 0` filter below is what keeps this
+ * function's own contract (and `Wiring.test.ts`'s "reports nothing when no
+ * port has been reached") true under that change.
  */
 export const portActivity: Effect.Effect<ReadonlyArray<PortActivity>> = Effect.gen(function* () {
   // `Metric.value` rather than a scan of `Metric.snapshot` for the two ids.
@@ -137,11 +146,13 @@ export const portActivity: Effect.Effect<ReadonlyArray<PortActivity>> = Effect.g
   const retries = yield* Metric.value(portRetriesTotal);
 
   const ports = new Set([...calls.occurrences.keys(), ...retries.occurrences.keys()]);
-  return [...ports].map((port) => ({
-    port,
-    calls: calls.occurrences.get(port) ?? 0,
-    retries: retries.occurrences.get(port) ?? 0,
-  }));
+  return [...ports]
+    .map((port) => ({
+      port,
+      calls: calls.occurrences.get(port) ?? 0,
+      retries: retries.occurrences.get(port) ?? 0,
+    }))
+    .filter((activity) => activity.calls > 0 || activity.retries > 0);
 });
 
 const nameOf = (service: Option.Option<{ readonly name?: string | undefined }>): string | undefined =>

@@ -1,5 +1,14 @@
 import { defineSteps } from "@effect-cucumber/vitest";
-import { eq, hasResourceAttribute, hasRole, obligation, obliged, subjectId } from "@qadi/core";
+import {
+  eq,
+  gte,
+  hasAttribute,
+  hasResourceAttribute,
+  hasRole,
+  obligation,
+  obliged,
+  subjectId,
+} from "@qadi/core";
 import { runSubjectSet } from "./Bridge.ts";
 import { World } from "./SharedWorld.ts";
 
@@ -17,6 +26,13 @@ export const subjectSetWhenSteps = defineSteps<World>(({ When }) => {
   When("it is asked who owns the resource", function* () {
     yield* runSubjectSet(hasResourceAttribute("owner", eq(subjectId())));
   });
+
+  When(
+    "it is asked who has attribute {string} of at least {int}",
+    function* (name: string, value: number) {
+      yield* runSubjectSet(hasAttribute(name, gte(value)));
+    },
+  );
 
   /**
    * Reporting, not enforcing. `filter` would refuse an allow nobody discharged;

@@ -22,4 +22,18 @@ export const subjectSetGivenSteps = defineSteps<World>(({ Given }) => {
       candidates: [...s.candidates, { id, roles: [], permissions: [`${resource}:${action}`] }],
     }));
   });
+
+  /**
+   * Simulates one candidate's attribute store breaking rather than answering
+   * — the flaky-resolver scenario issue #107's `decideSubjects`/
+   * `filterSubjects` rewrite exists for: this candidate's lookup fails, and
+   * the rest of the review must still complete.
+   */
+  Given("the candidate {string} whose attribute lookup fails", function* (id: string) {
+    const s = yield* readState();
+    yield* patch(() => ({
+      candidates: [...s.candidates, { id, roles: [], permissions: [] }],
+      brokenCandidates: [...s.brokenCandidates, id],
+    }));
+  });
 });

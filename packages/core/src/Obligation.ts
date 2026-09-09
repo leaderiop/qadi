@@ -14,6 +14,7 @@
  * effects and INV-QD-009 — a guarded effect does not run when denied — would be
  * gone.
  */
+import * as Arr from "effect/Array";
 import * as Equal from "effect/Equal";
 import * as Schema from "effect/Schema";
 
@@ -63,10 +64,14 @@ export const obligation = (
  * twice through a diamond appears once, while two duties sharing an id with
  * different attributes are two duties and both survive.
  *
- * The `out.some(...)` scan is O(|a|·|b|), the same tradeoff `TraceDiff.ts`'s
- * `sameObligationSet` makes for the equivalent obligation-set comparison:
+ * `Array.dedupeWith` over the concatenation, not a hand-rolled `out.some(...)`
+ * scan: both are the same O(|a|·|b|) quadratic comparison `TraceDiff.ts`'s
+ * `sameObligationSet` accepts for the equivalent obligation-set comparison —
  * obligation lists are short (a handful of duties per node at most), so the
- * quadratic cost is not worth replacing with a hash-based structure here.
+ * quadratic cost is not worth replacing with a hash-based structure here —
+ * but `dedupeWith` also preserves first-occurrence order across `a` *and* `b`
+ * in one pass, which is what "the same obligation reached twice appears once"
+ * actually requires.
  */
 export const unionObligations = (
   a: ReadonlyArray<Obligation>,
@@ -74,11 +79,7 @@ export const unionObligations = (
 ): ReadonlyArray<Obligation> => {
   if (a.length === 0) return b;
   if (b.length === 0) return a;
-  const out = [...a];
-  for (const candidate of b) {
-    if (!out.some((seen) => Equal.equals(seen, candidate))) out.push(candidate);
-  }
-  return out;
+  return Arr.dedupeWith([...a, ...b], Equal.equals);
 };
 
 /** The obligations that bind. Advisory ones are reported but never block. */

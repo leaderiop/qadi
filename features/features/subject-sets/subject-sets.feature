@@ -65,3 +65,12 @@ Feature: Subject-set review
     When it is asked who holds role "auditor", where holding it would log the access
     Then the answer is "alice"
     And "alice" owes "log-access"
+
+  Scenario: One candidate's broken lookup does not discard the rest of the review
+    Given the attribute service resolves "clearance" to 5
+    And the candidate "alice"
+    And the candidate "bob" whose attribute lookup fails
+    And the candidate "carol"
+    When it is asked who has attribute "clearance" of at least 3
+    Then the answer is "alice, carol"
+    And "bob" could not be reviewed

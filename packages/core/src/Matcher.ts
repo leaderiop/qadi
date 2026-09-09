@@ -91,8 +91,17 @@ const Neq = Schema.TaggedStruct("Neq", { ref: ValueRef });
 const Dominates = Schema.TaggedStruct("Dominates", { ref: ValueRef });
 const In = Schema.TaggedStruct("In", { values: Schema.Array(Schema.Unknown) });
 const Exists = Schema.TaggedStruct("Exists", {});
-const Gte = Schema.TaggedStruct("Gte", { value: Schema.Number });
-const Lt = Schema.TaggedStruct("Lt", { value: Schema.Number });
+// `Schema.Finite`, not `Schema.Number`: a decoded policy is untrusted JSON
+// (§7, ADR-QD-002), and JSON has no literal spelling for `Infinity` but
+// `1e400` still decodes to it (see `gte`'s doc comment below). `Schema.Number`
+// would let that bound through decode and defer entirely to
+// `evaluateMatcher`'s `Number.isFinite` runtime guard; `Schema.Finite`
+// rejects it at the trust boundary instead, the same boundary-not-runtime
+// preference `isSecurityLabel` (`SecurityLabel.ts`) makes for `level`. The
+// runtime guard stays regardless — it is still what catches a *resolved
+// attribute value* that decoded to `Infinity`, which this schema cannot see.
+const Gte = Schema.TaggedStruct("Gte", { value: Schema.Finite });
+const Lt = Schema.TaggedStruct("Lt", { value: Schema.Finite });
 const Contains = Schema.TaggedStruct("Contains", { value: Schema.Unknown });
 const FieldMatch = Schema.TaggedStruct("FieldMatch", {
   field: Schema.String,
@@ -198,19 +207,21 @@ export const exists = (): Matcher => ({ _tag: "Exists" });
 /**
  * Numeric attribute is >= value.
  *
- * Both the bound and the resolved attribute value are checked with
- * `Number.isFinite` at evaluation time (see `evaluateMatcher`'s `Gte` case),
- * mirroring `SecurityLabel.isSecurityLabel`'s rejection of `Infinity`/`NaN`
- * levels. A `Matcher` crosses the same untrusted-JSON trust boundary a
- * `Policy` does (§7 of AGENTS.md, ADR-QD-002): JSON has no literal spelling
- * for `Infinity`, but `1e400` still decodes to it, so a bound is exactly as
- * reachable from untrusted data as a `SecurityLabel` level is — and so is a
- * resolved attribute stored the same way and read back with `JSON.parse`.
- * Left unguarded on either side, an `Infinity` operand would dominate every
- * finite value it is compared against via `>=` — the identical failure mode
- * `isSecurityLabel` closes (CCR-QD-115: the value side was unguarded until
- * this, so an `Infinity`-valued attribute satisfied every `gte(...)` bound
- * regardless of the bound itself).
+ * The bound is rejected at the schema boundary: {@link Gte}'s `value` field is
+ * `Schema.Finite`, so a decoded `Matcher` can never carry a non-finite bound
+ * in the first place, mirroring `SecurityLabel.isSecurityLabel`'s rejection of
+ * `Infinity`/`NaN` levels. A `Matcher` crosses the same untrusted-JSON trust
+ * boundary a `Policy` does (§7 of AGENTS.md, ADR-QD-002): JSON has no literal
+ * spelling for `Infinity`, but `1e400` still decodes to it, so a bound built
+ * by hand (as this constructor does, bypassing the schema) is exactly as
+ * reachable as a `SecurityLabel` level is. The **resolved attribute value**
+ * cannot be schema-checked this way — it comes back from an arbitrary
+ * `AttributeResolver`, not from decoding a `Matcher` — so it is still checked
+ * with `Number.isFinite` at evaluation time (see `evaluateMatcher`'s `Gte`
+ * case). Left unguarded there, an `Infinity`-valued attribute would dominate
+ * every finite bound via `>=` — the failure mode CCR-QD-115 closed (the value
+ * side was unguarded until then, so an `Infinity`-valued attribute satisfied
+ * every `gte(...)` bound regardless of the bound itself).
  */
 export const gte = (value: number): Matcher => ({ _tag: "Gte", value });
 /**

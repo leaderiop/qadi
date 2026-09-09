@@ -11,11 +11,26 @@
  * where dominance denies
  * ([ADR-QD-021](../../../spec/decisions/021-label-lattice.md)).
  *
- * A hand-written interface rather than a Schema, deliberately: a label never
- * appears *inside* a policy. The `Dominates` matcher carries a `ValueRef` and no
- * label, so both operands are read at evaluation time from subject or resource
- * data. Nothing here crosses the trust boundary that ADR-QD-002 exists for.
+ * The exported `interface` below is hand-written, not schema-derived — §7's
+ * default for a domain type, not the `Policy`/`Matcher` exception, because a
+ * label never appears *inside* a policy: the `Dominates` matcher carries a
+ * `ValueRef` and no label, so a label is never something `Schema.suspend`
+ * needs to close a recursive loop over, the way `Policy` and `Matcher` do.
+ *
+ * **Corrected (issue #107).** This comment previously went on to say "Nothing
+ * here crosses the trust boundary that ADR-QD-002 exists for," which
+ * overclaimed: ADR-QD-002 is specifically about *policy* JSON, and a label
+ * never being embedded in one is true, but `isSecurityLabel` below is a
+ * boundary check all the same — just at a different crossing. Both operands
+ * `Dominates` compares are read at evaluation time from whatever an
+ * `AttributeResolver` or a resource field hands back, which is exactly as
+ * attacker-reachable as policy JSON (`level: 1e400` decodes to `Infinity` the
+ * same way a `Matcher` bound does), and `isSecurityLabel`'s own doc comment
+ * already called that data "untrusted" and guarded it accordingly. The label
+ * boundary is at attribute/resource resolution rather than policy decode, but
+ * it is a boundary, and `isSecurityLabel` is what enforces it.
  */
+import * as Schema from "effect/Schema";
 
 export interface SecurityLabel {
   readonly level: number;
@@ -33,41 +48,42 @@ export interface SecurityLabel {
 /** The four answers a partial order can give. */
 export type LabelOrdering = "Equal" | "Dominates" | "DominatedBy" | "Incomparable";
 
-const isStringArray = (value: unknown): value is ReadonlyArray<string> =>
-  Array.isArray(value) && value.every((c) => typeof c === "string");
-
 /**
- * `key in value` narrows `value` to carry that key without a cast — the
- * standard TS idiom for "does this `object` have this property" once `value`
- * is already past `typeof value === "object" && value !== null`, which is as
- * far as `typeof`/`Array.isArray` narrowing can take an `unknown` on its own.
+ * The shape `isSecurityLabel` checks against — never exported, and never used
+ * to decode: nothing persists a `SecurityLabel` on its own, so there is no
+ * wire format to round-trip. `Schema.Finite` on `level`, not `Schema.Number`,
+ * for the same reason `Matcher.ts`'s `Gte`/`Lt` bound is `Schema.Finite`
+ * rather than `Schema.Number` (see that file's comment): `1e400` decodes to
+ * `Infinity` in untrusted subject/resource data the same way it would in a
+ * `Matcher` bound, and `Infinity` must not reach `compareLabels`, where it
+ * would dominate every finite level via `>=`.
  */
-const hasProp = <K extends string>(value: object, key: K): value is Record<K, unknown> =>
-  key in value;
+const SecurityLabelSchema: Schema.Codec<SecurityLabel> = Schema.Struct({
+  level: Schema.Finite,
+  /**
+   * An array, not a `ReadonlySet` — see {@link SecurityLabel.compartments}'s
+   * own comment for why.
+   */
+  compartments: Schema.Array(Schema.String),
+});
 
 /**
- * Recognises a label in untrusted data.
+ * Recognises a label in untrusted data — this **is** a trust-boundary check,
+ * despite operating on resolved attribute/resource data rather than decoded
+ * policy JSON (see this file's top comment).
  *
  * Total, like everything a matcher can reach: anything that is not a label is
- * simply not a label, and the caller decides what that means.
- *
- * `Number.isFinite`, not `typeof === "number"`: `NaN` and `Infinity` both pass
- * the bare `typeof` check, and `compareLabels`/`labelDominates` compare `level`
- * with `>=`, where `Infinity` dominates every finite level and `NaN` makes
- * every comparison false. A `NaN` level fails safe on its own (`Incomparable`
- * everywhere), but `level: Infinity` in untrusted subject/resource data would
- * dominate every label it is compared against — refusing it here, rather than
- * at the comparison, means `Dominates` (`Matcher.ts`) denies instead, since
+ * simply not a label, and the caller decides what that means. `Schema.is`
+ * rather than a hand-rolled structural check: `SecurityLabelSchema`'s
+ * `Schema.Finite` already rejects `NaN`/`Infinity`, which is what let an
+ * attacker-controlled `level: Infinity` (reachable via `1e400`, since JSON has
+ * no literal spelling for `Infinity`) dominate every label it was compared
+ * against before this guard existed at all — refusing it here, rather than at
+ * the comparison, means `Dominates` (`Matcher.ts`) denies instead, since
  * neither operand is recognised as a label at all.
  */
-export const isSecurityLabel = (value: unknown): value is SecurityLabel =>
-  typeof value === "object" &&
-  value !== null &&
-  hasProp(value, "level") &&
-  typeof value.level === "number" &&
-  Number.isFinite(value.level) &&
-  hasProp(value, "compartments") &&
-  isStringArray(value.compartments);
+export const isSecurityLabel: (value: unknown) => value is SecurityLabel =
+  Schema.is(SecurityLabelSchema);
 
 const covers = (
   wider: ReadonlyArray<string>,

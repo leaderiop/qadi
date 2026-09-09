@@ -54,8 +54,8 @@ import * as Stream from "effect/Stream";
 import * as Sse from "effect/unstable/encoding/Sse";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
-import type { CurrentSubject, EvaluationServices, Permission, Policy, Resource, SinkRecord } from "@qadi/core";
-import { assert, currentSubjectLayer, isRecordJsonSafe, toWire } from "@qadi/core";
+import type { EvaluationServices, Permission, Policy, Resource, SinkRecord } from "@qadi/core";
+import { assert, CurrentSubject, isRecordJsonSafe, toWire } from "@qadi/core";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { NO_RESOURCE } from "./RequirePermission.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
@@ -193,7 +193,7 @@ export const reauthCheck = (
     Effect.mapError(() => "extraction-failed" as const),
     Effect.flatMap((subject) =>
       assert(policy, { resource }).pipe(
-        Effect.provide(currentSubjectLayer(subject)),
+        Effect.provideService(CurrentSubject, subject),
         Effect.tapError((error) =>
           Effect.logError(`qadi/http: reauth check failed (${error._tag}), reporting a denial`),
         ),
@@ -217,14 +217,30 @@ export const reauthCheck = (
  * `/__permissions`'s own claim to list "every permission this application
  * enforces, and the routes that require it" would be false of exactly the
  * one route that publishes decisions rather than the topology.
+ *
+ * **Throws synchronously** (`RequirePermission.ts`'s `requiresPermission`
+ * precedent for a caller programming error, not a runtime authorization
+ * outcome) when `options.reauth.interval` decodes to `0` or a negative
+ * duration. `Schedule.spaced` accepts either without complaint, and a
+ * `0`-interval reauth loop is a tight spin — one `reauthCheck` call, then
+ * immediately another, forever, per open connection — rather than the
+ * periodic recheck this option promises (issue #107). Failing here, at
+ * route construction, turns that into an immediate startup error instead of
+ * every open `/__decisions` connection quietly pegging a core.
  */
 export const decisionStreamRoute = <P extends Permission>(
   permission: P,
   policy: Policy,
   stream: Stream.Stream<SinkRecord>,
   options?: DecisionStreamOptions,
-) =>
-  addGuardedRoute(
+) => {
+  if (options?.reauth !== undefined && Duration.toMillis(options.reauth.interval) <= 0) {
+    throw new Error(
+      `decisionStreamRoute: reauth.interval must be a positive duration, got ` +
+        `${Duration.toMillis(options.reauth.interval)}ms.`,
+    );
+  }
+  return addGuardedRoute(
     "GET",
     "/__decisions",
     permission,
@@ -276,3 +292,4 @@ export const decisionStreamRoute = <P extends Permission>(
       });
     }),
   );
+};

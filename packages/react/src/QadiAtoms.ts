@@ -15,14 +15,13 @@
  */
 import type {
   AuthSubject,
-  CurrentSubject,
   Decision,
   EvaluationError,
   EvaluationServices,
   Policy,
   Resource,
 } from "@qadi/core";
-import { currentSubjectLayer, DecisionCache, evaluate } from "@qadi/core";
+import { CurrentSubject, DecisionCache, evaluate } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -232,7 +231,7 @@ export const makeQadiAtoms = (
         return evaluate(policy, {
           ...(resource === undefined ? {} : { resource }),
           ...(seeded === undefined ? {} : { evaluationId: seeded.evaluationId }),
-        }).pipe(Effect.provide(currentSubjectLayer(current)));
+        }).pipe(Effect.provideService(CurrentSubject, current));
       })
       .pipe(runtime.factory.withReactivity([DECISIONS_KEY]));
 

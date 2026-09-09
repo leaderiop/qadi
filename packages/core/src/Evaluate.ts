@@ -14,6 +14,7 @@ import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
+import * as Record from "effect/Record";
 import type { Concurrency } from "effect/Types";
 import { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
@@ -23,7 +24,7 @@ import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import type { CacheOutcome } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
-import type { Decision, Trace } from "./Decision.ts";
+import type { Decision, Trace, VisibleFields } from "./Decision.ts";
 import { Allow, Deny, intersectFields } from "./Decision.ts";
 import { Decided, DecisionRecord, Failed } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
@@ -82,6 +83,40 @@ const decisionsAllowedTotal = Metric.withAttributes(decisionsTotal, { outcome: "
 const decisionsDeniedTotal = Metric.withAttributes(decisionsTotal, { outcome: "deny" });
 
 /**
+ * Every `Policy` tag — {@link denialsByPolicyTagTotal}'s closed domain.
+ *
+ * A `Record<Policy["_tag"], true>` rather than an array literal, `Decision.ts`'s
+ * `TRACE_TAGS_BY_TAG` idiom: TypeScript requires every key of the type to be
+ * present (TS2741 otherwise), so a new `Policy` variant added without a
+ * matching entry here is a compile error rather than a word silently missing
+ * from this metric's snapshot. Not reused from `Decision.ts`'s own (private)
+ * copy: exporting it would leak an internal helper through `index.ts`'s
+ * `export * from "./Decision.ts"` and into the public surface `spec/
+ * overview.md` tracks (AGENTS.md §9), for a list four lines long.
+ */
+const POLICY_TAGS_BY_TAG: Record<Policy["_tag"], true> = {
+  HasPermission: true,
+  HasRole: true,
+  HasAttribute: true,
+  HasResourceAttribute: true,
+  HasRelationship: true,
+  HasAction: true,
+  HasActed: true,
+  HasNotActed: true,
+  HasCustom: true,
+  HasSignature: true,
+  AllOf: true,
+  AnyOf: true,
+  Rules: true,
+  Not: true,
+  Obliged: true,
+  Labeled: true,
+};
+
+/** `POLICY_TAGS_BY_TAG`'s keys, in the array form `preregisteredWords` takes. */
+const POLICY_TAGS: ReadonlyArray<Policy["_tag"]> = Record.keys(POLICY_TAGS_BY_TAG);
+
+/**
  * Denials, by the top-level policy tag `evaluate` was asked to decide.
  *
  * Keyed on `policy._tag` — a closed, small union — rather than `decision.reason`,
@@ -97,6 +132,7 @@ const decisionsDeniedTotal = Metric.withAttributes(decisionsTotal, { outcome: "d
  */
 const denialsByPolicyTagTotal = Metric.frequency("qadi_denials_by_policy_tag_total", {
   description: "Denials, keyed by the top-level policy tag evaluate was asked to decide.",
+  preregisteredWords: POLICY_TAGS,
 });
 
 /**
@@ -115,6 +151,29 @@ const evaluationDurationMillis = Metric.histogram("qadi_evaluation_duration_mill
 });
 
 /**
+ * Every `EvaluationError` tag — {@link evaluationErrorsTotal}'s closed domain,
+ * by the same `Record<Tag, true>` exhaustiveness idiom {@link POLICY_TAGS_BY_TAG}
+ * uses and for the same reason: a tenth error added to the union without a
+ * matching entry here is a compile error rather than a silently-missing word.
+ */
+const EVALUATION_ERROR_TAGS_BY_TAG: Record<EvaluationError["_tag"], true> = {
+  AttributeResolveError: true,
+  RelationshipResolveError: true,
+  DecisionHistoryUnavailable: true,
+  CustomPredicateError: true,
+  SignatureHistoryUnavailable: true,
+  MissingAction: true,
+  MissingResource: true,
+  MissingResourceId: true,
+  PolicyTooDeep: true,
+};
+
+/** `EVALUATION_ERROR_TAGS_BY_TAG`'s keys, in the array form `preregisteredWords` takes. */
+const EVALUATION_ERROR_TAGS: ReadonlyArray<EvaluationError["_tag"]> = Record.keys(
+  EVALUATION_ERROR_TAGS_BY_TAG,
+);
+
+/**
  * Evaluations that raised instead of deciding, by error tag.
  *
  * An `EvaluationError` reached **no** observer before this: it left through the
@@ -129,6 +188,7 @@ const evaluationDurationMillis = Metric.histogram("qadi_evaluation_duration_mill
  */
 const evaluationErrorsTotal = Metric.frequency("qadi_evaluation_errors_total", {
   description: "Evaluations that failed instead of deciding, keyed by error tag.",
+  preregisteredWords: EVALUATION_ERROR_TAGS,
 });
 
 /** A trace plus how it was obtained — `undefined` when no cache was consulted. */
@@ -221,7 +281,7 @@ const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
 
 const allow = (
   policyTag: Policy["_tag"],
-  fields: ReadonlyArray<string> | undefined,
+  fields: VisibleFields,
   children: ReadonlyArray<Trace> = [],
   label?: string,
   obligations: ReadonlyArray<Obligation> = NO_OBLIGATIONS,
@@ -439,14 +499,11 @@ const refIsUnresolved = (ref: ValueRef, context: MatcherContext): boolean =>
 
 const mergeFields = (
   strategy: FieldStrategy,
-  sets: ReadonlyArray<ReadonlyArray<string> | undefined>,
-): ReadonlyArray<string> | undefined => {
+  sets: ReadonlyArray<VisibleFields>,
+): VisibleFields => {
   switch (strategy) {
     case "Intersection":
-      return sets.reduce<ReadonlyArray<string> | undefined>(
-        (acc, cur) => intersectFields(acc, cur),
-        undefined,
-      );
+      return sets.reduce<VisibleFields>((acc, cur) => intersectFields(acc, cur), undefined);
     case "Union": {
       // Absorbing on undefined: if any allowing branch grants all fields, the
       // union grants all fields, since undefined is the top of the lattice,
@@ -927,7 +984,7 @@ const evaluateNode = (
  */
 interface AllOfFold {
   readonly children: Array<Trace>;
-  readonly fieldSets: Array<ReadonlyArray<string> | undefined>;
+  readonly fieldSets: Array<VisibleFields>;
   obligations: ReadonlyArray<Obligation>;
 }
 
@@ -1053,7 +1110,7 @@ const evaluateAllOf = Effect.fnUntraced(function* (
  */
 interface AnyOfFold {
   readonly children: Array<Trace>;
-  readonly allowingFieldSets: Array<ReadonlyArray<string> | undefined>;
+  readonly allowingFieldSets: Array<VisibleFields>;
   /** `First` may stop at the first allowing child; the others must see them all. */
   readonly exhaustive: boolean;
   obligations: ReadonlyArray<Obligation>;

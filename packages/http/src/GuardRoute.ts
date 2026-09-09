@@ -12,8 +12,8 @@
 import * as Effect from "effect/Effect";
 import type * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
-import type { Authorized, CurrentSubject, EvaluationServices, Permission, Policy, Resource } from "@qadi/core";
-import { currentSubjectLayer, guard } from "@qadi/core";
+import type { Authorized, EvaluationServices, Permission, Policy, Resource } from "@qadi/core";
+import { CurrentSubject, guard } from "@qadi/core";
 import { handleEnforcementErrors } from "./QadiHttpError.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
@@ -37,7 +37,7 @@ import { SubjectExtractor } from "./SubjectExtractor.ts";
  * `CurrentSubject` is excluded from `R | EvaluationServices` specifically —
  * not from `LR` too, and not by excluding it from the union as a whole.
  * Only `guard(...)(resource, handler)` runs inside this function's own
- * `Effect.provide(currentSubjectLayer(subject))`; `loadResource` runs before
+ * `Effect.provideService(CurrentSubject, subject)`; `loadResource` runs before
  * it, outside that scope. A caller's `loadResource` that genuinely depends
  * on `CurrentSubject` (unusual, but not prevented) must still see it as a
  * real requirement — an unconditional `Exclude` over the whole union would
@@ -75,7 +75,7 @@ export const guardRoute =
         const subject = yield* SubjectExtractor.extract(request);
         const resource = yield* loadResource(request);
         return yield* guard(permission, policy)(resource, handler).pipe(
-          Effect.provide(currentSubjectLayer(subject)),
+          Effect.provideService(CurrentSubject, subject),
         );
       }),
     );

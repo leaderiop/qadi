@@ -27,6 +27,7 @@ import * as P from "../src/Policy.ts";
 import {
   decodeRecord,
   encodeRecord,
+  encodeRecordSync,
   fromWire,
   isJsonSafe,
   isRecordJsonSafe,
@@ -837,6 +838,71 @@ describe("round-trip property", () => {
       // seed, not only from whatever FastCheck happened to print on that
       // run's log.
       { numRuns: 200, seed: 1032 },
+    );
+  });
+
+  it("encodeRecordSync never throws, and agrees with encodeRecord, over generated records", () => {
+    // Issue #107: `DecisionSinkForwarding.ts` switched from `encodeRecord`
+    // (`Schema.encodeEffect`) to `encodeRecordSync` (`Schema.encodeSync`) on
+    // the claim that this encode is provably total for anything `toWire`
+    // produces. This is that claim, checked rather than only argued: 200
+    // generated policies, both decision outcomes, run through both encoders,
+    // asserting the sync one never throws and both agree byte-for-byte.
+    const leaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
+      FastCheck.constant(P.hasPermission(read)),
+      FastCheck.constantFrom("editor", "admin").map((r) => P.hasRole(r)),
+      FastCheck.integer({ min: 0, max: 5 }).map((n) =>
+        P.hasAttribute("clearance", M.gte(n)),
+      ),
+      FastCheck.constant(P.hasAction("read")),
+    );
+
+    const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
+      node: FastCheck.oneof(
+        { maxDepth: 3 },
+        leaf,
+        FastCheck.array(tie("node"), {
+          minLength: 1,
+          maxLength: 3,
+        }).map((ps) => P.allOf(ps)),
+        tie("node").map((p) => P.not(p)),
+        tie("node").map((p) => P.obliged(obligation("audit.log"), p)),
+      ),
+    })).node;
+
+    FastCheck.assert(
+      FastCheck.property(tree, FastCheck.boolean(), FastCheck.string(), (policy, allowed, reason) => {
+        const decision: Allow | Deny = allowed
+          ? new Allow({
+              evaluationId: "e",
+              subjectId: makeSubjectId("u1"),
+              durationMillis: 1,
+              trace: trace(true),
+              visibleFields: undefined,
+              obligations: [obligation("audit.log")],
+            })
+          : new Deny({
+              evaluationId: "e",
+              subjectId: makeSubjectId("u1"),
+              durationMillis: 1,
+              trace: { ...trace(false), reason },
+              reason,
+            });
+
+        const record: SinkRecord = new DecisionRecord({
+          evaluationId: "e",
+          at: 0,
+          subjectId: makeSubjectId("u1"),
+          policy,
+          outcome: new Decided({ decision }),
+        });
+
+        const wire = toWire(record);
+        const sync = encodeRecordSync(wire);
+        const viaEffect = Effect.runSync(encodeRecord(wire));
+        return JSON.stringify(sync) === JSON.stringify(viaEffect);
+      }),
+      { numRuns: 200, seed: 4271 },
     );
   });
 });

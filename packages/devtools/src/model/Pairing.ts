@@ -20,6 +20,8 @@
  * continue it. That is true of a hydrated re-check, of a replica forwarding to
  * an aggregator, and of anything else that shares an id — which is the point.
  */
+import * as Arr from "effect/Array";
+import * as Record from "effect/Record";
 import type { Timeline, TimelineEntry } from "./Timeline.ts";
 import { verdictOf } from "./Verdict.ts";
 
@@ -97,15 +99,8 @@ export const pairsOf = (timeline: Timeline): ReadonlyMap<string, ReadonlyArray<T
 
 const groupByEvaluation = (
   entries: ReadonlyArray<TimelineEntry>,
-): ReadonlyMap<string, ReadonlyArray<TimelineEntry>> => {
-  const grouped = new Map<string, Array<TimelineEntry>>();
-  for (const entry of entries) {
-    const family = grouped.get(entry.evaluationId);
-    if (family === undefined) grouped.set(entry.evaluationId, [entry]);
-    else family.push(entry);
-  }
-  return grouped;
-};
+): ReadonlyMap<string, ReadonlyArray<TimelineEntry>> =>
+  new Map(Record.toEntries(Arr.groupBy(entries, (entry) => entry.evaluationId)));
 
 /**
  * The first row of a family started the story; the rest continue it.

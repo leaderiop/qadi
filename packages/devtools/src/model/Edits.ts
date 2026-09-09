@@ -17,6 +17,7 @@
  * subject holds, so dropping them would produce `MissingAction` rows that say
  * nothing about the subject's standing.
  */
+import * as Struct from "effect/Struct";
 import type { ActedEventInput, RelationshipEdgeInput } from "@qadi/core";
 import type { SimulationEdit } from "./SimulationEdit.ts";
 import { composeEdits } from "./SimulationEdit.ts";
@@ -242,5 +243,4 @@ const eventLabel = (event: ActedEventInput, subjectId: string): string =>
 const omitKey = (
   record: Readonly<Record<string, unknown>>,
   key: string,
-): Readonly<Record<string, unknown>> =>
-  Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
+): Readonly<Record<string, unknown>> => Struct.omit(record, [key]);
