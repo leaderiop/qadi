@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-09-09): Initial release (issue #102, CCR-QD-143) |
+> | Change History | 1.0 (2026-09-09): Initial release (issue #102, CCR-QD-145) |
 
 ---
 
