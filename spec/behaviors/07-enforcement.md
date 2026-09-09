@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-07                                    |
-> | Revision       | 1.6                                            |
-> | Effective Date | 2026-09-08                                     |
+> | Revision       | 1.7                                            |
+> | Effective Date | 2026-09-09                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-09-08): BEH-QD-056 gains a fourth requirement — projecting a record never exhausts the call stack; `FieldPath.ts`'s `projectAt` walked recursively over a `fields` spec's uncapped segment count and raised a raw `RangeError` out of the enforcement path, and now uses the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, INV-QD-004, CCR-QD-115)<br>1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.7 (2026-09-09): BEH-QD-054's example replaced `error._tag === "AccessDenied"` narrowing with `Effect.catchTag`, per AGENTS.md §4's array-form-only rule (issue 110, CCR-QD-144)<br>1.6 (2026-09-08): BEH-QD-056 gains a fourth requirement — projecting a record never exhausts the call stack; `FieldPath.ts`'s `projectAt` walked recursively over a `fields` spec's uncapped segment count and raised a raw `RangeError` out of the enforcement path, and now uses the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, INV-QD-004, CCR-QD-115)<br>1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -188,13 +188,20 @@ declare const deleteDocument: (id: string) => Effect.Effect<void>;
 
 const guarded = deleteDocument("doc-1").pipe(
   enforce(hasPermission(permission("doc", "delete"))),
-  Effect.tapError((error) =>
-    error._tag === "AccessDenied"
-      ? Effect.logDebug(renderTrace(error.trace))
-      : Effect.void,
+  Effect.catchTag("AccessDenied", (error) =>
+    Effect.logDebug(renderTrace(error.trace)).pipe(Effect.andThen(Effect.fail(error))),
   ),
 );
 ```
+
+`Effect.catchTag` narrows on `_tag` the way a hand-written `error._tag === "..."`
+check would, but without discarding the rest of `EnforcementError` from the
+type: `guarded`'s failure channel is still `EvaluationError | UndischargedObligation
+| AccessDenied` after the `catchTag`, because the handler re-fails with the same
+`error` rather than returning `Effect.void`. Reaching for more than one tag at
+once is the array form — `Effect.catchTag(["AccessDenied", "UndischargedObligation"],
+…)`, as `packages/http/src/RequirePermission.ts` does — never
+`Effect.catchTags({...})`'s object form (AGENTS.md §4).
 
 ## BEH-QD-055: A guarded resource is the evaluated resource
 
