@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-33                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-09-09                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
+> | Change History | 1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
 
 _Previous: [32 — Custom Predicates](./32-custom-predicates.md)_
 
@@ -46,13 +46,14 @@ Guard still has: individually correct, individually tested primitives that
 the real enforcement path never calls. Every behavior below is a property of
 what `record()` actually does, not of a function that exists beside it.
 
-## BEH-QD-250: A resource with no safe durable representation refuses, cleanly, rather than approximating or crashing
+## BEH-QD-250: A record with no safe durable representation refuses, cleanly, rather than approximating or crashing
 
 ```
 REQUIREMENT: encodeAuditEntry MUST fail AuditEntryNotEncodable for a
-             DecisionRecord whose resource carries a value with no safe
-             durable representation (a function, a Symbol, a circular
-             reference) — MUST NOT stringify, drop the field silently, or
+             DecisionRecord whose resource, or whose policy's HasCustom.params
+             (ADR-QD-055), carries a value with no safe durable
+             representation (a function, a Symbol, a circular reference,
+             a BigInt) — MUST NOT stringify, drop the field silently, or
              throw an uncaught exception.
 ```
 
@@ -65,6 +66,16 @@ function — not merely stringified badly, and not left to overflow the call
 stack: the safety walk tracks its own ancestor path and returns "unsafe"
 the moment a value is found to be its own ancestor, rather than recursing
 forever.
+
+`resource` is not the only caller-supplied `unknown` a `SinkRecord` can
+carry: a `policy` built with `hasCustom(name, params)` (ADR-QD-055's escape
+hatch) carries its own `unknown` in `HasCustom.params`, nested inside
+`policy` rather than sitting beside it. `encodeAuditEntry` used to check
+`resource` only, on the premise that it was the sole such value; a circular
+or `BigInt`-valued `params` sailed past that narrow guard and only failed
+later, uncaught, at the store's own `JSON.stringify` (issue #104). It now
+guards the whole record via `isRecordJsonSafe` (`SinkCodec.ts`), which walks
+`resource` **and** `policy` with the same `isJsonSafe` primitive.
 
 `isJsonSafe` (`SinkCodec.ts`) walks with an explicit array-backed stack
 rather than function recursion, so this holds for a merely-deep, entirely

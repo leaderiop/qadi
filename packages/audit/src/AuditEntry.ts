@@ -23,13 +23,13 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import type { SinkRecord } from "@qadi/core";
-import { isJsonSafe, SinkRecordWire, toWire } from "@qadi/core";
+import { isRecordJsonSafe, SinkRecordWire, toWire } from "@qadi/core";
 
 /**
- * A `SinkRecord` this package refuses to persist — a `resource` carrying a
- * value with no safe durable representation (a function, a circular
- * reference, a class instance JSON cannot round-trip), or a value the
- * `AuditEntry` schema itself rejects.
+ * A `SinkRecord` this package refuses to persist — `resource`, or `policy`'s
+ * `HasCustom.params`, carrying a value with no safe durable representation
+ * (a function, a circular reference, a `BigInt`, a class instance JSON
+ * cannot round-trip), or a value the `AuditEntry` schema itself rejects.
  *
  * Never thrown; a typed `Effect` failure, the same shape
  * `@qadi/predicate-sql`'s `PredicateNotRenderable` uses, declared here rather
@@ -59,38 +59,31 @@ export const AuditEntry = Schema.Struct({
 export type AuditEntry = typeof AuditEntry.Type;
 
 /**
- * Only `resource` holds a caller-supplied `unknown` value — everything else
- * in a `SinkRecord` is already a closed, `Schema`-derived shape. Bounding the
- * safety check to this one entry point mirrors `@qadi/predicate-sql`'s
- * `isSafeValue`: a fixed, explicit allowlist rather than an unbounded walk of
- * every value a caller could ever construct.
- *
- * `isJsonSafe` itself is `@qadi/core`'s, not this package's own — ADR-QD-054's
- * "each companion package owns its shape" covers *error* types, not a plain
- * predicate that `toWire`'s other caller (`@qadi/http`'s decision-stream
- * route) needs unchanged, so a second copy here would just be the drift
- * ADR-QD-002 warns about, one level down.
- */
-const resourceOf = (record: SinkRecord): Readonly<Record<string, unknown>> | undefined =>
-  record._tag === "Decision" ? record.resource : undefined;
-
-/**
  * Translates one `SinkRecord` into the row `AuditTrailPort.write` persists.
  *
- * Refuses rather than approximates: a `resource` carrying an unsafe value
+ * Refuses rather than approximates: a record carrying an unsafe value —
+ * `resource`, or `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) —
  * fails `AuditEntryNotEncodable` rather than being partially written or
  * silently dropped, the same rule ADR-QD-054 generalized for predicate
  * compilation, one layer further from the wire.
+ *
+ * Guards the whole record via `isRecordJsonSafe` (`@qadi/core`'s
+ * `SinkCodec.ts`) rather than `resource` alone. This package used to check
+ * only `resource`, on the premise that it was the sole caller-supplied
+ * `unknown` a `SinkRecord` could carry — `isRecordJsonSafe`'s own doc comment
+ * names this file as one of the two real-world call sites written against
+ * that since-corrected premise. A circular or `BigInt`-valued `HasCustom.params`
+ * sailed past the narrow guard and only failed later, uncaught, at the
+ * store's own `JSON.stringify`.
  */
 export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(function* (
   record: SinkRecord,
 ) {
-  const resource = resourceOf(record);
-  if (resource !== undefined && !isJsonSafe(resource)) {
+  if (!isRecordJsonSafe(record)) {
     return yield* Effect.fail(
       new AuditEntryNotEncodable({
         recordTag: record._tag,
-        reason: "resource carries a value with no safe durable representation",
+        reason: "record carries a value with no safe durable representation",
       }),
     );
   }

@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
+import { hasCustom } from "@qadi/core";
 import { AuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import { decisionRecord, failedRecord, obligationRecord } from "./helpers.ts";
 
@@ -52,7 +53,7 @@ describe("encodeAuditEntry", () => {
         assert.strictEqual(result.failure.recordTag, "Decision");
         assert.strictEqual(
           result.failure.reason,
-          "resource carries a value with no safe durable representation",
+          "record carries a value with no safe durable representation",
         );
       }
     }));
@@ -93,6 +94,32 @@ describe("encodeAuditEntry", () => {
     Effect.gen(function* () {
       const entry = yield* encodeAuditEntry(obligationRecord());
       assert.strictEqual(entry.record._tag, "Obligations");
+    }));
+
+  // `HasCustom.params` (`Policy.ts`) is a second caller-supplied `unknown`
+  // inside a `SinkRecord`, buried in `policy` rather than sitting beside it
+  // as `resource` does. A guard that only checked `resource` let a circular
+  // or `BigInt`-valued `params` sail through to `toWire`/`JSON.stringify`
+  // uncaught, instead of failing cleanly with `AuditEntryNotEncodable`.
+  it.effect("a policy carrying an unsafe HasCustom.params refuses, not just an unsafe resource", () =>
+    Effect.gen(function* () {
+      const cyclic: Record<string, unknown> = { name: "rule" };
+      cyclic.self = cyclic;
+      const record = decisionRecord({ policy: hasCustom("legalHold", cyclic) });
+      const result = yield* Effect.result(encodeAuditEntry(record));
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") {
+        assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
+        assert.strictEqual(result.failure.recordTag, "Decision");
+      }
+    }));
+
+  it.effect("a policy carrying a BigInt-valued HasCustom.params refuses too", () =>
+    Effect.gen(function* () {
+      const record = decisionRecord({ policy: hasCustom("legalHold", { limit: 10n }) });
+      const result = yield* Effect.result(encodeAuditEntry(record));
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
     }));
 });
 
