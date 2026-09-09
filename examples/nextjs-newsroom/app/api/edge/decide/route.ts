@@ -24,6 +24,13 @@
  * demonstrated is one-process-per-invocation, which this route reproduces by
  * building its layer per request; the runtime it happens to run on is not the
  * point. A real edge deployment should verify the bundle before assuming it.
+ *
+ * `forwardingSink` (`../../../../src/server/forwarding.ts`) is what actually
+ * builds `send`, and is the reason this route no longer wraps a raw `fetch`
+ * in `Effect.tryPromise`: `fetch` only rejects on a network failure, so a 500
+ * from the aggregator looked identical to a 204. `HttpClient.filterStatusOk`
+ * is what turns a non-2xx response into the reported failure "the failure is
+ * reported" above actually requires.
  */
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
@@ -34,7 +41,6 @@ import {
   decide,
   Decided,
   DecisionRecord,
-  decisionSinkForwarding,
   EvaluationIdLive,
   isAllowed,
   toWire,
@@ -42,6 +48,7 @@ import {
 import { canReadArticle } from "../../../../src/domain/policies.ts";
 import { articleById } from "../../../../src/domain/articles.ts";
 import { policyResource } from "../../../../src/domain/resource.ts";
+import { forwardingSink } from "../../../../src/server/forwarding.ts";
 import { ports } from "../../../../src/server/ports.ts";
 import { userFromCookieHeader } from "../../../../src/server/session.ts";
 
@@ -60,15 +67,8 @@ export const GET = async (request: Request): Promise<Response> => {
   const failures: Array<string> = [];
 
   // Built here, per invocation, which is the whole shape being demonstrated.
-  const forwarding = decisionSinkForwarding({
-    send: (encoded) =>
-      Effect.tryPromise(() =>
-        fetch(`${origin}/api/aggregator/ingest`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(encoded),
-        })
-      ),
+  const forwarding = forwardingSink({
+    origin,
     onFailure: (error) => {
       failures.push(String(error));
     },
