@@ -1123,7 +1123,10 @@ describe("DecisionCache", () => {
         assert.isDefined(lookups);
         assert.strictEqual(lookups?.state.occurrences.get("miss"), 1);
         assert.strictEqual(lookups?.state.occurrences.get("hit"), 1);
-        assert.isUndefined(lookups?.state.occurrences.get("coalesced"));
+        // Not "undefined" — `preregisteredWords` puts every outcome in the
+        // snapshot at zero once the metric is touched at all, `coalesced`
+        // included, rather than letting it stay a silently missing word.
+        assert.strictEqual(lookups?.state.occurrences.get("coalesced"), 0);
       }));
 
     it.effect("counts a coalesced join separately from the claiming miss", () =>

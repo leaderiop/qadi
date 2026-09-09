@@ -49,6 +49,18 @@ export const decideSubjects: (
 >;
 ```
 
+> **Amended (BEH-QD-262, issue #107).** `decideSubjects`'s return type above is
+> the shape this ADR shipped with; it is no longer current. `decideSubjects`
+> now returns `Effect.Effect<SubjectSetOutcome, never, SubjectSetServices>`,
+> where `SubjectSetOutcome` is `{ decisions: ReadonlyArray<SubjectDecision>;
+> failures: ReadonlyArray<SubjectEvaluationFailure> }` — the call never fails;
+> a subject whose own evaluation broke is reported in `failures` instead of
+> discarding the whole batch's `decisions` with it. See
+> `spec/behaviors/14-subject-sets.md` Rev 1.1 for the full requirement and
+> `SubjectSet.ts`'s own doc comment for why. Nothing else this ADR settles —
+> the ambient-subject exclusion, "reports rather than enforces," derivation
+> from `decideSubjects` — changed.
+
 Each element is evaluated under `Effect.provideService(…, CurrentSubject, subject)`,
 which **discharges** the requirement. The batch entry points are therefore the
 only ones in the library that do not ask for a current subject, and saying
@@ -108,6 +120,13 @@ export const filterSubjects: (
   options?: EvaluateOptions,
 ) => Effect.Effect<ReadonlyArray<AuthSubject>, EvaluationError, SubjectSetServices>;
 ```
+
+> **Amended (BEH-QD-262, issue #107).** `filterSubjects` now returns
+> `Effect.Effect<FilteredSubjects, never, SubjectSetServices>`, where
+> `FilteredSubjects` is `{ subjects: ReadonlyArray<AuthSubject>; failures:
+> ReadonlyArray<SubjectEvaluationFailure> }` — carrying `decideSubjects`'s
+> `failures` forward unchanged, for the same reason given at that function's
+> own amendment above. Still derived from `decideSubjects`, unchanged.
 
 One evaluation path, as `labelDominates` is defined through `compareLabels`
 ([ADR-QD-021](./021-label-lattice.md)) and as every enforcing entry point goes

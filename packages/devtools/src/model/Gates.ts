@@ -19,7 +19,9 @@
  * headless model has no business knowing what one is — only whether the reader
  * has something to point at. `react/Lens.ts` is where that becomes an `Element`.
  */
+import * as Arr from "effect/Array";
 import * as Equal from "effect/Equal";
+import * as Record from "effect/Record";
 import type { Policy, Resource } from "@qadi/core";
 import { policyLabel } from "./Catalogue.ts";
 
@@ -95,19 +97,17 @@ const rank = (state: string): number => {
   return index === -1 ? GATE_STATES.length : index;
 };
 
-const countsOf = (instances: ReadonlyArray<GateInstanceLike>): ReadonlyArray<GateStateCount> => {
-  const tally = new Map<string, number>();
-  for (const instance of instances) {
-    tally.set(instance.state, (tally.get(instance.state) ?? 0) + 1);
-  }
+const countsOf = (instances: ReadonlyArray<GateInstanceLike>): ReadonlyArray<GateStateCount> =>
   // Only states that occurred. A row of zeros per state would be four fifths
   // noise on a panel that already lists the instances themselves — the opposite
   // call from `hydrationActivity`'s drop reasons, where the *closed set* is the
-  // reassurance and a zero says "watched, and clean".
-  return [...tally]
-    .map(([state, count]) => ({ state, count }))
+  // reassurance and a zero says "watched, and clean". `Array.groupBy` fits here
+  // — `instance.state` is a plain string key, unlike `gateGroups`'s grouping
+  // below, which groups by `Equal.equals` structural equality over a `Policy`
+  // and a `Resource` and has no string key to give it.
+  Record.toEntries(Arr.groupBy(instances, (instance) => instance.state))
+    .map(([state, group]) => ({ state, count: group.length }))
     .sort((a, b) => rank(a.state) - rank(b.state));
-};
 
 /**
  * Groups live guards by the question they ask, in first-seen order.

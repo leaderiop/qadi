@@ -22,6 +22,7 @@ import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
+import * as Record from "effect/Record";
 import type { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { CustomPredicate } from "./CustomPredicate.ts";
@@ -201,6 +202,15 @@ export class DecisionCache extends Context.Service<
   DecisionCacheShape
 >()("qadi/DecisionCache") {}
 
+const CACHE_OUTCOMES_BY_OUTCOME: Record<CacheOutcome, true> = {
+  hit: true,
+  coalesced: true,
+  miss: true,
+};
+
+/** `CACHE_OUTCOMES_BY_OUTCOME`'s keys, in the array form `preregisteredWords` takes. */
+const CACHE_OUTCOMES: ReadonlyArray<CacheOutcome> = Record.keys(CACHE_OUTCOMES_BY_OUTCOME);
+
 /**
  * Every `getOrCompute` lookup, by which of the cache's three documented paths
  * it took: `hit` (an already-completed entry), `coalesced` (joined another
@@ -213,6 +223,7 @@ export class DecisionCache extends Context.Service<
  */
 const cacheLookupsTotal = Metric.frequency("qadi_decision_cache_lookups_total", {
   description: "DecisionCache.getOrCompute lookups, by outcome (hit / coalesced / miss).",
+  preregisteredWords: CACHE_OUTCOMES,
 });
 
 /**

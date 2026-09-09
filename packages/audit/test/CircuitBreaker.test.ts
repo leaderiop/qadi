@@ -5,7 +5,7 @@ import * as TestClock from "effect/testing/TestClock";
 import { makeCircuitBreaker } from "../src/CircuitBreaker.ts";
 import { isolatedMetrics } from "./helpers.ts";
 
-type CounterSnapshot = Extract<Metric.Metric.Snapshot, { type: "Counter" }>;
+type FrequencySnapshot = Extract<Metric.Metric.Snapshot, { type: "Frequency" }>;
 
 const OPTIONS = { failureThreshold: 3, resetTimeoutMs: 10_000 };
 
@@ -243,12 +243,10 @@ describe("CircuitBreaker — concurrent record() calls (Qadi.ts's filter/filterS
 
         // A double-counted transition — the other failure mode a non-atomic
         // read-compute-write allows — would inflate this past exactly one.
-        const toOpen = snapshots.find(
-          (s): s is CounterSnapshot =>
-            s.type === "Counter" &&
-            s.id === "qadi_audit_circuit_breaker_transitions_total" &&
-            s.attributes?.to === "Open",
+        const transitions = snapshots.find(
+          (s): s is FrequencySnapshot =>
+            s.type === "Frequency" && s.id === "qadi_audit_circuit_breaker_transitions_total",
         );
-        assert.strictEqual(toOpen?.state.count, 1);
+        assert.strictEqual(transitions?.state.occurrences.get("Open"), 1);
       }),
   ));

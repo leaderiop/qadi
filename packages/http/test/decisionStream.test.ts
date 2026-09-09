@@ -194,6 +194,35 @@ describe("/__decisions", () => {
       }),
   );
 
+  it(
+    "throws synchronously, at route construction, for a zero reauth interval",
+    () => {
+      // Issue #107: `Schedule.spaced(0)` would fire immediately, then
+      // immediately again, forever, per open connection — a tight spin per
+      // client rather than the periodic recheck this option promises.
+      // Failing here, at route construction, turns that into an immediate
+      // startup error instead of every open `/__decisions` connection
+      // quietly pegging a core.
+      assert.throws(
+        () =>
+          decisionStreamRoute(readPermission, readPolicy, Stream.empty, {
+            reauth: { interval: 0 },
+          }),
+        /reauth\.interval must be a positive duration/,
+      );
+    },
+  );
+
+  it("throws synchronously for a negative reauth interval too", () => {
+    assert.throws(
+      () =>
+        decisionStreamRoute(readPermission, readPolicy, Stream.empty, {
+          reauth: { interval: -1 },
+        }),
+      /reauth\.interval must be a positive duration/,
+    );
+  });
+
   it.effect("registers with PermissionRegistry, so /__permissions is not silently incomplete", () =>
     Effect.gen(function* () {
       // `Layer.build` + `Context.get` doesn't work here: `HttpRouter.add`'s

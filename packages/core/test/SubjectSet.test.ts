@@ -32,17 +32,18 @@ const ids = (subjects: ReadonlyArray<{ readonly id: string }>) =>
 describe("filterSubjects", () => {
   it.effect("keeps the subjects the policy allows", () =>
     Effect.gen(function* () {
-      const allowed = yield* filterSubjects(canRead, [
+      const { subjects: allowed, failures } = yield* filterSubjects(canRead, [
         reader("a"),
         nobody("b"),
         reader("c"),
       ]);
       assert.deepStrictEqual(ids(allowed), ["a", "c"]);
+      assert.deepStrictEqual(failures, []);
     }).pipe(Effect.provide(subjectSetLayer())));
 
   it.effect("preserves input order rather than grouping the allows", () =>
     Effect.gen(function* () {
-      const allowed = yield* filterSubjects(canRead, [
+      const { subjects: allowed } = yield* filterSubjects(canRead, [
         nobody("a"),
         reader("b"),
         nobody("c"),
@@ -56,7 +57,7 @@ describe("filterSubjects", () => {
   it.effect("does not deduplicate", () =>
     Effect.gen(function* () {
       const alice = reader("alice");
-      const allowed = yield* filterSubjects(canRead, [alice, alice]);
+      const { subjects: allowed } = yield* filterSubjects(canRead, [alice, alice]);
       // Two rows in, two rows out. Collapsing them would be a helpful-looking
       // transform that silently drops a row the caller expects to see.
       assert.deepStrictEqual(ids(allowed), ["alice", "alice"]);
@@ -64,12 +65,14 @@ describe("filterSubjects", () => {
 
   it.effect("an empty set is an empty answer, not an error", () =>
     Effect.gen(function* () {
-      assert.deepStrictEqual(yield* filterSubjects(canRead, []), []);
+      const { subjects, failures } = yield* filterSubjects(canRead, []);
+      assert.deepStrictEqual(subjects, []);
+      assert.deepStrictEqual(failures, []);
     }).pipe(Effect.provide(subjectSetLayer())));
 
   it.effect("nobody passing is a denial for each, not a failure", () =>
     Effect.gen(function* () {
-      const allowed = yield* filterSubjects(canRead, [nobody("a"), nobody("b")]);
+      const { subjects: allowed } = yield* filterSubjects(canRead, [nobody("a"), nobody("b")]);
       assert.deepStrictEqual(allowed, []);
     }).pipe(Effect.provide(subjectSetLayer())));
 });
@@ -77,21 +80,25 @@ describe("filterSubjects", () => {
 describe("decideSubjects", () => {
   it.effect("pairs every subject with its own decision", () =>
     Effect.gen(function* () {
-      const results = yield* decideSubjects(canRead, [reader("a"), nobody("b")]);
+      const { decisions, failures } = yield* decideSubjects(canRead, [
+        reader("a"),
+        nobody("b"),
+      ]);
 
       assert.deepStrictEqual(
-        results.map((r) => [r.subject.id, r.decision._tag]),
+        decisions.map((r) => [r.subject.id, r.decision._tag]),
         [
           ["a", "Allow"],
           ["b", "Deny"],
         ],
       );
+      assert.deepStrictEqual(failures, []);
     }).pipe(Effect.provide(subjectSetLayer())));
 
   it.effect("keeps the denial reason, because a review needs the why", () =>
     Effect.gen(function* () {
-      const results = yield* decideSubjects(canRead, [nobody("b")]);
-      const [only] = results;
+      const { decisions } = yield* decideSubjects(canRead, [nobody("b")]);
+      const [only] = decisions;
       assert.isDefined(only);
       if (only === undefined) return;
       assert.strictEqual(only.decision._tag, "Deny");
@@ -101,13 +108,13 @@ describe("decideSubjects", () => {
 
   it.effect("every subject gets its own evaluation id", () =>
     Effect.gen(function* () {
-      const results = yield* decideSubjects(canRead, [
+      const { decisions } = yield* decideSubjects(canRead, [
         reader("a"),
         reader("b"),
         reader("c"),
       ]);
       assert.deepStrictEqual(
-        results.map((r) => r.decision.evaluationId),
+        decisions.map((r) => r.decision.evaluationId),
         ["eval-1", "eval-2", "eval-3"],
       );
     }).pipe(Effect.provide(subjectSetLayer())));
@@ -115,14 +122,14 @@ describe("decideSubjects", () => {
   it.effect("filterSubjects agrees with decideSubjects", () =>
     Effect.gen(function* () {
       const set = [reader("a"), nobody("b"), reader("c"), nobody("d")];
-      const results = yield* decideSubjects(canRead, set);
-      const allowed = yield* filterSubjects(canRead, set);
+      const { decisions } = yield* decideSubjects(canRead, set);
+      const { subjects: allowed } = yield* filterSubjects(canRead, set);
 
       // Derived, not reimplemented: the version that disagreed by allowing
       // would not announce itself.
       assert.deepStrictEqual(
         ids(allowed),
-        results.filter((r) => isAllowed(r.decision)).map((r) => r.subject.id),
+        decisions.filter((r) => isAllowed(r.decision)).map((r) => r.subject.id),
       );
     }).pipe(Effect.provide(subjectSetLayer())));
 });
@@ -144,7 +151,7 @@ describe("INV-QD-016: a batch decision is the decision made alone", () => {
 
   it.effect("each element matches an evaluation run on its own", () =>
     Effect.gen(function* () {
-      const batched = yield* decideSubjects(policy, set).pipe(
+      const { decisions: batched } = yield* decideSubjects(policy, set).pipe(
         Effect.provide(subjectSetLayer()),
       );
 
@@ -177,7 +184,7 @@ describe("INV-QD-016: a batch decision is the decision made alone", () => {
           }),
       });
 
-      const allowed = yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
+      const { subjects: allowed } = yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
         nobody("cleared"),
         nobody("uncleared"),
       ]).pipe(Effect.provide(subjectSetLayer({ attributes: recording })));
@@ -191,7 +198,7 @@ describe("INV-QD-016: a batch decision is the decision made alone", () => {
       // `level` is on the first subject and absent from the second, which then
       // falls through to a resolver that has nothing. If any state carried
       // between elements, the second would allow.
-      const allowed = yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
+      const { subjects: allowed } = yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
         subjectWith({ id: "a", attributes: { level: 7 } }),
         subjectWith({ id: "b" }),
       ]);
@@ -205,14 +212,14 @@ describe("the ambient subject is replaced, not read", () => {
       // The layer names a subject holding nothing. Every element still gets its
       // own answer, because `provideService` wins over what the environment
       // already had.
-      const allowed = yield* filterSubjects(canRead, [reader("a"), nobody("b")]);
+      const { subjects: allowed } = yield* filterSubjects(canRead, [reader("a"), nobody("b")]);
       assert.deepStrictEqual(ids(allowed), ["a"]);
     }).pipe(Effect.provide(testLayer(nobody("ambient")))));
 
   it.effect("the decisions are attributed to the elements, not the ambient one", () =>
     Effect.gen(function* () {
-      const results = yield* decideSubjects(canRead, [reader("a")]);
-      const [only] = results;
+      const { decisions } = yield* decideSubjects(canRead, [reader("a")]);
+      const [only] = decisions;
       assert.isDefined(only);
       if (only === undefined) return;
       assert.strictEqual(only.decision.subjectId, "a");
@@ -222,7 +229,7 @@ describe("the ambient subject is replaced, not read", () => {
     Effect.gen(function* () {
       // Nothing forbids the two coinciding — this is the shape a request-time
       // "can my teammates see this too?" takes.
-      const allowed = yield* filterSubjects(canRead, [reader("me")]).pipe(
+      const { subjects: allowed } = yield* filterSubjects(canRead, [reader("me")]).pipe(
         Effect.provide(currentSubjectLayer(nobody("me"))),
       );
       assert.deepStrictEqual(ids(allowed), ["me"]);
@@ -239,14 +246,14 @@ describe("reporting, not enforcing", () => {
       // allow nobody discharged. This hands over identities, to an
       // administrator rather than to the subjects named, so there is no
       // permission for the duty to condition (ADR-QD-022).
-      const allowed = yield* filterSubjects(auditedRead, [reader("a"), nobody("b")]);
+      const { subjects: allowed } = yield* filterSubjects(auditedRead, [reader("a"), nobody("b")]);
       assert.deepStrictEqual(ids(allowed), ["a"]);
     }).pipe(Effect.provide(subjectSetLayer())));
 
   it.effect("the duty is readable on the decision", () =>
     Effect.gen(function* () {
-      const results = yield* decideSubjects(auditedRead, [reader("a")]);
-      const [only] = results;
+      const { decisions } = yield* decideSubjects(auditedRead, [reader("a")]);
+      const [only] = decisions;
       assert.isDefined(only);
       if (only === undefined) return;
       assert.strictEqual(only.decision._tag, "Allow");
@@ -265,7 +272,7 @@ describe("request inputs and failures", () => {
         P.hasResourceAttribute("owner", M.eq(M.subjectId())),
       ]);
 
-      const allowed = yield* filterSubjects(
+      const { subjects: allowed } = yield* filterSubjects(
         policy,
         [nobody("alice"), nobody("bob")],
         { resource: { id: "doc-1", owner: "bob" }, action: "read" },
@@ -273,24 +280,64 @@ describe("request inputs and failures", () => {
       assert.deepStrictEqual(ids(allowed), ["bob"]);
     }).pipe(Effect.provide(subjectSetLayer())));
 
-  it.effect("a resolver failure fails the batch rather than denying an element", () =>
-    Effect.gen(function* () {
-      // INV-QD-006 over a set: one broken lookup must not read as "that person
-      // cannot see it", which is exactly how an outage becomes an access
-      // review finding.
-      const broken = Layer.succeed(AttributeResolver, {
-        resolve: (_subjectId, attribute) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-      });
+  it.effect(
+    "a resolver failure is reported per subject, and does not discard the rest of the batch",
+    () =>
+      Effect.gen(function* () {
+        // Issue #107: `Effect.forEach` failing the whole call used to be the
+        // only way this stayed INV-QD-006-safe — one broken lookup must not
+        // read as "that person cannot see it" — but it paid for that safety
+        // by discarding every decision already reached for every other
+        // subject, which is exactly the "one flaky resolver discards a whole
+        // tenant's work" defect the audit named. `Effect.partition` keeps
+        // both properties: the failing subject's `EvaluationError` never
+        // becomes a `Deny` (it is not even a member of `decisions`), and the
+        // subjects whose lookups succeeded still get a real decision.
+        const broken = Layer.succeed(AttributeResolver, {
+          resolve: (subjectId: string, attribute) =>
+            subjectId === "b"
+              ? Effect.fail(new AttributeResolveError({ attribute, cause: "down" }))
+              : Effect.succeed(9),
+        });
 
-      const r = yield* Effect.result(
-        filterSubjects(P.hasAttribute("level", M.gte(3)), [
+        const outcome = yield* decideSubjects(P.hasAttribute("level", M.gte(3)), [
           nobody("a"),
           nobody("b"),
-        ]).pipe(Effect.provide(subjectSetLayer({ attributes: broken }))),
-      );
+          nobody("c"),
+        ]).pipe(Effect.provide(subjectSetLayer({ attributes: broken })));
 
-      assert.strictEqual(r._tag, "Failure");
+        assert.deepStrictEqual(
+          outcome.decisions.map((d) => d.subject.id),
+          ["a", "c"],
+        );
+        assert.strictEqual(outcome.failures.length, 1);
+        const [failure] = outcome.failures;
+        assert.isDefined(failure);
+        if (failure === undefined) return;
+        assert.strictEqual(failure.subject.id, "b");
+        assert.strictEqual(failure.error._tag, "AttributeResolveError");
+      }),
+  );
+
+  it.effect("filterSubjects carries the same failure forward, alongside the subjects it kept", () =>
+    Effect.gen(function* () {
+      const broken = Layer.succeed(AttributeResolver, {
+        resolve: (subjectId: string, attribute) =>
+          subjectId === "b"
+            ? Effect.fail(new AttributeResolveError({ attribute, cause: "down" }))
+            : Effect.succeed(9),
+      });
+
+      const { subjects: allowed, failures } = yield* filterSubjects(
+        P.hasAttribute("level", M.gte(3)),
+        [nobody("a"), nobody("b"), nobody("c")],
+      ).pipe(Effect.provide(subjectSetLayer({ attributes: broken })));
+
+      assert.deepStrictEqual(ids(allowed), ["a", "c"]);
+      assert.deepStrictEqual(
+        failures.map((f) => f.subject.id),
+        ["b"],
+      );
     }));
 
   it.effect("evaluates one subject at a time", () =>
@@ -319,7 +366,7 @@ describe("request inputs and failures", () => {
       assert.deepStrictEqual(log, ["start:a", "end:a", "start:b", "end:b"]);
     }));
 
-  it.effect("stops at the first failing element", () =>
+  it.effect("does not stop at the first failing element — every element still runs", () =>
     Effect.gen(function* () {
       let calls = 0;
       const brokenAfterFirst = Layer.succeed(AttributeResolver, {
@@ -331,16 +378,17 @@ describe("request inputs and failures", () => {
         },
       });
 
-      yield* Effect.result(
-        filterSubjects(P.hasAttribute("level", M.gte(3)), [
-          nobody("a"),
-          nobody("b"),
-          nobody("c"),
-        ]).pipe(Effect.provide(subjectSetLayer({ attributes: brokenAfterFirst }))),
-      );
+      yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
+        nobody("a"),
+        nobody("b"),
+        nobody("c"),
+      ]).pipe(Effect.provide(subjectSetLayer({ attributes: brokenAfterFirst })));
 
-      // Two, not three: sequential means the third element is never reached.
-      assert.strictEqual(calls, 2);
+      // All three, not two: `Effect.partition` runs every element regardless
+      // of an earlier one's failure, which is the whole point of this
+      // rewrite (issue #107) — the third element is no longer skipped just
+      // because the second one broke.
+      assert.strictEqual(calls, 3);
     }));
 });
 

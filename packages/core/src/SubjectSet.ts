@@ -48,15 +48,55 @@ export interface SubjectDecision {
   readonly decision: Decision;
 }
 
+/** One subject whose evaluation itself broke, rather than producing a decision. */
+export interface SubjectEvaluationFailure {
+  readonly subject: AuthSubject;
+  readonly error: EvaluationError;
+}
+
 /**
- * Evaluates one policy against many subjects, keeping every decision.
+ * The outcome of evaluating a policy against many subjects: every decision
+ * that completed, and every subject whose evaluation broke instead of
+ * completing.
+ *
+ * `failures` is never folded into `decisions`, and a failed subject is never
+ * a member of either an allow or a deny — that would be exactly the
+ * "broken lookup presents as not authorized" shape INV-QD-006 forbids, just
+ * moved from the per-decision level to the per-subject one. It is also never
+ * silently absent: a caller checking only `decisions.length` against
+ * `subjects.length` can tell a clean run from a partial one.
+ */
+export interface SubjectSetOutcome {
+  readonly decisions: ReadonlyArray<SubjectDecision>;
+  readonly failures: ReadonlyArray<SubjectEvaluationFailure>;
+}
+
+/**
+ * Evaluates one policy against many subjects, keeping every decision — and
+ * every failure, separately, rather than discarding the rest of the batch.
  *
  * The reviewable form: a denial arrives with its trace, and "denied" without
  * "why" is not something an access review can act on.
  *
- * Results preserve input order and are not deduplicated — a review is read
- * beside the list it was asked about, so position is the join key, and dropping
- * a row two subjects share an id over would be a helpful-looking silent loss.
+ * `decisions` preserves input order and is not deduplicated — a review is
+ * read beside the list it was asked about, so position is the join key, and
+ * dropping a row two subjects share an id over would be a helpful-looking
+ * silent loss. That correspondence is to the subjects that *completed*, not
+ * to `subjects` itself once `failures` is non-empty: a failed subject leaves
+ * no row in `decisions` to occupy its original position, and reconciling the
+ * two against `subjects` is `failures`'s job, not an index the caller can
+ * assume.
+ *
+ * `Effect.partition`, not `Effect.forEach`: one flaky resolver used to fail
+ * the whole call, discarding every decision already reached for every other
+ * subject in the batch — for an access review over a full tenant, exactly
+ * the shape of thing this entry point exists to avoid ("the transpose of
+ * `Qadi.filter`", this file's own top comment says, and `Qadi.filter` is
+ * deliberately **not** changed the same way — see that function's doc
+ * comment for why the two entry points cannot share this fix). This effect
+ * never fails, so a caller no longer loses partial progress to a single
+ * broken lookup; `failures` is where that lookup's `EvaluationError` — paired
+ * with the subject it was resolving for — now goes (issue #107).
  *
  * Sequential, and not for E3's reason: separate subjects produce separate
  * decisions and nothing combines them. A batch multiplies the load on the
@@ -73,38 +113,49 @@ export const decideSubjects = Effect.fn("qadi.decideSubjects")(function* (
     "qadi.policy_tag": policy._tag,
   });
 
-  return yield* Effect.forEach(
-    subjects,
-    (subject): Effect.Effect<SubjectDecision, EvaluationError, SubjectSetServices> =>
-      Effect.map(
-        // Providing the service is what discharges the requirement, and it is
-        // also what isolates the elements: each subject is evaluated exactly as
-        // it would have been alone (INV-QD-016).
-        Effect.provideService(evaluate(policy, options), CurrentSubject, subject),
-        (decision) => ({ subject, decision }),
-      ),
+  const [failures, decisions] = yield* Effect.partition(subjects, (subject) =>
+    // Providing the service is what discharges the requirement, and it is
+    // also what isolates the elements: each subject is evaluated exactly as
+    // it would have been alone (INV-QD-016).
+    Effect.provideService(evaluate(policy, options), CurrentSubject, subject).pipe(
+      Effect.map((decision): SubjectDecision => ({ subject, decision })),
+      Effect.mapError((error): SubjectEvaluationFailure => ({ subject, error })),
+    ),
   );
+
+  return { decisions, failures };
 });
 
 /**
- * Keeps only the subjects a policy allows.
+ * Keeps only the subjects a policy allows, alongside every subject whose
+ * evaluation broke instead of producing a decision.
  *
  * Derived from {@link decideSubjects} rather than evaluating separately, so the
  * two can never disagree about who passes — and the one that disagreed by
  * allowing would not announce itself.
  *
  * Reports rather than enforces, like `check` and unlike `filter`: an allow
- * carrying a binding obligation is a member of this list, and its duty is
+ * carrying a binding obligation is a member of `subjects`, and its duty is
  * readable only on the decision. Use {@link decideSubjects} when that matters.
+ *
+ * `failures` carries forward unchanged from `decideSubjects` — see that
+ * function's doc comment for why a failed subject is neither an allow nor a
+ * denial and must not be silently absent from both.
  */
+export interface FilteredSubjects {
+  readonly subjects: ReadonlyArray<AuthSubject>;
+  readonly failures: ReadonlyArray<SubjectEvaluationFailure>;
+}
+
 export const filterSubjects = (
   policy: Policy,
   subjects: ReadonlyArray<AuthSubject>,
   options?: EvaluateOptions,
-): Effect.Effect<ReadonlyArray<AuthSubject>, EvaluationError, SubjectSetServices> =>
-  Effect.map(decideSubjects(policy, subjects, options), (results) =>
-    results.filter((r) => isAllowed(r.decision)).map((r) => r.subject),
-  );
+): Effect.Effect<FilteredSubjects, never, SubjectSetServices> =>
+  Effect.map(decideSubjects(policy, subjects, options), ({ decisions, failures }) => ({
+    subjects: decisions.filter((r) => isAllowed(r.decision)).map((r) => r.subject),
+    failures,
+  }));
 
 /**
  * The streamed sibling of `decideSubjects`, for a review too large to hold as

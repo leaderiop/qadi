@@ -46,4 +46,13 @@ export const subjectSetThenSteps = defineSteps<World>(({ Then }) => {
     assert.ok(row !== undefined, `no review row for ${id}`);
     assert.deepEqual([...row.obligations].sort(), want);
   });
+
+  /** issue #107: a broken lookup is reported, not folded into a denial. */
+  Then("{string} could not be reviewed", function* (id: string) {
+    const s = yield* readState();
+    assert.ok(
+      s.failedCandidates.includes(id),
+      `expected ${id} among the failed candidates, got ${JSON.stringify(s.failedCandidates)}`,
+    );
+  });
 });

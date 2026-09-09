@@ -20,6 +20,7 @@
  * caller-invoked, caller-scheduled batch surface, the latter is wired through
  * `Qadi.ts`'s `ObligationHandler`, not `DecisionSink`.
  */
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
@@ -37,12 +38,19 @@ import { makeCircuitBreaker } from "./CircuitBreaker.ts";
 export interface AuditDecisionSinkOptions {
   /** Consecutive `AuditWriteError`s before the breaker trips. Defaults to 5. */
   readonly failureThreshold?: number;
-  /** How long a tripped breaker stays open before allowing one probe write. Defaults to 30 000. */
-  readonly resetTimeoutMs?: number;
+  /**
+   * How long a tripped breaker stays open before allowing one probe write.
+   * Defaults to 30 000 (milliseconds).
+   *
+   * `Duration.Input`, not a bare `number` — see `CircuitBreaker.ts`'s
+   * `CircuitBreakerOptions.resetTimeoutMs` doc comment (issue #107). A plain
+   * millisecond number, as every existing caller passes, is unaffected.
+   */
+  readonly resetTimeoutMs?: Duration.Input;
 }
 
 const DEFAULT_FAILURE_THRESHOLD = 5;
-const DEFAULT_RESET_TIMEOUT_MS = 30_000;
+const DEFAULT_RESET_TIMEOUT_MS: Duration.Input = Duration.millis(30_000);
 
 /**
  * Records compiled and refusal volume, by outcome — module scope, mirroring

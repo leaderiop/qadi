@@ -41,11 +41,61 @@
  * and they stay.
  */
 import * as Metric from "effect/Metric";
+import * as Record from "effect/Record";
+
+/**
+ * Every port `Evaluate.ts` can call into — {@link portCallsTotal}'s closed
+ * domain.
+ *
+ * Written as a `Record<PortName, true>` rather than an array literal, the
+ * `Decision.ts` `TRACE_TAGS_BY_TAG` idiom: TypeScript requires every key of
+ * `PortName` to be present (TS2741 otherwise), so a sixth port added to the
+ * evaluator without a matching entry here is a compile error rather than an
+ * unregistered word silently missing from a snapshot.
+ */
+export type PortName =
+  | "AttributeResolver"
+  | "DecisionHistory"
+  | "RelationshipResolver"
+  | "CustomPredicate"
+  | "SignatureHistory";
+
+const PORT_NAMES_BY_NAME: Record<PortName, true> = {
+  AttributeResolver: true,
+  DecisionHistory: true,
+  RelationshipResolver: true,
+  CustomPredicate: true,
+  SignatureHistory: true,
+};
+
+/** `PORT_NAMES_BY_NAME`'s keys, in the array form `preregisteredWords` takes. */
+const PORT_NAMES: ReadonlyArray<PortName> = Record.keys(PORT_NAMES_BY_NAME);
 
 /** Every call the evaluator made into a port, by which port. */
 export const portCallsTotal = Metric.frequency("qadi_port_calls_total", {
   description: "Calls the evaluator made into a resolver or history port, by port.",
+  preregisteredWords: PORT_NAMES,
 });
+
+/**
+ * The three ports with a retrying wrapper — {@link portRetriesTotal}'s closed
+ * domain, and a proper subset of {@link PortName}: `DecisionHistory` and
+ * `SignatureHistory` have no `*Retrying` combinator (`AttributeResolver.ts`,
+ * `RelationshipResolver.ts`, `CustomPredicate.ts` do), so this cannot reuse
+ * `PORT_NAMES_BY_NAME` itself — it needs its own exhaustive `Record` over the
+ * narrower type, for the same reason and by the same idiom.
+ */
+export type RetryingPortName = "AttributeResolver" | "RelationshipResolver" | "CustomPredicate";
+
+const RETRYING_PORT_NAMES_BY_NAME: Record<RetryingPortName, true> = {
+  AttributeResolver: true,
+  RelationshipResolver: true,
+  CustomPredicate: true,
+};
+
+const RETRYING_PORT_NAMES: ReadonlyArray<RetryingPortName> = Record.keys(
+  RETRYING_PORT_NAMES_BY_NAME,
+);
 
 /**
  * Failed attempts inside a retrying wrapper, by port.
@@ -58,4 +108,5 @@ export const portCallsTotal = Metric.frequency("qadi_port_calls_total", {
  */
 export const portRetriesTotal = Metric.frequency("qadi_port_retries_total", {
   description: "Failed port attempts inside a retrying wrapper, by port.",
+  preregisteredWords: RETRYING_PORT_NAMES,
 });

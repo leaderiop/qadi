@@ -11,6 +11,7 @@
  * `{ resource: "a", action: "b:c" }` would collide on the same key and grant
  * each other's permissions. The predecessor did not enforce this.
  */
+import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
 
 /** The `"resource:action"` string used for subject permission lookup. */
@@ -106,11 +107,13 @@ export function createPermissionGroup(
   resource: string,
   actions: ReadonlyArray<string>,
 ): Record<string, Permission<string, string>> {
-  const result: Record<string, Permission<string, string>> = {};
-  for (const action of actions) {
-    result[action] = permission(resource, action);
-  }
-  return result;
+  // `Record.fromIterableWith`, not the `Record.fromIterable` AGENTS.md's issue
+  // #107 originally named — that exact export does not exist in
+  // `effect@4.0.0-rc.112`'s `effect/Record`; `fromIterableWith` is the real API
+  // for "project each element to a `[key, value]` pair", which is what this
+  // needs since the value (`permission(resource, action)`) is derived, not the
+  // source element itself the way `fromIterableBy` (key only) would assume.
+  return Record.fromIterableWith(actions, (action) => [action, permission(resource, action)]);
 }
 
 /**

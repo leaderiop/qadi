@@ -32,10 +32,10 @@ export interface Trace {
   readonly reason?: string | undefined;
   readonly children: ReadonlyArray<Trace>;
   /**
-   * Fields visible when this node allows. `undefined` is the top of the
-   * lattice and means "all fields", not "none".
+   * Fields visible when this node allows. See {@link VisibleFields} for what
+   * `undefined` means here.
    */
-  readonly visibleFields?: ReadonlyArray<string> | undefined;
+  readonly visibleFields?: VisibleFields;
   /**
    * Duties this node contributed. Empty unless it allowed.
    *
@@ -121,7 +121,8 @@ export class Allow extends Data.TaggedClass("Allow")<{
   readonly subjectId: SubjectId;
   readonly durationMillis: number;
   readonly trace: Trace;
-  readonly visibleFields: ReadonlyArray<string> | undefined;
+  /** See {@link VisibleFields} for what `undefined` means here. */
+  readonly visibleFields: VisibleFields;
   /**
    * What the caller must do as a condition of this permission.
    *
@@ -225,6 +226,46 @@ export const project = <A extends Resource>(
 // ---------------------------------------------------------------------------
 
 /**
+ * A visible-field set, or the absence of one — and the absence is not
+ * "nothing visible." `undefined` is this lattice's **top**: an allow that
+ * names no restriction shows every field, the same way an `AllOf` with no
+ * `fields` narrowing anywhere in it grants the whole record. `[]` (an empty,
+ * *present* array) is a different, ordinary value — a restriction to zero
+ * fields — and the two must never be confused for one another.
+ *
+ * Named rather than left as an inline `ReadonlyArray<string> | undefined` at
+ * every one of its call sites (D8, issue #107): the invariant lived only in
+ * comments repeated at each declaration, which is exactly the kind of fact a
+ * reader skips past and a future edit can drift from silently, since nothing
+ * checks that a comment stays attached to its field. A named alias puts the
+ * same sentence in exactly one place and lets every signature below carry it
+ * by reference — `intersectFields`/`unionFields`'s own bodies are the two
+ * functions this invariant is load-bearing for, and both are typed against
+ * this alias rather than restating the union.
+ *
+ * Deliberately **not** a branded type. Branding would force every caller
+ * constructing or narrowing a visible-field set — `Policy.ts`'s per-node
+ * `fields?` builders, `Qadi.ts`'s `project`, every fixture across this
+ * workspace's tests — through an explicit `Brand.nominal`/unwrap step for a
+ * union that is otherwise completely ordinary `ReadonlyArray<string> |
+ * undefined` data, for no soundness gained: nothing here needs to forbid an
+ * *arbitrary* array of strings from being treated as a visible-field set the
+ * way, say, `SubjectId` forbids an arbitrary string from being treated as an
+ * identity. The alias is scoped to `Decision.ts`'s own lattice functions and
+ * the two record types whose fields flow through them (`Trace.visibleFields`,
+ * `Allow.visibleFields`) — the same "field-visibility merge logic" this item
+ * was scoped to — rather than swept through `Policy.ts`'s builder options,
+ * `Explanation.ts`, `TraceDiff.ts`, `@qadi/react`'s `Hydration.ts` and
+ * `@qadi/devtools`'s `Inspect.ts`, which describe the identical shape for a
+ * related but distinct purpose (a policy-authoring input, an explanation
+ * rendering, a diff, a wire payload, a devtools projection) in five other
+ * files; widening the alias's reach that far is a larger, cross-package
+ * rename this "softest item" of the sweep was explicitly scoped to avoid
+ * forcing.
+ */
+export type VisibleFields = ReadonlyArray<string> | undefined;
+
+/**
  * Intersects two visible-field sets.
  *
  * `undefined` means "all fields" — the top of the lattice — so intersecting it
@@ -246,10 +287,7 @@ export const project = <A extends Resource>(
  * shape instead, so each spec's `shapeOf` is paid for exactly once here,
  * however many pairs it is compared across.
  */
-export const intersectFields = (
-  a: ReadonlyArray<string> | undefined,
-  b: ReadonlyArray<string> | undefined,
-): ReadonlyArray<string> | undefined => {
+export const intersectFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
   if (a === undefined) return b;
   if (b === undefined) return a;
   // Paired with its own shape rather than parallel arrays walked by index:
@@ -287,10 +325,7 @@ export const intersectFields = (
  * alongside `"address.**"`) projects identically to omitting it, so exact-set
  * union stays correct even though the strings themselves may now be paths.
  */
-export const unionFields = (
-  a: ReadonlyArray<string> | undefined,
-  b: ReadonlyArray<string> | undefined,
-): ReadonlyArray<string> | undefined => {
+export const unionFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
   if (a === undefined || b === undefined) return undefined;
   return [...new Set([...a, ...b])];
 };
@@ -341,7 +376,7 @@ export const renderTrace = (
   const term = options?.term ?? ((t: string) => `\`${t}\``);
   const indent = options?.indent ?? "  ";
 
-  const fieldsText = (fields: ReadonlyArray<string> | undefined): string => {
+  const fieldsText = (fields: VisibleFields): string => {
     // `undefined` is the top of the lattice — every field — so it renders as
     // nothing rather than as an empty list, which would invert the meaning
     // (INV-QD-004).

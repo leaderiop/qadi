@@ -26,7 +26,7 @@ import type {
   Resource,
   SignatureHistory,
 } from "@qadi/core";
-import { currentSubjectLayer, guard } from "@qadi/core";
+import { CurrentSubject, guard } from "@qadi/core";
 import {
   AccessDeniedRefused,
   AttributeResolveErrorResponse,
@@ -300,7 +300,7 @@ export const RequirePermissionLive: Layer.Layer<RequirePermission, never, Subjec
         const request = yield* HttpServerRequest.HttpServerRequest;
         const subject = yield* extractor.extract(request);
         return yield* guard(permission, policy)(NO_RESOURCE, () => httpEffect).pipe(
-          Effect.provide(currentSubjectLayer(subject)),
+          Effect.provideService(CurrentSubject, subject),
         );
       }).pipe(
         Effect.catchTag(["AccessDenied", "UndischargedObligation"], () =>

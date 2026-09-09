@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-14                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-018) |
+> | Change History | 1.1 (2026-09-09): BEH-QD-262 — `decideSubjects`/`filterSubjects` never fail; a subject whose evaluation breaks is reported in `failures` instead of discarding the whole batch's decisions (issue #107, CCR-QD-148)<br>1.0 (2026-07-26): Initial release (CCR-QD-018) |
 
 _Previous: [13 — The Label Lattice](./13-labels.md)_
 
@@ -30,18 +30,49 @@ export interface SubjectDecision {
   readonly decision: Decision;
 }
 
+/** A subject whose own evaluation broke, rather than producing a decision. */
+export interface SubjectEvaluationFailure {
+  readonly subject: AuthSubject;
+  readonly error: EvaluationError;
+}
+
+export interface SubjectSetOutcome {
+  readonly decisions: ReadonlyArray<SubjectDecision>;
+  readonly failures: ReadonlyArray<SubjectEvaluationFailure>;
+}
+
+export interface FilteredSubjects {
+  readonly subjects: ReadonlyArray<AuthSubject>;
+  readonly failures: ReadonlyArray<SubjectEvaluationFailure>;
+}
+
 export const decideSubjects: (
   policy: Policy,
   subjects: ReadonlyArray<AuthSubject>,
   options?: EvaluateOptions,
-) => Effect.Effect<ReadonlyArray<SubjectDecision>, EvaluationError, SubjectSetServices>;
+) => Effect.Effect<SubjectSetOutcome, never, SubjectSetServices>;
 
 export const filterSubjects: (
   policy: Policy,
   subjects: ReadonlyArray<AuthSubject>,
   options?: EvaluateOptions,
-) => Effect.Effect<ReadonlyArray<AuthSubject>, EvaluationError, SubjectSetServices>;
+) => Effect.Effect<FilteredSubjects, never, SubjectSetServices>;
 ```
+
+**Revised (BEH-QD-262, issue #107).** `decideSubjects`/`filterSubjects` used to
+fail the whole call — `EvaluationError` in the error channel — the moment any
+one subject's evaluation broke, discarding every decision already reached for
+every other subject in the batch. `Effect.partition` replaced the `Effect.forEach`
+that did that: both functions now never fail, and a broken subject's
+`EvaluationError` (paired with that subject) lands in `failures` instead,
+alongside whatever `decisions`/`subjects` did complete. See BEH-QD-108 below for
+the requirement this revises, and this file's own `decideSubjects` doc comment
+(`SubjectSet.ts`) for why `Qadi.filter` was deliberately **not** changed the same
+way. The streamed siblings, `decideSubjectsStream`/`filterSubjectsStream`, are
+unchanged — they still fail the stream on a resolver error, since a stream
+consumed incrementally has no "batch" left to discard by the time an error
+reaches a subscriber, and accumulating one is future work this ticket does not
+take on.
 
 ```
 REQUIREMENT: `filterSubjects` MUST be derived from `decideSubjects`. Two
@@ -133,10 +164,28 @@ Concurrency, if it is ever added, belongs as a bounded option rather than a
 change of default.
 
 ```
-REQUIREMENT: A failure MUST fail the batch rather than deny an element
+REQUIREMENT (superseded by BEH-QD-262, issue #107): A failure MUST fail the
+             batch rather than deny an element
              ([INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)).
              One broken lookup reported as "that person cannot see it" is how an
              outage becomes an access-review finding.
+```
+
+```
+REQUIREMENT: A subject's evaluation failure MUST NOT be reported as, or folded
+             into, a `Deny` for that subject
+             ([INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)) —
+             the property the superseded requirement above protected, restated
+             for `decideSubjects`/`filterSubjects`'s current shape: the failure
+             lands in `failures`, never as a member of `decisions`/`subjects`.
+```
+
+```
+REQUIREMENT: One subject's evaluation failure MUST NOT prevent every other
+             subject in the same batch from being evaluated and reported. The
+             batch continues past a failing element rather than aborting at it
+             (BEH-QD-262, issue #107) — the fix for "one flaky resolver
+             discards a whole tenant's work in the access-review use case".
 ```
 
 ## BEH-QD-109: Worked example

@@ -21,7 +21,7 @@ import * as Layer from "effect/Layer";
 import type { SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { DecisionSinkShape } from "./DecisionSink.ts";
-import { encodeRecord, toWire } from "./SinkCodec.ts";
+import { encodeRecordSync, toWire } from "./SinkCodec.ts";
 
 /**
  * A sink that projects each record onto the wire and hands it to `send`.
@@ -54,7 +54,15 @@ export const decisionSinkForwarding = (options: {
 }): Layer.Layer<DecisionSink> =>
   Layer.succeed(DecisionSink, {
     record: (record) =>
-      encodeRecord(toWire(record)).pipe(
+      // `Schema.encodeSync`, not the `Effect`-returning `encodeRecord`: this
+      // encode is provably total for anything `toWire` produces (see
+      // `encodeRecordSync`'s own doc comment in `SinkCodec.ts`, issue #107),
+      // so there is no failure mode here worth threading through `Effect`'s
+      // error channel. Still wrapped in `Effect.sync` (AGENTS.md §6) rather
+      // than called bare — and the `Effect.catchCause` below, already needed
+      // for `send`'s own failures, is what would catch an unexpected throw
+      // from it regardless, the same defect-safety this pipeline already had.
+      Effect.sync(() => encodeRecordSync(toWire(record))).pipe(
         Effect.flatMap(options.send),
         // `catchCause`, not `catchAll`: `send` is a caller's function, so it can
         // die as easily as it can fail, and either would otherwise reach the

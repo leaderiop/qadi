@@ -396,6 +396,29 @@ export const fromWire: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRec
 /** Encodes a record to a plain JSON value. */
 export const encodeRecord = Schema.encodeEffect(SinkRecordWire);
 
+/**
+ * `encodeRecord`'s synchronous sibling — for a caller who already knows the
+ * encode cannot fail and does not want to pay for the `Effect` wrapping.
+ *
+ * `SinkRecordWire`'s encode direction is provably total for anything `toWire`
+ * produces: every field it and its nested schemas (`Policy`, `TraceSchema`,
+ * `Obligation`, `EvaluationErrorSchema`) encode with is a plain structural
+ * one — `Schema.Struct`/`Schema.Union`/`Schema.Array`/`Schema.optional` over
+ * `Schema.String`/`Schema.Number`/`Schema.Literals`, none of it a `Schema.filter`
+ * or other refinement that could reject an already-well-typed value on the way
+ * *out*. The depth guard `Policy.ts`'s `MAX_DECODE_DEPTH`/`exceedsJsonDepth`
+ * enforce is wrapped around **decode** specifically (`fromJson`,
+ * `decodePolicyUnknown`) — a value already held as a typed `Policy` was
+ * already validated at whichever decode produced it, and encoding it back out
+ * does not re-walk that check. `DecisionSinkForwarding.ts`'s `record` is what
+ * this exists for (issue #107) — it previously paid `Effect.flatMap` and the
+ * `Effect`-returning encoder's own machinery for a step `@qadi/http`'s own
+ * `DecisionStreamRoute.ts` already treats as total, calling `toWire` and
+ * `JSON.stringify`-ing the result directly with no `Schema` encode step at
+ * all.
+ */
+export const encodeRecordSync = Schema.encodeSync(SinkRecordWire);
+
 const decodeSinkRecordWireUnknown = Schema.decodeUnknownEffect(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
 
 /**
