@@ -130,27 +130,10 @@ export const canPublish = allOf([hasRole("editor"), canEditDoc]);
 ```tsx
 import type { AuthSubject } from "@qadi/core";
 import { QadiProvider, makeQadiAtoms } from "@qadi/react";
-import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-} from "@qadi/core";
-import * as Layer from "effect/Layer";
+import { EvaluationServicesNone } from "@qadi/core";
 import type { ReactNode } from "react";
 
-const qadi = makeQadiAtoms(
-  Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-);
+const qadi = makeQadiAtoms(EvaluationServicesNone);
 
 export const App = ({
   subject,
@@ -359,26 +342,11 @@ forget.
 
 ```tsx
 import type { AuthSubject } from "@qadi/core";
-import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-} from "@qadi/core";
+import { EvaluationServicesNone } from "@qadi/core";
 import { QadiProvider, makeQadiAtoms } from "@qadi/react";
-import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
 
-const base = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const base = EvaluationServicesNone;
 
 const tenantAtoms = new Map([
   ["acme", makeQadiAtoms(base)],
@@ -412,32 +380,12 @@ Two levels, and most tests want the first.
 graph. Proving them needs a registry, not a DOM.
 
 ```typescript
-import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  hasRole,
-  isAllowed,
-  makeSubject,
-} from "@qadi/core";
+import { EvaluationServicesNone, hasRole, isAllowed, makeSubject } from "@qadi/core";
 import { makeQadiAtoms } from "@qadi/react";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 
-const atoms = makeQadiAtoms(
-  Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-);
+const atoms = makeQadiAtoms(EvaluationServicesNone);
 
 export const adminIsAllowed = Effect.gen(function* () {
   const registry = AtomRegistry.make();
@@ -461,28 +409,11 @@ their decisions outlive a single render.
 ```tsx
 import type { AuthSubject } from "@qadi/core";
 import { QadiProvider, makeQadiAtoms } from "@qadi/react";
-import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-} from "@qadi/core";
-import * as Layer from "effect/Layer";
+import { EvaluationServicesNone } from "@qadi/core";
 import type { ReactNode } from "react";
 
 export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
-  const atoms = makeQadiAtoms(
-    Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-  );
+  const atoms = makeQadiAtoms(EvaluationServicesNone);
   return (
     <QadiProvider atoms={atoms} subject={subject}>
       {ui}

@@ -7,11 +7,11 @@
  */
 import {
   AttributeResolver,
-  AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  EvaluationServicesNone,
   RelationshipResolverNever,
   decisionSinkRing,
   gte,
@@ -36,14 +36,7 @@ const needsLookup = hasAttribute("clearance", gte(1));
 
 const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
 
-const baseLayer = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const baseLayer = EvaluationServicesNone;
 
 /** Counts how many times an attribute lookup actually happens. */
 const countingLayer = (counter: { count: number }) =>

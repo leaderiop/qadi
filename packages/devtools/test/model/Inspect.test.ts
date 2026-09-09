@@ -18,15 +18,11 @@ import * as Layer from "effect/Layer";
 import {
   allOf,
   anyOf,
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   Decided,
-  DecisionHistoryUnknown,
   denyWhen,
   evaluate,
-  EvaluationIdLive,
+  EvaluationServicesNone,
   fromRoles,
   hasPermission,
   hasRole,
@@ -36,7 +32,6 @@ import {
   obliged,
   permission,
   permitWhen,
-  RelationshipResolverNever,
   role,
   rules,
 } from "@qadi/core";
@@ -57,14 +52,7 @@ const write = permission("doc", "write");
 const reader = role({ name: "reader", permissions: [read] });
 const alice = fromRoles({ id: "alice", roles: [reader] });
 
-const services = Layer.mergeAll(
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const services = EvaluationServicesNone;
 
 /** A real decision, with the trace the evaluator actually produced. */
 const decide = (policy: Policy): Promise<Decision> =>

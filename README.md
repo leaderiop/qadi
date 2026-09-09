@@ -87,29 +87,10 @@ const program = loadDocument("doc-1").pipe(
 method forwards to it, nothing re-implements evaluation:
 
 ```typescript
-import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  hasRole,
-  makeSubject,
-} from "@qadi/core";
-import * as Layer from "effect/Layer";
+import { EvaluationServicesNone, hasRole, makeSubject } from "@qadi/core";
 import { makeQadi } from "@qadi/promise";
 
-const qadi = makeQadi(
-  Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-);
+const qadi = makeQadi(EvaluationServicesNone);
 
 const subject = makeSubject({ id: "u-1", roles: ["editor"] });
 

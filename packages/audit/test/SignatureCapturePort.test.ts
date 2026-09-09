@@ -4,20 +4,15 @@ import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import {
   assert as qadiAssert,
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   DecisionSink,
-  EvaluationIdLive,
+  EvaluationServicesNone,
   hasPermission,
   makeSubject,
   makeSubjectId,
   obligation,
   obliged,
   permission,
-  RelationshipResolverNever,
   Signature,
 } from "@qadi/core";
 import type { AuthSubject, ObligationRecord } from "@qadi/core";
@@ -42,15 +37,7 @@ const alice: AuthSubject = makeSubject({ id: "alice", permissions: ["doc:read"] 
  * dependency for one describe block.
  */
 const testEnv = (subject: AuthSubject) =>
-  Layer.mergeAll(
-    currentSubjectLayer(subject),
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  );
+  Layer.mergeAll(currentSubjectLayer(subject), EvaluationServicesNone);
 
 const signature: Signature = {
   signerId: makeSubjectId("alice"),

@@ -24,34 +24,21 @@
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
 import { bench, describe } from "vitest";
-import { AttributeResolverNone } from "../src/AttributeResolver.ts";
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
-import { CustomPredicateNone } from "../src/CustomPredicate.ts";
 import { decisionCacheLayer } from "../src/DecisionCache.ts";
-import { DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
-import { EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
 import { permission } from "../src/Permission.ts";
 import { hasPermission } from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
-import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
 import { role } from "../src/Role.ts";
-import { SignatureHistoryNone } from "../src/SignatureHistory.ts";
 
 const read = permission("document", "read");
 const editor = role({ name: "editor", permissions: [read] });
 const alice = fromRoles({ id: "alice", roles: [editor] });
 
-const services = Layer.mergeAll(
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  currentSubjectLayer(alice),
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const services = Layer.mergeAll(EvaluationServicesNone, currentSubjectLayer(alice));
 
 const options = { time: 1000, warmupTime: 300 };
 

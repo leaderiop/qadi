@@ -10,13 +10,13 @@ import {
   Allow,
   AttributeResolver,
   AttributeResolveError,
-  AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
   Decided,
   DecisionHistoryUnknown,
   DecisionRecord,
   EvaluationIdLive,
+  EvaluationServicesNone,
   ObligationRecord,
   RelationshipResolverNever,
   decisionSinkFeed,
@@ -99,14 +99,7 @@ const decisionRecord = (evaluationId: string, resource?: Record<string, unknown>
 // silently mis-infer the result's remaining requirement rather than raising
 // a diagnostic at the chain itself, only surfacing downstream (as it did
 // here, at the one call site that runs `Layer.build` directly on `layer`).
-const EvaluationServicesTest = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const EvaluationServicesTest = EvaluationServicesNone;
 
 const appLayer = Effect.gen(function* () {
   const feed = yield* decisionSinkFeed({ replay: 8 });
@@ -252,15 +245,7 @@ describe("reauth", () => {
         new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
       );
 
-      const layer = Layer.mergeAll(
-        subjectExtractorBearer(lookup),
-        AttributeResolverNone,
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const layer = Layer.mergeAll(subjectExtractorBearer(lookup), EvaluationServicesNone);
 
       const check = reauthCheck(request, readPolicy, {}).pipe(Effect.provide(layer));
       const first = yield* Effect.result(check);
@@ -280,15 +265,7 @@ describe("reauth", () => {
       const brokenStore = subjectExtractorBearer(() =>
         Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
       );
-      const layer = Layer.mergeAll(
-        brokenStore,
-        AttributeResolverNone,
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const layer = Layer.mergeAll(brokenStore, EvaluationServicesNone);
       const result = yield* reauthCheck(request, readPolicy, {}).pipe(Effect.provide(layer), Effect.result);
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") assert.strictEqual(result.failure, "extraction-failed");
@@ -307,6 +284,9 @@ describe("reauth", () => {
       const brokenResolver = Layer.succeed(AttributeResolver, {
         resolve: () => Effect.fail(new AttributeResolveError({ attribute: "clearance", cause: "down" })),
       });
+      // Deliberately not `EvaluationServicesNone`: this test needs a broken
+      // `AttributeResolver` in place of `AttributeResolverNone`, so the other
+      // five ports are composed individually rather than through the bundle.
       const layer = Layer.mergeAll(
         subjectExtractorBearer(lookupSubject),
         brokenResolver,
@@ -330,15 +310,7 @@ describe("reauth", () => {
         new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
       );
 
-      const layer = Layer.mergeAll(
-        subjectExtractorBearer(lookup),
-        AttributeResolverNone,
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const layer = Layer.mergeAll(subjectExtractorBearer(lookup), EvaluationServicesNone);
 
       // An infinite content stream — the recheck loop is the only thing
       // that can ever end this merge, exactly as decisionStreamRoute builds
@@ -377,12 +349,7 @@ describe("reauth", () => {
         );
         const layer = Layer.mergeAll(
           subjectExtractorBearer(lookupSubject),
-          AttributeResolverNone,
-          RelationshipResolverNever,
-          DecisionHistoryUnknown,
-          EvaluationIdLive,
-          CustomPredicateNone,
-          SignatureHistoryNone,
+          EvaluationServicesNone,
         );
 
         const result = yield* reauthCheck(request, obligedPolicy, {}).pipe(

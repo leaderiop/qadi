@@ -140,14 +140,9 @@ REQUIREMENT: Every evaluation MUST produce a full trace tree, so that a denial
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
   currentSubjectLayer,
   evaluate,
+  EvaluationServicesNone,
   hasPermission,
   isAllowed,
   makeSubject,
@@ -159,12 +154,7 @@ const readDoc = permission("doc", "read");
 
 const services = Layer.mergeAll(
   currentSubjectLayer(makeSubject({ id: "u1", permissions: ["doc:read"] })),
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
+  EvaluationServicesNone,
 );
 
 // `EvaluationError` remains in the channel: a lookup failure is not a denial,

@@ -101,12 +101,7 @@ resolved — and a `hasResourceAttribute` evaluated without one fails with
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  EvaluationServicesNone,
   anyOf,
   check,
   currentSubjectLayer,
@@ -131,12 +126,7 @@ const canReadDocument = anyOf([ownsDocument, coOwnsDocument, hasRole("admin")]);
 // an identity rule performs no I/O, so it cannot fail and cannot be slow.
 const services = Layer.mergeAll(
   currentSubjectLayer(makeSubject({ id: "u-42" })),
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
+  EvaluationServicesNone,
 );
 
 const program: Effect.Effect<boolean, EvaluationError> = check(canReadDocument, {

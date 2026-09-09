@@ -24,16 +24,11 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import {
   Allow,
-  AttributeResolverNone,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
+  EvaluationServicesNone,
   hasPermission,
   makeSubject,
   makeSubjectId,
   permission,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
 } from "@qadi/core";
 import type { Decision, Policy } from "@qadi/core";
 import { dehydrateDecisions, hydrateDecisions, makeQadiAtoms } from "@qadi/react";
@@ -95,17 +90,7 @@ const malformed = (index: number): DehydratedEntry =>
     }),
   );
 
-const freshAtoms = () =>
-  makeQadiAtoms(
-    Layer.mergeAll(
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
-      EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
-    ),
-  );
+const freshAtoms = () => makeQadiAtoms(EvaluationServicesNone);
 
 interface HydrationCountsWorldState {
   readonly decided: ReadonlyArray<{ readonly policy: Policy; readonly decision: Decision }>;

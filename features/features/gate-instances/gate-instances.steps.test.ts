@@ -25,16 +25,11 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
+  EvaluationServicesNone,
   hasPermission,
   hasRole,
   makeSubject,
   permission,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { gateGroups, isLocatable } from "@qadi/devtools";
@@ -59,17 +54,7 @@ const policies: Record<string, Policy> = {
 
 const alice = makeSubject({ id: "alice", permissions: ["doc:read"] });
 
-const atoms = () =>
-  makeQadiAtoms(
-    Layer.mergeAll(
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
-      EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
-    ),
-  );
+const atoms = () => makeQadiAtoms(EvaluationServicesNone);
 
 const policyNamed = (name: string): Policy => {
   const found = policies[name];

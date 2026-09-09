@@ -8,11 +8,11 @@
  */
 import {
   AttributeResolver,
-  AttributeResolverNone,
   CustomPredicateNone,
   SignatureHistoryNone,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  EvaluationServicesNone,
   RelationshipResolverNever,
   gte,
   hasAttribute,
@@ -33,14 +33,7 @@ const needsClearance = hasAttribute("clearance", gte(1));
 const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
 
 /** A resolver that answers synchronously, exactly as `QadiAtoms.test.ts` does. */
-const baseLayer = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const baseLayer = EvaluationServicesNone;
 
 /** A resolver that answers on a later tick, so a decision is genuinely async. */
 const slowLayer = Layer.mergeAll(

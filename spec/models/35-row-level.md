@@ -76,12 +76,7 @@ each row supplied as its own resource, keeping those that allowed.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  EvaluationServicesNone,
   allOf,
   anyOf,
   currentSubjectLayer,
@@ -116,12 +111,7 @@ const services = Layer.mergeAll(
   currentSubjectLayer(
     makeSubject({ id: "u-1", roles: ["auditor"], attributes: { tenantId: "t-1" } }),
   ),
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
+  EvaluationServicesNone,
 );
 
 // The cost: every candidate row crosses the wire before any can be judged, and

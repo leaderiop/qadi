@@ -13,11 +13,7 @@
  */
 import {
   Allow,
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
+  EvaluationServicesNone,
   hydrationDehydratedTotal,
   hydrationDropReasons,
   hydrationDroppedTotal,
@@ -30,11 +26,9 @@ import {
   makeSubjectId,
   MAX_DECODE_DEPTH,
   permission,
-  RelationshipResolverNever,
 } from "@qadi/core";
 import type { HydrationDropReason } from "@qadi/core";
 import * as Context from "effect/Context";
-import * as Layer from "effect/Layer";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
 import type { DehydratedDecisions, HydrationDrop, DehydratedEntry } from "../src/Hydration.ts";
@@ -49,16 +43,7 @@ const isAdmin = hasRole("admin");
 const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });
 const bob = makeSubject({ id: "u2" });
 
-const atoms = makeQadiAtoms(
-  Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-);
+const atoms = makeQadiAtoms(EvaluationServicesNone);
 
 const serverAllow = (subjectId: string, id: string) =>
   new Allow({
@@ -517,17 +502,7 @@ describe("counting re-checks", () => {
 });
 
 /** An atom set of this test's own, so its `announced` flags start unset. */
-const freshAtoms = () =>
-  makeQadiAtoms(
-    Layer.mergeAll(
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
-      EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
-    ),
-  );
+const freshAtoms = () => makeQadiAtoms(EvaluationServicesNone);
 
 const seededRegistryFor = (
   set: ReturnType<typeof makeQadiAtoms>,

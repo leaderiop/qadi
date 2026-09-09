@@ -118,14 +118,8 @@ right, and this is the part of the model most often got wrong.
 
 ```typescript
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  EvaluationIdLive,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  EvaluationServicesNone,
   allOf,
   check,
   currentSubjectLayer,
@@ -173,16 +167,7 @@ const canPublishReport = allOf([
 const decideFor = (token: VerifiedToken): Effect.Effect<boolean, EvaluationError> =>
   check(canPublishReport).pipe(
     Effect.provide(currentSubjectLayer(toSubject(token))),
-    Effect.provide(
-      Layer.mergeAll(
-    AttributeResolverNone,
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
-  ),
-    ),
+    Effect.provide(EvaluationServicesNone),
   );
 ```
 

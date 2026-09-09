@@ -21,9 +21,9 @@ import {
   decide,
   DecisionHistoryUnknown,
   EvaluationIdLive,
+  EvaluationServicesNone,
   isAllowed,
   project,
-  RelationshipResolverNever,
   relationshipResolverFromEdges,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
@@ -79,17 +79,7 @@ const decideAs = (subject: AuthSubject, entries: ReadonlyArray<{
     ),
   );
 
-const freshAtoms = () =>
-  makeQadiAtoms(
-    Layer.mergeAll(
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
-      EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
-    ),
-  );
+const freshAtoms = () => makeQadiAtoms(EvaluationServicesNone);
 
 const published = articles.find((article) => article.status === "published");
 const draft = articles.find((article) => article.status === "draft");
