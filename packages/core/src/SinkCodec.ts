@@ -25,6 +25,7 @@
  * union — no second, hand-mapped description to drift from the first.
  */
 import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type { Decision } from "./Decision.ts";
 import { Allow, Deny, TraceSchema } from "./Decision.ts";
@@ -260,103 +261,137 @@ export const isJsonSafe = (value: unknown): boolean => {
  * same recursive walk. Only a name for "check the whole record" was missing.
  *
  * An `ObligationRecord` carries neither field and is always safe.
+ *
+ * `Match.tagsExhaustive` rather than a ternary on `record._tag` (issue #109,
+ * D6-D7 of `EFFECT-IDIOM-DASHBOARD.md`): `SinkRecord` has exactly two tags
+ * today, so `record._tag === "Obligations" ? … : …` reads as
+ * exhaustive but is not one by construction — a third `SinkRecord` tag would
+ * compile cleanly and fall through this function's `else` branch as though it
+ * were a `Decision`, silently reusing that branch's `resource`/`policy`
+ * guard on a shape it was never written for. `Match.tagsExhaustive` makes a
+ * new tag here the same compile error §5a's `resolveRef`/`mergeFields`
+ * `never`-arm fix already gives elsewhere in this codebase, for the identical
+ * reason: this is the AGENTS.md §5a house pattern, not the `SWITCH_BUDGET`'s —
+ * a ternary was never a `switch` statement, so this conversion needs no
+ * budget update.
  */
-export const isRecordJsonSafe = (record: SinkRecord): boolean =>
-  record._tag === "Obligations"
-    ? true
-    : (record.resource === undefined || isJsonSafe(record.resource)) &&
-      isJsonSafe(record.policy);
+export const isRecordJsonSafe: (record: SinkRecord) => boolean = Match.type<SinkRecord>().pipe(
+  Match.tagsExhaustive({
+    Obligations: () => true,
+    Decision: (record) =>
+      (record.resource === undefined || isJsonSafe(record.resource)) &&
+      isJsonSafe(record.policy),
+  }),
+);
 
-/** The wire projection of a record, ready to be JSON-encoded. */
-export const toWire = (record: SinkRecord): SinkRecordWire =>
-  record._tag === "Obligations"
-    ? {
-        _tag: "Obligations",
-        evaluationId: record.evaluationId,
-        at: record.at,
-        outcome: record.outcome,
-        obligationIds: record.obligationIds,
-      }
-    : {
-        _tag: "Decision",
-        evaluationId: record.evaluationId,
-        at: record.at,
-        subjectId: record.subjectId,
-        policy: record.policy,
-        ...(record.resource === undefined ? {} : { resource: record.resource }),
-        ...(record.action === undefined ? {} : { action: record.action }),
-        ...(record.cache === undefined ? {} : { cache: record.cache }),
-        ...(record.outcome._tag === "Decided"
-          ? { decided: encodeDecision(record.outcome.decision) }
-          : { failed: record.outcome.error }),
-      };
+/**
+ * The wire projection of a record, ready to be JSON-encoded.
+ *
+ * `Match.tagsExhaustive` over `SinkRecord`, not a ternary on `record._tag` —
+ * see {@link isRecordJsonSafe}'s doc comment for why a ternary here is
+ * false-exhaustive rather than merely stylistic.
+ */
+export const toWire: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>().pipe(
+  Match.tagsExhaustive({
+    Obligations: (record) => ({
+      _tag: "Obligations" as const,
+      evaluationId: record.evaluationId,
+      at: record.at,
+      outcome: record.outcome,
+      obligationIds: record.obligationIds,
+    }),
+    Decision: (record) => ({
+      _tag: "Decision" as const,
+      evaluationId: record.evaluationId,
+      at: record.at,
+      subjectId: record.subjectId,
+      policy: record.policy,
+      ...(record.resource === undefined ? {} : { resource: record.resource }),
+      ...(record.action === undefined ? {} : { action: record.action }),
+      ...(record.cache === undefined ? {} : { cache: record.cache }),
+      ...(record.outcome._tag === "Decided"
+        ? { decided: encodeDecision(record.outcome.decision) }
+        : { failed: record.outcome.error }),
+    }),
+  }),
+);
 
-/** Rebuilds a record from its wire projection. */
-export const fromWire = (wire: SinkRecordWire): SinkRecord => {
-  if (wire._tag === "Obligations") {
-    return new ObligationRecord({
-      evaluationId: wire.evaluationId,
-      at: wire.at,
-      outcome: wire.outcome,
-      obligationIds: wire.obligationIds,
-    });
-  }
-  // `decided` absent and `failed` absent cannot both hold for a record this
-  // module produced, but the wire is untrusted, so the fallback is a `Failed`
-  // naming the malformation rather than a cast or a thrown error. A devtools row
-  // saying "the sender sent neither outcome" is more useful than a dropped
-  // record, and it can never be mistaken for a decision.
-  //
-  // **Known conflation, tracked rather than fixed here (audit tickets 96 and
-  // 155).** Both branches below reuse `MissingResource`/`ACL004` — a real
-  // resolver-wiring failure's tag — as a stand-in for "the sender violated
-  // the wire protocol", which is a different failure class wearing another
-  // error's identity: a devtools row or a metric bucketed by `ACL004` cannot
-  // tell "a policy read a missing attribute" from "a wire record was
-  // malformed" apart.
-  //
-  // A dedicated tag (say `MalformedWireRecord`) is the right fix, but
-  // `EvaluationError` (`Errors.ts`) is a closed union, not an open one: every
-  // member must also gain an `ERROR_CODES` entry, a member in this file's
-  // `EvaluationErrorSchema` union (ADR-QD-060), *and* an arm in `@qadi/http`'s
-  // `QadiHttpError.ts` `Match.tagsExhaustive` over `EnforcementError` — by that
-  // file's own doc comment, deliberately built to fail the build until someone
-  // decides the new tag's status code. That is a cross-package, exported-type
-  // change, out of scope for this file alone. Pinned instead:
-  // `SinkCodec.test.ts`'s "the wire is untrusted" and "both outcomes present"
-  // tests assert today's `MissingResource`-shaped fallback stays exactly as it
-  // is until that dedicated marker lands.
-  return new DecisionRecord({
-    evaluationId: wire.evaluationId,
-    at: wire.at,
-    // `?? ""` mirrors every other fallback in this file: unreachable for
-    // anything this module encodes, real for a wire record sent by an
-    // older process during a rolling deploy, before this field existed.
-    subjectId: makeSubjectId(wire.subjectId ?? ""),
-    policy: wire.policy,
-    ...(wire.resource === undefined ? {} : { resource: wire.resource }),
-    ...(wire.action === undefined ? {} : { action: wire.action }),
-    ...(wire.cache === undefined ? {} : { cache: wire.cache }),
-    outcome:
-      // Ticket 155: a wire record naming BOTH `decided` and `failed` — which
-      // this module never encodes, but the wire is untrusted — silently
-      // prefers `decided`. There is no principled reason to pick one outcome
-      // over the other for a record that names both; today's preference is
-      // an artifact of check order, not a decision. See the conflation note
-      // above for why a dedicated "both present" marker isn't added here.
-      wire.decided !== undefined
-        ? new Decided({ decision: decodeDecision(wire.decided) })
-        : wire.failed !== undefined
-          ? new Failed({ error: wire.failed })
-          : // Ticket 96: a wire record naming NEITHER outcome fabricates a
-            // `MissingResource` — reusing ACL004, a resolver-wiring failure's
-            // code, for what is actually a protocol violation. See the
-            // conflation note above.
-            new Failed({
-              error: new MissingResource({ attribute: "<malformed record: no outcome>" }),
-            }),
-  });
-};
+/**
+ * Rebuilds a record from its wire projection.
+ *
+ * `Match.tagsExhaustive` over `SinkRecordWire`, not an `if (wire._tag === …)`
+ * — see {@link isRecordJsonSafe}'s doc comment for why that reads as
+ * exhaustive today (`SinkRecordWire` also has exactly two tags) without being
+ * one by construction.
+ *
+ * `decided` absent and `failed` absent cannot both hold for a record this
+ * module produced, but the wire is untrusted, so the fallback is a `Failed`
+ * naming the malformation rather than a cast or a thrown error. A devtools row
+ * saying "the sender sent neither outcome" is more useful than a dropped
+ * record, and it can never be mistaken for a decision.
+ *
+ * **Known conflation, tracked rather than fixed here (audit tickets 96 and
+ * 155).** Both branches below reuse `MissingResource`/`ACL004` — a real
+ * resolver-wiring failure's tag — as a stand-in for "the sender violated
+ * the wire protocol", which is a different failure class wearing another
+ * error's identity: a devtools row or a metric bucketed by `ACL004` cannot
+ * tell "a policy read a missing attribute" from "a wire record was
+ * malformed" apart.
+ *
+ * A dedicated tag (say `MalformedWireRecord`) is the right fix, but
+ * `EvaluationError` (`Errors.ts`) is a closed union, not an open one: every
+ * member must also gain an `ERROR_CODES` entry, a member in this file's
+ * `EvaluationErrorSchema` union (ADR-QD-060), *and* an arm in `@qadi/http`'s
+ * `QadiHttpError.ts` `Match.tagsExhaustive` over `EnforcementError` — by that
+ * file's own doc comment, deliberately built to fail the build until someone
+ * decides the new tag's status code. That is a cross-package, exported-type
+ * change, out of scope for this file alone. Pinned instead:
+ * `SinkCodec.test.ts`'s "the wire is untrusted" and "both outcomes present"
+ * tests assert today's `MissingResource`-shaped fallback stays exactly as it
+ * is until that dedicated marker lands.
+ */
+export const fromWire: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
+  Match.tagsExhaustive({
+    Obligations: (wire) =>
+      new ObligationRecord({
+        evaluationId: wire.evaluationId,
+        at: wire.at,
+        outcome: wire.outcome,
+        obligationIds: wire.obligationIds,
+      }),
+    Decision: (wire) =>
+      new DecisionRecord({
+        evaluationId: wire.evaluationId,
+        at: wire.at,
+        // `?? ""` mirrors every other fallback in this file: unreachable for
+        // anything this module encodes, real for a wire record sent by an
+        // older process during a rolling deploy, before this field existed.
+        subjectId: makeSubjectId(wire.subjectId ?? ""),
+        policy: wire.policy,
+        ...(wire.resource === undefined ? {} : { resource: wire.resource }),
+        ...(wire.action === undefined ? {} : { action: wire.action }),
+        ...(wire.cache === undefined ? {} : { cache: wire.cache }),
+        outcome:
+          // Ticket 155: a wire record naming BOTH `decided` and `failed` — which
+          // this module never encodes, but the wire is untrusted — silently
+          // prefers `decided`. There is no principled reason to pick one outcome
+          // over the other for a record that names both; today's preference is
+          // an artifact of check order, not a decision. See the conflation note
+          // above for why a dedicated "both present" marker isn't added here.
+          wire.decided !== undefined
+            ? new Decided({ decision: decodeDecision(wire.decided) })
+            : wire.failed !== undefined
+              ? new Failed({ error: wire.failed })
+              : // Ticket 96: a wire record naming NEITHER outcome fabricates a
+                // `MissingResource` — reusing ACL004, a resolver-wiring failure's
+                // code, for what is actually a protocol violation. See the
+                // conflation note above.
+                new Failed({
+                  error: new MissingResource({ attribute: "<malformed record: no outcome>" }),
+                }),
+      }),
+  }),
+);
 
 /** Encodes a record to a plain JSON value. */
 export const encodeRecord = Schema.encodeEffect(SinkRecordWire);
