@@ -23,7 +23,7 @@
  */
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
-import { bench, describe } from "vitest";
+import { test } from "vitest";
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { decisionCacheLayer } from "../src/DecisionCache.ts";
@@ -42,23 +42,22 @@ const services = Layer.mergeAll(EvaluationServicesNone, currentSubjectLayer(alic
 
 const options = { time: 1000, warmupTime: 300 };
 
-describe("DecisionCache.getOrCompute — hit", () => {
+test("DecisionCache.getOrCompute — hit", async ({ bench }) => {
   // One cache, built once — every iteration below looks up the *same* key,
   // structurally, so after the first call every one of these is a hit.
   const runtime = ManagedRuntime.make(Layer.mergeAll(services, decisionCacheLayer()));
   const policy = hasPermission(read);
   runtime.runSync(evaluate(policy)); // warm the entry once, outside the timed loop
 
-  bench(
-    "repeated lookup, same subject/policy/resource",
-    () => {
+  await bench.compare(
+    bench("repeated lookup, same subject/policy/resource", () => {
       runtime.runSync(evaluate(policy));
-    },
+    }),
     options,
   );
 });
 
-describe("DecisionCache.getOrCompute — miss", () => {
+test("DecisionCache.getOrCompute — miss", async ({ bench }) => {
   // One runtime, reused — only the cache's own HashMap grows per call, never
   // the layer. A distinct role name per policy makes each lookup structurally
   // new, so every call inserts rather than finds.
@@ -66,11 +65,10 @@ describe("DecisionCache.getOrCompute — miss", () => {
   let counter = 0;
   const nextPolicy = (): Policy => hasPermission(permission("document", `read-${counter++}`));
 
-  bench(
-    "distinct policy per call, cache grows across the run",
-    () => {
+  await bench.compare(
+    bench("distinct policy per call, cache grows across the run", () => {
       runtime.runSync(evaluate(nextPolicy()));
-    },
+    }),
     options,
   );
 });

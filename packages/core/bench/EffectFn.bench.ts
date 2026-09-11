@@ -147,7 +147,7 @@
  * without this file being re-run.
  */
 import * as Effect from "effect/Effect";
-import { bench, describe } from "vitest";
+import { test } from "vitest";
 
 const options = { time: 1000, warmupTime: 300 };
 
@@ -165,14 +165,16 @@ const identityUntraced = Effect.fnUntraced(function* (n: number) {
   return n;
 });
 
-describe("Effect.fn vs Effect.fnUntraced — one call", () => {
-  bench("Effect.fn", () => {
-    Effect.runSync(identityTraced(1));
-  }, options);
-
-  bench("Effect.fnUntraced", () => {
-    Effect.runSync(identityUntraced(1));
-  }, options);
+test("Effect.fn vs Effect.fnUntraced — one call", async ({ bench }) => {
+  await bench.compare(
+    bench("Effect.fn", () => {
+      Effect.runSync(identityTraced(1));
+    }),
+    bench("Effect.fnUntraced", () => {
+      Effect.runSync(identityUntraced(1));
+    }),
+    options,
+  );
 });
 
 /**
@@ -184,14 +186,16 @@ describe("Effect.fn vs Effect.fnUntraced — one call", () => {
  */
 const callCount = 11;
 
-describe(`Effect.fn vs Effect.fnUntraced — ${callCount} calls`, () => {
-  bench("Effect.fn", () => {
-    for (let i = 0; i < callCount; i++) Effect.runSync(identityTraced(i));
-  }, options);
-
-  bench("Effect.fnUntraced", () => {
-    for (let i = 0; i < callCount; i++) Effect.runSync(identityUntraced(i));
-  }, options);
+test(`Effect.fn vs Effect.fnUntraced — ${callCount} calls`, async ({ bench }) => {
+  await bench.compare(
+    bench("Effect.fn", () => {
+      for (let i = 0; i < callCount; i++) Effect.runSync(identityTraced(i));
+    }),
+    bench("Effect.fnUntraced", () => {
+      for (let i = 0; i < callCount; i++) Effect.runSync(identityUntraced(i));
+    }),
+    options,
+  );
 });
 
 // --- 2. shadow evaluator: Evaluate.ts's wrapping shape, without its logic ---
@@ -278,32 +282,32 @@ const wide = flat(8);
 const matcherHeavy = flat(4);
 const deep = nested(10);
 
-describe("Effect.fn vs Effect.fnUntraced — shadow evaluator", () => {
-  bench("simple — 1 wrapped call — Effect.fn", () => {
-    Effect.runSync(runTraced(simple));
-  }, options);
-  bench("simple — 1 wrapped call — Effect.fnUntraced", () => {
-    Effect.runSync(runUntraced(simple));
-  }, options);
-
-  bench("matcher-heavy shape — flat(4), 2 wrapped calls — Effect.fn", () => {
-    Effect.runSync(runTraced(matcherHeavy));
-  }, options);
-  bench("matcher-heavy shape — flat(4), 2 wrapped calls — Effect.fnUntraced", () => {
-    Effect.runSync(runUntraced(matcherHeavy));
-  }, options);
-
-  bench("wide shape — flat(8), 2 wrapped calls — Effect.fn", () => {
-    Effect.runSync(runTraced(wide));
-  }, options);
-  bench("wide shape — flat(8), 2 wrapped calls — Effect.fnUntraced", () => {
-    Effect.runSync(runUntraced(wide));
-  }, options);
-
-  bench("deep shape — nested(10), 11 wrapped calls — Effect.fn", () => {
-    Effect.runSync(runTraced(deep));
-  }, options);
-  bench("deep shape — nested(10), 11 wrapped calls — Effect.fnUntraced", () => {
-    Effect.runSync(runUntraced(deep));
-  }, options);
+test("Effect.fn vs Effect.fnUntraced — shadow evaluator", async ({ bench }) => {
+  await bench.compare(
+    bench("simple — 1 wrapped call — Effect.fn", () => {
+      Effect.runSync(runTraced(simple));
+    }),
+    bench("simple — 1 wrapped call — Effect.fnUntraced", () => {
+      Effect.runSync(runUntraced(simple));
+    }),
+    bench("matcher-heavy shape — flat(4), 2 wrapped calls — Effect.fn", () => {
+      Effect.runSync(runTraced(matcherHeavy));
+    }),
+    bench("matcher-heavy shape — flat(4), 2 wrapped calls — Effect.fnUntraced", () => {
+      Effect.runSync(runUntraced(matcherHeavy));
+    }),
+    bench("wide shape — flat(8), 2 wrapped calls — Effect.fn", () => {
+      Effect.runSync(runTraced(wide));
+    }),
+    bench("wide shape — flat(8), 2 wrapped calls — Effect.fnUntraced", () => {
+      Effect.runSync(runUntraced(wide));
+    }),
+    bench("deep shape — nested(10), 11 wrapped calls — Effect.fn", () => {
+      Effect.runSync(runTraced(deep));
+    }),
+    bench("deep shape — nested(10), 11 wrapped calls — Effect.fnUntraced", () => {
+      Effect.runSync(runUntraced(deep));
+    }),
+    options,
+  );
 });

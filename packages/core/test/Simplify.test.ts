@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as FastCheck from "effect/testing/FastCheck";
+import * as FastCheck from "fast-check";
 import { isAllowed } from "../src/Decision.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { explain, renderExplanation } from "../src/Explanation.ts";

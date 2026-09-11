@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as FastCheck from "effect/testing/FastCheck";
+import * as FastCheck from "fast-check";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
 import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";

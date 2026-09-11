@@ -48,6 +48,7 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "fast-check": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
@@ -58,6 +59,6 @@
     "qadi"
   ],
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.12.0"
   }
 }

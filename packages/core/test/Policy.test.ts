@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import * as FastCheck from "effect/testing/FastCheck";
+import * as FastCheck from "fast-check";
 import * as M from "../src/Matcher.ts";
 import { Obligation, obligation, unionObligations } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";

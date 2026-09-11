@@ -14,10 +14,10 @@ tracing rather than a bespoke logging port.
 
 ## Requirements
 
-- Node `>=20.19.0`
+- Node `>=22.12.0`
 - A package manager — this repo's own development is pinned to `pnpm@10.17.1`;
   consuming apps can use npm, yarn, or pnpm
-- Effect v4, currently a release candidate (`effect: 4.0.0-rc.112` in this
+- Effect v4, currently a release candidate (`effect: 4.0.0-rc.115` in this
   workspace). Qadi's public API surfaces Effect classes directly
   (`Context.Service`, `Data.TaggedError`), so pin the same rc line rather than
   a caret range — see `pnpm-workspace.yaml` for the rationale

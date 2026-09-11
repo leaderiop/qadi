@@ -9,7 +9,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
-import * as FastCheck from "effect/testing/FastCheck";
+import * as FastCheck from "fast-check";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import { evaluate } from "../src/Evaluate.ts";

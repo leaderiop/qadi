@@ -31,7 +31,7 @@
  * on in proportion to that share.
  */
 import * as Match from "effect/Match";
-import { bench, describe } from "vitest";
+import { test } from "vitest";
 import { getByPath } from "../src/Matcher.ts";
 import type { ValueRef } from "../src/Matcher.ts";
 
@@ -114,18 +114,19 @@ const refs: ReadonlyArray<ValueRef> = [
 
 const options = { time: 1000, warmupTime: 300 };
 
-describe("resolveRef — one dispatch", () => {
-  bench("switch", () => {
-    for (const ref of refs) viaSwitch(ref, context);
-  }, options);
-
-  bench("Match, hoisted", () => {
-    for (const ref of refs) viaMatchHoisted(ref, context);
-  }, options);
-
-  bench("Match, per call", () => {
-    for (const ref of refs) viaMatchValue(ref, context);
-  }, options);
+test("resolveRef — one dispatch", async ({ bench }) => {
+  await bench.compare(
+    bench("switch", () => {
+      for (const ref of refs) viaSwitch(ref, context);
+    }),
+    bench("Match, hoisted", () => {
+      for (const ref of refs) viaMatchHoisted(ref, context);
+    }),
+    bench("Match, per call", () => {
+      for (const ref of refs) viaMatchValue(ref, context);
+    }),
+    options,
+  );
 });
 
 /**
@@ -147,16 +148,17 @@ const tree: ReadonlyArray<ValueRef> = Array.from(
   .flat()
   .slice(0, treeSize);
 
-describe("resolveRef — 64 dispatches, one policy tree", () => {
-  bench("switch", () => {
-    for (const ref of tree) viaSwitch(ref, context);
-  }, options);
-
-  bench("Match, hoisted", () => {
-    for (const ref of tree) viaMatchHoisted(ref, context);
-  }, options);
-
-  bench("Match, per call", () => {
-    for (const ref of tree) viaMatchValue(ref, context);
-  }, options);
+test("resolveRef — 64 dispatches, one policy tree", async ({ bench }) => {
+  await bench.compare(
+    bench("switch", () => {
+      for (const ref of tree) viaSwitch(ref, context);
+    }),
+    bench("Match, hoisted", () => {
+      for (const ref of tree) viaMatchHoisted(ref, context);
+    }),
+    bench("Match, per call", () => {
+      for (const ref of tree) viaMatchValue(ref, context);
+    }),
+    options,
+  );
 });
