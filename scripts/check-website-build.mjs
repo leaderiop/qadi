@@ -3,16 +3,18 @@
  * Runs apps/website's own check on every runtime whose Node satisfies the
  * toolchain that app depends on, and states the omission where it does not.
  *
- * Astro declares `engines.node` above the workspace's own floor
- * (`>=20.19.0`), and the workspace floor is a claim about what the nine
- * *published* packages support — this app is private and publishes nothing,
- * so the two floors are allowed to differ. A skip that cannot be seen is the
- * defect this repository keeps finding (the DoD table drifting from
- * `pnpm check` itself, `spec/devtools-spec/` claiming absence of things
- * already built), so this one prints instead of passing quietly. The floor
- * is read from Astro's own manifest rather than restated here, which is what
+ * Astro declares `engines.node` at `>=22.12.0`, which happens to equal the
+ * workspace's own floor since ADR-QD-074 raised it to meet Astro's — before
+ * that, the workspace floor was `>=20.19.0` and the two floors were allowed
+ * to differ (see ADR-QD-059), because the workspace floor is a claim about
+ * what the nine *published* packages support and this app is private and
+ * publishes nothing. A skip that cannot be seen is the defect this
+ * repository keeps finding (the DoD table drifting from `pnpm check` itself,
+ * `spec/devtools-spec/` claiming absence of things already built), so this
+ * one prints instead of passing quietly. The floor is read from Astro's own
+ * manifest rather than restated here, which is what
  * keeps this file correct after the next dependency bump rather than rotting
- * the moment Astro moves its own floor. See ADR-QD-059 and CCR-QD-092.
+ * the moment Astro moves its own floor. See ADR-QD-059 and ADR-QD-074.
  */
 import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";

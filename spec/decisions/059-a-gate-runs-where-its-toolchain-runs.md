@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-059                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-09-08                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted — narrowed by ADR-QD-074              |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-09-08): Implemented line corrected from "row 22" to "row 23" — self-contradicted the Decision section's own "gate 23" and `definitions-of-done.md`'s actual row for `check-website-build.mjs` (CCR-QD-134)<br>1.0 (2026-08-30): Initial release (CCR-QD-092) |
+> | Change History | 1.2 (2026-09-11): Narrowed by ADR-QD-074 — the workspace floor this ADR's Decision states as staying `>=20.19.0` moved to `>=22.12.0` there, forced by the `effect`/`vitest` bump. The mechanism this ADR describes (reading Astro's floor live rather than restating it) is unaffected<br>1.1 (2026-09-08): Implemented line corrected from "row 22" to "row 23" — self-contradicted the Decision section's own "gate 23" and `definitions-of-done.md`'s actual row for `check-website-build.mjs` (CCR-QD-134)<br>1.0 (2026-08-30): Initial release (CCR-QD-092) |
 
 ---
 
@@ -44,6 +44,14 @@ this repository (CCR-QD-075). If no leg in the matrix satisfies the floor,
 the gate fails outright rather than skipping everywhere silently. The
 workspace floor stays `>=20.19.0` and both legs stay blocking — nothing
 about the declared, verified Node floor changes.
+
+> **Corrected in ADR-QD-074.** The workspace floor did not stay `>=20.19.0` —
+> it moved to `>=22.12.0` when `@effect/vitest`'s `vitest` peer requirement
+> jumped to a `vitest` major that dropped Node 20 support entirely. The floor
+> now coincides with Astro's own, which this ADR's mechanism (reading Astro's
+> floor live rather than restating it) still handles correctly — the two
+> floors are independently sourced and can diverge again on either side's
+> next bump, they simply don't right now.
 
 ## Alternatives considered
 

@@ -31,8 +31,8 @@ jobs:
     # Measured at 27m34s-28m52s per leg on the existing Node 26 job (`gh run
     # list`, run ids 33128274504 / 32910760829 / 32898144273) against the prior
     # 30-minute budget — roughly 96% of budget on the faster runtime, with the
-    # older, slower Node 20.19.0 leg about to join it. 60 leaves real headroom
-    # instead of failing the floor leg on the clock rather than on merit.
+    # older, slower floor leg about to join it. 60 leaves real headroom instead
+    # of failing the floor leg on the clock rather than on merit.
     timeout-minutes: 60
 
     # Runs the same job twice, once per Node version below, rather than adding a
@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["20.19.0", "26"]
+        node-version: ["22.12.0", "26"]
 
     steps:
       # Every third-party action below is pinned to a full commit SHA, not a
@@ -67,18 +67,20 @@ jobs:
           # Two legs, for the reason this comment already gave for a single
           # version: a gate whose toolchain changes underneath it reports
           # failures that are not about the change under test. That discipline
-          # only fully holds for the first leg — `20.19.0` is an exact pin, the
-          # declared floor from `engines` in package.json (where `oxlint`'s
-          # `^20.19.0` requirement bites), and is now actually exercised, not
-          # just declared: this leg is what turns `engines` into a verified
-          # claim rather than a promise with nothing behind it.
+          # only fully holds for the first leg — `22.12.0` is an exact pin, the
+          # declared floor from `engines` in package.json (where `vitest`'s own
+          # `^22.12.0` requirement bites — see ADR-QD-074), and is now actually
+          # exercised, not just declared: this leg is what turns `engines` into
+          # a verified claim rather than a promise with nothing behind it. The
+          # floor moved here from `20.19.0` when the workspace's `effect`/
+          # `vitest` bump forced it — see ADR-QD-074.
           #
           # `26` is a bare major, not an exact pin: `actions/setup-node@v4`
           # resolves it to whichever `26.x.y` is newest at job-run time, so
           # this leg's toolchain deliberately floats forward as Node ships new
           # `26.x` patches and minors — it is meant to track "the latest stable
           # major, and the one development actually happens on" (still true),
-          # not to be reproducible run to run the way `20.19.0` is. Both are
+          # not to be reproducible run to run the way `22.12.0` is. Both are
           # required, blocking legs of this one job — no informational grace
           # period on either — but only one of the two is exempt from toolchain
           # drift as a source of unrelated failure.

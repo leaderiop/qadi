@@ -16,12 +16,13 @@
     "effect": "catalog:"
   },
   "devDependencies": {
-    "@effect-cucumber/gherkin": "^0.3.1",
-    "@effect-cucumber/vitest": "^0.3.1",
+    "@effect-cucumber/gherkin": "^0.9.0",
+    "@effect-cucumber/vitest": "^0.9.0",
+    "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
     "@happy-dom/global-registrator": "^20.11.1",
     "@testing-library/react": "catalog:",
-    "@types/node": "^20.19.0",
+    "@types/node": "^22.12.0",
     "@types/react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -29,6 +30,6 @@
     "vitest": "catalog:"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.12.0"
   }
 }

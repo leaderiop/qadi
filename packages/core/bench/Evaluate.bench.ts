@@ -46,7 +46,7 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
-import { bench, describe } from "vitest";
+import { test } from "vitest";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
@@ -202,30 +202,35 @@ const subjects = Array.from({ length: 500 }, (_, index) =>
 
 const options = { time: 1000, warmupTime: 300 };
 
-describe("evaluate", () => {
-  bench("one node", () => run(one), options);
-  bench("wide — allOf of 8", () => run(wide), options);
-  bench("deep — 10 levels", () => run(deep), options);
-  bench("matcher-heavy — 3 refs", () => run(matchers), options);
-  bench("field-heavy — allOf of 8 under Intersection", () => run(fieldHeavy), options);
-  bench("obligation-heavy — allOf of 8 distinct obligations", () => run(obligationHeavy), options);
-  bench(
-    "resolver miss — one port call",
-    () => {
+test("evaluate", async ({ bench }) => {
+  await bench.compare(
+    bench("one node", () => run(one)),
+    bench("wide — allOf of 8", () => run(wide)),
+    bench("deep — 10 levels", () => run(deep)),
+    bench("matcher-heavy — 3 refs", () => run(matchers)),
+    bench("field-heavy — allOf of 8 under Intersection", () => run(fieldHeavy)),
+    bench("obligation-heavy — allOf of 8 distinct obligations", () => run(obligationHeavy)),
+    bench("resolver miss — one port call", () => {
       resolvingRuntime.runSync(evaluate(missed));
-    },
+    }),
     options,
   );
 });
 
-describe("filter — 500 items", () => {
-  bench("hasPermission", () => {
-    runtime.runSync(filter(one, items));
-  }, options);
+test("filter — 500 items", async ({ bench }) => {
+  await bench.compare(
+    bench("hasPermission", () => {
+      runtime.runSync(filter(one, items));
+    }),
+    options,
+  );
 });
 
-describe("decideSubjects — 500 subjects", () => {
-  bench("hasPermission", () => {
-    runtime.runSync(decideSubjects(one, subjects));
-  }, options);
+test("decideSubjects — 500 subjects", async ({ bench }) => {
+  await bench.compare(
+    bench("hasPermission", () => {
+      runtime.runSync(decideSubjects(one, subjects));
+    }),
+    options,
+  );
 });
