@@ -49,6 +49,7 @@
   "devDependencies": {
     "@effect/vitest": "catalog:",
     "@prisma/client": "7.10.0",
+    "fast-check": "catalog:",
     "prisma": "7.10.0",
     "typescript": "catalog:",
     "vitest": "catalog:"

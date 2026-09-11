@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
-import * as FastCheck from "effect/testing/FastCheck";
+import * as FastCheck from "fast-check";
 import { evaluatePredicate, type Predicate } from "@qadi/core";
 import { compileSql, type SqlDialect } from "../src/index.ts";
 import { interpretSqlFragment } from "./sqlInterpreter.ts";

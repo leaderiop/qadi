@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Predicate from "effect/Predicate";
-import * as FastCheck from "effect/testing/FastCheck";
+import * as FastCheck from "fast-check";
 import { Allow, Deny } from "../src/Decision.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "../src/DecisionRecord.ts";

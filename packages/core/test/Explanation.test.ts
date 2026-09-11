@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import * as FastCheck from "effect/testing/FastCheck";
+import * as FastCheck from "fast-check";
 import { explain, renderExplanation } from "../src/Explanation.ts";
 import type { Requirement } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
