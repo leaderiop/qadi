@@ -5,11 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-074                                   |
-> | Revision       | 1.0                                             |
+> | Revision       | 1.1                                             |
 > | Effective Date | 2026-09-11                                      |
 > | Status         | Accepted                                        |
 > | Author         | Qadi Engineering                                |
 > | Classification | Architecture Decision Record                    |
+> | Change History | 1.1 (2026-09-11): The `vitest` 5 bump broke the mutation gate too — `@stryker-mutator/vitest-runner`'s per-test coverage filter stopped matching anything under `vitest` 5, collapsing the mutation score to ~18% with no code change of ours. Patched (`pnpm patch`) rather than worked around, since no config workaround exists upstream. §"Mutation gate" added, `stryker.config.mjs` and the changeset both reference this ADR<br>1.0 (2026-09-11): Initial release |
 
 ---
 
@@ -108,11 +109,51 @@ structurally the same going forward, only currently equal. `CONTRIBUTING.md`'s
 current numbers without claiming the two floors are now tied together by
 anything other than coincidence.
 
+## Mutation gate
+
+The `vitest` 5 bump broke a third thing, discovered only once CI ran the full
+gate suite (not caught by any local run against a real, isolated checkout —
+see "Verification" below): `@stryker-mutator/vitest-runner`'s
+`coverageAnalysis: "perTest"` mode filters which tests re-run against a given
+mutant by building a `testNamePattern` regex from the suite-chain-plus-test
+name, joined with a space. `vitest` 5 changed what that pattern matches
+against — the full chain joined with `' > '` instead. The filter therefore
+matched zero tests for every mutant, each ran against nothing, and Stryker's
+default verdict for "no test result came back" is "Survived" — collapsing
+`packages/core`'s mutation score from its normal ~90%+ to **17.64%** against
+an 80% break threshold, with no change to any source file or test assertion.
+Confirmed as upstream, not qadi-side, via
+[stryker-mutator/stryker-js#6210](https://github.com/stryker-mutator/stryker-js/issues/6210)
+(opened days before this bump, still open, no released fix) and its
+companion fix, [PR #6214](https://github.com/stryker-mutator/stryker-js/pull/6214)
+(open, unmerged, no target version at the time of this bump). The issue
+thread explicitly rules out a config-level workaround — `coverageAnalysis:
+"all"` does not avoid it either, so this could not be fixed by changing
+`stryker.config.mjs`'s settings alone.
+
+`@stryker-mutator/core`/`@stryker-mutator/vitest-runner` are bumped `9.6.1` →
+`10.0.0` regardless (it also drops Node 20 support, matching this ADR's own
+floor move), and `@stryker-mutator/vitest-runner@10.0.0` is patched via
+`pnpm patch` (`patches/@stryker-mutator__vitest-runner@10.0.0.patch`) to
+backport PR #6214's fix ahead of an upstream release: the per-test filter and
+the sandbox's own copy of the same test-id-building logic
+(`stryker-setup.js`, which is copied verbatim into the mutation sandbox and
+cannot import from the package's own modules) both join with `' > '` on
+`vitest >=5.0.0` and a plain space otherwise, matching how `vitest` 5 itself
+joins. Verified by running all six mutation suites after patching: core
+91.57%, devtools 98.17%, predicate-sql 97.97%, predicate-prisma 95.52%, audit
+85.19%, http 85.41% — all clear the 80% break threshold. The patch is a
+stopgap: remove it (`pnpm patch-remove @stryker-mutator/vitest-runner`, plus
+dropping `stryker.config.mjs`'s comment) once a released
+`@stryker-mutator/vitest-runner` version ships the fix.
+
 ## Alternatives considered
 
 See Context — the two alternatives that would have avoided a floor change
 were both rejected, for reasons specific to each rather than to raising the
-floor itself.
+floor itself. The mutation-gate breakage above had no alternative to weigh:
+no config workaround exists, so patching the dependency was the only path
+that didn't mean disabling a stated, load-bearing merge gate.
 
 ## Consequences
 
@@ -146,4 +187,5 @@ floor itself.
 
 **Implemented**: `pnpm-workspace.yaml`, every published package's
 `package.json`, `README.md`, `.github/workflows/check.yml`,
-`CONTRIBUTING.md`, `scripts/check-website-build.mjs`'s doc comment.
+`CONTRIBUTING.md`, `scripts/check-website-build.mjs`'s doc comment,
+`patches/@stryker-mutator__vitest-runner@10.0.0.patch`, `stryker.config.mjs`.
