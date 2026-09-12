@@ -26,7 +26,7 @@ import type {
   Resource,
   SignatureHistory,
 } from "@qadi/core";
-import { CurrentSubject, guard } from "@qadi/core";
+import { anonymous, CurrentSubject, guard } from "@qadi/core";
 import {
   AccessDeniedRefused,
   AttributeResolveErrorResponse,
@@ -214,6 +214,40 @@ export const requiresPermission = (
  * `RelationshipResolver`, `DecisionHistory`, `EvaluationId`, `CustomPredicate`,
  * `SignatureHistory`).
  *
+ * **`provides: CurrentSubject`** tells `HttpApiBuilder.group`'s own
+ * `ExcludeProvided` type-level bookkeeping that every endpoint guarded by
+ * this middleware already has `CurrentSubject` supplied by the time its
+ * handler runs — matching what this middleware actually does at runtime
+ * (`Effect.provideService(CurrentSubject, subject)` below). Without this
+ * declaration, a handler that reads `CurrentSubject` (directly, or
+ * transitively through `@qadi/core`'s `guard`/`Qadi.assert`) keeps that
+ * requirement as an unresolved `HttpRouter.Request<"Requires",
+ * CurrentSubject>` marker forever — that marker can only be discharged by a
+ * middleware's declared `provides`, never by an ordinary `Layer.provide`
+ * applied downstream, so leaving it off forces every consumer into exactly
+ * the kind of cast this design exists to avoid. This mirrors `effect`'s own
+ * `Authorization`/`CurrentUser` worked example (its `20_testing.ts` and
+ * `Users.ts` fixtures), the first-class way `HttpApiMiddleware` expects a
+ * subject-injecting middleware to declare itself.
+ *
+ * **`requires: never`, deliberately — that standing requirement is captured
+ * as an ordinary `RequirePermissionLive` build-time dependency instead of
+ * being declared here.** `effect`'s own `HttpApiMiddleware.ApplyServices<A,
+ * R> = Exclude<R, Provides<A>> | Requires<A>` computes `Requires<A>` via a
+ * conditional type keyed on `A`'s own shape (`A extends {[TypeId]:
+ * {requires: infer R}} ? R : never`); for `A` bound to a self-referential
+ * middleware class (`class X extends HttpApiMiddleware.Service<X,
+ * {requires: ...}>()(...)`, the only way to define one), TypeScript never
+ * expands that conditional — confirmed with a minimal reproduction using a
+ * throwaway middleware class with no `@qadi` code at all, so this is an
+ * `effect` core limitation, not something fixable by changing how this
+ * class is declared. A non-trivial `requires` value here left it
+ * permanently opaque downstream (`HttpApiBuilder.group`,
+ * `HttpApiTest.groups`), forcing every consumer into a type-widening cast
+ * to use this middleware at all — precisely what `RequirePermissionLive`
+ * below now avoids by resolving the six services itself, once, the same
+ * way any other `Layer.effect` acquires a build-time dependency.
+ *
  * **`error` declares every response this middleware can produce that isn't
  * the wrapped handler's own** (ADR-QD-072, H4). Nine are the
  * `httpApiStatus`-annotated `EnforcementError` schemas `QadiHttpError.ts`
@@ -238,13 +272,8 @@ export const requiresPermission = (
 export class RequirePermission extends HttpApiMiddleware.Service<
   RequirePermission,
   {
-    requires:
-      | AttributeResolver
-      | RelationshipResolver
-      | DecisionHistory
-      | EvaluationId
-      | CustomPredicate
-      | SignatureHistory;
+    provides: CurrentSubject;
+    requires: never;
   }
 >()("qadi/http/RequirePermission", {
   error: [
@@ -263,10 +292,28 @@ export class RequirePermission extends HttpApiMiddleware.Service<
   ],
 }) {}
 
-export const RequirePermissionLive: Layer.Layer<RequirePermission, never, SubjectExtractor> = Layer.effect(
+export const RequirePermissionLive: Layer.Layer<
+  RequirePermission,
+  never,
+  | SubjectExtractor
+  | AttributeResolver
+  | RelationshipResolver
+  | DecisionHistory
+  | EvaluationId
+  | CustomPredicate
+  | SignatureHistory
+> = Layer.effect(
   RequirePermission,
   Effect.gen(function* () {
     const extractor = yield* SubjectExtractor;
+    // Resolved once, here, at layer-build time — see `RequirePermission`'s
+    // own doc comment for why this replaces a `requires` declaration on the
+    // middleware class itself. Re-provided per request below, inside the
+    // returned closure, so `guard`'s own `evaluate` call finds them exactly
+    // as it would have found them via an ambient per-request `requires`.
+    const evaluationServices = yield* Effect.context<
+      AttributeResolver | RelationshipResolver | DecisionHistory | EvaluationId | CustomPredicate | SignatureHistory
+    >();
 
     return (httpEffect, { endpoint }) => {
       const required = Context.getOption(endpoint.annotations, RequiredPermission);
@@ -275,15 +322,25 @@ export const RequirePermissionLive: Layer.Layer<RequirePermission, never, Subjec
         // authorization says so with `publicEndpoint`; one that says nothing is
         // a wiring mistake, and a wiring mistake on an authorization path must
         // not resolve to "allowed" (ADR-QD-036, INV-QD-034).
+        //
+        // Both branches here provide `CurrentSubject` explicitly (as
+        // `anonymous`) even though neither ever extracted a real one — this
+        // middleware declares `provides: CurrentSubject`, so every endpoint
+        // it guards, public or not, must actually receive one for that
+        // declaration to stay honest. `anonymous` is exactly the right value
+        // for "no subject was authenticated": every policy denies against it.
         if (Option.isSome(Context.getOption(endpoint.annotations, PublicEndpoint))) {
-          return httpEffect;
+          return Effect.provideService(httpEffect, CurrentSubject, anonymous);
         }
         return Effect.logError(
           `qadi/http: endpoint "${endpoint.identifier}" declares neither a permission ` +
             "requirement nor `publicEndpoint(...)`, so it is refused. Annotate it with " +
             "RequiredPermission, or with PublicEndpoint if it is meant to be reachable " +
             "without authorization.",
-        ).pipe(Effect.as(HttpServerResponse.empty({ status: 500 })));
+        ).pipe(
+          Effect.as(HttpServerResponse.empty({ status: 500 })),
+          Effect.provideService(CurrentSubject, anonymous),
+        );
       }
 
       const { permission, policy } = required.value;
@@ -301,6 +358,7 @@ export const RequirePermissionLive: Layer.Layer<RequirePermission, never, Subjec
         const subject = yield* extractor.extract(request);
         return yield* guard(permission, policy)(NO_RESOURCE, () => httpEffect).pipe(
           Effect.provideService(CurrentSubject, subject),
+          Effect.provide(evaluationServices),
         );
       }).pipe(
         Effect.catchTag(["AccessDenied", "UndischargedObligation"], () =>
