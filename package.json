@@ -46,9 +46,9 @@
     "example": "pnpm --filter @qadi/example-nextjs check"
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.1",
-    "@effect/language-service": "^0.77.0",
-    "@effect/tsgo": "0.41.0",
+    "@changesets/cli": "^3.0.2",
+    "@effect/language-service": "^0.87.2",
+    "@effect/tsgo": "0.45.0",
     "@effect/vitest": "catalog:",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",
@@ -57,10 +57,10 @@
     "@vitest/coverage-v8": "catalog:",
     "effect": "catalog:",
     "madge": "^8.0.0",
-    "oxfmt": "^0.36.0",
-    "oxlint": "^1.51.0",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
     "react": "catalog:",
-    "tstyche": "^7.2.3",
+    "tstyche": "^7.2.5",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
