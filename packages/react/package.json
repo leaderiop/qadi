@@ -1,6 +1,6 @@
 {
   "name": "@qadi/react",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "license": "MIT",
   "author": "Mohammad AL Mechkor",
@@ -33,6 +33,7 @@
   ],
   "scripts": {
     "build": "tsc -b tsconfig.json",
+    "prepack": "pnpm -w run build",
     "typecheck": "tsc -b tsconfig.json",
     "test": "vitest run"
   },
