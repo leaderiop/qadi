@@ -1,5 +1,11 @@
 # @qadi/react
 
+## 0.6.2
+
+### Patch Changes
+
+- @qadi/core@0.6.2
+
 ## 0.6.1
 
 ### Patch Changes
