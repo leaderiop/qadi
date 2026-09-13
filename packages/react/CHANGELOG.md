@@ -1,5 +1,17 @@
 # @qadi/react
 
+## 0.6.3
+
+### Patch Changes
+
+- Reverse ADR-QD-014: `@qadi/react` now depends on the official `@effect/atom-react` (same `Effect-TS/effect` monorepo, same `effect` version) instead of a hand-rolled `useSyncExternalStore` binding.
+
+  `QadiProvider.tsx` wires a `RegistryContext.Provider` and `useAtomValue` delegates to the library's context-based hook. `useDecisionSuspense` swaps from the hand-rolled `settled.ts` race fix to `useAtomSuspense` with `suspendOnWaiting: true`, closing the Suspense zero-listener race (COMPAT-01, gap G-01-1) that `settled.ts` had patched three separate times. No public API change — `QadiProvider`, `useGate`, `Can`/`Cannot` keep their existing signatures.
+
+  `settled.ts` is retained as a test helper (`Hydration.test.ts` still calls it directly) rather than deleted.
+
+- @qadi/core@0.6.3
+
 ## 0.6.2
 
 ### Patch Changes

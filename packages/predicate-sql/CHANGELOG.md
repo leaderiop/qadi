@@ -1,5 +1,11 @@
 # @qadi/predicate-sql
 
+## 0.6.3
+
+### Patch Changes
+
+- @qadi/core@0.6.3
+
 ## 0.6.2
 
 ### Patch Changes
