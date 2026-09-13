@@ -8,13 +8,12 @@
  */
 import type { AuthSubject, Decision, Policy, Resource } from "@qadi/core";
 import { isAllowed, project } from "@qadi/core";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
+import { useAtomSuspense } from "@effect/atom-react/Hooks";
 import * as Atom from "effect/unstable/reactivity/Atom";
 import { useCallback, useEffect, useMemo } from "react";
 import type { DecisionResult, QadiAtoms } from "./QadiAtoms.ts";
 import { currentDecision } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
-import { isPending, settled } from "./settled.ts";
 import { useGate } from "./useGate.ts";
 
 /** The subject under authorization, or `undefined` while it is still loading. */
@@ -56,18 +55,21 @@ export const useCan = (policy: Policy, resource?: Resource): boolean => {
  * as a hidden button.
  */
 export const useDecisionSuspense = (policy: Policy, resource?: Resource): Decision => {
-  const { registry, atoms } = useQadiContext("useDecisionSuspense");
+  const { atoms } = useQadiContext("useDecisionSuspense");
   const atom = useMemo(
     () =>
       resource === undefined ? atoms.decision(policy) : atoms.decisionFor(policy, resource),
     [atoms, policy, resource],
   );
-  // The atom is needed here in its own right — `settled` subscribes to it — so
-  // this one reads through `useGate` for the registration and keeps the atom it
-  // already had. Both reads hit the same registry entry.
-  const result = useGate("useDecisionSuspense", policy, resource).result;
-  if (isPending(result)) throw settled(registry, atom);
-  return AsyncResult.getOrThrow(result);
+  // Registers this instance for devtools instrumentation; its own `result`
+  // read is unused here — `useAtomSuspense` below does the actual suspending
+  // read of the same registry entry.
+  useGate("useDecisionSuspense", policy, resource);
+  // SPIKE: replaces `settled.ts`'s hand-rolled Suspense-race fix with
+  // `@effect/atom-react`'s own `useAtomSuspense`. `suspendOnWaiting: true`
+  // preserves ADR-QD-017 ("a decision being re-checked is not a decision") —
+  // the library's default only suspends on `Initial`, not on `waiting`.
+  return useAtomSuspense(atom, { suspendOnWaiting: true }).value;
 };
 
 /**

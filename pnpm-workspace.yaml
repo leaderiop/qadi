@@ -20,6 +20,7 @@ packages:
 # `react`) becomes the reasonable default the moment "any 4.x" is a real,
 # tested compatibility promise rather than an assumption about an rc series.
 catalog:
+  '@effect/atom-react': 4.0.0-rc.115
   '@effect/platform-node': 4.0.0-rc.115
   '@effect/vitest': 4.0.0-rc.115
   '@testing-library/react': ^16.3.2
