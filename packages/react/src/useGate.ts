@@ -59,13 +59,13 @@ export interface Gate {
  * effect *does*, which is nothing at all when it is off.
  */
 export const useGate = (kind: GateKind, policy: Policy, resource?: Resource): Gate => {
-  const { registry, atoms, instrument } = useQadiContext(kind);
+  const { atoms, instrument } = useQadiContext(kind);
   const atom = useMemo(
     () =>
       resource === undefined ? atoms.decision(policy) : atoms.decisionFor(policy, resource),
     [atoms, policy, resource],
   );
-  const result = useAtomValue(registry, atom);
+  const result = useAtomValue(atom);
 
   const id = useId();
   const marker = useRef<HTMLSpanElement | null>(null);

@@ -2,23 +2,25 @@
 /**
  * The React binding.
  *
- * Everything React-specific in this package lives here: one context carrying
- * the atoms and the registry that holds their state, and one subscription
- * primitive built on `useSyncExternalStore`. The hooks in `hooks.ts` and the
- * components in `components.tsx` are written against these and contain no
- * subscription logic of their own.
+ * SPIKE (branch `spike/effect-atom-react`): the registry is now constructed
+ * with `@effect/atom-react`'s own `scheduleTask`/`defaultIdleTTL`, wiring
+ * idle-atom cleanup to React's real scheduler — the previous
+ * `AtomRegistry.make({ initialValues })` call passed neither. The
+ * subscription primitive is the library's own `useAtomValue`, read through
+ * `@effect/atom-react`'s `RegistryContext` rather than the hand-rolled
+ * `useSyncExternalStore` call this replaces.
  */
 import type { AuthSubject } from "@qadi/core";
+import { useAtomValue as useLibraryAtomValue } from "@effect/atom-react/Hooks";
+import { RegistryContext } from "@effect/atom-react/RegistryContext";
 import type * as Atom from "effect/unstable/reactivity/Atom";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { isDevelopment } from "./HydrationWarning.ts";
@@ -96,23 +98,18 @@ export const useQadiContext = (hookName: string): QadiContextValue => {
 };
 
 /**
- * Subscribes to an atom and returns its current value.
+ * Subscribes to an atom in this context's registry and returns its current
+ * value.
  *
- * The registry is the external store: it owns the value, recomputes it when a
- * dependency changes, and hands back the same reference until it does — which
- * is precisely the contract `useSyncExternalStore` requires.
+ * SPIKE: a direct re-export of `@effect/atom-react`'s own `useAtomValue`,
+ * which reads the registry from `RegistryContext` — provided by
+ * `QadiProvider` below — rather than an explicit argument. This is a public
+ * API signature change from the pre-spike `useAtomValue(registry, atom)`;
+ * every call site in this package reads the registry through
+ * `useQadiContext` only for other fields (`atoms`, `instrument`) now, not to
+ * pass it here.
  */
-export const useAtomValue = <A,>(
-  registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<A>,
-): A => {
-  const subscribe = useCallback(
-    (onChange: () => void) => registry.subscribe(atom, onChange),
-    [registry, atom],
-  );
-  const snapshot = useCallback(() => registry.get(atom), [registry, atom]);
-  return useSyncExternalStore(subscribe, snapshot, snapshot);
-};
+export const useAtomValue: <A>(atom: Atom.Atom<A>) => A = useLibraryAtomValue;
 
 /** Seed values applied when the provider creates its registry. */
 export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;
@@ -220,5 +217,9 @@ export const QadiProvider = ({
     [atoms, registry, instrument],
   );
 
-  return <QadiContext.Provider value={value}>{children}</QadiContext.Provider>;
+  return (
+    <RegistryContext.Provider value={registry}>
+      <QadiContext.Provider value={value}>{children}</QadiContext.Provider>
+    </RegistryContext.Provider>
+  );
 };

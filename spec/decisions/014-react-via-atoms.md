@@ -9,6 +9,10 @@
 > **Amended:** 2026-09-08 — records why `@qadi/react` carries no `stryker.*.mjs`,
 > a reason `stryker.config.mjs`'s doc comment had stated only jointly with
 > `@qadi/testing`'s, and inaccurately at that (CCR-QD-119).
+> **Reversed:** 2026-09-13 — the rejection of `@effect/atom-react` below was
+> checked against the wrong package and did not hold up. See the correction
+> under Consequences (CCR-QD-150). `@effect/atom-react` is now a dependency of
+> `@qadi/react`.
 
 ## Context
 
@@ -52,6 +56,11 @@ else.
 > store, and it is subscribed to by `@qadi/devtools` rather than here — this
 > package exposes `subscribe` and a snapshot and calls `useSyncExternalStore`
 > exactly once, in `QadiProvider.tsx`, as it always did.
+>
+> **No longer true, after CCR-QD-150.** `@effect/atom-react` is now a
+> dependency, and its `useAtomValue` — not a hand-rolled `useSyncExternalStore`
+> call — is what `QadiProvider.tsx` calls. See the Consequences section's
+> reversal of this ADR's `@effect/atom-react` rejection for why.
 
 `makeQadiAtoms(layer)` builds one authorization context: a writable `subject`
 atom, an `Atom.family` of decisions keyed by policy, a second family keyed by
@@ -115,10 +124,66 @@ something, which is what replaced the predecessor's cloned hook factory.
 alternative was not "no dependency" — it was a private, less-tested
 reimplementation of the same graph, which is what the first version already was.
 
-**Rejected**: `@effect/atom-react`, the official React binding. It supplies the
+~~**Rejected**: `@effect/atom-react`, the official React binding. It supplies the
 same `useSyncExternalStore` glue written here, plus Suspense helpers, hydration
 and scoped atoms this package does not use. Fifty lines of binding is not worth
-a dependency and a `scheduler` peer.
+a dependency and a `scheduler` peer.~~ **Reversed, CCR-QD-150.** The premise was
+wrong: what was checked was `@effect-atom/atom-react`, a similarly-named
+community package pinned to `effect: ^3.22.1` — a genuine reimplementation, and
+a real version conflict against this workspace's exact `4.0.0-rc.115` pin. The
+actual `@effect/atom-react`, published from the same `Effect-TS/effect`
+monorepo as `effect` itself, tracks `effect` version-for-version (its own
+`4.0.0-rc.115` release pins `effect: ^4.0.0-rc.115` exactly) and its `Hooks.ts`/
+`RegistryContext.ts` import `Atom`, `AtomRegistry`, `AsyncResult` and `AtomRef`
+directly from `effect/unstable/reactivity/*` — the same types `QadiAtoms.ts`
+already builds on, not a parallel implementation.
+
+Verified on branch `spike/effect-atom-react`, not assumed: swapping
+`QadiProvider.tsx`'s hand-rolled `useSyncExternalStore` binding for the
+library's `useAtomValue`, and `settled.ts`'s hand-rolled Suspense-race fix for
+the library's `useAtomSuspense`, closed one gap this package had hand-rolled
+and patched three separate times for the same underlying race — **the
+Suspense zero-listener race**. `settled.ts`'s doc comment records three
+defects found chasing it on a real Node 20.17.0/20.19.0 binary (COMPAT-01, gap
+G-01-1) — a subscribe-after-settle TOCTOU, a zero-listener teardown window
+racing React's Suspense retry, and cross-registry-generation starvation.
+`useAtomSuspense` solves the same race with a delayed-dispose timer instead of
+"never unsubscribe," already keyed per registry. 179 tests were green before
+and after this swap; the specific test the doc comment names as flaky
+(`edges.test.tsx`, "1/8" without the original fix) ran clean 30/30 times on
+Node 20.17.0 — the exact binary that bug was found on — and 25/25 on Node
+22.22.0, both after `settled.ts` was deleted entirely (its only remaining
+consumer, `Hydration.test.ts`, needed a generic-purpose local replacement, not
+the Suspense fix itself). Workspace `typecheck` and `lint` stayed clean.
+
+**A second gap was attempted and reverted: it is not closed, and should not be
+claimed as one.** `QadiProvider.tsx`'s `AtomRegistry.make({ initialValues })`
+call passes neither `scheduleTask` nor `defaultIdleTTL`, so idle atoms are
+never scheduled for cleanup through React's own scheduler — the library's own
+`RegistryContext.ts` wires both. Passing them here, matching the library, was
+tried on the same spike branch and caused a real, reproducible regression:
+`examples/nextjs-newsroom`'s `ssr.spec.ts` "a seeded allow is replaced by this
+client's own denial" e2e test — the exact test ticket 34 (§'s render-phase
+write regression, recorded above `QadiProvider`'s subject-sync effect) was
+originally bisected against — started failing again, not by hanging this
+time but by silently skipping the required intermediate render: the recorded
+sequence read `"Success,Success"` instead of the specified
+`"Success,Initial+waiting,Success"`. `AtomRegistry`'s `scheduleTask` option is
+not scoped to idle-atom cleanup: it is threaded into `MixedScheduler`
+instances used for **both** the registry's sync and async dispatch, so passing
+React's low-priority `unstable_scheduleCallback` there reroutes core
+notification dispatch through it, not just idle GC — and a low-priority
+callback coalescing two rapid state transitions (pending → denied, under real
+network timing) into one flush is exactly what dropped the render. Confirmed
+by isolation: reverting only these two options made the e2e test pass 5/5,
+restoring it made it fail reproducibly. Neither `packages/react`'s own unit
+suite (`happy-dom`, synchronous mocks) nor `Hydration.test.ts`'s direct
+registry tests exercise real scheduler timing, so this class of regression is
+only visible through `examples/nextjs-newsroom`'s e2e suite — the same reason
+ticket 34's original regression needed that suite to be caught at all.
+Revisiting idle-atom GC needs a way to scope `scheduleTask` to eviction alone,
+or a different idle-cleanup mechanism entirely, not a bare pass-through of the
+library's registry options.
 
 **Held to coverage, not mutation, rigor.** `@qadi/react` has no `stryker.*.mjs`.
 `stryker.devtools.mjs` draws a render-vs-decide line inside `@qadi/devtools` —
