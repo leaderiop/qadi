@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-23                                    |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-09-08                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-09-14                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
+> | Change History | 1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
 
 _Previous: [22 — The Promise Facade](./22-promise-facade.md)_
 
@@ -203,6 +203,69 @@ Found by writing the test this behavior requires (`http.test.ts`'s "an outage
 propagates typed through the middleware, and the body carries real fields"),
 which failed against the first, `HttpApiSchema.Empty`-based version of this
 change with every response coming back an empty 403, not by inspection.
+
+## BEH-QD-263: A generated client's static error type includes every enforcement outcome automatically
+
+> **ADR:** [ADR-QD-075](../decisions/075-clienterror-typing-for-requirepermission.md)
+
+```ts
+export class RequirePermission extends HttpApiMiddleware.Service<
+  RequirePermission,
+  { provides: CurrentSubject; requires: never; clientError: RequirePermissionClientError }
+>()("qadi/http/RequirePermission", {
+  error: REQUIRE_PERMISSION_ERROR_SCHEMAS, // the same 12 schemas BEH-QD-260/BEH-QD-177 describe
+  requiredForClient: true,
+});
+
+export const passthroughClientLayer: <A extends HttpApiMiddleware.AnyId>(
+  tag: Context.Key<A, …>,
+) => Layer.Layer<HttpApiMiddleware.ForClient<A>>;
+```
+
+```
+REQUIREMENT: For any endpoint `RequirePermission` guards, a client built via
+             `HttpApiClient.make` MUST include the full set of twelve
+             enforcement-outcome schemas in that call's *static* error type —
+             not only the ones an endpoint's own `error:` array happens to
+             declare.
+```
+
+```
+REQUIREMENT: Building such a client MUST require a service discharging
+             `HttpApiMiddleware.ForClient<RequirePermission>` from its
+             context — a real, compile-time-enforced obligation, not an
+             optional convenience. `passthroughClientLayer` MUST satisfy it
+             generically, for `RequirePermission` or any future middleware
+             sharing the same shape, without a middleware-specific variant.
+```
+
+BEH-QD-260 (and BEH-QD-177 before it) describe what a response *carries on the
+wire* and how the bare-`HttpRouter`/`HttpApiMiddleware` adapters map it to a
+status — settled, and unchanged by this behavior. This behavior is about a
+different layer entirely: whether a generated client's **static type** — what
+`Effect.catchTag` can name before a request is ever sent — includes those
+outcomes at all. It did not, unless an endpoint hand-declared a subset of
+`RequirePermission`'s own schemas in its own `error:` array (the shape
+`examples/http-advanced/api.ts`'s `documents.me()` endpoint used before this
+behavior, covering four of the twelve tags and never all twelve). Every other
+endpoint `RequirePermission` guarded had **none** of them in its static type,
+despite decoding all twelve identically at runtime — `HttpApiEndpoint`'s
+runtime decode map already merged an endpoint's own errors with every attached
+middleware's; only the *static* type left the middleware's contribution out,
+because `HttpApiMiddleware.ClientError<A>` (what a generated client's type
+draws from) resolves to `never` unless that middleware sets
+`requiredForClient: true` and a `clientError` type parameter.
+
+**Accepted limitation, disclosed rather than fixed:** `clientError` is
+declared once, on the middleware class — there is no per-endpoint override
+point for it. A `PublicEndpoint`-annotated endpoint's generated client method
+therefore still claims all twelve tags as possible, even though it never
+reaches `guard` and so can produce none of them. Detaching the middleware
+per-endpoint to fix this precisely was considered and rejected: it would
+reopen [ADR-QD-036](../decisions/036-qadi-http-package-shape.md)'s fail-closed
+design, under which an endpoint's guardedness must be *declared*
+(`RequiredPermission` or `publicEndpoint`), never inferred from which
+middleware happens to be structurally attached to it.
 
 ## BEH-QD-178: The endpoint-level check runs before any resource exists
 

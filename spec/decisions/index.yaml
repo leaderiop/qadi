@@ -254,3 +254,7 @@ entries:
     file: "074-node-floor-raised-to-22-12-for-effect-vitest.md"
     title: "The Node floor moves to >=22.12.0, forced by the effect/vitest bump"
     status: "Accepted — narrows ADR-QD-059"
+  - id: "ADR-QD-075"
+    file: "075-clienterror-typing-for-requirepermission.md"
+    title: "RequirePermission's enforcement errors are typed on the generated client, not hand-declared per endpoint"
+    status: "Accepted"

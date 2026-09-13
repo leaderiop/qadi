@@ -21,12 +21,12 @@
  * not find a real violation. `no-extensionless-relative-import` has the same
  * problem in reverse: it fails `import manifest from "../package.json"`,
  * a real, correct import with no `.ts` extension to add. `SWITCH_BUDGET`,
- * `HAS_CUSTOM_BUDGET` and `UNTRACED_BUDGET` below apply to every `src`-scope
- * file, `features/step-definitions` included (see "Scope beyond `packages`"
- * below) — a `test`-scope file (`packages/<pkg>/test`) never contributes to
- * any of the three, since `testScope`-only rules apply there and a vitest
- * body's `switch`/`hasCustom`/`Effect.fnUntraced` usage, if one ever
- * appeared, is not what any of the budgets track.
+ * `HAS_CUSTOM_BUDGET`, `UNTRACED_BUDGET` and `ANY_BUDGET` below apply to every
+ * `src`-scope file, `features/step-definitions` included (see "Scope beyond
+ * `packages`" below) — a `test`-scope file (`packages/<pkg>/test`) never
+ * contributes to any of the four, since `testScope`-only rules apply there
+ * and a vitest body's `switch`/`hasCustom`/`Effect.fnUntraced`/`any` usage, if
+ * one ever appeared, is not what any of the budgets track.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -317,6 +317,35 @@ const UNTRACED_BUDGET = {
 
 const UNTRACED_CALL = /\bEffect\.fnUntraced\s*\(/;
 
+/**
+ * `any` type usages, by file and exact count (ADR-QD-075).
+ *
+ * AGENTS.md §6 forbids `any` outright, with no stated exception — oxlint's
+ * `no-explicit-any` enforces that everywhere. `passthroughClientLayer`
+ * (`HttpApiMiddlewareClient.ts`) is a deliberate, measured exception: it must
+ * stay generic over any `HttpApiMiddleware.AnyId`, and `effect`'s own
+ * `HttpApiMiddleware<Provides, E, Requires>`/`HttpApiMiddlewareSecurity<...>`
+ * constraint shapes reject `unknown` in `Provides`'s position for a concrete
+ * middleware's real type (tried first and confirmed broken — `unknown` does
+ * not bypass variance checking the way `any` does), leaving `any` as the only
+ * way to accept "any middleware service" generically. `.oxlintrc.json` scopes
+ * a `no-explicit-any` override to this one file; this budget is the same
+ * discipline `SWITCH_BUDGET`/`HAS_CUSTOM_BUDGET`/`UNTRACED_BUDGET` enforce for
+ * their own exceptions, checked in both directions, so that override cannot
+ * silently grow to cover an unrelated, unreviewed `any` added to the same
+ * file later.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const ANY_BUDGET = {
+  // The seven `any`s in passthroughClientLayer's `Context.Key` parameter
+  // type — three in `HttpApiMiddleware<any, any, any>`, four in
+  // `HttpApiMiddlewareSecurity<any, any, any, any>`. See the doc comment above.
+  "packages/http/src/HttpApiMiddlewareClient.ts": 7,
+};
+
+const ANY_TYPE = /\bany\b/g;
+
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
 // this script scans — reuses the identical `as` keyword for namespacing, not
@@ -435,6 +464,9 @@ const hasCustomLines = new Map();
 /** @type {Map<string, number[]>} */
 const untracedLines = new Map();
 
+/** @type {Map<string, number[]>} */
+const anyLines = new Map();
+
 for (const file of sources) {
   const rel = relative(ROOT, file);
   const isTestFile = testSourceSet.has(file);
@@ -487,10 +519,10 @@ for (const file of sources) {
       importSpan = 0;
     }
 
-    // All three budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
-    // UNTRACED_BUDGET are keyed to specific src files) — a test file's switch,
-    // hasCustom or Effect.fnUntraced call, if one ever appears, is not what
-    // any budget tracks.
+    // All four budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
+    // UNTRACED_BUDGET/ANY_BUDGET are keyed to specific src files) — a test
+    // file's switch, hasCustom, Effect.fnUntraced or any usage, if one ever
+    // appears, is not what any budget tracks.
     if (!isTestFile && SWITCH.test(line)) {
       const found = switchLines.get(rel) ?? [];
       found.push(index + 1);
@@ -513,6 +545,27 @@ for (const file of sources) {
       const found = untracedLines.get(rel) ?? [];
       found.push(index + 1);
       untracedLines.set(rel, found);
+    }
+
+    // Scoped to ANY_BUDGET's own files only, unlike the other budgets above:
+    // oxlint's `no-explicit-any` (AST-based, no false positives) already
+    // enforces "no `any` anywhere except a file-scoped `.oxlintrc.json`
+    // override" across the whole codebase — this only needs to catch a
+    // silent, unreviewed *growth* of `any` usage inside an already-exempted
+    // file. A codebase-wide regex sweep for the plain English word "any"
+    // is not safe to run more broadly than that: it false-positives on
+    // ordinary prose in doc comments (confirmed — it matched "reach back to
+    // any sink's own log" in a `DevtoolsDock.tsx` JSX comment). Counts every
+    // `any` token on the line, not just whether the line has one — a single
+    // line here (`HttpApiMiddleware<any, any, any>`) legitimately carries
+    // several.
+    if (!isTestFile && rel in ANY_BUDGET) {
+      const matches = line.match(ANY_TYPE) ?? [];
+      if (matches.length > 0) {
+        const found = anyLines.get(rel) ?? [];
+        for (let i = 0; i < matches.length; i += 1) found.push(index + 1);
+        anyLines.set(rel, found);
+      }
     }
 
     for (const rule of RULES) {
@@ -620,6 +673,31 @@ for (const [rel, found] of untracedLines) {
       `    Add it to UNTRACED_BUDGET in scripts/check-house-style.mjs and AGENTS.md §5's table with a ` +
       `benchmark backing it — a conscious, reviewed opt-in, not a silent grep hit (ADR-QD-073).`,
   );
+}
+
+// ---------------------------------------------------------------------------
+// ADR-QD-075 — `any` is AGENTS.md §6's flat, exception-free ban. oxlint's
+// `no-explicit-any` (AST-based, correct everywhere) already enforces it
+// codebase-wide except for the file(s) `.oxlintrc.json` scopes an override
+// to; this budget adds the same both-directions discipline
+// `SWITCH_BUDGET`/`HAS_CUSTOM_BUDGET`/`UNTRACED_BUDGET` give their own
+// exceptions, so an override cannot silently grow to cover an unrelated,
+// unreviewed `any` added to that same file later. Deliberately scoped to only
+// the files ANY_BUDGET names (see the scan loop above) rather than a
+// codebase-wide sweep, which a plain-English word like "any" is not safe to
+// regex-match against prose-heavy doc comments.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(ANY_BUDGET)) {
+  const found = anyLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [any-budget] declares ${budget} any(s), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update ANY_BUDGET in scripts/check-house-style.mjs so the two agree.`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -42,6 +42,7 @@ import {
   UndischargedObligationRefused,
   subjectExtractionFailedResponse,
 } from "./QadiHttpError.ts";
+import type { ClientErrorOf } from "./HttpApiMiddlewareClient.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 // Named `PermissionRequirement`/`PublicDeclaration`, not the usual
@@ -207,6 +208,45 @@ export const requiresPermission = (
 };
 
 /**
+ * Declared once and reused for both the `error` option below and
+ * {@link RequirePermissionClientError} — a single source rather than a
+ * hand-copied second list that could drift from it (ADR-QD-075).
+ */
+const REQUIRE_PERMISSION_ERROR_SCHEMAS = [
+  AccessDeniedRefused,
+  UndischargedObligationRefused,
+  SubjectExtractionRefused,
+  AttributeResolveErrorResponse,
+  RelationshipResolveErrorResponse,
+  DecisionHistoryUnavailableResponse,
+  CustomPredicateErrorResponse,
+  SignatureHistoryUnavailableResponse,
+  MissingActionResponse,
+  MissingResourceResponse,
+  MissingResourceIdResponse,
+  PolicyTooDeepResponse,
+] as const;
+
+/**
+ * Every response {@link RequirePermission} can produce, decoded — the full
+ * 12-member union {@link REQUIRE_PERMISSION_ERROR_SCHEMAS} declares, read off
+ * that same array via {@link ClientErrorOf} rather than hand-copied. Any
+ * future `@qadi/http` middleware adopting `requiredForClient` derives its own
+ * `clientError` the same way, through the same shared helper.
+ *
+ * A generated `HttpApiClient` cannot know, per endpoint, which of these a
+ * given call can actually reach — a `PublicEndpoint`-annotated endpoint never
+ * reaches `guard` at all, so none of the twelve can occur there, yet this
+ * union is what every guarded endpoint's static error type includes
+ * regardless. That over-approximation is accepted, not fixed: narrowing per
+ * endpoint would need a per-endpoint `clientError` attachment point
+ * `HttpApiMiddleware`'s type has none of, and ADR-QD-036's fail-closed design
+ * is exactly why per-endpoint middleware detachment isn't the fix either —
+ * see ADR-QD-075.
+ */
+export type RequirePermissionClientError = ClientErrorOf<typeof REQUIRE_PERMISSION_ERROR_SCHEMAS>;
+
+/**
  * `CurrentSubject` is resolved and provided per request, inside the
  * middleware body — the rest of `EvaluationServices` is a standing
  * requirement, satisfied once by whatever `QadiEvaluationLive`-shaped layer
@@ -268,28 +308,29 @@ export const requiresPermission = (
  * their real fields into a response body. Declaring them anyway, rather than
  * leaving them off this list, is what keeps OpenAPI honest about every
  * status this endpoint can actually return.
+ *
+ * **`requiredForClient: true` plus `clientError: RequirePermissionClientError`**
+ * (ADR-QD-075) put the same twelve schemas into a generated `HttpApiClient`
+ * call's *static* error type, automatically, for every endpoint this
+ * middleware guards — see {@link RequirePermissionClientError}'s own doc
+ * comment for what that does and does not fix. Building such a client
+ * requires providing `passthroughClientLayer(RequirePermission)`
+ * (`HttpApiMiddlewareClient.ts`) somewhere in its layer graph; this
+ * middleware has no real client-side behavior, so that layer is always a
+ * passthrough — a credential is attached by decorating the underlying
+ * `HttpClient` instead, per `examples/http-advanced/client.ts`.
  */
 export class RequirePermission extends HttpApiMiddleware.Service<
   RequirePermission,
   {
     provides: CurrentSubject;
     requires: never;
+    clientError: RequirePermissionClientError;
   }
 >()("qadi/http/RequirePermission", {
-  error: [
-    AccessDeniedRefused,
-    UndischargedObligationRefused,
-    SubjectExtractionRefused,
-    AttributeResolveErrorResponse,
-    RelationshipResolveErrorResponse,
-    DecisionHistoryUnavailableResponse,
-    CustomPredicateErrorResponse,
-    SignatureHistoryUnavailableResponse,
-    MissingActionResponse,
-    MissingResourceResponse,
-    MissingResourceIdResponse,
-    PolicyTooDeepResponse,
-  ],
+  error: REQUIRE_PERMISSION_ERROR_SCHEMAS,
+  // See this class's own doc comment above (ADR-QD-075).
+  requiredForClient: true,
 }) {}
 
 export const RequirePermissionLive: Layer.Layer<

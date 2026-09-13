@@ -329,6 +329,19 @@ Determinism matters here beyond taste: the previous implementation used
 `performance.now()` and `new Date()` inside the evaluator, which made every
 evaluation trace untestable. Under `TestClock` ours are reproducible.
 
+**One measured, budgeted exception to `any`** (ADR-QD-075), the same
+discipline §5's `UNTRACED_BUDGET` and §5a's `SWITCH_BUDGET` apply to their own
+exceptions: `packages/http/src/HttpApiMiddlewareClient.ts`'s
+`passthroughClientLayer` needs `any` seven times, in `effect`'s own
+`HttpApiMiddleware<any, any, any>`/`HttpApiMiddlewareSecurity<any, any, any,
+any>` constraint shapes — the only way found to stay generic over any
+middleware service (`unknown` in `Provides`'s position rejects a concrete
+middleware's real type, tried and confirmed broken first). `.oxlintrc.json`
+scopes a `no-explicit-any` override to that one file, and
+`scripts/check-house-style.mjs`'s `ANY_BUDGET` enforces the exact count in
+both directions, so the override cannot silently grow to cover an unrelated
+`any` added to the same file later.
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal
