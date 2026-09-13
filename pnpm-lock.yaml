@@ -61,6 +61,9 @@ importers:
       '@changesets/cli':
         specifier: ^3.0.2
         version: 3.0.2
+      '@effect/atom-react':
+        specifier: 'catalog:'
+        version: 4.0.0-rc.115(effect@4.0.0-rc.115)(react@19.3.0)(scheduler@0.27.0)
       '@effect/language-service':
         specifier: ^0.87.2
         version: 0.87.2
@@ -100,6 +103,9 @@ importers:
       react:
         specifier: 'catalog:'
         version: 19.3.0
+      scheduler:
+        specifier: ^0.27.0
+        version: 0.27.0
       tstyche:
         specifier: ^7.2.5
         version: 7.2.5(typescript@7.0.2)
