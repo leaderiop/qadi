@@ -12,7 +12,7 @@
  */
 import type { AuthSubject } from "@qadi/core";
 import { useAtomValue as useLibraryAtomValue } from "@effect/atom-react/Hooks";
-import { RegistryContext, scheduleTask } from "@effect/atom-react/RegistryContext";
+import { RegistryContext } from "@effect/atom-react/RegistryContext";
 import type * as Atom from "effect/unstable/reactivity/Atom";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import {
@@ -168,12 +168,6 @@ export const QadiProvider = ({
       [atoms.subject, subject] as const,
       ...(initialValues ?? []),
     ],
-    // SPIKE: wires idle-atom cleanup to React's real scheduler, matching
-    // `@effect/atom-react`'s own `RegistryProvider` — the previous call
-    // passed neither option, so idle atoms were never scheduled for
-    // cleanup through React's scheduler at all.
-    scheduleTask,
-    defaultIdleTTL: 400,
   }));
 
   // Reverted from a render-phase write (ticket 34): that version reproducibly
