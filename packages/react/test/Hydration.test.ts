@@ -28,14 +28,42 @@ import {
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import type * as Atom from "effect/unstable/reactivity/Atom";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
 import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
-import type { HydrationMismatch } from "../src/QadiAtoms.ts";
+import type { DecisionResult, HydrationMismatch } from "../src/QadiAtoms.ts";
 import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { InitialValues } from "../src/QadiProvider.tsx";
-import { settled } from "../src/settled.ts";
+
+/**
+ * Waits for `atom`'s decision to leave `Initial`/`waiting` in `registry`.
+ *
+ * Local to this file rather than `settled.ts` (retired — nothing here
+ * renders, per this file's own header comment). `settled.ts`'s three
+ * documented races were all about a *permanent* subscription racing a React
+ * Suspense retry across concurrent registries; every call below is a
+ * one-shot subscription against a registry this test already owns
+ * exclusively and awaits sequentially, so none of that applies — including
+ * the two-registries-over-one-atom-set case below ("reports once per
+ * REGISTRY"), since each registry gets its own fresh, independent
+ * subscription here with no shared cache to contaminate.
+ */
+const awaitDecided = (
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<DecisionResult>,
+): Promise<void> => {
+  const isPending = (result: DecisionResult) => AsyncResult.isInitial(result) || result.waiting;
+  if (!isPending(registry.get(atom))) return Promise.resolve();
+  return new Promise((resolve) => {
+    const dispose = registry.subscribe(atom, (result) => {
+      if (isPending(result)) return;
+      dispose();
+      resolve();
+    });
+  });
+};
 
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
@@ -683,7 +711,7 @@ describe("hydration mismatch", () => {
     const registry = open(hydrateDecisions(watched, payload, alice));
     const unmount = registry.mount(watched.decision(isAdmin));
 
-    await settled(registry, watched.decision(isAdmin));
+    await awaitDecided(registry, watched.decision(isAdmin));
 
     expect(seen).toHaveLength(1);
     expect(first(seen).seeded._tag).toBe("Allow");
@@ -789,7 +817,7 @@ describe("hydration mismatch", () => {
     // The failure genuinely happened — without this the case would pass on a
     // decision that never settled. `settled` resolves on any transition out
     // of Initial, failure included — it does not mean "succeeded".
-    await settled(registry, failing.decision(needsAttribute));
+    await awaitDecided(registry, failing.decision(needsAttribute));
     expect(AsyncResult.isFailure(registry.get(failing.decision(needsAttribute)))).toBe(true);
     expect(seen).toEqual([]);
     unmount();
@@ -805,11 +833,11 @@ describe("hydration mismatch", () => {
     registry.mount(watched.invalidate);
     const unmount = registry.mount(watched.decision(isAdmin));
 
-    await settled(registry, watched.decision(isAdmin));
+    await awaitDecided(registry, watched.decision(isAdmin));
     expect(seen).toHaveLength(1);
 
     registry.set(watched.invalidate, undefined);
-    await settled(registry, watched.decision(isAdmin));
+    await awaitDecided(registry, watched.decision(isAdmin));
     registry.get(watched.decision(isAdmin));
 
     expect(seen).toHaveLength(1);
@@ -838,12 +866,12 @@ describe("hydration mismatch", () => {
 
     const registryA = openFresh();
     const unmountA = registryA.mount(watched.decision(isAdmin));
-    await settled(registryA, watched.decision(isAdmin));
+    await awaitDecided(registryA, watched.decision(isAdmin));
     expect(seen).toHaveLength(1);
 
     const registryB = openFresh();
     const unmountB = registryB.mount(watched.decision(isAdmin));
-    await settled(registryB, watched.decision(isAdmin));
+    await awaitDecided(registryB, watched.decision(isAdmin));
 
     // The second registry's own first answer is reported too — it is a
     // distinct client re-check, not a repeat of registryA's.
@@ -1057,9 +1085,9 @@ describe("a re-check that settles asynchronously", () => {
     // The server said `good`; by the time this client asks, it is `suspended`.
     const { seen, registry, unmount } = mount("suspended");
 
-    // Not `settled` on this atom: the mismatch report is a side effect that
-    // lands on a later turn than the decision atom itself commits (confirmed
-    // empirically — awaiting settled() alone, or settled() plus one
+    // Not `awaitDecided` on this atom: the mismatch report is a side effect
+    // that lands on a later turn than the decision atom itself commits
+    // (confirmed empirically — awaiting awaitDecided() alone, or plus one
     // Promise.resolve() microtask, both still observe `seen` empty). Polled
     // rather than a fixed sleep, matching the convention `hooks.test.tsx`'s
     // "re-evaluates when invalidated" test uses: a fixed wait races the
