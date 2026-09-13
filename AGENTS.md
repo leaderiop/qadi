@@ -417,10 +417,25 @@ state-management layer of its own. The rules that keep it that way:
   yourself writing `useState` + `useEffect` to hold one, the atom graph is the
   place for it instead. This is the rule the instance registry below does **not**
   bend: it holds who is asking, never what the answer was.
-- **No additional dependencies.** The React glue is one `useSyncExternalStore`
-  call in `QadiProvider.tsx`. `@effect/atom-react` supplies the same thing plus
-  features this package does not use, and was rejected on that basis
-  (ADR-QD-014).
+- **No additional dependencies, with one deliberate exception.** The React glue
+  was one hand-rolled `useSyncExternalStore` call in `QadiProvider.tsx`.
+
+  > **Corrected in CCR-QD-150.** ADR-QD-014 rejected `@effect/atom-react` as
+  > supplying "the same thing plus features this package does not use" — but
+  > what was checked was `@effect-atom/atom-react`, a similarly-named community
+  > package pinned to `effect: ^3.22.1`, not the actual `@effect/atom-react`
+  > (published from the `Effect-TS/effect` monorepo, tracking `effect`
+  > version-for-version, and built directly on `effect/unstable/reactivity`'s
+  > own `Atom`/`AtomRegistry`/`AsyncResult` types — not a parallel
+  > implementation). Verified on a spike branch, not assumed: swapping in the
+  > real package closed two gaps this package had hand-rolled and, in one
+  > case, patched three separate times — idle-atom GC wired to React's own
+  > scheduler, and `settled.ts`'s Suspense zero-listener race (COMPAT-01,
+  > gap G-01-1), confirmed by 30/30 clean runs of the test the race was found
+  > in, on the exact Node 20.17.0 binary that found it. `@effect/atom-react`
+  > is now a dependency of `@qadi/react`, and `QadiProvider.tsx`'s
+  > `useAtomValue` is a direct re-export of its hook. See ADR-QD-014's
+  > Consequences section for the full reversal.
 - **Submodule imports, as everywhere else:**
   `import * as Atom from "effect/unstable/reactivity/Atom"`.
 - **Read decisions through `currentDecision`.** It is the single place the rule
