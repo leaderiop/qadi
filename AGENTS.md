@@ -428,14 +428,19 @@ state-management layer of its own. The rules that keep it that way:
   > version-for-version, and built directly on `effect/unstable/reactivity`'s
   > own `Atom`/`AtomRegistry`/`AsyncResult` types — not a parallel
   > implementation). Verified on a spike branch, not assumed: swapping in the
-  > real package closed two gaps this package had hand-rolled and, in one
-  > case, patched three separate times — idle-atom GC wired to React's own
-  > scheduler, and `settled.ts`'s Suspense zero-listener race (COMPAT-01,
+  > real package closed a gap this package had hand-rolled and patched three
+  > separate times — `settled.ts`'s Suspense zero-listener race (COMPAT-01,
   > gap G-01-1), confirmed by 30/30 clean runs of the test the race was found
-  > in, on the exact Node 20.17.0 binary that found it. `@effect/atom-react`
-  > is now a dependency of `@qadi/react`, and `QadiProvider.tsx`'s
-  > `useAtomValue` is a direct re-export of its hook. See ADR-QD-014's
-  > Consequences section for the full reversal.
+  > in, on the exact Node 20.17.0 binary that found it. A second gap — wiring
+  > `AtomRegistry.make`'s `scheduleTask`/`defaultIdleTTL` for idle-atom GC,
+  > matching the library's own `RegistryContext.ts` — was tried and reverted:
+  > `scheduleTask` is not scoped to idle cleanup, it reroutes the registry's
+  > core dispatch through React's low-priority scheduler, and doing so
+  > silently dropped a required intermediate render under real network timing
+  > in `examples/nextjs-newsroom`'s e2e suite. It is not closed, and remains
+  > open. `@effect/atom-react` is now a dependency of `@qadi/react`, and
+  > `QadiProvider.tsx`'s `useAtomValue` is a direct re-export of its hook. See
+  > ADR-QD-014's Consequences section for the full reversal.
 - **Submodule imports, as everywhere else:**
   `import * as Atom from "effect/unstable/reactivity/Atom"`.
 - **Read decisions through `currentDecision`.** It is the single place the rule
