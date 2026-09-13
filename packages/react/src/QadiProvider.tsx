@@ -101,16 +101,15 @@ export const useQadiContext = (hookName: string): QadiContextValue => {
  * Subscribes to an atom in this context's registry and returns its current
  * value.
  *
- * SPIKE: delegates to `@effect/atom-react`'s `useAtomValue`, which reads the
- * registry from `RegistryContext` rather than an explicit argument — so this
- * wrapper's job is only to keep call sites' existing `useAtomValue(registry,
- * atom)` shape working while `RegistryContext` (provided below by
- * `QadiProvider`) supplies the same registry.
+ * SPIKE: a direct re-export of `@effect/atom-react`'s own `useAtomValue`,
+ * which reads the registry from `RegistryContext` — provided by
+ * `QadiProvider` below — rather than an explicit argument. This is a public
+ * API signature change from the pre-spike `useAtomValue(registry, atom)`;
+ * every call site in this package reads the registry through
+ * `useQadiContext` only for other fields (`atoms`, `instrument`) now, not to
+ * pass it here.
  */
-export const useAtomValue = <A,>(
-  _registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<A>,
-): A => useLibraryAtomValue(atom);
+export const useAtomValue: <A>(atom: Atom.Atom<A>) => A = useLibraryAtomValue;
 
 /** Seed values applied when the provider creates its registry. */
 export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;

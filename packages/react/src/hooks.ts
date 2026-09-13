@@ -18,8 +18,8 @@ import { useGate } from "./useGate.ts";
 
 /** The subject under authorization, or `undefined` while it is still loading. */
 export const useSubject = (): AuthSubject | undefined => {
-  const { registry, atoms } = useQadiContext("useSubject");
-  return useAtomValue(registry, atoms.subject);
+  const { atoms } = useQadiContext("useSubject");
+  return useAtomValue(atoms.subject);
 };
 
 /**
@@ -108,13 +108,13 @@ const combinedFamily = Atom.family((atoms: QadiAtoms) =>
 export const usePolicies = (
   policies: Readonly<Record<string, Policy>>,
 ): Readonly<Record<string, DecisionResult>> => {
-  const { registry, atoms } = useQadiContext("usePolicies");
+  const { atoms } = useQadiContext("usePolicies");
   // `useMemo` here is a performance hoist, not the source of correctness —
   // `combinedFamily` already memoises structurally, so calling it fresh every
   // render would still return the same atom. This only spares re-walking the
   // policy records' hashes on every render (AGENTS.md §13).
   const atom = useMemo(() => combinedFamily(atoms)(policies), [atoms, policies]);
-  return useAtomValue(registry, atom);
+  return useAtomValue(atom);
 };
 
 /**
