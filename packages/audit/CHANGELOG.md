@@ -1,5 +1,13 @@
 # @qadi/audit
 
+## 0.7.0
+
+### Patch Changes
+
+- c7aecf1: Bump `effect` to `4.0.0-rc.116` (and its lockstep catalog siblings `@effect/atom-react`, `@effect/platform-node`, `@effect/vitest`). No public API or runtime behavior changes for any `@qadi/*` package — confirmed by diffing the published `4.0.0-rc.115`/`4.0.0-rc.116` tarballs directly and grepping every changed symbol against this codebase's own source.
+- Updated dependencies [c7aecf1]
+  - @qadi/core@0.7.0
+
 ## 0.6.3
 
 ### Patch Changes
