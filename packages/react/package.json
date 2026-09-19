@@ -43,7 +43,8 @@
     "effect": "catalog:"
   },
   "peerDependencies": {
-    "react": ">=19.2.4"
+    "react": ">=19.2.4",
+    "scheduler": ">=0.25.0 <0.28.0"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
