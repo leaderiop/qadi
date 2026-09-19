@@ -66,11 +66,19 @@ acknowledges that a graph has distance. Be exact about what that means, because
 the name invites over-reading. `depth` travels to the resolver as a field of
 `RelationshipCheck`, alongside `subjectId`, `relation` and `resourceId`, and
 that is all that happens to it: **Qadi performs no traversal itself.** The
-evaluator never reads `depth`, counts no hops and does not know the tree exists.
-It is a *bound the resolver is asked to honour*, not one the library enforces,
-and `undefined` means the resolver decides. `relationshipResolverFromEdges`
-ignores it entirely — a flat edge list has no graph to walk, so there is nothing
-for a bound to bound. A real hierarchy resolver must implement it.
+evaluator does not walk the tree, count hops, or know it exists — that is
+entirely the resolver's job, and `undefined` means the resolver decides. What
+the evaluator *does* do, at the trust boundary a decoded policy crosses, is
+clamp a decoded `depth` to `[0, 64]` before it reaches the resolver:
+`NaN`/negative values and `undefined` pass through as "no bound"/"resolver
+decides" as appropriate, a fractional depth truncates, and anything past 64
+(the same ceiling `DEFAULT_MAX_DEPTH` applies to policy-tree recursion) is
+capped — so a hostile persisted policy cannot turn `depth` into unbounded
+resolver fuel. That is a numeric-safety bound on the value, not traversal: the
+evaluator still never walks the graph itself, only the fuel it hands the
+resolver is kept sane. `relationshipResolverFromEdges` ignores `depth`
+entirely — a flat edge list has no graph to walk, so there is nothing for a
+bound to bound. A real hierarchy resolver must implement it.
 
 The resolver's question is not "is this subject a member of this resource?" but
 "is this subject a member of this resource **or any ancestor of it**?" — so the

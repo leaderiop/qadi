@@ -33,7 +33,7 @@ entries:
   - id: "ADR-QD-008"
     file: "008-error-taxonomy.md"
     title: "Error taxonomy and code derivation"
-    status: "Accepted"
+    status: "Accepted — narrowed by ADR-QD-060/ADR-QD-072"
   - id: "ADR-QD-009"
     file: "009-observability-via-effect.md"
     title: "Observability via Effect tracing"

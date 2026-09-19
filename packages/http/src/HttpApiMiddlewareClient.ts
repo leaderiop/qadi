@@ -38,6 +38,19 @@ export type ClientErrorOf<Schemas extends ReadonlyArray<Schema.Top>> = Schemas[n
 // `any` does. `.oxlintrc.json` scopes a `no-explicit-any` override to this
 // file alone for exactly this reason (ADR-QD-075) rather than relaxing the
 // rule workspace-wide.
+//
+// Only correct for a middleware with NO real client-side behavior (JF-04).
+// This helper is generic over any `HttpApiMiddleware.AnyId`, so it discharges
+// `HttpApiMiddleware.ForClient<X>` for any middleware `X` — including a future
+// one whose client side does something real (token refresh, request signing,
+// replay protection). The `any`s above mean the type system cannot tell an
+// honest discharge from this one-line passthrough, so a consumer reaching for
+// it because "it's the generic one" would silently neuter that behavior while
+// the compiler reports the requirement satisfied. For `RequirePermission`
+// today this is exactly honest — its credential is attached by decorating the
+// underlying `HttpClient`, not through middleware — so verify the same is
+// true of any middleware before reusing this rather than assuming it from the
+// generic signature.
 export const passthroughClientLayer = <A extends HttpApiMiddleware.AnyId>(
   tag: Context.Key<
     A,

@@ -425,6 +425,56 @@ describe("qadi_audit_staging_total", () => {
       assert.strictEqual(commitFailed?.state.count, 1);
     }));
 
+  it.effect(
+    "a commit failure also logs a warning, not just the metric (PH-02)",
+    () =>
+      Effect.gen(function* () {
+        // The metric alone (asserted above) would still pass if a mutant
+        // deleted the `Effect.logWarning` call in AuditDecisionSinkLive.ts —
+        // this pins the log itself, the same discipline the breaker-open
+        // drop warnings above already have. The write still succeeds (the
+        // entry is durable in the trail), so this is staging-cleanup
+        // visibility, not a compliance-record-loss warning.
+        const { layer: trail, written } = AuditTrailPortTest();
+        const brokenStaging = Layer.succeed(AuditStagingPort, {
+          stage: () => Effect.succeed("handle"),
+          commit: () => Effect.die(new Error("caller's staging store bug")),
+        });
+        const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+
+        yield* Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          yield* sink.record(decisionRecord({ evaluationId: "e-0" }));
+        }).pipe(
+          Effect.provide(
+            Layer.provideMerge(
+              AuditDecisionSinkLive(),
+              Layer.mergeAll(
+                trail,
+                brokenStaging,
+                Logger.layer([
+                  Logger.make((o) => {
+                    logs.push({
+                      message: o.message,
+                      annotations: o.fiber.getRef(References.CurrentLogAnnotations),
+                    });
+                  }),
+                ]),
+              ),
+            ),
+          ),
+        );
+
+        assert.strictEqual(written().length, 1);
+        assert.strictEqual(logs.length, 1);
+        const [entry] = logs;
+        assert.isDefined(entry);
+        if (entry === undefined) return;
+        assert.include(String(entry.message), "audit staging commit failed");
+        assert.strictEqual(entry.annotations["evaluationId"], "e-0");
+      }),
+  );
+
   it.effect("carries its documented description", () =>
     Effect.gen(function* () {
       const { layer: trail } = AuditTrailPortTest();

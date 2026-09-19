@@ -43,12 +43,42 @@
  * leaf, which is why the two workloads below differ by exactly one wrapped
  * call rather than by the leaf count.
  *
+ * **Corrected (100-lens audit — michael-arnaldi MA-01, niklaus-wirth NW-04,
+ * jeff-dean JD-04).** This is the pre-decision record ticket #101 produced,
+ * and #102 acted on it: `evaluateAllOf`, `evaluateAnyOf` and `evaluateRules`
+ * have been `Effect.fnUntraced` in `Evaluate.ts` since that ticket landed
+ * (ADR-QD-073, AGENTS.md §5's table). So, as of this correction, three
+ * paragraphs above no longer describe the current codebase and are kept as
+ * the historical record they were written as, not silently rewritten:
+ * "`Effect.fnUntraced` is used **zero** times in this codebase" (this file's
+ * opening line) is now false — it is used at exactly the three call sites
+ * this file measured; "each a *named* `Effect.fn`" two paragraphs up is true
+ * of `evaluate` alone now, not the other three; and "It does not modify
+ * `Evaluate.ts`" / "blocked on these numbers existing", just below, describes
+ * a decision that has since been made. Read this file for the *measurement*
+ * it recorded, not for the present tense of its own prose.
+ *
+ * Also re-verified, not just re-asserted: the per-call breakdown above was
+ * read from `effect@4.0.0-rc.112`; the workspace has since moved to
+ * `effect@4.0.0-rc.116` (four release candidates, `c7aecf1`) with no note
+ * that the reading was repeated. It has been now — `node_modules/.pnpm/
+ * effect@4.0.0-rc.116/node_modules/effect/src/internal/effect.ts` — and the
+ * mechanism is unchanged: `fn`'s per-definition `defError` and per-call
+ * `callError`/`useSpan`/`CurrentStackFrame` update are the same three costs,
+ * `fnUntraced` is still exactly `suspend(() => fromIteratorUnsafe(body.apply
+ * (this, arguments)))`, only the line numbers moved (`defError` at line 1292,
+ * `callError`/`useSpan`/the frame update at 1338–1351, versus 1233/1276–1278
+ * under rc.112). The µs/call figures below were not re-run against rc.116
+ * specifically; the claim being pinned here is narrower — that rc.116 has not
+ * changed *what* is being measured, so the figures are not known to be stale,
+ * only unconfirmed at the exact rc.
+ *
  * ## What this file does not do
  *
  * It does not modify `Evaluate.ts`. Ticket #101 (this file) is measurement
- * only; adopting `fnUntraced` anywhere is ticket #102's decision, blocked on
- * these numbers existing. Two things are measured instead, both without
- * touching production code:
+ * only; adopting `fnUntraced` anywhere was ticket #102's decision — since
+ * made, per the correction above. Two things are measured instead, both
+ * without touching production code:
  *
  * 1. **Isolated per-call overhead** — the same trivial generator body, wrapped
  *    once with `Effect.fn("qadi.bench.identity")` and once with

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-050                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-19                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.1 (2026-09-19): Deployment requirement added for `Live` — it is a cross-subject attribute/relationship/history/signature read capability, not merely a data-source choice, and sealing (this ADR's own decision) does not restrict who may ask about whom; the host must gate the page or the `ports` prop to callers already authorized for that capability (.issues/medium/jessie-frazelle-JF-02.md)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 ---
 
@@ -80,6 +80,22 @@ sweep varies.
 `Live` is opt-in by the application author (a `ports` prop the host passes),
 sequential, and counted **before** the sweep runs rather than after. A count
 discovered afterwards is not a warning.
+
+**That opt-in is a capability grant, not just a data-source choice, and the
+host must gate it accordingly.** Passing `ports` gives a `Live` sweep the
+ability to resolve real `AttributeResolver`/`RelationshipResolver`/
+`CustomPredicate`/`SignatureHistory` answers for **any subject id the sweep
+varies to**, not only the one the reviewer is signed in as — the sealing
+above stops a sweep from *writing*, it does not restrict *whose* attributes,
+relationships, history or signatures it may read. A host that mounts a
+`Live`-sourced simulator on a page reachable by more than the operators who
+should have that cross-subject read capability has silently extended that
+capability to every viewer of the page, independent of whatever the
+application's own policies would otherwise say about who may ask about whom.
+Deploying `Live` therefore requires the host to restrict the page (or the
+`ports` prop itself, via a host-supplied guard) to callers already authorized
+for that capability — `Fixtures` and `Snapshot` carry no such requirement,
+since neither reaches a real port at sweep time.
 
 **Both clocks, and the number is labelled rather than read.**
 `simulate({ clock: "deterministic" })` wires `TestClock`; `qadiTestLayer({ clock:

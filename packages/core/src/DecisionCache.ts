@@ -60,16 +60,18 @@ import type { SignatureHistory } from "./SignatureHistory.ts";
  * questions hit however their properties were ordered, and two different ones
  * cannot collide. `AuthSubject.roles`/`.permissions` are `ReadonlySet<RoleName>`
  * / `ReadonlySet<PermissionKey>` — the built-in JS `Set`, not `effect/HashSet`
- * — but that is not a gap: `effect@4.0.0-rc.112`'s `Equal.equals`/`Hash.hash`
- * special-case `self instanceof Set` (and `Map`) and fold over their elements
- * order-independently, the same way they fold over an array's, so two subjects
- * whose grants are equal in content but held in two different `Set` objects —
- * the common case, since `makeSubject`/`fromRoles` each build a fresh `Set` —
- * are equal keys and this cache hits. Verified empirically against the
- * installed `effect` build, not assumed from the `Equal`/`Hash` docs, since a
- * prior version of this comment called the field `HashSet` and asserted the
- * same property for the wrong reason; `DecisionCache.test.ts`'s "equal grants,
- * different Set identity, still a hit" pins the actual mechanism.
+ * — but that is not a gap: the installed `effect@4.0.0-rc.116`'s
+ * `Equal.equals`/`Hash.hash` special-case `self instanceof Set` (and `Map`)
+ * and fold over their elements order-independently, the same way they fold
+ * over an array's, so two subjects whose grants are equal in content but held
+ * in two different `Set` objects — the common case, since `makeSubject`/
+ * `fromRoles` each build a fresh `Set` — are equal keys and this cache hits.
+ * Verified empirically against the installed `effect` build (checked
+ * 2026-09-19; re-check on the next `effect` bump), not assumed from the
+ * `Equal`/`Hash` docs, since a prior version of this comment called the field
+ * `HashSet` and asserted the same property for the wrong reason;
+ * `DecisionCache.test.ts`'s "equal grants, different Set identity, still a
+ * hit" pins the actual mechanism.
  *
  * The predecessor of this was `JSON.stringify`, whose own doc comment claimed
  * property-order misses were the price of having "no chance of colliding". It
@@ -376,27 +378,54 @@ export const decisionCacheLayer = (options?: {
        * so an abandoned evaluation does not keep running for no one.
        *
        * **The `waiters === 0` check and the `Fiber.interrupt` call below are
-       * two separate steps, and that is not a race** (issue #64, part of the
-       * #33 wayfinder map — a Low/Info re-audit finding, read from source
-       * rather than reproduced). A reader could imagine a brand-new caller
-       * for this same key claiming or joining in the gap between them,
-       * re-incrementing `waiters` too late to stop an interrupt that was
-       * already decided. It cannot happen: `effect@4.0.0-rc.112`'s
-       * `FiberImpl.interruptUnsafe` (`internal/effect.ts`) evaluates an
-       * idle fiber's interrupt **synchronously, in the caller's own call
-       * stack**, whenever that fiber is not currently `_running` — and a
-       * fiber suspended in `Deferred.await` (this fiber, and the `compute`
-       * fiber `Fiber.interrupt` targets below) is exactly "idle". So the
-       * decrement, the decision, the nested interrupt of `entry.fiber`, and
+       * two separate steps, and in the regime this cache's `compute` actually
+       * runs in, that is not a race** (issue #64, part of the #33 wayfinder
+       * map — a Low/Info re-audit finding, read from source rather than
+       * reproduced). A reader could imagine a brand-new caller for this same
+       * key claiming or joining in the gap between them, re-incrementing
+       * `waiters` too late to stop an interrupt that was already decided.
+       * Verified against the installed `effect@4.0.0-rc.116` (checked
+       * 2026-09-19; re-check on the next `effect` bump —
+       * `FiberImpl.interruptUnsafe` in `internal/effect.ts`): it evaluates a
+       * fiber's interrupt **synchronously, in the caller's own call stack**,
+       * only when that fiber is both **idle** (not currently `_running`) and
+       * **interruptible**. `awaitShared`'s own fiber, suspended in
+       * `Deferred.await`, is always both. So for this fiber the decrement,
+       * the decision, the nested interrupt of `entry.fiber`, and — when
+       * `entry.fiber` is *also* idle-and-interruptible at that instant —
        * that fiber's own `onExit` finalizer (removing `inFlight`, settling
-       * `claim`) all run as one uninterrupted synchronous cascade — there is
-       * no scheduler dispatch boundary inside it for another, independently
+       * `claim`) all run as one uninterrupted synchronous cascade, with no
+       * scheduler dispatch boundary inside it for another, independently
        * scheduled fiber's claim-or-join to land in. `DecisionCache.test.ts`'s
        * two "REGRESSION PIN for issue #64" tests race a fresh joiner against
-       * this exact cascade — one through nested fibers on this runtime's own
-       * scheduler, one through fully independent `ManagedRuntime` roots on
-       * real Node.js `setImmediate` macrotasks — and neither ever produces
-       * the interrupted outcome the finding describes.
+       * exactly that cascade — one through nested fibers on this runtime's
+       * own scheduler, one through fully independent `ManagedRuntime` roots
+       * on real Node.js `setImmediate` macrotasks — and neither ever
+       * produces the interrupted outcome the finding describes.
+       *
+       * **That idle-and-interruptible premise does not hold for `entry.fiber`
+       * whenever `compute` is parked inside a caller-supplied port's
+       * uninterruptible region** — a connection checkout, an
+       * `Effect.acquireUseRelease` acquire, a finalizer window — which is a
+       * real, reachable state for `AttributeResolver`/`RelationshipResolver`/
+       * `CustomPredicate` implementations, this cache's primary extension
+       * points. There, `Fiber.interrupt(entry.fiber)` only *records* the
+       * interrupt cause; delivery is deferred until `entry.fiber` next
+       * becomes interruptible. A fresh `getOrCompute` for the same key can
+       * join in that deferral window (the entry is still in `inFlight`), and
+       * when delivery eventually lands, `compute`'s `onExit` finalizer
+       * completes `claim` with the interrupted `Exit` — so that fresh
+       * joiner's `awaitShared` resolves interrupted despite never having
+       * been cancelled itself. This is an open gap (issue #64 follow-up),
+       * not one the two REGRESSION PIN tests above exercise: both pin the
+       * idle-and-interruptible regime, since their blocking resolvers park
+       * in bare `Deferred.await`. Closing it structurally — rather than
+       * further narrowing this comment — needs one of: falling through to a
+       * fresh compute when a join lands on a claim whose fiber already
+       * carries a pending interrupt; delivering the last-leaver signal as a
+       * typed abandon failure instead of raw interruption; or an explicit
+       * uninterruptible-regime regression pin once a decision is made on
+       * which of those to take. Left open rather than guessed at here.
        */
       const awaitShared = (entry: InFlightClaim): Effect.Effect<Trace, EvaluationError> =>
         Deferred.await(entry.claim).pipe(

@@ -20,8 +20,17 @@
  * Walks with an explicit array-backed stack rather than recursion, so the
  * guard itself cannot be the thing that overflows.
  */
+/**
+ * True for a plain object — arrays excluded, matching `FieldPath.ts`'s
+ * identically-named predicate. `exceedsJsonDepth` below dispatches arrays
+ * first (via `Array.isArray`) before ever reaching this check, so the
+ * missing exclusion was never reachable from here — but the predicate's own
+ * type claim (`value is Record<string, unknown>`) was false for the arrays
+ * it admitted, and a future caller reusing this name without that call-order
+ * discipline would have inherited a lying narrowing (NS-01).
+ */
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** `true` once any value in `root` is nested deeper than `maxDepth`. */
 export const exceedsJsonDepth = (root: unknown, maxDepth: number): boolean => {

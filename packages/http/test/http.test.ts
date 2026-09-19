@@ -389,6 +389,93 @@ describe("@qadi/http", () => {
       assert.deepStrictEqual(attributeResolverCalls, ["alice:clearance"]);
     }));
 
+  it.effect(
+    "the same request sent twice returns the identical verdict, and the resolver runs once (KK-04)",
+    () =>
+      Effect.gen(function* () {
+        // The fault class this suite's own history caught for outages (the
+        // 502-not-403 test below "failed against the first version" when
+        // written) but never induced for a duplicated request: a client
+        // retry or a proxy resending the same request must see the identical
+        // verdict on the second pass, not a re-evaluation that could
+        // silently diverge. `DecisionCache` coalescing (already exercised
+        // above for one request's own guard + recheck) is what should make
+        // the second, separate HTTP request a cache hit too.
+        attributeResolverCalls.length = 0;
+        const { handler } = HttpRouter.toWebHandler(AppLayer);
+        const send = () =>
+          handler(
+            new Request("http://localhost/documents/write", {
+              method: "POST",
+              headers: bearer(ALICE_TOKEN),
+            }),
+          );
+
+        const first = yield* Effect.promise(send);
+        const second = yield* Effect.promise(send);
+
+        assert.strictEqual(first.status, 200);
+        assert.strictEqual(second.status, first.status);
+        // Two HTTP requests, each with its own guard call plus the handler's
+        // defense-in-depth recheck — four evaluations total, one resolver
+        // call, because every one of them asks the identical
+        // (subject, policy, resource) question.
+        assert.deepStrictEqual(attributeResolverCalls, ["alice:clearance"]);
+      }),
+  );
+
+  it.effect(
+    "a request retried after a transient resolver failure recovers, rather than replaying the failure (KK-04)",
+    () =>
+      Effect.gen(function* () {
+        // `DecisionCache.ts`'s own doc comment states the property this
+        // exercises at the HTTP boundary: "compute failing does not poison
+        // the cache: the next [lookup computes again]". A transient
+        // attribute-store outage must not leave a retried request
+        // permanently 502ing off a cached failure — the first request
+        // surfaces the outage, and a second, identical request after the
+        // dependency recovers must reach the handler normally.
+        let calls = 0;
+        const flaky = Layer.succeed(AttributeResolver, {
+          resolve: (subjectId, attribute) => {
+            calls += 1;
+            return calls === 1
+              ? Effect.fail(new AttributeResolveError({ attribute, cause: "transient outage" }))
+              : Effect.succeed(subjectId === "alice" ? 5 : 0);
+          },
+        });
+        const app = WithRegistry.pipe(
+          Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
+          Layer.provideMerge(
+            Layer.mergeAll(
+              flaky,
+              RelationshipResolverNever,
+              DecisionHistoryUnknown,
+              EvaluationIdLive,
+              CustomPredicateNone,
+              SignatureHistoryNone,
+            ),
+          ),
+          Layer.provideMerge(decisionCacheLayer()),
+          Layer.provideMerge(HttpServer.layerServices),
+        );
+        const { handler } = HttpRouter.toWebHandler(app);
+        const send = () =>
+          handler(
+            new Request("http://localhost/documents/write", {
+              method: "POST",
+              headers: bearer(ALICE_TOKEN),
+            }),
+          );
+
+        const first = yield* Effect.promise(send);
+        assert.strictEqual(first.status, 502);
+
+        const retried = yield* Effect.promise(send);
+        assert.strictEqual(retried.status, 200);
+      }),
+  );
+
   it.effect("A CREDENTIAL STORE OUTAGE IS 502, NOT 403", () =>
     Effect.gen(function* () {
       // INV-QD-006 at the boundary that had no way to express it. `extract`
@@ -619,6 +706,70 @@ describe("@qadi/http", () => {
       );
       assert.strictEqual(body._tag, "AttributeResolveError");
       assert.strictEqual(body.attribute, "clearance");
+    }));
+
+  // BS-01 (2026-09-19 audit): the scenario above only ever exercised a
+  // benign string `cause` ("attribute store unreachable"), so nothing there
+  // would have failed had `cause` leaked verbatim. A real resolver outage
+  // wraps whatever the backing store actually threw — a driver error with a
+  // connection string, a host, a stack-shaped object — into `cause` via
+  // `Cause.squash`, and `AttributeResolveError`'s own class schema declares
+  // `cause: Schema.Defect()`, which *does* serialize an `Error`'s
+  // name/message/cause into JSON. This fixture uses a real `Error` carrying
+  // exactly that kind of internal detail and asserts it never reaches the
+  // wire — only `_tag` and the non-sensitive `attribute` name do.
+  it.effect("an outage's body carries the safe fields only — a real defect's cause never reaches the wire", () =>
+    Effect.gen(function* () {
+      const attributePolicy = hasAttribute("clearance", gte(1));
+      const AttributeGroup = HttpApiGroup.make("attribute-checked").add(
+        HttpApiEndpoint.get("read", "/attribute-checked").pipe((endpoint) =>
+          endpoint.annotate(
+            RequiredPermission,
+            requiresPermission(endpoint, { permission: readPermission, policy: attributePolicy }),
+          ),
+        ),
+      );
+      const AttributeApi = HttpApi.make("attribute-test").add(AttributeGroup).middleware(RequirePermission);
+      const AttributeHandlers = HttpApiBuilder.group(AttributeApi, "attribute-checked", (handlers) =>
+        handlers.handle("read", () => Effect.void),
+      );
+      const AttributeRoutes = HttpApiBuilder.layer(AttributeApi).pipe(
+        Layer.provide(AttributeHandlers),
+        Layer.provide(RequirePermissionLive),
+      );
+
+      const secretCause = new Error("connect ECONNREFUSED 10.0.0.42:5432 (attribute-store-primary.internal)");
+      const failingResolver = Layer.succeed(AttributeResolver, {
+        resolve: (_subjectId, attribute) => Effect.fail(new AttributeResolveError({ attribute, cause: secretCause })),
+      });
+
+      const app = AttributeRoutes.pipe(
+        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
+        Layer.provideMerge(
+          Layer.mergeAll(
+            failingResolver,
+            RelationshipResolverNever,
+            DecisionHistoryUnknown,
+            EvaluationIdLive,
+            CustomPredicateNone,
+            SignatureHistoryNone,
+          ),
+        ),
+        Layer.provideMerge(decisionCacheLayer()),
+        Layer.provideMerge(HttpServer.layerServices),
+      );
+      const { handler } = HttpRouter.toWebHandler(app);
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/attribute-checked", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 502);
+      const rawBody = yield* Effect.promise(() => response.text());
+      assert.strictEqual(rawBody.includes("ECONNREFUSED"), false);
+      assert.strictEqual(rawBody.includes("10.0.0.42"), false);
+      assert.strictEqual(rawBody.includes("attribute-store-primary"), false);
+      assert.strictEqual(rawBody.includes("cause"), false);
+      const body: { readonly _tag?: string; readonly attribute?: string } = JSON.parse(rawBody);
+      assert.deepStrictEqual(body, { _tag: "AttributeResolveError", attribute: "clearance" });
     }));
 
   it.effect(

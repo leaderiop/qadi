@@ -127,6 +127,15 @@ nothing re-renders because a guard registered. The React glue is still **one**
 `useSyncExternalStore` call in `QadiProvider.tsx` — the registry exposes
 `subscribe` and a snapshot for exactly that purpose.
 
+> **Correction.** The sentence above is itself now stale, for a reason
+> unrelated to the correction that follows it: CCR-QD-150 swapped
+> `QadiProvider.tsx`'s hand-rolled `useSyncExternalStore` binding for
+> `@effect/atom-react`'s own `useAtomValue`, so `QadiProvider.tsx` contains
+> **zero** `useSyncExternalStore` calls today, not one. The registry's
+> `subscribe`/`snapshot` pair is unaffected by that swap — it was never what
+> `QadiProvider.tsx` called — and remains exactly what a host wires up with its
+> own `useSyncExternalStore`, which the correction below describes.
+
 > **Correction.** This paragraph previously went on to say present-tense "and
 > it is `@qadi/devtools`, a DOM package already, that subscribes." `@qadi/devtools`
 > has no dependency on `@qadi/react` — `GateRegistry.ts` lives in `@qadi/react` —

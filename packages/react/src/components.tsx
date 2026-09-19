@@ -94,7 +94,7 @@ const classify = (result: ReturnType<typeof useGate>["result"]): GateOutcome => 
 export interface CanProps {
   readonly policy: Policy;
   /** The resource under consideration, if the policy inspects one. */
-  readonly resource?: Resource;
+  readonly resource?: Resource | undefined;
   /** Rendered when the policy denies, given the denial when it asks for it. */
   readonly fallback?: DeniedNode;
   /** Rendered while the decision is not yet known. */
@@ -158,7 +158,7 @@ const chosen = (
 
 export interface CannotProps {
   readonly policy: Policy;
-  readonly resource?: Resource;
+  readonly resource?: Resource | undefined;
   readonly pending?: ReactNode;
   readonly failure?: ReactNode;
   /** Rendered when the policy denies, given the denial when it asks for it. */

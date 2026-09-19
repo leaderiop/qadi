@@ -10,6 +10,7 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
+import * as TestClock from "effect/testing/TestClock";
 import { RelationshipResolveError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import type { RelatedResult } from "../src/RelationshipResolver.ts";
@@ -19,6 +20,7 @@ import {
   relationshipResolverBounded,
   relationshipResolverFromEdges,
   relationshipResolverRetrying,
+  relationshipResolverTimingOut,
 } from "../src/RelationshipResolver.ts";
 
 /**
@@ -322,5 +324,41 @@ describe("RelationshipResolver", () => {
           }
         }),
     );
+  });
+
+  // JM-01/WV-01/SP-01's sibling case for this port: a resolver that never
+  // settles must produce a typed evaluation failure, not a hung decision.
+  describe("relationshipResolverTimingOut", () => {
+    it.effect("fails with a typed RelationshipResolveError once the deadline passes, for a resolver that never answers", () =>
+      Effect.gen(function* () {
+        const timingOut = relationshipResolverTimingOut("1 second")(
+          Layer.succeed(RelationshipResolver, { check: () => Effect.never }),
+        );
+
+        const fiber = yield* Effect.forkChild(
+          Effect.result(
+            check(timingOut, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
+          ),
+        );
+        yield* TestClock.adjust("1 second");
+        const result = yield* Fiber.join(fiber);
+
+        assert.isTrue(Result.isFailure(result));
+        if (!Result.isFailure(result)) return;
+        assert.strictEqual(result.failure._tag, "RelationshipResolveError");
+        assert.strictEqual(result.failure.relation, "owner");
+      }));
+
+    it.effect("does not affect a resolver that settles well within the deadline", () =>
+      Effect.gen(function* () {
+        const timingOut = relationshipResolverTimingOut("1 second")(
+          relationshipResolverFromEdges([
+            { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
+          ]),
+        );
+        assertRelated(
+          yield* check(timingOut, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
+        );
+      }));
   });
 });

@@ -542,4 +542,38 @@ describe("explain", () => {
       assert.strictEqual(countExplanation(explain(policy)), countPolicy(policy));
     }
   });
+
+  it(
+    "a deep, programmatically-built tree (100k nested Not) does not overflow the call " +
+      "stack (RP-01)",
+    () => {
+      // The same hazard `policyDepth`/`simplify` were fixed for
+      // (RolesAndDepth.test.ts, Simplify.test.ts's matching regression
+      // tests): nothing bounds recursion depth for a policy assembled
+      // directly rather than decoded from JSON, and `explain` is reachable
+      // directly on a caller-held `Policy` with no prior decode step at all.
+      // `explain` now walks an explicit array-backed stack (via `Policy.ts`'s
+      // `childrenOf`) instead of native recursion, so this must both return
+      // without throwing and produce the correctly-nested `Negated` chain.
+      const n = 100_000;
+      let policy: P.Policy = P.hasRole("a");
+      for (let i = 0; i < n; i += 1) policy = P.not(policy);
+
+      let result: ReturnType<typeof explain> | undefined;
+      assert.doesNotThrow(() => {
+        result = explain(policy);
+      });
+      assert.isDefined(result);
+      if (result === undefined) return;
+
+      let depth = 0;
+      let node = result;
+      while (node._tag === "Negated") {
+        depth += 1;
+        node = node.part;
+      }
+      assert.strictEqual(depth, n);
+      assert.strictEqual(node._tag, "Requirement");
+    },
+  );
 });

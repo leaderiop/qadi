@@ -10,6 +10,8 @@ web
 
 Astro 7 + `@astrojs/starlight` 0.41.7 + Tailwind v4 (native `@tailwindcss/vite` plugin). This app pins TypeScript 6.0.3 locally, diverging from the workspace's `^7.0.0` catalog — TypeScript 7 support isn't there yet across the Astro/Starlight/`typescript-eslint` tooling chain this app depends on. Content lives in Astro content collections (`docs` via Starlight's `docsLoader`, a hand-built `blog` collection); the landing and compliance pages are plain `src/pages/*.astro`, deliberately outside Starlight's docs layout.
 
+`package.json` also declares no `engines.node` floor, unlike every other workspace manifest's `>=22.12.0` — deliberately, not by omission: this app's Node floor is Astro's own, and `pnpm check`'s `node scripts/check-website-build.mjs` step already runs `apps/website`'s type-check and build only on the matrix leg(s) whose Node satisfies `astro`'s own `engines.node` (see [Definitions of Done](../../spec/process/definitions-of-done.md), step 23), so a second, hand-maintained floor here would be a number to keep in sync with Astro's rather than a real constraint of its own.
+
 ## Users
 
 - **General Effect/TypeScript developers** evaluating or integrating Qadi into their own codebase — the homepage's primary audience.
@@ -30,7 +32,7 @@ A developer lands on the homepage from a search, a link, or the npm/GitHub listi
 ## Capabilities and Constraints
 
 - Nine public packages get homepage and docs billing: `@qadi/core`, `@qadi/testing`, `@qadi/react`, `@qadi/promise`, `@qadi/http`, `@qadi/devtools`, `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/audit` — depth scaled by importance (`core`/`audit`/`react` deepest, three docs pages each).
-- All nine packages are published on npm at `0.4.0` (verified live against the registry, 2026-09-06). All nine are pre-1.0; the website must not imply a stable, released API.
+- All nine packages are published on npm at `0.7.0` (verified live against the registry, 2026-09-19) — the version every `packages/*/package.json` carries via the changesets fixed group, not the private root manifest, which stays frozen and out of scope. All nine are pre-1.0; the website must not imply a stable, released API.
 - `@qadi/audit` is explicitly **not** a compliance certification of any kind — no "GxP compliant," "21 CFR Part 11 compliant," "validated," or "certified" claim may appear anywhere on the site. `hasSignature`/e-signature capture is trust-on-presence, not live cryptographic validation, and that gap is stated plainly rather than hidden.
 - The site is static content (Astro-built), not an interactive product surface itself — no live in-browser policy evaluator exists yet (a `@effect/monaco-editor`-style demo was flagged as future work, not part of the current build).
 - Live deployment (hosting, custom domain, deploy-on-merge CI) is separate follow-up work; the real domain is `qadi.dev`.

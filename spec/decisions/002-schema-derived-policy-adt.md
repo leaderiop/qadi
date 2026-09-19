@@ -55,3 +55,17 @@ public construction surface and can preserve literal types where it matters, so
 the inference loss is confined to the raw union type. A property test over
 generated trees asserts `fromJson(toJson(p))` equals `p`, standing guard over
 the guarantee this decision buys.
+
+**Schema evolution across versions is handled only implicitly, by rejection.**
+No version field exists anywhere in the persisted policy envelope. `Policy`'s
+strict `onExcessProperty: "error"` decode option (`Policy.ts`'s
+`UNTRUSTED_DECODE_OPTIONS`) and `Schema.Union`'s own unknown-tag rejection make
+cross-version decode fail closed — a document written by a newer schema version
+(a new tag, a new required field, a renamed field) is refused by an older
+reader rather than partially accepted — which is the safe direction, but it is
+also the accepted constraint, not an accident: **readers upgrade before
+writers.** An operator holding a rejected persisted policy cannot distinguish
+"corrupt input" from "written by a schema newer than this deployment" from the
+decode failure alone; that ambiguity is accepted rather than solved by this
+decision, and a future version discriminator on the envelope, if one is added,
+would need its own ADR rather than retrofitting one here.

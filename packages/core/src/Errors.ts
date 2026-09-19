@@ -23,6 +23,24 @@
  * boundary. It carries no independent stable code and does not appear in
  * `EvaluationError`/`QadiError`/`ERROR_CODES`: evaluation never raises it, so
  * it is not a failure this library "produces" in the sense those unions track.
+ *
+ * **Naming: a suffix names a mechanism, no suffix names a violated
+ * invariant** (GVR-04). `MissingResource`, `MissingAction`, `MissingResourceId`,
+ * `PolicyTooDeep`, `CircularRoleInheritance`, `DuplicateRoleDefinition`,
+ * `InvalidPermissionSegment`, `AccessDenied`, `UndischargedObligation` and
+ * `InvalidBoundedPermits` are named for the domain condition that was
+ * violated — a required input was absent, a structural limit or a decision
+ * was reached. `AttributeResolveError`, `RelationshipResolveError` and
+ * `CustomPredicateError` carry `-Error` because the failure is a *mechanism*
+ * — a resolver call or a registered predicate — not producing an answer;
+ * `DecisionHistoryUnavailable` and `SignatureHistoryUnavailable` carry
+ * `-Unavailable` for the same reason, naming the specific way a store-backed
+ * mechanism fails (unreachable, as opposed to a decoding or logic error).
+ * `PolicyNotTranslatable` is named for its outcome rather than its mechanism
+ * and reads as an adjective rather than either pattern above; no third
+ * pattern is introduced for it; a future entry needing a suffix should
+ * default to `-Error` unless it shares `-Unavailable`'s specific "store could
+ * not be reached" shape.
  */
 import * as Data from "effect/Data";
 import * as Schema from "effect/Schema";

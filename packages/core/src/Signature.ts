@@ -13,14 +13,17 @@
  *
  * `signerId` reuses `SubjectId`'s brand *tag*, not the brand itself —
  * `SubjectId` (`Identity.ts`) is a plain `Brand.nominal`, not a `Schema`, so a
- * `Schema`-derived field cannot literally import it. `Schema.brand("SubjectId")`
- * declares the same tag independently, which is what `ElectronicSignature`
- * already did.
+ * `Schema`-derived field cannot literally import it. `Schema.brand(SUBJECT_ID_TAG)`
+ * declares the same tag independently, imported as a constant rather than
+ * repeated as a string literal (MP-06) so a typo here is a compile error
+ * instead of a silently different nominal type. This is what
+ * `ElectronicSignature` already did, before `SUBJECT_ID_TAG` existed.
  */
 import * as Schema from "effect/Schema";
+import { SUBJECT_ID_TAG } from "./Identity.ts";
 
 export const Signature = Schema.Struct({
-  signerId: Schema.String.pipe(Schema.brand("SubjectId")),
+  signerId: Schema.String.pipe(Schema.brand(SUBJECT_ID_TAG)),
   /**
    * What the signature attests to — open, not a closed union. A deployment
    * may extend {@link SIGNATURE_MEANINGS} with site-specific meanings, the
@@ -43,17 +46,20 @@ export const Signature = Schema.Struct({
    */
   signedAt: Schema.Number,
   /**
-   * The signing algorithm, when the capture flow records one. Carried through
-   * for audit and downstream verification, but `evaluateHasSignature` never
-   * inspects it — an on-file signature with an unrecognized `algorithm`
-   * still matches a `hasSignature` leaf that names the right `meaning`.
+   * The signing algorithm, when the capture flow records one. Carried so a
+   * deployment's own downstream verification flow can use it — nothing in
+   * this monorepo reads it: `evaluateHasSignature` never inspects it, so an
+   * on-file signature with an unrecognized `algorithm` still matches a
+   * `hasSignature` leaf that names the right `meaning` (BS-03; see
+   * ADR-QD-058 for why no live crypto verification is in scope here).
    */
   algorithm: Schema.optional(Schema.String),
   /**
    * Which key produced the signature, when the capture flow records one.
-   * Like `algorithm` above, this is carried for audit and downstream
-   * verification only — `evaluateHasSignature` never checks whether `keyId`
-   * still resolves to a valid key.
+   * Like `algorithm` above, this is carried so a deployment's own downstream
+   * verification flow can use it — nothing in this monorepo reads it:
+   * `evaluateHasSignature` never checks whether `keyId` still resolves to a
+   * valid key (BS-03).
    */
   keyId: Schema.optional(Schema.String),
 });

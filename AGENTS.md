@@ -6,10 +6,14 @@ New here? `CONTRIBUTING.md` is a short index into the section below that
 governs whichever change you're making — read that first rather than this
 file end to end.
 
-Style reference projects (read them when in doubt):
+Style reference projects (read them when in doubt). These are local checkouts,
+not packages this repo depends on, so the path is whatever your workstation
+put it at — ask a maintainer if you don't have one:
 
-- `/Users/u1070457/Projects/Sanofi/alchemy` — Effect v4 beta, `AGENTS.md` is its authority
-- `/Users/u1070457/Projects/Sanofi/effect` — the Effect v4 source itself
+- `alchemy` — Effect v4 beta, `AGENTS.md` is its authority
+- `effect` — the Effect v4 source itself. For the exact rc build this repo
+  ships against, `node_modules/effect` after `pnpm install` is a checkout too,
+  pinned via the `catalog:` protocol (`pnpm-workspace.yaml`).
 
 **Doc-comment shape**: lead with a one-line summary of what the export is or
 does; put the *why* — predecessor history, ADR citations, invariant
@@ -39,6 +43,16 @@ import * as Schema from "effect/Schema";
 | `import { evaluate } from "./Evaluate.js"` | `import { evaluate } from "./Evaluate.ts"` |
 | `import { Policy } from "./Policy.ts"` (type-only) | `import type { Policy } from "./Policy.ts"` |
 
+The namespace rule is for `effect` submodules specifically, not for imports in
+general. Crossing a package boundary inside this monorepo is a named import
+from the dependency's root: `import { guard, CurrentSubject } from "@qadi/core"`
+(`packages/http/src/GuardRoute.ts`), `import { DecisionSink } from "@qadi/core"`
+(`packages/audit/src/AuditDecisionSinkLive.ts`). No package does
+`import * as Core from "@qadi/core"`. The one exception is a package that
+publishes a distinct entry point on purpose — `@qadi/devtools`'s React panel is
+`import { DevtoolsDock } from "@qadi/devtools/react"`, a named import from a
+named subpath, not a namespace import either.
+
 Relative imports carry the **`.ts` extension** (`allowImportingTsExtensions` +
 `rewriteRelativeImportExtensions`). `verbatimModuleSyntax` is on, so
 `import type` is mandatory for type-only imports.
@@ -46,7 +60,11 @@ Relative imports carry the **`.ts` extension** (`allowImportingTsExtensions` +
 ## 2. Services — `Context.Service`
 
 Never `Effect.Service`, `Context.Tag`, `Context.GenericTag`, or `Context.Reference`.
-The shape is a **separately exported `interface …Shape`**.
+The shape is a **separately exported `interface …Shape`**, per ADR-QD-010 —
+naming it gives the interface a stable, importable type independent of the
+`Context.Service` class built from it, which a test double or a wrapper (like
+`attributeResolverRetrying` in §3) implements or extends without pulling in
+the service class itself.
 
 ```ts
 export interface AttributeResolverShape {
@@ -86,25 +104,41 @@ Shape is itself an `Effect`** (as in its `AWSEnvironment`). Our shapes are plain
 records, so we use the method-accessor form above. `packages/core/test/v4-api-smoke.test.ts`
 pins this and the other v4 APIs we depend on.
 
-## 3. Layers — standalone consts, own file
+## 3. Layers — top-level consts
 
-No `static layer`. No `.Default`. One implementation per file, named for what it is.
+No `static layer`. No `.Default`. A layer is an exported top-level constant,
+never a class member.
 
 ```ts
-// AttributeResolverSubject.ts
-export const AttributeResolverSubject = Layer.effect(
-  AttributeResolver,
-  Effect.gen(function* () {
-    const subject = yield* CurrentSubject;
-    return {
-      resolve: (attribute) => Effect.succeed(subject.attributes[attribute]),
-    };
-  }),
-);
+export const AttributeResolverFromSubject: Layer.Layer<AttributeResolver, never, CurrentSubject> =
+  Layer.effect(
+    AttributeResolver,
+    Effect.gen(function* () {
+      const subject = yield* CurrentSubject;
+      return {
+        resolve: (_subjectId, attribute) => Effect.succeed(subject.attributes[attribute]),
+      };
+    }),
+  );
 ```
 
-Naming: `…Live` (production), `…Test` (deterministic), `Default` (the layer of a
-namespace-imported module), or implementation-specific (`…Subject`, `…Never`).
+Layers live beside the service they implement, not in a file of their own:
+`AttributeResolver.ts` holds the Shape, the `Context.Service` class, the
+fail-closed default (`AttributeResolverNone`), a fixture builder
+(`attributeResolverFromRecord`), and the `…Retrying`/`…Bounded` wrappers, all
+in one module — the same shape repeats in `RelationshipResolver.ts` and
+`CustomPredicate.ts`. A standalone file is for a layer with its own
+substantial dependency surface, distinct from the service it implements:
+`packages/http/src/PermissionRegistry.ts`'s `PermissionRegistryLive` and
+`packages/audit/src/AuditDecisionSinkLive.ts` are that case, and their file
+names carry the `…Live` suffix for exactly this reason.
+
+Naming: `…Live` (production) / `…Test` (deterministic) get their own file when
+they're substantial; `Default` names the layer of a namespace-imported module.
+A service's fail-closed default is named for the specific answer it gives, not
+one generic word — `…None`, `…Never`, `…Unknown`, `…Anonymous` all appear in
+this codebase, because what "no value" means differs per service
+(`spec/behaviors/06-services.md`, BEH-QD-043).
 
 **Gotcha:** `Layer.mergeAll` silently drops tail layers past ~90 arguments —
 tsc's variadic inference limit. Nest into groups.
@@ -326,22 +360,28 @@ authorization hot path.
 > survive that addendum; the end-to-end percentages do not and should not be
 > treated as current without re-running `pnpm bench` against today's workload.
 
-**A sibling question, same discipline, separate axis.** This section's benchmark
-discipline was about `switch` vs `Match` on `_tag` dispatch. It was never extended
-to `Effect.fn` vs `Effect.fnUntraced` — every effectful function in this codebase is
-a *named* `Effect.fn` (§5), and `Effect.fnUntraced` is used zero times, despite the
-former capturing an `Error()` and allocating a span and a stack-frame record on
-every call, none of which the latter does. `packages/core/bench/EffectFn.bench.ts`
-measures that question the same way `Dispatch.bench.ts` measures this one: per-call
-overhead isolated (**≈2.7–2.9 µs/call**, ≈8.6–11.5× slower than `fnUntraced`), then
-put in proportion against `Evaluate.bench.ts`'s real end-to-end numbers
-(**≈30–35%** estimated tracing share on a single-node evaluation, up to **≈54–66%**
-on a ten-level-deep one — larger than the switch/`Match` figures above because an
-`evaluate` call is itself only ≈9 µs, so a ≈2.7–2.9 µs fixed cost is a large
-fraction of it). Measured, not decided: whether to adopt `fnUntraced` anywhere is a
-separate question the bench file's own doc comment leaves open.
+**A sibling question, same discipline, separate axis, now settled.** This
+section's benchmark discipline was about `switch` vs `Match` on `_tag` dispatch.
+`Effect.fn` vs `Effect.fnUntraced` was the sibling question, and — until ticket
+#102 — every effectful function in this codebase was a *named* `Effect.fn`,
+with `Effect.fnUntraced` used zero times, despite the former capturing an
+`Error()` and allocating a span and a stack-frame record on every call, none
+of which the latter does. `packages/core/bench/EffectFn.bench.ts` measured
+that question the same way `Dispatch.bench.ts` measures this one: per-call
+overhead isolated (**≈2.7–2.9 µs/call**, ≈8.6–11.5× slower than `fnUntraced`),
+then put in proportion against `Evaluate.bench.ts`'s pre-conversion end-to-end
+numbers (**≈30–35%** estimated tracing share on a single-node evaluation, up
+to **≈54–66%** on a ten-level-deep one — computed before ticket #102, so it
+now overstates the share on any workload that reaches a composite node).
 
-**Each of these switches must remain exhaustive by construction.** Two of the four
+That measurement is what answered the question: §5 above records the outcome
+— `Effect.fnUntraced` adopted at exactly the three composite dispatchers where
+the per-node cost compounds (`evaluateAllOf`, `evaluateAnyOf`, `evaluateRules`),
+budgeted and enforced in both directions by `UNTRACED_BUDGET`. That is the
+current, measured boundary, not a fourth site still under discussion.
+`resolveAttribute`, the port-call wrappers, and the root `evaluate` stay
+`Effect.fn` and traced on purpose, per ADR-QD-051's reasoning in §5 — the
+open question this paragraph used to describe is the one §5's table closed.
 
 **Each of these switches must remain exhaustive by construction.** Two of the four
 were not, and they were the two this section had failed to declare: `resolveRef`
@@ -395,6 +435,19 @@ scopes a `no-explicit-any` override to that one file, and
 both directions, so the override cannot silently grow to cover an unrelated
 `any` added to the same file later.
 
+**`hasCustom(...)` outside `packages/core/src`/`packages/testing/src` is a
+fourth budget, `HAS_CUSTOM_BUDGET`** (ADR-QD-055), the same discipline as the
+three above. `HasCustom` is Qadi's one deliberate escape hatch — a policy node
+whose condition is opaque, externally-registered logic rather than a
+declarative matcher — so reaching for it forfeits `explain()`'s ability to
+decompose the check and `toPredicate`'s ability to compile it to a row filter.
+An escape hatch with no friction becomes the default path, so adopting it
+anywhere outside core/testing is a conscious, reviewed edit to
+`scripts/check-house-style.mjs`'s `HAS_CUSTOM_BUDGET`, checked in both
+directions like the others, not a convention left to be remembered. The one
+entry there today is `features/step-definitions/CustomPredicateWhenSteps.ts`
+— the BDD acceptance step that exercises `hasCustom` itself.
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal
@@ -431,6 +484,7 @@ shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 | `is…` | type guards |
 | `…Shape` | a service's payload interface |
 | `…Like` | structural brand for requirement bubbling |
+| `…Refused` | `@qadi/http`'s tag-only, `httpApiStatus`-annotated wire schema for a real error class the response body must not carry full-fielded (`AccessDeniedRefused`, `UndischargedObligationRefused`, `SubjectExtractionRefused`, `QadiHttpError.ts`) — a different, exported *const* from the class its `_tag` matches, deliberately: the identifier names the disclosure decision ("this crosses the wire refused, not admitted"), the `_tag` still names the failure. Corroborated in GVR-05: a reader grepping a shared tag across `@qadi/core` and `@qadi/http` lands on two exports for one concept, on purpose. |
 
 ## 9. Barrels
 
@@ -547,19 +601,21 @@ state-management layer of its own. The rules that keep it that way:
 - **Test the graph, not the DOM, where you can.** `QadiAtoms.test.ts` renders
   nothing — caching, sharing and invalidation are properties of the atoms, and
   proving them through components only makes the test slower and vaguer.
-- **A guard may record that it exists, and may record nothing else**
-  (ADR-QD-053). `GateRegistry.ts` is a module-scope map a guard writes to from an
-  effect — the shape `HydrationSeed.ts` already uses — carrying its policy, its
-  resource, what it rendered, and a ref React filled in. Nothing re-renders
-  because a guard registered, and nothing in that file can affect what one
-  renders.
+- **A guard may record that it exists, what it renders now, and where — never
+  a retained verdict** (ADR-QD-053). `GateRegistry.ts` is a module-scope map a
+  guard writes to from an effect — the shape `HydrationSeed.ts` already uses —
+  carrying its policy, its resource, its current render state, and a ref React
+  filled in. Nothing re-renders because a guard registered, and nothing in
+  that file can affect what one renders.
 
   This section previously read as forbidding it, and `@qadi/devtools`'s React
   panel said so on screen: *"an instance registry would breach AGENTS.md §13
   twice over."* It would not, and the two rules it was said to breach are both
-  still intact. Decisions are still not in React state. The React glue is still
-  **one** `useSyncExternalStore` call in `QadiProvider.tsx` — the registry
-  exposes `subscribe`/`snapshot` for exactly this.
+  still intact. Decisions are still not in React state, and the React glue in
+  `QadiProvider.tsx` is `@effect/atom-react`'s `useAtomValue` (CCR-QD-150), not
+  a hand-rolled subscription of its own — `GateRegistry.ts` exposes its own,
+  separate `subscribe`/`snapshot` pair for exactly the instance-registry
+  purpose this bullet describes.
 
   **Correction:** this section, and ADR-QD-053, previously went on to say
   present-tense "and it is `@qadi/devtools`, a DOM package already, that
@@ -664,8 +720,12 @@ published `exports` map. Two rules come out of it, and both are checked rather t
 remembered.
 
 **`pnpm publish`, never `npm publish`.** Dependencies use pnpm's workspace-time
-protocols — `"effect": "catalog:"` everywhere, `"@qadi/core": "workspace:*"` in three
-packages. `pnpm` resolves them when packing; `npm` copies them into the tarball
+protocols — `"effect": "catalog:"` everywhere, and `"@qadi/core": "workspace:*"`
+in every public package that depends on it (currently eight: `@qadi/http`,
+`promise`, `react`, `devtools`, `audit`, `testing`, `predicate-sql` and
+`predicate-prisma` — check each package's `package.json` for the current set
+rather than trusting this count to stay in sync). `pnpm` resolves them when
+packing; `npm` copies them into the tarball
 verbatim and the result cannot be installed at all (`EUNSUPPORTEDPROTOCOL`). The gate
 fails if either protocol reaches a tarball, so this cannot rot into folklore.
 
@@ -679,31 +739,35 @@ looked like a build product (ADR-QD-033). Adding a package means editing both.
 ## 17. Formatting: hand-wrapping wins, `oxfmt` stays out of the gate
 
 `oxfmt` is available (`pnpm format`, `pnpm format:check`) and is **not** a merge
-gate — this is now a settled choice, not an open question. `pnpm format:check`
-reports 147 of 169 files, and running the formatter rewrites 56 of them — almost
-entirely by *un*wrapping lines this codebase wraps by hand at about ninety
-columns. Setting `lineWidth` in `.oxfmtrc.json` cut the count to 55 but did not
-stop it producing 92-column lines, so its width was never the whole disagreement.
+gate — this is now a settled choice, not an open question. As of 2026-09-08,
+`pnpm format:check` on a clean checkout (`packages/*/lib` removed) fails on 207
+of 376 files — almost entirely by wanting to *un*wrap lines this codebase wraps
+by hand at about ninety columns. An earlier `.oxfmtrc.json` `lineWidth`
+experiment tried narrowing the formatter's width to close that gap; it still
+produced 92-column lines, so width was never the whole disagreement, and the
+file was reverted rather than kept — no `.oxfmtrc.json` exists in this
+repository today.
 
-Hand-wrapping wins: it is already what 113 of 169 files do, nothing in this
-codebase's review history has flagged the wrapping style as a problem, and
-reformatting the other 56 to match `oxfmt` would be a large, purely cosmetic
-diff with no correctness or readability payoff. **`oxfmt` does not go in
-`pnpm check`.** If a future change wants to revisit this, it needs a reason
+Hand-wrapping wins: most files (169 of 376, same run) already wrap by hand,
+nothing in this codebase's review history has flagged the wrapping style as a
+problem, and reformatting the rest to match `oxfmt` would be a large, purely
+cosmetic diff with no correctness or readability payoff. **`oxfmt` does not go
+in `pnpm check`.** If a future change wants to revisit this, it needs a reason
 beyond taste — this section existing is not license to reopen it without one.
 
-> **Corrected in CCR-QD-121.** The counts above (147/169, 113/169, the
-> `.oxfmtrc.json` `lineWidth` experiment) were a snapshot from when this
-> section was written, stated as if evergreen. No script gates them — unlike
-> the DoD table, devtools claims, and publish-status facts §15 gates for
-> exactly this reason — so they drifted twice over: no `.oxfmtrc.json` file
-> exists anywhere in this repository any more (the `lineWidth` experiment was
-> tried and reverted, not left live), and `spec/process/definitions-of-done.md`'s
-> own note on the identical command had separately drifted to a *different*
-> pair of numbers ("127 of 145 files"). Neither matched a fresh run: on
-> 2026-09-08, `pnpm format:check` on a clean checkout (`packages/*/lib`
-> removed) reported **207 of 376 files**. The settled choice this section
-> exists to record — hand-wrapping over `oxfmt`, `oxfmt` staying out of
-> `pnpm check` — does not depend on which exact count is current, so rather
-> than replace one evergreen-sounding snapshot with another, both this section
-> and the DoD table's note now say "as of 2026-09-08" beside the number.
+> **Corrected in CCR-QD-121, and again here.** This section used to carry an
+> undated "147 of 169" / "113 of 169" snapshot, stated as if evergreen, plus
+> the `lineWidth` experiment above. No script gates these counts — unlike the
+> DoD table, devtools claims, and publish-status facts §15 gates for exactly
+> this reason — so they drifted twice over before CCR-QD-121: no
+> `.oxfmtrc.json` file existed any more by the time anyone checked, and
+> `spec/process/definitions-of-done.md`'s own note on the identical command had
+> separately drifted to a *different* pair of numbers ("127 of 145 files").
+> CCR-QD-121 re-ran the command (207 of 376 files, 2026-09-08) but left the
+> stale 147/169 figures in place above, promising a date stamp beside them that
+> was never added — the same class of drift this note exists to describe, one
+> level up. The figures above are now that 2026-09-08 run's numbers directly,
+> not the old ones with a date attached; `spec/process/definitions-of-done.md`'s
+> note already carries the same dated figure. If this drifts again, re-run
+> `pnpm format:check` and replace both counts here together, in place, rather
+> than adding another correction paragraph.

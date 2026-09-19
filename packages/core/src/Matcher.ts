@@ -142,6 +142,19 @@ export const Matcher: Schema.Codec<Matcher> = Schema.Union([
  * comparison is likewise always false, and switching to SameValueZero here
  * would decouple in-process evaluation from what the compiled query actually
  * does. Pinned in `Matcher.test.ts`, not fixed.
+ *
+ * `===` also means object-valued operands compare by reference, not
+ * structurally: two structurally equal but distinct objects are never
+ * `eq`-equal. That is fail-closed for `Eq` (it simply never matches such a
+ * pair), but the mirror-image `Neq` ALLOWS such a pair — a policy denying
+ * `neq(literal({ id: "x" }))` matches every subject whose attribute is a
+ * distinct object with the same shape, since `Neq` only guards `undefined`
+ * (see `neq`'s doc comment below), not object identity. Left this way
+ * deliberately, for the same SQL-parity reason as the `NaN` case above:
+ * `predicate-sql` cannot render an object operand at all (`isSafeValue`,
+ * INV-QD-047), so there is no compiled query for a structural comparison to
+ * stay consistent with, and reference identity is what plain `===` already
+ * gives for free. Both directions pinned in `Matcher.test.ts`.
  */
 export const eq = (ref: ValueRef): Matcher => ({ _tag: "Eq", ref });
 /**
@@ -177,6 +190,13 @@ export const eq = (ref: ValueRef): Matcher => ({ _tag: "Eq", ref });
  * absence; `Eq` no longer doubles as an implicit second one, so
  * `eq(literal(undefined))` no longer matches an absent value either. Pinned
  * in both directions in `Matcher.test.ts`.
+ *
+ * `null` is not `undefined` here: unlike `exists()`, which treats `null` as
+ * absent, `eq`/`neq` guard only against `undefined` and compare `null` as an
+ * ordinary operand — `eq(literal(null))` matches a `null` attribute, and
+ * `neq(literal(null))` denies it. Deliberate: `exists()` answers "is this
+ * present", `eq`/`neq` answer "does this equal that", and `null` is a
+ * perfectly good answer to the second question even where it fails the first.
  */
 export const neq = (ref: ValueRef): Matcher => ({ _tag: "Neq", ref });
 /**
@@ -202,7 +222,19 @@ export const neq = (ref: ValueRef): Matcher => ({ _tag: "Neq", ref });
 export const dominates = (ref: ValueRef): Matcher => ({ _tag: "Dominates", ref });
 /** Attribute is one of the listed values. */
 export const inArray = (values: ReadonlyArray<unknown>): Matcher => ({ _tag: "In", values });
-/** Attribute is present and not null. */
+/**
+ * Attribute is present and not null.
+ *
+ * `exists()` is this DSL's purpose-built absence test, and it treats `null`
+ * as absence deliberately: `value !== undefined && value !== null`. `eq`/`neq`
+ * do NOT extend that treatment to themselves — they guard only `undefined`
+ * (an unresolved ref or a genuinely missing attribute), so a `null` attribute
+ * is a real, comparable operand there, matchable by `eq(literal(null))` the
+ * same as any other value. The two DSL primitives answer different questions
+ * ("is this present" vs "does this equal that") and split on `null`
+ * accordingly, rather than `exists()`'s notion of absence leaking into every
+ * other matcher. Both directions pinned in `Matcher.test.ts`.
+ */
 export const exists = (): Matcher => ({ _tag: "Exists" });
 /**
  * Numeric attribute is >= value.
@@ -334,6 +366,28 @@ export interface MatcherContext {
   readonly action: string | undefined;
 }
 
+/**
+ * Known `ValueRef` dispatch sites (ED-03), so a sixth one is a deliberate,
+ * reviewed addition rather than an accidental one nothing else names. Every
+ * entry is exhaustive today — a new `ValueRef` tag is a compile error at all
+ * five simultaneously — but that safety property says nothing about whether
+ * a *new* dispatcher should exist; this ledger is what makes that a
+ * conscious question instead of a silent accretion, the same discipline
+ * `SWITCH_BUDGET` gives the four budgeted switches:
+ *
+ *   1. `resolveRef` below (this file) — evaluates a ref against live context.
+ *   2. `refIsUnresolved` (`Evaluate.ts`) — asks whether a ref failed to
+ *      resolve, without evaluating it.
+ *   3. `refText` (`Explanation.ts`) — renders a ref for a human-readable
+ *      explanation.
+ *   4. the predicate translator's ref folder (`Predicate.ts`) — folds a ref
+ *      to a SQL-independent constant or column reference.
+ *   5. `refValue` (`@qadi/devtools`'s `Remedies.ts`) — synthesizes a witness
+ *      value for a ref during remediation.
+ *
+ * Update this list — and only this list, not the count anywhere else — when
+ * adding a sixth.
+ */
 const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
   switch (ref._tag) {
     case "SubjectRef":
@@ -347,19 +401,61 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
     case "LiteralRef":
       return ref.value;
     default: {
-      // Unreachable, and not decoration. The return type is `unknown` — a
-      // resolved attribute may legitimately be `undefined` — so an unhandled tag
-      // would compile and silently resolve to `undefined`, which every matcher
-      // then compares against and denies. That was not true of `Neq` until
-      // CCR-QD-112: its absent-operand case matched rather than denied, so an
-      // unhandled tag would have widened access instead of merely refusing
-      // silently. This is the only thing standing where `Match.tagsExhaustive`
-      // would stand, and it costs nothing at runtime (ADR-QD-034). A tag was
-      // added here once already: `ActionRef`.
+      // Unreachable from TypeScript and from decoded JSON (`Schema.Union`
+      // rejects an unknown tag at the boundary), but not merely decorative:
+      // a hand-built, in-process `ValueRef` can still reach it (the vector
+      // `Predicate.ts` itself calls out as real), and `const exhaustive: never
+      // = ref` alone does NOT make that safe — `never`-typing a `const`
+      // changes nothing about what it holds at runtime, so `return exhaustive`
+      // would return the bogus `ref` object itself: truthy and never
+      // `undefined`. `Eq`/`Neq`'s absent-operand guard (CCR-QD-112) checks
+      // `other !== undefined`, which that object always satisfies — so
+      // `Neq` would ALLOW for any resolved value that wasn't that exact
+      // object, the identical fail-open shape CCR-QD-112 closed for an
+      // unresolved *known* ref, reopened for an unrecognized one. Found by a
+      // test forcing this branch (CM-07), not by inspection: the `never`
+      // typing reads as a runtime guarantee it isn't. `void`ing the
+      // exhaustiveness check and explicitly returning `undefined` keeps the
+      // ONE thing `never`-typing genuinely buys — a new `ValueRef` tag still
+      // fails to compile here — while making the actual runtime fallback
+      // match what every doc comment on this function already claims it is.
       const exhaustive: never = ref;
-      return exhaustive;
+      void exhaustive;
+      return undefined;
     }
   }
+};
+
+/**
+ * Builds a "does this matcher reference `leafTag` anywhere within it" walker.
+ *
+ * `referencesAction` and `referencesResource` below are this walker applied to
+ * `"ActionRef"` and `"ResourceRef"` respectively — the two vary together by
+ * construction (SM-04/WZ-04: every new `Matcher` tag needs an arm in both, in
+ * lockstep, forever), so one parameterized tree walk replaces two copies that
+ * could only ever drift by accident. Built once per call, at module scope
+ * below (not per evaluation, so `Match.type`'s "build once" preference from
+ * AGENTS.md §5a still holds) — `Match.tagsExhaustive` still makes a missed arm
+ * a compile error for both resulting walkers.
+ */
+const referencesRef = (leafTag: "ActionRef" | "ResourceRef"): ((self: Matcher) => boolean) => {
+  const walk: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
+    Match.tagsExhaustive({
+      Eq: (m) => m.ref._tag === leafTag,
+      Neq: (m) => m.ref._tag === leafTag,
+      Dominates: (m) => m.ref._tag === leafTag,
+      FieldMatch: (m) => walk(m.matcher),
+      SomeMatch: (m) => walk(m.matcher),
+      EveryMatch: (m) => walk(m.matcher),
+      Size: (m) => walk(m.matcher),
+      In: () => false,
+      Exists: () => false,
+      Gte: () => false,
+      Lt: () => false,
+      Contains: () => false,
+    }),
+  );
+  return walk;
 };
 
 /**
@@ -371,22 +467,7 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
  * to pass the action would then read that as "not authorized" rather than as
  * the wiring error it is (INV-QD-011).
  */
-export const referencesAction: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
-  Match.tagsExhaustive({
-    Eq: (m) => m.ref._tag === "ActionRef",
-    Neq: (m) => m.ref._tag === "ActionRef",
-    Dominates: (m) => m.ref._tag === "ActionRef",
-    FieldMatch: (m) => referencesAction(m.matcher),
-    SomeMatch: (m) => referencesAction(m.matcher),
-    EveryMatch: (m) => referencesAction(m.matcher),
-    Size: (m) => referencesAction(m.matcher),
-    In: () => false,
-    Exists: () => false,
-    Gte: () => false,
-    Lt: () => false,
-    Contains: () => false,
-  }),
-);
+export const referencesAction: (self: Matcher) => boolean = referencesRef("ActionRef");
 
 /**
  * True when a matcher reads the resource anywhere within it.
@@ -397,22 +478,7 @@ export const referencesAction: (self: Matcher) => boolean = Match.type<Matcher>(
  * emit a filter built from `undefined` — a silent widening or narrowing with no
  * error to announce it (ADR-QD-024).
  */
-export const referencesResource: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
-  Match.tagsExhaustive({
-    Eq: (m) => m.ref._tag === "ResourceRef",
-    Neq: (m) => m.ref._tag === "ResourceRef",
-    Dominates: (m) => m.ref._tag === "ResourceRef",
-    FieldMatch: (m) => referencesResource(m.matcher),
-    SomeMatch: (m) => referencesResource(m.matcher),
-    EveryMatch: (m) => referencesResource(m.matcher),
-    Size: (m) => referencesResource(m.matcher),
-    In: () => false,
-    Exists: () => false,
-    Gte: () => false,
-    Lt: () => false,
-    Contains: () => false,
-  }),
-);
+export const referencesResource: (self: Matcher) => boolean = referencesRef("ResourceRef");
 
 /**
  * Evaluates a matcher against a value.
@@ -425,6 +491,12 @@ export const evaluateMatcher = (
   value: unknown,
   context: MatcherContext,
 ): boolean => {
+  // Budgeted switch #4 of 4 (AGENTS.md §5a, SWITCH_BUDGET in
+  // scripts/check-house-style.mjs) — a per-node dispatch, so `Match` costs
+  // 1.6-2.4x more here (ADR-QD-034). No `default: never` guard: the `boolean`
+  // return type already makes a missed arm TS2366 (see `resolveRef` above for
+  // the sibling case where the return type can't do that and the guard is
+  // load-bearing instead).
   switch (self._tag) {
     case "Eq": {
       const other = resolveRef(self.ref, context);

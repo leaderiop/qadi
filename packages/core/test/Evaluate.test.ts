@@ -373,12 +373,15 @@ describe("leaf policies", () => {
     "a hostile depth is clamped before it reaches the resolver as traversal fuel",
     () =>
       Effect.gen(function* () {
-        // `HasRelationship.depth` decodes via a bare `Schema.optional(Schema.Number)`
-        // — no `min`/`max`/`finite` refinement — so a persisted policy can carry
-        // `1e308`, a negative number, or (via `fromJsonValue`) `NaN`/`Infinity`.
-        // Every other untrusted numeric at this boundary is bounded
-        // (`DEFAULT_MAX_DEPTH`, `MAX_DECODE_DEPTH`); this proves `depth` now is
-        // too, by recording exactly what `evaluateHasRelationship` forwards to
+        // `Policy.ts`'s wire schema now rejects a non-integer, negative, or
+        // out-of-range `depth` at decode (finite-integer `[0, DEFAULT_MAX_DEPTH]`,
+        // the same boundary-not-runtime treatment `Matcher.ts`'s `Gte`/`Lt` give
+        // their bound). But `hasRelationship` is a deliberately total smart
+        // constructor that never crosses that schema, so a policy built directly
+        // in memory — exactly what this test does — can still carry `1e308`, a
+        // negative number, or `NaN`/`Infinity`. This proves `clampRelationshipDepth`
+        // still catches all of those before they reach the resolver as traversal
+        // fuel, by recording exactly what `evaluateHasRelationship` forwards to
         // the port rather than what the policy claimed.
         const depths: Array<number | undefined> = [];
         const recordingResolver = Layer.succeed(RelationshipResolver, {
@@ -464,6 +467,37 @@ describe("leaf policies", () => {
         }),
       ),
     ));
+
+  it.effect(
+    "HasSignature never compares signedAt to the clock — an ancient signature matches identically to a fresh one (INV-QD-057)",
+    () =>
+      Effect.gen(function* () {
+        // `hasSignature` is trust-on-presence (`Signature.ts`'s own doc
+        // comment on `signedAt`): `evaluateHasSignature` never reads the
+        // clock and never compares `signedAt` to anything. Advancing
+        // `TestClock` far past the signature's `signedAt` must not change
+        // the verdict or the trace — if a freshness comparison were added
+        // later, this is the test that fails first, loudly, rather than
+        // silently changing every deployment's behavior.
+        const layer = testLayer(subjectWith({ id: "u1" }), {
+          signatureHistory: signatureHistoryFromSignatures([
+            { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signedAt: 0 },
+          ]),
+        });
+        const ask = () =>
+          evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
+            Effect.provide(layer),
+          );
+
+        const before = yield* ask();
+        yield* TestClock.adjust("3650 days");
+        const after = yield* ask();
+
+        assert.isTrue(isAllowed(before));
+        assert.isTrue(isAllowed(after));
+        assert.deepStrictEqual(before.trace, after.trace);
+      }),
+  );
 
   it.effect("HasSignature matches signerRole when specified, and denies when it doesn't", () =>
     Effect.gen(function* () {
@@ -1072,6 +1106,27 @@ describe("field visibility", () => {
         ),
       ),
   );
+
+  it.effect("mergeFields' default arm denies every field against an unrecognized strategy (CM-07)", () =>
+    Effect.gen(function* () {
+      // `mergeFields`'s `default: { const exhaustive: never = strategy; ... }`
+      // is unreachable from TS and from decoded JSON (`Schema.Literals`
+      // rejects an unknown strategy at the boundary), but reachable from a
+      // hand-built, in-process `Policy` — the same vector CM-07 raises for
+      // `resolveRef` (`Matcher.ts`). Built via `JSON.parse` rather than `as`
+      // (AGENTS.md §6 bans type assertions, enforced in tests too, via
+      // `no-type-assertion`): its `any` return needs no cast to assign into a
+      // `FieldStrategy`-typed option.
+      const bogusStrategy: P.FieldStrategy = JSON.parse('"BogusStrategy"');
+      const policy = P.allOf([P.hasRole("editor")], { fieldStrategy: bogusStrategy });
+      const d = yield* evaluate(policy);
+      assert.isTrue(isAllowed(d));
+      if (d._tag !== "Allow") return;
+      // `undefined` is this lattice's TOP (every field visible) — the arm
+      // must NOT fall back to it. `[]` denies every field, the fail-closed
+      // direction a field-strategy bug must never fail in (ADR-QD-034).
+      assert.deepStrictEqual(d.visibleFields, []);
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));
 
   it.effect("an unrestricted child means all fields", () =>
     Effect.gen(function* () {
@@ -3548,7 +3603,11 @@ describe("concurrent evaluation", () => {
 
       // Vacuity guard, the lesson INV-QD-018 cost: if no generated tree ever had
       // a branch the sequential path skipped, every assertion above would hold
-      // for a `concurrency` option that did nothing at all.
+      // for a `concurrency` option that did nothing at all. Threshold `10` is
+      // set below the measured count under seed 1026, numRuns 150 (see the
+      // `FastCheck.sample` call above) — recorded here (JH-06) so changing
+      // either number, or the generator's shape, is a visible prompt to
+      // re-measure rather than a silently stale margin.
       assert.isAbove(composites, 10);
     }));
 

@@ -35,6 +35,17 @@ import { encodeRecordSync, toWire } from "./SinkCodec.ts";
  * transport that batches is a better transport, and this module has no business
  * deciding how.
  *
+ * **"Records are ordered" holds within one evaluation, not across concurrent
+ * ones** (LL-05) — the same scoping `DecisionRecord.ts`'s own `at` field
+ * doc comment already gives its claim, extended here to arrival order.
+ * `Qadi.ts`'s `filter`/`filterStream` evaluate items concurrently, so two
+ * evaluations' `record` calls race, and *arrival* order at `send` is then
+ * completion order, not the order the two questions were asked — a record
+ * carrying `at: 1000` can arrive after one carrying `at: 1005`. A consumer
+ * that needs the true order sorts by `(at, evaluationId)`, the same
+ * cross-process reconstruction ADR-QD-056 already requires of `@qadi/audit`'s
+ * readers, rather than trusting arrival order within one process either.
+ *
  * A failure to deliver is reported and swallowed, never raised.
  * [INV-QD-035](../../../spec/invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)
  * says an observer cannot change a decision, and a devtools page being
@@ -101,9 +112,15 @@ export const decisionSinkForwarding = (options: {
  * that blocks is already violating its contract. Sequential keeps the order a
  * reader sees deterministic.
  *
- * One failing sink cannot stop the others: each is already required to swallow
- * its own failures, and `record`'s `never` error channel means none of them can
- * even express one.
+ * One failing sink cannot stop the others, and not merely by convention
+ * (JA-02, corrected — this previously said the `never` error channel alone
+ * was enough, which is a documented contract each member is *supposed* to
+ * uphold, not a mechanism that holds if one doesn't). Each member's
+ * `record(record)` call is individually wrapped in `Effect.catchCause` below,
+ * so a member that dies anyway — a bug in its own `record`, not the ordinary
+ * delivery failure `never` already promises it swallows — is reported and
+ * skipped rather than stopping `Effect.forEach` and, with it, every sink
+ * after it in `sinks`.
  */
 export const decisionSinkAll = (
   sinks: ReadonlyArray<Layer.Layer<DecisionSink>>,
@@ -121,7 +138,28 @@ export const decisionSinkAll = (
         record: (record: SinkRecord) =>
           // `discard` because every result is `void`; it changes allocation,
           // not behaviour, so mutation testing reports it as equivalent.
-          Effect.forEach(shapes, (shape) => shape.record(record), { discard: true }),
+          Effect.forEach(
+            shapes,
+            (shape) =>
+              shape.record(record).pipe(
+                // Each member's `record` is *documented* — by `never` in its
+                // own error channel — to swallow its own failures, but a
+                // documented contract is not a mechanism: a member that dies
+                // anyway (a bug in its own `record`, not the ordinary
+                // delivery failure it already catches) must not stop this
+                // `forEach` and, with it, delivery to every sink after it in
+                // `sinks` (JA-02). Report-and-continue, the same shape
+                // `decisionSinkForwarding`'s own `send` handler above uses,
+                // for the identical reason: one member's fate must not
+                // become every member's fate.
+                Effect.catchCause((cause) =>
+                  Effect.logWarning("qadi: a fanned-out decision sink failed unexpectedly").pipe(
+                    Effect.annotateLogs({ "qadi.cause": String(cause) }),
+                  ),
+                ),
+              ),
+            { discard: true },
+          ),
       };
     }),
   );

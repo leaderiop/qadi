@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-22                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-09-19                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-09-07): Noted that this is the one behavior with no `.feature` leg, and why<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.2 (2026-09-19): KD-04 — noted that two facade-specific bugs (BEH-QD-170's error identity, `filter`'s missing options parameter) are pinned only as regression tests in `facade.test.ts`, one of them under no `BEH-QD-NNN` number at all<br>1.1 (2026-09-07): Noted that this is the one behavior with no `.feature` leg, and why<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 _Previous: [21 — Decision Cache](./21-decision-cache.md)_
 
@@ -29,6 +29,21 @@ either duplicate an existing core scenario through a thin Promise wrapper, or
 assert something about `runPromise`/`dispose` plumbing that Gherkin has no
 useful surface for. See `spec/traceability.md` §4 and §5 — behavior 22's row
 cites `facade.test.ts` and nothing under §5.
+
+**KD-04 (2026-09-19 audit):** the reasoning above is sound, but this is not a
+theoretical exception — the facade layer has already produced two real,
+spec-literal bugs the traceability gate above cannot see, because nothing
+outside `facade.test.ts` was ever going to exercise them: BEH-QD-170 (`assert`
+rejecting with the *same* `AccessDenied` identity the Effect API fails with,
+not a re-wrapped one) and `filter` originally having no `options` parameter at
+all, so a Promise caller had no escape from sequential resolution (a gap this
+document names no `BEH-QD-NNN` requirement for at all — `filter`'s options
+forwarding is covered only by `facade.test.ts`'s "filter forwards options,
+including concurrency" test, one level less traceable than BEH-QD-170's own
+numbered requirement). Both are pinned only as regression tests in
+`facade.test.ts` — grep it before assuming the Gherkin suite, or this
+document's requirement numbers, cover this boundary, and treat a third
+facade-specific bug as the point to revisit the no-`.feature` decision above.
 
 ## BEH-QD-169: The facade contains no evaluation logic
 

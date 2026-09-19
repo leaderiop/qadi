@@ -42,6 +42,27 @@ import type { Resource } from "./Resource.ts";
  * Runs *before* the guarded effect, because an obligation is a condition on the
  * permission rather than a follow-up to it: if discharging fails, the protected
  * work must not happen.
+ *
+ * **Called at least once per logical request, never exactly once.** A caller
+ * that retries a failed or transiently-erroring enforcing call re-runs
+ * evaluation and discharge from the top, so a handler with side effects — an
+ * audit write, a "notify purpose server" webhook — WILL see the same
+ * obligations again on retry (PH-01). This callback is handed no
+ * evaluation-scoped correlation data to deduplicate with: `obligation.id` is
+ * explicitly not an identity ({@link Obligation}), and neither the
+ * subject nor the resource under evaluation is passed here. A handler that
+ * must not double-fire needs to derive its own idempotency key from
+ * whatever the caller's own request already carries; passing
+ * `{ evaluationId, subjectId, resource }` through this callback so the
+ * handler is not left deriving that key from nothing is a real gap, tracked
+ * separately as an API-shape change rather than made here.
+ *
+ * **Independent obligations are not parallelized by this module.** All of a
+ * decision's obligations — advisory and binding alike — go to one call of
+ * this handler; nothing here iterates them separately, so running two
+ * unrelated obligations (say, independent log writes) concurrently is this
+ * handler's own choice — `Effect.forEach` with a `concurrency` option over
+ * the array it receives — not a behavior the library provides for it.
  */
 export interface ObligationHandler<E = never, R = never> {
   (obligations: ReadonlyArray<Obligation>): Effect.Effect<void, E, R>;
@@ -122,6 +143,18 @@ const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
  *
  * The single place the enforcing entry points share, so none of them can forget
  * half the rule.
+ *
+ * **Discharge is not transactional with the guarded effect (DS-01).**
+ * Obligations are discharged here, before the caller's effect ever runs; if
+ * that effect is later interrupted or fails, the duty's side effects (an
+ * audit write, a notification) have already run for work that never
+ * completed. `decideOne` below has the same window per item: one item's
+ * `EvaluationError` fails the whole `filter` call while earlier items'
+ * obligations already stand discharged. This is a stated consequence of
+ * enforcement-as-an-aspect (ADR-QD-011) — discharge must precede the guarded
+ * work so an undischarged duty can block it — not a defect to route around
+ * silently; a caller whose obligation side effects must be undone on a later
+ * failure needs its own compensation, not a rollback this module performs.
  */
 const permitted = <E = never, R = never>(
   policy: Policy,
@@ -257,6 +290,29 @@ export const enforceProjected =
  * An explicit `options.resource` is overridden rather than merged. Two
  * channels for one value is what caused this; the handler, the witness and the
  * evaluation now cannot disagree about which resource was checked.
+ *
+ * **The handler is invoked to build its description before the policy is
+ * checked (BS-05, ED-05, EM-05).** `handler(witness, resource)` runs eagerly,
+ * as any argument to an `Effect` combinator does — but that only constructs
+ * the *description* of the guarded effect; nothing it describes executes
+ * until `enforce`'s `flatMap` runs it, which happens only after `permitted`
+ * has allowed. The witness is therefore an inert value at construction time,
+ * observable only from inside the handler's own body once it runs. A handler
+ * written as an idiomatic pure effect description is unaffected by this; one
+ * that performs work in its function body *before* returning an `Effect` runs
+ * that work unconditionally — on both the allow and the deny path — so
+ * handlers should describe work, not perform it, up to the point they return.
+ *
+ * **The witness is forgeable in principle, not just in practice (PW-04,
+ * RH-02).** `Brand.nominal` is `effect/Brand`'s own public export, so nothing
+ * in the type system stops other code from minting an `Authorized<P>` the
+ * same way this function does, for a permission it was never granted.
+ * {@link Authorized}'s "produced only by `Qadi.guard`" is a documented
+ * convention this module happens to follow, not a runtime guarantee the type
+ * enforces. What actually gates the protected work is `enforce` re-checking
+ * the policy on every call, not possession of the witness — so a forged
+ * witness fabricates a value, not authority: the guarded effect still only
+ * runs once `permitted` allows.
  */
 export const guard =
   <P extends Permission, EO = never, RO = never>(
@@ -315,6 +371,17 @@ const decideOne = <A extends Resource, EO, RO>(
  * have no short-circuit relationship — nothing here ever depends on which
  * item finished first, so there is no INV-QD-005-shaped invariant a second,
  * independent option would need to preserve.
+ *
+ * **Not given `SubjectSet.ts`'s `decideSubjects`/`filterSubjects` partition
+ * treatment, deliberately (JA-04).** Those report: a subject-set review has no
+ * permission being exercised and nothing discharged, so one subject's
+ * `EvaluationError` can be split into `failures` and the batch's other rows
+ * kept. This function enforces: by the time an item is known to be allowed,
+ * `decideOne` has already discharged its obligations (an audit write, a
+ * notification) below, so a later item's `EvaluationError` failing the whole
+ * call is the only option that does not pair an already-fired side effect
+ * with a return value — "the items the policy admits" — that never actually
+ * admitted it.
  */
 export const filter = <A extends Resource, EO = never, RO = never>(
   policy: Policy,
@@ -329,7 +396,17 @@ export const filter = <A extends Resource, EO = never, RO = never>(
     Effect.forEach(items, (item) => decideOne(policy, item, options), {
       concurrency: options?.concurrency,
     }),
-    (results) => results.filter((r) => r.allowed).map((r) => r.item),
+    // Single pass (BS-04): the streamed sibling below already avoids
+    // materializing an intermediate array, and the array form can too — the
+    // `FilterVerdict` wrapper stays, since `filterStream` still needs it, but
+    // nothing requires filtering and mapping as two separate traversals.
+    (results) => {
+      const kept: Array<A> = [];
+      for (const result of results) {
+        if (result.allowed) kept.push(result.item);
+      }
+      return kept;
+    },
   );
 
 /**

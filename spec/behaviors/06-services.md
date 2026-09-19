@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-06                                    |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.6                                            |
+> | Effective Date | 2026-09-19                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -203,6 +203,24 @@ export const currentSubjectLayer: (subject: AuthSubject) => Layer.Layer<CurrentS
 
 Named `currentSubjectLayer` rather than exposed as a static `of`, because
 `Context.Service` already defines `of` as the service constructor.
+
+**Trust model.** `CurrentSubject` is a trusted input, not a claim Qadi
+verifies. Everything the evaluator reads off `AuthSubject` — `id`, `roles`,
+`permissions`, `attributes` — is taken as already authenticated by whoever
+built the layer; the evaluator answers "does this subject, as described, pass
+this policy," never "is this really who it says it is." Establishing identity
+— checking a password, validating a session cookie, verifying a token's
+signature — is outside this library's competence entirely, and nothing in
+`CurrentSubject.ts` or `Evaluate.ts` re-checks it. A caller that wires
+`currentSubjectLayer(userFromUnverifiedCookie)` is vouching for that subject
+exactly as if it had called `currentSubjectLayer` with a value it trusts; the
+one thing Qadi does for an untrusted or absent identity is fail closed if
+nothing is provided at all ([`CurrentSubjectAnonymous`](#beh-qd-043-defaults-fail-closed)
+holds nothing, so every policy denies), not detect that the provided subject
+was never actually verified. This was previously implicit — spread across
+`CurrentSubject.ts`'s "Build this per request" comment, ADR-QD-032's aside
+about a long-lived runtime holding one subject, and ADR-QD-058's capture-side
+scoping — with no single normative statement of it (WD-05).
 
 ---
 

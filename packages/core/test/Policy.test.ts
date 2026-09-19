@@ -40,6 +40,17 @@ describe("Policy combinators", () => {
     );
   });
 
+  it("allOfRoles builds an AllOf of HasRole — the allOf mirror of anyOfRoles", () => {
+    const policy = P.allOfRoles(["admin", "editor"]);
+    assert.strictEqual(policy._tag, "AllOf");
+    if (policy._tag !== "AllOf") return;
+    assert.strictEqual(policy.policies.length, 2);
+    assert.deepStrictEqual(
+      policy.policies.map((p) => (p._tag === "HasRole" ? p.role : "?")),
+      ["admin", "editor"],
+    );
+  });
+
   it("labeled wraps a policy with a name", () => {
     const policy = P.labeled("four-eyes", P.hasRole("approver"));
     assert.strictEqual(policy._tag, "Labeled");
@@ -91,6 +102,14 @@ describe("Policy combinators", () => {
     // granting — ADR-QD-020. The schema is what holds the distinction.
     assert.strictEqual(P.hasNotActed("raised")._tag, "HasNotActed");
     assert.notStrictEqual(P.hasNotActed("raised")._tag, "Not");
+  });
+
+  it("hasRole carries fields — RH-01: parity with its eight sibling leaf tags", () => {
+    const policy = P.hasRole("approver", { fields: ["id"] });
+    assert.strictEqual(policy._tag, "HasRole");
+    if (policy._tag !== "HasRole") return;
+    assert.strictEqual(policy.role, "approver");
+    assert.deepStrictEqual(policy.fields, ["id"]);
   });
 
   it("hasRelationship carries depth and fields", () => {
@@ -424,6 +443,25 @@ describe("Policy serialization", () => {
       assert.strictEqual(result._tag, "Failure");
     }));
 
+  it.effect("rejects an unknown fieldStrategy value, rather than silently widening (MH-01)", () =>
+    Effect.gen(function* () {
+      // `mergeFields`'s default arm (Evaluate.ts) says a fourth strategy
+      // would compile and silently merge to "all fields" — the top of the
+      // field lattice — because its return type already includes
+      // `undefined`. That claim is structural (TypeScript's `never` check);
+      // this pins the runtime half of the same guard, at the one boundary an
+      // unknown strategy could actually arrive through: a persisted policy
+      // decoded from untrusted JSON. `FieldStrategy` is a closed
+      // `Schema.Literals(["Intersection", "Union", "First"])`, so a fourth
+      // value MUST fail decode rather than reach `mergeFields` at all.
+      const result = yield* Effect.result(
+        P.fromJson(
+          `{"_tag":"AllOf","fieldStrategy":"Xor","policies":[{"_tag":"HasRole","role":"admin"}]}`,
+        ),
+      );
+      assert.strictEqual(result._tag, "Failure");
+    }));
+
   describe("decode depth bound — stack-exhaustion refusal, not a defect", () => {
     const deeplyNestedNot = (n: number): string => {
       let json = "";
@@ -521,6 +559,29 @@ describe("Policy serialization", () => {
         const result = yield* Effect.result(P.fromJson(json));
         assert.strictEqual(result._tag, "Failure");
       }));
+
+    // KT-02: when `JSON.parse` itself throws, `fromJson` falls through to
+    // `Schema.decodeUnknownEffect(PolicyFromJson, …)`, which re-parses the
+    // same string with `Schema`'s own string-side parser — the depth guard
+    // above needs an already-parsed value to walk, and none exists yet on
+    // this path. This pins that the fallthrough stays inside the Effect
+    // channel even when the syntax error sits behind 60,000 otherwise
+    // well-formed nesting levels, not only behind a short, shallow one.
+    it.effect(
+      "a malformed 60,000-deep JSON string (missing final brace) fails through the Effect channel, never throws",
+      () =>
+        Effect.gen(function* () {
+          const malformed = deeplyNestedNot(60_000).slice(0, -1);
+          let effect: Effect.Effect<P.Policy, unknown> | undefined;
+          assert.doesNotThrow(() => {
+            effect = P.fromJson(malformed);
+          });
+          assert.isDefined(effect);
+          if (effect === undefined) return;
+          const result = yield* Effect.result(effect);
+          assert.strictEqual(result._tag, "Failure");
+        }),
+    );
   });
 
   describe("branded ADT strings — role/event/relation/action/label", () => {
@@ -559,6 +620,60 @@ describe("Policy serialization", () => {
           assert.strictEqual(result._tag, "Failure");
         }));
     }
+  });
+
+  describe("HasRelationship.depth — finite-integer bound at decode (BL-05, GB-02, MO-02, NW-02)", () => {
+    // Matcher.ts's `Gte`/`Lt` reject a non-finite bound at decode via
+    // `Schema.Finite` rather than deferring to a runtime guard; `depth` now
+    // gets the same boundary-not-runtime treatment, plus an explicit
+    // `[0, DEFAULT_MAX_DEPTH]` range since a depth outside it can never be
+    // honored (`Evaluate.ts`'s `clampRelationshipDepth` would silently
+    // rewrite it for an in-memory policy instead).
+    const rejected: ReadonlyArray<readonly [string, string]> = [
+      ['{"_tag":"HasRelationship","relation":"owner","depth":1e308}', "1e308"],
+      ['{"_tag":"HasRelationship","relation":"owner","depth":-1}', "a negative depth"],
+      ['{"_tag":"HasRelationship","relation":"owner","depth":2.5}', "a fractional depth"],
+      [
+        `{"_tag":"HasRelationship","relation":"owner","depth":${P.DEFAULT_MAX_DEPTH + 1}}`,
+        "a depth one past DEFAULT_MAX_DEPTH",
+      ],
+    ];
+
+    for (const [json, description] of rejected) {
+      it.effect(`rejects ${description}`, () =>
+        Effect.gen(function* () {
+          const result = yield* Effect.result(P.fromJson(json));
+          assert.strictEqual(result._tag, "Failure");
+        }));
+    }
+
+    // NaN has no JSON literal, so it can only reach decode through the
+    // already-parsed-value entry point, `fromJsonValue`.
+    it.effect("rejects NaN via fromJsonValue", () =>
+      Effect.gen(function* () {
+        const result = yield* Effect.result(
+          P.fromJsonValue({ _tag: "HasRelationship", relation: "owner", depth: Number.NaN }),
+        );
+        assert.strictEqual(result._tag, "Failure");
+      }));
+
+    const accepted: ReadonlyArray<number> = [0, P.DEFAULT_MAX_DEPTH];
+    for (const depth of accepted) {
+      it.effect(`accepts a depth of ${depth} — the bound is inclusive on both ends`, () =>
+        Effect.gen(function* () {
+          const json = `{"_tag":"HasRelationship","relation":"owner","depth":${depth}}`;
+          const result = yield* Effect.result(P.fromJson(json));
+          assert.strictEqual(result._tag, "Success");
+        }));
+    }
+
+    it.effect("still accepts no depth at all — the resolver decides", () =>
+      Effect.gen(function* () {
+        const result = yield* Effect.result(
+          P.fromJson('{"_tag":"HasRelationship","relation":"owner"}'),
+        );
+        assert.strictEqual(result._tag, "Success");
+      }));
   });
 
   it.effect("round-trips through a plain JSON value", () =>
@@ -631,9 +746,17 @@ describe("Policy serialization", () => {
         // `depthKey`'s omission is the same shape of invariant as
         // `fieldsKey`'s: generating both "no depth given" and "depth given"
         // sends the property through both branches of the ternary.
-        FastCheck.tuple(FastCheck.string(), FastCheck.option(FastCheck.integer())).map(
-          ([relation, depth]) =>
-            P.hasRelationship(segment(relation), depth === null ? undefined : { depth }),
+        //
+        // `depth` is now bounded to `[0, DEFAULT_MAX_DEPTH]` at decode
+        // (BL-05, GB-02, MO-02, NW-02), the same `segment()` sanitization
+        // reasoning every branded field above already needs: this is a
+        // round-trip property, not a decode-rejection one, so it generates
+        // only depths `fromJson` will actually accept.
+        FastCheck.tuple(
+          FastCheck.string(),
+          FastCheck.option(FastCheck.integer({ min: 0, max: P.DEFAULT_MAX_DEPTH })),
+        ).map(([relation, depth]) =>
+          P.hasRelationship(segment(relation), depth === null ? undefined : { depth }),
         ),
         // `params` is `Schema.Unknown`, so both branches of its own omission
         // ternary need a generator turn — the same reasoning `depth`'s
@@ -707,4 +830,46 @@ describe("Policy serialization", () => {
         assert.deepStrictEqual(restored, policy);
       }
     }));
+
+  // GC-01: `Schema.Codec<Policy, PolicyEncoded>` only proves the schema never
+  // produces a value outside the hand-written union — it cannot prove the
+  // converse, that every tag in the union has a schema arm that actually
+  // decodes it. `HasSignature` and the `Rules` row shape were both once
+  // reached "by chance" by the FastCheck property above rather than by name
+  // (see its own leaf-case comments). This test enumerates one minimal
+  // sample per tag through a `Record<Policy["_tag"], Policy>` literal, so a
+  // 17th tag added to the hand-written `Policy` union without a matching
+  // sample here — and, if the schema arm is also missing, without a
+  // decodable wire shape — fails to compile rather than merely going
+  // untested.
+  it.effect(
+    "every Policy tag has explicit, compile-forced round-trip coverage",
+    () =>
+      Effect.gen(function* () {
+        const leaf = P.hasRole("viewer");
+        const samples: Record<P.Policy["_tag"], P.Policy> = {
+          HasPermission: P.hasPermission(permission("doc", "read")),
+          HasRole: P.hasRole("admin", { fields: ["id"] }),
+          HasAttribute: P.hasAttribute("lvl", M.gte(1)),
+          HasResourceAttribute: P.hasResourceAttribute("lvl", M.gte(1)),
+          HasRelationship: P.hasRelationship("owner", { depth: 2, fields: ["title"] }),
+          HasAction: P.hasAction("write"),
+          HasActed: P.hasActed("submit"),
+          HasNotActed: P.hasNotActed("submit"),
+          HasCustom: P.hasCustom("isOwner", { threshold: 5 }),
+          HasSignature: P.hasSignature("approve", { signerRole: "manager" }),
+          AllOf: P.allOf([leaf]),
+          AnyOf: P.anyOf([leaf]),
+          Rules: P.rules([P.permitWhen(leaf), P.denyWhen(leaf)]),
+          Not: P.not(leaf),
+          Obliged: P.obliged(obligation("log-access", { level: "audit" }), leaf),
+          Labeled: P.labeled("four-eyes", leaf),
+        };
+
+        for (const [tag, policy] of Object.entries(samples)) {
+          const restored = yield* Effect.flatMap(P.toJson(policy), P.fromJson);
+          assert.deepStrictEqual(restored, policy, `${tag} failed to round-trip`);
+        }
+      }),
+  );
 });

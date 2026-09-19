@@ -306,8 +306,9 @@ describe("DecisionCache", () => {
         // `HashSet`. It is not: `AuthSubject.roles`/`.permissions` are the
         // built-in JS `Set` (`ReadonlySet<RoleName>` / `ReadonlySet<PermissionKey>`).
         // What actually makes two subjects with equal-content grants the same
-        // cache key is that `effect@4.0.0-rc.112`'s `Equal`/`Hash` special-case
-        // `instanceof Set` and fold its elements order-independently — verified
+        // cache key is that the installed `effect@4.0.0-rc.116`'s `Equal`/`Hash`
+        // special-case `instanceof Set` and fold its elements order-independently
+        // (checked 2026-09-19; re-check on the next `effect` bump) — verified
         // directly here, not assumed, since a naive audit of "is this a
         // HashSet?" would answer "no" and wrongly conclude this degrades to
         // reference equality (a cache-miss-only failure mode, but still a
@@ -1180,22 +1181,29 @@ describe("DecisionCache", () => {
         // the decision to interrupt was already made but before the compute's
         // own finalizer had removed the entry from `inFlight`.
         //
-        // It is not exploitable, and this pins why rather than just asserting
-        // the outcome. `effect@4.0.0-rc.112`'s `FiberImpl.interruptUnsafe`
-        // (`node_modules/effect/src/internal/effect.ts`) evaluates an
+        // It is not exploitable **in the regime this test exercises**, and
+        // this pins why rather than just asserting the outcome. Verified
+        // against the installed `effect@4.0.0-rc.116` (checked 2026-09-19;
+        // re-check on the next `effect` bump — `FiberImpl.interruptUnsafe`,
+        // `node_modules/effect/src/internal/effect.ts`): it evaluates an
         // interrupted fiber's continuation **synchronously, in the same JS
-        // call stack**, whenever that fiber is not currently `_running` —
-        // i.e. whenever it is idle, suspended on something like
-        // `Deferred.await`, which is exactly `awaitShared`'s own state and
-        // exactly the state `compute`'s fiber is in while blocked inside a
-        // resolver. So the last waiter's decrement, its decision, the nested
+        // call stack**, only when that fiber is both idle (not currently
+        // `_running`) and interruptible — which `awaitShared`'s own fiber,
+        // suspended in `Deferred.await`, always is, and which is also the
+        // state `compute`'s fiber is in below, since this test's blocking
+        // resolver parks in a bare `Deferred.await` with no uninterruptible
+        // region. So the last waiter's decrement, its decision, the nested
         // `Fiber.interrupt(entry.fiber)` call, and that compute fiber's own
         // `onExit` finalizer (removing `inFlight`, settling `claim`) all run
         // as ONE uninterrupted synchronous cascade — there is no scheduler
         // dispatch boundary in the middle of it for a separately-scheduled
         // joiner to be interleaved into, because JS has one call stack and
         // Effect only yields at an actual async suspension or an op-count
-        // budget neither of which this short cascade can reach.
+        // budget neither of which this short cascade can reach. A resolver
+        // that parks `compute` inside an uninterruptible region instead is a
+        // materially different regime this test does not cover — see
+        // `awaitShared`'s doc comment in `DecisionCache.ts` for the open gap
+        // there.
         //
         // Tried across every interleaving this suite can force — both
         // orders of "fork the joiner" vs. "fork the interrupt", and eight
@@ -1337,10 +1345,16 @@ describe("DecisionCache", () => {
         for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
         await Effect.runPromise(Deferred.succeed(gate, undefined));
 
-        const joinerTag = await Promise.race([
-          joined,
-          new Promise<string>((resolve) => setTimeout(() => resolve("TIMEOUT"), 2000)),
-        ]);
+        // No wall-clock watchdog here (previously a 2000ms `Promise.race`,
+        // 100-lens audit john-carmack JC-01): the property under test —
+        // concurrent identical asks coalesce onto one compute — is
+        // timing-free once the gate above is released, so racing it against
+        // a fixed real-time budget only added a way for a loaded CI runner
+        // to fail this spuriously with no bug present. A genuine regression
+        // that leaves `joined` unsettled still fails the test, via this
+        // `it`'s own 30000ms framework timeout below, reported as a timeout
+        // rather than a misleading "TIMEOUT" vs "Success" assertion mismatch.
+        const joinerTag = await joined;
         await runtime.dispose();
 
         assert.strictEqual(

@@ -157,6 +157,10 @@ export const LabelName = segmentBrand("LabelName");
 export type LabelName = typeof LabelName.Type;
 
 /**
+ * Total, non-validating constructor for `RoleName` — exported, unlike its
+ * four siblings below, because `AuthSubject.ts` needs the identical
+ * construction.
+ *
  * Every smart constructor below (`hasRole`, `hasAction`, …) stays **total**,
  * exactly like `permission()` in `Permission.ts`: it accepts a plain `string`
  * and never fails. `Schema`'s own `.make()` on a checked-and-branded schema
@@ -166,17 +170,15 @@ export type LabelName = typeof LabelName.Type;
  * value, which is exactly the guarantee a smart constructor calling it can
  * keep. Real validation still happens, just only at the `Schema` decode
  * boundary these brands are also wired into above.
- */
-/**
- * Exported — unlike its four siblings below — because `AuthSubject.ts` needs
- * the identical total, non-validating conversion: `subject.roles.has(policy.role)`
- * (`Evaluate.ts`) only type-checks as a comparison of the same brand on both
- * sides if subject role names are constructed the same way `hasRole` builds
- * `policy.role`. A second, independent `Brand.nominal<RoleName>()` call in
- * `AuthSubject.ts` would behave identically today (the constructor performs
- * no validation, so there is nothing for two calls to disagree on) but would
- * give a future change to how `RoleName` is constructed no compiler-enforced
- * reason to reach both call sites.
+ *
+ * `subject.roles.has(policy.role)` (`Evaluate.ts`) only type-checks as a
+ * comparison of the same brand on both sides if subject role names are
+ * constructed the same way `hasRole` builds `policy.role`. A second,
+ * independent `Brand.nominal<RoleName>()` call in `AuthSubject.ts` would
+ * behave identically today (the constructor performs no validation, so there
+ * is nothing for two calls to disagree on) but would give a future change to
+ * how `RoleName` is constructed no compiler-enforced reason to reach both
+ * call sites.
  */
 export const makeRoleName = Brand.nominal<RoleName>();
 const makeActionName = Brand.nominal<ActionName>();
@@ -194,7 +196,11 @@ export type Policy =
       readonly permission: Permission;
       readonly fields?: ReadonlyArray<string> | undefined;
     }
-  | { readonly _tag: "HasRole"; readonly role: RoleName }
+  | {
+      readonly _tag: "HasRole";
+      readonly role: RoleName;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
   | {
       readonly _tag: "HasAttribute";
       readonly attribute: string;
@@ -286,7 +292,11 @@ export type PolicyEncoded =
       readonly permission: Permission;
       readonly fields?: ReadonlyArray<string> | undefined;
     }
-  | { readonly _tag: "HasRole"; readonly role: string }
+  | {
+      readonly _tag: "HasRole";
+      readonly role: string;
+      readonly fields?: ReadonlyArray<string> | undefined;
+    }
   | {
       readonly _tag: "HasAttribute";
       readonly attribute: string;
@@ -364,7 +374,7 @@ const HasPermission = Schema.TaggedStruct("HasPermission", {
   fields: Fields,
 });
 
-const HasRole = Schema.TaggedStruct("HasRole", { role: RoleName });
+const HasRole = Schema.TaggedStruct("HasRole", { role: RoleName, fields: Fields });
 
 const HasAttribute = Schema.TaggedStruct("HasAttribute", {
   attribute: Schema.String,
@@ -378,9 +388,36 @@ const HasResourceAttribute = Schema.TaggedStruct("HasResourceAttribute", {
   fields: Fields,
 });
 
+/**
+ * `HasRelationship.depth`'s wire type: a non-negative integer, capped at
+ * {@link DEFAULT_MAX_DEPTH}.
+ *
+ * `Schema.Int`, not `Schema.Number`, for the same trust-boundary reason
+ * `Matcher.ts`'s `Gte`/`Lt` use `Schema.Finite` over `Schema.Number`: a
+ * decoded policy is untrusted JSON (§7, ADR-QD-002), and a bare `Number`
+ * would let `1e308`, a negative value, or — through `fromJsonValue`'s
+ * plain-value path — `NaN`/`Infinity` all decode successfully, deferring
+ * entirely to `Evaluate.ts`'s runtime `clampRelationshipDepth`. `Schema.Int`
+ * rejects non-finite and fractional depths at the boundary instead; the
+ * `isBetween` bound rejects out-of-range ones the same way. Reusing
+ * `DEFAULT_MAX_DEPTH` rather than inventing a second bound: nothing argues a
+ * relationship graph should be walked deeper than a policy tree is ever
+ * allowed to be — `Evaluate.ts`'s own `MAX_RELATIONSHIP_DEPTH` already reuses
+ * it for the identical reason.
+ *
+ * `clampRelationshipDepth` stays in `Evaluate.ts` as defense-in-depth: this
+ * schema only runs on the decode path, so a policy built in memory through
+ * `hasRelationship("owner", { depth: -5 })` (the smart constructors are
+ * deliberately total, per `makeRoleName`'s comment above) never reaches this
+ * check and still needs a runtime guard before it becomes resolver fuel.
+ */
+const RelationshipDepth = Schema.Int.check(
+  Schema.isBetween({ minimum: 0, maximum: DEFAULT_MAX_DEPTH }),
+);
+
 const HasRelationship = Schema.TaggedStruct("HasRelationship", {
   relation: RelationName,
-  depth: Schema.optional(Schema.Number),
+  depth: Schema.optional(RelationshipDepth),
   fields: Fields,
 });
 
@@ -505,7 +542,6 @@ export interface CombinatorOptions {
   readonly fieldStrategy?: FieldStrategy;
 }
 
-/** The subject holds the given permission. */
 /**
  * Optional keys are *omitted* rather than set to `undefined`.
  *
@@ -529,6 +565,7 @@ const fieldsKey = (
 const depthKey = (depth: number | undefined): Readonly<{ depth?: number }> =>
   depth === undefined ? {} : { depth };
 
+/** The subject holds the given permission. */
 export const hasPermission = (
   permission: Permission,
   options?: FieldOptions,
@@ -538,8 +575,21 @@ export const hasPermission = (
   ...fieldsKey(options?.fields),
 });
 
-/** The subject holds the given role, directly or by inheritance. */
-export const hasRole = (role: string): Policy => ({ _tag: "HasRole", role: makeRoleName(role) });
+/**
+ * The subject holds the given role, directly or by inheritance.
+ *
+ * Takes {@link FieldOptions} like every other leaf tag — `HasRole` used to be
+ * the one exception, with no documented reason for it, which made a
+ * role-gated grant unable to narrow visibility directly (the only workaround
+ * was composing under an `allOf` with a field-bearing sibling under
+ * `Intersection`). There is nothing role-specific about field narrowing, so
+ * the omission was closed rather than documented as deliberate.
+ */
+export const hasRole = (role: string, options?: FieldOptions): Policy => ({
+  _tag: "HasRole",
+  role: makeRoleName(role),
+  ...fieldsKey(options?.fields),
+});
 
 /** A subject attribute satisfies the matcher. */
 export const hasAttribute = (
@@ -687,6 +737,28 @@ export const hasSignature = (
 });
 
 /**
+ * What `fieldStrategy` a bare `allOf`/`anyOf` call defaults to absent an
+ * explicit override.
+ *
+ * Exported so `Explanation.ts` reads the one place this default is decided
+ * rather than restating it in its own words: "Intersection is allOf's
+ * default; First is anyOf's" used to be encoded here (in `allOf`/`anyOf`
+ * themselves) and, separately, in `Explanation.ts`'s `isDefaultFieldStrategy`
+ * — two places agreeing by convention rather than by reference (EK-04).
+ * Because `fieldStrategy` is required and always encoded (ADR-QD-006),
+ * enforcement never depended on this knowledge, but a future default change
+ * would have silently misrendered explanations, claiming a non-default
+ * strategy is the default and violating INV-QD-031's
+ * two-non-equivalent-policies-render-differently requirement with no
+ * compile-time complaint. `Evaluate.ts`'s `exhaustive := fieldStrategy !==
+ * "First"` check is semantic rather than default-tracking — `First` is the
+ * only short-circuiting strategy, not merely the default — and deliberately
+ * stays independent of this function.
+ */
+export const defaultFieldStrategy = (kind: "AllOf" | "AnyOf"): FieldStrategy =>
+  kind === "AllOf" ? "Intersection" : "First";
+
+/**
  * Every child must allow.
  *
  * Defaults to `Intersection`: a subject may see only the fields every branch
@@ -698,7 +770,7 @@ export const allOf = (
 ): Policy => ({
   _tag: "AllOf",
   policies,
-  fieldStrategy: options?.fieldStrategy ?? "Intersection",
+  fieldStrategy: options?.fieldStrategy ?? defaultFieldStrategy("AllOf"),
 });
 
 /**
@@ -714,7 +786,7 @@ export const anyOf = (
 ): Policy => ({
   _tag: "AnyOf",
   policies,
-  fieldStrategy: options?.fieldStrategy ?? "First",
+  fieldStrategy: options?.fieldStrategy ?? defaultFieldStrategy("AnyOf"),
 });
 
 /**
@@ -748,7 +820,20 @@ export const rules = (
   combining: options?.combining ?? "FirstApplicable",
 });
 
-/** Inverts a decision. Carries no field visibility of its own. */
+/**
+ * Inverts a decision. Carries no field visibility of its own.
+ *
+ * `not` is a verdict inverter, not a lattice operation: it flips
+ * allow/deny and drops everything else the child carried, so `not(not(p))`
+ * is **not** `p` — an allowing `not(not(p))` carries `visibleFields:
+ * undefined` (the top of the field lattice, "all fields") and no
+ * obligations, regardless of what `p` itself would have exposed or owed.
+ * Stacking two negations therefore widens disclosure rather than restoring
+ * it. This is normative at BEH-QD-155
+ * (`spec/behaviors/20-simplification.md`), discovered by property test, and
+ * `Simplify.ts`'s own comment on the same non-involution calls it "a finding
+ * rather than an omission" (ADR-QD-030).
+ */
 export const not = (policy: Policy): Policy => ({ _tag: "Not", policy });
 
 /**
@@ -777,9 +862,27 @@ export const labeled = (label: string, policy: Policy): Policy => ({
   policy,
 });
 
-/** Any of the given roles. */
+/**
+ * Any of the given roles.
+ *
+ * `roles.map((role) => hasRole(role))`, not `roles.map(hasRole)`: now that
+ * `hasRole` takes an optional second `FieldOptions` parameter, `Array.map`
+ * would pass its own `index` argument through as `hasRole`'s `options`
+ * parameter — the same shape of hazard `parseInt` is famous for with `map`.
+ */
 export const anyOfRoles = (roles: ReadonlyArray<string>): Policy =>
-  anyOf(roles.map(hasRole));
+  anyOf(roles.map((role) => hasRole(role)));
+
+/**
+ * All of the given roles.
+ *
+ * The `allOf` mirror of {@link anyOfRoles} — the DSL's other combinator
+ * sugar (`permitWhen`/`denyWhen`, `obliged`, `labeled`) is symmetric, and this
+ * one was not: a policy author who reached for `anyOfRoles` and needed its
+ * conjunction had no equally-named counterpart to reach for next.
+ */
+export const allOfRoles = (roles: ReadonlyArray<string>): Policy =>
+  allOf(roles.map((role) => hasRole(role)));
 
 // ---------------------------------------------------------------------------
 // Serialization — derived, never hand-written
@@ -788,7 +891,22 @@ export const anyOfRoles = (roles: ReadonlyArray<string>): Policy =>
 /** JSON string codec for a policy. */
 export const PolicyFromJson = Schema.fromJsonString(Policy);
 
-/** Encodes a policy to a JSON string. */
+/**
+ * Encodes a policy to a JSON string.
+ *
+ * Encode does not re-run the checks decode enforces: `Schema`'s checks (the
+ * `SEGMENT_PATTERN` pattern behind `segmentBrand`, the `HasRelationship.depth`
+ * bound) validate untrusted input on the way *in*, and a value already typed
+ * as `Policy` is not untrusted input on the way *out*. So a policy built
+ * through a smart constructor with an invalid segment — `hasRole("a:b")`,
+ * say, which `makeRoleName`'s comment above documents as unvalidated —
+ * encodes here without error. The resulting JSON then fails `fromJson`, so
+ * `toJson(p)` succeeding is not a guarantee that `fromJson(toJson(p))` will:
+ * BEH-QD-058's round-trip guarantee holds for policies whose segment-shaped
+ * and depth fields already satisfy the checks decode enforces, which is
+ * every policy the FastCheck round-trip property generates but not
+ * necessarily every `Policy` value the type admits.
+ */
 export const toJson = Schema.encodeEffect(PolicyFromJson);
 
 /**
@@ -896,7 +1014,12 @@ export const fromJson = (
     return decodePolicyUnknown(parsed);
   });
 
-/** Encodes a policy to a plain JSON value. */
+/**
+ * Encodes a policy to a plain JSON value.
+ *
+ * Same encode/decode asymmetry as {@link toJson}: encode does not re-check
+ * branded segments or the `HasRelationship.depth` bound, only decode does.
+ */
 export const toJsonValue = Schema.encodeEffect(Policy);
 
 /**
@@ -919,6 +1042,42 @@ export const fromJsonValue = (
 // ---------------------------------------------------------------------------
 
 /**
+ * A node's immediate children, in the order {@link policyDepth} counts them:
+ * `AllOf`/`AnyOf`'s `policies`, `Rules`'s row conditions, `Not`/`Obliged`/
+ * `Labeled`'s wrapped policy, and `[]` for every leaf.
+ *
+ * Factored out so `policyDepth` can walk with an explicit stack instead of
+ * native recursion (see its own comment), while `Match.tagsExhaustive` still
+ * makes a new `Policy` tag a compile error here rather than a silently-empty
+ * child list. Exported so other pure, non-`Effect` walkers over a caller-held
+ * `Policy` can share the same explicit-stack technique instead of recursing
+ * natively — `Simplify.ts`'s `simplify` is the other one, per the same class
+ * of gap `policyDepth` itself was fixed for (a smart-constructor-built policy
+ * has no `MAX_DECODE_DEPTH` bound, so native recursion here can raise a raw
+ * `RangeError`, a defect rather than a typed failure).
+ */
+export const childrenOf: (self: Policy) => ReadonlyArray<Policy> = Match.type<Policy>().pipe(
+  Match.tagsExhaustive({
+    HasPermission: () => [],
+    HasRole: () => [],
+    HasAttribute: () => [],
+    HasResourceAttribute: () => [],
+    HasRelationship: () => [],
+    HasAction: () => [],
+    HasActed: () => [],
+    HasNotActed: () => [],
+    HasCustom: () => [],
+    HasSignature: () => [],
+    AllOf: (p) => p.policies,
+    AnyOf: (p) => p.policies,
+    Rules: (p) => p.rules.map((r) => r.condition),
+    Not: (p) => [p.policy],
+    Obliged: (p) => [p.policy],
+    Labeled: (p) => [p.policy],
+  }),
+);
+
+/**
  * How deeply a policy nests, counted the way the evaluator counts.
  *
  * A leaf is `0`; each recursive position adds one. So `policyDepth(p) <= n` is
@@ -936,44 +1095,40 @@ export const fromJsonValue = (
  *
  * An empty `allOf`, `anyOf` or `rules` is depth `0`, not `1`: it has no
  * children, so the evaluator never descends, and the bound is about descent.
- */
-export const policyDepth: (self: Policy) => number = Match.type<Policy>().pipe(
-  Match.tagsExhaustive({
-    HasPermission: () => 0,
-    HasRole: () => 0,
-    HasAttribute: () => 0,
-    HasResourceAttribute: () => 0,
-    HasRelationship: () => 0,
-    HasAction: () => 0,
-    HasActed: () => 0,
-    HasNotActed: () => 0,
-    HasCustom: () => 0,
-    HasSignature: () => 0,
-    AllOf: (p) => deepest(p.policies),
-    AnyOf: (p) => deepest(p.policies),
-    Rules: (p) => deepest(p.rules.map((r) => r.condition)),
-    Not: (p) => 1 + policyDepth(p.policy),
-    Obliged: (p) => 1 + policyDepth(p.policy),
-    Labeled: (p) => 1 + policyDepth(p.policy),
-  }),
-);
-
-/**
- * `1 + the deepest child`, or `0` when there are none.
  *
- * Walks with an explicit loop rather than `Math.max(...children.map(...))`:
- * the spread turns into a call with one argument per child, and a direct
- * `AllOf`/`AnyOf`/`Rules` node with on the order of 100k-200k children blows
- * the engine's argument-list limit — a raw `RangeError`, not a typed `Effect`
- * failure, for a shape `MAX_DECODE_DEPTH` never bounded (it caps nesting
- * depth, not sibling-array width). A `for` loop has no such ceiling.
+ * Walks with an explicit array-backed stack (the same technique
+ * `DecodeDepthGuard.ts`'s `exceedsJsonDepth` uses) rather than native
+ * recursion. A decoded policy's nesting is already bounded by
+ * `MAX_DECODE_DEPTH`, but a policy assembled programmatically never crosses
+ * that boundary — the smart constructors do not depth-check, so a loop of
+ * `not()` builds a tree exactly as deep as the loop runs — and this function's
+ * own doc above advertises it as the check a tool runs to decide whether a
+ * policy "will evaluate at all"; that check must not itself be able to
+ * overflow the stack on the input it exists to validate.
  */
-const deepest = (children: ReadonlyArray<Policy>): number => {
-  if (children.length === 0) return 0;
-  let max = 0;
-  for (const child of children) {
-    const depth = policyDepth(child);
-    if (depth > max) max = depth;
+export const policyDepth = (self: Policy): number => {
+  const depths = new Map<Policy, number>();
+  const stack: Array<{ readonly node: Policy; readonly expanded: boolean }> = [
+    { node: self, expanded: false },
+  ];
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (frame === undefined) break;
+    if (frame.expanded) {
+      const children = childrenOf(frame.node);
+      let max = 0;
+      for (const child of children) {
+        const depth = depths.get(child) ?? 0;
+        if (depth > max) max = depth;
+      }
+      depths.set(frame.node, children.length === 0 ? 0 : 1 + max);
+      continue;
+    }
+    if (depths.has(frame.node)) continue;
+    stack.push({ node: frame.node, expanded: true });
+    for (const child of childrenOf(frame.node)) {
+      stack.push({ node: child, expanded: false });
+    }
   }
-  return 1 + max;
+  return depths.get(self) ?? 0;
 };

@@ -93,6 +93,15 @@ const stagingFailedOpen = Metric.withAttributes(stagingTotal, { outcome: "failed
  * own failure gets `stagingFailed`, and a `commit` that fails silently while
  * everything else in this pipeline's outcomes is metered would be the one
  * unobservable way a caller's staging store leaks un-committed rows forever.
+ *
+ * **This is a staging-side cleanup failure, not a compliance-record loss** —
+ * unlike `stagingFailedOpen`/`stagingSkippedOpen` below, both of which fire
+ * only when `trailPort.write` never ran at all. `commitStaged` is only ever
+ * called after `trailPort.write` has already **succeeded**
+ * (`attemptWrite`'s `Exit.isSuccess(written)` branch), so the entry is
+ * already durable in the trail by the time this can fire; what is lost is
+ * only the staging store's own bookkeeping (the row stays marked
+ * uncommitted, per the "leaks... forever" note above), not the entry.
  */
 const stagingCommitFailed = Metric.withAttributes(stagingTotal, { outcome: "commit_failed" });
 
@@ -226,7 +235,16 @@ export const AuditDecisionSinkLive = (
             if (Exit.isSuccess(written)) {
               yield* breaker.recordSuccess;
               if (commitStaged !== undefined) {
-                yield* Effect.catchCause(commitStaged(), () => Metric.update(stagingCommitFailed, 1));
+                yield* Effect.catchCause(commitStaged(), (cause) =>
+                  Effect.logWarning(
+                    "audit staging commit failed: entry is durable in the trail, but its " +
+                      "staged copy will remain marked uncommitted in the staging store",
+                    cause,
+                  ).pipe(
+                    Effect.annotateLogs({ evaluationId: entry.record.evaluationId }),
+                    Effect.andThen(Metric.update(stagingCommitFailed, 1)),
+                  ),
+                );
               }
               yield* Metric.update(writesWritten, 1);
             } else {

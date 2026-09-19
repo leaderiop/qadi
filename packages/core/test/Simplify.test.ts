@@ -270,11 +270,15 @@ describe("simplify", () => {
       // Vacuity guard. If nothing ever shrank, the property above would hold for a
       // `simplify` that returned its argument.
       //
-      // The threshold is set below the MEASURED value (17 of 120 trees under this
-      // seed) rather than at a round number, because the sample is seeded: a guard
+      // The threshold is set below the MEASURED value (17 of 120 trees under
+      // seed 1030, numRuns 120 — see the `FastCheck.sample` call above)
+      // rather than at a round number, because the sample is seeded: a guard
       // tuned to a lucky run is how a property test becomes flaky, which is worse
       // than a weak one. Widening the generator is the way to raise this, not
-      // raising the number.
+      // raising the number. (JH-06: recorded here, next to the threshold,
+      // specifically so changing `tree`'s shape or either of the two numbers
+      // above is a visible prompt to re-measure and re-justify `10`, rather
+      // than a silently stale margin.)
       assert.isAbove(shrunk, 10, `only ${shrunk} of 120 trees shrank`);
     }));
 
@@ -289,4 +293,54 @@ describe("simplify", () => {
         );
       }
     }));
+
+  it(
+    "a deep, programmatically-built tree (100k nested Not) does not overflow the call " +
+      "stack (RP-01)",
+    () => {
+      // The same hazard `policyDepth` was fixed for (RolesAndDepth.test.ts's
+      // matching regression test): nothing bounds recursion depth for a
+      // policy assembled directly rather than decoded from JSON — the smart
+      // constructors do not depth-check, so a loop of `not()` builds a tree
+      // exactly as deep as the loop runs, and `simplify` is reachable
+      // directly on a caller-held `Policy` with no prior decode step at all.
+      // `simplify` now walks an explicit array-backed stack (via `Policy.ts`'s
+      // `childrenOf`, the same one `policyDepth` uses) instead of native
+      // recursion, so this must both return without throwing and produce the
+      // correctly-simplified result — a single leaf under 100k `Not` wrappers
+      // has no sibling structure for `simplify` to remove, so the shape is
+      // unchanged; only the identity of the (already-simplified) leaf differs.
+      const n = 100_000;
+      let policy: P.Policy = P.hasPermission(permission("doc", "read"));
+      for (let i = 0; i < n; i += 1) policy = P.not(policy);
+
+      let result: P.Policy | undefined;
+      assert.doesNotThrow(() => {
+        result = simplify(policy);
+      });
+      assert.isDefined(result);
+      if (result === undefined) return;
+      assert.strictEqual(P.policyDepth(result), n);
+    },
+  );
+
+  it("a wide tree (250k direct children) does not overflow the argument list", () => {
+    // `simplify`'s width twin of the depth regression above — `flatten`
+    // itself is `Array.prototype.flatMap`, already stack-safe regardless of
+    // width, but the walk that feeds it children must not re-introduce a
+    // per-child JS stack frame either.
+    const children: ReadonlyArray<P.Policy> = Array.from({ length: 250_000 }, () =>
+      P.hasPermission(permission("doc", "read")),
+    );
+    const wide = P.anyOf(children);
+    let result: P.Policy | undefined;
+    assert.doesNotThrow(() => {
+      result = simplify(wide);
+    });
+    assert.isDefined(result);
+    if (result === undefined) return;
+    assert.strictEqual(result._tag, "AnyOf");
+    if (result._tag !== "AnyOf") return;
+    assert.strictEqual(result.policies.length, 250_000);
+  });
 });

@@ -26,7 +26,7 @@ export type SqlDialect = "postgres" | "mysql" | "sqlite";
 /** A parameterized SQL fragment: `text` names placeholders, `params` binds them. */
 export interface SqlFragment {
   readonly text: string;
-  readonly params: ReadonlyArray<unknown>;
+  readonly params: ReadonlyArray<SqlSafeValue>;
 }
 
 export interface CompileSqlOptions {
@@ -91,13 +91,21 @@ const SYNTAX: Record<SqlDialect, DialectSyntax> = {
 // handles before this function is ever reached. Narrowing the parameter type
 // (rather than leaving an exhaustive-but-dead "Neq" arm here) makes that
 // unreachable by construction instead of by convention.
-const compareOperator = (op: Exclude<CompareOp, "Neq">): string =>
-  Match.value(op).pipe(
-    Match.when("Eq", () => "="),
-    Match.when("Gte", () => ">="),
-    Match.when("Lt", () => "<"),
-    Match.exhaustive,
-  );
+//
+// A plain literal→literal `Record`, not `Match.value` rebuilt per call
+// (RH-01): this has zero per-call state — the same "easiest possible hoist"
+// `dispatchNode` above already documents doing for its own per-node dispatch
+// (AGENTS.md §5a) — so it needs neither `Match.type`'s module-scope matcher
+// nor `Match.value`'s per-call one, both of which exist to dispatch on a
+// scrutinee this table never varies by call. `renderNode`'s `Compare` case
+// calls this once per rendered `Compare` node, the exact per-node-evaluation
+// shape §5a measures `Match.value` at 3.5–7.7× slower on.
+const COMPARE_OPERATOR: Record<Exclude<CompareOp, "Neq">, string> = {
+  Eq: "=",
+  Gte: ">=",
+  Lt: "<",
+};
+const compareOperator = (op: Exclude<CompareOp, "Neq">): string => COMPARE_OPERATOR[op];
 
 /**
  * `unknown`, safely: the only shapes a driver can bind as a parameter.
@@ -137,8 +145,22 @@ const compareOperator = (op: Exclude<CompareOp, "Neq">): string =>
  * a second definition of "safe value" in one file. `@qadi/predicate-prisma`
  * already refuses all four; the two dialect packages now agree on which
  * predicates compile at all.
+ *
+ * A type predicate, not plain `boolean` (BC-02): the return type used to
+ * discard the very safety proof this function exists to establish, leaving
+ * `params` typed `Array<unknown>` downstream — every `params.push` after a
+ * passing check was safe only by the reviewer trusting the call order, the
+ * exact arrangement that lets a future arm push an unchecked value with no
+ * compile error. `SqlSafeValue` below names the narrowed type once, so
+ * `params`'s own type (`SqlFragment.params`, `renderNode`'s parameter) can
+ * require it instead of `unknown`, and the unsafe-push defect class becomes
+ * one the compiler catches. `isSafeIdentifier` just below keeps its
+ * `boolean` return: identifiers are refused, never bound as a parameter, so
+ * there is no downstream value for a narrowed type to protect.
  */
-const isSafeValue = (value: unknown): boolean =>
+export type SqlSafeValue = string | number | boolean | null;
+
+const isSafeValue = (value: unknown): value is SqlSafeValue =>
   value === null ||
   typeof value === "string" ||
   (typeof value === "number" && Number.isFinite(value)) ||
@@ -186,7 +208,7 @@ const dispatchNode: (
   predicate: Predicate,
 ) => (
   syntax: DialectSyntax,
-  params: Array<unknown>,
+  params: Array<SqlSafeValue>,
   maxInValues: number,
 ) => Effect.Effect<string, PredicateNotRenderable> = Match.type<Predicate>().pipe(
   Match.tagsExhaustive({
@@ -202,7 +224,7 @@ const dispatchNode: (
       // compiled SQL against a real engine, not designed in from the start:
       // the differential property test's own interpreter re-implements
       // `===`/`!==` in JS and so agreed with the bug rather than catching it.
-      Compare: (p) => (syntax: DialectSyntax, params: Array<unknown>, _maxInValues: number) => {
+      Compare: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, _maxInValues: number) => {
         if (!isSafeIdentifier(p.column)) {
           return Effect.fail(
             new PredicateNotRenderable({
@@ -211,7 +233,14 @@ const dispatchNode: (
             }),
           );
         }
-        if (!isSafeValue(p.value)) {
+        // Checked into a local first, not re-read as `p.value` below (BC-02):
+        // `isSafeValue` narrows a variable it is called on directly, but
+        // TypeScript does not narrow a property access (`p.value`) across a
+        // later, separate reference to that same property — the guard would
+        // type-check as a no-op protection if the rest of this arm kept
+        // reading `p.value` instead of this local.
+        const { value } = p;
+        if (!isSafeValue(value)) {
           return Effect.fail(
             new PredicateNotRenderable({
               predicateTag: "Compare",
@@ -235,18 +264,18 @@ const dispatchNode: (
         // therefore already finite, so a plain `typeof` guard is all that is
         // left to do. Mirrors `@qadi/predicate-prisma`'s identical guard, and
         // this file's own FALSE for a null-literal Gte/Lt just below.
-        if ((p.op === "Gte" || p.op === "Lt") && typeof p.value !== "number") {
+        if ((p.op === "Gte" || p.op === "Lt") && typeof value !== "number") {
           return Effect.succeed("FALSE");
         }
         const column = syntax.quote(p.column);
-        if (p.value === null) {
+        if (value === null) {
           if (p.op === "Eq") return Effect.succeed(`${column} IS NULL`);
           if (p.op === "Neq") return Effect.succeed(`${column} IS NOT NULL`);
           // Gte/Lt against a null literal is handled by the numeric guard
           // above (typeof null !== "number").
           return Effect.succeed("FALSE");
         }
-        params.push(p.value);
+        params.push(value);
         const placeholder = syntax.placeholder(params.length);
         // Neq admits a NULL-valued column too — `null !== against` is true
         // for any non-null `against` — which plain `!=` alone would exclude.
@@ -254,7 +283,7 @@ const dispatchNode: (
         return Effect.succeed(`${column} ${compareOperator(p.op)} ${placeholder}`);
       },
 
-      MemberOf: (p) => (syntax: DialectSyntax, params: Array<unknown>, maxInValues: number) => {
+      MemberOf: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, maxInValues: number) => {
         if (!isSafeIdentifier(p.column)) {
           return Effect.fail(
             new PredicateNotRenderable({
@@ -274,7 +303,14 @@ const dispatchNode: (
             }),
           );
         }
-        if (p.values.some((value) => !isSafeValue(value))) {
+        // `.filter(isSafeValue)`, not a second read of `p.values` (BC-02):
+        // the type predicate narrows the returned array to
+        // `Array<SqlSafeValue>`, and the `.some` check just above guarantees
+        // this filter drops nothing — every element already passed the same
+        // predicate — so this is a type-level narrowing, not a behavior
+        // change.
+        const safeValues = p.values.filter(isSafeValue);
+        if (safeValues.length !== p.values.length) {
           return Effect.fail(
             new PredicateNotRenderable({
               predicateTag: "MemberOf",
@@ -287,8 +323,8 @@ const dispatchNode: (
         // `null` Compare value does: `col IN (NULL, ...)` never matches even
         // a row where `col IS NULL`, because `col = NULL` inside IN's
         // expansion is unknown, not true.
-        const hasNull = p.values.includes(null);
-        const nonNull = p.values.filter((value) => value !== null);
+        const hasNull = safeValues.includes(null);
+        const nonNull = safeValues.filter((value) => value !== null);
         if (nonNull.length === 0) return Effect.succeed(`${column} IS NULL`);
         const placeholders = nonNull.map((value) => {
           params.push(value);
@@ -312,13 +348,13 @@ const dispatchNode: (
       // to either `forEach` would let children push out of render order while
       // the rendered SQL's placeholder numbers stay fixed to that order,
       // silently binding parameter values to the wrong placeholders.
-      And: (p) => (syntax: DialectSyntax, params: Array<unknown>, maxInValues: number) =>
+      And: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, maxInValues: number) =>
         Effect.map(
           Effect.forEach(p.predicates, (inner) => renderNode(inner, syntax, params, maxInValues)),
           (parts) => (parts.length === 0 ? "TRUE" : `(${parts.join(" AND ")})`),
         ),
 
-      Or: (p) => (syntax: DialectSyntax, params: Array<unknown>, maxInValues: number) =>
+      Or: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, maxInValues: number) =>
         Effect.map(
           Effect.forEach(p.predicates, (inner) => renderNode(inner, syntax, params, maxInValues)),
           (parts) => (parts.length === 0 ? "FALSE" : `(${parts.join(" OR ")})`),
@@ -348,7 +384,7 @@ const dispatchNode: (
       // placeholder is bound twice (`?`-style dialects consume placeholders
       // positionally; duplicating rendered text would double the `?` count
       // without doubling `params`).
-      Negate: (p) => (syntax: DialectSyntax, params: Array<unknown>, maxInValues: number) =>
+      Negate: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, maxInValues: number) =>
         Effect.map(
           renderNode(p.predicate, syntax, params, maxInValues),
           (inner) => `CASE WHEN (${inner}) THEN FALSE ELSE TRUE END`,
@@ -366,7 +402,7 @@ const dispatchNode: (
 const renderNode = (
   predicate: Predicate,
   syntax: DialectSyntax,
-  params: Array<unknown>,
+  params: Array<SqlSafeValue>,
   maxInValues: number,
 ): Effect.Effect<string, PredicateNotRenderable> => dispatchNode(predicate)(syntax, params, maxInValues);
 
@@ -396,7 +432,7 @@ export const compileSql = Effect.fn("qadi.predicateSql.compileSql")(function* (
   predicate: Predicate,
   options: CompileSqlOptions,
 ) {
-  const params: Array<unknown> = [];
+  const params: Array<SqlSafeValue> = [];
   const syntax = SYNTAX[options.dialect];
   const maxInValues = options.maxInValues ?? DEFAULT_MAX_IN_VALUES;
 

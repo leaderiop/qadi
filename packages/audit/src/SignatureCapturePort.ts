@@ -86,6 +86,19 @@ export class SignatureCaptureError extends Data.TaggedError("SignatureCaptureErr
 }> {}
 
 export interface SignatureCapturePortShape {
+  /**
+   * **An implementation MUST establish the signer's intent and identity
+   * before returning a `Signature`.** ADR-QD-058 settles `hasSignature` as
+   * trust-on-presence: the evaluator treats a `Signature` in
+   * `SignatureHistoryShape.signaturesFor` as already validated and asks it no
+   * further questions (`evaluateHasSignature`, `INV-QD-055`). Nothing in this
+   * port's type enforces that premise — a `capture` that records an
+   * unverified row satisfies the signature above and every invariant, and the
+   * evaluator will then allow on it. Whatever reauthentication or identity
+   * check the deployment needs (a password re-prompt, an MFA challenge, a
+   * hardware key) belongs here, entirely inside the implementation (see this
+   * file's own header on why `@qadi/audit` does not model it).
+   */
   readonly capture: (
     request: SignatureCaptureRequest,
   ) => Effect.Effect<Signature, SignatureCaptureError>;
@@ -126,6 +139,29 @@ export class SignatureCapturePort extends Context.Service<
  * SignatureMeaning` — for editor autocomplete over the recommended
  * vocabulary. `options.signerRole`, when given, reaches `capture()`'s
  * request, which is the only way a caller can actually set that field.
+ *
+ * **`signerId` is the ambient `CurrentSubject`, asserted, not verified — use
+ * this handler only where that identity is the acting human.** The load-
+ * bearing assumption this glue makes is that whoever the evaluation context
+ * holds as `CurrentSubject` is the person performing the signing act. That is
+ * true for an ordinary request-scoped evaluation, and false for a service
+ * account, a batch runner, or (`SubjectSet.ts`'s own precedent) a review flow
+ * evaluating on behalf of the subjects being reviewed — `SubjectSet.ts`
+ * refuses to discharge obligations for exactly that reason. Reusing an
+ * evaluation context whose `CurrentSubject` is not the signer attributes the
+ * capture to the wrong party, and nothing here or in the type system catches
+ * it.
+ *
+ * **`options.signerRole` is a static, unverified assertion by whoever wired
+ * this handler, not an observation made at signing time.** It is fixed at
+ * layer-construction time and spread into every capture this handler makes,
+ * so a policy's `hasSignature` leaf naming a `signerRole` (matched by plain
+ * equality against `Signature.signerRole`, documented there as "the signer's
+ * role at the moment of signing") is satisfied whenever the deployment was
+ * configured with that role, regardless of whether the signer held it when
+ * signing. Treat it as a fixture convenience; a `capture` implementation that
+ * can observe the signer's actual role at signing time should populate or
+ * override `signerRole` itself rather than rely on this option.
  */
 export const signatureObligationHandler = (
   port: SignatureCapturePortShape,

@@ -32,6 +32,7 @@ import type * as Atom from "effect/unstable/reactivity/Atom";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
+import type { DehydratedEntry, HydrationDrop } from "../src/Hydration.ts";
 import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
 import type { DecisionResult, HydrationMismatch } from "../src/QadiAtoms.ts";
 import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
@@ -228,11 +229,28 @@ describe("dehydrateDecisions", () => {
   });
 
   it("an empty entry list yields an empty payload, not a crash", () => {
-    // `entries[0]?.decision.subjectId ?? ""` — a server that evaluated nothing is
+    // `entries[0]?.decision.subjectId` — a server that evaluated nothing is
     // an ordinary case (a page with no guarded controls), not an error.
+    // `subjectId` is `undefined`, not `""` (EC-06): an empty string is not a
+    // value a real `SubjectId` can hold, and reads as data rather than as
+    // "there is nothing here."
     const payload = dehydrateDecisions([]);
-    expect(payload.subjectId).toBe("");
+    expect(payload.subjectId).toBeUndefined();
     expect(payload.entries).toEqual([]);
+  });
+
+  it("hydrating an empty payload seeds nothing and reports no mismatch (EC-06)", () => {
+    // Before this, an empty payload's `subjectId: ""` compared unequal to
+    // every real subject id and fell into the same `PayloadSubjectMismatch`
+    // branch a genuinely wrong subject does — indistinguishable from a real
+    // mismatch even though nothing was ever mismatched.
+    const dropped: Array<HydrationDrop<DehydratedEntry>> = [];
+    const empty = dehydrateDecisions([]);
+    const seeded = hydrateDecisions(atoms, empty, alice, {
+      onDropped: (d) => dropped.push(d),
+    });
+    expect(seeded).toEqual([]);
+    expect(dropped).toHaveLength(0);
   });
 
   it("survives a round trip through JSON", () => {
@@ -523,6 +541,18 @@ describe("hydrateDecisions", () => {
     // preserves a seeded value over the one the node computes, and a synchronous
     // evaluation publishes by returning rather than through `setSelf`, so the
     // denial was discarded and alice kept an admin allow for the life of the page.
+    //
+    // **Scheduling assumption, named explicitly (JC-02):** `registryWith` above
+    // builds this `AtomRegistry` with no `scheduleTask` option, so it runs
+    // whatever this `effect` version's default internal scheduler does, and one
+    // macrotask turn (`setTimeout(resolve, 0)`) is a probe of that default, not
+    // a general "every scheduled turn has run" guarantee — it would pass
+    // vacuously if a future default (or a caller-supplied `scheduleTask`, the
+    // exact `AtomRegistry.make` option ADR-QD-014's reverted spike tried
+    // rerouting through React's own scheduler) ever moved seed reconciliation
+    // to a second scheduled turn. A `scheduleTask` change anywhere in this
+    // package's default wiring must revisit this assertion, not just this
+    // comment.
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(currentDecision(registry.get(atoms.decision(isAdmin)))?._tag).toBe("Deny");
 

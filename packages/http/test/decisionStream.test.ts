@@ -153,8 +153,10 @@ describe("/__decisions", () => {
       assert.include(response.headers.get("content-type") ?? "", "text/event-stream");
       // Without these a proxy buffers the stream and the feed looks hung.
       assert.strictEqual(response.headers.get("cache-control"), "no-cache");
-      assert.strictEqual(response.headers.get("connection"), "keep-alive");
       assert.strictEqual(response.headers.get("x-accel-buffering"), "no");
+      // No `connection: keep-alive` (TS-04): that is a hop-by-hop header the
+      // platform server owns, not this route's to set.
+      assert.isNull(response.headers.get("connection"));
     }));
 
   it.effect(
@@ -300,35 +302,46 @@ describe("reauth", () => {
       if (result._tag === "Failure") assert.strictEqual(result.failure, "extraction-failed");
     }));
 
-  it.effect("an evaluator outage during recheck fails the same way a denial does", () =>
-    Effect.gen(function* () {
-      // `hasPermission` never consults an `AttributeResolver`, so a broken one
-      // would not observably change anything checked against `readPolicy` —
-      // an attribute-based policy is what actually exercises `evaluate`'s own
-      // failure channel, distinct from a decision that merely denies.
-      const attributePolicy = hasAttribute("clearance", gte(1));
-      const request = HttpServerRequest.fromWeb(
-        new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
-      );
-      const brokenResolver = Layer.succeed(AttributeResolver, {
-        resolve: () => Effect.fail(new AttributeResolveError({ attribute: "clearance", cause: "down" })),
-      });
-      // Deliberately not `EvaluationServicesNone`: this test needs a broken
-      // `AttributeResolver` in place of `AttributeResolverNone`, so the other
-      // five ports are composed individually rather than through the bundle.
-      const layer = Layer.mergeAll(
-        subjectExtractorBearer(lookupSubject),
-        brokenResolver,
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
-      const result = yield* reauthCheck(request, attributePolicy, {}).pipe(Effect.provide(layer), Effect.result);
-      assert.strictEqual(result._tag, "Failure");
-      if (result._tag === "Failure") assert.strictEqual(result.failure, "denied");
-    }));
+  it.effect(
+    "an evaluator outage during recheck ends the stream, but is reported as an " +
+      "outage, not a denial (GR-01, TS-01)",
+    () =>
+      Effect.gen(function* () {
+        // `hasPermission` never consults an `AttributeResolver`, so a broken one
+        // would not observably change anything checked against `readPolicy` —
+        // an attribute-based policy is what actually exercises `evaluate`'s own
+        // failure channel, distinct from a decision that merely denies.
+        const attributePolicy = hasAttribute("clearance", gte(1));
+        const request = HttpServerRequest.fromWeb(
+          new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
+        );
+        const brokenResolver = Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.fail(new AttributeResolveError({ attribute: "clearance", cause: "down" })),
+        });
+        // Deliberately not `EvaluationServicesNone`: this test needs a broken
+        // `AttributeResolver` in place of `AttributeResolverNone`, so the other
+        // five ports are composed individually rather than through the bundle.
+        const layer = Layer.mergeAll(
+          subjectExtractorBearer(lookupSubject),
+          brokenResolver,
+          RelationshipResolverNever,
+          DecisionHistoryUnknown,
+          EvaluationIdLive,
+          CustomPredicateNone,
+          SignatureHistoryNone,
+        );
+        const result = yield* reauthCheck(request, attributePolicy, {}).pipe(
+          Effect.provide(layer),
+          Effect.result,
+        );
+        assert.strictEqual(result._tag, "Failure");
+        // Fails closed the same as a denial would — but labeled "outage", not
+        // "denied": a consumer reading this feed must be able to tell a
+        // revoked subject apart from a broken attribute store.
+        if (result._tag === "Failure") assert.strictEqual(result.failure, "outage");
+      }),
+  );
 
   it.effect("a merged stream ends once the periodic recheck starts failing, not before", () =>
     Effect.scoped(Effect.gen(function* () {

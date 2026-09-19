@@ -256,8 +256,32 @@ describe("the JSON view", () => {
     });
     await click(screen.getByTestId("qadi-policy-load"));
 
-    assert.isNotNull(screen.getByTestId("qadi-policy-json-error"));
+    const errorNode = screen.getByTestId("qadi-policy-json-error");
+    assert.isNotNull(errorNode);
     assert.isNotNull(screen.getByTestId("qadi-policy-json"));
+    // WZ-01: this used to be `String(decoded.failure)` — a raw
+    // `SchemaError(Expected { readonly "_tag": ... } | ...)` dump naming the
+    // entire 17-member `Policy` union. It is now formatted, path-relative
+    // issue text instead.
+    assert.notInclude(errorNode.textContent ?? "", "SchemaError(");
+  });
+
+  it("a policy nested past the decode guard reports the depth, not a raw stack-overflow-shaped error", async () => {
+    mount([sighting(hasPermission(read))]);
+    await click(screen.getByRole("button", { name: "Tree" }));
+
+    let nested = '{"_tag":"HasPermission","permission":"read"}';
+    for (let i = 0; i < 5000; i++) {
+      nested = `{"_tag":"Not","policy":${nested}}`;
+    }
+
+    await act(async () => {
+      fireEvent.change(screen.getByTestId("qadi-policy-json"), { target: { value: nested } });
+    });
+    await click(screen.getByTestId("qadi-policy-load"));
+
+    const errorNode = screen.getByTestId("qadi-policy-json-error");
+    assert.include(errorNode.textContent ?? "", "decode limit");
   });
 
   it("a paste that is not JSON at all is reported the same way", async () => {

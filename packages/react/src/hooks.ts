@@ -35,9 +35,14 @@ export const useDecision = (policy: Policy, resource?: Resource): DecisionResult
 /**
  * Whether the subject satisfies the policy.
  *
- * `false` covers three different situations — pending, denied, and failed — so
- * it is safe for hiding a control and useless for explaining why it is hidden.
- * Reach for {@link useDecision} when the difference matters.
+ * `false` covers four different situations — pending, rechecking, denied, and
+ * failed — so it is safe for hiding a control and useless for explaining why
+ * it is hidden. It reads through {@link currentDecision}, which also reports
+ * `undefined` while a previously-allowed decision is being re-checked
+ * ([ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md):
+ * "a decision being re-checked is not a decision"), so a `Rechecking` control
+ * collapses into the same `false` as one that has never been decided. Reach
+ * for {@link useDecision} when the difference matters.
  */
 export const useCan = (policy: Policy, resource?: Resource): boolean => {
   // `useGate` directly rather than through `useDecision`, so this instance
@@ -65,8 +70,9 @@ export const useDecisionSuspense = (policy: Policy, resource?: Resource): Decisi
   // read is unused here — `useAtomSuspense` below does the actual suspending
   // read of the same registry entry.
   useGate("useDecisionSuspense", policy, resource);
-  // SPIKE: replaces `settled.ts`'s hand-rolled Suspense-race fix with
-  // `@effect/atom-react`'s own `useAtomSuspense`. `suspendOnWaiting: true`
+  // Replaces `settled.ts`'s hand-rolled Suspense-race fix with
+  // `@effect/atom-react`'s own `useAtomSuspense` — closed, not experimental;
+  // see ADR-QD-014's Reversal section for why. `suspendOnWaiting: true`
   // preserves ADR-QD-017 ("a decision being re-checked is not a decision") —
   // the library's default only suspends on `Initial`, not on `waiting`.
   return useAtomSuspense(atom, { suspendOnWaiting: true }).value;
@@ -123,12 +129,18 @@ export const usePolicies = (
  * The record is also the resource, so a policy may inspect the very fields it
  * is deciding about. Pending and denied both project to `{}` — use
  * {@link useDecision} to tell them apart.
+ *
+ * `useGate` directly rather than through `useDecision` (as `useCan` does, and
+ * for the same reason): this instance registers **once**, under its own name.
+ * It used to read through `useDecision`, which registered it there instead —
+ * a devtools panel debugging "why is this field hidden" saw a `useDecision`
+ * row for code that called `useProjected` (DA-08).
  */
 export const useProjected = <A extends Resource>(
   policy: Policy,
   data: A,
 ): Partial<A> => {
-  const decision = currentDecision(useDecision(policy, data));
+  const decision = currentDecision(useGate("useProjected", policy, data).result);
   return decision === undefined ? {} : project(decision, data);
 };
 

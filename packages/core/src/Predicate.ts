@@ -107,15 +107,36 @@ const negate = (predicate: Predicate): Predicate => {
   return { _tag: "Negate", predicate };
 };
 
-const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
-  Match.value(op).pipe(
+/**
+ * Dispatches through a `Match.type<CompareOp>()` built once at module scope,
+ * mirroring `dispatchPredicate` above and for the identical reason
+ * (AGENTS.md §5a): `compare` runs once per `Compare` node **per row**, on
+ * `evaluatePredicate`'s own reference-interpreter path that the predicate-sql
+ * and predicate-prisma differential property tests drive at 150 predicates ×
+ * 12 rows per property (`Agreement.test.ts`) — exactly the per-row hot path
+ * §5a measures a per-call `Match.value` rebuild at 3.5–7.7× slower on
+ * (JC-03, AN-04). `value`/`against` are call-time state a matcher built once
+ * at module scope cannot see, so — the same shape `dispatchPredicate` already
+ * uses for `row` — each arm returns a closure over them rather than reading
+ * them directly.
+ */
+const dispatchCompare: (op: CompareOp) => (value: unknown, against: unknown) => boolean =
+  Match.type<CompareOp>().pipe(
     // Mirrors `Matcher.ts`'s `Eq`/`Neq` (CCR-QD-112): an absent operand —
     // either a missing column or a subject-side ref that resolved to
     // nothing — denies rather than comparing. Without this,
     // `evaluatePredicate` and `evaluateMatcher` would disagree on exactly
     // the shapes `PROPERTY: the two interpreters agree, row by row` fuzzes.
-    Match.when("Eq", () => value !== undefined && against !== undefined && value === against),
-    Match.when("Neq", () => value !== undefined && against !== undefined && value !== against),
+    Match.when(
+      "Eq",
+      () => (value: unknown, against: unknown) =>
+        value !== undefined && against !== undefined && value === against,
+    ),
+    Match.when(
+      "Neq",
+      () => (value: unknown, against: unknown) =>
+        value !== undefined && against !== undefined && value !== against,
+    ),
     // Mirrors `Gte`/`Lt` in the matcher, which are false for a non-number: a
     // divergence here is a row the evaluator would have refused.
     //
@@ -134,7 +155,7 @@ const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
     // `Number.isFinite(unknown)` does not perform.
     Match.when(
       "Gte",
-      () =>
+      () => (value: unknown, against: unknown) =>
         typeof value === "number" &&
         typeof against === "number" &&
         Number.isFinite(against) &&
@@ -142,7 +163,7 @@ const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
     ),
     Match.when(
       "Lt",
-      () =>
+      () => (value: unknown, against: unknown) =>
         typeof value === "number" &&
         typeof against === "number" &&
         Number.isFinite(against) &&
@@ -150,6 +171,9 @@ const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
     ),
     Match.exhaustive,
   );
+
+const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
+  dispatchCompare(op)(value, against);
 
 /**
  * The reference semantics of a predicate, applied to one row.
@@ -292,12 +316,16 @@ type TooDeep = typeof TOO_DEEP;
  * call stack, so the depth check has to run first, not merely exist.
  *
  * Dispatches with a per-call `Match.value(policy)` rather than a hoisted
- * `Match.type<Policy>()`, for the same reason `dispatchPredicate` above
- * closes over `row`: `depth` and `maxDepth` are state specific to this call,
- * and `child`/`anyChild` close over them, so a matcher built once at module
- * scope would have nowhere to put that closure. `depth`/`maxDepth` change on
- * every recursive call, unlike `dispatchPredicate`'s `row`, which is why this
- * is documented separately rather than pointing back at that comment alone.
+ * `Match.type<Policy>()`. Not because of where `depth`/`maxDepth` would live —
+ * that is the same closure shape `dispatchCompare` and `dispatchPredicate`
+ * above already use for their own call-time state, and would work here too
+ * (JC-06). The real reason is call frequency: this walk runs once per
+ * `toPredicate` call, over the policy tree, not once per row the way
+ * `dispatchPredicate`/`dispatchCompare` do — so it never reaches the per-row
+ * hot path AGENTS.md §5a's hoisting guidance is about, and the 3.5–7.7×
+ * per-call-rebuild cost that guidance measures does not apply at this call
+ * frequency. If a future caller ever runs `restrictsFields` per row instead
+ * of once per translation, hoist it the same way `dispatchCompare` was.
  */
 const restrictsFields = (policy: Policy, depth: number, maxDepth: number): boolean | TooDeep => {
   if (depth > maxDepth) return TOO_DEEP;
@@ -322,7 +350,7 @@ const restrictsFields = (policy: Policy, depth: number, maxDepth: number): boole
       HasNotActed: (p) => p.fields !== undefined,
       HasCustom: (p) => p.fields !== undefined,
       HasSignature: (p) => p.fields !== undefined,
-      HasRole: () => false,
+      HasRole: (p) => p.fields !== undefined,
       AllOf: (p) => anyChild(p.policies),
       AnyOf: (p) => anyChild(p.policies),
       Rules: (p) => anyChild(p.rules.map((r) => r.condition)),

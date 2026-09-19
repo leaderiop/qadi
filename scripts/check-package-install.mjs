@@ -16,7 +16,8 @@
  *
  * Five checks, in order of what they would catch:
  *
- *   0. build    — every public package is referenced by `tsconfig.build.json`
+ *   0. build    — every public package is referenced by `tsconfig.build.json`,
+ *                 *and* by the root `tsconfig.json` (the typecheck graph)
  *   1. protocol — no `catalog:`/`workspace:` survives into the packed manifest
  *   2. exports  — every path the `exports` map points at exists in the tarball
  *   3. runtime  — each entry point imports through that map and has exports
@@ -28,11 +29,21 @@
  * landed: `pnpm build` never built it, and `pnpm publish` would have shipped a
  * package whose `exports` pointed at a `lib/` that did not exist. Nothing
  * noticed for six commits because `pnpm typecheck` uses a *different* project
- * graph — one that does include it — and emits the same directory as a side
+ * graph — one that did include it — and emitted the same directory as a side
  * effect. So the artifact appeared to exist whenever anything had type-checked
  * first, and checks 2 to 4 would have inspected output the publish path never
  * produces. Reading the build graph is the only check here that cannot be
  * fooled by a stale `lib/`.
+ *
+ * AGENTS.md §16 says adding a package "means editing both" graphs — the build
+ * graph above, and the root `tsconfig.json` a package needs to have its
+ * `test`/`bench` sources type-checked by `pnpm typecheck`/`pnpm check`. Only
+ * the first half had a static check; a package present in the build graph but
+ * missing from `tsconfig.json` would still pack, install and authorize
+ * correctly (this gate would report success), while its own test suite quietly
+ * stopped being type-checked by any `tsc` invocation — `vitest` transforms
+ * tests without the compiler, so nothing else would notice either. Check 0
+ * now reads both graphs for exactly that reason (paul-chiusano, PC-01).
  *
  * Deliberately offline. `effect` and `react` are symlinked out of the
  * repository's own `node_modules` instead of installed from a registry: a merge
@@ -97,6 +108,25 @@ for (const { dir, manifest } of publicPackages) {
     fail(
       `${manifest.name}: tsconfig.build.json has no reference under ${prefix}, so ` +
         `pnpm build never emits it and pnpm publish would ship it empty`,
+    );
+  }
+}
+
+// The typecheck graph's own reference list. Root `tsconfig.json` references a
+// bare package directory (`{ "path": "packages/core" }`), not a `.json` file
+// inside it, so the match is exact rather than a `startsWith` prefix test.
+const typecheckConfigPath = join(ROOT, "tsconfig.json");
+const typecheckConfig = JSON.parse(readFileSync(typecheckConfigPath, "utf8"));
+const typechecked = new Set((typecheckConfig.references ?? []).map(({ path }) => path));
+
+for (const { dir, manifest } of publicPackages) {
+  const name = dir.split("/").filter(Boolean).at(-1);
+  if (!typechecked.has(`packages/${name}`)) {
+    fail(
+      `${manifest.name}: tsconfig.json (the typecheck graph) has no reference to ` +
+        `packages/${name}, so its test/bench sources are never covered by pnpm ` +
+        `typecheck — vitest transforms tests without the compiler, so nothing else ` +
+        `would notice either`,
     );
   }
 }

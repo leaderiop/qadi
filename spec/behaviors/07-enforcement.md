@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-07                                    |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-09-09                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-09-09): BEH-QD-054's example replaced `error._tag === "AccessDenied"` narrowing with `Effect.catchTag`, per AGENTS.md §4's array-form-only rule (issue 110, CCR-QD-147)<br>1.6 (2026-09-08): BEH-QD-056 gains a fourth requirement — projecting a record never exhausts the call stack; `FieldPath.ts`'s `projectAt` walked recursively over a `fields` spec's uncapped segment count and raised a raw `RangeError` out of the enforcement path, and now uses the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, INV-QD-004, CCR-QD-115)<br>1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.8 (2026-09-19): BEH-QD-056 gains a fifth requirement stating explicitly that `*`/`**` are grammar only at a field spec's terminal segment — a mid-path wildcard is treated as a literal, silently matching nothing, rather than rejected at decode time. The leniency was already real (`FieldPath.ts`'s `shapeOf` only ever inspects the last segment, and `FieldPath.test.ts` already pinned the observable behavior) but unstated here, so a policy author reading only this document could not have known it (100-persona audit finding EK-02)<br>1.7 (2026-09-09): BEH-QD-054's example replaced `error._tag === "AccessDenied"` narrowing with `Effect.catchTag`, per AGENTS.md §4's array-form-only rule (issue 110, CCR-QD-147)<br>1.6 (2026-09-08): BEH-QD-056 gains a fourth requirement — projecting a record never exhausts the call stack; `FieldPath.ts`'s `projectAt` walked recursively over a `fields` spec's uncapped segment count and raised a raw `RangeError` out of the enforcement path, and now uses the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, INV-QD-004, CCR-QD-115)<br>1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -84,12 +84,12 @@ point for a collection already in hand.
 > **Invariant:** [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top)
 
 ```ts
-export const enforceProjected: (
+export const enforceProjected: <EO = never, RO = never>(
   policy: Policy,
-  options?: EvaluateOptions,
-) => <A extends Record<string, unknown>, E, R>(
+  options?: EnforceOptions<EO, RO>,
+) => <A extends Resource, E, R>(
   self: Effect.Effect<A, E, R>,
-) => Effect.Effect<Partial<A>, E | EvaluationError | AccessDenied, R | EvaluationServices>;
+) => Effect.Effect<Partial<A>, E | EnforcementError | EO, R | EvaluationServices | RO>;
 
 export const project: <A extends Record<string, unknown>>(
   decision: Decision,
@@ -106,6 +106,13 @@ REQUIREMENT: A denial MUST project to the empty object.
              the record has MUST degrade to omission, never a thrown error
              (BEH-QD-056).
 ```
+
+`enforceProjected` is an enforcing entry point (BEH-QD-085's table), not a reporting
+one: its error channel is `EnforcementError` — `EvaluationError | AccessDenied |
+UndischargedObligation` — not `EvaluationError | AccessDenied` alone. An
+obligation-carrying allow that nobody discharges fails the call the same way it
+fails `enforce`, `assert`, `filter` and the rest of that table; `project` above
+is the pure, non-failing half this wraps, and does not see obligations at all.
 
 ## BEH-QD-052: Denial carries its reason
 
@@ -297,6 +304,19 @@ REQUIREMENT: Projecting a record MUST NOT exhaust the call stack, whatever a
              field spec's segment count or the projected resource's nesting
              depth. A spec deeper than the data omits, and a spec deeper than
              any stack would hold projects — neither raises a `RangeError`.
+REQUIREMENT: `*`/`**` are grammar ONLY at a spec's terminal segment. A `*` or
+             `**` appearing anywhere else (`"a.*.b"`, `"a.**.b"`) MUST be
+             treated as a literal segment name, not a wildcard — the spec then
+             looks for a real key literally called `"*"`/`"**"` at that
+             position, which ordinary resource data does not have, so it
+             matches nothing. This is deliberate leniency, not a decode-time
+             validation gap left unnoticed: the fields codec accepts any
+             string (`Policy.ts`'s `Fields`), and a mid-path wildcard is never
+             rejected at decode time. The failure direction is always
+             fail-closed — a narrower or empty projection, never a wider one
+             — which is what makes the leniency safe to leave unvalidated
+             rather than what makes it correct API design; a policy author
+             who meant a wildcard here gets silent omission, not an error.
 ```
 
 The fourth requirement is a hardening, not a change of meaning: the

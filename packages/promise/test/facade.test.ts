@@ -34,7 +34,7 @@ import {
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
-import { afterEach, assert, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, it } from "vitest";
 import { makeQadi } from "../src/index.ts";
 
 /**
@@ -76,8 +76,8 @@ afterEach(async () => {
 describe("makeQadi", () => {
   it("resolves true when permitted and false when denied", async () => {
     const qadi = facade();
-    await expect(qadi.check(alice, canRead)).resolves.toBe(true);
-    await expect(qadi.check(alice, isAdmin)).resolves.toBe(false);
+    assert.strictEqual(await qadi.check(alice, canRead), true);
+    assert.strictEqual(await qadi.check(alice, isAdmin), false);
   });
 
   it("A DENIAL RESOLVES; A FAILURE REJECTS", async () => {
@@ -97,7 +97,7 @@ describe("makeQadi", () => {
     const qadi = facade(broken);
 
     // Denied: an answer, so a value.
-    await expect(qadi.check(alice, isAdmin)).resolves.toBe(false);
+    assert.strictEqual(await qadi.check(alice, isAdmin), false);
     // Broken: not an answer, so a rejection — NOT `false` — and typed as the
     // port failure that actually broke, not merely "some throw happened".
     const failure = await rejection(qadi.check(alice, hasAttribute("clearance", gte(1))));
@@ -152,7 +152,7 @@ describe("makeQadi", () => {
     // The one place a denial IS exceptional, because the caller said "proceed only
     // if permitted".
     const qadi = facade();
-    await expect(qadi.assert(alice, canRead)).resolves.toBeUndefined();
+    assert.isUndefined(await qadi.assert(alice, canRead));
 
     // BEH-QD-170: assert rejects with the *same* AccessDenied the Effect API
     // fails with — asserted by actually failing both and comparing, not by
@@ -219,12 +219,8 @@ describe("makeQadi", () => {
     );
     const qadi = facade(withRelationships);
 
-    await expect(
-      qadi.check(alice, owner, { resource: { id: "doc-1" } }),
-    ).resolves.toBe(true);
-    await expect(
-      qadi.check(alice, owner, { resource: { id: "doc-2" } }),
-    ).resolves.toBe(false);
+    assert.strictEqual(await qadi.check(alice, owner, { resource: { id: "doc-1" } }), true);
+    assert.strictEqual(await qadi.check(alice, owner, { resource: { id: "doc-2" } }), false);
 
     const decision = await qadi.decide(alice, owner, { resource: { id: "doc-1" } });
     assert.isTrue(isAllowed(decision));
@@ -245,10 +241,10 @@ describe("makeQadi", () => {
     // subject would be a per-process subject — wrong for a server, a hazard in a
     // multi-tenant one.
     const qadi = facade();
-    await expect(qadi.check(alice, canRead)).resolves.toBe(true);
-    await expect(qadi.check(bob, canRead)).resolves.toBe(false);
+    assert.strictEqual(await qadi.check(alice, canRead), true);
+    assert.strictEqual(await qadi.check(bob, canRead), false);
     // And back again: no state carried between calls.
-    await expect(qadi.check(alice, canRead)).resolves.toBe(true);
+    assert.strictEqual(await qadi.check(alice, canRead), true);
   });
 
   it("PROPERTY: the facade agrees with the core on every case", async () => {
@@ -292,8 +288,27 @@ describe("makeQadi", () => {
 
   it("dispose releases the runtime, and is the caller's to call", async () => {
     const qadi = makeQadi(baseLayer);
-    await expect(qadi.check(alice, canRead)).resolves.toBe(true);
-    await expect(qadi.dispose()).resolves.toBeUndefined();
+    assert.strictEqual(await qadi.check(alice, canRead), true);
+    assert.isUndefined(await qadi.dispose());
+  });
+
+  // KD-03 (2026-09-19 audit): the assertion above only checked that
+  // `dispose()` resolves — a `dispose` that released nothing would pass it
+  // identically. BEH-QD-172 requires `dispose` to release what the layer
+  // built (spec/behaviors/22-promise-facade.md), so this drives a layer with
+  // a real finalizer and observes it actually ran, rather than declaring the
+  // lifecycle contract without observing it.
+  it("dispose actually runs the layer's finalizers, not just resolves", async () => {
+    let released = false;
+    const trackedLayer = Layer.mergeAll(
+      baseLayer,
+      Layer.effectDiscard(Effect.addFinalizer(() => Effect.sync(() => (released = true)))),
+    );
+    const qadi = makeQadi(trackedLayer);
+    assert.strictEqual(await qadi.check(alice, canRead), true);
+    assert.strictEqual(released, false);
+    assert.isUndefined(await qadi.dispose());
+    assert.strictEqual(released, true);
   });
 
   it("options reach the core unchanged", async () => {
@@ -310,12 +325,10 @@ describe("makeQadi", () => {
       ),
     );
 
-    await expect(qadi.check(alice, tenant)).resolves.toBe(false);
-    await expect(withResolver.check(alice, tenant)).resolves.toBe(true);
+    assert.strictEqual(await qadi.check(alice, tenant), false);
+    assert.strictEqual(await withResolver.check(alice, tenant), true);
     // `concurrency` is an ordinary option and passes straight through.
-    await expect(
-      withResolver.check(alice, tenant, { concurrency: "unbounded" }),
-    ).resolves.toBe(true);
+    assert.strictEqual(await withResolver.check(alice, tenant, { concurrency: "unbounded" }), true);
   });
 
   it("filter forwards options, including concurrency, to core's filter unchanged", async () => {

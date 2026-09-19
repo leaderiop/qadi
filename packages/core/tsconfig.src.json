@@ -8,14 +8,6 @@
     "noEmit": false,
     "outDir": "./lib",
     "rootDir": "./src",
-    "tsBuildInfoFile": "./.tsbuildinfo",
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@qadi/core": [
-        "../../packages/core/src/index.ts"
-      ]
-    }
+    "tsBuildInfoFile": "./.tsbuildinfo"
   }
 }

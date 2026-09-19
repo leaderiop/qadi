@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-056                                   |
-> | Revision       | 1.3                                            |
-> | Effective Date | 2026-09-09                                     |
+> | Revision       | 1.4                                            |
+> | Effective Date | 2026-09-19                                     |
 > | Status         | Accepted — narrows ADR-QD-016                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -246,6 +246,20 @@ internal buffering state staging's own design already refused.
   `DecisionRecord`/`DecisionSink` evolve.
 - E-signature *check* remains a real gap in Qadi's row-level and policy
   story; this ADR closes the capture half only, deliberately.
+- **No cryptographic tamper-evidence, recorded here rather than left
+  distributed across doc comments** (AS-03/WD-07). `verifySequenceIntegrity`
+  is gap-and-duplicate detection only — an attacker who can modify stored
+  rows can also renumber them, defeating it — and `keyMaterial` is carried,
+  never used to sign or verify anything. A second gap compounds it: an entry
+  dropped while `AuditDecisionSinkLive`'s circuit breaker is open was never
+  written, so it never received a `sequenceNumber` and its absence is
+  invisible to the trail itself after recovery — witnessed only by a log line
+  and the `qadi_audit_staging_total{outcome=skipped_open}` counter, not by
+  anything a reader of the archived rows can see. Closing either — a hash
+  chain at write, or a gap-marker entry recording dropped `evaluationId`s on
+  breaker recovery — is a real design change (new fields, a new invariant, a
+  migration story for existing archives) that needs its own grilling session,
+  not a mechanical fix; it is named here, not decided here.
 
 **Trade-off accepted**: five capabilities in one package, at the cost of a
 package whose surface is noticeably larger than either predicate compiler's.

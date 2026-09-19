@@ -71,9 +71,22 @@ const PORT_NAMES_BY_NAME: Record<PortName, true> = {
 /** `PORT_NAMES_BY_NAME`'s keys, in the array form `preregisteredWords` takes. */
 const PORT_NAMES: ReadonlyArray<PortName> = Record.keys(PORT_NAMES_BY_NAME);
 
-/** Every call the evaluator made into a port, by which port. */
+/**
+ * Every call the evaluator made into a port, by which port.
+ *
+ * Scoped to `Evaluate.ts` only — see this module's own doc comment above.
+ * `Predicate.ts`'s `translateNode` reaches the same ports and does not update
+ * this counter, so a deployment leaning on `toPredicate` (row-level security,
+ * say) sees fewer calls here than actually reached a port. The caveat is
+ * repeated in the description string itself (werner-vogels, WV-06) so an
+ * operator reading `qadi_port_calls_total` sees the scoping where they read
+ * the metric, not only in source a dashboard viewer never opens.
+ */
 export const portCallsTotal = Metric.frequency("qadi_port_calls_total", {
-  description: "Calls the evaluator made into a resolver or history port, by port.",
+  description:
+    "Calls the evaluator made into a resolver or history port, by port. " +
+    "Scoped to Evaluate.ts only — Predicate.ts's translateNode reaches the " +
+    "same ports via a second interpreter and is not counted here.",
   preregisteredWords: PORT_NAMES,
 });
 
@@ -109,4 +122,41 @@ const RETRYING_PORT_NAMES: ReadonlyArray<RetryingPortName> = Record.keys(
 export const portRetriesTotal = Metric.frequency("qadi_port_retries_total", {
   description: "Failed port attempts inside a retrying wrapper, by port.",
   preregisteredWords: RETRYING_PORT_NAMES,
+});
+
+/**
+ * The two ports with a timing-out wrapper — {@link portTimeoutsTotal}'s closed
+ * domain, and a proper subset of {@link PortName}, the same shape as
+ * {@link RetryingPortName} above. `attributeResolverTimingOut`
+ * (`AttributeResolver.ts`) and `relationshipResolverTimingOut`
+ * (`RelationshipResolver.ts`) are the only two `*TimingOut` combinators today
+ * (JM-01/WV-01/SP-01) — `DecisionHistory`, `CustomPredicate` and
+ * `SignatureHistory` share the same unbounded-latency gap but have no
+ * combinator yet, so they stay out of this closed set until one exists,
+ * rather than being pre-registered for a metric nothing can update.
+ */
+export type TimingOutPortName = "AttributeResolver" | "RelationshipResolver";
+
+const TIMING_OUT_PORT_NAMES_BY_NAME: Record<TimingOutPortName, true> = {
+  AttributeResolver: true,
+  RelationshipResolver: true,
+};
+
+const TIMING_OUT_PORT_NAMES: ReadonlyArray<TimingOutPortName> = Record.keys(
+  TIMING_OUT_PORT_NAMES_BY_NAME,
+);
+
+/**
+ * Calls inside a timing-out wrapper that hit the deadline, by port —
+ * `attributeResolverTimingOut`/`relationshipResolverTimingOut`'s counterpart to
+ * {@link portRetriesTotal}: a store that stopped answering instead of
+ * answering with failure produces no `AttributeResolveError`/
+ * `RelationshipResolveError` for {@link portRetriesTotal} to count until the
+ * deadline itself converts the hang into one, so this is the signal that
+ * distinguishes "the store is slow" from "the store is down" in a trace-free
+ * aggregate view.
+ */
+export const portTimeoutsTotal = Metric.frequency("qadi_port_timeouts_total", {
+  description: "Port calls that hit their deadline inside a timing-out wrapper, by port.",
+  preregisteredWords: TIMING_OUT_PORT_NAMES,
 });

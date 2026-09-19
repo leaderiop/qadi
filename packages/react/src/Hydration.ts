@@ -143,8 +143,18 @@ export interface DehydratedEntry {
  * obligations — the things a UI acts on.
  */
 export interface DehydratedDecisions {
-  /** The subject these decisions were made for. Checked on hydration. */
-  readonly subjectId: string;
+  /**
+   * The subject these decisions were made for. Checked on hydration.
+   *
+   * **`undefined` means an empty payload** — `dehydrateDecisions([])`, with no
+   * entries to name a subject — and is not itself a subject id.
+   * Representing "no entries" as the empty string made an illegal state
+   * representable: `""` looks like data a caller could key a cache or store
+   * on, when it means "there is nothing here" (EC-06). A real subject id is
+   * never empty ({@link SubjectId}'s own brand), so this is the one case a
+   * subject id cannot actually take.
+   */
+  readonly subjectId: string | undefined;
   readonly entries: ReadonlyArray<DehydratedEntry>;
 }
 
@@ -196,7 +206,12 @@ export const dehydrateDecisions = (
   entries: ReadonlyArray<DecisionEntry>,
   options?: DehydrateOptions,
 ): DehydratedDecisions => {
-  const subjectId = entries[0]?.decision.subjectId ?? "";
+  // `undefined`, not `""` (EC-06): an empty `entries` names no subject at
+  // all, and `""` is not a value `SubjectId` can actually hold, so it read as
+  // data rather than as "nothing here." `subjectId` is `undefined` only when
+  // `entries` is already empty, so the filter below still reduces to `[]`
+  // in that case with no special-casing needed.
+  const subjectId = entries[0]?.decision.subjectId;
   const includeTrace = options?.includeTrace ?? false;
 
   const kept = entries.filter((e) => e.decision.subjectId === subjectId);
@@ -335,6 +350,21 @@ export const hydrateDecisions = (
   options?: HydrateOptions,
 ): InitialValues => {
   const report = hydrationDropReporter(options?.onDropped);
+
+  // `undefined` names an empty payload (EC-06), not a subject that failed to
+  // match — there is nothing to seed and nothing to warn about, the same
+  // fail-quiet outcome as a genuinely empty `entries`. A payload that lied —
+  // `subjectId: undefined` alongside real `entries` — still gets no trust:
+  // there is no subject here to check them against, so they are dropped the
+  // same way a real mismatch drops them, just without asserting a wrong id
+  // that was never named.
+  if (dehydrated.subjectId === undefined) {
+    if (dehydrated.entries.length > 0) {
+      countDropped("PayloadSubjectMismatch", dehydrated.entries.length);
+      report?.({ reason: "PayloadSubjectMismatch", entries: dehydrated.entries });
+    }
+    return [];
+  }
 
   // The whole payload is rejected on a subject mismatch, not entry by entry: the
   // id is a property of the payload, so one wrong id means the wrong page.

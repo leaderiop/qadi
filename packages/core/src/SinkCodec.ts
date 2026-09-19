@@ -79,6 +79,21 @@ export const EvaluationErrorSchema = Schema.Union([
   SignatureHistoryUnavailable,
 ]);
 
+/**
+ * The `subjectId` `fromWireUnsafe` substitutes when a wire record's own `subjectId`
+ * is absent — an older sender, mid rolling-deploy, predating that field
+ * (`SinkRecordWire`'s own doc comment above).
+ *
+ * A distinctive sentinel, not `""` (PH-03): `SubjectId` is a total,
+ * non-validating brand (`Identity.ts`), so `""` is itself a legal subject id
+ * a real caller could hold, and using it for "unknown" would make the two
+ * indistinguishable to a devtools row or an audit reviewer reading the
+ * decoded record back. Matches this file's own idiom for the same problem
+ * one field over — `fromWireUnsafe`'s "no outcome" fallback names the malformation
+ * in the value rather than reusing a value a real record could also produce.
+ */
+const UNKNOWN_SUBJECT = makeSubjectId("<unknown subject: wire version skew>");
+
 const DecisionSchema = Schema.Struct({
   _tag: Schema.Literals(["Allow", "Deny"]),
   evaluationId: Schema.String,
@@ -101,9 +116,11 @@ export const SinkRecordWire = Schema.Union([
     // socket, a replica forwarding to a shared store), and a sender running
     // an older version during a rolling deploy predates this field. Rejecting
     // such a record outright would silently drop real decisions for the
-    // length of the deploy; `fromWire` falls back to an empty `SubjectId`
-    // instead, the same "absent means unknown" idiom this module already
-    // uses for a malformed `EvaluationError` field.
+    // length of the deploy; `fromWireUnsafe` falls back to {@link UNKNOWN_SUBJECT}
+    // instead — not `""`, which `SubjectId`'s brand (a total, non-validating
+    // `Brand.nominal`, `Identity.ts`) accepts as a legal id in its own right,
+    // making "the sender predates this field" indistinguishable downstream
+    // from "this subject's real id happens to be the empty string" (PH-03).
     subjectId: Schema.optional(Schema.String),
     policy: Policy,
     resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
@@ -199,6 +216,22 @@ const decodeDecision = (wire: typeof DecisionSchema.Type): Decision =>
  * linear in the number of nodes visited. A value legitimately reachable twice
  * via two different paths (not a cycle) is still never falsely refused: it is
  * only ever in `onPath` while one of its occurrences is being walked.
+ *
+ * **Deliberately a second walker, not `exceedsJsonDepth` reused, because it
+ * answers a different question (RP-05).** `exceedsJsonDepth` bound-checks
+ * depth only, over raw not-yet-`Schema`-walked input that came from
+ * `JSON.parse` — which cannot produce cycles, so it has none to detect; a
+ * cyclic *in-memory* object would only make it terminate by walking the
+ * cycle until the depth bound fires, reporting "too deep" for what is
+ * actually "circular". `isJsonSafe` walks live, caller-constructed values —
+ * `SinkRecord.resource`, `HasCustom.params` — where a genuine reference cycle
+ * is the failure to catch, and depth is not the question at all: `Number.isFinite`
+ * and function/`undefined` rejection above have no depth-guard analogue
+ * either. Folding the two into one walker would need it to report both
+ * "too deep" and "circular" from every call site, for two guards whose
+ * callers want different things — `decodeRecordWire`'s depth guard runs
+ * before `Schema` ever sees the input; this one runs on values that have
+ * already been fully constructed and never touch `Schema` at all.
  */
 const isJsonContainer = (value: unknown): value is object =>
   typeof value === "object" && value !== null && !(value instanceof Date);
@@ -319,6 +352,17 @@ export const toWire: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRec
 /**
  * Rebuilds a record from its wire projection.
  *
+ * **Not a validating entry point (PH-05).** This performs no decoding —
+ * it `Match`-matches an already-typed `SinkRecordWire` into the internal
+ * record classes, nothing more. `decodeRecord` below is the sanctioned
+ * receipt path for anything crossing the trust boundary this module exists
+ * for: it runs the depth guard, then `Schema.decodeUnknownEffect` with
+ * {@link UNTRUSTED_DECODE_OPTIONS}, *then* this function. The `…Unsafe`
+ * suffix (AGENTS.md §8) names that at every import site — a caller who
+ * concludes "the wire type is my contract" and calls this directly on a
+ * `JSON.parse` result has skipped validation entirely, and nothing at the
+ * type level stops it.
+ *
  * `Match.tagsExhaustive` over `SinkRecordWire`, not an `if (wire._tag === …)`
  * — see {@link isRecordJsonSafe}'s doc comment for why that reads as
  * exhaustive today (`SinkRecordWire` also has exactly two tags) without being
@@ -350,7 +394,7 @@ export const toWire: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRec
  * tests assert today's `MissingResource`-shaped fallback stays exactly as it
  * is until that dedicated marker lands.
  */
-export const fromWire: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
+export const fromWireUnsafe: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
   Match.tagsExhaustive({
     Obligations: (wire) =>
       new ObligationRecord({
@@ -363,10 +407,12 @@ export const fromWire: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRec
       new DecisionRecord({
         evaluationId: wire.evaluationId,
         at: wire.at,
-        // `?? ""` mirrors every other fallback in this file: unreachable for
-        // anything this module encodes, real for a wire record sent by an
-        // older process during a rolling deploy, before this field existed.
-        subjectId: makeSubjectId(wire.subjectId ?? ""),
+        // `?? UNKNOWN_SUBJECT` mirrors every other fallback in this file:
+        // unreachable for anything this module encodes, real for a wire
+        // record sent by an older process during a rolling deploy, before
+        // this field existed. See `UNKNOWN_SUBJECT`'s own doc comment (PH-03)
+        // for why the fallback is a sentinel and not `""`.
+        subjectId: wire.subjectId === undefined ? UNKNOWN_SUBJECT : makeSubjectId(wire.subjectId),
         policy: wire.policy,
         ...(wire.resource === undefined ? {} : { resource: wire.resource }),
         ...(wire.action === undefined ? {} : { action: wire.action }),
@@ -419,6 +465,31 @@ export const encodeRecord = Schema.encodeEffect(SinkRecordWire);
  */
 export const encodeRecordSync = Schema.encodeSync(SinkRecordWire);
 
+/**
+ * **Known gap, not fixed here (GH-01): this hard-rejects forward version
+ * skew, the mirror image of the backward skew `SinkRecordWire.subjectId`'s
+ * own doc comment says would be unacceptable.** `UNTRUSTED_DECODE_OPTIONS`
+ * sets `onExcessProperty: "error"` — correctly, for the embedded `Policy`,
+ * where an adversarial typo'd field must fail rather than decode silently
+ * (ADR-QD-002). But it applies to the whole envelope, not just `Policy`, so a
+ * NEWER sender that has gained an envelope-level field an OLDER receiver's
+ * schema does not know about hard-rejects the record outright — exactly the
+ * "silently drop real decisions for the length of the deploy" harm the
+ * subjectId comment above says a sender predating a field must not suffer,
+ * just on the envelope's *shape* instead of one field's presence.
+ *
+ * Not fixed locally because both ways to close it are wire-protocol design
+ * decisions, not local patches: either give the envelope a version/known-
+ * fields marker so an older reader can tolerate unknown envelope keys while
+ * `Policy` stays strict, or split the decode so `onExcessProperty: "error"`
+ * applies only at the `Policy`/`TraceSchema` positions and the envelope
+ * itself uses the default (lenient) excess-property handling — `Schema`'s
+ * `ParseOptions` apply to a whole decode call, not per nested schema, so the
+ * second option needs decoding the envelope and its embedded `Policy`
+ * separately rather than as one `Schema.decodeUnknownEffect` call. Either
+ * choice changes this module's wire contract and belongs in an ADR, per the
+ * recommendation on issue GH-01, not as a guess made in a doc comment.
+ */
 const decodeSinkRecordWireUnknown = Schema.decodeUnknownEffect(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
 
 /**
@@ -471,4 +542,4 @@ export const decodeRecordWire = (
  * a half-built record.
  */
 export const decodeRecord = (input: unknown) =>
-  Effect.map(decodeRecordWire(input), fromWire);
+  Effect.map(decodeRecordWire(input), fromWireUnsafe);

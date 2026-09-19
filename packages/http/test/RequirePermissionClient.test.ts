@@ -45,6 +45,8 @@ import {
   hasAttribute,
   hasPermission,
   makeSubject,
+  obligation,
+  obliged,
   permission,
   permissionKey,
 } from "@qadi/core";
@@ -54,6 +56,7 @@ import {
   RequiredPermission,
   RequirePermission,
   RequirePermissionLive,
+  SubjectExtractionFailed,
   passthroughClientLayer,
   requiresPermission,
   subjectExtractorBearer,
@@ -67,23 +70,49 @@ const readPermission = permission("document", "read");
 // evaluation" (alice, resolver down).
 const readPolicy = allOf([hasPermission(readPermission), hasAttribute("clearance", gte(1))]);
 
+// A binding obligation nobody discharges — `guard`'s own default, matching
+// `RequirePermission.ts`'s `guard(permission, policy)(NO_RESOURCE, ...)` call,
+// which passes no `onObligations` handler.
+const deletePermission = permission("document", "delete");
+const auditObligation = obligation("log-delete", { channel: "audit" });
+const deletePolicy = obliged(auditObligation, hasPermission(deletePermission));
+
 const ALICE_TOKEN = "alice-token";
-const alice = makeSubject({ id: "alice", permissions: [permissionKey(readPermission)] });
+const BROKEN_TOKEN = "broken-token";
+const alice = makeSubject({
+  id: "alice",
+  permissions: [permissionKey(readPermission), permissionKey(deletePermission)],
+});
 
-const lookupSubject = (token: string): Effect.Effect<AuthSubject> =>
-  token === ALICE_TOKEN ? Effect.succeed(alice) : Effect.succeed(makeSubject({ id: "unknown" }));
+const lookupSubject = (token: string): Effect.Effect<AuthSubject, SubjectExtractionFailed> => {
+  if (token === ALICE_TOKEN) return Effect.succeed(alice);
+  if (token === BROKEN_TOKEN) return Effect.fail(new SubjectExtractionFailed({ reason: "store down" }));
+  return Effect.succeed(makeSubject({ id: "unknown" }));
+};
 
-const DocumentsGroup = HttpApiGroup.make("documents").add(
-  HttpApiEndpoint.get("read", "/documents", {
-    success: Schema.Struct({ ok: Schema.Boolean }),
-    headers: Schema.Struct({ authorization: Schema.optional(Schema.String) }),
-  }).pipe((endpoint) =>
-    endpoint.annotate(
-      RequiredPermission,
-      requiresPermission(endpoint, { permission: readPermission, policy: readPolicy }),
+const DocumentsGroup = HttpApiGroup.make("documents")
+  .add(
+    HttpApiEndpoint.get("read", "/documents", {
+      success: Schema.Struct({ ok: Schema.Boolean }),
+      headers: Schema.Struct({ authorization: Schema.optional(Schema.String) }),
+    }).pipe((endpoint) =>
+      endpoint.annotate(
+        RequiredPermission,
+        requiresPermission(endpoint, { permission: readPermission, policy: readPolicy }),
+      ),
     ),
-  ),
-);
+  )
+  .add(
+    HttpApiEndpoint.delete("delete", "/documents", {
+      success: Schema.Struct({ ok: Schema.Boolean }),
+      headers: Schema.Struct({ authorization: Schema.optional(Schema.String) }),
+    }).pipe((endpoint) =>
+      endpoint.annotate(
+        RequiredPermission,
+        requiresPermission(endpoint, { permission: deletePermission, policy: deletePolicy }),
+      ),
+    ),
+  );
 
 const Api = HttpApi.make("test").add(DocumentsGroup).middleware(RequirePermission);
 
@@ -100,7 +129,9 @@ const attributeResolverTest = (down: boolean) =>
   });
 
 const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
-  handlers.handle("read", () => Effect.succeed({ ok: true })),
+  handlers
+    .handle("read", () => Effect.succeed({ ok: true }))
+    .handle("delete", () => Effect.succeed({ ok: true })),
 );
 
 const makeClient = HttpApiTest.groups(Api, ["documents"]);
@@ -164,5 +195,50 @@ describe("RequirePermission client-error typing", () => {
           .pipe(Effect.flip);
         assert.strictEqual(error._tag, "AttributeResolveError");
       }).pipe(Effect.provide(Layer.mergeAll(passthroughClientLayer(RequirePermission), testLayer(true)))),
+  );
+
+  it.effect(
+    "a generated client decodes an undischarged obligation as the real typed UndischargedObligation, tag-only",
+    () =>
+      Effect.gen(function* () {
+        const client = yield* makeClient;
+        // Alice holds `deletePermission`, so `hasPermission` allows — but
+        // `deletePolicy`'s binding `auditObligation` is never discharged
+        // (`guard` is called with no `onObligations`, matching
+        // `RequirePermission.ts`'s own call), so evaluation fails with
+        // `UndischargedObligation` rather than a denial.
+        const error = yield* client.documents
+          .delete({ headers: { authorization: `Bearer ${ALICE_TOKEN}` } })
+          .pipe(Effect.flip);
+        // Before this fix, `RequirePermissionLive` answered an empty 403 body
+        // that didn't match `UndischargedObligationRefused`'s declared
+        // `Schema.TaggedStruct("UndischargedObligation", {})` — the client
+        // could only fail to decode it, surfacing as a generic
+        // `HttpClientError`, exactly the way `AccessDenied` used to.
+        assert.strictEqual(error._tag, "UndischargedObligation");
+        // The schema is tag-only, deliberately — `subjectId`/`obligationIds`
+        // are not reviewed for disclosure the way `AccessDeniedPublic`'s
+        // fields are, so neither reaches the wire.
+        assert.strictEqual("subjectId" in error, false);
+        assert.strictEqual("obligationIds" in error, false);
+      }).pipe(Effect.provide(Layer.mergeAll(passthroughClientLayer(RequirePermission), testLayer(false)))),
+  );
+
+  it.effect(
+    "a generated client decodes a subject-extraction outage as the real typed SubjectExtractionFailed, tag-only",
+    () =>
+      Effect.gen(function* () {
+        const client = yield* makeClient;
+        const error = yield* client.documents
+          .read({ headers: { authorization: `Bearer ${BROKEN_TOKEN}` } })
+          .pipe(Effect.flip);
+        // Before this fix, the middleware answered an empty 502 body that
+        // didn't match `SubjectExtractionRefused`'s declared
+        // `Schema.TaggedStruct("SubjectExtractionFailed", {})`.
+        assert.strictEqual(error._tag, "SubjectExtractionFailed");
+        // Tag-only, same reasoning as `UndischargedObligationRefused` — the
+        // real `reason` string stays server-side (it's logged, not returned).
+        assert.strictEqual("reason" in error, false);
+      }).pipe(Effect.provide(Layer.mergeAll(passthroughClientLayer(RequirePermission), testLayer(false)))),
   );
 });

@@ -69,6 +69,8 @@ already how these documents preserve history, so history is exempt by constructi
 | `README.md` | not built | 1 | Ditto — and it is now scoped to the topologies rather than the screens, which are all built |
 | `01-shell.md` | unobtainable | 1 | **Not a claim.** Prose *describing* the withdrawn one, in the correction that closed the lens gap: "What did not follow is that instances are unobtainable" |
 | `02-screens.md` | unobtainable | 1 | **Not a claim.** Same: "The other half was declared unobtainable below and was not" |
+| `00-overview.md` | not presentable | 1 | The topology table's own claims of absence (DD-05) — a backend-only service has an SSE feed but no page to host an overlay, and no CLI shell exists yet to be that page ([ADR-QD-049](../decisions/049-the-second-shell-is-a-cli.md)) |
+| `00-overview.md` | needs an aggregator's page | 2 | Same table, same reason, for serverless/edge and a replicated server: both reach the data plane but have no rendered surface until the second shell lands |
 
 The last two rows are the cost of a phrase list rather than a parser — a sentence
 that names a withdrawn claim reads the same as one making it. Registering them is

@@ -238,9 +238,15 @@ This is where the atom graph earns its place. A list of fifty rows asking one
 question performs one evaluation per distinct resource, not fifty per policy —
 the predecessor re-ran the whole evaluation in every component that asked.
 
-Note that `doc` must be referentially stable across renders for the atom to be
-reused. Rows rendered from a stable array are; rows rendered from
-`items.map((d) => ({ ...d }))` are not.
+Reuse here is **structural**, not by reference — the same keying §2 already
+describes for policies applies to `resource`: `Atom.family` compares with
+`Equal.equals`, so a fresh-but-equal `doc` from `items.map((d) => ({ ...d }))`
+still shares the same atom as one rendered from a stable array. What a fresh
+object costs is not a broken share but a re-walked hash: the structural hash
+is cached per object, so a new object every render re-derives the atom key it
+was always going to find (the same cost §2's hoisting habit addresses). No
+referential stability is required for correctness; the pitfalls table below
+already describes this correctly as a performance row, not a sharing break.
 
 ## 7. Field-level visibility
 
@@ -306,6 +312,25 @@ value — a decision being re-checked is not a decision
 ([ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md)). If that
 flash is unwelcome for a particular control, `useDecision` hands you the raw
 `AsyncResult` and its `waiting` flag, and the choice.
+
+### Identity changes, not just authority changes
+
+Authority changes above assume the same subject; an account switch — the
+`subject` prop given to `QadiProvider` itself changing — is a different case,
+with a different, narrower cost. `QadiProvider` writes a changed `subject` to
+the registry in an effect, after commit, not during render (a render-phase
+write was tried and reverted: it reproducibly hung an in-flight re-check on a
+page where the subject never changed at all). For the one frame between the
+new render and that effect running, a guarded control still shows the
+**outgoing** subject's settled verdict — `waiting` is not involved, because
+nothing has told the decision atom the subject changed yet, so
+`useInvalidate`'s pending flash above does not cover this case. This is a
+known, accepted tradeoff
+([ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md#consequences),
+[BEH-QD-067](../behaviors/09-react.md#beh-qd-067-provider)), worth calling out
+because it is security-adjacent: on a logout or account switch, the previous
+session's allowed controls can render for one frame before the new subject's
+decisions take over.
 
 ## 9. Suspense and error boundaries
 

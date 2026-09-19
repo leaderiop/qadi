@@ -9,23 +9,47 @@
  */
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
-import type { RelationshipResolveError } from "./Errors.ts";
+import { RelationshipResolveError } from "./Errors.ts";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
-import { portRetriesTotal } from "./PortMetrics.ts";
+import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
 import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
 
 export interface RelationshipCheck {
   readonly subjectId: SubjectId;
   readonly relation: string;
   readonly resourceId: ResourceId;
-  /** Maximum traversal depth. Undefined means the resolver decides. */
+  /**
+   * Maximum traversal depth. Undefined means the resolver decides.
+   *
+   * `Evaluate.ts` clamps `HasRelationship.depth` to `[0, 64]` before ever
+   * constructing this request — every untrusted numeric that reaches this
+   * boundary is bounded on the evaluator's side. That clamp is fuel handed to
+   * whichever resolver is wired; it only bounds a traversal if the resolver
+   * actually spends it (RP-02). **An implementation that traverses a graph
+   * rather than checking a single edge MUST treat a defined `depth` as a
+   * maximum hop budget and MUST detect cycles (a visited-node set, or
+   * equivalent) rather than assume the underlying store is acyclic** — a
+   * relationship graph loaded from a real store (a Zanzibar-style "manager
+   * of"/"member of" hierarchy, say) has no acyclicity guarantee this library
+   * can make on a caller's behalf, and an unbounded traversal over cyclic
+   * data hangs the same way an unbounded remote call does. `undefined` is the
+   * common case (the field is optional) and hands the resolver an explicitly
+   * unbounded mandate — that is a real grant, not an oversight, and an
+   * implementation accepting it must still terminate on its own. Every
+   * resolver shipped with this library today (`relationshipResolverFromEdges`,
+   * `@qadi/testing`'s `edgeRelationshipResolver`) checks direct edges only and
+   * ignores `depth` entirely, so neither is a tested reference for the
+   * traversal case this obligation describes; a resolver that does traverse
+   * has no conformance test to check itself against yet.
+   */
   readonly depth: number | undefined;
 }
 
@@ -68,6 +92,14 @@ export interface RelationshipResolverShape {
    * into this same `RelationshipResolveError`, matching
    * `AttributeResolverShape.resolve`'s own contract — see its doc comment for
    * why (issue #100).
+   *
+   * `request.subjectId` carries the same width `AttributeResolverShape.resolve`'s
+   * `subjectId` does, for the same reason (JF-03): `Evaluate.ts`'s only call
+   * site always asks about the subject being evaluated, but the field is not
+   * narrowed to that in the type, because `@qadi/devtools`'s capture/sweep
+   * tooling checks relationships for subjects outside the evaluation it is
+   * instrumenting. An implementation must authorize an arbitrary subject id
+   * safely, not assume it is always the one currently being evaluated.
    */
   readonly check: (
     request: RelationshipCheck,
@@ -211,3 +243,36 @@ export const relationshipResolverBounded =
         check: (request) => Semaphore.withPermit(semaphore)(inner.check(request)),
       })),
     );
+
+/**
+ * Wraps a resolver layer so a `check` call that does not settle within
+ * `duration` fails with a typed `RelationshipResolveError` instead of holding
+ * its caller open indefinitely — the sibling of `attributeResolverTimingOut`
+ * in `AttributeResolver.ts` (JM-01/WV-01/SP-01); see that doc comment for why
+ * this is needed alongside, not instead of, `*Retrying`/`*Bounded`, and for
+ * the composition order (outermost `*Bounded`, innermost `*Retrying`,
+ * `*TimingOut` bounding each individual attempt).
+ */
+export const relationshipResolverTimingOut =
+  (duration: Duration.Input) =>
+  (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver> =>
+    wrapService(RelationshipResolver, layer, (inner) => ({
+      name: `${inner.name ?? "?"} (timing out)`,
+      check: (request) =>
+        inner.check(request).pipe(
+          Effect.timeout(duration),
+          Effect.catchTag("TimeoutError", () =>
+            Metric.update(portTimeoutsTotal, "RelationshipResolver").pipe(
+              Effect.flatMap(() =>
+                Effect.fail(
+                  new RelationshipResolveError({
+                    relation: request.relation,
+                    resourceId: request.resourceId,
+                    cause: new Error(`RelationshipResolver.check did not settle within the configured deadline`),
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+    }));

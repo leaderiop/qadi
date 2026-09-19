@@ -21,6 +21,7 @@
  *          finds — the HashMap grows across the run, the way an
  *          application-scoped cache serving many distinct requests does
  */
+import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
 import { test } from "vitest";
@@ -30,7 +31,7 @@ import { decisionCacheLayer } from "../src/DecisionCache.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
 import { permission } from "../src/Permission.ts";
-import { hasPermission } from "../src/Policy.ts";
+import { allOf, hasPermission, hasRole } from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
 import { role } from "../src/Role.ts";
 
@@ -42,6 +43,24 @@ const services = Layer.mergeAll(EvaluationServicesNone, currentSubjectLayer(alic
 
 const options = { time: 1000, warmupTime: 300 };
 
+/**
+ * An eight-leaf `allOf` tree, not a single `HasPermission` node — the `hit`
+ * workload below's own reason for existing (measuring "every comparison the
+ * structural key does") is understated by a one-node policy, since
+ * `Equal.equals`'s structural walk is exactly as deep as the tree it walks
+ * (CO-04).
+ */
+const realisticTree: Policy = allOf([
+  hasPermission(read),
+  hasPermission(permission("document", "write")),
+  hasRole("editor"),
+  hasRole("reviewer"),
+  hasPermission(permission("document", "archive")),
+  hasPermission(permission("document", "share")),
+  hasRole("admin"),
+  hasPermission(permission("document", "delete")),
+]);
+
 test("DecisionCache.getOrCompute — hit", async ({ bench }) => {
   // One cache, built once — every iteration below looks up the *same* key,
   // structurally, so after the first call every one of these is a hit.
@@ -52,6 +71,55 @@ test("DecisionCache.getOrCompute — hit", async ({ bench }) => {
   await bench.compare(
     bench("repeated lookup, same subject/policy/resource", () => {
       runtime.runSync(evaluate(policy));
+    }),
+    options,
+  );
+});
+
+test("DecisionCache.getOrCompute — hit, realistic tree", async ({ bench }) => {
+  // Same shape as the one-node `hit` bench above, against `realisticTree`
+  // instead — same object reference every call, so this isolates tree size
+  // from the "fresh object" cost the next bench measures separately (CO-04).
+  const runtime = ManagedRuntime.make(Layer.mergeAll(services, decisionCacheLayer()));
+  runtime.runSync(evaluate(realisticTree));
+
+  await bench.compare(
+    bench("repeated lookup, same subject/tree/resource", () => {
+      runtime.runSync(evaluate(realisticTree));
+    }),
+    options,
+  );
+});
+
+test("DecisionCache.getOrCompute — hit, fresh-but-equal subject per lookup", async ({
+  bench,
+}) => {
+  // The gap CO-04 named: `@qadi/http`'s `SubjectExtractor` rebuilds an
+  // `AuthSubject` per request, so the normal shape in that deployment is a
+  // NEW object, structurally equal to the previous one, on every lookup —
+  // never the same reference twice. `getOrCompute`'s key is the whole
+  // subject plus the whole policy (`DecisionCache.ts`), so a fresh subject
+  // defeats the reference shortcut and pays the full structural hash+equals
+  // walk every time, even though the two subjects are `Equal.equals`-equal.
+  // effect rc.116 caches per-object hashes in a `WeakMap` and pairwise
+  // equality results in an `equalityCache` (confirmed against the installed
+  // build, `Hash.js`/`Equal.js`) — a recurring object is cheap after first
+  // contact, but a genuinely fresh one on every call is not a "recurring
+  // object" and cannot benefit from either cache. If a future `effect`
+  // upgrade drops or narrows that memoization, this is the bench that would
+  // show it, which is the point of measuring it rather than only asserting
+  // it in a doc comment.
+  // One runtime and one cache, reused across every iteration — only the
+  // subject is rebuilt per call, via `Effect.provide` layered on top, so this
+  // isolates "fresh subject" from "fresh cache"/"fresh runtime", which a
+  // rebuilt-runtime-per-call version would conflate.
+  const runtime = ManagedRuntime.make(Layer.mergeAll(EvaluationServicesNone, decisionCacheLayer()));
+  const freshAlice = () => fromRoles({ id: "alice", roles: [editor] });
+  runtime.runSync(evaluate(realisticTree).pipe(Effect.provide(currentSubjectLayer(freshAlice()))));
+
+  await bench.compare(
+    bench("distinct-but-equal subject object per call", () => {
+      runtime.runSync(evaluate(realisticTree).pipe(Effect.provide(currentSubjectLayer(freshAlice()))));
     }),
     options,
   );

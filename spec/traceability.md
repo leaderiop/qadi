@@ -134,6 +134,7 @@ is still a contract for readability, even where nothing enforces it.
 | [INV-QD-054](invariants.md#inv-qd-054-verifysequenceintegrity-detects-every-gap-and-duplicate-sequence-number) | `verifySequenceIntegrity` detects every gap and duplicate sequence number | sorts defined sequence numbers, fails on the first that is not exactly one more than its predecessor | `packages/audit/test/SequenceIntegrity.test.ts` (property over generated contiguous/gapped sequences) |
 | [INV-QD-055](invariants.md#inv-qd-055-signatureobligationhandler-calls-capture-exactly-once-and-the-obligationrecord-matches) | `signatureObligationHandler` calls `capture` exactly once, and the `ObligationRecord` matches | one `capture` call per discharge; `Qadi.ts`'s `discharge` maps the handler's outcome unconditionally | `packages/audit/test/SignatureCapturePort.test.ts` (unit + integration through `Qadi.assert`) |
 | [INV-QD-056](invariants.md#inv-qd-056-a-hassignature-node-never-appears-in-a-compiled-predicate) | A `HasSignature` node never appears in a compiled `Predicate` | `translateNode`'s `HasSignature` arm calls `untranslatable` unconditionally | `Predicate.test.ts` |
+| [INV-QD-057](invariants.md#inv-qd-057-hassignature-consults-no-clock) | `hasSignature` consults no clock | `evaluateHasSignature`'s `matched` predicate tests only `s.meaning`/`s.signerRole`, never `s.signedAt` or `Clock` | `Evaluate.test.ts` ("HasSignature never compares signedAt to the clock", `TestClock` advanced ten years) |
 
 ## §3 Decision traceability
 

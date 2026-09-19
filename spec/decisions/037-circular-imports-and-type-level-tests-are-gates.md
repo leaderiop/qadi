@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-037                                   |
-> | Revision       | 1.1                                             |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.3                                             |
+> | Effective Date | 2026-09-19                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-09-07): "`pnpm check` steps 5 and 6" now names `madge`/`tstyche` in the same sentence — extending `scripts/check-dod-table.mjs`'s reference check to plural forms ("steps 5 and 6", not just "step 11") turned this line's un-named pair into a real finding rather than a silent gap (CCR-QD-111)<br>1.0 (2026-08-22): Initial release (CCR-QD-048) |
+> | Change History | 1.3 (2026-09-19): The `"rc"` channel named by 1.2's re-check tried, not just named — `npx tstyche --target rc` fails outright (`ERR_MODULE_NOT_FOUND: .../typescript@7.0.1-rc/lib/typescript.js`), because that build is the `typescript-go`/`tsgo` native-compiler preview, which ships `dist/api/*` and no classic `lib/typescript.js` at all — a different package shape than `tstyche`'s type tester is written against, not merely a pre-release version of the shape it expects. So the gap isn't only "no stable TS 7 target yet"; the one pre-release target that exists doesn't run under this `tstyche`. Confirms 1.2's conclusion more strongly than 1.2 itself established it (100-lens audit, second batch, .issues/medium/sebastian-mckenzie-SM-01.md, .issues/medium/nathan-shively-sanders-NS-02.md, .issues/low/titian-cernicova-dragomir-TC-03.md, .issues/info/joel-spolsky-JS-07.md)<br>1.2 (2026-09-19): Dated re-check added to the TypeScript-7 revisit note — `tstyche@^7.2.5` is now installed, but `--list` shows TypeScript 7 is still pre-release (`rc`/`next` channels only), so `tstyche.json`'s `6.0.3` target remains the newest stable version and the revisit condition has not fired (100-lens audit, MO-03/OT-02/RC-03)<br>1.1 (2026-09-07): "`pnpm check` steps 5 and 6" now names `madge`/`tstyche` in the same sentence — extending `scripts/check-dod-table.mjs`'s reference check to plural forms ("steps 5 and 6", not just "step 11") turned this line's un-named pair into a real finding rather than a silent gap (CCR-QD-111)<br>1.0 (2026-08-22): Initial release (CCR-QD-048) |
 
 ---
 
@@ -89,13 +89,16 @@ permanent files:
 
 | File | Pins |
 | ---- | ---- |
-| `packages/core/test/Qadi.tst.ts` | `Authorized<P>`'s per-permission distinctness — replaces the `@ts-expect-error` version of this test, removed from `Qadi.test.ts` in the same change |
+| `packages/core/test/Qadi.tst.ts` | `Authorized<P>`'s per-permission distinctness — replaces the `@ts-expect-error` version of this test, removed from `Qadi.test.ts` in the same change. Also pins `enforce`'s inferred `E`/`R` channels and `guard`'s `P` inference from its literal `permission` argument (MP-03, 100-lens audit) |
+| `packages/core/test/Policy.tst.ts` | The recursive `Policy`/`PolicyEncoded` pair (ADR-QD-002) — a well-formed, three-level-deep composite policy stays assignable to `Policy`'s own `Schema.Codec` `Type`/`Encoded` in both directions (TC-06, 100-lens audit) |
+| `packages/core/test/DecisionSink.tst.ts` | `DecisionSink`, read through `Effect.serviceOption`, contributes nothing to what `evaluate` requires — the same rule `DecisionCache` established under ADR-QD-031, formalized here the way `DecisionCache`'s own version was not |
 | `packages/http/test/GuardRoute.tst.ts` | `guardRoute` discharges `CurrentSubject` from a handler's own open `R`, and — the other direction, just as load-bearing — does **not** discharge it from `loadResource`'s `LR` |
 | `packages/http/test/RequirePermission.tst.ts` | `requiresPermission`/`registerApi` accept a plain, options-less `HttpApiEndpoint`/`HttpApi`; the inline `.annotate()` pattern keeps an endpoint's literal identifier |
 
-Every one of these pins a finding from
-[ADR-QD-036](./036-qadi-http-package-shape.md) revision 1.2 — a real, already-shipped-once
-bug, not a hypothetical one written to give the new tool something to do.
+The first three files above landed later than this ADR's `1.0` and are not
+findings from [ADR-QD-036](./036-qadi-http-package-shape.md); `GuardRoute.tst.ts` and
+`RequirePermission.tst.ts` are — both real, already-shipped-once bugs from ADR-QD-036
+revision 1.2, not hypotheticals written to give the new tool something to do.
 
 **`tstyche` does not yet know about TypeScript 7, and this is recorded
 rather than hidden.** `tstyche --list` names its highest fetchable version as
@@ -122,6 +125,32 @@ would need `pnpm typecheck` as the actual authority, with `tstyche` treated
 as a second, narrower opinion rather than the final one. Revisit this note
 once `tstyche` ships a TypeScript 7 target; until then, `pnpm typecheck`
 remains gate 1–2 and is not replaced by this one.
+
+> **Re-checked 2026-09-19 (100-lens audit — martin-odersky MO-03, orta-therox
+> OT-02, ryan-cavanaugh RC-03).** The workspace now installs `tstyche@^7.2.5`
+> (up from whatever version was current when this ADR was written), which
+> raised the question of whether the revisit condition above had silently
+> fired. It has not: `npx tstyche --list` against the installed copy reports
+> `"latest": "6.0.3"`, with TypeScript 7 reachable only via the `"rc"`
+> (`7.0.1-rc`) and `"next"` (`7.1.0-dev...`) channels — pre-release, not a
+> shipped target. `tstyche.json`'s `"target": "6.0.3"` is still the newest
+> *stable* version this tstyche major resolves, so the gap this ADR records
+> is current, not stale; it should be re-verified the same way again once a
+> stable `tstyche` release adds a `7.x` entry to `--list`'s `versions` array.
+>
+> **Tried, not just named (revision 1.3).** Running `npx tstyche --target rc`
+> confirms the `"rc"` channel is worse than merely pre-release: it fails
+> outright with `ERR_MODULE_NOT_FOUND`, unable to resolve
+> `typescript@7.0.1-rc/lib/typescript.js`. That target is the
+> `typescript-go`/`tsgo` native-compiler preview — its package ships
+> `dist/api/*` and a Go-backed binary, not the classic `lib/typescript.js`
+> Program API `tstyche`'s type tester is written against — so this isn't a
+> version this `tstyche` merely hasn't validated yet, it's a different
+> compiler architecture its current release cannot load at all. The
+> workspace's own `typescript@^7.0.0` resolves to a `tsgo`-based build too
+> (`7.0.2+effect-tsgo.0.45.0`), so even a hypothetical future `tstyche`
+> release that *does* support `tsgo`'s API shape would need to be checked
+> against that fact, not assumed compatible from the version number alone.
 
 ## Alternatives considered
 

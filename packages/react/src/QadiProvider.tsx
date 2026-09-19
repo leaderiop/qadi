@@ -2,13 +2,23 @@
 /**
  * The React binding.
  *
- * SPIKE (branch `spike/effect-atom-react`): the registry is now constructed
- * with `@effect/atom-react`'s own `scheduleTask`/`defaultIdleTTL`, wiring
- * idle-atom cleanup to React's real scheduler — the previous
- * `AtomRegistry.make({ initialValues })` call passed neither. The
- * subscription primitive is the library's own `useAtomValue`, read through
- * `@effect/atom-react`'s `RegistryContext` rather than the hand-rolled
- * `useSyncExternalStore` call this replaces.
+ * Built on `@effect/atom-react`: the subscription primitive is that
+ * library's own `useAtomValue`, read through its `RegistryContext` rather
+ * than the hand-rolled `useSyncExternalStore` call it replaced
+ * ([ADR-QD-014](../../../spec/decisions/014-react-via-atoms.md)).
+ *
+ * **The registry below passes neither `scheduleTask` nor `defaultIdleTTL`,
+ * and that is deliberate, not leftover.** Wiring idle-atom cleanup to
+ * `@effect/atom-react`'s own `scheduleTask`/`defaultIdleTTL` — matching
+ * `RegistryContext.ts`'s own default — was tried on the `spike/effect-atom-react`
+ * branch and reverted: `scheduleTask` is not scoped to idle cleanup, it also
+ * reroutes the registry's core sync/async dispatch through React's
+ * low-priority scheduler, and doing so silently coalesced away a required
+ * intermediate render under real network timing in
+ * `examples/nextjs-newsroom`'s e2e suite (ADR-QD-014, AGENTS.md §13). That
+ * gap is not closed. Idle-atom growth is instead bounded by
+ * `sweepIntervalMillis`'s own background sweep below, which never touches
+ * dispatch, notification or the scheduler at all.
  */
 import type { AuthSubject } from "@qadi/core";
 import { useAtomValue as useLibraryAtomValue } from "@effect/atom-react/Hooks";
@@ -104,13 +114,26 @@ export const useQadiContext = (hookName: string): QadiContextValue => {
  * Subscribes to an atom in this context's registry and returns its current
  * value.
  *
- * SPIKE: a direct re-export of `@effect/atom-react`'s own `useAtomValue`,
- * which reads the registry from `RegistryContext` — provided by
- * `QadiProvider` below — rather than an explicit argument. This is a public
- * API signature change from the pre-spike `useAtomValue(registry, atom)`;
- * every call site in this package reads the registry through
- * `useQadiContext` only for other fields (`atoms`, `instrument`) now, not to
- * pass it here.
+ * A direct re-export of `@effect/atom-react`'s own `useAtomValue`, which
+ * reads the registry from `RegistryContext` rather than an explicit
+ * argument — every other call site in this package reads the registry
+ * through `useQadiContext` only for other fields (`atoms`, `instrument`), not
+ * to pass it here.
+ *
+ * **Outside a `QadiProvider`, this is not `MissingQadiProviderError` the way
+ * `useSubject`/`useGate`/`useDecisionSuspense` are.** Unlike those hooks, this
+ * one never reads `QadiContext`, so it does not throw; it falls back to
+ * `@effect/atom-react`'s module-scope default registry
+ * (`RegistryContext.ts`), which — unlike the one `QadiProvider` builds below —
+ * *is* constructed with `scheduleTask`/`defaultIdleTTL`, the exact scheduler
+ * wiring this file's header explains was tried for this package's own
+ * registry and reverted for dropping a required render under real timing. A
+ * atom read this way outside a provider is therefore dispatched through
+ * React's low-priority scheduler, not through whichever registry a
+ * `QadiProvider` in the tree owns. This is intentional upstream behavior —
+ * `@effect/atom-react`'s own default for any atom used without a provider —
+ * not a bug in this re-export; call it only for atoms unrelated to a Qadi
+ * registry, or from inside a `QadiProvider`.
  */
 export const useAtomValue: <A>(atom: Atom.Atom<A>) => A = useLibraryAtomValue;
 
@@ -206,6 +229,31 @@ export const QadiProvider = ({
       ...(initialValues ?? []),
     ],
   }));
+
+  // `makeQadiAtoms`'s own doc comment says to call it once per context, at
+  // module scope — the registry above is built once, at mount, and never
+  // rebuilt for a later `atoms` prop. A caller who breaks that rule (an
+  // inline `makeQadiAtoms(...)` call, or a genuine tenant switch) gets a
+  // context silently holding the NEW atoms inside the OLD registry: the new
+  // `initialValues` are never seeded, and decisions evaluated against the
+  // previous atom set stay cached until this provider unmounts. Warned in
+  // development only — this is an invariant announced, not an assumption
+  // remembered, matching this file's own `warnInstrumentedInProduction`
+  // precedent for a rule nothing else here enforces (DA-06).
+  const atomsIdentityRef = useRef(atoms);
+  useEffect(() => {
+    if (isDevelopment() && atomsIdentityRef.current !== atoms) {
+      console.warn(
+        "[qadi] <QadiProvider>'s `atoms` prop changed identity after mount. " +
+          "makeQadiAtoms() must be called once per context, at module scope " +
+          "(or memoised) — this provider's registry is not rebuilt for a new " +
+          "atom set, so the new atoms' initial values are silently ignored and " +
+          "decisions from the previous atom set keep answering until this " +
+          "provider unmounts.",
+      );
+    }
+    atomsIdentityRef.current = atoms;
+  }, [atoms]);
 
   // Reverted from a render-phase write (ticket 34): that version reproducibly
   // hung an in-flight re-check forever on a page where `subject` never
