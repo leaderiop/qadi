@@ -3352,26 +3352,128 @@ describe("concurrent evaluation", () => {
       assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
     }));
 
-  it.effect("an error in any branch still fails rather than denying", () =>
+  it.effect("a failure before any decisive child still fails, matching sequential", () =>
     Effect.gen(function* () {
       // INV-QD-006 under concurrency: a resolver failure is an error, and it must
-      // not be swallowed into a denial just because a sibling denied first.
-      const policy = P.allOf([
-        P.hasRole("legal"),
-        P.hasAttribute("boom", M.gte(1)),
-      ]);
+      // not be swallowed into a denial just because a sibling denies later. Here
+      // nothing decides before index 1 — `hasRole("editor")` allows, which is
+      // not decisive for `AllOf` — so a sequential walk reaches the failing
+      // resolver too, and concurrent evaluation must fail with the same error.
+      const policy = P.allOf([P.hasRole("editor"), P.hasAttribute("boom", M.gte(1))]);
 
       const failing = Layer.succeed(AttributeResolver, {
         resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
       });
 
-      const r = yield* Effect.result(
+      const sequential = yield* Effect.result(
+        evaluate(policy, { resource }).pipe(Effect.provide(testLayer(subject, { attributes: failing }))),
+      );
+      const concurrent = yield* Effect.result(
         evaluate(policy, { resource, concurrency: "unbounded" }).pipe(
           Effect.provide(testLayer(subject, { attributes: failing })),
         ),
       );
-      assert.strictEqual(r._tag, "Failure");
+
+      assert.strictEqual(sequential._tag, "Failure");
+      assert.strictEqual(concurrent._tag, "Failure");
+      if (sequential._tag !== "Failure" || concurrent._tag !== "Failure") return;
+      assert.deepStrictEqual(concurrent.failure, sequential.failure);
     }));
+
+  it.effect(
+    "a failure past the decisive index is discarded, matching sequential (CCR-QD-152)",
+    () =>
+      Effect.gen(function* () {
+        // The gap this fix closed: `hasRole("legal")` denies at index 0, which
+        // IS decisive for `AllOf`, so a sequential walk never reaches index 1's
+        // resolver at all. `Effect.forEach`'s fail-fast default previously let
+        // index 1's failure abort the whole concurrent dispatch regardless of
+        // that, surfacing a `Failure` where sequential evaluation reaches a
+        // `Deny` — the exact non-determinism this ticket fixed. Now both agree.
+        const policy = P.allOf([P.hasRole("legal"), P.hasAttribute("boom", M.gte(1))]);
+
+        const failing = Layer.succeed(AttributeResolver, {
+          resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
+        });
+
+        const sequential = yield* Effect.result(
+          evaluate(policy, { resource }).pipe(
+            Effect.provide(testLayer(subject, { attributes: failing })),
+          ),
+        );
+        const concurrent = yield* Effect.result(
+          evaluate(policy, { resource, concurrency: "unbounded" }).pipe(
+            Effect.provide(testLayer(subject, { attributes: failing })),
+          ),
+        );
+
+        assert.strictEqual(sequential._tag, "Success");
+        assert.strictEqual(concurrent._tag, "Success");
+        if (sequential._tag !== "Success" || concurrent._tag !== "Success") return;
+        assert.strictEqual(sequential.success._tag, "Deny");
+        assert.deepStrictEqual(concurrent.success.trace, sequential.success.trace);
+      }),
+  );
+
+  it.effect("AnyOf: a failure before any decisive child still fails, matching sequential", () =>
+    Effect.gen(function* () {
+      // `AnyOf`'s mirror of the `AllOf` case above. `hasRole("suspended")`
+      // denies at index 0, which is NOT decisive under `AnyOf`'s default
+      // `First` strategy — one denial does not settle it — so a sequential
+      // walk still reaches index 1's failing resolver.
+      const policy = P.anyOf([P.hasRole("suspended"), P.hasAttribute("boom", M.gte(1))]);
+
+      const failing = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
+      });
+
+      const sequential = yield* Effect.result(
+        evaluate(policy, { resource }).pipe(Effect.provide(testLayer(subject, { attributes: failing }))),
+      );
+      const concurrent = yield* Effect.result(
+        evaluate(policy, { resource, concurrency: "unbounded" }).pipe(
+          Effect.provide(testLayer(subject, { attributes: failing })),
+        ),
+      );
+
+      assert.strictEqual(sequential._tag, "Failure");
+      assert.strictEqual(concurrent._tag, "Failure");
+      if (sequential._tag !== "Failure" || concurrent._tag !== "Failure") return;
+      assert.deepStrictEqual(concurrent.failure, sequential.failure);
+    }));
+
+  it.effect(
+    "AnyOf: a failure past the decisive allowing index is discarded, matching sequential",
+    () =>
+      Effect.gen(function* () {
+        // `hasRole("editor")` allows at index 0, which IS decisive under
+        // `AnyOf`'s default `First` strategy, so a sequential walk never
+        // reaches index 1's resolver. Concurrent evaluation must agree
+        // (CCR-QD-152).
+        const policy = P.anyOf([P.hasRole("editor"), P.hasAttribute("boom", M.gte(1))]);
+
+        const failing = Layer.succeed(AttributeResolver, {
+          resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
+        });
+
+        const sequential = yield* Effect.result(
+          evaluate(policy, { resource }).pipe(
+            Effect.provide(testLayer(subject, { attributes: failing })),
+          ),
+        );
+        const concurrent = yield* Effect.result(
+          evaluate(policy, { resource, concurrency: "unbounded" }).pipe(
+            Effect.provide(testLayer(subject, { attributes: failing })),
+          ),
+        );
+
+        assert.strictEqual(sequential._tag, "Success");
+        assert.strictEqual(concurrent._tag, "Success");
+        if (sequential._tag !== "Success" || concurrent._tag !== "Success") return;
+        assert.strictEqual(sequential.success._tag, "Allow");
+        assert.deepStrictEqual(concurrent.success.trace, sequential.success.trace);
+      }),
+  );
 
   it.effect("PROPERTY: both paths agree on every generated tree", () =>
     Effect.gen(function* () {
@@ -3449,6 +3551,132 @@ describe("concurrent evaluation", () => {
       // for a `concurrency` option that did nothing at all.
       assert.isAbove(composites, 10);
     }));
+
+  it.effect(
+    "PROPERTY: sequential and concurrent agree on decision or failure, by declaration order (CCR-QD-152)",
+    () =>
+      Effect.gen(function* () {
+        // The property `INV-QD-020`'s original property test could not state:
+        // every leaf below is a fixed allow, a fixed deny, or a *distinctly
+        // tagged* failure, so the assertion can check not just that both
+        // schedules land on the same kind of outcome but — when it is a
+        // failure — that it is the SAME failure, i.e. the same declaration-order
+        // index decided it under both schedules. `Effect.forEach`'s fail-fast
+        // default let a later-indexed child's failure pre-empt an
+        // earlier-indexed child's already-decisive verdict; this is the fault
+        // injection the hand-picked tests above could not generalize on their
+        // own.
+        const leaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
+          FastCheck.constant(P.hasRole("editor")), // subject has it: always allows
+          FastCheck.constant(P.hasRole("suspended")), // subject lacks it: always denies
+          FastCheck.integer({ min: 0, max: 9 }).map((id) =>
+            // Distinctly tagged so a comparison of `r.failure.attribute` proves
+            // WHICH node's failure won, not merely that some failure did.
+            P.hasAttribute(`fail-${id}`, M.gte(1)),
+          ),
+        );
+
+        const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>(
+          (tie) => ({
+            node: FastCheck.oneof(
+              { maxDepth: 3, withCrossShrink: true },
+              leaf,
+              FastCheck.array(tie("node"), { minLength: 1, maxLength: 3 }).map((ps) =>
+                P.allOf(ps),
+              ),
+              FastCheck.array(tie("node"), { minLength: 1, maxLength: 3 }).map((ps) =>
+                P.anyOf(ps),
+              ),
+              tie("node").map(P.not),
+              FastCheck.tuple(
+                FastCheck.array(
+                  FastCheck.tuple(tie("node"), FastCheck.boolean()).map(([c, permits]) =>
+                    permits ? P.permitWhen(c) : P.denyWhen(c),
+                  ),
+                  { minLength: 1, maxLength: 3 },
+                ),
+                FastCheck.constantFrom(
+                  "FirstApplicable" as const,
+                  "DenyOverrides" as const,
+                  "PermitOverrides" as const,
+                ),
+              ).map(([rs, combining]) => P.rules(rs, { combining })),
+            ),
+          }),
+        ).node;
+
+        // Fails every `fail-*` attribute lookup, distinguishably by name; never
+        // touches `hasRole`, which reads the subject directly and never calls
+        // this resolver at all.
+        const faultyAttributes = Layer.succeed(AttributeResolver, {
+          resolve: (_id: string, attribute: string) =>
+            attribute.startsWith("fail-")
+              ? Effect.fail(new AttributeResolveError({ attribute, cause: "boom" }))
+              : Effect.succeed(undefined),
+        });
+
+        const runWith = (policy: P.Policy, concurrency: number | "unbounded" | undefined) =>
+          Effect.result(
+            evaluate(policy, {
+              resource,
+              ...(concurrency === undefined ? {} : { concurrency }),
+            }).pipe(Effect.provide(testLayer(subject, { attributes: faultyAttributes }))),
+          );
+
+        let sawFailure = false;
+        for (const policy of FastCheck.sample(tree, { numRuns: 150, seed: 2026 })) {
+          const sequential = yield* runWith(policy, undefined);
+          const concurrent = yield* runWith(policy, "unbounded");
+          const bounded = yield* runWith(policy, 2);
+
+          assert.strictEqual(
+            concurrent._tag,
+            sequential._tag,
+            `unbounded disagreed on outcome kind for ${JSON.stringify(policy)}`,
+          );
+          assert.strictEqual(
+            bounded._tag,
+            sequential._tag,
+            `bounded disagreed on outcome kind for ${JSON.stringify(policy)}`,
+          );
+
+          if (sequential._tag === "Failure") {
+            sawFailure = true;
+            if (concurrent._tag === "Failure") {
+              assert.deepStrictEqual(
+                concurrent.failure,
+                sequential.failure,
+                `unbounded disagreed on which failure for ${JSON.stringify(policy)}`,
+              );
+            }
+            if (bounded._tag === "Failure") {
+              assert.deepStrictEqual(
+                bounded.failure,
+                sequential.failure,
+                `bounded disagreed on which failure for ${JSON.stringify(policy)}`,
+              );
+            }
+          } else if (concurrent._tag === "Success" && bounded._tag === "Success") {
+            assert.deepStrictEqual(
+              concurrent.success.trace,
+              sequential.success.trace,
+              `unbounded disagreed on the trace for ${JSON.stringify(policy)}`,
+            );
+            assert.deepStrictEqual(
+              bounded.success.trace,
+              sequential.success.trace,
+              `bounded disagreed on the trace for ${JSON.stringify(policy)}`,
+            );
+          }
+        }
+
+        // Vacuity guard, the lesson INV-QD-018 cost, applied to this property's
+        // own new axis: without at least one generated tree that actually
+        // failed, every assertion above concerning failures would hold
+        // vacuously.
+        assert.isTrue(sawFailure);
+      }),
+  );
 });
 
 /**

@@ -11,6 +11,7 @@
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
@@ -1079,17 +1080,29 @@ const evaluateAllOf = Effect.fnUntraced(function* (
       if (verdict !== undefined) return verdict;
     }
   } else {
-    const traces = yield* Effect.forEach(
+    // `Effect.exit` per child, not a bare `evaluateNode` — `Effect.forEach`'s
+    // default (fail-fast) error mode would abort the whole dispatch the
+    // instant any child failed, so a later-indexed sibling's failure could
+    // pre-empt an earlier-indexed sibling's `Deny` that a sequential walk
+    // would have already returned. Exiting every child instead means every
+    // child still runs (losing nothing the concurrent path evaluated before),
+    // and the exits arrive in input order regardless of completion order, so
+    // walking them below reproduces the sequential fold exactly: the first
+    // index that is either a `Deny` or a failure wins, matching what
+    // sequential evaluation would have reached that index with (ADR-QD-026).
+    // Children after the decisive index are dropped either way: the work was
+    // speculative, and keeping it would make the trace (or which error
+    // surfaces) depend on a performance switch.
+    const exits = yield* Effect.forEach(
       policy.policies,
-      (child) => evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
+      (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),
       { concurrency: request.concurrency },
     );
-    // Traces arrive in input order regardless of completion order, so the fold
-    // below is the sequential fold. Children after the decisive one are dropped:
-    // the work was speculative, and keeping it would make the trace depend on a
-    // performance switch (ADR-QD-026).
-    for (const trace of traces) {
-      const verdict = stepAllOf(fold, trace);
+    for (const exit of exits) {
+      if (Exit.isFailure(exit)) {
+        return yield* Effect.failCause(exit.cause);
+      }
+      const verdict = stepAllOf(fold, exit.value);
       if (verdict !== undefined) return verdict;
     }
   }
@@ -1200,13 +1213,23 @@ const evaluateAnyOf = Effect.fnUntraced(function* (
       if (verdict !== undefined) return verdict;
     }
   } else {
-    const traces = yield* Effect.forEach(
+    // `Effect.exit` per child — see `evaluateAllOf`'s matching branch above for
+    // why: `Effect.forEach`'s default fail-fast mode would let a later-indexed
+    // sibling's failure pre-empt an earlier-indexed sibling's decisive `Allow`
+    // (under `First`) that a sequential walk would already have returned. The
+    // exits arrive in input order regardless of completion order, and walking
+    // them below reproduces the sequential fold exactly: the first index that
+    // is either decisive or a failure wins (ADR-QD-026).
+    const exits = yield* Effect.forEach(
       policy.policies,
-      (child) => evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
+      (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),
       { concurrency: request.concurrency },
     );
-    for (const trace of traces) {
-      const verdict = stepAnyOf(fold, trace);
+    for (const exit of exits) {
+      if (Exit.isFailure(exit)) {
+        return yield* Effect.failCause(exit.cause);
+      }
+      const verdict = stepAnyOf(fold, exit.value);
       if (verdict !== undefined) return verdict;
     }
   }
@@ -1300,19 +1323,36 @@ const evaluateRules = Effect.fnUntraced(function* (
       if (step(index, rule, trace)) break;
     }
   } else {
-    // `rule` and `index` travel with the trace from the same `forEach` that
-    // produced it, rather than being re-associated afterward by indexing a
-    // second array — the same reasoning as `translateRules` in Predicate.ts.
-    const results = yield* Effect.forEach(
+    // `Effect.exit` per child, not a bare `Effect.map` — see `evaluateAllOf`'s
+    // matching branch above for why: `Effect.forEach`'s default fail-fast
+    // error mode would abort the whole dispatch the instant any rule's
+    // condition failed, so a later-indexed rule's failure could pre-empt an
+    // earlier-indexed rule's already-decisive verdict that a sequential walk
+    // would have already returned. Exiting every child instead means every
+    // condition still runs (losing nothing the concurrent path evaluated
+    // before), and the exits arrive in input order regardless of completion
+    // order, so walking them below reproduces the sequential fold exactly:
+    // the first index that is either decisive or a failure wins (ADR-QD-026).
+    // `rule` and `index` still travel with the trace from the same `forEach`
+    // that produced it, rather than being re-associated afterward by indexing
+    // a second array — the same reasoning as `translateRules` in
+    // Predicate.ts.
+    const exits = yield* Effect.forEach(
       policy.rules,
       (rule, index) =>
-        Effect.map(
-          evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),
-          (trace) => ({ index, rule, trace }),
+        Effect.exit(
+          Effect.map(
+            evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),
+            (trace) => ({ index, rule, trace }),
+          ),
         ),
       { concurrency: request.concurrency },
     );
-    for (const { index, rule, trace } of results) {
+    for (const exit of exits) {
+      if (Exit.isFailure(exit)) {
+        return yield* Effect.failCause(exit.cause);
+      }
+      const { index, rule, trace } = exit.value;
       if (step(index, rule, trace)) break;
     }
   }

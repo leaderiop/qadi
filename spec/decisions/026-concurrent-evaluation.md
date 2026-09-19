@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-026                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-027) |
+> | Change History | 1.1 (2026-09-19): `AllOf`/`AnyOf`/`Rules`'s concurrent paths now exit every child instead of dispatching them through `Effect.forEach`'s fail-fast default, and fold the exits in declaration order — closing the gap where a later-indexed child's failure could pre-empt an earlier-indexed child's already-decisive `Deny`/`Allow` (or, for `Rules`, its already-decisive applying row), which is exactly the "identical decision" claim below not yet being true for the failure case (INV-QD-020, CCR-QD-152)<br>1.0 (2026-07-26): Initial release (CCR-QD-027) |
 
 ---
 
@@ -42,7 +42,8 @@ Two ADRs previously stated the option already existed and were corrected
 ## Decision
 
 **`EvaluateOptions.concurrency` is opt-in, and turning it on changes only which
-lookups happen and how long they take. The decision and its trace are identical.**
+lookups happen and how long they take. The decision and its trace are identical
+— and so is which error surfaces, if any.**
 
 ```ts
 export interface EvaluateOptions {
@@ -86,13 +87,53 @@ reason to exist as a second interpreter.
 have none. Nested composites inherit the option, so a tree is as parallel as its
 shape allows.
 
+### A failure is folded by the same declaration order as a decision
+
+The fold above assumed every child settles with a `Trace`. A child can also
+fail — an attribute resolver erroring, say — and the concurrent path must place
+that failure at the same point in the fold sequential evaluation would have:
+the first index that is either decisive (a `Deny` for `AllOf`, an `Allow` under
+`First` for `AnyOf`, or the first applying row of the winning effect for
+`Rules`) or failing wins, and nothing later-indexed is observed.
+
+The obvious implementation gets this wrong the same way the naive trace
+implementation did. `Effect.forEach`'s default error mode is fail-fast: the
+instant *any* child fails, the whole dispatch aborts, whichever child that was.
+That is a **schedule-dependent** answer wearing the shape of a real one — a
+policy `allOf([hasRole("legal"), hasAttribute("boom", …)])` where `boom`'s
+resolver always errors would sequentially deny at index 0 without ever asking
+the resolver; concurrently, whether the answer is that same `Deny` or the
+resolver's raw failure depended on which fiber the scheduler happened to
+finish first, not on declaration order.
+
+So each child is run through `Effect.exit`, not dispatched bare — every child
+still runs to completion (losing none of the speculative evaluation the
+concurrent path already performs), but no child's failure can abort the
+dispatch for another. The exits arrive in input order regardless of completion
+order, exactly as the traces already did, and are walked with the same fold:
+the first index that is an `Exit.Failure` re-raises via `Effect.failCause`, the
+first index whose `Exit.Success` trace is decisive returns it, and any exit
+after that point — success or failure — is never inspected. That reproduces
+what the sequential path would have done at every index, including which
+error, if any, reaches the caller.
+
+This applies identically to all three composite dispatchers — `AllOf`, `AnyOf`,
+and `Rules`'s condition list all run their concurrent branch through
+`Effect.exit` and fold in declaration order. `Rules` was the last of the three
+to gain it (CCR-QD-152's follow-up): its concurrent path had the same
+`Effect.forEach` fail-fast dispatch as the other two, and so the same gap — a
+later-indexed rule's condition failing could pre-empt an earlier-indexed rule's
+already-decisive applying row.
+
 ### The deciding rule is still resolved by index
 
-For `Rules` the concurrent path collects every condition result and then selects
-the decider exactly as the sequential path does: the first applying row of the
-winning effect, by index. Selecting by *arrival* would make two runs of the same
-table owe different duties, which is the constraint E3 contributed and the reason
-this could not have been built before it.
+For `Rules` the concurrent path exits every condition, then selects the decider
+exactly as the sequential path does: the first applying row of the winning
+effect, by index. Selecting by *arrival* would make two runs of the same table
+owe different duties, which is the constraint E3 contributed and the reason
+this could not have been built before it — and, since the exit-per-child fix
+above, a failing condition can no longer distort which row that index-based
+selection sees either.
 
 ## Alternatives considered
 
@@ -120,10 +161,12 @@ policy about the caller's store.
 INV-QD-005 is **scoped rather than repealed** — it holds under the default and is
 forfeited by an explicit opt-in, which is now stated in the invariant itself. A new
 invariant, INV-QD-020, carries the property that makes the option safe: concurrency
-changes lookups, never decisions. It is enforced by a property test comparing both
-paths over generated trees, and by call-counting tests proving that the sequential
-path performs *fewer* lookups than the concurrent one on the same policy — because
-an equality test alone would pass if concurrency silently did nothing.
+changes lookups, never decisions — and, since CCR-QD-152, never which error surfaces
+either. It is enforced by a property test comparing both paths over generated trees
+(now including fault injection, so a failing child is part of what the property
+compares, not only denials and allows), and by call-counting tests proving that the
+sequential path performs *fewer* lookups than the concurrent one on the same policy
+— because an equality test alone would pass if concurrency silently did nothing.
 
 The honest cost: a caller who opts in pays for lookups that a sequential run would
 have skipped, and those lookups hit their store. That is the trade the option
