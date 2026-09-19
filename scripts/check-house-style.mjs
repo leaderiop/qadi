@@ -21,11 +21,12 @@
  * not find a real violation. `no-extensionless-relative-import` has the same
  * problem in reverse: it fails `import manifest from "../package.json"`,
  * a real, correct import with no `.ts` extension to add. `SWITCH_BUDGET`,
- * `HAS_CUSTOM_BUDGET`, `UNTRACED_BUDGET` and `ANY_BUDGET` below apply to every
- * `src`-scope file, `features/step-definitions` included (see "Scope beyond
- * `packages`" below) — a `test`-scope file (`packages/<pkg>/test`) never
- * contributes to any of the four, since `testScope`-only rules apply there
- * and a vitest body's `switch`/`hasCustom`/`Effect.fnUntraced`/`any` usage, if
+ * `HAS_CUSTOM_BUDGET`, `UNTRACED_BUDGET`, `ANY_BUDGET` and `SCHEMA_ERROR_BUDGET`
+ * below apply to every `src`-scope file, `features/step-definitions` included
+ * (see "Scope beyond `packages`" below) — a `test`-scope file
+ * (`packages/<pkg>/test`) never contributes to any of the five, since
+ * `testScope`-only rules apply there and a vitest body's
+ * `switch`/`hasCustom`/`Effect.fnUntraced`/`any`/`Schema.TaggedError` usage, if
  * one ever appeared, is not what any of the budgets track.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
@@ -346,6 +347,31 @@ const ANY_BUDGET = {
 
 const ANY_TYPE = /\bany\b/g;
 
+/**
+ * `Schema.TaggedError` class declarations, by file and exact count
+ * (AGENTS.md §4, ADR-QD-060 narrowed by ADR-QD-072).
+ *
+ * §4's default is `Data.TaggedError`; `Schema.TaggedError` is the measured,
+ * named exception — an error earns it when it is part of a codec (a
+ * `SinkRecord` `SinkCodec.ts` must decode/encode structurally, or an
+ * `@qadi/http` response body `httpApiStatus` annotates), not merely because
+ * it happens to leave the process. All eleven current members live in
+ * `packages/core/src/Errors.ts` — see that file's own header doc comment and
+ * AGENTS.md §4's table for which crosses which boundary. Same discipline
+ * `SWITCH_BUDGET`/`HAS_CUSTOM_BUDGET`/`UNTRACED_BUDGET`/`ANY_BUDGET` enforce
+ * for their own exceptions, checked in both directions: a twelfth
+ * `Schema.TaggedError` class added without updating AGENTS.md §4's table and
+ * this budget together fails the gate, and so does the count silently
+ * dropping back down.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const SCHEMA_ERROR_BUDGET = {
+  "packages/core/src/Errors.ts": 12,
+};
+
+const SCHEMA_TAGGED_ERROR = /\bextends\s+Schema\.TaggedError\b/;
+
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
 // this script scans — reuses the identical `as` keyword for namespacing, not
@@ -467,6 +493,9 @@ const untracedLines = new Map();
 /** @type {Map<string, number[]>} */
 const anyLines = new Map();
 
+/** @type {Map<string, number[]>} */
+const schemaErrorLines = new Map();
+
 for (const file of sources) {
   const rel = relative(ROOT, file);
   const isTestFile = testSourceSet.has(file);
@@ -519,8 +548,9 @@ for (const file of sources) {
       importSpan = 0;
     }
 
-    // All four budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
-    // UNTRACED_BUDGET/ANY_BUDGET are keyed to specific src files) — a test
+    // All five budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
+    // UNTRACED_BUDGET/ANY_BUDGET/SCHEMA_ERROR_BUDGET are keyed to specific src
+    // files) — a test
     // file's switch, hasCustom, Effect.fnUntraced or any usage, if one ever
     // appears, is not what any budget tracks.
     if (!isTestFile && SWITCH.test(line)) {
@@ -566,6 +596,14 @@ for (const file of sources) {
         for (let i = 0; i < matches.length; i += 1) found.push(index + 1);
         anyLines.set(rel, found);
       }
+    }
+
+    // Src-only, like UNTRACED_BUDGET above — a test file declaring its own
+    // error class (none does today) is not what this budget tracks.
+    if (!isTestFile && SCHEMA_TAGGED_ERROR.test(line)) {
+      const found = schemaErrorLines.get(rel) ?? [];
+      found.push(index + 1);
+      schemaErrorLines.set(rel, found);
     }
 
     for (const rule of RULES) {
@@ -698,6 +736,37 @@ for (const [rel, budget] of Object.entries(ANY_BUDGET)) {
         `    Update ANY_BUDGET in scripts/check-house-style.mjs so the two agree.`,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// AGENTS.md §4 — `Schema.TaggedError` is the measured, budgeted exception to
+// `Data.TaggedError` (ADR-QD-060, narrowed by ADR-QD-072). Checked in both
+// directions like UNTRACED_BUDGET above: too few means a declared class was
+// migrated back or removed and AGENTS.md §4's table now overstates the
+// exception; too many means a new, unreviewed class adopted it without
+// updating the table and the budget together.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(SCHEMA_ERROR_BUDGET)) {
+  const found = schemaErrorLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [schema-error-budget] declares ${budget} Schema.TaggedError class(es), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update SCHEMA_ERROR_BUDGET in scripts/check-house-style.mjs and AGENTS.md §4's table so all three agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of schemaErrorLines) {
+  if (rel in SCHEMA_ERROR_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [schema-error-budget] New Schema.TaggedError class.\n` +
+      `    Add it to SCHEMA_ERROR_BUDGET in scripts/check-house-style.mjs and AGENTS.md §4's table, ` +
+      `naming which boundary it crosses — a conscious, reviewed opt-in, not a silent grep hit.`,
+  );
 }
 
 // ---------------------------------------------------------------------------

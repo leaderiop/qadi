@@ -109,17 +109,70 @@ namespace-imported module), or implementation-specific (`…Subject`, `…Never`
 **Gotcha:** `Layer.mergeAll` silently drops tail layers past ~90 arguments —
 tsc's variadic inference limit. Nest into groups.
 
-## 4. Errors — `Data.TaggedError`
+## 4. Errors — `Data.TaggedError`, with a measured `Schema.TaggedError` exception
 
-Not `Schema.TaggedErrorClass`. Plain, unprefixed tags — unlike service ids (§2's `"qadi/AttributeResolver"`), error `_tag`s deliberately dropped the `qadi/` prefix.
+Default is `Data.TaggedError`. Not `Schema.TaggedErrorClass`. Plain, unprefixed tags — unlike service ids (§2's `"qadi/AttributeResolver"`), error `_tag`s deliberately dropped the `qadi/` prefix.
 
 ```ts
-export class AccessDenied extends Data.TaggedError("AccessDenied")<{
-  readonly policyTag: string;
-  readonly subjectId: string;
-  readonly reason: string;
+export class CircularRoleInheritance extends Data.TaggedError("CircularRoleInheritance")<{
+  readonly roleName: string;
 }> {}
 ```
+
+**Twelve measured, budgeted exceptions** (ADR-QD-060, narrowed by ADR-QD-072) —
+the same discipline §5's `UNTRACED_BUDGET` and §5a's `SWITCH_BUDGET` apply to
+their own exceptions: an error is `Schema.TaggedError` instead when it is
+*part of the codec*, not merely "an error that happens to leave the process."
+Nine cross a process boundary as an element of a `SinkRecord`
+(`packages/core/src/SinkCodec.ts`) — the class itself is the schema
+`SinkCodec` encodes/decodes, rather than a second, hand-mapped description of
+the same shape living beside it. `AccessDenied` and `UndischargedObligation`
+don't cross that wire but do cross a second, independent trust boundary —
+`@qadi/http`'s response body — and the class is the schema `httpApiStatus`
+annotates there, for the same reason. The twelfth, `AccessDeniedPublic`, is
+`AccessDenied`'s own no-trace projection: not a member of `EnforcementError`
+and never raised by evaluation, but a `Schema.TaggedError` for the identical
+reason `AccessDenied` is — it is the schema `httpApiStatus` annotates
+(`AccessDeniedRefused` in `QadiHttpError.ts`) at the same response-body
+boundary, so the class staying the schema applies to it too.
+
+| Class | Crosses |
+| ----- | ------- |
+| `MissingResource` | `SinkRecord` (ADR-QD-060) |
+| `MissingAction` | `SinkRecord` (ADR-QD-060) |
+| `AttributeResolveError` | `SinkRecord` (ADR-QD-060) |
+| `RelationshipResolveError` | `SinkRecord` (ADR-QD-060) |
+| `MissingResourceId` | `SinkRecord` (ADR-QD-060) |
+| `DecisionHistoryUnavailable` | `SinkRecord` (ADR-QD-060) |
+| `SignatureHistoryUnavailable` | `SinkRecord` (ADR-QD-060) |
+| `PolicyTooDeep` | `SinkRecord` (ADR-QD-060) |
+| `CustomPredicateError` | `SinkRecord` (ADR-QD-060) |
+| `AccessDenied` | `@qadi/http` response body (ADR-QD-072) |
+| `UndischargedObligation` | `@qadi/http` response body (ADR-QD-072) |
+| `AccessDeniedPublic` | `@qadi/http` response body — `AccessDenied` redacted to drop `trace` |
+
+```ts
+export class MissingResource extends Schema.TaggedError<MissingResource>()("MissingResource", {
+  attribute: Schema.String,
+}) {}
+```
+
+Every other error stays `Data.TaggedError` — including one that crosses
+exactly one boundary but isn't part of a generic codec: `SubjectExtractionFailed`
+(`@qadi/http`) stays `Data.TaggedError` internally, and gets its own explicit,
+hand-written wire-facing `Schema.TaggedStruct` mirror
+(`SubjectExtractionRefused` in `QadiHttpError.ts`) at the one place it's
+serialized — because nothing generic needs to decode it structurally the way
+`SinkCodec` or a typed HTTP client does for the eleven above. That's the test:
+**does a codec need this error's shape, or does exactly one call site need to
+turn it into a response?** The former earns `Schema.TaggedError`; the latter
+stays `Data.TaggedError` plus its own mirror.
+
+Enforced by `SCHEMA_ERROR_BUDGET` in `scripts/check-house-style.mjs`, checked
+in both directions like `UNTRACED_BUDGET`: a thirteenth `Schema.TaggedError`
+class added to `packages/core/src/Errors.ts` without updating the table above
+and the budget together fails the gate, and so does the count silently
+dropping back to eleven.
 
 Handling — use the **array form**, never `catchTags({...})`. (The installed
 `effect@4.0.0-rc.116` still ships `Effect.catchTags` with an object-form
@@ -450,10 +503,36 @@ state-management layer of its own. The rules that keep it that way:
   > `scheduleTask` is not scoped to idle cleanup, it reroutes the registry's
   > core dispatch through React's low-priority scheduler, and doing so
   > silently dropped a required intermediate render under real network timing
-  > in `examples/nextjs-newsroom`'s e2e suite. It is not closed, and remains
-  > open. `@effect/atom-react` is now a dependency of `@qadi/react`, and
-  > `QadiProvider.tsx`'s `useAtomValue` is a direct re-export of its hook. See
-  > ADR-QD-014's Consequences section for the full reversal.
+  > in `examples/nextjs-newsroom`'s e2e suite. `@effect/atom-react` is now a
+  > dependency of `@qadi/react`, and `QadiProvider.tsx`'s `useAtomValue` is a
+  > direct re-export of its hook. See ADR-QD-014's Consequences section for the
+  > full reversal.
+  >
+  > **The unbounded-growth gap this left is now closed, without going near
+  > `scheduleTask`/`defaultIdleTTL` a second time.** `QadiAtoms.ts`'s
+  > `Atom.family`-backed decision atoms and its `asked()` bookkeeping had
+  > nothing bounding their growth over a long session asking many distinct
+  > (policy, resource) combinations — confirmed by audit, and real regardless
+  > of whether the underlying `Atom.family` entries are eventually GC'd, since
+  > `asked()`'s own array held every question's `Policy`/`Resource` strongly,
+  > forever. The fix is a qadi-owned eviction sweep instead: each tracked
+  > question carries a `liveCount`, incremented when its decision atom's
+  > reader runs and decremented by a finalizer `AtomRegistry` calls on genuine
+  > teardown (never on a same-tick recompute, which reincrements before any
+  > other fiber can observe zero — see `QadiAtoms.ts`'s `TrackedQuestion` for
+  > why), and `sweepEvictions` — plain `Effect.sync`, no `AtomRegistry` access
+  > at all — drops the oldest questions with `liveCount === 0` once
+  > `maxTrackedQuestions` is exceeded, skipping anything still live rather than
+  > evicting it. `QadiProvider.tsx` forks `Effect.repeat(atoms.sweepEvictions,
+  > Schedule.spaced(sweepIntervalMillis))` on its own fiber at mount and
+  > interrupts it at unmount, the same shape `@qadi/devtools`'s
+  > `useTimeline.ts` uses for its own background subscription — entirely
+  > independent of `AtomRegistry`'s scheduler, so it cannot repeat the dropped-
+  > render failure: it never touches value dispatch or notification, only
+  > which entries `QadiAtoms`' own bookkeeping keeps. `QadiAtoms.test.ts` and
+  > `QadiProvider.test.tsx` cover eviction past the bound, survival of a
+  > currently-mounted gate, and that the existing render-sequence tests this
+  > paragraph's history is about pass unchanged.
 - **Submodule imports, as everywhere else:**
   `import * as Atom from "effect/unstable/reactivity/Atom"`.
 - **Read decisions through `currentDecision`.** It is the single place the rule

@@ -130,20 +130,29 @@ const testLayer = (resolverDown: boolean) =>
   );
 
 describe("RequirePermission client-error typing", () => {
-  it.effect("a generated client decodes a denial as a 403 HttpClientError through passthroughClientLayer", () =>
-    Effect.gen(function* () {
-      const client = yield* makeClient;
-      // No credential header — anonymous, denied by `hasPermission` before
-      // `readPolicy`'s attribute check is ever reached.
-      const error = yield* client.documents.read({ headers: {} }).pipe(Effect.flip);
-      assert.strictEqual(error._tag, "HttpClientError");
-      assert.strictEqual(
-        error._tag === "HttpClientError" && error.reason._tag === "StatusCodeError"
-          ? error.reason.response.status
-          : undefined,
-        403,
-      );
-    }).pipe(Effect.provide(Layer.mergeAll(passthroughClientLayer(RequirePermission), testLayer(false)))));
+  it.effect(
+    "a generated client decodes a denial as the real typed AccessDenied (AccessDeniedPublic's shape) through passthroughClientLayer",
+    () =>
+      Effect.gen(function* () {
+        const client = yield* makeClient;
+        // No credential header — anonymous, denied by `hasPermission` before
+        // `readPolicy`'s attribute check is ever reached.
+        const error = yield* client.documents.read({ headers: {} }).pipe(Effect.flip);
+        // Before `AccessDeniedRefused` carried real fields (`RequirePermission`'s
+        // brand/`AccessDeniedPublic` work), `RequirePermissionLive` answered an
+        // empty 403 body that didn't match its own declared schema — the client
+        // could only fail to decode it, surfacing as a generic `HttpClientError`.
+        // Now the body actually matches `AccessDeniedRefused`
+        // (`AccessDeniedPublic.pipe(HttpApiSchema.status(403))`), so the client
+        // decodes it as the real, typed denial — `subjectId`/`policyTag`/`reason`,
+        // never `trace`.
+        assert.strictEqual(error._tag, "AccessDenied");
+        // `readPolicy` is `allOf([hasPermission(...), hasAttribute(...)])`, so
+        // the root node denying is the `AllOf`, not the leaf `HasPermission`.
+        assert.strictEqual(error._tag === "AccessDenied" ? error.policyTag : undefined, "AllOf");
+        assert.strictEqual("trace" in error, false);
+      }).pipe(Effect.provide(Layer.mergeAll(passthroughClientLayer(RequirePermission), testLayer(false)))),
+  );
 
   it.effect(
     "a generated client decodes an outage as the real typed AttributeResolveError through passthroughClientLayer",

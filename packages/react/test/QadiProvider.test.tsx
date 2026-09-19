@@ -274,3 +274,56 @@ describe("isolated contexts", () => {
     await waitFor(() => expect(screen.getByText("isolated:true")).toBeDefined());
   });
 });
+
+describe("sweepIntervalMillis", () => {
+  it("periodically evicts cold questions in the background, never a mounted gate's own", async () => {
+    // The provider-level half of the eviction sweep — `QadiAtoms.test.ts`'s
+    // own `sweepEvictions` suite already covers the eviction logic itself in
+    // isolation; this is what proves `QadiProvider` actually forks and runs it
+    // on a cadence, rather than merely exposing it for someone else to call.
+    const bounded = makeQadiAtoms(EvaluationServicesNone, { maxTrackedQuestions: 1 });
+    const extra = hasPermission(permission("doc", "extra"));
+
+    const { unmount } = render(
+      <QadiProvider atoms={bounded} subject={reader} sweepIntervalMillis={5}>
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
+
+    // Pushes tracking over the bound with a question nothing renders — cold
+    // from the moment it exists.
+    bounded.decision(extra);
+    expect(bounded.asked().length).toBe(2);
+
+    // Nothing here calls `sweepEvictions` directly: only the provider's own
+    // background fiber can bring this back down.
+    await waitFor(() => expect(bounded.asked().length).toBe(1));
+    expect(bounded.asked()[0]?.policy).toBe(canRead);
+
+    unmount();
+  });
+
+  it("stops sweeping once the provider unmounts", async () => {
+    // The interrupt half: a sweep fiber left running after unmount would keep
+    // touching an atom set whose registry may already be disposed.
+    const bounded = makeQadiAtoms(EvaluationServicesNone, { maxTrackedQuestions: 1 });
+
+    const { unmount } = render(
+      <QadiProvider atoms={bounded} subject={reader} sweepIntervalMillis={5}>
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
+    unmount();
+
+    const afterUnmount = hasPermission(permission("doc", "after-unmount"));
+    bounded.decision(afterUnmount);
+    expect(bounded.asked().length).toBe(2);
+
+    // No provider is mounted any more to fork a sweep fiber, so this stays
+    // over the bound rather than quietly shrinking back to it.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(bounded.asked().length).toBe(2);
+  });
+});

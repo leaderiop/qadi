@@ -8,10 +8,12 @@
  * `RequiredPermission` here is a key used purely as a typed annotation
  * carrier, never injected as a dependency. See ADR-QD-036.
  */
+import * as Brand from "effect/Brand";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import * as HttpApiMiddleware from "effect/unstable/httpapi/HttpApiMiddleware";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
@@ -26,7 +28,7 @@ import type {
   Resource,
   SignatureHistory,
 } from "@qadi/core";
-import { anonymous, CurrentSubject, guard } from "@qadi/core";
+import { anonymous, CurrentSubject, guard, toAccessDeniedPublic } from "@qadi/core";
 import {
   AccessDeniedRefused,
   AttributeResolveErrorResponse,
@@ -58,7 +60,33 @@ export interface PermissionRequirement {
   readonly policy: Policy;
 }
 
-export class RequiredPermission extends Context.Service<RequiredPermission, PermissionRequirement>()(
+/**
+ * `PermissionRequirement`, branded to prove it was produced by
+ * {@link requiresPermission} rather than assembled by hand at a
+ * `.annotate(RequiredPermission, {...})` call site.
+ *
+ * `Context` annotation is last-write-wins: a second, bare `.annotate` call on
+ * the same endpoint silently overwrites or narrows whatever `requiresPermission`
+ * already attached, with no throw and no log — `requiresPermission`'s own
+ * duplicate check only runs when a caller actually calls it, so a raw object
+ * literal passed straight to `.annotate` skipped it entirely. Branding
+ * `RequiredPermission`'s own Shape closes that gap at the type level: a plain
+ * `{ permission, policy }` literal is not assignable to it, so only a value
+ * `requiresPermission` itself returned can satisfy `.annotate`'s second
+ * argument.
+ *
+ * `Brand.nominal`, matching `Authorized<P>` (`@qadi/core`'s `Authorized.ts`)
+ * and the `SubjectId`/`RoleName`-style brands in `Identity.ts`/`Policy.ts`:
+ * this performs no validation, it only tags a value that must have come from
+ * the one function allowed to produce it. This is what finally uses the name
+ * the comment above explains `PermissionRequirement` deliberately isn't —
+ * `RequiredPermissionShape` is exactly `RequiredPermission`'s own Shape, per
+ * AGENTS.md §2, once `PermissionRequirement` is free to keep meaning the
+ * public, unbranded `{ permission, policy }` pair callers build.
+ */
+export type RequiredPermissionShape = Brand.Branded<PermissionRequirement, "RequiredPermission">;
+
+export class RequiredPermission extends Context.Service<RequiredPermission, RequiredPermissionShape>()(
   "qadi/http/RequiredPermission",
 ) {}
 
@@ -196,7 +224,7 @@ export interface AnnotatedEndpoint {
 export const requiresPermission = (
   endpoint: AnnotatedEndpoint,
   requirement: PermissionRequirement,
-): PermissionRequirement => {
+): RequiredPermissionShape => {
   if (Option.isSome(Context.getOption(endpoint.annotations, RequiredPermission))) {
     throw new Error(
       `requiresPermission: endpoint "${endpoint.identifier}" already has a permission ` +
@@ -204,7 +232,7 @@ export const requiresPermission = (
         "and pass it to a single requiresPermission call, rather than calling it twice.",
     );
   }
-  return requirement;
+  return Brand.nominal<RequiredPermissionShape>()(requirement);
 };
 
 /**
@@ -389,11 +417,13 @@ export const RequirePermissionLive: Layer.Layer<
       // `AccessDenied`/`UndischargedObligation`/`SubjectExtractionFailed` are
       // hand-caught and converted here rather than left to propagate:
       // `RequirePermission`'s own doc comment explains why their real fields
-      // must not reach a response body. Everything else in `EnforcementError`
-      // — the nine tags the other declared schemas cover — propagates typed,
-      // and `HttpApiMiddleware`'s response encoder builds the actual response
-      // from whichever declared schema matches, using its `httpApiStatus`
-      // annotation.
+      // must not reach a response body. `AccessDenied` specifically is
+      // projected to the public, no-trace `AccessDeniedPublic` (`@qadi/core`'s
+      // `Errors.ts`) rather than dropped entirely — see the `catchTag` below.
+      // Everything else in `EnforcementError` — the nine tags the other
+      // declared schemas cover — propagates typed, and `HttpApiMiddleware`'s
+      // response encoder builds the actual response from whichever declared
+      // schema matches, using its `httpApiStatus` annotation.
       return Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const subject = yield* extractor.extract(request);
@@ -402,7 +432,23 @@ export const RequirePermissionLive: Layer.Layer<
           Effect.provide(evaluationServices),
         );
       }).pipe(
-        Effect.catchTag(["AccessDenied", "UndischargedObligation"], () =>
+        // `AccessDenied` is projected to `toAccessDeniedPublic`'s no-trace
+        // `AccessDeniedPublic` before it reaches a response body — the real
+        // `AccessDenied` carries the full evaluation `trace` (attribute
+        // values, matched rules, policy internals), and that must not cross
+        // this boundary. `AccessDeniedRefused` (`QadiHttpError.ts`) is the
+        // `httpApiStatus`-annotated view of that same public type, so
+        // `Schema.encodeSync` here produces exactly the body OpenAPI already
+        // advertises for this status, rather than a second, independently
+        // maintained encoding of the same shape.
+        Effect.catchTag("AccessDenied", (error) =>
+          Effect.succeed(
+            HttpServerResponse.jsonUnsafe(Schema.encodeSync(AccessDeniedRefused)(toAccessDeniedPublic(error)), {
+              status: 403,
+            }),
+          ),
+        ),
+        Effect.catchTag("UndischargedObligation", () =>
           Effect.succeed(HttpServerResponse.empty({ status: 403 })),
         ),
         Effect.catchTag("SubjectExtractionFailed", subjectExtractionFailedResponse),

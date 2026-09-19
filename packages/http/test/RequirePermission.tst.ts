@@ -42,6 +42,20 @@ test("registerApi accepts a plain, options-less HttpApi", () => {
   expect(registerApi).type.toBeCallableWith(plainApi);
 });
 
+test("a raw { permission, policy } literal cannot bypass requiresPermission's duplicate check", () => {
+  // `Context` annotation is last-write-wins: a second, bare `.annotate` call
+  // silently overwrites or narrows whatever `requiresPermission` already
+  // attached, with no throw and no log. `RequiredPermission`'s own Shape is
+  // branded (`RequiredPermissionShape`) specifically so this no longer
+  // type-checks — only a value `requiresPermission` itself returned satisfies
+  // it, which is what keeps its duplicate-requirement check from being
+  // skippable by going around it.
+  expect(plainEndpoint.annotate).type.not.toBeCallableWith(RequiredPermission, {
+    permission: readPermission,
+    policy: readPolicy,
+  });
+});
+
 test("the inline .annotate() pattern keeps the endpoint's literal identifier", () => {
   const annotated = plainEndpoint.pipe((endpoint) =>
     endpoint.annotate(

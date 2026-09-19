@@ -110,12 +110,12 @@ REQUIREMENT: A denial MUST project to the empty object.
 ## BEH-QD-052: Denial carries its reason
 
 ```ts
-export class AccessDenied extends Data.TaggedError("AccessDenied")<{
-  readonly subjectId: SubjectId;
-  readonly policyTag: string;
-  readonly reason: string;
-  readonly trace: Trace;
-}> {}
+export class AccessDenied extends Schema.TaggedError<AccessDenied>()("AccessDenied", {
+  subjectId: SubjectIdSchema,
+  policyTag: Schema.String,
+  reason: Schema.String,
+  trace: TraceSchema,
+}) {}
 ```
 
 ```
@@ -124,6 +124,13 @@ REQUIREMENT: `AccessDenied` MUST be catchable by tag and MUST carry the subject,
 ```
 
 The `trace` field is [BEH-QD-054](#beh-qd-054-a-denial-carries-the-tree-not-only-the-sentence).
+
+`AccessDenied` is `Schema.TaggedError`, not `Data.TaggedError` — the narrow
+exception AGENTS.md §4 and `Errors.ts`'s own file header document
+(ADR-QD-060/ADR-QD-072): it crosses the `@qadi/http` response-body boundary, so
+the class is the schema `httpApiStatus` annotates. That boundary is exactly why
+it has a public, no-trace counterpart — see BEH-QD-054's closing note on
+`AccessDeniedPublic` below.
 
 ## BEH-QD-053: Worked example
 
@@ -176,9 +183,20 @@ and the invariant that it equals `trace.reason` is what stops the two drifting.
 Note the disclosure boundary this does **not** cross. A trace names every node's
 tag, its label and the sentence explaining why it refused, so it belongs in a log,
 a thrown error or a test failure — not in a response body.
-`toResponse` continues to return an empty body for every enforcement tag, and
-`@qadi/react`'s hydration continues to withhold the trace by default
+`toResponse` (`@qadi/http`'s bare-`HttpRouter` path, `GuardRoute.ts`) continues
+to return an empty body for every enforcement tag, and `@qadi/react`'s
+hydration continues to withhold the trace by default
 ([BEH-QD-147](./19-hydration.md)).
+
+`RequirePermission`'s `HttpApiMiddleware` path answers a real, if smaller, body
+instead of an empty one: `AccessDeniedPublic` (`@qadi/core`'s `Errors.ts`) is
+`AccessDenied` projected through `toAccessDeniedPublic` — `subjectId`,
+`policyTag` and `reason` survive, `trace` does not — and `RequirePermissionLive`
+encodes exactly that shape (`AccessDeniedRefused` in `QadiHttpError.ts`) as the
+403 response body. The two consumers used to redact the same value two
+different, independently maintained ways — a tag-only schema here, an emptied
+response there — and this formalizes the one redaction both actually needed
+rather than leaving each free to drift from the other.
 
 ```typescript
 import * as Effect from "effect/Effect";

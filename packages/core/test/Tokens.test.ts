@@ -18,6 +18,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import { anonymous, fromRoles, makeSubject, withAttributes } from "../src/AuthSubject.ts";
 import {
+  AccessDenied,
   CircularRoleInheritance,
   errorCode,
   ERROR_CODES,
@@ -25,8 +26,9 @@ import {
   MissingResource,
   PolicyTooDeep,
   RelationshipResolveError,
+  toAccessDeniedPublic,
 } from "../src/Errors.ts";
-import { makeResourceId } from "../src/Identity.ts";
+import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import {
   createPermissionGroup,
   isValidSegment,
@@ -323,5 +325,32 @@ describe("Errors", () => {
     assert.strictEqual(e._tag, "InvalidPermissionSegment");
     assert.strictEqual(e.segment, "resource");
     assert.strictEqual(e.value, "a:b");
+  });
+
+  // The one property `toAccessDeniedPublic`/`AccessDeniedPublic` exist to
+  // guarantee: whatever a real `AccessDenied`'s `trace` contains, the public
+  // projection never carries a `trace` key at all — not `undefined`, absent.
+  it("toAccessDeniedPublic keeps subjectId/policyTag/reason and drops trace entirely", () => {
+    const subjectId = makeSubjectId("bob");
+    const denied = new AccessDenied({
+      subjectId,
+      policyTag: "HasPermission",
+      reason: "subject lacks permission 'document:read'",
+      trace: {
+        policyTag: "HasPermission",
+        allowed: false,
+        reason: "subject lacks permission 'document:read'",
+        children: [],
+        obligations: [],
+      },
+    });
+
+    const publicDenied = toAccessDeniedPublic(denied);
+
+    assert.strictEqual(publicDenied._tag, "AccessDenied");
+    assert.strictEqual(publicDenied.subjectId, subjectId);
+    assert.strictEqual(publicDenied.policyTag, "HasPermission");
+    assert.strictEqual(publicDenied.reason, "subject lacks permission 'document:read'");
+    assert.strictEqual("trace" in publicDenied, false);
   });
 });

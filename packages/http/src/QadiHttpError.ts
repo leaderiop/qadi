@@ -25,6 +25,7 @@ import * as HttpApiSchema from "effect/unstable/httpapi/HttpApiSchema";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import type { EnforcementError } from "@qadi/core";
 import {
+  AccessDeniedPublic,
   AttributeResolveError,
   CustomPredicateError,
   DecisionHistoryUnavailable,
@@ -196,37 +197,49 @@ export const PolicyTooDeepResponse = PolicyTooDeep.pipe(wiringMistake);
 
 /**
  * The wire-facing shape of a denial reaching `RequirePermission`'s
- * middleware: the tag only, no other fields — **not** `HttpApiSchema.Empty`
- * (`Schema.Void`), and that distinction is load-bearing, confirmed by
- * compiling it rather than assumed. `HttpApiBuilder`'s response encoder
- * (`getResponseEncode`, `HttpApiBuilder.ts:1224`) special-cases a
+ * middleware — `@qadi/core`'s `AccessDeniedPublic`, annotated with this
+ * package's own `HttpApiSchema.status(403)` the same way the nine
+ * `*Response` schemas above are (`AccessDeniedPublic` stays unannotated in
+ * `@qadi/core`, which has no dependency on `effect/unstable/httpapi` at all —
+ * see this file's earlier comment on the `outage`/`wiringMistake` schemas for
+ * why that annotation lives here rather than on the class).
+ *
+ * This formalizes what used to be an ad hoc, tag-only `Schema.TaggedStruct(
+ * "AccessDenied", {})` invented independently in this file — **not**
+ * `HttpApiSchema.Empty` (`Schema.Void`), and that distinction is load-bearing,
+ * confirmed by compiling it rather than assumed. `HttpApiBuilder`'s response
+ * encoder (`getResponseEncode`, `HttpApiBuilder.ts:1224`) special-cases an
  * `isNoContent` schema to answer `Response.empty({ status })`
- * **unconditionally, without inspecting the value being encoded at all** —
- * so a bare `Schema.Void` member sitting in the same declared error union as
- * the nine real `EnforcementError` schemas below "encodes" *any* of them
+ * **unconditionally, without inspecting the value being encoded at all** — so
+ * a bare `Schema.Void` member sitting in the same declared error union as the
+ * nine real `EnforcementError` schemas below "encodes" *any* of them
  * successfully, before their own, more specific schema is ever tried, and
  * every one of those nine's real fields silently stops reaching a response.
- * A `Schema.TaggedStruct` with a literal `_tag` and no other fields does not
- * have this problem: encoding validates the `_tag` first and only a real
- * `AccessDenied`/`UndischargedObligation` value matches, so the other nine
- * schemas stay reachable. The body this actually produces is `{"_tag":
- * "AccessDenied"}` (or `"UndischargedObligation"`) — not literally empty,
- * but `subjectId`, `policyTag`, `reason`, and `AccessDenied`'s full
- * evaluation `trace` are excess properties this schema never declares, so
- * they are stripped rather than encoded. That is exactly the boundary this
- * file's own `toResponse` has always kept: "a trace names every node's tag,
- * its label and the sentence explaining why it refused, so it belongs in a
- * log or a test failure, not in a response body." Declaring the real
- * `AccessDenied`/`UndischargedObligation` classes here, unprojected, would
- * make OpenAPI advertise a body neither ever actually sends — a contract
- * lie, worse than a small, honest one. Not that either instance actually
- * reaches this encoder in practice: `RequirePermissionLive`'s own
- * `Effect.catchTag` arm converts both to a response by hand first, matching
- * `toResponse`'s always-empty behavior byte for byte; these are declared for
- * OpenAPI visibility and to keep the union safe for the schemas after them,
- * not because either is expected to be exercised at runtime.
+ * `AccessDeniedPublic`'s `_tag`, `subjectId`, `policyTag` and `reason` fields
+ * do not have this problem: encoding validates the `_tag` first and only a
+ * matching value passes, so the other nine schemas stay reachable. What
+ * changed from the tag-only predecessor is that the body now actually carries
+ * `subjectId`/`policyTag`/`reason` — `AccessDenied`'s full evaluation `trace`
+ * is still never declared here and never reaches a response, which is the one
+ * property this schema and its predecessor both keep: "a trace ... belongs in
+ * a log or a test failure, not in a response body." `RequirePermissionLive`'s
+ * own `Effect.catchTag` arm constructs an `AccessDeniedPublic` from the real
+ * `AccessDenied` (via `toAccessDeniedPublic`) and encodes it with this exact
+ * schema before the response is sent, so what OpenAPI advertises here is what
+ * a caller actually receives, not merely what the schema permits.
  */
-export const AccessDeniedRefused = Schema.TaggedStruct("AccessDenied", {}).pipe(HttpApiSchema.status(403));
+export const AccessDeniedRefused = AccessDeniedPublic.pipe(HttpApiSchema.status(403));
+
+/**
+ * The wire-facing shape of an unmet obligation reaching the middleware: the
+ * tag only, no other fields — the same "not `HttpApiSchema.Empty`" reasoning
+ * as {@link AccessDeniedRefused} applies, but `UndischargedObligation` carries
+ * no `trace`-equivalent disclosure concern, so unlike `AccessDenied` it has no
+ * public projection type of its own; this stays a tag-only
+ * `Schema.TaggedStruct` rather than exposing `subjectId`/`obligationIds`
+ * un-reviewed. `RequirePermissionLive` still answers an empty 403 body for
+ * this tag.
+ */
 export const UndischargedObligationRefused = Schema.TaggedStruct("UndischargedObligation", {}).pipe(
   HttpApiSchema.status(403),
 );

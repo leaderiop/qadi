@@ -621,14 +621,30 @@ describe("@qadi/http", () => {
       assert.strictEqual(body.attribute, "clearance");
     }));
 
-  it.effect("a denial's body stays empty — the trace never reaches the wire (disclosure, ADR-QD-072)", () =>
-    Effect.gen(function* () {
-      const { handler } = HttpRouter.toWebHandler(AppLayer);
-      const response = yield* Effect.promise(() =>
-        handler(new Request("http://localhost/documents", { headers: bearer(BOB_TOKEN) })),
-      );
-      assert.strictEqual(response.status, 403);
-      const text = yield* Effect.promise(() => response.text());
-      assert.strictEqual(text, "");
-    }));
+  it.effect(
+    "a denial's body carries AccessDeniedPublic's redacted fields, never the trace (disclosure, ADR-QD-072)",
+    () =>
+      Effect.gen(function* () {
+        const { handler } = HttpRouter.toWebHandler(AppLayer);
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/documents", { headers: bearer(BOB_TOKEN) })),
+        );
+        assert.strictEqual(response.status, 403);
+        const body: {
+          readonly _tag?: string;
+          readonly subjectId?: string;
+          readonly policyTag?: string;
+          readonly reason?: string;
+          readonly trace?: unknown;
+        } = yield* Effect.promise(() => response.json());
+        assert.strictEqual(body._tag, "AccessDenied");
+        assert.strictEqual(body.subjectId, "bob");
+        assert.strictEqual(body.policyTag, "HasPermission");
+        assert.strictEqual(typeof body.reason, "string");
+        // The one thing this test exists to pin: whatever else the public
+        // projection gains, `trace` — attribute values, matched rules, policy
+        // internals — must never be a key of the response body.
+        assert.strictEqual("trace" in body, false);
+      }),
+  );
 });
