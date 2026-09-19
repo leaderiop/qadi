@@ -24,6 +24,22 @@
  * and without it no gate registers, no marker element is rendered, and this map
  * stays empty for the life of the process. A production bundle that never passes
  * the prop pays for one `useId` and one effect that returns immediately.
+ *
+ * **Ordering is whatever React's effects give it, and that is enough.**
+ * `registerGate`, `updateGateState` and the unregister function `registerGate`
+ * returns each apply to `instances` in the order they happen to fire. There is
+ * no sequence number, no tombstone, and no guarantee that one component's
+ * effects run before or after another's, or even that an instance's own
+ * update and unregister fire in the order a human would expect. What this
+ * gives up on ordering it makes up in simplicity: the registry is eventually
+ * consistent and last-write-wins — whichever effect for a given `id` runs
+ * last is what the map holds, until the next one runs. That is acceptable,
+ * and deliberately left unenforced, because this map only ever feeds a
+ * devtools panel (ADR-QD-053) — it cannot affect rendering or an
+ * authorization decision — so the cost of a brief, self-correcting glitch in
+ * what the panel shows is nothing a real consumer can observe. The "store
+ * contract" tests in `GateRegistry.test.tsx` pin the specific interleavings
+ * this guarantee covers.
  */
 import type { Policy, Resource } from "@qadi/core";
 
@@ -132,9 +148,9 @@ export const registerGate = (instance: GateInstance): (() => void) => {
  * far more often than a component mounts or unmounts, and routing every state
  * transition through `registerGate`'s cleanup-then-register would unregister
  * and immediately re-register the same instance for each one — one `changed()`
- * call becomes two. A no-op when `id` is not currently registered (e.g. a
- * state update effect firing after the corresponding unregister effect, which
- * ordering does not otherwise prevent).
+ * call becomes two. A no-op when `id` is not currently registered — the case
+ * covered by this file's top-of-file ordering guarantee, e.g. a state update
+ * effect firing after the corresponding unregister effect.
  */
 export const updateGateState = (id: string, state: GateRenderState): void => {
   const existing = instances.get(id);

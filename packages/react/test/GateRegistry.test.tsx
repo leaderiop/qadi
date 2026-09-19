@@ -29,7 +29,14 @@ import type { ReactNode } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Can, Cannot } from "../src/components.tsx";
-import { clearGatesUnsafe, gateInstances, subscribeGates } from "../src/GateRegistry.ts";
+import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
+import {
+  clearGatesUnsafe,
+  gateInstances,
+  registerGate,
+  subscribeGates,
+  updateGateState,
+} from "../src/GateRegistry.ts";
 import { useCan, useDecision, useInvalidate } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { QadiProvider } from "../src/QadiProvider.tsx";
@@ -350,6 +357,59 @@ describe("the store contract", () => {
 
     mount(<Can policy={canRead}>allowed</Can>, true);
     expect(notified).toBe(0);
+  });
+
+  describe("interleaving: applied in firing order, eventually consistent", () => {
+    // These call `registerGate`/`updateGateState` directly rather than through
+    // React, to pin the exact firing order each scenario names instead of the
+    // order React's own effect scheduling happens to produce. The file's
+    // top-of-file doc comment states the guarantee these pin: no ordering
+    // across effects, eventually consistent, last-write-wins.
+    const makeInstance = (id: string, state: GateRenderState): GateInstance => ({
+      id,
+      kind: "Can",
+      policy: canRead,
+      resource: undefined,
+      state,
+      element: undefined,
+    });
+
+    it("a state update firing after the matching unregister stays a no-op", () => {
+      const unregister = registerGate(makeInstance("interleave-1", "Pending"));
+      unregister();
+
+      updateGateState("interleave-1", "Allowed");
+
+      expect(gateInstances()).toEqual([]);
+    });
+
+    it("a fresh registration firing after an unregister for the same id resurrects cleanly", () => {
+      const unregister = registerGate(makeInstance("interleave-2", "Pending"));
+      unregister();
+
+      registerGate(makeInstance("interleave-2", "Allowed"));
+
+      expect(gateInstances()).toEqual([makeInstance("interleave-2", "Allowed")]);
+    });
+
+    it("two updates for the same id in rapid succession: the last one applied wins", () => {
+      registerGate(makeInstance("interleave-3", "Pending"));
+
+      updateGateState("interleave-3", "Allowed");
+      updateGateState("interleave-3", "Denied");
+
+      expect(gateInstances()).toHaveLength(1);
+      expect(gateInstances()[0]?.state).toBe("Denied");
+    });
+
+    it("register, immediate unregister, immediate re-register (same id) ends registered with the second registration's data", () => {
+      const firstUnregister = registerGate(makeInstance("interleave-4", "Pending"));
+      firstUnregister();
+
+      registerGate(makeInstance("interleave-4", "Allowed"));
+
+      expect(gateInstances()).toEqual([makeInstance("interleave-4", "Allowed")]);
+    });
   });
 });
 
