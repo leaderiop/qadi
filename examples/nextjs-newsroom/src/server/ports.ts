@@ -18,6 +18,7 @@ import * as Schedule from "effect/Schedule";
 import {
   attributeResolverBounded,
   attributeResolverRetrying,
+  attributeResolverTimingOut,
   AttributeResolver,
   CustomPredicateNone,
   decisionHistoryFromEvents,
@@ -80,16 +81,29 @@ const history = decisionHistoryFromEvents([
 ]);
 
 /**
- * The ports, retrying and bounded.
+ * The ports, timing out, retrying and bounded.
  *
  * `Schedule.recurs(2)` on a resolver that cannot fail looks like theatre and is
  * not: `attributeResolverRetrying` wraps every call whether or not it retries,
  * and it is the wrapper that reports to `qadi_port_retries_total`. Wiring it
  * here is what makes the Services screen's retry column mean "none happened"
  * rather than "nothing counts them".
+ *
+ * `attributeResolverTimingOut` innermost, closest to `attributes` itself —
+ * so a fixed 5-second deadline bounds each individual attempt, and a retry
+ * (this schedule allows two) gets its own fresh deadline rather than sharing
+ * one across the whole sequence — and beneath `attributeResolverBounded`, so
+ * a call that never settles still fails and releases its permit like any
+ * other failure instead of wedging every subsequent `resolve()` behind an
+ * exhausted semaphore. `standingOf`/`userById` never actually hang, so this
+ * is unexercised by this newsroom's own traffic — wired for the same reason
+ * `attributeResolverRetrying` is above: so the composition this library
+ * recommends for a real remote resolver is the one this example actually
+ * shows, not just the one its doc comments describe.
  */
 export const ports: EvaluationPortsLayer = Layer.mergeAll(
   attributes.pipe(
+    attributeResolverTimingOut("5 seconds"),
     attributeResolverRetrying(Schedule.recurs(2)),
     attributeResolverBounded(8),
     // `8` is a literal, always-valid permit count — `InvalidBoundedPermits`

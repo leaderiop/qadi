@@ -17,26 +17,42 @@
  * whichever one matches the failure that actually reached it — declaratively,
  * the way `HttpApi` is meant to be used, and visibly to OpenAPI and typed
  * clients in a way the hand-built table underneath never was.
+ *
+ * **The two routing shapes still disclose asymmetrically, and that asymmetry
+ * is deliberate, not an oversight** (WZ-05). `toResponse` answers every one of
+ * the eleven `EnforcementError` tags with `HttpServerResponse.empty()` — no
+ * `_tag`, no fields, nothing a bare-`HttpRouter` caller can key off beyond the
+ * status code — while `RequirePermission`'s `HttpApiMiddleware` path now
+ * answers with a real, `_tag`-carrying body for every one of them (redacted
+ * where a field would leak, per the split below, but never bodyless). A bare
+ * route has no `HttpApi`/OpenAPI surface and no generated client whose static
+ * type this package could keep honest the way it keeps `RequirePermission`'s
+ * `clientError` union honest, so there is no `*Refused`-shaped schema this
+ * function could encode against without inventing one nobody consumes
+ * type-safely — `guardRoute`'s only contract with its caller is the numeric
+ * status this file's `Match.tagsExhaustive` table already provides. Giving the
+ * bare-router surface a body remains open (see this file's own recommendation
+ * history), but it is a separate, not-yet-decided change, not a gap this
+ * comment was silent about.
  */
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import * as HttpApiSchema from "effect/unstable/httpapi/HttpApiSchema";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
-import type { EnforcementError } from "@qadi/core";
+import type { AccessDenied, EnforcementError } from "@qadi/core";
 import {
   AccessDeniedPublic,
-  AttributeResolveError,
-  CustomPredicateError,
-  DecisionHistoryUnavailable,
   MissingAction,
   MissingResource,
   MissingResourceId,
   PolicyTooDeep,
-  RelationshipResolveError,
-  SignatureHistoryUnavailable,
+  ResourceIdSchema,
+  SubjectIdSchema,
+  UndischargedObligation,
+  errorCode,
 } from "@qadi/core";
-import type { SubjectExtractionFailed } from "./SubjectExtractor.ts";
+import { SubjectExtractionFailed } from "./SubjectExtractor.ts";
 
 const enforcementErrorTags = [
   "AccessDenied",
@@ -82,30 +98,75 @@ type AllTagsCovered<T extends ReadonlyArray<EnforcementError["_tag"]>> =
  */
 export const ENFORCEMENT_ERROR_TAGS: AllTagsCovered<typeof enforcementErrorTags> = enforcementErrorTags;
 
-export const toResponse: (error: EnforcementError) => HttpServerResponse.HttpServerResponse = Match.type<
+/**
+ * The three status codes `toResponse` below and the `httpApiStatus`-annotated
+ * schemas further down both answer with, declared once so the two routing
+ * shapes ADR-QD-072 gives this package cannot silently disagree about which
+ * number a given tag gets. Before this, each side spelled out its own literal
+ * (`403`, `502`, `500`) at every call site — `Match.tagsExhaustive` and
+ * `AllTagsCovered` both fail the build on a **missing** tag, but neither
+ * checks that two present copies of the same tag still agree on the status
+ * *value*, so editing one side's number without the other compiled cleanly
+ * (EC-02). A future fourth status still needs a matching literal added in
+ * both places — this closes the drift between the two that already exist for
+ * the same three numbers, not the risk of a genuinely new one.
+ */
+/**
+ * The status code every denial/obligation response answers with.
+ *
+ * Exported so `RequirePermission.ts`'s `RequirePermissionLive` — the third
+ * call site that answers a denial, alongside `AccessDeniedRefused` and
+ * `UndischargedObligationRefused`'s own `httpApiStatus` annotations — reads
+ * this constant instead of hardcoding `403` a third time. A hardcoded
+ * literal there would drift silently from this one if it ever changed: the
+ * schema's advertised status and the actual response would disagree with no
+ * compile-time or test signal (EC-02).
+ */
+export const DENIAL_STATUS = 403;
+const OUTAGE_STATUS = 502;
+const WIRING_MISTAKE_STATUS = 500;
+
+/**
+ * The three buckets every `EnforcementError` tag falls into, and the one
+ * place that partition is decided.
+ *
+ * `toResponse` below and `DecisionStreamRoute.ts`'s `reauthCheck` both need
+ * this same partition — the former to pick a status code, the latter to
+ * label a stream failure as a denial vs. an outage vs. a wiring mistake
+ * (GR-01/TS-01) — and used to each carry their own independent
+ * `Match.tagsExhaustive` doing it. Two copies of the same classification
+ * compile cleanly on their own (each is exhaustive *within its own file*)
+ * while silently disagreeing with each other on a moved or added tag, with
+ * no compile-time or test signal either way. `toResponse` now derives its
+ * status from this single classification instead of re-partitioning the
+ * eleven tags itself, and `DecisionStreamRoute.ts` imports this directly.
+ */
+export type EnforcementErrorClass = "denied" | "outage" | "wiringMistake";
+
+export const classifyEnforcementError: (error: EnforcementError) => EnforcementErrorClass = Match.type<
   EnforcementError
 >().pipe(
   Match.tagsExhaustive({
     // A denial or an unmet obligation is the policy's answer, not a fault.
-    AccessDenied: () => HttpServerResponse.empty({ status: 403 }),
-    UndischargedObligation: () => HttpServerResponse.empty({ status: 403 }),
+    AccessDenied: () => "denied" as const,
+    UndischargedObligation: () => "denied" as const,
     // A resolver or the history port broke — an outage in something this
     // service depends on, not a fault in the request.
-    AttributeResolveError: () => HttpServerResponse.empty({ status: 502 }),
-    RelationshipResolveError: () => HttpServerResponse.empty({ status: 502 }),
-    DecisionHistoryUnavailable: () => HttpServerResponse.empty({ status: 502 }),
+    AttributeResolveError: () => "outage" as const,
+    RelationshipResolveError: () => "outage" as const,
+    DecisionHistoryUnavailable: () => "outage" as const,
     // Covers both causes this tag carries — an unregistered name and the
     // registered predicate's own logic failing — under the same status the
     // other resolver outages get, since the common case is the latter.
-    CustomPredicateError: () => HttpServerResponse.empty({ status: 502 }),
+    CustomPredicateError: () => "outage" as const,
     // A wired signature history store could not be reached — the same outage
     // shape as the other resolver errors above, same status.
-    SignatureHistoryUnavailable: () => HttpServerResponse.empty({ status: 502 }),
+    SignatureHistoryUnavailable: () => "outage" as const,
     // The evaluation was missing something the policy needed — a wiring
     // mistake in this service, not the caller's.
-    MissingAction: () => HttpServerResponse.empty({ status: 500 }),
-    MissingResource: () => HttpServerResponse.empty({ status: 500 }),
-    MissingResourceId: () => HttpServerResponse.empty({ status: 500 }),
+    MissingAction: () => "wiringMistake" as const,
+    MissingResource: () => "wiringMistake" as const,
+    MissingResourceId: () => "wiringMistake" as const,
     // Also a wiring mistake in this service, and 500 for that reason. No path
     // in this package lets a *request* supply a policy — the middleware reads
     // it from a compile-time endpoint annotation, and `guardRoute` takes it as
@@ -113,19 +174,68 @@ export const toResponse: (error: EnforcementError) => HttpServerResponse.HttpSer
     // what this arm's 400 asserted, cannot reach it here. A 400 is classified
     // non-retryable client error by SDKs and dashboards, so an operator whose
     // own policy tree is too deep would never have been paged for it.
-    PolicyTooDeep: () => HttpServerResponse.empty({ status: 500 }),
+    PolicyTooDeep: () => "wiringMistake" as const,
   }),
 );
+
+const STATUS_BY_CLASS: Record<EnforcementErrorClass, number> = {
+  denied: DENIAL_STATUS,
+  outage: OUTAGE_STATUS,
+  wiringMistake: WIRING_MISTAKE_STATUS,
+};
+
+export const toResponse = (error: EnforcementError): HttpServerResponse.HttpServerResponse =>
+  HttpServerResponse.empty({ status: STATUS_BY_CLASS[classifyEnforcementError(error)] });
 
 /**
  * The `SubjectExtractionFailed` arm both `handleEnforcementErrors` below and
  * `RequirePermission.ts`'s `RequirePermissionLive` share: log the actual
  * reason, then answer 502 — an outage, not a denial, the same status a
  * broken `AttributeResolver` gets (INV-QD-006).
+ *
+ * The 502 body is {@link SubjectExtractionRefused}'s encoded tag, not an
+ * empty response — an empty body decodes to `undefined` through a generated
+ * `HttpApiClient`, which satisfies no `Schema.TaggedStruct`, so a client
+ * built against `RequirePermission.ts`'s declared `clientError` union could
+ * never actually decode this outage as the typed `SubjectExtractionFailed`
+ * it promises (BL-01/MH-01/RM-01/GR-02). The real `reason` stays server-side,
+ * in the log line above — `SubjectExtractionRefused` carries no fields beyond
+ * the tag.
  */
 export const subjectExtractionFailedResponse = (error: SubjectExtractionFailed) =>
   Effect.logError(`qadi/http: subject extraction failed — ${error.reason}`).pipe(
-    Effect.as(HttpServerResponse.empty({ status: 502 })),
+    Effect.as(
+      HttpServerResponse.jsonUnsafe(
+        Schema.encodeSync(SubjectExtractionRefused)({ _tag: "SubjectExtractionFailed" }),
+        { status: OUTAGE_STATUS },
+      ),
+    ),
+  );
+
+/**
+ * Logs a denial's stable code, subject and root reason before the response
+ * arm reduces it to a bodyless — or, at `RequirePermission.ts`'s edge,
+ * tag-only — 403. `AccessDenied` and `UndischargedObligation` are the only
+ * two `EnforcementError` tags whose originating error never reaches a
+ * response body (their real fields are the disclosure concern
+ * {@link AccessDeniedRefused}'s and {@link UndischargedObligationRefused}'s
+ * own doc comments explain), so without this an operator facing a 403 storm
+ * has no server-side answer to "why" short of a separately wired
+ * `DecisionSink` (JD-03, JM-05). `subjectExtractionFailedResponse` above
+ * already logs its own reason — this closes the same gap for the two tags
+ * that didn't.
+ *
+ * Deliberately not the full evaluation `trace` — `errorCode`, `subjectId`,
+ * and either the root denial's `reason` sentence or the unmet obligation ids
+ * are enough to diagnose from an operator's log, without repeating what
+ * `Evaluate.ts`'s own `Effect.logDebug` already records in full.
+ */
+export const logDenial = (error: AccessDenied | UndischargedObligation): Effect.Effect<void> =>
+  Effect.logWarning(
+    error._tag === "AccessDenied"
+      ? `qadi/http: request denied (${errorCode(error)}) — subject "${error.subjectId}": ${error.reason}`
+      : `qadi/http: request denied (${errorCode(error)}) — subject "${error.subjectId}": ` +
+          `undischarged obligation(s) ${error.obligationIds.join(", ")}`,
   );
 
 /**
@@ -159,37 +269,75 @@ export const handleEnforcementErrors = <A, R>(
   self: Effect.Effect<A, EnforcementError | SubjectExtractionFailed, R>,
 ): Effect.Effect<A | HttpServerResponse.HttpServerResponse, never, R> =>
   self.pipe(
+    Effect.tapErrorTag(["AccessDenied", "UndischargedObligation"], logDenial),
     Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) => Effect.succeed(toResponse(error))),
     Effect.catchTag("SubjectExtractionFailed", subjectExtractionFailedResponse),
   );
 
 /**
- * `httpApiStatus`-annotated views of the nine `EnforcementError` tags that
- * carry no disclosure concern at this boundary — reusing the same
- * "the class is the schema" move ADR-QD-060 made for `SinkCodec.ts`'s wire,
- * now extended by ADR-QD-072 to the HTTP response. `.annotate` (reached here
- * through {@link HttpApiSchema.status}) rebuilds the *schema*, not the
- * class, so `RequirePermissionLive` still fails with a real
- * `AttributeResolveError` etc. instance; the annotated view below only
- * changes what `HttpApiMiddleware`'s own response encoder reads off it
+ * `httpApiStatus`-annotated views of the nine `EnforcementError` tags this
+ * middleware lets propagate. Split into two groups, not one, since BS-01's
+ * audit finding: reusing the real class schema unmodified — "the class is
+ * the schema" move ADR-QD-060 made for `SinkCodec.ts`'s wire — is only safe
+ * for the four `*Response` schemas below that genuinely carry no disclosure
+ * concern (`MissingAction`/`MissingResource`/`MissingResourceId`/
+ * `PolicyTooDeep`: an attribute or action *name*, never a value or a defect).
+ *
+ * The other five — `AttributeResolveError`, `RelationshipResolveError`,
+ * `DecisionHistoryUnavailable`, `SignatureHistoryUnavailable` (each with a
+ * `cause: Schema.Defect()`) and `CustomPredicateError` (whose `reason` can
+ * embed `Cause.pretty` output, `Evaluate.ts`'s `evaluateHasCustom`) do carry
+ * one: `.pipe(outage)` on the real class schema would encode the wrapped
+ * defect straight into a client-visible 502 body — a resolver's connection
+ * string, a stack-shaped object, whatever the backing store actually threw.
+ * `RequirePermissionLive` still *fails* with the real class instance carrying
+ * the real `cause`/`reason` (for logs, and for `SinkCodec.ts`'s wire, per
+ * ADR-QD-060); the five `*Response` schemas below are independently-declared
+ * `Schema.TaggedStruct`s covering only the safe fields, so `Schema`'s own
+ * field-driven encoder reads just those off the real value and the sensitive
+ * one is never visited, confirmed directly (`Schema.encodeUnknownSync` given
+ * a real class instance with an extra undeclared field encodes only the
+ * struct's own declared fields — the excess property is never read, let
+ * alone serialized). `CustomPredicateError`'s wire view drops `reason`
+ * entirely rather than half of it: the field conflates an unregistered-name
+ * message with `Cause.pretty` output under one untyped string (tracked
+ * separately, JD-02) and nothing at this boundary can tell which one a given
+ * value holds.
+ *
+ * `.annotate` (reached here through {@link HttpApiSchema.status}) only
+ * changes what `HttpApiMiddleware`'s own response encoder reads off a schema
  * (`httpApiStatus`) when it builds the actual response and the OpenAPI
- * document.
+ * document; it says nothing about which fields that schema declares, which is
+ * exactly the axis the split above turns on.
  *
  * Annotated here, in `@qadi/http`, rather than on the classes themselves in
  * `@qadi/core` — an HTTP status code is a transport concern, and `@qadi/core`
- * has no dependency on `effect/unstable/httpapi` at all. The class stays
- * exactly the wire schema `SinkCodec.ts` needs, unannotated; this package
- * layers its own transport-specific metadata on top rather than reaching
- * into core to add it there.
+ * has no dependency on `effect/unstable/httpapi` at all. The four real class
+ * schemas stay exactly the wire schema `SinkCodec.ts` needs, unannotated;
+ * this package layers its own transport-specific metadata, and for the five
+ * cause-bearing tags its own redacted view, on top rather than reaching into
+ * core to add either there.
  */
-const outage = HttpApiSchema.status(502);
-const wiringMistake = HttpApiSchema.status(500);
+const outage = HttpApiSchema.status(OUTAGE_STATUS);
+const wiringMistake = HttpApiSchema.status(WIRING_MISTAKE_STATUS);
 
-export const AttributeResolveErrorResponse = AttributeResolveError.pipe(outage);
-export const RelationshipResolveErrorResponse = RelationshipResolveError.pipe(outage);
-export const DecisionHistoryUnavailableResponse = DecisionHistoryUnavailable.pipe(outage);
-export const CustomPredicateErrorResponse = CustomPredicateError.pipe(outage);
-export const SignatureHistoryUnavailableResponse = SignatureHistoryUnavailable.pipe(outage);
+export const AttributeResolveErrorResponse = Schema.TaggedStruct("AttributeResolveError", {
+  attribute: Schema.String,
+}).pipe(outage);
+export const RelationshipResolveErrorResponse = Schema.TaggedStruct("RelationshipResolveError", {
+  relation: Schema.String,
+  resourceId: ResourceIdSchema,
+}).pipe(outage);
+export const DecisionHistoryUnavailableResponse = Schema.TaggedStruct("DecisionHistoryUnavailable", {
+  event: Schema.String,
+}).pipe(outage);
+export const CustomPredicateErrorResponse = Schema.TaggedStruct("CustomPredicateError", {
+  name: Schema.String,
+}).pipe(outage);
+export const SignatureHistoryUnavailableResponse = Schema.TaggedStruct("SignatureHistoryUnavailable", {
+  subjectId: SubjectIdSchema,
+  resourceId: Schema.optional(ResourceIdSchema),
+}).pipe(outage);
 export const MissingActionResponse = MissingAction.pipe(wiringMistake);
 export const MissingResourceResponse = MissingResource.pipe(wiringMistake);
 export const MissingResourceIdResponse = MissingResourceId.pipe(wiringMistake);
@@ -228,7 +376,7 @@ export const PolicyTooDeepResponse = PolicyTooDeep.pipe(wiringMistake);
  * schema before the response is sent, so what OpenAPI advertises here is what
  * a caller actually receives, not merely what the schema permits.
  */
-export const AccessDeniedRefused = AccessDeniedPublic.pipe(HttpApiSchema.status(403));
+export const AccessDeniedRefused = AccessDeniedPublic.pipe(HttpApiSchema.status(DENIAL_STATUS));
 
 /**
  * The wire-facing shape of an unmet obligation reaching the middleware: the
@@ -237,11 +385,32 @@ export const AccessDeniedRefused = AccessDeniedPublic.pipe(HttpApiSchema.status(
  * no `trace`-equivalent disclosure concern, so unlike `AccessDenied` it has no
  * public projection type of its own; this stays a tag-only
  * `Schema.TaggedStruct` rather than exposing `subjectId`/`obligationIds`
- * un-reviewed. `RequirePermissionLive` still answers an empty 403 body for
- * this tag.
+ * un-reviewed. `RequirePermissionLive` encodes just the tag through this
+ * schema (`Schema.encodeSync(UndischargedObligationRefused)({ _tag:
+ * "UndischargedObligation" })`) rather than answering a truly empty 403 body
+ * — an empty body decodes to `undefined` through a generated `HttpApiClient`,
+ * which satisfies no `Schema.TaggedStruct`, so the declared `clientError`
+ * union could never actually decode this outcome before this fix
+ * (BL-01/MH-01/RM-01/GR-02).
+ *
+ * **Not `UndischargedObligation.prototype._tag`, despite GC-02's stated
+ * intent to read the tag off the class instead of hand-copying it.** Tried
+ * and confirmed broken by running it, not assumed: a `Schema.TaggedError`
+ * class in this `effect` version sets `_tag` as an **own property on each
+ * instance** (inside the generated constructor), not on the prototype and
+ * not as a static — `UndischargedObligation.prototype._tag` and
+ * `UndischargedObligation._tag` are both `undefined`. `Schema.TaggedStruct(
+ * undefined, {})` still builds without error, but then requires the wire
+ * `_tag` to literally be `undefined` too, so every encode of the real tag
+ * string failed with `SchemaError: Expected undefined at ["_tag"]` — caught
+ * by `RequirePermissionClient.test.ts`'s decode round-trip, which is
+ * exactly the test this class exists to keep honest. The literal string
+ * below is hand-copied, same as before GC-02; the drift risk GC-02 named is
+ * real, but there is no compile-time reference to a `Schema.TaggedError`
+ * class's tag available here, only a runtime one on an actual instance.
  */
 export const UndischargedObligationRefused = Schema.TaggedStruct("UndischargedObligation", {}).pipe(
-  HttpApiSchema.status(403),
+  HttpApiSchema.status(DENIAL_STATUS),
 );
 
 /**
@@ -255,7 +424,13 @@ export const UndischargedObligationRefused = Schema.TaggedStruct("UndischargedOb
  * named as exactly the eleven `EnforcementError` tags — this one stays
  * `Data.TaggedError`, unconverted, and represented at this boundary the same
  * way the two denial tags are.
+ *
+ * Also a hand-copied literal, not `SubjectExtractionFailed.prototype._tag`
+ * — see {@link UndischargedObligationRefused}'s doc comment for why
+ * (GC-02): `Data.TaggedError` classes carry the same own-instance-property
+ * `_tag` a `Schema.TaggedError` one does, `undefined` on both the prototype
+ * and the class itself.
  */
 export const SubjectExtractionRefused = Schema.TaggedStruct("SubjectExtractionFailed", {}).pipe(
-  HttpApiSchema.status(502),
+  HttpApiSchema.status(OUTAGE_STATUS),
 );

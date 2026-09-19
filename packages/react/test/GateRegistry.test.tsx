@@ -37,7 +37,7 @@ import {
   subscribeGates,
   updateGateState,
 } from "../src/GateRegistry.ts";
-import { useCan, useDecision, useInvalidate } from "../src/hooks.ts";
+import { useCan, useDecision, useInvalidate, useProjected } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { QadiProvider } from "../src/QadiProvider.tsx";
 
@@ -193,6 +193,19 @@ describe("instrumented, a guard says it exists", () => {
     };
     mount(<Probe />, true);
     expect(gateInstances()[0]?.kind).toBe("useDecision");
+  });
+
+  it("registers useProjected under its own name, not as useDecision (DA-08)", () => {
+    // `useProjected` used to read through `useDecision`, so its instance
+    // registered — and was labelled in the devtools panel — as "useDecision",
+    // a silent aliasing nothing declared.
+    const Probe = () => {
+      useProjected(canRead, { title: "Q3" });
+      return null;
+    };
+    mount(<Probe />, true);
+    expect(gateInstances()).toHaveLength(1);
+    expect(gateInstances()[0]?.kind).toBe("useProjected");
   });
 
   it("distinguishes two guards on the same policy", () => {
@@ -383,6 +396,21 @@ describe("the store contract", () => {
       expect(gateInstances()).toEqual([]);
     });
 
+    it("cleanup still evicts after updateGateState replaced the stored instance (regression)", () => {
+      // updateGateState stores a brand-new object (`{ ...existing, state }`),
+      // not a mutation of the one `registerGate` was called with. A cleanup
+      // that compared `instances.get(id)` against the *original* object by
+      // reference would find them unequal forever after this line and never
+      // evict — the leak this test pins.
+      const unregister = registerGate(makeInstance("interleave-1b", "Pending"));
+      updateGateState("interleave-1b", "Allowed");
+      expect(gateInstances()).toEqual([makeInstance("interleave-1b", "Allowed")]);
+
+      unregister();
+
+      expect(gateInstances()).toEqual([]);
+    });
+
     it("a fresh registration firing after an unregister for the same id resurrects cleanly", () => {
       const unregister = registerGate(makeInstance("interleave-2", "Pending"));
       unregister();
@@ -409,6 +437,20 @@ describe("the store contract", () => {
       registerGate(makeInstance("interleave-4", "Allowed"));
 
       expect(gateInstances()).toEqual([makeInstance("interleave-4", "Allowed")]);
+    });
+
+    it("a stale unregister firing AFTER a newer registration for the same id does not evict it", () => {
+      // The interleaving the previous test does not cover: here the first
+      // instance's own cleanup runs LAST, after a second instance has already
+      // taken over the same id. Delete-by-id-alone would evict the live,
+      // newer registration; the registry deletes only when the id still maps
+      // to the instance the cleanup belongs to.
+      const firstUnregister = registerGate(makeInstance("interleave-5", "Pending"));
+      registerGate(makeInstance("interleave-5", "Allowed"));
+
+      firstUnregister();
+
+      expect(gateInstances()).toEqual([makeInstance("interleave-5", "Allowed")]);
     });
   });
 });

@@ -54,9 +54,17 @@ import * as Stream from "effect/Stream";
 import * as Sse from "effect/unstable/encoding/Sse";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
-import type { EvaluationServices, Permission, Policy, Resource, SinkRecord } from "@qadi/core";
+import type {
+  EvaluationServices,
+  Permission,
+  Policy,
+  Resource,
+  SinkRecord,
+} from "@qadi/core";
 import { assert, CurrentSubject, isRecordJsonSafe, toWire } from "@qadi/core";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
+import type { EnforcementErrorClass } from "./QadiHttpError.ts";
+import { classifyEnforcementError } from "./QadiHttpError.ts";
 import { NO_RESOURCE } from "./RequirePermission.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
@@ -126,6 +134,26 @@ export const frame: Filter.Filter<SinkRecord, string> = (record) => {
   );
 };
 
+/**
+ * `reauthCheck` classifies an `assert` failure through
+ * {@link classifyEnforcementError} (`QadiHttpError.ts`) rather than collapsing
+ * every one of these to a single "denied" literal, which is exactly the
+ * failure/denial conflation
+ * [INV-QD-006](../../../spec/invariants.md#inv-qd-006-failure-is-not-denial)
+ * forbids everywhere else: an `AttributeResolveError` mid-stream is a
+ * resolver outage, not a revoked subject, and a consumer building the
+ * documented dashboard (ADR-QD-046) needs to tell "you lost access" apart
+ * from "this feed is temporarily unavailable, retry." (GR-01/TS-01)
+ *
+ * This module used to carry its own copy of that same three-bucket
+ * partition, independently `Match.tagsExhaustive` over the same eleven tags
+ * `toResponse` (`QadiHttpError.ts`) sorts to pick an HTTP status — two
+ * exhaustive matches that could each compile cleanly while silently
+ * disagreeing with each other on a moved or added tag. Importing the shared
+ * classification instead closes that gap: there is now exactly one place
+ * that decides which bucket a tag falls into.
+ */
+
 export interface DecisionStreamOptions {
   /**
    * Re-authorizes an open connection on an interval, ending it the moment
@@ -172,6 +200,15 @@ export interface DecisionStreamOptions {
  * outage on this path leaves a trace instead of silently ending the SSE
  * connection with zero diagnostics.
  *
+ * `assert`'s failure is classified through {@link classifyEnforcementError}
+ * rather than collapsed to a single `"denied"` literal (GR-01, TS-01): an
+ * `AccessDenied` or `UndischargedObligation` is a real denial, but an
+ * `AttributeResolveError`
+ * or similar port failure is an **outage**, and reporting an outage as a
+ * denial is exactly the conflation INV-QD-006 forbids everywhere else in
+ * this library. The stream still fails closed either way — only the label
+ * stops lying about which one happened.
+ *
  * Exported for the same reason `frame` is: testing the merged `Stream`
  * through a real, live SSE connection has no existing pattern in this repo
  * (`decisionStream.test.ts`'s own note) — this is a plain `Effect`, testable
@@ -183,7 +220,7 @@ export const reauthCheck = (
   resource: Resource,
 ): Effect.Effect<
   void,
-  "denied" | "extraction-failed",
+  EnforcementErrorClass | "extraction-failed",
   Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
 > =>
   SubjectExtractor.extract(request).pipe(
@@ -195,9 +232,12 @@ export const reauthCheck = (
       assert(policy, { resource }).pipe(
         Effect.provideService(CurrentSubject, subject),
         Effect.tapError((error) =>
-          Effect.logError(`qadi/http: reauth check failed (${error._tag}), reporting a denial`),
+          Effect.logError(
+            `qadi/http: reauth check failed (${error._tag}), reporting ` +
+              `${classifyEnforcementError(error)}`,
+          ),
         ),
-        Effect.mapError(() => "denied" as const),
+        Effect.mapError((error) => classifyEnforcementError(error)),
       ),
     ),
   );
@@ -284,9 +324,12 @@ export const decisionStreamRoute = <P extends Permission>(
         contentType: "text/event-stream",
         headers: {
           // Without these a proxy will buffer the stream into oblivion and
-          // the feed appears to hang rather than to work slowly.
+          // the feed appears to hang rather than to work slowly. No
+          // `connection: "keep-alive"` here (TS-04): `connection` is a
+          // hop-by-hop header the platform server owns, and setting it at
+          // the handler level is redundant at best and can conflict with
+          // the server's own connection management.
           "cache-control": "no-cache",
-          connection: "keep-alive",
           "x-accel-buffering": "no",
         },
       });

@@ -123,6 +123,15 @@ export interface QadiAtoms {
    * component knows perfectly well that it exists; nothing was asking it
    * (CCR-QD-073, corrected here in CCR-QD-076).
    *
+   * **Correction (DA-03):** the "React glue is still one `useSyncExternalStore`
+   * call in `QadiProvider.tsx`" sentence just above is also stale now, for an
+   * unrelated reason — CCR-QD-150 swapped that call for `@effect/atom-react`'s
+   * own `useAtomValue`, so `QadiProvider.tsx` calls `useSyncExternalStore`
+   * **zero** times today. `GateRegistry.ts`'s `subscribe`/`snapshot` contract
+   * this paragraph is actually about is unaffected — it was never what
+   * `QadiProvider.tsx` called — and is still exactly what a host wires up with
+   * its own `useSyncExternalStore`, per the correction below.
+   *
    * **Correction:** this comment, ADR-QD-053 and AGENTS.md §13 all previously
    * went on to claim "and it is `@qadi/devtools`, a DOM package already, that
    * subscribes" — present tense, as if already wired. It is not: nothing under
@@ -198,14 +207,29 @@ export interface AskedQuestion {
  *
  * `sweepEvictions` must never drop an entry while this is above zero: doing
  * so would silently remove a still-mounted gate from `asked()` forever,
- * since `Atom.family`'s constructor callback — the one place a dropped entry
- * could be re-added — runs exactly once per distinct key's lifetime, not on
- * every read (`QadiAtoms.test.ts`'s "hands back a copy" test is what pins
- * that once-only construction).
+ * since `Atom.family`'s constructor callback runs exactly once per distinct
+ * key's lifetime, not on every read (`QadiAtoms.test.ts`'s "hands back a
+ * copy" test is what pins that once-only construction).
+ *
+ * That once-only construction cuts the other way too, and `inTracked` is
+ * what closes it: `Atom.family` has no public API to force-remove an entry,
+ * so evicting a *cold* (`liveCount === 0`) question from `tracked` does not
+ * remove its atom from the family's own cache — the atom can still be
+ * alive, just untracked. A component that re-asks the identical question
+ * before that atom is GC'd gets the same cached atom back, and because the
+ * constructor callback that does `tracked.push` never runs again for an
+ * already-cached key, the reawakened question would otherwise never
+ * reappear in `tracked`/`asked()` at all, contradicting "a question a gate
+ * still has open is never dropped" for the one case that actually asks
+ * again after eviction. `combined`'s reader re-adds the entry (and flips
+ * this back to `true`) the moment it observes `inTracked === false`, before
+ * incrementing `liveCount` — so a reawakened question is visible again from
+ * its very first new subscriber, not only after the next full sweep.
  */
 interface TrackedQuestion {
   readonly question: AskedQuestion;
   liveCount: number;
+  inTracked: boolean;
 }
 
 /**
@@ -276,6 +300,51 @@ export interface QadiAtomsOptions {
   readonly maxTrackedQuestions?: number;
 }
 
+/**
+ * Structural equality for {@link AuthSubject}, used to give the `subject`
+ * atom below equality semantics that match its actual dependency instead of
+ * `Atom.make`'s default `Object.is`.
+ *
+ * `makeSubject`/`fromRoles` (`AuthSubject.ts`) return a fresh plain object on
+ * every call, by design — the surrounding module comment there explains why
+ * they copy rather than alias. That is correct for the builder; it is a
+ * problem for this atom specifically: `AtomRegistry`'s write path
+ * (`AtomRegistry.ts`'s `setValue`) treats *any* referentially distinct write
+ * as a real change and invalidates every dependent, and every decision atom
+ * this file makes reads `subject` (the `computed` atom inside
+ * `seededDecision` above). A host that constructs its subject inline —
+ * `<QadiProvider subject={makeSubject({ id: user.id, roles: user.roles })} />`
+ * in a component that re-renders — would otherwise re-run every mounted
+ * decision on every render, even though the subject the policy actually
+ * cares about never changed (RC-01). Comparing structurally here, once, is
+ * cheaper than re-evaluating every mounted question and lets an inline
+ * subject share the way an inline policy already does (AGENTS.md §13).
+ *
+ * Deliberately shallow on `attributes`: `Object.is` per key, not a deep walk.
+ * `AuthSubject.attributes` is meant for scalar-ish claims a policy compares
+ * with `eq`/`in`/`gte` (`Matcher.ts`), and a host that stores a mutable
+ * nested object there and mutates it in place already breaks
+ * `withAttributes`'s own copy-on-write contract — this does not try to
+ * detect that case, only the overwhelmingly common one of a fresh object
+ * built from the same primitive values.
+ */
+const subjectsEqual = (a: AuthSubject | undefined, b: AuthSubject | undefined): boolean => {
+  if (a === b) return true;
+  if (a === undefined || b === undefined) return false;
+  if (a.id !== b.id) return false;
+
+  if (a.roles.size !== b.roles.size) return false;
+  for (const role of a.roles) if (!b.roles.has(role)) return false;
+
+  if (a.permissions.size !== b.permissions.size) return false;
+  for (const key of a.permissions) if (!b.permissions.has(key)) return false;
+
+  const aKeys = Object.keys(a.attributes);
+  const bKeys = Object.keys(b.attributes);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => Object.is(a.attributes[key], b.attributes[key]));
+};
+
 export const makeQadiAtoms = (
   layer: QadiLayer,
   options?: QadiAtomsOptions,
@@ -295,7 +364,9 @@ export const makeQadiAtoms = (
   }
 
   const runtime = Atom.runtime(layer);
-  const subject = Atom.make<AuthSubject | undefined>(undefined);
+  const subject = Atom.make<AuthSubject | undefined>(undefined).pipe(
+    Atom.withEquality(subjectsEqual),
+  );
   const report = hydrationMismatchReporter(options?.onHydrationMismatch);
 
   const seededDecision = (
@@ -394,6 +465,13 @@ export const makeQadiAtoms = (
       // (dispose-then-reread, synchronous, no `yield*` in between) can never
       // be observed by `sweepEvictions` as a real drop to zero, only a
       // genuine teardown can.
+      if (!tracking.inTracked) {
+        // A previous sweep evicted this question while it was cold, but
+        // `Atom.family` handed back the same cached atom rather than
+        // rebuilding it — see `TrackedQuestion.inTracked`'s own doc comment.
+        tracked.push(tracking);
+        tracking.inTracked = true;
+      }
       tracking.liveCount += 1;
       get.addFinalizer(() => {
         tracking.liveCount -= 1;
@@ -460,17 +538,36 @@ export const makeQadiAtoms = (
   // entries currently have a live reader (`TrackedQuestion.liveCount`) — see
   // that interface's own doc comment for why eviction cannot rely on anything
   // computed from `Policy`/`Resource` structural equality instead.
+  //
+  // **`byResource`'s `resource` argument is a family key, and a family key must
+  // not be mutated after its first use (BL-05).** `Atom.family` compares with
+  // `Equal.equals` and caches the comparison per object pair in a `WeakMap`
+  // (`effect`'s own `Equal` contract) — the same structural keying
+  // `DecisionCacheKey.resource` relies on in `@qadi/core/DecisionCache.ts`,
+  // and the same caveat applies here: a caller who mutates a `resource` object
+  // in place after asking a question with it keeps hitting this family's
+  // existing entry, because the key's hash and the cached comparison were
+  // computed against the pre-mutation shape. `useInvalidate`/`Reactivity.invalidate`
+  // does not help — it recomputes the *cached decision* behind an existing key,
+  // it does not give a mutated object a new one. Treat a `resource` passed to
+  // `decisionFor` as immutable for as long as any component might still be
+  // asking about it; build a new object for a new state instead of mutating
+  // the old one in place.
   const tracked: Array<TrackedQuestion> = [];
 
   const bare = Atom.family((policy: Policy) => {
-    const tracking: TrackedQuestion = { question: { policy }, liveCount: 0 };
+    const tracking: TrackedQuestion = { question: { policy }, liveCount: 0, inTracked: true };
     tracked.push(tracking);
     return seededDecision(policy, undefined, tracking);
   });
 
   const byResource = Atom.family((policy: Policy) =>
     Atom.family((resource: Resource) => {
-      const tracking: TrackedQuestion = { question: { policy, resource }, liveCount: 0 };
+      const tracking: TrackedQuestion = {
+        question: { policy, resource },
+        liveCount: 0,
+        inTracked: true,
+      };
       tracked.push(tracking);
       return seededDecision(policy, resource, tracking);
     }),
@@ -478,13 +575,14 @@ export const makeQadiAtoms = (
 
   const sweepEvictions: Effect.Effect<void> = Effect.sync(() => {
     while (tracked.length > maxTrackedQuestions) {
-      const index = tracked.findIndex((entry) => entry.liveCount === 0);
+      const entry = tracked.find((candidate) => candidate.liveCount === 0);
       // Every remaining entry over the bound is still live — stop rather than
       // evict something in use. The bound becomes best-effort in that case,
       // which is the same tradeoff `DecisionCache.ts`'s own bounded mode makes
       // for an entry with a `compute` still in flight.
-      if (index === -1) break;
-      tracked.splice(index, 1);
+      if (entry === undefined) break;
+      entry.inTracked = false;
+      tracked.splice(tracked.indexOf(entry), 1);
     }
   });
 

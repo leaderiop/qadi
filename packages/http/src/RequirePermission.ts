@@ -35,6 +35,7 @@ import {
   CustomPredicateErrorResponse,
   DecisionHistoryUnavailableResponse,
   MissingActionResponse,
+  DENIAL_STATUS,
   MissingResourceIdResponse,
   MissingResourceResponse,
   PolicyTooDeepResponse,
@@ -42,6 +43,7 @@ import {
   SignatureHistoryUnavailableResponse,
   SubjectExtractionRefused,
   UndischargedObligationRefused,
+  logDenial,
   subjectExtractionFailedResponse,
 } from "./QadiHttpError.ts";
 import type { ClientErrorOf } from "./HttpApiMiddlewareClient.ts";
@@ -225,6 +227,15 @@ export const requiresPermission = (
   endpoint: AnnotatedEndpoint,
   requirement: PermissionRequirement,
 ): RequiredPermissionShape => {
+  // A bare `throw`, not the typed error channel AGENTS.md §4/§6 otherwise
+  // requires — deliberately, and only because this runs at endpoint
+  // construction (module init), never per-request: no request is in flight
+  // for a typed failure to reach, and fail-fast-at-boot is exactly the
+  // right severity for a wiring mistake (GC-06/TS-05). The same reasoning
+  // applies to `DecisionStreamRoute.ts`'s own construction-time throw. A
+  // caller composing endpoints outside module top level — dynamically,
+  // where this is no longer effectively "at boot" — would see an uncaught
+  // throw rather than a typed failure; that is unaddressed today.
   if (Option.isSome(Context.getOption(endpoint.annotations, RequiredPermission))) {
     throw new Error(
       `requiresPermission: endpoint "${endpoint.identifier}" already has a permission ` +
@@ -361,16 +372,35 @@ export class RequirePermission extends HttpApiMiddleware.Service<
   requiredForClient: true,
 }) {}
 
-export const RequirePermissionLive: Layer.Layer<
-  RequirePermission,
-  never,
-  | SubjectExtractor
+/**
+ * The standing `EvaluationServices` this middleware resolves once, at
+ * layer-build time — every one of `@qadi/core`'s `EvaluationServices` except
+ * `CurrentSubject`, which is per-request instead (see this middleware's own
+ * doc comment on `provides: CurrentSubject`). Named once and reused for both
+ * {@link RequirePermissionLive}'s own `Layer` requirement and the
+ * `Effect.context` capture inside it, rather than the same six-service union
+ * spelled out by hand in both positions — a service `@qadi/core` adds to
+ * `EvaluationServices` would otherwise need editing here twice to keep them
+ * from drifting apart (RM-05). Mirrors `@qadi/react`'s `QadiAtoms.ts`
+ * `QadiRuntimeServices = Exclude<EvaluationServices, CurrentSubject>`, kept
+ * local to this module rather than hoisted into `@qadi/core` alongside it —
+ * `@qadi/core`'s `EvaluationServices` itself already carries this exact
+ * exclusion as its own doc-comment-level convention, and duplicating that
+ * one line of derivation here is a smaller drift surface than a third public
+ * export three packages would need to agree stays in sync.
+ */
+type RequirePermissionEvaluationServices =
   | AttributeResolver
   | RelationshipResolver
   | DecisionHistory
   | EvaluationId
   | CustomPredicate
-  | SignatureHistory
+  | SignatureHistory;
+
+export const RequirePermissionLive: Layer.Layer<
+  RequirePermission,
+  never,
+  SubjectExtractor | RequirePermissionEvaluationServices
 > = Layer.effect(
   RequirePermission,
   Effect.gen(function* () {
@@ -380,9 +410,7 @@ export const RequirePermissionLive: Layer.Layer<
     // middleware class itself. Re-provided per request below, inside the
     // returned closure, so `guard`'s own `evaluate` call finds them exactly
     // as it would have found them via an ambient per-request `requires`.
-    const evaluationServices = yield* Effect.context<
-      AttributeResolver | RelationshipResolver | DecisionHistory | EvaluationId | CustomPredicate | SignatureHistory
-    >();
+    const evaluationServices = yield* Effect.context<RequirePermissionEvaluationServices>();
 
     return (httpEffect, { endpoint }) => {
       const required = Context.getOption(endpoint.annotations, RequiredPermission);
@@ -432,6 +460,13 @@ export const RequirePermissionLive: Layer.Layer<
           Effect.provide(evaluationServices),
         );
       }).pipe(
+        // Logged before either arm below reduces the error to its wire body
+        // — `AccessDenied`'s `reason` and `UndischargedObligation`'s
+        // `obligationIds` never reach a response, so this is an operator's
+        // only server-side answer to "why was this denied" short of a wired
+        // `DecisionSink` (JD-03, JM-05). See `logDenial`'s own doc comment
+        // for what it does and does not log (never the full `trace`).
+        Effect.tapErrorTag(["AccessDenied", "UndischargedObligation"], logDenial),
         // `AccessDenied` is projected to `toAccessDeniedPublic`'s no-trace
         // `AccessDeniedPublic` before it reaches a response body — the real
         // `AccessDenied` carries the full evaluation `trace` (attribute
@@ -444,12 +479,25 @@ export const RequirePermissionLive: Layer.Layer<
         Effect.catchTag("AccessDenied", (error) =>
           Effect.succeed(
             HttpServerResponse.jsonUnsafe(Schema.encodeSync(AccessDeniedRefused)(toAccessDeniedPublic(error)), {
-              status: 403,
+              status: DENIAL_STATUS,
             }),
           ),
         ),
+        // `UndischargedObligation` carries no disclosure-reviewed projection
+        // of its own (see `UndischargedObligationRefused`'s doc comment), so
+        // only the tag is encoded — but encoded, not answered as a truly
+        // empty body: an empty body decodes to `undefined` through a
+        // generated `HttpApiClient`, which satisfies no `Schema.TaggedStruct`,
+        // so this outcome could never actually decode as the typed
+        // `UndischargedObligation` the declared `clientError` union promises
+        // before this fix (BL-01/MH-01/RM-01/GR-02/PH-04).
         Effect.catchTag("UndischargedObligation", () =>
-          Effect.succeed(HttpServerResponse.empty({ status: 403 })),
+          Effect.succeed(
+            HttpServerResponse.jsonUnsafe(
+              Schema.encodeSync(UndischargedObligationRefused)({ _tag: "UndischargedObligation" }),
+              { status: DENIAL_STATUS },
+            ),
+          ),
         ),
         Effect.catchTag("SubjectExtractionFailed", subjectExtractionFailedResponse),
       );
