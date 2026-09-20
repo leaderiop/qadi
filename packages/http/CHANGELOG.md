@@ -1,5 +1,27 @@
 # @qadi/http
 
+## 0.7.0
+
+### Minor Changes
+
+- 3f83e90: **Breaking:** `RequirePermission` now declares `requiredForClient: true`, so its full set of twelve enforcement-outcome schemas appears in a generated client's _static_ error type for every endpoint it guards — automatically, with no per-endpoint `error:` declaration needed. Previously this required hand-declaring a subset of `RequirePermission`'s own schemas on each endpoint (the workaround `examples/http-advanced/api.ts` used to ship, now removed).
+
+  If you build a client via `HttpApiClient.make` against an API using `RequirePermission`, add `Effect.provide(passthroughClientLayer(RequirePermission))` to your layer graph. `passthroughClientLayer` is a new export — a fully generic, one-line forwarding implementation for any `requiredForClient` middleware with no real client-side behavior, not specific to `RequirePermission`.
+
+  No runtime behavior changes: `RequirePermission` enforces exactly as before. Only the generated client's static type, and what it now requires to compile, changed. See ADR-QD-075 for the full decision record, including the accepted `PublicEndpoint` over-approximation limitation.
+
+### Patch Changes
+
+- c7aecf1: Bump `effect` to `4.0.0-rc.116` (and its lockstep catalog siblings `@effect/atom-react`, `@effect/platform-node`, `@effect/vitest`). No public API or runtime behavior changes for any `@qadi/*` package — confirmed by diffing the published `4.0.0-rc.115`/`4.0.0-rc.116` tarballs directly and grepping every changed symbol against this codebase's own source.
+- Updated dependencies [c7aecf1]
+  - @qadi/core@0.7.0
+
+## 0.6.3
+
+### Patch Changes
+
+- @qadi/core@0.6.3
+
 ## 0.6.2
 
 ### Patch Changes

@@ -12,5 +12,13 @@
     "**/node_modules/**",
     "apps/*/.astro/**",
     "apps/*/dist/**"
+  ],
+  "overrides": [
+    {
+      "files": ["packages/http/src/HttpApiMiddlewareClient.ts"],
+      "rules": {
+        "no-explicit-any": "off"
+      }
+    }
   ]
 }

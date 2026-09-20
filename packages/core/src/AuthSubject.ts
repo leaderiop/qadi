@@ -53,6 +53,16 @@ export interface AuthSubject {
  * spread, this stored the caller's own record by reference, so a caller
  * mutating that object after the call would silently change what this
  * "immutable" subject answers.
+ *
+ * **`roles` is branded, not validated.** Each string in `config.roles` is
+ * wrapped with `makeRoleName` — a total, non-throwing conversion — not
+ * checked against the segment shape a decoded `Policy.role` must satisfy (no
+ * `:`, non-empty). An identity provider supplying a role name that violates
+ * that shape still gets branded and stored, and can then never equal the
+ * corresponding decoded `policy.role` it was meant to match, so `hasRole`
+ * silently denies instead of failing loudly. Validate upstream, at the
+ * identity-provider boundary, if role names are not already known to be
+ * segment-shaped.
  */
 export const makeSubject = (config: {
   readonly id: string;
@@ -71,6 +81,11 @@ export const makeSubject = (config: {
  *
  * Both the role set and the permission set are transitive, so a subject holding
  * `Admin` (which inherits `Editor`) satisfies `hasRole("Editor")` as well.
+ *
+ * Every name `roleNames` yields is branded with `makeRoleName` the same way
+ * `makeSubject` brands `config.roles` — a total conversion, not a validated
+ * one. See `makeSubject`'s doc comment for what that means for a role name
+ * that is not segment-shaped.
  */
 export const fromRoles = (config: {
   readonly id: string;

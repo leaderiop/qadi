@@ -133,12 +133,24 @@ const wide = allOf([
   hasPermission(read),
 ]);
 
-/** Ten levels, alternating the combinators so no single arm is measured twice. */
-const deep: Policy = Array.from({ length: 10 }).reduce<Policy>(
-  (inner, _, index) =>
-    index % 2 === 0 ? allOf([inner, hasPermission(read)]) : anyOf([inner, not(hasPermission(write))]),
-  hasPermission(read),
-);
+/**
+ * Alternates the combinators so no single arm is measured twice, parametrized
+ * by depth so the scaling sweep below and the fixed `deep` workload above it
+ * share one construction (CO-03).
+ */
+const buildDeep = (levels: number): Policy =>
+  Array.from({ length: levels }).reduce<Policy>(
+    (inner, _, index) =>
+      index % 2 === 0 ? allOf([inner, hasPermission(read)]) : anyOf([inner, not(hasPermission(write))]),
+    hasPermission(read),
+  );
+
+/** Ten levels — one fixed point on `buildDeep`'s curve. */
+const deep: Policy = buildDeep(10);
+
+/** An `allOf` of `arms` `hasPermission` children, parametrized for the same reason. */
+const buildWide = (arms: number): Policy =>
+  allOf(Array.from({ length: arms }, () => hasPermission(read)));
 
 /**
  * The workload that actually reaches `resolveRef`, which is the dispatcher
@@ -230,6 +242,68 @@ test("decideSubjects — 500 subjects", async ({ bench }) => {
   await bench.compare(
     bench("hasPermission", () => {
       runtime.runSync(decideSubjects(one, subjects));
+    }),
+    options,
+  );
+});
+
+/**
+ * **CO-03: a scaling curve, not one fixed point.** Every workload above is
+ * exactly one shape — `deep` is exactly 10 levels, `wide` is exactly 8 arms —
+ * so none of them says how cost grows with policy depth or width past that
+ * single measured point. The expected shape is O(nodes visited) per
+ * evaluation; these two sweeps make that a checked claim instead of an
+ * assumption; a future change that made either scale worse than linear moves
+ * a number here instead of going unnoticed.
+ */
+test("evaluate — depth scaling", async ({ bench }) => {
+  await bench.compare(
+    bench("depth 5", () => run(buildDeep(5))),
+    bench("depth 10", () => run(buildDeep(10))),
+    bench("depth 20", () => run(buildDeep(20))),
+    bench("depth 40", () => run(buildDeep(40))),
+    options,
+  );
+});
+
+test("evaluate — width scaling", async ({ bench }) => {
+  await bench.compare(
+    bench("width 4", () => run(buildWide(4))),
+    bench("width 8", () => run(buildWide(8))),
+    bench("width 16", () => run(buildWide(16))),
+    bench("width 32", () => run(buildWide(32))),
+    options,
+  );
+});
+
+/**
+ * **SM-02: the concurrent path this library ships, actually measured.**
+ * Every workload above runs at `EvaluateOptions`'s sequential default; ADR-QD-026
+ * advertises a round-trip win under concurrency and nothing here checked it.
+ * `wide`'s `allOf` fans its 8 children out, and `filter`'s 500 items fan out
+ * across the array — the two "an item's fate does not depend on which
+ * finished first" sites AGENTS.md §5a and this file's own top comment both
+ * name. `decideSubjects` is deliberately excluded: its cross-subject fan-out
+ * is sequential unconditionally (`SubjectSet.ts`'s own doc comment), so
+ * `options.concurrency` cannot change what is measured there.
+ */
+test("evaluate — wide, concurrency", async ({ bench }) => {
+  await bench.compare(
+    bench("sequential (default)", () => run(wide)),
+    bench("concurrency: unbounded", () => {
+      runtime.runSync(evaluate(wide, { concurrency: "unbounded" }));
+    }),
+    options,
+  );
+});
+
+test("filter — 500 items, concurrency", async ({ bench }) => {
+  await bench.compare(
+    bench("sequential (default)", () => {
+      runtime.runSync(filter(one, items));
+    }),
+    bench("concurrency: unbounded", () => {
+      runtime.runSync(filter(one, items, { concurrency: "unbounded" }));
     }),
     options,
   );

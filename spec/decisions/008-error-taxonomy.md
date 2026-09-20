@@ -1,7 +1,16 @@
 # ADR-QD-008: `Data.TaggedError` with codes derived from tags
 
-> **Status:** Accepted
+> **Status:** Accepted — narrowed by ADR-QD-060/ADR-QD-072 for wire-crossing errors
 > **Date:** 2026-07-25
+> **Change history:** 2026-09-19 — status annotated to point forward. ADR-QD-060
+> (2026-09-08) and ADR-QD-072 (2026-09-08) moved eleven of `QadiError`'s tags — the
+> nine `EvaluationError`s that cross a process boundary, plus `AccessDenied` and
+> `UndischargedObligation` — from `Data.TaggedError` to `Schema.TaggedError`, so
+> this ADR's blanket "every error is a `Data.TaggedError`" decision no longer holds
+> for them. The index already recorded this pattern for ADR-QD-060/072's own
+> narrowing of ADR-QD-060 by ADR-QD-072; this entry had received no equivalent
+> forward pointer despite being superseded in substance for the same eleven tags
+> (100-lens audit, john-a-de-goes JD-04).
 
 ## Context
 

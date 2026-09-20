@@ -1,4 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as FastCheck from "fast-check";
+import type { Containment } from "../src/FieldPath.ts";
 import { compareFieldPaths, parseFieldPath, project } from "../src/FieldPath.ts";
 
 /** Narrows a projected value so a deep assertion can walk into it without `as`. */
@@ -82,6 +84,45 @@ describe("compareFieldPaths", () => {
 
   it("same-length diverging paths are Incomparable, not treated as a prefix", () => {
     assert.strictEqual(compareFieldPaths("a.b", "a.c"), "Incomparable");
+  });
+
+  // EK-03 (100-persona audit): `shapeOf`/`compareShapes`'s own doc comment
+  // admits several mutations "resistant to detection through
+  // `compareFieldPaths`'s external result alone — verified by hand against a
+  // wide set of inputs, not assumed." These two properties are checked over
+  // hundreds of generated specs rather than a fixed example table, replacing
+  // "verified by hand" with something a mutation-testing run can actually
+  // exercise. Both are true of `compareFieldPaths` by construction and hold
+  // regardless of `shapeOf`'s internals, which is exactly what makes them
+  // strong at catching a corrupted shape: a mutant that still passes every
+  // fixed example above but breaks reflexivity or the mirror relation below
+  // is now observable.
+  describe("mutation-resistant properties (generated specs)", () => {
+    const segment = FastCheck.constantFrom("a", "b", "*", "**");
+    const spec = FastCheck.array(segment, { minLength: 1, maxLength: 4 }).map((segments) =>
+      segments.join("."),
+    );
+
+    it("is reflexive: a spec compared against itself is always Equal", () => {
+      for (const s of FastCheck.sample(spec, { numRuns: 300, seed: 1029 })) {
+        assert.strictEqual(compareFieldPaths(s, s), "Equal");
+      }
+    });
+
+    it("mirrors under swapped operands: ALessB/BLessA trade places, Equal/Incomparable don't move", () => {
+      const mirror: Record<Containment, Containment> = {
+        Equal: "Equal",
+        ALessB: "BLessA",
+        BLessA: "ALessB",
+        Incomparable: "Incomparable",
+      };
+      for (const [a, b] of FastCheck.sample(FastCheck.tuple(spec, spec), {
+        numRuns: 300,
+        seed: 1029,
+      })) {
+        assert.strictEqual(compareFieldPaths(b, a), mirror[compareFieldPaths(a, b)]);
+      }
+    });
   });
 });
 

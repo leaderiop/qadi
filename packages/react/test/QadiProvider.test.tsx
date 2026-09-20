@@ -187,6 +187,44 @@ describe("hooks", () => {
     await waitFor(() => expect(screen.getByText("u2:false")).toBeDefined());
   });
 
+  it("useCan is false while the decision is still pending (KD-02)", () => {
+    // No subject yet, so nothing has been decided. `useCan`'s doc comment
+    // names this as one of the situations its `false` collapses — pinned here
+    // so a regression reporting `true` for "not yet decided" (the exact lie
+    // ADR-QD-017 forbids elsewhere) would fail this suite.
+    wrap(undefined, <Probe />);
+    expect(screen.getByText("none:false")).toBeDefined();
+  });
+
+  it("useCan is false when the resolver fails (KD-02)", async () => {
+    // A `Failure` MUST NOT be reported as an allow (BEH-QD-066's counterpart),
+    // but `useCan`'s boolean cannot say *why* it is false — pinned here so a
+    // regression conflating "denied" and "failed" at this hook would fail
+    // this suite rather than only a `useDecision`-level one.
+    const failing = makeQadiAtoms(
+      Layer.mergeAll(
+        Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+        }),
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+        CustomPredicateNone,
+        SignatureHistoryNone,
+      ),
+    );
+    const needsAttribute = hasAttribute("dept", eq(literal("legal")));
+    const FailingProbe = () => <span>{`can=${useCan(needsAttribute)}`}</span>;
+
+    render(
+      <QadiProvider atoms={failing} subject={reader}>
+        <FailingProbe />
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("can=false")).toBeDefined());
+  });
+
   it("throws a helpful error outside a provider", () => {
     // Failing loudly beats silently denying every check, which would look like
     // a permissions bug rather than a wiring bug.
@@ -255,6 +293,33 @@ describe("instrument in a production bundle", () => {
   });
 });
 
+describe("atoms identity (DA-06)", () => {
+  it("warns in development when the atoms prop changes identity after mount", async () => {
+    // The registry is built once, at mount, from whichever `atoms` the first
+    // render passed (`makeQadiAtoms`'s own "call once per context" rule). A
+    // later, different `atoms` value is a sign that rule was broken — an
+    // inline `makeQadiAtoms(...)` call, or a genuine tenant swap the registry
+    // silently does not apply — so this is announced rather than assumed.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const other = makeQadiAtoms(EvaluationServicesNone);
+    try {
+      const { rerender } = wrap(reader, <Can policy={canRead}>allowed</Can>);
+      await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
+      expect(warn).not.toHaveBeenCalled();
+
+      rerender(
+        <QadiProvider atoms={other} subject={reader}>
+          <Can policy={canRead}>allowed</Can>
+        </QadiProvider>,
+      );
+      await waitFor(() => expect(warn).toHaveBeenCalledTimes(1));
+      expect(String(warn.mock.calls[0]?.[0])).toContain("atoms");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
+
 describe("isolated contexts", () => {
   it("keeps two authorization contexts apart", async () => {
     // Two atom sets, two registries. A tenant cannot observe another tenant's
@@ -272,5 +337,58 @@ describe("isolated contexts", () => {
     );
 
     await waitFor(() => expect(screen.getByText("isolated:true")).toBeDefined());
+  });
+});
+
+describe("sweepIntervalMillis", () => {
+  it("periodically evicts cold questions in the background, never a mounted gate's own", async () => {
+    // The provider-level half of the eviction sweep — `QadiAtoms.test.ts`'s
+    // own `sweepEvictions` suite already covers the eviction logic itself in
+    // isolation; this is what proves `QadiProvider` actually forks and runs it
+    // on a cadence, rather than merely exposing it for someone else to call.
+    const bounded = makeQadiAtoms(EvaluationServicesNone, { maxTrackedQuestions: 1 });
+    const extra = hasPermission(permission("doc", "extra"));
+
+    const { unmount } = render(
+      <QadiProvider atoms={bounded} subject={reader} sweepIntervalMillis={5}>
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
+
+    // Pushes tracking over the bound with a question nothing renders — cold
+    // from the moment it exists.
+    bounded.decision(extra);
+    expect(bounded.asked().length).toBe(2);
+
+    // Nothing here calls `sweepEvictions` directly: only the provider's own
+    // background fiber can bring this back down.
+    await waitFor(() => expect(bounded.asked().length).toBe(1));
+    expect(bounded.asked()[0]?.policy).toBe(canRead);
+
+    unmount();
+  });
+
+  it("stops sweeping once the provider unmounts", async () => {
+    // The interrupt half: a sweep fiber left running after unmount would keep
+    // touching an atom set whose registry may already be disposed.
+    const bounded = makeQadiAtoms(EvaluationServicesNone, { maxTrackedQuestions: 1 });
+
+    const { unmount } = render(
+      <QadiProvider atoms={bounded} subject={reader} sweepIntervalMillis={5}>
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
+    unmount();
+
+    const afterUnmount = hasPermission(permission("doc", "after-unmount"));
+    bounded.decision(afterUnmount);
+    expect(bounded.asked().length).toBe(2);
+
+    // No provider is mounted any more to fork a sweep fiber, so this stays
+    // over the bound rather than quietly shrinking back to it.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(bounded.asked().length).toBe(2);
   });
 });

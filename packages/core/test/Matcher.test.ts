@@ -46,6 +46,15 @@ describe("matchers", () => {
     assert.isFalse(run(M.neq(M.literal(1)), 1));
   });
 
+  it("eq/neq treat null as an ordinary operand, unlike exists() (RD-06)", () => {
+    // `exists()` treats `null` as absent; `eq`/`neq` guard only `undefined`
+    // and compare `null` like any other value — a deliberate split pinned
+    // here, not the same "absent" test duplicated.
+    assert.isTrue(run(M.eq(M.literal(null)), null));
+    assert.isFalse(run(M.neq(M.literal(null)), null));
+    assert.isFalse(run(M.eq(M.literal(null)), undefined));
+  });
+
   it("in tests membership", () => {
     assert.isTrue(run(M.inArray([1, 2]), 2));
     assert.isFalse(run(M.inArray([1, 2]), 3));
@@ -106,6 +115,29 @@ describe("matchers", () => {
           Schema.decodeUnknownEffect(M.Matcher)({ _tag: "Gte", value: 3 }),
         );
         assert.strictEqual(finiteGte._tag, "Success");
+      }),
+  );
+
+  it.effect(
+    "the Matcher schema rejects an unrecognized ValueRef tag, rather than silently " +
+      "widening (MH-01)",
+    () =>
+      Effect.gen(function* () {
+        // `resolveRef`'s own default arm says an unknown ref tag would compile
+        // and return `undefined` silently, which denies everything — the safe
+        // direction, but only because that switch happens to be exhaustive by
+        // construction (AGENTS.md §5a). This pins the earlier boundary: a
+        // `ValueRef` is a closed `Schema.Union` of five tagged structs, so an
+        // unrecognized sixth tag must fail decode before `resolveRef` is ever
+        // reached, the same as an unknown `fieldStrategy` must fail before
+        // `mergeFields` is reached.
+        const result = yield* Effect.result(
+          Schema.decodeUnknownEffect(M.Matcher)({
+            _tag: "Eq",
+            ref: { _tag: "NopeRef" },
+          }),
+        );
+        assert.strictEqual(result._tag, "Failure");
       }),
   );
 
@@ -269,6 +301,35 @@ describe("eq/neq against an unresolved reference (H2, CCR-QD-112)", () => {
   });
 });
 
+describe("resolveRef's default arm against an unrecognized ValueRef tag (CM-07)", () => {
+  // `resolveRef`'s `default: { const exhaustive: never = ref; ... }` is
+  // unreachable from TS and from decoded JSON (`Schema.Union` rejects an
+  // unknown tag at the boundary) — but reachable from a hand-built,
+  // in-process `ValueRef`, exactly the vector `Predicate.ts` itself calls out
+  // as real. Built via `JSON.parse` rather than `as` (AGENTS.md §6 bans type
+  // assertions, enforced in tests too, via `no-type-assertion`): its `any`
+  // return needs no cast to assign into a `ValueRef`-typed const.
+  const bogusRef: M.ValueRef = JSON.parse('{"_tag":"BogusRef"}');
+
+  it("eq denies against an unrecognized ref tag — fails safe", () => {
+    assert.isFalse(run(M.eq(bogusRef), "anything"));
+  });
+
+  it("neq ALSO denies against an unrecognized ref tag, not just against undefined", () => {
+    // Before this was fixed, the `default` arm returned `ref` itself (the
+    // bogus `ValueRef` object) rather than `undefined` — `never`-typing a
+    // `const` doesn't change what it holds at runtime. `other` was therefore
+    // always a truthy, non-`undefined` object, so `Neq`'s `other !== undefined`
+    // guard (CCR-QD-112) never caught it, and `value !== other` was `true` for
+    // any resolved value that wasn't that exact object — the same fail-open
+    // shape CCR-QD-112 closed for an unresolved *known* ref, reopened for an
+    // unrecognized one.
+    assert.isFalse(run(M.neq(bogusRef), "anything"));
+    assert.isFalse(run(M.neq(bogusRef), "eng"));
+    assert.isFalse(run(M.neq(bogusRef), undefined));
+  });
+});
+
 describe("eq vs inArray: NaN diverges under === vs SameValueZero", () => {
   it("eq never matches NaN, even against itself — === defines NaN unequal to NaN", () => {
     assert.isFalse(run(M.eq(M.literal(Number.NaN)), Number.NaN));
@@ -279,6 +340,27 @@ describe("eq vs inArray: NaN diverges under === vs SameValueZero", () => {
     // equivalent to `eq(literal(x))`. It is, for every `x` except `NaN`.
     assert.isTrue(run(M.inArray([Number.NaN]), Number.NaN));
     assert.isFalse(run(M.eq(M.literal(Number.NaN)), Number.NaN));
+  });
+});
+
+describe("eq/neq compare object operands by reference (CE-01)", () => {
+  it("eq never matches two structurally equal but distinct objects", () => {
+    assert.isFalse(run(M.eq(M.literal({ id: "x" })), { id: "x" }));
+  });
+
+  it("neq ALLOWS two structurally equal but distinct objects — the mirror-image gap", () => {
+    // `===` is reference identity for objects, so `Neq`'s `value !== other`
+    // is `true` for this pair even though they are meaning-equal. Deliberate
+    // (see `eq`'s doc comment) rather than a CCR-QD-112-style regression:
+    // both operands ARE defined here, so the absent-operand guard doesn't
+    // apply — this is reference vs. structural equality, a different axis.
+    assert.isTrue(run(M.neq(M.literal({ id: "x" })), { id: "x" }));
+  });
+
+  it("eq DOES match the exact same object reference", () => {
+    const shared = { id: "x" };
+    assert.isTrue(run(M.eq(M.literal(shared)), shared));
+    assert.isFalse(run(M.neq(M.literal(shared)), shared));
   });
 });
 

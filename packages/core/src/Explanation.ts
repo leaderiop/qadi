@@ -20,6 +20,7 @@ import * as Match from "effect/Match";
 import type { Matcher, ValueRef } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
+import { childrenOf, defaultFieldStrategy } from "./Policy.ts";
 import type { Combining, FieldStrategy, Policy } from "./Policy.ts";
 
 /** What kind of leaf a {@link Requirement} came from. */
@@ -152,106 +153,195 @@ const requirement = (
 ): Requirement => ({ _tag: "Requirement", kind, detail, fields });
 
 /**
+ * `childrenOf`'s single-child tags (`Not`/`Labeled`/`Obliged`) always produce
+ * exactly one entry, by construction — see `Simplify.ts`'s identically-named,
+ * identically-reasoned helper. Failing loudly on the invariant, rather than
+ * an unchecked `children[0]!` (AGENTS.md §6 bans `!`) or a silent fallback,
+ * keeps a future bug in `rebuildExplanation`'s wiring a thrown error, not a
+ * policy quietly explained wrong.
+ */
+const expectOne = (tag: string, children: ReadonlyArray<Explanation>): Explanation => {
+  const [only, ...rest] = children;
+  if (only === undefined || rest.length !== 0) {
+    throw new Error(`explain: ${tag} expected exactly one child, got ${children.length}`);
+  }
+  return only;
+};
+
+/**
+ * Builds one node's `Explanation` from its own **already-explained**
+ * children, supplied in the same order `childrenOf` (`Policy.ts`) produced
+ * them — the one piece of state `explain`'s explicit-stack walk (below)
+ * passes in that this function's previous native-recursion form got by
+ * calling itself directly instead. A leaf ignores `children` (always `[]`)
+ * and computes its own `Requirement` directly, exactly as before.
+ */
+const rebuildExplanation: (node: Policy) => (children: ReadonlyArray<Explanation>) => Explanation =
+  Match.type<Policy>().pipe(
+    Match.tagsExhaustive({
+      HasPermission: (p) => () =>
+        requirement("permission", permissionKey(p.permission), p.fields),
+
+      HasRole: (p) => () => requirement("role", p.role, p.fields),
+
+      HasAttribute: (p) => () =>
+        requirement("attribute", `the subject's ${p.attribute} ${matcherText(p.matcher)}`, p.fields),
+
+      HasResourceAttribute: (p) => () =>
+        requirement(
+          "attribute",
+          `the resource's ${p.attribute} ${matcherText(p.matcher)}`,
+          p.fields,
+        ),
+
+      // `depth` is part of the question, not decoration, the same reason
+      // `HasActed`/`HasNotActed` state their scope below: `hasRelationship("owner")`
+      // and `hasRelationship("owner", { depth: 1 })` are different policies — one
+      // traverses as far as the resolver decides, the other stops at a direct
+      // edge — and dropping the bound would render both to one sentence
+      // (INV-QD-031).
+      HasRelationship: (p) => () =>
+        requirement(
+          "relationship",
+          `the subject is ${p.relation} of the resource` +
+            (p.depth === undefined ? "" : ` within a traversal depth of ${p.depth}`),
+          p.fields,
+        ),
+
+      HasAction: (p) => () => requirement("action", p.action, p.fields),
+
+      // Scope is part of the question, not decoration: "ever, at all" and "to this
+      // resource" are different claims and a reviewer needs to see which.
+      HasActed: (p) => () =>
+        requirement(
+          "history",
+          `the subject has ${p.event} ${p.scope === "Any" ? "anything" : "this resource"}`,
+          p.fields,
+        ),
+
+      HasNotActed: (p) => () =>
+        requirement(
+          "history",
+          `the subject has not ${p.event} ${p.scope === "Any" ? "anything" : "this resource"}`,
+          p.fields,
+        ),
+
+      // Opaque by design: this names the registered check without pretending to
+      // decompose logic it cannot see (ADR-QD-055).
+      HasCustom: (p) => () => requirement("custom", `custom predicate '${p.name}'`, p.fields),
+
+      // Decomposable, unlike HasCustom: meaning/signerRole/scope are public
+      // policy fields, not opaque externally-registered logic.
+      HasSignature: (p) => () =>
+        requirement(
+          "signature",
+          `the subject has a signature meaning '${p.meaning}'` +
+            (p.signerRole === undefined ? "" : ` from a '${p.signerRole}'`) +
+            ` for ${p.scope === "Any" ? "anything" : "this resource"}`,
+          p.fields,
+        ),
+
+      AllOf: (p) => (parts: ReadonlyArray<Explanation>): All => ({
+        _tag: "All",
+        parts,
+        fieldStrategy: p.fieldStrategy,
+      }),
+
+      AnyOf: (p) => (parts: ReadonlyArray<Explanation>): Any => ({
+        _tag: "Any",
+        parts,
+        fieldStrategy: p.fieldStrategy,
+      }),
+
+      Not: () => (children: ReadonlyArray<Explanation>): Negated => ({
+        _tag: "Negated",
+        part: expectOne("Not", children),
+      }),
+
+      Labeled: (p) => (children: ReadonlyArray<Explanation>): Named => ({
+        _tag: "Named",
+        label: p.label,
+        part: expectOne("Labeled", children),
+      }),
+
+      Obliged: (p) => (children: ReadonlyArray<Explanation>): Owing => ({
+        _tag: "Owing",
+        part: expectOne("Obliged", children),
+        obligation: p.obligation,
+      }),
+
+      Rules: (p) => (children: ReadonlyArray<Explanation>): Table => {
+        if (children.length !== p.rules.length) {
+          throw new Error(
+            `explain: Rules expected ${p.rules.length} children, got ${children.length}`,
+          );
+        }
+        const rows: Array<Row> = [];
+        for (let i = 0; i < p.rules.length; i++) {
+          const rule = p.rules[i];
+          const condition = children[i];
+          // Both indices are in range by the length check above;
+          // `noUncheckedIndexedAccess` still types each lookup as possibly
+          // `undefined`, so this is that same check, not a new one.
+          if (rule === undefined || condition === undefined) {
+            throw new Error(`explain: Rules children misaligned at index ${i}`);
+          }
+          rows.push({ effect: rule.effect, condition });
+        }
+        return { _tag: "Table", rows, combining: p.combining };
+      },
+    }),
+  );
+
+/**
  * Describes a policy without evaluating it.
  *
- * Total by construction: `Match.tagsExhaustive` makes a new policy variant a
- * compile error here rather than a silently unexplained node. Unlike
- * `toPredicate`, which refuses what it cannot translate, this refuses nothing — a
- * policy a reviewer cannot read is worse than one they can only partly act on.
+ * Total by construction: `Match.tagsExhaustive` (inside `rebuildExplanation`)
+ * makes a new policy variant a compile error here rather than a silently
+ * unexplained node. Unlike `toPredicate`, which refuses what it cannot
+ * translate, this refuses nothing — a policy a reviewer cannot read is worse
+ * than one they can only partly act on.
+ *
+ * Walks with an explicit array-backed stack — the same technique
+ * `DecodeDepthGuard.ts`'s `exceedsJsonDepth`, `Policy.ts`'s `policyDepth` and
+ * `Simplify.ts`'s `simplify` use, via the same `childrenOf` — rather than
+ * native recursion. A decoded policy's nesting is bounded by
+ * `MAX_DECODE_DEPTH`, but a policy assembled programmatically never crosses
+ * that boundary, and `explain` is reachable directly on a caller-held
+ * `Policy` with no prior decode step at all (RP-01, 100-lens audit).
  */
-export const explain: (policy: Policy) => Explanation = Match.type<Policy>().pipe(
-  Match.tagsExhaustive({
-    HasPermission: (p) =>
-      requirement("permission", permissionKey(p.permission), p.fields),
-
-    HasRole: (p) => requirement("role", p.role),
-
-    HasAttribute: (p) =>
-      requirement("attribute", `the subject's ${p.attribute} ${matcherText(p.matcher)}`, p.fields),
-
-    HasResourceAttribute: (p) =>
-      requirement(
-        "attribute",
-        `the resource's ${p.attribute} ${matcherText(p.matcher)}`,
-        p.fields,
-      ),
-
-    // `depth` is part of the question, not decoration, the same reason
-    // `HasActed`/`HasNotActed` state their scope below: `hasRelationship("owner")`
-    // and `hasRelationship("owner", { depth: 1 })` are different policies — one
-    // traverses as far as the resolver decides, the other stops at a direct
-    // edge — and dropping the bound would render both to one sentence
-    // (INV-QD-031).
-    HasRelationship: (p) =>
-      requirement(
-        "relationship",
-        `the subject is ${p.relation} of the resource` +
-          (p.depth === undefined ? "" : ` within a traversal depth of ${p.depth}`),
-        p.fields,
-      ),
-
-    HasAction: (p) => requirement("action", p.action, p.fields),
-
-    // Scope is part of the question, not decoration: "ever, at all" and "to this
-    // resource" are different claims and a reviewer needs to see which.
-    HasActed: (p) =>
-      requirement(
-        "history",
-        `the subject has ${p.event} ${p.scope === "Any" ? "anything" : "this resource"}`,
-        p.fields,
-      ),
-
-    HasNotActed: (p) =>
-      requirement(
-        "history",
-        `the subject has not ${p.event} ${p.scope === "Any" ? "anything" : "this resource"}`,
-        p.fields,
-      ),
-
-    // Opaque by design: this names the registered check without pretending to
-    // decompose logic it cannot see (ADR-QD-055).
-    HasCustom: (p) => requirement("custom", `custom predicate '${p.name}'`, p.fields),
-
-    // Decomposable, unlike HasCustom: meaning/signerRole/scope are public
-    // policy fields, not opaque externally-registered logic.
-    HasSignature: (p) =>
-      requirement(
-        "signature",
-        `the subject has a signature meaning '${p.meaning}'` +
-          (p.signerRole === undefined ? "" : ` from a '${p.signerRole}'`) +
-          ` for ${p.scope === "Any" ? "anything" : "this resource"}`,
-        p.fields,
-      ),
-
-    AllOf: (p): All => ({
-      _tag: "All",
-      parts: p.policies.map(explain),
-      fieldStrategy: p.fieldStrategy,
-    }),
-
-    AnyOf: (p): Any => ({
-      _tag: "Any",
-      parts: p.policies.map(explain),
-      fieldStrategy: p.fieldStrategy,
-    }),
-
-    Not: (p): Negated => ({ _tag: "Negated", part: explain(p.policy) }),
-
-    Labeled: (p): Named => ({ _tag: "Named", label: p.label, part: explain(p.policy) }),
-
-    Obliged: (p): Owing => ({
-      _tag: "Owing",
-      part: explain(p.policy),
-      obligation: p.obligation,
-    }),
-
-    Rules: (p): Table => ({
-      _tag: "Table",
-      rows: p.rules.map((r) => ({ effect: r.effect, condition: explain(r.condition) })),
-      combining: p.combining,
-    }),
-  }),
-);
+export const explain = (policy: Policy): Explanation => {
+  const results = new Map<Policy, Explanation>();
+  const stack: Array<{ readonly node: Policy; readonly expanded: boolean }> = [
+    { node: policy, expanded: false },
+  ];
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (frame === undefined) break;
+    if (frame.expanded) {
+      if (results.has(frame.node)) continue;
+      const children = childrenOf(frame.node).map((child) => {
+        const result = results.get(child);
+        if (result === undefined) {
+          throw new Error("explain: child explained after its parent — traversal order bug");
+        }
+        return result;
+      });
+      results.set(frame.node, rebuildExplanation(frame.node)(children));
+      continue;
+    }
+    if (results.has(frame.node)) continue;
+    stack.push({ node: frame.node, expanded: true });
+    for (const child of childrenOf(frame.node)) {
+      stack.push({ node: child, expanded: false });
+    }
+  }
+  const result = results.get(policy);
+  if (result === undefined) {
+    throw new Error("explain: root never explained — traversal order bug");
+  }
+  return result;
+};
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -286,13 +376,20 @@ const fieldStrategyText: (self: FieldStrategy) => string = (self) =>
 
 /**
  * What `fieldStrategy` a bare `allOf`/`anyOf` call implies absent an explicit
- * override (`Policy.ts`'s `CombinatorOptions` doc: `Intersection` for `allOf`,
- * `First` for `anyOf`). Two composites that agree on the strategy actually in
- * force are the same rule however they got there, so only a departure from
- * this default needs a word in the sentence.
+ * override. Two composites that agree on the strategy actually in force are
+ * the same rule however they got there, so only a departure from this default
+ * needs a word in the sentence.
+ *
+ * Reads `Policy.ts`'s `defaultFieldStrategy` rather than restating "Intersection
+ * for allOf, First for anyOf" a second time — this file's own copy of that
+ * sentence, and `Evaluate.ts`'s independent, semantic `exhaustive` check, are
+ * the "three places" EK-04 found this fact encoded (`defaultFieldStrategy`'s
+ * own doc comment has the full history). This file's `"All" | "Any"` kind
+ * labels are `Explanation`'s own vocabulary, not `Policy`'s `_tag`s, hence the
+ * translation at the call site below.
  */
 const isDefaultFieldStrategy = (kind: "All" | "Any", strategy: FieldStrategy): boolean =>
-  kind === "All" ? strategy === "Intersection" : strategy === "First";
+  strategy === defaultFieldStrategy(kind === "All" ? "AllOf" : "AnyOf");
 
 /**
  * The clause naming a composite's `fieldStrategy`, or nothing when it would

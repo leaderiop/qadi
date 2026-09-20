@@ -11,6 +11,14 @@
  * optional port wired up does not have to re-assemble this `Layer.mergeAll`
  * by hand.
  *
+ * **`EvaluationIdLive` is a member here on purpose (GS-05).** A bundle is
+ * named for the ports it *lacks*; a member's own `…Live`/`…None`/`…Never`
+ * suffix describes that member in isolation, not the bundle that carries it —
+ * `EvaluationId` has no meaningful "none" (every evaluation needs an id), so
+ * its only default is the same `…Live` implementation any caller would reach
+ * for on its own. The two suffix conventions describe different things and
+ * are not expected to agree.
+ *
  * **Corrected (issue #103).** This previously claimed "30+ call sites across
  * the test suite and other packages" hand-retyped the identical stack, and
  * said adopting `EvaluationServicesNone` at those sites was "a separate, much

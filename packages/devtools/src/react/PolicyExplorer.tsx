@@ -16,12 +16,44 @@ import { useMemo, useState, type CSSProperties, type FC } from "react";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
+import * as SchemaIssue from "effect/SchemaIssue";
 import { fromJson, policyDepth, simplify, toJson } from "@qadi/core";
-import type { Policy } from "@qadi/core";
+import type { Policy, PolicyDecodeTooDeep } from "@qadi/core";
 import type { PolicySighting } from "../model/Catalogue.ts";
 import { inspect } from "../model/Inspect.ts";
 import { PolicyTree } from "./PolicyTree.tsx";
 import { button, colors, font, input, muted } from "./theme.ts";
+
+/**
+ * Renders a decode failure the way `PolicyExplorer`'s paste box wants it —
+ * path-relative issue sentences, not a debug dump of the error object.
+ *
+ * `String(failure)` (the predecessor of this function) gave
+ * `"SchemaError(Expected { readonly \"_tag\": ... } | ... )"` for the one
+ * decode failure a policy author is guaranteed to meet — the entire
+ * 17-member recursive `Policy` union spelled out, with no path and no hint
+ * which value was actually wrong (WZ-01). `SchemaIssue.makeFormatterStandardSchemaV1`
+ * already flattens the issue tree into `{ message, path }` pairs — this only
+ * adds the `at <path>:` prefix per entry and a dedicated sentence for
+ * {@link PolicyDecodeTooDeep}, which isn't a `Schema.SchemaError` at all and so
+ * has no issue tree to format.
+ */
+const formatDecodeFailure = (failure: PolicyDecodeTooDeep | Schema.SchemaError): string => {
+  if (failure._tag === "PolicyDecodeTooDeep") {
+    return (
+      `Policy nesting exceeds the decode limit (max depth ${failure.maxDepth}). ` +
+      "Simplify the policy, or split it into smaller pieces."
+    );
+  }
+  const { issues } = SchemaIssue.makeFormatterStandardSchemaV1()(failure.issue);
+  if (issues.length === 0) return failure.message;
+  return issues
+    .map(({ path, message }) =>
+      path === undefined || path.length === 0 ? message : `at ${path.map(String).join(".")}: ${message}`,
+    )
+    .join("\n");
+};
 
 /**
  * The depth `evaluate` bounds at unless a caller says otherwise.
@@ -136,8 +168,10 @@ export const PolicyExplorer: FC<PolicyExplorerProps> = ({ sightings }) => {
               const decoded = Effect.runSync(Effect.result(fromJson(text)));
               if (Result.isFailure(decoded)) {
                 // The issue is shown rather than swallowed: a paste that did not
-                // decode is the ordinary way to learn a payload is malformed.
-                setPasteError(String(decoded.failure));
+                // decode is the ordinary way to learn a payload is malformed —
+                // formatted into path-relative sentences, not a debug dump of
+                // the error object (WZ-01).
+                setPasteError(formatDecodeFailure(decoded.failure));
                 return;
               }
               setPasteError(undefined);

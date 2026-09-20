@@ -58,10 +58,12 @@ const LEDGER = join(FOLDER, "README.md");
  */
 const PHRASES = [
   "rescope required",
+  "needs an aggregator's page",
   "cannot be known",
   "is not written",
   "not obtainable",
   "not implemented",
+  "not presentable",
   "unobtainable",
   "has no source",
   "not recorded",

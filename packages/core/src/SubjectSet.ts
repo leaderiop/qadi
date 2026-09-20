@@ -175,6 +175,21 @@ export const filterSubjects = (
  * here: `subjects` is a `Stream`, so its length is not known in advance and
  * may not even be finite — a span annotated with a count would either block
  * on consuming the whole stream first or lie about what has been seen so far.
+ *
+ * **Not given the array form's per-element failure isolation.** `decideSubjects`
+ * never fails — one subject's broken lookup lands in `failures` and every other
+ * subject's decision still comes back (issue #107). This function has no
+ * equivalent sink: a failing element fails the whole stream, and every decision
+ * already emitted downstream is lost along with it — there is no way for a
+ * consumer to learn which subject broke or how far the review got before it
+ * did. That is a real asymmetry between the batch-scale entry point and its
+ * array sibling, not an oversight papered over here: giving the stream form
+ * the same partial-progress guarantee needs a `SubjectEvaluationFailure`-shaped
+ * element in the success channel (so a downstream `Stream.filter`/`Stream.map`
+ * can tell a decision from a failure) rather than a change to this function's
+ * error channel, which is a real API shape decision this file does not make
+ * unilaterally — see `spec/behaviors/14-subject-sets.md`'s note on this being
+ * deferred work.
  */
 export const decideSubjectsStream = <E2 = never, R2 = never>(
   policy: Policy,

@@ -72,14 +72,26 @@ export type StoredRecord = StoredDecisionRecord | StoredObligationRecord;
  * quietly stop honestly satisfying its own type. Spreading `record`'s fields
  * into a fresh class's constructor, below, is a different operation: `new`
  * builds a genuinely new instance with the right prototype, so nothing is lost.
+ *
+ * A module-scope `Match.type<SinkRecord>()`, built once (AGENTS.md §5a),
+ * rather than `Match.value(record)` rebuilt on every call — `stampRecord` runs
+ * once per record `decisionSinkRing`'s `record`/`ingest` accept, i.e. per
+ * authorization decision whenever a `DecisionSink` is wired, the exact
+ * per-call dispatch shape §5a's hoisted form exists for. Both arms close only
+ * over `environment` (the per-call argument), not over anything from the
+ * matcher's own construction, so hoisting needs no extra plumbing.
  */
+const stampRecordMatch: (
+  record: SinkRecord,
+) => (environment: string) => StoredRecord = Match.type<SinkRecord>().pipe(
+  Match.tagsExhaustive({
+    Decision: (r) => (environment: string) => new StoredDecisionRecord({ ...r, environment }),
+    Obligations: (r) => (environment: string) => new StoredObligationRecord({ ...r, environment }),
+  }),
+);
+
 export const stampRecord = (record: SinkRecord, environment: string): StoredRecord =>
-  Match.value(record).pipe(
-    Match.tagsExhaustive({
-      Decision: (r) => new StoredDecisionRecord({ ...r, environment }),
-      Obligations: (r) => new StoredObligationRecord({ ...r, environment }),
-    }),
-  );
+  stampRecordMatch(record)(environment);
 
 export const DEFAULT_RING_CAPACITY = 500;
 

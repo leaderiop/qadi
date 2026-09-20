@@ -17,7 +17,7 @@ tracing rather than a bespoke logging port.
 - Node `>=22.12.0`
 - A package manager — this repo's own development is pinned to `pnpm@10.17.1`;
   consuming apps can use npm, yarn, or pnpm
-- Effect v4, currently a release candidate (`effect: 4.0.0-rc.115` in this
+- Effect v4, currently a release candidate (`effect: 4.0.0-rc.116` in this
   workspace). Qadi's public API surfaces Effect classes directly
   (`Context.Service`, `Data.TaggedError`), so pin the same rc line rather than
   a caret range — see `pnpm-workspace.yaml` for the rationale
@@ -35,12 +35,8 @@ loaded resource — dropping any field the policy doesn't grant:
 
 ```typescript
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-  RelationshipResolverNever,
+  EvaluationServicesNone,
   allOf,
   currentSubjectLayer,
   enforceProjected,
@@ -60,13 +56,6 @@ const canReadTitle = allOf([
   hasPermission(readDoc, { fields: ["id", "title"] }),
 ]);
 
-const qadiServices = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  EvaluationIdLive,
-);
-
 declare const loadDocument: (id: string) => Effect.Effect<{
   id: string;
   title: string;
@@ -76,7 +65,14 @@ declare const loadDocument: (id: string) => Effect.Effect<{
 const program = loadDocument("doc-1").pipe(
   enforceProjected(canReadTitle),
   Effect.provide(currentSubjectLayer(fromRoles({ id: "u1", roles: [editor] }))),
-  Effect.provide(qadiServices),
+  // The combined fail-closed default for every port this policy doesn't use
+  // (`AttributeResolverNone`, `RelationshipResolverNever`,
+  // `DecisionHistoryUnknown`, `EvaluationIdLive`, `CustomPredicateNone`,
+  // `SignatureHistoryNone`) — hand-assembling the same six with
+  // `Layer.mergeAll` works too, but the moment a copy omits one, extending
+  // the policy with `hasCustom`/`hasSignature` dies with a missing-service
+  // defect instead of an answer.
+  Effect.provide(EvaluationServicesNone),
 );
 // → { id: "doc-1", title: "…" }   `internalNotes` is not returned.
 ```
@@ -197,8 +193,10 @@ round-trips through storage cannot silently come back meaning something else.
 > [roadmap](./spec/roadmap.md) committed to has shipped, and every access-control
 > model in the [adoption matrix](./spec/models/00-adoption-matrix.md) is either
 > adopted or explicitly declined. All nine packages are published on npm at
-> `0.4.0` (verified live against the registry, 2026-09-06) — the same version
-> every `packages/*/package.json` carries via the changesets fixed group.
+> `0.7.0` (verified live against the registry, 2026-09-19) — the same version
+> every `packages/*/package.json` carries via the changesets fixed group. The
+> root `package.json` is not part of that group and stays at its own,
+> unrelated version.
 
 ## Development
 

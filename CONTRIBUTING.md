@@ -11,6 +11,33 @@ starting fresh.
 `AGENTS.md` §15 for why there is deliberately no separate CI step list to
 drift out of sync with it.
 
+**While iterating**, `pnpm check` (measured at 27–29 minutes per CI leg,
+`check.yml`) is the wrong tool — it is the pre-push/CI-identity gate, not the
+loop you run after every edit (OT-05/EY-05). Use the scoped commands instead,
+and save the full gate for before you push:
+
+- `pnpm lint` — `oxlint` plus `scripts/check-house-style.mjs`, seconds, catches
+  the budgeted-exception and import-style rules AGENTS.md §1–§6 describe.
+- `pnpm --filter <package> typecheck` — a scoped `tsc -b`, e.g.
+  `pnpm --filter @qadi/core typecheck`, far faster than the two full builds
+  `pnpm typecheck` runs at the repo root.
+- `npx vitest run --project <package>` — e.g. `npx vitest run --project core`
+  — the affected package's own suite, without the other eight.
+
+None of the three replaces `pnpm check` — coverage thresholds, mutation
+testing, spec traceability, and the rest of the twenty-four steps only run
+there — but for the common loop (edit one package, check it typechecks and
+its tests pass) they are what to reach for, and `pnpm check` is what to run
+once, before you push.
+
+Six of those twenty-four steps are independent Stryker mutation runs, chained
+sequentially by `&&` in the `mutation` script (`package.json`) because they
+share no state to coordinate — sequential is simply what `&&` gives, not a
+requirement. Nothing currently parallelizes or shards them, so their combined
+wall-clock cost is paid in full on every `pnpm check` run; treat that as a
+known, chosen cost rather than a surprise; revisiting it is a real option, not
+yet taken.
+
 **Platform notes**, since CI only ever runs `pnpm check` on `ubuntu-latest`
 and these do not surface there:
 
@@ -50,6 +77,9 @@ and these do not surface there:
 | Publish-status prose in README/CONTRIBUTING/roadmap/website | `scripts/check-publish-status.mjs` fails if a quoted version disagrees with `package.json`'s |
 | Why `pnpm install` patches `node_modules/typescript` | `README.md`'s Development section — `effect-tsgo patch` is `@effect/tsgo`'s own `prepare` step, not this repo's |
 | Why `apps/website/package.json` has no `engines` field, unlike every published package | Deliberate, not an oversight: the workspace floor is a claim about the nine *published* packages, and `apps/website` is `private: true` and publishes nothing, so it doesn't restate that number — it reads Astro's own floor live via `scripts/check-website-build.mjs` instead. The two floors happen to coincide at `>=22.12.0` as of this writing (they diverged before ADR-QD-074 raised the workspace floor to meet Astro's — see ADR-QD-059), but restating either number here would duplicate a fact one side could drift from independently of the other. `features/package.json`, which carries the workspace floor directly, has no such independent-drift risk |
+| A budgeted exception (a new `switch`, `Effect.fnUntraced`, `any`, or `hasCustom` call site) | `AGENTS.md` §5/§5a for the discipline, plus the matching budget table in `scripts/check-house-style.mjs` (`SWITCH_BUDGET`/`HAS_CUSTOM_BUDGET`/`UNTRACED_BUDGET`/`ANY_BUDGET`) and the ADR that measured it (ADR-QD-055/073/075) — the table, the budget, and (for `fnUntraced`) the benchmark justifying it move in the same change, or the gate fails in the direction that caught the drift (JG-06) |
+| A doc example or code comment under `spec/` | `AGENTS.md` §12 — ` ```typescript `/` ```tsx ` fences are compiled by `scripts/check-doc-examples.mjs` and must import what they use; ` ```ts ` is reference material only, not compiled (SM-06) |
+| `AGENTS.md` itself | Its own doc-comment-shape preamble (lead with what, follow with why) — a fenced example inside it is illustrative prose (`ts`), never assumed to compile, unlike the same fence language under `spec/` (SM-06) |
 
 ## Releasing a version
 
@@ -79,17 +109,19 @@ that specific package changed. Verify what would actually happen with
 packages have pending changesets and what the resulting versions would be.
 
 **State as of this writing** (verified live against the npm registry,
-2026-09-06): the root and every `packages/*/package.json` read `0.4.0`, and
-all nine packages are published at `0.4.0` on npm — the five that had never
-been published before (`@qadi/http`, `@qadi/devtools`, `@qadi/audit`,
-`@qadi/predicate-sql`, `@qadi/predicate-prisma`) went out for the first time
-in this same release, under the permanent fixed group above. `.changeset/`
-holds no pending changesets. `pnpm publish`, never `npm publish` — AGENTS.md
-§16 explains why the workspace-time `catalog:`/`workspace:*` protocols
-require it. `scripts/check-publish-status.mjs` (merge gate 24) keeps this
-paragraph's version honest going forward — it fails if a version quoted here,
-in README.md, in spec/roadmap.md, or in apps/website/PRODUCT.md ever
-disagrees with `package.json`'s again.
+2026-09-19): every `packages/*/package.json` reads `0.7.0`, and all nine
+packages are published at `0.7.0` on npm. The root `package.json` is **not**
+part of the fixed group above — `changeset version` never touches it — and it
+stays frozen at its own, unrelated version; it is not a publish-status signal
+for anything under `packages/`. `.changeset/` holds no pending changesets.
+`pnpm publish`, never `npm publish` — AGENTS.md §16 explains why the
+workspace-time `catalog:`/`workspace:*` protocols require it.
+`scripts/check-publish-status.mjs` (merge gate 24) keeps this paragraph's
+version honest going forward — it fails if a version quoted here, in
+README.md, in spec/roadmap.md, or in apps/website/PRODUCT.md ever disagrees
+with what every `packages/*/package.json` agrees on (RC-01/DH-05: it used to
+check against the root's version instead, which is exactly the fact that had
+gone stale).
 
 ## Why the rules read the way they do
 

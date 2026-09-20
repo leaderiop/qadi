@@ -25,9 +25,27 @@
 import * as Brand from "effect/Brand";
 import * as Schema from "effect/Schema";
 
-export type SubjectId = string & Brand.Brand<"SubjectId">;
+/**
+ * The brand tag itself, as a value — not just the type-level string literal
+ * `"SubjectId"` `Brand.Brand`/`Schema.brand`/`Schema.fromBrand` each expect.
+ *
+ * `SubjectId` is a plain `Brand.nominal`, not a `Schema`, so a `Schema`-derived
+ * field elsewhere in the codebase (`Signature.ts`'s `signerId`) cannot import
+ * the brand itself and has to declare the same tag independently via
+ * `Schema.brand(SUBJECT_ID_TAG)`. Exporting the tag as a constant, rather than
+ * leaving `"SubjectId"` as a string literal repeated at each declaration site,
+ * means a typo at the second site is a compile error (an unknown import) or a
+ * reference to the wrong constant, not a silently-different nominal type that
+ * only surfaces as an assignability error far from either declaration
+ * (MP-06).
+ */
+export const SUBJECT_ID_TAG = "SubjectId" as const;
+
+export type SubjectId = string & Brand.Brand<typeof SUBJECT_ID_TAG>;
 export const makeSubjectId = Brand.nominal<SubjectId>();
-export const SubjectIdSchema = Schema.String.pipe(Schema.fromBrand("SubjectId", makeSubjectId));
+export const SubjectIdSchema = Schema.String.pipe(
+  Schema.fromBrand(SUBJECT_ID_TAG, makeSubjectId),
+);
 
 export type ResourceId = string & Brand.Brand<"ResourceId">;
 export const makeResourceId = Brand.nominal<ResourceId>();

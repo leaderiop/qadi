@@ -57,6 +57,23 @@ re-checked is not yet an answer, whichever answer it held before.
   node will show it briefly on every invalidation.
 - Stale-while-revalidate, which is usually the right default for cached data, is
   opt-in here rather than automatic.
+- **A subject-prop change carries a one-frame window this mechanism does not
+  cover.** `QadiProvider.tsx` writes a changed `subject` prop to the registry
+  in a `useEffect`, after commit, rather than during render — reverted there
+  from a render-phase write (ticket 34) that reproducibly hung an in-flight
+  re-check on a page where `subject` never changed at all. For the one frame
+  between the new render and that effect running, every guarded child still
+  reads the *previous* subject's settled, non-`waiting` decisions:
+  `currentDecision` cannot help, because the atom has not been told the
+  subject changed yet, so there is no re-check in flight for it to report as
+  pending. This is narrower than the three situations in Context above (none
+  of which involve a subject swap racing its own propagation) and is an
+  accepted, distinct tradeoff of reverting to the effect, not a rule this ADR's
+  mechanism already closes. On a genuine identity change (e.g. an account
+  switch), the outgoing session's allows can render for one frame; see
+  [BEH-QD-067](../behaviors/09-react.md#beh-qd-067-provider) and the react
+  integration guide's [§8](../appendices/react-integration.md#8-re-checking-after-authority-changes)
+  for where this is disclosed to a consumer.
 
 **Trade-off accepted**: the flash is visible and harmless; a stale allow is
 invisible and is a grant nobody authorised. Where the flash matters — a control

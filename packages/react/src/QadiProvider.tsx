@@ -2,17 +2,30 @@
 /**
  * The React binding.
  *
- * SPIKE (branch `spike/effect-atom-react`): the registry is now constructed
- * with `@effect/atom-react`'s own `scheduleTask`/`defaultIdleTTL`, wiring
- * idle-atom cleanup to React's real scheduler — the previous
- * `AtomRegistry.make({ initialValues })` call passed neither. The
- * subscription primitive is the library's own `useAtomValue`, read through
- * `@effect/atom-react`'s `RegistryContext` rather than the hand-rolled
- * `useSyncExternalStore` call this replaces.
+ * Built on `@effect/atom-react`: the subscription primitive is that
+ * library's own `useAtomValue`, read through its `RegistryContext` rather
+ * than the hand-rolled `useSyncExternalStore` call it replaced
+ * ([ADR-QD-014](../../../spec/decisions/014-react-via-atoms.md)).
+ *
+ * **The registry below passes neither `scheduleTask` nor `defaultIdleTTL`,
+ * and that is deliberate, not leftover.** Wiring idle-atom cleanup to
+ * `@effect/atom-react`'s own `scheduleTask`/`defaultIdleTTL` — matching
+ * `RegistryContext.ts`'s own default — was tried on the `spike/effect-atom-react`
+ * branch and reverted: `scheduleTask` is not scoped to idle cleanup, it also
+ * reroutes the registry's core sync/async dispatch through React's
+ * low-priority scheduler, and doing so silently coalesced away a required
+ * intermediate render under real network timing in
+ * `examples/nextjs-newsroom`'s e2e suite (ADR-QD-014, AGENTS.md §13). That
+ * gap is not closed. Idle-atom growth is instead bounded by
+ * `sweepIntervalMillis`'s own background sweep below, which never touches
+ * dispatch, notification or the scheduler at all.
  */
 import type { AuthSubject } from "@qadi/core";
 import { useAtomValue as useLibraryAtomValue } from "@effect/atom-react/Hooks";
 import { RegistryContext } from "@effect/atom-react/RegistryContext";
+import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as Schedule from "effect/Schedule";
 import type * as Atom from "effect/unstable/reactivity/Atom";
 import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import {
@@ -101,18 +114,42 @@ export const useQadiContext = (hookName: string): QadiContextValue => {
  * Subscribes to an atom in this context's registry and returns its current
  * value.
  *
- * SPIKE: a direct re-export of `@effect/atom-react`'s own `useAtomValue`,
- * which reads the registry from `RegistryContext` — provided by
- * `QadiProvider` below — rather than an explicit argument. This is a public
- * API signature change from the pre-spike `useAtomValue(registry, atom)`;
- * every call site in this package reads the registry through
- * `useQadiContext` only for other fields (`atoms`, `instrument`) now, not to
- * pass it here.
+ * A direct re-export of `@effect/atom-react`'s own `useAtomValue`, which
+ * reads the registry from `RegistryContext` rather than an explicit
+ * argument — every other call site in this package reads the registry
+ * through `useQadiContext` only for other fields (`atoms`, `instrument`), not
+ * to pass it here.
+ *
+ * **Outside a `QadiProvider`, this is not `MissingQadiProviderError` the way
+ * `useSubject`/`useGate`/`useDecisionSuspense` are.** Unlike those hooks, this
+ * one never reads `QadiContext`, so it does not throw; it falls back to
+ * `@effect/atom-react`'s module-scope default registry
+ * (`RegistryContext.ts`), which — unlike the one `QadiProvider` builds below —
+ * *is* constructed with `scheduleTask`/`defaultIdleTTL`, the exact scheduler
+ * wiring this file's header explains was tried for this package's own
+ * registry and reverted for dropping a required render under real timing. A
+ * atom read this way outside a provider is therefore dispatched through
+ * React's low-priority scheduler, not through whichever registry a
+ * `QadiProvider` in the tree owns. This is intentional upstream behavior —
+ * `@effect/atom-react`'s own default for any atom used without a provider —
+ * not a bug in this re-export; call it only for atoms unrelated to a Qadi
+ * registry, or from inside a `QadiProvider`.
  */
 export const useAtomValue: <A>(atom: Atom.Atom<A>) => A = useLibraryAtomValue;
 
 /** Seed values applied when the provider creates its registry. */
 export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;
+
+/**
+ * The default for {@link QadiProviderProps.sweepIntervalMillis}.
+ *
+ * Thirty seconds: frequent enough that `maxTrackedQuestions` (`QadiAtoms.ts`)
+ * is a real bound rather than a theoretical one on a long-lived session, and
+ * infrequent enough that the sweep — an `O(tracked.length)` scan in the
+ * common case where nothing is over the bound — is not itself a cost worth
+ * noticing.
+ */
+const DEFAULT_SWEEP_INTERVAL_MILLIS = 30_000;
 
 export interface QadiProviderProps {
   /** The atom set for this authorization context, from `makeQadiAtoms`. */
@@ -142,6 +179,28 @@ export interface QadiProviderProps {
    * may and may not do.
    */
   readonly instrument?: boolean;
+  /**
+   * How often, in milliseconds, this provider sweeps `atoms` for tracked
+   * questions to evict.
+   *
+   * `QadiAtoms.ts`'s `asked()` and its underlying `Atom.family` tracking have
+   * nothing else bounding their growth over a long-lived session that asks
+   * many distinct (policy, resource) combinations — a confirmed leak. This
+   * runs `atoms.sweepEvictions` on its own fiber, forked at mount and
+   * interrupted at unmount, entirely independent of `AtomRegistry`'s own
+   * `scheduleTask`/`defaultIdleTTL` knob (AGENTS.md §13): that knob was tried
+   * for this once already and reverted, because it also governs the
+   * registry's core value-dispatch/notify batching, and routing that through
+   * React's scheduler silently coalesced away a required intermediate render.
+   * This sweep never touches dispatch, notification or the registry's
+   * scheduler at all — it only decides which entries `QadiAtoms`' own
+   * bookkeeping keeps.
+   *
+   * Defaults to `DEFAULT_SWEEP_INTERVAL_MILLIS`. Several providers sharing one
+   * `atoms` each fork their own sweep fiber against the same bookkeeping,
+   * which is redundant but harmless — `sweepEvictions` is idempotent.
+   */
+  readonly sweepIntervalMillis?: number;
   readonly children: ReactNode;
 }
 
@@ -157,6 +216,7 @@ export const QadiProvider = ({
   subject,
   initialValues,
   instrument = false,
+  sweepIntervalMillis = DEFAULT_SWEEP_INTERVAL_MILLIS,
   children,
 }: QadiProviderProps): ReactNode => {
   // The subject is seeded at registry construction rather than written in an
@@ -169,6 +229,31 @@ export const QadiProvider = ({
       ...(initialValues ?? []),
     ],
   }));
+
+  // `makeQadiAtoms`'s own doc comment says to call it once per context, at
+  // module scope — the registry above is built once, at mount, and never
+  // rebuilt for a later `atoms` prop. A caller who breaks that rule (an
+  // inline `makeQadiAtoms(...)` call, or a genuine tenant switch) gets a
+  // context silently holding the NEW atoms inside the OLD registry: the new
+  // `initialValues` are never seeded, and decisions evaluated against the
+  // previous atom set stay cached until this provider unmounts. Warned in
+  // development only — this is an invariant announced, not an assumption
+  // remembered, matching this file's own `warnInstrumentedInProduction`
+  // precedent for a rule nothing else here enforces (DA-06).
+  const atomsIdentityRef = useRef(atoms);
+  useEffect(() => {
+    if (isDevelopment() && atomsIdentityRef.current !== atoms) {
+      console.warn(
+        "[qadi] <QadiProvider>'s `atoms` prop changed identity after mount. " +
+          "makeQadiAtoms() must be called once per context, at module scope " +
+          "(or memoised) — this provider's registry is not rebuilt for a new " +
+          "atom set, so the new atoms' initial values are silently ignored and " +
+          "decisions from the previous atom set keep answering until this " +
+          "provider unmounts.",
+      );
+    }
+    atomsIdentityRef.current = atoms;
+  }, [atoms]);
 
   // Reverted from a render-phase write (ticket 34): that version reproducibly
   // hung an in-flight re-check forever on a page where `subject` never
@@ -209,6 +294,27 @@ export const QadiProvider = ({
       }, 0);
     };
   }, [registry]);
+
+  // A separate effect from the registry's own dispose timer above, and
+  // deliberately not built on `AtomRegistry`'s `scheduleTask`/`defaultIdleTTL`
+  // — see `sweepIntervalMillis`'s own doc comment for why that knob is off
+  // limits for this. `atoms.sweepEvictions` is plain `Effect.sync` over
+  // `QadiAtoms`' own closure state, so this fiber never touches how values are
+  // dispatched or notified through the atom graph; it only prunes which
+  // questions `QadiAtoms` keeps tracking. Forked and torn down the same way
+  // `@qadi/devtools`'s `useTimeline` runs and stops its background
+  // subscription: `Effect.runFork` to start, `Effect.runFork(Fiber.interrupt(...))`
+  // on cleanup, not `interruptUnsafe` — see `Simulator.tsx`'s own doc comment
+  // on that distinction (`Fiber.interrupt` waits for the fiber's finalizers to
+  // actually finish; `interruptUnsafe` only signals).
+  useEffect(() => {
+    const fiber = Effect.runFork(
+      Effect.repeat(atoms.sweepEvictions, Schedule.spaced(sweepIntervalMillis)),
+    );
+    return () => {
+      Effect.runFork(Fiber.interrupt(fiber));
+    };
+  }, [atoms, sweepIntervalMillis]);
 
   // Memoised, or every render of the provider gives every consumer a new
   // context value and re-renders the whole guarded subtree.

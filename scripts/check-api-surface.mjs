@@ -11,8 +11,10 @@
  *
  * Three checks:
  *
- *   1. MISSING  — every export of every public package appears in `overview.md` as a
- *                 backticked token.
+ *   1. MISSING  — every export of every public package appears, as a backticked
+ *                 token, somewhere between `## Public API surface` and
+ *                 `## Worked example` — the same window `STALE` reads, not the
+ *                 document as a whole.
  *   2. STALE    — every backticked name in the Export column of the API tables is a
  *                 real export.
  *   3. PACKAGES — every workspace package appears in the Packages table.
@@ -21,6 +23,16 @@
  * *inside the document* with a reason. The rule is no **silent** omission, not no
  * omission — and the declaration lives in the document being checked rather than in
  * this file, where a reviewer would never look for it.
+ *
+ * **MISSING used to scan the whole document.** A name backticked once in `##
+ * Mission`, `## Design philosophy` or a change-history entry satisfied it without
+ * ever earning a table row or a "Not listed above" reason — technically "named
+ * somewhere" but not the complete-surface property a reader assumes the API tables
+ * give them. Both checks now read the same `apiSection` slice STALE already scoped
+ * to (2026-09-19 audit, corroborated by armin-ronacher/grace-hopper/maxwell-brown/
+ * orta-therox/paul-chiusano/ryan-cavanaugh/sindre-sorhus/werner-vogels — AR-04,
+ * GH-05, MB-03, OT-03, PC-04, RC-05, SS-05, WV-03): a prose mention anywhere else no
+ * longer counts, in either direction.
  *
  * **Known limitation: no signature check.** All three checks above are presence
  * checks — a name matches or it does not. Nothing here compares *what* an export
@@ -77,8 +89,17 @@ const REEXPORT_NAME = /^(?:type\s+)?[A-Za-z_$][\w$]*(?:\s+as\s+([A-Za-z_$][\w$]*
  * `export {` and `export type {` are listed, and `REEXPORT_FROM` is tried first —
  * so only the source-less form, and any list this parser cannot decompose, reaches
  * here.
+ *
+ * `async function`, `enum`, `abstract class`, `let`, `var`, `import` and `declare`
+ * are also listed. None of them matched `DECLARATION` (which only understands
+ * `const|class|interface|type|function`) or any other pattern above, so before this
+ * line was added they matched nothing at all and were silently dropped from the
+ * surface — the exact failure this comment says is not supposed to be possible.
+ * Zero instances exist under `packages/*&#47;src` today (grepped, 2026-09-19 audit,
+ * ryan-cavanaugh RC-02), so this closes a latent gap rather than fixing a live one.
  */
-const UNSUPPORTED = /^export (?:\{|type \{|default\b|\* as\b)/;
+const UNSUPPORTED =
+  /^export (?:\{|type \{|default\b|\* as\b|async function\b|enum\b|abstract class\b|let\b|var\b|import\b|declare\b)/;
 
 const failures = [];
 const fail = (where, message) => failures.push(`${where}  ${message}`);
@@ -221,10 +242,28 @@ const surfaceOf = (pkg) => {
 const overview = readFileSync(OVERVIEW, "utf8");
 
 /**
- * Every backticked token in the document, comma-split.
+ * Rows of every table from `## Public API surface` through the end of
+ * `## Not listed above`, first column only.
+ *
+ * Used to stop at the first `## ` after `## Public API surface` itself, which
+ * is `## The other packages` — eight of the document's nine per-package
+ * tables, plus `## Not listed above`, went unchecked: an export removed from
+ * `@qadi/react`, `@qadi/devtools` or any other listed-but-not-core package
+ * could leave a stale row here with no gate failure (CCR-QD-102). This still
+ * stops before `## Worked example`, which is prose describing a scenario, not
+ * a claim about what exists.
+ *
+ * Also the window MISSING now scans, not just STALE — see that check's comment.
+ */
+const apiSection = overview.split("\n## Public API surface")[1]?.split("\n## Worked example")[0] ?? "";
+
+/**
+ * Every backticked token in `apiSection`, comma-split.
  *
  * Fenced code is stripped first: a name appearing only inside the worked example is
- * demonstrated, not documented, and the API tables are where a reader looks.
+ * demonstrated, not documented, and the API tables are where a reader looks. Scanning
+ * `apiSection` rather than the whole `overview` document is deliberate, not merely
+ * convenient — see MISSING's comment below.
  *
  * Backticked rather than bare, and that is load-bearing. `join`, `meet`, `check`,
  * `filter`, `assert`, `size`, `not`, `action`, `resource` and `subject` are ordinary
@@ -233,13 +272,18 @@ const overview = readFileSync(OVERVIEW, "utf8");
  * of the exports most likely to drift.
  */
 const documented = new Set(
-  [...overview.replace(/```[\s\S]*?```/g, "").matchAll(/`([^`\n]+)`/g)]
+  [...apiSection.replace(/```[\s\S]*?```/g, "").matchAll(/`([^`\n]+)`/g)]
     .flatMap((m) => m[1].split(","))
     .map((token) => token.trim())
     .filter((token) => /^[A-Za-z_$][\w$]*$/.test(token)),
 );
 
 // --- 1. Missing -------------------------------------------------------------
+//
+// Reads `documented`, which is now scoped to the same `apiSection` window STALE
+// reads below — a name mentioned only in `## Mission`, `## Design philosophy`,
+// `## Packages`, or a `## Worked example` code fence no longer satisfies this
+// check, only a row in an API table or in "Not listed above" does.
 
 let total = 0;
 const publicPackages = packages.filter((p) => !p.isPrivate);
@@ -251,7 +295,8 @@ for (const pkg of publicPackages) {
       fail(
         `${module}`,
         `[missing] \`${name}\` is exported by ${pkg.name} and is not named in ` +
-          `spec/overview.md. Add it to a table, or to "Not listed above" with a reason.`,
+          `spec/overview.md's Public API surface section. Add it to a table, or to ` +
+          `"Not listed above" with a reason.`,
       );
     }
   }
@@ -260,20 +305,6 @@ for (const pkg of publicPackages) {
 // --- 2. Stale ---------------------------------------------------------------
 
 const everyExport = new Set(publicPackages.flatMap((p) => [...surfaceOf(p).keys()]));
-
-/**
- * Rows of every table from `## Public API surface` through the end of
- * `## Not listed above`, first column only.
- *
- * Used to stop at the first `## ` after `## Public API surface` itself, which
- * is `## The other packages` — eight of the document's nine per-package
- * tables, plus `## Not listed above`, went unchecked: an export removed from
- * `@qadi/react`, `@qadi/devtools` or any other listed-but-not-core package
- * could leave a stale row here with no gate failure (CCR-QD-102). This still
- * stops before `## Worked example`, which is prose describing a scenario, not
- * a claim about what exists.
- */
-const apiSection = overview.split("\n## Public API surface")[1]?.split("\n## Worked example")[0] ?? "";
 
 for (const [index, line] of apiSection.split("\n").entries()) {
   if (!line.startsWith("|") || line.includes("| ---")) continue;

@@ -241,6 +241,61 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 7. Every CCR-QD-NNN cited anywhere under spec/ or AGENTS.md appears in
+#    spec/README.md's "Document history" register (JS-03, 100-lens audit).
+#
+# The register is this project's own change-control log, and it had already
+# fallen behind "again" once before this check existed (spec/README.md's own
+# Rev 1.63 note: CCR-QD-112-117 and CCR-QD-119-122 backfilled after
+# `spec/invariants.md` and others had cited them for a while). CCR-QD-152 was
+# found freshly missing while this check was being written, and is fixed
+# alongside it rather than left for the gate to catch on its first run.
+#
+# KNOWN_SKIPS are ids explicitly recorded as never used at all — a numbering
+# skip, not a missing backfill (CCR-QD-118, per the Rev 1.63 note above) — so
+# citing one in that explanatory prose must not itself demand a row.
+#
+# KNOWN_GAPS is a closed, exact list of ids that are cited but not yet
+# backfilled, in the same spirit as check-house-style.mjs's
+# SWITCH_BUDGET/UNTRACED_BUDGET/ANY_BUDGET: it fails in both directions, so a
+# newly-cited-but-unregistered id must be added here deliberately (a reviewed
+# admission, not silent drift) and a backfilled one must be removed, rather
+# than this list quietly rotting stale in either direction the way the
+# register itself once did.
+# ---------------------------------------------------------------------------
+KNOWN_SKIPS="118"
+KNOWN_GAPS="078 079 080 081 123 124 125 126 127 128 129 130 131 132 134 136 137"
+
+if [[ -f "$SPEC_DIR/README.md" ]]; then
+  cited="$(grep -rhoE 'CCR-QD-[0-9]+' "$SPEC_DIR" "$ROOT_DIR/AGENTS.md" 2>/dev/null \
+    | grep -oE '[0-9]+' | sort -n -u)"
+  tabled="$(awk '/^## Document history/{flag=1} flag' "$SPEC_DIR/README.md" \
+    | grep -oE '^\| CCR-QD-[0-9]+' | grep -oE '[0-9]+' | sort -n -u)"
+
+  missing=""
+  for id in $cited; do
+    case " $KNOWN_SKIPS " in *" $id "*) continue ;; esac
+    if ! grep -qx "$id" <<< "$tabled"; then
+      missing="${missing} ${id}"
+    fi
+  done
+  missing_sorted="$(printf '%s\n' $missing | sort -n | xargs)"
+  known_gaps_sorted="$(printf '%s\n' $KNOWN_GAPS | sort -n | xargs)"
+
+  if [[ "$missing_sorted" == "$known_gaps_sorted" ]]; then
+    if [[ -z "$missing_sorted" ]]; then
+      report PASS "CCR register coverage" "every cited id is registered"
+    else
+      report PASS "CCR register coverage" "known, tracked gap unchanged: ${missing_sorted}"
+    fi
+  else
+    report FAIL "CCR register coverage" "drift from KNOWN_GAPS (backfill the register or update the script's list): got [${missing_sorted}], expected [${known_gaps_sorted}]"
+  fi
+else
+  report SKIP "CCR register coverage" "spec/README.md absent"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo

@@ -88,6 +88,19 @@ export interface Qadi {
    * no way to supply a handler through this facade, so a binding obligation
    * always rejects here; an allow with only advisory obligations still
    * resolves, since advice never blocks.
+   *
+   * **The rejection carries the full evaluation trace.** `AccessDenied`'s
+   * fields — `subjectId`, `policyTag`, `reason`, and the whole `Trace` — are
+   * exactly what `Errors.ts`'s own doc comment says "belongs in a log or a
+   * test failure, not in a response body" (AS-06). This facade cannot see
+   * where its caller's `catch`/`.catch()` sends a rejected error, and unlike
+   * `@qadi/http` (which redacts a denial's trace before it reaches a
+   * response) nothing here redacts on the caller's behalf — a review finding
+   * a conditional here should treat it as a defect (see this file's own
+   * header). A caller forwarding this rejection to a browser bundle, a
+   * client-visible error, or an error-reporting SDK is forwarding the trace
+   * too, and is responsible for projecting it down first (`decide`'s
+   * `Decision` gives the tag-only shape to project from).
    */
   readonly assert: (
     subject: AuthSubject,
@@ -129,6 +142,18 @@ export interface Qadi {
  * const qadi = makeQadi(myLayer);
  * const allowed = await qadi.check(subject, canEdit, { resource: doc });
  * ```
+ *
+ * **No cancellation crosses this boundary** (AN-03). Every method forwards
+ * through `runtime.runPromise`, and a `Promise` carries no interruption
+ * signal back to the fiber running it — a caller who abandons a `check` (a
+ * client disconnecting mid-`filter` over a large collection) cannot stop the
+ * work underway; every item still runs to completion. This is a platform
+ * limit of the `Effect` → `Promise` boundary itself, not a choice this facade
+ * makes, and there is no workaround through this API: a caller whose calls
+ * need to be cancellable (a `filter` over an unbounded or very large input)
+ * should size them accordingly, or reach for `@qadi/core` directly and drive
+ * the `Effect` with `Effect.runFork` plus its own interruption instead of
+ * through this facade.
  */
 export const makeQadi = (layer: QadiLayer): Qadi => {
   const runtime = ManagedRuntime.make(layer);

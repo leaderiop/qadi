@@ -58,7 +58,7 @@ Consequences of the class itself now being the schema:
   `Match.tagsExhaustive`/`Match.value` mappers (`encodeError`/`decodeError`)
   are deleted. `SinkRecordWire`'s `failed` field is
   `Schema.optional(Schema.Union([MissingResource, MissingAction, …]))` — the
-  nine classes directly. `toWire`/`fromWire` pass the error value through
+  nine classes directly. `toWire`/`fromWireUnsafe` pass the error value through
   unchanged; `Schema.encodeEffect(SinkRecordWire)`/`decodeUnknownEffect`
   already know how to encode/decode each member, because each member *is*
   its own schema now.
@@ -125,7 +125,7 @@ Consequences of the class itself now being the schema:
 
 - `SinkCodec.ts` loses its `ErrorSchema` struct and both
   `Match.tagsExhaustive`/`Match.value` mappers (roughly 200 lines) —
-  `toWire`/`fromWire` no longer hand-translate `EvaluationError` at all.
+  `toWire`/`fromWireUnsafe` no longer hand-translate `EvaluationError` at all.
 - A new `EvaluationError` tag is a compile error at `SinkRecordWire`'s
   definition and at `everyError`'s fixture, not a silent gap a round-trip
   test happens to catch (or doesn't, if nobody added a fixture entry).

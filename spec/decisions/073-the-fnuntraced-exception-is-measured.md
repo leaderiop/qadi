@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-073                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-09-09                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-09-19                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-09-09): Initial release (issue #102, CCR-QD-145) |
+> | Change History | 1.1 (2026-09-19): PN-01 — the Context section's comparison against AGENTS.md §5a's numbers corrected to cite the per-dispatch ratios that survive ADR-QD-034's 2026-09-07 addendum, rather than the "2–4%/under 1%" end-to-end figures that addendum retracts as stale<br>1.0 (2026-09-09): Initial release (issue #102, CCR-QD-145) |
 
 ---
 
@@ -37,11 +37,18 @@ own cost, which is itself under half a microsecond.
 
 Put in proportion against `Evaluate.bench.ts`, ticket #101 estimated this as
 **≈30–43%** of a matcher-heavy or wide evaluation and **≈54–66%** of a
-ten-level-deep one — larger than AGENTS.md §5a's switch-vs-`Match` numbers
-(2–4%/under 1%) because every evaluation already pays for at least one named
-`Effect.fn` call (`evaluate` itself), and the fastest real evaluation this
-library performs is itself only ≈8.6–9.0 µs, so a ≈2.7–2.9 µs fixed cost is a
-large fraction of the total.
+ten-level-deep one — larger than the *per-dispatch* ratios AGENTS.md §5a
+records for switch-vs-`Match` (**1.6–2.4×**, **3.5–7.7×**) because every
+evaluation already pays for at least one named `Effect.fn` call (`evaluate`
+itself), and the fastest real evaluation this library performs is itself only
+≈8.6–9.0 µs, so a ≈2.7–2.9 µs fixed cost is a large fraction of the total.
+(PN-01, 2026-09-19 audit: an earlier revision of this paragraph compared
+against §5a's "2–4%/under 1%" *end-to-end* figures instead. Those are exactly
+the numbers [ADR-QD-034's 2026-09-07 addendum](./034-the-switch-exception-is-measured.md#addendum-2026-09-07-the-benchmark-has-drifted-and-was-never-re-run)
+retracts as stale and unreproduced — derived from a "four refs, seventeen
+dispatches" workload `Evaluate.bench.ts` no longer matches — so citing them
+here repeated the same staleness one ADR over. The per-dispatch ratios above
+survive that addendum and are the correct comparison.)
 
 ## Decision
 

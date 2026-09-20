@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 2.7                                                          |
-> | Effective Date | 2026-09-08                                                   |
+> | Revision       | 2.9                                                          |
+> | Effective Date | 2026-09-19                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/unstable/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -20,8 +20,17 @@ atoms; React subscribes to them. See
 [the integration guide](../appendices/react-integration.md) for a worked
 application.
 
-The package depends on `effect` and `react`. Nothing else — the React glue is a
-single `useSyncExternalStore` call.
+**Corrected in AC-02 (2026-09-19 audit).** This paragraph read "the package
+depends on `effect` and `react`. Nothing else — the React glue is a single
+`useSyncExternalStore` call" through revision 2.7 (2026-09-08) — true of the
+hand-rolled binding this package shipped before CCR-QD-150's reversal
+(2026-09-13, `@qadi/react` 0.6.3), false since. The package now also depends
+on `@effect/atom-react` (`packages/react/package.json`'s `dependencies`), and
+the React glue is that library's own `useAtomValue`, read through its
+`RegistryContext` (`QadiProvider.tsx`), not a hand-rolled
+`useSyncExternalStore` call — see AGENTS.md §13's own correction and
+ADR-QD-014's Consequences section for why the reversal happened and what it
+did and did not close.
 
 ## BEH-QD-065: The atom set
 
@@ -123,6 +132,25 @@ REQUIREMENT: The subject MUST be seeded when the registry is constructed, not
              guarded control in its pending state for one frame.
 ```
 
+This requirement governs the **initial** render only — the first `subject` a
+`QadiProvider` ever sees, seeded into `AtomRegistry.make`'s `initialValues` so
+the first render already has it. It does not forbid propagating a *later*
+`subject` prop change, which has nowhere else to go: the registry already
+exists by the time a prop changes, so an update can only ever be a write
+after the fact.
+
+```
+REQUIREMENT: A later `subject` prop change MUST be written to the registry in
+             an effect, after commit. A render-phase write was tried (ticket
+             34) and reverted: it reproducibly hung an in-flight re-check on a
+             page where `subject` never changed at all. The accepted cost is a
+             one-frame window, on a genuine subject change only, where a
+             guarded control still reads the previous subject's settled
+             decision — `currentDecision` cannot report it as pending, because
+             the atom has not been told the subject changed yet. See
+             ADR-QD-017's Consequences and the react integration guide's §8.
+```
+
 ```
 REQUIREMENT: Each provider MUST own its registry, and MUST NOT dispose it
              across React's development-mode double mount.
@@ -149,12 +177,17 @@ and a server module re-exporting from a client one is well-defined.
 REQUIREMENT: `QadiProvider` and the guards MUST render under `renderToString`.
 ```
 
-`useAtomValue` passes a `getServerSnapshot` — the third argument to
-`useSyncExternalStore`, without which React throws on the server. A policy that
-needs no resolver decides during the server pass; one that reaches a resolver
-cannot, however fast that resolver is, because `renderToString` is a single
-synchronous pass. The second case renders `pending`, and is precisely the gap a
-hydration seed covers ([BEH-QD-152](./19-hydration.md)).
+`@effect/atom-react`'s `useAtomValue` — the hook this package's own
+`useAtomValue` re-exports, per this document's earlier correction — passes a
+`getServerSnapshot` internally, the third argument to the
+`useSyncExternalStore` call inside its implementation, without which React
+throws on the server (`@effect/atom-react/Hooks.js`; not a
+`useSyncExternalStore` call this package makes itself any more, since
+CCR-QD-150). A policy that needs no resolver decides during the server pass;
+one that reaches a resolver cannot, however fast that resolver is, because
+`renderToString` is a single synchronous pass. The second case renders
+`pending`, and is precisely the gap a hydration seed covers
+([BEH-QD-152](./19-hydration.md)).
 
 ## BEH-QD-068: Hooks and components
 
@@ -193,8 +226,24 @@ export const Cannot: (props: {
 ```
 
 `useDecision` is the primitive; everything else collapses part of its state for
-convenience. `useCan` returning `false` covers pending, denied and failed — safe
-for hiding a control, useless for explaining why it is hidden.
+convenience. `useCan` returning `false` covers four different situations —
+pending, denied, failed, or **being re-checked** — safe for hiding a control,
+useless for explaining why it is hidden.
+
+**Corrected in EY-03 (2026-09-19 audit).** This paragraph previously listed
+only three states ("pending, denied and failed"), omitting the most
+surprising one: `currentDecision` returns `undefined` whenever `waiting` is
+`true`, per this document's own requirement (above) that "a waiting result
+MUST be treated as not decided by every convenience API," so a background
+re-check of a
+previously-allowed decision also reads as `false` here. A `useCan`-gated
+control hides for the duration of every re-check and reappears once it
+resolves — a different, silent hide-flicker from the pending-flash
+[ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md) documents
+for a first-time pending node. `useDecision`'s own `waiting` flag is how a
+caller who cares about that flicker tells the two apart; `useCan` cannot, by
+design — matching `packages/react/src/hooks.ts`'s own doc comment on
+`useCan`, which already names all four states.
 
 ```
 REQUIREMENT: Using a hook outside a provider MUST throw. Denying silently would

@@ -42,6 +42,21 @@ rather than silently no-opping. No e-signature default ships, not even a
 no-op one — `Qadi.enforce`'s existing fail-closed behavior on an unwired
 obligation is the safe default already.
 
+## Not tamper-evident (WD-07)
+
+**The audit trail this package produces is not cryptographically
+tamper-evident, and archiving it does not make it so.** `verifySequenceIntegrity`
+(see `SequenceIntegrity.ts`) catches a gap or a duplicate in a caller-assigned
+sequence number — accidental loss or reordering in the caller's own store — not
+deliberate tampering: there is no per-entry hash, nothing links one entry to
+the next, and an attacker who can modify stored rows can renumber them and
+pass the check. `AuditArchive`'s `keyMaterial` is opaque pass-through metadata
+this package never uses to sign or verify anything (see `AuditArchive.ts`),
+and `DecommissioningChecklist`'s "Revoke signing keys" step names an action
+this package has no part in performing. If a deployment needs tamper-evidence
+— a hash chain, a signature per archive, a WORM store — that has to be built
+and verified outside this library; nothing here provides it or claims to.
+
 ## Structurally outside the pipeline
 
 Retention, archival, sequence-integrity verification (gap-and-duplicate

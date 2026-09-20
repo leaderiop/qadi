@@ -213,14 +213,22 @@ const isVacuousFalse = (where: PrismaWhereInput): boolean => {
  * merely unused: a non-null `Neq` never renders as `{not: value}` alone —
  * `renderNode`'s `Compare` case ORs in `{column: null}` before this is ever
  * reached, so the type is narrowed rather than left exhaustive-but-dead.
+ *
+ * A module-scope `Record` of shape-builders, not `Match.value` rebuilt per
+ * call (RH-01): the dispatch itself — which of the three shapes to build —
+ * has no per-call state, only the `value` each shape closes over does, and
+ * `@qadi/predicate-sql`'s sibling `compareOperator` makes the identical fix
+ * for the same reason (AGENTS.md §5a). `renderNode`'s `Compare` case calls
+ * this once per rendered `Compare` node, the exact per-node-evaluation shape
+ * §5a measures `Match.value` at 3.5–7.7× slower on at the dispatch site.
  */
+const COMPARE_FILTER: Record<Exclude<CompareOp, "Neq">, (value: unknown) => unknown> = {
+  Eq: (value) => value,
+  Gte: (value) => ({ gte: value }),
+  Lt: (value) => ({ lt: value }),
+};
 const compareFilter = (op: Exclude<CompareOp, "Neq">, value: unknown): unknown =>
-  Match.value(op).pipe(
-    Match.when("Eq", () => value),
-    Match.when("Gte", () => ({ gte: value })),
-    Match.when("Lt", () => ({ lt: value })),
-    Match.exhaustive,
-  );
+  COMPARE_FILTER[op](value);
 
 /**
  * Renders one node.

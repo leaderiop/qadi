@@ -63,15 +63,16 @@ REQUIREMENT: Resolution MUST occur at the node that needs the value, so that a
 
 ```
 REQUIREMENT: `AllOf` MUST stop at its first denying child.
-             `AnyOf` MUST stop at its first allowing child, EXCEPT under
-             `fieldStrategy: "Union"`, which must observe every child to merge
-             their field sets.
+             `AnyOf` MUST stop at its first allowing child only under
+             `fieldStrategy: "First"`; under `"Union"` and `"Intersection"` it
+             MUST observe every allowing child to merge their field sets.
 ```
 
 ```
-REQUIREMENT: `AnyOf` MUST honour an explicit `Intersection` strategy. The
-             predecessor special-cased only "union" and silently treated every
-             other value as short-circuit, so a stated intersection was ignored.
+REQUIREMENT: `AnyOf` MUST honour an explicit `Intersection` strategy exhaustively,
+             the same as `"Union"`. The predecessor special-cased only "union" and
+             silently treated every other value as short-circuit, so a stated
+             intersection was ignored.
 ```
 
 ## BEH-QD-036: Failure is not denial

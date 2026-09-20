@@ -12,6 +12,7 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
 import * as HttpApi from "effect/unstable/httpapi/HttpApi";
 import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
@@ -190,6 +191,20 @@ const AppLayer = WithCache.pipe(Layer.provideMerge(HttpServer.layerServices));
 
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 
+/**
+ * `AppLayer`, with a `Logger.layer` merged in so a request's own
+ * `Effect.log*` calls land in `logs` instead of the console. Merged into the
+ * layer graph itself, and paired with `toWebHandler`'s `disableLogger: true`
+ * below, rather than wrapping the `handler(...)` call's own `Effect.promise`
+ * in `Effect.provide` — that alternative never sees a single message:
+ * `HttpMiddleware.logger` (added automatically whenever `disableLogger` is
+ * left off) intercepts each request's own logging scope from inside the
+ * built layer, downstream of anything the caller's ambient effect provides.
+ * Confirmed by running both shapes before relying on this one.
+ */
+const appLayerWithLogger = (logs: Array<unknown>) =>
+  AppLayer.pipe(Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])));
+
 describe("@qadi/http", () => {
   it.effect("an allowed request reaches the handler", () =>
     Effect.gen(function* () {
@@ -309,11 +324,13 @@ describe("@qadi/http", () => {
       // BEH-QD-180 requires — a route nothing above exercises otherwise. Its
       // own layer, not `AppLayer`: both variants mount at `/__permissions`
       // and cannot coexist on one router.
+      const logs: Array<unknown> = [];
       const unguardedApp = permissionRegistryRouteUnguarded("test fixture").pipe(
         Layer.provideMerge(RegistryLayer),
         Layer.provideMerge(HttpServer.layerServices),
+        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
       );
-      const { handler } = HttpRouter.toWebHandler(unguardedApp);
+      const { handler } = HttpRouter.toWebHandler(unguardedApp, { disableLogger: true });
       const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
       assert.strictEqual(response.status, 200);
       const body: ReadonlyArray<{ readonly permission: string }> = yield* Effect.promise(() => response.json());
@@ -321,6 +338,15 @@ describe("@qadi/http", () => {
       // registerApi populates), not the `addGuardedRoute` write routes too, so
       // only `Api`'s own annotated endpoint is expected here.
       assert.deepStrictEqual(body.map((entry) => entry.permission), ["document:read"]);
+      // Logged on every request, not once at construction (see this route's
+      // own doc comment) — and names the `reason` a caller gave for opting
+      // out, so a reviewer can tell who decided this and why.
+      assert.deepStrictEqual(logs, [
+        [
+          "qadi/http: serving /__permissions unguarded — the full authorization topology is public. " +
+            "Reason given: test fixture",
+        ],
+      ]);
     }));
 
   it("publicEndpoint carries the reason a reviewer reads later", () => {
@@ -388,6 +414,93 @@ describe("@qadi/http", () => {
       // for the handler's re-check — not a second full evaluation.
       assert.deepStrictEqual(attributeResolverCalls, ["alice:clearance"]);
     }));
+
+  it.effect(
+    "the same request sent twice returns the identical verdict, and the resolver runs once (KK-04)",
+    () =>
+      Effect.gen(function* () {
+        // The fault class this suite's own history caught for outages (the
+        // 502-not-403 test below "failed against the first version" when
+        // written) but never induced for a duplicated request: a client
+        // retry or a proxy resending the same request must see the identical
+        // verdict on the second pass, not a re-evaluation that could
+        // silently diverge. `DecisionCache` coalescing (already exercised
+        // above for one request's own guard + recheck) is what should make
+        // the second, separate HTTP request a cache hit too.
+        attributeResolverCalls.length = 0;
+        const { handler } = HttpRouter.toWebHandler(AppLayer);
+        const send = () =>
+          handler(
+            new Request("http://localhost/documents/write", {
+              method: "POST",
+              headers: bearer(ALICE_TOKEN),
+            }),
+          );
+
+        const first = yield* Effect.promise(send);
+        const second = yield* Effect.promise(send);
+
+        assert.strictEqual(first.status, 200);
+        assert.strictEqual(second.status, first.status);
+        // Two HTTP requests, each with its own guard call plus the handler's
+        // defense-in-depth recheck — four evaluations total, one resolver
+        // call, because every one of them asks the identical
+        // (subject, policy, resource) question.
+        assert.deepStrictEqual(attributeResolverCalls, ["alice:clearance"]);
+      }),
+  );
+
+  it.effect(
+    "a request retried after a transient resolver failure recovers, rather than replaying the failure (KK-04)",
+    () =>
+      Effect.gen(function* () {
+        // `DecisionCache.ts`'s own doc comment states the property this
+        // exercises at the HTTP boundary: "compute failing does not poison
+        // the cache: the next [lookup computes again]". A transient
+        // attribute-store outage must not leave a retried request
+        // permanently 502ing off a cached failure — the first request
+        // surfaces the outage, and a second, identical request after the
+        // dependency recovers must reach the handler normally.
+        let calls = 0;
+        const flaky = Layer.succeed(AttributeResolver, {
+          resolve: (subjectId, attribute) => {
+            calls += 1;
+            return calls === 1
+              ? Effect.fail(new AttributeResolveError({ attribute, cause: "transient outage" }))
+              : Effect.succeed(subjectId === "alice" ? 5 : 0);
+          },
+        });
+        const app = WithRegistry.pipe(
+          Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
+          Layer.provideMerge(
+            Layer.mergeAll(
+              flaky,
+              RelationshipResolverNever,
+              DecisionHistoryUnknown,
+              EvaluationIdLive,
+              CustomPredicateNone,
+              SignatureHistoryNone,
+            ),
+          ),
+          Layer.provideMerge(decisionCacheLayer()),
+          Layer.provideMerge(HttpServer.layerServices),
+        );
+        const { handler } = HttpRouter.toWebHandler(app);
+        const send = () =>
+          handler(
+            new Request("http://localhost/documents/write", {
+              method: "POST",
+              headers: bearer(ALICE_TOKEN),
+            }),
+          );
+
+        const first = yield* Effect.promise(send);
+        assert.strictEqual(first.status, 502);
+
+        const retried = yield* Effect.promise(send);
+        assert.strictEqual(retried.status, 200);
+      }),
+  );
 
   it.effect("A CREDENTIAL STORE OUTAGE IS 502, NOT 403", () =>
     Effect.gen(function* () {
@@ -537,7 +650,12 @@ describe("@qadi/http", () => {
     );
     assert.throws(
       () => requiresPermission(endpoint, { permission: writePermission, policy: writePolicy }),
-      /already has a permission requirement/,
+      // The full sentence, not just its opening clause — pins the guidance
+      // telling the caller what to do instead (compose into one `allOf`
+      // `Policy` and call once), not only that a duplicate was rejected.
+      'requiresPermission: endpoint "duplicate" already has a permission requirement. Compose multiple ' +
+        "permissions into one Policy (e.g. allOf([...])) and pass it to a single requiresPermission call, " +
+        "rather than calling it twice.",
     );
   });
 
@@ -621,14 +739,156 @@ describe("@qadi/http", () => {
       assert.strictEqual(body.attribute, "clearance");
     }));
 
-  it.effect("a denial's body stays empty — the trace never reaches the wire (disclosure, ADR-QD-072)", () =>
+  // BS-01 (2026-09-19 audit): the scenario above only ever exercised a
+  // benign string `cause` ("attribute store unreachable"), so nothing there
+  // would have failed had `cause` leaked verbatim. A real resolver outage
+  // wraps whatever the backing store actually threw — a driver error with a
+  // connection string, a host, a stack-shaped object — into `cause` via
+  // `Cause.squash`, and `AttributeResolveError`'s own class schema declares
+  // `cause: Schema.Defect()`, which *does* serialize an `Error`'s
+  // name/message/cause into JSON. This fixture uses a real `Error` carrying
+  // exactly that kind of internal detail and asserts it never reaches the
+  // wire — only `_tag` and the non-sensitive `attribute` name do.
+  it.effect("an outage's body carries the safe fields only — a real defect's cause never reaches the wire", () =>
     Effect.gen(function* () {
-      const { handler } = HttpRouter.toWebHandler(AppLayer);
-      const response = yield* Effect.promise(() =>
-        handler(new Request("http://localhost/documents", { headers: bearer(BOB_TOKEN) })),
+      const attributePolicy = hasAttribute("clearance", gte(1));
+      const AttributeGroup = HttpApiGroup.make("attribute-checked").add(
+        HttpApiEndpoint.get("read", "/attribute-checked").pipe((endpoint) =>
+          endpoint.annotate(
+            RequiredPermission,
+            requiresPermission(endpoint, { permission: readPermission, policy: attributePolicy }),
+          ),
+        ),
       );
-      assert.strictEqual(response.status, 403);
-      const text = yield* Effect.promise(() => response.text());
-      assert.strictEqual(text, "");
+      const AttributeApi = HttpApi.make("attribute-test").add(AttributeGroup).middleware(RequirePermission);
+      const AttributeHandlers = HttpApiBuilder.group(AttributeApi, "attribute-checked", (handlers) =>
+        handlers.handle("read", () => Effect.void),
+      );
+      const AttributeRoutes = HttpApiBuilder.layer(AttributeApi).pipe(
+        Layer.provide(AttributeHandlers),
+        Layer.provide(RequirePermissionLive),
+      );
+
+      const secretCause = new Error("connect ECONNREFUSED 10.0.0.42:5432 (attribute-store-primary.internal)");
+      const failingResolver = Layer.succeed(AttributeResolver, {
+        resolve: (_subjectId, attribute) => Effect.fail(new AttributeResolveError({ attribute, cause: secretCause })),
+      });
+
+      const app = AttributeRoutes.pipe(
+        Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
+        Layer.provideMerge(
+          Layer.mergeAll(
+            failingResolver,
+            RelationshipResolverNever,
+            DecisionHistoryUnknown,
+            EvaluationIdLive,
+            CustomPredicateNone,
+            SignatureHistoryNone,
+          ),
+        ),
+        Layer.provideMerge(decisionCacheLayer()),
+        Layer.provideMerge(HttpServer.layerServices),
+      );
+      const { handler } = HttpRouter.toWebHandler(app);
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://localhost/attribute-checked", { headers: bearer(ALICE_TOKEN) })),
+      );
+      assert.strictEqual(response.status, 502);
+      const rawBody = yield* Effect.promise(() => response.text());
+      assert.strictEqual(rawBody.includes("ECONNREFUSED"), false);
+      assert.strictEqual(rawBody.includes("10.0.0.42"), false);
+      assert.strictEqual(rawBody.includes("attribute-store-primary"), false);
+      assert.strictEqual(rawBody.includes("cause"), false);
+      const body: { readonly _tag?: string; readonly attribute?: string } = JSON.parse(rawBody);
+      assert.deepStrictEqual(body, { _tag: "AttributeResolveError", attribute: "clearance" });
     }));
+
+  it.effect(
+    "a denial's body carries AccessDeniedPublic's redacted fields, never the trace (disclosure, ADR-QD-072)",
+    () =>
+      Effect.gen(function* () {
+        const { handler } = HttpRouter.toWebHandler(AppLayer);
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/documents", { headers: bearer(BOB_TOKEN) })),
+        );
+        assert.strictEqual(response.status, 403);
+        const body: {
+          readonly _tag?: string;
+          readonly subjectId?: string;
+          readonly policyTag?: string;
+          readonly reason?: string;
+          readonly trace?: unknown;
+        } = yield* Effect.promise(() => response.json());
+        assert.strictEqual(body._tag, "AccessDenied");
+        assert.strictEqual(body.subjectId, "bob");
+        assert.strictEqual(body.policyTag, "HasPermission");
+        assert.strictEqual(typeof body.reason, "string");
+        // The one thing this test exists to pin: whatever else the public
+        // projection gains, `trace` — attribute values, matched rules, policy
+        // internals — must never be a key of the response body.
+        assert.strictEqual("trace" in body, false);
+      }),
+  );
+
+  it.effect(
+    "a denial's server-side log names the stable code, subject and reason (logDenial fires via RequirePermissionLive)",
+    () =>
+      Effect.gen(function* () {
+        const logs: Array<unknown> = [];
+        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/documents", { headers: bearer(BOB_TOKEN) })),
+        );
+        assert.strictEqual(response.status, 403);
+        assert.deepStrictEqual(logs, [
+          [`qadi/http: request denied (ACL001) — subject "bob": subject lacks permission 'document:read'`],
+        ]);
+      }),
+  );
+
+  it.effect(
+    "an endpoint declaring neither logs the wiring mistake it refuses for, exactly",
+    () =>
+      Effect.gen(function* () {
+        const logs: Array<unknown> = [];
+        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/documents/forgotten", { headers: bearer(ALICE_TOKEN) })),
+        );
+        assert.strictEqual(response.status, 500);
+        assert.deepStrictEqual(logs, [
+          [
+            'qadi/http: endpoint "forgotten" declares neither a permission requirement nor `publicEndpoint(...)`, ' +
+              "so it is refused. Annotate it with RequiredPermission, or with PublicEndpoint if it is meant to be " +
+              "reachable without authorization.",
+          ],
+        ]);
+      }),
+  );
+
+  it.effect(
+    "a credential store outage logs the real reason server-side, through RequirePermissionLive's own " +
+      "catchTag('SubjectExtractionFailed', ...) arm",
+    () =>
+      Effect.gen(function* () {
+        const logs: Array<unknown> = [];
+        const brokenStore = subjectExtractorBearer(() =>
+          Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
+        );
+        const app = WithRegistry.pipe(
+          Layer.provideMerge(brokenStore),
+          Layer.provideMerge(EvaluationServicesTest),
+          Layer.provideMerge(decisionCacheLayer()),
+          Layer.provideMerge(HttpServer.layerServices),
+          Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+        );
+        const { handler } = HttpRouter.toWebHandler(app, { disableLogger: true });
+
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/documents", { headers: bearer(ALICE_TOKEN) })),
+        );
+        assert.strictEqual(response.status, 502);
+        assert.deepStrictEqual(logs, [["qadi/http: subject extraction failed — token service unreachable"]]);
+      }),
+  );
 });

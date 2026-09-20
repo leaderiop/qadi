@@ -24,11 +24,61 @@
  * and without it no gate registers, no marker element is rendered, and this map
  * stays empty for the life of the process. A production bundle that never passes
  * the prop pays for one `useId` and one effect that returns immediately.
+ *
+ * **Ordering is whatever React's effects give it, and that is enough.**
+ * `registerGate`, `updateGateState` and the unregister function `registerGate`
+ * returns each apply to `instances` in the order they happen to fire. There is
+ * no sequence number, no tombstone, and no guarantee that one component's
+ * effects run before or after another's, or even that an instance's own
+ * update and unregister fire in the order a human would expect. What this
+ * gives up on ordering it makes up in simplicity: the registry is eventually
+ * consistent and last-write-wins — whichever effect for a given `id` runs
+ * last is what the map holds, until the next one runs. That is acceptable,
+ * and deliberately left unenforced, because this map only ever feeds a
+ * devtools panel (ADR-QD-053) — it cannot affect rendering or an
+ * authorization decision — so the cost of a brief, self-correcting glitch in
+ * what the panel shows is nothing a real consumer can observe. The "store
+ * contract" tests in `GateRegistry.test.tsx` pin the specific interleavings
+ * this guarantee covers.
+ *
+ * **One process, every root, no authorization effect — and that scope is
+ * never widened by "per authorization context" language elsewhere.**
+ * `QadiProvider`'s `instrument` prop is read from context, so *whether a given
+ * provider's guards register at all* is per authorization context. This map is
+ * not: `instances`/`listeners`/`snapshot`/`stale` are one set of module
+ * bindings, shared by every `QadiProvider` in the process — two instrumented
+ * providers (a multi-tenant debug page, a component playground, two React
+ * roots in one document) write into the same map, and `gateInstances()`
+ * cannot tell whose guard is whose. `instance.id` is React's own `useId`,
+ * unique within the root that minted it but not guaranteed unique *across*
+ * roots, so two roots can in principle mint the same id and overwrite each
+ * other's entry. None of this is a correctness problem for the property this
+ * file exists to keep — decisions never live here, and nothing here can
+ * change what a gate renders — but it is a real limit on what the panel can
+ * tell two colliding contexts apart. `clearGatesUnsafe` exists because tests
+ * share this same process-wide scope.
+ *
+ * **Every mutation is a synchronous effect; nothing here ever yields.**
+ * `registerGate`, `updateGateState`, `clearGatesUnsafe` and the unregister
+ * function `registerGate` returns all run to completion in one tick, so two
+ * mutations can never interleave with each other. `changed()` notifies
+ * `listeners` by iterating the live `Set` at call time: a listener added
+ * *during* that iteration (a subscribe triggered by another listener's own
+ * effect) is visited in the same pass, because that is what iterating a `Set`
+ * one is still adding to does — not a queued, later notification. A future
+ * change that introduces a yield point (an `async` callback, a scheduled
+ * flush) would change this and needs to say so here first.
  */
 import type { Policy, Resource } from "@qadi/core";
 
 /** Which surface the instance is. */
-export type GateKind = "Can" | "Cannot" | "useCan" | "useDecision" | "useDecisionSuspense";
+export type GateKind =
+  | "Can"
+  | "Cannot"
+  | "useCan"
+  | "useDecision"
+  | "useDecisionSuspense"
+  | "useProjected";
 
 /**
  * What the instance rendered, at the moment it last rendered.
@@ -76,6 +126,23 @@ const instances = new Map<string, GateInstance>();
 const listeners = new Set<() => void>();
 
 /**
+ * One opaque token per currently-active `registerGate` call, keyed by
+ * `instance.id`.
+ *
+ * `updateGateState` replaces `instances`' stored `GateInstance` with a new
+ * object on every real state transition (see its own doc comment) — so a
+ * cleanup that captured the *original* `GateInstance` and compared it by
+ * reference against the current map entry would find them unequal after the
+ * very first state change, permanently defeating the "still mine" check
+ * below and leaking the entry (and its `element`) for the life of the
+ * process. A token minted once per registration and left untouched by
+ * `updateGateState` tracks the thing that actually needs tracking — which
+ * `registerGate` call owns this id — independent of how many times its
+ * state has been updated in place.
+ */
+const owners = new Map<string, object>();
+
+/**
  * The cached array `useSyncExternalStore` compares by reference.
  *
  * Rebuilt on the first read after a change and not before. `getSnapshot` must
@@ -87,7 +154,20 @@ let stale = false;
 
 const changed = (): void => {
   stale = true;
-  for (const listener of listeners) listener();
+  // Isolated per listener: a subscriber's own bug must not stop the rest of
+  // the fan-out from being notified, and must not propagate into the guard
+  // effect that called `changed()` in the first place — the one place in this
+  // file a single member's failure could otherwise take the notifier down
+  // with it. Swallowed rather than logged: this module has no reporter of its
+  // own to route through, and a bare `console.*` call here would be a second,
+  // undeclared confinement point alongside `HydrationWarning.ts`'s.
+  for (const listener of listeners) {
+    try {
+      listener();
+    } catch {
+      // Intentionally ignored — see above.
+    }
+  }
 };
 
 /** Every instance currently mounted, in registration order. */
@@ -113,13 +193,28 @@ export const subscribeGates = (listener: () => void): (() => void) => {
  * Called from an effect, so the cleanup runs on unmount and the map cannot
  * outlive the tree — which matters more than usual here, because an entry holds
  * a DOM element and a leaked one would keep a detached subtree alive.
+ *
+ * The cleanup only deletes `instance.id` while this call's own token is still
+ * the one recorded for it — never unconditionally, and never by comparing
+ * the `GateInstance` object itself (see `owners`' doc comment for why that
+ * would break the very first time `updateGateState` touches this id).
+ * Without this check, a stale cleanup firing after a newer registration for
+ * the same id (a same-id remount ordered the way this file's ordering
+ * section describes) would evict the live registration it has no
+ * relationship to, rather than the one it owns; the newer instance would
+ * then be silently missing from the panel with nothing to say why.
  */
 export const registerGate = (instance: GateInstance): (() => void) => {
+  const owner = {};
   instances.set(instance.id, instance);
+  owners.set(instance.id, owner);
   changed();
   return () => {
-    instances.delete(instance.id);
-    changed();
+    if (owners.get(instance.id) === owner) {
+      instances.delete(instance.id);
+      owners.delete(instance.id);
+      changed();
+    }
   };
 };
 
@@ -132,9 +227,9 @@ export const registerGate = (instance: GateInstance): (() => void) => {
  * far more often than a component mounts or unmounts, and routing every state
  * transition through `registerGate`'s cleanup-then-register would unregister
  * and immediately re-register the same instance for each one — one `changed()`
- * call becomes two. A no-op when `id` is not currently registered (e.g. a
- * state update effect firing after the corresponding unregister effect, which
- * ordering does not otherwise prevent).
+ * call becomes two. A no-op when `id` is not currently registered — the case
+ * covered by this file's top-of-file ordering guarantee, e.g. a state update
+ * effect firing after the corresponding unregister effect.
  */
 export const updateGateState = (id: string, state: GateRenderState): void => {
   const existing = instances.get(id);
@@ -152,5 +247,6 @@ export const updateGateState = (id: string, state: GateRenderState): void => {
  */
 export const clearGatesUnsafe = (): void => {
   instances.clear();
+  owners.clear();
   changed();
 };

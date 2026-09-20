@@ -1,5 +1,28 @@
 # @qadi/react
 
+## 0.7.0
+
+### Patch Changes
+
+- c7aecf1: Bump `effect` to `4.0.0-rc.116` (and its lockstep catalog siblings `@effect/atom-react`, `@effect/platform-node`, `@effect/vitest`). No public API or runtime behavior changes for any `@qadi/*` package — confirmed by diffing the published `4.0.0-rc.115`/`4.0.0-rc.116` tarballs directly and grepping every changed symbol against this codebase's own source.
+- **Correction to the 0.6.3 entry below.** It said `settled.ts` "is retained as a test helper ... rather than deleted." That was wrong even at the time: ADR-QD-014's reversal deleted it entirely, and `Hydration.test.ts` was given a local, generic-purpose replacement helper instead of calling it. There is no `src/settled.ts` or `test/settled.ts` on disk; test-only, no public API to change.
+- Updated dependencies [c7aecf1]
+  - @qadi/core@0.7.0
+
+## 0.6.3
+
+### Patch Changes
+
+- Reverse ADR-QD-014: `@qadi/react` now depends on the official `@effect/atom-react` (same `Effect-TS/effect` monorepo, same `effect` version) instead of a hand-rolled `useSyncExternalStore` binding.
+
+  `QadiProvider.tsx` wires a `RegistryContext.Provider` and `useAtomValue` delegates to the library's context-based hook. `useDecisionSuspense` swaps from the hand-rolled `settled.ts` race fix to `useAtomSuspense` with `suspendOnWaiting: true`, closing the Suspense zero-listener race (COMPAT-01, gap G-01-1) that `settled.ts` had patched three separate times. No public API change — `QadiProvider`, `useGate`, `Can`/`Cannot` keep their existing signatures.
+
+  `settled.ts` is retained as a test helper (`Hydration.test.ts` still calls it directly) rather than deleted.
+
+  > **Corrected in 0.7.0.** This was wrong: `settled.ts` was deleted entirely as part of this same change, and `Hydration.test.ts` was given a local, generic-purpose replacement helper instead of calling it. There is no `src/settled.ts` or `test/settled.ts` on disk.
+
+- @qadi/core@0.6.3
+
 ## 0.6.2
 
 ### Patch Changes

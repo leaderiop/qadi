@@ -13,15 +13,7 @@
     "types": [
       "node",
       "react"
-    ],
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@qadi/core": [
-        "../../packages/core/src/index.ts"
-      ]
-    }
+    ]
   },
   "references": [
     {

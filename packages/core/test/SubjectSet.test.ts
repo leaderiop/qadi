@@ -1,8 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import * as Tracer from "effect/Tracer";
+import * as FastCheck from "fast-check";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { isAllowed } from "../src/Decision.ts";
@@ -204,6 +206,94 @@ describe("INV-QD-016: a batch decision is the decision made alone", () => {
       ]);
       assert.deepStrictEqual(ids(allowed), ["a"]);
     }).pipe(Effect.provide(subjectSetLayer())));
+
+  // JH-03: the two tests above check the invariant on one hand-picked
+  // five-subject set. A universal claim ("every subject list") should be a
+  // generated property instead, covering arbitrary attributes/roles/
+  // permissions, duplicate ids, and ordering the fixed example cannot.
+  const subjectConfigArb = FastCheck.record({
+    roles: FastCheck.constantFrom<ReadonlyArray<string>>([], ["admin"]),
+    attributes: FastCheck.constantFrom<Readonly<Record<string, unknown>>>(
+      {},
+      { level: 1 },
+      { level: 5 },
+    ),
+    permissions: FastCheck.constantFrom<ReadonlyArray<`${string}:${string}`>>([], ["doc:read"]),
+  });
+
+  it.effect(
+    "PROPERTY: every element's batched verdict and trace agree with a solo evaluation, for any subject list",
+    () =>
+      Effect.gen(function* () {
+        const listsArb = FastCheck.array(subjectConfigArb, { minLength: 1, maxLength: 6 });
+
+        for (const configs of FastCheck.sample(listsArb, { numRuns: 50, seed: 2026091901 })) {
+          // A duplicated id is exactly the case `filterSubjects`'s "does not
+          // deduplicate" test covers above — deliberately not made unique
+          // here, so a duplicate-key interaction with the batch would show up.
+          const subjects = configs.map((config, index) =>
+            subjectWith({ id: `s${index % 3}`, ...config }),
+          );
+
+          const { decisions: batched } = yield* decideSubjects(policy, subjects).pipe(
+            Effect.provide(subjectSetLayer()),
+          );
+
+          for (const [index, subject] of subjects.entries()) {
+            const alone = yield* evaluate(policy).pipe(Effect.provide(testLayer(subject)));
+            const row = batched[index];
+            assert.isDefined(row);
+            if (row === undefined) continue;
+            // Not `evaluationId`: `subjectSetLayer()` and `testLayer()` each
+            // build their own independent sequential counter, so the two
+            // sides are only expected to agree on the verdict and its trace —
+            // the same scope the fixed-set test above already keeps to.
+            assert.strictEqual(row.decision._tag, alone._tag);
+            assert.deepStrictEqual(row.decision.trace, alone.trace);
+          }
+        }
+      }),
+  );
+
+  it.effect(
+    "PROPERTY: decideSubjects is invariant under permutation of the subject list",
+    () =>
+      Effect.gen(function* () {
+        const listsArb = FastCheck.array(subjectConfigArb, { minLength: 2, maxLength: 6 });
+
+        for (const configs of FastCheck.sample(listsArb, { numRuns: 50, seed: 2026091902 })) {
+          // Uniquely keyed by generation order, so a decision traces back to
+          // "the same logical subject" after reordering, independent of any
+          // duplicate roles/attributes/permissions the config carries.
+          const subjects = configs.map((config, index) =>
+            subjectWith({ id: `s${index}`, ...config }),
+          );
+          const reversed = [...subjects].reverse();
+
+          const { decisions: original } = yield* decideSubjects(policy, subjects).pipe(
+            Effect.provide(subjectSetLayer()),
+          );
+          const { decisions: shuffled } = yield* decideSubjects(policy, reversed).pipe(
+            Effect.provide(subjectSetLayer()),
+          );
+
+          const byId = (rows: typeof original) =>
+            new Map(rows.map((r) => [r.subject.id, r.decision]));
+          const originalById = byId(original);
+          const shuffledById = byId(shuffled);
+
+          for (const subject of subjects) {
+            const a = originalById.get(subject.id);
+            const b = shuffledById.get(subject.id);
+            assert.isDefined(a);
+            assert.isDefined(b);
+            if (a === undefined || b === undefined) continue;
+            assert.strictEqual(a._tag, b._tag);
+            assert.deepStrictEqual(a.trace, b.trace);
+          }
+        }
+      }),
+  );
 });
 
 describe("the ambient subject is replaced, not read", () => {
@@ -506,6 +596,45 @@ describe("decideSubjectsStream", () => {
 
       assert.strictEqual(r._tag, "Failure");
     }));
+
+  it.effect(
+    "a mid-stream failure loses every decision already emitted, and names the element that broke",
+    () =>
+      Effect.gen(function* () {
+        // KK-01 (100-persona audit): the previous test above only ever drove
+        // every element to fail. This one fails the SECOND of three, which is
+        // the case that actually demonstrates the asymmetry with the array
+        // form: `decideSubjects` would keep "a" and "c" and report "b" in
+        // `failures` (see "a resolver failure is reported per subject" above).
+        // The streamed sibling has no such sink — `observed` proves "a" was
+        // genuinely produced before the failure, and the stream still fails
+        // outright rather than surfacing that partial progress to the caller.
+        const observed: Array<string> = [];
+        const broken = Layer.succeed(AttributeResolver, {
+          resolve: (subjectId: string, attribute) =>
+            subjectId === "b"
+              ? Effect.fail(new AttributeResolveError({ attribute, cause: "down" }))
+              : Effect.succeed(9),
+        });
+
+        const r = yield* Effect.result(
+          Stream.runForEach(
+            decideSubjectsStream(
+              P.hasAttribute("level", M.gte(3)),
+              Stream.fromIterable([nobody("a"), nobody("b"), nobody("c")]),
+            ).pipe(Stream.provide(subjectSetLayer({ attributes: broken }))),
+            (decision) => Effect.sync(() => observed.push(decision.subject.id)),
+          ),
+        );
+
+        // "a" was already handed to the consumer before "b" broke the stream;
+        // "c" is never reached at all.
+        assert.deepStrictEqual(observed, ["a"]);
+        assert.isTrue(Result.isFailure(r));
+        if (!Result.isFailure(r)) return;
+        assert.strictEqual(r.failure._tag, "AttributeResolveError");
+      }),
+  );
 });
 
 describe("filterSubjectsStream", () => {

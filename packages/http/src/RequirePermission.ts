@@ -8,10 +8,12 @@
  * `RequiredPermission` here is a key used purely as a typed annotation
  * carrier, never injected as a dependency. See ADR-QD-036.
  */
+import * as Brand from "effect/Brand";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import * as HttpApiMiddleware from "effect/unstable/httpapi/HttpApiMiddleware";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
@@ -26,13 +28,14 @@ import type {
   Resource,
   SignatureHistory,
 } from "@qadi/core";
-import { anonymous, CurrentSubject, guard } from "@qadi/core";
+import { anonymous, CurrentSubject, guard, toAccessDeniedPublic } from "@qadi/core";
 import {
   AccessDeniedRefused,
   AttributeResolveErrorResponse,
   CustomPredicateErrorResponse,
   DecisionHistoryUnavailableResponse,
   MissingActionResponse,
+  DENIAL_STATUS,
   MissingResourceIdResponse,
   MissingResourceResponse,
   PolicyTooDeepResponse,
@@ -40,8 +43,10 @@ import {
   SignatureHistoryUnavailableResponse,
   SubjectExtractionRefused,
   UndischargedObligationRefused,
+  logDenial,
   subjectExtractionFailedResponse,
 } from "./QadiHttpError.ts";
+import type { ClientErrorOf } from "./HttpApiMiddlewareClient.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 // Named `PermissionRequirement`/`PublicDeclaration`, not the usual
@@ -57,7 +62,33 @@ export interface PermissionRequirement {
   readonly policy: Policy;
 }
 
-export class RequiredPermission extends Context.Service<RequiredPermission, PermissionRequirement>()(
+/**
+ * `PermissionRequirement`, branded to prove it was produced by
+ * {@link requiresPermission} rather than assembled by hand at a
+ * `.annotate(RequiredPermission, {...})` call site.
+ *
+ * `Context` annotation is last-write-wins: a second, bare `.annotate` call on
+ * the same endpoint silently overwrites or narrows whatever `requiresPermission`
+ * already attached, with no throw and no log — `requiresPermission`'s own
+ * duplicate check only runs when a caller actually calls it, so a raw object
+ * literal passed straight to `.annotate` skipped it entirely. Branding
+ * `RequiredPermission`'s own Shape closes that gap at the type level: a plain
+ * `{ permission, policy }` literal is not assignable to it, so only a value
+ * `requiresPermission` itself returned can satisfy `.annotate`'s second
+ * argument.
+ *
+ * `Brand.nominal`, matching `Authorized<P>` (`@qadi/core`'s `Authorized.ts`)
+ * and the `SubjectId`/`RoleName`-style brands in `Identity.ts`/`Policy.ts`:
+ * this performs no validation, it only tags a value that must have come from
+ * the one function allowed to produce it. This is what finally uses the name
+ * the comment above explains `PermissionRequirement` deliberately isn't —
+ * `RequiredPermissionShape` is exactly `RequiredPermission`'s own Shape, per
+ * AGENTS.md §2, once `PermissionRequirement` is free to keep meaning the
+ * public, unbranded `{ permission, policy }` pair callers build.
+ */
+export type RequiredPermissionShape = Brand.Branded<PermissionRequirement, "RequiredPermission">;
+
+export class RequiredPermission extends Context.Service<RequiredPermission, RequiredPermissionShape>()(
   "qadi/http/RequiredPermission",
 ) {}
 
@@ -195,7 +226,16 @@ export interface AnnotatedEndpoint {
 export const requiresPermission = (
   endpoint: AnnotatedEndpoint,
   requirement: PermissionRequirement,
-): PermissionRequirement => {
+): RequiredPermissionShape => {
+  // A bare `throw`, not the typed error channel AGENTS.md §4/§6 otherwise
+  // requires — deliberately, and only because this runs at endpoint
+  // construction (module init), never per-request: no request is in flight
+  // for a typed failure to reach, and fail-fast-at-boot is exactly the
+  // right severity for a wiring mistake (GC-06/TS-05). The same reasoning
+  // applies to `DecisionStreamRoute.ts`'s own construction-time throw. A
+  // caller composing endpoints outside module top level — dynamically,
+  // where this is no longer effectively "at boot" — would see an uncaught
+  // throw rather than a typed failure; that is unaddressed today.
   if (Option.isSome(Context.getOption(endpoint.annotations, RequiredPermission))) {
     throw new Error(
       `requiresPermission: endpoint "${endpoint.identifier}" already has a permission ` +
@@ -203,8 +243,47 @@ export const requiresPermission = (
         "and pass it to a single requiresPermission call, rather than calling it twice.",
     );
   }
-  return requirement;
+  return Brand.nominal<RequiredPermissionShape>()(requirement);
 };
+
+/**
+ * Declared once and reused for both the `error` option below and
+ * {@link RequirePermissionClientError} — a single source rather than a
+ * hand-copied second list that could drift from it (ADR-QD-075).
+ */
+const REQUIRE_PERMISSION_ERROR_SCHEMAS = [
+  AccessDeniedRefused,
+  UndischargedObligationRefused,
+  SubjectExtractionRefused,
+  AttributeResolveErrorResponse,
+  RelationshipResolveErrorResponse,
+  DecisionHistoryUnavailableResponse,
+  CustomPredicateErrorResponse,
+  SignatureHistoryUnavailableResponse,
+  MissingActionResponse,
+  MissingResourceResponse,
+  MissingResourceIdResponse,
+  PolicyTooDeepResponse,
+] as const;
+
+/**
+ * Every response {@link RequirePermission} can produce, decoded — the full
+ * 12-member union {@link REQUIRE_PERMISSION_ERROR_SCHEMAS} declares, read off
+ * that same array via {@link ClientErrorOf} rather than hand-copied. Any
+ * future `@qadi/http` middleware adopting `requiredForClient` derives its own
+ * `clientError` the same way, through the same shared helper.
+ *
+ * A generated `HttpApiClient` cannot know, per endpoint, which of these a
+ * given call can actually reach — a `PublicEndpoint`-annotated endpoint never
+ * reaches `guard` at all, so none of the twelve can occur there, yet this
+ * union is what every guarded endpoint's static error type includes
+ * regardless. That over-approximation is accepted, not fixed: narrowing per
+ * endpoint would need a per-endpoint `clientError` attachment point
+ * `HttpApiMiddleware`'s type has none of, and ADR-QD-036's fail-closed design
+ * is exactly why per-endpoint middleware detachment isn't the fix either —
+ * see ADR-QD-075.
+ */
+export type RequirePermissionClientError = ClientErrorOf<typeof REQUIRE_PERMISSION_ERROR_SCHEMAS>;
 
 /**
  * `CurrentSubject` is resolved and provided per request, inside the
@@ -268,40 +347,60 @@ export const requiresPermission = (
  * their real fields into a response body. Declaring them anyway, rather than
  * leaving them off this list, is what keeps OpenAPI honest about every
  * status this endpoint can actually return.
+ *
+ * **`requiredForClient: true` plus `clientError: RequirePermissionClientError`**
+ * (ADR-QD-075) put the same twelve schemas into a generated `HttpApiClient`
+ * call's *static* error type, automatically, for every endpoint this
+ * middleware guards — see {@link RequirePermissionClientError}'s own doc
+ * comment for what that does and does not fix. Building such a client
+ * requires providing `passthroughClientLayer(RequirePermission)`
+ * (`HttpApiMiddlewareClient.ts`) somewhere in its layer graph; this
+ * middleware has no real client-side behavior, so that layer is always a
+ * passthrough — a credential is attached by decorating the underlying
+ * `HttpClient` instead, per `examples/http-advanced/client.ts`.
  */
 export class RequirePermission extends HttpApiMiddleware.Service<
   RequirePermission,
   {
     provides: CurrentSubject;
     requires: never;
+    clientError: RequirePermissionClientError;
   }
 >()("qadi/http/RequirePermission", {
-  error: [
-    AccessDeniedRefused,
-    UndischargedObligationRefused,
-    SubjectExtractionRefused,
-    AttributeResolveErrorResponse,
-    RelationshipResolveErrorResponse,
-    DecisionHistoryUnavailableResponse,
-    CustomPredicateErrorResponse,
-    SignatureHistoryUnavailableResponse,
-    MissingActionResponse,
-    MissingResourceResponse,
-    MissingResourceIdResponse,
-    PolicyTooDeepResponse,
-  ],
+  error: REQUIRE_PERMISSION_ERROR_SCHEMAS,
+  // See this class's own doc comment above (ADR-QD-075).
+  requiredForClient: true,
 }) {}
 
-export const RequirePermissionLive: Layer.Layer<
-  RequirePermission,
-  never,
-  | SubjectExtractor
+/**
+ * The standing `EvaluationServices` this middleware resolves once, at
+ * layer-build time — every one of `@qadi/core`'s `EvaluationServices` except
+ * `CurrentSubject`, which is per-request instead (see this middleware's own
+ * doc comment on `provides: CurrentSubject`). Named once and reused for both
+ * {@link RequirePermissionLive}'s own `Layer` requirement and the
+ * `Effect.context` capture inside it, rather than the same six-service union
+ * spelled out by hand in both positions — a service `@qadi/core` adds to
+ * `EvaluationServices` would otherwise need editing here twice to keep them
+ * from drifting apart (RM-05). Mirrors `@qadi/react`'s `QadiAtoms.ts`
+ * `QadiRuntimeServices = Exclude<EvaluationServices, CurrentSubject>`, kept
+ * local to this module rather than hoisted into `@qadi/core` alongside it —
+ * `@qadi/core`'s `EvaluationServices` itself already carries this exact
+ * exclusion as its own doc-comment-level convention, and duplicating that
+ * one line of derivation here is a smaller drift surface than a third public
+ * export three packages would need to agree stays in sync.
+ */
+type RequirePermissionEvaluationServices =
   | AttributeResolver
   | RelationshipResolver
   | DecisionHistory
   | EvaluationId
   | CustomPredicate
-  | SignatureHistory
+  | SignatureHistory;
+
+export const RequirePermissionLive: Layer.Layer<
+  RequirePermission,
+  never,
+  SubjectExtractor | RequirePermissionEvaluationServices
 > = Layer.effect(
   RequirePermission,
   Effect.gen(function* () {
@@ -311,9 +410,7 @@ export const RequirePermissionLive: Layer.Layer<
     // middleware class itself. Re-provided per request below, inside the
     // returned closure, so `guard`'s own `evaluate` call finds them exactly
     // as it would have found them via an ambient per-request `requires`.
-    const evaluationServices = yield* Effect.context<
-      AttributeResolver | RelationshipResolver | DecisionHistory | EvaluationId | CustomPredicate | SignatureHistory
-    >();
+    const evaluationServices = yield* Effect.context<RequirePermissionEvaluationServices>();
 
     return (httpEffect, { endpoint }) => {
       const required = Context.getOption(endpoint.annotations, RequiredPermission);
@@ -348,11 +445,13 @@ export const RequirePermissionLive: Layer.Layer<
       // `AccessDenied`/`UndischargedObligation`/`SubjectExtractionFailed` are
       // hand-caught and converted here rather than left to propagate:
       // `RequirePermission`'s own doc comment explains why their real fields
-      // must not reach a response body. Everything else in `EnforcementError`
-      // — the nine tags the other declared schemas cover — propagates typed,
-      // and `HttpApiMiddleware`'s response encoder builds the actual response
-      // from whichever declared schema matches, using its `httpApiStatus`
-      // annotation.
+      // must not reach a response body. `AccessDenied` specifically is
+      // projected to the public, no-trace `AccessDeniedPublic` (`@qadi/core`'s
+      // `Errors.ts`) rather than dropped entirely — see the `catchTag` below.
+      // Everything else in `EnforcementError` — the nine tags the other
+      // declared schemas cover — propagates typed, and `HttpApiMiddleware`'s
+      // response encoder builds the actual response from whichever declared
+      // schema matches, using its `httpApiStatus` annotation.
       return Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const subject = yield* extractor.extract(request);
@@ -361,8 +460,44 @@ export const RequirePermissionLive: Layer.Layer<
           Effect.provide(evaluationServices),
         );
       }).pipe(
-        Effect.catchTag(["AccessDenied", "UndischargedObligation"], () =>
-          Effect.succeed(HttpServerResponse.empty({ status: 403 })),
+        // Logged before either arm below reduces the error to its wire body
+        // — `AccessDenied`'s `reason` and `UndischargedObligation`'s
+        // `obligationIds` never reach a response, so this is an operator's
+        // only server-side answer to "why was this denied" short of a wired
+        // `DecisionSink` (JD-03, JM-05). See `logDenial`'s own doc comment
+        // for what it does and does not log (never the full `trace`).
+        Effect.tapErrorTag(["AccessDenied", "UndischargedObligation"], logDenial),
+        // `AccessDenied` is projected to `toAccessDeniedPublic`'s no-trace
+        // `AccessDeniedPublic` before it reaches a response body — the real
+        // `AccessDenied` carries the full evaluation `trace` (attribute
+        // values, matched rules, policy internals), and that must not cross
+        // this boundary. `AccessDeniedRefused` (`QadiHttpError.ts`) is the
+        // `httpApiStatus`-annotated view of that same public type, so
+        // `Schema.encodeSync` here produces exactly the body OpenAPI already
+        // advertises for this status, rather than a second, independently
+        // maintained encoding of the same shape.
+        Effect.catchTag("AccessDenied", (error) =>
+          Effect.succeed(
+            HttpServerResponse.jsonUnsafe(Schema.encodeSync(AccessDeniedRefused)(toAccessDeniedPublic(error)), {
+              status: DENIAL_STATUS,
+            }),
+          ),
+        ),
+        // `UndischargedObligation` carries no disclosure-reviewed projection
+        // of its own (see `UndischargedObligationRefused`'s doc comment), so
+        // only the tag is encoded — but encoded, not answered as a truly
+        // empty body: an empty body decodes to `undefined` through a
+        // generated `HttpApiClient`, which satisfies no `Schema.TaggedStruct`,
+        // so this outcome could never actually decode as the typed
+        // `UndischargedObligation` the declared `clientError` union promises
+        // before this fix (BL-01/MH-01/RM-01/GR-02/PH-04).
+        Effect.catchTag("UndischargedObligation", () =>
+          Effect.succeed(
+            HttpServerResponse.jsonUnsafe(
+              Schema.encodeSync(UndischargedObligationRefused)({ _tag: "UndischargedObligation" }),
+              { status: DENIAL_STATUS },
+            ),
+          ),
         ),
         Effect.catchTag("SubjectExtractionFailed", subjectExtractionFailedResponse),
       );

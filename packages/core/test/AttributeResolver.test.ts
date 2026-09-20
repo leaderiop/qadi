@@ -11,14 +11,17 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
+import * as TestClock from "effect/testing/TestClock";
+import type * as Tracer from "effect/Tracer";
 import { AttributeResolveError } from "../src/Errors.ts";
 import {
   AttributeResolver,
   attributeResolverBounded,
   attributeResolverRetrying,
+  attributeResolverTimingOut,
 } from "../src/AttributeResolver.ts";
 import { makeSubjectId } from "../src/Identity.ts";
-import { forkAllAndSettle } from "./helpers.ts";
+import { collectingTracer, forkAllAndSettle } from "./helpers.ts";
 
 /** A resolver that fails `failures` times, then succeeds, counting attempts via `attempts`. */
 const flakyLayer = (failures: number, attempts: Ref.Ref<number>): Layer.Layer<AttributeResolver> =>
@@ -60,6 +63,28 @@ describe("attributeResolverRetrying", () => {
       assert.strictEqual(result._tag, "Failure");
       // 1 initial call + 2 retries = 3 attempts.
       assert.strictEqual(yield* Ref.get(attempts), 3);
+    }));
+
+  it.effect("the qadi.attempts span annotation matches the real call count, even when every attempt fails", () =>
+    Effect.gen(function* () {
+      const attempts = yield* Ref.make(0);
+      const spans: Array<Tracer.Span> = [];
+      // Always fails — the schedule's 2 retries (3 total calls) all exhaust.
+      const retrying = attributeResolverRetrying(Schedule.recurs(2))(flakyLayer(999, attempts));
+
+      yield* Effect.result(
+        Effect.withSpan("test-span")(
+          AttributeResolver.resolve(makeSubjectId("u1"), "dept").pipe(Effect.provide(retrying)),
+        ).pipe(Effect.provide(collectingTracer(spans))),
+      );
+
+      // Regression: the annotation used to increment on every failure,
+      // including the exhausting one `Effect.retry` never actually retries
+      // — reporting 4 for the 3 calls this schedule permits.
+      const span = spans.find((s) => s.name === "test-span");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.deepStrictEqual(Object.fromEntries(span.attributes), { "qadi.attempts": 3 });
     }));
 });
 
@@ -173,5 +198,63 @@ describe("attributeResolverBounded", () => {
         ),
         "ok",
       );
+    }));
+});
+
+// JM-01/WV-01/SP-01: a resolver that never settles must produce a typed
+// evaluation failure, not a hung decision — the adversarial case
+// `attributeResolverRetrying`/`attributeResolverBounded` have no answer for,
+// since a retry schedule only ever fires on a *settled* failure.
+describe("attributeResolverTimingOut", () => {
+  it.effect("fails with a typed AttributeResolveError once the deadline passes, for a resolver that never answers", () =>
+    Effect.gen(function* () {
+      const timingOut = attributeResolverTimingOut("1 second")(
+        Layer.succeed(AttributeResolver, { resolve: () => Effect.never }),
+      );
+
+      // `Effect.never` would hang the test forever if awaited directly — forked
+      // so `TestClock.adjust` below can advance virtual time past the deadline
+      // out from under it, the same shape `GuardHealthCheck.test.ts`/
+      // `DecisionSink.test.ts` use to test time-based behavior deterministically.
+      const fiber = yield* Effect.forkChild(
+        Effect.result(AttributeResolver.resolve(makeSubjectId("u1"), "dept")).pipe(
+          Effect.provide(timingOut),
+        ),
+      );
+      yield* TestClock.adjust("1 second");
+      const result = yield* Fiber.join(fiber);
+
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      assert.strictEqual(result.failure._tag, "AttributeResolveError");
+      assert.strictEqual(result.failure.attribute, "dept");
+    }));
+
+  it.effect("does not affect a resolver that settles well within the deadline", () =>
+    Effect.gen(function* () {
+      const timingOut = attributeResolverTimingOut("1 second")(
+        Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed("resolved") }),
+      );
+      const result = yield* AttributeResolver.resolve(makeSubjectId("u1"), "dept").pipe(
+        Effect.provide(timingOut),
+      );
+      assert.strictEqual(result, "resolved");
+    }));
+
+  it.effect("still surfaces the resolver's own typed failure unchanged when it settles in time", () =>
+    Effect.gen(function* () {
+      const timingOut = attributeResolverTimingOut("1 second")(
+        Layer.succeed(AttributeResolver, {
+          resolve: (_id, attribute) =>
+            Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+        }),
+      );
+      const result = yield* Effect.result(
+        AttributeResolver.resolve(makeSubjectId("u1"), "dept").pipe(Effect.provide(timingOut)),
+      );
+      assert.isTrue(Result.isFailure(result));
+      if (!Result.isFailure(result)) return;
+      assert.strictEqual(result.failure._tag, "AttributeResolveError");
+      assert.strictEqual(result.failure.cause, "down");
     }));
 });

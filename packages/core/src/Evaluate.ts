@@ -11,6 +11,7 @@
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
@@ -218,8 +219,10 @@ export interface EvaluateOptions {
    * branch that is never reached performs no lookup
    * ([INV-QD-005](../../../spec/invariants.md#inv-qd-005-short-circuit-preservation)).
    * Supplying this **forfeits that** in exchange for latency: every child of a
-   * composite is evaluated, so a caller pays for speculative attribute and
-   * relationship lookups against their own store.
+   * composite is evaluated, so a caller pays for speculative attribute,
+   * relationship, decision-history and custom-predicate lookups against their
+   * own stores — this option changes what a caller's resolvers get asked, not
+   * only how long the call takes.
    *
    * What it does *not* change is the answer. The decision and its trace are
    * identical either way, because both paths drive the same fold over children in
@@ -254,9 +257,17 @@ export interface EvaluateOptions {
  * read, plus the settings that govern how the walk is performed.
  *
  * Bundled rather than threaded as separate parameters, and `concurrency` is the
- * clearest case for it. `Concurrency` is `number | "unbounded" | "inherit"`, so a
- * positional slip between it, `depth` and `maxDepth` would **typecheck** — which
- * is exactly the shape of bug this bundle exists to make impossible.
+ * clearest case for it. `Concurrency` is `number | "unbounded" | "inherit"`, so
+ * left as its own positional parameter next to `depth` and `maxDepth` — both
+ * numbers — a slip between the three would **typecheck**. Folding `concurrency`
+ * into this bundle removes it from that adjacency at every call site.
+ *
+ * This does not extend to `depth`/`maxDepth` themselves: `evaluateNode` and its
+ * `AllOf`/`AnyOf`/`Rules` helpers still take both as two adjacent positional
+ * numbers (`evaluateNode`'s own signature, and every recursive `depth + 1,
+ * maxDepth` call), so a slip between *those* two would still typecheck. This
+ * bundle closes the `concurrency` case, not the whole positional-parameter
+ * class of bug.
  *
  * `concurrency` is deliberately here and not in `MatcherContext`: it is a
  * property of the evaluation, never a value a matcher can compare against.
@@ -277,12 +288,30 @@ export type EvaluationServices =
   | CustomPredicate
   | SignatureHistory;
 
+/**
+ * The services a single recursive walk (`evaluateNode` and its lookup) reads —
+ * `EvaluationServices` minus `CurrentSubject` and `EvaluationId`, which the
+ * root `evaluate` resolves once and never threads into the walk itself.
+ *
+ * Named so `evaluateNode`'s return type and `evaluate`'s `lookupEffect`
+ * annotation share one spelling instead of two independently maintained
+ * copies of the same five-service union.
+ */
+type WalkServices =
+  | AttributeResolver
+  | RelationshipResolver
+  | DecisionHistory
+  | CustomPredicate
+  | SignatureHistory;
+
 const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
+/** Shared empty children array for leaf verdicts — mirrors `NO_OBLIGATIONS`. */
+const NO_CHILDREN: ReadonlyArray<Trace> = [];
 
 const allow = (
   policyTag: Policy["_tag"],
   fields: VisibleFields,
-  children: ReadonlyArray<Trace> = [],
+  children: ReadonlyArray<Trace> = NO_CHILDREN,
   label?: string,
   obligations: ReadonlyArray<Obligation> = NO_OBLIGATIONS,
 ): Trace => ({
@@ -298,7 +327,7 @@ const allow = (
 const deny = (
   policyTag: Policy["_tag"],
   reason: string,
-  children: ReadonlyArray<Trace> = [],
+  children: ReadonlyArray<Trace> = NO_CHILDREN,
   label?: string,
 ): Trace => ({
   policyTag,
@@ -485,18 +514,37 @@ const attributeReason = (
  * internal to that module's `evaluateMatcher` — so this answers only the
  * narrower question `attributeReason` needs, on the same tags, rather than
  * duplicating a general-purpose resolver as public surface neither this file
- * nor any other caller needs.
+ * nor any other caller needs. Its per-arm semantics must mirror `resolveRef`'s:
+ * a new `ValueRef` tag needs an arm here that agrees with what `resolveRef`
+ * would resolve it to, not just an arm that compiles.
+ *
+ * `Match.type<ValueRef>()`, hoisted to module scope per §5a, with each arm
+ * returning a closure over `context` — the same shape as `Dispatch.bench.ts`'s
+ * `hoisted` form — rather than `Match.value(ref)` rebuilt per call: this runs
+ * on the `Neq`-denial path (`attributeReason` below), and denial is
+ * authorization's routine outcome, not a cold path.
  */
-const refIsUnresolved = (ref: ValueRef, context: MatcherContext): boolean =>
-  Match.value(ref).pipe(
-    Match.tag("SubjectRef", (r) => getByPath(context.subject, r.path) === undefined),
-    Match.tag("SubjectIdRef", () => false),
-    Match.tag("ResourceRef", (r) => getByPath(context.resource, r.path) === undefined),
-    Match.tag("ActionRef", () => context.action === undefined),
-    Match.tag("LiteralRef", (r) => r.value === undefined),
-    Match.exhaustive,
-  );
+const refIsUnresolvedFor: (ref: ValueRef) => (context: MatcherContext) => boolean = Match.type<ValueRef>().pipe(
+  Match.tag("SubjectRef", (r) => (context: MatcherContext) => getByPath(context.subject, r.path) === undefined),
+  Match.tag("SubjectIdRef", () => () => false),
+  Match.tag("ResourceRef", (r) => (context: MatcherContext) => getByPath(context.resource, r.path) === undefined),
+  Match.tag("ActionRef", () => (context: MatcherContext) => context.action === undefined),
+  Match.tag("LiteralRef", (r) => () => r.value === undefined),
+  Match.exhaustive,
+);
 
+const refIsUnresolved = (ref: ValueRef, context: MatcherContext): boolean =>
+  refIsUnresolvedFor(ref)(context);
+
+/**
+ * Merges a composite's children's visible-field sets per its `FieldStrategy`.
+ *
+ * The one direction a strategy bug must never fail in is widening: merging
+ * must never grant a field no child granted. `Intersection`/`Union`/`First`'s
+ * algebra is stated where each policy builder documents its default
+ * (`Policy.ts`) and in `spec/behaviors/03-policy-adt.md`; the `default: never`
+ * arm below exists because that direction has failed before (ADR-QD-034).
+ */
 const mergeFields = (
   strategy: FieldStrategy,
   sets: ReadonlyArray<VisibleFields>,
@@ -521,30 +569,38 @@ const mergeFields = (
         if (set === undefined) return undefined;
         for (const field of set) merged.add(field);
       }
-      return [...merged];
+      // Sorted for the same reason `intersectFields`/`unionFields` are
+      // (`Decision.ts`): `merged`'s iteration order depends on which set
+      // happened to contribute a field first, so two allOf/anyOf trees with
+      // the same allowing children in a different order produced the same
+      // field set but different `Allow.visibleFields` bytes on the wire.
+      return [...merged].sort();
     }
     case "First":
       return sets.length === 0 ? undefined : sets[0];
     default: {
-      // Unreachable, and load-bearing for the same reason as `resolveRef`'s: the
-      // return type already includes `undefined`, so a fourth strategy would
-      // compile and silently merge to "all fields" — the *top* of the field
-      // lattice, which widens visibility rather than narrowing it. That is the
-      // one direction a field-strategy bug must never fail in (ADR-QD-034).
+      // Unreachable, and load-bearing for the same reason as `resolveRef`'s
+      // (`Matcher.ts`), but fixed to the OPPOSITE fallback value, because this
+      // lattice's danger direction is the opposite of `resolveRef`'s (CM-07):
+      // `const exhaustive: never = strategy` alone does NOT make `return
+      // exhaustive` return anything in particular at runtime for a hand-built,
+      // in-process `FieldStrategy` outside the known three — `never`-typing a
+      // `const` changes nothing about what it holds, so this would have
+      // returned the bogus strategy *string* itself, not "all fields" the way
+      // the comment below describes. `undefined` is this lattice's TOP
+      // (`Decision.ts`'s `VisibleFields` doc comment) — an allow that names no
+      // restriction shows every field — so returning `undefined` here would
+      // be the exact widening this comment warns against, not a safe
+      // fallback. `[]`, a present-but-empty restriction, is: it grants zero
+      // fields rather than every field, the one direction a field-strategy
+      // bug must never fail in (ADR-QD-034).
       const exhaustive: never = strategy;
-      return exhaustive;
+      void exhaustive;
+      return [];
     }
   }
 };
 
-/**
- * `HasActed`/`HasNotActed` share every line but the wanted `ActedResult` — the
- * `_tag` itself supplies that, so there is nothing left for the two case labels
- * in `evaluateNode` to differ on. Extracted for the same reason `evaluateAllOf`
- * and friends are: `switch (policy._tag)` keeps dispatching in one glance, and
- * the twenty-odd lines of what a given tag actually *does* move to a name
- * instead of living inline in the arm.
- */
 /**
  * Fails with `MissingResourceId` when a Resource-scoped policy has no usable
  * resource id.
@@ -566,6 +622,16 @@ const requireScopedResourceId = Effect.fn("qadi.requireScopedResourceId")(functi
   }
 });
 
+/**
+ * `HasActed`/`HasNotActed`'s arm.
+ *
+ * The two share every line but the wanted `ActedResult` — the `_tag` itself
+ * supplies that, so there is nothing left for the two case labels in
+ * `evaluateNode` to differ on. Extracted for the same reason `evaluateAllOf`
+ * and friends are: `switch (policy._tag)` keeps dispatching in one glance, and
+ * the twenty-odd lines of what a given tag actually *does* move to a name
+ * instead of living inline in the arm.
+ */
 const evaluateActed = Effect.fn("qadi.acted")(function* (
   policy: Extract<Policy, { _tag: "HasActed" | "HasNotActed" }>,
   subject: AuthSubject,
@@ -617,18 +683,25 @@ const evaluateActed = Effect.fn("qadi.acted")(function* (
  *
  * Every other untrusted numeric at this trust boundary is bounded: the policy
  * tree itself by `DEFAULT_MAX_DEPTH`, a raw decoded JSON value by
- * `MAX_DECODE_DEPTH`. `depth` is `Schema.optional(Schema.Number)` with no
- * `min`/`max`/`finite` refinement, so a hostile persisted policy can carry
- * `1e308`, a negative number, or — once decoded through `fromJsonValue` —
- * `NaN`/`Infinity`, and every one of those reached
- * `RelationshipResolver.check` unclamped. Reusing `DEFAULT_MAX_DEPTH`'s value
- * rather than inventing a second bound: nothing here argues a relationship
- * graph should be walked deeper than a policy tree is ever allowed to be.
+ * `MAX_DECODE_DEPTH`. `Policy.ts`'s wire schema now rejects a non-integer,
+ * negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `depth` at decode — the same
+ * boundary-not-runtime treatment `Matcher.ts`'s `Gte`/`Lt` give their bound —
+ * so `fromJson`/`fromJsonValue` are no longer where `1e308`, a negative
+ * number, or `NaN`/`Infinity` gets through. This clamp stays anyway: the
+ * smart constructors (`hasRelationship`, …) are deliberately total and never
+ * cross the schema (`Policy.ts`'s `makeRoleName` comment explains why), so a
+ * policy built in memory with `hasRelationship("owner", { depth: -5 })` still
+ * reaches `RelationshipResolver.check` unclamped without this. Reusing
+ * `DEFAULT_MAX_DEPTH`'s value rather than inventing a second bound: nothing
+ * here argues a relationship graph should be walked deeper than a policy tree
+ * is ever allowed to be.
  */
 const MAX_RELATIONSHIP_DEPTH = DEFAULT_MAX_DEPTH;
 
 /**
- * Clamps a decoded `HasRelationship.depth` to `[0, MAX_RELATIONSHIP_DEPTH]`.
+ * Clamps an in-memory `HasRelationship.depth` to `[0, MAX_RELATIONSHIP_DEPTH]`
+ * — defense-in-depth for policies built through the smart constructors, which
+ * never cross `Policy.ts`'s decode-time bound (see the comment above).
  *
  * `undefined` passes through unchanged — "the resolver decides" is a real,
  * distinct meaning `RelationshipResolverShape.check`'s own doc comment names,
@@ -800,6 +873,22 @@ const evaluateHasSignature = Effect.fn("qadi.hasSignature")(function* (
   );
 });
 
+/**
+ * Dispatches a single policy node to its verdict, recursing into composites.
+ *
+ * `depth > maxDepth` is the one guard standing between a decoded policy tree
+ * and unbounded recursion (BEH-QD-038); `Policy.ts`'s `policyDepth` and
+ * `RolesAndDepth.test.ts` assert the two agree in both directions —
+ * `policyDepth(p) <= n` exactly when `evaluate(p, { maxDepth: n })` succeeds.
+ *
+ * Not `Effect.suspend`-wrapped: a leaf tag's real comparison
+ * (`subject.roles.has(...)`, `evaluateMatcher`) runs immediately, as part of
+ * building the `Effect.succeed(...)` this returns, rather than lazily when
+ * that `Effect` is later run. The root `evaluate`'s cache path defends itself
+ * against this with its own `Effect.suspend` around the call; a future caller
+ * that memoizes or races calls to this function directly needs the same
+ * defense.
+ */
 const evaluateNode = (
   policy: Policy,
   subject: AuthSubject,
@@ -807,11 +896,7 @@ const evaluateNode = (
   matcherContext: MatcherContext,
   depth: number,
   maxDepth: number,
-): Effect.Effect<
-  Trace,
-  EvaluationError,
-  AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate | SignatureHistory
-> => {
+): Effect.Effect<Trace, EvaluationError, WalkServices> => {
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
 
   const { action, resource } = request;
@@ -829,13 +914,17 @@ const evaluateNode = (
     case "HasRole":
       return Effect.succeed(
         subject.roles.has(policy.role)
-          ? allow("HasRole", undefined)
+          ? allow("HasRole", policy.fields)
           : deny("HasRole", `subject lacks role '${policy.role}'`),
       );
 
     case "HasAttribute":
       if (action === undefined && referencesAction(policy.matcher)) {
-        return Effect.fail(new MissingAction({ expected: undefined }));
+        // No key, not `expected: undefined`: `expected` is `Schema.optional`
+        // precisely so a JSON round-trip drops it, and this arm has no
+        // expected action to report — omitting the key spells that directly
+        // instead of writing a value that only round-trips to the same thing.
+        return Effect.fail(new MissingAction({}));
       }
       // The `HasResourceAttribute` mirror of the action check above
       // (INV-QD-011): a matcher comparing against `resource(...)` with no
@@ -865,7 +954,8 @@ const evaluateNode = (
         return Effect.fail(new MissingResource({ attribute: policy.attribute }));
       }
       if (action === undefined && referencesAction(policy.matcher)) {
-        return Effect.fail(new MissingAction({ expected: undefined }));
+        // See the `HasAttribute` arm above: no expected action here either.
+        return Effect.fail(new MissingAction({}));
       }
       // `Object.hasOwn`, mirroring `readAttribute` above and `FieldPath.ts`'s
       // `projectAt`: a decoded policy's `attribute` is untrusted input, and
@@ -1079,17 +1169,29 @@ const evaluateAllOf = Effect.fnUntraced(function* (
       if (verdict !== undefined) return verdict;
     }
   } else {
-    const traces = yield* Effect.forEach(
+    // `Effect.exit` per child, not a bare `evaluateNode` — `Effect.forEach`'s
+    // default (fail-fast) error mode would abort the whole dispatch the
+    // instant any child failed, so a later-indexed sibling's failure could
+    // pre-empt an earlier-indexed sibling's `Deny` that a sequential walk
+    // would have already returned. Exiting every child instead means every
+    // child still runs (losing nothing the concurrent path evaluated before),
+    // and the exits arrive in input order regardless of completion order, so
+    // walking them below reproduces the sequential fold exactly: the first
+    // index that is either a `Deny` or a failure wins, matching what
+    // sequential evaluation would have reached that index with (ADR-QD-026).
+    // Children after the decisive index are dropped either way: the work was
+    // speculative, and keeping it would make the trace (or which error
+    // surfaces) depend on a performance switch.
+    const exits = yield* Effect.forEach(
       policy.policies,
-      (child) => evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
+      (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),
       { concurrency: request.concurrency },
     );
-    // Traces arrive in input order regardless of completion order, so the fold
-    // below is the sequential fold. Children after the decisive one are dropped:
-    // the work was speculative, and keeping it would make the trace depend on a
-    // performance switch (ADR-QD-026).
-    for (const trace of traces) {
-      const verdict = stepAllOf(fold, trace);
+    for (const exit of exits) {
+      if (Exit.isFailure(exit)) {
+        return yield* Effect.failCause(exit.cause);
+      }
+      const verdict = stepAllOf(fold, exit.value);
       if (verdict !== undefined) return verdict;
     }
   }
@@ -1173,8 +1275,7 @@ const finishAnyOf = (
  *
  * `Intersection` on an `anyOf` is honoured rather than silently downgraded to
  * `First`, which is what the predecessor did.
- */
-/**
+ *
  * `Effect.fnUntraced` — see `evaluateAllOf`'s doc comment above for why this
  * and `evaluateRules` join it: the same measured per-call cost (issue #101),
  * the same boundary (composite dispatchers only, ADR-QD-051's port calls and
@@ -1200,13 +1301,23 @@ const evaluateAnyOf = Effect.fnUntraced(function* (
       if (verdict !== undefined) return verdict;
     }
   } else {
-    const traces = yield* Effect.forEach(
+    // `Effect.exit` per child — see `evaluateAllOf`'s matching branch above for
+    // why: `Effect.forEach`'s default fail-fast mode would let a later-indexed
+    // sibling's failure pre-empt an earlier-indexed sibling's decisive `Allow`
+    // (under `First`) that a sequential walk would already have returned. The
+    // exits arrive in input order regardless of completion order, and walking
+    // them below reproduces the sequential fold exactly: the first index that
+    // is either decisive or a failure wins (ADR-QD-026).
+    const exits = yield* Effect.forEach(
       policy.policies,
-      (child) => evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
+      (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),
       { concurrency: request.concurrency },
     );
-    for (const trace of traces) {
-      const verdict = stepAnyOf(fold, trace);
+    for (const exit of exits) {
+      if (Exit.isFailure(exit)) {
+        return yield* Effect.failCause(exit.cause);
+      }
+      const verdict = stepAnyOf(fold, exit.value);
       if (verdict !== undefined) return verdict;
     }
   }
@@ -1222,8 +1333,7 @@ const evaluateAnyOf = Effect.fnUntraced(function* (
  * applies at all; the overrides stop at the first rule carrying the effect
  * nothing later can beat, and must otherwise ask every rule — which inverts the
  * cost profile of the rest of the library, where allowing is the cheap outcome.
- */
-/**
+ *
  * `Effect.fnUntraced` — see `evaluateAllOf`'s doc comment above for why this
  * and `evaluateAnyOf` join it: the same measured per-call cost (issue #101),
  * the same boundary (composite dispatchers only, ADR-QD-051's port calls and
@@ -1242,7 +1352,7 @@ const evaluateRules = Effect.fnUntraced(function* (
 
   /** The effect that ends the walk. `undefined` under `FirstApplicable`,
    *  where the first rule to apply at all is already final. */
-  const decisive: RuleEffect | undefined =
+  const decisiveEffect: RuleEffect | undefined =
     policy.combining === "DenyOverrides"
       ? "Deny"
       : policy.combining === "PermitOverrides"
@@ -1278,8 +1388,8 @@ const evaluateRules = Effect.fnUntraced(function* (
 
     const applied: Applied = { index, rule, trace };
     firstApplying ??= applied;
-    if (decisive === undefined) return true;
-    if (rule.effect === decisive) {
+    if (decisiveEffect === undefined) return true;
+    if (rule.effect === decisiveEffect) {
       firstDecisive = applied;
       return true;
     }
@@ -1300,35 +1410,52 @@ const evaluateRules = Effect.fnUntraced(function* (
       if (step(index, rule, trace)) break;
     }
   } else {
-    // `rule` and `index` travel with the trace from the same `forEach` that
-    // produced it, rather than being re-associated afterward by indexing a
-    // second array — the same reasoning as `translateRules` in Predicate.ts.
-    const results = yield* Effect.forEach(
+    // `Effect.exit` per child, not a bare `Effect.map` — see `evaluateAllOf`'s
+    // matching branch above for why: `Effect.forEach`'s default fail-fast
+    // error mode would abort the whole dispatch the instant any rule's
+    // condition failed, so a later-indexed rule's failure could pre-empt an
+    // earlier-indexed rule's already-decisive verdict that a sequential walk
+    // would have already returned. Exiting every child instead means every
+    // condition still runs (losing nothing the concurrent path evaluated
+    // before), and the exits arrive in input order regardless of completion
+    // order, so walking them below reproduces the sequential fold exactly:
+    // the first index that is either decisive or a failure wins (ADR-QD-026).
+    // `rule` and `index` still travel with the trace from the same `forEach`
+    // that produced it, rather than being re-associated afterward by indexing
+    // a second array — the same reasoning as `translateRules` in
+    // Predicate.ts.
+    const exits = yield* Effect.forEach(
       policy.rules,
       (rule, index) =>
-        Effect.map(
-          evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),
-          (trace) => ({ index, rule, trace }),
+        Effect.exit(
+          Effect.map(
+            evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),
+            (trace) => ({ index, rule, trace }),
+          ),
         ),
       { concurrency: request.concurrency },
     );
-    for (const { index, rule, trace } of results) {
+    for (const exit of exits) {
+      if (Exit.isFailure(exit)) {
+        return yield* Effect.failCause(exit.cause);
+      }
+      const { index, rule, trace } = exit.value;
       if (step(index, rule, trace)) break;
     }
   }
 
   // Under the overrides, an applying rule of the other effect decides only
   // because nothing decisive was found — which is knowable solely by asking all.
-  const deciding = firstDecisive ?? firstApplying;
+  const decidingRule = firstDecisive ?? firstApplying;
 
-  if (deciding === undefined) {
+  if (decidingRule === undefined) {
     return deny("Rules", "no rule applied", children);
   }
 
-  if (deciding.rule.effect === "Deny") {
+  if (decidingRule.rule.effect === "Deny") {
     // `Not`'s rule: a refusal permits nothing, so it carries neither fields nor
     // obligations — whatever its own condition's trace holds (ADR-QD-023).
-    return deny("Rules", `rules[${deciding.index}] denied`, children);
+    return deny("Rules", `rules[${decidingRule.index}] denied`, children);
   }
 
   return {
@@ -1337,10 +1464,10 @@ const evaluateRules = Effect.fnUntraced(function* (
     // The only allowing node in the library that carries a reason. A rule
     // table's first question is *which row hit*, and it is asked in both
     // directions.
-    reason: `rules[${deciding.index}] permitted`,
+    reason: `rules[${decidingRule.index}] permitted`,
     children,
-    visibleFields: deciding.trace.visibleFields,
-    obligations: deciding.trace.obligations,
+    visibleFields: decidingRule.trace.visibleFields,
+    obligations: decidingRule.trace.obligations,
   };
 });
 
@@ -1456,11 +1583,9 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   // Annotated rather than inferred: the two branches are `Effect<CacheLookup>`
   // and `Effect<{trace, outcome: undefined}>`, and TypeScript unions the two
   // `Effect`s rather than widening `outcome`, which then has no common `.pipe`.
-  const lookupEffect: Effect.Effect<
-    EvaluationLookup,
-    EvaluationError,
-    AttributeResolver | RelationshipResolver | DecisionHistory | CustomPredicate | SignatureHistory
-  > = Option.isSome(cache)
+  const lookupEffect: Effect.Effect<EvaluationLookup, EvaluationError, WalkServices> = Option.isSome(
+    cache,
+  )
     ? cache.value.getOrCompute(
         {
           // The whole subject, not `subject.id`: two tokens for one user carry

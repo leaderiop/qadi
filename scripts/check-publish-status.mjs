@@ -26,14 +26,25 @@
  * only keeps the *version number* in that sentence honest once it is true,
  * and flags a leftover "not yet published" phrase once none should remain.
  *
- * Two checks, both directions:
+ * The reference version comes from the changesets **fixed group**
+ * (`packages/*`), not from the root `package.json`. This also already
+ * happened once: `changeset version` bumps every member of the fixed group
+ * together but never touches the private, unversioned root manifest, so root
+ * froze at `0.4.0` while three release trains carried the group to `0.7.0`
+ * (RC-01/DH-05) — a gate reading root's version cannot see that drift even
+ * in principle, because the one fact it checks against is itself the fossil.
  *
- *   1. VERSION — every backticked version literal in the four documents'
- *      publish-status paragraphs equals root `package.json`'s version.
- *   2. STALE-CLAIM — none of those paragraphs still says a package is
+ * Three checks, all directions:
+ *
+ *   1. FIXED-GROUP — every package under `packages/` agrees with every other
+ *      one on its `package.json` version; the shared version is what the
+ *      remaining checks use.
+ *   2. VERSION — every backticked version literal in the four documents'
+ *      publish-status paragraphs equals the fixed group's version.
+ *   3. STALE-CLAIM — none of those paragraphs still says a package is
  *      unpublished, once every package is.
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -41,7 +52,34 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const failures = [];
 const fail = (where, message) => failures.push(`${where}  ${message}`);
 
-const { version } = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+const PACKAGES_DIR = join(ROOT, "packages");
+const packageNames = readdirSync(PACKAGES_DIR, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+  .sort();
+
+const packageVersions = packageNames.map((name) => {
+  const pkgPath = join(PACKAGES_DIR, name, "package.json");
+  const { version: packageVersion } = JSON.parse(readFileSync(pkgPath, "utf8"));
+  return { name, version: packageVersion };
+});
+
+const [firstPackage] = packageVersions;
+if (firstPackage === undefined) {
+  fail("packages/", "[fixed-group] no packages found under packages/ — is the workspace intact?");
+}
+const version = firstPackage?.version;
+
+for (const { name, version: memberVersion } of packageVersions) {
+  if (memberVersion !== version) {
+    fail(
+      `packages/${name}/package.json`,
+      `[fixed-group] version \`${memberVersion}\` disagrees with \`${version}\` — every package ` +
+        "under packages/* is one changesets `fixed` group (.changeset/config.json) and must " +
+        "move together.",
+    );
+  }
+}
 
 /**
  * The publish-status paragraph in each document, identified the same way
@@ -116,7 +154,10 @@ for (const { file, start, end } of TARGETS) {
 
   for (const match of section.matchAll(VERSION)) {
     if (match[1] !== version) {
-      fail(rel, `[version] cites \`${match[0]}\`, and package.json's version is \`${version}\`.`);
+      fail(
+        rel,
+        `[version] cites \`${match[0]}\`, and the fixed group's version is \`${version}\`.`,
+      );
     }
   }
 
@@ -136,11 +177,15 @@ for (const { file, start, end } of TARGETS) {
 if (failures.length > 0) {
   for (const line of failures) console.error(line);
   console.error(
-    `\n${failures.length} publish-status drift(s). README.md, CONTRIBUTING.md, spec/roadmap.md, ` +
-      "apps/website/PRODUCT.md and apps/website/src/pages/index.astro must agree with package.json's " +
-      "version and with what is actually published.",
+    `\n${failures.length} publish-status drift(s). Every packages/*/package.json must agree with ` +
+      "every other one (the changesets fixed group), and README.md, CONTRIBUTING.md, " +
+      "spec/roadmap.md, apps/website/PRODUCT.md and apps/website/src/pages/index.astro must agree " +
+      "with that shared version and with what is actually published.",
   );
   process.exit(1);
 }
 
-console.log(`publish-status: ${TARGETS.length} document(s) agree with package.json's version (${version})`);
+console.log(
+  `publish-status: ${packageVersions.length} package(s) and ${TARGETS.length} document(s) agree ` +
+    `on version (${version})`,
+);

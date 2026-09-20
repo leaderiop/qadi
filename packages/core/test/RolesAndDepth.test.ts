@@ -124,9 +124,9 @@ describe("policyDepth", () => {
   it("a wide tree (250k direct children) does not overflow the argument list", () => {
     // Regression for the `Math.max(...children.map(policyDepth))` spread:
     // spreading turns into one call argument per child, which throws a raw
-    // `RangeError` well before 250k. `deepest` now walks with a plain loop,
-    // so this must both return without throwing and report the right depth —
-    // 1 above every (leaf, depth-0) child.
+    // `RangeError` well before 250k. `policyDepth` walks its explicit stack's
+    // children with a plain loop, so this must both return without throwing
+    // and report the right depth — 1 above every (leaf, depth-0) child.
     const children: ReadonlyArray<P.Policy> = Array.from({ length: 250_000 }, () =>
       P.hasPermission(read),
     );
@@ -136,6 +136,27 @@ describe("policyDepth", () => {
       depth = P.policyDepth(wide);
     });
     assert.strictEqual(depth, 1);
+  });
+
+  it("a deep, programmatically-built tree (100k nested Not) does not overflow the call stack (GS-03, BM-01)", () => {
+    // The width hazard above has a depth twin: nothing bounds recursion depth
+    // for a policy assembled directly rather than decoded from JSON (the
+    // smart constructors don't depth-check, so a loop of `not()` builds a
+    // tree exactly as deep as the loop runs), and `policyDepth`'s own doc
+    // comment advertises it as the check a tool runs to decide whether a
+    // policy "will evaluate at all" — that check must not itself be the
+    // thing that crashes. `policyDepth` now walks an explicit array-backed
+    // stack (the same technique `DecodeDepthGuard.ts`'s `exceedsJsonDepth`
+    // uses) instead of native recursion, so this must both return without
+    // throwing and report the exact depth.
+    const n = 100_000;
+    let policy: P.Policy = P.hasPermission(read);
+    for (let i = 0; i < n; i += 1) policy = P.not(policy);
+    let depth: number | undefined;
+    assert.doesNotThrow(() => {
+      depth = P.policyDepth(policy);
+    });
+    assert.strictEqual(depth, n);
   });
 
   it("a right-leaning spine counts its own length", () => {

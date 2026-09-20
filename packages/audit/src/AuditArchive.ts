@@ -24,6 +24,14 @@ export interface ArchivalOptions {
   readonly keyMaterial?: ReadonlyArray<KeyMaterial> | undefined;
 }
 
+/**
+ * The bundle {@link archiveAuditTrail} builds. **Not tamper-evident** (WD-07,
+ * see the package README's own "Not tamper-evident" section) — `keyMaterial`
+ * is carried, never used to sign or verify anything, and
+ * `sequenceIntegrityVerified` is gap-and-duplicate detection, not a
+ * cryptographic guarantee; sign or seal an archive outside this library if a
+ * deployment needs that property.
+ */
 export interface AuditArchive {
   readonly archiveVersion: string;
   readonly metadata: {

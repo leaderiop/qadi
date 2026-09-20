@@ -88,6 +88,26 @@ REQUIREMENT: `Eq` and `Neq` MUST deny when either operand is `undefined` —
              as an implicit second one.
 ```
 
+```
+REQUIREMENT: `Eq` and `Neq` MUST guard only `undefined`, not `null` — a
+             `null` operand is an ordinary, comparable value on either side,
+             not treated as absent the way `exists()` treats it. `Eq`/`Neq`
+             answer "does this equal that"; `exists()` alone answers "is this
+             present", and its notion of absence MUST NOT leak into the
+             comparison matchers.
+```
+
+```
+REQUIREMENT: `Eq` and `Neq` compare non-primitive operands by reference
+             (`===`), not structurally. Two structurally equal but distinct
+             objects are therefore never `Eq`-equal, and are ALLOWED by
+             `Neq` — `Neq`'s denial is not a structural-inequality guarantee.
+             Deliberate, for the same reason `Eq`'s `NaN` divergence from
+             `inArray` is deliberate (BEH-QD-027): `predicate-sql` cannot
+             render an object operand at all, so there is no compiled query
+             for a structural comparison to stay consistent with.
+```
+
 ## BEH-QD-027: Constructors and semantics
 
 ```ts

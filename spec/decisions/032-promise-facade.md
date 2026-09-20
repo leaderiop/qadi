@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-032                                   |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-09-19                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.2 (2026-09-08): Added "No mutation-testing config" recording why `@qadi/promise` carries no `stryker.*.mjs`, the reasoning having existed only as an inference from AGENTS.md §14 rather than anywhere written down (CCR-QD-119)<br>1.1 (2026-07-26): Signature listing corrected — it omitted the `subject` parameter that the section below it insists on (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
+> | Change History | 1.3 (2026-09-19): Signature listing corrected again — `filter` had drifted from the shipped `<A extends Resource>(subject, policy, items, options?: EvaluateOptions)` (BEH-QD-172), and the decision line's "nothing else" restated as one shared run helper plus five direct forwarders, since every method's `Effect.provideService(effect, CurrentSubject, subject)` is that helper's job, not a second branch (DS-02, PF-01, PF-05)<br>1.2 (2026-09-08): Added "No mutation-testing config" recording why `@qadi/promise` carries no `stryker.*.mjs`, the reasoning having existed only as an inference from AGENTS.md §14 rather than anywhere written down (CCR-QD-119)<br>1.1 (2026-07-26): Signature listing corrected — it omitted the `subject` parameter that the section below it insists on (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-033) |
 
 ---
 
@@ -42,12 +42,16 @@ interface Qadi {
   readonly check: (subject: AuthSubject, policy: Policy, options?: EvaluateOptions) => Promise<boolean>;
   readonly decide: (subject: AuthSubject, policy: Policy, options?: EvaluateOptions) => Promise<Decision>;
   readonly assert: (subject: AuthSubject, policy: Policy, options?: EvaluateOptions) => Promise<void>;
-  readonly filter: <A>(subject: AuthSubject, policy: Policy, items: ReadonlyArray<A>) => Promise<ReadonlyArray<A>>;
+  readonly filter: <A extends Resource>(subject: AuthSubject, policy: Policy, items: ReadonlyArray<A>, options?: EvaluateOptions) => Promise<ReadonlyArray<A>>;
   readonly dispose: () => Promise<void>;
 }
 ```
 
-Every method is `runtime.runPromise(coreFunction(...))` and nothing else. There is no
+Every method is `runtime.runPromise(coreFunction(...))`, run through one shared
+helper that also provides `CurrentSubject` from the `subject` argument — "the
+subject travels per call" below requires exactly that provide, so it is the
+one thing every method does in addition to forwarding, not a second branch.
+There is no
 branch in this package that decides anything, which is what makes "never a second
 evaluator" checkable rather than aspirational: the whole file can be read in a minute
 and every line delegates.

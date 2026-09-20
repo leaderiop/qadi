@@ -343,18 +343,30 @@ keys structurally, so ten `<Can policy={isAdmin}>` in different places are **one
 atom**: the library cannot tell them apart, and a panel listing ten rows would
 invent a distinction the architecture does not have.
 
-Recorded in the atom layer rather than by components registering themselves.
-[AGENTS.md §13](../../AGENTS.md) keeps the React glue to one
-`useSyncExternalStore` call and decisions out of React state; an instance
-registry would breach both, and DOM highlighting — which needs one — is dropped
-rather than bought at that price.
+Recorded in the atom layer rather than by components registering themselves —
+this is the "asked" half of the panel, and it still answers exactly this
+requirement: one row per distinct question, keyed structurally.
+
+**Superseded.** This section previously stopped there, concluding that
+[AGENTS.md §13](../../AGENTS.md) forbids anything more: an instance registry
+would breach both "no React state for decisions" and "one
+`useSyncExternalStore` call", so DOM highlighting — which needs one — was
+dropped rather than bought at that price.
+[ADR-QD-053](../decisions/053-a-gate-can-be-found.md) found the premise true
+and the conclusion false: `GateRegistry.ts` is a module-scope map a guard
+writes to from an effect, not React state, and nothing in it re-renders
+anything, so neither rule is touched. The panel now shows both views, because
+they are different questions rather than rivals: `asked()` above still says
+what has been **asked**, unchanged; `gateInstances()` says who is **asking**,
+keyed by component instance instead of by question. DOM highlighting is built
+on the second view (`@qadi/devtools`'s lens), not dropped.
 
 ## BEH-QD-199: A record has a wire form, decoded as untrusted
 
 ```ts
 export const SinkRecordWire: Schema.Codec<…>;
 export const toWire: (record: SinkRecord) => SinkRecordWire;
-export const fromWire: (wire: SinkRecordWire) => SinkRecord;
+export const fromWireUnsafe: (wire: SinkRecordWire) => SinkRecord;
 export const decodeRecord: (input: unknown) => Effect<SinkRecord, PolicyDecodeTooDeep | SchemaIssue>;
 ```
 
@@ -409,12 +421,21 @@ correlation"; this is that use. The code is written and then **ignored on
 decode** — trusting a sender's code to choose a class would let it name one
 error and receive another.
 
-The mapping is hand-written, and that is forced: [AGENTS.md §4](../../AGENTS.md)
-requires `Data.TaggedError` and explicitly not `Schema.TaggedErrorClass`, so the
-errors cannot be Schema-derived where they are defined. A hand-written codec
-drifting from its type is the defect this library was rewritten to remove, so a
-**round-trip property over generated policies** stands in for the gate the policy
-codec gets.
+The mapping is no longer hand-written. Since
+[ADR-QD-060](../decisions/060-schema-taggederror-for-the-nine-wire-crossing-errors.md)
+(narrowed by
+[ADR-QD-072](../decisions/072-schema-taggederror-for-accessdenied-and-undischargedobligation.md))
+the wire-crossing `EvaluationError` tags are `Schema.TaggedError` at their own
+definition in `Errors.ts` — the measured, budgeted exception `AGENTS.md §4`
+carries for exactly this class of error, not a blanket rule that forces a
+hand-written bridge. `EvaluationErrorSchema` (`SinkCodec.ts`) is nothing more
+than `Schema.Union` of those classes themselves: "no second, hand-mapped
+description to drift from the first" (`SinkCodec.ts`'s own doc comment). What
+survives as hand-written, and what the **round-trip property over generated
+policies** below actually guards, is `fromWireUnsafe`'s tag-driven rebuild: the
+`code` a sender writes is for logging and correlation only and is discarded on
+decode, so a sender cannot make a receiver reconstruct the wrong class by
+naming one error and sending another's code.
 
 ## BEH-QD-200: What the wire cannot carry, it says so
 

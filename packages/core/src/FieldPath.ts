@@ -5,7 +5,8 @@
  * *means*, not a new shape crossing the wire. `FieldOptions.fields` stays
  * `ReadonlyArray<string>` in `Policy.ts` — nothing here is `Schema`-encoded,
  * and nothing here is exported from `index.ts`'s barrel, for the same reason
- * `PortMetrics.ts` and `RetryingLayer.ts` aren't: this is machinery
+ * `RetryingLayer.ts` isn't (`PortMetrics.ts` *is* barrel-exported — citing it
+ * here as a like-for-like exclusion was stale): this is machinery
  * `Decision.ts` calls, not a public surface of its own.
  *
  * A bare literal (`"title"`) is unbounded — it grants everything beneath it,
@@ -22,6 +23,19 @@
  * codebase, which resolves a bad path to `undefined` rather than throwing:
  * consistency with an already-reviewed convention beats a new failure mode
  * for a shape nothing before this ever validated either.
+ *
+ * Wildcards are grammar only at the terminal position, and that is leniency,
+ * not an oversight: {@link shapeOf} looks at a spec's *last* segment alone, so
+ * `"*"`/`"**"` anywhere else is a literal segment, not a wildcard —
+ * `"a.*.b"` asks for a real key literally named `"*"` one level into `a`,
+ * which almost no resource has, so the spec quietly matches nothing rather
+ * than being rejected at decode time
+ * ([BEH-QD-056](../../../spec/behaviors/07-enforcement.md)). The failure
+ * direction is always fail-closed — a narrower or empty projection, never a
+ * wider one — which is what makes leaving it unvalidated safe, though it is
+ * still a silent reinterpretation of what looks like a wildcard.
+ * `FieldPath.test.ts`'s "a non-terminal '*'/'**' is a literal segment, not a
+ * wildcard" pins the behavior.
  */
 
 // ---------------------------------------------------------------------------

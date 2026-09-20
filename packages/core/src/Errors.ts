@@ -15,6 +15,32 @@
  * schema `httpApiStatus` annotates, rather than a second, hand-mapped
  * description of the same eleven shapes living beside it in `@qadi/http`.
  * Every other error in this file stays `Data.TaggedError`.
+ *
+ * **`AccessDeniedPublic` is a twelfth `Schema.TaggedError`, but not one of the
+ * eleven `EnforcementError` tags** — it is `AccessDenied`'s own no-trace
+ * projection (see its doc comment), constructed only by `toAccessDeniedPublic`
+ * at the moment a denial is about to cross the same `@qadi/http` response-body
+ * boundary. It carries no independent stable code and does not appear in
+ * `EvaluationError`/`QadiError`/`ERROR_CODES`: evaluation never raises it, so
+ * it is not a failure this library "produces" in the sense those unions track.
+ *
+ * **Naming: a suffix names a mechanism, no suffix names a violated
+ * invariant** (GVR-04). `MissingResource`, `MissingAction`, `MissingResourceId`,
+ * `PolicyTooDeep`, `CircularRoleInheritance`, `DuplicateRoleDefinition`,
+ * `InvalidPermissionSegment`, `AccessDenied`, `UndischargedObligation` and
+ * `InvalidBoundedPermits` are named for the domain condition that was
+ * violated — a required input was absent, a structural limit or a decision
+ * was reached. `AttributeResolveError`, `RelationshipResolveError` and
+ * `CustomPredicateError` carry `-Error` because the failure is a *mechanism*
+ * — a resolver call or a registered predicate — not producing an answer;
+ * `DecisionHistoryUnavailable` and `SignatureHistoryUnavailable` carry
+ * `-Unavailable` for the same reason, naming the specific way a store-backed
+ * mechanism fails (unreachable, as opposed to a decoding or logic error).
+ * `PolicyNotTranslatable` is named for its outcome rather than its mechanism
+ * and reads as an adjective rather than either pattern above; no third
+ * pattern is introduced for it; a future entry needing a suffix should
+ * default to `-Error` unless it shares `-Unavailable`'s specific "store could
+ * not be reached" shape.
  */
 import * as Data from "effect/Data";
 import * as Schema from "effect/Schema";
@@ -173,6 +199,45 @@ export class AccessDenied extends Schema.TaggedError<AccessDenied>()("AccessDeni
   reason: Schema.String,
   trace: TraceSchema,
 }) {}
+
+/**
+ * The public, no-trace projection of {@link AccessDenied} — the only shape of
+ * a denial safe to hand across a process boundary (an HTTP response body,
+ * and anywhere else a caller outside this process can read it).
+ *
+ * `AccessDenied` carries `trace`: attribute values, matched rules, and policy
+ * internals, meant for a log or a test failure, never a response body — see
+ * {@link AccessDenied}'s own doc comment. Before this type existed, keeping
+ * that promise fell to whoever wrote the consumer: `@qadi/http`'s
+ * `QadiHttpError.ts` hand-built a tag-only `Schema.TaggedStruct("AccessDenied",
+ * {})`, and `RequirePermission.ts` hand-caught the error and discarded it down
+ * to an empty response — two independent, ad hoc redactions of the same
+ * value, each free to drift from the other. `AccessDeniedPublic` and
+ * {@link toAccessDeniedPublic} formalize the one redaction both actually need:
+ * `subjectId` (the caller already knows who they are), `policyTag` and
+ * `reason` (the root node's sentence — a diagnosis, not the tree behind it)
+ * survive; `trace` does not.
+ *
+ * Never raised by evaluation directly — `guard`/`enforce`/`assert` still fail
+ * with the real {@link AccessDenied}. This type is only ever *constructed*,
+ * by {@link toAccessDeniedPublic}, at the boundary a denial is about to cross.
+ * It shares `AccessDenied`'s `_tag` ("AccessDenied") rather than a distinct
+ * one: a caller on the other side of that boundary is told the same thing
+ * either way — the policy denied — just without the internals.
+ */
+export class AccessDeniedPublic extends Schema.TaggedError<AccessDeniedPublic>()("AccessDenied", {
+  subjectId: SubjectIdSchema,
+  policyTag: Schema.String,
+  reason: Schema.String,
+}) {}
+
+/** Projects a real {@link AccessDenied} down to {@link AccessDeniedPublic}, dropping `trace`. */
+export const toAccessDeniedPublic = (self: AccessDenied): AccessDeniedPublic =>
+  new AccessDeniedPublic({
+    subjectId: self.subjectId,
+    policyTag: self.policyTag,
+    reason: self.reason,
+  });
 
 /**
  * Enforcement met an obligation it could not discharge.

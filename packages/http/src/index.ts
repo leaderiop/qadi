@@ -5,6 +5,7 @@
  */
 export * from "./DecisionStreamRoute.ts";
 export * from "./GuardRoute.ts";
+export * from "./HttpApiMiddlewareClient.ts";
 export * from "./PermissionRegistry.ts";
 export * from "./QadiHttpError.ts";
 export * from "./RequirePermission.ts";

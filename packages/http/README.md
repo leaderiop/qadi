@@ -37,6 +37,24 @@ The 403/502 split is the library's central rule at the wire: a broken attribute
 store must never be reported as "not permitted". Bodies are empty — a trace
 names every node and why it refused, which is not for the caller.
 
+## Generated clients over-approximate errors
+
+A guarded endpoint's generated client method claims all twelve
+`RequirePermission` enforcement tags in its error type — including a
+`PublicEndpoint`-annotated endpoint, which can produce none of them. This is a
+known, accepted limitation, not a bug: the upstream `HttpApiMiddleware` type
+has no per-endpoint override point for `clientError`, and giving one up would
+mean detaching middleware per endpoint, reopening the fail-closed attachment
+[ADR-QD-036](../../spec/decisions/036-qadi-http-package-shape.md)'s
+one-enforcement-path, fail-closed design. A client author handling the full
+error union on a public route
+is writing dead `catchTag` arms for tags that route cannot produce.
+
+See
+[ADR-QD-075](../../spec/decisions/075-clienterror-typing-for-requirepermission.md)
+for the full reasoning, including the build-time annotation-completeness
+check left open as future work rather than built here.
+
 ## The permission registry
 
 `/__permissions` publishes every guarded path and the permission it requires,

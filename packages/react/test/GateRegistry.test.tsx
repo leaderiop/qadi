@@ -29,8 +29,15 @@ import type { ReactNode } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Can, Cannot } from "../src/components.tsx";
-import { clearGatesUnsafe, gateInstances, subscribeGates } from "../src/GateRegistry.ts";
-import { useCan, useDecision, useInvalidate } from "../src/hooks.ts";
+import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
+import {
+  clearGatesUnsafe,
+  gateInstances,
+  registerGate,
+  subscribeGates,
+  updateGateState,
+} from "../src/GateRegistry.ts";
+import { useCan, useDecision, useInvalidate, useProjected } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { QadiProvider } from "../src/QadiProvider.tsx";
 
@@ -186,6 +193,19 @@ describe("instrumented, a guard says it exists", () => {
     };
     mount(<Probe />, true);
     expect(gateInstances()[0]?.kind).toBe("useDecision");
+  });
+
+  it("registers useProjected under its own name, not as useDecision (DA-08)", () => {
+    // `useProjected` used to read through `useDecision`, so its instance
+    // registered — and was labelled in the devtools panel — as "useDecision",
+    // a silent aliasing nothing declared.
+    const Probe = () => {
+      useProjected(canRead, { title: "Q3" });
+      return null;
+    };
+    mount(<Probe />, true);
+    expect(gateInstances()).toHaveLength(1);
+    expect(gateInstances()[0]?.kind).toBe("useProjected");
   });
 
   it("distinguishes two guards on the same policy", () => {
@@ -350,6 +370,88 @@ describe("the store contract", () => {
 
     mount(<Can policy={canRead}>allowed</Can>, true);
     expect(notified).toBe(0);
+  });
+
+  describe("interleaving: applied in firing order, eventually consistent", () => {
+    // These call `registerGate`/`updateGateState` directly rather than through
+    // React, to pin the exact firing order each scenario names instead of the
+    // order React's own effect scheduling happens to produce. The file's
+    // top-of-file doc comment states the guarantee these pin: no ordering
+    // across effects, eventually consistent, last-write-wins.
+    const makeInstance = (id: string, state: GateRenderState): GateInstance => ({
+      id,
+      kind: "Can",
+      policy: canRead,
+      resource: undefined,
+      state,
+      element: undefined,
+    });
+
+    it("a state update firing after the matching unregister stays a no-op", () => {
+      const unregister = registerGate(makeInstance("interleave-1", "Pending"));
+      unregister();
+
+      updateGateState("interleave-1", "Allowed");
+
+      expect(gateInstances()).toEqual([]);
+    });
+
+    it("cleanup still evicts after updateGateState replaced the stored instance (regression)", () => {
+      // updateGateState stores a brand-new object (`{ ...existing, state }`),
+      // not a mutation of the one `registerGate` was called with. A cleanup
+      // that compared `instances.get(id)` against the *original* object by
+      // reference would find them unequal forever after this line and never
+      // evict — the leak this test pins.
+      const unregister = registerGate(makeInstance("interleave-1b", "Pending"));
+      updateGateState("interleave-1b", "Allowed");
+      expect(gateInstances()).toEqual([makeInstance("interleave-1b", "Allowed")]);
+
+      unregister();
+
+      expect(gateInstances()).toEqual([]);
+    });
+
+    it("a fresh registration firing after an unregister for the same id resurrects cleanly", () => {
+      const unregister = registerGate(makeInstance("interleave-2", "Pending"));
+      unregister();
+
+      registerGate(makeInstance("interleave-2", "Allowed"));
+
+      expect(gateInstances()).toEqual([makeInstance("interleave-2", "Allowed")]);
+    });
+
+    it("two updates for the same id in rapid succession: the last one applied wins", () => {
+      registerGate(makeInstance("interleave-3", "Pending"));
+
+      updateGateState("interleave-3", "Allowed");
+      updateGateState("interleave-3", "Denied");
+
+      expect(gateInstances()).toHaveLength(1);
+      expect(gateInstances()[0]?.state).toBe("Denied");
+    });
+
+    it("register, immediate unregister, immediate re-register (same id) ends registered with the second registration's data", () => {
+      const firstUnregister = registerGate(makeInstance("interleave-4", "Pending"));
+      firstUnregister();
+
+      registerGate(makeInstance("interleave-4", "Allowed"));
+
+      expect(gateInstances()).toEqual([makeInstance("interleave-4", "Allowed")]);
+    });
+
+    it("a stale unregister firing AFTER a newer registration for the same id does not evict it", () => {
+      // The interleaving the previous test does not cover: here the first
+      // instance's own cleanup runs LAST, after a second instance has already
+      // taken over the same id. Delete-by-id-alone would evict the live,
+      // newer registration; the registry deletes only when the id still maps
+      // to the instance the cleanup belongs to.
+      const firstUnregister = registerGate(makeInstance("interleave-5", "Pending"));
+      registerGate(makeInstance("interleave-5", "Allowed"));
+
+      firstUnregister();
+
+      expect(gateInstances()).toEqual([makeInstance("interleave-5", "Allowed")]);
+    });
   });
 });
 

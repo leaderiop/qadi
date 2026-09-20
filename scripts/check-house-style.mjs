@@ -21,12 +21,13 @@
  * not find a real violation. `no-extensionless-relative-import` has the same
  * problem in reverse: it fails `import manifest from "../package.json"`,
  * a real, correct import with no `.ts` extension to add. `SWITCH_BUDGET`,
- * `HAS_CUSTOM_BUDGET` and `UNTRACED_BUDGET` below apply to every `src`-scope
- * file, `features/step-definitions` included (see "Scope beyond `packages`"
- * below) — a `test`-scope file (`packages/<pkg>/test`) never contributes to
- * any of the three, since `testScope`-only rules apply there and a vitest
- * body's `switch`/`hasCustom`/`Effect.fnUntraced` usage, if one ever
- * appeared, is not what any of the budgets track.
+ * `HAS_CUSTOM_BUDGET`, `UNTRACED_BUDGET`, `ANY_BUDGET` and `SCHEMA_ERROR_BUDGET`
+ * below apply to every `src`-scope file, `features/step-definitions` included
+ * (see "Scope beyond `packages`" below) — a `test`-scope file
+ * (`packages/<pkg>/test`) never contributes to any of the five, since
+ * `testScope`-only rules apply there and a vitest body's
+ * `switch`/`hasCustom`/`Effect.fnUntraced`/`any`/`Schema.TaggedError` usage, if
+ * one ever appeared, is not what any of the budgets track.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -79,6 +80,29 @@ const ROOT = new URL("..", import.meta.url).pathname;
  * scan clean), so this is a structural blind spot in the mechanism, not a
  * live bypass — a future reviewer should not assume line-by-line regex
  * matching here is exhaustive.
+ *
+ * **Tried and reverted, not merely theorized.** `no-catchtags-object-form` and
+ * `no-named-effect-submodule-import` closed this identical blind spot by
+ * moving to a whole-file, cross-line regex (CCR-QD-104), and porting
+ * `no-type-assertion`/`no-non-null-assertion` the same way was tried directly
+ * against this repository's real tree. Both conversions produced live false
+ * positives rather than closing a live gap: joining stripped lines with their
+ * newlines intact — so `\s+` bridges a hand-wrapped split the same way it
+ * already bridges ordinary whitespace — also lets `\bas\s+[A-Za-z_$]` match
+ * ordinary English prose spanning a line break in JSX text content
+ * (`packages/devtools/src/react/PolicyExplorer.tsx`: "...so it fills
+ * as\n  decisions arrive..." is not a `strip()`-blankable string literal, so
+ * nothing distinguishes it from `value as\n  SomeType`), and loosening
+ * `no-non-null-assertion`'s lookbehind to tolerate the same gap matches
+ * `return\n  !ok` — an ordinary logical NOT starting the next line, not a
+ * split non-null assertion — because the identifier ending the *previous*,
+ * unrelated word (`return`'s `n`) satisfies the lookbehind just as well as a
+ * real operand would. `no-catchtags-object-form`'s `\.catchTags\s*\(\s*\{` and
+ * `no-named-effect-submodule-import`'s `import\s+\{...\}\s+from "effect/…"`
+ * never faced this because both match multi-token syntactic shapes with no
+ * English-prose or single-operator homograph; `as`/`!` are exactly the two
+ * bans built from a common word and a common operator, which is why — unlike
+ * those two — they stay per-line rather than getting the same conversion.
  *
  * @type {ReadonlyArray<{ id: string, re: RegExp, message: string, raw?: boolean, testScope?: boolean }>}
  */
@@ -185,8 +209,13 @@ const RULES = [
   // `Data.TaggedError(`, which is how most of Errors.ts is actually formatted.
   {
     id: "no-effect-ordie",
-    re: /\bEffect\.orDie\b/,
-    message: "Never Effect.orDie in evaluation/enforcement paths — a decision must not become a defect.",
+    // The die-producing family, not just the bare call: `Effect.orDieWith(...)`
+    // performs the identical fail-to-defect conversion with a message
+    // function, and a name-only `\bEffect\.orDie\b` boundary match does not
+    // see it (found by review, not by a live violation — grep across
+    // packages finds `orDie` only in comments and tests today).
+    re: /\bEffect\.orDie(?:With)?\b/,
+    message: "Never Effect.orDie/orDieWith in evaluation/enforcement paths — a decision must not become a defect.",
   },
   {
     id: "no-node-fs-import",
@@ -237,9 +266,12 @@ const EXEMPTIONS = {
  * The four here all dispatch once per policy node or matcher node per
  * evaluation — and in `filter` and `decideSubjects`, once per element on top of
  * that — with handlers closing over per-call state, so the matcher cannot be
- * hoisted to module scope the way §5a's preferred form requires. Converting
- * them needs a benchmark, which does not exist yet; until it does, the cost is
- * unmeasured and the exception stands.
+ * hoisted to module scope the way §5a's preferred form requires. **Now
+ * measured** (`packages/core/bench/Dispatch.bench.ts`, ADR-QD-034, AGENTS.md
+ * §5a): a `switch` is 1.6–2.4× faster than a hoisted `Match` whose arms return
+ * a closure at the dispatch site, and 3.5–7.7× faster than a `Match.value`
+ * rebuilt per call — the form a naive conversion produces — so the exception
+ * stands on a measured cost, not an absent one.
  *
  * @type {Readonly<Record<string, number>>}
  */
@@ -254,6 +286,20 @@ const SWITCH_BUDGET = {
 const SWITCH = /\bswitch\s*\(/;
 
 /**
+ * The function names AGENTS.md §5a's table names for each `SWITCH_BUDGET`
+ * file — checked to still exist verbatim (BS-06): a pure count cannot see a
+ * rename, only a change in how many `switch`es there are, so `evaluateNode`
+ * renamed to something else would leave `SWITCH_BUDGET` satisfied while
+ * AGENTS.md §5a's table quietly points at a symbol that no longer exists.
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const SWITCH_BUDGET_NAMES = {
+  "packages/core/src/Evaluate.ts": ["evaluateNode", "mergeFields"],
+  "packages/core/src/Matcher.ts": ["evaluateMatcher", "resolveRef"],
+};
+
+/**
  * `hasCustom(...)` call sites outside `packages/core/src` and
  * `packages/testing/src`, by file and exact count (ADR-QD-055).
  *
@@ -264,8 +310,9 @@ const SWITCH = /\bswitch\s*\(/;
  * filter. An escape hatch with no friction becomes the default path, so
  * adopting it anywhere outside core/testing is a conscious, reviewed edit to
  * this list — the same discipline `SWITCH_BUDGET` enforces for `switch`, not a
- * convention left to be remembered. Empty today: no shipped package outside
- * core/testing reaches for it yet.
+ * convention left to be remembered. No *shipped package* outside core/testing
+ * reaches for it — the one entry below is the BDD acceptance suite, not a
+ * package (see its own comment for why that is in scope at all).
  *
  * @type {Readonly<Record<string, number>>}
  */
@@ -294,9 +341,12 @@ const HAS_CUSTOM_EXEMPT_PREFIXES = ["packages/core/src/", "packages/testing/src/
  * `CurrentStackFrame` record) than the untraced one, and issue #102 spent
  * that saving on exactly three per-policy-node dispatch functions in
  * `Evaluate.ts` — `evaluateAllOf`, `evaluateAnyOf`, `evaluateRules` — after
- * confirming with `Evaluate.bench.ts` that the end-to-end improvement (≈28–74%
- * depending on policy shape) actually shows up, not just the isolated
- * per-call number. This is the same discipline `SWITCH_BUDGET` and
+ * confirming with `Evaluate.bench.ts` that the end-to-end improvement actually
+ * shows up, not just the isolated per-call number — see AGENTS.md §5's table
+ * for the current per-workload figures rather than a number restated here,
+ * which drifted from it once already ("≈28–74%" against a table that
+ * actually measures ≈18–74%, corrected by review). This is the same
+ * discipline `SWITCH_BUDGET` and
  * `HAS_CUSTOM_BUDGET` enforce for their own exceptions: an escape hatch with
  * no friction becomes the default, so a new `Effect.fnUntraced` call site
  * anywhere is a conscious, reviewed edit to this list and to AGENTS.md §5's
@@ -316,6 +366,81 @@ const UNTRACED_BUDGET = {
 };
 
 const UNTRACED_CALL = /\bEffect\.fnUntraced\s*\(/;
+
+/**
+ * The function names AGENTS.md §5's table names for each `UNTRACED_BUDGET`
+ * file — checked the same way, and for the same reason, as
+ * `SWITCH_BUDGET_NAMES` above (BS-06).
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const UNTRACED_BUDGET_NAMES = {
+  "packages/core/src/Evaluate.ts": ["evaluateAllOf", "evaluateAnyOf", "evaluateRules"],
+};
+
+/**
+ * `any` type usages, by file and exact count (ADR-QD-075).
+ *
+ * AGENTS.md §6 forbids `any` except the one measured, budgeted exception
+ * this file enforces: `passthroughClientLayer` (`HttpApiMiddlewareClient.ts`)
+ * must stay generic over any `HttpApiMiddleware.AnyId`, and `effect`'s own
+ * `HttpApiMiddleware<Provides, E, Requires>`/`HttpApiMiddlewareSecurity<...>`
+ * constraint shapes reject `unknown` in `Provides`'s position for a concrete
+ * middleware's real type (tried first and confirmed broken — `unknown` does
+ * not bypass variance checking the way `any` does), leaving `any` as the only
+ * way to accept "any middleware service" generically. `.oxlintrc.json` scopes
+ * a `no-explicit-any` override to this one file — so oxlint's `no-explicit-any`
+ * enforces the ban everywhere *else* — and this budget is the same discipline
+ * `SWITCH_BUDGET`/`HAS_CUSTOM_BUDGET`/`UNTRACED_BUDGET` enforce for their own
+ * exceptions, checked in both directions, so that override cannot silently
+ * grow to cover an unrelated, unreviewed `any` added to the same file later.
+ *
+ * **Counts occurrences of the word, not type positions.** The regex below is
+ * `/\bany\b/g` over comment-and-string-stripped lines, scoped to this one
+ * file — safe here specifically because the pinned count (7) is known to be
+ * exactly the type-position `any`s at this file's two constraint expressions
+ * (see the budget's own comment). It is not a general claim that word-count
+ * equals type-count: a future edit that renamed a local to the bare
+ * identifier `any`, or restructured the constraint so the count changed
+ * without the type-level fact changing, would still just move the number
+ * this budget re-pins, not silently pass — the both-directions check below
+ * still requires a reviewed update either way.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const ANY_BUDGET = {
+  // The seven `any`s in passthroughClientLayer's `Context.Key` parameter
+  // type — three in `HttpApiMiddleware<any, any, any>`, four in
+  // `HttpApiMiddlewareSecurity<any, any, any, any>`. See the doc comment above.
+  "packages/http/src/HttpApiMiddlewareClient.ts": 7,
+};
+
+const ANY_TYPE = /\bany\b/g;
+
+/**
+ * `Schema.TaggedError` class declarations, by file and exact count
+ * (AGENTS.md §4, ADR-QD-060 narrowed by ADR-QD-072).
+ *
+ * §4's default is `Data.TaggedError`; `Schema.TaggedError` is the measured,
+ * named exception — an error earns it when it is part of a codec (a
+ * `SinkRecord` `SinkCodec.ts` must decode/encode structurally, or an
+ * `@qadi/http` response body `httpApiStatus` annotates), not merely because
+ * it happens to leave the process. All eleven current members live in
+ * `packages/core/src/Errors.ts` — see that file's own header doc comment and
+ * AGENTS.md §4's table for which crosses which boundary. Same discipline
+ * `SWITCH_BUDGET`/`HAS_CUSTOM_BUDGET`/`UNTRACED_BUDGET`/`ANY_BUDGET` enforce
+ * for their own exceptions, checked in both directions: a twelfth
+ * `Schema.TaggedError` class added without updating AGENTS.md §4's table and
+ * this budget together fails the gate, and so does the count silently
+ * dropping back down.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const SCHEMA_ERROR_BUDGET = {
+  "packages/core/src/Errors.ts": 12,
+};
+
+const SCHEMA_TAGGED_ERROR = /\bextends\s+Schema\.TaggedError\b/;
 
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
@@ -416,9 +541,29 @@ const benchSources = readdirSync(packagesDir).flatMap((pkg) =>
 const testSourceSet = new Set([...testSources, ...benchSources]);
 const sources = [...srcSources, ...testSources, ...benchSources];
 
-/** Strip line comments, block comments and string literals to cut false positives. */
+/**
+ * A conservative regex-literal matcher, blanked out before line-comment
+ * stripping below.
+ *
+ * Without this, a regex literal containing `//` (e.g. `/https?:\/\//`) gets
+ * cut by the very next `.replace(/\/\/.*$/, "")` — `strip()` sees the
+ * literal's own escaped `\/\/` as a line-comment opener and truncates the
+ * line there, silently hiding whatever the rest of it held from every rule
+ * below. Anchored on the character immediately preceding the `/` (`=`, `(`,
+ * `:`, `,`, or start of line — the syntactic positions a regex literal
+ * actually starts from: an assignment, an argument, an object value, a list
+ * item) rather than matching every bare `/.../ `, so an ordinary division
+ * expression (`x = a / b`) is never mistaken for one: the character right
+ * after that anchor is required to be `/` itself, which a division's left
+ * operand never is. Latent, not live — no regex literal containing `//`
+ * exists in the scanned tree today.
+ */
+const REGEX_LITERAL = /(^|[=(:,])(\s*)(\/(?:[^/\\\n]|\\.)+\/[a-z]*)/g;
+
+/** Strip line comments, block comments, string and regex literals to cut false positives. */
 const strip = (line) =>
   line
+    .replace(REGEX_LITERAL, (_m, pre, ws, lit) => pre + ws + "_".repeat(lit.length))
     .replace(/\/\/.*$/, "")
     .replace(/\/\*.*?\*\//g, "")
     .replace(/"(?:[^"\\]|\\.)*"/g, '""')
@@ -434,6 +579,12 @@ const hasCustomLines = new Map();
 
 /** @type {Map<string, number[]>} */
 const untracedLines = new Map();
+
+/** @type {Map<string, number[]>} */
+const anyLines = new Map();
+
+/** @type {Map<string, number[]>} */
+const schemaErrorLines = new Map();
 
 for (const file of sources) {
   const rel = relative(ROOT, file);
@@ -487,10 +638,11 @@ for (const file of sources) {
       importSpan = 0;
     }
 
-    // All three budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
-    // UNTRACED_BUDGET are keyed to specific src files) — a test file's switch,
-    // hasCustom or Effect.fnUntraced call, if one ever appears, is not what
-    // any budget tracks.
+    // All five budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
+    // UNTRACED_BUDGET/ANY_BUDGET/SCHEMA_ERROR_BUDGET are keyed to specific src
+    // files) — a test
+    // file's switch, hasCustom, Effect.fnUntraced or any usage, if one ever
+    // appears, is not what any budget tracks.
     if (!isTestFile && SWITCH.test(line)) {
       const found = switchLines.get(rel) ?? [];
       found.push(index + 1);
@@ -513,6 +665,35 @@ for (const file of sources) {
       const found = untracedLines.get(rel) ?? [];
       found.push(index + 1);
       untracedLines.set(rel, found);
+    }
+
+    // Scoped to ANY_BUDGET's own files only, unlike the other budgets above:
+    // oxlint's `no-explicit-any` (AST-based, no false positives) already
+    // enforces "no `any` anywhere except a file-scoped `.oxlintrc.json`
+    // override" across the whole codebase — this only needs to catch a
+    // silent, unreviewed *growth* of `any` usage inside an already-exempted
+    // file. A codebase-wide regex sweep for the plain English word "any"
+    // is not safe to run more broadly than that: it false-positives on
+    // ordinary prose in doc comments (confirmed — it matched "reach back to
+    // any sink's own log" in a `DevtoolsDock.tsx` JSX comment). Counts every
+    // `any` token on the line, not just whether the line has one — a single
+    // line here (`HttpApiMiddleware<any, any, any>`) legitimately carries
+    // several.
+    if (!isTestFile && rel in ANY_BUDGET) {
+      const matches = line.match(ANY_TYPE) ?? [];
+      if (matches.length > 0) {
+        const found = anyLines.get(rel) ?? [];
+        for (let i = 0; i < matches.length; i += 1) found.push(index + 1);
+        anyLines.set(rel, found);
+      }
+    }
+
+    // Src-only, like UNTRACED_BUDGET above — a test file declaring its own
+    // error class (none does today) is not what this budget tracks.
+    if (!isTestFile && SCHEMA_TAGGED_ERROR.test(line)) {
+      const found = schemaErrorLines.get(rel) ?? [];
+      found.push(index + 1);
+      schemaErrorLines.set(rel, found);
     }
 
     for (const rule of RULES) {
@@ -560,6 +741,26 @@ for (const [rel, found] of switchLines) {
     `${rel}:${found.join(", ")}  [no-switch] Dispatch with effect/Match, not switch — AGENTS.md §5a.\n` +
       `    A hot path that genuinely needs one is declared in SWITCH_BUDGET with its reason.`,
   );
+}
+
+// `SWITCH_BUDGET` keys on file + exact count alone, which a rename cannot
+// trip: `evaluateNode`/`mergeFields`/`evaluateMatcher`/`resolveRef` renamed to
+// anything else would still leave the count matching, while AGENTS.md §5a's
+// table (and the prose comment above `SWITCH_BUDGET` itself) silently name a
+// symbol that no longer exists. Checked here as a plain grep-per-name against
+// the budgeted file's own text, so a rename fails the gate the same way a
+// count drift already does, rather than rotting the table unnoticed.
+for (const [rel, names] of Object.entries(SWITCH_BUDGET_NAMES)) {
+  const content = readFileSync(join(ROOT, rel), "utf8");
+  for (const name of names) {
+    if (new RegExp(`\\b${name}\\b`).test(content)) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [switch-budget-names] AGENTS.md §5a's table names \`${name}\` for this file's ` +
+        `declared switch(es), but no such identifier appears in it any more — the function was ` +
+        `renamed without updating AGENTS.md §5a's table and SWITCH_BUDGET_NAMES together.`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -619,6 +820,117 @@ for (const [rel, found] of untracedLines) {
     `${rel}:${found.join(", ")}  [untraced-budget] New Effect.fnUntraced(...) usage.\n` +
       `    Add it to UNTRACED_BUDGET in scripts/check-house-style.mjs and AGENTS.md §5's table with a ` +
       `benchmark backing it — a conscious, reviewed opt-in, not a silent grep hit (ADR-QD-073).`,
+  );
+}
+
+// Same rename-proofing as SWITCH_BUDGET_NAMES above, for AGENTS.md §5's table
+// (BS-06).
+for (const [rel, names] of Object.entries(UNTRACED_BUDGET_NAMES)) {
+  const content = readFileSync(join(ROOT, rel), "utf8");
+  for (const name of names) {
+    if (new RegExp(`\\b${name}\\b`).test(content)) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [untraced-budget-names] AGENTS.md §5's table names \`${name}\` for this file's ` +
+        `declared Effect.fnUntraced(...) call(s), but no such identifier appears in it any more — ` +
+        `the function was renamed without updating AGENTS.md §5's table and UNTRACED_BUDGET_NAMES together.`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ADR-QD-075 — `any` is AGENTS.md §6's flat ban, except the one measured
+// exception below. oxlint's `no-explicit-any` (AST-based, correct everywhere)
+// already enforces it codebase-wide except for the file(s) `.oxlintrc.json`
+// scopes an override to; this budget adds the same both-directions discipline
+// `SWITCH_BUDGET`/`HAS_CUSTOM_BUDGET`/`UNTRACED_BUDGET` give their own
+// exceptions, so an override cannot silently grow to cover an unrelated,
+// unreviewed `any` added to that same file later. Deliberately scoped to only
+// the files ANY_BUDGET names (see the scan loop above) rather than a
+// codebase-wide sweep, which a plain-English word like "any" is not safe to
+// regex-match against prose-heavy doc comments.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(ANY_BUDGET)) {
+  const found = anyLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [any-budget] declares ${budget} any(s), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update ANY_BUDGET in scripts/check-house-style.mjs so the two agree.`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The `any` ban's two enforcement halves — `.oxlintrc.json`'s override scope
+// and this file's `ANY_BUDGET` keys — are two independently maintained lists
+// describing the same set of files, and nothing before this compared them.
+// `ANY_BUDGET`'s scan loop only counts `any` inside a file already in
+// `ANY_BUDGET` (`rel in ANY_BUDGET` above), so a *second* `.oxlintrc.json`
+// override naming a new file disables oxlint's AST-based check there while
+// this budget never counts it at all — an unpoliced `any`-zone that would
+// pass every gate. Checked as a plain set-equality, both directions: an
+// override with no budget entry, or a budget entry with no override, is
+// exactly the drift `SWITCH_BUDGET`/`UNTRACED_BUDGET`/`ANY_BUDGET` itself
+// exist to make impossible for their own axes.
+// ---------------------------------------------------------------------------
+
+const oxlintConfig = JSON.parse(readFileSync(join(ROOT, ".oxlintrc.json"), "utf8"));
+const oxlintAnyOverrideFiles = new Set(
+  (oxlintConfig.overrides ?? [])
+    .filter((override) => override.rules?.["no-explicit-any"] === "off")
+    .flatMap((override) => override.files ?? []),
+);
+const anyBudgetFiles = new Set(Object.keys(ANY_BUDGET));
+
+for (const rel of oxlintAnyOverrideFiles) {
+  if (anyBudgetFiles.has(rel)) continue;
+  failures += 1;
+  console.error(
+    `.oxlintrc.json  [any-budget-oxlint-mismatch] "${rel}" disables no-explicit-any but has no ` +
+      `ANY_BUDGET entry in scripts/check-house-style.mjs — an unpoliced any-zone. Add it with its exact count.`,
+  );
+}
+
+for (const rel of anyBudgetFiles) {
+  if (oxlintAnyOverrideFiles.has(rel)) continue;
+  failures += 1;
+  console.error(
+    `scripts/check-house-style.mjs  [any-budget-oxlint-mismatch] ANY_BUDGET names "${rel}", but ` +
+      `.oxlintrc.json has no matching no-explicit-any override there — oxlint would already fail it.`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AGENTS.md §4 — `Schema.TaggedError` is the measured, budgeted exception to
+// `Data.TaggedError` (ADR-QD-060, narrowed by ADR-QD-072). Checked in both
+// directions like UNTRACED_BUDGET above: too few means a declared class was
+// migrated back or removed and AGENTS.md §4's table now overstates the
+// exception; too many means a new, unreviewed class adopted it without
+// updating the table and the budget together.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(SCHEMA_ERROR_BUDGET)) {
+  const found = schemaErrorLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [schema-error-budget] declares ${budget} Schema.TaggedError class(es), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update SCHEMA_ERROR_BUDGET in scripts/check-house-style.mjs and AGENTS.md §4's table so all three agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of schemaErrorLines) {
+  if (rel in SCHEMA_ERROR_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [schema-error-budget] New Schema.TaggedError class.\n` +
+      `    Add it to SCHEMA_ERROR_BUDGET in scripts/check-house-style.mjs and AGENTS.md §4's table, ` +
+      `naming which boundary it crosses — a conscious, reviewed opt-in, not a silent grep hit.`,
   );
 }
 

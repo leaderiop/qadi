@@ -10,8 +10,11 @@ pnpm add @qadi/react @qadi/core effect react
 ## What it is, and what it is not
 
 A binding over `effect/unstable/reactivity`, not a state manager of its own.
-Decisions live in atoms; the React glue is a single `useSyncExternalStore` call.
-One evaluation is shared by every component asking the same question — the atom
+Decisions live in atoms; the React glue is `@effect/atom-react`'s own
+`useAtomValue`, read through its `RegistryContext` (see AGENTS.md §13 and
+ADR-QD-014 for why this package depends on that library rather than a
+hand-rolled `useSyncExternalStore` call). One evaluation is shared by every
+component asking the same question — the atom
 family keys **structurally**, so two separately built but equal policies share
 one atom.
 

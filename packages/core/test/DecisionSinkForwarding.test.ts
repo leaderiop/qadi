@@ -207,6 +207,67 @@ describe("decisionSinkAll", () => {
       // Sequential, so what a reader sees is deterministic.
       assert.deepStrictEqual(order, ["first", "second", "third"]);
     }).pipe(Effect.provide(testLayer(allowed))));
+
+  // JA-02: a member is documented — via `record`'s `never` error channel —
+  // to swallow its own failures, but a member that dies anyway (a bug in its
+  // own `record`, not the ordinary delivery failure it already catches) must
+  // not stop `Effect.forEach` and, with it, every sink after it in the list.
+  it.effect("a member that DIES does not stop delivery to the sinks after it", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(DecisionSink, {
+        record: () => Effect.die(new Error("boom")),
+      });
+      const after: Array<unknown> = [];
+      const survivor = Layer.succeed(DecisionSink, {
+        record: (record) =>
+          Effect.sync(() => {
+            after.push(record);
+          }),
+      });
+
+      const decision = yield* evaluate(policy).pipe(
+        Effect.provide(decisionSinkAll([dying, survivor])),
+      );
+
+      // Belt-and-suspenders: a dying sink must not change the decision either
+      // (INV-QD-035), though `record`'s `never` error channel already forces
+      // this at the type level regardless of what this test checks.
+      assert.isTrue(isAllowed(decision));
+      // The property this test exists for: the sink placed AFTER the dying
+      // one still received the record.
+      assert.strictEqual(after.length, 1);
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("a member's death is reported through a log, not silently swallowed", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const dying = Layer.succeed(DecisionSink, {
+        record: () => Effect.die(new Error("boom")),
+      });
+
+      yield* evaluate(policy).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            decisionSinkAll([dying]),
+            Logger.layer([
+              Logger.make((o) => {
+                logs.push({
+                  message: o.message,
+                  annotations: o.fiber.getRef(References.CurrentLogAnnotations),
+                });
+              }),
+            ]),
+          ),
+        ),
+      );
+
+      assert.strictEqual(logs.length, 1);
+      const [entry] = logs;
+      assert.isDefined(entry);
+      if (entry === undefined) return;
+      assert.include(String(entry.message), "failed unexpectedly");
+      assert.include(String(entry.annotations["qadi.cause"]), "boom");
+    }).pipe(Effect.provide(testLayer(allowed))));
 });
 
 describe("forward and ingest, end to end", () => {

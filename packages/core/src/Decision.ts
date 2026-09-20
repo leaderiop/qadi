@@ -10,6 +10,7 @@ import * as Data from "effect/Data";
 import * as Match from "effect/Match";
 import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
+import type { Containment } from "./FieldPath.ts";
 import { compareShapes, project as projectPaths, shapeOf } from "./FieldPath.ts";
 import type { SubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
@@ -266,6 +267,26 @@ export const project = <A extends Resource>(
 export type VisibleFields = ReadonlyArray<string> | undefined;
 
 /**
+ * Which side a `Containment` result keeps, or neither.
+ *
+ * Built once at module scope rather than per pair: `intersectFields`'s loop
+ * below runs this up to `|a|·|b|` times for a single node, and every one of
+ * those pairs used to rebuild `Match.value(cmp)` — arms and all — from
+ * scratch (AGENTS.md §5a favors a hoisted `Match.type` on exactly this kind
+ * of per-node-or-hotter dispatch). `Match.exhaustive` still makes a future
+ * `Containment` member a compile error here, same as before.
+ */
+type ContainmentKeep = "A" | "B" | undefined;
+const CONTAINMENT_KEEP: (self: Containment) => ContainmentKeep = Match.type<
+  Containment
+>().pipe(
+  Match.whenOr("Equal", "BLessA", () => "B" as const),
+  Match.when("ALessB", () => "A" as const),
+  Match.when("Incomparable", () => undefined),
+  Match.exhaustive,
+);
+
+/**
  * Intersects two visible-field sets.
  *
  * `undefined` means "all fields" — the top of the lattice — so intersecting it
@@ -286,6 +307,15 @@ export type VisibleFields = ReadonlyArray<string> | undefined;
  * shape from scratch every time. `compareShapes` takes the already-computed
  * shape instead, so each spec's `shapeOf` is paid for exactly once here,
  * however many pairs it is compared across.
+ *
+ * The result is sorted before returning: `kept`'s insertion order otherwise
+ * depends on which operand happens to be walked as the outer loop, so
+ * `intersectFields([a,b],[c])` and `intersectFields([c],[a,b])` were equal as
+ * sets but could differ as arrays — and that array becomes
+ * `Allow.visibleFields`, which flows into `DecisionRecord` and the audit sink
+ * wire path. A canonical order makes byte-equality of the wire form track
+ * semantic equality of the field set, which `TraceDiff.sameFields` already
+ * has to work around by sorting before comparing.
  */
 export const intersectFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
   if (a === undefined) return b;
@@ -300,20 +330,17 @@ export const intersectFields = (a: VisibleFields, b: VisibleFields): VisibleFiel
   for (const specA of shapedA) {
     for (const specB of shapedB) {
       const cmp = compareShapes(specA.shape, specB.shape);
+      // Hoisted to a module-scope table (`CONTAINMENT_KEEP`, AGENTS.md §5a:
+      // `Match.type` builds its matcher once; `Match.value` rebuilds it per
+      // call, which this O(|a|·|b|) loop calls up to |a|·|b| times per node).
       // `Incomparable` contributes nothing — the conservative, fails-closed
-      // direction the doc comment above describes — and is handled by
-      // `Match.exhaustive` finding no arm for it rather than a silent
-      // fallthrough, so a future addition to `Containment` is a compile
-      // error here instead of a no-op (AGENTS.md §5a).
-      Match.value(cmp).pipe(
-        Match.whenOr("Equal", "BLessA", () => kept.push(specB.spec)),
-        Match.when("ALessB", () => kept.push(specA.spec)),
-        Match.when("Incomparable", () => undefined),
-        Match.exhaustive,
-      );
+      // direction the doc comment above describes.
+      const keep = CONTAINMENT_KEEP(cmp);
+      if (keep === "B") kept.push(specB.spec);
+      else if (keep === "A") kept.push(specA.spec);
     }
   }
-  return [...new Set(kept)];
+  return [...new Set(kept)].sort();
 };
 
 /**
@@ -324,10 +351,27 @@ export const intersectFields = (a: VisibleFields, b: VisibleFields): VisibleFiel
  * regardless of overlap — a redundant, subsumed entry (e.g. `"address.street"`
  * alongside `"address.**"`) projects identically to omitting it, so exact-set
  * union stays correct even though the strings themselves may now be paths.
+ *
+ * `mergeFields`'s own `Union` arm (`Evaluate.ts`) no longer folds through this
+ * pairwise — it accumulates every child's set into one `Set` in a single pass,
+ * which is why a repo-wide grep finds no production caller left for this
+ * export. It stays exported anyway, as `intersectFields`'s two-operand
+ * counterpart on the public surface (`spec/overview.md`): a caller merging
+ * exactly two field sets outside the evaluator — composing two independently
+ * computed decisions' visibility, say — reaches for the same combinator
+ * `intersectFields` already models, not a hand-rolled `Set` union. Deleting it
+ * would be a breaking change to a documented export for a combinator that is
+ * still correct and still cheap at this arity; the pattern this doc comment
+ * used to warn readers about was folding it pairwise across N sets, which
+ * nothing in this codebase does any more.
+ *
+ * Sorted before returning, for the reason `intersectFields` is: insertion
+ * order would otherwise depend on which operand is walked first, and that
+ * order reaches `Allow.visibleFields` on the wire.
  */
 export const unionFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
   if (a === undefined || b === undefined) return undefined;
-  return [...new Set([...a, ...b])];
+  return [...new Set([...a, ...b])].sort();
 };
 
 // ---------------------------------------------------------------------------

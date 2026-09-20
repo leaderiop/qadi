@@ -107,6 +107,29 @@ describe("makeQadiAtoms", () => {
     expect(isAllowed(await settle(registry, atoms, isAdmin))).toBe(true);
   });
 
+  it("does not re-decide when a fresh but structurally equal subject replaces the current one (RC-01)", async () => {
+    // `makeSubject`/`fromRoles` return a fresh object every call — the shape an
+    // inline `<QadiProvider subject={makeSubject(...)} />` produces on every
+    // render. `subjectsEqual` (`QadiAtoms.ts`) gives the `subject` atom
+    // structural equality specifically so a write like this one no-ops before
+    // `AtomRegistry`'s `invalidateChildren`, instead of re-running every
+    // mounted decision on every render of a component that never changed who
+    // is asking.
+    const counter = { count: 0 };
+    const atoms = makeQadiAtoms(countingLayer(counter));
+    const registry = makeRegistry();
+    registry.set(atoms.subject, reader);
+    await settle(registry, atoms, needsLookup);
+    const decisionBefore = registry.get(atoms.decision(needsLookup));
+    const countAfterFirst = counter.count;
+
+    registry.set(atoms.subject, makeSubject({ id: "u1", permissions: ["doc:read"] }));
+    await Promise.resolve();
+
+    expect(counter.count).toBe(countAfterFirst);
+    expect(registry.get(atoms.decision(needsLookup))).toBe(decisionBefore);
+  });
+
   it("returns the same atom for the same policy", () => {
     const atoms = makeQadiAtoms(baseLayer);
     expect(atoms.decision(canRead)).toBe(atoms.decision(canRead));
@@ -241,6 +264,154 @@ describe("asked()", () => {
 
     expect(first.length).toBe(1);
     expect(set.asked().length).toBe(2);
+  });
+});
+
+describe("sweepEvictions", () => {
+  // Distinct, structurally-unequal policies — `Atom.family` keys structurally
+  // (BEH-QD-071), so these need to differ in more than object identity to
+  // count as distinct tracked questions.
+  const permissionPolicy = (name: string) => hasPermission(permission("doc", name));
+
+  it("rejects a non-positive maxTrackedQuestions at construction", () => {
+    // Mirrors `decisionCacheLayer`'s own capacity validation (`DecisionCache.ts`)
+    // and for the same two reasons: unsatisfiable eviction loop on a negative
+    // bound, silently-unbounded on NaN.
+    expect(() => makeQadiAtoms(baseLayer, { maxTrackedQuestions: 0 })).toThrow(
+      /maxTrackedQuestions/,
+    );
+    expect(() => makeQadiAtoms(baseLayer, { maxTrackedQuestions: -1 })).toThrow(
+      /maxTrackedQuestions/,
+    );
+    expect(() => makeQadiAtoms(baseLayer, { maxTrackedQuestions: 1.5 })).toThrow(
+      /maxTrackedQuestions/,
+    );
+  });
+
+  it("evicts the oldest unmounted questions once the bound is exceeded", () => {
+    const set = makeQadiAtoms(baseLayer, { maxTrackedQuestions: 2 });
+
+    // None of these are ever mounted to a registry, so every one has
+    // `liveCount === 0` and is eligible for eviction.
+    set.decision(permissionPolicy("a"));
+    set.decision(permissionPolicy("b"));
+    set.decision(permissionPolicy("c"));
+    expect(set.asked().length).toBe(3);
+
+    Effect.runSync(set.sweepEvictions);
+
+    // Oldest-first (FIFO among non-live entries, matching DecisionCache.ts's
+    // own bounded eviction order): "a" is dropped, "b" and "c" survive.
+    const remaining = set.asked();
+    expect(remaining.length).toBe(2);
+    expect(remaining.map((q) => q.policy)).toEqual([
+      permissionPolicy("b"),
+      permissionPolicy("c"),
+    ]);
+  });
+
+  it("never evicts a question a mounted gate still has open", () => {
+    const set = makeQadiAtoms(baseLayer, { maxTrackedQuestions: 1 });
+    const registry = makeRegistry();
+
+    // Mounting reads through `combined`, which is what actually increments
+    // `liveCount` — merely calling `decision()` (as the eviction test above
+    // does) never does.
+    const unmount = registry.mount(set.decision(canRead));
+    set.decision(permissionPolicy("b"));
+    set.decision(permissionPolicy("c"));
+    expect(set.asked().length).toBe(3);
+
+    Effect.runSync(set.sweepEvictions);
+
+    // Both unmounted entries are eligible and evicted first, reaching the
+    // bound of 1 — but the survivor is the mounted one, never dropped even
+    // though it was tracked before either of the other two.
+    const remaining = set.asked();
+    expect(remaining.length).toBe(1);
+    expect(remaining[0]?.policy).toBe(canRead);
+
+    unmount();
+  });
+
+  it("becomes eligible again once its gate unmounts", async () => {
+    const set = makeQadiAtoms(baseLayer, { maxTrackedQuestions: 1 });
+    const registry = makeRegistry();
+
+    const decision = set.decision(canRead);
+    const unmount = registry.mount(decision);
+    set.decision(permissionPolicy("b"));
+    Effect.runSync(set.sweepEvictions);
+    expect(set.asked().length).toBe(1);
+    expect(set.asked()[0]?.policy).toBe(canRead);
+
+    // `unmount()` only *schedules* the node's removal — `AtomRegistry`
+    // dispatches it through its own async scheduler (`Scheduler.ts`'s
+    // `MixedSchedulerDispatcher`, a real macrotask), not synchronously — so
+    // `liveCount` does not drop to zero the instant this call returns.
+    // `canRead`'s finalizer only runs once that scheduled removal actually
+    // fires; waiting on the registry's own node map (rather than retrying the
+    // sweep, which would race a fresh cold entry into being evicted first and
+    // permanently satisfy the bound without `canRead` ever having to give up
+    // its slot) is what makes this assertion about `canRead` specifically.
+    unmount();
+    await vi.waitFor(() => {
+      expect(registry.getNodes().has(decision)).toBe(false);
+    });
+
+    set.decision(permissionPolicy("d"));
+    Effect.runSync(set.sweepEvictions);
+
+    // `canRead` was the oldest tracked entry and is now cold, so it — not the
+    // newly-added "d" — is the one the FIFO-among-cold sweep drops.
+    const remaining = set.asked();
+    expect(remaining.length).toBe(1);
+    expect(remaining[0]?.policy).not.toBe(canRead);
+  });
+
+  it("reappears in asked() if its gate remounts before Atom.family's cache forgets it", async () => {
+    const set = makeQadiAtoms(baseLayer, { maxTrackedQuestions: 1 });
+    const registry = makeRegistry();
+
+    const decision = set.decision(canRead);
+    const unmount = registry.mount(decision);
+    unmount();
+    await vi.waitFor(() => {
+      expect(registry.getNodes().has(decision)).toBe(false);
+    });
+
+    // A second, unrelated question pushes `tracked` over the bound of 1, so
+    // the now-cold `canRead` entry — the oldest — is the one evicted.
+    set.decision(permissionPolicy("filler"));
+    Effect.runSync(set.sweepEvictions);
+    expect(set.asked().map((q) => q.policy)).not.toContainEqual(canRead);
+
+    // Re-mounting the identical policy reuses the same cached `Atom.family`
+    // entry — its constructor callback, the only place `tracked.push` runs,
+    // does not run again for an already-cached key. Before `TrackedQuestion.
+    // inTracked`, this question would never reappear in `asked()` again
+    // despite being actively mounted.
+    const remount = registry.mount(set.decision(canRead));
+    expect(set.asked().map((q) => q.policy)).toContainEqual(canRead);
+
+    remount();
+  });
+
+  it("stops shrinking once every remaining entry is live, rather than evicting one", () => {
+    const set = makeQadiAtoms(baseLayer, { maxTrackedQuestions: 1 });
+    const registry = makeRegistry();
+
+    const unmountA = registry.mount(set.decision(canRead));
+    const unmountB = registry.mount(set.decision(isAdmin));
+
+    Effect.runSync(set.sweepEvictions);
+
+    // Both are live; the bound of 1 cannot be honored without dropping one in
+    // use, so neither is dropped.
+    expect(set.asked().length).toBe(2);
+
+    unmountA();
+    unmountB();
   });
 });
 

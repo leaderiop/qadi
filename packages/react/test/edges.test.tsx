@@ -210,6 +210,70 @@ describe("provider lifetime", () => {
   });
 });
 
+// AC-05: `QadiAtoms.test.ts` pins structural sharing and "one evaluation for
+// ten subscribers" through direct, synchronous `registry.mount`/`.set` calls
+// only — never through React, and never under StrictMode's double render.
+// This is the sibling proof at the layer consumers actually exercise: two
+// components, each building the SAME policy as a fresh, separately
+// constructed (but `Equal.equals`-equal) object inline on every render, under
+// `StrictMode` (which renders every component twice in development). If
+// sharing ever regressed to reference keying — ADR-QD-014 calls that "silent
+// and serious" — this is the test that would catch it; the atom-layer canary
+// alone would not, because it never builds two *different* object instances
+// of an equal policy through a real render.
+describe("atom sharing under React (AC-05)", () => {
+  it("evaluates a shared policy once across StrictMode's double render, from two components that each build it inline", async () => {
+    const counter = { count: 0 };
+    const counting = makeQadiAtoms(
+      Layer.mergeAll(
+        Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.sync(() => {
+              counter.count += 1;
+              return 5;
+            }),
+        }),
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+        CustomPredicateNone,
+        SignatureHistoryNone,
+      ),
+    );
+
+    // Neither component holds a shared reference — each calls `hasAttribute`
+    // itself, inline, so the two policy objects are distinct instances that
+    // are merely `Equal.equals`-equal. `needsClearance` (module-scope, used
+    // by other tests in this file) is deliberately NOT reused here.
+    const RowA = () => {
+      const decision = useDecisionSuspense(hasAttribute("clearance", gte(1)));
+      return <span data-testid="row-a">{decision._tag}</span>;
+    };
+    const RowB = () => {
+      const decision = useDecisionSuspense(hasAttribute("clearance", gte(1)));
+      return <span data-testid="row-b">{decision._tag}</span>;
+    };
+
+    render(
+      <StrictMode>
+        <QadiProvider atoms={counting} subject={reader}>
+          <Suspense fallback={<span>loading</span>}>
+            <RowA />
+            <RowB />
+          </Suspense>
+        </QadiProvider>
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("row-b").textContent).toBe("Allow"));
+    expect(screen.getByTestId("row-a").textContent).toBe("Allow");
+
+    // One evaluation, not two (one per component) and not four (StrictMode's
+    // double render times two components).
+    expect(counter.count).toBe(1);
+  });
+});
+
 // H5: `settled()` used to memoise its subscription per atom rather than per
 // registry (`packages/react/src/settled.ts`, defect 3 in its doc comment). A
 // `QadiProvider` remount builds a fresh `AtomRegistry` over the *same*

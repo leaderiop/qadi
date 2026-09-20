@@ -96,6 +96,31 @@ would be inventing a framework. So the layer is a function rather than a value �
 `decisionCacheLive` constant would read as "the cache", and the difference is exactly
 the mistake this section warns about.
 
+**Shrinking the window on revocation, for an application-scoped cache.** `@qadi/react`'s
+surface got a first-class primitive for this — `invalidate` clears the client-side
+`DecisionCache` before reactivity re-runs, and that ordering is the whole fix
+(`QadiAtoms.ts`). The server-side story is the same shape, deliberately left to the
+caller rather than built in, for the reason this section already gives: Qadi has no
+notion of *when* a grant was revoked, only whoever wired the resolver does. Two
+procedures follow from `DecisionCacheShape`'s own surface, and either is correct;
+which one to reach for is an operational trade-off, not a Qadi decision:
+
+- **`cache.clear`** — drops every entry, subject-by-subject and policy-by-policy alike,
+  the moment the revocation is known. Correct always, and the only option when the
+  revoking system cannot name which subject or resource was affected (a role
+  definition changing under many subjects at once, say). Costs a full re-evaluation of
+  every subject's next request, not just the revoked one's.
+- **Rebuilding the layer** — tearing down and re-providing a fresh
+  `decisionCacheLayer()` has the same effect as `clear` and no advantage over it for
+  this purpose; it is the right call only when the cache is being resized
+  (`capacity`) or reconfigured, not as a revocation primitive in its own right.
+
+Neither procedure is selective by subject or resource — `DecisionCacheShape` has no
+`invalidate(key)` counterpart to the React atom's targeted clear, so an
+application-scoped cache trades that precision for simplicity. A caller needing to
+revoke one subject without paying for every other subject's next miss has no primitive
+for it today; recorded here rather than silently accepted (MK-04).
+
 **And there is a sharper trap, found while testing.** `Effect.provide` builds a layer
 per *execution*, so
 

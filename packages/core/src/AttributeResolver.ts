@@ -8,15 +8,17 @@
  * lookup in every other branch.
  */
 import * as Context from "effect/Context";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as Ref from "effect/Ref";
 import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
-import type { AttributeResolveError } from "./Errors.ts";
+import { AttributeResolveError } from "./Errors.ts";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
-import { portRetriesTotal } from "./PortMetrics.ts";
+import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
 import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
 
 export interface AttributeResolverShape {
@@ -48,6 +50,16 @@ export interface AttributeResolverShape {
    * (issue #100). An implementation that already fails with
    * `AttributeResolveError` pays nothing extra for this; one that dies
    * instead is no longer a silent gap in that guarantee.
+   *
+   * `subjectId` is an arbitrary id, not implicitly `CurrentSubject`'s own
+   * (JF-03) — `Evaluate.ts`'s only call site always passes the subject being
+   * evaluated, so evaluation itself never asks about anyone else, but the
+   * parameter's width is real and belongs to a different consumer:
+   * `@qadi/devtools`'s capture/sweep tooling resolves attributes for
+   * subjects it is not currently evaluating, to pre-populate a simulation. An
+   * implementation wired for evaluation must still answer safely for a
+   * subject id it did not expect — this Shape does not, and cannot, express
+   * "only ever asked about the current subject" as a type.
    */
   readonly resolve: (
     subjectId: SubjectId,
@@ -94,6 +106,19 @@ export const attributeResolverFromRecord = (
  * fixture and never fails this way, so nothing needs this today — it exists
  * for the resolver this module's own doc comment anticipates, "backed by a
  * graph database or a remote service", which does.
+ *
+ * **The attempt count is annotated onto the caller's current span** (KH-01)
+ * — `qadi.attempts`, `1` when the first attempt simply succeeds. Without
+ * this, `Evaluate.ts`'s `resolveAttribute` opens one `qadi.attempt` span
+ * around the whole wrapped call, and every retry this layer performs happens
+ * silently inside that one span's duration: a trace reader sees one
+ * deceptively slow call rather than the N store round trips that actually
+ * happened. `portRetriesTotal` (`PortMetrics.ts`) already counts failed
+ * attempts, but as a process-wide aggregate with no correlation back to the
+ * request that triggered them — this annotation is the per-call signal that
+ * aggregate cannot give. `Effect.ensuring`, not a `tap` on only the success or
+ * only the failure path: the count is worth recording whichever way the
+ * retried call finally settles, and a finalizer runs either way.
  */
 export const attributeResolverRetrying =
   (schedule: Schedule.Schedule<unknown, AttributeResolveError>) =>
@@ -103,12 +128,29 @@ export const attributeResolverRetrying =
       // the whole stack rather than losing the base implementation's identity.
       name: `${inner.name ?? "?"} (retrying)`,
       resolve: (subjectId, attribute) =>
-        inner
-          .resolve(subjectId, attribute)
-          .pipe(
+        Effect.gen(function* () {
+          const attempts = yield* Ref.make(0);
+          // Incremented once per actual invocation of `inner.resolve`, not
+          // once per failure — counting failures instead double-counts the
+          // exhausting failure, the one `Effect.retry` decides not to retry:
+          // `tapError` cannot see that decision, so it always assumed
+          // another call was coming. This wraps the real call site instead,
+          // so the count is exactly how many times `resolve` actually ran,
+          // whether the run this settles on succeeds or the schedule gives up.
+          const attempt = Effect.gen(function* () {
+            yield* Ref.update(attempts, (n) => n + 1);
+            return yield* inner.resolve(subjectId, attribute);
+          });
+          return yield* attempt.pipe(
             Effect.tapError(() => Metric.update(portRetriesTotal, "AttributeResolver")),
             Effect.retry(schedule),
-          ),
+            Effect.ensuring(
+              Effect.flatMap(Ref.get(attempts), (n) =>
+                Effect.annotateCurrentSpan({ "qadi.attempts": n }),
+              ),
+            ),
+          );
+        }),
     }));
 
 /**
@@ -151,3 +193,55 @@ export const attributeResolverBounded =
           Semaphore.withPermit(semaphore)(inner.resolve(subjectId, attribute)),
       })),
     );
+
+/**
+ * Wraps a resolver layer so a `resolve` call that does not settle within
+ * `duration` fails with a typed `AttributeResolveError` instead of holding
+ * its caller open indefinitely (JM-01/WV-01/SP-01).
+ *
+ * `attributeResolverRetrying` only ever sees `resolve` *fail* —
+ * `Effect.retry`'s schedule fires on a settled error, and a resolver backed by
+ * a store whose TCP connection black-holes never settles at all, so it
+ * produces neither a retry nor a typed failure; it just holds the fiber.
+ * `attributeResolverBounded` makes this worse rather than better on its own:
+ * a hung call parked under its semaphore keeps the permit it acquired
+ * forever, so one wedged resolver call eventually queues every subsequent
+ * one behind it, turning a single slow dependency into a standing outage of
+ * the whole enforcement path. Composing `attributeResolverTimingOut` beneath
+ * `attributeResolverBounded` closes that: a timed-out call fails and releases
+ * its permit like any other failure, rather than holding it.
+ *
+ * `duration` is `Duration.Input`, matching `CircuitBreaker.ts`'s
+ * `resetTimeoutMs` — a plain millisecond number is still valid input, the
+ * type only widens what else is accepted.
+ *
+ * Additive, like `attributeResolverRetrying`/`attributeResolverBounded`: a
+ * caller who does not reach for this sees no change. Composes with both — put
+ * outermost (closest to the caller) so a request that has already exhausted
+ * its retries is not then held open a second, unbounded time by a resolver
+ * that stopped answering mid-retry; put innermost (closest to the real
+ * resolver) so each individual attempt, not the whole retried sequence, is
+ * what the deadline bounds.
+ */
+export const attributeResolverTimingOut =
+  (duration: Duration.Input) =>
+  (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver> =>
+    wrapService(AttributeResolver, layer, (inner) => ({
+      name: `${inner.name ?? "?"} (timing out)`,
+      resolve: (subjectId, attribute) =>
+        inner.resolve(subjectId, attribute).pipe(
+          Effect.timeout(duration),
+          Effect.catchTag("TimeoutError", () =>
+            Metric.update(portTimeoutsTotal, "AttributeResolver").pipe(
+              Effect.flatMap(() =>
+                Effect.fail(
+                  new AttributeResolveError({
+                    attribute,
+                    cause: new Error(`AttributeResolver.resolve did not settle within the configured deadline`),
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+    }));
