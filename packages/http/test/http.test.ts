@@ -12,6 +12,7 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
 import * as HttpApi from "effect/unstable/httpapi/HttpApi";
 import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
@@ -190,6 +191,20 @@ const AppLayer = WithCache.pipe(Layer.provideMerge(HttpServer.layerServices));
 
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 
+/**
+ * `AppLayer`, with a `Logger.layer` merged in so a request's own
+ * `Effect.log*` calls land in `logs` instead of the console. Merged into the
+ * layer graph itself, and paired with `toWebHandler`'s `disableLogger: true`
+ * below, rather than wrapping the `handler(...)` call's own `Effect.promise`
+ * in `Effect.provide` — that alternative never sees a single message:
+ * `HttpMiddleware.logger` (added automatically whenever `disableLogger` is
+ * left off) intercepts each request's own logging scope from inside the
+ * built layer, downstream of anything the caller's ambient effect provides.
+ * Confirmed by running both shapes before relying on this one.
+ */
+const appLayerWithLogger = (logs: Array<unknown>) =>
+  AppLayer.pipe(Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])));
+
 describe("@qadi/http", () => {
   it.effect("an allowed request reaches the handler", () =>
     Effect.gen(function* () {
@@ -309,11 +324,13 @@ describe("@qadi/http", () => {
       // BEH-QD-180 requires — a route nothing above exercises otherwise. Its
       // own layer, not `AppLayer`: both variants mount at `/__permissions`
       // and cannot coexist on one router.
+      const logs: Array<unknown> = [];
       const unguardedApp = permissionRegistryRouteUnguarded("test fixture").pipe(
         Layer.provideMerge(RegistryLayer),
         Layer.provideMerge(HttpServer.layerServices),
+        Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
       );
-      const { handler } = HttpRouter.toWebHandler(unguardedApp);
+      const { handler } = HttpRouter.toWebHandler(unguardedApp, { disableLogger: true });
       const response = yield* Effect.promise(() => handler(new Request("http://localhost/__permissions")));
       assert.strictEqual(response.status, 200);
       const body: ReadonlyArray<{ readonly permission: string }> = yield* Effect.promise(() => response.json());
@@ -321,6 +338,15 @@ describe("@qadi/http", () => {
       // registerApi populates), not the `addGuardedRoute` write routes too, so
       // only `Api`'s own annotated endpoint is expected here.
       assert.deepStrictEqual(body.map((entry) => entry.permission), ["document:read"]);
+      // Logged on every request, not once at construction (see this route's
+      // own doc comment) — and names the `reason` a caller gave for opting
+      // out, so a reviewer can tell who decided this and why.
+      assert.deepStrictEqual(logs, [
+        [
+          "qadi/http: serving /__permissions unguarded — the full authorization topology is public. " +
+            "Reason given: test fixture",
+        ],
+      ]);
     }));
 
   it("publicEndpoint carries the reason a reviewer reads later", () => {
@@ -624,7 +650,12 @@ describe("@qadi/http", () => {
     );
     assert.throws(
       () => requiresPermission(endpoint, { permission: writePermission, policy: writePolicy }),
-      /already has a permission requirement/,
+      // The full sentence, not just its opening clause — pins the guidance
+      // telling the caller what to do instead (compose into one `allOf`
+      // `Policy` and call once), not only that a duplicate was rejected.
+      'requiresPermission: endpoint "duplicate" already has a permission requirement. Compose multiple ' +
+        "permissions into one Policy (e.g. allOf([...])) and pass it to a single requiresPermission call, " +
+        "rather than calling it twice.",
     );
   });
 
@@ -796,6 +827,68 @@ describe("@qadi/http", () => {
         // projection gains, `trace` — attribute values, matched rules, policy
         // internals — must never be a key of the response body.
         assert.strictEqual("trace" in body, false);
+      }),
+  );
+
+  it.effect(
+    "a denial's server-side log names the stable code, subject and reason (logDenial fires via RequirePermissionLive)",
+    () =>
+      Effect.gen(function* () {
+        const logs: Array<unknown> = [];
+        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/documents", { headers: bearer(BOB_TOKEN) })),
+        );
+        assert.strictEqual(response.status, 403);
+        assert.deepStrictEqual(logs, [
+          [`qadi/http: request denied (ACL001) — subject "bob": subject lacks permission 'document:read'`],
+        ]);
+      }),
+  );
+
+  it.effect(
+    "an endpoint declaring neither logs the wiring mistake it refuses for, exactly",
+    () =>
+      Effect.gen(function* () {
+        const logs: Array<unknown> = [];
+        const { handler } = HttpRouter.toWebHandler(appLayerWithLogger(logs), { disableLogger: true });
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/documents/forgotten", { headers: bearer(ALICE_TOKEN) })),
+        );
+        assert.strictEqual(response.status, 500);
+        assert.deepStrictEqual(logs, [
+          [
+            'qadi/http: endpoint "forgotten" declares neither a permission requirement nor `publicEndpoint(...)`, ' +
+              "so it is refused. Annotate it with RequiredPermission, or with PublicEndpoint if it is meant to be " +
+              "reachable without authorization.",
+          ],
+        ]);
+      }),
+  );
+
+  it.effect(
+    "a credential store outage logs the real reason server-side, through RequirePermissionLive's own " +
+      "catchTag('SubjectExtractionFailed', ...) arm",
+    () =>
+      Effect.gen(function* () {
+        const logs: Array<unknown> = [];
+        const brokenStore = subjectExtractorBearer(() =>
+          Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
+        );
+        const app = WithRegistry.pipe(
+          Layer.provideMerge(brokenStore),
+          Layer.provideMerge(EvaluationServicesTest),
+          Layer.provideMerge(decisionCacheLayer()),
+          Layer.provideMerge(HttpServer.layerServices),
+          Layer.provideMerge(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+        );
+        const { handler } = HttpRouter.toWebHandler(app, { disableLogger: true });
+
+        const response = yield* Effect.promise(() =>
+          handler(new Request("http://localhost/documents", { headers: bearer(ALICE_TOKEN) })),
+        );
+        assert.strictEqual(response.status, 502);
+        assert.deepStrictEqual(logs, [["qadi/http: subject extraction failed — token service unreachable"]]);
       }),
   );
 });

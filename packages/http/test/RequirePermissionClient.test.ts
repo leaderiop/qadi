@@ -25,6 +25,7 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
 import * as Schema from "effect/Schema";
 import * as HttpApi from "effect/unstable/httpapi/HttpApi";
 import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
@@ -201,6 +202,7 @@ describe("RequirePermission client-error typing", () => {
     "a generated client decodes an undischarged obligation as the real typed UndischargedObligation, tag-only",
     () =>
       Effect.gen(function* () {
+        const logs: Array<unknown> = [];
         const client = yield* makeClient;
         // Alice holds `deletePermission`, so `hasPermission` allows — but
         // `deletePolicy`'s binding `auditObligation` is never discharged
@@ -209,7 +211,7 @@ describe("RequirePermission client-error typing", () => {
         // `UndischargedObligation` rather than a denial.
         const error = yield* client.documents
           .delete({ headers: { authorization: `Bearer ${ALICE_TOKEN}` } })
-          .pipe(Effect.flip);
+          .pipe(Effect.flip, Effect.provide(Logger.layer([Logger.make((o) => logs.push(o.message))])));
         // Before this fix, `RequirePermissionLive` answered an empty 403 body
         // that didn't match `UndischargedObligationRefused`'s declared
         // `Schema.TaggedStruct("UndischargedObligation", {})` — the client
@@ -221,6 +223,13 @@ describe("RequirePermission client-error typing", () => {
         // fields are, so neither reaches the wire.
         assert.strictEqual("subjectId" in error, false);
         assert.strictEqual("obligationIds" in error, false);
+        // `RequirePermissionLive`'s `tapErrorTag(["AccessDenied",
+        // "UndischargedObligation"], logDenial)` runs before the hand
+        // conversion above — this is the obligation half of that array; the
+        // denial half is pinned server-side in `http.test.ts`.
+        assert.deepStrictEqual(logs, [
+          [`qadi/http: request denied (ACL010) — subject "alice": undischarged obligation(s) log-delete`],
+        ]);
       }).pipe(Effect.provide(Layer.mergeAll(passthroughClientLayer(RequirePermission), testLayer(false)))),
   );
 

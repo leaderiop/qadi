@@ -9,6 +9,7 @@ import { assert, describe, it } from "@effect/vitest";
 import {
   Allow,
   AttributeResolver,
+  AttributeResolverNone,
   AttributeResolveError,
   CustomPredicateNone,
   SignatureHistoryNone,
@@ -18,12 +19,15 @@ import {
   EvaluationIdLive,
   EvaluationServicesNone,
   ObligationRecord,
+  RelationshipResolver,
   RelationshipResolverNever,
   decisionSinkFeed,
   gte,
   hasAttribute,
   hasCustom,
   hasPermission,
+  hasRelationship,
+  makeResourceId,
   makeSubject,
   makeSubjectId,
   obligation,
@@ -37,6 +41,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
@@ -210,7 +215,9 @@ describe("/__decisions", () => {
           decisionStreamRoute(readPermission, readPolicy, Stream.empty, {
             reauth: { interval: 0 },
           }),
-        /reauth\.interval must be a positive duration/,
+        // The exact offending value, not just the sentence's opening clause —
+        // an operator reading this needs to see what was actually passed.
+        "decisionStreamRoute: reauth.interval must be a positive duration, got 0ms.",
       );
     },
   );
@@ -221,7 +228,7 @@ describe("/__decisions", () => {
         decisionStreamRoute(readPermission, readPolicy, Stream.empty, {
           reauth: { interval: -1 },
         }),
-      /reauth\.interval must be a positive duration/,
+      "decisionStreamRoute: reauth.interval must be a positive duration, got -1ms.",
     );
   });
 
@@ -290,6 +297,7 @@ describe("reauth", () => {
 
   it.effect("distinguishes a broken credential store from a denial — extraction-failed, not denied", () =>
     Effect.gen(function* () {
+      const logs: Array<unknown> = [];
       const request = HttpServerRequest.fromWeb(
         new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
       );
@@ -297,9 +305,20 @@ describe("reauth", () => {
         Effect.fail(new SubjectExtractionFailed({ reason: "token service unreachable" })),
       );
       const layer = Layer.mergeAll(brokenStore, EvaluationServicesNone);
-      const result = yield* reauthCheck(request, readPolicy, {}).pipe(Effect.provide(layer), Effect.result);
+      const result = yield* reauthCheck(request, readPolicy, {}).pipe(
+        Effect.provide(layer),
+        Effect.provide(Logger.layer([Logger.make((options) => logs.push(options.message))])),
+        Effect.result,
+      );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") assert.strictEqual(result.failure, "extraction-failed");
+      // Logged before being collapsed to the "extraction-failed" literal
+      // (this module's own doc comment on `reauthCheck`), mirroring
+      // `GuardRoute.ts`/`RequirePermission.ts`'s own `SubjectExtractionFailed`
+      // logging.
+      assert.deepStrictEqual(logs, [
+        ["qadi/http: subject extraction failed during reauth — token service unreachable"],
+      ]);
     }));
 
   it.effect(
@@ -315,6 +334,7 @@ describe("reauth", () => {
         const request = HttpServerRequest.fromWeb(
           new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
         );
+        const logs: Array<unknown> = [];
         const brokenResolver = Layer.succeed(AttributeResolver, {
           resolve: () =>
             Effect.fail(new AttributeResolveError({ attribute: "clearance", cause: "down" })),
@@ -333,6 +353,7 @@ describe("reauth", () => {
         );
         const result = yield* reauthCheck(request, attributePolicy, {}).pipe(
           Effect.provide(layer),
+          Effect.provide(Logger.layer([Logger.make((options) => logs.push(options.message))])),
           Effect.result,
         );
         assert.strictEqual(result._tag, "Failure");
@@ -340,6 +361,57 @@ describe("reauth", () => {
         // "denied": a consumer reading this feed must be able to tell a
         // revoked subject apart from a broken attribute store.
         if (result._tag === "Failure") assert.strictEqual(result.failure, "outage");
+        // Logged with both the real failure's tag AND the classification it
+        // was reduced to — an operator reading this line can tell exactly
+        // which port broke, not only that the stream ended.
+        assert.deepStrictEqual(logs, [
+          ["qadi/http: reauth check failed (AttributeResolveError), reporting outage"],
+        ]);
+      }),
+  );
+
+  it.effect(
+    "threads the given resource through to assert, rather than a stand-in — a HasRelationship " +
+      "policy needs the real resource.id to ever reach the resolver",
+    () =>
+      Effect.gen(function* () {
+        const request = HttpServerRequest.fromWeb(
+          new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
+        );
+        const ownerPolicy = hasRelationship("owner");
+        const relationshipResolver = Layer.succeed(RelationshipResolver, {
+          check: (check) =>
+            Effect.succeed(check.resourceId === makeResourceId("doc-1") ? "Related" : "Unrelated"),
+        });
+        const layer = Layer.mergeAll(
+          subjectExtractorBearer(lookupSubject),
+          AttributeResolverNone,
+          relationshipResolver,
+          DecisionHistoryUnknown,
+          EvaluationIdLive,
+          CustomPredicateNone,
+          SignatureHistoryNone,
+        );
+
+        // With the real resource threaded through, the resolver sees
+        // `resourceId: "doc-1"` and answers "Related" — the check succeeds.
+        const withResource = yield* reauthCheck(request, ownerPolicy, { id: "doc-1" }).pipe(
+          Effect.provide(layer),
+          Effect.result,
+        );
+        assert.strictEqual(withResource._tag, "Success");
+
+        // A resource with no `id` at all reaches `HasRelationship`'s own
+        // `MissingResourceId` failure (a wiring mistake, not a denial) —
+        // exactly what happens if `assert` were called against an empty
+        // stand-in resource instead of the one this function was actually
+        // given.
+        const withoutResource = yield* reauthCheck(request, ownerPolicy, {}).pipe(
+          Effect.provide(layer),
+          Effect.result,
+        );
+        assert.strictEqual(withoutResource._tag, "Failure");
+        if (withoutResource._tag === "Failure") assert.strictEqual(withoutResource.failure, "wiringMistake");
       }),
   );
 
