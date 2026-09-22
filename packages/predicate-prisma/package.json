@@ -44,7 +44,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@qadi/core": "workspace:*",
+    "@qadi/core": "workspace:^",
     "effect": "catalog:"
   },
   "devDependencies": {

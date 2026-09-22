@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@effect/atom-react": "catalog:",
-    "@qadi/core": "workspace:*",
+    "@qadi/core": "workspace:^",
     "effect": "catalog:"
   },
   "peerDependencies": {
