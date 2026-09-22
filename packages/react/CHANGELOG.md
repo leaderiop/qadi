@@ -1,5 +1,21 @@
 # @qadi/react
 
+## 0.8.0
+
+### Minor Changes
+
+- be76b5b: Fixed a real leak in `GateRegistry`: its unmount cleanup compared the closed-over `GateInstance` by reference, but `updateGateState` replaces the stored instance with a new object on every render-state change — so a gate leaked (including its DOM element reference) after its very first state transition. Cleanup now tracks a stable per-registration token instead.
+
+  `QadiAtoms` gained bounded-count eviction for its long-lived question/decision bookkeeping (`maxTrackedQuestions`, `sweepEvictions`, run periodically by `QadiProvider`), replacing unbounded growth. A related desync — an evicted-then-re-asked question could silently vanish from `asked()`/devtools forever because `Atom.family` handed back its still-cached atom without re-registering — is also fixed.
+
+  `useProjected` now registers under its own name instead of being mislabeled `useDecision` in the devtools panel.
+
+### Patch Changes
+
+- 2ac15c3: Declare the internal `@qadi/core` (and, for `@qadi/devtools`, `@qadi/testing`) dependency as `workspace:^` instead of `workspace:*`. `pnpm publish` converts `workspace:*` into an exact version pin in the published tarball, so a consumer that already has an older `@qadi/core` on a compatible version gets a second, separately-resolved copy installed alongside it the moment any of these packages bump — two nominally-different instances of the same package, which TypeScript cannot always reconcile when a value's inferred type spans both (surfaced downstream as `TS2883: The inferred type ... cannot be named without a reference to ...`). `workspace:^` still gets fully resolved by `pnpm publish` (verified via `scripts/check-package-install.mjs`, no `workspace:`/`catalog:` protocol reaches the packed manifest) — it just publishes a caret range instead of an exact pin, so a consumer's own compatible `@qadi/core` continues to satisfy it in place.
+- Updated dependencies [be76b5b]
+  - @qadi/core@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes
