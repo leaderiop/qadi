@@ -44,7 +44,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@qadi/core": "workspace:*",
+    "@qadi/core": "workspace:^",
     "effect": "catalog:"
   },
   "peerDependencies": {
@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
-    "@qadi/testing": "workspace:*",
+    "@qadi/testing": "workspace:^",
     "@testing-library/react": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
