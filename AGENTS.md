@@ -720,12 +720,15 @@ published `exports` map. Two rules come out of it, and both are checked rather t
 remembered.
 
 **`pnpm publish`, never `npm publish`.** Dependencies use pnpm's workspace-time
-protocols — `"effect": "catalog:"` everywhere, and `"@qadi/core": "workspace:*"`
+protocols — `"effect": "catalog:"` everywhere, and `"@qadi/core": "workspace:^"`
 in every public package that depends on it (currently eight: `@qadi/http`,
 `promise`, `react`, `devtools`, `audit`, `testing`, `predicate-sql` and
 `predicate-prisma` — check each package's `package.json` for the current set
-rather than trusting this count to stay in sync). `pnpm` resolves them when
-packing; `npm` copies them into the tarball
+rather than trusting this count to stay in sync). `workspace:^` publishes a
+caret range rather than `workspace:*`'s exact pin, so a consumer's own
+compatible `@qadi/core` continues to satisfy it without installing a second,
+separately-resolved copy (see the CHANGELOG entries at commit `2ac15c3`).
+`pnpm` resolves them when packing; `npm` copies them into the tarball
 verbatim and the result cannot be installed at all (`EUNSUPPORTEDPROTOCOL`). The gate
 fails if either protocol reaches a tarball, so this cannot rot into folklore.
 
