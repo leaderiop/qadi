@@ -193,7 +193,7 @@ round-trips through storage cannot silently come back meaning something else.
 > [roadmap](./spec/roadmap.md) committed to has shipped, and every access-control
 > model in the [adoption matrix](./spec/models/00-adoption-matrix.md) is either
 > adopted or explicitly declined. All nine packages are published on npm at
-> `0.7.0` (verified live against the registry, 2026-09-19) — the same version
+> `0.8.0` (verified live against the registry, 2026-09-22) — the same version
 > every `packages/*/package.json` carries via the changesets fixed group. The
 > root `package.json` is not part of that group and stays at its own,
 > unrelated version.

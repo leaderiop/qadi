@@ -109,8 +109,8 @@ that specific package changed. Verify what would actually happen with
 packages have pending changesets and what the resulting versions would be.
 
 **State as of this writing** (verified live against the npm registry,
-2026-09-19): every `packages/*/package.json` reads `0.7.0`, and all nine
-packages are published at `0.7.0` on npm. The root `package.json` is **not**
+2026-09-22): every `packages/*/package.json` reads `0.8.0`, and all nine
+packages are published at `0.8.0` on npm. The root `package.json` is **not**
 part of the fixed group above — `changeset version` never touches it — and it
 stays frozen at its own, unrelated version; it is not a publish-status signal
 for anything under `packages/`. `.changeset/` holds no pending changesets.

@@ -16,7 +16,7 @@
 
 ## Current state
 
-Version `0.7.0`, under the `@qadi` scope with the `QD`
+Version `0.8.0`, under the `@qadi` scope with the `QD`
 specification infix. The core is complete and verified: sixteen policy variants,
 twelve matchers, five value references, obligations, a decision-history port, a
 label lattice, ordered rule tables, the evaluator, enforcement, subject-set
@@ -25,10 +25,10 @@ HTTP framework bindings, an audit trail companion, SQL/Prisma predicate
 compilers, and a headless devtools model with a React dock — **nine public
 packages** (`@qadi/core`, `@qadi/testing`, `@qadi/react`, `@qadi/promise`,
 `@qadi/http`, `@qadi/audit`, `@qadi/devtools`, `@qadi/predicate-sql`,
-`@qadi/predicate-prisma`), all at `0.7.0` and all carrying `@qadi/core` as a
-`workspace:*` dependency resolved by `pnpm`, plus the private `@qadi/features`
+`@qadi/predicate-prisma`), all at `0.8.0` and all carrying `@qadi/core` as a
+`workspace:^` dependency resolved by `pnpm`, plus the private `@qadi/features`
 acceptance suite and the `@qadi/example-nextjs` application. All nine are
-published on npm at `0.7.0` — versions here track every `packages/*/package.json`
+published on npm at `0.8.0` — versions here track every `packages/*/package.json`
 (the changesets fixed group), not the private root manifest, which stays frozen
 and out of scope (DR-01, RC-01/DH-05) — see the release runbook in
 `CONTRIBUTING.md`.
