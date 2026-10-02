@@ -230,7 +230,7 @@ paragraphs disagrees with root `package.json`'s version, or if a
 "not yet published" / "never been published" phrase survives there once
 every package genuinely is. It deliberately does **not** query the npm
 registry — [ADR-QD-038](../decisions/038-changesets-for-versioned-releases.md)
-already decided that publishing itself stays manual and out of `pnpm check`,
+already decided that publishing itself stays out of `pnpm check` (it runs from `release.yml`, only after `check` passes),
 and a live-registry call inside a merge gate would be exactly the kind of
 non-determinism this repository avoids everywhere else (AGENTS.md §6). The
 underlying "is this package actually published" fact stays a human,

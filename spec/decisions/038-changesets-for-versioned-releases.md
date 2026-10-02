@@ -134,3 +134,25 @@ not reopened by this ADR.
 ---
 
 _Related: [ADR-QD-033](./033-the-packed-artifact-is-the-product.md) · [ADR-QD-037](./037-circular-imports-and-type-level-tests-are-gates.md) · [Definitions of Done](../process/definitions-of-done.md)_
+
+---
+
+> **Amendment (2026-10-02, publishing automated):** the "none of the three is in CI" decision above is
+> reversed for versioning and publishing, and only for those.
+>
+> - `.github/workflows/release.yml` runs on `workflow_run` of `check`, for a **successful push to
+>   `main`** only, checked out at the `head_sha` that `check` verified. It adds no verification of its own,
+>   so it is not a second definition of "done" (AGENTS.md §15): a red `check` blocks a release.
+> - It uses `changesets/action`: while changesets are pending it opens or refreshes the
+>   "chore(release): version packages" PR with `pnpm release:version`; once that PR merges and none remain
+>   it runs `pnpm changeset-publish` (still `pnpm publish`, AGENTS.md §16).
+> - **Publishing is npm trusted publishing (OIDC)**, not a stored token: the workflow has
+>   `id-token: write` and no `NODE_AUTH_TOKEN`. Each package is configured on npmjs.com for owner
+>   `leaderiop`, repository `qadi`, workflow `release.yml`, which also yields provenance. It asserts
+>   npm >= 11.5.1.
+> - `pnpm release:version` is `changeset version` followed by `check-publish-status.mjs --fix`, because
+>   GitHub does not start `check` on a PR opened with `GITHUB_TOKEN`; the hand-written version citations
+>   must already be right when the PR opens, or `check` would fail on the merge commit and block the
+>   publish.
+> - Not decided here: which commits deserve a release. A release is whatever the maintainer merges
+>   from the version PR.
