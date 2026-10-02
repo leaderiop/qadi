@@ -38,8 +38,8 @@
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
-import * as HttpApiSchema from "effect/unstable/httpapi/HttpApiSchema";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpApiSchema from "effect/http-api/HttpApiSchema";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { AccessDenied, EnforcementError } from "@qadi/core";
 import {
   AccessDeniedPublic,
@@ -312,7 +312,7 @@ export const handleEnforcementErrors = <A, R>(
  *
  * Annotated here, in `@qadi/http`, rather than on the classes themselves in
  * `@qadi/core` — an HTTP status code is a transport concern, and `@qadi/core`
- * has no dependency on `effect/unstable/httpapi` at all. The four real class
+ * has no dependency on `effect/http-api` at all. The four real class
  * schemas stay exactly the wire schema `SinkCodec.ts` needs, unannotated;
  * this package layers its own transport-specific metadata, and for the five
  * cause-bearing tags its own redacted view, on top rather than reaching into
@@ -348,7 +348,7 @@ export const PolicyTooDeepResponse = PolicyTooDeep.pipe(wiringMistake);
  * middleware — `@qadi/core`'s `AccessDeniedPublic`, annotated with this
  * package's own `HttpApiSchema.status(403)` the same way the nine
  * `*Response` schemas above are (`AccessDeniedPublic` stays unannotated in
- * `@qadi/core`, which has no dependency on `effect/unstable/httpapi` at all —
+ * `@qadi/core`, which has no dependency on `effect/http-api` at all —
  * see this file's earlier comment on the `outage`/`wiringMistake` schemas for
  * why that annotation lives here rather than on the class).
  *

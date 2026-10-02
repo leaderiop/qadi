@@ -38,19 +38,21 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@effect/atom-react": "catalog:",
-    "@qadi/core": "workspace:^",
-    "effect": "catalog:"
+    "@qadi/core": "workspace:^"
   },
   "peerDependencies": {
+    "@effect/atom-react": "catalog:peer",
+    "effect": "catalog:peer",
     "react": ">=19.2.4",
     "scheduler": ">=0.25.0 <0.28.0"
   },
   "devDependencies": {
+    "@effect/atom-react": "catalog:",
     "@effect/vitest": "catalog:",
     "@testing-library/react": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "effect": "catalog:",
     "happy-dom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

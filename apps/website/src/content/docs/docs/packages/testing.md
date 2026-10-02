@@ -12,7 +12,7 @@ same ids and durations every run, and that determinism is what this package
 wires up rather than a set of ad hoc test helpers.
 
 ```sh
-pnpm add -D @qadi/testing
+pnpm add -D @qadi/testing effect
 ```
 
 ## Deterministic by construction

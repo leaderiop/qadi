@@ -45,10 +45,10 @@ import * as Logger from "effect/Logger";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
-import * as Sse from "effect/unstable/encoding/Sse";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
-import * as HttpServer from "effect/unstable/http/HttpServer";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as Sse from "effect/encoding/Sse";
+import * as HttpRouter from "effect/http/HttpRouter";
+import * as HttpServer from "effect/http/HttpServer";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import { decisionStreamRoute, frame, reauthCheck } from "../src/DecisionStreamRoute.ts";
 import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
@@ -497,7 +497,7 @@ describe("reauth", () => {
 /**
  * `frame` directly, rather than through a live SSE connection — this repo has
  * no existing pattern for reading a real streamed HTTP response body in a
- * test, and `effect/unstable/http`'s web-handler bridge does not appear to
+ * test, and `effect/http`'s web-handler bridge does not appear to
  * drive a `Response`'s `ReadableStream` under this test runner without a real
  * transport. `frame` is a plain, exported, synchronous function, so its
  * refusal behavior is fully covered without depending on that.

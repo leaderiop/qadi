@@ -27,7 +27,7 @@ import {
 } from "@qadi/core";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import type * as Atom from "effect/unstable/reactivity/Atom";
+import type * as Atom from "effect/reactivity/Atom";
 import { countDehydrated, countDropped, countSeeded } from "./HydrationCounts.ts";
 import { hydrationSeedFor } from "./HydrationSeed.ts";
 import type { HydrationDropReporter } from "./HydrationWarning.ts";

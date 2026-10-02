@@ -1,7 +1,7 @@
 /**
  * `RequirePermission`'s client-side error typing (ADR-QD-075), proved through
  * a real generated client rather than by inspecting types alone —
- * `effect/unstable/httpapi/HttpApiTest`'s in-memory client uses the same
+ * `effect/http-api/HttpApiTest`'s in-memory client uses the same
  * request encoding, routing, response encoding, and client decoding as a
  * real `HttpApiClient`/`HttpApiBuilder` pair, without starting a server. This
  * is the seam `.scratch/qadi-http-client-errors/spec.md`'s Testing Decisions
@@ -27,12 +27,12 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Schema from "effect/Schema";
-import * as HttpApi from "effect/unstable/httpapi/HttpApi";
-import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
-import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
-import * as HttpApiGroup from "effect/unstable/httpapi/HttpApiGroup";
-import * as HttpApiTest from "effect/unstable/httpapi/HttpApiTest";
-import * as HttpServer from "effect/unstable/http/HttpServer";
+import * as HttpApi from "effect/http-api/HttpApi";
+import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
+import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
+import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
+import * as HttpApiTest from "effect/http-api/HttpApiTest";
+import * as HttpServer from "effect/http/HttpServer";
 import {
   AttributeResolveError,
   AttributeResolver,

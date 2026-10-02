@@ -11,9 +11,9 @@
  * `error:` array to write or keep in sync.
  */
 import * as Schema from "effect/Schema";
-import * as HttpApi from "effect/unstable/httpapi/HttpApi";
-import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
-import * as HttpApiGroup from "effect/unstable/httpapi/HttpApiGroup";
+import * as HttpApi from "effect/http-api/HttpApi";
+import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
+import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import { allOf, gte, hasAttribute, hasPermission, permission } from "@qadi/core";
 import { PublicEndpoint, RequiredPermission, RequirePermission, publicEndpoint, requiresPermission } from "@qadi/http";
 

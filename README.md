@@ -17,10 +17,11 @@ tracing rather than a bespoke logging port.
 - Node `>=22.12.0`
 - A package manager — this repo's own development is pinned to `pnpm@10.17.1`;
   consuming apps can use npm, yarn, or pnpm
-- Effect v4, currently a release candidate (`effect: 4.0.0-rc.116` in this
-  workspace). Qadi's public API surfaces Effect classes directly
-  (`Context.Service`, `Data.TaggedError`), so pin the same rc line rather than
-  a caret range — see `pnpm-workspace.yaml` for the rationale
+- Effect v4 (`effect@^4.0.0-rc.118`, which includes stable `4.0.0`), installed
+  by you: every `@qadi` package declares `effect` as a peer dependency, because
+  its public API surfaces Effect classes directly (`Context.Service`,
+  `Data.TaggedError`) and a second copy in your tree would be a silent type
+  mismatch — see `pnpm-workspace.yaml` for the rationale
 
 ## Install
 
@@ -143,7 +144,7 @@ they do with a deny.
 | `@qadi/testing` | Fixtures, deterministic layers, recording resolvers |
 | `@qadi/react` | `QadiProvider`, hooks, `Can`/`Cannot`, server-render hydration |
 | `@qadi/promise` | A Promise facade for callers who do not use Effect |
-| `@qadi/http` | `effect/unstable/http`/`httpapi` bindings — enforcement middleware, subject extraction, permission registry |
+| `@qadi/http` | `effect/http`/`httpapi` bindings — enforcement middleware, subject extraction, permission registry |
 | `@qadi/audit` | Audit trail, staging, circuit breaker, retention/archival, e-signature capture, composed onto `DecisionSink` |
 | `@qadi/devtools` | A headless decision timeline and a React dock that renders it |
 | `@qadi/predicate-sql` | Compiles a `Predicate` into a parameterized SQL fragment — PostgreSQL, MySQL, or SQLite |

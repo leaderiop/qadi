@@ -4,12 +4,12 @@ React bindings for [`@qadi/core`](https://www.npmjs.com/package/@qadi/core).
 A `QadiProvider`, hooks, and `Can`/`Cannot` gates.
 
 ```sh
-pnpm add @qadi/react @qadi/core effect react
+pnpm add @qadi/react @qadi/core effect @effect/atom-react react
 ```
 
 ## What it is, and what it is not
 
-A binding over `effect/unstable/reactivity`, not a state manager of its own.
+A binding over `effect/reactivity`, not a state manager of its own.
 Decisions live in atoms; the React glue is `@effect/atom-react`'s own
 `useAtomValue`, read through its `RegistryContext` (see AGENTS.md §13 and
 ADR-QD-014 for why this package depends on that library rather than a

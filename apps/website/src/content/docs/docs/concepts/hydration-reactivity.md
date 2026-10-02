@@ -7,7 +7,7 @@ description: How a server's decisions survive the trip to the browser, and why a
 shares that answer across every component asking it, and recomputes it only
 when something that could change the answer actually happens — a login, an
 invalidation, a grant revoked. That's a reactive graph, built on
-`effect/unstable/reactivity`'s `Atom` rather than a bespoke React cache, and
+`effect/reactivity`'s `Atom` rather than a bespoke React cache, and
 it's what this page is about at the concept level. (For the hydration API's
 full request/response shape — the `dehydrateDecisions`/`hydrateDecisions`
 signatures, the mismatch-reporting contract — see

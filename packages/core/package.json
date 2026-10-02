@@ -43,11 +43,12 @@
     "typecheck": "tsc -b tsconfig.json",
     "test": "vitest run"
   },
-  "dependencies": {
-    "effect": "catalog:"
+  "peerDependencies": {
+    "effect": "catalog:peer"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "effect": "catalog:",
     "fast-check": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

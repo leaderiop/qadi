@@ -11,9 +11,10 @@ not packages this repo depends on, so the path is whatever your workstation
 put it at — ask a maintainer if you don't have one:
 
 - `alchemy` — Effect v4 beta, `AGENTS.md` is its authority
-- `effect` — the Effect v4 source itself. For the exact rc build this repo
-  ships against, `node_modules/effect` after `pnpm install` is a checkout too,
-  pinned via the `catalog:` protocol (`pnpm-workspace.yaml`).
+- `effect` — the Effect v4 source itself. For the exact build this repo
+  develops against, `node_modules/effect` after `pnpm install` is a checkout too;
+  the dev catalog follows npm's `rc` dist-tag and `pnpm-lock.yaml` pins it
+  (`pnpm-workspace.yaml`).
 
 **Doc-comment shape**: lead with a one-line summary of what the export is or
 does; put the *why* — predecessor history, ADR citations, invariant
@@ -530,7 +531,7 @@ errors in our own docs.
 
 ## 13. React
 
-`@qadi/react` is a binding over `effect/unstable/reactivity`, not a
+`@qadi/react` is a binding over `effect/reactivity`, not a
 state-management layer of its own. The rules that keep it that way:
 
 - **No React state for decisions.** Decisions live in atoms. If you find
@@ -545,7 +546,7 @@ state-management layer of its own. The rules that keep it that way:
   > what was checked was `@effect-atom/atom-react`, a similarly-named community
   > package pinned to `effect: ^3.22.1`, not the actual `@effect/atom-react`
   > (published from the `Effect-TS/effect` monorepo, tracking `effect`
-  > version-for-version, and built directly on `effect/unstable/reactivity`'s
+  > version-for-version, and built directly on `effect/reactivity`'s
   > own `Atom`/`AtomRegistry`/`AsyncResult` types — not a parallel
   > implementation). Verified on a spike branch, not assumed: swapping in the
   > real package closed a gap this package had hand-rolled and patched three
@@ -588,7 +589,7 @@ state-management layer of its own. The rules that keep it that way:
   > currently-mounted gate, and that the existing render-sequence tests this
   > paragraph's history is about pass unchanged.
 - **Submodule imports, as everywhere else:**
-  `import * as Atom from "effect/unstable/reactivity/Atom"`.
+  `import * as Atom from "effect/reactivity/Atom"`.
 - **Read decisions through `currentDecision`.** It is the single place the rule
   "a decision being re-checked is not a decision" lives (ADR-QD-017). A new
   consumer that reads `AsyncResult.isSuccess` directly will report stale allows.
@@ -720,7 +721,8 @@ published `exports` map. Two rules come out of it, and both are checked rather t
 remembered.
 
 **`pnpm publish`, never `npm publish`.** Dependencies use pnpm's workspace-time
-protocols — `"effect": "catalog:"` everywhere, and `"@qadi/core": "workspace:^"`
+protocols — `"effect": "catalog:"` in `devDependencies` and `"effect": "catalog:peer"` in
+`peerDependencies` (a range, never a pin: it expands verbatim at pack time), and `"@qadi/core": "workspace:^"`
 in every public package that depends on it (currently eight: `@qadi/http`,
 `promise`, `react`, `devtools`, `audit`, `testing`, `predicate-sql` and
 `predicate-prisma` — check each package's `package.json` for the current set

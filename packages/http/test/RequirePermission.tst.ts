@@ -11,12 +11,12 @@
  */
 import { expect, test } from "tstyche";
 import * as Effect from "effect/Effect";
-import * as HttpApi from "effect/unstable/httpapi/HttpApi";
-import * as HttpApiClient from "effect/unstable/httpapi/HttpApiClient";
-import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
-import * as HttpApiGroup from "effect/unstable/httpapi/HttpApiGroup";
-import * as HttpApiMiddleware from "effect/unstable/httpapi/HttpApiMiddleware";
-import type * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpApi from "effect/http-api/HttpApi";
+import * as HttpApiClient from "effect/http-api/HttpApiClient";
+import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
+import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
+import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
+import type * as HttpClient from "effect/http/HttpClient";
 import { hasPermission, permission } from "@qadi/core";
 import type { RequirePermissionClientError } from "../src/RequirePermission.ts";
 import { RequiredPermission, RequirePermission, requiresPermission } from "../src/RequirePermission.ts";

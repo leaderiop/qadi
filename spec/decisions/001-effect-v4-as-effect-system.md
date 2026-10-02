@@ -44,3 +44,24 @@ the codebase.
 **Trade-off accepted**: the canary test converts "a beta bump broke something
 subtle" into "one test file fails loudly", which is a manageable maintenance
 cost for a substantial reduction in bespoke machinery.
+
+---
+
+> **Amendment (2026-10-02, Effect v4 reached stable `4.0.0`):** the earlier policy, "`effect` pinned
+> exact and published as every package's runtime `dependency`", is retired; its exit plan in
+> `pnpm-workspace.yaml` named this moment. Now:
+>
+> - The dev catalog follows npm's `rc` dist-tag for `effect`, `@effect/vitest`, `@effect/platform-node`
+>   and `@effect/atom-react`; `pnpm-lock.yaml` pins what is installed (rc.118 today). The tag stops
+>   moving once Effect stops publishing rcs, at which point switch it to `latest`.
+> - Every `@qadi` package declares `effect` (and `@qadi/react` also `@effect/atom-react`) under
+>   `peerDependencies` via the `peer` catalog, `^4.0.0-rc.118`, which also accepts stable `4.0.0`. The
+>   reason for a peer rather than a caret `dependency` is unchanged from the exact-pin days: the public
+>   API is made of Effect classes, so a consumer holding a second `effect` copy gets a silent type
+>   mismatch, and a peer guarantees one copy. Consumers now install `effect` themselves.
+> - The floor is rc.118 and not rc.116 because rc.118 moved the modules this repo imports out of
+>   `unstable/`: `effect/unstable/http` is now `effect/http`, `unstable/httpapi` is `effect/http-api`, and
+>   `unstable/reactivity`, `encoding`, `persistence` and `devtools` dropped the `unstable/` segment.
+>   Source cannot import both spellings, so rc.116 and rc.117 are no longer supported.
+> - ADRs 014, 035, 036 and 072 still name the old `effect/unstable/*` paths; they record what was true
+>   when they were written.

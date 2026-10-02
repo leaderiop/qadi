@@ -13,7 +13,7 @@
  */
 import type * as Context from "effect/Context";
 import type * as Schema from "effect/Schema";
-import * as HttpApiMiddleware from "effect/unstable/httpapi/HttpApiMiddleware";
+import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
 
 /**
  * The decoded union a middleware's `clientError` type parameter should be,

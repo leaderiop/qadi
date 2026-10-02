@@ -35,11 +35,11 @@
 import * as NodeHttp from "node:http";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
-import * as HttpServer from "effect/unstable/http/HttpServer";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
-import type * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
+import * as HttpRouter from "effect/http/HttpRouter";
+import * as HttpServer from "effect/http/HttpServer";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import type * as HttpServerRequest from "effect/http/HttpServerRequest";
 import type { AuthSubject } from "@qadi/core";
 import {
   allOf,

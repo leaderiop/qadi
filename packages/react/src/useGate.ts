@@ -14,7 +14,7 @@
  */
 import type { Policy, Resource } from "@qadi/core";
 import { isAllowed } from "@qadi/core";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
 import { useEffect, useId, useMemo, useRef } from "react";
 import type { RefObject } from "react";
 import type { GateKind, GateRenderState } from "./GateRegistry.ts";

@@ -51,7 +51,7 @@ is not shipped. See [ADR-QD-016](decisions/016-gxp-out-of-scope.md).
 | `@qadi/testing` | Fixtures, deterministic layers, recording resolvers |
 | `@qadi/react` | `QadiProvider`, hooks, `Can`/`Cannot` |
 | `@qadi/promise` | A Promise facade for callers who do not use Effect |
-| `@qadi/http` | `effect/unstable/http`/`httpapi` bindings — enforcement middleware, subject extraction, permission registry |
+| `@qadi/http` | `effect/http`/`httpapi` bindings — enforcement middleware, subject extraction, permission registry |
 | `@qadi/devtools` | A headless decision timeline, and a React dock that renders it |
 | `@qadi/predicate-sql` | Compiles a `Predicate` to PostgreSQL, MySQL, or SQLite |
 | `@qadi/predicate-prisma` | Compiles a `Predicate` to a Prisma `WhereInput` |
@@ -448,7 +448,7 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `DENIAL_STATUS`, `EnforcementErrorClass`, `classifyEnforcementError` | const + type + function | `QadiHttpError.ts` — the single partition of all eleven `EnforcementError` tags into `"denied"`/`"outage"`/`"wiringMistake"` that `toResponse` derives its status from and `DecisionStreamRoute.ts`'s `reauthCheck` imports directly, replacing two independently-maintained copies of the same classification (code review finding, 2026-09-19) |
 | `handleEnforcementErrors` | function | `QadiHttpError.ts` — `GuardRoute.ts`'s enforcement-error-to-response mapping; `handleMiddlewareEnforcementErrors`, its `HttpApiMiddleware` counterpart, is deleted as of ADR-QD-072 — `RequirePermission`'s declared `error:` schemas let `HttpApiMiddleware`'s own encoder answer nine of the eleven tags instead |
 | `logDenial` | function | `QadiHttpError.ts` — logs `errorCode`/`subjectId`/`reason`-or-`obligationIds` (never the full `trace`) for an `AccessDenied`/`UndischargedObligation`; wired via `Effect.tapErrorTag` into both `handleEnforcementErrors` and `RequirePermissionLive`, so a denial leaves a server-side record instead of only the client-visible response (JD-03, JM-05) |
-| `AttributeResolveErrorResponse`, `RelationshipResolveErrorResponse`, `DecisionHistoryUnavailableResponse`, `CustomPredicateErrorResponse`, `SignatureHistoryUnavailableResponse`, `MissingActionResponse`, `MissingResourceResponse`, `MissingResourceIdResponse`, `PolicyTooDeepResponse` | schema | `QadiHttpError.ts` — the nine wire-crossing `EnforcementError` classes (ADR-QD-060), each `.pipe(HttpApiSchema.status(…))`-annotated in `@qadi/http` rather than in `@qadi/core`, which has no dependency on `effect/unstable/httpapi`; declared in `RequirePermission.error` so `HttpApiMiddleware`'s response encoder produces the real status and body for each |
+| `AttributeResolveErrorResponse`, `RelationshipResolveErrorResponse`, `DecisionHistoryUnavailableResponse`, `CustomPredicateErrorResponse`, `SignatureHistoryUnavailableResponse`, `MissingActionResponse`, `MissingResourceResponse`, `MissingResourceIdResponse`, `PolicyTooDeepResponse` | schema | `QadiHttpError.ts` — the nine wire-crossing `EnforcementError` classes (ADR-QD-060), each `.pipe(HttpApiSchema.status(…))`-annotated in `@qadi/http` rather than in `@qadi/core`, which has no dependency on `effect/http-api`; declared in `RequirePermission.error` so `HttpApiMiddleware`'s response encoder produces the real status and body for each |
 | `AccessDeniedRefused` | schema | `QadiHttpError.ts` — `@qadi/core`'s `AccessDeniedPublic` annotated with `HttpApiSchema.status(403)`; carries `subjectId`, `policyTag`, `reason`, never `trace`. `RequirePermissionLive` constructs an `AccessDeniedPublic` (via `toAccessDeniedPublic`) from the real `AccessDenied` and encodes it with this exact schema, so what OpenAPI advertises here matches what a caller actually receives |
 | `UndischargedObligationRefused`, `SubjectExtractionRefused` | schema | `QadiHttpError.ts` — tag-only, empty-bodied `Schema.TaggedStruct`s for `UndischargedObligation`/`SubjectExtractionFailed`, declared for OpenAPI visibility only; **not** `HttpApiSchema.Empty` (`Schema.Void`) — a bare no-content schema in the same declared union "encodes" any other member's value successfully without inspecting it (`HttpApiBuilder.ts:1224`), silently reverting the nine schemas above back to empty bodies (BEH-QD-260, found by the TDD test this required) |
 | `subjectExtractionFailedResponse` | function | `QadiHttpError.ts` — the log-then-502 arm `handleEnforcementErrors` and `RequirePermissionLive` both use for a `SubjectExtractionFailed` |
@@ -457,8 +457,8 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `SubjectExtractionFailed` | error | `SubjectExtractor.ts` |
 
 Two framework adapters over one enforcement path — `RequirePermission` for
-`effect/unstable/httpapi`'s declarative `HttpApi`, `guardRoute`/
-`addGuardedRoute` for bare `effect/unstable/http`'s `HttpRouter` — both thin
+`effect/http-api`'s declarative `HttpApi`, `guardRoute`/
+`addGuardedRoute` for bare `effect/http`'s `HttpRouter` — both thin
 wrappers over `@qadi/core`'s `guard`, never a second enforcement
 implementation. `requiresPermission` is not `.pipe()`-composable: TypeScript
 only preserves an `HttpApiEndpoint`'s literal type through an inline,

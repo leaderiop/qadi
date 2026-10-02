@@ -51,9 +51,9 @@ import type * as Filter from "effect/Filter";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
-import * as Sse from "effect/unstable/encoding/Sse";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as Sse from "effect/encoding/Sse";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type {
   EvaluationServices,
   Permission,
@@ -70,7 +70,7 @@ import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
  * One record as an SSE frame — `data: <json>\n\n`, produced by
- * `effect/unstable/encoding/Sse`'s own `encoder.write` rather than a hand-
+ * `effect/encoding/Sse`'s own `encoder.write` rather than a hand-
  * built template string (H6, ADR-QD-072). This is the same encoder
  * `HttpApiBuilder`'s own `HttpApiSchema.StreamSse` machinery calls
  * internally (`HttpApiBuilder.ts`'s `renderSseEvent`) — reused directly here
