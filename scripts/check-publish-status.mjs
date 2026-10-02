@@ -16,11 +16,11 @@
  * `check-api-surface.mjs` and `check-dod-table.mjs` already close for the
  * export surface and the merge gate.
  *
- * Deliberately does **not** query the npm registry. ADR-QD-038 already
- * decided that publishing itself — `changeset-version`, `changeset-publish`
- * — stays manual and out of `pnpm check`; a live-registry call inside a merge
- * gate would be exactly the ambient, unreproducible input AGENTS.md §6 rules
- * out everywhere else. Whether a package has ever actually been published is
+ * Deliberately does **not** query the npm registry. Publishing itself —
+ * `changeset-version`, `changeset-publish` — stays out of `pnpm check` (it runs
+ * from `.github/workflows/release.yml`, ADR-QD-038's 2026-10-02 amendment); a
+ * live-registry call inside a merge gate would be exactly the ambient,
+ * unreproducible input AGENTS.md §6 rules out everywhere else. Whether a package has ever actually been published is
  * a fact a human states in prose, dated, the way CONTRIBUTING.md's own
  * "verified live against the npm registry" sentence already does — this gate
  * only keeps the *version number* in that sentence honest once it is true,
@@ -34,6 +34,12 @@
  * (RC-01/DH-05) — a gate reading root's version cannot see that drift even
  * in principle, because the one fact it checks against is itself the fossil.
  *
+ * `--fix` rewrites the version literals check 2 would flag, in place, and then
+ * checks as usual. `pnpm release:version` runs it right after `changeset
+ * version`: the release workflow opens the version PR with `GITHUB_TOKEN`, and
+ * GitHub does not start `check` on a PR opened that way, so the citations must
+ * already be right when the PR is created rather than fail after it merges.
+ *
  * Three checks, all directions:
  *
  *   1. FIXED-GROUP — every package under `packages/` agrees with every other
@@ -44,10 +50,12 @@
  *   3. STALE-CLAIM — none of those paragraphs still says a package is
  *      unpublished, once every package is.
  */
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
+
+const FIX = process.argv.includes("--fix");
 
 const failures = [];
 const fail = (where, message) => failures.push(`${where}  ${message}`);
@@ -150,7 +158,15 @@ for (const { file, start, end } of TARGETS) {
     );
     continue;
   }
-  const section = content.slice(from, to);
+  let section = content.slice(from, to);
+
+  if (FIX) {
+    const fixed = section.replace(VERSION, (literal, found) => literal.replace(found, version ?? found));
+    if (fixed !== section) {
+      writeFileSync(path, content.slice(0, from) + fixed + content.slice(to));
+      section = fixed;
+    }
+  }
 
   for (const match of section.matchAll(VERSION)) {
     if (match[1] !== version) {

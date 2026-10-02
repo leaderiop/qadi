@@ -701,7 +701,7 @@ Change history is exempt from both. A CCR row saying a gate was added "as merge 
 10" records what was true then, and a gate that forced history to be rewritten to
 stay green would corrupt the record it exists to protect.
 
-**CI runs `pnpm check` and nothing else** (`.github/workflows/check.yml`). That is
+**The merge gate is `pnpm check` and nothing else** (`.github/workflows/check.yml`). That is
 deliberate: a workflow with its own list of steps would be a second definition of
 "done", and two definitions of one thing drifting apart is the defect this library
 was rewritten to remove. Adding a gate means editing `check` and the DoD table
@@ -711,6 +711,11 @@ So a claim that CI does something is true exactly when that something is in
 `pnpm check`. Before CCR-QD-036 there was no CI at all and six documents said there
 was (CCR-QD-035) — check the workflow before writing the words, rather than the
 other way round.
+
+**One other workflow exists, and it is not a second gate**: `.github/workflows/release.yml` runs only
+after `check` has passed on a push to `main`, on that same commit, and adds no verification of its own
+— it versions and publishes (ADR-QD-038's 2026-10-02 amendment). Publishing uses npm trusted publishing
+(OIDC); no npm token is stored anywhere.
 
 ## 16. Publish with `pnpm`, never `npm`
 

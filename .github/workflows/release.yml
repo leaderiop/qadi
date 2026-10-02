@@ -1,0 +1,72 @@
+# Versions and publishes the nine @qadi/* packages through changesets.
+#
+# This is not a second definition of "done" (see check.yml): it runs ONLY after
+# `check` has passed on a push to main, and it adds no gate of its own. A red
+# `check` therefore blocks a release, and the commit that gets released is the
+# one `check` verified (`head_sha` below), not whatever main has moved on to.
+#
+# How a release happens: every user-visible change lands on main with a
+# .changeset/*.md file. After `check` passes on a push to main this workflow
+# either opens or refreshes a "chore(release): version packages" PR (version
+# bumps, changelogs and the hand-written version citations, via `pnpm
+# release:version`), or, when that PR has just been merged and no changesets
+# remain, publishes every package whose version is not on npm yet.
+#
+# Publishing uses npm trusted publishing (OIDC): there is no NPM_TOKEN and no
+# secret of any kind. Each of the nine packages is configured on npmjs.com
+# (Settings -> Trusted Publisher -> GitHub Actions) with owner `leaderiop`,
+# repository `qadi` and workflow filename `release.yml`; npm then accepts a
+# publish only from this exact workflow and records a provenance attestation.
+# That needs `id-token: write` below and an npm CLI >= 11.5.1, which the step
+# after setup-node asserts. CONTRIBUTING.md's "Releasing a version" is the runbook.
+name: release
+
+on:
+  workflow_run:
+    workflows: [check]
+    types: [completed]
+    branches: [main]
+
+# Serialised, never cancelled: a publish interrupted half-way leaves some
+# packages on npm at the new version and some not.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: Version or publish
+    # Only for a push that `check` passed, never for its pull_request or manual runs.
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to full commit SHAs for the reason check.yml gives.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Require an npm CLI that supports trusted publishing
+        run: |
+          npm --version
+          node -e 'const [a,b,c]=process.argv[1].split(".").map(Number);if(a<11||(a===11&&(b<5||(b===5&&c<1)))){console.error("npm >= 11.5.1 is required for trusted publishing, found "+process.argv[1]);process.exit(1)}' "$(npm --version)"
+      - run: pnpm install --frozen-lockfile
+      - name: Open the version PR, or publish
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+        with:
+          version-script: pnpm release:version
+          publish-script: pnpm changeset-publish
+          commit-message: "chore(release): version packages"
+          pr-title: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -83,10 +83,10 @@ and these do not surface there:
 
 ## Releasing a version
 
-[ADR-QD-038](spec/decisions/038-changesets-for-versioned-releases.md) scoped
-itself to *tracking* changes, deliberately not to publishing itself — neither
-runs in CI or `pnpm check` (CCR-QD-049), so both are manual and neither has a
-runbook anywhere else. This is it.
+Releases are cut by `.github/workflows/release.yml` through
+[changesets](https://github.com/changesets/changesets)
+([ADR-QD-038](spec/decisions/038-changesets-for-versioned-releases.md), amended 2026-10-02).
+Nothing is published from a developer machine and no npm token exists anywhere.
 
 **Add a changeset alongside any change to a published package's public
 behavior** — `pnpm changeset`, answer its prompts (bump type, one-line
@@ -94,11 +94,34 @@ summary), commit the generated `.changeset/*.md` file with your change. Not
 every change needs one: a doc fix or an internal refactor with no public
 surface change does not.
 
-**To cut a release**, from `main` with a clean tree:
+**What happens next, with no one running a command:**
+
+1. The change merges to `main` and `check` (the merge gate) runs on that push.
+2. When `check` passes, `release.yml` runs on that exact commit. While changesets are pending it opens
+   or refreshes a "chore(release): version packages" PR, using `pnpm release:version`
+   (`changeset version`, then `check-publish-status.mjs --fix` so the hand-written version
+   citations in the README, CONTRIBUTING, roadmap, `PRODUCT.md` and `index.astro` move too).
+   A red `check` means no release PR and no publish.
+3. Merging that PR leaves no changesets, so the next run publishes each package whose version is not
+   on npm yet (`pnpm changeset-publish`, which uses `pnpm publish`), then pushes the git tags and
+   creates the GitHub releases.
+
+GitHub does not start `check` on a PR opened with `GITHUB_TOKEN`, so the version PR shows no checks of
+its own. Review its diff and merge it; `check` runs again on the merge commit, and the publish waits
+for that.
+
+**Publishing uses npm trusted publishing (OIDC), not a token.** Each of the nine packages is
+configured once on npmjs.com (package -> Settings -> Trusted Publisher -> GitHub Actions) with owner
+`leaderiop`, repository `qadi` and workflow filename `release.yml`. npm then accepts a publish only
+from that workflow and attaches a provenance attestation. A new public package must be added there
+before its first automated publish, as well as to `tsconfig.build.json` (AGENTS.md §16). If a publish
+fails with an authentication error, check that configuration and that the workflow's npm is
+>= 11.5.1 before anything else.
+
+**Manual fallback**, from `main` with a clean tree and an npm login that has publish rights:
 
 ```sh
-pnpm changeset-version   # consumes pending .changeset/*.md, bumps package.json
-                          # versions and CHANGELOG.md files, commits nothing itself
+pnpm release:version     # consumes pending .changeset/*.md, bumps versions, changelogs and citations
 pnpm changeset-publish   # pnpm publish for each package that changed
 ```
 
@@ -115,7 +138,7 @@ part of the fixed group above — `changeset version` never touches it — and i
 stays frozen at its own, unrelated version; it is not a publish-status signal
 for anything under `packages/`. `.changeset/` holds no pending changesets.
 `pnpm publish`, never `npm publish` — AGENTS.md §16 explains why the
-workspace-time `catalog:`/`workspace:*` protocols require it.
+workspace-time `catalog:`/`workspace:*` protocols require it (the release workflow does this for you).
 `scripts/check-publish-status.mjs` (merge gate 24) keeps this paragraph's
 version honest going forward — it fails if a version quoted here, in
 README.md, in spec/roadmap.md, or in apps/website/PRODUCT.md ever disagrees

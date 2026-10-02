@@ -17,6 +17,7 @@
     "changeset": "changeset",
     "changeset-version": "changeset version",
     "changeset-publish": "changeset publish",
+    "release:version": "changeset version && node scripts/check-publish-status.mjs --fix",
     "clean": "tsc -b --clean && rm -rf packages/*/lib",
     "typecheck": "tsc -b tsconfig.json && tsc -p tsconfig.test.json",
     "test": "vitest run",
