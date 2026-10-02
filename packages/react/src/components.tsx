@@ -7,7 +7,7 @@
  */
 import type { Decision, Deny, Policy, Resource } from "@qadi/core";
 import { isAllowed } from "@qadi/core";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useGate } from "./useGate.ts";
 

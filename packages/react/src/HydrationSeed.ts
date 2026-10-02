@@ -13,7 +13,7 @@
  * from either side and no cycle exists to break.
  */
 import type { Decision, Policy, Resource } from "@qadi/core";
-import type * as Atom from "effect/unstable/reactivity/Atom";
+import type * as Atom from "effect/reactivity/Atom";
 
 /** Finds the seed atom standing behind one decision. */
 export type HydrationSeedLookup = (

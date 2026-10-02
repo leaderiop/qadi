@@ -269,7 +269,7 @@ shape. `Qadi.enforce(policy)` is one: it fails the wrapped effect with
 
 ### Atom
 
-A node of reactive state from `effect/unstable/reactivity`. `@qadi/react`
+A node of reactive state from `effect/reactivity`. `@qadi/react`
 defines one per distinct authorization question, so components asking the
 same question share one evaluation. See
 [Hydration & Reactivity](/docs/concepts/hydration-reactivity/).

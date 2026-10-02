@@ -168,7 +168,7 @@ export const attributeResolverRetrying =
  * this solves is concurrent in-flight calls, not calls-per-second, and a
  * permit-based bound is the stable, direct tool for that — `effect/Semaphore`
  * is the concurrency primitive; there is no top-level stable rate limiter to
- * reach for instead (`effect/unstable/persistence/RateLimiter` exists, but is
+ * reach for instead (`effect/persistence/RateLimiter` exists, but is
  * unstable and shaped for distributed, cross-process quotas, not this).
  *
  * Additive, like {@link attributeResolverRetrying}: a caller who does not

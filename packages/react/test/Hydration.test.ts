@@ -28,9 +28,9 @@ import {
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import type * as Atom from "effect/unstable/reactivity/Atom";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
+import type * as Atom from "effect/reactivity/Atom";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
+import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
 import type { DehydratedEntry, HydrationDrop } from "../src/Hydration.ts";
 import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";

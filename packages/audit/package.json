@@ -44,11 +44,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@qadi/core": "workspace:^",
-    "effect": "catalog:"
+    "@qadi/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "effect": "catalog:peer"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "effect": "catalog:",
     "fast-check": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

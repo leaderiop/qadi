@@ -9,7 +9,7 @@
  * button live.
  */
 import { useState } from "react";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
 import { currentDecision, useDecision, useInvalidate } from "@qadi/react";
 import type { Policy } from "@qadi/core";
 import { inGoodStanding, readSourceContact } from "../domain/policies.ts";

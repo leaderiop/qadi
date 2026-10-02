@@ -1,6 +1,6 @@
 ---
 title: "@qadi/http"
-description: effect/unstable/http and httpapi bindings for @qadi/core — enforcement middleware, subject extraction, and a permission registry.
+description: effect/http and httpapi bindings for @qadi/core — enforcement middleware, subject extraction, and a permission registry.
 ---
 
 `@qadi/http` wires [`@qadi/core`](/docs/packages/core/) into Effect v4's two

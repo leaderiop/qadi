@@ -11,13 +11,13 @@ in an Effect application.
 ## Install
 
 ```sh
-pnpm add @qadi/core
+pnpm add @qadi/core effect
 ```
 
-`@qadi/core` depends on a pinned `effect` version directly (not a peer
-dependency — `@qadi/react` is the package that declares `react` as a peer), so
-it comes with `@qadi/core` either way; if you're using Effect elsewhere in the
-project, pnpm/npm will resolve both to the one version `@qadi/core` pins.
+`effect` is a peer dependency of every `@qadi` package, so you install it
+yourself and your project ends up with exactly one copy. Qadi's public API is
+made of Effect classes (`Context.Service`, `Data.TaggedError`), so a second copy
+would be a silent type mismatch. Any `effect@^4.0.0` works.
 
 ## A minimal policy
 

@@ -11,7 +11,7 @@
  * it is the package held at 95% line coverage. `@qadi/testing` exists to be
  * used by tests, so mutating it mostly measures the test doubles. `@qadi/react`
  * is excluded for a different reason: it is a thin binding over
- * `effect/unstable/reactivity` plus render code, neither of which a mutant here
+ * `effect/reactivity` plus render code, neither of which a mutant here
  * would be scoring against a test double (CCR-QD-119) — see
  * `spec/decisions/032-promise-facade.md` for `@qadi/promise`'s own reason, a
  * third and different one again.

@@ -1,6 +1,6 @@
 # @qadi/http
 
-`effect/unstable/http` and `httpapi` bindings for
+`effect/http` and `httpapi` bindings for
 [`@qadi/core`](https://www.npmjs.com/package/@qadi/core): enforcement
 middleware, subject extraction, and a permission registry.
 

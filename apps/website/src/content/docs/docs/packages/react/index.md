@@ -1,14 +1,14 @@
 ---
 title: "@qadi/react"
-description: React bindings for @qadi/core — a binding over effect/unstable/reactivity, not a state-management layer of its own.
+description: React bindings for @qadi/core — a binding over effect/reactivity, not a state-management layer of its own.
 ---
 
 `@qadi/react` is a binding over [`@qadi/core`](/docs/packages/core/), built on
-`effect/unstable/reactivity` rather than on component state. Decisions live in
+`effect/reactivity` rather than on component state. Decisions live in
 atoms; React subscribes to them.
 
 ```sh
-pnpm add @qadi/react @qadi/core effect react
+pnpm add @qadi/react @qadi/core effect @effect/atom-react react
 ```
 
 ## What it is, and what it is not

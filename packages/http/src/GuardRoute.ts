@@ -10,8 +10,8 @@
  * wrapped handler directly, as an explicit argument. See ADR-QD-036.
  */
 import * as Effect from "effect/Effect";
-import type * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import type * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type { Authorized, EvaluationServices, Permission, Policy, Resource } from "@qadi/core";
 import { CurrentSubject, guard } from "@qadi/core";
 import { handleEnforcementErrors } from "./QadiHttpError.ts";

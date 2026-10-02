@@ -1,5 +1,5 @@
 /**
- * Canary for the `effect/unstable/reactivity` APIs `@qadi/react` is built on.
+ * Canary for the `effect/reactivity` APIs `@qadi/react` is built on.
  *
  * The module is unstable by name ([ADR-QD-014](../../../spec/decisions/014-react-via-atoms.md)):
  * its API may move before Effect 4.0, and this package moves with it. The core
@@ -16,10 +16,10 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
-import * as Atom from "effect/unstable/reactivity/Atom";
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
-import * as Reactivity from "effect/unstable/reactivity/Reactivity";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
+import * as Atom from "effect/reactivity/Atom";
+import * as AtomRegistry from "effect/reactivity/AtomRegistry";
+import * as Reactivity from "effect/reactivity/Reactivity";
 import { afterEach, describe, expect, it } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ afterEach(() => {
   for (const registry of registries.splice(0)) registry.dispose();
 });
 
-describe("effect/unstable/reactivity API canary", () => {
+describe("effect/reactivity API canary", () => {
   // -------------------------------------------------------------------------
   // Atom.make / Atom.family — the subject atom and the per-policy memo
   // -------------------------------------------------------------------------

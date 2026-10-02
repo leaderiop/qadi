@@ -4,7 +4,7 @@
  *
  * An authorization decision is asynchronous, shared between components, and
  * invalidated by events outside React — a login, a role change, a revoked
- * grant. That is a reactive graph, and `effect/unstable/reactivity` already
+ * grant. That is a reactive graph, and `effect/reactivity` already
  * models one, so this package is a binding over it rather than a bespoke cache.
  *
  * The atoms defined here have no React dependency at all. React enters only in
@@ -25,10 +25,10 @@ import { CurrentSubject, DecisionCache, evaluate } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
-import * as Atom from "effect/unstable/reactivity/Atom";
-import type * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
-import * as Reactivity from "effect/unstable/reactivity/Reactivity";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
+import * as Atom from "effect/reactivity/Atom";
+import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
+import * as Reactivity from "effect/reactivity/Reactivity";
 import { countRecheck } from "./HydrationCounts.ts";
 import { registerHydrationSeeds } from "./HydrationSeed.ts";
 import type { HydrationMismatchReporter } from "./HydrationWarning.ts";

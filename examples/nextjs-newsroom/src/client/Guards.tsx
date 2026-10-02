@@ -8,7 +8,7 @@
  * which is the only honest way to test "no flash".
  */
 import type { ReactNode } from "react";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
 import type { Deny, Policy, Resource } from "@qadi/core";
 import { Can, useDecision } from "@qadi/react";
 import { currentDecision } from "@qadi/react";

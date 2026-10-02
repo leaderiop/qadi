@@ -311,7 +311,7 @@ See [INV-QD-009](invariants.md#inv-qd-009-guarded-effects-do-not-run-when-denied
 
 ## Atom
 
-A node of reactive state from `effect/unstable/reactivity`. Qadi's React
+A node of reactive state from `effect/reactivity`. Qadi's React
 package defines one per distinct authorization question, so components asking
 the same question share one evaluation rather than each running their own.
 See [ADR-QD-014](decisions/014-react-via-atoms.md).

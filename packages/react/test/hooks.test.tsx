@@ -22,7 +22,7 @@ import {
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
 import { Suspense } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";

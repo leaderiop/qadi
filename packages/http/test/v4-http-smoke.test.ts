@@ -1,5 +1,5 @@
 /**
- * Canary for the `effect/unstable/http` and `effect/unstable/httpapi` APIs
+ * Canary for the `effect/http` and `effect/http-api` APIs
  * `@qadi/http` is built on.
  *
  * Both modules are unstable by name, the same reasoning `@qadi/core`'s
@@ -8,7 +8,7 @@
  * or reshape an unstable module without warning, and without a canary that
  * failure diffuses across this package's whole test suite rather than
  * pointing at the one API that moved. `@qadi/http` uses
- * `effect/unstable/http` and `effect/unstable/httpapi` more than either of
+ * `effect/http` and `effect/http-api` more than either of
  * those two packages uses its own dependency, and had no canary of its own
  * before this.
  *
@@ -22,17 +22,17 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Stream from "effect/Stream";
-import * as HttpApi from "effect/unstable/httpapi/HttpApi";
-import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
-import * as HttpApiEndpoint from "effect/unstable/httpapi/HttpApiEndpoint";
-import * as HttpApiGroup from "effect/unstable/httpapi/HttpApiGroup";
-import * as HttpApiMiddleware from "effect/unstable/httpapi/HttpApiMiddleware";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
-import * as HttpServer from "effect/unstable/http/HttpServer";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpApi from "effect/http-api/HttpApi";
+import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
+import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
+import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
+import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
+import * as HttpRouter from "effect/http/HttpRouter";
+import * as HttpServer from "effect/http/HttpServer";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 
-describe("effect/unstable/http API canary", () => {
+describe("effect/http API canary", () => {
   // -------------------------------------------------------------------------
   // HttpRouter.add / HttpRouter.toWebHandler — the bare-route mechanism
   // GuardRoute.ts and PermissionRegistry.ts's `addGuardedRoute` build on.

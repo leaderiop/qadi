@@ -26,7 +26,7 @@ import * as Effect from "effect/Effect";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Schema from "effect/Schema";
-import type * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { describe, expect, it } from "vitest";
 import {
   CustomPredicateErrorResponse,

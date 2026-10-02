@@ -9,7 +9,7 @@
 import type { AuthSubject, Decision, Policy, Resource } from "@qadi/core";
 import { isAllowed, project } from "@qadi/core";
 import { useAtomSuspense } from "@effect/atom-react/Hooks";
-import * as Atom from "effect/unstable/reactivity/Atom";
+import * as Atom from "effect/reactivity/Atom";
 import { useCallback, useEffect, useMemo } from "react";
 import type { DecisionResult, QadiAtoms } from "./QadiAtoms.ts";
 import { currentDecision } from "./QadiAtoms.ts";

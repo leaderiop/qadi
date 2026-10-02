@@ -26,8 +26,8 @@ import { RegistryContext } from "@effect/atom-react/RegistryContext";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Schedule from "effect/Schedule";
-import type * as Atom from "effect/unstable/reactivity/Atom";
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
+import type * as Atom from "effect/reactivity/Atom";
+import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import {
   createContext,
   useContext,

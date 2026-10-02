@@ -67,9 +67,9 @@ a new `@qadi/http` package bound it to both of Effect v4's HTTP surfaces**
 against a specific resource — so a handler typed to require one cannot be
 called without going through enforcement first, the same guarantee `enforce`
 gives an `Effect` extended to a value a type signature can demand. `@qadi/http`
-wraps it twice: `RequirePermission` for `effect/unstable/httpapi`'s
+wraps it twice: `RequirePermission` for `effect/http-api`'s
 declarative `HttpApi`, `guardRoute`/`addGuardedRoute` for bare
-`effect/unstable/http`'s `HttpRouter` — both thin adapters over the same
+`effect/http`'s `HttpRouter` — both thin adapters over the same
 `guard`, and a `PermissionRegistry` answering "which permission does which
 endpoint require" across a mix of both surfaces at a single `/__permissions`
 route.
@@ -274,7 +274,7 @@ confidence, ergonomics or reach.
 
 ## Blocking first release
 
-Nothing. The last item — a canary over `effect/unstable/reactivity` — closed in
+Nothing. The last item — a canary over `effect/reactivity` — closed in
 CCR-QD-013.
 
 `@qadi/react` is still built on a module that is unstable by name

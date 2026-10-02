@@ -44,12 +44,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@qadi/core": "workspace:^",
-    "effect": "catalog:"
+    "@qadi/core": "workspace:^"
+  },
+  "peerDependencies": {
+    "effect": "catalog:peer"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
     "@prisma/client": "7.10.0",
+    "effect": "catalog:",
     "fast-check": "catalog:",
     "prisma": "7.10.0",
     "typescript": "catalog:",

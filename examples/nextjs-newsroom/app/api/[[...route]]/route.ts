@@ -21,7 +21,7 @@
  * reason: disposing it per request would rebuild the decision cache, the
  * registry and the sinks on every call.
  */
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpRouter from "effect/http/HttpRouter";
 import { ApiLayer } from "../../../src/server/api.ts";
 
 export const runtime = "nodejs";

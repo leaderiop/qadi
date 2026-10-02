@@ -247,7 +247,7 @@ function initCopyInstall() {
       reset();
       return;
     }
-    navigator.clipboard.writeText("pnpm add @qadi/core").then(
+    navigator.clipboard.writeText("pnpm add @qadi/core effect").then(
       () => {
         setState("Copied install command", "copied ✓");
         announce("Install command copied to clipboard");

@@ -10,8 +10,8 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-import * as Headers from "effect/unstable/http/Headers";
-import type * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as Headers from "effect/http/Headers";
+import type * as HttpServerRequest from "effect/http/HttpServerRequest";
 import type { AuthSubject } from "@qadi/core";
 import { anonymous } from "@qadi/core";
 

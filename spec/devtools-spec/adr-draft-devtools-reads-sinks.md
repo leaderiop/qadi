@@ -43,7 +43,7 @@ screen, the decision log, was reachable this way, and it was missing a column.
 `Context.Reference` read *per span, from the fiber*, so a tracer must be in
 context before evaluation runs. There is no `PubSub`, `Stream` or subscriber
 registry for spans anywhere in `effect`. Effect's own devtools proves the shape:
-`effect/unstable/devtools` ships `layer`, `layerSocket` and `layerWebSocket` —
+`effect/devtools` ships `layer`, `layerSocket` and `layerWebSocket` —
 three layer constructors and no `attach()`. React mount is structurally too late,
 since `makeQadiAtoms(layer)` captures its layer at module scope. **Layering** adds
 a consumer, at runtime construction, by the app author. Wiring is mandatory and

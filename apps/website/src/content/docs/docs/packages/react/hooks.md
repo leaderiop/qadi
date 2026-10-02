@@ -42,7 +42,7 @@ it is hidden; reach for `useDecision` when the difference matters.
 ```tsx
 import { useCan, useDecision } from "@qadi/react";
 import { hasPermission, isAllowed, permission } from "@qadi/core";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
 
 const canEditDoc = hasPermission(permission("doc", "write"));
 

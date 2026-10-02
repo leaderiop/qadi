@@ -4,36 +4,37 @@ packages:
   - examples/*
   - apps/*
 
-# `effect` is pinned exact, not a caret range, and every @qadi package
-# publishes that exact pin as its own runtime dependency (`pnpm pack`
-# substitutes `catalog:` at pack time — AGENTS.md §16, gate 14). This is
-# deliberate for as long as effect ships as an rc: our public API is made of
-# effect classes (`Context.Service`, `Data.TaggedError`), so a consumer on a
-# different rc — or on stable 4.0.0 once it lands — gets a resolution
-# conflict or a second effect instance in their tree, not a silent
-# type-compatible interop. A caret range would trade that loud failure for a
-# quiet one: two rc builds satisfying `^4.0.0-rc.115` are not guaranteed
-# ABI-compatible the way two semver-compatible stable releases are.
-#
-# Exit plan: once effect 4.0.0 ships stable, revisit — a caret range (or
-# moving `effect` to `peerDependencies`, as `@qadi/react` already does for
-# `react`) becomes the reasonable default the moment "any 4.x" is a real,
-# tested compatibility promise rather than an assumption about an rc series.
+# The Effect packages follow npm's `latest` dist-tag in the dev catalog, never a pin;
+# `pnpm-lock.yaml` is what makes an install reproducible (`pnpm update -r effect @effect/vitest
+# @effect/platform-node @effect/atom-react` moves it). Published @qadi packages do NOT depend on
+# `effect` at runtime: they declare it (and `@effect/atom-react` for @qadi/react) under
+# `peerDependencies` via the `peer` catalog below, so a consumer has exactly one effect instance in
+# their tree. Our public API is made of effect classes (`Context.Service`, `Data.TaggedError`),
+# which is why a second copy would be a silent type mismatch rather than a loud failure.
+# `pnpm pack` expands `catalog:peer` verbatim into the tarball (AGENTS.md §16, gate 14), so an
+# exact pin written in the `peer` catalog would strand every consumer on a different 4.x build —
+# ranges only there. See ADR-QD-001's amendment.
 catalog:
-  '@effect/atom-react': 4.0.0-rc.116
-  '@effect/platform-node': 4.0.0-rc.116
-  '@effect/vitest': 4.0.0-rc.116
+  '@effect/atom-react': latest
+  '@effect/platform-node': latest
+  '@effect/vitest': latest
   '@testing-library/react': ^16.3.2
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
   '@vitest/coverage-v8': 5.0.0
-  effect: 4.0.0-rc.116
+  effect: latest
   fast-check: 4.10.0
   happy-dom: ^20.11.1
   react: 19.3.0
   react-dom: 19.3.0
   typescript: ^7.0.0
   vitest: 5.0.0
+
+# Ranges, peerDependencies only: stable Effect v4 and any later 4.x.
+catalogs:
+  peer:
+    '@effect/atom-react': ^4.0.0
+    effect: ^4.0.0
 
 onlyBuiltDependencies:
   - esbuild

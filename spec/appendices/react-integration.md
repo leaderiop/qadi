@@ -181,7 +181,7 @@ is hidden. When the difference matters, read the decision.
 ```tsx
 import { useDecision } from "@qadi/react";
 import { isAllowed, hasPermission, permission } from "@qadi/core";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
+import * as AsyncResult from "effect/reactivity/AsyncResult";
 
 const canEditDoc = hasPermission(permission("doc", "write"));
 
@@ -408,7 +408,7 @@ graph. Proving them needs a registry, not a DOM.
 import { EvaluationServicesNone, hasRole, isAllowed, makeSubject } from "@qadi/core";
 import { makeQadiAtoms } from "@qadi/react";
 import * as Effect from "effect/Effect";
-import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
+import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 
 const atoms = makeQadiAtoms(EvaluationServicesNone);
 

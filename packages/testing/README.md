@@ -4,7 +4,7 @@ Fixtures and deterministic layers for testing against
 [`@qadi/core`](https://www.npmjs.com/package/@qadi/core).
 
 ```sh
-pnpm add -D @qadi/testing
+pnpm add -D @qadi/testing effect
 ```
 
 ## Deterministic by construction

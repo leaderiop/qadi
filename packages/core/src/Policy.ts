@@ -137,23 +137,27 @@ export interface Rule {
  * attribute names (a `:`-containing namespaced key, say) for no real safety
  * gain. Left as plain `string` on purpose, not by omission.
  */
-/** The wrapping every brand below shares — only the tag differs. */
-const segmentBrand = <Tag extends string>(tag: Tag) =>
-  Schema.String.check(Schema.isPattern(SEGMENT_PATTERN)).pipe(Schema.brand(tag));
+/**
+ * The schema every brand below shares — only the tag differs. Each brand applies
+ * `Schema.brand` to this with its own string literal: since effect 4.0.0 the tag must be a single
+ * literal the compiler can see (`EnsureSingleBrandKey`), which a generic helper parameter cannot
+ * prove.
+ */
+const segmentSchema = Schema.String.check(Schema.isPattern(SEGMENT_PATTERN));
 
-export const RoleName = segmentBrand("RoleName");
+export const RoleName = segmentSchema.pipe(Schema.brand("RoleName"));
 export type RoleName = typeof RoleName.Type;
 
-export const ActionName = segmentBrand("ActionName");
+export const ActionName = segmentSchema.pipe(Schema.brand("ActionName"));
 export type ActionName = typeof ActionName.Type;
 
-export const EventName = segmentBrand("EventName");
+export const EventName = segmentSchema.pipe(Schema.brand("EventName"));
 export type EventName = typeof EventName.Type;
 
-export const RelationName = segmentBrand("RelationName");
+export const RelationName = segmentSchema.pipe(Schema.brand("RelationName"));
 export type RelationName = typeof RelationName.Type;
 
-export const LabelName = segmentBrand("LabelName");
+export const LabelName = segmentSchema.pipe(Schema.brand("LabelName"));
 export type LabelName = typeof LabelName.Type;
 
 /**
@@ -895,7 +899,7 @@ export const PolicyFromJson = Schema.fromJsonString(Policy);
  * Encodes a policy to a JSON string.
  *
  * Encode does not re-run the checks decode enforces: `Schema`'s checks (the
- * `SEGMENT_PATTERN` pattern behind `segmentBrand`, the `HasRelationship.depth`
+ * `SEGMENT_PATTERN` pattern behind `segmentSchema`, the `HasRelationship.depth`
  * bound) validate untrusted input on the way *in*, and a value already typed
  * as `Policy` is not untrusted input on the way *out*. So a policy built
  * through a smart constructor with an invalid segment — `hasRole("a:b")`,
