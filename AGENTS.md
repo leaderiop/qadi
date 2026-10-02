@@ -13,7 +13,7 @@ put it at — ask a maintainer if you don't have one:
 - `alchemy` — Effect v4 beta, `AGENTS.md` is its authority
 - `effect` — the Effect v4 source itself. For the exact build this repo
   develops against, `node_modules/effect` after `pnpm install` is a checkout too;
-  the dev catalog follows npm's `rc` dist-tag and `pnpm-lock.yaml` pins it
+  the dev catalog follows npm's `latest` dist-tag and `pnpm-lock.yaml` pins it
   (`pnpm-workspace.yaml`).
 
 **Doc-comment shape**: lead with a one-line summary of what the export is or

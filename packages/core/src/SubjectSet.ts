@@ -113,7 +113,8 @@ export const decideSubjects = Effect.fn("qadi.decideSubjects")(function* (
     "qadi.policy_tag": policy._tag,
   });
 
-  const [failures, decisions] = yield* Effect.partition(subjects, (subject) =>
+  // `[passes, fails]` since effect 4.0.0 — rc.118 and earlier returned `[fails, passes]`.
+  const [decisions, failures] = yield* Effect.partition(subjects, (subject) =>
     // Providing the service is what discharges the requirement, and it is
     // also what isolates the elements: each subject is evaluated exactly as
     // it would have been alone (INV-QD-016).

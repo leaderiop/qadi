@@ -17,8 +17,7 @@ pnpm add @qadi/core effect
 `effect` is a peer dependency of every `@qadi` package, so you install it
 yourself and your project ends up with exactly one copy. Qadi's public API is
 made of Effect classes (`Context.Service`, `Data.TaggedError`), so a second copy
-would be a silent type mismatch. Any `effect@^4.0.0-rc.118` works, including
-stable `4.0.0`.
+would be a silent type mismatch. Any `effect@^4.0.0` works.
 
 ## A minimal policy
 

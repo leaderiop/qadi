@@ -17,7 +17,7 @@ tracing rather than a bespoke logging port.
 - Node `>=22.12.0`
 - A package manager — this repo's own development is pinned to `pnpm@10.17.1`;
   consuming apps can use npm, yarn, or pnpm
-- Effect v4 (`effect@^4.0.0-rc.118`, which includes stable `4.0.0`), installed
+- Effect v4 (`effect@^4.0.0`), installed
   by you: every `@qadi` package declares `effect` as a peer dependency, because
   its public API surfaces Effect classes directly (`Context.Service`,
   `Data.TaggedError`) and a second copy in your tree would be a silent type
