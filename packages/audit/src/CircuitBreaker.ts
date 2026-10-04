@@ -1,5 +1,14 @@
 /**
- * Guards `AuditTrailPort.write` against a caller's store being down.
+ * A half-open circuit breaker that admits, guards and settles one write at a
+ * time, protecting `AuditTrailPort.write` from a caller's store being down.
+ *
+ * The probe protocol is this module's own detail: read status, claim the one
+ * half-open probe, re-read on a lost claim, settle the outcome, and release an
+ * unsettled claim on every exit path. {@link CircuitBreaker.withPermit} is the
+ * single admission entry point, so the claim's lifetime and its release guard
+ * share one scope by construction (ARCH-07 C4b: the sink used to scope the
+ * guard to the write rather than to the claim, and a probe interrupted during
+ * staging held the claim until the age-out).
  *
  * **Fully internal, no port.** Unlike `AuditTrailPort`/`AuditStagingPort`,
  * the breaker has no I/O of its own — it is an Effect-native `Ref`-backed
@@ -11,9 +20,9 @@
  * **No public error type.** HexDi's `createCircuitBreaker` returns a
  * `CircuitOpenError` from a `check()` nothing in its real enforcement path
  * ever calls — a well-formed error type reachable only in principle, never in
- * practice, the exact defect this map exists to avoid repeating. Trip state
- * here is a plain internal check `record()` makes before attempting a write;
- * nothing outside this module ever constructs or inspects a failure from it.
+ * practice, the exact defect this map exists to avoid repeating. A refusal
+ * here is a plain {@link Refused} value, not an error; nothing outside this
+ * module ever constructs or inspects a failure from it.
  *
  * The state machine's shape was never HexDi's defect, only its wiring and its
  * `Date.now()` usage were — kept as-is: `closed → open` after
@@ -21,18 +30,22 @@
  * `resetTimeoutMs`, `half-open → closed` on the next success, `half-open →
  * open` on the next failure. Added since (ticket #38 / H4, narrowed by
  * ticket #47): `half-open → open` also on a probe that never resolves at
- * all. `Effect.exit` around `trailPort.write` folds a typed failure, a defect
- * and an adapter's own self-interruption into `recordFailure`. A *caller's*
+ * all. `Effect.exit` around the write folds a typed failure, a defect and an
+ * adapter's own self-interruption into a recorded failure. A *caller's*
  * interruption is not folded (the fiber itself is interrupted), so for a probe
- * the release finalizer's `releaseProbe` is the primary path, and for a
- * non-probe write nothing is recorded. `status`'s own age-out check is the
- * last fallback — so none of these can wedge the breaker `HalfOpen` forever.
+ * the release finalizer is the primary path, and for a non-probe write nothing
+ * is recorded. `status`'s own age-out check is the last fallback — so none of
+ * these can wedge the breaker `HalfOpen` forever.
  *
- * Not exported from the package barrel — this module is assembly-internal.
+ * Not exported from the package barrel — this module is assembly-internal,
+ * though reachable as `@qadi/audit/CircuitBreaker`.
  */
 import * as Clock from "effect/Clock";
+import * as Data from "effect/Data";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Record from "effect/Record";
 import * as Ref from "effect/Ref";
@@ -51,6 +64,26 @@ export interface CircuitBreakerOptions {
   readonly resetTimeoutMs: Duration.Input;
 }
 
+/** No write this time: the breaker is Open, or another caller holds this half-open window's probe. */
+export class Refused extends Data.TaggedClass("Refused")<Record<never, never>> {}
+
+/**
+ * A write may be attempted; `probe` is true when it is this half-open window's
+ * one trial write.
+ *
+ * `attempt` runs the write under `Effect.exit` and records its outcome on the
+ * breaker, but only the first time it is called for this permit; later calls
+ * run the write and return its `Exit` without recording.
+ */
+export class Admitted extends Data.TaggedClass("Admitted")<{
+  readonly probe: boolean;
+  readonly attempt: <A, E, R>(
+    write: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<Exit.Exit<A, E>, never, R>;
+}> {}
+
+export type Permit = Refused | Admitted;
+
 export interface CircuitBreaker {
   /**
    * Current status, transitioning `Open` to `HalfOpen` as a side effect of
@@ -59,92 +92,54 @@ export interface CircuitBreaker {
    * write", so there is no separate ambient timer to keep in sync.
    */
   readonly status: Effect.Effect<CircuitBreakerStatus>;
-  /** A write attempt succeeded. May close a half-open breaker. */
-  readonly recordSuccess: Effect.Effect<void>;
   /**
-   * A write attempt failed with `AuditWriteError`. May trip the breaker.
+   * Admits, guards and settles one write: runs `use` with a {@link Permit}.
    *
-   * A no-op while `Open`: a write admitted before the trip and settling after
-   * it is not evidence about the store since.
+   * **One probe per window.** A half-open breaker admits exactly one
+   * concurrent probe write; every other caller racing it gets {@link Refused}
+   * and must behave as though the breaker were still `Open`. Without this,
+   * `Qadi.ts`'s `filter`/`filterStream` fan-out would let a recovering store
+   * receive the whole fan-out the instant `resetTimeoutMs` elapses, not the
+   * one trial write half-open's own name promises.
+   *
+   * **A lost claim has two causes** a single `Refused` fallback would
+   * conflate (ticket #46): another caller holds this window's slot (still
+   * `HalfOpen`), or the breaker moved on while this call was in flight, most
+   * notably the prober's write just succeeded and closed it. Admission re-reads
+   * `status` after a lost claim: `Closed` means this call may write normally;
+   * anything else is {@link Refused}.
+   *
+   * **Release on every exit.** The claim is acquired uninterruptibly and
+   * released when `use` exits unsuccessfully, wherever in `use` that happens —
+   * staging included (ticket #38 / H4, ARCH-07 C4b). The release reopens the
+   * breaker exactly as a failed probe would, and is a no-op once `attempt` has
+   * settled the window, so a finalizer after a normal completion cannot
+   * double-transition the state or restart the reset-timeout window. A `use`
+   * that succeeds without calling `attempt` on a probe permit leaves the claim
+   * to `status`'s age-out.
+   *
+   * `attempt` records only its first outcome per permit.
    */
-  readonly recordFailure: Effect.Effect<void>;
-  /**
-   * Claims the single write half-open admits, for a caller who has already
-   * read `status` as `"HalfOpen"`.
-   *
-   * `true` for exactly one caller per half-open window; `false` for every
-   * other concurrent caller in that same window, who must behave as though
-   * the breaker were still `Open` (skip the write) rather than each
-   * attempting one of their own. Without this, `Qadi.ts`'s `filter`/
-   * `filterStream` — the same concurrent-`record()` shape `recordSuccess`/
-   * `recordFailure`'s own `Ref.modify` docs already name — would let a
-   * recovering store receive the whole fan-out at once the instant
-   * `resetTimeoutMs` elapses, not the one trial write half-open's own name
-   * promises.
-   *
-   * Resets on the next transition away from `HalfOpen`, whichever direction,
-   * so the following half-open window admits a fresh probe.
-   *
-   * `false` is ambiguous by itself: it means either "another caller already
-   * holds this window's slot" (still `HalfOpen`) or "the breaker is no
-   * longer `HalfOpen` at all" (e.g. the prober's write just succeeded and
-   * closed it). `AuditDecisionSinkLive.ts`'s `record()` re-reads `status`
-   * after a lost claim to tell the two apart, rather than treating every
-   * loss as `Open` — see the comment there (ticket #46).
-   */
-  readonly claimProbe: Effect.Effect<boolean>;
-  /**
-   * Releases a claimed probe that never resolved through `recordSuccess` or
-   * `recordFailure` — reopens the breaker exactly as a failed probe would,
-   * so a fresh `HalfOpen` window (and a fresh `claimProbe`) becomes
-   * reachable again after `resetTimeoutMs`, rather than the probe's caller
-   * holding the one slot forever.
-   *
-   * **Ticket #38 (H4).** The probe write in `AuditDecisionSinkLive.ts` used
-   * to run under `Effect.result`, which only catches the write's own `E`
-   * channel — an interruption (client disconnect, `Effect.timeout`, filter
-   * fan-out) or a defecting store adapter unwound past it without ever
-   * reaching `recordSuccess`/`recordFailure`, and `status`'s own read never
-   * recovers a `HalfOpen` whose `openedAt` is `undefined` (it is only ever
-   * set while `Open`). Before this fix that wedged the breaker permanently
-   * `HalfOpen`: every later call would lose `claimProbe`, re-read `status`
-   * as `HalfOpen` (not `Closed`), and so treat itself as `Open` forever —
-   * staged rows never committed, or entries dropped silently, and the
-   * backend could recover and it would make no difference.
-   *
-   * **Narrowed by ticket #47.** `trailPort.write` now runs under
-   * `Effect.exit` instead, so a typed failure, a defect or an adapter's own
-   * self-interruption reaches `recordFailure` directly — which reopens a
-   * `HalfOpen` breaker exactly as this method does. A *caller's* interruption
-   * is not folded by `Effect.exit`, so for it this method is the primary
-   * release path, not a fallback.
-   *
-   * `AuditDecisionSinkLive.ts` calls this from an `Effect.onExit` wrapped
-   * around the probe's write, so it fires on every abnormal exit. It is a
-   * no-op unless the breaker is still `HalfOpen` **and** this window's claim
-   * is still held: a probe that already settled normally
-   * (`recordSuccess`/`recordFailure` already ran, moving `status` off
-   * `HalfOpen`) leaves this call nothing to do, so a finalizer that runs
-   * after a normal completion cannot double-transition the state or restart
-   * the reset-timeout window a second time.
-   */
-  readonly releaseProbe: Effect.Effect<void>;
+  readonly withPermit: <A, E, R>(
+    use: (permit: Permit) => Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>;
 }
 
-interface State {
-  readonly status: CircuitBreakerStatus;
+/**
+ * The breaker's state, one variant per status so each field exists only where
+ * it means something. `Open`'s `openedAt` and `HalfOpen`'s `halfOpenAt` give
+ * `status`'s reset and age-out checks a moment to measure from.
+ */
+class StateClosed extends Data.TaggedClass("Closed")<{
   readonly consecutiveFailures: number;
-  /** Set only while `Open`, so `status`'s reset check has a moment to measure from. */
-  readonly openedAt: number | undefined;
-  /**
-   * Set only while `HalfOpen`, mirroring `openedAt` — gives `status`'s
-   * age-out check (see below) a moment to measure a stuck window from.
-   * Reset to `undefined` on every transition away from `HalfOpen`.
-   */
-  readonly halfOpenAt: number | undefined;
-  /** Meaningful only while `status === "HalfOpen"`; see `claimProbe`. */
+}> {}
+class StateOpen extends Data.TaggedClass("Open")<{ readonly openedAt: number }> {}
+class StateHalfOpen extends Data.TaggedClass("HalfOpen")<{
+  readonly halfOpenAt: number;
+  /** See {@link CircuitBreaker.withPermit}. */
   readonly probeClaimed: boolean;
-}
+}> {}
+type State = StateClosed | StateOpen | StateHalfOpen;
 
 /**
  * Every `CircuitBreakerStatus` — {@link transitionsTotal}'s closed domain.
@@ -214,13 +209,7 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
   // re-decode a caller-supplied `Duration.Input` on each read.
   const resetTimeoutMillis = Duration.toMillis(options.resetTimeoutMs);
 
-  const ref = yield* Ref.make<State>({
-    status: "Closed",
-    consecutiveFailures: 0,
-    openedAt: undefined,
-    halfOpenAt: undefined,
-    probeClaimed: false,
-  });
+  const ref = yield* Ref.make<State>(new StateClosed({ consecutiveFailures: 0 }));
 
   /**
    * Every transition below reads and writes `ref` through a single
@@ -237,137 +226,147 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
     const now = yield* Clock.currentTimeMillis;
     const [current, justTransitioned] = yield* Ref.modify(
       ref,
-      (state): readonly [readonly [CircuitBreakerStatus, boolean], State] => {
-        // Defense in depth alongside `releaseProbe` (ticket #38 / H4): a
-        // half-open window that has outlived `resetTimeoutMs` without
-        // resolving — claimed but neither `recordSuccess`, `recordFailure`
-        // nor `releaseProbe` ever ran — is reopened here too, on the next
-        // status read, rather than left to wedge forever. `releaseProbe`
-        // (called from `AuditDecisionSinkLive.ts`'s `Effect.onExit` around
-        // the probe write) is the primary release path; this is the
-        // fallback for a claim that somehow never reached it.
-        if (state.status === "HalfOpen") {
-          if (state.halfOpenAt === undefined || now - state.halfOpenAt < resetTimeoutMillis) {
-            return [[state.status, false], state];
-          }
-          const reopened: State = {
-            status: "Open",
-            consecutiveFailures: state.consecutiveFailures + 1,
-            openedAt: now,
-            halfOpenAt: undefined,
-            probeClaimed: false,
-          };
-          return [["Open", true], reopened];
-        }
-        // `openedAt` is set if and only if `status === "Open"` — this Ref's
-        // own invariant — so checking it alone already answers "not open",
-        // with no separate `state.status !== "Open"` clause needed (and no
-        // narrower one TypeScript could use anyway, since `openedAt` isn't
-        // typed as discriminated by `status`).
-        if (state.openedAt === undefined || now - state.openedAt < resetTimeoutMillis) {
-          return [[state.status, false], state];
-        }
-        const next: State = {
-          status: "HalfOpen",
-          consecutiveFailures: state.consecutiveFailures,
-          openedAt: undefined,
-          halfOpenAt: now,
-          probeClaimed: false,
-        };
-        return [["HalfOpen", true], next];
-      },
+      (state): readonly [readonly [CircuitBreakerStatus, boolean], State] =>
+        Match.value(state).pipe(
+          Match.tagsExhaustive({
+            Closed: (closed): readonly [readonly [CircuitBreakerStatus, boolean], State] => [
+              [closed._tag, false],
+              closed,
+            ],
+            // Defense in depth alongside the release finalizer (ticket #38 /
+            // H4): a half-open window that has outlived `resetTimeoutMs`
+            // without resolving is reopened here too, on the next status
+            // read, rather than left to wedge forever.
+            HalfOpen: (halfOpen): readonly [readonly [CircuitBreakerStatus, boolean], State] =>
+              now - halfOpen.halfOpenAt < resetTimeoutMillis
+                ? [[halfOpen._tag, false], halfOpen]
+                : [["Open", true], new StateOpen({ openedAt: now })],
+            Open: (open): readonly [readonly [CircuitBreakerStatus, boolean], State] =>
+              now - open.openedAt < resetTimeoutMillis
+                ? [[open._tag, false], open]
+                : [
+                    ["HalfOpen", true],
+                    new StateHalfOpen({ halfOpenAt: now, probeClaimed: false }),
+                  ],
+          }),
+        ),
     );
     if (justTransitioned) yield* announceTransition(current);
     return current;
   });
 
   const recordSuccess: Effect.Effect<void> = Effect.gen(function* () {
-    const closedNow = yield* Ref.modify(ref, (state) => {
-      if (state.status === "HalfOpen") {
-        return [
-          true,
-          {
-            status: "Closed" as const,
-            consecutiveFailures: 0,
-            openedAt: undefined,
-            halfOpenAt: undefined,
-            probeClaimed: false,
-          },
-        ];
-      }
-      return [false, { ...state, consecutiveFailures: 0 }];
-    });
+    const closedNow = yield* Ref.modify(
+      ref,
+      (state): readonly [boolean, State] =>
+        Match.value(state).pipe(
+          Match.tagsExhaustive({
+            Closed: (): readonly [boolean, State] => [
+              false,
+              new StateClosed({ consecutiveFailures: 0 }),
+            ],
+            HalfOpen: (): readonly [boolean, State] => [
+              true,
+              new StateClosed({ consecutiveFailures: 0 }),
+            ],
+            Open: (open): readonly [boolean, State] => [false, open],
+          }),
+        ),
+    );
     if (closedNow) yield* announceTransition("Closed");
   });
 
   const recordFailure: Effect.Effect<void> = Effect.gen(function* () {
     const now = yield* Clock.currentTimeMillis;
-    const openedNow = yield* Ref.modify(ref, (state) => {
-      // A no-op while `Open`: a write admitted before the trip and settling
-      // after it is not evidence about the store since (ARCH-07 C5, D-07-c).
-      if (state.status === "Open") return [false, state];
-      if (state.status === "HalfOpen") {
-        return [
-          true,
-          {
-            status: "Open" as const,
-            consecutiveFailures: 1,
-            openedAt: now,
-            halfOpenAt: undefined,
-            probeClaimed: false,
-          },
-        ];
-      }
-      const consecutiveFailures = state.consecutiveFailures + 1;
-      if (consecutiveFailures >= options.failureThreshold) {
-        return [
-          true,
-          {
-            status: "Open" as const,
-            consecutiveFailures,
-            openedAt: now,
-            halfOpenAt: undefined,
-            probeClaimed: false,
-          },
-        ];
-      }
-      return [false, { ...state, consecutiveFailures }];
-    });
+    const openedNow = yield* Ref.modify(
+      ref,
+      (state): readonly [boolean, State] =>
+        Match.value(state).pipe(
+          Match.tagsExhaustive({
+            // A no-op while `Open`: a write admitted before the trip and
+            // settling after it is not evidence about the store since
+            // (ARCH-07 C5, D-07-c).
+            Open: (open): readonly [boolean, State] => [false, open],
+            HalfOpen: (): readonly [boolean, State] => [true, new StateOpen({ openedAt: now })],
+            Closed: (closed): readonly [boolean, State] => {
+              const consecutiveFailures = closed.consecutiveFailures + 1;
+              return consecutiveFailures >= options.failureThreshold
+                ? [true, new StateOpen({ openedAt: now })]
+                : [false, new StateClosed({ consecutiveFailures })];
+            },
+          }),
+        ),
+    );
     if (openedNow) yield* announceTransition("Open");
   });
 
   // Atomic with the check: a second concurrent caller reading `false` here
   // must never be able to observe `probeClaimed` still false a moment later,
   // or two callers could both believe they hold the one probe slot.
-  const claimProbe: Effect.Effect<boolean> = Ref.modify(ref, (state) => {
-    if (state.status !== "HalfOpen" || state.probeClaimed) return [false, state];
-    return [true, { ...state, probeClaimed: true }];
-  });
+  const claimProbe: Effect.Effect<boolean> = Ref.modify(
+    ref,
+    (state): readonly [boolean, State] =>
+      state._tag !== "HalfOpen" || state.probeClaimed
+        ? [false, state]
+        : [true, new StateHalfOpen({ halfOpenAt: state.halfOpenAt, probeClaimed: true })],
+  );
 
-  // See the interface doc comment (ticket #38 / H4). Guarded so a finalizer
-  // that runs after the probe already settled normally has nothing left to
-  // undo: the `state.status !== "HalfOpen" || !state.probeClaimed` check is
-  // the same shape `claimProbe` itself uses, and holds for the same reason —
-  // a genuinely new half-open window is only ever reachable after this (or
-  // `recordSuccess`/`recordFailure`) has already reset `probeClaimed`, so
-  // there is no window in which this call could steal a *different* claim.
+  // Guarded so a finalizer that runs after the probe already settled has
+  // nothing left to undo: a genuinely new half-open window is only ever
+  // reachable after `recordSuccess`/`recordFailure` has already reset the
+  // claim, so there is no window in which this call could steal a *different*
+  // claim.
   const releaseProbe: Effect.Effect<void> = Effect.gen(function* () {
     const now = yield* Clock.currentTimeMillis;
-    const reopened = yield* Ref.modify(ref, (state) => {
-      if (state.status !== "HalfOpen" || !state.probeClaimed) return [false, state];
-      return [
-        true,
-        {
-          status: "Open" as const,
-          consecutiveFailures: state.consecutiveFailures + 1,
-          openedAt: now,
-          halfOpenAt: undefined,
-          probeClaimed: false,
-        },
-      ];
-    });
+    const reopened = yield* Ref.modify(
+      ref,
+      (state): readonly [boolean, State] =>
+        state._tag !== "HalfOpen" || !state.probeClaimed
+          ? [false, state]
+          : [true, new StateOpen({ openedAt: now })],
+    );
     if (reopened) yield* announceTransition("Open");
   });
 
-  return { status, recordSuccess, recordFailure, claimProbe, releaseProbe } satisfies CircuitBreaker;
+  const admit = Effect.gen(function* (): Effect.fn.Return<Permit> {
+    const initialStatus = yield* status;
+    const probe =
+      initialStatus === "HalfOpen" ? yield* claimProbe : false;
+    // The claim was lost: re-read to tell "still half-open under another
+    // caller's probe" apart from "the breaker moved on" (ticket #46).
+    const resolved: CircuitBreakerStatus =
+      initialStatus === "HalfOpen" && !probe ? yield* status : initialStatus;
+    const admitted = probe || resolved === "Closed";
+    if (!admitted) return new Refused();
+    const settled = yield* Ref.make(false);
+    const attempt = <A, E, R>(write: Effect.Effect<A, E, R>) =>
+      Effect.gen(function* () {
+        const exit = yield* Effect.exit(write);
+        const alreadySettled = yield* Ref.getAndSet(settled, true);
+        if (!alreadySettled) {
+          yield* Exit.isSuccess(exit) ? recordSuccess : recordFailure;
+        }
+        return exit;
+      });
+    return new Admitted({ probe, attempt });
+  });
+
+  const withPermit = Effect.fn("qadi.audit.circuitBreaker.withPermit")(function* <A, E, R>(
+    use: (permit: Permit) => Effect.Effect<A, E, R>,
+  ) {
+    return yield* Effect.acquireUseRelease(
+      admit,
+      (permit) =>
+        Effect.annotateCurrentSpan({
+          "qadi.audit.permit": permit._tag,
+          "qadi.audit.probe": permit._tag === "Admitted" && permit.probe,
+        }).pipe(Effect.andThen(use(permit))),
+      (permit, exit) =>
+        permit._tag === "Admitted" && permit.probe && Exit.isFailure(exit)
+          ? releaseProbe
+          : Effect.void,
+    );
+  });
+
+  return { status, withPermit } satisfies CircuitBreaker;
 });
