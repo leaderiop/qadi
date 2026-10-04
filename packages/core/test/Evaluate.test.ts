@@ -3036,6 +3036,28 @@ describe("observability", () => {
       });
     }));
 
+  it.effect("a resource-scoped qadi.hasSignature with no resource id still names what it asked", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      const r = yield* Effect.result(
+        evaluate(P.hasSignature("approved"), { resource: { name: "no id" } }).pipe(
+          Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" })), collectingTracer(spans))),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "MissingResourceId");
+      // The question is on the span, and no resource id is invented for it.
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+        "qadi.subject_id": "u1",
+        "qadi.meaning": "approved",
+        "qadi.scope": "Resource",
+        "qadi.interpreter": "evaluate",
+      });
+    }));
+
   it.effect("an Any-scoped qadi.hasSignature names no resource and no signer role it was not asked about", () =>
     Effect.gen(function* () {
       const spans: Array<Tracer.Span> = [];

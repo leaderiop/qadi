@@ -1687,7 +1687,7 @@ describe("BEH-QD-123: each refusal names its node and says why", () => {
   ];
 
   for (const [name, policy, policyTag, reason] of cases) {
-    it.effect(`${name} refuses as ${policyTag}, with its reason`, () =>
+    it.effect(`${name} refuses with the ${policyTag} tag and its reason`, () =>
       Effect.gen(function* () {
         assert.deepStrictEqual(yield* refusal(policy), { policyTag, reason });
       }));
