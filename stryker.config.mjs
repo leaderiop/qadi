@@ -74,6 +74,9 @@ export default {
   htmlReporter: { fileName: "reports/mutation/index.html" },
   jsonReporter: { fileName: "reports/mutation/mutation.json" },
   coverageAnalysis: "perTest",
+  // Skips mutants in code that runs once at import time (ADR-QD-076): Stryker re-runs the whole
+  // suite for each, and they dominated the run time. Set false to examine them by hand.
+  ignoreStatic: true,
 
   mutate: [
     "packages/core/src/**/*.ts",
@@ -86,8 +89,8 @@ export default {
   thresholds: { high: 90, low: 80, break: 80 },
 
   // A survivor that cannot be killed is a finding to record, not a number to
-  // suppress — so there is no ignore list here. If one becomes necessary it
-  // belongs in an ADR first.
+  // suppress — so there is no ignore list here. The one global exception is
+  // `ignoreStatic` above, decided in ADR-QD-076; any other belongs in an ADR first.
   timeoutMS: 20000,
   concurrency: 4,
 };

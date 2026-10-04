@@ -23,6 +23,9 @@ export default {
   htmlReporter: { fileName: "reports/mutation-audit/index.html" },
   jsonReporter: { fileName: "reports/mutation-audit/mutation.json" },
   coverageAnalysis: "perTest",
+  // Skips mutants in code that runs once at import time (ADR-QD-076): Stryker re-runs the whole
+  // suite for each, and they dominated the run time. Set false to examine them by hand.
+  ignoreStatic: true,
 
   mutate: [
     "packages/audit/src/**/*.ts",

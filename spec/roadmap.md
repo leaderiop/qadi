@@ -45,7 +45,7 @@ and out of scope (DR-01, RC-01/DH-05) — see the release runbook in
 | Doc examples compile | 74 blocks |
 | Specification integrity | 15 checks passing |
 | Example application | type-checks, builds, 12 unit and 26 end-to-end assertions in a real browser |
-| Mutation score | 96.13% on `packages/core`, 100.00% on the `@qadi/devtools` model, 99.20% on `@qadi/predicate-sql`, 98.85% on `@qadi/predicate-prisma`, 93.54% on `@qadi/audit`, 86.42% on `@qadi/http`, break threshold 80 — enforced |
+| Mutation score | Static mutants skipped (`ignoreStatic`, ADR-QD-076). Measured 2026-10-04: 91.79% on `packages/core`, 98.20% on the `@qadi/devtools` model, 98.01% on `@qadi/predicate-sql`, 95.14% on `@qadi/predicate-prisma`, 86.05% on `@qadi/audit`, 96.71% on `@qadi/http`, break threshold 80 — enforced. Earlier revisions of this row counted static mutants and are not comparable |
 
 This table groups the **twenty-four** numbered steps of
 [the merge gate](./process/definitions-of-done.md#merge-gate) into families and
