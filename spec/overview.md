@@ -156,6 +156,12 @@ for why that is a deliberate, open trade rather than an oversight.
 | `SubjectDecision`, `SubjectSetServices`, `SubjectEvaluationFailure`, `SubjectSetOutcome`, `FilteredSubjects` | type | `SubjectSet.ts` — `SubjectEvaluationFailure` pairs a subject with the `EvaluationError` its own evaluation raised; `SubjectSetOutcome` (`decideSubjects`'s return shape) is `{ decisions, failures }`, `FilteredSubjects` (`filterSubjects`'s) is `{ subjects, failures }` |
 | `toPredicate`, `evaluatePredicate` | function | `Predicate.ts` |
 | `Predicate`, `CompareOp`, `PredicateOptions`, `PredicateServices` | type | `Predicate.ts` |
+| `toRenderable` | function | `RenderablePredicate.ts` — classifies a `Predicate` once, under a renderer's `RenderRules`, into a closed `RenderableNode` tree, or refuses with `PredicateNotRenderable`. Core still emits no dialect text (ADR-QD-077) |
+| `RenderableNode`, `EqualityLiteral` | type | `RenderablePredicate.ts` — eight tags (`Constant`, `IsNull`, `Equals`, `Range`, `OneOf`, `All`, `Any`, `Not`), every `Compare`/`MemberOf` already validated and every NULL decision already made |
+| `RenderRules`, `ColumnNullability`, `Negation`, `NullGuard` | type | `RenderablePredicate.ts` — what a renderer declares (identifier rule, reserved columns, `maxInValues`, which columns may be NULL, whether its `NOT` is two- or three-valued) and the per-leaf NULL treatment derived from it. A nullability declaration can only narrow or refuse (ADR-QD-077) |
+| `DEFAULT_MAX_IN_VALUES` | const | `RenderablePredicate.ts` — 1000 |
+| `SafeLiteral`, `IdentifierRule` | type | `PredicateLiteral.ts` |
+| `isSafeLiteral`, `isRangeBound`, `isRenderableIdentifier` | function | `PredicateLiteral.ts` — the dialect-free leaf rules; `evaluatePredicate`'s `Gte`/`Lt` and `toRenderable` call the same `isRangeBound` |
 | `EvaluationServices` | type | `Evaluate.ts` |
 | `intersectFields`, `unionFields` | function | `Decision.ts` |
 | `VisibleFields` | type | `Decision.ts` — a named `ReadonlyArray<string> \| undefined`: `undefined` is the field-visibility lattice's top ("all fields"), not "none"; `intersectFields`/`unionFields` and `Trace`/`Allow`'s `visibleFields` field are typed against it rather than restating the union at each site (D8, issue #107) |
@@ -331,7 +337,7 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `CircularRoleInheritance`, `DuplicateRoleDefinition`, `InvalidPermissionSegment`,
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
 `CustomPredicateError`, `SignatureHistoryUnavailable`, `PolicyDecodeTooDeep`,
-`InvalidBoundedPermits`,
+`InvalidBoundedPermits`, `PredicateNotRenderable` (with its `RenderRefusal` union),
 plus `toAccessDeniedPublic`, `ERROR_CODES` and `errorCode`, and the two unions
 `EvaluationError` and `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
@@ -367,6 +373,15 @@ type-only import carries no such risk. It had bypassed `QadiError` and
 error with no stable code — the exact guarantee
 ADR-QD-008/INV-QD-010 exist to make. `ERROR_CODES["PolicyDecodeTooDeep"]` is
 `ACL017`.
+
+`PredicateNotRenderable` joins `QadiError` (not `EvaluationError` — it is raised by
+`toRenderable`, a row-filter concern like `PolicyNotTranslatable`, never by
+evaluation). It is declared once, in `Errors.ts`, and re-exported by
+`@qadi/predicate-sql` and `@qadi/predicate-prisma`; before ADR-QD-077 each package
+declared its own class with the same `_tag`. It carries `predicateTag`
+(`"Compare" | "MemberOf"`), a closed `refusal: RenderRefusal` and the human
+`reason`. A `Data.TaggedError`, not a `Schema.TaggedError`: it crosses no codec.
+`ERROR_CODES["PredicateNotRenderable"]` is `ACL018`.
 
 `InvalidBoundedPermits` joins `QadiError` (construction-time, not evaluation)
 and is shared by every `…Bounded` port wrapper — `AttributeResolver.ts`'s
