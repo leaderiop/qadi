@@ -1223,9 +1223,13 @@ const maxOf = (values: ReadonlyArray<number>): number => {
 export const policyDepth = (self: Policy): number => {
   const known = depthMemo.get(self);
   if (known !== undefined) return known;
-  const depth = foldPolicy<number>(self, (node, children) =>
-    children.length === 0 ? leafNesting(node) : 1 + maxOf(children),
-  );
+  const depth = foldPolicy<number>(self, (node, children) => {
+    // Asked of every node, though only a childless one can carry a matcher:
+    // `matcherOf` is exhaustive by tag, and asking it everywhere keeps that
+    // true of what runs, not only of what compiles.
+    const own = leafNesting(node);
+    return children.length === 0 ? own : 1 + maxOf(children);
+  });
   depthMemo.set(self, depth);
   return depth;
 };
