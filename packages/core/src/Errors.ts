@@ -294,6 +294,48 @@ export class PolicyNotTranslatable extends Data.TaggedError(
 }> {}
 
 /**
+ * Why `toRenderable` refused a `Compare`/`MemberOf`.
+ *
+ * A closed union, so a renderer or a caller matching on the reason is a compile
+ * error away from a new one.
+ *
+ * - `UnsafeColumn`: the column fails the `IdentifierRule`.
+ * - `ReservedColumn`: the column is in the renderer's `reservedColumns`.
+ * - `UnsafeValue`: a value is not a `SafeLiteral`.
+ * - `TooManyValues`: a `MemberOf` exceeds `maxInValues`.
+ * - `NullOnNonNullableColumn`: a null comparison on a column the caller declared
+ *   NOT NULL.
+ */
+export type RenderRefusal =
+  | "UnsafeColumn"
+  | "ReservedColumn"
+  | "UnsafeValue"
+  | "TooManyValues"
+  | "NullOnNonNullableColumn";
+
+/**
+ * A predicate a renderer must refuse to render.
+ *
+ * Raised rather than approximated, the same discipline as
+ * `PolicyNotTranslatable` one layer down: `toPredicate` raises that when a
+ * policy node has no row-filter meaning, `toRenderable` raises this when a
+ * `Compare`/`MemberOf` has one but no safe rendering — an unsafe value or
+ * column, a `MemberOf` past `maxInValues`, a null comparison on a column
+ * declared NOT NULL (ADR-QD-079).
+ *
+ * Declared once, here, and re-exported by `@qadi/predicate-sql` and
+ * `@qadi/predicate-prisma`. Before ADR-QD-079 each package declared its own
+ * class with the same `_tag` (ticket 95), which ADR-QD-008's "the `_tag` is the
+ * identity" bent: a `catchTag` site saw two structurally identical classes.
+ * `Data.TaggedError`, not `Schema.TaggedError`: it crosses no codec.
+ */
+export class PredicateNotRenderable extends Data.TaggedError("PredicateNotRenderable")<{
+  readonly predicateTag: "Compare" | "MemberOf";
+  readonly refusal: RenderRefusal;
+  readonly reason: string;
+}> {}
+
+/**
  * A `…Bounded` port wrapper was given a non-positive permit count.
  *
  * `effect/Semaphore`'s `Semaphore.make` performs no validation of its own: with
@@ -334,6 +376,7 @@ export type EvaluationError =
 export type QadiError =
   | EvaluationError
   | PolicyNotTranslatable
+  | PredicateNotRenderable
   | AccessDenied
   | UndischargedObligation
   | CircularRoleInheritance
@@ -367,6 +410,7 @@ export const ERROR_CODES = {
   "DuplicateRoleDefinition": "ACL015",
   "InvalidBoundedPermits": "ACL016",
   "PolicyDecodeTooDeep": "ACL017",
+  "PredicateNotRenderable": "ACL018",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

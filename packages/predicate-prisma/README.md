@@ -38,10 +38,15 @@ const services = Layer.mergeAll(
   DecisionHistoryUnknown,
 );
 
+// Which columns accept NULL — a declaration, never an inspection: this package
+// opens no connection and reads no schema. Write the set out, or derive it with
+// `nullableFieldsOf` from a DMMF model that keeps `isRequired` (see below).
+const nullable = new Set(["deletedAt", "note"]);
+
 const where = await Effect.runPromise(
   toPredicate(visible).pipe(
     Effect.provide(services),
-    Effect.flatMap(compilePrismaWhere),
+    Effect.flatMap((predicate) => compilePrismaWhere(predicate, { nullable })),
   ),
 );
 // { tenantId: "t-1" }
@@ -61,16 +66,34 @@ explicit assertion (or a thin typed wrapper around `compilePrismaWhere` in
 your own code) — `Record<string, unknown>` is not structurally assignable to
 a generated `WhereInput` on its own.
 
+## Declare which columns accept NULL
+
+`compilePrismaWhere`'s second argument is required: `{ nullable }`, the set of
+columns that accept NULL. `nullableFieldsOf(model)` builds it from a DMMF model
+that keeps `isRequired` (`getDMMF` from `@prisma/internals`; Prisma 7's runtime
+`Prisma.dmmf` strips it, so write the set out by hand there).
+Prisma refuses any filter that mentions `null` on a required field, and a plain
+`NOT` over a nullable column's comparison silently drops the NULL rows the
+evaluator admits — so the compiler needs this one schema fact. A wrong
+declaration can only lose rows or fail loudly; it never admits a row the
+predicate denies. A `null` comparison on a column declared NOT NULL fails
+`PredicateNotRenderable`.
+
 ## Refuses rather than approximates
 
 A `Predicate`'s comparison values are `unknown`. A value outside the safe
-allowlist (`string | number | boolean | null | Date`) fails
-`PredicateNotRenderable` rather than being handed to Prisma's query engine.
+allowlist (`string | finite number | boolean | null`; `Date` is refused) fails
+`PredicateNotRenderable` rather than being handed to Prisma's query engine. So does
+a `MemberOf` past `maxInValues` (default 1000), and a column name outside the
+identifier rule (`"Ascii"` by default, `identifiers: "UnicodeBmp"` opts a Prisma
+field like `é` in) or one of Prisma's own operator keywords (`AND`, `not`, `gte`,
+…). `PredicateNotRenderable` is `@qadi/core`'s, re-exported here.
 
 ## Agreement with the evaluator
 
 Every `WhereInput` this package renders is checked, by property, against
-`@qadi/core`'s own `evaluatePredicate`. See
+`@qadi/core`'s own `evaluatePredicate` — by running it through a real Prisma Client
+over SQLite, not a JavaScript model of one. See
 [31 — Predicate Compilation](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/31-predicate-compilation.md).
 
 ## License

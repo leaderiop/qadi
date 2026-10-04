@@ -33,6 +33,7 @@ import { permissionKey } from "./Permission.ts";
 import { DEFAULT_MAX_DEPTH, fieldsOf, foldPolicy, policyDepth } from "./Policy.ts";
 import { askActedAny, readAttribute } from "./PortAccess.ts";
 import type { Combining, Policy, RuleEffect } from "./Policy.ts";
+import { isRangeBound } from "./PredicateLiteral.ts";
 import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
 
 // ---------------------------------------------------------------------------
@@ -153,23 +154,18 @@ const dispatchCompare: (op: CompareOp) => (value: unknown, against: unknown) => 
     // an INV-QD-018 divergence, and in the worst direction. The bound is the
     // only side that needs it: a non-finite *row* value already agrees, since
     // `NaN >= x` is false in both interpreters and `Infinity >= x` is true in
-    // both. `typeof against === "number"` stays for the narrowing
-    // `Number.isFinite(unknown)` does not perform.
+    // both. `isRangeBound` (`PredicateLiteral.ts`) is that check, and the
+    // renderable classifier calls the same function, so the rule has one
+    // definition (ADR-QD-079).
     Match.when(
       "Gte",
       () => (value: unknown, against: unknown) =>
-        typeof value === "number" &&
-        typeof against === "number" &&
-        Number.isFinite(against) &&
-        value >= against,
+        typeof value === "number" && isRangeBound(against) && value >= against,
     ),
     Match.when(
       "Lt",
       () => (value: unknown, against: unknown) =>
-        typeof value === "number" &&
-        typeof against === "number" &&
-        Number.isFinite(against) &&
-        value < against,
+        typeof value === "number" && isRangeBound(against) && value < against,
     ),
     Match.exhaustive,
   );

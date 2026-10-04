@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-16                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-10-04): BEH-QD-266 — an over-deep policy is `PolicyTooDeep` before the fields refusal whatever the child order, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-10-04): BEH-QD-123 — a failing port fails the translation with its own typed error; BEH-QD-264/265/266 — a defecting port fails typed, translation stops where the evaluator stops, a refusal depends on the tree alone; BEH-QD-127 — points at INV-QD-058 for faulty ports (CCR-QD-153, ADR-QD-077)<br>1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
+> | Change History | 1.5 (2026-10-04): BEH-QD-121/122 cross-reference BEH-QD-271 — core still emits no dialect, but now says what is renderable (`toRenderable`) (ADR-QD-079, CCR-QD-158)<br>1.4 (2026-10-04): BEH-QD-266 — an over-deep policy is `PolicyTooDeep` before the fields refusal whatever the child order, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-10-04): BEH-QD-123 — a failing port fails the translation with its own typed error; BEH-QD-264/265/266 — a defecting port fails typed, translation stops where the evaluator stops, a refusal depends on the tree alone; BEH-QD-127 — points at INV-QD-058 for faulty ports (CCR-QD-153, ADR-QD-077)<br>1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
 
 _Previous: [15 — Rule Tables](./15-rules.md)_
 
@@ -72,6 +72,12 @@ intended semantics, over their own rows, in their own suite.
 
 It is also what makes [BEH-QD-127](#beh-qd-127-the-two-interpreters-agree)
 obtainable at all.
+
+Core still owns no dialect — [BEH-QD-121](#beh-qd-121-a-predicate-is-abstract-and-qadi-owns-no-dialect)
+stands — but it now says what a renderer may render: `toRenderable`
+([BEH-QD-271](31-predicate-compilation.md#beh-qd-271-a-predicate-is-classified-once-in-core-into-a-renderable-tree))
+classifies a `Predicate` once into a closed tree of already-validated nodes, so a
+dialect package prints syntax and decides nothing about NULLs, numbers or safety.
 
 ## BEH-QD-123: Untranslatable fails; nothing is approximated
 

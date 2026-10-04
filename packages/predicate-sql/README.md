@@ -25,10 +25,25 @@ const fragment = toPredicate(visible).pipe(
 ## Refuses rather than approximates
 
 A `Predicate`'s comparison values are `unknown`. A value outside the safe
-allowlist (`string | number | boolean | null | Date`) fails
+allowlist (`string | finite number | boolean | null`; `Date` is refused) fails
 `PredicateNotRenderable` — it is never stringified into the fragment. A
 `MemberOf` past `maxInValues` (default 1000) refuses the same way, rather than
-rendering an unbounded `IN (...)`.
+rendering an unbounded `IN (...)`, and so does a column name outside the
+identifier rule. `PredicateNotRenderable` is `@qadi/core`'s, re-exported here: what
+a predicate may hold is decided once, in core, and this package prints syntax.
+
+## Options
+
+- `maxInValues?`: the `IN` bound.
+- `identifiers?`: `"Ascii"` (default) or `"UnicodeBmp"` for column names in any
+  script, up to U+FFFF.
+- `nullable?`: which columns accept NULL. Absent declares nothing. Declared, `Neq`
+  on a NOT NULL column renders a plain `!=` with no `OR col IS NULL`, and a null
+  comparison on one refuses. A wrong declaration can only lose rows or refuse,
+  never admit a row the predicate denies.
+
+The SQLite dialect binds a boolean as `1`/`0` in `params`: neither Node SQLite
+driver (`node:sqlite`, `better-sqlite3`) can bind a JavaScript boolean.
 
 ## Three dialects, one renderer
 
@@ -42,7 +57,8 @@ implementations.
 Every fragment this package renders is checked, by property, against
 `@qadi/core`'s own `evaluatePredicate` — the same differential method that
 proves `toPredicate` agrees with `evaluate`, one interpreter further from the
-`Policy` tree. See
+`Policy` tree — by running it on real engines: PostgreSQL (PGlite) and SQLite
+(`node:sqlite`); MySQL is checked structurally against SQLite's text. See
 [31 — Predicate Compilation](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/31-predicate-compilation.md).
 
 ## License

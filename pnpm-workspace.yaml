@@ -37,6 +37,9 @@ catalogs:
     effect: ^4.0.0
 
 onlyBuiltDependencies:
+  # A native build, needed by @prisma/adapter-better-sqlite3 in @qadi/predicate-prisma's
+  # real-engine tests (ARCH-03 N5): without this a CI `pnpm install` skips its install script.
+  - better-sqlite3
   - esbuild
   - msgpackr-extract
 

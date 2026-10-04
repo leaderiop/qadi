@@ -7,17 +7,93 @@
  * ADR-QD-054 authorizes: optional, separately versioned, installed only by a
  * caller who wants it.
  *
+ * This package is a *renderer*. What a `Predicate` may hold and what it means —
+ * which values are safe, what `Compare` means against NULL and against a
+ * non-number, that an empty `MemberOf` is false, which columns are refused, how
+ * large an `in` list may be — is `@qadi/core`'s `toRenderable` (ADR-QD-079); it
+ * hands this module a closed `RenderableNode` tree with every decision already
+ * made. What is left here is what only Prisma has: its filter grammar, and the
+ * vacuous-identity folding its query engine needs (`isVacuousTrue`).
+ *
  * See `spec/behaviors/31-predicate-compilation.md`.
  */
-import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
-import type { CompareOp, Predicate } from "@qadi/core";
+import * as P from "effect/Predicate";
+import { DEFAULT_MAX_IN_VALUES, toRenderable } from "@qadi/core";
+import type {
+  IdentifierRule,
+  NullGuard,
+  Predicate,
+  RenderableNode,
+  RenderRules,
+} from "@qadi/core";
+
+export { PredicateNotRenderable } from "@qadi/core";
 
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
+
+/**
+ * The one schema fact `compilePrismaWhere` needs: which columns accept NULL,
+ * plus the two optional knobs every renderer shares.
+ *
+ * `nullable` is a declaration, never an inspection — this package still never
+ * opens a connection or reads a schema (ADR-QD-054). `nullableFieldsOf` derives
+ * it from a Prisma DMMF model that keeps `isRequired` (`getDMMF` from
+ * `@prisma/internals`); Prisma 7's runtime `Prisma.dmmf` strips that field, so a
+ * caller without such a DMMF writes the set out.
+ *
+ * Required, not optional (CCR-QD-157): a schema-blind renderer cannot emit one
+ * leaf valid on both kinds of column. Prisma refuses every filter that mentions
+ * `null` on a required field, and a plain `NOT` over a nullable column's
+ * comparison drops the NULL rows `evaluatePredicate` admits. A wrong declaration
+ * can only under-admit (declared NOT NULL but nullable: no guards, and a
+ * three-valued `NOT` can only lose rows) or fail loudly (declared nullable but
+ * required: Prisma refuses the `null` mention) — never admit a row the predicate
+ * denies.
+ */
+export interface CompilePrismaWhereOptions {
+  readonly nullable: ReadonlySet<string>;
+  /**
+   * Refuses a `MemberOf` whose member count exceeds this. Default 1000
+   * (ADR-QD-079): an unbounded `in` is the same resource-exhaustion vector
+   * whichever grammar carries it.
+   */
+  readonly maxInValues?: number;
+  /** How strictly a column name is constrained. Default `"Ascii"`. */
+  readonly identifiers?: IdentifierRule;
+}
+
+/**
+ * The structural slice of a Prisma DMMF field this package reads. No
+ * dependency on `@prisma/client`: a DMMF model's `fields` satisfies it as is.
+ */
+export interface PrismaFieldLike {
+  readonly name: string;
+  readonly isRequired: boolean;
+  readonly kind: string;
+}
+
+/** The structural slice of a Prisma DMMF model this package reads. */
+export interface PrismaModelLike {
+  readonly fields: ReadonlyArray<PrismaFieldLike>;
+}
+
+/**
+ * The columns of a Prisma model that accept NULL.
+ *
+ * A field counts when it is a column (`kind !== "object"` — a relation field is
+ * not one) and is not required.
+ */
+export const nullableFieldsOf = (model: PrismaModelLike): ReadonlySet<string> =>
+  new Set(
+    model.fields
+      .filter((field) => field.kind !== "object" && !field.isRequired)
+      .map((field) => field.name),
+  );
 
 /**
  * A Prisma `where` filter, generic in the model.
@@ -33,84 +109,9 @@ import type { CompareOp, Predicate } from "@qadi/core";
 export type PrismaWhereInput = Record<string, unknown>;
 
 /**
- * A `Predicate` this package refuses to render — an unsafe value. Declared
- * independently of `@qadi/predicate-sql`'s error of the same name: neither
- * package shares it through `@qadi/core`, which has no reason to know either
- * exists.
+ * The names Prisma gives meaning to inside a `WhereInput`: a column named one of
+ * these is passed to `toRenderable` as `reservedColumns` and refused.
  *
- * The two declarations also share the identical `_tag` string (ticket 95) —
- * deliberately, not an oversight ADR-QD-008's "the `_tag` is the identity"
- * would otherwise flag. Both carry the same shape (`predicateTag`, `reason`),
- * and this collision is benign: the two packages are mutually exclusive in
- * practice — a caller compiles to SQL or to Prisma, not both from the same
- * predicate — so no single `Effect.catchTag`/`Match` site is expected to see
- * both at once. If one ever did, the two are structurally indistinguishable
- * at that site by tag alone, which is the cost of this choice, accepted
- * rather than renaming either and breaking a public API for a situation
- * neither package's callers hit.
- */
-export class PredicateNotRenderable extends Data.TaggedError("PredicateNotRenderable")<{
-  readonly predicateTag: string;
-  readonly reason: string;
-}> {}
-
-/**
- * `unknown`, safely: the only shapes safe to hand to Prisma's query engine as
- * a value.
- *
- * Deliberately excludes `Date`, unlike an earlier version of this function —
- * `evaluatePredicate`'s `compare` (`@qadi/core`'s `Predicate.ts`) requires
- * `typeof value === "number"` for `Gte`/`Lt`, so a `Date` there is always
- * `false` in the reference evaluator, while Prisma's `{gte: date}`/`{lt:
- * date}` performs a real date comparison against the row — INV-QD-048
- * disagreement, and in the direction that matters: Prisma would admit rows
- * the reference evaluator denies. `Eq`'s `===` has the same problem from the
- * other side — two distinct `Date` instances holding the same instant are
- * never `===`, so a `Date` `Eq` is reference-evaluator-false for any row a
- * caller would actually construct, while Prisma's `{equals: date}` matches
- * correctly. Refusing to compile a `Date`-valued `Compare`/`MemberOf` is the
- * ADR-QD-024 "refuse rather than approximate" answer to a comparison the
- * reference evaluator does not actually support.
- *
- * The `number` branch requires `Number.isFinite` too (ticket 138), not bare
- * `typeof value === "number"` — `NaN`/`Infinity`/`-Infinity` all satisfy that
- * `typeof` check but are unsound in both directions against
- * `evaluatePredicate`: `NaN === NaN` is `false` in JS, so an `Eq`/`MemberOf`
- * against `NaN` is reference-evaluator-false for every row, while Prisma's
- * equality/`in` filters compile it into a real, engine-dependent comparison
- * that can admit rows the reference evaluator denies. `Infinity`/`-Infinity`
- * are ordinary numbers to a `>=`/`<` comparison in both `evaluatePredicate`
- * and Prisma's `gte`/`lt`, so a real disagreement needs an actual database to
- * confirm either way — refusing all three here is the same "refuse rather
- * than approximate" answer as the `Date` case above, applied before either
- * question needs answering empirically.
- *
- * `@qadi/predicate-sql`'s own `isSafeValue` now carries the same check
- * (CCR-QD-120), so the two dialect packages do agree on which values compile.
- *
- * > Until CCR-QD-120 this paragraph read: "`@qadi/predicate-sql`'s own
- * > `isSafeValue` does not carry this check — only its `Gte`/`Lt`-specific
- * > render guard excludes `NaN`, and only for those two operators, leaving
- * > `Eq`/`MemberOf` against `NaN` unaddressed there. This is a deliberate
- * > widening at the `isSafeValue` gate itself, ahead of, and covering more
- * > ground than, that precedent — not a claim that the two packages agree."
- * > That gap was the INV-QD-047 divergence issue #65 closed: a `NaN`-valued
- * > `Eq` bound a real parameter, and PostgreSQL's `NaN = NaN` is true where
- * > `evaluatePredicate`'s `===` is false.
- */
-const isSafeValue = (value: unknown): boolean =>
-  value === null ||
-  typeof value === "string" ||
-  (typeof value === "number" && Number.isFinite(value)) ||
-  typeof value === "boolean";
-
-/**
- * A column name safe to interpolate as a `WhereInput` key.
- *
- * `renderNode` builds `{[p.column]: …}` from `Predicate.column`, a plain
- * `string` on an AST that crosses a trust boundary (AGENTS.md §7) — this
- * package has no generated schema to validate a column against, unlike a
- * caller who assigns the result to their model's own `WhereInput` type.
  * `AND`/`OR`/`NOT` are Prisma's own combinator keys at every `WhereInput`
  * level: a column literally named one changes what the object means instead
  * of failing to render — `{NOT: "t-1"}` negates rather than comparing, and
@@ -132,8 +133,12 @@ const isSafeValue = (value: unknown): boolean =>
  * escaped, since there is no escaping a JS object key — only choosing not to
  * use it as one. Matching is case-sensitive, as it already was for
  * `AND`/`OR`/`NOT`: Prisma's own keys are exact-case, and so is this check.
+ *
+ * This is the one rule here that is about Prisma's *syntax* rather than about
+ * what a predicate means, which is why it stays in this package: it is the
+ * reserved set a `RenderRules` declares, not a leaf rule core owns (ADR-QD-079).
  */
-const RESERVED_PRISMA_KEYS = new Set([
+const RESERVED_PRISMA_KEYS: ReadonlySet<string> = new Set([
   "AND",
   "OR",
   "NOT",
@@ -148,7 +153,6 @@ const RESERVED_PRISMA_KEYS = new Set([
   "is",
   "isNot",
 ]);
-const isSafeColumn = (column: string): boolean => !RESERVED_PRISMA_KEYS.has(column);
 
 /**
  * `renderNode`'s own vacuous-identity shapes — `{AND: []}` (always matches,
@@ -179,16 +183,20 @@ const isSafeColumn = (column: string): boolean => !RESERVED_PRISMA_KEYS.has(colu
  *
  * `renderNode`'s answer is to never let a vacuous identity be *reached*
  * below the top level in the first place, rather than lean on the engine to
- * survive folding it does not perform correctly: `And`/`Or` constant-fold
- * every child immediately (see the `And`/`Or` arms below) so a `{AND: []}`/
+ * survive folding it does not perform correctly: `All`/`Any` constant-fold
+ * every child immediately (see their arms below) so a `{AND: []}`/
  * `{OR: []}` produced anywhere in the tree either collapses the whole
  * combinator at that level or is dropped from it before the result is ever
  * handed to a caller — a vacuous identity in this compiler's output can
  * only ever be the very shape returned to the caller, never a member deeper
- * in it. `Negate` still special-cases its own immediate child on top of
- * that, for the same reason: `And`/`Or` fold what they build themselves,
- * but `Negate`'s child could independently already reduce to a bare `True`/
- * `False`/empty `MemberOf` leaf, which nothing else folds.
+ * in it. `Not` still special-cases its own immediate child on top of
+ * that, for the same reason: `All`/`Any` fold what they build themselves,
+ * but `Not`'s child could independently already reduce to a bare `Constant`
+ * or empty combinator, which nothing else folds.
+ *
+ * This folding is a workaround for Prisma's engine bugs, not a leaf rule, so it
+ * stays in this renderer: core's classifier preserves structure exactly
+ * (ADR-QD-079).
  */
 const isVacuousTrue = (where: PrismaWhereInput): boolean => {
   const keys = Object.keys(where);
@@ -200,211 +208,155 @@ const isVacuousFalse = (where: PrismaWhereInput): boolean => {
 };
 
 /**
- * The non-null-value shape of a comparison filter.
+ * The shape of a leaf: a field filter, and what its null guard adds (CCR-QD-157).
  *
- * `null` is handled by `renderNode`'s `Compare` case before this is ever
- * called — Prisma's `{not: null}`/`{equals: null}` already mean `IS [NOT]
- * NULL` correctly, but `{gte: null}`/`{lt: null}` are a validation error
- * Prisma refuses outright, the same way it refuses `{in: [null, ...]}`
- * (found by running a compiled `WhereInput` against a real, SQLite-backed
- * Prisma client, not assumed).
+ * `null` never reaches these tables as an operand: `toRenderable` turned a null
+ * comparison into `IsNull` and carried a `null` `MemberOf` member as an
+ * `AdmitNull` guard, because Prisma's `{not: null}`/`{equals: null}` already
+ * mean `IS [NOT] NULL` correctly, but `{gte: null}`/`{lt: null}` and `{in:
+ * [null, ...]}` are a validation error it refuses outright (found by running a
+ * compiled `WhereInput` against a real, SQLite-backed Prisma client).
  *
- * `Neq` is deliberately excluded from this function's domain too, not
- * merely unused: a non-null `Neq` never renders as `{not: value}` alone —
- * `renderNode`'s `Compare` case ORs in `{column: null}` before this is ever
- * reached, so the type is narrowed rather than left exhaustive-but-dead.
+ * `ExcludeNull` is what a `Negate` over a nullable column needs, because
+ * Prisma's `{NOT: inner}` is a three-valued `NOT`: SQL's `NOT UNKNOWN` is
+ * `UNKNOWN`, which `WHERE` excludes, where `evaluatePredicate`'s `!false` is
+ * `true`. Making the leaf definite (`not: null`) is the only way a `WhereInput`
+ * can say what `@qadi/predicate-sql`'s `CASE WHEN` says.
  *
- * A module-scope `Record` of shape-builders, not `Match.value` rebuilt per
- * call (RH-01): the dispatch itself — which of the three shapes to build —
- * has no per-call state, only the `value` each shape closes over does, and
- * `@qadi/predicate-sql`'s sibling `compareOperator` makes the identical fix
- * for the same reason (AGENTS.md §5a). `renderNode`'s `Compare` case calls
- * this once per rendered `Compare` node, the exact per-node-evaluation shape
- * §5a measures `Match.value` at 3.5–7.7× slower on at the dispatch site.
+ * Composed, not enumerated: one table of field filters by operator and one of
+ * guards, rather than a cell per (operator, guard) pair. Several of those pairs
+ * cannot occur (the reference admits NULL on a `Neq` and denies it on the rest, so
+ * a `Neq` is never `ExcludeNull` and the others never `AdmitNull`), and a table
+ * with a cell for each would carry code no input reaches.
+ *
+ * Module-scope `Record`s of shape-builders, not `Match.value` rebuilt per call
+ * (RH-01): the dispatch itself has no per-call state, only the value each shape
+ * closes over does, and `@qadi/predicate-sql`'s sibling tables make the
+ * identical choice for the same reason (AGENTS.md §5a).
  */
-const COMPARE_FILTER: Record<Exclude<CompareOp, "Neq">, (value: unknown) => unknown> = {
+const FILTER: Record<"Eq" | "Neq" | "Gte" | "Lt", (value: unknown) => unknown> = {
   Eq: (value) => value,
+  Neq: (value) => ({ not: value }),
   Gte: (value) => ({ gte: value }),
   Lt: (value) => ({ lt: value }),
 };
-const compareFilter = (op: Exclude<CompareOp, "Neq">, value: unknown): unknown =>
-  COMPARE_FILTER[op](value);
+
+const orNull = (plain: PrismaWhereInput, column: string): PrismaWhereInput => ({
+  OR: [plain, { [column]: null }],
+});
+
+/**
+ * `filter` made definite on a NULL-valued row: `not: null` joined to it.
+ *
+ * A scalar filter (`Eq`) becomes `{equals, not}` and an operator object just gains
+ * `not` (`{gte: 3}` becomes `{gte: 3, not: null}`). The one filter that already
+ * holds `not` (a `Neq`) cannot take a second, so it is conjoined instead — a shape
+ * `toRenderable` never asks for (a `Neq` admits NULL, so it is guarded with
+ * `AdmitNull`), kept correct rather than silently overwritten.
+ */
+const excludeNull = (column: string, filter: unknown): PrismaWhereInput => {
+  if (!P.isObject(filter)) return { [column]: { equals: filter, not: null } };
+  if ("not" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };
+  return { [column]: { ...filter, not: null } };
+};
+
+const GUARDED: Record<NullGuard, (column: string, filter: unknown) => PrismaWhereInput> = {
+  None: (column, filter) => ({ [column]: filter }),
+  AdmitNull: (column, filter) => orNull({ [column]: filter }, column),
+  ExcludeNull: excludeNull,
+};
 
 /**
  * Renders one node.
  *
- * `True`/`False` map to Prisma's own vacuous identities — `{AND: []}` (all of
- * zero conditions: true) and `{OR: []}` (any of zero conditions: false) —
- * matching `evaluatePredicate`'s own `.every`/`.some` on an empty array, the
- * same choice `@qadi/predicate-sql` makes for its empty `And`/`Or` case.
- * **This is only ever the emitted shape at the top of the compiled query.**
- * A vacuous identity is never left nested inside `AND`/`OR`/`NOT` in this
- * compiler's output — see `isVacuousTrue`/`isVacuousFalse` above for why a
- * nested one is not safe to hand to Prisma's real query engine (CCR-QD-111):
- * `And`/`Or` constant-fold every rendered child before
- * returning, and `Negate` folds its own child on top of that, so the only
- * place `{AND: []}`/`{OR: []}` can appear in a value this function returns
- * is the value itself, never inside one of its own `AND`/`OR`/`NOT` members.
- * An earlier version of this function nested children verbatim — correct
- * against `evaluatePredicate`'s own semantics, wrong against Prisma's, which
- * silently drops a nested vacuous identity or fails to negate it (Prisma
- * issues #17367, #21856) — so e.g. `allOf([hasResourceAttribute("role",
- * inArray([])), tenantEq])`, meant to deny role-less users unconditionally,
- * compiled to a query that admitted them.
+ * `Constant` maps to Prisma's own vacuous identities — `{AND: []}` (all of zero
+ * conditions: true) and `{OR: []}` (any of zero conditions: false) — matching
+ * `evaluatePredicate`'s own `.every`/`.some` on an empty array, the same choice
+ * `@qadi/predicate-sql` makes for its empty `All`/`Any` case. **This is only ever
+ * the emitted shape at the top of the compiled query.** A vacuous identity is
+ * never left nested inside `AND`/`OR`/`NOT` in this compiler's output — see
+ * `isVacuousTrue` above for why a nested one is not safe to hand to Prisma's
+ * real query engine (CCR-QD-111): `All`/`Any` constant-fold every rendered child
+ * before returning, and `Not` folds its own child on top of that, so the only
+ * place `{AND: []}`/`{OR: []}` can appear in a value this function returns is the
+ * value itself, never inside one of its own `AND`/`OR`/`NOT` members. An earlier
+ * version nested children verbatim — correct against `evaluatePredicate`'s own
+ * semantics, wrong against Prisma's, which silently drops a nested vacuous
+ * identity or fails to negate it (Prisma issues #17367, #21856) — so e.g.
+ * `allOf([hasResourceAttribute("role", inArray([])), tenantEq])`, meant to deny
+ * role-less users unconditionally, compiled to a query that admitted them.
  *
- * `Neq`/`MemberOf` against a `null`-capable column need more than Prisma's
- * own filter shape: `{col: {not: value}}` alone excludes a row where `col`
- * is genuinely `NULL`, but `evaluatePredicate`'s `!==` admits it — `null !==
- * value` is true for any non-null `value`. This was a real defect, caught by
- * running the compiled `WhereInput` against a real, SQLite-backed Prisma
- * client and comparing its result set to `evaluatePredicate`'s, not designed
- * in from the start: `@qadi/predicate-sql`'s own differential property test
- * re-implements `!==` in JS and so agreed with the original, wrong
- * translation rather than catching it — the same lesson that compiler's own
- * fix already carries, one grammar over.
+ * Total and pure: every refusal was made by `toRenderable` before this runs.
  */
-// A module-scope `Match.type<Predicate>()`, built once (AGENTS.md §5a) rather
-// than `Match.value(predicate)` rebuilt on every call — `renderNode` recurses
-// once per `Predicate` node (`And`/`Or`'s `Effect.forEach` below), the exact
-// per-node-evaluation shape §5a calls out. No per-call state to close over
-// here (unlike `@qadi/predicate-sql`'s sibling, which threads `syntax`/
-// `params`/`maxInValues`), so the recursive dispatcher annotation alone
-// (`: (self: X) => Y`, breaking the inference cycle) is enough; the arms'
-// own recursive calls to `renderNode` are fine since they only run later.
-const renderNode: (predicate: Predicate) => Effect.Effect<PrismaWhereInput, PredicateNotRenderable> =
-  Match.type<Predicate>().pipe(
-    Match.tagsExhaustive({
-      True: () => Effect.succeed({ AND: [] }),
-      False: () => Effect.succeed({ OR: [] }),
+// A module-scope `Match.type<RenderableNode>()`, built once (AGENTS.md §5a)
+// rather than `Match.value(node)` rebuilt on every call — `renderNode` recurses
+// once per node, the exact per-node-evaluation shape §5a calls out. There is no
+// per-call state to close over here (the null guards were decided in core), so
+// the recursive dispatcher annotation alone (`: (self: X) => Y`, breaking the
+// inference cycle) is enough; the arms' own recursive calls to `renderNode` are
+// fine since they only run later.
+const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<RenderableNode>().pipe(
+  Match.tagsExhaustive({
+    Constant: (n) => (n.value ? { AND: [] } : { OR: [] }),
 
-      Compare: (p) => {
-        if (!isSafeColumn(p.column)) {
-          return Effect.fail(
-            new PredicateNotRenderable({
-              predicateTag: "Compare",
-              reason: `column '${p.column}' is not a safe identifier`,
-            }),
-          );
-        }
-        if (!isSafeValue(p.value)) {
-          return Effect.fail(
-            new PredicateNotRenderable({
-              predicateTag: "Compare",
-              reason: `value for column '${p.column}' is not a safe query parameter`,
-            }),
-          );
-        }
-        // evaluatePredicate's compare requires typeof === "number" on BOTH
-        // sides for Gte/Lt and is otherwise always False — a string or
-        // boolean slips past isSafeValue's allowlist (built for Eq/Neq's
-        // `===`, where any of those compare validly) straight into a real
-        // Prisma range filter: `{gte: "10"}`/`{lt: true}` still executes
-        // against the row rather than refusing, admitting rows the reference
-        // evaluator denies. `NaN` is excluded earlier, by `isSafeValue` itself
-        // (ticket 138), so only the `typeof` check is left doing work here;
-        // it stays a plain `typeof` guard, not `Number.isFinite`, because
-        // `isSafeValue` having already run means anything reaching this line
-        // that is `typeof === "number"` is already finite. Mirrors
-        // `@qadi/predicate-sql`'s identical guard (ticket 157) and this
-        // file's own `{OR: []}` for a null-literal Gte/Lt just below.
-        if ((p.op === "Gte" || p.op === "Lt") && typeof p.value !== "number") {
-          return Effect.succeed({ OR: [] });
-        }
-        if (p.value === null) {
-          if (p.op === "Eq") return Effect.succeed({ [p.column]: null });
-          if (p.op === "Neq") return Effect.succeed({ [p.column]: { not: null } });
-          // Gte/Lt against a null literal is handled by the numeric guard
-          // above (typeof null !== "number").
-          return Effect.succeed({ OR: [] });
-        }
-        if (p.op === "Neq") {
-          return Effect.succeed({
-            OR: [{ [p.column]: { not: p.value } }, { [p.column]: null }],
-          });
-        }
-        return Effect.succeed({ [p.column]: compareFilter(p.op, p.value) });
-      },
+    // Prisma's `{not: null}`/`{col: null}` mean `IS [NOT] NULL` correctly.
+    IsNull: (n) => ({ [n.column]: n.negated ? { not: null } : null }),
 
-      MemberOf: (p) => {
-        if (!isSafeColumn(p.column)) {
-          return Effect.fail(
-            new PredicateNotRenderable({
-              predicateTag: "MemberOf",
-              reason: `column '${p.column}' is not a safe identifier`,
-            }),
-          );
-        }
-        // [].includes(x) is always false — the correct, not degenerate,
-        // translation.
-        if (p.values.length === 0) return Effect.succeed({ OR: [] });
-        if (p.values.some((value) => !isSafeValue(value))) {
-          return Effect.fail(
-            new PredicateNotRenderable({
-              predicateTag: "MemberOf",
-              reason: `a value for column '${p.column}' is not a safe query parameter`,
-            }),
-          );
-        }
-        // Prisma's `in` refuses a `null` member outright (a validation
-        // error, not a silent miss), so a `null` member needs its own
-        // `{col: null}`, split out of the `in` list.
-        const hasNull = p.values.includes(null);
-        const nonNull = p.values.filter((value) => value !== null);
-        if (nonNull.length === 0) return Effect.succeed({ [p.column]: null });
-        const inFilter = { [p.column]: { in: nonNull } };
-        return Effect.succeed(hasNull ? { OR: [inFilter, { [p.column]: null }] } : inFilter);
-      },
+    Equals: (n) => GUARDED[n.nullGuard](n.column, FILTER[n.negated ? "Neq" : "Eq"](n.value)),
 
-      // An empty `predicates` array is unreachable through `toPredicate`, but
-      // `Predicate` is directly constructible — `{AND: []}`/`{OR: []}` still
-      // agree with `evaluatePredicate`'s `.every`/`.some` on that input, and
-      // is exactly the case `nonVacuousTrue`/`nonVacuousFalse` below reduce
-      // an all-vacuous or already-empty `parts` list to.
-      //
-      // Constant-folds every rendered child rather than nesting `parts`
-      // verbatim (C1, CCR-QD-111) — see `isVacuousTrue`/`isVacuousFalse`
-      // above for why a nested `{AND: []}`/`{OR: []}` is not safe to hand to
-      // Prisma's real query engine. A genuinely-false child forces the
-      // whole `And` false unconditionally, so it is reported at THIS level
-      // (`{OR: []}`) rather than left nested where the engine silently
-      // drops it; a genuinely-true child changes nothing about an `And`, so
-      // it is dropped from the array — both are recursive by construction,
-      // since each child was itself already fully folded by this same arm
-      // (or `Or`'s) before `renderNode` returns it here.
-      And: (p) =>
-        Effect.map(Effect.forEach(p.predicates, renderNode), (parts) => {
-          if (parts.some(isVacuousFalse)) return { OR: [] };
-          const nonVacuousTrue = parts.filter((part) => !isVacuousTrue(part));
-          return nonVacuousTrue.length === 0 ? { AND: [] } : { AND: nonVacuousTrue };
-        }),
+    Range: (n) => GUARDED[n.nullGuard](n.column, FILTER[n.op](n.bound)),
 
-      // The `Or` mirror of `And` above: a genuinely-true child forces the
-      // whole `Or` true unconditionally (reported at this level, `{AND:
-      // []}`), and a genuinely-false child is dropped, since it changes
-      // nothing about an `Or`.
-      Or: (p) =>
-        Effect.map(Effect.forEach(p.predicates, renderNode), (parts) => {
-          if (parts.some(isVacuousTrue)) return { AND: [] };
-          const nonVacuousFalse = parts.filter((part) => !isVacuousFalse(part));
-          return nonVacuousFalse.length === 0 ? { OR: [] } : { OR: nonVacuousFalse };
-        }),
+    OneOf: (n) => GUARDED[n.nullGuard](n.column, { in: n.values }),
 
-      // No double-negation elimination — `Simplify.ts` never runs on a
-      // `Predicate`, and this compiler renders exactly what the AST says.
-      // The one exception is the vacuous-identity shapes themselves: see
-      // `isVacuousTrue`/`isVacuousFalse` for why `{NOT: {AND: []}}`/`{NOT:
-      // {OR: []}}` cannot be left for the real Prisma engine to fold. Folding
-      // here only ever sees `p.predicate`'s own top-level shape — `And`/`Or`
-      // above already guarantee nothing nested inside it is vacuous, so this
-      // check is exactly as much as `Negate` needs, not a partial guard.
-      Negate: (p) =>
-        Effect.map(renderNode(p.predicate), (inner) => {
-          if (isVacuousTrue(inner)) return { OR: [] };
-          if (isVacuousFalse(inner)) return { AND: [] };
-          return { NOT: inner };
-        }),
-    }),
-  );
+    // An empty `parts` array is unreachable through `toPredicate`, but
+    // `Predicate` is directly constructible — `{AND: []}`/`{OR: []}` still
+    // agree with `evaluatePredicate`'s `.every`/`.some` on that input, and is
+    // exactly the case `nonVacuousTrue`/`nonVacuousFalse` below reduce an
+    // all-vacuous or already-empty `parts` list to.
+    //
+    // Constant-folds every rendered child rather than nesting `parts`
+    // verbatim (C1, CCR-QD-111) — see `isVacuousTrue`/`isVacuousFalse` above
+    // for why a nested `{AND: []}`/`{OR: []}` is not safe to hand to Prisma's
+    // real query engine. A genuinely-false child forces the whole `All` false
+    // unconditionally, so it is reported at THIS level (`{OR: []}`) rather
+    // than left nested where the engine silently drops it; a genuinely-true
+    // child changes nothing about an `All`, so it is dropped from the array —
+    // both are recursive by construction, since each child was itself already
+    // fully folded by this same arm (or `Any`'s) before `renderNode` returns
+    // it here.
+    All: (n) => {
+      const parts = n.parts.map(renderNode);
+      if (parts.some(isVacuousFalse)) return { OR: [] };
+      const nonVacuousTrue = parts.filter((part) => !isVacuousTrue(part));
+      return nonVacuousTrue.length === 0 ? { AND: [] } : { AND: nonVacuousTrue };
+    },
+
+    // The `Any` mirror of `All` above: a genuinely-true child forces the whole
+    // `Any` true unconditionally (reported at this level, `{AND: []}`), and a
+    // genuinely-false child is dropped, since it changes nothing about an `Any`.
+    Any: (n) => {
+      const parts = n.parts.map(renderNode);
+      if (parts.some(isVacuousTrue)) return { AND: [] };
+      const nonVacuousFalse = parts.filter((part) => !isVacuousFalse(part));
+      return nonVacuousFalse.length === 0 ? { OR: [] } : { OR: nonVacuousFalse };
+    },
+
+    // No double-negation elimination — `toRenderable` preserves structure and
+    // this compiler renders exactly what the tree says. The one exception is the
+    // vacuous-identity shapes themselves: see `isVacuousTrue`/`isVacuousFalse`
+    // for why `{NOT: {AND: []}}`/`{NOT: {OR: []}}` cannot be left for the real
+    // Prisma engine to fold. Folding here only ever sees `n.inner`'s own
+    // top-level shape — `All`/`Any` above already guarantee nothing nested inside
+    // it is vacuous, so this check is exactly as much as `Not` needs, not a
+    // partial guard.
+    Not: (n) => {
+      const inner = renderNode(n.inner);
+      if (isVacuousTrue(inner)) return { OR: [] };
+      if (isVacuousFalse(inner)) return { AND: [] };
+      return { NOT: inner };
+    },
+  }),
+);
 
 /**
  * Compile volume and refusal rate, by outcome. Declared once, module scope —
@@ -423,19 +375,29 @@ const compiledRefusedTotal = Metric.withAttributes(compiledTotal, { outcome: "re
 /**
  * Compiles a `Predicate` into a Prisma `WhereInput`.
  *
- * Refuses rather than approximates: an unsafe `Compare`/`MemberOf` value fails
- * `PredicateNotRenderable` rather than being handed to Prisma's query engine.
- * Carries no `maxInValues` option — an `in` clause here is Prisma's own array
- * literal, and bounding it is a caller concern the same way bounding any
- * other array argument to Prisma already is. See
- * `spec/behaviors/31-predicate-compilation.md`.
+ * Refuses rather than approximates: an unsafe `Compare`/`MemberOf` value or
+ * column, a column Prisma reserves, a `MemberOf` past `maxInValues`, or a null
+ * comparison on a column declared NOT NULL fails `PredicateNotRenderable`
+ * (`@qadi/core`'s, re-exported here) rather than being handed to Prisma's query
+ * engine.
+ *
+ * `options.nullable` declares which columns accept NULL (CCR-QD-157); see
+ * `CompilePrismaWhereOptions`. See `spec/behaviors/31-predicate-compilation.md`.
  */
 export const compilePrismaWhere = Effect.fn("qadi.predicatePrisma.compilePrismaWhere")(
-  function* (predicate: Predicate) {
-    const where = yield* renderNode(predicate).pipe(
+  function* (predicate: Predicate, options: CompilePrismaWhereOptions) {
+    const rules: RenderRules = {
+      identifiers: options.identifiers ?? "Ascii",
+      reservedColumns: RESERVED_PRISMA_KEYS,
+      maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
+      nullability: { _tag: "Declared", nullable: options.nullable },
+      // Prisma's `{NOT: inner}` is the target's own, three-valued `NOT`.
+      negation: "ThreeValued",
+    };
+    const node = yield* toRenderable(predicate, rules).pipe(
       Effect.tapError(() => Metric.update(compiledRefusedTotal, 1)),
     );
     yield* Metric.update(compiledSucceededTotal, 1);
-    return where;
+    return renderNode(node);
   },
 );

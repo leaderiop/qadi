@@ -1,8 +1,11 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
-import type { Predicate } from "@qadi/core";
-import { compileSql, type SqlDialect } from "../src/index.ts";
+import * as FastCheck from "fast-check";
+import { DEFAULT_MAX_IN_VALUES, toRenderable } from "@qadi/core";
+import { PredicateNotRenderable as CorePredicateNotRenderable } from "@qadi/core";
+import type { Predicate, RenderRules } from "@qadi/core";
+import { compileSql, PredicateNotRenderable, type SqlDialect } from "../src/index.ts";
 
 const DIALECTS: ReadonlyArray<SqlDialect> = ["postgres", "mysql", "sqlite"];
 
@@ -13,6 +16,238 @@ const refusalOf = (predicate: Predicate, dialect: SqlDialect, maxInValues?: numb
   Effect.map(Effect.result(render(predicate, dialect, maxInValues)), (r) =>
     Result.isFailure(r) ? r.failure : undefined,
   );
+
+// ADR-QD-079. A declaration of which columns accept NULL lets a renderer drop the
+// `OR col IS NULL` a NOT NULL column never needs — at positive polarity only (see
+// `RenderablePredicate.ts`'s table: a two-valued `NOT` keeps the guard under an odd
+// number of negations, which a real engine showed is what makes a wrong declaration
+// safe).
+describe("compileSql — a nullability declaration (ADR-QD-079)", () => {
+  const nullable: ReadonlySet<string> = new Set(["level"]);
+  const neq = (column: string): Predicate => ({ _tag: "Compare", column, op: "Neq", value: 1 });
+
+  it.effect("absent declares nothing: the output is exactly what it was", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* compileSql(neq("tenantId"), { dialect: "postgres" }), {
+        text: '("tenantId" != $1 OR "tenantId" IS NULL)',
+        params: [1],
+      });
+    }));
+
+  it.effect("a column declared NOT NULL drops the NULL guard on Neq", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(
+        yield* compileSql(neq("tenantId"), { dialect: "postgres", nullable }),
+        { text: '"tenantId" != $1', params: [1] },
+      );
+      assert.deepStrictEqual(yield* compileSql(neq("level"), { dialect: "postgres", nullable }), {
+        text: '("level" != $1 OR "level" IS NULL)',
+        params: [1],
+      });
+    }));
+
+  it.effect("...but keeps it under a Negate, which is what makes a wrong declaration safe", () =>
+    Effect.gen(function* () {
+      const fragment = yield* compileSql(
+        { _tag: "Negate", predicate: neq("tenantId") },
+        { dialect: "postgres", nullable },
+      );
+      assert.strictEqual(
+        fragment.text,
+        'CASE WHEN (("tenantId" != $1 OR "tenantId" IS NULL)) THEN FALSE ELSE TRUE END',
+      );
+    }));
+
+  it.effect("a MemberOf null member is dropped on a NOT NULL column at positive polarity", () =>
+    Effect.gen(function* () {
+      const fragment = yield* compileSql(
+        { _tag: "MemberOf", column: "tenantId", values: ["t-1", null] },
+        { dialect: "postgres", nullable },
+      );
+      assert.deepStrictEqual(fragment, { text: '"tenantId" IN ($1)', params: ["t-1"] });
+    }));
+
+  it.effect("a null comparison on a NOT NULL column refuses", () =>
+    Effect.gen(function* () {
+      const failure = yield* refusalOf(
+        { _tag: "Compare", column: "tenantId", op: "Eq", value: null },
+        "postgres",
+      );
+      // With nothing declared it is the ordinary `IS NULL`...
+      assert.isUndefined(failure);
+      const declared = yield* Effect.flip(
+        compileSql(
+          { _tag: "Compare", column: "tenantId", op: "Eq", value: null },
+          { dialect: "postgres", nullable },
+        ),
+      );
+      // ...declared NOT NULL it is a refusal, never a folded constant.
+      assert.strictEqual(declared.refusal, "NullOnNonNullableColumn");
+      assert.strictEqual(
+        declared.reason,
+        "column 'tenantId' is declared NOT NULL; a null comparison is not renderable",
+      );
+    }));
+});
+
+// ADR-QD-079: one `PredicateNotRenderable`, declared in `@qadi/core`.
+describe("compileSql — the refusal is @qadi/core's PredicateNotRenderable", () => {
+  const unsafe: Predicate = { _tag: "Compare", column: "x", op: "Eq", value: { foo: 1 } };
+
+  it.effect("is an instance of the class @qadi/core exports, and the package re-exports that class", () =>
+    Effect.gen(function* () {
+      const failure = yield* Effect.flip(compileSql(unsafe, { dialect: "postgres" }));
+      assert.instanceOf(failure, CorePredicateNotRenderable);
+      assert.strictEqual(PredicateNotRenderable, CorePredicateNotRenderable);
+      assert.strictEqual(failure.refusal, "UnsafeValue");
+    }));
+
+  it.effect("Effect.catchTag(\"PredicateNotRenderable\") catches it", () =>
+    Effect.gen(function* () {
+      const caught = yield* compileSql(unsafe, { dialect: "postgres" }).pipe(
+        Effect.map(() => "compiled"),
+        Effect.catchTag("PredicateNotRenderable", (error) => Effect.succeed(error.refusal)),
+      );
+      assert.strictEqual(caught, "UnsafeValue");
+    }));
+});
+
+// ADR-QD-079: the compiler decides nothing about what is renderable. It refuses
+// exactly when `toRenderable` does, under the rules it declares.
+describe("compileSql — refusal parity with toRenderable", () => {
+  const sqlRules = (options: {
+    readonly maxInValues?: number;
+    readonly identifiers?: "Ascii" | "UnicodeBmp";
+    readonly nullable?: ReadonlySet<string>;
+  }): RenderRules => ({
+    identifiers: options.identifiers ?? "Ascii",
+    reservedColumns: new Set(),
+    maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
+    nullability:
+      options.nullable === undefined
+        ? { _tag: "Unknown" }
+        : { _tag: "Declared", nullable: options.nullable },
+    negation: "TwoValued",
+  });
+
+  const columnArb = FastCheck.constantFrom("tenantId", "level", "a b", 'x"y', "é", "gte", "NOT");
+  const valueArb: FastCheck.Arbitrary<unknown> = FastCheck.oneof(
+    FastCheck.constantFrom("t-1", 3, true, null),
+    FastCheck.constantFrom(Number.NaN, Infinity, { bad: 1 }, undefined),
+  );
+  const leafArb: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
+    FastCheck.tuple(columnArb, FastCheck.constantFrom("Eq", "Neq", "Gte", "Lt"), valueArb).map(
+      ([column, op, value]): Predicate => ({ _tag: "Compare", column, op, value }),
+    ),
+    FastCheck.tuple(columnArb, FastCheck.array(valueArb, { maxLength: 6 })).map(
+      ([column, values]): Predicate => ({ _tag: "MemberOf", column, values }),
+    ),
+  );
+  const treeArb: FastCheck.Arbitrary<Predicate> = FastCheck.letrec<{ node: Predicate }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth: 3, withCrossShrink: true },
+      leafArb,
+      FastCheck.array(tie("node"), { maxLength: 3 }).map(
+        (predicates): Predicate => ({ _tag: "And", predicates }),
+      ),
+      FastCheck.array(tie("node"), { maxLength: 3 }).map(
+        (predicates): Predicate => ({ _tag: "Or", predicates }),
+      ),
+      tie("node").map((predicate): Predicate => ({ _tag: "Negate", predicate })),
+    ),
+  })).node;
+
+  const optionSets: ReadonlyArray<{
+    readonly maxInValues?: number;
+    readonly identifiers?: "Ascii" | "UnicodeBmp";
+    readonly nullable?: ReadonlySet<string>;
+  }> = [
+    {},
+    { maxInValues: 2 },
+    { identifiers: "UnicodeBmp" },
+    { nullable: new Set(["level"]) },
+    { maxInValues: 3, identifiers: "UnicodeBmp", nullable: new Set(["tenantId", "level"]) },
+  ];
+
+  it.effect("PROPERTY: compileSql fails exactly when toRenderable fails, with an equal refusal", () =>
+    Effect.gen(function* () {
+      const predicates = FastCheck.sample(treeArb, { numRuns: 300, seed: 99 });
+      let refusals = 0;
+      let compiled = 0;
+      for (const options of optionSets) {
+        for (const predicate of predicates) {
+          const sql = yield* Effect.result(compileSql(predicate, { dialect: "postgres", ...options }));
+          const core = yield* Effect.result(toRenderable(predicate, sqlRules(options)));
+          assert.strictEqual(Result.isFailure(sql), Result.isFailure(core), JSON.stringify({ predicate, options }));
+          if (Result.isFailure(sql) && Result.isFailure(core)) {
+            refusals += 1;
+            assert.strictEqual(sql.failure.refusal, core.failure.refusal);
+            assert.strictEqual(sql.failure.reason, core.failure.reason);
+            assert.strictEqual(sql.failure.predicateTag, core.failure.predicateTag);
+          } else {
+            compiled += 1;
+          }
+        }
+      }
+      assert.isAbove(refusals, 100);
+      assert.isAbove(compiled, 100);
+    }));
+
+  it.effect("the options reach toRenderable: maxInValues, identifiers and nullable each change the outcome", () =>
+    Effect.gen(function* () {
+      const three: Predicate = { _tag: "MemberOf", column: "a", values: [1, 2, 3] };
+      assert.strictEqual((yield* Effect.flip(compileSql(three, { dialect: "postgres", maxInValues: 2 }))).refusal, "TooManyValues");
+      const accented: Predicate = { _tag: "Compare", column: "é", op: "Eq", value: 1 };
+      assert.strictEqual((yield* Effect.flip(compileSql(accented, { dialect: "postgres" }))).refusal, "UnsafeColumn");
+      assert.deepStrictEqual(
+        yield* compileSql(accented, { dialect: "postgres", identifiers: "UnicodeBmp" }),
+        { text: '"é" = $1', params: [1] },
+      );
+    }));
+});
+
+// ADR-QD-079 (ARCH-03 N3). `SqlSafeValue` includes `boolean`, but `node:sqlite`
+// throws "Provided value cannot be bound to SQLite parameter" and better-sqlite3
+// throws "SQLite3 can only bind numbers, strings, bigints, buffers, and null" for
+// one. SQLite stores a boolean as 1/0, so `sealed = 1` is the faithful rendering;
+// it is a dialect syntax-table entry, the same kind as `quote`/`placeholder`.
+describe("compileSql — sqlite binds booleans as 1/0 (D-03-h)", () => {
+  const sealed = (value: boolean): Predicate => ({
+    _tag: "Compare",
+    column: "sealed",
+    op: "Eq",
+    value,
+  });
+
+  it.effect("a boolean Compare value binds as 1 or 0 on sqlite", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* render(sealed(true), "sqlite"), {
+        text: '"sealed" = ?',
+        params: [1],
+      });
+      assert.deepStrictEqual(yield* render(sealed(false), "sqlite"), {
+        text: '"sealed" = ?',
+        params: [0],
+      });
+    }));
+
+  it.effect("a boolean MemberOf member binds as 1 or 0 on sqlite", () =>
+    Effect.gen(function* () {
+      const fragment = yield* render(
+        { _tag: "MemberOf", column: "sealed", values: [true, false] },
+        "sqlite",
+      );
+      assert.deepStrictEqual(fragment, { text: '"sealed" IN (?, ?)', params: [1, 0] });
+    }));
+
+  it.effect("postgres and mysql still bind the boolean itself, and other values are untouched", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual((yield* render(sealed(true), "postgres")).params, [true]);
+      assert.deepStrictEqual((yield* render(sealed(false), "mysql")).params, [false]);
+      const mixed: Predicate = { _tag: "MemberOf", column: "c", values: ["a", 2, true, null] };
+      assert.deepStrictEqual((yield* render(mixed, "sqlite")).params, ["a", 2, 1]);
+    }));
+});
 
 describe("compileSql — golden fragments, one row per dialect", () => {
   const eq: Predicate = { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" };
@@ -87,9 +322,10 @@ describe("compileSql — golden fragments, one row per dialect", () => {
         text: '("tenantId" = $1 AND "tag" IN ($2, $3) AND CASE WHEN ("sealed" = $4) THEN FALSE ELSE TRUE END)',
         params: ["t-1", "red", "blue", true],
       });
+      // sqlite binds a boolean as 1 (ADR-QD-079): neither Node driver can bind a JS boolean.
       assert.deepStrictEqual(yield* render(compound, "sqlite"), {
         text: '("tenantId" = ? AND "tag" IN (?, ?) AND CASE WHEN ("sealed" = ?) THEN FALSE ELSE TRUE END)',
-        params: ["t-1", "red", "blue", true],
+        params: ["t-1", "red", "blue", 1],
       });
 
       const anyOf: Predicate = { _tag: "Or", predicates: [eq, eq] };

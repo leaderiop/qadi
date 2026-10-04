@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@electric-sql/pglite": "0.4.3",
     "effect": "catalog:",
     "fast-check": "catalog:",
     "typescript": "catalog:",

@@ -12,7 +12,7 @@
   "packageManager": "pnpm@10.17.1",
   "description": "Effect-native authorization: permission tokens, role DAG, schema-derived policy ADT, Effect evaluator",
   "scripts": {
-    "prepare": "effect-tsgo patch",
+    "prepare": "effect-tsgo patch && pnpm --filter @qadi/predicate-prisma run generate",
     "build": "tsc -b tsconfig.build.json",
     "changeset": "changeset",
     "changeset-version": "changeset version",
