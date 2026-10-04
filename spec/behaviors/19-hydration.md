@@ -400,8 +400,8 @@ nothing to hydrate.
 > inner atom set does — correct, because its decision atoms are the real ones
 > ([ADR-QD-039](../decisions/039-a-seed-is-not-an-authority.md)). Two reasons are
 > **added** — `UnsupportedPayloadVersion` and `MalformedPayload`, both
-> whole-payload ([BEH-QD-268](#beh-qd-264-a-payload-is-versioned-and-an-older-one-is-read-as-withheld),
-> [BEH-QD-269](#beh-qd-265-a-malformed-envelope-is-dropped-never-thrown-on)). The
+> whole-payload ([BEH-QD-268](#beh-qd-268-a-payload-is-versioned-and-an-older-one-is-read-as-withheld),
+> [BEH-QD-269](#beh-qd-269-a-malformed-envelope-is-dropped-never-thrown-on)). The
 > hydrate-side reasons are now `PayloadSubjectMismatch`, `UnsupportedPayloadVersion`,
 > `MalformedPayload`, `MalformedEntry`, `UndecodablePolicy` and `EntryTooDeep`;
 > with the dehydrate-side `ForeignSubject`, **seven** across both ends — the
