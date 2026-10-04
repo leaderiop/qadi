@@ -75,7 +75,8 @@ export const foldTree = <N extends object, R>(
       continue;
     }
 
-    onPath.delete(frame.node);
+    // `onPath` is never cleared: a finished node is in `memo`, which is checked
+    // first, so a node still in `onPath` but not in `memo` is exactly one still open.
     const value = combine(frame.node, frame.results);
     memo.set(frame.node, { value });
     const parent = ancestors.pop();
