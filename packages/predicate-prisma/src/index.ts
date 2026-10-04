@@ -20,6 +20,7 @@
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
+import * as P from "effect/Predicate";
 import { DEFAULT_MAX_IN_VALUES, toRenderable } from "@qadi/core";
 import type {
   IdentifierRule,
@@ -207,7 +208,7 @@ const isVacuousFalse = (where: PrismaWhereInput): boolean => {
 };
 
 /**
- * The shape of a leaf, by operator and null guard (CCR-QD-153).
+ * The shape of a leaf: a field filter, and what its null guard adds (CCR-QD-153).
  *
  * `null` never reaches these tables as an operand: `toRenderable` turned a null
  * comparison into `IsNull` and carried a `null` `MemberOf` member as an
@@ -216,61 +217,53 @@ const isVacuousFalse = (where: PrismaWhereInput): boolean => {
  * [null, ...]}` are a validation error it refuses outright (found by running a
  * compiled `WhereInput` against a real, SQLite-backed Prisma client).
  *
- * `Neq`'s `ExcludeNull` entry is unreachable (the reference admits NULL on a
- * `Neq`, so a nullable column is `AdmitNull` and a required one `None`); it
- * exists because the table is total, and renders the conjunction the same
- * meaning needs, since `not` cannot appear twice in one filter object.
- *
  * `ExcludeNull` is what a `Negate` over a nullable column needs, because
  * Prisma's `{NOT: inner}` is a three-valued `NOT`: SQL's `NOT UNKNOWN` is
  * `UNKNOWN`, which `WHERE` excludes, where `evaluatePredicate`'s `!false` is
  * `true`. Making the leaf definite (`not: null`) is the only way a `WhereInput`
  * can say what `@qadi/predicate-sql`'s `CASE WHEN` says.
  *
+ * Composed, not enumerated: one table of field filters by operator and one of
+ * guards, rather than a cell per (operator, guard) pair. Several of those pairs
+ * cannot occur (the reference admits NULL on a `Neq` and denies it on the rest, so
+ * a `Neq` is never `ExcludeNull` and the others never `AdmitNull`), and a table
+ * with a cell for each would carry code no input reaches.
+ *
  * Module-scope `Record`s of shape-builders, not `Match.value` rebuilt per call
  * (RH-01): the dispatch itself has no per-call state, only the value each shape
  * closes over does, and `@qadi/predicate-sql`'s sibling tables make the
  * identical choice for the same reason (AGENTS.md §5a).
  */
-type LeafShape = (column: string, value: unknown) => PrismaWhereInput;
+const FILTER: Record<"Eq" | "Neq" | "Gte" | "Lt", (value: unknown) => unknown> = {
+  Eq: (value) => value,
+  Neq: (value) => ({ not: value }),
+  Gte: (value) => ({ gte: value }),
+  Lt: (value) => ({ lt: value }),
+};
 
 const orNull = (plain: PrismaWhereInput, column: string): PrismaWhereInput => ({
   OR: [plain, { [column]: null }],
 });
 
-const COMPARE_SHAPE: Record<"Eq" | "Neq" | "Gte" | "Lt", Record<NullGuard, LeafShape>> = {
-  Eq: {
-    None: (column, value) => ({ [column]: value }),
-    AdmitNull: (column, value) => orNull({ [column]: value }, column),
-    ExcludeNull: (column, value) => ({ [column]: { equals: value, not: null } }),
-  },
-  Neq: {
-    None: (column, value) => ({ [column]: { not: value } }),
-    AdmitNull: (column, value) => orNull({ [column]: { not: value } }, column),
-    ExcludeNull: (column, value) => ({
-      AND: [{ [column]: { not: value } }, { [column]: { not: null } }],
-    }),
-  },
-  Gte: {
-    None: (column, value) => ({ [column]: { gte: value } }),
-    AdmitNull: (column, value) => orNull({ [column]: { gte: value } }, column),
-    ExcludeNull: (column, value) => ({ [column]: { gte: value, not: null } }),
-  },
-  Lt: {
-    None: (column, value) => ({ [column]: { lt: value } }),
-    AdmitNull: (column, value) => orNull({ [column]: { lt: value } }, column),
-    ExcludeNull: (column, value) => ({ [column]: { lt: value, not: null } }),
-  },
+/**
+ * `filter` made definite on a NULL-valued row: `not: null` joined to it.
+ *
+ * A scalar filter (`Eq`) becomes `{equals, not}` and an operator object just gains
+ * `not` (`{gte: 3}` becomes `{gte: 3, not: null}`). The one filter that already
+ * holds `not` (a `Neq`) cannot take a second, so it is conjoined instead — a shape
+ * `toRenderable` never asks for (a `Neq` admits NULL, so it is guarded with
+ * `AdmitNull`), kept correct rather than silently overwritten.
+ */
+const excludeNull = (column: string, filter: unknown): PrismaWhereInput => {
+  if (!P.isObject(filter)) return { [column]: { equals: filter, not: null } };
+  if ("not" in filter) return { AND: [{ [column]: filter }, { [column]: { not: null } }] };
+  return { [column]: { ...filter, not: null } };
 };
 
-/** The shape of a `OneOf` over its non-null members, by null guard. */
-const MEMBER_SHAPE: Record<
-  NullGuard,
-  (column: string, values: ReadonlyArray<unknown>) => PrismaWhereInput
-> = {
-  None: (column, values) => ({ [column]: { in: values } }),
-  AdmitNull: (column, values) => orNull({ [column]: { in: values } }, column),
-  ExcludeNull: (column, values) => ({ [column]: { in: values, not: null } }),
+const GUARDED: Record<NullGuard, (column: string, filter: unknown) => PrismaWhereInput> = {
+  None: (column, filter) => ({ [column]: filter }),
+  AdmitNull: (column, filter) => orNull({ [column]: filter }, column),
+  ExcludeNull: excludeNull,
 };
 
 /**
@@ -309,11 +302,11 @@ const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<Render
     // Prisma's `{not: null}`/`{col: null}` mean `IS [NOT] NULL` correctly.
     IsNull: (n) => ({ [n.column]: n.negated ? { not: null } : null }),
 
-    Equals: (n) => COMPARE_SHAPE[n.negated ? "Neq" : "Eq"][n.nullGuard](n.column, n.value),
+    Equals: (n) => GUARDED[n.nullGuard](n.column, FILTER[n.negated ? "Neq" : "Eq"](n.value)),
 
-    Range: (n) => COMPARE_SHAPE[n.op][n.nullGuard](n.column, n.bound),
+    Range: (n) => GUARDED[n.nullGuard](n.column, FILTER[n.op](n.bound)),
 
-    OneOf: (n) => MEMBER_SHAPE[n.nullGuard](n.column, n.values),
+    OneOf: (n) => GUARDED[n.nullGuard](n.column, { in: n.values }),
 
     // An empty `parts` array is unreachable through `toPredicate`, but
     // `Predicate` is directly constructible — `{AND: []}`/`{OR: []}` still

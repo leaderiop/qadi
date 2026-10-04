@@ -13,12 +13,13 @@
  * grammar and its vacuous-identity folding, killed by the goldens and by the
  * real-engine properties (`test/EngineAgreement.test.ts`: Prisma Client over
  * SQLite). The reserved-key `Set` and the shape tables are static and not measured
- * under `ignoreStatic` (ADR-QD-076), so the goldens pin their values. Some table
- * entries are unreachable from `compilePrismaWhere` by construction (a `Neq` is
- * never `ExcludeNull`); they are the totality `NullGuard` being a closed union
- * requires, and show up as "no coverage". A surviving mutant here is a real
- * correctness gap in the Prisma compiler INV-QD-048 exists to rule out, so it is
- * held at the same bar as `@qadi/core`.
+ * under `ignoreStatic` (ADR-QD-076), so the goldens pin their values. One branch
+ * is unreachable from `compilePrismaWhere` by construction (`excludeNull` on a
+ * filter that already holds `not`: a `Neq` admits NULL, so it is never
+ * `ExcludeNull`); it is kept correct rather than silently wrong and shows up as
+ * "no coverage". A surviving mutant here is a real correctness gap in the Prisma
+ * compiler INV-QD-048 exists to rule out, so it is held at the same bar as
+ * `@qadi/core`.
  *
  * @type {import('@stryker-mutator/api/core').PartialStrykerOptions}
  */
