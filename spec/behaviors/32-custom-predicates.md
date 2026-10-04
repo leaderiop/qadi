@@ -133,7 +133,7 @@ prevent, applied to a misconfigured registry rather than a broken store.
 > **See:** [ADR-QD-024](../decisions/024-predicate-output.md)
 
 ```
-REQUIREMENT: `translateNode` MUST fail `PolicyNotTranslatable` for every
+REQUIREMENT: `compile` MUST fail `PolicyNotTranslatable` for every
              `HasCustom` node — MUST NOT fold it to `True`/`False`, or attempt
              to compile it, regardless of `params`.
 ```

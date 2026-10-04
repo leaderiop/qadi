@@ -277,15 +277,19 @@ machine variance. The rest land close to, or (on `deep`) better than,
 ticket #101's own end-to-end estimate (≈30–43% single-combinator, ≈54–66%
 ten-level-deep) — real, not merely predicted.
 
-The boundary stops exactly at these three. `resolveAttribute`, `evaluateActed`,
-`evaluateHasRelationship`, `evaluateHasCustom`, `evaluateHasSignature` (the
-port-call wrappers) and the root `evaluate` stay `Effect.fn` and traced:
-ADR-QD-051 ("a span says what was asked, and a tracer is what reads it back")
-treats those spans as product observability a deployment wires a real tracer
-to consume, not incidental cost, and none of the six runs once per policy
-*node* the way the three above do. `requireScopedResourceId` is a small
-helper called from inside `evaluateActed`, not a per-node dispatch point, and
-was considered and rejected for conversion on the same grounds (issue #102).
+The boundary stops exactly at these three. The port reads in `PortAccess.ts` —
+`readAttribute` (and the `resolveAttribute` span under it), `askActedAny`,
+`askActedForResource`, `askRelationship`, `askCustom`, `askSignature` — and the
+root `evaluate` stay `Effect.fn` and traced: ADR-QD-051 ("a span says what was
+asked, and a tracer is what reads it back") treats those spans as product
+observability a deployment wires a real tracer to consume, not incidental cost,
+and none of them runs once per policy *node* the way the three above do. (They
+moved there from `Evaluate.ts` in ADR-QD-077 so that `toPredicate` reads its
+ports the same way; `Evaluate.ts`'s `evaluateActed` family are now plain
+functions that turn an answer into a verdict.) `requireScopedResourceId`, now
+`requireResourceId` in `PortAccess.ts`, is a small helper called from inside the
+acted and signature reads, not a per-node dispatch point, and was considered and
+rejected for conversion on the same grounds (issue #102).
 
 Converting anything not in the table above needs a benchmark first, the same
 qualifier §5a's `SWITCH_BUDGET` carries — `scripts/check-house-style.mjs`'s
@@ -380,7 +384,7 @@ That measurement is what answered the question: §5 above records the outcome
 the per-node cost compounds (`evaluateAllOf`, `evaluateAnyOf`, `evaluateRules`),
 budgeted and enforced in both directions by `UNTRACED_BUDGET`. That is the
 current, measured boundary, not a fourth site still under discussion.
-`resolveAttribute`, the port-call wrappers, and the root `evaluate` stay
+The port reads in `PortAccess.ts`, and the root `evaluate`, stay
 `Effect.fn` and traced on purpose, per ADR-QD-051's reasoning in §5 — the
 open question this paragraph used to describe is the one §5's table closed.
 

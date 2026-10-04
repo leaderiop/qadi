@@ -286,7 +286,7 @@ export const handleEnforcementErrors = <A, R>(
  * The other five — `AttributeResolveError`, `RelationshipResolveError`,
  * `DecisionHistoryUnavailable`, `SignatureHistoryUnavailable` (each with a
  * `cause: Schema.Defect()`) and `CustomPredicateError` (whose `reason` can
- * embed `Cause.pretty` output, `Evaluate.ts`'s `evaluateHasCustom`) do carry
+ * embed `Cause.pretty` output, `PortAccess.ts`'s `askCustom`) do carry
  * one: `.pipe(outage)` on the real class schema would encode the wrapped
  * defect straight into a client-visible 502 body — a resolver's connection
  * string, a stack-shaped object, whatever the backing store actually threw.

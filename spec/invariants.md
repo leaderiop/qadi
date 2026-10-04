@@ -1604,7 +1604,7 @@ keyed by `(subject, relation, resource)` does not collapse to the relation alone
 `qadi.attribute` records the attribute's **name**, the subject it was asked
 about, and whether a value came back. It never records the value.
 
-**Source**: `packages/core/src/Evaluate.ts` — `resolveAttribute` annotates
+**Source**: `packages/core/src/PortAccess.ts` — `resolveAttribute` annotates
 `qadi.resolved` with `value !== undefined`, a boolean.
 
 **Implication**: a span attribute is not a debug print. It reaches whatever

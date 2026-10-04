@@ -381,7 +381,7 @@ describe("leaf policies", () => {
         // in memory — exactly what this test does — can still carry `1e308`, a
         // negative number, or `NaN`/`Infinity`. This proves `clampRelationshipDepth`
         // still catches all of those before they reach the resolver as traversal
-        // fuel, by recording exactly what `evaluateHasRelationship` forwards to
+        // fuel, by recording exactly what `askRelationship` forwards to
         // the port rather than what the policy claimed.
         const depths: Array<number | undefined> = [];
         const recordingResolver = Layer.succeed(RelationshipResolver, {
@@ -473,7 +473,7 @@ describe("leaf policies", () => {
     () =>
       Effect.gen(function* () {
         // `hasSignature` is trust-on-presence (`Signature.ts`'s own doc
-        // comment on `signedAt`): `evaluateHasSignature` never reads the
+        // comment on `signedAt`): `askSignature` never reads the
         // clock and never compares `signedAt` to anything. Advancing
         // `TestClock` far past the signature's `signedAt` must not change
         // the verdict or the trace — if a freshness comparison were added
@@ -618,7 +618,7 @@ describe("leaf policies", () => {
       assert.isFalse(isAllowed(d));
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
-  // `evaluateHasCustom` (`Evaluate.ts`) had no direct test in this package's
+  // `askCustom` (`PortAccess.ts`) had no direct test in this package's
   // own suite — `@qadi/testing`'s `TestLayers.test.ts` covers deny/allow/fail
   // from the policy side, but core's own `stryker` run (`vitest.dir:
   // packages/core`) cannot see that package, so the whole arm was

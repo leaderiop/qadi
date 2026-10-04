@@ -40,7 +40,7 @@ export const Signature = Schema.Struct({
   signerRole: Schema.optional(Schema.String),
   /**
    * When the signature was made. Captured for the audit record, but
-   * `evaluateHasSignature` (`Evaluate.ts`) never compares it to anything —
+   * `askSignature` (`PortAccess.ts`) never compares it to anything —
    * `hasSignature` is trust-on-presence, with no expiry or freshness concept,
    * so an arbitrarily old signature matches exactly as well as a recent one.
    */
@@ -48,7 +48,7 @@ export const Signature = Schema.Struct({
   /**
    * The signing algorithm, when the capture flow records one. Carried so a
    * deployment's own downstream verification flow can use it — nothing in
-   * this monorepo reads it: `evaluateHasSignature` never inspects it, so an
+   * this monorepo reads it: `askSignature` never inspects it, so an
    * on-file signature with an unrecognized `algorithm` still matches a
    * `hasSignature` leaf that names the right `meaning` (BS-03; see
    * ADR-QD-058 for why no live crypto verification is in scope here).
@@ -58,7 +58,7 @@ export const Signature = Schema.Struct({
    * Which key produced the signature, when the capture flow records one.
    * Like `algorithm` above, this is carried so a deployment's own downstream
    * verification flow can use it — nothing in this monorepo reads it:
-   * `evaluateHasSignature` never checks whether `keyId` still resolves to a
+   * `askSignature` never checks whether `keyId` still resolves to a
    * valid key (BS-03).
    */
   keyId: Schema.optional(Schema.String),

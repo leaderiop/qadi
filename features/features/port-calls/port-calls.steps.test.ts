@@ -256,7 +256,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   });
 
   // A `resolve` that throws rather than failing — the shape `Evaluate.ts`'s
-  // `resolveAttribute` must catch and convert into `AttributeResolveError`
+  // `PortAccess.ts`'s `readAttribute` must catch and convert into `AttributeResolveError`
   // (issue #100), not the shape any implementation is asked to produce.
   Given("a resolver that dies unexpectedly", function* () {
     yield* patch(() => ({

@@ -1,11 +1,11 @@
 /**
  * Answers "which signatures does this subject/resource have on file?" — the
- * port `Evaluate.ts`'s `evaluateHasSignature` reads from to answer a
+ * port `PortAccess.ts`'s `askSignature` reads from to answer a
  * `hasSignature` policy node.
  *
  * Wayfinder ticket #14 (`hasSignature`) is implemented end to end
  * (ADR-QD-057, ADR-QD-058): this was once the port declared ahead of that
- * leaf, but that gap closed when `HasSignature`/`evaluateHasSignature` shipped.
+ * leaf, but that gap closed when `HasSignature` shipped.
  *
  * A **port**, not a store, exactly as `DecisionHistory.ts` and
  * `RelationshipResolver.ts` are — the signatures themselves live wherever the
@@ -43,8 +43,8 @@ export interface SignatureHistoryShape {
   /**
    * Returns every signature on file matching the query.
    *
-   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
-   * `evaluateHasSignature` catches a defect from this call and converts it
+   * An implementation is not required to fail cleanly. `PortAccess.ts`'s
+   * `askSignature` catches a defect from this call and converts it
    * into this same `SignatureHistoryUnavailable`, matching
    * `AttributeResolverShape.resolve`'s own contract — see its doc comment for
    * why (issue #100).
@@ -81,8 +81,8 @@ export const SignatureHistoryNone: Layer.Layer<SignatureHistory> = Layer.succeed
  * `signedAt` defaults to `0` — `hasSignature`'s trust-on-presence semantics
  * (wayfinder ticket #14) never compare it to anything, so a fixture author
  * should not have to invent a timestamp to describe "this subject signed
- * this". The same is true of `algorithm` and `keyId` below: `evaluateHasSignature`
- * (`Evaluate.ts`) matches only on `meaning` and, when given, `signerRole` — an
+ * this". The same is true of `algorithm` and `keyId` below: `askSignature`
+ * (`PortAccess.ts`) matches only on `meaning` and, when given, `signerRole` — an
  * on-file signature with an unrecognized `algorithm` or a stale `keyId` still
  * matches, and no expiry is derived from `signedAt` either. `Signature`'s doc
  * comment on the type itself carries the full statement of this limitation;

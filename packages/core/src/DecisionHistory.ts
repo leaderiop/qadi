@@ -55,9 +55,9 @@ export interface DecisionHistoryShape {
   /**
    * Answers `hasActed`/`hasNotActed`.
    *
-   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
-   * `evaluateActed` catches a defect from this call and converts it into this
-   * same `DecisionHistoryUnavailable`, matching `AttributeResolverShape.resolve`'s
+   * An implementation is not required to fail cleanly. `PortAccess.ts`'s
+   * `askActedAny`/`askActedForResource` catch a defect from this call and
+   * convert it into this same `DecisionHistoryUnavailable`, matching `AttributeResolverShape.resolve`'s
    * own contract — see its doc comment for why (issue #100).
    */
   readonly hasActed: (

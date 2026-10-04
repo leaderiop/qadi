@@ -401,7 +401,7 @@ const HasResourceAttribute = Schema.TaggedStruct("HasResourceAttribute", {
  * decoded policy is untrusted JSON (§7, ADR-QD-002), and a bare `Number`
  * would let `1e308`, a negative value, or — through `fromJsonValue`'s
  * plain-value path — `NaN`/`Infinity` all decode successfully, deferring
- * entirely to `Evaluate.ts`'s runtime `clampRelationshipDepth`. `Schema.Int`
+ * entirely to `PortAccess.ts`'s runtime `clampRelationshipDepth`. `Schema.Int`
  * rejects non-finite and fractional depths at the boundary instead; the
  * `isBetween` bound rejects out-of-range ones the same way. Reusing
  * `DEFAULT_MAX_DEPTH` rather than inventing a second bound: nothing argues a
@@ -409,7 +409,7 @@ const HasResourceAttribute = Schema.TaggedStruct("HasResourceAttribute", {
  * allowed to be — `Evaluate.ts`'s own `MAX_RELATIONSHIP_DEPTH` already reuses
  * it for the identical reason.
  *
- * `clampRelationshipDepth` stays in `Evaluate.ts` as defense-in-depth: this
+ * `clampRelationshipDepth` stays in `PortAccess.ts` as defense-in-depth: this
  * schema only runs on the decode path, so a policy built in memory through
  * `hasRelationship("owner", { depth: -5 })` (the smart constructors are
  * deliberately total, per `makeRoleName`'s comment above) never reaches this
@@ -464,7 +464,7 @@ const HasCustom = Schema.TaggedStruct("HasCustom", {
  *
  * `signerRole` is unbranded for a different reason than `meaning`, not the
  * same one. It is not a closed, policy-authored vocabulary like `HasRole.role`
- * — `evaluateHasSignature` (`Evaluate.ts`) never checks it against
+ * — `askSignature` (`PortAccess.ts`) never checks it against
  * `subject.roles`, the `Set<RoleName>` `HasRole` matches against. It is
  * compared, by plain equality, only to `Signature.signerRole` (`Signature.ts`),
  * a field an external signature-capture flow populates (typically
@@ -716,7 +716,7 @@ export interface SignatureOptions extends FieldOptions {
  * signature itself (settled during this map's charting; see wayfinder
  * ticket #14's resolution).
  *
- * Trust-on-presence means exactly this: `evaluateHasSignature` matches on
+ * Trust-on-presence means exactly this: `askSignature` matches on
  * `meaning` and, when given, `signerRole` — nothing else. `Signature`'s
  * `algorithm` and `keyId` fields are captured for audit and downstream
  * verification (`@qadi/audit`'s capture flow), but this evaluation never
