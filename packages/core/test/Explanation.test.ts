@@ -576,4 +576,18 @@ describe("explain", () => {
       assert.strictEqual(node._tag, "Requirement");
     },
   );
+
+  it("a wide, programmatically-built node (250k direct children) explains without spreading", () => {
+    // The width twin of the 100k-deep test above (`Simplify.test.ts` and
+    // `RolesAndDepth.test.ts` already carry theirs): a fold that spread a
+    // node's children into an argument list would throw a raw `RangeError`
+    // well before this.
+    const children: ReadonlyArray<P.Policy> = Array.from({ length: 250_000 }, () =>
+      P.hasRole("a"),
+    );
+    const result = explain(P.anyOf(children));
+    assert.strictEqual(result._tag, "Any");
+    if (result._tag !== "Any") return;
+    assert.strictEqual(result.parts.length, 250_000);
+  });
 });

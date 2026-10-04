@@ -20,7 +20,7 @@ import * as Match from "effect/Match";
 import type { Matcher, ValueRef } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
-import { childrenOf, defaultFieldStrategy } from "./Policy.ts";
+import { defaultFieldStrategy, foldPolicy } from "./Policy.ts";
 import type { Combining, FieldStrategy, Policy } from "./Policy.ts";
 
 /** What kind of leaf a {@link Requirement} came from. */
@@ -171,10 +171,10 @@ const expectOne = (tag: string, children: ReadonlyArray<Explanation>): Explanati
 /**
  * Builds one node's `Explanation` from its own **already-explained**
  * children, supplied in the same order `childrenOf` (`Policy.ts`) produced
- * them — the one piece of state `explain`'s explicit-stack walk (below)
- * passes in that this function's previous native-recursion form got by
- * calling itself directly instead. A leaf ignores `children` (always `[]`)
- * and computes its own `Requirement` directly, exactly as before.
+ * them — the one piece of state `explain`'s `foldPolicy` fold (below) passes
+ * in that this function's previous native-recursion form got by calling itself
+ * directly instead. A leaf ignores `children` (always `[]`) and computes its
+ * own `Requirement` directly, exactly as before.
  */
 const rebuildExplanation: (node: Policy) => (children: ReadonlyArray<Explanation>) => Explanation =
   Match.type<Policy>().pipe(
@@ -302,46 +302,14 @@ const rebuildExplanation: (node: Policy) => (children: ReadonlyArray<Explanation
  * translate, this refuses nothing — a policy a reviewer cannot read is worse
  * than one they can only partly act on.
  *
- * Walks with an explicit array-backed stack — the same technique
- * `DecodeDepthGuard.ts`'s `exceedsJsonDepth`, `Policy.ts`'s `policyDepth` and
- * `Simplify.ts`'s `simplify` use, via the same `childrenOf` — rather than
- * native recursion. A decoded policy's nesting is bounded by
- * `MAX_DECODE_DEPTH`, but a policy assembled programmatically never crosses
- * that boundary, and `explain` is reachable directly on a caller-held
- * `Policy` with no prior decode step at all (RP-01, 100-lens audit).
+ * Folds through `foldPolicy` rather than recursing natively. A decoded policy's
+ * nesting is bounded by `MAX_DECODE_DEPTH`, but a policy assembled
+ * programmatically never crosses that boundary, and `explain` is reachable
+ * directly on a caller-held `Policy` with no prior decode step at all (RP-01,
+ * 100-lens audit).
  */
-export const explain = (policy: Policy): Explanation => {
-  const results = new Map<Policy, Explanation>();
-  const stack: Array<{ readonly node: Policy; readonly expanded: boolean }> = [
-    { node: policy, expanded: false },
-  ];
-  while (stack.length > 0) {
-    const frame = stack.pop();
-    if (frame === undefined) break;
-    if (frame.expanded) {
-      if (results.has(frame.node)) continue;
-      const children = childrenOf(frame.node).map((child) => {
-        const result = results.get(child);
-        if (result === undefined) {
-          throw new Error("explain: child explained after its parent — traversal order bug");
-        }
-        return result;
-      });
-      results.set(frame.node, rebuildExplanation(frame.node)(children));
-      continue;
-    }
-    if (results.has(frame.node)) continue;
-    stack.push({ node: frame.node, expanded: true });
-    for (const child of childrenOf(frame.node)) {
-      stack.push({ node: child, expanded: false });
-    }
-  }
-  const result = results.get(policy);
-  if (result === undefined) {
-    throw new Error("explain: root never explained — traversal order bug");
-  }
-  return result;
-};
+export const explain = (policy: Policy): Explanation =>
+  foldPolicy<Explanation>(policy, (node, children) => rebuildExplanation(node)(children));
 
 // ---------------------------------------------------------------------------
 // Rendering
