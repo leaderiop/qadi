@@ -368,6 +368,9 @@ importers:
       '@prisma/client':
         specifier: 7.10.0
         version: 7.10.0(prisma@7.10.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(better-sqlite3@12.11.1)(magicast@0.5.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2))(typescript@7.0.2)
+      '@prisma/client-runtime-utils':
+        specifier: 7.10.0
+        version: 7.10.0
       better-sqlite3:
         specifier: 12.11.1
         version: 12.11.1
