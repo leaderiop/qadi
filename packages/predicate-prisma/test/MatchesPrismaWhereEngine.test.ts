@@ -1,5 +1,4 @@
 import { assert, describe, it } from "@effect/vitest";
-import { matchesPrismaWhere } from "./matchesPrismaWhere.ts";
 import { matchesPrismaWhereEngine } from "./matchesPrismaWhereEngine.ts";
 
 /** No column declared nullable: none of these shapes mentions `null`. */
@@ -12,7 +11,7 @@ const LEVEL: ReadonlySet<string> = new Set(["level"]);
  * cites (#17367, #21856) — on hand-built `WhereInput` shapes a *pre-fix*
  * `renderNode` would have emitted, not through `compilePrismaWhere`, which
  * no longer produces them. Without this, a bug in the interpreter itself
- * (e.g. one that quietly agreed with `matchesPrismaWhere` everywhere) could
+ * (e.g. one that quietly agreed with naive JS `.every`/`.some` everywhere) could
  * make `Agreement.test.ts`'s stronger property pass for the wrong reason —
  * because there is nothing left in `renderNode`'s own output for it to
  * disagree on, not because the interpreter would have caught the C1 defect
@@ -28,11 +27,8 @@ describe("matchesPrismaWhereEngine models Prisma's real nested-vacuous-identity 
     const buggy = { AND: [{ email: "user1@example.com" }, { OR: [] }] };
     const row = { email: "user1@example.com" };
 
-    // The naive JS-semantics reader gets this right by construction — it is
-    // exactly why it could never have caught C1.
-    assert.strictEqual(matchesPrismaWhere(buggy, row), false);
-
-    // The real engine drops the vacuous OR from the AND list and matches on
+    // A naive JS `.every`/`.some` reader (retired, ARCH-03 T7) denies this row by
+    // construction — exactly why it could never have caught C1. The real engine drops the vacuous OR from the AND list and matches on
     // `email` alone — the row is (wrongly, per Prisma's own issue) admitted.
     assert.strictEqual(matchesPrismaWhereEngine(buggy, row, NONE), true);
   });
@@ -41,7 +37,6 @@ describe("matchesPrismaWhereEngine models Prisma's real nested-vacuous-identity 
     const buggy = { AND: [{ email: "user1@example.com" }, { AND: [] }] };
     const row = { email: "user1@example.com" };
 
-    assert.strictEqual(matchesPrismaWhere(buggy, row), true);
     assert.strictEqual(matchesPrismaWhereEngine(buggy, row, NONE), true);
   });
 
@@ -50,7 +45,6 @@ describe("matchesPrismaWhereEngine models Prisma's real nested-vacuous-identity 
     const row = {};
 
     // Naive semantics: NOT(True) = False.
-    assert.strictEqual(matchesPrismaWhere(buggy, row), false);
     // Real engine: the inner empty AND strips to "no restriction" before
     // NOT ever sees it, so NOT fails to negate — every row matches.
     assert.strictEqual(matchesPrismaWhereEngine(buggy, row, NONE), true);
@@ -60,7 +54,6 @@ describe("matchesPrismaWhereEngine models Prisma's real nested-vacuous-identity 
     const buggy = { AND: [{ OR: [] }] };
     const row = {};
 
-    assert.strictEqual(matchesPrismaWhere(buggy, row), false);
     assert.strictEqual(matchesPrismaWhereEngine(buggy, row, NONE), true);
   });
 
@@ -69,9 +62,7 @@ describe("matchesPrismaWhereEngine models Prisma's real nested-vacuous-identity 
     const admitted = { tenantId: "t-1", tag: "red" };
     const denied = { tenantId: "t-2", tag: "red" };
 
-    assert.strictEqual(matchesPrismaWhere(where, admitted), true);
     assert.strictEqual(matchesPrismaWhereEngine(where, admitted, NONE), true);
-    assert.strictEqual(matchesPrismaWhere(where, denied), false);
     assert.strictEqual(matchesPrismaWhereEngine(where, denied, NONE), false);
   });
 });

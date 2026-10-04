@@ -5,7 +5,6 @@ import * as FastCheck from "fast-check";
 import { evaluatePredicate, type Predicate } from "@qadi/core";
 import { compile, FIXTURE_NULLABLE } from "./fixture.ts";
 import { leaf, treeOf } from "./generators.ts";
-import { matchesPrismaWhere } from "./matchesPrismaWhere.ts";
 import { matchesPrismaWhereEngine } from "./matchesPrismaWhereEngine.ts";
 
 type Row = Record<string, unknown>;
@@ -95,28 +94,13 @@ const emitsNonFinite = (value: unknown): boolean => {
 };
 
 describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the predicate admits", () => {
-  it.effect("PROPERTY: matchesPrismaWhere(compilePrismaWhere(P), R) equals evaluatePredicate(P, R)", () =>
-    Effect.gen(function* () {
-      const predicates = FastCheck.sample(tree, { numRuns: 150, seed: 4096 });
-      const sample = FastCheck.sample(rows, { numRuns: 12, seed: 4096 });
-
-      for (const predicate of predicates) {
-        const where = yield* compile(predicate);
-        for (const row of sample) {
-          assert.strictEqual(
-            matchesPrismaWhere(where, row),
-            evaluatePredicate(predicate, row),
-            JSON.stringify({ predicate, row, where }),
-          );
-        }
-      }
-    }));
-
-  // C1 (issue 34, CCR-QD-111): `matchesPrismaWhere` above implements JS
-  // `.every`/`.some` at every depth — the same semantics `renderNode`
-  // wrongly assumed before this fix, so it cannot see the difference
-  // between a correct render and one that nests a vacuous identity where
-  // Prisma's real engine silently drops or fails to negate it. The `tree`
+  // C1 (issue 34, CCR-QD-111): a reader that implements JS `.every`/`.some`
+  // at every depth (the retired `matchesPrismaWhere`) has `evaluatePredicate`'s
+  // own semantics — the same ones `renderNode` wrongly assumed before this
+  // fix — so it could not see the difference between a correct render and one
+  // that nests a vacuous identity where Prisma's real engine silently drops
+  // or fails to negate it. That reader is gone (ARCH-03 T7); the real engine
+  // checks this now (`EngineAgreement.test.ts`, P1/P4). The `tree`
   // generator already produces `And`/`Or`/`Negate` nodes containing `True`/
   // `False`/empty-`MemberOf` leaves at every depth — exactly the shapes C1
   // was about — so this is the same sample, checked against
@@ -162,7 +146,7 @@ describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the p
   // CCR-QD-115, issue #65. Neither property above can state this one: a
   // non-finite operand has no `WhereInput` to interpret, because `isSafeValue`
   // refuses it. Nor could either have *found* the defect it guards, even had
-  // the value been compiled — `matchesPrismaWhere` re-derives `===` from
+  // the value been compiled — a JS reader re-derives `===` from
   // `row`, so a `{level: NaN}` filter reads back exactly as
   // `evaluatePredicate` does and the two agree; it is a real engine that
   // disagrees. So what has to hold is that a non-finite value is refused
