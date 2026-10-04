@@ -254,3 +254,8 @@ directly on `RequirePermissionClientError`'s own doc comment
 `packages/http/test/RequirePermission.tst.ts`,
 `packages/http/test/RequirePermissionClient.test.ts` (new),
 `examples/http-advanced/api.ts`, `examples/http-advanced/client.ts`.
+
+> **Note (ADR-QD-081, ARCH-04).** `REQUIRE_PERMISSION_ERROR_SCHEMAS` is no longer a hand-written
+> twelve-entry array: it is `HTTP_ENFORCEMENT_ERROR_SCHEMAS`, derived from `ENFORCEMENT_ERROR_WIRE`. It is
+> still one array feeding both `error:` and `clientError`, and the derived `RequirePermissionClientError`
+> union is mutually assignable with the one this ADR describes.

@@ -5,12 +5,12 @@
 > | Property       | Value                                           |
 > | -------------- | ------------------------------------------------ |
 > | Document ID    | QADI-ADR-072                                      |
-> | Revision       | 1.0                                               |
+> | Revision       | 1.1                                               |
 > | Effective Date | 2026-09-08                                        |
 > | Status         | Accepted — narrows ADR-QD-060                     |
 > | Author         | Qadi Engineering                                  |
 > | Classification | Architecture Decision Record                      |
-> | Change History | 1.0 (2026-09-08): Initial release (CCR-QD-141)    |
+> | Change History | 1.1 (2026-10-04): Amended by ADR-QD-081 — the hand-conversion of the three disclosure-sensitive tags is replaced by one in-channel projection for all twelve (CCR-QD-155)<br>1.0 (2026-09-08): Initial release (CCR-QD-141)    |
 
 ---
 
@@ -88,6 +88,16 @@ finding applied to `@qadi/http-client` usage in the example forwarding seam).
 .pipe(HttpApiSchema.status(502))` and its eight siblings this way — `.annotate`
 rebuilds the *schema*, not the class, so the real class stays exactly the wire
 schema `SinkCodec.ts` needs, unannotated.
+
+> **Amended by [ADR-QD-081](./081-enforcement-error-classes-live-in-core.md) (ARCH-04).** The paragraph
+> below is preserved as written. Two things in it are superseded. First, it says
+> `RequirePermissionLive` "hand-converts these three to an empty-body response — identical to
+> `toResponse`'s existing behavior, byte for byte". That was already stale when ADR-QD-081 was written:
+> since the BL-01 fix the two tag-only bodies carry `_tag`, and `AccessDenied`'s carries
+> `AccessDeniedPublic`'s fields (BEH-QD-260). Second, the hand-conversion itself is gone: all twelve tags
+> now project in-channel through `ENFORCEMENT_ERROR_WIRE[tag].project`, typed to return exactly the declared
+> schema's `Type`, and `HttpApiMiddleware`'s encoder builds every response. The disclosure direction
+> (never declare the real classes in `error:`; declare their redacted projections) is unchanged.
 
 **The driver's disclosure direction is honored by *not* declaring the real
 `AccessDenied`/`UndischargedObligation`/`SubjectExtractionFailed` classes in
@@ -173,6 +183,8 @@ before this fix, not by code review.
   wrapper-schema alternative, and it is why `RequirePermissionLive`'s
   hand-catch and `AccessDeniedRefused`'s doc comment both say so explicitly
   rather than relying on the schema's shape alone to keep the boundary.
+  (ADR-QD-081: the mitigation is now the typed per-tag `project`, not a
+  hand-catch.)
 - `QadiHttpError.ts`'s own doc comment, and `RequirePermission`'s, now carry
   the `Schema.Void`-swallows-siblings explanation at some length — necessary
   given how easy the same mistake would be to reintroduce, but it is real
