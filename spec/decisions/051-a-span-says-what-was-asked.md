@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-051                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-114)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.2 (2026-10-04): amendment — port spans are emitted by both interpreters, distinguished by `qadi.interpreter`, and the span code moved to `PortAccess.ts`; the metric for translation is a sibling, not `portCallsTotal` (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-114)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 ---
 
@@ -141,6 +141,17 @@ ring looks exactly like a quiet one otherwise.
 **Per-decision correlation is still not offered.** Nothing here threads a
 collector through `evaluateNode`, so INV-QD-005 is untouched — a branch never
 reached performs no lookup and now emits no span either.
+
+> **Amended 2026-10-04 (CCR-QD-153, [ADR-QD-077](./077-both-interpreters-read-ports-through-one-module.md)).**
+> "Every port call gets a span" was decided while the evaluator was the only
+> caller. `toPredicate` reads the same two ports (`AttributeResolver`,
+> `DecisionHistory`) through the same module, so both interpreters emit these
+> spans, distinguished by a closed `qadi.interpreter` annotation
+> (`"evaluate" | "toPredicate"`) on every port span. The code that emits them
+> moved from `Evaluate.ts` to `PortAccess.ts`; names and annotations are
+> otherwise unchanged. The metric for translation is a sibling,
+> `qadi_predicate_port_calls_total`, not an attribute on `portCallsTotal`, whose
+> meaning, description and registry key are untouched.
 
 ## Alternatives considered
 

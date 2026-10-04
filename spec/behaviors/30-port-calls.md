@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-30                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-09-08                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-04                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 _Previous: [29 — The Subject Simulator](./29-devtools-simulator.md)_
 
@@ -26,13 +26,20 @@ the **port name** for cardinality, so an attribute name could never live in it.
 ## BEH-QD-227: A port span says what it asked
 
 ```ts
-// packages/core/src/Evaluate.ts — spans, not exports
-"qadi.attribute"        // qadi.attribute, qadi.subject_id, qadi.resolved
-"qadi.acted"            // qadi.subject_id, qadi.event, qadi.scope, qadi.resource_id, qadi.answer
-"qadi.hasRelationship"  // qadi.subject_id, qadi.relation, qadi.resource_id, qadi.depth, qadi.answer
-"qadi.hasCustom"        // qadi.custom_predicate, qadi.subject_id, qadi.answer
-"qadi.hasSignature"     // qadi.subject_id, qadi.meaning, qadi.scope, qadi.signer_role, qadi.resource_id, qadi.matched
+// packages/core/src/PortAccess.ts — spans, not exports
+"qadi.attribute"        // qadi.attribute, qadi.subject_id, qadi.interpreter, qadi.resolved
+"qadi.acted"            // qadi.subject_id, qadi.event, qadi.scope, qadi.resource_id, qadi.interpreter, qadi.answer
+"qadi.hasRelationship"  // qadi.subject_id, qadi.relation, qadi.resource_id, qadi.depth, qadi.interpreter, qadi.answer
+"qadi.hasCustom"        // qadi.custom_predicate, qadi.subject_id, qadi.interpreter, qadi.answer
+"qadi.hasSignature"     // qadi.subject_id, qadi.meaning, qadi.scope, qadi.signer_role, qadi.resource_id, qadi.interpreter, qadi.matched
 ```
+
+`qadi.interpreter` is `"evaluate"` or `"toPredicate"` (a closed pair): the span
+says which interpreter asked. `qadi.hasRelationship`, `qadi.hasCustom` and
+`qadi.hasSignature` are only ever emitted by `evaluate`, because translation
+refuses those nodes before it would ask
+([BEH-QD-123](./16-predicates.md#beh-qd-123-untranslatable-fails-nothing-is-approximated)),
+so their value is always `"evaluate"`.
 
 ```
 REQUIREMENT: An attribute resolved through the port MUST emit a span naming the
@@ -75,6 +82,32 @@ error, and a span recording one should say what it wanted a resource id *for*.
 An `Any`-scoped history question carries no resource id even where the request
 has one, because the span says what was **asked** rather than what was available.
 
+## BEH-QD-267: Translation's port reads are spans too
+
+> **See:** [ADR-QD-077](../decisions/077-both-interpreters-read-ports-through-one-module.md)
+
+```
+REQUIREMENT: `toPredicate`'s reads of `AttributeResolver` and `DecisionHistory`
+             MUST emit the same `qadi.attribute` / `qadi.acted` spans the
+             evaluator emits, annotated `qadi.interpreter: "toPredicate"`, under
+             the `qadi.toPredicate` span.
+```
+
+[ADR-QD-051](../decisions/051-a-span-says-what-was-asked.md) decided that every
+port call gets a span while the evaluator was the only caller. Translation reads
+the same two ports through the same module (`PortAccess.ts`), so the same rule
+holds: a deployment leaning on `toPredicate` for row-level security otherwise had
+port load nothing could see. The interpreter annotation is what keeps the two
+apart in a trace — without it a translation's reads would read as the evaluator's.
+
+```
+REQUIREMENT: An attribute the subject carries MUST emit no span under
+             `toPredicate` either, and a resolved value MUST NOT be recorded.
+```
+
+[BEH-QD-227](#beh-qd-227-a-port-span-says-what-it-asked)'s subject-hit and
+no-value requirements are properties of the read, not of who asked.
+
 ## BEH-QD-228: The calls are read back through a tracer, not a sink
 
 ```ts
@@ -87,10 +120,14 @@ export type PortCall =
   | SignatureHistoryCall;
 ```
 
+Every `PortCall` carries an `interpreter` — `"evaluate"`, `"toPredicate"`, or
+`undefined` when the span did not record one (an older `@qadi/core`, or a value
+outside the pair), which reads as *not recorded* like every other field.
+
 `CustomPredicateCall` and `SignatureHistoryCall` reuse the same `Effect.fn`
-span-and-collect pattern as the other three: `evaluateHasCustom` and
-`evaluateHasSignature` in `Evaluate.ts` are `Effect.fn("qadi.hasCustom")` /
-`Effect.fn("qadi.hasSignature")` just as `evaluateHasRelationship` is, and
+span-and-collect pattern as the other three: `askCustom` and `askSignature` in
+`PortAccess.ts` are `Effect.fn("qadi.hasCustom")` /
+`Effect.fn("qadi.hasSignature")` just as `askRelationship` is, and
 `PortCalls.ts`'s single collector loop and `rowOf` dispatch handle all five
 span names uniformly — there is no second mechanism for the two custom/signature
 leaves.

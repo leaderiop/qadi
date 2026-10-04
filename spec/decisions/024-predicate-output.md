@@ -122,6 +122,15 @@ and generator — the four coordinated edits
 [INV-QD-003](../invariants.md#inv-qd-003-codectype-identity) polices, duplicated —
 where failing loudly costs one error and says the same thing.
 
+> **Amended 2026-10-04 (CCR-QD-153, [ADR-QD-077](./077-both-interpreters-read-ports-through-one-module.md)).**
+> Refusals are *static*: they are produced from the tree alone, before anything
+> runs, so a policy that refuses for one caller refuses for all of them, and a
+> refusal anywhere wins over a port failure elsewhere. Translation's error modes
+> and where it stops asking ports are ADR-QD-077's — a failing port fails the
+> translation with its own typed error, a defecting one is converted exactly as in
+> `evaluate`, and a composite stops at the child the evaluator would stop at. The
+> agreement requirement ([INV-QD-018](../invariants.md)) is unchanged.
+
 | Node | Translation |
 | ---- | ----------- |
 | `HasResourceAttribute` with `Eq`/`Neq`/`Gte`/`Lt` | `Compare` on that column — the only node that becomes a column reference |
