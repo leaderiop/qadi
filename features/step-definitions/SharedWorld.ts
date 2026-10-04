@@ -67,6 +67,17 @@ export interface WorldState {
   readonly attributes: Record<string, unknown>;
   readonly resolvedAttributes: Record<string, unknown>;
   /**
+   * How the attribute service misbehaves when a scenario compiles a policy.
+   *
+   * `"none"` is the record-backed service every other scenario uses. A closed
+   * union rather than a flag, because the two faults are different answers to
+   * the same question: a service that fails *typed* and one that *dies* must both
+   * come out of `toPredicate` as the same error (BEH-QD-NEXT-a).
+   */
+  readonly attributeFault: "none" | "down" | "dies";
+  /** How many times a faulted attribute service was asked while compiling. */
+  readonly attributeCalls: number;
+  /**
    * Known edges. Defaults to a wired but **empty** store, not to an unwired
    * port — every scenario that adds no edge still expects a store that looked
    * and found nothing. `undefined` means unwired, as it does for `events`, and
@@ -143,6 +154,8 @@ export const initialWorldState: WorldState = {
   permissions: [],
   attributes: {},
   resolvedAttributes: {},
+  attributeFault: "none",
+  attributeCalls: 0,
   relationships: [],
   resource: undefined,
   action: undefined,

@@ -350,12 +350,12 @@ const HAS_CUSTOM_EXEMPT_PREFIXES = ["packages/core/src/", "packages/testing/src/
  * `HAS_CUSTOM_BUDGET` enforce for their own exceptions: an escape hatch with
  * no friction becomes the default, so a new `Effect.fnUntraced` call site
  * anywhere is a conscious, reviewed edit to this list and to AGENTS.md §5's
- * table, not a convention left to be remembered. The port-call wrappers
- * (`resolveAttribute`, `evaluateActed`, `evaluateHasRelationship`,
- * `evaluateHasCustom`, `evaluateHasSignature`) and the root `evaluate` are
+ * table, not a convention left to be remembered. The port reads in
+ * `PortAccess.ts` (`readAttribute`, `askActedAny`, `askActedForResource`,
+ * `askRelationship`, `askCustom`, `askSignature`) and the root `evaluate` are
  * deliberately **not** in this budget — ADR-QD-051 keeps those traced as
  * product observability, not incidental cost — and neither is
- * `requireScopedResourceId`, a helper rather than a per-node dispatch point.
+ * `requireResourceId`, a helper rather than a per-node dispatch point.
  *
  * @type {Readonly<Record<string, number>>}
  */

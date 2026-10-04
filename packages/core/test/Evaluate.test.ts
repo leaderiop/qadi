@@ -381,7 +381,7 @@ describe("leaf policies", () => {
         // in memory — exactly what this test does — can still carry `1e308`, a
         // negative number, or `NaN`/`Infinity`. This proves `clampRelationshipDepth`
         // still catches all of those before they reach the resolver as traversal
-        // fuel, by recording exactly what `evaluateHasRelationship` forwards to
+        // fuel, by recording exactly what `askRelationship` forwards to
         // the port rather than what the policy claimed.
         const depths: Array<number | undefined> = [];
         const recordingResolver = Layer.succeed(RelationshipResolver, {
@@ -473,7 +473,7 @@ describe("leaf policies", () => {
     () =>
       Effect.gen(function* () {
         // `hasSignature` is trust-on-presence (`Signature.ts`'s own doc
-        // comment on `signedAt`): `evaluateHasSignature` never reads the
+        // comment on `signedAt`): `askSignature` never reads the
         // clock and never compares `signedAt` to anything. Advancing
         // `TestClock` far past the signature's `signedAt` must not change
         // the verdict or the trace — if a freshness comparison were added
@@ -618,7 +618,7 @@ describe("leaf policies", () => {
       assert.isFalse(isAllowed(d));
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
-  // `evaluateHasCustom` (`Evaluate.ts`) had no direct test in this package's
+  // `askCustom` (`PortAccess.ts`) had no direct test in this package's
   // own suite — `@qadi/testing`'s `TestLayers.test.ts` covers deny/allow/fail
   // from the policy side, but core's own `stryker` run (`vitest.dir:
   // packages/core`) cannot see that package, so the whole arm was
@@ -2765,6 +2765,7 @@ describe("observability", () => {
       assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.resolved": true,
       });
     }));
@@ -2807,6 +2808,7 @@ describe("observability", () => {
       assert.deepStrictEqual(attributes(span), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
       });
       // No answer to record, and the span must still close or a failing
       // dependency would leave traces open.
@@ -2851,6 +2853,7 @@ describe("observability", () => {
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
         "qadi.scope": "Any",
         "qadi.answer": "Acted",
@@ -2872,6 +2875,7 @@ describe("observability", () => {
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
         "qadi.scope": "Resource",
         "qadi.resource_id": "doc-1",
@@ -2905,6 +2909,7 @@ describe("observability", () => {
       const span = named(spans, "qadi.acted");
       assert.deepStrictEqual(attributes(span), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
         "qadi.scope": "Resource",
       });
@@ -2926,6 +2931,7 @@ describe("observability", () => {
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.hasRelationship")), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.relation": "owner",
         "qadi.resource_id": "doc-1",
         "qadi.answer": "Related",
@@ -2969,9 +2975,134 @@ describe("observability", () => {
       const span = named(spans, "qadi.hasRelationship");
       assert.deepStrictEqual(attributes(span), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.relation": "owner",
       });
       assert.notStrictEqual(span?.status._tag, "Started");
+    }));
+
+  // The custom-predicate and signature spans: the other two port-touching leaves
+  // whose question, interpreter and answer were never pinned in this package, only
+  // in the devtools model that reads them back (BEH-QD-227).
+  it.effect("qadi.hasCustom names the predicate, the subject and the interpreter, and records the answer", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const registry = customPredicateFromRecord({ isOwner: () => Effect.succeed(true) });
+
+      yield* evaluate(P.hasCustom("isOwner")).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" }), { customPredicate: registry }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasCustom")), {
+        "qadi.custom_predicate": "isOwner",
+        "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
+        "qadi.answer": true,
+      });
+    }));
+
+  it.effect("a resource-scoped qadi.hasSignature carries the signer role and the resource it asked about", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasSignature("approved", { signerRole: "manager" }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" }), {
+              signatureHistory: signatureHistoryFromSignatures([
+                { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signerRole: "manager" },
+              ]),
+            }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+        "qadi.subject_id": "u1",
+        "qadi.meaning": "approved",
+        "qadi.scope": "Resource",
+        "qadi.signer_role": "manager",
+        "qadi.resource_id": "doc-1",
+        "qadi.interpreter": "evaluate",
+        "qadi.matched": true,
+      });
+    }));
+
+  it.effect("a resource-scoped qadi.hasSignature with no resource id still names what it asked", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      const r = yield* Effect.result(
+        evaluate(P.hasSignature("approved"), { resource: { name: "no id" } }).pipe(
+          Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" })), collectingTracer(spans))),
+        ),
+      );
+
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "MissingResourceId");
+      // The question is on the span, and no resource id is invented for it.
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+        "qadi.subject_id": "u1",
+        "qadi.meaning": "approved",
+        "qadi.scope": "Resource",
+        "qadi.interpreter": "evaluate",
+      });
+    }));
+
+  it.effect("an Any-scoped qadi.hasSignature names no resource and no signer role it was not asked about", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasSignature("approved", { scope: "Any" }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" }), {
+              signatureHistory: signatureHistoryFromSignatures([
+                { subjectId: "u1", meaning: "approved", signerRole: "anyone" },
+              ]),
+            }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      // Matched although the signature carries a role the policy never named:
+      // an unspecified signer role accepts any.
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+        "qadi.subject_id": "u1",
+        "qadi.meaning": "approved",
+        "qadi.scope": "Any",
+        "qadi.interpreter": "evaluate",
+        "qadi.matched": true,
+      });
+    }));
+
+  it.effect("a signature with the right meaning and the wrong signer role does not match", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasSignature("approved", { signerRole: "manager" }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            signatureHistory: signatureHistoryFromSignatures([
+              { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signerRole: "intern" },
+            ]),
+          }),
+        ),
+      );
+
+      assert.isFalse(isAllowed(d));
     }));
 
   /**

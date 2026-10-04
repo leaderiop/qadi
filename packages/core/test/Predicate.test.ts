@@ -1,12 +1,25 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as Option from "effect/Option";
+import * as Ref from "effect/Ref";
+import * as Schedule from "effect/Schedule";
+import type * as Tracer from "effect/Tracer";
 import * as FastCheck from "fast-check";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
+import type { Decision } from "../src/Decision.ts";
 import { isAllowed } from "../src/Decision.ts";
+import type { ActedResult } from "../src/DecisionHistory.ts";
 import { DecisionHistory } from "../src/DecisionHistory.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
+import {
+  AttributeResolveError,
+  DecisionHistoryUnavailable,
+  MissingAction,
+  PolicyNotTranslatable,
+} from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -14,7 +27,7 @@ import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import type { Predicate } from "../src/Predicate.ts";
 import { evaluatePredicate, toPredicate } from "../src/Predicate.ts";
-import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 const tenant = subjectWith({
   id: "u-1",
@@ -462,7 +475,7 @@ describe("untranslatable fails loudly and never widens", () => {
 
   it.effect("an extremely deep, hand-built tree fails with PolicyTooDeep, not a stack overflow", () =>
     Effect.gen(function* () {
-      // `restrictsFields` runs before `translateNode`'s own depth-bounded walk
+      // `restrictsFields` runs before `compile`
       // and, unlike it, is plain synchronous recursion rather than
       // Effect-trampolined — so it has to bound its own recursion before
       // reaching a depth this deep, or the call stack overflows first with a
@@ -904,6 +917,270 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
         assert.isFalse(evaluatePredicate(predicate, row));
       }
     }));
+
+  // -------------------------------------------------------------------------
+  // INV-QD-NEXT — translation fails only as evaluation would. The properties
+  // above sample well-behaved ports; these sample *faulty* ones, because a
+  // property is only as strong as the untidiness of its data (see this
+  // invariant's own lesson, INV-QD-018). Each port answers, fails typed, dies,
+  // or throws synchronously, and every call is logged, so the two interpreters
+  // are compared on *what they asked* as well as on what they concluded.
+  // -------------------------------------------------------------------------
+
+  type Behavior<A> =
+    | { readonly _tag: "Answer"; readonly value: A }
+    | { readonly _tag: "Fail" }
+    | { readonly _tag: "Die" }
+    | { readonly _tag: "Throw" };
+
+  interface PortWorld {
+    readonly riskScore: Behavior<number | undefined>;
+    readonly absent: Behavior<number | undefined>;
+    readonly onboarded: Behavior<ActedResult>;
+    readonly never: Behavior<ActedResult>;
+  }
+
+  type PortCallKey = "attr:riskScore" | "attr:absent" | "acted:onboarded" | "acted:never";
+
+  /** ~70% an answer, ~10% each fault, so most trees still translate. */
+  const behavior = <A>(answer: FastCheck.Arbitrary<A>): FastCheck.Arbitrary<Behavior<A>> =>
+    FastCheck.oneof(
+      { arbitrary: answer.map((value): Behavior<A> => ({ _tag: "Answer", value })), weight: 7 },
+      { arbitrary: FastCheck.constant<Behavior<A>>({ _tag: "Fail" }), weight: 1 },
+      { arbitrary: FastCheck.constant<Behavior<A>>({ _tag: "Die" }), weight: 1 },
+      { arbitrary: FastCheck.constant<Behavior<A>>({ _tag: "Throw" }), weight: 1 },
+    );
+
+  const acted: FastCheck.Arbitrary<ActedResult> = FastCheck.constantFrom(
+    "Acted",
+    "NotActed",
+    "Unknown",
+  );
+
+  const worlds: FastCheck.Arbitrary<PortWorld> = FastCheck.record({
+    riskScore: behavior(FastCheck.oneof(FastCheck.integer({ min: 0, max: 5 }), FastCheck.constant(undefined))),
+    absent: behavior(FastCheck.constant(undefined)),
+    onboarded: behavior(acted),
+    never: behavior(acted),
+  });
+
+  const noDeaths = <A>(b: Behavior<A>): Behavior<A> =>
+    b._tag === "Die" || b._tag === "Throw" ? { _tag: "Fail" } : b;
+
+  const withoutDeaths = (world: PortWorld): PortWorld => ({
+    riskScore: noDeaths(world.riskScore),
+    absent: noDeaths(world.absent),
+    onboarded: noDeaths(world.onboarded),
+    never: noDeaths(world.never),
+  });
+
+  /** Honours one behaviour. `Throw` throws while *building* the Effect. */
+  const behave = <A, E>(b: Behavior<A>, typed: () => E): Effect.Effect<A, E> => {
+    if (b._tag === "Answer") return Effect.succeed(b.value);
+    if (b._tag === "Fail") return Effect.fail(typed());
+    if (b._tag === "Die") return Effect.die(new Error("die"));
+    throw new Error("throw");
+  };
+
+  /** Ports driven by `world`, appending to `log` before honouring each call. */
+  const worldLayer = (world: PortWorld, log: Array<PortCallKey>) =>
+    testLayer(tenant, {
+      attributes: Layer.succeed(AttributeResolver, {
+        resolve: (_id: string, attribute: string) => {
+          const key = attribute === "riskScore" ? "riskScore" : "absent";
+          log.push(key === "riskScore" ? "attr:riskScore" : "attr:absent");
+          return behave(world[key], () => new AttributeResolveError({ attribute, cause: "down" }));
+        },
+      }),
+      history: Layer.succeed(DecisionHistory, {
+        hasActed: (query) => {
+          const key = query.event === "onboarded" ? "onboarded" : "never";
+          log.push(key === "onboarded" ? "acted:onboarded" : "acted:never");
+          return behave(
+            world[key],
+            () => new DecisionHistoryUnavailable({ event: query.event, cause: "down" }),
+          );
+        },
+      }),
+    });
+
+  /** A failure as the label two interpreters must agree on — tag plus what it names. */
+  const labelOfError = (error: unknown): string => {
+    if (error instanceof AttributeResolveError) return `AttributeResolveError:${error.attribute}`;
+    if (error instanceof DecisionHistoryUnavailable) {
+      return `DecisionHistoryUnavailable:${error.event}`;
+    }
+    if (error instanceof MissingAction) return `MissingAction:${String(error.expected)}`;
+    return typeof error === "object" && error !== null && "_tag" in error
+      ? `other:${String(error._tag)}`
+      : "unknown";
+  };
+
+  const labelOfCause = (cause: Cause.Cause<unknown>): string =>
+    Cause.hasDies(cause) ? "DEFECT" : labelOfError(Cause.squash(cause));
+
+  const labelOfEvaluation = (exit: Exit.Exit<Decision, unknown>): string =>
+    Exit.isSuccess(exit) ? (isAllowed(exit.value) ? "allow" : "deny") : labelOfCause(exit.cause);
+
+  const labelOfTranslation = (exit: Exit.Exit<Predicate, unknown>): string => {
+    if (Exit.isFailure(exit)) return labelOfCause(exit.cause);
+    if (exit.value._tag === "True") return "allow";
+    return exit.value._tag === "False" ? "deny" : `predicate:${exit.value._tag}`;
+  };
+
+  /** Resource-free trees: nothing a column could make row-dependent. */
+  const freeLeaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
+    FastCheck.constantFrom("editor", "admin").map((r) => P.hasRole(r)),
+    FastCheck.constant(P.hasPermission(permission("doc", "read"))),
+    FastCheck.constant(P.hasPermission(permission("doc", "delete"))),
+    FastCheck.constantFrom("seniority", "riskScore", "absent").map((a) =>
+      P.hasAttribute(a, M.gte(3)),
+    ),
+    FastCheck.constantFrom("onboarded", "never").map((e) => P.hasActed(e, { scope: "Any" })),
+    FastCheck.constantFrom("onboarded", "never").map((e) => P.hasNotActed(e, { scope: "Any" })),
+    FastCheck.constantFrom("read", "write").map((a) => P.hasAction(a)),
+  );
+
+  const strategy = FastCheck.constantFrom(
+    "First" as const,
+    "Intersection" as const,
+    "Union" as const,
+  );
+
+  const freeTree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth: 4, withCrossShrink: true },
+      freeLeaf,
+      FastCheck.array(tie("node"), { maxLength: 3 }).map((ps) => P.allOf(ps)),
+      FastCheck.tuple(FastCheck.array(tie("node"), { maxLength: 3 }), strategy).map(
+        ([ps, fieldStrategy]) => P.anyOf(ps, { fieldStrategy }),
+      ),
+      tie("node").map(P.not),
+      tie("node").map((p) => P.labeled("l", p)),
+      FastCheck.tuple(
+        FastCheck.array(
+          FastCheck.tuple(tie("node"), FastCheck.boolean()).map(([c, permits]) =>
+            permits ? P.permitWhen(c) : P.denyWhen(c),
+          ),
+          { maxLength: 3 },
+        ),
+        FastCheck.constantFrom(
+          "FirstApplicable" as const,
+          "DenyOverrides" as const,
+          "PermitOverrides" as const,
+        ),
+      ).map(([rs, combining]) => P.rules(rs, { combining })),
+    ),
+  })).node;
+
+  const actions = FastCheck.constantFrom<string | undefined>(undefined, "read", "write");
+
+  it.effect("PROPERTY: on resource-free trees the two interpreters make the same port calls and end the same way", () =>
+    Effect.gen(function* () {
+      // INV-QD-NEXT (2). The strongest statement available: not merely "the
+      // same answer" but "asked the same stores, in the same order" — so a
+      // translation that asks a port the evaluator would have skipped, or
+      // fails where the evaluator decided, is a counterexample.
+      const cases = FastCheck.sample(FastCheck.tuple(freeTree, worlds, actions), {
+        numRuns: 200,
+        seed: 2048,
+      });
+
+      for (const [policy, world, action] of cases) {
+        const evalLog: Array<PortCallKey> = [];
+        const predLog: Array<PortCallKey> = [];
+        const evaluated = yield* Effect.exit(
+          evaluate(policy, {
+            resource: { id: "r" },
+            ...(action === undefined ? {} : { action }),
+          }).pipe(Effect.provide(worldLayer(world, evalLog))),
+        );
+        const translated = yield* Effect.exit(
+          toPredicate(policy, action === undefined ? undefined : { action }).pipe(
+            Effect.provide(worldLayer(world, predLog)),
+          ),
+        );
+
+        const where = JSON.stringify({ policy, world, action });
+        assert.deepStrictEqual(predLog, evalLog, `different port calls on ${where}`);
+        assert.strictEqual(
+          labelOfTranslation(translated),
+          labelOfEvaluation(evaluated),
+          `different outcome on ${where}`,
+        );
+      }
+    }));
+
+  it.effect("PROPERTY: a translation that succeeds agrees with the evaluator on every row, and a failure is typed", () =>
+    Effect.gen(function* () {
+      // INV-QD-NEXT (1) and (3), over full trees with columns.
+      const cases = FastCheck.sample(FastCheck.tuple(tree, worlds), { numRuns: 120, seed: 4096 });
+      const sample = FastCheck.sample(rows, { numRuns: 12, seed: 4096 });
+
+      for (const [policy, world] of cases) {
+        const predLog: Array<PortCallKey> = [];
+        const translated = yield* Effect.exit(
+          toPredicate(policy).pipe(Effect.provide(worldLayer(world, predLog))),
+        );
+        const where = JSON.stringify({ policy, world });
+
+        if (Exit.isFailure(translated)) {
+          assert.isFalse(Cause.hasDies(translated.cause), `a defect on ${where}`);
+          assert.match(
+            labelOfCause(translated.cause),
+            /^(AttributeResolveError|DecisionHistoryUnavailable|MissingAction):/,
+            `an unexpected failure on ${where}`,
+          );
+          continue;
+        }
+
+        for (const row of sample) {
+          const rowLog: Array<PortCallKey> = [];
+          const verdict = yield* Effect.exit(
+            evaluate(policy, { resource: row }).pipe(Effect.provide(worldLayer(world, rowLog))),
+          );
+          assert.isTrue(Exit.isSuccess(verdict), `the evaluator failed on a row where translation succeeded: ${where}`);
+          if (!Exit.isSuccess(verdict)) continue;
+          assert.strictEqual(
+            evaluatePredicate(translated.value, row),
+            isAllowed(verdict.value),
+            `disagreement on ${JSON.stringify({ policy, world, row })}`,
+          );
+          for (const key of rowLog) {
+            assert.include(predLog, key, `the evaluator asked ${key}, which translation never did: ${where}`);
+          }
+        }
+      }
+    }));
+
+  it.effect("PROPERTY: a port that dies reads as a port that fails, through both interpreters", () =>
+    Effect.gen(function* () {
+      // INV-QD-NEXT (1), stated as an equivalence: replacing every death with
+      // the port's own typed failure changes nothing either interpreter says.
+      const cases = FastCheck.sample(FastCheck.tuple(tree, worlds), { numRuns: 120, seed: 8192 });
+      const row = { tenantId: "t-1", ownerId: "u-1", level: 3, tag: "red", sealed: false };
+
+      for (const [policy, world] of cases) {
+        const tame = withoutDeaths(world);
+        const where = JSON.stringify({ policy, world });
+
+        const translatedBy = (w: PortWorld) =>
+          Effect.exit(toPredicate(policy).pipe(Effect.provide(worldLayer(w, []))));
+        const evaluatedBy = (w: PortWorld) =>
+          Effect.exit(
+            evaluate(policy, { resource: row }).pipe(Effect.provide(worldLayer(w, []))),
+          );
+
+        const [dyingT, tameT] = [yield* translatedBy(world), yield* translatedBy(tame)];
+        assert.strictEqual(labelOfTranslation(dyingT), labelOfTranslation(tameT), `translation on ${where}`);
+        if (Exit.isSuccess(dyingT) && Exit.isSuccess(tameT)) {
+          assert.deepStrictEqual(dyingT.value, tameT.value, `predicate on ${where}`);
+        }
+
+        const [dyingE, tameE] = [yield* evaluatedBy(world), yield* evaluatedBy(tame)];
+        assert.strictEqual(labelOfEvaluation(dyingE), labelOfEvaluation(tameE), `evaluation on ${where}`);
+      }
+    }));
 });
 
 describe("qadi_predicates_translated_total", () => {
@@ -935,5 +1212,525 @@ describe("qadi_predicates_translated_total", () => {
           s.type === "Counter" && s.id === "qadi_predicates_translated_total",
       );
       assert.isUndefined(counter);
+    }));
+});
+
+/**
+ * A port that *dies* — throws out of its own Effect construction, or
+ * `Effect.die`s — must reach a caller of `toPredicate` as the port's own typed
+ * error, exactly as it does through `evaluate` (issue #100, BEH-QD-261). A
+ * defect would sail past `Effect.retry` and `Effect.catchTag`, which only ever
+ * see the typed channel.
+ */
+describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", () => {
+  const riskPolicy = P.hasAttribute("riskScore", M.lt(50));
+  const actedPolicy = P.hasActed("onboarded", { scope: "Any" });
+
+  const run = (policy: P.Policy, overrides: Parameters<typeof testLayer>[1]) =>
+    Effect.result(
+      toPredicate(policy).pipe(Effect.provide(testLayer(subjectWith({}), overrides))),
+    );
+
+  it.effect("a dying AttributeResolver surfaces as AttributeResolveError", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.die(new Error("boom")),
+      });
+      const r = yield* run(riskPolicy, { attributes: dying });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, AttributeResolveError);
+      if (!(r.failure instanceof AttributeResolveError)) return;
+      assert.strictEqual(r.failure.attribute, "riskScore");
+    }));
+
+  it.effect("a synchronously throwing AttributeResolver surfaces as AttributeResolveError", () =>
+    Effect.gen(function* () {
+      const throwing = Layer.succeed(AttributeResolver, {
+        resolve: () => {
+          throw new Error("boom");
+        },
+      });
+      const r = yield* run(riskPolicy, { attributes: throwing });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, AttributeResolveError);
+    }));
+
+  it.effect("a dying DecisionHistory surfaces as DecisionHistoryUnavailable", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(DecisionHistory, {
+        hasActed: () => Effect.die(new Error("boom")),
+      });
+      const r = yield* run(actedPolicy, { history: dying });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, DecisionHistoryUnavailable);
+      if (!(r.failure instanceof DecisionHistoryUnavailable)) return;
+      assert.strictEqual(r.failure.event, "onboarded");
+    }));
+
+  it.effect("a port's own typed failure is the same instance after translation", () =>
+    Effect.gen(function* () {
+      const original = new AttributeResolveError({ attribute: "riskScore", cause: "down" });
+      const failing = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.fail(original),
+      });
+      const r = yield* run(riskPolicy, { attributes: failing });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure, original);
+    }));
+
+  it.effect("an interrupting port is never converted into a retryable error", () =>
+    Effect.gen(function* () {
+      const interrupting = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.interrupt,
+      });
+      const exit = yield* Effect.exit(
+        toPredicate(riskPolicy).pipe(
+          Effect.provide(testLayer(subjectWith({}), { attributes: interrupting })),
+        ),
+      );
+      assert.isTrue(Exit.isFailure(exit));
+      if (!Exit.isFailure(exit)) return;
+      assert.isTrue(Cause.hasInterruptsOnly(exit.cause));
+    }));
+
+  it.effect("Effect.retry sees a defecting port, and a later answer translates", () =>
+    Effect.gen(function* () {
+      const attempts = yield* Ref.make(0);
+      const flaky = Layer.succeed(AttributeResolver, {
+        resolve: () =>
+          Effect.flatMap(
+            Ref.updateAndGet(attempts, (n) => n + 1),
+            (n) => (n <= 2 ? Effect.die(new Error("boom")) : Effect.succeed(9)),
+          ),
+      });
+      const predicate = yield* toPredicate(P.hasAttribute("riskScore", M.gte(5))).pipe(
+        Effect.provide(testLayer(subjectWith({}), { attributes: flaky })),
+        Effect.retry(Schedule.recurs(2)),
+      );
+      assert.deepStrictEqual(predicate, { _tag: "True" });
+      assert.strictEqual(yield* Ref.get(attempts), 3);
+    }));
+});
+
+/**
+ * `toPredicate`'s port reads are spans too (ADR-QD-051, BEH-QD-NEXT-d): the same
+ * `qadi.attribute`/`qadi.acted` the evaluator emits, under `qadi.toPredicate`,
+ * annotated `qadi.interpreter: "toPredicate"` so a trace reader can tell a
+ * translation's read from an evaluation's.
+ */
+describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
+  const named = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
+    spans.find((s) => s.name === name);
+  const attributesOf = (span: Tracer.Span | undefined): Record<string, unknown> =>
+    span === undefined ? {} : Object.fromEntries(span.attributes);
+
+  const resolver = Layer.succeed(AttributeResolver, {
+    name: "record",
+    resolve: (_id: string, attribute: string) => Effect.succeed(attribute === "riskScore" ? 20 : undefined),
+  });
+
+  it.effect("a resolved attribute spans under qadi.toPredicate and records no value", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u9" }), { attributes: resolver }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      const span = named(spans, "qadi.attribute");
+      const root = named(spans, "qadi.toPredicate");
+      assert.isDefined(span);
+      assert.isDefined(root);
+      assert.deepStrictEqual(attributesOf(span), {
+        "qadi.attribute": "riskScore",
+        "qadi.subject_id": "u9",
+        "qadi.interpreter": "toPredicate",
+        "qadi.resolved": true,
+      });
+      // The parent is the translation, not some ambient span.
+      assert.deepStrictEqual(
+        Option.map(span?.parent ?? Option.none(), (p) => p.spanId),
+        Option.some(root?.spanId),
+      );
+    }));
+
+  it.effect("an attribute the subject carries emits no span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ attributes: { riskScore: 20 } }), { attributes: resolver }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.isUndefined(named(spans, "qadi.attribute"));
+    }));
+
+  it.effect("a failing port's span still carries the question", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const failing = Layer.succeed(AttributeResolver, {
+        resolve: (_id: string, attribute: string) =>
+          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+      });
+      yield* Effect.result(
+        toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(subjectWith({ id: "u9" }), { attributes: failing }),
+              collectingTracer(spans),
+            ),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributesOf(named(spans, "qadi.attribute")), {
+        "qadi.attribute": "riskScore",
+        "qadi.subject_id": "u9",
+        "qadi.interpreter": "toPredicate",
+      });
+    }));
+
+  it.effect("a history question spans as qadi.acted, scoped to Any", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasActed("onboarded", { scope: "Any" })).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u9" }), { history: acted }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributesOf(named(spans, "qadi.acted")), {
+        "qadi.subject_id": "u9",
+        "qadi.event": "onboarded",
+        "qadi.scope": "Any",
+        "qadi.interpreter": "toPredicate",
+        "qadi.answer": "Acted",
+      });
+    }));
+});
+
+/**
+ * Translation asks no port a constant has already decided (BEH-QD-NEXT-b), and a
+ * refusal depends on the tree alone (BEH-QD-NEXT-c). Each case is the shape
+ * ARCH-01's E8 found diverging from the evaluator, kept as a named test because a
+ * seeded property sample is not evidence a reader can check by eye.
+ */
+describe("BEH-QD-NEXT-b: translation stops where the evaluator stops", () => {
+  /** A resolver that always fails typed, and counts how often it was asked. */
+  const failingResolver = () => {
+    const counter = { calls: 0 };
+    const layer = Layer.succeed(AttributeResolver, {
+      resolve: (_id: string, attribute: string) =>
+        Effect.suspend(() => {
+          counter.calls += 1;
+          return Effect.fail(new AttributeResolveError({ attribute, cause: "down" }));
+        }),
+    });
+    return { counter, layer };
+  };
+
+  const askWith = (
+    policy: P.Policy,
+    attributes: Layer.Layer<AttributeResolver>,
+    options?: { readonly action?: string; readonly subject?: ReturnType<typeof subjectWith> },
+  ) =>
+    Effect.result(
+      toPredicate(policy, options?.action === undefined ? undefined : { action: options.action }).pipe(
+        Effect.provide(testLayer(options?.subject ?? tenant, { attributes })),
+      ),
+    );
+
+  const broken = P.hasAttribute("riskScore", M.gte(1));
+
+  it.effect("an anyOf stops at a role that already allows", () =>
+    Effect.gen(function* () {
+      const { counter, layer: resolver } = failingResolver();
+      const r = yield* askWith(P.anyOf([P.hasRole("editor"), broken]), resolver);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "True" });
+      assert.strictEqual(counter.calls, 0);
+    }));
+
+  it.effect("under Union an anyOf must see every child, as the evaluator does", () =>
+    Effect.gen(function* () {
+      const { counter, layer: resolver } = failingResolver();
+      const policy = P.anyOf([P.hasRole("editor"), broken], { fieldStrategy: "Union" });
+      const r = yield* askWith(policy, resolver);
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, AttributeResolveError);
+      assert.strictEqual(counter.calls, 1);
+    }));
+
+  it.effect("an allOf stops at a role that already denies", () =>
+    Effect.gen(function* () {
+      const { counter, layer: resolver } = failingResolver();
+      const r = yield* askWith(P.allOf([P.hasRole("admin"), broken]), resolver);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "False" });
+      assert.strictEqual(counter.calls, 0);
+    }));
+
+  it.effect("PermitOverrides stops at a permit that already holds", () =>
+    Effect.gen(function* () {
+      const { counter, layer: resolver } = failingResolver();
+      const policy = P.rules([P.permitWhen(P.hasRole("editor")), P.permitWhen(broken)], {
+        combining: "PermitOverrides",
+      });
+      const r = yield* askWith(policy, resolver);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "True" });
+      assert.strictEqual(counter.calls, 0);
+    }));
+
+  it.effect("DenyOverrides stops at a deny that already holds", () =>
+    Effect.gen(function* () {
+      const { counter, layer: resolver } = failingResolver();
+      const policy = P.rules([P.denyWhen(P.hasRole("editor")), P.permitWhen(broken)], {
+        combining: "DenyOverrides",
+      });
+      const r = yield* askWith(policy, resolver);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "False" });
+      assert.strictEqual(counter.calls, 0);
+    }));
+
+  it.effect("DenyOverrides does not stop at a permit — a later deny could still beat it", () =>
+    Effect.gen(function* () {
+      const { counter, layer: resolver } = failingResolver();
+      const policy = P.rules([P.permitWhen(P.hasRole("editor")), P.denyWhen(broken)], {
+        combining: "DenyOverrides",
+      });
+      const r = yield* askWith(policy, resolver);
+      assert.strictEqual(r._tag, "Failure");
+      assert.strictEqual(counter.calls, 1);
+    }));
+
+  it.effect("FirstApplicable stops at the first rule that applies, whatever its effect", () =>
+    Effect.gen(function* () {
+      const { counter, layer: resolver } = failingResolver();
+      const policy = P.rules([P.denyWhen(P.hasRole("editor")), P.permitWhen(broken)], {
+        combining: "FirstApplicable",
+      });
+      const r = yield* askWith(policy, resolver);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "False" });
+      assert.strictEqual(counter.calls, 0);
+    }));
+
+  it.effect("a rule that does not apply is walked past", () =>
+    Effect.gen(function* () {
+      const { counter, layer: resolver } = failingResolver();
+      const policy = P.rules([P.permitWhen(P.hasRole("admin")), P.permitWhen(broken)], {
+        combining: "FirstApplicable",
+      });
+      const r = yield* askWith(policy, resolver);
+      assert.strictEqual(r._tag, "Failure");
+      assert.strictEqual(counter.calls, 1);
+    }));
+});
+
+describe("BEH-QD-NEXT-c: a refusal depends on the tree alone", () => {
+  const throwing = Layer.succeed(AttributeResolver, {
+    resolve: (_id: string, attribute: string) =>
+      Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+  });
+
+  const outcomeFor = (
+    policy: P.Policy,
+    subject: ReturnType<typeof subjectWith>,
+    options?: { readonly action?: string },
+  ) =>
+    Effect.result(
+      toPredicate(policy, options).pipe(
+        Effect.provide(testLayer(subject, { attributes: throwing })),
+      ),
+    );
+
+  it.effect("an untranslatable node refuses for the subject a constant would have decided", () =>
+    Effect.gen(function* () {
+      // For an editor the role alone decides this anyOf, so a walk that pruned
+      // before it refused would translate it. It must refuse for everyone.
+      const policy = P.anyOf([P.hasRole("editor"), P.hasRelationship("owner")]);
+      for (const subject of [tenant, subjectWith({})]) {
+        const r = yield* outcomeFor(policy, subject);
+        assert.strictEqual(r._tag, "Failure");
+        if (r._tag !== "Failure") return;
+        assert.instanceOf(r.failure, PolicyNotTranslatable);
+        if (!(r.failure instanceof PolicyNotTranslatable)) return;
+        assert.strictEqual(r.failure.policyTag, "HasRelationship");
+      }
+    }));
+
+  it.effect("a refusal anywhere wins over a port fault earlier in the tree", () =>
+    Effect.gen(function* () {
+      const policy = P.allOf([P.hasAttribute("riskScore", M.gte(1)), P.hasCustom("x")]);
+      const r = yield* outcomeFor(policy, tenant);
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, PolicyNotTranslatable);
+      if (!(r.failure instanceof PolicyNotTranslatable)) return;
+      assert.strictEqual(r.failure.policyTag, "HasCustom");
+    }));
+
+  it.effect("a missing action is raised on reach, not statically", () =>
+    Effect.gen(function* () {
+      // Not reached: a constant already decided, so no action was needed.
+      const unreached = yield* outcomeFor(
+        P.anyOf([P.hasRole("editor"), P.hasAction("read")]),
+        tenant,
+      );
+      assert.deepStrictEqual(unreached._tag === "Success" ? unreached.success : undefined, {
+        _tag: "True",
+      });
+      const alsoUnreached = yield* outcomeFor(
+        P.allOf([P.hasRole("admin"), P.hasAction("read")]),
+        tenant,
+      );
+      assert.deepStrictEqual(alsoUnreached._tag === "Success" ? alsoUnreached.success : undefined, {
+        _tag: "False",
+      });
+
+      // Reached: nothing decided first, so the evaluator fails here too.
+      const reached = yield* outcomeFor(
+        P.allOf([P.hasRole("editor"), P.hasAction("read")]),
+        tenant,
+      );
+      assert.strictEqual(reached._tag, "Failure");
+      if (reached._tag !== "Failure") return;
+      assert.instanceOf(reached.failure, MissingAction);
+      if (!(reached.failure instanceof MissingAction)) return;
+      assert.strictEqual(reached.failure.expected, "read");
+    }));
+});
+
+/**
+ * The refusal's *reason* is part of what a caller reads when a policy cannot
+ * become a filter (BEH-QD-123), and the plan/run split moved every sentence out of
+ * the walk and into `compile`. Pinned verbatim, with the tag, so a rewording is a
+ * deliberate edit and not a silent one.
+ */
+describe("BEH-QD-123: each refusal names its node and says why", () => {
+  const refusal = (policy: P.Policy) =>
+    Effect.map(Effect.result(translate(policy)), (r) => {
+      if (r._tag !== "Failure" || !(r.failure instanceof PolicyNotTranslatable)) {
+        throw new Error("expected a PolicyNotTranslatable failure");
+      }
+      return { policyTag: r.failure.policyTag, reason: r.failure.reason };
+    });
+
+  const cases: ReadonlyArray<readonly [string, P.Policy, string, string]> = [
+    [
+      "a matcher that reads the resource",
+      P.hasAttribute("owner", M.eq(M.resource("ownerId"))),
+      "HasAttribute",
+      "the matcher compares against the resource, which is a column",
+    ],
+    [
+      "a resource matcher with no predicate form",
+      P.hasResourceAttribute("name", M.exists()),
+      "HasResourceAttribute",
+      "matcher 'Exists' on column 'name' has no predicate form",
+    ],
+    [
+      "a resource-scoped acted question",
+      P.hasActed("approved", { scope: "Resource" }),
+      "HasActed",
+      "a resource-scoped history question is keyed by the row",
+    ],
+    [
+      "a resource-scoped not-acted question",
+      P.hasNotActed("approved", { scope: "Resource" }),
+      "HasNotActed",
+      "a resource-scoped history question is keyed by the row",
+    ],
+    [
+      "a relationship",
+      P.hasRelationship("owner"),
+      "HasRelationship",
+      "a relationship is keyed by the row's id and cannot fold",
+    ],
+    [
+      "a custom predicate",
+      P.hasCustom("isOwner"),
+      "HasCustom",
+      "'isOwner' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression",
+    ],
+    [
+      "a signature",
+      P.hasSignature("approved"),
+      "HasSignature",
+      "a signature is looked up through an external port and cannot fold into a resource-independent expression",
+    ],
+    [
+      "an obligation",
+      P.obliged(obligation("log", { channel: "audit" }), P.hasRole("editor")),
+      "Obliged",
+      "a predicate cannot carry an obligation, and rows would be handed over with it unmet",
+    ],
+    [
+      "a field restriction",
+      P.hasPermission(permission("doc", "read"), { fields: ["id"] }),
+      "HasPermission",
+      "the policy restricts visible fields, and a predicate selects rows rather than columns",
+    ],
+  ];
+
+  for (const [name, policy, policyTag, reason] of cases) {
+    it.effect(`${name} refuses with the ${policyTag} tag and its reason`, () =>
+      Effect.gen(function* () {
+        assert.deepStrictEqual(yield* refusal(policy), { policyTag, reason });
+      }));
+  }
+
+  it.effect("a refusal inside not, a label, or a rule table is still that node's refusal", () =>
+    Effect.gen(function* () {
+      for (const policy of [
+        P.not(P.hasRelationship("owner")),
+        P.labeled("l", P.hasRelationship("owner")),
+        P.rules([P.permitWhen(P.hasRelationship("owner"))]),
+        P.allOf([P.hasRole("editor"), P.hasRelationship("owner")]),
+        P.anyOf([P.hasRole("editor"), P.hasRelationship("owner")]),
+      ]) {
+        const r = yield* refusal(policy);
+        assert.strictEqual(r.policyTag, "HasRelationship");
+      }
+    }));
+
+  it.effect("the first refusal in declaration order wins", () =>
+    Effect.gen(function* () {
+      const r = yield* refusal(P.allOf([P.hasCustom("a"), P.hasRelationship("owner")]));
+      assert.strictEqual(r.policyTag, "HasCustom");
+      const s = yield* refusal(
+        P.rules([P.permitWhen(P.hasRelationship("owner")), P.denyWhen(P.hasCustom("a"))]),
+      );
+      assert.strictEqual(s.policyTag, "HasRelationship");
+    }));
+});
+
+describe("qadi.toPredicate names the translation it was asked", () => {
+  it.effect("annotates the subject, the policy tag and the predicate it produced", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasRole("editor")).pipe(
+        Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u9", roles: ["editor"] })), collectingTracer(spans))),
+      );
+
+      const span = spans.find((s) => s.name === "qadi.toPredicate");
+      assert.deepStrictEqual(Object.fromEntries(span?.attributes ?? []), {
+        "qadi.subject_id": "u9",
+        "qadi.policy_tag": "HasRole",
+        "qadi.predicate_tag": "True",
+      });
     }));
 });

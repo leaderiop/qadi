@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-073                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-09-19                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-09-19): PN-01 — the Context section's comparison against AGENTS.md §5a's numbers corrected to cite the per-dispatch ratios that survive ADR-QD-034's 2026-09-07 addendum, rather than the "2–4%/under 1%" end-to-end figures that addendum retracts as stale<br>1.0 (2026-09-09): Initial release (issue #102, CCR-QD-145) |
+> | Change History | 1.2 (2026-10-04): amendment note only — the traced port reads it lists now live in `PortAccess.ts`; the three `fnUntraced` dispatchers and the budget are unchanged (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-19): PN-01 — the Context section's comparison against AGENTS.md §5a's numbers corrected to cite the per-dispatch ratios that survive ADR-QD-034's 2026-09-07 addendum, rather than the "2–4%/under 1%" end-to-end figures that addendum retracts as stale<br>1.0 (2026-09-09): Initial release (issue #102, CCR-QD-145) |
 
 ---
 
@@ -114,6 +114,15 @@ exactly this scaling.
 Ranges, not figures, for the same reason AGENTS.md §5a's own numbers are
 ranges: absolute throughput on a development machine moves by roughly 30%
 between runs, so only the direction and order of magnitude are load-bearing.
+
+> **Amended 2026-10-04 (CCR-QD-153, [ADR-QD-077](./077-both-interpreters-read-ports-through-one-module.md)) — names only.**
+> The traced port reads this ADR lists (`resolveAttribute`, `evaluateActed`,
+> `evaluateHasRelationship`, `evaluateHasCustom`, `evaluateHasSignature`) moved to
+> `PortAccess.ts` as `readAttribute`, `askActedAny`/`askActedForResource`,
+> `askRelationship`, `askCustom` and `askSignature`, still named `Effect.fn`. The
+> three `fnUntraced` dispatchers and `UNTRACED_BUDGET` are unchanged; the
+> `evaluateActed`-family names remain in `Evaluate.ts` as plain functions that turn
+> an answer into a verdict.
 
 ### What did not change
 

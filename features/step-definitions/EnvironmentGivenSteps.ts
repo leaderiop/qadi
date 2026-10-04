@@ -16,6 +16,16 @@ export const environmentGivenSteps = defineSteps<World>(({ Given }) => {
     },
   );
 
+  /** The attribute service answers with its own typed failure. */
+  Given("the attribute service is down", function* () {
+    yield* patch(() => ({ attributeFault: "down" as const }));
+  });
+
+  /** The attribute service throws instead of failing — an adapter bug, not a contract. */
+  Given("the attribute service dies unexpectedly", function* () {
+    yield* patch(() => ({ attributeFault: "dies" as const }));
+  });
+
   Given(
     "the subject is {string} of resource {string}",
     function* (relation: string, resourceId: string) {

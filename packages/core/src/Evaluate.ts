@@ -8,7 +8,6 @@
  * `Effect` collapses both paths: resolution happens lazily, at the node that
  * needs it, and `anyOf` stops at its first allowing child.
  */
-import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -30,19 +29,8 @@ import { Allow, Deny, intersectFields } from "./Decision.ts";
 import { Decided, DecisionRecord, Failed } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { EvaluationError } from "./Errors.ts";
-import {
-  AttributeResolveError,
-  CustomPredicateError,
-  DecisionHistoryUnavailable,
-  MissingAction,
-  MissingResource,
-  MissingResourceId,
-  PolicyTooDeep,
-  RelationshipResolveError,
-  SignatureHistoryUnavailable,
-} from "./Errors.ts";
+import { MissingAction, MissingResource, PolicyTooDeep } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
-import { makeResourceId } from "./Identity.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import {
   evaluateMatcher,
@@ -53,11 +41,19 @@ import {
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
-import { portCallsTotal } from "./PortMetrics.ts";
+import {
+  askActedAny,
+  askActedForResource,
+  askCustom,
+  askRelationship,
+  askSignature,
+  readAttribute,
+} from "./PortAccess.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
+import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
 import { SignatureHistory } from "./SignatureHistory.ts";
 
 /**
@@ -341,104 +337,6 @@ const deny = (
 });
 
 /**
- * Converts a port call's defect into its own typed error, leaving an
- * already-typed failure — or an interruption — to pass through unchanged.
- *
- * A port's declared error channel (`AttributeResolveError`, and its four
- * siblings below) is a promise about what a *failure* looks like; nothing in
- * that promise said what happens when an adapter throws instead of failing,
- * so a defecting port sailed straight past `Effect.retry` (which only ever
- * sees typed errors) and reached `@qadi/http` as a bare 500 instead of the
- * taxonomy's 502 (issue #100). Wrapping each of the five call sites below
- * with this closes that gap without changing what a well-behaved port
- * already promised.
- *
- * Only a genuine defect is rewritten:
- * - `Cause.hasFails` — the port already failed with its declared error —
- *   passes through via `Effect.failCause`, unchanged, rather than being
- *   wrapped a second time. `retry`, `catchTag`, and everything downstream
- *   must keep seeing exactly the value the port raised.
- * - a cause with no `Fail` reason at all (a pure interruption, or an empty
- *   cause) also passes through unchanged: converting an interruption into an
- *   ordinary typed failure would let a caller's `Effect.retry` retry work
- *   that was deliberately cancelled — worse than the defect this function
- *   exists to catch, and not what "an authorization decision must never
- *   become a defect" (AGENTS.md §4) asks for.
- * - only a cause carrying a `Die` and no `Fail` becomes `onDefect(cause)`.
- *
- * Mirrors `DecisionSinkForwarding.ts`'s `Effect.catchCause` in spirit — a
- * port adapter can die as easily as `send` can — but where that swallows
- * every cause into `void`, a port call must still fail with something a
- * caller's `Effect.retry` can see, so a defect becomes the port's own typed
- * error instead of being silently absorbed.
- */
-const catchPortDefect =
-  <E>(onDefect: (cause: Cause.Cause<E>) => E) =>
-  <A, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
-    effect.pipe(
-      Effect.catchCause((cause) =>
-        Cause.hasFails(cause) || !Cause.hasDies(cause)
-          ? Effect.failCause(cause)
-          : Effect.fail(onDefect(cause)),
-      ),
-    );
-
-/**
- * The port call, when the subject did not already have the attribute.
- *
- * A span here and not in `readAttribute` above it, so that a **subject hit
- * emits nothing at all**. The distinction is the one the reader wants: a span
- * named `qadi.attribute` means the resolver was asked, which is the same event
- * `portCallsTotal` counts, so the trace and the metric agree about what
- * happened rather than counting two different things. It also keeps the
- * commonest branch — the attribute the subject already carries — free of any
- * tracing cost at all.
- *
- * **The value is never recorded.** `hasActed` and `hasRelationship` answer with
- * closed three-valued enums, which are safe to annotate; an attribute resolves
- * to arbitrary data, and a span attribute goes to whatever backend is wired.
- * `qadi.resolved` says a value came back, not what it was
- * ([INV-QD-044](../../../spec/invariants.md)) — the same line
- * `dehydrateDecisions` draws with `includeTrace`.
- */
-const resolveAttribute = Effect.fn("qadi.attribute")(function* (
-  subject: AuthSubject,
-  attribute: string,
-) {
-  // Before the call, so a resolver that fails still leaves a span saying what
-  // it was asked. A failed lookup with no question on it is the least useful
-  // span there is.
-  yield* Effect.annotateCurrentSpan({
-    "qadi.attribute": attribute,
-    "qadi.subject_id": subject.id,
-  });
-  yield* Metric.update(portCallsTotal, "AttributeResolver");
-  const value = yield* AttributeResolver.resolve(subject.id, attribute).pipe(
-    catchPortDefect(
-      (cause) => new AttributeResolveError({ attribute, cause: Cause.squash(cause) }),
-    ),
-  );
-  // `undefined` is the absent sentinel every fail-closed default answers with;
-  // `null` is a value a store genuinely returned.
-  yield* Effect.annotateCurrentSpan({ "qadi.resolved": value !== undefined });
-  return value;
-});
-
-/**
- * Reads an attribute, consulting the subject first.
- *
- * The miss-only call to the resolver is what preserves short-circuiting: a
- * branch that is never evaluated never triggers a lookup.
- */
-const readAttribute = (
-  subject: AuthSubject,
-  attribute: string,
-): Effect.Effect<unknown, EvaluationError, AttributeResolver> =>
-  Object.hasOwn(subject.attributes, attribute)
-    ? Effect.succeed(subject.attributes[attribute])
-    : resolveAttribute(subject, attribute);
-
-/**
  * Why an attribute policy refused.
  *
  * Two sentences rather than one, because an absent attribute and a present one
@@ -601,26 +499,13 @@ const mergeFields = (
   }
 };
 
-/**
- * Fails with `MissingResourceId` when a Resource-scoped policy has no usable
- * resource id.
- *
- * Takes the already-extracted `scoped`/`rawId` pair rather than a `policy`
- * and `resource` of its own: `evaluateActed` and `evaluateHasSignature` both
- * need `scoped`/`rawId` before this guard runs, to annotate the current span
- * with whatever was actually asked even when the guard is about to fail it —
- * so extraction stays at each call site and only the guard itself, which had
- * drifted into two verbatim copies, is shared here.
- */
-const requireScopedResourceId = Effect.fn("qadi.requireScopedResourceId")(function* (
-  scoped: boolean,
-  rawId: unknown,
-  relation: string,
-) {
-  if (scoped && typeof rawId !== "string") {
-    return yield* Effect.fail(new MissingResourceId({ relation }));
-  }
-});
+// ---------------------------------------------------------------------------
+// The port-reading arms. The reads themselves — question, span, metric and
+// defect mapping — live in `PortAccess.ts`, shared with `toPredicate`; what is
+// left here is the verdict sentence each answer earns. Plain functions, not
+// `Effect.fn`: the span now belongs to the read, and a second named wrapper
+// would double it.
+// ---------------------------------------------------------------------------
 
 /**
  * `HasActed`/`HasNotActed`'s arm.
@@ -629,249 +514,116 @@ const requireScopedResourceId = Effect.fn("qadi.requireScopedResourceId")(functi
  * supplies that, so there is nothing left for the two case labels in
  * `evaluateNode` to differ on. Extracted for the same reason `evaluateAllOf`
  * and friends are: `switch (policy._tag)` keeps dispatching in one glance, and
- * the twenty-odd lines of what a given tag actually *does* move to a name
- * instead of living inline in the arm.
+ * what a given tag actually *does* moves to a name instead of living inline in
+ * the arm.
  */
-const evaluateActed = Effect.fn("qadi.acted")(function* (
+const evaluateActed = (
   policy: Extract<Policy, { _tag: "HasActed" | "HasNotActed" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
-) {
-  const scoped = policy.scope === "Resource";
-  const rawId = resource?.["id"];
-  // Annotated before the `MissingResourceId` check, so the span that records a
-  // wiring error still names the event it was asked about. The resource id is
-  // present exactly when the *port call* would carry one — an `Any`-scoped
-  // question asks about no resource even where the request has one, and the
-  // span should say what was asked rather than what was available.
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_id": subject.id,
-    "qadi.event": policy.event,
-    "qadi.scope": policy.scope,
-    ...(scoped && typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
-  });
-  yield* requireScopedResourceId(scoped, rawId, policy.event);
+) => {
+  const asked =
+    policy.scope === "Resource"
+      ? askActedForResource("evaluate", subject, policy.event, resource?.["id"])
+      : askActedAny("evaluate", subject, policy.event);
   const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
-  yield* Metric.update(portCallsTotal, "DecisionHistory");
-  const answer = yield* DecisionHistory.hasActed({
-    subjectId: subject.id,
-    event: policy.event,
-    resourceId: scoped && typeof rawId === "string" ? makeResourceId(rawId) : undefined,
-  }).pipe(
-    catchPortDefect(
-      (cause) => new DecisionHistoryUnavailable({ event: policy.event, cause: Cause.squash(cause) }),
-    ),
-  );
-  // A closed three-valued enum, so this discloses nothing a policy tag does not.
-  yield* Effect.annotateCurrentSpan({ "qadi.answer": answer });
   // `"Unknown"` matches neither, so both polarities deny under an unwired
   // port. That is the whole reason the port is three-valued rather than
   // boolean (ADR-QD-020).
-  return answer === wanted
-    ? allow(policy._tag, policy.fields)
-    : deny(
-        policy._tag,
-        answer === "Unknown"
-          ? `no history is available for '${policy.event}'`
-          : `subject '${subject.id}' ${answer === "Acted" ? "has already" : "has not"} performed '${policy.event}'`,
-      );
-});
-
-/**
- * Bounds `HasRelationship.depth` before it reaches `RelationshipResolver` as
- * traversal fuel.
- *
- * Every other untrusted numeric at this trust boundary is bounded: the policy
- * tree itself by `DEFAULT_MAX_DEPTH`, a raw decoded JSON value by
- * `MAX_DECODE_DEPTH`. `Policy.ts`'s wire schema now rejects a non-integer,
- * negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `depth` at decode — the same
- * boundary-not-runtime treatment `Matcher.ts`'s `Gte`/`Lt` give their bound —
- * so `fromJson`/`fromJsonValue` are no longer where `1e308`, a negative
- * number, or `NaN`/`Infinity` gets through. This clamp stays anyway: the
- * smart constructors (`hasRelationship`, …) are deliberately total and never
- * cross the schema (`Policy.ts`'s `makeRoleName` comment explains why), so a
- * policy built in memory with `hasRelationship("owner", { depth: -5 })` still
- * reaches `RelationshipResolver.check` unclamped without this. Reusing
- * `DEFAULT_MAX_DEPTH`'s value rather than inventing a second bound: nothing
- * here argues a relationship graph should be walked deeper than a policy tree
- * is ever allowed to be.
- */
-const MAX_RELATIONSHIP_DEPTH = DEFAULT_MAX_DEPTH;
-
-/**
- * Clamps an in-memory `HasRelationship.depth` to `[0, MAX_RELATIONSHIP_DEPTH]`
- * — defense-in-depth for policies built through the smart constructors, which
- * never cross `Policy.ts`'s decode-time bound (see the comment above).
- *
- * `undefined` passes through unchanged — "the resolver decides" is a real,
- * distinct meaning `RelationshipResolverShape.check`'s own doc comment names,
- * not an absent value to default. `NaN` fails every comparison, including
- * `<= 0`, so it is called out explicitly rather than silently falling through
- * the clamp below with no bound applied at all; a fractional depth is
- * truncated, since fuel is spent in whole hops.
- */
-const clampRelationshipDepth = (depth: number | undefined): number | undefined => {
-  if (depth === undefined) return undefined;
-  if (Number.isNaN(depth) || depth <= 0) return 0;
-  return Math.min(Math.trunc(depth), MAX_RELATIONSHIP_DEPTH);
+  return Effect.map(asked, (answer) =>
+    answer === wanted
+      ? allow(policy._tag, policy.fields)
+      : deny(
+          policy._tag,
+          answer === "Unknown"
+            ? `no history is available for '${policy.event}'`
+            : `subject '${subject.id}' ${answer === "Acted" ? "has already" : "has not"} performed '${policy.event}'`,
+        ),
+  );
 };
 
 /** `HasRelationship`'s arm, extracted for the same reason `evaluateActed` is. */
-const evaluateHasRelationship = Effect.fn("qadi.hasRelationship")(function* (
+const evaluateHasRelationship = (
   policy: Extract<Policy, { _tag: "HasRelationship" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
-) {
+) => {
   const rawId = resource?.["id"];
-  const depth = clampRelationshipDepth(policy.depth);
-  // Before the check, for the reason `evaluateActed` gives: the span that
-  // records a missing resource id should still name the relation it wanted one
-  // for. Annotated with the clamped value, not the raw decoded one: the span
-  // should say what was actually asked of the resolver.
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_id": subject.id,
-    "qadi.relation": policy.relation,
-    ...(typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
-    ...(depth === undefined ? {} : { "qadi.depth": depth }),
-  });
-  if (typeof rawId !== "string") {
-    return yield* Effect.fail(new MissingResourceId({ relation: policy.relation }));
-  }
-  yield* Metric.update(portCallsTotal, "RelationshipResolver");
-  const related = yield* RelationshipResolver.check({
-    subjectId: subject.id,
-    relation: policy.relation,
-    resourceId: makeResourceId(rawId),
-    depth,
-  }).pipe(
-    catchPortDefect(
-      (cause) =>
-        new RelationshipResolveError({
-          relation: policy.relation,
-          resourceId: makeResourceId(rawId),
-          cause: Cause.squash(cause),
-        }),
+  return Effect.map(askRelationship(subject, policy.relation, rawId, policy.depth), (related) =>
+    // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
+    // the arms close over `policy`, `subject` and `rawId`, so there is nothing to
+    // hoist. The rebuild is also noise against the service call, which may be a
+    // graph traversal or a network round trip.
+    Match.value(related).pipe(
+      Match.when("Related", () => allow("HasRelationship", policy.fields)),
+      Match.when("Unrelated", () =>
+        deny(
+          "HasRelationship",
+          `subject '${subject.id}' has no '${policy.relation}' relation to '${rawId}'`,
+        ),
+      ),
+      // Not "has no relation": nothing confirmed one. `"Unknown"` does not mean
+      // "unwired" specifically — `RelationshipResolverNever` is the common source,
+      // but a wired resolver may answer it too (a graph store with no namespace
+      // for this relation, say; `RelationshipResolver.ts`'s `RelatedResult` doc
+      // says so). The port cannot tell the two apart, so the sentence does not
+      // claim wiring is the cause — that would be exactly the kind of unverified
+      // claim about a store INV-QD-029 forbids, the same defect this arm was
+      // added to fix in the first place (BEH-QD-045).
+      Match.when("Unknown", () =>
+        deny(
+          "HasRelationship",
+          `no relationship resolver could confirm the '${policy.relation}' relation to '${rawId}'`,
+        ),
+      ),
+      Match.exhaustive,
     ),
   );
-  yield* Effect.annotateCurrentSpan({ "qadi.answer": related });
-  // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
-  // the arms close over `policy`, `subject` and `rawId`, so there is nothing to
-  // hoist. The rebuild is also noise against the service call above, which may
-  // be a graph traversal or a network round trip.
-  return Match.value(related).pipe(
-    Match.when("Related", () => allow("HasRelationship", policy.fields)),
-    Match.when("Unrelated", () =>
-      deny(
-        "HasRelationship",
-        `subject '${subject.id}' has no '${policy.relation}' relation to '${rawId}'`,
-      ),
-    ),
-    // Not "has no relation": nothing confirmed one. `"Unknown"` does not mean
-    // "unwired" specifically — `RelationshipResolverNever` is the common source,
-    // but a wired resolver may answer it too (a graph store with no namespace
-    // for this relation, say; `RelationshipResolver.ts`'s `RelatedResult` doc
-    // says so). The port cannot tell the two apart, so the sentence does not
-    // claim wiring is the cause — that would be exactly the kind of unverified
-    // claim about a store INV-QD-029 forbids, the same defect this arm was
-    // added to fix in the first place (BEH-QD-045).
-    Match.when("Unknown", () =>
-      deny(
-        "HasRelationship",
-        `no relationship resolver could confirm the '${policy.relation}' relation to '${rawId}'`,
-      ),
-    ),
-    Match.exhaustive,
-  );
-});
+};
 
 /**
  * `HasCustom`'s arm, extracted for the same reason `evaluateActed` and
  * `evaluateHasRelationship` are.
  */
-const evaluateHasCustom = Effect.fn("qadi.hasCustom")(function* (
+const evaluateHasCustom = (
   policy: Extract<Policy, { _tag: "HasCustom" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
-) {
-  yield* Effect.annotateCurrentSpan({
-    "qadi.custom_predicate": policy.name,
-    "qadi.subject_id": subject.id,
-  });
-  yield* Metric.update(portCallsTotal, "CustomPredicate");
-  const allowed = yield* CustomPredicate.evaluate(policy.name, subject, resource, policy.params).pipe(
-    catchPortDefect(
-      // `CustomPredicateError` has no `cause` field — unlike the other four
-      // port errors, it already represents its other failure mode (an
-      // unregistered name) as a human sentence in `reason`
-      // (`customPredicateFromRecord`, `Evaluate.test.ts`), not as a raw
-      // defect value. `Cause.pretty` matches that convention for a defect
-      // too, rather than inventing a second shape `reason` can hold.
-      (cause) => new CustomPredicateError({ name: policy.name, reason: Cause.pretty(cause) }),
-    ),
+) =>
+  Effect.map(askCustom(subject, resource, policy.name, policy.params), (allowed) =>
+    allowed
+      ? allow("HasCustom", policy.fields)
+      : deny("HasCustom", `custom predicate '${policy.name}' returned false`),
   );
-  yield* Effect.annotateCurrentSpan({ "qadi.answer": allowed });
-  return allowed
-    ? allow("HasCustom", policy.fields)
-    : deny("HasCustom", `custom predicate '${policy.name}' returned false`);
-});
 
 /**
  * `HasSignature`'s arm, extracted for the same reason `evaluateActed`,
  * `evaluateHasRelationship` and `evaluateHasCustom` are.
  *
- * `qadi.matched` rather than a three-valued `qadi.answer` like
- * `evaluateActed`'s: a signature either matches or it doesn't, with no
- * analogous middle state. The deny reason distinguishes "no signatures on
- * file at all" from "signatures exist but none match" at no extra cost,
- * since `SignatureHistory.signaturesFor` already returns the full list before
- * this filters it.
+ * The deny reason distinguishes "no signatures on file at all" from
+ * "signatures exist but none match" at no extra cost, since the port returns the
+ * full list before `askSignature` filters it.
  */
-const evaluateHasSignature = Effect.fn("qadi.hasSignature")(function* (
+const evaluateHasSignature = (
   policy: Extract<Policy, { _tag: "HasSignature" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
-) {
-  const scoped = policy.scope === "Resource";
-  const rawId = resource?.["id"];
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_id": subject.id,
-    "qadi.meaning": policy.meaning,
-    "qadi.scope": policy.scope,
-    ...(policy.signerRole === undefined ? {} : { "qadi.signer_role": policy.signerRole }),
-    ...(scoped && typeof rawId === "string" ? { "qadi.resource_id": rawId } : {}),
-  });
-  yield* requireScopedResourceId(scoped, rawId, policy.meaning);
-  yield* Metric.update(portCallsTotal, "SignatureHistory");
-  const signatureResourceId =
-    scoped && typeof rawId === "string" ? makeResourceId(rawId) : undefined;
-  const signatures = yield* SignatureHistory.signaturesFor({
-    subjectId: subject.id,
-    resourceId: signatureResourceId,
-  }).pipe(
-    catchPortDefect(
-      (cause) =>
-        new SignatureHistoryUnavailable({
-          subjectId: subject.id,
-          resourceId: signatureResourceId,
-          cause: Cause.squash(cause),
-        }),
-    ),
+) =>
+  Effect.map(
+    askSignature(subject, policy.meaning, policy.signerRole, policy.scope, resource?.["id"]),
+    ({ matched, onFile }) =>
+      matched
+        ? allow("HasSignature", policy.fields)
+        : deny(
+            "HasSignature",
+            onFile === 0
+              ? `no signatures are on file for subject '${subject.id}'`
+              : `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` +
+                (policy.signerRole === undefined
+                  ? ""
+                  : ` and signer role '${policy.signerRole}'`),
+          ),
   );
-  const matched = signatures.some(
-    (s) =>
-      s.meaning === policy.meaning &&
-      (policy.signerRole === undefined || s.signerRole === policy.signerRole),
-  );
-  yield* Effect.annotateCurrentSpan({ "qadi.matched": matched });
-  if (matched) return allow("HasSignature", policy.fields);
-  return deny(
-    "HasSignature",
-    signatures.length === 0
-      ? `no signatures are on file for subject '${subject.id}'`
-      : `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` +
-        (policy.signerRole === undefined ? "" : ` and signer role '${policy.signerRole}'`),
-  );
-});
 
 /**
  * Dispatches a single policy node to its verdict, recursing into composites.
@@ -934,7 +686,7 @@ const evaluateNode = (
       if (resource === undefined && referencesResource(policy.matcher)) {
         return Effect.fail(new MissingResource({ attribute: policy.attribute }));
       }
-      return Effect.map(readAttribute(subject, policy.attribute), (value) =>
+      return Effect.map(readAttribute("evaluate", subject, policy.attribute), (value) =>
         evaluateMatcher(policy.matcher, value, matcherContext)
           ? allow("HasAttribute", policy.fields)
           : deny(
@@ -1222,7 +974,7 @@ interface AnyOfFold {
 const beginAnyOf = (policy: Extract<Policy, { _tag: "AnyOf" }>): AnyOfFold => ({
   children: [],
   allowingFieldSets: [],
-  exhaustive: policy.fieldStrategy !== "First",
+  exhaustive: !anyOfStopsAtAllow(policy.fieldStrategy),
   obligations: NO_OBLIGATIONS,
   lastReason: undefined,
 });
@@ -1352,12 +1104,7 @@ const evaluateRules = Effect.fnUntraced(function* (
 
   /** The effect that ends the walk. `undefined` under `FirstApplicable`,
    *  where the first rule to apply at all is already final. */
-  const decisiveEffect: RuleEffect | undefined =
-    policy.combining === "DenyOverrides"
-      ? "Deny"
-      : policy.combining === "PermitOverrides"
-        ? "Permit"
-        : undefined;
+  const decisiveEffect: RuleEffect | undefined = rulesDecisiveEffect(policy.combining);
 
   interface Applied {
     readonly index: number;
@@ -1422,7 +1169,7 @@ const evaluateRules = Effect.fnUntraced(function* (
     // the first index that is either decisive or a failure wins (ADR-QD-026).
     // `rule` and `index` still travel with the trace from the same `forEach`
     // that produced it, rather than being re-associated afterward by indexing
-    // a second array — the same reasoning as `translateRules` in
+    // a second array — the same reasoning as `compile`'s rule table in
     // Predicate.ts.
     const exits = yield* Effect.forEach(
       policy.rules,

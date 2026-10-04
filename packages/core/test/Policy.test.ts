@@ -627,7 +627,7 @@ describe("Policy serialization", () => {
     // `Schema.Finite` rather than deferring to a runtime guard; `depth` now
     // gets the same boundary-not-runtime treatment, plus an explicit
     // `[0, DEFAULT_MAX_DEPTH]` range since a depth outside it can never be
-    // honored (`Evaluate.ts`'s `clampRelationshipDepth` would silently
+    // honored (`PortAccess.ts`'s `clampRelationshipDepth` would silently
     // rewrite it for an in-memory policy instead).
     const rejected: ReadonlyArray<readonly [string, string]> = [
       ['{"_tag":"HasRelationship","relation":"owner","depth":1e308}', "1e308"],

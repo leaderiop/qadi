@@ -36,8 +36,8 @@ export interface CustomPredicateShape {
    * decoded from the policy — this service, not the policy tree, is where a
    * caller validates its shape.
    *
-   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
-   * `evaluateHasCustom` catches a defect from this call and converts it into
+   * An implementation is not required to fail cleanly. `PortAccess.ts`'s
+   * `askCustom` catches a defect from this call and converts it into
    * this same `CustomPredicateError` — its `reason` then renders the defect
    * (`Cause.pretty`), the same way it already renders an unregistered name as
    * a sentence — matching `AttributeResolverShape.resolve`'s own contract;

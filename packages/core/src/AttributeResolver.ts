@@ -42,18 +42,20 @@ export interface AttributeResolverShape {
    * will simply fail the matcher. Failing the Effect means the lookup itself
    * broke, which propagates as an evaluation error rather than a denial.
    *
-   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
-   * `resolveAttribute` catches a defect from this call — a throw, a rejected
+   * An implementation is not required to fail cleanly. `PortAccess.ts`'s
+   * `readAttribute` — the one place either interpreter reads this port —
+   * catches a defect from this call — a throw, a rejected
    * promise lifted through `Effect.tryPromise`, an `Effect.die` — and
    * converts it into this same `AttributeResolveError`, so a caller wrapping
-   * `evaluate` in `Effect.retry` sees a typed, retryable failure either way
-   * (issue #100). An implementation that already fails with
+   * `evaluate` or `toPredicate` in `Effect.retry` sees a typed, retryable
+   * failure either way (issue #100). An implementation that already fails with
    * `AttributeResolveError` pays nothing extra for this; one that dies
    * instead is no longer a silent gap in that guarantee.
    *
    * `subjectId` is an arbitrary id, not implicitly `CurrentSubject`'s own
-   * (JF-03) — `Evaluate.ts`'s only call site always passes the subject being
-   * evaluated, so evaluation itself never asks about anyone else, but the
+   * (JF-03) — `PortAccess.ts`'s `readAttribute`, the one call site both
+   * `Evaluate.ts` and `Predicate.ts` reach this through, always passes the
+   * subject being evaluated, so neither interpreter ever asks about anyone else, but the
    * parameter's width is real and belongs to a different consumer:
    * `@qadi/devtools`'s capture/sweep tooling resolves attributes for
    * subjects it is not currently evaluating, to pre-populate a simulation. An
@@ -109,7 +111,7 @@ export const attributeResolverFromRecord = (
  *
  * **The attempt count is annotated onto the caller's current span** (KH-01)
  * — `qadi.attempts`, `1` when the first attempt simply succeeds. Without
- * this, `Evaluate.ts`'s `resolveAttribute` opens one `qadi.attempt` span
+ * this, `PortAccess.ts`'s `resolveAttribute` opens one `qadi.attribute` span
  * around the whole wrapped call, and every retry this layer performs happens
  * silently inside that one span's duration: a trace reader sees one
  * deceptively slow call rather than the N store round trips that actually

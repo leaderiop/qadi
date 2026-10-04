@@ -39,6 +39,7 @@ import {
   RelationshipResolver,
   RelationshipResolverNever,
   relationshipResolverFromEdges,
+  toPredicate,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
@@ -479,5 +480,48 @@ describe("what the collector keeps", () => {
       yield* run;
 
       assert.strictEqual((yield* collector.snapshot).calls.length, 2);
+    }));
+});
+
+describe("which interpreter asked", () => {
+  const read = hasAttribute("tier", gte(3));
+
+  it.effect("a translation's read is marked toPredicate and an evaluation's evaluate", () =>
+    Effect.gen(function* () {
+      const collector = collectPortCalls();
+      const layer = Layer.mergeAll(
+        services({ attributes: resolverOf({ tier: 5 }) }),
+        collector.layer,
+      );
+
+      yield* toPredicate(read).pipe(Effect.provide(layer));
+      yield* evaluate(read).pipe(Effect.provide(layer));
+
+      const { calls } = yield* collector.snapshot;
+      assert.deepStrictEqual(
+        calls.map((call) => call.interpreter),
+        ["toPredicate", "evaluate"],
+      );
+    }));
+
+  it.effect("an unannotated span, or an unexpected value, reads as not recorded", () =>
+    Effect.gen(function* () {
+      const collector = collectPortCalls();
+
+      yield* Effect.void.pipe(
+        Effect.withSpan("qadi.attribute"),
+        Effect.andThen(
+          Effect.void.pipe(
+            Effect.withSpan("qadi.attribute", { attributes: { "qadi.interpreter": "bogus" } }),
+          ),
+        ),
+        Effect.provide(collector.layer),
+      );
+
+      const { calls } = yield* collector.snapshot;
+      assert.deepStrictEqual(
+        calls.map((call) => call.interpreter),
+        [undefined, undefined],
+      );
     }));
 });

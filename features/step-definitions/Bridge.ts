@@ -182,18 +182,44 @@ export const compile = Effect.fn("features.compile")(function* (policy: Policy) 
   const { state } = yield* World;
   const w = yield* Ref.get(state);
 
+  // A faulted attribute service counts how often it was asked, so a scenario can
+  // say "this answer needed no lookup" rather than only "no error escaped".
+  const asked = yield* Ref.make(0);
+  const faulted = Layer.succeed(AttributeResolver, {
+    name: "faulted",
+    resolve: (_id: string, attribute: string) =>
+      Effect.suspend(() =>
+        Effect.flatMap(Ref.update(asked, (n) => n + 1), () =>
+          w.attributeFault === "dies"
+            ? Effect.die(new Error("boom"))
+            : Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+        ),
+      ),
+  });
+
   const result = yield* toPredicate(policy).pipe(
-    Effect.provide(qadiTestLayer(subjectOf(w), { attributes: w.resolvedAttributes })),
+    Effect.provide(
+      qadiTestLayer(subjectOf(w), {
+        attributes: w.resolvedAttributes,
+        ...(w.attributeFault === "none" ? {} : { attributeResolver: faulted }),
+      }),
+    ),
     Effect.result,
   );
+  const attributeCalls = yield* Ref.get(asked);
 
   if (Result.isFailure(result)) {
     const refusedTag =
       result.failure._tag === "PolicyNotTranslatable" ? result.failure.policyTag : result.failure._tag;
-    yield* Ref.update(state, (s) => ({ ...s, predicate: undefined, refusedTag }));
+    yield* Ref.update(state, (s) => ({ ...s, predicate: undefined, refusedTag, attributeCalls }));
     return;
   }
-  yield* Ref.update(state, (s) => ({ ...s, predicate: result.success, refusedTag: undefined }));
+  yield* Ref.update(state, (s) => ({
+    ...s,
+    predicate: result.success,
+    refusedTag: undefined,
+    attributeCalls,
+  }));
 });
 
 /**

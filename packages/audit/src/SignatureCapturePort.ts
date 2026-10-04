@@ -91,7 +91,7 @@ export interface SignatureCapturePortShape {
    * before returning a `Signature`.** ADR-QD-058 settles `hasSignature` as
    * trust-on-presence: the evaluator treats a `Signature` in
    * `SignatureHistoryShape.signaturesFor` as already validated and asks it no
-   * further questions (`evaluateHasSignature`, `INV-QD-055`). Nothing in this
+   * further questions (`askSignature`, `INV-QD-055`). Nothing in this
    * port's type enforces that premise — a `capture` that records an
    * unverified row satisfies the signature above and every invariant, and the
    * evaluator will then allow on it. Whatever reauthentication or identity

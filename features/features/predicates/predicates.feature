@@ -30,6 +30,20 @@ Feature: Predicate output
     Then the predicate is false
     And the query need not be run
 
+  Scenario: An attribute service that dies during compilation is an error, not a crash
+    Given a subject "alice"
+    And the attribute service dies unexpectedly
+    When the risk policy is compiled to a predicate
+    Then compilation fails with an AttributeResolveError
+
+  Scenario: A role that already decides the filter asks no store
+    Given a subject "alice"
+    And the subject has role "editor"
+    And the attribute service is down
+    When the editor-or-risk policy is compiled to a predicate
+    Then the predicate is true
+    And the attribute service was never asked
+
   Scenario: A relationship cannot be compiled
     Given a subject "alice"
     When the ownership relationship policy is compiled to a predicate
