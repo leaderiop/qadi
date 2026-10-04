@@ -1,10 +1,13 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Clock from "effect/Clock";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Latch from "effect/Latch";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
+import * as FastCheck from "fast-check";
 import { makeCircuitBreaker } from "../src/CircuitBreaker.ts";
 import type { CircuitBreaker } from "../src/CircuitBreaker.ts";
 import { isolatedMetrics } from "./helpers.ts";
@@ -457,3 +460,210 @@ describe("CircuitBreaker — concurrent record() calls (Qadi.ts's filter/filterS
         assert.strictEqual(transitions?.state.occurrences.get("Open"), 1);
       }),
   ));
+
+// ---------------------------------------------------------------------------
+// PROPERTY: the real breaker agrees with a pure reference model.
+//
+// The scripted tests above pin exact edges; random generation alone rarely lands
+// on them (ADR-QD-056), so `AdvanceToEdge` draws times relative to the current
+// window's deadline (±1 ms). The model encodes D-07-c/d/e: a failure on an
+// `Open` breaker is a no-op, an outcome counts only toward the window that
+// admitted it, and interrupting an unsettled probe releases its claim.
+// ---------------------------------------------------------------------------
+
+interface Model {
+  tag: "Closed" | "Open" | "HalfOpen";
+  failures: number;
+  /** `openedAt` while Open, `halfOpenAt` while HalfOpen, unused while Closed. */
+  since: number;
+  claimed: boolean;
+  generation: number;
+  now: number;
+  transitions: { Open: number; HalfOpen: number; Closed: number };
+}
+
+type Command =
+  | { readonly kind: "Fail" }
+  | { readonly kind: "Succeed" }
+  | { readonly kind: "Permit" }
+  | { readonly kind: "Hold" }
+  | { readonly kind: "Settle"; readonly index: number; readonly ok: boolean }
+  | { readonly kind: "Release"; readonly index: number }
+  | { readonly kind: "Advance"; readonly millis: number }
+  | { readonly kind: "AdvanceToEdge"; readonly delta: number };
+
+const commands: FastCheck.Arbitrary<Command> = FastCheck.oneof(
+  FastCheck.constant<Command>({ kind: "Fail" }),
+  FastCheck.constant<Command>({ kind: "Succeed" }),
+  FastCheck.constant<Command>({ kind: "Permit" }),
+  FastCheck.constant<Command>({ kind: "Hold" }),
+  FastCheck.record({ index: FastCheck.nat(8), ok: FastCheck.boolean() }).map(
+    ({ index, ok }): Command => ({ kind: "Settle", index, ok }),
+  ),
+  FastCheck.nat(8).map((index): Command => ({ kind: "Release", index })),
+  FastCheck.nat(30_000).map((millis): Command => ({ kind: "Advance", millis })),
+  FastCheck.integer({ min: -1, max: 1 }).map((delta): Command => ({ kind: "AdvanceToEdge", delta })),
+);
+
+const moveTo = (m: Model, tag: Model["tag"]): void => {
+  m.tag = tag;
+  m.since = m.now;
+  m.claimed = false;
+  m.generation++;
+  m.transitions[tag]++;
+};
+
+const observeModel = (m: Model, resetMillis: number): void => {
+  if (m.tag === "Open" && m.now - m.since >= resetMillis) moveTo(m, "HalfOpen");
+  else if (m.tag === "HalfOpen" && m.now - m.since >= resetMillis) moveTo(m, "Open");
+};
+
+/** Mirrors `admit`: the permit kind plus the generation it was admitted under. */
+const admitModel = (
+  m: Model,
+  resetMillis: number,
+): { readonly kind: "refused" | "admitted" | "probe"; readonly generation: number } => {
+  observeModel(m, resetMillis);
+  if (m.tag === "Closed") return { kind: "admitted", generation: m.generation };
+  if (m.tag === "HalfOpen" && !m.claimed) {
+    m.claimed = true;
+    return { kind: "probe", generation: m.generation };
+  }
+  return { kind: "refused", generation: m.generation };
+};
+
+const settleModel = (m: Model, generation: number, ok: boolean, threshold: number): void => {
+  if (m.generation !== generation) return;
+  if (ok) {
+    if (m.tag === "HalfOpen") {
+      moveTo(m, "Closed");
+      m.failures = 0;
+    } else if (m.tag === "Closed") m.failures = 0;
+  } else if (m.tag === "HalfOpen") moveTo(m, "Open");
+  else if (m.tag === "Closed") {
+    m.failures++;
+    if (m.failures >= threshold) moveTo(m, "Open");
+  }
+};
+
+const releaseModel = (m: Model, generation: number): void => {
+  if (m.tag === "HalfOpen" && m.claimed && m.generation === generation) moveTo(m, "Open");
+};
+
+interface Held {
+  readonly fiber: Fiber.Fiber<void>;
+  readonly command: Deferred.Deferred<boolean>;
+  readonly generation: number;
+  readonly probe: boolean;
+}
+
+describe("PROPERTY: the breaker matches a pure reference model", () => {
+  it.effect("generated command sequences leave status and transition counts in agreement", () =>
+    Effect.gen(function* () {
+      const scenarios = FastCheck.sample(
+        FastCheck.record({
+          failureThreshold: FastCheck.integer({ min: 1, max: 6 }),
+          resetTimeoutMs: FastCheck.integer({ min: 1, max: 20_000 }),
+          commands: FastCheck.array(commands, { minLength: 0, maxLength: 40 }),
+        }),
+        { numRuns: 150, seed: 52 },
+      );
+
+      for (const scenario of scenarios) {
+        const { failureThreshold, resetTimeoutMs } = scenario;
+        const outcome = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            const breaker = yield* makeCircuitBreaker({ failureThreshold, resetTimeoutMs });
+            const model: Model = {
+              tag: "Closed",
+              failures: 0,
+              since: 0,
+              claimed: false,
+              generation: 0,
+              now: yield* Clock.currentTimeMillis,
+              transitions: { Open: 0, HalfOpen: 0, Closed: 0 },
+            };
+            const held: Array<Held> = [];
+            const takeHeld = (index: number): Held | undefined =>
+              held.length === 0 ? undefined : held.splice(index % held.length, 1)[0];
+
+            for (const command of scenario.commands) {
+              if (command.kind === "Fail" || command.kind === "Succeed") {
+                const expected = admitModel(model, resetTimeoutMs);
+                if (expected.kind !== "refused") {
+                  settleModel(model, expected.generation, command.kind === "Succeed", failureThreshold);
+                }
+                yield* command.kind === "Succeed" ? succeedOnce(breaker) : failOnce(breaker);
+              } else if (command.kind === "Permit") {
+                const expected = admitModel(model, resetTimeoutMs);
+                assert.strictEqual(yield* permitOf(breaker), expected.kind);
+              } else if (command.kind === "Hold") {
+                const expected = admitModel(model, resetTimeoutMs);
+                const latch = yield* Latch.make();
+                const settle = yield* Deferred.make<boolean>();
+                const fiber = yield* Effect.forkChild(
+                  breaker.withPermit((p) =>
+                    p._tag === "Admitted"
+                      ? latch.open.pipe(
+                          Effect.andThen(Deferred.await(settle)),
+                          Effect.flatMap((ok) => p.attempt(ok ? Effect.void : Effect.fail("offline"))),
+                          Effect.asVoid,
+                        )
+                      : Effect.void,
+                  ),
+                );
+                if (expected.kind === "refused") {
+                  yield* Fiber.join(fiber);
+                } else {
+                  yield* latch.await;
+                  held.push({
+                    fiber,
+                    command: settle,
+                    generation: expected.generation,
+                    probe: expected.kind === "probe",
+                  });
+                }
+              } else if (command.kind === "Settle") {
+                const entry = takeHeld(command.index);
+                if (entry !== undefined) {
+                  observeModel(model, resetTimeoutMs);
+                  settleModel(model, entry.generation, command.ok, failureThreshold);
+                  yield* Deferred.succeed(entry.command, command.ok);
+                  yield* Fiber.join(entry.fiber);
+                }
+              } else if (command.kind === "Release") {
+                const entry = takeHeld(command.index);
+                if (entry !== undefined) {
+                  observeModel(model, resetTimeoutMs);
+                  if (entry.probe) releaseModel(model, entry.generation);
+                  yield* Fiber.interrupt(entry.fiber);
+                }
+              } else {
+                const millis =
+                  command.kind === "Advance"
+                    ? command.millis
+                    : Math.max(0, model.since + resetTimeoutMs - model.now + command.delta);
+                model.now += millis;
+                yield* TestClock.adjust(millis);
+              }
+              observeModel(model, resetTimeoutMs);
+              assert.strictEqual(yield* breaker.status, model.tag, JSON.stringify(command));
+            }
+
+            return { snapshot: yield* Metric.snapshot, expected: model.transitions };
+          }),
+        );
+        const frequency = outcome.snapshot.find(
+          (s): s is FrequencySnapshot =>
+            s.type === "Frequency" && s.id === "qadi_audit_circuit_breaker_transitions_total",
+        );
+        for (const word of ["Open", "HalfOpen", "Closed"] as const) {
+          assert.strictEqual(
+            frequency?.state.occurrences.get(word) ?? 0,
+            outcome.expected[word],
+            `${word} transitions for ${JSON.stringify(scenario)}`,
+          );
+        }
+      }
+    }));
+});
