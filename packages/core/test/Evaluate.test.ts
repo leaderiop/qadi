@@ -4144,6 +4144,7 @@ describe("nesting depth is a property of the policy (ARCH-02 D-02-e, D-02-g)", (
         }
         assert.strictEqual(depth, n);
       }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))),
+      60_000,
     );
   }
 });

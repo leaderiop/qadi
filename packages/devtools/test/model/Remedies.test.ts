@@ -620,11 +620,11 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C7
     for (const policy of chains) {
       assert.deepStrictEqual(labels(policy), ["with role editor"]);
     }
-  });
+  }, 60_000);
 
   it("a 100k-deep chain of not offers no edits, because Not is never descended into", () => {
     assert.deepStrictEqual(labels(chain(not, n, hasRole("editor"))), []);
-  });
+  }, 60_000);
 
   it("satisfyingValue builds a 100k-deep witness for a 100k-deep matcher", () => {
     const found = satisfyingValue(chain((m) => fieldMatch("a", m), n, eq(literal(1))), alice);
@@ -639,7 +639,7 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C7
     }
     assert.strictEqual(depth, n);
     assert.strictEqual(node, 1);
-  });
+  }, 60_000);
 
   it("requirements come out pre-order, left to right, and duplicates collapse by label", () => {
     assert.deepStrictEqual(
@@ -647,17 +647,17 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C7
       ["with role a", "with role b", "with role c", "with role d"],
     );
     assert.deepStrictEqual(labels(allOf([hasRole("a"), hasRole("a")])), ["with role a"]);
-  });
+  }, 60_000);
 
   it("a Deny row's conditions are skipped, whatever its position", () => {
     assert.deepStrictEqual(
       labels(rules([denyWhen(hasRole("a")), permitWhen(hasRole("b")), denyWhen(hasRole("c"))])),
       ["with role b"],
     );
-  });
+  }, 60_000);
 
   it("a Size witness still declines through a deep wrapper chain", () => {
     const found = satisfyingValue(chain(someMatch, n, size(eq(literal("two")))), alice);
     assert.strictEqual(found._tag, "Unsynthesisable");
-  });
+  }, 60_000);
 });

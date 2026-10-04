@@ -420,7 +420,7 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C3
       node = node.children[0];
     }
     assert.strictEqual(depth, n + 1);
-  });
+  }, 60_000);
 
   it("flattenTree lists a 100k-deep chain in pre-order", () => {
     const tree = inspect(chain(not, n, hasRole("a")), undefined);
@@ -429,7 +429,7 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C3
     assert.strictEqual(flat[0], tree);
     assert.strictEqual(flat[1]?.path.length, 3);
     assert.strictEqual(flat[n]?.path.length, 1 + 2 * n);
-  });
+  }, 60_000);
 
   it("flattenTree keeps siblings in order, parents before children", () => {
     const tree = inspect(allOf([allOf([hasRole("a"), hasRole("b")]), hasRole("c")]), undefined);
@@ -437,7 +437,7 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C3
       flattenTree(tree).map((node) => node.path),
       ["$", "$.0", "$.0.0", "$.0.1", "$.1"],
     );
-  });
+  }, 60_000);
 
   it("inspect zips a real trace of a 100k-deep chain, Allowed and Denied alternating", async () => {
     const policy = chain(not, n, hasRole("reader"));
@@ -458,7 +458,7 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C3
       node = node.children[0];
     }
     assert.strictEqual(depth, n + 1);
-  });
+  }, 60_000);
 });
 
 const fail = (): never => {

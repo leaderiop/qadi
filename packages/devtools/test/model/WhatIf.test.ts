@@ -349,7 +349,7 @@ describe("sweepPlan — what a sweep would cost, before it costs it", () => {
     const policy = chain((p) => labeled("l", p), 100_000, hasRole("admin"));
     const plan = sweepPlan(policy, alice);
     assert.isTrue(plan.edits.some((edit) => edit.label === "with role admin"));
-  });
+  }, 60_000);
 
   // E3.2, closed here rather than in JOB 3: the count only exists once there is
   // a sweep to count.

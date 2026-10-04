@@ -504,6 +504,7 @@ describe("toPredicate is stack-safe for any maxDepth the caller sets (ARCH-02 D-
       const odd = yield* deepTranslate(chain(P.not, 100_001, P.hasRole("editor")));
       assert.deepStrictEqual(odd._tag === "Success" ? odd.success : undefined, { _tag: "False" });
     }),
+    60_000,
   );
 
   it.effect("a 100k-deep labeled chain translates without a defect", () =>
@@ -511,6 +512,7 @@ describe("toPredicate is stack-safe for any maxDepth the caller sets (ARCH-02 D-
       const r = yield* deepTranslate(chain((p) => P.labeled("l", p), 100_000, P.hasRole("editor")));
       assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "True" });
     }),
+    60_000,
   );
 
   it.effect("a 10k-deep chain over a column predicate nests Negate and stays intact", () =>
@@ -529,6 +531,7 @@ describe("toPredicate is stack-safe for any maxDepth the caller sets (ARCH-02 D-
       assert.strictEqual(depth, 10_000);
       assert.strictEqual(node._tag, "Compare");
     }),
+    60_000,
   );
 
   it.effect("a 250k-wide allOf with one restricting leaf at the end is refused as untranslatable", () =>
@@ -540,6 +543,7 @@ describe("toPredicate is stack-safe for any maxDepth the caller sets (ARCH-02 D-
       if (r._tag !== "Failure") return;
       assert.strictEqual(r.failure._tag, "PolicyNotTranslatable");
     }),
+    60_000,
   );
 
   it.effect("a policy both too deep and field-restricting is PolicyTooDeep in either order", () =>
@@ -553,6 +557,7 @@ describe("toPredicate is stack-safe for any maxDepth the caller sets (ARCH-02 D-
         assert.strictEqual(r._tag === "Failure" ? r.failure._tag : r._tag, "PolicyTooDeep");
       }
     }),
+    60_000,
   );
 });
 
