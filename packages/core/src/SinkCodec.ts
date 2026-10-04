@@ -27,10 +27,9 @@
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
-import type { Decision } from "./Decision.ts";
-import { Allow, Deny, TraceSchema } from "./Decision.ts";
 import type { SinkRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "./DecisionRecord.ts";
+import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import {
   AttributeResolveError,
@@ -44,7 +43,6 @@ import {
   SignatureHistoryUnavailable,
 } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
-import { Obligation } from "./Obligation.ts";
 import { MAX_DECODE_DEPTH, Policy, PolicyDecodeTooDeep, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 
 /**
@@ -94,17 +92,6 @@ export const EvaluationErrorSchema = Schema.Union([
  */
 const UNKNOWN_SUBJECT = makeSubjectId("<unknown subject: wire version skew>");
 
-const DecisionSchema = Schema.Struct({
-  _tag: Schema.Literals(["Allow", "Deny"]),
-  evaluationId: Schema.String,
-  subjectId: Schema.String,
-  durationMillis: Schema.Number,
-  trace: TraceSchema,
-  visibleFields: Schema.optional(Schema.Array(Schema.String)),
-  obligations: Schema.Array(Obligation),
-  reason: Schema.optional(Schema.String),
-});
-
 /** The wire form of a {@link SinkRecord}. */
 export const SinkRecordWire = Schema.Union([
   Schema.Struct({
@@ -126,7 +113,7 @@ export const SinkRecordWire = Schema.Union([
     resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
     action: Schema.optional(Schema.String),
     cache: Schema.optional(Schema.Literals(["hit", "coalesced", "miss"])),
-    decided: Schema.optional(DecisionSchema),
+    decided: Schema.optional(DecisionWire),
     failed: Schema.optional(EvaluationErrorSchema),
   }),
   Schema.Struct({
@@ -139,43 +126,6 @@ export const SinkRecordWire = Schema.Union([
 ]);
 
 export type SinkRecordWire = typeof SinkRecordWire.Type;
-
-const encodeDecision = (decision: Decision): typeof DecisionSchema.Type => {
-  const base = {
-    evaluationId: decision.evaluationId,
-    subjectId: decision.subjectId,
-    durationMillis: decision.durationMillis,
-    trace: decision.trace,
-    obligations: decision._tag === "Allow" ? decision.obligations : [],
-  };
-  return decision._tag === "Allow"
-    ? {
-        ...base,
-        _tag: "Allow",
-        ...(decision.visibleFields === undefined
-          ? {}
-          : { visibleFields: decision.visibleFields }),
-      }
-    : { ...base, _tag: "Deny", reason: decision.reason };
-};
-
-const decodeDecision = (wire: typeof DecisionSchema.Type): Decision =>
-  wire._tag === "Allow"
-    ? new Allow({
-        evaluationId: wire.evaluationId,
-        subjectId: makeSubjectId(wire.subjectId),
-        durationMillis: wire.durationMillis,
-        trace: wire.trace,
-        visibleFields: wire.visibleFields,
-        obligations: wire.obligations,
-      })
-    : new Deny({
-        evaluationId: wire.evaluationId,
-        subjectId: makeSubjectId(wire.subjectId),
-        durationMillis: wire.durationMillis,
-        trace: wire.trace,
-        reason: wire.reason ?? "denied",
-      });
 
 /**
  * True for a value `JSON.stringify` can round-trip without lying: no
