@@ -169,7 +169,7 @@ describe("pinned examples", () => {
     );
   });
 
-  describe("(e) N3 evaluation depends on what short-circuits", () => {
+  describe("(e) N3 over-deep policies are rejected whoever asks (flipped by D-02-e(b), T13)", () => {
     const deep = chain(P.not, 3, P.hasRole("x"));
     const decide = (policy: P.Policy, roles: ReadonlyArray<string>) =>
       evaluate(policy, { maxDepth: 1 }).pipe(
@@ -177,19 +177,19 @@ describe("pinned examples", () => {
         Effect.provide(testLayer(subjectWith({ roles }))),
       );
 
-    // PINNED — flips under D-02-e(b), see T13
-    it.effect("an allow that short-circuits past the over-deep branch succeeds", () =>
+    // FLIPPED by D-02-e(b), T13: was "succeeds" (subject-dependent)
+    it.effect("an allow that would short-circuit past the over-deep branch is still PolicyTooDeep", () =>
       Effect.gen(function* () {
         const r = yield* decide(P.anyOf([P.hasRole("editor"), deep]), ["editor"]);
-        assert.strictEqual(r._tag, "Success");
+        assert.strictEqual(r._tag === "Failure" ? r.failure._tag : r._tag, "PolicyTooDeep");
       }),
     );
 
-    // PINNED — flips under D-02-e(b), see T13
-    it.effect("a deny that short-circuits past the over-deep branch succeeds", () =>
+    // FLIPPED by D-02-e(b), T13: was "succeeds" (subject-dependent)
+    it.effect("a deny that would short-circuit past the over-deep branch is still PolicyTooDeep", () =>
       Effect.gen(function* () {
         const r = yield* decide(P.allOf([P.hasRole("nope"), deep]), []);
-        assert.strictEqual(r._tag, "Success");
+        assert.strictEqual(r._tag === "Failure" ? r.failure._tag : r._tag, "PolicyTooDeep");
       }),
     );
   });

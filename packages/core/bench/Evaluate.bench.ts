@@ -59,7 +59,7 @@ import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
 import { eq, fieldMatch, gte, literal, neq, subject, subjectId } from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
-import { allOf, anyOf, hasAttribute, hasPermission, not, obliged } from "../src/Policy.ts";
+import { allOf, anyOf, hasAttribute, hasPermission, labeled, not, obliged } from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
 import { filter } from "../src/Qadi.ts";
 import { decideSubjects } from "../src/SubjectSet.ts";
@@ -203,6 +203,23 @@ const obligationHeavy = allOf(
   ),
 );
 
+/**
+ * Ten nested wrappers, cycling `labeled`/`not`/`obliged` — the only workload
+ * whose nodes are *all* single-child wrappers. `deep` above is built from
+ * `allOf`/`anyOf`/`not` only, so it under-samples the `Labeled`/`Obliged` arms
+ * of `evaluateNode`, and those are the arms whose child call ARCH-02 T14
+ * suspends; without this the change would be unmeasured where it lands.
+ */
+const wrapperHeavy: Policy = Array.from({ length: 10 }).reduce<Policy>(
+  (inner, _, index) =>
+    index % 3 === 0
+      ? labeled(`level-${index}`, inner)
+      : index % 3 === 1
+        ? not(inner)
+        : obliged(obligation(`duty-${index}`), inner),
+  hasPermission(read),
+);
+
 const items = Array.from({ length: 500 }, (_, index) => ({
   id: `doc-${index}`,
   ownerId: index % 2 === 0 ? "alice" : "bob",
@@ -219,6 +236,7 @@ test("evaluate", async ({ bench }) => {
     bench("one node", () => run(one)),
     bench("wide — allOf of 8", () => run(wide)),
     bench("deep — 10 levels", () => run(deep)),
+    bench("wrapper-heavy — 10 nested labeled/not/obliged", () => run(wrapperHeavy)),
     bench("matcher-heavy — 3 refs", () => run(matchers)),
     bench("field-heavy — allOf of 8 under Intersection", () => run(fieldHeavy)),
     bench("obligation-heavy — allOf of 8 distinct obligations", () => run(obligationHeavy)),

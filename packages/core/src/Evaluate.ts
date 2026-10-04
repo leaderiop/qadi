@@ -49,7 +49,7 @@ import {
   askSignature,
   readAttribute,
 } from "./PortAccess.ts";
-import { DEFAULT_MAX_DEPTH, POLICY_TAGS } from "./Policy.ts";
+import { DEFAULT_MAX_DEPTH, POLICY_TAGS, policyDepth } from "./Policy.ts";
 import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
@@ -595,16 +595,21 @@ const evaluateHasSignature = (
 /**
  * Dispatches a single policy node to its verdict, recursing into composites.
  *
- * `depth > maxDepth` is the one guard standing between a decoded policy tree
- * and unbounded recursion (BEH-QD-038); `Policy.ts`'s `policyDepth` and
- * `RolesAndDepth.test.ts` assert the two agree in both directions —
- * `policyDepth(p) <= n` exactly when `evaluate(p, { maxDepth: n })` succeeds.
+ * `depth > maxDepth` is the per-node guard (BEH-QD-038), kept as defense in depth:
+ * the root `evaluate` has already rejected any policy whose `policyDepth`
+ * exceeds `maxDepth` before the first node, so `policyDepth(p) <= n` exactly
+ * when `evaluate(p, { maxDepth: n })` does not raise `PolicyTooDeep`
+ * (`RolesAndDepth.test.ts` asserts the agreement in both directions).
  *
- * Not `Effect.suspend`-wrapped: a leaf tag's real comparison
+ * Not `Effect.suspend`-wrapped as a whole: a leaf tag's real comparison
  * (`subject.roles.has(...)`, `evaluateMatcher`) runs immediately, as part of
  * building the `Effect.succeed(...)` this returns, rather than lazily when
- * that `Effect` is later run. The root `evaluate`'s cache path defends itself
- * against this with its own `Effect.suspend` around the call; a future caller
+ * that `Effect` is later run. A wrapper's *child*, though, is suspended
+ * (`Not`/`Obliged`/`Labeled`): building the child's effect eagerly recursed
+ * natively once per wrapper level, so a deep chain under a large `maxDepth`
+ * overflowed the stack and became a defect (ARCH-02 C3e). The root
+ * `evaluate`'s cache path defends itself against the leaf case with its own
+ * `Effect.suspend` around the call; a future caller
  * that memoizes or races calls to this function directly needs the same
  * defense.
  */
@@ -737,7 +742,9 @@ const evaluateNode = (
 
     case "Not":
       return Effect.map(
-        evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        Effect.suspend(() =>
+          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        ),
         (child) =>
           child.allowed
             ? deny("Not", "negated policy allowed", [child])
@@ -750,7 +757,9 @@ const evaluateNode = (
 
     case "Obliged":
       return Effect.map(
-        evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        Effect.suspend(() =>
+          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        ),
         (child) =>
           child.allowed
             ? // The duty attaches only to a permission that was granted.
@@ -766,7 +775,9 @@ const evaluateNode = (
 
     case "Labeled":
       return Effect.map(
-        evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        Effect.suspend(() =>
+          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        ),
         (child) => ({
           policyTag: "Labeled" as const,
           label: policy.label,
@@ -1261,14 +1272,15 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
       resource: request.resource,
       action: request.action,
     };
-    return evaluateNode(
-      policy,
-      subject,
-      request,
-      matcherContext,
-      0,
-      options?.maxDepth ?? DEFAULT_MAX_DEPTH,
-    );
+    const maxDepth = options?.maxDepth ?? DEFAULT_MAX_DEPTH;
+    // Nesting depth is a property of the policy, so it is judged before any
+    // node is visited: whether a policy is "too deep" must not depend on which
+    // branches this subject's attributes happen to short-circuit past, or on
+    // who is asking (ARCH-02 D-02-e, INV-QD-037). `policyDepth` is memoised per
+    // policy object, so after the first evaluation this is a lookup.
+    // `evaluateNode` keeps its own per-node guard as defense in depth.
+    if (policyDepth(policy) > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
+    return evaluateNode(policy, subject, request, matcherContext, 0, maxDepth);
   });
 
   // The TRACE is cached, never the `Decision`. A cached decision would carry a

@@ -1181,8 +1181,24 @@ const maxOf = (values: ReadonlyArray<number>): number => {
  * runs to decide whether a policy "will evaluate at all"; that check must not
  * itself be able to overflow the stack on the input it exists to validate.
  */
-export const policyDepth = (self: Policy): number =>
-  foldPolicy<number>(self, (_node, children) =>
+export const policyDepth = (self: Policy): number => {
+  const known = depthMemo.get(self);
+  if (known !== undefined) return known;
+  const depth = foldPolicy<number>(self, (_node, children) =>
     children.length === 0 ? 0 : 1 + maxOf(children),
   );
+  depthMemo.set(self, depth);
+  return depth;
+};
+
+/**
+ * `policyDepth`'s answer per policy object.
+ *
+ * A policy is an immutable value, and `evaluate` asks its depth before every
+ * uncached evaluation (ARCH-02 D-02-e), so the answer is remembered per object
+ * rather than re-walked. Weakly held: a policy nothing references is collected
+ * with its entry. Only the root a caller passed is remembered; subtrees fold
+ * within one call.
+ */
+const depthMemo = new WeakMap<Policy, number>();
 
