@@ -11,8 +11,7 @@ import {
   PredicateNotRenderable,
   type CompilePrismaWhereOptions,
 } from "../src/index.ts";
-import { compile, FIXTURE_NULLABLE } from "./fixture.ts";
-import { matchesPrismaWhereEngine } from "./matchesPrismaWhereEngine.ts";
+import { compile } from "./fixture.ts";
 
 const refusalOf = (predicate: Predicate) =>
   Effect.map(Effect.result(compile(predicate)), (r) =>
@@ -293,10 +292,9 @@ describe("compilePrismaWhere — Negate over a vacuous identity avoids the engin
 // `../src/index.ts`). A policy meaning "deny role-less users" could compile
 // to a query that admitted them instead. `renderNode` now constant-folds
 // every `And`/`Or` child so a vacuous identity is never left nested — these
-// assertions pin the exact shapes that guarantee, and the last one proves
-// it against `matchesPrismaWhereEngine`, the reader that models Prisma's
-// real nested-empty-array behavior rather than `matchesPrismaWhere`'s naive
-// JS `.every`/`.some` (which cannot distinguish the fix from the defect).
+// assertions pin the exact shapes that guarantee, and `EngineAgreement.test.ts`
+// (P4) proves the same shapes against a real Prisma engine rather than a
+// JavaScript model of its nested-empty-array behavior.
 describe("compilePrismaWhere — nested vacuous identities constant-fold (C1)", () => {
   it.effect("a False nested inside And folds to the top-level False identity, not a nested {OR: []}", () =>
     Effect.gen(function* () {
@@ -410,7 +408,6 @@ describe("compilePrismaWhere — nested vacuous identities constant-fold (C1)", 
           { role: "admin", tenantId: "t-2" },
         ];
         for (const row of rows) {
-          assert.strictEqual(matchesPrismaWhereEngine(where, row, FIXTURE_NULLABLE), false, JSON.stringify(row));
           assert.strictEqual(evaluatePredicate(predicate, row), false, JSON.stringify(row));
         }
       }),
@@ -423,7 +420,7 @@ describe("compilePrismaWhere — nested vacuous identities constant-fold (C1)", 
 // admits, silently went missing. Found by running the compiled shapes through
 // a real Prisma 7.10 client over SQLite (127 of 3000 random predicates, every
 // one under a `Negate`, none an over-admission), not by reading the code.
-// `matchesPrismaWhereEngine` is three-valued for exactly this reason.
+// `EngineAgreement.test.ts` checks these shapes against that real engine.
 describe("compilePrismaWhere — Negate is NULL-safe on nullable columns (C6)", () => {
   const nullable: ReadonlySet<string> = new Set(["level", "tag"]);
   const gte3: Predicate = { _tag: "Compare", column: "level", op: "Gte", value: 3 };
@@ -434,23 +431,18 @@ describe("compilePrismaWhere — Negate is NULL-safe on nullable columns (C6)", 
     Effect.gen(function* () {
       const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: gte3 }, { nullable });
       assert.deepStrictEqual(where, { NOT: { level: { gte: 3, not: null } } });
-      assert.isTrue(matchesPrismaWhereEngine(where, { level: null }, nullable));
-      assert.isTrue(matchesPrismaWhereEngine(where, { level: 1 }, nullable));
-      assert.isFalse(matchesPrismaWhereEngine(where, { level: 5 }, nullable));
     }));
 
   it.effect("Negate(Eq) guards the leaf", () =>
     Effect.gen(function* () {
       const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: tagRed }, { nullable });
       assert.deepStrictEqual(where, { NOT: { tag: { equals: "red", not: null } } });
-      assert.isTrue(matchesPrismaWhereEngine(where, { tag: null }, nullable));
     }));
 
   it.effect("Negate(MemberOf) guards the leaf", () =>
     Effect.gen(function* () {
       const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: tagIn }, { nullable });
       assert.deepStrictEqual(where, { NOT: { tag: { in: ["red"], not: null } } });
-      assert.isTrue(matchesPrismaWhereEngine(where, { tag: null }, nullable));
     }));
 
   it.effect("the guard follows polarity: an even number of Negates needs none, an odd number does", () =>
@@ -517,7 +509,6 @@ describe("compilePrismaWhere — a required column never mentions null (N1)", ()
         { nullable },
       );
       assert.deepStrictEqual(where, { tenantId: { not: "t-1" } });
-      assert.isTrue(matchesPrismaWhereEngine(where, { tenantId: "t-2" }, nullable));
     }));
 
   it.effect("a null comparison on a required column refuses, naming the declaration", () =>

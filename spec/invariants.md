@@ -1803,8 +1803,9 @@ predicates per property
 (`packages/predicate-prisma/test/EngineAgreement.test.ts`): P1 exact agreement
 under the true nullability declaration, P2/P3 lie-safety under a wrong one (a
 subset, or a loud refusal, never an over-admission), P4 the vacuous-identity
-shapes. `matchesPrismaWhereEngine` stays as a documented three-valued fast model
-of the same engine. The history below describes what came before: a `FastCheck`
+shapes. The JavaScript readers are retired, `matchesPrismaWhereEngine` included,
+after a measurement showed the real engine and the goldens kill every mutant it
+killed (the identical 107 of 173). The history below describes what came before: a `FastCheck`
 property, mirroring INV-QD-047's, using a test-only `matchesPrismaWhere` reader
 (now retired) restricted to the `WhereInput` subset this compiler ever emits,
 **and** a second FastCheck property over the same generated predicates checked
@@ -1853,9 +1854,9 @@ predicates against a 48-row table: **127 result-set mismatches, every one under
 a `Negate`, and 0 over-admissions** — each mismatch is the engine returning a
 strict subset, because Kleene's logic is monotone and the defect fails closed.
 The converse hazard is Prisma's own validator, which refuses any filter that
-mentions `null` on a required field (153 of 1500 queries). `matchesPrismaWhereEngine`
-now evaluates under three-valued logic and throws what Prisma's validator
-throws, and `compilePrismaWhere` takes a declared `nullable` set: each leaf
+mentions `null` on a required field (153 of 1500 queries). The reader was made
+three-valued and made to throw what Prisma's validator throws — and then retired in
+favour of the real engine — and `compilePrismaWhere` takes a declared `nullable` set: each leaf
 under an odd number of `Negate`s on a nullable column carries `not: null`, and a
 required column never mentions `null`. A wrong declaration can only under-admit
 or fail loudly, never admit a row the predicate denies.

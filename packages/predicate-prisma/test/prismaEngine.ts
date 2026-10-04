@@ -3,9 +3,9 @@
  * in-memory SQLite database (`@prisma/adapter-better-sqlite3`), holding the
  * 48-row table `../prisma/schema.prisma` describes.
  *
- * Every `matchesPrismaWhere*` reader in this directory is a JavaScript model of
- * what Prisma does, written by the same people who wrote the compiler, and a
- * model shares its author's beliefs. Three defects (INV-QD-048's NULL handling,
+ * The `matchesPrismaWhere*` readers this replaced (retired, ARCH-03 T7) were
+ * JavaScript models of what Prisma does, written by the same people who wrote the
+ * compiler, and a model shares its author's beliefs. Three defects (INV-QD-048's NULL handling,
  * the nested vacuous identities, and `Negate` dropping NULL rows) were each found
  * by running the compiled output through a real engine, not by a model. This is
  * that run, made permanent.

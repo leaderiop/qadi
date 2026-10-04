@@ -335,10 +335,12 @@ compiled `WhereInput` through Prisma Client 7.10 over an in-memory SQLite databa
 `evaluatePredicate`: exact agreement under the true nullability declaration; under
 a wrong one, a subset of the reference's rows or a loud Prisma refusal, never an
 over-admission; the vacuous-identity shapes of BEH-QD-239; and the NULL repros.
-The naive `matchesPrismaWhere` reader is retired; `matchesPrismaWhereEngine` is
-kept as a documented, three-valued fast model of the same engine
-(`MatchesPrismaWhereEngine.test.ts` pins it against Prisma issues #17367 and
-#21856 and against the live results).
+Both JavaScript readers are retired. `matchesPrismaWhereEngine`'s fate was decided
+by measurement rather than taste: `pnpm exec stryker run stryker.predicate-prisma.mjs`
+with and without the tests that use it kills the identical 107 of 173 mutants (the
+per-mutant statuses are equal), so the engine oracle and the goldens kill everything
+the model killed, and a model of Prisma that shares this repository's beliefs adds
+nothing a real Prisma does not.
 
 ## BEH-QD-243: Worked example
 
