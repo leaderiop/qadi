@@ -399,6 +399,16 @@ export const makeQadiAtoms = (
   // `decisionFor` as immutable for as long as any component might still be
   // asking about it; build a new object for a new state instead of mutating
   // the old one in place.
+  //
+  // **What this closure owns, and who may reach it.** Everything per-atom-set
+  // lives here and nowhere at module scope: `tracked` (liveness, for the eviction
+  // sweep), the `bare`/`byResource` families (one `SeededQuestion` per question,
+  // from `HydrationEngine.ts`, holding its private seed atom and the one atom a
+  // consumer reads), and the `hydrate` capability that closes over those families.
+  // Nothing outside `makeQadiAtoms` can reach a seed atom — that is ADR-QD-039's
+  // requirement, met by scope rather than by a side table keyed on this object.
+  // Anything else that needs to be scoped to one atom set (a gate registry, say)
+  // belongs in this closure and on the `QadiAtoms` interface, in the same shape.
   const tracked: Array<TrackedQuestion> = [];
 
   const bare = Atom.family((policy: Policy) => {
