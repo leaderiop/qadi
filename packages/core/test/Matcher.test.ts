@@ -4,6 +4,7 @@ import * as Schema from "effect/Schema";
 import * as FastCheck from "fast-check";
 import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
+import { chain } from "./helpers.ts";
 import {
   compareLabels,
   isSecurityLabel,
@@ -892,5 +893,40 @@ describe("getByPath", () => {
 
   it("treats a doubled dot as an empty middle segment", () => {
     assert.strictEqual(M.getByPath({ a: { "": { b: 9 } } }, "a..b"), 9);
+  });
+});
+
+describe("stack-safe matcher walkers (ARCH-02 N2)", () => {
+  const n = 100_000;
+
+  it("referencesAction finds an ActionRef 100k wrappers down", () => {
+    const deep = chain(M.size, n, M.eq(M.action()));
+    assert.isTrue(M.referencesAction(deep));
+    assert.isFalse(M.referencesResource(deep));
+  });
+
+  it("referencesResource finds a ResourceRef 100k wrappers down", () => {
+    const deep = chain(M.someMatch, n, M.neq(M.resource("owner")));
+    assert.isTrue(M.referencesResource(deep));
+    assert.isFalse(M.referencesAction(deep));
+  });
+
+  it("matcherDepth counts wrappers, not leaves", () => {
+    assert.strictEqual(M.matcherDepth(M.eq(M.literal(1))), 0);
+    assert.strictEqual(M.matcherDepth(chain(M.size, n, M.eq(M.literal(1)))), n);
+    assert.strictEqual(
+      M.matcherDepth(M.fieldMatch("a", M.everyMatch(M.someMatch(M.exists())))),
+      3,
+    );
+  });
+
+  it("foldMatcher folds a wrapper's child before the wrapper, once per shared node", () => {
+    const shared = M.exists();
+    const seen: Array<string> = [];
+    M.foldMatcher<number>(M.fieldMatch("a", M.size(shared)), (node) => {
+      seen.push(node._tag);
+      return 0;
+    });
+    assert.deepStrictEqual(seen, ["Exists", "Size", "FieldMatch"]);
   });
 });

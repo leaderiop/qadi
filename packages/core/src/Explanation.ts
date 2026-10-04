@@ -17,6 +17,7 @@
  * leak whether the viewer satisfies a policy they are only meant to read.
  */
 import * as Match from "effect/Match";
+import { foldMatcher } from "./Matcher.ts";
 import type { Matcher, ValueRef } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
@@ -160,22 +161,50 @@ const refText: (self: ValueRef) => string = Match.type<ValueRef>().pipe(
   }),
 );
 
-const matcherText: (self: Matcher) => string = Match.type<Matcher>().pipe(
-  Match.tagsExhaustive({
-    Eq: (m) => `equals ${refText(m.ref)}`,
-    Neq: (m) => `differs from ${refText(m.ref)}`,
-    In: (m) => `is one of ${JSON.stringify(m.values)}`,
-    Exists: () => "is present",
-    Gte: (m) => `is at least ${m.value}`,
-    Lt: (m) => `is below ${m.value}`,
-    Contains: (m) => `contains ${JSON.stringify(m.value)}`,
-    Dominates: (m) => `dominates ${refText(m.ref)}`,
-    Size: (m) => `has a size that ${matcherText(m.matcher)}`,
-    FieldMatch: (m) => `has ${m.field} that ${matcherText(m.matcher)}`,
-    SomeMatch: (m) => `has an entry that ${matcherText(m.matcher)}`,
-    EveryMatch: (m) => `has every entry that ${matcherText(m.matcher)}`,
-  }),
-);
+/**
+ * The one child text a wrapper matcher folds, or a thrown invariant failure.
+ *
+ * `Size`/`FieldMatch`/`SomeMatch`/`EveryMatch` always fold exactly one child, by
+ * construction of `Matcher.ts`'s `matcherChildrenOf`; failing loudly keeps a
+ * wiring bug a thrown error rather than a matcher quietly described wrong.
+ */
+const expectOneText = (tag: string, children: ReadonlyArray<string>): string => {
+  const [only, ...rest] = children;
+  if (only === undefined || rest.length !== 0) {
+    throw new Error(`explain: ${tag} matcher expected exactly one child, got ${children.length}`);
+  }
+  return only;
+};
+
+/**
+ * One matcher node's phrase, from its already-phrased children — the recursive
+ * tags read their one child's text instead of calling back into themselves.
+ */
+const matcherTextStep: (self: Matcher) => (children: ReadonlyArray<string>) => string =
+  Match.type<Matcher>().pipe(
+    Match.tagsExhaustive({
+      Eq: (m) => () => `equals ${refText(m.ref)}`,
+      Neq: (m) => () => `differs from ${refText(m.ref)}`,
+      In: (m) => () => `is one of ${JSON.stringify(m.values)}`,
+      Exists: () => () => "is present",
+      Gte: (m) => () => `is at least ${m.value}`,
+      Lt: (m) => () => `is below ${m.value}`,
+      Contains: (m) => () => `contains ${JSON.stringify(m.value)}`,
+      Dominates: (m) => () => `dominates ${refText(m.ref)}`,
+      Size: () => (children: ReadonlyArray<string>) =>
+        `has a size that ${expectOneText("Size", children)}`,
+      FieldMatch: (m) => (children: ReadonlyArray<string>) =>
+        `has ${m.field} that ${expectOneText("FieldMatch", children)}`,
+      SomeMatch: () => (children: ReadonlyArray<string>) =>
+        `has an entry that ${expectOneText("SomeMatch", children)}`,
+      EveryMatch: () => (children: ReadonlyArray<string>) =>
+        `has every entry that ${expectOneText("EveryMatch", children)}`,
+    }),
+  );
+
+/** A matcher's phrase, folded so a deeply nested matcher cannot overflow the stack. */
+const matcherText = (self: Matcher): string =>
+  foldMatcher<string>(self, (node, children) => matcherTextStep(node)(children));
 
 // ---------------------------------------------------------------------------
 // Explanation

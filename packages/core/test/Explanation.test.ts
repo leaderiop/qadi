@@ -615,6 +615,14 @@ describe("explain", () => {
     assert.strictEqual(combines, 2);
   });
 
+  it("explain over a 100k-deep matcher completes (ARCH-02 N2)", () => {
+    const e = explain(P.hasAttribute("x", chain(M.size, 100_000, M.eq(M.literal(1)))));
+    assert.strictEqual(e._tag, "Requirement");
+    if (e._tag !== "Requirement") return;
+    assert.isTrue(e.detail.startsWith("the subject's x has a size that has a size that"));
+    assert.isTrue(e.detail.endsWith("equals 1"));
+  });
+
   it("a wide, programmatically-built node (250k direct children) explains without spreading", () => {
     // The width twin of the 100k-deep test above (`Simplify.test.ts` and
     // `RolesAndDepth.test.ts` already carry theirs): a fold that spread a
