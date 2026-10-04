@@ -52,6 +52,7 @@ import {
   decisionSinkFeed,
   EvaluationIdLive,
   guard,
+  ENFORCEMENT_ERROR_TAGS,
   gte,
   hasAttribute,
   hasPermission,
@@ -63,7 +64,6 @@ import {
   SignatureHistoryNone,
 } from "@qadi/core";
 import {
-  ENFORCEMENT_ERROR_TAGS,
   PermissionRegistryLive,
   RequirePermissionLive,
   SubjectExtractionFailed,

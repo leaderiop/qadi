@@ -19,6 +19,7 @@ import {
   RelationshipResolveError,
   SignatureHistoryUnavailable,
   UndischargedObligation,
+  classifyEnforcementError,
   makeResourceId,
   makeSubjectId,
 } from "@qadi/core";
@@ -43,8 +44,13 @@ import {
   SubjectExtractionFailed,
   SubjectExtractionRefused,
   UndischargedObligationRefused,
+  ENFORCEMENT_ERROR_WIRE,
+  HTTP_ENFORCEMENT_ERROR_SCHEMAS,
+  HTTP_ENFORCEMENT_TAGS,
+  HTTP_STATUS_BY_CLASS,
   handleEnforcementErrors,
   logDenial,
+  projectHttpEnforcementFailure,
   subjectExtractionFailedResponse,
   toResponse,
 } from "../src/index.ts";
@@ -299,6 +305,81 @@ describe("the two routing shapes", () => {
       expect(httpApiStatusOf(wireSchemaByTag[tag]), tag).toBe(status);
     }
     expect(httpApiStatusOf(wireSchemaByTag.SubjectExtractionFailed)).toBe(502);
+  });
+});
+
+describe("ENFORCEMENT_ERROR_WIRE", () => {
+  // Hand-written, independent of every table under test: BEH-QD-177.
+  const expectedStatus = {
+    AccessDenied: 403,
+    UndischargedObligation: 403,
+    AttributeResolveError: 502,
+    RelationshipResolveError: 502,
+    DecisionHistoryUnavailable: 502,
+    CustomPredicateError: 502,
+    SignatureHistoryUnavailable: 502,
+    MissingAction: 500,
+    MissingResource: 500,
+    MissingResourceId: 500,
+    PolicyTooDeep: 500,
+    SubjectExtractionFailed: 502,
+  } as const;
+
+  for (const tag of HTTP_ENFORCEMENT_TAGS) {
+    it(`${tag}: status, annotation and class all agree`, () => {
+      const entry = ENFORCEMENT_ERROR_WIRE[tag];
+      expect(entry.status).toBe(expectedStatus[tag]);
+      expect(httpApiStatusOf(entry.schema)).toBe(entry.status);
+      expect(HTTP_STATUS_BY_CLASS[entry.class]).toBe(entry.status);
+    });
+  }
+
+  it("holds exactly the twelve tags, in the declared OpenAPI order", () => {
+    expect(Object.keys(ENFORCEMENT_ERROR_WIRE)).toEqual([
+      "AccessDenied",
+      "UndischargedObligation",
+      "SubjectExtractionFailed",
+      "AttributeResolveError",
+      "RelationshipResolveError",
+      "DecisionHistoryUnavailable",
+      "CustomPredicateError",
+      "SignatureHistoryUnavailable",
+      "MissingAction",
+      "MissingResource",
+      "MissingResourceId",
+      "PolicyTooDeep",
+    ]);
+    expect(new Set(HTTP_ENFORCEMENT_TAGS)).toEqual(new Set(Object.keys(ENFORCEMENT_ERROR_WIRE)));
+    expect(HTTP_ENFORCEMENT_TAGS).toHaveLength(12);
+    expect(HTTP_ENFORCEMENT_ERROR_SCHEMAS).toHaveLength(12);
+  });
+
+  it("each entry's class is what classifyEnforcementError says for its real error", () => {
+    for (const tag of HTTP_ENFORCEMENT_TAGS) {
+      const entry = ENFORCEMENT_ERROR_WIRE[tag];
+      if (tag !== "SubjectExtractionFailed") {
+        expect(classifyEnforcementError(everyHttpEnforcementFailure[tag]()), tag).toBe(entry.class);
+      }
+    }
+    expect(ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.class).toBe("outage");
+  });
+
+  for (const tag of HTTP_ENFORCEMENT_TAGS) {
+    it(`${tag}: projecting then encoding leaks none of the sensitive values`, () => {
+      const entry = ENFORCEMENT_ERROR_WIRE[tag];
+      const projected = projectHttpEnforcementFailure(everyHttpEnforcementFailure[tag]());
+      const json = JSON.stringify(Schema.encodeUnknownSync(entry.schema)(projected));
+      expect(json).toContain(tag);
+      for (const leaked of ["postgres://", "trace", "TypeError", "obligationIds", "token service"]) {
+        expect(json, `${tag} leaked ${leaked}`).not.toContain(leaked);
+      }
+    });
+  }
+
+  it("the projection of a real AccessDenied drops the trace before the encoder", () => {
+    const projected = projectHttpEnforcementFailure(everyHttpEnforcementFailure.AccessDenied());
+    expect(Object.keys(projected).sort()).toEqual(["_tag", "policyTag", "reason", "subjectId"]);
+    expect("trace" in projected).toBe(false);
   });
 });
 
