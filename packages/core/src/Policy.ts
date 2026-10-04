@@ -24,7 +24,7 @@ import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type * as SchemaAST from "effect/SchemaAST";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
-import { Matcher } from "./Matcher.ts";
+import { Matcher, matcherDepth } from "./Matcher.ts";
 import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import { PermissionSchema, SEGMENT_PATTERN } from "./Permission.ts";
@@ -1148,6 +1148,42 @@ export const foldPolicy = <R>(
   combine: (node: Policy, children: ReadonlyArray<R>) => R,
 ): R => foldTree(self, childrenOf, combine);
 
+/**
+ * The matcher a node itself carries: `HasAttribute` and `HasResourceAttribute`
+ * hold one, every other tag does not.
+ *
+ * The third per-tag structural fact beside {@link childrenOf} and
+ * {@link fieldsOf}. A matcher nests (`someMatch`, `fieldMatch`, …) and the
+ * evaluator recurses through it natively, so its nesting counts toward
+ * {@link policyDepth} (ARCH-02 D-02-f).
+ */
+const matcherOf: (self: Policy) => Matcher | undefined = Match.type<Policy>().pipe(
+  Match.tagsExhaustive({
+    HasAttribute: (p) => p.matcher,
+    HasResourceAttribute: (p) => p.matcher,
+    HasPermission: () => undefined,
+    HasRole: () => undefined,
+    HasRelationship: () => undefined,
+    HasAction: () => undefined,
+    HasActed: () => undefined,
+    HasNotActed: () => undefined,
+    HasCustom: () => undefined,
+    HasSignature: () => undefined,
+    AllOf: () => undefined,
+    AnyOf: () => undefined,
+    Rules: () => undefined,
+    Not: () => undefined,
+    Obliged: () => undefined,
+    Labeled: () => undefined,
+  }),
+);
+
+/** What a childless node contributes: its matcher's nesting, or `0`. */
+const leafNesting = (node: Policy): number => {
+  const matcher = matcherOf(node);
+  return matcher === undefined ? 0 : matcherDepth(matcher);
+};
+
 const maxOf = (values: ReadonlyArray<number>): number => {
   let max = 0;
   for (const value of values) if (value > max) max = value;
@@ -1157,7 +1193,10 @@ const maxOf = (values: ReadonlyArray<number>): number => {
 /**
  * How deeply a policy nests, counted the way the evaluator counts.
  *
- * A leaf is `0`; each recursive position adds one. So `policyDepth(p) <= n` is
+ * A leaf is `0`; each recursive position adds one, and a leaf that carries a
+ * matcher (`HasAttribute`, `HasResourceAttribute`) contributes the matcher's own
+ * nesting (`matcherDepth`), because the evaluator recurses through it too. So
+ * `policyDepth(p) <= n` is
  * the condition under which `evaluate(p, { maxDepth: n })` will not raise
  * `PolicyTooDeep`; `RolesAndDepth.test.ts` asserts that agreement in both
  * directions rather than asserting a number.
@@ -1184,8 +1223,8 @@ const maxOf = (values: ReadonlyArray<number>): number => {
 export const policyDepth = (self: Policy): number => {
   const known = depthMemo.get(self);
   if (known !== undefined) return known;
-  const depth = foldPolicy<number>(self, (_node, children) =>
-    children.length === 0 ? 0 : 1 + maxOf(children),
+  const depth = foldPolicy<number>(self, (node, children) =>
+    children.length === 0 ? leafNesting(node) : 1 + maxOf(children),
   );
   depthMemo.set(self, depth);
   return depth;

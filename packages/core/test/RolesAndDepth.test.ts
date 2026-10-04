@@ -104,6 +104,10 @@ describe("policyDepth", () => {
         P.rules([{ condition: P.not(P.hasPermission(read)), effect: "Permit" }], {
           combining: "DenyOverrides",
         }),
+        // Matcher nesting counts too (ARCH-02 D-02-f): the evaluator recurses
+        // through it, so a matcher-bearing leaf is as deep as its matcher.
+        P.hasAttribute("tags", M.someMatch(M.eq(M.literal(1)))),
+        P.not(P.hasAttribute("tags", M.someMatch(M.fieldMatch("a", M.eq(M.literal(1)))))),
       ];
 
       for (const policy of policies) {
@@ -119,7 +123,7 @@ describe("policyDepth", () => {
           assert.strictEqual(below._tag, "Failure", `depth ${depth - 1} should be too deep`);
         }
       }
-    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"], attributes: { tags: [{ a: 1 }] } })))));
 
   it.effect(
     "agrees in both directions even where evaluation would short-circuit past the deep branch (ARCH-02 N3)",

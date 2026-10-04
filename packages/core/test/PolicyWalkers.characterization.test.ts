@@ -194,10 +194,12 @@ describe("pinned examples", () => {
     );
   });
 
-  // PINNED — flips under D-02-f(a), see T12
-  it("(f) matcher nesting is invisible to policyDepth", () => {
+  // FLIPPED by D-02-f(a), T12: was 0 (matcher nesting was invisible)
+  it("(f) matcher nesting counts toward policyDepth", () => {
     const p = P.hasAttribute("x", M.size(M.size(M.eq(M.literal(1)))));
-    assert.strictEqual(P.policyDepth(p), 0);
+    assert.strictEqual(P.policyDepth(p), 2);
+    assert.strictEqual(P.policyDepth(P.not(p)), 3);
+    assert.strictEqual(P.policyDepth(P.hasAttribute("x", M.eq(M.literal(1)))), 0);
   });
 });
 

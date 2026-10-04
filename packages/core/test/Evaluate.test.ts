@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as FastCheck from "fast-check";
 import * as TestClock from "effect/testing/TestClock";
@@ -4078,6 +4079,33 @@ describe("nesting depth is a property of the policy (ARCH-02 D-02-e, D-02-g)", (
       if (allowed._tag !== "Failure") return;
       assert.strictEqual(allowed.failure._tag, "PolicyTooDeep");
     }),
+  );
+
+  it.effect("a 100k-deep matcher fails with PolicyTooDeep, not a defect (ARCH-02 D-02-f)", () =>
+    Effect.gen(function* () {
+      // `evaluateMatcher` recurses natively through the matcher; matcher nesting
+      // now counts toward `maxDepth`, so the root check refuses it first.
+      const policy = P.hasAttribute("x", chain(M.someMatch, 100_000, M.eq(M.literal(1))));
+      const exit = yield* Effect.exit(evaluate(policy));
+      assert.strictEqual(exit._tag, "Failure");
+      if (exit._tag !== "Failure") return;
+      assert.isFalse(Cause.hasDies(exit.cause));
+      assert.isTrue(Cause.hasFails(exit.cause));
+      const failed = yield* Effect.result(evaluate(policy));
+      assert.strictEqual(failed._tag === "Failure" ? failed.failure._tag : failed._tag, "PolicyTooDeep");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { x: 1 } })))),
+  );
+
+  it.effect("matcher nesting counts toward maxDepth exactly", () =>
+    Effect.gen(function* () {
+      const policy = P.not(P.hasAttribute("x", M.someMatch(M.someMatch(M.eq(M.literal(1))))));
+      // `not` is one level and the matcher adds two.
+      assert.strictEqual(P.policyDepth(policy), 3);
+      const at = yield* Effect.result(evaluate(policy, { maxDepth: 3 }));
+      const below = yield* Effect.result(evaluate(policy, { maxDepth: 2 }));
+      assert.strictEqual(at._tag, "Success");
+      assert.strictEqual(below._tag, "Failure");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { x: [[1]] } })))),
   );
 
   const wrappers = [
