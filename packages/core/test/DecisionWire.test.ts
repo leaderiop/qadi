@@ -3,6 +3,7 @@ import * as Schema from "effect/Schema";
 import { Allow, Deny } from "../src/Decision.ts";
 import { decodeDecision, DecisionWire, encodeDecision } from "../src/DecisionWire.ts";
 import { makeSubjectId } from "../src/Identity.ts";
+import { UNTRUSTED_DECODE_OPTIONS } from "../src/Policy.ts";
 import { obligation } from "../src/Obligation.ts";
 
 const trace = (allowed: boolean) => ({
@@ -39,13 +40,13 @@ describe("encodeDecision", () => {
 
   it("keeps an empty visibleFields array (INV-QD-004: bottom is not top)", () => {
     const wire = encodeDecision(allow([]));
-    assert.deepStrictEqual(wire.visibleFields, []);
+    assert.deepStrictEqual(wire._tag === "Allow" ? wire.visibleFields : undefined, []);
   });
 
   it("ships a Deny's reason and an empty obligations array", () => {
     const wire = encodeDecision(deny);
     assert.strictEqual(wire._tag, "Deny");
-    assert.strictEqual(wire.reason, "no");
+    assert.strictEqual(wire._tag === "Deny" ? wire.reason : undefined, "no");
     assert.deepStrictEqual(wire.obligations, []);
     assert.isFalse(Object.hasOwn(wire, "visibleFields"));
   });
@@ -80,5 +81,34 @@ describe("decodeDecision(encodeDecision(d))", () => {
       JSON.parse(JSON.stringify(encodeDecision(deny))),
     );
     assert.deepStrictEqual(decodeDecision(wire), deny);
+  });
+});
+
+describe("DecisionWire is a tagged union", () => {
+  const decode = Schema.decodeUnknownExit(DecisionWire, UNTRUSTED_DECODE_OPTIONS);
+  const base = {
+    evaluationId: "e",
+    subjectId: "u1",
+    durationMillis: 1,
+    obligations: [],
+  };
+
+  it("refuses a Deny that has no reason", () => {
+    assert.strictEqual(decode({ ...base, _tag: "Deny", trace: trace(false) })._tag, "Failure");
+  });
+
+  it("refuses an Allow that carries a reason", () => {
+    assert.strictEqual(
+      decode({ ...base, _tag: "Allow", trace: trace(true), reason: "no" })._tag,
+      "Failure",
+    );
+  });
+
+  it("accepts each verdict in its own shape", () => {
+    assert.strictEqual(decode({ ...base, _tag: "Allow", trace: trace(true) })._tag, "Success");
+    assert.strictEqual(
+      decode({ ...base, _tag: "Deny", trace: trace(false), reason: "no" })._tag,
+      "Success",
+    );
   });
 });

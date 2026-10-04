@@ -150,6 +150,7 @@ for why that is a deliberate, open trade rather than an oversight.
 | ------ | ---- | ------ |
 | `evaluate` | function | `Evaluate.ts` |
 | `Decision`, `Allow`, `Deny`, `Trace`, `isAllowed`, `project` | type + function | `Decision.ts` |
+| `projectVisible` | function | `Decision.ts` — `project`'s body after its verdict check: projects a record to a visible-field set with no `Decision` in hand, for `@qadi/react`'s seeded allow |
 | `enforce`, `enforceProjected`, `check`, `decide`, `assert`, `filter`, `filterStream`, `guard` | function | `Qadi.ts` |
 | `EvaluateOptions` | type | `Evaluate.ts` |
 | `Resource` | type | `Resource.ts` |
@@ -260,7 +261,8 @@ answered.
 | `StoredDecisionRecord`, `StoredObligationRecord` | value class | `DecisionSinkRing.ts` — a `DecisionRecord`/`ObligationRecord` plus `Stamped`'s `environment`, built via `new`, never a spread of the un-stamped instance |
 | `stampRecord` | function | `DecisionSinkRing.ts` |
 | `SinkRecordWire` | schema + type | `SinkCodec.ts` |
-| `DecisionWire` | schema + type | `DecisionWire.ts` — the wire form of a `Decision`, moved out of `SinkCodec.ts` so `SinkRecordWire`'s `decided` field and `@qadi/react`'s hydration entry derive from one definition |
+| `DecisionWire` | schema + type | `DecisionWire.ts` — the wire form of a `Decision`, moved out of `SinkCodec.ts` so `SinkRecordWire`'s `decided` field and `@qadi/react`'s hydration entry derive from one definition. A tagged union: an `Allow` cannot carry a `reason` and a `Deny` cannot lack one |
+| `DecisionWireAllow`, `DecisionWireDeny` | schema | `DecisionWire.ts` — the two members of `DecisionWire`, exported so a consumer deriving its own payload (`@qadi/react`'s hydration entry) derives from one verdict's fields |
 | `encodeDecision`, `decodeDecision` | function | `DecisionWire.ts` — `encodeDecision` projects a `Decision` onto `DecisionWire` (omitting `visibleFields` when `undefined`); `decodeDecision` rebuilds one from an already-validated wire value |
 | `TraceSchema` | schema | `Decision.ts` — moved from `SinkCodec.ts` (ADR-QD-072), so `Errors.ts`'s `AccessDenied` can reuse it without an `Errors.ts` → `SinkCodec.ts` → `Errors.ts` import cycle; still reused by `DecisionWire.ts`, which `SinkCodec.ts` embeds and which `@qadi/react`'s hydration payload derives its entry schema from |
 | `EvaluationErrorSchema` | schema | `SinkCodec.ts` — the union of the nine wire-crossing `EvaluationError` classes themselves (ADR-QD-060), not a second description of them |

@@ -186,8 +186,21 @@ const isFieldOf = <A extends Resource>(
 export const project = <A extends Resource>(
   decision: Decision,
   data: A,
+): Partial<A> => (isAllowed(decision) ? projectVisible(decision.visibleFields, data) : {});
+
+/**
+ * Projects a record down to a visible-field set, with no decision in hand.
+ *
+ * The body of {@link project} after its verdict check, factored out so a
+ * consumer holding a field set but not a core `Allow` — `@qadi/react`'s seeded
+ * allow, which is a projection of the server's decision and not one — projects
+ * through the same code rather than a copy of it ([BEH-QD-051](../../../spec/behaviors/07-enforcement.md)).
+ * See {@link project} for what the result's type does and does not promise.
+ */
+export const projectVisible = <A extends Resource>(
+  visibleFields: VisibleFields,
+  data: A,
 ): Partial<A> => {
-  if (!isAllowed(decision)) return {};
   // A shallow copy, not `return data` — the restricted branch below always
   // builds a fresh `out` object, and returning the caller's own reference
   // here would let a caller who mutates the unrestricted result silently
@@ -195,9 +208,9 @@ export const project = <A extends Resource>(
   // disagree on. `BEH-QD-051`'s requirement ("MUST project to the whole
   // record") is unaffected either way — it says nothing about aliasing — so
   // this is an implementation fix, not a documented-behavior change.
-  if (decision.visibleFields === undefined) return { ...data };
+  if (visibleFields === undefined) return { ...data };
 
-  const projected = projectPaths(data, decision.visibleFields);
+  const projected = projectPaths(data, visibleFields);
 
   // Not a write through `out[field] = …` — TS permits reading a
   // generic-indexed type but not writing through one (TS2862) — but also not
