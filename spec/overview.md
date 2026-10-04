@@ -405,10 +405,11 @@ because this section is called the *public API surface*, and a reader looking fo
 | `Can`, `Cannot` | component | `components.tsx` |
 | `CanProps`, `CannotProps`, `DeniedNode` | type | `components.tsx` |
 | `useSubject`, `useDecision`, `useCan`, `useDecisionSuspense` | hook | `hooks.ts` |
-| `usePolicies`, `useProjected`, `useInvalidate` | hook | `hooks.ts` |
+| `usePolicies`, `useProjected`, `useInvalidate`, `useGateInstances` | hook | `hooks.ts` |
 | `dehydrateDecisions`, `hydrateDecisions` | function | `Hydration.ts` |
-| `gateInstances`, `subscribeGates`, `registerGate`, `updateGateState`, `clearGatesUnsafe` | function | `GateRegistry.ts` |
-| `GateInstance`, `GateKind`, `GateRenderState` | type | `GateRegistry.ts` |
+| `makeGateRegistry` | function | `GateRegistry.ts` |
+| `GateRegistry`, `GateRegistryOptions` | type | `GateRegistry.ts` |
+| `GateInstance`, `GateKind`, `GateRenderState` | type, re-exported from `./GateWriter.ts` | `GateRegistry.ts` |
 | `DehydratedDecisions`, `DehydratedEntry`, `DecisionEntry`, `DehydrateOptions` | type | `Hydration.ts` — `DehydratedDecisions` carries `version: 2` and each entry nests a `decision` derived from `DecisionWire`, with a tagged `disclosure` where the withheld trace (and a denial's reason) would be; declared in `HydrationEngine.ts` |
 | `DehydratedPayload`, `DehydratedDecisionsV1`, `DehydratedEntryV1` | type | `Hydration.ts` — `hydrateDecisions` reads the current payload and, for one release, the one before `version` existed (`DehydratedDecisionsV1`, deprecated; always seeded `Withheld`) |
 | `HydrateOptions` | type | `Hydration.ts` |
@@ -417,6 +418,8 @@ because this section is called the *public API surface*, and a reader looking fo
 | `AllowDisclosure`, `DenyDisclosure` | schema + type | `Hydration.ts` — `Withheld`, or `Disclosed` with the server's trace (and a denial's reason) |
 | `permits`, `isSeeded` | function | `Hydration.ts` — `permits` is the verdict read for a `ClientDecision` (`isAllowed` from `@qadi/core` rejects one, on purpose); `isSeeded` tells a seed from this client's own evaluation |
 | `HydrationDrop`, `HydrationDropReporter` | type, re-exported from `./HydrationWarning.ts` | `Hydration.ts` |
+
+`atoms.gates` is the registry an atom set's guards write to ([ADR-QD-080](decisions/080-a-gate-registry-belongs-to-its-atom-set.md)); its write side is internal and not in the barrel.
 
 `currentDecision` is the one to read twice: it is the single place the rule "a decision
 being re-checked is not a decision" lives

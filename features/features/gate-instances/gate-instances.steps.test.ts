@@ -10,11 +10,10 @@
  * `@qadi/react`. That is the pairing worth exercising end to end: the two agree
  * about what one question is only because both go through `Equal.equals`.
  *
- * `gateInstances()`/`clearGatesUnsafe()` stay plain, synchronous calls against
- * `@qadi/react`'s own process-wide registry (ADR-QD-053) — that registry is the
- * system under test here, not per-scenario World data. Only the local step
- * state (`policyName`/`guards`/`hooks`/`view`) lives in this Feature's
- * `Context.Service` World, per ADR-EC-009.
+ * The registry under test is the scenario's own atom set's `gates`
+ * (ADR-QD-080), which lives in World state beside the rest of the step state
+ * (`policyName`/`guards`/`hooks`/`view`), per ADR-EC-009. Nothing is process-wide,
+ * so nothing is reset between scenarios.
  */
 import { describeFeature, loadFeature } from "@effect-cucumber/vitest";
 import assert from "node:assert/strict";
@@ -34,12 +33,13 @@ import {
 import type { Policy } from "@qadi/core";
 import { gateGroups, isLocatable } from "@qadi/devtools";
 import type { GateInstanceLike } from "@qadi/devtools";
+import type { QadiAtoms } from "@qadi/react";
 
 // Registered before `@testing-library/react` is imported: it reads `document`
 // at module scope, so the order here is load-bearing rather than stylistic.
 if (!GlobalRegistrator.isRegistered) GlobalRegistrator.register();
 
-const { Can, clearGatesUnsafe, gateInstances, makeQadiAtoms, QadiProvider, useCan } = await import(
+const { Can, makeQadiAtoms, QadiProvider, useCan } = await import(
   "@qadi/react"
 );
 const { act, cleanup, render } = await import("@testing-library/react");
@@ -62,19 +62,28 @@ const policyNamed = (name: string): Policy => {
   return found;
 };
 
-const instances = (): ReadonlyArray<GateInstanceLike> => gateInstances();
+const instances = Effect.fn("gate-instances.instances")(function* () {
+  const { atoms: built } = yield* readState();
+  const listed: ReadonlyArray<GateInstanceLike> = built?.gates.instances() ?? [];
+  return listed;
+});
 
-const theOne = (): GateInstanceLike => {
-  const first = instances()[0];
+const theOne = Effect.fn("gate-instances.theOne")(function* () {
+  const first = (yield* instances())[0];
   if (first === undefined) throw new Error("no guard is registered");
   return first;
-};
+});
 
 interface GateInstancesWorldState {
   readonly policyName: string;
   readonly guards: number;
   readonly hooks: number;
   readonly view: { readonly unmount: () => void } | undefined;
+  /** The atom set the page rendered under, whose `gates` is the registry under test. */
+  readonly atoms: QadiAtoms | undefined;
+  /** A second page, under its own atom set, when a scenario asks for one. */
+  readonly secondPolicyName: string | undefined;
+  readonly secondAtoms: QadiAtoms | undefined;
 }
 
 const initialState: GateInstancesWorldState = {
@@ -82,6 +91,9 @@ const initialState: GateInstancesWorldState = {
   guards: 0,
   hooks: 0,
   view: undefined,
+  atoms: undefined,
+  secondPolicyName: undefined,
+  secondAtoms: undefined,
 };
 
 export interface WorldShape {
@@ -124,24 +136,40 @@ const draw = Effect.fn("gate-instances.draw")(function* (instrument: boolean) {
     ),
   ];
 
+  const built = atoms();
   let rendered: { readonly unmount: () => void } | undefined;
   act(() => {
     rendered = render(
       createElement(QadiProvider, {
-        atoms: atoms(),
+        atoms: built,
         subject: alice,
         instrument,
         children: createElement(Fragment, null, ...children),
       }),
     );
   });
-  yield* patch(() => ({ view: rendered }));
+  yield* patch(() => ({ view: rendered, atoms: built }));
+
+  if (s.secondPolicyName !== undefined) {
+    const secondBuilt = atoms();
+    const secondPolicy = policyNamed(s.secondPolicyName);
+    act(() => {
+      render(
+        createElement(QadiProvider, {
+          atoms: secondBuilt,
+          subject: alice,
+          instrument,
+          children: createElement(Can, { policy: secondPolicy, children: "control" }),
+        }),
+      );
+    });
+    yield* patch(() => ({ secondAtoms: secondBuilt }));
+  }
 });
 
 describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When, Then }) => {
   Before(function* () {
     cleanup();
-    clearGatesUnsafe();
     const { state } = yield* World;
     yield* Ref.set(state, initialState);
   });
@@ -166,6 +194,13 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
     yield* patch(() => ({ guards: count, policyName: name }));
   });
 
+  Given(
+    "a second page, under its own atom set, with {int} guard on {string}",
+    function* (_count: number, name: string) {
+      yield* patch(() => ({ secondPolicyName: name }));
+    },
+  );
+
   Given("a page with {int} hook asking {string}", function* (count: number, name: string) {
     yield* patch(() => ({ hooks: count, policyName: name }));
   });
@@ -182,6 +217,10 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
     yield* draw(true);
   });
 
+  When("both pages render with instrumentation", function* () {
+    yield* draw(true);
+  });
+
   When("the page unmounts", function* () {
     const s = yield* readState();
     act(() => {
@@ -194,47 +233,63 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
   // -------------------------------------------------------------------------
 
   Then("no guard is registered", function* () {
-    assert.deepEqual(instances(), []);
+    assert.deepEqual(yield* instances(), []);
   });
 
   Then("{int} guards are registered", function* (count: number) {
-    assert.equal(instances().length, count);
+    assert.equal((yield* instances()).length, count);
   });
 
   Then("{int} guard is registered", function* (count: number) {
-    assert.equal(instances().length, count);
+    assert.equal((yield* instances()).length, count);
   });
 
   Then("exactly {int} guard is registered", function* (count: number) {
     // The surfaces nest, so the failure this catches is one component appearing
     // twice with the inner row labelled a hook its author never wrote.
-    assert.equal(instances().length, count);
+    assert.equal((yield* instances()).length, count);
   });
 
   Then("they are grouped into {int} question", function* (count: number) {
     // Through `@qadi/devtools`, which does not depend on `@qadi/react`. The two
     // agree only because both go through `Equal.equals`.
-    assert.equal(gateGroups(instances()).length, count);
+    assert.equal(gateGroups(yield* instances()).length, count);
   });
 
   Then("that guard reports the state {string}", function* (state: string) {
-    assert.equal(theOne().state, state);
+    assert.equal((yield* theOne()).state, state);
   });
 
   Then("{int} guard can be pointed at", function* (count: number) {
-    assert.equal(instances().filter(isLocatable).length, count);
+    assert.equal((yield* instances()).filter(isLocatable).length, count);
   });
 
   Then("no guard can be pointed at", function* () {
     // A hook has no node of its own: enumerable, and not locatable.
-    assert.equal(instances().filter(isLocatable).length, 0);
+    assert.equal((yield* instances()).filter(isLocatable).length, 0);
   });
 
   Then("the marker generates no box", function* () {
-    const element = theOne().element;
+    const element = (yield* theOne()).element;
     assert.ok(element !== undefined && element !== null);
     // `display: contents` is the enabling condition: a wrapper with default
     // styling would reflow a flex row the moment somebody started debugging it.
     assert.equal((element as HTMLElement).style.display, "contents");
+  });
+
+  Then("the first atom set lists {int} guard on {string}", function* (count: number, name: string) {
+    const { atoms: first } = yield* readState();
+    assert.deepEqual(
+      first?.gates.instances().map((one) => one.policy),
+      Array.from({ length: count }, () => policyNamed(name)),
+    );
+  });
+
+  Then("the second atom set lists {int} guard on {string}", function* (count: number, name: string) {
+    const { secondAtoms } = yield* readState();
+    assert.deepEqual(
+      secondAtoms?.gates.instances().map((one) => one.policy),
+      Array.from({ length: count }, () => policyNamed(name)),
+    );
   });
 });
