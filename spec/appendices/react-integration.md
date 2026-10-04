@@ -451,6 +451,36 @@ export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
 };
 ```
 
+## Seeing who is asking
+
+An instrumented provider records each guard in its atom set's `gates` registry, beside
+`atoms.asked()` ([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md)).
+Read it with `instances()` and `subscribe()`, or `useGateInstances()` inside the provider.
+
+```tsx
+import { EvaluationServicesNone } from "@qadi/core";
+import type { AuthSubject } from "@qadi/core";
+import { QadiProvider, makeQadiAtoms } from "@qadi/react";
+import type { ReactNode } from "react";
+
+const debugAtoms = makeQadiAtoms(EvaluationServicesNone);
+
+// Outside React, or from a second root: the registry is a plain value.
+export const guardCount = (): number => debugAtoms.gates.instances().length;
+
+export const DebugApp = ({
+  subject,
+  children,
+}: {
+  readonly subject: AuthSubject | undefined;
+  readonly children: ReactNode;
+}) => (
+  <QadiProvider atoms={debugAtoms} subject={subject} instrument>
+    {children}
+  </QadiProvider>
+);
+```
+
 ## Pitfalls
 
 | Symptom | Cause | Fix |

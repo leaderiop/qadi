@@ -353,11 +353,12 @@ would breach both "no React state for decisions" and "one
 `useSyncExternalStore` call", so DOM highlighting — which needs one — was
 dropped rather than bought at that price.
 [ADR-QD-053](../decisions/053-a-gate-can-be-found.md) found the premise true
-and the conclusion false: `GateRegistry.ts` is a module-scope map a guard
-writes to from an effect, not React state, and nothing in it re-renders
+and the conclusion false: `GateRegistry.ts` was a module-scope map a guard
+writes to from an effect, not React state (it is now each atom set's own
+`gates`, ADR-QD-080), and nothing in it re-renders
 anything, so neither rule is touched. The panel now shows both views, because
 they are different questions rather than rivals: `asked()` above still says
-what has been **asked**, unchanged; `gateInstances()` says who is **asking**,
+what has been **asked**, unchanged; `atoms.gates` says who is **asking**,
 keyed by component instance instead of by question. DOM highlighting is built
 on the second view (`@qadi/devtools`'s lens), not dropped.
 

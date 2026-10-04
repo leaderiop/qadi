@@ -328,7 +328,8 @@ The other half was declared **unobtainable** below and was not
 ([ADR-QD-053](../decisions/053-a-gate-can-be-found.md)). The premise is true —
 `Atom.family` keys structurally, so the atom layer genuinely cannot tell ten
 `<Can>` apart — and the conclusion does not follow from it. A component knows
-perfectly well that it exists; nothing was asking it. `gateInstances()` now
+perfectly well that it exists; nothing was asking it. `atoms.gates` (formerly the module-scope
+`gateInstances()`, ADR-QD-080) now
 lists them under their question, with what each rendered, and the lens points at
 them in **both** directions: highlight from the panel, pick from the page. The
 claim that an instance registry "would breach AGENTS.md §13 twice over" was also
