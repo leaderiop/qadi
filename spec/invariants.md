@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-INV                                       |
-> | Revision       | 1.39                                            |
-> | Effective Date | 2026-09-19                                     |
+> | Revision       | 1.40                                            |
+> | Effective Date | 2026-10-04                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.39 (2026-09-19): Three Source citations corrected (100-lens audit, second batch). INV-QD-033's Source named `HashSet` for `AuthSubject.roles`/`.permissions`; the code is the built-in JS `Set`, and `DecisionCache.ts`'s own doc comment already corrects this after once making the same mistake — restated to match, citing `Equal`/`Hash`'s `instanceof Set` special-case rather than a `HashSet`. INV-QD-003's Source cited only the one-directional `Schema.Codec<Policy, PolicyEncoded>` type assertion, which alone cannot forbid a `Policy` variant added without a matching schema member (assignability checks one direction); restated to name the layered guard system that actually forecloses that gap (`POLICY_TAGS_BY_TAG`, `policyDepth`'s `Match.tagsExhaustive`, the two `_tag`-switch TS2366 checks). INV-QD-008's Source described `scripts/check-house-style.mjs`'s ambient-randomness regex as unqualified enforcement; restated as a line-level drift guard that an aliased or indexed `crypto["randomUUID"]()` call would pass silently, matching the house-style script's own doc comments' standard of precision about what a regex cannot see (.issues/high/domenic-denicola-DD-01.md's corroborators .issues/low/butler-lampson-BL-03.md, .issues/low/xavier-leroy-XL-03.md, .issues/low/bruce-schneier-BS-04.md)<br>1.38 (2026-09-19): INV-QD-057 — `hasSignature` consults no clock, promoting a limitation previously stated only in `Signature.ts`'s doc comment to a checkable, `TestClock`-pinned invariant (LL-04)<br>1.37 (2026-09-19): INV-QD-020 made literally true rather than true-except-for-failures — `AllOf`/`AnyOf`/`Rules`'s concurrent paths dispatched children through `Effect.forEach`'s fail-fast default, so a later-indexed child's failure could pre-empt an earlier-indexed child's already-decisive `Deny`/`Allow` (or, for `Rules`, its already-decisive applying row), a `Failure` where sequential evaluation would have produced a `Decision`. Children are now run through `Effect.exit` and folded in declaration order, the same fold the trace already used, so a failure is placed at the same index sequential evaluation would have reached it at (`Evaluate.ts`, INV-QD-020, CCR-QD-152)<br>1.36 (2026-09-09): INV-QD-006's Source extended — a failure this invariant covers now includes a port that dies rather than fails; `Evaluate.ts`'s five port call sites each catch that cause and convert it into the port's own typed error, so `Effect.orDie`'s absence was necessary but not sufficient on its own (BEH-QD-261, issue #100, CCR-QD-142)<br>1.35 (2026-09-08): INV-QD-013's Source corrected — `filter`/`filterStream` enforce the same obligation rule through a second path, `decideOne`, which independently reimplements evaluate → `isAllowed` → discharge per item rather than calling the shared `permitted`; a deliberate second implementation, tested on its own terms by `Qadi.test.ts`'s dedicated filter/filterStream obligation tests, not a gap. INV-QD-009's Source corrected — `enforce` is `Effect.flatMap(permitted(policy, options), () => self)`; it never calls `assert`, and both independently call `permitted`. INV-QD-052 extended — `claimProbe`/`releaseProbe` carry the same single-`Ref.modify` atomicity as `status`/`recordSuccess`/`recordFailure`, bounding a half-open window to exactly one concurrent probe (issue #72, CCR-QD-136)<br>1.34 (2026-09-08): INV-QD-018 violated in production code and INV-QD-047 with it — `Predicate.ts`'s `compare` carried only the `typeof` half of the `Number.isFinite` guard `Matcher.ts`'s `evaluateMatcher` has on a `Gte`/`Lt` bound, so `toPredicate` on `gte(-Infinity)` admitted every numeric row while `evaluate` on the same policy denied every one; and `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`, which PostgreSQL treats as equal to itself and `evaluatePredicate` does not. Both fixed, and both fuzz generators extended to sample the non-finite bounds they never drew (INV-QD-048 gained the matching property; issue #65, CCR-QD-120)<br>1.33 (2026-09-08): INV-QD-038's Enforcement corrected — `flattenPermissions` does not run inside `makeSubject` as stated; `makeSubject` takes an already-flattened `Iterable<PermissionKey>`, and `flattenPermissions` runs inside the sibling `fromRoles` constructor instead (issue 69, CCR-QD-117)<br>1.32 (2026-09-08): INV-QD-004 extended — projecting a record is stack-safe; `FieldPath.ts`'s `projectAt` recursed once per field-spec segment over an uncapped dot-path and raised a raw `RangeError` out of the enforcement path, and now walks with the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, BEH-QD-056, CCR-QD-115)<br>1.31 (2026-09-07): INV-QD-031 extended — `fieldStrategy` and `HasRelationship.depth` named as the same shape of gap the invariant already covered, `depth` having been dropped from the rendering entirely; INV-QD-029's `RelationshipResolver` denial no longer claims an unverifiable wiring state (issue 45, CCR-QD-114)<br>1.30 (2026-09-07): INV-QD-032 updated — "`neq` on `undefined` is `true`" was the wiring bug's mechanism, not just a description of it; the mechanism itself is now closed at the source, not only the resource-wiring path (CCR-QD-112)<br>1.29 (2026-09-07): INV-QD-048's Enforcement corrected — the test-only `matchesPrismaWhere` reader it named implements the same JS `.every`/`.some` semantics `evaluatePredicate` does, and so could not by itself catch `renderNode` nesting a vacuous identity where Prisma's real engine silently mishandles it (C1, issue 34); a second, engine-accurate reader now checks this invariant too (BEH-QD-239, BEH-QD-242, CCR-QD-111)<br>1.28 (2026-09-06): six in-page anchors repointed from pre-rename heading slugs to the current headings (INV-QD-004, INV-QD-006, INV-QD-007, INV-QD-018, INV-QD-029, plus the sibling references in traceability.md and behaviors/27-devtools-timeline.md); INV-QD-050 gained the Enforcement block and Related line its own text already implied, which the 1.26 edit had displaced onto INV-QD-056's section (CCR-QD-097)<br>1.27 (2026-09-06): INV-QD-054 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` and the implication note made explicit about the gap this does not close (CCR-QD-094)<br>1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.40 (2026-10-04): INV-QD-047/048 — Enforcement now names real engines (PGlite, `node:sqlite`, Prisma Client over SQLite) in place of the JavaScript readers, which are retired, and the Implication that "there is no `Predicate` shape that renders to one target and not the other" is corrected to the declared reserved-column difference. INV-QD-048 gains the third-time-found paragraph (a three-valued `NOT` dropped NULL rows; CCR-QD-153). INV-QD-058 (`toRenderable` preserves `evaluatePredicate`) and INV-QD-059 (a wrong nullability declaration never over-admits) added (ADR-QD-077, CCR-QD-154)<br>1.39 (2026-09-19): Three Source citations corrected (100-lens audit, second batch). INV-QD-033's Source named `HashSet` for `AuthSubject.roles`/`.permissions`; the code is the built-in JS `Set`, and `DecisionCache.ts`'s own doc comment already corrects this after once making the same mistake — restated to match, citing `Equal`/`Hash`'s `instanceof Set` special-case rather than a `HashSet`. INV-QD-003's Source cited only the one-directional `Schema.Codec<Policy, PolicyEncoded>` type assertion, which alone cannot forbid a `Policy` variant added without a matching schema member (assignability checks one direction); restated to name the layered guard system that actually forecloses that gap (`POLICY_TAGS_BY_TAG`, `policyDepth`'s `Match.tagsExhaustive`, the two `_tag`-switch TS2366 checks). INV-QD-008's Source described `scripts/check-house-style.mjs`'s ambient-randomness regex as unqualified enforcement; restated as a line-level drift guard that an aliased or indexed `crypto["randomUUID"]()` call would pass silently, matching the house-style script's own doc comments' standard of precision about what a regex cannot see (.issues/high/domenic-denicola-DD-01.md's corroborators .issues/low/butler-lampson-BL-03.md, .issues/low/xavier-leroy-XL-03.md, .issues/low/bruce-schneier-BS-04.md)<br>1.38 (2026-09-19): INV-QD-057 — `hasSignature` consults no clock, promoting a limitation previously stated only in `Signature.ts`'s doc comment to a checkable, `TestClock`-pinned invariant (LL-04)<br>1.37 (2026-09-19): INV-QD-020 made literally true rather than true-except-for-failures — `AllOf`/`AnyOf`/`Rules`'s concurrent paths dispatched children through `Effect.forEach`'s fail-fast default, so a later-indexed child's failure could pre-empt an earlier-indexed child's already-decisive `Deny`/`Allow` (or, for `Rules`, its already-decisive applying row), a `Failure` where sequential evaluation would have produced a `Decision`. Children are now run through `Effect.exit` and folded in declaration order, the same fold the trace already used, so a failure is placed at the same index sequential evaluation would have reached it at (`Evaluate.ts`, INV-QD-020, CCR-QD-152)<br>1.36 (2026-09-09): INV-QD-006's Source extended — a failure this invariant covers now includes a port that dies rather than fails; `Evaluate.ts`'s five port call sites each catch that cause and convert it into the port's own typed error, so `Effect.orDie`'s absence was necessary but not sufficient on its own (BEH-QD-261, issue #100, CCR-QD-142)<br>1.35 (2026-09-08): INV-QD-013's Source corrected — `filter`/`filterStream` enforce the same obligation rule through a second path, `decideOne`, which independently reimplements evaluate → `isAllowed` → discharge per item rather than calling the shared `permitted`; a deliberate second implementation, tested on its own terms by `Qadi.test.ts`'s dedicated filter/filterStream obligation tests, not a gap. INV-QD-009's Source corrected — `enforce` is `Effect.flatMap(permitted(policy, options), () => self)`; it never calls `assert`, and both independently call `permitted`. INV-QD-052 extended — `claimProbe`/`releaseProbe` carry the same single-`Ref.modify` atomicity as `status`/`recordSuccess`/`recordFailure`, bounding a half-open window to exactly one concurrent probe (issue #72, CCR-QD-136)<br>1.34 (2026-09-08): INV-QD-018 violated in production code and INV-QD-047 with it — `Predicate.ts`'s `compare` carried only the `typeof` half of the `Number.isFinite` guard `Matcher.ts`'s `evaluateMatcher` has on a `Gte`/`Lt` bound, so `toPredicate` on `gte(-Infinity)` admitted every numeric row while `evaluate` on the same policy denied every one; and `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`, which PostgreSQL treats as equal to itself and `evaluatePredicate` does not. Both fixed, and both fuzz generators extended to sample the non-finite bounds they never drew (INV-QD-048 gained the matching property; issue #65, CCR-QD-120)<br>1.33 (2026-09-08): INV-QD-038's Enforcement corrected — `flattenPermissions` does not run inside `makeSubject` as stated; `makeSubject` takes an already-flattened `Iterable<PermissionKey>`, and `flattenPermissions` runs inside the sibling `fromRoles` constructor instead (issue 69, CCR-QD-117)<br>1.32 (2026-09-08): INV-QD-004 extended — projecting a record is stack-safe; `FieldPath.ts`'s `projectAt` recursed once per field-spec segment over an uncapped dot-path and raised a raw `RangeError` out of the enforcement path, and now walks with the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, BEH-QD-056, CCR-QD-115)<br>1.31 (2026-09-07): INV-QD-031 extended — `fieldStrategy` and `HasRelationship.depth` named as the same shape of gap the invariant already covered, `depth` having been dropped from the rendering entirely; INV-QD-029's `RelationshipResolver` denial no longer claims an unverifiable wiring state (issue 45, CCR-QD-114)<br>1.30 (2026-09-07): INV-QD-032 updated — "`neq` on `undefined` is `true`" was the wiring bug's mechanism, not just a description of it; the mechanism itself is now closed at the source, not only the resource-wiring path (CCR-QD-112)<br>1.29 (2026-09-07): INV-QD-048's Enforcement corrected — the test-only `matchesPrismaWhere` reader it named implements the same JS `.every`/`.some` semantics `evaluatePredicate` does, and so could not by itself catch `renderNode` nesting a vacuous identity where Prisma's real engine silently mishandles it (C1, issue 34); a second, engine-accurate reader now checks this invariant too (BEH-QD-239, BEH-QD-242, CCR-QD-111)<br>1.28 (2026-09-06): six in-page anchors repointed from pre-rename heading slugs to the current headings (INV-QD-004, INV-QD-006, INV-QD-007, INV-QD-018, INV-QD-029, plus the sibling references in traceability.md and behaviors/27-devtools-timeline.md); INV-QD-050 gained the Enforcement block and Related line its own text already implied, which the 1.26 edit had displaced onto INV-QD-056's section (CCR-QD-097)<br>1.27 (2026-09-06): INV-QD-054 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` and the implication note made explicit about the gap this does not close (CCR-QD-094)<br>1.26 (2026-08-25): INV-QD-056 — a `HasSignature` node never appears in a compiled `Predicate`, one leaf after `HasCustom`'s own; INV-QD-055's Related line updated for ADR-QD-057's harmonization (ADR-QD-057, ADR-QD-058, CCR-QD-089)<br>1.25 (2026-08-25): INV-QD-051–055 — the family of properties `@qadi/audit`'s correctness rests on, formalized: staging non-observability, circuit-breaker atomicity, retention partition, chain-integrity gap detection, and the signature obligation handler's call-once/outcome-match guarantee (ADR-QD-056, CCR-QD-086)<br>1.24 (2026-08-25): INV-QD-003's Source corrected — `Policy`'s recursive type is hand-written first and the schema is type-asserted against it, not derived from a single `Schema.Union` (CCR-QD-084)<br>1.23 (2026-08-25): INV-QD-022 revised — every `DehydratedEntry` field is verified, not just `policy` (CCR-QD-083)<br>1.22 (2026-08-25): INV-QD-049, INV-QD-050 — a custom predicate's own failure and an unrecognised name are errors, never denials; a `HasCustom` node never appears in a compiled `Predicate` (ADR-QD-055, CCR-QD-082)<br>1.21 (2026-08-25): INV-QD-047, INV-QD-048 — the NULL-handling defect manual engine verification found, and how it was fixed and closed against the generators (BEH-QD-244, CCR-QD-081)<br>1.20 (2026-08-25): INV-QD-047, INV-QD-048 — a companion package's compiled SQL/Prisma output agrees with `evaluatePredicate` (ADR-QD-054, CCR-QD-079)<br>1.19 (2026-08-25): INV-QD-004 revised — a field spec may be a dot-path with a `*`/`**` wildcard, `undefined` stays the unchanged top of the lattice (BEH-QD-056, CCR-QD-078)<br>1.18 (2026-08-24): INV-QD-046, instrumentation never changes what a guard renders (CCR-QD-073)<br>1.17 (2026-08-24): INV-QD-045, hydration accounts for every entry (CCR-QD-072)<br>1.16 (2026-07-26): INV-QD-027, the published package (CCR-QD-038)<br>1.15 (2026-07-26): INV-QD-026, the Promise facade (CCR-QD-033)<br>1.14 (2026-07-26): INV-QD-025, the decision cache (CCR-QD-032)<br>1.13 (2026-07-26): INV-QD-024, simplification (CCR-QD-031)<br>1.12 (2026-07-26): INV-QD-023, the lattice bounds (CCR-QD-030)<br>1.11 (2026-07-26): INV-QD-022, hydration is subject-bound (CCR-QD-029)<br>1.10 (2026-07-26): INV-QD-021, explanation totality (CCR-QD-028)<br>1.9 (2026-07-26): INV-QD-020, concurrency; INV-QD-005 scoped to sequential evaluation (CCR-QD-027)<br>1.8 (2026-07-26): INV-QD-019, the order laws (CCR-QD-024)<br>1.7 (2026-07-26): INV-QD-018, predicate agreement (CCR-QD-020)<br>1.6 (2026-07-26): INV-QD-017, rule tables; INV-QD-005 defers to it (CCR-QD-019)<br>1.5 (2026-07-26): INV-QD-016, subject sets (CCR-QD-018)<br>1.4 (2026-07-26): INV-QD-015, label dominance (CCR-QD-017)<br>1.3 (2026-07-26): INV-QD-014, the history port; INV-QD-008 restated as "given the same history" (CCR-QD-016)<br>1.2 (2026-07-26): INV-QD-012 and INV-QD-013, obligations (CCR-QD-015)<br>1.1 (2026-07-26): INV-QD-011, the action dimension (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -1727,13 +1727,17 @@ means what that `Predicate` meant, closing the gap ADR-QD-024 left open —
 that says their SQL means what Qadi meant." A divergence here is a query that
 silently returns rows an authorization decision never admitted.
 
-**Enforcement**: a `FastCheck` property samples generated `Predicate` trees
-and generated rows, comparing `evaluatePredicate` against a test-only SQL
-reader restricted to exactly the productions `compileSql` emits — the same
-differential method `INV-QD-018` uses, not a bypass of the rendered text.
-Golden fixture strings pin per-dialect syntax (quoting, placeholder
-numbering, `IN` grammar) the differential reader cannot validate on its own,
-across all three dialects.
+**Enforcement**: a `FastCheck` property samples 300 generated `Predicate` trees
+and compares the row set a **real engine** returns for the compiled fragment with
+`evaluatePredicate`'s — PostgreSQL through PGlite and SQLite through `node:sqlite`,
+over a 48-row table (`packages/predicate-sql/test/EngineAgreement.test.ts`, S1),
+the same differential method `INV-QD-018` uses with the engine in place of an
+interpreter. MySQL has no embeddable Node engine, so S2 checks its text is
+SQLite's modulo identifier quote characters with identical `params`, and golden
+fixture strings pin per-dialect syntax (quoting, placeholder numbering, `IN`
+grammar) across all three dialects. The JavaScript reader this section used to
+describe (`sqlInterpreter.ts`) is retired: it agreed with the NULL defect and the
+`NaN` one below, which only a real engine found (ADR-QD-077).
 
 **The generators shared INV-QD-018's own weak point, in a new place, and
 manual verification against real engines is what found it, not the
@@ -1781,16 +1785,30 @@ row.
 checked against `@qadi/core`'s `evaluatePredicate`.
 
 **Implication**: the same property as [INV-QD-047](#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits),
-against the other grammar. There is no `Predicate` shape that renders to one
-target and not the other, so the two invariants differ only in which
-compiler and which test-only interpreter they check — a stronger guarantee
-than SQL's, in one respect: there is no serialization step to separately
-verify, since `WhereInput` is a plain object rather than text.
+against the other grammar. Apart from `compilePrismaWhere`'s reserved columns
+(Prisma's 13 operator keys, the one `RenderRules` field the two packages set
+differently), no `Predicate` shape renders to one target and not the other — the
+identifier rule and `maxInValues` are core's and shared — so the two invariants
+differ only in which compiler and which engine they check. A stronger guarantee
+than SQL's in one respect: there is no serialization step to separately verify,
+since `WhereInput` is a plain object rather than text. (This paragraph used to say
+no `Predicate` shape renders to one target and not the other, flatly; before
+ADR-QD-077 that was false — `first name`, `a.b`, `gte`, `NOT` and a 1001-member
+`MemberOf` each compiled in one package and not the other.)
 
-**Enforcement**: a `FastCheck` property, mirroring INV-QD-047's, using a
-test-only `matchesPrismaWhere` reader restricted to the `WhereInput` subset
-this compiler ever emits, **and** a second FastCheck property over the same
-generated predicates checked against `matchesPrismaWhereEngine`
+**Enforcement**: the compiled `WhereInput` is run through **Prisma Client 7.10
+over an in-memory SQLite database** (`@prisma/adapter-better-sqlite3`) and its row
+set compared with `evaluatePredicate`'s over a 48-row table, 300 generated
+predicates per property
+(`packages/predicate-prisma/test/EngineAgreement.test.ts`): P1 exact agreement
+under the true nullability declaration, P2/P3 lie-safety under a wrong one (a
+subset, or a loud refusal, never an over-admission), P4 the vacuous-identity
+shapes. `matchesPrismaWhereEngine` stays as a documented three-valued fast model
+of the same engine. The history below describes what came before: a `FastCheck`
+property, mirroring INV-QD-047's, using a test-only `matchesPrismaWhere` reader
+(now retired) restricted to the `WhereInput` subset this compiler ever emits,
+**and** a second FastCheck property over the same generated predicates checked
+against `matchesPrismaWhereEngine`
 (`packages/predicate-prisma/test/matchesPrismaWhereEngine.ts`), a reader
 that models Prisma's real, documented nested-empty-array stripping behavior
 rather than `evaluatePredicate`'s own `.every`/`.some` semantics. The first
@@ -2097,3 +2115,68 @@ leaf against the identical on-file signature before and after advancing
 `TestClock` by ten years, and asserts the verdict and trace are identical.
 
 **Related**: [ADR-QD-058](decisions/058-hassignature-a-ninth-service-and-a-decomposable-leaf.md), [INV-QD-056](#inv-qd-056-a-hassignature-node-never-appears-in-a-compiled-predicate).
+
+## INV-QD-058: `toRenderable` preserves `evaluatePredicate`'s meaning in two-valued logic
+
+For every `Predicate` `toRenderable` accepts, and every row whose columns are all
+present, interpreting the returned `RenderableNode` in two-valued logic — every
+`NullGuard` applied literally — gives the same answer as `evaluatePredicate` does
+against the same `Predicate` and row, including rows whose values have the wrong
+type for the column.
+
+**Source**: `packages/core/src/RenderablePredicate.ts` — `toRenderable`, whose
+leaf classification reads what a leaf means on NULL from `evaluatePredicate`
+itself (`evaluatePredicate(leaf, {[column]: null})`), and whose `Gte`/`Lt` arm
+shares `isRangeBound` (`PredicateLiteral.ts`) with `evaluatePredicate`.
+
+**Implication**: this is [INV-QD-018](#inv-qd-018-a-predicate-admits-exactly-the-rows-the-evaluator-allows)
+one layer further, and it is what lets a dialect package be a renderer that
+decides nothing. The rules a package used to re-derive (safe literals, `Compare`
+against NULL and against a non-number, an empty `MemberOf`) are stated once, so a
+semantic fix (CCR-QD-120) lands once. A `NullGuard` is a no-op here: it only
+matters to a target whose comparisons can be UNKNOWN, which INV-QD-047/048 check
+against real engines. Absent (`undefined`) columns are out of scope: a table has
+none, and `Predicate.test.ts` keeps covering them.
+
+**Enforcement**: `packages/core/test/RenderablePredicate.test.ts` — R1 (a leaf's
+guard is `AdmitNull` exactly when the reference admits NULL on it), R2/R3 (a
+test-only two-valued interpreter of the tree, guards applied literally, equals the
+reference over 400 generated predicates x 25 rows, for both negations and with a
+declaration), and the bound-rule test that a `Gte`/`Lt` bound is a `Range` exactly
+when the evaluator can compare against it.
+
+**Related**: [BEH-QD-264](behaviors/31-predicate-compilation.md#beh-qd-264-a-predicate-is-classified-once-in-core-into-a-renderable-tree), [ADR-QD-077](decisions/077-renderability-is-a-core-rule.md).
+
+## INV-QD-059: A wrong nullability declaration never admits a row the predicate denies
+
+For every `Predicate`, every renderer and every row, if the caller's `nullable`
+declaration is wrong, the compiled query returns a subset of the rows
+`evaluatePredicate` admits, or the engine or the compiler refuses it loudly. It
+never returns a row `evaluatePredicate` denies.
+
+**Source**: `packages/core/src/RenderablePredicate.ts` — the null-guard table
+(`NULL_GUARD`) and the `NullOnNonNullableColumn` refusal.
+
+**Implication**: a declaration is the minimum schema fact a schema-blind renderer
+needs, and it must be safe to get wrong. Three mechanisms make it so. Core never
+folds anything on the strength of a declaration. A null comparison on a column
+declared NOT NULL refuses rather than folding to a constant, which could over-admit
+under a `Negate`. And the guard table is polarity-aware per target: a three-valued
+`NOT` (Prisma) is monotone — replacing the reference's FALSE with UNKNOWN can only
+lose rows — so a NOT NULL column gets no guard; a two-valued `NOT` (SQL's `CASE
+WHEN`, which collapses UNKNOWN to FALSE) is **not** monotone, and an unguarded
+`Neq`/null-member `MemberOf` under an odd number of `Negate`s on a column that does
+hold NULL flips to TRUE where the reference says FALSE, so it keeps `AdmitNull` at
+negative polarity even on a declared NOT NULL column. The two-valued case was found
+by a real-engine property in implementation, not by the plan's monotonicity
+argument, which held only for the three-valued one.
+
+**Enforcement**: `packages/predicate-sql/test/EngineAgreement.test.ts` S3
+(true declaration: exact agreement on PGlite and `node:sqlite`; everything
+declared nullable: exact; nothing nullable: a subset, with a strict subset
+observed so it cannot pass vacuously), `packages/predicate-prisma/test/EngineAgreement.test.ts`
+P2/P3 (under-declared: a subset; over-declared: equal or refused by Prisma, with a
+refusal observed), and `packages/core/test/RenderablePredicate.test.ts` R7 (the
+table's rows, including the two-valued negative-polarity guard).
+
+**Related**: [BEH-QD-265](behaviors/31-predicate-compilation.md#beh-qd-265-a-nullability-declaration-can-only-narrow-or-refuse), [INV-QD-047](#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits), [INV-QD-048](#inv-qd-048-a-compiled-prisma-whereinput-admits-exactly-the-rows-the-predicate-admits), [ADR-QD-077](decisions/077-renderability-is-a-core-rule.md).

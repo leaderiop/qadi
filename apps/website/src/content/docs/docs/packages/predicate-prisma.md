@@ -56,12 +56,14 @@ predicate denies.
 A `Predicate`'s comparison values are `unknown`. A value outside the safe
 allowlist (`string | finite number | boolean | null`) fails with
 `PredicateNotRenderable` rather than being handed to Prisma's query engine.
-`Date` is refused too.
+`Date` is refused too, as is a `MemberOf` past `maxInValues` (default 1000) and a
+column outside the identifier rule or named like one of Prisma's operator keywords.
 
 ## Agreement with the evaluator
 
 Every `WhereInput` this package renders is checked, by property, against
-`@qadi/core`'s own `evaluatePredicate`. See
+`@qadi/core`'s own `evaluatePredicate` — by running it through a real Prisma Client
+over SQLite. See
 [31 — Predicate Compilation](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/31-predicate-compilation.md).
 
 ## License

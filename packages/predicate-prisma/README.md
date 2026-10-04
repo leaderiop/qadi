@@ -83,12 +83,17 @@ predicate denies. A `null` comparison on a column declared NOT NULL fails
 
 A `Predicate`'s comparison values are `unknown`. A value outside the safe
 allowlist (`string | finite number | boolean | null`; `Date` is refused) fails
-`PredicateNotRenderable` rather than being handed to Prisma's query engine.
+`PredicateNotRenderable` rather than being handed to Prisma's query engine. So does
+a `MemberOf` past `maxInValues` (default 1000), and a column name outside the
+identifier rule (`"Ascii"` by default, `identifiers: "UnicodeBmp"` opts a Prisma
+field like `é` in) or one of Prisma's own operator keywords (`AND`, `not`, `gte`,
+…). `PredicateNotRenderable` is `@qadi/core`'s, re-exported here.
 
 ## Agreement with the evaluator
 
 Every `WhereInput` this package renders is checked, by property, against
-`@qadi/core`'s own `evaluatePredicate`. See
+`@qadi/core`'s own `evaluatePredicate` — by running it through a real Prisma Client
+over SQLite, not a JavaScript model of one. See
 [31 — Predicate Compilation](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/31-predicate-compilation.md).
 
 ## License
