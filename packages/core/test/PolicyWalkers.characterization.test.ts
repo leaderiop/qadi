@@ -82,7 +82,9 @@ describe("differential: every walker against its frozen predecessor", () => {
         policyArbitrary(),
         FastCheck.constantFrom(0, 1, 2, 3, 64),
         (p, maxDepth) => {
-          const expected = legacyRestrictsFields(p, 0, maxDepth);
+          // Depth is judged first now (D-02-e(b)): too deep wins whatever the child order,
+          // and otherwise the legacy walk with no depth limit is the oracle.
+          const expected = P.policyDepth(p) > maxDepth ? "TooDeep" : legacyRestrictsFields(p, 0, Infinity);
           const result = failureOf(p, maxDepth);
           const error = result._tag === "Failure" ? result.failure : undefined;
           const gate = error?._tag === "PolicyNotTranslatable"
@@ -151,17 +153,17 @@ describe("pinned examples", () => {
         return r._tag === "Failure" ? r.failure._tag : "Success";
       }).pipe(Effect.provide(layer));
 
-    // PINNED — flips under D-02-e(b), see T9
-    it.effect("a restricting leaf first: PolicyNotTranslatable", () =>
+    // FLIPPED by D-02-e(b), T9: was PolicyNotTranslatable (child-order dependent)
+    it.effect("a restricting leaf first: PolicyTooDeep, whatever the order", () =>
       Effect.gen(function* () {
         assert.strictEqual(
           yield* tagOf(P.allOf([restricting, deep])),
-          "PolicyNotTranslatable",
+          "PolicyTooDeep",
         );
       }),
     );
 
-    // PINNED — flips under D-02-e(b), see T9
+    // Unchanged by the flip, kept as the mirror of the case above
     it.effect("the deep branch first: PolicyTooDeep", () =>
       Effect.gen(function* () {
         assert.strictEqual(yield* tagOf(P.allOf([deep, restricting])), "PolicyTooDeep");
