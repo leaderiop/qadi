@@ -10,15 +10,22 @@
  */
 import {
   Allow,
+  action,
   allOf,
   anyOf,
   Decided,
   DecisionRecord,
   Deny,
   denyWhen,
+  contains,
+  dominates,
   eq,
+  everyMatch,
+  exists,
+  fieldMatch,
   Failed,
   gte,
+  inArray,
   hasAction,
   hasAttribute,
   hasPermission,
@@ -26,6 +33,8 @@ import {
   hasRole,
   labeled,
   literal,
+  lt,
+  neq,
   makeSubjectId,
   MissingResource,
   not,
@@ -35,11 +44,16 @@ import {
   permission,
   permitWhen,
   rules,
+  size,
   someMatch,
+  resource,
   stampRecord,
+  subject,
   subjectId,
 } from "@qadi/core";
 import type {
+  Matcher,
+  ValueRef,
   EvaluationError,
   ObligationOutcome,
   Policy,
@@ -213,6 +227,43 @@ export const randomPolicy = (seed: number, depth = 4): Policy => {
     const table = remaining <= 0 || pick(3) === 0 ? leaves : composites;
     const make = table[pick(table.length)];
     return make === undefined ? hasRole("editor") : make();
+  };
+  return build(depth);
+};
+
+/** A pseudo-random `Matcher` over all twelve tags, seeded like {@link randomPolicy}. */
+export const randomMatcher = (seed: number, depth = 4): Matcher => {
+  const next = prng(seed);
+  const pick = (n: number): number => Math.floor(next() * n);
+  const refs: ReadonlyArray<ValueRef> = [
+    subject("dept"),
+    subjectId(),
+    resource("owner"),
+    action(),
+    literal("legal"),
+    literal(2),
+  ];
+  const ref = (): ValueRef => refs[pick(refs.length)] ?? literal(1);
+  const build = (remaining: number): Matcher => {
+    const leaves: ReadonlyArray<() => Matcher> = [
+      () => eq(ref()),
+      () => neq(ref()),
+      () => dominates(ref()),
+      () => inArray(pick(2) === 0 ? [] : [1, "a"]),
+      () => exists(),
+      () => gte(pick(5)),
+      () => lt(pick(5)),
+      () => contains("x"),
+    ];
+    const composites: ReadonlyArray<() => Matcher> = [
+      () => fieldMatch("a", build(remaining - 1)),
+      () => someMatch(build(remaining - 1)),
+      () => everyMatch(build(remaining - 1)),
+      () => size(build(remaining - 1)),
+    ];
+    const table = remaining <= 0 || pick(3) === 0 ? leaves : composites;
+    const make = table[pick(table.length)];
+    return make === undefined ? exists() : make();
   };
   return build(depth);
 };
