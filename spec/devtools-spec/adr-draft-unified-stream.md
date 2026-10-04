@@ -74,7 +74,7 @@ Naming these so the draft cannot again claim more than it has.
   non-reactively, since the id is correlation metadata and not an input to the
   decision — and passes it as `EvaluateOptions.evaluationId`. A hydrated decision
   and its client re-check now carry one id, and `Hydration.test.ts` asserts both
-  that and the no-seed case minting a fresh one. `hydrationSeedFor` stayed out of
+  that and the no-seed case minting a fresh one. The seed lookup stayed out of
   the barrel: threading was an internal change, as this draft required.
 - **A transport exists.** `decisionSinkForwarding` + `decisionSinkFeed` +
   `decisionStreamRoute` carry server decisions to a reader over guarded SSE, and
@@ -85,11 +85,21 @@ Naming these so the draft cannot again claim more than it has.
 **Still open:**
 
 - **The server half is near-empty by default.** `dehydrateDecisions` ships a
-  reduced trace unless `includeTrace: true`, the rebuild fallback hardcodes
-  `policyTag: "AllOf"`, and a denial's reason becomes the literal `"hydrated"`.
-  A paired row's explanation panel will render nothing until a payload opts in.
-  That is a disclosure boundary rather than a defect, so the fix is for the UI to
-  say "trace not disclosed" rather than for the payload to loosen.
+  tagged `Withheld` disclosure unless `includeTrace: true`, so a hydrated
+  decision has no trace for a paired row's explanation panel to render until a
+  payload opts in. That is a disclosure boundary rather than a defect, and the
+  type now says so: a seed (`SeededAllow`/`SeededDeny`) carries no trace at all
+  unless it was `Disclosed`, so there is no fabricated tag to mistake for a real
+  one, and the UI's job is to say "trace not disclosed" for a `Withheld` seed
+  rather than for the payload to loosen.
+
+  > **Superseded in CCR-QD-153.** This bullet previously read: "`dehydrateDecisions`
+  > ships a reduced trace unless `includeTrace: true`, the rebuild fallback hardcodes
+  > `policyTag: "AllOf"`, and a denial's reason becomes the literal `"hydrated"`."
+  > The reduced trace and the `"hydrated"` reason are gone, replaced by `Withheld`.
+  > The `"AllOf"` claim was only ever true of a payload with **no** `trace` field at
+  > all — hand-crafted or version-skewed input; a default payload's reduced trace
+  > carried the real root tag.
 - ~~**Nothing renders any of it.**~~ Closed. The timeline was built in
   CCR-QD-067 and `mergeSources` (BEH-QD-235, CCR-QD-076) is what finally lets a
   server's decisions and a browser's re-checks reach **one** of them, which is

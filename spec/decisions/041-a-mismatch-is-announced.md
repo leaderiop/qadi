@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-041                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
+> | Change History | 1.2 (2026-10-04): `HydrationMismatch.seeded` is a `SeededDecision`, not a `Decision`; the stated reason for naming the policy from `decided.trace` ("a stand-in that names nothing") is corrected in a blockquote, original preserved (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-07): The worked-example paraphrase updated to match ADR-QD-040's corrected denial text (issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-056) |
 
 _Follows: [ADR-QD-039](./039-a-seed-is-not-an-authority.md), which made the
 client's answer supersede the seed and said nothing about telling anyone._
@@ -120,6 +120,15 @@ default — it is a stand-in that names nothing
 ([BEH-QD-147](../behaviors/19-hydration.md)). Only this client's own trace is
 guaranteed to describe the policy actually in question. The first draft read the
 seed's tag and printed the wrong policy name; the test caught it.
+
+> **Corrected in CCR-QD-153.** "A stand-in that names nothing" was wrong: for a
+> payload shipped without `includeTrace` the reduced trace carried the **real**
+> root tag, and `"AllOf"` appeared only for a payload with no `trace` field at all
+> — hand-crafted or version-skewed input. The conclusion stands and the reason is
+> stronger: a seed (`SeededAllow`/`SeededDeny`) now carries no trace unless the
+> server disclosed one, and even a disclosed one is the server's evaluation rather
+> than the one in effect, so only `decided.trace` can name the policy. The seed in
+> `HydrationMismatch` is a `SeededDecision`.
 
 The trailing clause is `decided.reason`, which is where
 [ADR-QD-040](./040-an-unwired-port-names-its-absence.md) pays off: a client with

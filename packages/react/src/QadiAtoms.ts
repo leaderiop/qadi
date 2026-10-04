@@ -112,58 +112,21 @@ export interface QadiAtoms {
   /**
    * Every question this atom set has been asked, in the order first asked.
    *
-   * The honest version of a devtools "gates in tree" panel, and the reason that
-   * screen is keyed by **question** rather than by component instance.
-   * `Atom.family` keys structurally, so ten `<Can policy={isAdmin}>` in
-   * different places in the tree are **one atom** — the library cannot tell them
-   * apart, and a panel listing ten rows would be inventing a distinction the
-   * architecture does not have.
+   * Keyed by **question**, not by component instance, because `Atom.family` keys
+   * structurally: ten `<Can policy={isAdmin}>` in different places in the tree
+   * are one atom, and the atom layer cannot tell them apart. What is *asking* is
+   * recorded separately, by the components themselves, in `GateRegistry.ts`
+   * ([ADR-QD-053](../../../spec/decisions/053-a-gate-can-be-found.md)); a host that
+   * wants both subscribes to that registry itself (`examples/nextjs-newsroom`'s
+   * `Dock.tsx` does), as AGENTS.md §13 describes.
    *
-   * Recorded here, in the atom layer, because this is the layer that knows what
-   * was *asked*. What is **asking** is recorded separately, by the components
-   * themselves, in `GateRegistry.ts` — the two views sit side by side in the
-   * devtools React panel ([ADR-QD-053](../../../spec/decisions/053-a-gate-can-be-found.md)).
+   * Read the verdict for each with `decision`/`decisionFor`, which is what keeps a
+   * stale entry rendering as re-checking rather than as its old answer
+   * ([ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md)).
    *
-   * This paragraph read "an instance registry would breach [AGENTS.md §13]
-   * twice over", and it does not. Decisions are still not in React state and the
-   * React glue is still one `useSyncExternalStore` call in `QadiProvider.tsx`;
-   * the registry exposes `subscribe`/`snapshot` for exactly that purpose. What
-   * the argument above actually establishes is that the *atom layer* cannot see
-   * instances, which is true and is why this screen is keyed by question. A
-   * component knows perfectly well that it exists; nothing was asking it
-   * (CCR-QD-073, corrected here in CCR-QD-076).
-   *
-   * **Correction (DA-03):** the "React glue is still one `useSyncExternalStore`
-   * call in `QadiProvider.tsx`" sentence just above is also stale now, for an
-   * unrelated reason — CCR-QD-150 swapped that call for `@effect/atom-react`'s
-   * own `useAtomValue`, so `QadiProvider.tsx` calls `useSyncExternalStore`
-   * **zero** times today. `GateRegistry.ts`'s `subscribe`/`snapshot` contract
-   * this paragraph is actually about is unaffected — it was never what
-   * `QadiProvider.tsx` called — and is still exactly what a host wires up with
-   * its own `useSyncExternalStore`, per the correction below.
-   *
-   * **Correction:** this comment, ADR-QD-053 and AGENTS.md §13 all previously
-   * went on to claim "and it is `@qadi/devtools`, a DOM package already, that
-   * subscribes" — present tense, as if already wired. It is not: nothing under
-   * `packages/devtools/src` calls `subscribeGates`, and `DevtoolsDock.tsx`
-   * takes `gates` as a plain, one-shot prop rather than subscribing itself.
-   * `GateRegistry.ts`'s `subscribeGates`/`gateInstances` contract is correct
-   * and exercised by `GateRegistry.test.tsx`; what is missing is the
-   * consumer, in a package this file does not own. Flagged rather than
-   * silently reworded, per AGENTS.md §15's reason for gating claims like this
-   * one at all.
-   *
-   * Read the current verdict for each with `decision`/`decisionFor` — that is
-   * what keeps a stale entry rendering as re-checking rather than as its old
-   * answer (ADR-QD-017).
-   *
-   * **Bounded, not by growing forever and hoping GC keeps up.** A long-lived
-   * session asking many distinct (policy, resource) combinations has nothing
-   * else bounding this array or the underlying `Atom.family` tracking behind
-   * `decision`/`decisionFor` — a confirmed leak, closed by `sweepEvictions`
-   * dropping the oldest entries with no reader currently holding them once
-   * `maxTrackedQuestions` is exceeded. A question a gate still has open is
-   * never among those dropped; see {@link TrackedQuestion}.
+   * Bounded: `sweepEvictions` drops the oldest questions no reader is holding
+   * once `maxTrackedQuestions` is exceeded, and never one a mounted gate still has
+   * open — see {@link TrackedQuestion}.
    */
   readonly asked: () => ReadonlyArray<AskedQuestion>;
   /**

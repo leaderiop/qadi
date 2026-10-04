@@ -262,3 +262,7 @@ entries:
     file: "076-mutation-runs-skip-static-mutants.md"
     title: "Mutation runs skip static mutants (ignoreStatic)"
     status: "Accepted — narrows ADR-QD-025"
+  - id: "ADR-QD-077"
+    file: "077-a-seed-is-its-own-type-and-the-payload-is-versioned.md"
+    title: "A seed is its own type, the atom set owns hydration, and the payload is versioned"
+    status: "Accepted — amends ADR-QD-028, ADR-QD-039, ADR-QD-041, ADR-QD-052"

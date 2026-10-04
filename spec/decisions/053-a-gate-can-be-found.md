@@ -48,8 +48,8 @@ point at it.**
 
 ### The registry
 
-`GateRegistry.ts` is a module-scope `Map` a guard writes to from an effect —
-the shape `HydrationSeed.ts` already uses for the seed lookup. An entry carries
+`GateRegistry.ts` is a module-scope `Map` a guard writes to from an effect. An
+entry carries
 the instance's `useId`, which surface it is, its policy, its resource, what it
 rendered, and the marker element.
 

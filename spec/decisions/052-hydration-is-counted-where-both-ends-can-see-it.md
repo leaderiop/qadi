@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-052                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-072) |
+> | Change History | 1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-077, CCR-QD-153)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
 
 ---
 
@@ -84,6 +84,17 @@ by exactly one per call, so a thousand-entry payload would be a thousand map
 writes on a server's render path. `Metric.counter` takes the number. The drops
 stay a frequency because *which* reason is the whole diagnosis, and because that
 path only runs when something is already wrong.
+
+> **Amended in CCR-QD-153 ([ADR-QD-077](./077-a-seed-is-its-own-type-and-the-payload-is-versioned.md)).**
+> The reason set is now seven: `ForeignSubject`, `PayloadSubjectMismatch`,
+> `MalformedEntry`, `UndecodablePolicy`, `EntryTooDeep`, `UnsupportedPayloadVersion`
+> and `MalformedPayload`. `UnregisteredAtoms` is gone — the atom set owns the seed
+> capability, so the situation cannot arise — and the two new ones are
+> whole-payload refusals. The five metrics are untouched: the same ids, types and
+> descriptions, so the registry key (`type:id:description`) is unchanged and a
+> reader still sees the same metric objects. Only the frequency's pre-registered
+> key set moved, and `preregisteredWords` follows `hydrationDropReasons`
+> automatically.
 
 **The drop reasons are a closed union, pre-registered at zero.** Closed for the
 cardinality reason `PortMetrics.ts` gives for keying on a port name. Pre-
