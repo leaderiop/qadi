@@ -15,9 +15,8 @@
  * needs the second and was offered the first.
  *
  * **No React state, and no decisions here.** A registration is a `useEffect`
- * write into a module-scope map, exactly as `HydrationEngine.ts`'s seed lookup is a module-scope
- * `WeakMap` — nothing re-renders because a gate registered, and nothing in this
- * file can affect what a gate renders. That is the half of AGENTS.md §13 the
+ * write into a module-scope map — nothing re-renders because a gate registered,
+ * and nothing in this file can affect what a gate renders. That is the half of AGENTS.md §13 the
  * amendment does **not** touch.
  *
  * **Off by default, and off means absent.** `QadiProvider` takes `instrument`,

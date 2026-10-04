@@ -191,13 +191,13 @@ test.describe("the browser half", () => {
     );
   });
 
-  test("a copy of the atom set seeds nothing", async ({ context, page }) => {
+  test("a copy of the atom set seeds the same questions", async ({ context, page }) => {
     await context.addCookies(as("omar"));
-    await page.goto("/edge/unregistered");
+    await page.goto("/edge/wrapped-atoms");
 
     await expect(page.getByTestId("registered-count")).toHaveText("1");
-    await expect(page.getByTestId("foreign-count")).toHaveText("0");
-    await expect(page.getByTestId("unregistered-drops")).toContainText("UnregisteredAtoms");
+    await expect(page.getByTestId("copy-count")).toHaveText("1");
+    await expect(page.getByTestId("wrapped-drops")).toContainText("none");
   });
 
   test("a payload for another subject is refused whole", async ({ context, page }) => {

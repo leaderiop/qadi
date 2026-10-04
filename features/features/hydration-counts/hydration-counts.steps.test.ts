@@ -333,9 +333,10 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     yield* hydrateWith(freshAtoms(), id);
   });
 
-  When("the payload is hydrated into an atom set built elsewhere", function* () {
-    // A spread is structurally a `QadiAtoms` and is not registered, which is
-    // exactly what the refusal is for.
+  When("the payload is hydrated into a copy of the atom set", function* () {
+    // A spread is a different object whose decision atoms are the real ones, so
+    // it seeds the same questions: the atom set owns the capability, and the
+    // copy carries it along.
     yield* hydrateWith({ ...freshAtoms() }, "alice");
   });
 

@@ -158,7 +158,6 @@ describe("HydrationMetrics", () => {
     const REASONS = [
       "ForeignSubject",
       "PayloadSubjectMismatch",
-      "UnregisteredAtoms",
       "MalformedEntry",
       "UndecodablePolicy",
       "EntryTooDeep",

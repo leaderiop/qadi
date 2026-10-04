@@ -604,9 +604,10 @@ state-management layer of its own. The rules that keep it that way:
   proving them through components only makes the test slower and vaguer.
 - **A guard may record that it exists, what it renders now, and where — never
   a retained verdict** (ADR-QD-053). `GateRegistry.ts` is a module-scope map a
-  guard writes to from an effect — the shape `HydrationSeed.ts` already uses —
-  carrying its policy, its resource, its current render state, and a ref React
-  filled in. Nothing re-renders because a guard registered, and nothing in
+  guard writes to from an effect — the only module-scope map left in this
+  package since hydration's seed lookup became a closure the atom set owns
+  (`QadiAtoms.hydrate`, ADR-QD-077) — carrying its policy, its resource, its
+  current render state, and a ref React filled in. Nothing re-renders because a guard registered, and nothing in
   that file can affect what one renders.
 
   This section previously read as forbidding it, and `@qadi/devtools`'s React

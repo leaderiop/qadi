@@ -26,10 +26,9 @@ import * as Effect from "effect/Effect";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as FastCheck from "fast-check";
 import { describe, expect, it } from "vitest";
-import { dehydrateDecisions, isSeeded, permits } from "../src/Hydration.ts";
+import { dehydrateDecisions, hydrateDecisions, isSeeded, permits } from "../src/Hydration.ts";
 import type { HydrateOptions } from "../src/Hydration.ts";
 import type { HydrationDrop } from "../src/Hydration.ts";
-import { hydrateWith, hydrationSeedFor } from "../src/HydrationEngine.ts";
 import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
 
 const read = hasPermission(permission("doc", "read"));
@@ -38,12 +37,15 @@ const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });
 const atoms = makeQadiAtoms(EvaluationServicesNone);
 
 /**
- * `hydrateDecisions`, but taking `unknown`: a payload arrives as JSON in a page,
- * so what it is handed is not something its parameter type can promise. The
- * public function delegates here with the atom set's own seed lookup.
+ * `hydrateDecisions`, but taking `unknown`, round-tripped through JSON.
+ *
+ * A payload arrives as JSON in a page, and `JSON.parse` yields `any`, so what
+ * `hydrateDecisions` is handed is not something its parameter type can promise —
+ * which is the point of these tests. Going through the same parse a page does
+ * keeps them honest about that without a cast.
  */
 const hydrate = (payload: unknown, who = alice, options?: HydrateOptions) =>
-  hydrateWith(hydrationSeedFor(atoms), payload, who, options);
+  hydrateDecisions(atoms, JSON.parse(JSON.stringify(payload)), who, options);
 
 /** A registry that has not been told who is asking, so the seed is all it can read. */
 const seedWindow = (payload: unknown, who = alice) =>

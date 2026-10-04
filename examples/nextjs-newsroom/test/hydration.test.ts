@@ -196,22 +196,23 @@ describe("what the client does with it", () => {
     expect(seeded).toHaveLength(1);
   });
 
-  it("seeds nothing into a copy of the atom set", async () => {
+  it("seeds the same questions through a copy of the atom set", async () => {
     const entries = await decideAs(omar, [{ policy: readSourceContact }]);
     const payload = dehydrateDecisions(entries);
     const atoms = freshAtoms();
 
     const drops: Array<HydrationDrop<unknown>> = [];
     const registered = Array.from(hydrateDecisions(atoms, payload, omar));
-    // Every property, a different object. The seed lookup is a `WeakMap` keyed
-    // by identity, so a faithful copy is not the thing it copied.
-    const foreign = Array.from(
+    // Every property, a different object. The atom set owns the capability and a
+    // copy carries it along, and its decision atoms are the real ones — so it
+    // seeds exactly the questions the original does.
+    const copied = Array.from(
       hydrateDecisions({ ...atoms }, payload, omar, { onDropped: (drop) => drops.push(drop) }),
     );
 
     expect(registered).toHaveLength(1);
-    expect(foreign).toHaveLength(0);
-    expect(drops.map((drop) => drop.reason)).toEqual(["UnregisteredAtoms"]);
+    expect(copied).toHaveLength(1);
+    expect(drops).toEqual([]);
   });
 });
 

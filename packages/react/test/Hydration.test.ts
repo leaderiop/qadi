@@ -34,7 +34,7 @@ import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
 import type { HydrationDrop } from "../src/Hydration.ts";
 import { dehydrateDecisions, hydrateDecisions, isSeeded } from "../src/Hydration.ts";
-import type { DecisionResult, HydrationMismatch } from "../src/QadiAtoms.ts";
+import type { DecisionResult, HydrationMismatch, QadiAtoms } from "../src/QadiAtoms.ts";
 import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { InitialValues } from "../src/QadiProvider.tsx";
 
@@ -572,15 +572,30 @@ describe("hydrateDecisions", () => {
     registry.dispose();
   });
 
-  it("seeds nothing for an atom set it did not build", () => {
-    // Fail-closed, and the same shape as every other refusal here: an atom set
-    // that did not come from `makeQadiAtoms` — a wrapper, a proxy, a test double
-    // — has no seed atoms to write to. Seeding nothing leaves every decision
-    // `Initial`, so the client asks each question properly.
-    const foreign = { ...atoms };
+  it("a spread copy of the atom set seeds the real questions", () => {
+    // A copy's `decision`/`decisionFor` are the real ones, so what it seeds is
+    // what it reads. This used to be refused whole, because the seed lookup was a
+    // side table keyed on the atom set's identity: a property of the keying, not
+    // a defence of anything.
+    const copy = { ...atoms };
     const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]);
 
-    expect([...hydrateDecisions(foreign, payload, alice)]).toEqual([]);
+    const seeded = [...hydrateDecisions(copy, payload, alice)];
+    expect(seeded).toHaveLength(1);
+
+    const registry = seedsBeforeSubject(seeded);
+    expect(currentDecision(registry.get(copy.decision(canRead)))?._tag).toBe("SeededAllow");
+    registry.dispose();
+  });
+
+  it("a hand-built double seeds only what its own `hydrate` returns", () => {
+    // `hydrate` is the capability, and a double supplying its own is the caller's
+    // code rather than a trust crossing: `hydrateDecisions` forwards, it decides
+    // nothing (AGENTS.md §14).
+    const double: QadiAtoms = { ...atoms, hydrate: () => [] };
+    const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]);
+
+    expect([...hydrateDecisions(double, payload, alice)]).toEqual([]);
   });
 
   it("still covers the window before this client can answer", () => {

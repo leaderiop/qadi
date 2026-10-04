@@ -4,10 +4,11 @@
  *
  * Deliberately calls `hydrateDecisions` a second time — the page's `Providers`
  * already hydrated correctly — because the two results side by side are the
- * demonstration: same payload, same subject, one object registered and one not.
+ * demonstration: same payload, same subject, one object built by `makeQadiAtoms`
+ * and one a spread of it.
  *
  * `useState` with an initialiser rather than a bare call in the render body, so
- * the drop is reported once for this component rather than on every re-render.
+ * any drop is reported once for this component rather than on every re-render.
  */
 import { useState } from "react";
 import { makeSubject } from "@qadi/core";
@@ -16,49 +17,48 @@ import type { DehydratedDecisions, HydrationDrop } from "@qadi/react";
 import { atoms } from "./atoms.ts";
 import { card, mono, muted, pre } from "../ui/theme.ts";
 
-export interface UnregisteredProps {
+export interface WrappedAtomsProps {
   readonly payload: DehydratedDecisions;
   readonly subjectId: string;
 }
 
-export const Unregistered = ({ payload, subjectId }: UnregisteredProps) => {
+export const WrappedAtoms = ({ payload, subjectId }: WrappedAtomsProps) => {
   const [result] = useState(() => {
     const subject = makeSubject({ id: subjectId });
     const drops: Array<HydrationDrop<unknown>> = [];
     const note = (drop: HydrationDrop<unknown>) => drops.push(drop);
 
-    // The real atom set, registered by `makeQadiAtoms`.
+    // The atom set `makeQadiAtoms` built.
     const registered = Array.from(hydrateDecisions(atoms, payload, subject, { onDropped: note }));
 
-    // A faithful copy. Every property is the same value; the object is not.
+    // A faithful copy: a different object whose decision atoms are the real ones.
     const copy = { ...atoms };
-    const foreign = Array.from(hydrateDecisions(copy, payload, subject, { onDropped: note }));
+    const copied = Array.from(hydrateDecisions(copy, payload, subject, { onDropped: note }));
 
     return {
       registeredCount: registered.length,
-      foreignCount: foreign.length,
+      copyCount: copied.length,
       drops: drops.map((drop) => `${drop.reason} × ${drop.entries.length}`),
       sameProperties: Object.keys(copy).length === Object.keys(atoms).length,
     };
   });
 
   return (
-    <div style={card} data-testid="unregistered-result">
+    <div style={card} data-testid="wrapped-result">
       <ul style={{ ...mono, margin: 0, paddingLeft: "1.1rem" }}>
         <li>
-          the registered atom set seeded{" "}
-          <strong data-testid="registered-count">{result.registeredCount}</strong> value(s)
+          the atom set seeded <strong data-testid="registered-count">{result.registeredCount}</strong>{" "}
+          value(s)
         </li>
         <li>
-          a copy of it seeded{" "}
-          <strong data-testid="foreign-count">{result.foreignCount}</strong> value(s)
+          a copy of it seeded <strong data-testid="copy-count">{result.copyCount}</strong> value(s)
         </li>
         <li>
           the copy has the same properties: <strong>{String(result.sameProperties)}</strong>
         </li>
       </ul>
       <p style={{ ...muted, margin: "0.6rem 0 0.3rem" }}>drops reported by the two calls:</p>
-      <pre style={pre} data-testid="unregistered-drops">
+      <pre style={pre} data-testid="wrapped-drops">
         {result.drops.length === 0 ? "none" : result.drops.join("\n")}
       </pre>
     </div>

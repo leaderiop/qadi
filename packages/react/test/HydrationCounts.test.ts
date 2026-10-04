@@ -241,18 +241,30 @@ describe("a payload that seeds nothing says so", () => {
     expect(drops[0]?.entries).toHaveLength(1);
   });
 
-  it("announces an atom set it did not build", () => {
-    const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1", "e1") }]);
+  it("announces a payload whose version this client does not read", () => {
     const drops: Array<HydrationDrop<unknown>> = [];
 
-    // A wrapper is not registered. Structurally a `QadiAtoms`, and refused.
-    const wrapper = { ...atoms };
-    const seeded = hydrateDecisions(wrapper, payload, alice, {
+    // A payload arrives as JSON in a page, and `JSON.parse` yields `any`.
+    const seeded = hydrateDecisions(
+      atoms,
+      JSON.parse('{"version":3,"subjectId":"u1","entries":[]}'),
+      alice,
+      { onDropped: (drop) => drops.push(drop) },
+    );
+
+    expect(seeded).toEqual([]);
+    expect(drops.map((drop) => drop.reason)).toEqual(["UnsupportedPayloadVersion"]);
+  });
+
+  it("announces a payload that is not an envelope", () => {
+    const drops: Array<HydrationDrop<unknown>> = [];
+
+    const seeded = hydrateDecisions(atoms, JSON.parse("5"), alice, {
       onDropped: (drop) => drops.push(drop),
     });
 
     expect(seeded).toEqual([]);
-    expect(drops[0]?.reason).toBe("UnregisteredAtoms");
+    expect(drops.map((drop) => drop.reason)).toEqual(["MalformedPayload"]);
   });
 
   it("announces entries whose policy did not decode", () => {
@@ -315,8 +327,15 @@ describe("a payload that seeds nothing says so", () => {
       ),
     ).toBe(1);
     expect(
-      dropped("UnregisteredAtoms", () =>
-        quietly(() => hydrateDecisions({ ...atoms }, payload, alice)),
+      dropped("UnsupportedPayloadVersion", () =>
+        quietly(() =>
+          hydrateDecisions(atoms, JSON.parse('{"version":3,"subjectId":"u1","entries":[]}'), alice),
+        ),
+      ),
+    ).toBe(1);
+    expect(
+      dropped("MalformedPayload", () =>
+        quietly(() => hydrateDecisions(atoms, JSON.parse("5"), alice)),
       ),
     ).toBe(1);
     expect(
@@ -360,11 +379,11 @@ describe("a payload that seeds nothing says so", () => {
     try {
       const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1", "e1") }]);
       hydrateDecisions(atoms, payload, bob);
-      hydrateDecisions({ ...atoms }, payload, alice);
+      hydrateDecisions(atoms, JSON.parse('{"version":3,"subjectId":"u1","entries":[]}'), alice);
 
       const messages = warn.mock.calls.map((call) => String(call[0]));
       expect(messages[0]).toContain("different subject");
-      expect(messages[1]).toContain("makeQadiAtoms");
+      expect(messages[1]).toContain("version");
     } finally {
       warn.mockRestore();
     }

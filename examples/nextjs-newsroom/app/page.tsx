@@ -48,7 +48,7 @@ const EDGES = [
   ["/edge/wrong-subject", "a payload minted for someone else"],
   ["/edge/version-skew", "a policy this build cannot decode"],
   ["/edge/mixed-payload", "two subjects' decisions in one payload"],
-  ["/edge/unregistered", "hydrating against an atom set nobody registered"],
+  ["/edge/wrapped-atoms", "a copy of the atom set seeds the same questions"],
   ["/edge/middleware", "middleware is not a security boundary"],
   ["/edge/leakage", "what actually crosses to the browser"],
   ["/edge/action", "a server action is a public endpoint"],

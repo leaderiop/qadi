@@ -21,7 +21,7 @@
 import type { AuthSubject } from "@qadi/core";
 import { countDropped } from "./HydrationCounts.ts";
 import type { DecisionEntry, DehydratedDecisions, DehydratedPayload, HydrateOptions, InitialValues } from "./HydrationEngine.ts";
-import { dehydratedPayload, dehydrateEntry, hydrateWith, hydrationSeedFor } from "./HydrationEngine.ts";
+import { dehydratedPayload, dehydrateEntry } from "./HydrationEngine.ts";
 import { droppedEntriesReporter } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
@@ -125,10 +125,15 @@ export const dehydrateDecisions = (
  *
  * Accepts the current payload and the one before it (no `version` field); the
  * older one always seeds with its trace withheld.
+ *
+ * Delegates to {@link QadiAtoms.hydrate}, the capability the atom set closes over
+ * its own seed atoms. An atom set that merely forwards `decision`/`decisionFor`
+ * — a spread copy, a wrapper — therefore seeds the same questions its inner one
+ * does, which is correct: its decision atoms are the real ones.
  */
 export const hydrateDecisions = (
   atoms: QadiAtoms,
   dehydrated: DehydratedPayload,
   subject: AuthSubject,
   options?: HydrateOptions,
-): InitialValues => hydrateWith(hydrationSeedFor(atoms), dehydrated, subject, options);
+): InitialValues => atoms.hydrate(dehydrated, subject, options);

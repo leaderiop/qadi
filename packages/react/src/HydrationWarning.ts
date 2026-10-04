@@ -151,13 +151,6 @@ const explain: (reason: ClientHydrationDropReason) => string = Match.type<
       "rendered for the same user, and that no cache is serving one user's page to another",
   ),
   Match.when(
-    "UnregisteredAtoms",
-    () =>
-      "the atom set was not built by makeQadiAtoms, so it has no seed to write to. " +
-      "A wrapper, a proxy or a test double is not registered — pass the atom set " +
-      "itself",
-  ),
-  Match.when(
     "MalformedEntry",
     () =>
       "an entry's shape didn't match what this client expects — a field other than " +

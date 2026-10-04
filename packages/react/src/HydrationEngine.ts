@@ -5,9 +5,9 @@
  * to, the rule that the client's own answer wins
  * ([INV-QD-028](../../../spec/invariants.md)), the once-per-registry
  * announcement of a disagreement, and the re-check count. It used to be spread
- * over `Hydration.ts`, `HydrationSeed.ts` and `QadiAtoms.ts`'s `seededDecision`,
- * tangled there with the liveness bookkeeping the eviction sweep needs, which is
- * not hydration at all.
+ * over `Hydration.ts`, a module-scope side table keyed on the atom set, and
+ * `QadiAtoms.ts`'s `seededDecision`, tangled there with the liveness bookkeeping
+ * the eviction sweep needs, which is not hydration at all.
  *
  * Private, and out of the barrel on purpose (AGENTS.md §9,
  * [ADR-QD-039](../../../spec/decisions/039-a-seed-is-not-an-authority.md)): a
@@ -385,9 +385,13 @@ export interface HydrateOptions {
  *
  * Written to the seed atom, never to the decision atom. See
  * {@link makeSeededQuestion}.
+ *
+ * `seedFor` is the atom set's own closure over its families
+ * (`QadiAtoms.hydrate`), so the seed atoms stay unreachable from outside it
+ * (ADR-QD-039) without a module-scope side table keyed on the atom set.
  */
 export const hydrateWith = (
-  seedFor: HydrationSeedLookup | undefined,
+  seedFor: HydrationSeedLookup,
   payload: unknown,
   subject: AuthSubject,
   options?: HydrateOptions,
@@ -446,11 +450,6 @@ export const hydrateWith = (
   // the *default* reporter withholds them.
   if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries);
 
-  // An atom set this module did not build has no seed to write to. Seeding
-  // nothing leaves every atom `Initial`, so the client asks the question
-  // properly — the same fail-closed outcome a dropped entry gets.
-  if (seedFor === undefined) return refuse("UnregisteredAtoms", entries);
-
   const read = versioned ? readEntry : readEntryV1;
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
   const tooDeep: Array<unknown> = [];
@@ -504,27 +503,11 @@ export const hydrateWith = (
 // The seed atom, and the atom that reads through it
 // ---------------------------------------------------------------------------
 
-/** Finds the seed atom standing behind one decision. */
+/** Finds the seed atom standing behind one decision. Closure-private to an atom set. */
 export type HydrationSeedLookup = (
   policy: Policy,
   resource: Resource | undefined,
 ) => Atom.Writable<SeededDecision | undefined>;
-
-const seeds = new WeakMap<object, HydrationSeedLookup>();
-
-/** Called once per atom set, by `makeQadiAtoms`. */
-export const registerHydrationSeeds = (atoms: object, lookup: HydrationSeedLookup): void => {
-  seeds.set(atoms, lookup);
-};
-
-/**
- * The lookup for an atom set, or `undefined` for one this package did not build.
- *
- * A wrapper, a proxy or a test double is not registered, and hydration treats
- * that the way it treats every other unverifiable input: it seeds nothing.
- */
-export const hydrationSeedFor = (atoms: object): HydrationSeedLookup | undefined =>
-  seeds.get(atoms);
 
 /**
  * The reporter an atom set will use for mismatches, or `undefined` for none.

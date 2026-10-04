@@ -30,9 +30,12 @@ import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Reactivity from "effect/reactivity/Reactivity";
 import {
+  type DehydratedPayload,
+  type HydrateOptions,
   type HydrationMismatchReporter,
+  type InitialValues,
+  hydrateWith,
   makeSeededQuestion,
-  registerHydrationSeeds,
   resolveMismatchReporter,
 } from "./HydrationEngine.ts";
 import type { ClientDecision } from "./SeededDecision.ts";
@@ -184,6 +187,26 @@ export interface QadiAtoms {
    * better than "recently added" does.
    */
   readonly sweepEvictions: Effect.Effect<void>;
+  /**
+   * Seeds this atom set from a server's dehydrated payload.
+   *
+   * The capability `hydrateDecisions` calls — **prefer `hydrateDecisions`**, which
+   * is the documented entry point and checks the payload the same way. It lives on
+   * the atom set because the seed atoms do: each is private to this closure,
+   * reachable by neither reflection nor import, which is what ADR-QD-039 actually
+   * requires (a consumer holding a seed atom could write an authorization decision
+   * straight into a registry, bypassing the subject check and the evaluator).
+   *
+   * Never throws, and drops what it cannot verify — see `hydrateDecisions`. A
+   * wrapper that forwards `decision`/`decisionFor` can forward this too, and a
+   * hand-built test double supplies its own: that is the caller's code, not a
+   * trust crossing.
+   */
+  readonly hydrate: (
+    dehydrated: DehydratedPayload,
+    subject: AuthSubject,
+    options?: HydrateOptions,
+  ) => InitialValues;
 }
 
 /** One question an atom set has been asked. */
@@ -484,11 +507,17 @@ export const makeQadiAtoms = (
     // which is not part of the public `AskedQuestion` shape).
     asked: () => tracked.map((entry) => entry.question),
     sweepEvictions,
+    // The one place a seed atom is looked up, and it never leaves this closure:
+    // `hydrateWith` is handed the lookup, not the atoms.
+    hydrate: (dehydrated, hydrateSubject, hydrateOptions) =>
+      hydrateWith(
+        (policy, resource) =>
+          resource === undefined ? bare(policy).seed : byResource(policy)(resource).seed,
+        dehydrated,
+        hydrateSubject,
+        hydrateOptions,
+      ),
   };
-
-  registerHydrationSeeds(atoms, (policy, resource) =>
-    resource === undefined ? bare(policy).seed : byResource(policy)(resource).seed,
-  );
 
   return atoms;
 };
