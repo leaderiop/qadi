@@ -26,7 +26,7 @@ import * as Effect from "effect/Effect";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Schema from "effect/Schema";
-import * as HttpApiSchema from "effect/http-api/HttpApiSchema";
+import * as SchemaAST from "effect/SchemaAST";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { describe, expect, it } from "vitest";
 import {
@@ -271,6 +271,14 @@ const wireSchemaByTag = {
   SubjectExtractionFailed: SubjectExtractionRefused,
 } as const;
 
+/**
+ * The `httpApiStatus` annotation `HttpApiSchema.status` writes and
+ * `HttpApiBuilder`'s encoder reads. `HttpApiSchema.getStatusErrorSchema` is
+ * `@internal`, so the public `SchemaAST.resolveAt` reads the same key.
+ */
+const httpApiStatusOf = (schema: Schema.Top): number | undefined =>
+  SchemaAST.resolveAt<number>("httpApiStatus")(schema.ast);
+
 describe("the two routing shapes", () => {
   it("answer the same status for every tag", () => {
     const tags = [
@@ -288,9 +296,9 @@ describe("the two routing shapes", () => {
     ] as const;
     for (const tag of tags) {
       const status = toResponse(everyHttpEnforcementFailure[tag]()).status;
-      expect(HttpApiSchema.getStatusErrorSchema(wireSchemaByTag[tag]), tag).toBe(status);
+      expect(httpApiStatusOf(wireSchemaByTag[tag]), tag).toBe(status);
     }
-    expect(HttpApiSchema.getStatusErrorSchema(wireSchemaByTag.SubjectExtractionFailed)).toBe(502);
+    expect(httpApiStatusOf(wireSchemaByTag.SubjectExtractionFailed)).toBe(502);
   });
 });
 
@@ -310,7 +318,22 @@ describe("every HttpApi wire schema encodes only its declared fields", () => {
     SubjectExtractionFailed: ["_tag"],
   } as const;
 
-  for (const tag of Object.keys(expectedKeys) as ReadonlyArray<keyof typeof expectedKeys>) {
+  const everyTag = [
+    "AccessDenied",
+    "UndischargedObligation",
+    "AttributeResolveError",
+    "RelationshipResolveError",
+    "DecisionHistoryUnavailable",
+    "CustomPredicateError",
+    "SignatureHistoryUnavailable",
+    "MissingAction",
+    "MissingResource",
+    "MissingResourceId",
+    "PolicyTooDeep",
+    "SubjectExtractionFailed",
+  ] as const;
+
+  for (const tag of everyTag) {
     it(`${tag}: exact key set, and none of the sensitive values`, () => {
       const encoded = Schema.encodeUnknownSync(wireSchemaByTag[tag])(everyHttpEnforcementFailure[tag]());
       expect(Object.keys(encoded).sort()).toEqual([...expectedKeys[tag]]);

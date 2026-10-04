@@ -27,7 +27,7 @@ import type { ObligationOutcome } from "./DecisionRecord.ts";
 import { ObligationRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import { AccessDenied, UndischargedObligation } from "./Errors.ts";
-import type { EvaluationError } from "./Errors.ts";
+import type { EnforcementError, EvaluationError } from "./Errors.ts";
 import type { EvaluateOptions, EvaluationServices } from "./Evaluate.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { Obligation } from "./Obligation.ts";
@@ -75,9 +75,6 @@ export interface EnforceOptions<E = never, R = never> extends EvaluateOptions {
    */
   readonly onObligations?: ObligationHandler<E, R>;
 }
-
-/** Errors any enforcing entry point can produce. */
-export type EnforcementError = EvaluationError | AccessDenied | UndischargedObligation;
 
 const discharge = Effect.fn("qadi.discharge")(function* <E, R>(
   decision: Allow,
