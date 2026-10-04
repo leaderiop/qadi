@@ -875,6 +875,83 @@ describe("Policy serialization", () => {
   );
 });
 
+describe("structural facts (ARCH-02 T6)", () => {
+  it("POLICY_TAGS has 16 unique entries", () => {
+    assert.strictEqual(P.POLICY_TAGS.length, 16);
+    assert.strictEqual(new Set(P.POLICY_TAGS).size, 16);
+  });
+
+  it("fieldsOf: leaves report their own fields, composites report undefined", () => {
+    const fields = ["a"];
+    const leaves: ReadonlyArray<P.Policy> = [
+      P.hasPermission(permission("doc", "read"), { fields }),
+      P.hasRole("r", { fields }),
+      P.hasAttribute("x", M.exists(), { fields }),
+      P.hasResourceAttribute("x", M.exists(), { fields }),
+      P.hasRelationship("owner", { fields }),
+      P.hasAction("read", { fields }),
+      P.hasActed("e", { fields }),
+      P.hasNotActed("e", { fields }),
+      P.hasCustom("c", undefined, { fields }),
+      P.hasSignature("s", { fields }),
+    ];
+    for (const leaf of leaves) assert.deepStrictEqual(P.fieldsOf(leaf), ["a"], leaf._tag);
+    const inner = P.hasRole("r", { fields });
+    const composites: ReadonlyArray<P.Policy> = [
+      P.allOf([inner]),
+      P.anyOf([inner]),
+      P.rules([P.permitWhen(inner)]),
+      P.not(inner),
+      P.obliged(obligation("audit.log"), inner),
+      P.labeled("l", inner),
+    ];
+    for (const composite of composites) {
+      assert.isUndefined(P.fieldsOf(composite), composite._tag);
+    }
+    assert.deepStrictEqual(P.fieldsOf(P.hasRole("r", { fields: [] })), []);
+    assert.isUndefined(P.fieldsOf(P.hasRole("r")));
+  });
+
+  it("foldPolicy counts the nodes a manual walk counts", () => {
+    FastCheck.assert(
+      FastCheck.property(policyArbitrary(), (policy) => {
+        // Counted per occurrence by a manual walk; the fold shares by identity,
+        // so it can only agree when the generated tree shares nothing.
+        const distinct = new Set<P.Policy>();
+        const stack: Array<P.Policy> = [policy];
+        while (stack.length > 0) {
+          const node = stack.pop();
+          if (node === undefined) break;
+          if (distinct.has(node)) continue;
+          distinct.add(node);
+          for (const child of P.childrenOf(node)) stack.push(child);
+        }
+        let combines = 0;
+        P.foldPolicy<number>(policy, (_node, children) => {
+          combines += 1;
+          return children.length;
+        });
+        return combines === distinct.size;
+      }),
+      { seed: 2026100407, numRuns: 300 },
+    );
+  });
+
+  it("foldPolicy hands children to combine in childrenOf order, rows in row order", () => {
+    const policy = P.rules([P.permitWhen(P.hasRole("a")), P.denyWhen(P.hasRole("b"))]);
+    const seen = P.foldPolicy<string>(policy, (node, children) =>
+      node._tag === "HasRole" ? node.role : `[${children.join(",")}]`,
+    );
+    assert.strictEqual(seen, "[a,b]");
+  });
+
+  it("foldPolicy throws on a cyclic policy instead of hanging", () => {
+    const cycle: { _tag: "Not"; policy: P.Policy } = { _tag: "Not", policy: P.hasRole("a") };
+    cycle.policy = cycle;
+    assert.throws(() => P.foldPolicy<number>(cycle, () => 0), /cycle/);
+  });
+});
+
 describe("policyArbitrary (ARCH-02 T1)", () => {
   it("reaches all 16 Policy tags", () => {
     const seen = new Set<string>();
