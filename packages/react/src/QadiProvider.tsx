@@ -36,6 +36,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+import type { InitialValues } from "./HydrationEngine.ts";
 import { isDevelopment } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
@@ -137,8 +138,10 @@ export const useQadiContext = (hookName: string): QadiContextValue => {
  */
 export const useAtomValue: <A>(atom: Atom.Atom<A>) => A = useLibraryAtomValue;
 
-/** Seed values applied when the provider creates its registry. */
-export type InitialValues = Iterable<readonly [Atom.Atom<unknown>, unknown]>;
+// Declared in `HydrationEngine.ts` so the engine imports nothing from this
+// file (a type-only import still counts as a madge cycle, ADR-QD-037); its
+// public home is unchanged.
+export type { InitialValues };
 
 /**
  * The default for {@link QadiProviderProps.sweepIntervalMillis}.

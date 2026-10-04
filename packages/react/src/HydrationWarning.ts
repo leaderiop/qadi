@@ -32,17 +32,6 @@ export interface HydrationMismatch {
 export type HydrationMismatchReporter = (mismatch: HydrationMismatch) => void;
 
 /**
- * Whether the two answers disagree.
- *
- * The **verdict** only. Two allows differing in `visibleFields` or obligations
- * are not a mismatch: what a developer sees, and what this exists to explain,
- * is a control appearing and then disappearing. Field-set differences would
- * report every projection difference as a wiring problem.
- */
-export const isMismatch = (seeded: Decision, decided: Decision): boolean =>
-  isAllowed(seeded) !== isAllowed(decided);
-
-/**
  * Whether to warn by default.
  *
  * The literal `process.env.NODE_ENV` text is load-bearing rather than

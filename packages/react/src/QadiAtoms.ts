@@ -29,14 +29,16 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Reactivity from "effect/reactivity/Reactivity";
-import { countRecheck } from "./HydrationCounts.ts";
-import { registerHydrationSeeds } from "./HydrationSeed.ts";
-import type { HydrationMismatchReporter } from "./HydrationWarning.ts";
-import { hydrationMismatchReporter, isMismatch } from "./HydrationWarning.ts";
+import type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationEngine.ts";
+import {
+  makeSeededQuestion,
+  registerHydrationSeeds,
+  resolveMismatchReporter,
+} from "./HydrationEngine.ts";
 
 // `HydrationWarning.ts` is out of the barrel — its ambient-global boundary is
 // not a public surface — so the two types callers name are re-exported here.
-export type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationWarning.ts";
+export type { HydrationMismatch, HydrationMismatchReporter };
 
 /**
  * The services a Qadi runtime layer supplies.
@@ -246,35 +248,6 @@ interface TrackedQuestion {
  */
 const DEFAULT_MAX_TRACKED_QUESTIONS = 500;
 
-/**
- * Builds the atom set for one authorization context.
- *
- * Call this once per context, at module scope. An application that serves
- * several tenants in one process calls it once per tenant; the atoms are
- * distinct objects, so their decisions cannot be confused for one another.
- */
-/**
- * A decision, and the server-rendered seed that covers its first frames.
- *
- * They are **separate atoms**, and that separation is the whole of INV-QD-028.
- * A seed written directly into the decision atom is *preserved over the value
- * that atom computes*: `AtomRegistry` sets `preserveInitialValueOnBuild` for a
- * seeded node and, when the build finishes with the node still awaiting a
- * value, keeps the seed and throws the computed value away. An effect that
- * settles asynchronously escapes that, because it publishes through `setSelf`
- * on a later turn — but one that settles **synchronously** returns its value
- * straight out of the read, and the seed wins permanently. Every policy that
- * needs no resolver settles synchronously, so that was the common case, and it
- * left a subject holding a server-issued allow they no longer qualified for.
- *
- * Keeping the two apart makes the precedence explicit and one-directional
- * instead of a consequence of when an effect happens to settle.
- */
-interface SeededDecision {
-  readonly seed: Atom.Writable<Decision | undefined>;
-  readonly combined: Atom.Atom<DecisionResult>;
-}
-
 export interface QadiAtomsOptions {
   /**
    * Called when this client's own answer disagrees with the server's seed.
@@ -345,6 +318,13 @@ const subjectsEqual = (a: AuthSubject | undefined, b: AuthSubject | undefined): 
   return aKeys.every((key) => Object.is(a.attributes[key], b.attributes[key]));
 };
 
+/**
+ * Builds the atom set for one authorization context.
+ *
+ * Call this once per context, at module scope. An application that serves
+ * several tenants in one process calls it once per tenant; the atoms are
+ * distinct objects, so their decisions cannot be confused for one another.
+ */
 export const makeQadiAtoms = (
   layer: QadiLayer,
   options?: QadiAtomsOptions,
@@ -367,160 +347,62 @@ export const makeQadiAtoms = (
   const subject = Atom.make<AuthSubject | undefined>(undefined).pipe(
     Atom.withEquality(subjectsEqual),
   );
-  const report = hydrationMismatchReporter(options?.onHydrationMismatch);
+  const report = resolveMismatchReporter(options?.onHydrationMismatch);
 
   const seededDecision = (
     policy: Policy,
     resource: Resource | undefined,
     tracking: TrackedQuestion,
-  ): SeededDecision => {
-    // Declared before `computed`, which reads it with `get.once` to carry the
-    // server's evaluation id into the re-check.
-    const seed = Atom.make<Decision | undefined>(undefined);
-
-    const computed = runtime
-      .atom((get): Effect.Effect<Decision, EvaluationError, QadiRuntimeServices> => {
-        const current = get(subject);
-        // No subject yet is not a denial — it is an unanswerable question. An
-        // effect that never settles leaves the atom `Initial`, which is exactly
-        // "still loading". Returning a Deny here would render every guarded
-        // control as forbidden for the first frame after a page load.
-        if (current === undefined) return Effect.never;
-        // A re-check continues the server's evaluation rather than starting an
-        // unrelated one, so it carries that evaluation's id. Without this the
-        // two halves of a hydrated decision cannot be joined by anything: the
-        // payload carries an id, the client minted a fresh one, and nothing
-        // related them (BEH-QD-186).
-        //
-        // `get.once`, not `get`: reading the seed reactively would make every
-        // re-evaluation depend on the seed atom, so a seed set or cleared after
-        // mount would re-run a computation whose answer it cannot change. The id
-        // is correlation metadata, not an input to the decision.
-        const seeded = get.once(seed);
-        return evaluate(policy, {
-          ...(resource === undefined ? {} : { resource }),
-          ...(seeded === undefined ? {} : { evaluationId: seeded.evaluationId }),
-        }).pipe(Effect.provideService(CurrentSubject, current));
-      })
-      .pipe(runtime.factory.withReactivity([DECISIONS_KEY]));
-
-    /**
-     * Announcement state for one question, kept **per registry**.
-     *
-     * Two providers over the same atom set — two tabs, or a server render
-     * followed by the client's own registry — each get their own first answer,
-     * and each must report its own first disagreement. A single closure flag
-     * shared across every registry that ever reads this atom would let only the
-     * first registry's first answer ever be announced or counted; every other
-     * registry's genuinely-first re-check would silently join the "already
-     * announced" branch of a flag it never flipped.
-     *
-     * This is the same defect `settled.ts` documents at length for its own
-     * `pending`/`resolvers`/`subscribed` state, and the fix is the same shape:
-     * a `WeakMap<AtomRegistry.AtomRegistry, …>` rather than a bare closure
-     * variable. Scoped inside `seededDecision` (so once per `Atom.family` key,
-     * as the flag it replaces was) rather than at module scope, because nothing
-     * outside this one question's state needs to share the map.
-     */
-    interface AnnounceState {
-      /**
-       * Announced once per question **per registry**, the first time that
-       * registry's client answers it for itself — absorbing StrictMode's double
-       * render, which a value comparison would report twice.
-       */
-      announced: boolean;
-      /**
-       * The seed, as this registry first saw it.
-       *
-       * Kept because `get.once(seed)` below can read `undefined` for a seed that
-       * was definitely there: a registry may drop the value of an atom nothing
-       * mounted, and the seed atom is only ever a *dependency* of this one. Under
-       * `registry.mount` it survives and the disagreement is reported; under a
-       * `QadiProvider`, which subscribes rather than mounts, it does not and the
-       * report is silently skipped.
-       *
-       * That made whether a disagreement is announced a fact about registry
-       * lifetime rather than about the decision, which is the defect. Remembering
-       * the first non-absent reading makes the announcement depend only on what
-       * was seeded and what this client then decided.
-       *
-       * Written in the branch that already reads the seed reactively, so it costs
-       * nothing and adds no dependency of its own.
-       */
-      observedSeed: Decision | undefined;
-    }
-
-    const announceState = new WeakMap<AtomRegistry.AtomRegistry, AnnounceState>();
-    const announceStateFor = (registry: AtomRegistry.AtomRegistry): AnnounceState => {
-      const existing = announceState.get(registry);
-      if (existing !== undefined) return existing;
-      const created: AnnounceState = { announced: false, observedSeed: undefined };
-      announceState.set(registry, created);
-      return created;
-    };
-
-    const combined = Atom.readable((get): DecisionResult => {
+  ) =>
+    makeSeededQuestion<EvaluationError>({
+      policy,
+      resource,
+      report,
+      computedFor: (seed) =>
+        runtime
+          .atom((get): Effect.Effect<Decision, EvaluationError, QadiRuntimeServices> => {
+            const current = get(subject);
+            // No subject yet is not a denial — it is an unanswerable question. An
+            // effect that never settles leaves the atom `Initial`, which is exactly
+            // "still loading". Returning a Deny here would render every guarded
+            // control as forbidden for the first frame after a page load.
+            if (current === undefined) return Effect.never;
+            // A re-check continues the server's evaluation rather than starting an
+            // unrelated one, so it carries that evaluation's id. Without this the
+            // two halves of a hydrated decision cannot be joined by anything: the
+            // payload carries an id, the client minted a fresh one, and nothing
+            // related them (BEH-QD-186).
+            //
+            // `get.once`, not `get`: reading the seed reactively would make every
+            // re-evaluation depend on the seed atom, so a seed set or cleared after
+            // mount would re-run a computation whose answer it cannot change. The id
+            // is correlation metadata, not an input to the decision.
+            const seeded = get.once(seed);
+            return evaluate(policy, {
+              ...(resource === undefined ? {} : { resource }),
+              ...(seeded === undefined ? {} : { evaluationId: seeded.evaluationId }),
+            }).pipe(Effect.provideService(CurrentSubject, current));
+          })
+          .pipe(runtime.factory.withReactivity([DECISIONS_KEY])),
       // Marks this question live for as long as this computation stays
       // cached — see `TrackedQuestion`'s own doc comment for why a recompute
       // (dispose-then-reread, synchronous, no `yield*` in between) can never
       // be observed by `sweepEvictions` as a real drop to zero, only a
       // genuine teardown can.
-      if (!tracking.inTracked) {
-        // A previous sweep evicted this question while it was cold, but
-        // `Atom.family` handed back the same cached atom rather than
-        // rebuilding it — see `TrackedQuestion.inTracked`'s own doc comment.
-        tracked.push(tracking);
-        tracking.inTracked = true;
-      }
-      tracking.liveCount += 1;
-      get.addFinalizer(() => {
-        tracking.liveCount -= 1;
-      });
-
-      const state = announceStateFor(get.registry);
-      const result = get(computed);
-      // `Initial` is the only state in which this client has never answered for
-      // itself. The moment it has — allow, deny or failure — that answer is
-      // authoritative and the seed is spent. That includes while a *later*
-      // re-check is in flight: a re-checking result already carries its own
-      // previous decision, and falling back to the seed there would resurrect
-      // something older still.
-      if (!AsyncResult.isInitial(result)) {
-        if (!state.announced) {
-          state.announced = true;
-          // `get.once`, not `get`. This block previously ran only when a
-          // reporter was wired, and was guarded that way so an atom set without
-          // one "reads exactly the atoms it read before — no reporter, no added
-          // dependency, no change". Counting must happen whether or not a
-          // reporter is wired, so the guard could not stay; `get.once` keeps the
-          // promise it was protecting, because it registers no dependency. It is
-          // also the honest read here: the seed is already spent in this branch,
-          // so re-running on a later seed change could not change the answer.
-          // `?? state.observedSeed`: the registry's copy is authoritative when it
-          // has one, and the first reading stands in when it has dropped it.
-          const seeded = get.once(seed) ?? state.observedSeed;
-          if (seeded !== undefined) {
-            // A failure is not a disagreement. The client could not answer, so
-            // there is nothing for the server's answer to disagree with, and
-            // reporting one would be INV-QD-006 in reverse. It is still a
-            // re-check: the question was seeded and has now been asked again.
-            const mismatched =
-              AsyncResult.isSuccess(result) && isMismatch(seeded, result.value);
-            countRecheck(mismatched);
-            if (mismatched && report !== undefined && AsyncResult.isSuccess(result)) {
-              report({ policy, resource, seeded, decided: result.value });
-            }
-          }
+      track: (get) => {
+        if (!tracking.inTracked) {
+          // A previous sweep evicted this question while it was cold, but
+          // `Atom.family` handed back the same cached atom rather than
+          // rebuilding it — see `TrackedQuestion.inTracked`'s own doc comment.
+          tracked.push(tracking);
+          tracking.inTracked = true;
         }
-        return result;
-      }
-      const seeded = get(seed);
-      if (seeded !== undefined) state.observedSeed = seeded;
-      return seeded === undefined ? result : AsyncResult.success(seeded);
+        tracking.liveCount += 1;
+        get.addFinalizer(() => {
+          tracking.liveCount -= 1;
+        });
+      },
     });
-
-    return { seed, combined };
-  };
 
   // `Atom.family` memoises on the argument, so every component asking the same
   // question shares one evaluation. It keys **structurally** — the family holds
@@ -616,8 +498,8 @@ export const makeQadiAtoms = (
   const atoms: QadiAtoms = {
     runtime,
     subject,
-    decision: (policy) => bare(policy).combined,
-    decisionFor: (policy, resource) => byResource(policy)(resource).combined,
+    decision: (policy) => bare(policy).read,
+    decisionFor: (policy, resource) => byResource(policy)(resource).read,
     invalidate,
     // A fresh array of the wrapped questions, so a reader cannot mutate the
     // atom set's own record of what it has been asked (or reach `liveCount`,

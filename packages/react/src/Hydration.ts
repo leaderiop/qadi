@@ -29,11 +29,11 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import type * as Atom from "effect/reactivity/Atom";
 import { countDehydrated, countDropped, countSeeded } from "./HydrationCounts.ts";
-import { hydrationSeedFor } from "./HydrationSeed.ts";
+import type { InitialValues } from "./HydrationEngine.ts";
+import { hydrationSeedFor } from "./HydrationEngine.ts";
 import type { HydrationDropReporter } from "./HydrationWarning.ts";
 import { droppedEntriesReporter, hydrationDropReporter } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
-import type { InitialValues } from "./QadiProvider.tsx";
 
 // Named explicitly rather than reached through the barrel: `HydrationWarning.ts`
 // stays out of it (AGENTS.md §9), and `.d.ts` emission has to be able to name
