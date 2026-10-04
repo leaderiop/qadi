@@ -53,6 +53,7 @@ import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
+import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
 import { SignatureHistory } from "./SignatureHistory.ts";
 
 /**
@@ -973,7 +974,7 @@ interface AnyOfFold {
 const beginAnyOf = (policy: Extract<Policy, { _tag: "AnyOf" }>): AnyOfFold => ({
   children: [],
   allowingFieldSets: [],
-  exhaustive: policy.fieldStrategy !== "First",
+  exhaustive: !anyOfStopsAtAllow(policy.fieldStrategy),
   obligations: NO_OBLIGATIONS,
   lastReason: undefined,
 });
@@ -1103,12 +1104,7 @@ const evaluateRules = Effect.fnUntraced(function* (
 
   /** The effect that ends the walk. `undefined` under `FirstApplicable`,
    *  where the first rule to apply at all is already final. */
-  const decisiveEffect: RuleEffect | undefined =
-    policy.combining === "DenyOverrides"
-      ? "Deny"
-      : policy.combining === "PermitOverrides"
-        ? "Permit"
-        : undefined;
+  const decisiveEffect: RuleEffect | undefined = rulesDecisiveEffect(policy.combining);
 
   interface Applied {
     readonly index: number;
