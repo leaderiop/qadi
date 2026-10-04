@@ -396,6 +396,9 @@ importers:
       '@effect/vitest':
         specifier: 'catalog:'
         version: 4.0.0(effect@4.0.0)(vitest@5.0.0)
+      '@electric-sql/pglite':
+        specifier: 0.4.3
+        version: 0.4.3
       effect:
         specifier: 'catalog:'
         version: 4.0.0

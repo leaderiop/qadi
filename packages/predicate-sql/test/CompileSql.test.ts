@@ -14,6 +14,49 @@ const refusalOf = (predicate: Predicate, dialect: SqlDialect, maxInValues?: numb
     Result.isFailure(r) ? r.failure : undefined,
   );
 
+// ADR-QD-077 (ARCH-03 N3). `SqlSafeValue` includes `boolean`, but `node:sqlite`
+// throws "Provided value cannot be bound to SQLite parameter" and better-sqlite3
+// throws "SQLite3 can only bind numbers, strings, bigints, buffers, and null" for
+// one. SQLite stores a boolean as 1/0, so `sealed = 1` is the faithful rendering;
+// it is a dialect syntax-table entry, the same kind as `quote`/`placeholder`.
+describe("compileSql — sqlite binds booleans as 1/0 (D-03-h)", () => {
+  const sealed = (value: boolean): Predicate => ({
+    _tag: "Compare",
+    column: "sealed",
+    op: "Eq",
+    value,
+  });
+
+  it.effect("a boolean Compare value binds as 1 or 0 on sqlite", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* render(sealed(true), "sqlite"), {
+        text: '"sealed" = ?',
+        params: [1],
+      });
+      assert.deepStrictEqual(yield* render(sealed(false), "sqlite"), {
+        text: '"sealed" = ?',
+        params: [0],
+      });
+    }));
+
+  it.effect("a boolean MemberOf member binds as 1 or 0 on sqlite", () =>
+    Effect.gen(function* () {
+      const fragment = yield* render(
+        { _tag: "MemberOf", column: "sealed", values: [true, false] },
+        "sqlite",
+      );
+      assert.deepStrictEqual(fragment, { text: '"sealed" IN (?, ?)', params: [1, 0] });
+    }));
+
+  it.effect("postgres and mysql still bind the boolean itself, and other values are untouched", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual((yield* render(sealed(true), "postgres")).params, [true]);
+      assert.deepStrictEqual((yield* render(sealed(false), "mysql")).params, [false]);
+      const mixed: Predicate = { _tag: "MemberOf", column: "c", values: ["a", 2, true, null] };
+      assert.deepStrictEqual((yield* render(mixed, "sqlite")).params, ["a", 2, 1]);
+    }));
+});
+
 describe("compileSql — golden fragments, one row per dialect", () => {
   const eq: Predicate = { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" };
 
@@ -87,9 +130,10 @@ describe("compileSql — golden fragments, one row per dialect", () => {
         text: '("tenantId" = $1 AND "tag" IN ($2, $3) AND CASE WHEN ("sealed" = $4) THEN FALSE ELSE TRUE END)',
         params: ["t-1", "red", "blue", true],
       });
+      // sqlite binds a boolean as 1 (ADR-QD-077): neither Node driver can bind a JS boolean.
       assert.deepStrictEqual(yield* render(compound, "sqlite"), {
         text: '("tenantId" = ? AND "tag" IN (?, ?) AND CASE WHEN ("sealed" = ?) THEN FALSE ELSE TRUE END)',
-        params: ["t-1", "red", "blue", true],
+        params: ["t-1", "red", "blue", 1],
       });
 
       const anyOf: Predicate = { _tag: "Or", predicates: [eq, eq] };

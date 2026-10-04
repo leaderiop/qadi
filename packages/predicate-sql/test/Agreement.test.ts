@@ -155,6 +155,21 @@ const hasNonFiniteOperand: (self: Predicate) => boolean = Match.type<Predicate>(
 
 const DIALECTS: ReadonlyArray<SqlDialect> = ["postgres", "mysql", "sqlite"];
 
+/**
+ * The row as the dialect's table would hold it. SQLite stores a boolean as 1/0
+ * and `compileSql` binds it that way (ADR-QD-077), so the interpreter reads the
+ * stored form; `evaluatePredicate` still reads the original row.
+ */
+const storedRow = (dialect: SqlDialect, row: Row): Row =>
+  dialect === "sqlite"
+    ? Object.fromEntries(
+        Object.entries(row).map(([column, value]) => [
+          column,
+          typeof value === "boolean" ? (value ? 1 : 0) : value,
+        ]),
+      )
+    : row;
+
 describe("INV-QD-047: a compiled SQL fragment admits exactly the rows the predicate admits", () => {
   for (const dialect of DIALECTS) {
     it.effect(`PROPERTY: interpretSqlFragment(compileSql(P), R) equals evaluatePredicate(P, R) — ${dialect}`, () =>
@@ -166,7 +181,7 @@ describe("INV-QD-047: a compiled SQL fragment admits exactly the rows the predic
           const fragment = yield* compileSql(predicate, { dialect });
           for (const row of sample) {
             assert.strictEqual(
-              interpretSqlFragment(fragment, row),
+              interpretSqlFragment(fragment, storedRow(dialect, row)),
               evaluatePredicate(predicate, row),
               JSON.stringify({ dialect, predicate, row, fragment }),
             );
@@ -220,7 +235,7 @@ describe("INV-QD-047: a compiled SQL fragment admits exactly the rows the predic
           // this file exists for.
           for (const row of sample) {
             assert.strictEqual(
-              interpretSqlFragment(fragment, row),
+              interpretSqlFragment(fragment, storedRow(dialect, row)),
               evaluatePredicate(predicate, row),
               JSON.stringify({ dialect, predicate, row, fragment }),
             );

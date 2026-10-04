@@ -68,20 +68,34 @@ interface DialectSyntax {
   readonly quote: (identifier: string) => string;
   /** `paramCount` is the 1-based position of the just-pushed parameter. */
   readonly placeholder: (paramCount: number) => string;
+  /**
+   * The value a driver is handed for a safe literal (ADR-QD-077). Identity for
+   * postgres and mysql; sqlite stores a boolean as 1/0 and neither Node driver
+   * (`node:sqlite`, `better-sqlite3`) can take a JavaScript boolean as a
+   * parameter, so it maps `true`/`false` to `1`/`0`.
+   */
+  readonly bind: (value: SqlSafeValue) => SqlSafeValue;
 }
+
+const bindIdentity = (value: SqlSafeValue): SqlSafeValue => value;
+const bindSqlite = (value: SqlSafeValue): SqlSafeValue =>
+  typeof value === "boolean" ? (value ? 1 : 0) : value;
 
 const SYNTAX: Record<SqlDialect, DialectSyntax> = {
   postgres: {
     quote: (id) => `"${id}"`,
     placeholder: (n) => `$${n}`,
+    bind: bindIdentity,
   },
   mysql: {
     quote: (id) => `\`${id}\``,
     placeholder: () => "?",
+    bind: bindIdentity,
   },
   sqlite: {
     quote: (id) => `"${id}"`,
     placeholder: () => "?",
+    bind: bindSqlite,
   },
 };
 
@@ -275,7 +289,7 @@ const dispatchNode: (
           // above (typeof null !== "number").
           return Effect.succeed("FALSE");
         }
-        params.push(value);
+        params.push(syntax.bind(value));
         const placeholder = syntax.placeholder(params.length);
         // Neq admits a NULL-valued column too — `null !== against` is true
         // for any non-null `against` — which plain `!=` alone would exclude.
@@ -327,7 +341,7 @@ const dispatchNode: (
         const nonNull = safeValues.filter((value) => value !== null);
         if (nonNull.length === 0) return Effect.succeed(`${column} IS NULL`);
         const placeholders = nonNull.map((value) => {
-          params.push(value);
+          params.push(syntax.bind(value));
           return syntax.placeholder(params.length);
         });
         const inClause = `${column} IN (${placeholders.join(", ")})`;
