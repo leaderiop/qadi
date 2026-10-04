@@ -196,8 +196,25 @@ const isRequired = (nullability: ColumnNullability, column: string): boolean =>
 
 /**
  * `(nullability, whenNull, negation, polarity) -> NullGuard`, a table, never a
- * `switch` (AGENTS.md §5a). A column declared NOT NULL is always `None`: it never
- * holds NULL, and a renderer may not mention `null` for it.
+ * `switch` (AGENTS.md §5a).
+ *
+ * A column declared NOT NULL needs no guard on its own account: it never holds
+ * NULL, and a `ThreeValued` renderer (Prisma) may not mention `null` for it at
+ * all, so it is `None` there at every polarity. A wrong declaration then can only
+ * under-admit: a three-valued `NOT` is monotone, so UNKNOWN where the reference
+ * has FALSE can only lose rows.
+ *
+ * A `TwoValued` renderer is different, and ADR-QD-077's lie-safety property is why
+ * the table is not simply "NOT NULL means `None`". Its `NOT` collapses UNKNOWN to
+ * FALSE (`CASE WHEN (inner) THEN FALSE ELSE TRUE END`), so an *unguarded* leaf the
+ * reference admits on NULL (`Neq`, or a `null` `MemberOf` member), reached under an
+ * odd number of `Negate`s on a column that turns out to hold NULL, would flip to
+ * TRUE where the reference says FALSE: an over-admission. Found by a real engine
+ * (CCR-QD-154): `Negate(Neq level 3)` over a column declared NOT NULL admitted
+ * the NULL rows. So under `TwoValued`, such a leaf keeps `AdmitNull` at negative
+ * polarity even on a declared NOT NULL column (`OR col IS NULL` is valid there and
+ * costs nothing), and drops it only at positive polarity, where UNKNOWN is
+ * excluded and a wrong declaration under-admits.
  */
 const NULL_GUARD: Record<
   "Required" | "Nullable",
@@ -205,7 +222,7 @@ const NULL_GUARD: Record<
 > = {
   Required: {
     Admits: {
-      TwoValued: { Positive: "None", Negative: "None" },
+      TwoValued: { Positive: "None", Negative: "AdmitNull" },
       ThreeValued: { Positive: "None", Negative: "None" },
     },
     Denies: {

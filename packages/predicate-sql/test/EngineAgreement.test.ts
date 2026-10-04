@@ -90,6 +90,89 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
         }
       }));
 
+    // S3: a nullability declaration can only narrow or refuse (ADR-QD-077). The
+    // table's truth is `level` and `tag` nullable, `tenantId` and `sealed` NOT NULL.
+    const compileWith = (predicate: Predicate, dialect: "postgres" | "sqlite", nullable: ReadonlySet<string>) =>
+      Effect.result(compileSql(predicate, { dialect, nullable }));
+
+    const isSubset = (small: ReadonlyArray<number>, big: ReadonlyArray<number>): boolean =>
+      small.every((id) => big.includes(id));
+
+    it.effect("S3: under the true declaration both engines agree exactly, with fewer null guards", () =>
+      Effect.gen(function* () {
+        const pg = yield* PgliteEngine;
+        const lite = yield* SqliteEngine;
+        const declared: ReadonlySet<string> = new Set(["level", "tag"]);
+        let shorter = 0;
+        for (const predicate of predicates) {
+          const unknown = yield* compileSql(predicate, { dialect: "postgres" });
+          for (const [dialect, engine] of [
+            ["postgres", pg],
+            ["sqlite", lite],
+          ] as const) {
+            const fragment = yield* compileSql(predicate, { dialect, nullable: declared });
+            const rows = yield* engine
+              .query(fragment)
+              .pipe(Effect.mapError(mapRefused({ predicate, fragment })));
+            assert.deepStrictEqual(rows, expected(predicate), JSON.stringify({ dialect, predicate, fragment }));
+            if (dialect === "postgres" && fragment.text.length < unknown.text.length) shorter += 1;
+          }
+        }
+        // The declaration is worth something: it drops `OR col IS NULL` on required columns.
+        assert.isAbove(shorter, 0);
+      }));
+
+    it.effect("S3: over-declared (everything nullable) is exact on both engines: IS NULL is valid on NOT NULL", () =>
+      Effect.gen(function* () {
+        const pg = yield* PgliteEngine;
+        const lite = yield* SqliteEngine;
+        const everything: ReadonlySet<string> = new Set(["tenantId", "level", "tag", "sealed"]);
+        for (const predicate of predicates) {
+          for (const [dialect, engine] of [
+            ["postgres", pg],
+            ["sqlite", lite],
+          ] as const) {
+            const fragment = yield* compileSql(predicate, { dialect, nullable: everything });
+            const rows = yield* engine
+              .query(fragment)
+              .pipe(Effect.mapError(mapRefused({ predicate, fragment })));
+            assert.deepStrictEqual(rows, expected(predicate), JSON.stringify({ dialect, predicate, fragment }));
+          }
+        }
+      }));
+
+    it.effect("S3: under-declared (nothing nullable) never admits a row the reference denies", () =>
+      Effect.gen(function* () {
+        const pg = yield* PgliteEngine;
+        const lite = yield* SqliteEngine;
+        let strictSubsets = 0;
+        for (const predicate of predicates) {
+          for (const [dialect, engine] of [
+            ["postgres", pg],
+            ["sqlite", lite],
+          ] as const) {
+            const compiled = yield* compileWith(predicate, dialect, new Set());
+            // A null comparison on a column declared NOT NULL refuses at compile time.
+            if (Result.isFailure(compiled)) {
+              assert.strictEqual(compiled.failure._tag, "PredicateNotRenderable");
+              continue;
+            }
+            const fragment = compiled.success;
+            const rows = yield* engine
+              .query(fragment)
+              .pipe(Effect.mapError(mapRefused({ predicate, fragment })));
+            const reference = expected(predicate);
+            assert.isTrue(
+              isSubset(rows, reference),
+              JSON.stringify({ dialect, predicate, fragment, rows, reference }),
+            );
+            if (rows.length < reference.length) strictSubsets += 1;
+          }
+        }
+        // Not vacuous: a wrong declaration really does lose rows, and that is all it can do.
+        assert.isAbove(strictSubsets, 0);
+      }));
+
     // S4 characterises an accepted limitation (N2, BEH-QD-244), it does not fix
     // one. A schema-blind compiler cannot know a column's type, so a literal
     // whose JS type differs from its column's is only as trustworthy as the

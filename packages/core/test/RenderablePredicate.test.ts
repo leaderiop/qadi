@@ -721,6 +721,42 @@ describe("toRenderable with a declared nullability", () => {
       );
     }));
 
+  // The lie-safety finding (CCR-QD-154). A `TwoValued` renderer's `NOT` collapses
+  // UNKNOWN to FALSE, so an unguarded leaf the reference admits on NULL, under an
+  // odd number of Negates, on a column that turns out to hold NULL, flips to TRUE
+  // where the reference says FALSE: an over-admission, not an under-admission.
+  // Found by `EngineAgreement.test.ts` (S3) against real PostgreSQL and SQLite:
+  // `Negate(...MemberOf tag [red, blue, null]...)` with `tag` declared NOT NULL.
+  it.effect("R7: TwoValued keeps AdmitNull under an odd number of Negates even on a NOT NULL column", () =>
+    Effect.gen(function* () {
+      for (const leaf of [compare("a", "Neq", "x"), memberOf("a", ["x", null])]) {
+        const positive = yield* render(leaf, { nullability });
+        assert.strictEqual(positive._tag === "Equals" || positive._tag === "OneOf" ? positive.nullGuard : "?", "None");
+        const once = yield* render(negate(leaf), { nullability });
+        assert.strictEqual(
+          once._tag === "Not" && (once.inner._tag === "Equals" || once.inner._tag === "OneOf")
+            ? once.inner.nullGuard
+            : "?",
+          "AdmitNull",
+        );
+        const twice = yield* render(negate(negate(leaf)), { nullability });
+        assert.strictEqual(
+          twice._tag === "Not" &&
+            twice.inner._tag === "Not" &&
+            (twice.inner.inner._tag === "Equals" || twice.inner.inner._tag === "OneOf")
+            ? twice.inner.inner.nullGuard
+            : "?",
+          "None",
+        );
+      }
+      // A leaf the reference denies on NULL needs nothing at either polarity.
+      const eq = yield* render(negate(compare("a", "Eq", "x")), { nullability });
+      assert.deepStrictEqual(eq, {
+        _tag: "Not",
+        inner: { _tag: "Equals", column: "a", negated: false, value: "x", nullGuard: "None" },
+      });
+    }));
+
   it.effect("R7: a nullable column keeps its null shapes and its guards", () =>
     Effect.gen(function* () {
       assert.deepStrictEqual(yield* render(compare("n", "Eq", null), { nullability }), {

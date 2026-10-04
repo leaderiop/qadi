@@ -82,6 +82,17 @@ loudly (declared nullable but required: Prisma refuses the `null` mention). An `
 declared NOT NULL **refuses** (`NullOnNonNullableColumn`) rather than folding to a constant, because a
 constant could over-admit under a `Negate` if the declaration were wrong.
 
+*Lie-safety is a property of the target's `NOT`, and the table says so.* For a three-valued `NOT` (Prisma)
+the argument above holds as stated: a column declared NOT NULL gets no guard at any polarity, and a wrong
+declaration under-admits. For a two-valued `NOT` (SQL's `CASE WHEN`, which collapses UNKNOWN to FALSE) it
+does **not**: an unguarded leaf the reference admits on NULL (`Neq`, or a `null` `MemberOf` member), under an
+odd number of `Negate`s, on a column that does hold NULL, flips to TRUE where the reference says FALSE. A
+real-engine property found this in implementation (PGlite and `node:sqlite`, `Negate` over a `MemberOf` with
+a `null` member on a column declared NOT NULL), so under `Negation: "TwoValued"` such a leaf keeps
+`AdmitNull` at negative polarity even on a declared NOT NULL column (`OR col IS NULL` is valid there) and
+drops it only at positive polarity. The optimization a declaration buys SQL is therefore the positive-polarity
+guards only.
+
 **(e) `maxInValues` applies to both packages.** Core owns the bound (`DEFAULT_MAX_IN_VALUES = 1000`); both
 packages expose `maxInValues?`. Prisma gains a `TooManyValues` refusal (breaking). An unbounded `in` is the
 same resource-exhaustion vector whichever grammar carries it.
