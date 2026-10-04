@@ -24,7 +24,9 @@
  * mis-scored as Survived by the vitest-runner's per-test coverage tracking rather
  * than genuinely uncovered. Verified by hand rather than reclassified automatically:
  * there is no ignore list here (see the threshold note below), so a survivor still
- * has to be read and judged, not filtered by pattern. `SubjectExtractor.ts`'s
+ * has to be read and judged, not filtered by pattern. Since ADR-QD-076 `ignoreStatic`
+ * is on, which skips exactly these module-scope mutants; the note describes what they
+ * were, and why skipping them is mechanical rather than a judgement about any one. `SubjectExtractor.ts`'s
  * `Option.filter((token) => token.length > 0)` survivor is a real one and stayed
  * a real one — a covering test was added for it in `test/http.test.ts` instead.
  *
@@ -43,6 +45,9 @@ export default {
   htmlReporter: { fileName: "reports/mutation-http/index.html" },
   jsonReporter: { fileName: "reports/mutation-http/mutation.json" },
   coverageAnalysis: "perTest",
+  // Skips mutants in code that runs once at import time (ADR-QD-076): Stryker re-runs the whole
+  // suite for each, and they dominated the run time. Set false to examine them by hand.
+  ignoreStatic: true,
 
   mutate: [
     "packages/http/src/**/*.ts",

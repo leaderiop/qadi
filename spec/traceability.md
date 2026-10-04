@@ -203,6 +203,7 @@ is still a contract for readability, even where nothing enforces it.
 | [ADR-QD-072](decisions/072-schema-taggederror-for-accessdenied-and-undischargedobligation.md) | `Schema.TaggedError` for `AccessDenied` and `UndischargedObligation`, narrowing ADR-QD-060 | — (wire-schema representation decision, not an authorization invariant) |
 | [ADR-QD-073](decisions/073-the-fnuntraced-exception-is-measured.md) | The `fnUntraced` exception is measured, and drawn at exactly three functions | — (performance/tracing-cost decision, not an authorization invariant) |
 | [ADR-QD-074](decisions/074-node-floor-raised-to-22-12-for-effect-vitest.md) | The Node floor moves to `>=22.12.0`, forced by the `effect`/`vitest` bump, narrowing ADR-QD-059 | — (dependency/toolchain-floor decision, not an authorization invariant) |
+| [ADR-QD-076](decisions/076-mutation-runs-skip-static-mutants.md) | Mutation runs skip static mutants (`ignoreStatic`), narrowing ADR-QD-025 | — (it verifies the others rather than adding one) |
 
 ## §4 Test file map
 

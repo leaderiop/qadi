@@ -80,7 +80,8 @@ quoted as evidence.
 The roadmap set 80 by matching the predecessor's bar. `break: 80` fails the run;
 `high: 90` and `low: 80` colour the report. There is **no ignore list**: a mutant
 that cannot be killed is a finding to record, not a number to suppress. If one
-becomes necessary it needs an ADR of its own.
+becomes necessary it needs an ADR of its own. (ADR-QD-076 is that ADR for static
+mutants: `ignoreStatic` is now on, globally.)
 
 ## Three workarounds, and why none of them is a mistake to be tidied away
 

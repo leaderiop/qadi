@@ -33,6 +33,9 @@ export default {
   htmlReporter: { fileName: "reports/mutation-predicate-sql/index.html" },
   jsonReporter: { fileName: "reports/mutation-predicate-sql/mutation.json" },
   coverageAnalysis: "perTest",
+  // Skips mutants in code that runs once at import time (ADR-QD-076): Stryker re-runs the whole
+  // suite for each, and they dominated the run time. Set false to examine them by hand.
+  ignoreStatic: true,
 
   mutate: ["packages/predicate-sql/src/**/*.ts"],
 

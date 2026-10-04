@@ -258,3 +258,7 @@ entries:
     file: "075-clienterror-typing-for-requirepermission.md"
     title: "RequirePermission's enforcement errors are typed on the generated client, not hand-declared per endpoint"
     status: "Accepted"
+  - id: "ADR-QD-076"
+    file: "076-mutation-runs-skip-static-mutants.md"
+    title: "Mutation runs skip static mutants (ignoreStatic)"
+    status: "Accepted — narrows ADR-QD-025"
