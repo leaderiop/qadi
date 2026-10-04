@@ -541,7 +541,7 @@ export const Policy: Schema.Codec<Policy, PolicyEncoded> = PolicyUnion;
  * Derived from the schema union itself rather than restated, so the tag list is
  * not a fifth hand-maintained site beside the type, the encoded type, the
  * structs and the union (ADR-QD-002's spirit: one definition). It replaces two
- * byte-for-byte `Record<Policy["_tag"], true>` copies that `Decision.ts` and
+ * byte-for-byte exhaustive tag records that `Decision.ts` and
  * `Evaluate.ts` each kept (ARCH-02 C5). The element type is exactly
  * `Policy["_tag"]`, which `Policy.tst.ts` proves.
  */

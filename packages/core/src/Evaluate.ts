@@ -49,7 +49,7 @@ import {
   askSignature,
   readAttribute,
 } from "./PortAccess.ts";
-import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
+import { DEFAULT_MAX_DEPTH, POLICY_TAGS } from "./Policy.ts";
 import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
@@ -78,40 +78,6 @@ const decisionsTotal = Metric.counter("qadi_decisions_total", {
 });
 const decisionsAllowedTotal = Metric.withAttributes(decisionsTotal, { outcome: "allow" });
 const decisionsDeniedTotal = Metric.withAttributes(decisionsTotal, { outcome: "deny" });
-
-/**
- * Every `Policy` tag — {@link denialsByPolicyTagTotal}'s closed domain.
- *
- * A `Record<Policy["_tag"], true>` rather than an array literal, `Decision.ts`'s
- * `TRACE_TAGS_BY_TAG` idiom: TypeScript requires every key of the type to be
- * present (TS2741 otherwise), so a new `Policy` variant added without a
- * matching entry here is a compile error rather than a word silently missing
- * from this metric's snapshot. Not reused from `Decision.ts`'s own (private)
- * copy: exporting it would leak an internal helper through `index.ts`'s
- * `export * from "./Decision.ts"` and into the public surface `spec/
- * overview.md` tracks (AGENTS.md §9), for a list four lines long.
- */
-const POLICY_TAGS_BY_TAG: Record<Policy["_tag"], true> = {
-  HasPermission: true,
-  HasRole: true,
-  HasAttribute: true,
-  HasResourceAttribute: true,
-  HasRelationship: true,
-  HasAction: true,
-  HasActed: true,
-  HasNotActed: true,
-  HasCustom: true,
-  HasSignature: true,
-  AllOf: true,
-  AnyOf: true,
-  Rules: true,
-  Not: true,
-  Obliged: true,
-  Labeled: true,
-};
-
-/** `POLICY_TAGS_BY_TAG`'s keys, in the array form `preregisteredWords` takes. */
-const POLICY_TAGS: ReadonlyArray<Policy["_tag"]> = Record.keys(POLICY_TAGS_BY_TAG);
 
 /**
  * Denials, by the top-level policy tag `evaluate` was asked to decide.
@@ -149,9 +115,10 @@ const evaluationDurationMillis = Metric.histogram("qadi_evaluation_duration_mill
 
 /**
  * Every `EvaluationError` tag — {@link evaluationErrorsTotal}'s closed domain,
- * by the same `Record<Tag, true>` exhaustiveness idiom {@link POLICY_TAGS_BY_TAG}
- * uses and for the same reason: a tenth error added to the union without a
- * matching entry here is a compile error rather than a silently-missing word.
+ * by the `Record<Tag, true>` exhaustiveness idiom: a tenth error added to the
+ * union without a matching entry here is a compile error rather than a
+ * silently-missing word. (The policy tag list used the same idiom until
+ * `Policy.ts` derived it from the schema union.)
  */
 const EVALUATION_ERROR_TAGS_BY_TAG: Record<EvaluationError["_tag"], true> = {
   AttributeResolveError: true,
