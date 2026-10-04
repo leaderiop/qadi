@@ -7,10 +7,10 @@
 > | Document ID    | QADI-ADR-054                                   |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-08-25                                     |
-> | Status         | Accepted — narrows ADR-QD-024                  |
+> | Status         | Accepted — narrows ADR-QD-024; amended by ADR-QD-077 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-25): Initial release (CCR-QD-079) |
+> | Change History | 1.0 (2026-08-25): Initial release (CCR-QD-079); 1.1 (2026-10-04): forward pointers to ADR-QD-077 under the schema and `PredicateNotRenderable` paragraphs (CCR-QD-154) |
 
 ---
 
@@ -79,6 +79,10 @@ deeper, same method. `@casl/mongoose` and `@casl/prisma` are direct evidence
 this exact boundary — compile-only, schema-blind, separately packaged — holds
 in a library facing the same trade-off.
 
+> **Amended by [ADR-QD-077](./077-renderability-is-a-core-rule.md) (2026-10-04).** "Never sees a schema" is narrowed: a
+> renderer accepts one schema fact, a per-column nullability declaration, which can only narrow or refuse.
+> The package still never opens a connection or reads a schema itself.
+
 ### Refuse rather than approximate, one layer down
 
 A `Predicate`'s `Compare`/`MemberOf` `value`/`values` are `unknown`. A
@@ -89,6 +93,10 @@ the AST. Each companion package declares its own unprefixed
 `PredicateNotRenderable` error, matching `PolicyNotTranslatable`'s shape —
 not shared via `@qadi/core`, because `@qadi/core` has no reason to know this
 error exists.
+
+> **Amended by [ADR-QD-077](./077-renderability-is-a-core-rule.md) (2026-10-04).** The paragraph above is superseded:
+> `@qadi/core` now declares the one `PredicateNotRenderable` (a `QadiError` member, code `ACL018`) and both
+> packages re-export it. Ticket 95's shared-`_tag` rationale no longer applies.
 
 ```
 REQUIREMENT: A companion package MUST refuse to render a `Compare`/`MemberOf`

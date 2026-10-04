@@ -165,6 +165,7 @@ is still a contract for readability, even where nothing enforces it.
 | [ADR-QD-023](decisions/023-combining-algorithms.md) | A rule list stops at the first rule that cannot be overridden | INV-QD-003, INV-QD-004, INV-QD-005, INV-QD-006, INV-QD-017 |
 | [ADR-QD-024](decisions/024-predicate-output.md) | A predicate is a second interpreter, shipped with its reference semantics | INV-QD-004, INV-QD-006, INV-QD-010, INV-QD-011, INV-QD-013, INV-QD-018 |
 | [ADR-QD-025](decisions/025-mutation-testing.md) | Mutation testing as a merge gate | — (it verifies the others rather than adding one) |
+| [ADR-QD-077](decisions/077-renderability-is-a-core-rule.md) | Renderability is a core rule: one `PredicateNotRenderable`, shared leaf rules, a declared nullability, amending ADR-QD-054 | [INV-QD-047](./invariants.md#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits), [INV-QD-048](./invariants.md#inv-qd-048-a-compiled-prisma-whereinput-admits-exactly-the-rows-the-predicate-admits) |
 | [ADR-QD-026](decisions/026-concurrent-evaluation.md) | Concurrency changes lookups, never decisions | INV-QD-005 (scoped), INV-QD-006, INV-QD-017, INV-QD-020 |
 | [ADR-QD-027](decisions/027-policy-explanation.md) | An explanation is a tree, and English is one rendering | INV-QD-021 |
 | [ADR-QD-028](decisions/028-decision-hydration.md) | A hydrated decision is bound to a subject and carries no trace | INV-QD-007, INV-QD-022 |

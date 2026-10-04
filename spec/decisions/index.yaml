@@ -262,3 +262,7 @@ entries:
     file: "076-mutation-runs-skip-static-mutants.md"
     title: "Mutation runs skip static mutants (ignoreStatic)"
     status: "Accepted — narrows ADR-QD-025"
+  - id: "ADR-QD-077"
+    file: "077-renderability-is-a-core-rule.md"
+    title: "Renderability is a core rule: one PredicateNotRenderable, shared leaf rules, a declared nullability"
+    status: "Accepted — amends ADR-QD-054"
