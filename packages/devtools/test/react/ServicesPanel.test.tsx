@@ -78,7 +78,7 @@ describe("the services panel", () => {
   // E4.7 — the two facts that look like one.
   it("distinguishes a port never called from one that is absent", () => {
     const activity: ReadonlyArray<PortActivity> = [
-      { port: "AttributeResolver", calls: 12, retries: 2 },
+      { port: "AttributeResolver", calls: 12, retries: 2, translationCalls: 0 },
     ];
     render(<ServicesPanel wiring={wiring} activity={activity} />);
 
@@ -97,7 +97,7 @@ describe("the services panel", () => {
 
   it("does not mention retries when there were none", () => {
     render(
-      <ServicesPanel wiring={wiring} activity={[{ port: "AttributeResolver", calls: 1, retries: 0 }]} />,
+      <ServicesPanel wiring={wiring} activity={[{ port: "AttributeResolver", calls: 1, retries: 0, translationCalls: 0 }]} />,
     );
     assert.strictEqual(
       within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity").textContent,
@@ -183,12 +183,45 @@ describe("recent port calls", () => {
   const attributeCall = (over?: Partial<Extract<PortCall, { _tag: "AttributeResolver" }>>) => ({
     _tag: "AttributeResolver" as const,
     span: "qadi.attribute",
+    interpreter: undefined,
     at: 1_000,
     durationMillis: 1.25,
     subjectId: "alice",
     attribute: "clearance",
     resolved: true,
     ...over,
+  });
+
+  it("labels a call the translation made, and leaves the evaluator's unlabelled", () => {
+    render(
+      <ServicesPanel
+        wiring={wiring}
+        activity={[]}
+        portCalls={logOf([
+          attributeCall({ interpreter: "toPredicate", attribute: "riskScore" }),
+          attributeCall({ interpreter: "evaluate", attribute: "clearance", at: 2_000 }),
+          attributeCall({ interpreter: undefined, attribute: "tier", at: 3_000 }),
+        ])}
+      />,
+    );
+
+    const labels = screen.queryAllByTestId("qadi-port-call-interpreter");
+    assert.strictEqual(labels.length, 1);
+    assert.strictEqual(labels[0]?.textContent, "translation");
+  });
+
+  it("counts the translation's calls beside the evaluator's", () => {
+    render(
+      <ServicesPanel
+        wiring={wiring}
+        activity={[{ port: "AttributeResolver", calls: 2, retries: 0, translationCalls: 3 }]}
+      />,
+    );
+
+    assert.include(
+      within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity").textContent ?? "",
+      "2 calls · 3 from translation",
+    );
   });
 
   // E3.1 — a card with no list looks exactly like a port nothing asked.
@@ -213,6 +246,7 @@ describe("recent port calls", () => {
           {
             _tag: "RelationshipResolver",
             span: "qadi.hasRelationship",
+            interpreter: undefined,
             at: 1_001,
             durationMillis: 0.5,
             subjectId: "alice",
@@ -319,7 +353,7 @@ describe("recent port calls", () => {
   // footer now says which is which rather than describing only the first.
   it("keeps the counts and the calls apart in words", () => {
     const activity: ReadonlyArray<PortActivity> = [
-      { port: "AttributeResolver", calls: 91, retries: 0 },
+      { port: "AttributeResolver", calls: 91, retries: 0, translationCalls: 0 },
     ];
     render(
       <ServicesPanel wiring={wiring} activity={activity} portCalls={logOf([attributeCall()])} />,
@@ -346,6 +380,7 @@ describe("recent port calls", () => {
           {
             _tag: "RelationshipResolver",
             span: "qadi.hasRelationship",
+            interpreter: undefined,
             at: 1_002,
             durationMillis: 0.4,
             subjectId: "alice",
@@ -396,6 +431,7 @@ describe("recent port calls", () => {
           {
             _tag: "CustomPredicate",
             span: "qadi.hasCustom",
+            interpreter: undefined,
             at: 1_003,
             durationMillis: 0.2,
             subjectId: "alice",
@@ -405,6 +441,7 @@ describe("recent port calls", () => {
           {
             _tag: "CustomPredicate",
             span: "qadi.hasCustom",
+            interpreter: undefined,
             at: 1_004,
             durationMillis: 0.2,
             subjectId: "alice",
@@ -414,6 +451,7 @@ describe("recent port calls", () => {
           {
             _tag: "SignatureHistory",
             span: "qadi.hasSignature",
+            interpreter: undefined,
             at: 1_005,
             durationMillis: 0.3,
             subjectId: "alice",
@@ -424,6 +462,7 @@ describe("recent port calls", () => {
           {
             _tag: "SignatureHistory",
             span: "qadi.hasSignature",
+            interpreter: undefined,
             at: 1_006,
             durationMillis: 0.3,
             subjectId: "alice",

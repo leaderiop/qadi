@@ -28,6 +28,7 @@ import {
   EvaluationId,
   portCallsTotal,
   portRetriesTotal,
+  predicatePortCallsTotal,
   RelationshipResolver,
   SignatureHistory,
 } from "@qadi/core";
@@ -108,8 +109,15 @@ export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* ()
 
 export interface PortActivity {
   readonly port: string;
+  /** Calls the evaluator made (`qadi_port_calls_total`). */
   readonly calls: number;
   readonly retries: number;
+  /**
+   * Calls `toPredicate` made (`qadi_predicate_port_calls_total`), kept apart
+   * from `calls` so that field keeps meaning what it always meant. Only the two
+   * ports translation can read ever have a non-zero value.
+   */
+  readonly translationCalls: number;
 }
 
 /**
@@ -144,15 +152,23 @@ export const portActivity: Effect.Effect<ReadonlyArray<PortActivity>> = Effect.g
   // branch in it.
   const calls = yield* Metric.value(portCallsTotal);
   const retries = yield* Metric.value(portRetriesTotal);
+  const translated = yield* Metric.value(predicatePortCallsTotal);
 
-  const ports = new Set([...calls.occurrences.keys(), ...retries.occurrences.keys()]);
+  const ports = new Set([
+    ...calls.occurrences.keys(),
+    ...retries.occurrences.keys(),
+    ...translated.occurrences.keys(),
+  ]);
   return [...ports]
     .map((port) => ({
       port,
       calls: calls.occurrences.get(port) ?? 0,
       retries: retries.occurrences.get(port) ?? 0,
+      translationCalls: translated.occurrences.get(port) ?? 0,
     }))
-    .filter((activity) => activity.calls > 0 || activity.retries > 0);
+    .filter(
+      (activity) => activity.calls > 0 || activity.retries > 0 || activity.translationCalls > 0,
+    );
 });
 
 const nameOf = (service: Option.Option<{ readonly name?: string | undefined }>): string | undefined =>

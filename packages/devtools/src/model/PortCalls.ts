@@ -54,9 +54,24 @@ type PortSpan = (typeof PORT_SPANS)[number];
 const isPortSpan = (name: string): name is PortSpan =>
   PORT_SPANS.some((one) => one === name);
 
+/**
+ * Which interpreter made a call — `qadi.interpreter` on the span, a closed pair.
+ *
+ * `undefined` is "not recorded", the same reading every other field here has:
+ * an older `@qadi/core` that does not annotate the span, or a value outside the
+ * pair, is not guessed at.
+ */
+export type PortCallInterpreter = "evaluate" | "toPredicate";
+
 interface PortCallBase {
   /** The span this row was read from. */
   readonly span: string;
+  /**
+   * Whether the evaluator or `toPredicate` asked. Both emit `qadi.attribute` and
+   * `qadi.acted`, and without this a translation's reads would read as the
+   * evaluator's.
+   */
+  readonly interpreter: PortCallInterpreter | undefined;
   /** When the call started, in epoch millis — the same clock `DecisionRecord.at` uses. */
   readonly at: number;
   /**
@@ -257,6 +272,7 @@ export const collectPortCalls = (options?: {
 const rowOf = (span: Tracer.Span, name: PortSpan): PortCall => {
   const base = {
     span: span.name,
+    interpreter: interpreterAt(span),
     at: Number(span.status.startTime / 1_000_000n),
     durationMillis: durationOf(span),
     subjectId: stringAt(span, "qadi.subject_id"),
@@ -333,6 +349,12 @@ const durationOf = (span: Tracer.Span): number | undefined =>
 const stringAt = (span: Tracer.Span, key: string): string | undefined => {
   const value = span.attributes.get(key);
   return typeof value === "string" ? value : undefined;
+};
+
+/** Narrows `qadi.interpreter` to the closed pair; anything else is not recorded. */
+const interpreterAt = (span: Tracer.Span): PortCallInterpreter | undefined => {
+  const value = stringAt(span, "qadi.interpreter");
+  return value === "evaluate" || value === "toPredicate" ? value : undefined;
 };
 
 const numberAt = (span: Tracer.Span, key: string): number | undefined => {

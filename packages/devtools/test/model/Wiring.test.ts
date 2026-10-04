@@ -27,6 +27,7 @@ import {
   permission,
   portCallsTotal,
   portRetriesTotal,
+  predicatePortCallsTotal,
   signatureHistoryFromSignatures,
 } from "@qadi/core";
 import { qadiTestLayer, subjectWith } from "@qadi/testing";
@@ -277,7 +278,21 @@ describe("portActivity", () => {
 
         const activity = yield* portActivity;
         assert.deepStrictEqual(activity, [
-          { port: "AttributeResolver", calls: 1, retries: 0 },
+          { port: "AttributeResolver", calls: 1, retries: 0, translationCalls: 0 },
+        ]);
+      }),
+    ));
+
+  it.effect("a translation's calls are reported apart from the evaluator's", () =>
+    isolated(
+      Effect.gen(function* () {
+        yield* Metric.update(predicatePortCallsTotal, "AttributeResolver");
+
+        // `calls` keeps meaning what the evaluator counted; the translation's
+        // reads are their own field, and a port reached only by translation
+        // still appears.
+        assert.deepStrictEqual(yield* portActivity, [
+          { port: "AttributeResolver", calls: 0, retries: 0, translationCalls: 1 },
         ]);
       }),
     ));
@@ -288,7 +303,7 @@ describe("portActivity", () => {
         yield* Metric.update(portRetriesTotal, "RelationshipResolver");
 
         assert.deepStrictEqual(yield* portActivity, [
-          { port: "RelationshipResolver", calls: 0, retries: 1 },
+          { port: "RelationshipResolver", calls: 0, retries: 1, translationCalls: 0 },
         ]);
       }),
     ));
