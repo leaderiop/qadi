@@ -21,7 +21,7 @@ import type {
   Policy,
   Resource,
 } from "@qadi/core";
-import { CurrentSubject, DecisionCache, evaluate } from "@qadi/core";
+import { CurrentSubject, DecisionCache, evaluate, subjectEquivalence } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -29,8 +29,8 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Reactivity from "effect/reactivity/Reactivity";
-import type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationEngine.ts";
 import {
+  type HydrationMismatchReporter,
   makeSeededQuestion,
   registerHydrationSeeds,
   resolveMismatchReporter,
@@ -38,7 +38,7 @@ import {
 
 // `HydrationWarning.ts` is out of the barrel — its ambient-global boundary is
 // not a public surface — so the two types callers name are re-exported here.
-export type { HydrationMismatch, HydrationMismatchReporter };
+export type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationEngine.ts";
 
 /**
  * The services a Qadi runtime layer supplies.
@@ -274,49 +274,22 @@ export interface QadiAtomsOptions {
 }
 
 /**
- * Structural equality for {@link AuthSubject}, used to give the `subject`
- * atom below equality semantics that match its actual dependency instead of
- * `Atom.make`'s default `Object.is`.
+ * Equality for the `subject` atom: {@link subjectEquivalence}, tolerating `undefined`.
  *
  * `makeSubject`/`fromRoles` (`AuthSubject.ts`) return a fresh plain object on
- * every call, by design — the surrounding module comment there explains why
- * they copy rather than alias. That is correct for the builder; it is a
- * problem for this atom specifically: `AtomRegistry`'s write path
- * (`AtomRegistry.ts`'s `setValue`) treats *any* referentially distinct write
- * as a real change and invalidates every dependent, and every decision atom
- * this file makes reads `subject` (the `computed` atom inside
- * `seededDecision` above). A host that constructs its subject inline —
+ * every call, by design. `AtomRegistry`'s write path treats *any* referentially
+ * distinct write as a real change and invalidates every dependent, and every
+ * decision atom reads `subject`. A host that constructs its subject inline —
  * `<QadiProvider subject={makeSubject({ id: user.id, roles: user.roles })} />`
  * in a component that re-renders — would otherwise re-run every mounted
- * decision on every render, even though the subject the policy actually
- * cares about never changed (RC-01). Comparing structurally here, once, is
- * cheaper than re-evaluating every mounted question and lets an inline
- * subject share the way an inline policy already does (AGENTS.md §13).
+ * decision on every render, though who is asking never changed (RC-01).
  *
- * Deliberately shallow on `attributes`: `Object.is` per key, not a deep walk.
- * `AuthSubject.attributes` is meant for scalar-ish claims a policy compares
- * with `eq`/`in`/`gte` (`Matcher.ts`), and a host that stores a mutable
- * nested object there and mutates it in place already breaks
- * `withAttributes`'s own copy-on-write contract — this does not try to
- * detect that case, only the overwhelmingly common one of a fresh object
- * built from the same primitive values.
+ * The comparison is `@qadi/core`'s own, the one `DecisionCache`'s key uses, so a
+ * nested attribute object that is equal by structure no longer counts as a change
+ * either. This used to be a separate, shallow `Object.is`-per-key walk.
  */
-const subjectsEqual = (a: AuthSubject | undefined, b: AuthSubject | undefined): boolean => {
-  if (a === b) return true;
-  if (a === undefined || b === undefined) return false;
-  if (a.id !== b.id) return false;
-
-  if (a.roles.size !== b.roles.size) return false;
-  for (const role of a.roles) if (!b.roles.has(role)) return false;
-
-  if (a.permissions.size !== b.permissions.size) return false;
-  for (const key of a.permissions) if (!b.permissions.has(key)) return false;
-
-  const aKeys = Object.keys(a.attributes);
-  const bKeys = Object.keys(b.attributes);
-  if (aKeys.length !== bKeys.length) return false;
-  return aKeys.every((key) => Object.is(a.attributes[key], b.attributes[key]));
-};
+const subjectsEqual = (a: AuthSubject | undefined, b: AuthSubject | undefined): boolean =>
+  a === b || (a !== undefined && b !== undefined && subjectEquivalence(a, b));
 
 /**
  * Builds the atom set for one authorization context.

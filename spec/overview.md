@@ -99,6 +99,7 @@ for why that is a deliberate, open trade rather than an oversight.
 | `role`, `flattenPermissions`, `flattenAll`, `roleNames`, `resolveRoleGraph` | function | `Role.ts` |
 | `makeSubject`, `fromRoles`, `withAttributes`, `anonymous` | function | `AuthSubject.ts` |
 | `AuthSubject` | type | `AuthSubject.ts` |
+| `subjectEquivalence` | function | `AuthSubject.ts` — structural "same subject", the rule `DecisionCache`'s key relies on, shared with `@qadi/react`'s `subject` atom |
 | `Role`, `RoleDefinition` | type | `Role.ts` |
 | `SubjectId`, `ResourceId` | type | `Identity.ts` |
 | `makeSubjectId`, `makeResourceId` | function | `Identity.ts` |
@@ -392,7 +393,8 @@ because this section is called the *public API surface*, and a reader looking fo
 | Export | Kind | Source |
 | ------ | ---- | ------ |
 | `QadiProvider`, `useQadiContext`, `useAtomValue` | component + hook | `QadiProvider.tsx` |
-| `QadiProviderProps`, `QadiContextValue`, `InitialValues` | type | `QadiProvider.tsx` |
+| `QadiProviderProps`, `QadiContextValue` | type | `QadiProvider.tsx` |
+| `InitialValues` | type | declared in `HydrationEngine.ts`, re-exported from `QadiProvider.tsx` |
 | `MissingQadiProviderError` | class | `QadiProvider.tsx` |
 | `makeQadiAtoms`, `currentDecision` | function | `QadiAtoms.ts` |
 | `QadiAtoms`, `QadiLayer`, `QadiRuntimeServices`, `DecisionResult`, `AskedQuestion` | type | `QadiAtoms.ts` |

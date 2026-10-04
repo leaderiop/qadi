@@ -141,7 +141,7 @@ export const useAtomValue: <A>(atom: Atom.Atom<A>) => A = useLibraryAtomValue;
 // Declared in `HydrationEngine.ts` so the engine imports nothing from this
 // file (a type-only import still counts as a madge cycle, ADR-QD-037); its
 // public home is unchanged.
-export type { InitialValues };
+export type { InitialValues } from "./HydrationEngine.ts";
 
 /**
  * The default for {@link QadiProviderProps.sweepIntervalMillis}.
