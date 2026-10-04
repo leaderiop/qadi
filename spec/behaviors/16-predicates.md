@@ -75,7 +75,7 @@ obtainable at all.
 
 Core still owns no dialect — [BEH-QD-121](#beh-qd-121-a-predicate-is-abstract-and-qadi-owns-no-dialect)
 stands — but it now says what a renderer may render: `toRenderable`
-([BEH-QD-271](31-predicate-compilation.md#beh-qd-264-a-predicate-is-classified-once-in-core-into-a-renderable-tree))
+([BEH-QD-271](31-predicate-compilation.md#beh-qd-271-a-predicate-is-classified-once-in-core-into-a-renderable-tree))
 classifies a `Predicate` once into a closed tree of already-validated nodes, so a
 dialect package prints syntax and decides nothing about NULLs, numbers or safety.
 

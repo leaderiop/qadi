@@ -2146,7 +2146,7 @@ reference over 400 generated predicates x 25 rows, for both negations and with a
 declaration), and the bound-rule test that a `Gte`/`Lt` bound is a `Range` exactly
 when the evaluator can compare against it.
 
-**Related**: [BEH-QD-271](behaviors/31-predicate-compilation.md#beh-qd-264-a-predicate-is-classified-once-in-core-into-a-renderable-tree), [ADR-QD-079](decisions/079-renderability-is-a-core-rule.md).
+**Related**: [BEH-QD-271](behaviors/31-predicate-compilation.md#beh-qd-271-a-predicate-is-classified-once-in-core-into-a-renderable-tree), [ADR-QD-079](decisions/079-renderability-is-a-core-rule.md).
 
 ## INV-QD-062: A wrong nullability declaration never admits a row the predicate denies
 
@@ -2180,4 +2180,4 @@ P2/P3 (under-declared: a subset; over-declared: equal or refused by Prisma, with
 refusal observed), and `packages/core/test/RenderablePredicate.test.ts` R7 (the
 table's rows, including the two-valued negative-polarity guard).
 
-**Related**: [BEH-QD-272](behaviors/31-predicate-compilation.md#beh-qd-265-a-nullability-declaration-can-only-narrow-or-refuse), [INV-QD-047](#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits), [INV-QD-048](#inv-qd-048-a-compiled-prisma-whereinput-admits-exactly-the-rows-the-predicate-admits), [ADR-QD-079](decisions/079-renderability-is-a-core-rule.md).
+**Related**: [BEH-QD-272](behaviors/31-predicate-compilation.md#beh-qd-272-a-nullability-declaration-can-only-narrow-or-refuse), [INV-QD-047](#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits), [INV-QD-048](#inv-qd-048-a-compiled-prisma-whereinput-admits-exactly-the-rows-the-predicate-admits), [ADR-QD-079](decisions/079-renderability-is-a-core-rule.md).
