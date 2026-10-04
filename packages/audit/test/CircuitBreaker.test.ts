@@ -373,6 +373,60 @@ describe("CircuitBreaker — a failure landing on an already-Open breaker is not
     }));
 });
 
+describe("CircuitBreaker — an outcome counts only toward the window that admitted it", () => {
+  /** Admitted now, settles with `outcome` only when `settle` opens. */
+  const settleLater = (b: CircuitBreaker, held: Latch.Latch, settle: Latch.Latch, ok: boolean) =>
+    Effect.forkChild(
+      b.withPermit((p) =>
+        p._tag === "Admitted"
+          ? held.open.pipe(
+              Effect.andThen(settle.await),
+              Effect.andThen(p.attempt(ok ? Effect.void : Effect.fail("offline"))),
+              Effect.asVoid,
+            )
+          : Effect.void,
+      ),
+    );
+
+  it.effect("a stale failure from before the trip does not reopen a newer half-open window", () =>
+    Effect.gen(function* () {
+      const breaker = yield* makeCircuitBreaker(OPTIONS);
+      const aHeld = yield* Latch.make();
+      const aSettle = yield* Latch.make();
+      const a = yield* settleLater(breaker, aHeld, aSettle, false);
+      yield* aHeld.await; // A is admitted while Closed
+      yield* trip(breaker);
+      yield* TestClock.adjust("10 seconds");
+      const bHeld = yield* Latch.make();
+      const bSettle = yield* Latch.make();
+      const b = yield* settleLater(breaker, bHeld, bSettle, true); // B holds the probe
+      yield* bHeld.await;
+
+      yield* aSettle.open;
+      yield* Fiber.join(a);
+      assert.strictEqual(yield* breaker.status, "HalfOpen", "A's late failure is not B's window's evidence");
+
+      yield* bSettle.open;
+      yield* Fiber.join(b);
+      assert.strictEqual(yield* breaker.status, "Closed", "the probe's own success counts");
+    }));
+
+  it.effect("a stale success from before the trip does not close a newer half-open window", () =>
+    Effect.gen(function* () {
+      const breaker = yield* makeCircuitBreaker(OPTIONS);
+      const aHeld = yield* Latch.make();
+      const aSettle = yield* Latch.make();
+      const a = yield* settleLater(breaker, aHeld, aSettle, true);
+      yield* aHeld.await;
+      yield* trip(breaker);
+      yield* TestClock.adjust("10 seconds");
+      assert.strictEqual(yield* breaker.status, "HalfOpen");
+      yield* aSettle.open;
+      yield* Fiber.join(a);
+      assert.strictEqual(yield* breaker.status, "HalfOpen", "a stale success does not close it");
+    }));
+});
+
 describe("CircuitBreaker — concurrent record() calls (Qadi.ts's filter/filterStream fan-out)", () =>
   it.effect(
     "exactly failureThreshold consecutive failures trips it, even run concurrently — no lost update, no double-count",
