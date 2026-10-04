@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-10-04): The seed lives in `HydrationEngine.ts`, and the lookup is a closure capability of the atom set (`QadiAtoms.hydrate`) rather than a module-scope `WeakMap`; `HydrationSeed.ts` is removed (ADR-QD-077, CCR-QD-153)<br>1.0 (2026-08-23): Initial release (CCR-QD-052) |
+> | Change History | 1.1 (2026-10-04): The seed lives in `HydrationEngine.ts`, and the lookup is a closure capability of the atom set (`QadiAtoms.hydrate`) rather than a module-scope `WeakMap`; `HydrationSeed.ts` is removed (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-23): Initial release (CCR-QD-052) |
 
 _Amends: [ADR-QD-028](./028-decision-hydration.md), which decided the payload and
 said nothing about what happens to a seed once the client answers._
@@ -90,7 +90,7 @@ lookup that is deliberately out of the barrel: a consumer able to reach a seed a
 could write an authorization decision straight into the registry, past both the
 subject check and the evaluator.
 
-> **Amended in CCR-QD-153 ([ADR-QD-077](./077-a-seed-is-its-own-type-and-the-payload-is-versioned.md)).**
+> **Amended in CCR-QD-156 ([ADR-QD-078](./078-a-seed-is-its-own-type-and-the-payload-is-versioned.md)).**
 > That lookup was `HydrationSeed.ts`, a module-scope `WeakMap` keyed on the atom
 > set's object identity, and it is gone. The seed atoms and the precedence rule
 > now live in `HydrationEngine.ts` (`makeSeededQuestion`), and the capability to

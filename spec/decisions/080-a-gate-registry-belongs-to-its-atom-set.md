@@ -62,7 +62,7 @@ handle only `@qadi/react` can reach.**
   structural instead of checked. The handle is reachable only through a side table
   keyed on the registry object (`GateWriter.ts`, out of the barrel), the precedent
   hydration's seed lookup set before it became a closure the atom set owns
-  (ADR-QD-077).
+  (ADR-QD-078).
 - **Ids are unique per snapshot.** If an id is already held by a different live
   registration, the new entry gets `${id}~${n}` and the registry reports the
   collision once per id. The default reporter (in `HydrationWarning.ts`, the one
@@ -111,5 +111,5 @@ structurally; only comments and one empty-state string changed there.
 - **Last write wins** (status quo). Loses a mounted guard.
 
 Related: [ADR-QD-053](053-a-gate-can-be-found.md),
-[ADR-QD-077](077-a-seed-is-its-own-type-and-the-payload-is-versioned.md),
+[ADR-QD-078](078-a-seed-is-its-own-type-and-the-payload-is-versioned.md),
 [INV-QD-064](../invariants.md#inv-qd-064-a-guard-is-listed-only-by-the-registry-its-provider-writes-to).

@@ -608,7 +608,7 @@ state-management layer of its own. The rules that keep it that way:
   through a handle only `@qadi/react` can reach — carrying its policy, its
   resource, its current render state, and a ref React filled in. No module-scope
   state is left in this package: hydration's seed lookup is a closure the atom set
-  owns (`QadiAtoms.hydrate`, ADR-QD-077) and so is this. Nothing re-renders because a guard registered, and nothing in
+  owns (`QadiAtoms.hydrate`, ADR-QD-078) and so is this. Nothing re-renders because a guard registered, and nothing in
   that file can affect what one renders.
 
   This section previously read as forbidding it, and `@qadi/devtools`'s React

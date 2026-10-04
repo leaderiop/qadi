@@ -93,7 +93,7 @@ Naming these so the draft cannot again claim more than it has.
   one, and the UI's job is to say "trace not disclosed" for a `Withheld` seed
   rather than for the payload to loosen.
 
-  > **Superseded in CCR-QD-153.** This bullet previously read: "`dehydrateDecisions`
+  > **Superseded in CCR-QD-156.** This bullet previously read: "`dehydrateDecisions`
   > ships a reduced trace unless `includeTrace: true`, the rebuild fallback hardcodes
   > `policyTag: "AllOf"`, and a denial's reason becomes the literal `"hydrated"`."
   > The reduced trace and the `"hydrated"` reason are gone, replaced by `Withheld`.

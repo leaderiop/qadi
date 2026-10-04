@@ -9,7 +9,7 @@
  *
  * A registry the package built is bound to its writer in a side table keyed on
  * the registry object, the way hydration's seed lookup hides its seed atoms
- * (a closure the atom set owns, `QadiAtoms.hydrate`, ADR-QD-077). The table holds
+ * (a closure the atom set owns, `QadiAtoms.hydrate`, ADR-QD-078). The table holds
  * no guard and no state of its own, so it is not the module-scope registry
  * [ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md)
  * removed. It is keyed on `object`, which is the real constraint, so this module

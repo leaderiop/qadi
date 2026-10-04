@@ -10,7 +10,7 @@
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-10-04): Amended by ADR-QD-077 (CCR-QD-153) — the rejected "Serializing the whole `Decision`" alternative is overtaken, the payload is versioned, and a withheld trace is a tagged `Withheld` rather than a reduced trace and the reason `"hydrated"`<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
+> | Change History | 1.1 (2026-10-04): Amended by ADR-QD-078 (CCR-QD-156) — the rejected "Serializing the whole `Decision`" alternative is overtaken, the payload is versioned, and a withheld trace is a tagged `Withheld` rather than a reduced trace and the reason `"hydrated"`<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
 
 ---
 
@@ -75,7 +75,7 @@ So a dehydrated decision's trace is replaced by a single node, and a `Deny`'s
 reason by a fixed `"hydrated"`. `includeTrace: true` opts back in for callers who
 want the client-side explanation and accept the disclosure.
 
-> **Amended in CCR-QD-153 ([ADR-QD-077](./077-a-seed-is-its-own-type-and-the-payload-is-versioned.md)).**
+> **Amended in CCR-QD-156 ([ADR-QD-078](./078-a-seed-is-its-own-type-and-the-payload-is-versioned.md)).**
 > The reduced trace and the `"hydrated"` reason were a fabrication: a projection
 > posing as an evaluation tree, and a sentence a `<Can fallback={(deny) =>
 > deny.reason}>` rendered as if the policy had said it. A withheld trace is now a
@@ -115,7 +115,7 @@ imply decisions are a wire format with compatibility obligations, and they are
 not: the policy is the artefact that crosses trust boundaries (ADR-QD-002). A
 decision is derived, per-request, and disposable.
 
-> **Overtaken in CCR-QD-153.** `SinkRecordWire` began carrying `decided:
+> **Overtaken in CCR-QD-156.** `SinkRecordWire` began carrying `decided:
 > DecisionSchema` across processes (BEH-QD-199, CCR-QD-063), so a decision *is* a
 > wire format, and the hydration payload had grown a second, hand-written codec
 > for the same shape. The decision's wire form is now one definition in

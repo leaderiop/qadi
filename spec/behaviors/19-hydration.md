@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-10-04): ARCH-05 — hydration is one module. BEH-QD-147: withholding is a tagged `Withheld` disclosure on the wire, not a reduced trace and a stand-in "hydrated" reason. BEH-QD-148/149: a hydrated decision is a `SeededAllow`/`SeededDeny`, a type of its own, and a seed reads as a non-`waiting` success holding a `SeededDecision`. BEH-QD-152: `HydrationMismatch.seeded` is a `SeededDecision`; the "stand-in naming nothing" reason for naming the policy from `decided.trace` was wrong (a default payload named the real root) and is replaced by the true one. BEH-QD-230: `UnregisteredAtoms` removed (the atom set owns the capability, so the situation cannot arise), `UnsupportedPayloadVersion` and `MalformedPayload` added, and `hydrateDecisions` never throws. New BEH-QD-264 (the payload is versioned) and BEH-QD-265 (a malformed envelope is dropped, never thrown on). `BEH-QD-145`'s `hydrateDecisions` takes `DehydratedPayload` (CCR-QD-153)<br>1.7 (2026-09-09): BEH-QD-230 gains an explicit requirement that `decodeEntryFields`/`decodePolicy` reject an excess property in an entry or its embedded `Policy` — both called `Schema.decodeUnknownOption` with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points and `SinkCodec.ts`'s `decodeSinkRecordWireUnknown` (CCR-QD-139); an excess-carrying entry now decodes with `UNTRUSTED_DECODE_OPTIONS` and is refused rather than silently accepted with the extra key dropped (issue #105, CCR-QD-144)<br>1.6 (2026-09-08): BEH-QD-259 — a fifth hydrate-side drop reason, `EntryTooDeep`: `hydrateDecisions` now runs `exceedsJsonDepth` ahead of any recursive `Schema` decode, closing the one recursive decode boundary left unguarded; the total across both ends is six, not five (issue #78, CCR-QD-139)<br>1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
+> | Change History | 1.8 (2026-10-04): ARCH-05 — hydration is one module. BEH-QD-147: withholding is a tagged `Withheld` disclosure on the wire, not a reduced trace and a stand-in "hydrated" reason. BEH-QD-148/149: a hydrated decision is a `SeededAllow`/`SeededDeny`, a type of its own, and a seed reads as a non-`waiting` success holding a `SeededDecision`. BEH-QD-152: `HydrationMismatch.seeded` is a `SeededDecision`; the "stand-in naming nothing" reason for naming the policy from `decided.trace` was wrong (a default payload named the real root) and is replaced by the true one. BEH-QD-230: `UnregisteredAtoms` removed (the atom set owns the capability, so the situation cannot arise), `UnsupportedPayloadVersion` and `MalformedPayload` added, and `hydrateDecisions` never throws. New BEH-QD-268 (the payload is versioned) and BEH-QD-269 (a malformed envelope is dropped, never thrown on). `BEH-QD-145`'s `hydrateDecisions` takes `DehydratedPayload` (CCR-QD-156)<br>1.7 (2026-09-09): BEH-QD-230 gains an explicit requirement that `decodeEntryFields`/`decodePolicy` reject an excess property in an entry or its embedded `Policy` — both called `Schema.decodeUnknownOption` with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points and `SinkCodec.ts`'s `decodeSinkRecordWireUnknown` (CCR-QD-139); an excess-carrying entry now decodes with `UNTRUSTED_DECODE_OPTIONS` and is refused rather than silently accepted with the extra key dropped (issue #105, CCR-QD-144)<br>1.6 (2026-09-08): BEH-QD-259 — a fifth hydrate-side drop reason, `EntryTooDeep`: `hydrateDecisions` now runs `exceedsJsonDepth` ahead of any recursive `Schema` decode, closing the one recursive decode boundary left unguarded; the total across both ends is six, not five (issue #78, CCR-QD-139)<br>1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
 
 _Previous: [18 — Policy Explanation](./18-explanation.md)_
 
@@ -343,7 +343,7 @@ is `decided.reason`, which is where
 [BEH-QD-045](./06-services.md) pays off: a client with no relationship resolver
 says so there, turning "why did this button vanish" into an answer in one line.
 
-> **Corrected in CCR-QD-153.** This section, ADR-QD-041, and the devtools draft
+> **Corrected in CCR-QD-156.** This section, ADR-QD-041, and the devtools draft
 > said a default payload's trace was "a stand-in naming nothing" (`policyTag:
 > "AllOf"`). It was not: the reduced trace the default produced carried the
 > **real** root tag, and `"AllOf"` appeared only for a payload with no `trace`
@@ -393,15 +393,15 @@ nothing to hydrate.
 > rather than raising an uncaught defect. The total across dehydrate and
 > hydrate is now **six**, not five.
 
-> **Amended in CCR-QD-153.** `UnregisteredAtoms` is **removed**: the capability to
+> **Amended in CCR-QD-156.** `UnregisteredAtoms` is **removed**: the capability to
 > seed lives on the atom set itself (`QadiAtoms.hydrate`), so `hydrateDecisions`
 > cannot be handed an atom set it has no seed atoms for, and a spread copy or a
 > wrapper that forwards `decision`/`decisionFor` seeds the same questions its
 > inner atom set does — correct, because its decision atoms are the real ones
 > ([ADR-QD-039](../decisions/039-a-seed-is-not-an-authority.md)). Two reasons are
 > **added** — `UnsupportedPayloadVersion` and `MalformedPayload`, both
-> whole-payload ([BEH-QD-264](#beh-qd-264-a-payload-is-versioned-and-an-older-one-is-read-as-withheld),
-> [BEH-QD-265](#beh-qd-265-a-malformed-envelope-is-dropped-never-thrown-on)). The
+> whole-payload ([BEH-QD-268](#beh-qd-264-a-payload-is-versioned-and-an-older-one-is-read-as-withheld),
+> [BEH-QD-269](#beh-qd-265-a-malformed-envelope-is-dropped-never-thrown-on)). The
 > hydrate-side reasons are now `PayloadSubjectMismatch`, `UnsupportedPayloadVersion`,
 > `MalformedPayload`, `MalformedEntry`, `UndecodablePolicy` and `EntryTooDeep`;
 > with the dehydrate-side `ForeignSubject`, **seven** across both ends — the
@@ -632,9 +632,9 @@ A third consumer needing a depth guard cannot share `Policy.ts`'s and
 has no reason to reach into `@qadi/core`'s internal module layout — is exactly
 that consumer.
 
-## BEH-QD-264: A payload is versioned, and an older one is read as withheld
+## BEH-QD-268: A payload is versioned, and an older one is read as withheld
 
-> **See:** [ADR-QD-077](../decisions/077-a-seed-is-its-own-type-and-the-payload-is-versioned.md)
+> **See:** [ADR-QD-078](../decisions/078-a-seed-is-its-own-type-and-the-payload-is-versioned.md)
 
 ```ts
 export type DehydratedDecisions = {
@@ -693,7 +693,7 @@ REQUIREMENT: The entry's decision fields MUST be derived from `DecisionWire`, no
 they do not apply, plus `disclosure`. One definition means a field added to the
 wire shape reaches the payload in the same change.
 
-## BEH-QD-265: A malformed envelope is dropped, never thrown on
+## BEH-QD-269: A malformed envelope is dropped, never thrown on
 
 ```
 REQUIREMENT: `hydrateDecisions` MUST NOT throw, whatever it is handed. A value that

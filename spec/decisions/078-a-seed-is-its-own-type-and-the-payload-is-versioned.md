@@ -1,16 +1,16 @@
-# ADR-QD-077 — A seed is its own type, the atom set owns hydration, and the payload is versioned
+# ADR-QD-078 — A seed is its own type, the atom set owns hydration, and the payload is versioned
 
 > **Document Control**
 >
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
-> | Document ID    | QADI-ADR-077                                   |
+> | Document ID    | QADI-ADR-078                                   |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted — amends ADR-QD-028, ADR-QD-039, ADR-QD-041, ADR-QD-052 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-04): Initial release (CCR-QD-153) |
+> | Change History | 1.0 (2026-10-04): Initial release (CCR-QD-156) |
 
 ---
 
