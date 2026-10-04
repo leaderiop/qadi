@@ -2,13 +2,16 @@ import { defineSteps } from "@effect-cucumber/vitest";
 import type { Policy } from "@qadi/core";
 import {
   allOf,
+  anyOf,
   denyWhen,
   eq,
+  hasAttribute,
   hasPermission,
   hasRelationship,
   hasResourceAttribute,
   hasRole,
   literal,
+  lt,
   obligation,
   obliged,
   permission,
@@ -63,6 +66,16 @@ export const predicateWhenSteps = defineSteps<World>(({ When }) => {
 
   When("the field-restricted policy is compiled to a predicate", function* () {
     yield* compile(hasPermission(permission("doc", "read"), { fields: ["id"] }));
+  });
+
+  When("the risk policy is compiled to a predicate", function* () {
+    yield* compile(hasAttribute("riskScore", lt(50)));
+  });
+
+  When("the editor-or-risk policy is compiled to a predicate", function* () {
+    // The role alone decides it, so no lookup is owed: `anyOf` stops at its
+    // first allowing child, as the evaluator does (INV-QD-005).
+    yield* compile(anyOf([hasRole("editor"), hasAttribute("riskScore", lt(50))]));
   });
 
   When("the sealed-rows rule table is compiled to a predicate", function* () {

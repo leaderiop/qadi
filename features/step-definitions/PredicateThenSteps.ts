@@ -36,6 +36,23 @@ export const predicateThenSteps = defineSteps<World>(({ Then }) => {
     assert.deepEqual(compiled(s), { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" });
   });
 
+  Then("the predicate is true", function* () {
+    const s = yield* readState();
+    assert.deepEqual(compiled(s), { _tag: "True" });
+  });
+
+  /** A failure, as opposed to a refusal: the policy was translatable, a port was not. */
+  Then("compilation fails with an {word}", function* (tag: string) {
+    const s = yield* readState();
+    assert.equal(s.predicate, undefined, "a predicate was produced");
+    assert.equal(s.refusedTag, tag);
+  });
+
+  Then("the attribute service was never asked", function* () {
+    const s = yield* readState();
+    assert.equal(s.attributeCalls, 0);
+  });
+
   Then("the predicate is false", function* () {
     const s = yield* readState();
     assert.deepEqual(compiled(s), { _tag: "False" });

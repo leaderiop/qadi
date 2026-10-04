@@ -19,6 +19,14 @@ Feature: Seeing what the ports were asked
     And that call names the subject "alice"
     And that call reports that a value came back
 
+  Scenario: A compiled filter's lookups are recorded as compilation
+    Given a subject "alice" carrying no attributes
+    And a resolver answering "clearance" with 9
+    When the "clearance" policy is compiled to a predicate under a collector
+    Then one AttributeResolver call is recorded
+    And that call names the attribute "clearance"
+    And that call was made by the "toPredicate" interpreter
+
   Scenario: An attribute the subject carries asks nobody
     Given a subject "alice" carrying "clearance" as 9
     When the "clearance" policy is evaluated under a collector
