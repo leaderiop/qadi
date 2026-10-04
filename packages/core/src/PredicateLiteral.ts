@@ -34,12 +34,14 @@ export type SafeLiteral = string | number | boolean | null;
  * satisfy `typeof value === "number"`, and `NaN` is unsound in both directions:
  * `NaN === NaN` is `false` in JavaScript while PostgreSQL documents `NaN = NaN`
  * as TRUE (CCR-QD-120). Refusing all three is the same answer applied before a
- * real engine has to settle each one.
+ * real engine has to settle each one. `Number.isFinite` does not coerce (unlike the
+ * global `isFinite`), so it is already false for a non-number and needs no `typeof`
+ * guard of its own.
  */
 export const isSafeLiteral = (value: unknown): value is SafeLiteral =>
   value === null ||
   typeof value === "string" ||
-  (typeof value === "number" && Number.isFinite(value)) ||
+  Number.isFinite(value) ||
   typeof value === "boolean";
 
 /**
@@ -52,8 +54,7 @@ export const isSafeLiteral = (value: unknown): value is SafeLiteral =>
  * agrees across interpreters, since `NaN >= x` is false in both and `Infinity >=
  * x` is true in both.
  */
-export const isRangeBound = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
+export const isRangeBound = (value: unknown): value is number => Number.isFinite(value);
 
 /**
  * How strictly a renderer constrains a column name it interpolates as text.
