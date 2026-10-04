@@ -17,6 +17,7 @@ import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
 import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
 import type * as HttpClient from "effect/http/HttpClient";
+import type { EnforcementError } from "@qadi/core";
 import { hasPermission, permission } from "@qadi/core";
 import type { RequirePermissionClientError } from "../src/RequirePermission.ts";
 import { RequiredPermission, RequirePermission, requiresPermission } from "../src/RequirePermission.ts";
@@ -77,6 +78,15 @@ test("the inline .annotate() pattern keeps the endpoint's literal identifier", (
 // has to keep in sync by hand.
 test("HttpApiMiddleware.ClientError<RequirePermission> is the full 12-tag union", () => {
   expect<HttpApiMiddleware.ClientError<RequirePermission>>().type.toBe<RequirePermissionClientError>();
+});
+
+// Pins ARCH-04: the declared union is derived from `ENFORCEMENT_ERROR_WIRE`, so
+// its tags are exactly the twelve this package answers — no tag can be dropped
+// from `error:` and still compile.
+test("RequirePermissionClientError's tags are exactly the twelve this package answers", () => {
+  expect<RequirePermissionClientError["_tag"]>().type.toBe<
+    EnforcementError["_tag"] | "SubjectExtractionFailed"
+  >();
 });
 
 const clientErrorApi = HttpApi.make("client-error-api")

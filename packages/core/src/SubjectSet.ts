@@ -28,7 +28,7 @@ import { CurrentSubject } from "./CurrentSubject.ts";
 import type { Decision } from "./Decision.ts";
 import { isAllowed } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
-import type { EvaluateOptions, EvaluationServices } from "./Evaluate.ts";
+import type { EvaluateOptions, StandingEvaluationServices } from "./Evaluate.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { Policy } from "./Policy.ts";
 
@@ -36,11 +36,11 @@ import type { Policy } from "./Policy.ts";
  * What an evaluation needs when the subject travels as a parameter.
  *
  * Written as `Exclude` rather than as a hand-listed union so that it tracks
- * {@link EvaluationServices}: E5 added a service to that union, and a
+ * {@link StandingEvaluationServices}: E5 added a service to the union it narrows, and a
  * requirement set that quietly stopped matching the evaluator's would be a
  * worse defect than a type needing one hop to read.
  */
-export type SubjectSetServices = Exclude<EvaluationServices, CurrentSubject>;
+export type SubjectSetServices = StandingEvaluationServices;
 
 /** One subject and the decision it received. */
 export interface SubjectDecision {

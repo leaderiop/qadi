@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-07                                    |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-09-09                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-09-19): BEH-QD-056 gains a fifth requirement stating explicitly that `*`/`**` are grammar only at a field spec's terminal segment — a mid-path wildcard is treated as a literal, silently matching nothing, rather than rejected at decode time. The leniency was already real (`FieldPath.ts`'s `shapeOf` only ever inspects the last segment, and `FieldPath.test.ts` already pinned the observable behavior) but unstated here, so a policy author reading only this document could not have known it (100-persona audit finding EK-02)<br>1.7 (2026-09-09): BEH-QD-054's example replaced `error._tag === "AccessDenied"` narrowing with `Effect.catchTag`, per AGENTS.md §4's array-form-only rule (issue 110, CCR-QD-147)<br>1.6 (2026-09-08): BEH-QD-056 gains a fourth requirement — projecting a record never exhausts the call stack; `FieldPath.ts`'s `projectAt` walked recursively over a `fields` spec's uncapped segment count and raised a raw `RangeError` out of the enforcement path, and now uses the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, INV-QD-004, CCR-QD-115)<br>1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.9 (2026-10-04): BEH-QD-270 — every enforcement failure has exactly one class (`denied`, `outage`, `wiringMistake`), decided once in `@qadi/core`'s `Errors.ts` and derived by every adapter; `EnforcementError` moved from `Qadi.ts` to `Errors.ts` (ADR-QD-081, CCR-QD-155)<br>1.8 (2026-09-19): BEH-QD-056 gains a fifth requirement stating explicitly that `*`/`**` are grammar only at a field spec's terminal segment — a mid-path wildcard is treated as a literal, silently matching nothing, rather than rejected at decode time. The leniency was already real (`FieldPath.ts`'s `shapeOf` only ever inspects the last segment, and `FieldPath.test.ts` already pinned the observable behavior) but unstated here, so a policy author reading only this document could not have known it (100-persona audit finding EK-02)<br>1.7 (2026-09-09): BEH-QD-054's example replaced `error._tag === "AccessDenied"` narrowing with `Effect.catchTag`, per AGENTS.md §4's array-form-only rule (issue 110, CCR-QD-147)<br>1.6 (2026-09-08): BEH-QD-056 gains a fourth requirement — projecting a record never exhausts the call stack; `FieldPath.ts`'s `projectAt` walked recursively over a `fields` spec's uncapped segment count and raised a raw `RangeError` out of the enforcement path, and now uses the explicit array-backed stack `DecodeDepthGuard.ts` and `SinkCodec.ts` already use (issue 66, INV-QD-004, CCR-QD-115)<br>1.5 (2026-09-07): Brought current against `EnforceOptions`/`filterStream`, which the document predated — BEH-QD-049's `enforce`, BEH-QD-050's `assert`/`filter`, and BEH-QD-055's `guard` corrected to their real `EnforceOptions<EO, RO>`-generic signatures; `filterStream` added to BEH-QD-050 as `filter`'s streamed sibling (CCR-QD-110)<br>1.4 (2026-08-25): BEH-QD-056 — a field spec may be a dot-path, `*` reaches exactly one level, `**` and a literal terminal are containment-equivalent; BEH-QD-051 revised to match (INV-QD-004, CCR-QD-078)<br>1.3 (2026-08-23): BEH-QD-055 — a guarded resource is the evaluated resource; the first requirement `guard` has carried (ADR-QD-043, INV-QD-032, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-054 — a denial carries the trace, not only the sentence (ADR-QD-039, CCR-QD-053)<br>1.1 (2026-07-26): Enforcing entry points take `EnforceOptions` and refuse an undischarged obligation (CCR-QD-015)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -348,6 +348,59 @@ by hand-picked examples that happened not to include an object-valued target.
 `["address.street"]`; the correct answer, once `street`'s own value shape is
 accounted for, is that the two are incomparable, and the merge under
 `Intersection` keeps neither.
+
+## BEH-QD-270: Every enforcement failure has exactly one class
+
+> **ADR:** [ADR-QD-081](../decisions/081-enforcement-error-classes-live-in-core.md)
+
+```ts
+export type EnforcementError = EvaluationError | AccessDenied | UndischargedObligation;
+export type EnforcementErrorClass = "denied" | "outage" | "wiringMistake";
+export type EnforcementErrorClassTable<E extends { readonly _tag: string } = EnforcementError> = {
+  readonly [K in E["_tag"]]: EnforcementErrorClass;
+};
+export const ENFORCEMENT_ERROR_CLASSES: EnforcementErrorClassTable;
+export const classifyEnforcementError: (self: {
+  readonly _tag: EnforcementError["_tag"];
+}) => EnforcementErrorClass;
+export const ENFORCEMENT_ERROR_TAGS: ReadonlyArray<EnforcementError["_tag"]>; // a literal tuple
+export const ENFORCEMENT_DENIAL_TAGS: ReadonlyArray<EnforcementErrorTagOf<"denied">>; // a literal tuple
+```
+
+| Class | Meaning | Tags |
+| ----- | ------- | ---- |
+| `denied` | the policy's answer | `AccessDenied`, `UndischargedObligation` |
+| `outage` | a dependency of this service broke | `AttributeResolveError`, `RelationshipResolveError`, `DecisionHistoryUnavailable`, `CustomPredicateError`, `SignatureHistoryUnavailable` |
+| `wiringMistake` | this service was set up wrong | `MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep` |
+
+```
+REQUIREMENT: `ENFORCEMENT_ERROR_CLASSES` MUST be total over `EnforcementError`:
+             a tag added to the union without a class MUST fail to compile.
+             Every adapter that reports an enforcement failure MUST derive its
+             classification from `classifyEnforcementError`, never from a
+             list of its own.
+```
+
+```
+REQUIREMENT: `classifyEnforcementError` MUST classify a failure by its `_tag`
+             alone, so `AccessDeniedPublic` (the same tag, no `trace`) is
+             `denied` too.
+```
+
+[INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial) said a failure
+is not a denial, and until this behaviour that was a convention each adapter
+spelled for itself: `@qadi/http` as an exhaustive match, the decision stream's
+reauth label by importing it, the Next.js example as a hand list that called an
+`UndischargedObligation` an outage and omitted two tags entirely, so those two
+escaped to the caller as a rejected Promise (ARCH-04). The table sits beside
+`ERROR_CODES` for the same reason ADR-QD-008 put the stable codes in one
+exhaustive map. It is transport-neutral: which of the three a tag is belongs to
+`@qadi/core`; the HTTP status that class answers with belongs to `@qadi/http`
+([BEH-QD-177](./23-http.md)).
+
+`PolicyTooDeep` is a `wiringMistake`, not a client error: no path in `@qadi/http`
+lets a request supply a policy, so the "malformed or hostile input" a 400 would
+assert cannot reach it.
 
 ---
 

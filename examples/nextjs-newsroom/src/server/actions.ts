@@ -15,7 +15,8 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import * as Effect from "effect/Effect";
-import { assert, renderTrace } from "@qadi/core";
+import * as Match from "effect/Match";
+import { assert, classifyEnforcementError, ENFORCEMENT_ERROR_TAGS, renderTrace } from "@qadi/core";
 import { articleById } from "../domain/articles.ts";
 import { canPublishArticle } from "../domain/policies.ts";
 import { knownUserIds } from "../domain/subjects.ts";
@@ -76,32 +77,31 @@ export const publish = async (articleId: string): Promise<ActionOutcome> => {
       const resource = yield* asResource(article);
       return yield* assert(canPublishArticle, { resource, action: "publish" }).pipe(
         Effect.as<ActionOutcome>({ ok: true, message: `published “${article.title}”` }),
-        // Named individually rather than caught wholesale: an `AccessDenied` is
-        // an answer and an `AttributeResolveError` is an outage, and reporting
-        // the second as the first is how an attribute store falling over becomes
-        // "you may not publish this".
-        Effect.catchTag("AccessDenied", (denied) =>
-          Effect.succeed<ActionOutcome>({
-            ok: false,
-            message: `refused: ${denied.reason}`,
-            detail: renderTrace(denied.trace),
-          })),
-        Effect.catchTag(
-          [
-            "AttributeResolveError",
-            "RelationshipResolveError",
-            "DecisionHistoryUnavailable",
-            "MissingAction",
-            "MissingResource",
-            "MissingResourceId",
-            "PolicyTooDeep",
-            "UndischargedObligation",
-          ],
-          (error) =>
-            Effect.succeed<ActionOutcome>({
-              ok: false,
-              message: `could not decide (${error._tag}) — an outage, not a denial`,
-            }),
+        // Every enforcement tag is caught and told apart by *class*, not by a
+        // hand-kept list: `classifyEnforcementError` is the library's one answer
+        // to "denial, outage or wiring mistake" (INV-QD-006). An `AccessDenied`
+        // is an answer and an `AttributeResolveError` is an outage, and
+        // reporting the second as the first is how an attribute store falling
+        // over becomes "you may not publish this". A tag added to
+        // `EnforcementError` is classified here without an edit.
+        Effect.catchTag(ENFORCEMENT_ERROR_TAGS, (error) =>
+          Effect.succeed<ActionOutcome>(
+            Match.value(error).pipe(
+              Match.tag("AccessDenied", (denied) => ({
+                ok: false,
+                message: `refused: ${denied.reason}`,
+                detail: renderTrace(denied.trace),
+              })),
+              Match.orElse((other) =>
+                classifyEnforcementError(other) === "denied"
+                  ? { ok: false, message: "refused: an obligation was not met" }
+                  : {
+                      ok: false,
+                      message: `could not decide (${other._tag}) — an outage, not a denial`,
+                    },
+              ),
+            ),
+          ),
         ),
       );
     }),

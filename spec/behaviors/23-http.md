@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-23                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-09-14                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
+> | Change History | 1.5 (2026-10-04): BEH-QD-177 gains a derived-status requirement and `ENFORCEMENT_ERROR_WIRE`, the one table every status, wire schema and `RequirePermission` error list derives from; BEH-QD-260 corrected — the two tag-only bodies were never empty, and the hand-converted arms are one in-channel projection; BEH-QD-263's list is derived (ADR-QD-081, CCR-QD-155)<br>1.4 (2026-09-14): BEH-QD-263 — a generated client's static error type for a `RequirePermission`-guarded endpoint now includes every enforcement outcome automatically, via `requiredForClient`/`clientError` and the new generic `passthroughClientLayer` helper, rather than a per-endpoint hand-declared `error:` subset; the disclosed `PublicEndpoint` over-approximation limitation is recorded alongside it (ADR-QD-075, CCR-QD-151)<br>1.3 (2026-09-08): BEH-QD-260 — the `HttpApiMiddleware` adapter's response body now carries real fields for the nine `EnforcementError` tags that are not a denial, declared through `httpApiStatus`-annotated schemas rather than produced by `toResponse`'s hand table; the bare-`HttpRouter` adapter is unchanged (ADR-QD-072, CCR-QD-141)<br>1.2 (2026-09-07): BEH-QD-177's status table was missing two of the eleven mappings `enforcementErrorTags` actually covers — `CustomPredicateError` and `SignatureHistoryUnavailable`, both 502, added to the row (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-180 — `/__permissions` is guarded by default; the open question closed (CCR-QD-062)<br>1.0 (2026-08-23): Initial release (CCR-QD-059) |
 
 _Previous: [22 — The Promise Facade](./22-promise-facade.md)_
 
@@ -112,13 +112,25 @@ unauthenticated caller from an unauthorised one. Both currently receive `403`.
 ## BEH-QD-177: One status mapping, shared by both adapters
 
 ```ts
-export const ENFORCEMENT_ERROR_TAGS: ReadonlyArray<EnforcementError["_tag"]>;
 export const toResponse: (error: EnforcementError) => HttpServerResponse;
+export const HTTP_STATUS_BY_CLASS: { denied: 403; outage: 502; wiringMistake: 500 };
+export const ENFORCEMENT_ERROR_WIRE: EnforcementErrorWireTable; // one entry per tag
+// ENFORCEMENT_ERROR_TAGS and classifyEnforcementError come from @qadi/core (BEH-QD-270).
 ```
 
 ```
 REQUIREMENT: `toResponse` MUST be exhaustive over `EnforcementError`, and MUST
              return an EMPTY body for every tag.
+```
+
+```
+REQUIREMENT: Both adapters MUST derive a tag's status as
+             `HTTP_STATUS_BY_CLASS[classifyEnforcementError(error)]`; an
+             HttpApi schema's `httpApiStatus` MUST equal `toResponse`'s status
+             for the same tag. `ENFORCEMENT_ERROR_WIRE` is the one table that
+             says so, keyed by the eleven `EnforcementError` tags plus
+             `SubjectExtractionFailed`, and an omitted tag MUST fail to
+             compile.
 ```
 
 | Error | Status | Because |
@@ -143,6 +155,16 @@ hostile input" a 400 asserts cannot reach it, and a 400 is classified
 non-retryable client error by SDKs and dashboards, so the operator whose policy
 tree is too deep would never have been paged.
 
+**Why the requirement above exists (ARCH-04).** The title of this behaviour was
+true only because nobody had edited it. Before `ENFORCEMENT_ERROR_WIRE` each
+HttpApi schema's status was a hand-picked `.pipe(outage)` / `.pipe(wiringMistake)`,
+independent of `toResponse`'s classification: flipping `PolicyTooDeepResponse` to
+`outage` made the HttpApi path answer 502 while the bare route answered 500, the
+build stayed green and every test passed, because the OpenAPI test compared only
+the *set* of statuses, which a swap leaves unchanged. The differential test in
+`QadiHttpError.test.ts` now checks every tag, and the status is derived rather
+than chosen.
+
 The empty body is a disclosure boundary, not a convenience: a `Trace` names every
 node's tag, its label and why it refused ([BEH-QD-054](./07-enforcement.md)).
 
@@ -152,11 +174,12 @@ node's tag, its label and why it refused ([BEH-QD-054](./07-enforcement.md)).
 
 ```ts
 export const RequirePermission: HttpApiMiddleware.Service<…>;
-// declares `error: [AccessDeniedRefused, UndischargedObligationRefused,
-// SubjectExtractionRefused, AttributeResolveErrorResponse, …]` — the nine
-// EnforcementError tags that are not a denial, each httpApiStatus-annotated,
-// alongside two tag-only, empty-bodied schemas and one no-trace-projection
-// schema for the three that must stay disclosure-safe.
+// declares `error: HTTP_ENFORCEMENT_ERROR_SCHEMAS` — the schema of every entry
+// of ENFORCEMENT_ERROR_WIRE, each httpApiStatus-annotated: nine for the
+// EnforcementError tags that are not a denial, a no-trace projection for
+// `AccessDenied`, and two tag-only schemas for the two that must stay
+// disclosure-safe. `projectHttpEnforcementFailure` reduces each real failure to
+// its schema's `Type` before the encoder runs.
 ```
 
 ```
@@ -170,21 +193,21 @@ REQUIREMENT: For the nine `EnforcementError` tags that are not `AccessDenied`
 
 ```
 REQUIREMENT: For `UndischargedObligation` and `SubjectExtractionFailed`, the
-             `HttpApiMiddleware` adapter's response body MUST stay empty,
-             matching `toResponse`'s disclosure boundary exactly —
-             `RequirePermissionLive` hand-converts these two before the
-             failure ever reaches the declared error schemas.
+             `HttpApiMiddleware` adapter's response body MUST carry only
+             `_tag` — no other field, matching `toResponse`'s disclosure
+             boundary. `RequirePermissionLive` projects each through
+             `ENFORCEMENT_ERROR_WIRE[tag].project`, and
+             `HttpApiMiddleware`'s encoder answers from the tag-only schema.
 ```
 
 ```
 REQUIREMENT: For `AccessDenied`, the `HttpApiMiddleware` adapter's response
              body MUST carry `AccessDeniedPublic`'s fields — `subjectId`,
              `policyTag`, `reason` — and MUST NOT carry `trace`.
-             `RequirePermissionLive` hand-converts the real `AccessDenied` to
-             an `AccessDeniedPublic` (via `toAccessDeniedPublic`) and encodes
-             it with the same `AccessDeniedRefused` schema declared here,
-             before the failure ever reaches `HttpApiMiddleware`'s own
-             response encoder.
+             `RequirePermissionLive` projects the real `AccessDenied` to an
+             `AccessDeniedPublic` (`toAccessDeniedPublic`, the `project` of its
+             table entry), and `HttpApiMiddleware`'s encoder answers from the
+             same `AccessDeniedRefused` schema declared here.
 ```
 
 **Corrected — `AccessDenied`'s body is no longer empty.** This section
@@ -195,10 +218,18 @@ response. `AccessDeniedPublic` (`@qadi/core`'s `Errors.ts`) resolves that more
 precisely: `subjectId`, `policyTag` and `reason` carry no disclosure concern of
 their own — only `trace` does — so `AccessDenied` now gets the same treatment
 as the nine outage/wiring tags (a real, `httpApiStatus`-annotated body), while
-`UndischargedObligation` and `SubjectExtractionFailed` keep the empty-body
-treatment, since neither has a `trace`-shaped field to redact and no reviewed
-public projection of either exists (see BEH-QD-054 in
+`UndischargedObligation` and `SubjectExtractionFailed` answer a tag-only body,
+since neither has a `trace`-shaped field to redact and no reviewed public
+projection of either exists (see BEH-QD-054 in
 [07-enforcement.md](./07-enforcement.md)).
+
+> **Corrected (ARCH-04, ADR-QD-081).** This section and ADR-QD-072 said those
+> two "MUST stay empty" and that `RequirePermissionLive` "hand-converts" them to
+> an empty-body response. Neither has been true since the BL-01 fix: the body is
+> the tag, because an empty body decodes to `undefined` through a generated
+> `HttpApiClient`, which satisfies no `Schema.TaggedStruct`
+> (`RequirePermissionClient.test.ts` depends on that). The hand-conversion is
+> replaced by one in-channel projection for all twelve tags.
 
 BEH-QD-177's status table is unchanged and still shared by both adapters — this
 requirement is about the *body*, not the status, and only for the
@@ -212,10 +243,10 @@ The nine outage/wiring tags' real bodies exist because the audit's H4 finding wa
 specifically that OpenAPI and typed `HttpApi` clients saw nothing but an empty
 403/502 for every possible failure — `RequirePermission.error` now declares each
 schema, and `HttpApiMiddleware`'s own response encoder produces the body from it,
-rather than `QadiHttpError.ts`'s `Match.tagsExhaustive` table converting every tag
-to `HttpServerResponse.empty(...)` regardless of what it carried.
+rather than a hand-built table converting every tag to
+`HttpServerResponse.empty(...)` regardless of what it carried.
 
-The two still-empty-bodied exceptions are declared as tag-only
+The two tag-only exceptions are declared as tag-only
 `Schema.TaggedStruct`s (`UndischargedObligationRefused`, `SubjectExtractionRefused`);
 `AccessDeniedRefused` is `AccessDeniedPublic` itself, annotated. None of the three
 is `HttpApiSchema.Empty` (a bare `Schema.Void`). `HttpApiBuilder`'s response
@@ -238,7 +269,7 @@ export class RequirePermission extends HttpApiMiddleware.Service<
   RequirePermission,
   { provides: CurrentSubject; requires: never; clientError: RequirePermissionClientError }
 >()("qadi/http/RequirePermission", {
-  error: REQUIRE_PERMISSION_ERROR_SCHEMAS, // the same 12 schemas BEH-QD-260/BEH-QD-177 describe
+  error: REQUIRE_PERMISSION_ERROR_SCHEMAS, // derived from ENFORCEMENT_ERROR_WIRE: the same 12 schemas BEH-QD-260/BEH-QD-177 describe
   requiredForClient: true,
 });
 

@@ -55,16 +55,21 @@ import * as Sse from "effect/encoding/Sse";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type {
-  EvaluationServices,
+  EnforcementErrorClass,
   Permission,
   Policy,
   Resource,
   SinkRecord,
+  StandingEvaluationServices,
 } from "@qadi/core";
-import { assert, CurrentSubject, isRecordJsonSafe, toWire } from "@qadi/core";
+import {
+  assert,
+  classifyEnforcementError,
+  CurrentSubject,
+  isRecordJsonSafe,
+  toWire,
+} from "@qadi/core";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
-import type { EnforcementErrorClass } from "./QadiHttpError.ts";
-import { classifyEnforcementError } from "./QadiHttpError.ts";
 import { NO_RESOURCE } from "./RequirePermission.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
@@ -136,7 +141,7 @@ export const frame: Filter.Filter<SinkRecord, string> = (record) => {
 
 /**
  * `reauthCheck` classifies an `assert` failure through
- * {@link classifyEnforcementError} (`QadiHttpError.ts`) rather than collapsing
+ * {@link classifyEnforcementError} (`@qadi/core`'s `Errors.ts`) rather than collapsing
  * every one of these to a single "denied" literal, which is exactly the
  * failure/denial conflation
  * [INV-QD-006](../../../spec/invariants.md#inv-qd-006-failure-is-not-denial)
@@ -146,12 +151,13 @@ export const frame: Filter.Filter<SinkRecord, string> = (record) => {
  * from "this feed is temporarily unavailable, retry." (GR-01/TS-01)
  *
  * This module used to carry its own copy of that same three-bucket
- * partition, independently `Match.tagsExhaustive` over the same eleven tags
- * `toResponse` (`QadiHttpError.ts`) sorts to pick an HTTP status — two
- * exhaustive matches that could each compile cleanly while silently
- * disagreeing with each other on a moved or added tag. Importing the shared
- * classification instead closes that gap: there is now exactly one place
- * that decides which bucket a tag falls into.
+ * partition, independently matched over the same eleven tags `toResponse`
+ * (`QadiHttpError.ts`) sorts to pick an HTTP status — two exhaustive matches
+ * that could each compile cleanly while silently disagreeing with each other
+ * on a moved or added tag. The classification then moved into `QadiHttpError.ts`,
+ * and now lives in `@qadi/core`'s `ENFORCEMENT_ERROR_CLASSES`, beside
+ * `ERROR_CODES`: there is exactly one place that decides which bucket a tag
+ * falls into, and it is not specific to HTTP.
  */
 
 export interface DecisionStreamOptions {
@@ -221,7 +227,7 @@ export const reauthCheck = (
 ): Effect.Effect<
   void,
   EnforcementErrorClass | "extraction-failed",
-  Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
+  StandingEvaluationServices | SubjectExtractor
 > =>
   SubjectExtractor.extract(request).pipe(
     Effect.tapError((error) =>
@@ -317,9 +323,7 @@ export const decisionStreamRoute = <P extends Permission>(
       // via `addGuardedRoute`), so capturing and re-providing that
       // context is what discharges them here rather than leaving them
       // for a caller who cannot see this route's internals to supply.
-      const context = yield* Effect.context<
-        Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
-      >();
+      const context = yield* Effect.context<StandingEvaluationServices | SubjectExtractor>();
       return HttpServerResponse.stream(Stream.provideContext(guarded, context), {
         contentType: "text/event-stream",
         headers: {

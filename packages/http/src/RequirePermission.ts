@@ -13,38 +13,17 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-import * as Schema from "effect/Schema";
 import * as HttpApiMiddleware from "effect/http-api/HttpApiMiddleware";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
-import type {
-  AttributeResolver,
-  CustomPredicate,
-  DecisionHistory,
-  EvaluationId,
-  Permission,
-  Policy,
-  RelationshipResolver,
-  Resource,
-  SignatureHistory,
-} from "@qadi/core";
-import { anonymous, CurrentSubject, guard, toAccessDeniedPublic } from "@qadi/core";
+import type { Permission, Policy, Resource, StandingEvaluationServices } from "@qadi/core";
+import { anonymous, CurrentSubject, ENFORCEMENT_DENIAL_TAGS, guard } from "@qadi/core";
 import {
-  AccessDeniedRefused,
-  AttributeResolveErrorResponse,
-  CustomPredicateErrorResponse,
-  DecisionHistoryUnavailableResponse,
-  MissingActionResponse,
-  DENIAL_STATUS,
-  MissingResourceIdResponse,
-  MissingResourceResponse,
-  PolicyTooDeepResponse,
-  RelationshipResolveErrorResponse,
-  SignatureHistoryUnavailableResponse,
-  SubjectExtractionRefused,
-  UndischargedObligationRefused,
+  HTTP_ENFORCEMENT_ERROR_SCHEMAS,
+  HTTP_ENFORCEMENT_TAGS,
   logDenial,
-  subjectExtractionFailedResponse,
+  logSubjectExtractionFailed,
+  projectHttpEnforcementFailure,
 } from "./QadiHttpError.ts";
 import type { ClientErrorOf } from "./HttpApiMiddlewareClient.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
@@ -250,21 +229,12 @@ export const requiresPermission = (
  * Declared once and reused for both the `error` option below and
  * {@link RequirePermissionClientError} — a single source rather than a
  * hand-copied second list that could drift from it (ADR-QD-075).
+ *
+ * Derived from `QadiHttpError.ts`'s `ENFORCEMENT_ERROR_WIRE`, so a tag added
+ * to `EnforcementError` reaches this list through that table's one `satisfies`
+ * rather than a hand-maintained twelve-entry array (ARCH-04).
  */
-const REQUIRE_PERMISSION_ERROR_SCHEMAS = [
-  AccessDeniedRefused,
-  UndischargedObligationRefused,
-  SubjectExtractionRefused,
-  AttributeResolveErrorResponse,
-  RelationshipResolveErrorResponse,
-  DecisionHistoryUnavailableResponse,
-  CustomPredicateErrorResponse,
-  SignatureHistoryUnavailableResponse,
-  MissingActionResponse,
-  MissingResourceResponse,
-  MissingResourceIdResponse,
-  PolicyTooDeepResponse,
-] as const;
+const REQUIRE_PERMISSION_ERROR_SCHEMAS = HTTP_ENFORCEMENT_ERROR_SCHEMAS;
 
 /**
  * Every response {@link RequirePermission} can produce, decoded — the full
@@ -324,29 +294,25 @@ export type RequirePermissionClientError = ClientErrorOf<typeof REQUIRE_PERMISSI
  * permanently opaque downstream (`HttpApiBuilder.group`,
  * `HttpApiTest.groups`), forcing every consumer into a type-widening cast
  * to use this middleware at all — precisely what `RequirePermissionLive`
- * below now avoids by resolving the six services itself, once, the same
+ * below now avoids by resolving the standing services itself, once, the same
  * way any other `Layer.effect` acquires a build-time dependency.
  *
  * **`error` declares every response this middleware can produce that isn't
- * the wrapped handler's own** (ADR-QD-072, H4). Nine are the
- * `httpApiStatus`-annotated `EnforcementError` schemas `QadiHttpError.ts`
- * exports — `RequirePermissionLive` lets a failure of one of those nine
- * *propagate*, and `HttpApiMiddleware`'s own response encoder produces the
- * response and the OpenAPI entry from the schema, not from a hand-built
- * `Match.tagsExhaustive` table. The other three — {@link AccessDeniedRefused},
- * {@link UndischargedObligationRefused}, {@link SubjectExtractionRefused} —
- * are declared for the same OpenAPI visibility, and each is a real,
- * `_tag`-discriminating schema rather than `HttpApiSchema.Empty`
- * specifically so its presence here cannot swallow the nine real schemas
- * beside it (see {@link AccessDeniedRefused}'s own doc comment for why a
- * bare no-content schema does exactly that). None of the three is expected
- * to actually reach this union at runtime either way —
- * `RequirePermissionLive` hand-converts `AccessDenied`/
- * `UndischargedObligation`/`SubjectExtractionFailed` to a response itself,
- * before the failure ever gets this far, because those three must not carry
- * their real fields into a response body. Declaring them anyway, rather than
- * leaving them off this list, is what keeps OpenAPI honest about every
- * status this endpoint can actually return.
+ * the wrapped handler's own** (ADR-QD-072, H4). All twelve reach the declared
+ * union as their *projection*: `RequirePermissionLive` fails with
+ * `projectHttpEnforcementFailure`'s redacted wire value, and
+ * `HttpApiMiddleware`'s own response encoder produces the response and the
+ * OpenAPI entry from the matching schema's `httpApiStatus` annotation, not
+ * from a hand-built table. The list is `QadiHttpError.ts`'s
+ * `HTTP_ENFORCEMENT_ERROR_SCHEMAS`, derived from `ENFORCEMENT_ERROR_WIRE`, so
+ * a schema omitted for any of the twelve tags is a compile error — before
+ * ADR-QD-081 the three hand-caught tags (`AccessDenied`,
+ * `UndischargedObligation`, `SubjectExtractionFailed`) never reached this
+ * union and could be dropped from the list with only a runtime failure to
+ * show for it. Each schema is a real, `_tag`-discriminating schema rather than
+ * `HttpApiSchema.Empty` specifically so its presence here cannot swallow the
+ * others beside it (see `ENFORCEMENT_ERROR_WIRE`'s doc comment for why a bare
+ * no-content schema does exactly that).
  *
  * **`requiredForClient: true` plus `clientError: RequirePermissionClientError`**
  * (ADR-QD-075) put the same twelve schemas into a generated `HttpApiClient`
@@ -372,35 +338,10 @@ export class RequirePermission extends HttpApiMiddleware.Service<
   requiredForClient: true,
 }) {}
 
-/**
- * The standing `EvaluationServices` this middleware resolves once, at
- * layer-build time — every one of `@qadi/core`'s `EvaluationServices` except
- * `CurrentSubject`, which is per-request instead (see this middleware's own
- * doc comment on `provides: CurrentSubject`). Named once and reused for both
- * {@link RequirePermissionLive}'s own `Layer` requirement and the
- * `Effect.context` capture inside it, rather than the same six-service union
- * spelled out by hand in both positions — a service `@qadi/core` adds to
- * `EvaluationServices` would otherwise need editing here twice to keep them
- * from drifting apart (RM-05). Mirrors `@qadi/react`'s `QadiAtoms.ts`
- * `QadiRuntimeServices = Exclude<EvaluationServices, CurrentSubject>`, kept
- * local to this module rather than hoisted into `@qadi/core` alongside it —
- * `@qadi/core`'s `EvaluationServices` itself already carries this exact
- * exclusion as its own doc-comment-level convention, and duplicating that
- * one line of derivation here is a smaller drift surface than a third public
- * export three packages would need to agree stays in sync.
- */
-type RequirePermissionEvaluationServices =
-  | AttributeResolver
-  | RelationshipResolver
-  | DecisionHistory
-  | EvaluationId
-  | CustomPredicate
-  | SignatureHistory;
-
 export const RequirePermissionLive: Layer.Layer<
   RequirePermission,
   never,
-  SubjectExtractor | RequirePermissionEvaluationServices
+  SubjectExtractor | StandingEvaluationServices
 > = Layer.effect(
   RequirePermission,
   Effect.gen(function* () {
@@ -410,7 +351,7 @@ export const RequirePermissionLive: Layer.Layer<
     // middleware class itself. Re-provided per request below, inside the
     // returned closure, so `guard`'s own `evaluate` call finds them exactly
     // as it would have found them via an ambient per-request `requires`.
-    const evaluationServices = yield* Effect.context<RequirePermissionEvaluationServices>();
+    const evaluationServices = yield* Effect.context<StandingEvaluationServices>();
 
     return (httpEffect, { endpoint }) => {
       const required = Context.getOption(endpoint.annotations, RequiredPermission);
@@ -442,16 +383,14 @@ export const RequirePermissionLive: Layer.Layer<
 
       const { permission, policy } = required.value;
 
-      // `AccessDenied`/`UndischargedObligation`/`SubjectExtractionFailed` are
-      // hand-caught and converted here rather than left to propagate:
-      // `RequirePermission`'s own doc comment explains why their real fields
-      // must not reach a response body. `AccessDenied` specifically is
-      // projected to the public, no-trace `AccessDeniedPublic` (`@qadi/core`'s
-      // `Errors.ts`) rather than dropped entirely — see the `catchTag` below.
-      // Everything else in `EnforcementError` — the nine tags the other
-      // declared schemas cover — propagates typed, and `HttpApiMiddleware`'s
-      // response encoder builds the actual response from whichever declared
-      // schema matches, using its `httpApiStatus` annotation.
+      // Every failure `guard` or the extractor can produce is projected
+      // in-channel to the redacted wire value its declared schema describes
+      // (`projectHttpEnforcementFailure`, `QadiHttpError.ts`), and
+      // `HttpApiMiddleware`'s response encoder then builds the response from
+      // the matching schema's `httpApiStatus`. `RequirePermission`'s own doc
+      // comment explains why `AccessDenied`'s `trace` and the resolver
+      // `cause`s must not reach a body: redaction is the per-tag `project`,
+      // typed to return exactly the schema's `Type`.
       return Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const subject = yield* extractor.extract(request);
@@ -460,46 +399,21 @@ export const RequirePermissionLive: Layer.Layer<
           Effect.provide(evaluationServices),
         );
       }).pipe(
-        // Logged before either arm below reduces the error to its wire body
-        // — `AccessDenied`'s `reason` and `UndischargedObligation`'s
-        // `obligationIds` never reach a response, so this is an operator's
-        // only server-side answer to "why was this denied" short of a wired
-        // `DecisionSink` (JD-03, JM-05). See `logDenial`'s own doc comment
-        // for what it does and does not log (never the full `trace`).
-        Effect.tapErrorTag(["AccessDenied", "UndischargedObligation"], logDenial),
-        // `AccessDenied` is projected to `toAccessDeniedPublic`'s no-trace
-        // `AccessDeniedPublic` before it reaches a response body — the real
-        // `AccessDenied` carries the full evaluation `trace` (attribute
-        // values, matched rules, policy internals), and that must not cross
-        // this boundary. `AccessDeniedRefused` (`QadiHttpError.ts`) is the
-        // `httpApiStatus`-annotated view of that same public type, so
-        // `Schema.encodeSync` here produces exactly the body OpenAPI already
-        // advertises for this status, rather than a second, independently
-        // maintained encoding of the same shape.
-        Effect.catchTag("AccessDenied", (error) =>
-          Effect.succeed(
-            HttpServerResponse.jsonUnsafe(Schema.encodeSync(AccessDeniedRefused)(toAccessDeniedPublic(error)), {
-              status: DENIAL_STATUS,
-            }),
-          ),
+        // Logged before the projection below reduces the error to its wire
+        // body — `AccessDenied`'s `reason` and `UndischargedObligation`'s
+        // `obligationIds` never reach a response, and neither does
+        // `SubjectExtractionFailed`'s `reason`, so these are an operator's only
+        // server-side answer to "why was this denied" short of a wired
+        // `DecisionSink` (JD-03, JM-05). See `logDenial`'s own doc comment for
+        // what it does and does not log (never the full `trace`).
+        Effect.tapErrorTag(ENFORCEMENT_DENIAL_TAGS, logDenial),
+        Effect.tapErrorTag("SubjectExtractionFailed", logSubjectExtractionFailed),
+        // One projection for all twelve tags (ARCH-04, ADR-QD-081). The tag
+        // list is `QadiHttpError.ts`'s, so a tag added to `EnforcementError`
+        // cannot reach `HttpApiMiddleware`'s encoder as an undeclared failure.
+        Effect.catchTag(HTTP_ENFORCEMENT_TAGS, (error) =>
+          Effect.fail(projectHttpEnforcementFailure(error)),
         ),
-        // `UndischargedObligation` carries no disclosure-reviewed projection
-        // of its own (see `UndischargedObligationRefused`'s doc comment), so
-        // only the tag is encoded — but encoded, not answered as a truly
-        // empty body: an empty body decodes to `undefined` through a
-        // generated `HttpApiClient`, which satisfies no `Schema.TaggedStruct`,
-        // so this outcome could never actually decode as the typed
-        // `UndischargedObligation` the declared `clientError` union promises
-        // before this fix (BL-01/MH-01/RM-01/GR-02/PH-04).
-        Effect.catchTag("UndischargedObligation", () =>
-          Effect.succeed(
-            HttpServerResponse.jsonUnsafe(
-              Schema.encodeSync(UndischargedObligationRefused)({ _tag: "UndischargedObligation" }),
-              { status: DENIAL_STATUS },
-            ),
-          ),
-        ),
-        Effect.catchTag("SubjectExtractionFailed", subjectExtractionFailedResponse),
       );
     };
   }),

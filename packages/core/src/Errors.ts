@@ -24,6 +24,12 @@
  * `EvaluationError`/`QadiError`/`ERROR_CODES`: evaluation never raises it, so
  * it is not a failure this library "produces" in the sense those unions track.
  *
+ * **`ENFORCEMENT_ERROR_CLASSES` is the second tag-keyed map beside
+ * `ERROR_CODES`**, for the same ADR-QD-008 reason: which of denial, outage or
+ * wiring mistake an `EnforcementError` tag is (INV-QD-006) is decided once,
+ * here, and every adapter derives from it — `satisfies` makes a missing entry a
+ * compile error instead of a silent gap in whichever adapter forgot it.
+ *
  * **Naming: a suffix names a mechanism, no suffix names a violated
  * invariant** (GVR-04). `MissingResource`, `MissingAction`, `MissingResourceId`,
  * `PolicyTooDeep`, `CircularRoleInheritance`, `DuplicateRoleDefinition`,
@@ -366,3 +372,160 @@ export const ERROR_CODES = {
 /** The stable code for a guard error. */
 export const errorCode = (self: { readonly _tag: QadiError["_tag"] }): string =>
   ERROR_CODES[self._tag];
+
+/**
+ * Errors any enforcing entry point can produce.
+ *
+ * Declared here, beside {@link EvaluationError} and the two enforcement
+ * errors it adds, rather than in `Qadi.ts` where `guard`/`enforce`/`assert`
+ * raise it: the tag-keyed tables below are `satisfies`-checked against it,
+ * and `Errors.ts` is where every other tag-keyed map (`ERROR_CODES`) already
+ * lives. `Qadi.ts` imports it, and the package barrel exports it unchanged.
+ */
+export type EnforcementError = EvaluationError | AccessDenied | UndischargedObligation;
+
+/**
+ * The three things an enforcement failure can mean.
+ *
+ * INV-QD-006 at the type level: a denial is the policy's answer, an outage is
+ * something this service depends on failing, and a wiring mistake is this
+ * service being set up wrong. A closed union, never widened — a fourth class
+ * is a decision every consumer (`@qadi/http`'s status table, the decision
+ * stream's reauth label, an application's own error reporting) must take.
+ *
+ * Transport-neutral on purpose. An HTTP status is `@qadi/http`'s concern
+ * (ADR-QD-072); which of the three a tag *is* is not.
+ */
+export type EnforcementErrorClass = "denied" | "outage" | "wiringMistake";
+
+/**
+ * A tag-keyed table of {@link EnforcementErrorClass}, total over `E`.
+ *
+ * Generic over the error union so a type-level test can model a tag added to
+ * `EnforcementError` (`Errors.tst.ts`), and so `@qadi/http` can extend the
+ * domain by its own package-local failure.
+ */
+export type EnforcementErrorClassTable<E extends { readonly _tag: string } = EnforcementError> = {
+  readonly [K in E["_tag"]]: EnforcementErrorClass;
+};
+
+/**
+ * The class every `EnforcementError` tag belongs to — the one place the
+ * partition is decided.
+ *
+ * The second tag-keyed map beside {@link ERROR_CODES}, for the same ADR-QD-008
+ * reason: `satisfies` makes a tag added to `EnforcementError` without a class a
+ * compile error, so no adapter can forget one. Before this table the partition
+ * lived in `@qadi/http` as a `Match.tagsExhaustive`, which the Next.js example
+ * and the decision stream each re-derived by hand and got wrong or left out
+ * (ARCH-04).
+ */
+export const ENFORCEMENT_ERROR_CLASSES = {
+  // A denial or an unmet obligation is the policy's answer, not a fault.
+  AccessDenied: "denied",
+  UndischargedObligation: "denied",
+  // A resolver or the history port broke — an outage in something this
+  // service depends on, not a fault in the request.
+  AttributeResolveError: "outage",
+  RelationshipResolveError: "outage",
+  DecisionHistoryUnavailable: "outage",
+  // Covers both causes this tag carries — an unregistered name and the
+  // registered predicate's own logic failing — under the same class the
+  // other resolver outages get, since the common case is the latter.
+  CustomPredicateError: "outage",
+  // A wired signature history store could not be reached — the same outage
+  // shape as the other resolver errors above.
+  SignatureHistoryUnavailable: "outage",
+  // The evaluation was missing something the policy needed — a wiring
+  // mistake in this service, not the caller's.
+  MissingAction: "wiringMistake",
+  MissingResource: "wiringMistake",
+  MissingResourceId: "wiringMistake",
+  // Also a wiring mistake in this service. No path in `@qadi/http` lets a
+  // *request* supply a policy — the middleware reads it from a compile-time
+  // endpoint annotation, and `guardRoute` takes it as a layer-construction
+  // argument — so "malformed or hostile input", which a 400 would assert,
+  // cannot reach it there. A 400 is classified non-retryable client error by
+  // SDKs and dashboards, so an operator whose own policy tree is too deep
+  // would never have been paged for it.
+  PolicyTooDeep: "wiringMistake",
+} as const satisfies EnforcementErrorClassTable;
+
+/**
+ * The {@link EnforcementErrorClass} of an enforcement failure.
+ *
+ * Mirrors {@link errorCode}: a table lookup, with a structural parameter so
+ * `AccessDeniedPublic` (the same `_tag`, no `trace`) classifies too.
+ */
+export const classifyEnforcementError = (self: {
+  readonly _tag: EnforcementError["_tag"];
+}): EnforcementErrorClass => ENFORCEMENT_ERROR_CLASSES[self._tag];
+
+/**
+ * The tags of {@link EnforcementError} whose class is `C`, read off
+ * {@link ENFORCEMENT_ERROR_CLASSES}.
+ */
+export type EnforcementErrorTagOf<C extends EnforcementErrorClass> = {
+  readonly [K in EnforcementError["_tag"]]: (typeof ENFORCEMENT_ERROR_CLASSES)[K] extends C
+    ? K
+    : never;
+}[EnforcementError["_tag"]];
+
+/** The `EnforcementError` members that are a denial rather than a fault. */
+export type EnforcementDenial = Extract<
+  EnforcementError,
+  { readonly _tag: EnforcementErrorTagOf<"denied"> }
+>;
+
+/**
+ * Exhaustiveness check for a literal tag tuple, resolved at the type level so
+ * the exported tuple keeps the literal, non-empty-tuple shape
+ * `Effect.catchTag`'s array form itself requires — a plain
+ * `ReadonlyArray<EnforcementError["_tag"]>` (e.g. from `Object.keys` on a
+ * `satisfies` object) does not typecheck there.
+ *
+ * `T`'s constraint already rejects a stray or misspelled tag in `T`; the
+ * conditional catches the other direction, a **missing** one — `U` extends
+ * `T[number]` only when every tag is actually present in `T`, and this alias
+ * resolves to `never` otherwise. The exports below assign their tuple (never
+ * `never` itself) to this type, so a tag added to the union with no matching
+ * entry fails to compile (TS2322) instead of being a possible silent miss at
+ * whichever call site forgot it.
+ */
+type CoversExactly<T extends ReadonlyArray<U>, U> = [U] extends [T[number]] ? T : never;
+
+const enforcementErrorTags = [
+  "AccessDenied",
+  "UndischargedObligation",
+  "AttributeResolveError",
+  "RelationshipResolveError",
+  "DecisionHistoryUnavailable",
+  "CustomPredicateError",
+  "SignatureHistoryUnavailable",
+  "MissingAction",
+  "MissingResource",
+  "MissingResourceId",
+  "PolicyTooDeep",
+] as const;
+
+/**
+ * Every `EnforcementError` tag, for `Effect.catchTag`'s array form (house
+ * style §4 — never the object form). Shared by every adapter so a tag can't be
+ * caught in one and forgotten in another.
+ */
+export const ENFORCEMENT_ERROR_TAGS: CoversExactly<
+  typeof enforcementErrorTags,
+  EnforcementError["_tag"]
+> = enforcementErrorTags;
+
+const enforcementDenialTags = ["AccessDenied", "UndischargedObligation"] as const;
+
+/**
+ * The tags whose class is `"denied"`, for `Effect.tapErrorTag`'s array form —
+ * the adapters log a denial's reason before reducing it to a response, and a
+ * third denial tag must not compile and go unlogged.
+ */
+export const ENFORCEMENT_DENIAL_TAGS: CoversExactly<
+  typeof enforcementDenialTags,
+  EnforcementErrorTagOf<"denied">
+> = enforcementDenialTags;

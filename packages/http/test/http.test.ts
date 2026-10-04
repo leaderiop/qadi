@@ -33,6 +33,7 @@ import {
   SignatureHistoryNone,
   anonymous,
   decisionCacheLayer,
+  ENFORCEMENT_ERROR_TAGS,
   guard,
   gte,
   hasAttribute,
@@ -44,7 +45,6 @@ import {
 import type { AuthSubject } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
 import {
-  ENFORCEMENT_ERROR_TAGS,
   PermissionRegistryLive,
   permissionRegistryRoute,
   permissionRegistryRouteUnguarded,

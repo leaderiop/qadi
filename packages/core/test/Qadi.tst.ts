@@ -22,7 +22,8 @@ import type { Authorized } from "../src/Authorized.ts";
 import type { EvaluationServices } from "../src/Evaluate.ts";
 import { permission } from "../src/Permission.ts";
 import { hasPermission } from "../src/Policy.ts";
-import type { EnforceOptions, EnforcementError } from "../src/Qadi.ts";
+import type { EnforcementError } from "../src/Errors.ts";
+import type { EnforceOptions } from "../src/Qadi.ts";
 import { enforce, guard } from "../src/Qadi.ts";
 
 const read = permission("doc", "read");
