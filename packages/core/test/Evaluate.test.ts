@@ -2981,6 +2981,108 @@ describe("observability", () => {
       assert.notStrictEqual(span?.status._tag, "Started");
     }));
 
+  // The custom-predicate and signature spans: the other two port-touching leaves
+  // whose question, interpreter and answer were never pinned in this package, only
+  // in the devtools model that reads them back (BEH-QD-227).
+  it.effect("qadi.hasCustom names the predicate, the subject and the interpreter, and records the answer", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const registry = customPredicateFromRecord({ isOwner: () => Effect.succeed(true) });
+
+      yield* evaluate(P.hasCustom("isOwner")).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" }), { customPredicate: registry }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasCustom")), {
+        "qadi.custom_predicate": "isOwner",
+        "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
+        "qadi.answer": true,
+      });
+    }));
+
+  it.effect("a resource-scoped qadi.hasSignature carries the signer role and the resource it asked about", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasSignature("approved", { signerRole: "manager" }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" }), {
+              signatureHistory: signatureHistoryFromSignatures([
+                { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signerRole: "manager" },
+              ]),
+            }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+        "qadi.subject_id": "u1",
+        "qadi.meaning": "approved",
+        "qadi.scope": "Resource",
+        "qadi.signer_role": "manager",
+        "qadi.resource_id": "doc-1",
+        "qadi.interpreter": "evaluate",
+        "qadi.matched": true,
+      });
+    }));
+
+  it.effect("an Any-scoped qadi.hasSignature names no resource and no signer role it was not asked about", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+
+      yield* evaluate(P.hasSignature("approved", { scope: "Any" }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1" }), {
+              signatureHistory: signatureHistoryFromSignatures([
+                { subjectId: "u1", meaning: "approved", signerRole: "anyone" },
+              ]),
+            }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      // Matched although the signature carries a role the policy never named:
+      // an unspecified signer role accepts any.
+      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+        "qadi.subject_id": "u1",
+        "qadi.meaning": "approved",
+        "qadi.scope": "Any",
+        "qadi.interpreter": "evaluate",
+        "qadi.matched": true,
+      });
+    }));
+
+  it.effect("a signature with the right meaning and the wrong signer role does not match", () =>
+    Effect.gen(function* () {
+      const d = yield* evaluate(P.hasSignature("approved", { signerRole: "manager" }), {
+        resource: { id: "doc-1" },
+      }).pipe(
+        Effect.provide(
+          testLayer(subjectWith({ id: "u1" }), {
+            signatureHistory: signatureHistoryFromSignatures([
+              { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signerRole: "intern" },
+            ]),
+          }),
+        ),
+      );
+
+      assert.isFalse(isAllowed(d));
+    }));
+
   /**
    * E1.9 — the one that would be a defect rather than a shortfall.
    *

@@ -310,15 +310,15 @@ const MAX_RELATIONSHIP_DEPTH = DEFAULT_MAX_DEPTH;
  *
  * `undefined` passes through unchanged — "the resolver decides" is a real,
  * distinct meaning `RelationshipResolverShape.check`'s own doc comment names,
- * not an absent value to default. `NaN` fails every comparison, including
- * `<= 0`, so it is called out explicitly rather than silently falling through
- * the clamp below with no bound applied at all; a fractional depth is
- * truncated, since fuel is spent in whole hops.
+ * not an absent value to default. `NaN` fails every comparison and
+ * `Math.min`/`Math.max` propagate it, so it is called out explicitly rather than
+ * silently falling through the clamp below with no bound applied at all; a
+ * fractional depth is truncated, since fuel is spent in whole hops.
  */
 const clampRelationshipDepth = (depth: number | undefined): number | undefined => {
   if (depth === undefined) return undefined;
-  if (Number.isNaN(depth) || depth <= 0) return 0;
-  return Math.min(Math.trunc(depth), MAX_RELATIONSHIP_DEPTH);
+  if (Number.isNaN(depth)) return 0;
+  return Math.min(Math.max(Math.trunc(depth), 0), MAX_RELATIONSHIP_DEPTH);
 };
 
 /**

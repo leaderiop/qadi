@@ -1613,3 +1613,124 @@ describe("BEH-QD-NEXT-c: a refusal depends on the tree alone", () => {
       assert.strictEqual(reached.failure.expected, "read");
     }));
 });
+
+/**
+ * The refusal's *reason* is part of what a caller reads when a policy cannot
+ * become a filter (BEH-QD-123), and the plan/run split moved every sentence out of
+ * the walk and into `compile`. Pinned verbatim, with the tag, so a rewording is a
+ * deliberate edit and not a silent one.
+ */
+describe("BEH-QD-123: each refusal names its node and says why", () => {
+  const refusal = (policy: P.Policy) =>
+    Effect.map(Effect.result(translate(policy)), (r) => {
+      if (r._tag !== "Failure" || !(r.failure instanceof PolicyNotTranslatable)) {
+        throw new Error("expected a PolicyNotTranslatable failure");
+      }
+      return { policyTag: r.failure.policyTag, reason: r.failure.reason };
+    });
+
+  const cases: ReadonlyArray<readonly [string, P.Policy, string, string]> = [
+    [
+      "a matcher that reads the resource",
+      P.hasAttribute("owner", M.eq(M.resource("ownerId"))),
+      "HasAttribute",
+      "the matcher compares against the resource, which is a column",
+    ],
+    [
+      "a resource matcher with no predicate form",
+      P.hasResourceAttribute("name", M.exists()),
+      "HasResourceAttribute",
+      "matcher 'Exists' on column 'name' has no predicate form",
+    ],
+    [
+      "a resource-scoped acted question",
+      P.hasActed("approved", { scope: "Resource" }),
+      "HasActed",
+      "a resource-scoped history question is keyed by the row",
+    ],
+    [
+      "a resource-scoped not-acted question",
+      P.hasNotActed("approved", { scope: "Resource" }),
+      "HasNotActed",
+      "a resource-scoped history question is keyed by the row",
+    ],
+    [
+      "a relationship",
+      P.hasRelationship("owner"),
+      "HasRelationship",
+      "a relationship is keyed by the row's id and cannot fold",
+    ],
+    [
+      "a custom predicate",
+      P.hasCustom("isOwner"),
+      "HasCustom",
+      "'isOwner' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression",
+    ],
+    [
+      "a signature",
+      P.hasSignature("approved"),
+      "HasSignature",
+      "a signature is looked up through an external port and cannot fold into a resource-independent expression",
+    ],
+    [
+      "an obligation",
+      P.obliged(obligation("log", { channel: "audit" }), P.hasRole("editor")),
+      "Obliged",
+      "a predicate cannot carry an obligation, and rows would be handed over with it unmet",
+    ],
+    [
+      "a field restriction",
+      P.hasPermission(permission("doc", "read"), { fields: ["id"] }),
+      "HasPermission",
+      "the policy restricts visible fields, and a predicate selects rows rather than columns",
+    ],
+  ];
+
+  for (const [name, policy, policyTag, reason] of cases) {
+    it.effect(`${name} refuses as ${policyTag}, with its reason`, () =>
+      Effect.gen(function* () {
+        assert.deepStrictEqual(yield* refusal(policy), { policyTag, reason });
+      }));
+  }
+
+  it.effect("a refusal inside not, a label, or a rule table is still that node's refusal", () =>
+    Effect.gen(function* () {
+      for (const policy of [
+        P.not(P.hasRelationship("owner")),
+        P.labeled("l", P.hasRelationship("owner")),
+        P.rules([P.permitWhen(P.hasRelationship("owner"))]),
+        P.allOf([P.hasRole("editor"), P.hasRelationship("owner")]),
+        P.anyOf([P.hasRole("editor"), P.hasRelationship("owner")]),
+      ]) {
+        const r = yield* refusal(policy);
+        assert.strictEqual(r.policyTag, "HasRelationship");
+      }
+    }));
+
+  it.effect("the first refusal in declaration order wins", () =>
+    Effect.gen(function* () {
+      const r = yield* refusal(P.allOf([P.hasCustom("a"), P.hasRelationship("owner")]));
+      assert.strictEqual(r.policyTag, "HasCustom");
+      const s = yield* refusal(
+        P.rules([P.permitWhen(P.hasRelationship("owner")), P.denyWhen(P.hasCustom("a"))]),
+      );
+      assert.strictEqual(s.policyTag, "HasRelationship");
+    }));
+});
+
+describe("qadi.toPredicate names the translation it was asked", () => {
+  it.effect("annotates the subject, the policy tag and the predicate it produced", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasRole("editor")).pipe(
+        Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u9", roles: ["editor"] })), collectingTracer(spans))),
+      );
+
+      const span = spans.find((s) => s.name === "qadi.toPredicate");
+      assert.deepStrictEqual(Object.fromEntries(span?.attributes ?? []), {
+        "qadi.subject_id": "u9",
+        "qadi.policy_tag": "HasRole",
+        "qadi.predicate_tag": "True",
+      });
+    }));
+});

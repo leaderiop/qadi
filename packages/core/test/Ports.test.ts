@@ -11,6 +11,7 @@ import {
   attributeResolverRetrying,
 } from "../src/AttributeResolver.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
+import { customPredicateFromRecord } from "../src/CustomPredicate.ts";
 import { isAllowed } from "../src/Decision.ts";
 import {
   DecisionHistory,
@@ -243,6 +244,38 @@ describe("port activity is counted", () => {
 
       const calls = frequencyOf(snapshots, "qadi_port_calls_total");
       assert.strictEqual(calls?.state.occurrences.get("DecisionHistory"), 1);
+    }));
+
+  it.effect("a custom predicate counts against CustomPredicate", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasCustom("isOwner"))
+          .pipe(
+            Effect.provide(
+              testLayer(subjectWith({}), {
+                customPredicate: customPredicateFromRecord({
+                  isOwner: () => Effect.succeed(true),
+                }),
+              }),
+            ),
+          )
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
+      assert.strictEqual(calls?.state.occurrences.get("CustomPredicate"), 1);
+    }));
+
+  it.effect("a signature lookup counts against SignatureHistory", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } })
+          .pipe(Effect.provide(testLayer(subjectWith({}))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
+      assert.strictEqual(calls?.state.occurrences.get("SignatureHistory"), 1);
     }));
 
   it.effect("a retried relationship check counts under its own port key", () =>

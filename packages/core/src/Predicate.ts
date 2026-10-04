@@ -364,31 +364,27 @@ const restrictsFields = (policy: Policy, depth: number, maxDepth: number): boole
 };
 
 /**
- * Proof that a tree is no deeper than `maxDepth`.
+ * A tree shown to be no deeper than `maxDepth`, and whether any node in it
+ * restricts visible fields.
  *
- * A module-private class, so nothing outside this module can construct one, and
- * `compile` demands one. That turns "the depth
- * was already checked" from a second runtime guard — whose failing branch could
- * never run, an unkillable mutant — into something the type checker proves.
+ * Also the proof `compile` demands: only {@link checkFields} constructs one, so
+ * "the depth was already checked" is something the type checker proves rather
+ * than a second runtime guard whose failing branch could never run — an
+ * unkillable mutant.
  */
-class WithinDepth {
-  readonly _tag = "WithinDepth";
+class Checked {
+  constructor(readonly restricts: boolean) {}
 }
 
-type FieldsCheck =
-  | { readonly _tag: "TooDeep" }
-  | { readonly _tag: "Within"; readonly restricts: boolean; readonly proof: WithinDepth };
-
 /**
- * {@link restrictsFields}' answer as a closed result, carrying the {@link WithinDepth}
- * proof `compile` needs. The early-exit order is `restrictsFields`' own, so which
- * of `PolicyTooDeep` and the `fields` refusal wins is unchanged.
+ * {@link restrictsFields}' answer as a result: `undefined` when the tree is too
+ * deep, otherwise the {@link Checked} proof. The early-exit order is
+ * `restrictsFields`' own, so which of `PolicyTooDeep` and the `fields` refusal
+ * wins is unchanged.
  */
-const checkFields = (policy: Policy, maxDepth: number): FieldsCheck => {
+const checkFields = (policy: Policy, maxDepth: number): Checked | undefined => {
   const result = restrictsFields(policy, 0, maxDepth);
-  return result === TOO_DEEP
-    ? { _tag: "TooDeep" }
-    : { _tag: "Within", restricts: result, proof: new WithinDepth() };
+  return result === TOO_DEEP ? undefined : new Checked(result);
 };
 
 /**
@@ -425,17 +421,25 @@ type Plan =
       readonly combining: Combining;
     };
 
-type Compiled =
-  | { readonly _tag: "Planned"; readonly plan: Plan }
-  | { readonly _tag: "Refused"; readonly policyTag: string; readonly reason: string };
+/**
+ * A node `compile` refuses: outside the translatable subset
+ * (`PolicyNotTranslatable`). A class rather than a tagged object so that telling
+ * a refusal from a plan is an `instanceof`, with no discriminant literal on the
+ * plan side that nothing would ever read.
+ */
+class Refusal {
+  constructor(
+    readonly policyTag: string,
+    readonly reason: string,
+  ) {}
+}
 
-const planned = (plan: Plan): Compiled => ({ _tag: "Planned", plan });
+type Compiled = Plan | Refusal;
 
-const refused = (policyTag: string, reason: string): Compiled => ({
-  _tag: "Refused",
-  policyTag,
-  reason,
-});
+/** Widens a plan to {@link Compiled}, so a literal's `_tag` is not re-inferred as `string`. */
+const planned = (plan: Plan): Compiled => plan;
+
+const refused = (policyTag: string, reason: string): Compiled => new Refusal(policyTag, reason);
 
 /** What a matcher sees: the subject, the request's action, and no resource. */
 const matcherContextFor = (subject: AuthSubject, action: string | undefined): MatcherContext => ({
@@ -452,7 +456,7 @@ const matcherContextFor = (subject: AuthSubject, action: string | undefined): Ma
  *
  * Every property of the *tree* is decided here: whether a node is in the
  * translatable subset (`PolicyNotTranslatable`, BEH-QD-123) and, by the
- * {@link WithinDepth} proof it demands, whether it is too deep. None of it
+ * {@link Checked} proof it demands, whether it is too deep. None of it
  * depends on the subject's attributes, the action, or what any port answers, so
  * a policy that refuses for one caller refuses for all of them — it cannot work
  * for an admin in development and fail in production. The first refusal in
@@ -471,18 +475,14 @@ const compileTree = (
   const child = (p: Policy): Compiled => compileTree(p, subject, action);
 
   /** Plans every child in order, stopping at the first refusal. */
-  const children = (
-    policies: ReadonlyArray<Policy>,
-  ):
-    | { readonly _tag: "All"; readonly plans: ReadonlyArray<Plan> }
-    | Extract<Compiled, { _tag: "Refused" }> => {
+  const children = (policies: ReadonlyArray<Policy>): ReadonlyArray<Plan> | Refusal => {
     const plans: Array<Plan> = [];
     for (const p of policies) {
       const compiled = child(p);
-      if (compiled._tag === "Refused") return compiled;
-      plans.push(compiled.plan);
+      if (compiled instanceof Refusal) return compiled;
+      plans.push(compiled);
     }
-    return { _tag: "All", plans };
+    return plans;
   };
 
   /**
@@ -578,24 +578,24 @@ const compileTree = (
         ),
 
       AllOf: (p) => {
-        const all = children(p.policies);
-        return all._tag === "Refused" ? all : planned({ _tag: "Conjunction", plans: all.plans });
+        const plans = children(p.policies);
+        return plans instanceof Refusal ? plans : planned({ _tag: "Conjunction", plans });
       },
 
       AnyOf: (p) => {
-        const all = children(p.policies);
-        return all._tag === "Refused"
-          ? all
+        const plans = children(p.policies);
+        return plans instanceof Refusal
+          ? plans
           : planned({
               _tag: "Disjunction",
-              plans: all.plans,
+              plans,
               stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy),
             });
       },
 
       Not: (p) => {
-        const inner = child(p.policy);
-        return inner._tag === "Refused" ? inner : planned({ _tag: "Negation", plan: inner.plan });
+        const plan = child(p.policy);
+        return plan instanceof Refusal ? plan : planned({ _tag: "Negation", plan });
       },
 
       // Transparent. The label survives only in the caller's own logging; a
@@ -609,8 +609,8 @@ const compileTree = (
         const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = [];
         for (const rule of p.rules) {
           const compiled = child(rule.condition);
-          if (compiled._tag === "Refused") return compiled;
-          rules.push({ effect: rule.effect, plan: compiled.plan });
+          if (compiled instanceof Refusal) return compiled;
+          rules.push({ effect: rule.effect, plan: compiled });
         }
         return planned({ _tag: "RuleTable", rules, combining: p.combining });
       },
@@ -621,14 +621,14 @@ const compileTree = (
 /**
  * {@link compileTree}, for a tree already shown to be within `maxDepth`.
  *
- * The {@link WithinDepth} parameter is a proof, not data: it is never read, and
+ * The {@link Checked} parameter is a proof, not data: it is never read, and
  * exists so a caller cannot reach the walk without having checked the depth.
  */
 const compile = (
   policy: Policy,
   subject: AuthSubject,
   action: string | undefined,
-  _within: WithinDepth,
+  _checked: Checked,
 ): Compiled => compileTree(policy, subject, action);
 
 /**
@@ -788,7 +788,7 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   const maxDepth = options?.maxDepth ?? DEFAULT_MAX_DEPTH;
 
   const fieldsCheck = checkFields(policy, maxDepth);
-  if (fieldsCheck._tag === "TooDeep") {
+  if (fieldsCheck === undefined) {
     return yield* Effect.fail(new PolicyTooDeep({ maxDepth }));
   }
   if (fieldsCheck.restricts) {
@@ -800,15 +800,11 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
 
   // Refusals first, and from the tree alone: they cannot depend on the subject
   // or on what any port answers (BEH-QD-NEXT-c). Only then does anything run.
-  const compiled = compile(policy, subject, options?.action, fieldsCheck.proof);
-  if (compiled._tag === "Refused") {
+  const compiled = compile(policy, subject, options?.action, fieldsCheck);
+  if (compiled instanceof Refusal) {
     return yield* untranslatable(compiled.policyTag, compiled.reason);
   }
-  const predicate = yield* run(
-    compiled.plan,
-    subject,
-    matcherContextFor(subject, options?.action),
-  );
+  const predicate = yield* run(compiled, subject, matcherContextFor(subject, options?.action));
 
   yield* Effect.annotateCurrentSpan({
     "qadi.subject_id": subject.id,
