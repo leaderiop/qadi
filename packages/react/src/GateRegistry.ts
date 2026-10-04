@@ -1,251 +1,155 @@
 /**
- * Every live guard in the tree, while instrumentation is on.
+ * Every live guard under one atom set, while instrumentation is on.
  *
  * This is the thing [BEH-QD-217](../../../spec/behaviors/28-devtools-screens.md)
  * said could not exist, and the reasoning it gave was sound as far as it went:
  * `Atom.family` keys **structurally**, so ten `<Can policy={isAdmin}>` in
  * different places share one atom, and a panel counting atoms cannot tell them
  * apart. What that argument establishes is that the *atom layer* cannot see
- * instances — not that nothing can. A component knows perfectly well that it
+ * instances, not that nothing can. A component knows perfectly well that it
  * exists; nothing was asking it.
  *
- * So the two views are different questions rather than rival answers, and the
- * panel now shows both: `QadiAtoms.asked()` says what has been **asked**, and
- * this says who is **asking**. A reader chasing "why is this button missing"
- * needs the second and was offered the first.
+ * So the two views are different questions rather than rival answers:
+ * `QadiAtoms.asked()` says what has been **asked**, and `QadiAtoms.gates` says
+ * who is **asking**. Both belong to the atom set, so they share one scope and one
+ * lifetime ([ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md),
+ * which moved this out of module scope).
  *
- * **No React state, and no decisions here.** A registration is a `useEffect`
- * write into a module-scope map — nothing re-renders because a gate registered,
- * and nothing in this file can affect what a gate renders. That is the half of AGENTS.md §13 the
- * amendment does **not** touch.
+ * **No React state, and no decisions here.** A registration is a `useEffect` call
+ * on a handle into closure state — nothing re-renders because a guard registered,
+ * and nothing in this file can affect what a guard renders (AGENTS.md §13). The
+ * registry is plain closure state, never an `Atom` in an `AtomRegistry`, so it
+ * stays away from the scheduler knobs ADR-QD-014 fences off.
  *
  * **Off by default, and off means absent.** `QadiProvider` takes `instrument`,
- * and without it no gate registers, no marker element is rendered, and this map
- * stays empty for the life of the process. A production bundle that never passes
- * the prop pays for one `useId` and one effect that returns immediately.
+ * and without it no guard registers, no marker element is rendered, and a
+ * registry stays empty for the life of its atom set.
  *
  * **Ordering is whatever React's effects give it, and that is enough.**
- * `registerGate`, `updateGateState` and the unregister function `registerGate`
- * returns each apply to `instances` in the order they happen to fire. There is
- * no sequence number, no tombstone, and no guarantee that one component's
- * effects run before or after another's, or even that an instance's own
- * update and unregister fire in the order a human would expect. What this
- * gives up on ordering it makes up in simplicity: the registry is eventually
- * consistent and last-write-wins — whichever effect for a given `id` runs
- * last is what the map holds, until the next one runs. That is acceptable,
- * and deliberately left unenforced, because this map only ever feeds a
- * devtools panel (ADR-QD-053) — it cannot affect rendering or an
- * authorization decision — so the cost of a brief, self-correcting glitch in
- * what the panel shows is nothing a real consumer can observe. The "store
- * contract" tests in `GateRegistry.test.tsx` pin the specific interleavings
- * this guarantee covers.
+ * `register` and the handle it returns apply in the order they happen to fire.
+ * There is no sequence number and no guarantee that one component's effects run
+ * before or after another's. The registry is eventually consistent, and it only
+ * ever feeds a devtools panel (ADR-QD-053), so a brief, self-correcting glitch is
+ * nothing a consumer can observe. What is guaranteed is that two live
+ * registrations never overwrite each other: a colliding id is disambiguated, and
+ * `onIdCollision` hears about it once (React's `useId` is unique within a root,
+ * and two *hydrated* roots derive ids from tree position, so they collide).
  *
- * **One process, every root, no authorization effect — and that scope is
- * never widened by "per authorization context" language elsewhere.**
- * `QadiProvider`'s `instrument` prop is read from context, so *whether a given
- * provider's guards register at all* is per authorization context. This map is
- * not: `instances`/`listeners`/`snapshot`/`stale` are one set of module
- * bindings, shared by every `QadiProvider` in the process — two instrumented
- * providers (a multi-tenant debug page, a component playground, two React
- * roots in one document) write into the same map, and `gateInstances()`
- * cannot tell whose guard is whose. `instance.id` is React's own `useId`,
- * unique within the root that minted it but not guaranteed unique *across*
- * roots, so two roots can in principle mint the same id and overwrite each
- * other's entry. None of this is a correctness problem for the property this
- * file exists to keep — decisions never live here, and nothing here can
- * change what a gate renders — but it is a real limit on what the panel can
- * tell two colliding contexts apart. `clearGatesUnsafe` exists because tests
- * share this same process-wide scope.
- *
- * **Every mutation is a synchronous effect; nothing here ever yields.**
- * `registerGate`, `updateGateState`, `clearGatesUnsafe` and the unregister
- * function `registerGate` returns all run to completion in one tick, so two
- * mutations can never interleave with each other. `changed()` notifies
- * `listeners` by iterating the live `Set` at call time: a listener added
- * *during* that iteration (a subscribe triggered by another listener's own
- * effect) is visited in the same pass, because that is what iterating a `Set`
- * one is still adding to does — not a queued, later notification. A future
- * change that introduces a yield point (an `async` callback, a scheduled
- * flush) would change this and needs to say so here first.
+ * **Every mutation is synchronous; nothing here ever yields.** A listener added
+ * *during* a notification is visited in the same pass, because that is what
+ * iterating a `Set` one is still adding to does. A future change that introduces
+ * a yield point would change this and needs to say so here first.
  */
-import type { Policy, Resource } from "@qadi/core";
+import { bindGateWriter } from "./GateWriter.ts";
+import type { GateHandle, GateInstance, GateRenderState } from "./GateWriter.ts";
 
-/** Which surface the instance is. */
-export type GateKind =
-  | "Can"
-  | "Cannot"
-  | "useCan"
-  | "useDecision"
-  | "useDecisionSuspense"
-  | "useProjected";
+export type { GateInstance, GateKind, GateRenderState } from "./GateWriter.ts";
 
 /**
- * What the instance rendered, at the moment it last rendered.
+ * The read side of a gate registry.
  *
- * `Rechecking` is separate from `Pending` because they are separate facts: one
- * has never had an answer and the other has one it no longer trusts. Collapsing
- * them would put a control that is about to reappear in the same bucket as one
- * that has never been decided, and the panel is read precisely when those look
- * the same on screen.
- *
- * Neither carries the previous verdict, per
- * [ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md):
- * a decision being re-checked is not a decision.
+ * Both members are plain functions with stable identity, safe to pass straight
+ * to `useSyncExternalStore`. The write side is not on this interface: only
+ * `@qadi/react` can reach it.
  */
-export type GateRenderState = "Pending" | "Rechecking" | "Allowed" | "Denied" | "Failed";
-
-export interface GateInstance {
-  /** React's own `useId`, stable across this instance's renders. */
-  readonly id: string;
-  readonly kind: GateKind;
-  readonly policy: Policy;
-  /** Absent when the question was asked with no resource in scope. */
-  readonly resource: Resource | undefined;
-  readonly state: GateRenderState;
-  /**
-   * The marker element wrapping what this instance rendered.
-   *
-   * Present only for `Can` and `Cannot`, which have children to wrap. A hook
-   * has no node of its own, so it is enumerable and **not locatable** — a
-   * distinction a panel offering to highlight things has to keep, or it offers
-   * a button that silently does nothing.
-   *
-   * The element is carried rather than found by selector, and that is a lesson
-   * this repository has already paid for once: a string contract between two
-   * packages that do not import each other
-   * ([ADR-QD-052](../../../spec/decisions/052-hydration-is-counted-where-both-ends-can-see-it.md))
-   * fails silently when one side's spelling drifts. A reference cannot drift.
-   * `@qadi/react` still calls no DOM API — React fills the ref in; this module
-   * only holds what it was handed.
-   */
-  readonly element: Element | undefined;
+export interface GateRegistry {
+  /** Every instance currently mounted, in registration order. Same reference until a change. */
+  readonly instances: () => ReadonlyArray<GateInstance>;
+  /** Subscribes to mounts, unmounts and render-state changes. Returns the unsubscribe. */
+  readonly subscribe: (listener: () => void) => () => void;
 }
 
-const instances = new Map<string, GateInstance>();
-const listeners = new Set<() => void>();
+export interface GateRegistryOptions {
+  /**
+   * Told once per id when two live registrations minted the same one.
+   *
+   * A `QadiAtoms`' own registry defaults to a development-mode console warning
+   * (`HydrationWarning.ts`, the one confinement point, ADR-QD-041); a registry
+   * built here reports nowhere unless this is supplied.
+   */
+  readonly onIdCollision?: (id: string) => void;
+}
 
 /**
- * One opaque token per currently-active `registerGate` call, keyed by
- * `instance.id`.
+ * Builds an empty gate registry.
  *
- * `updateGateState` replaces `instances`' stored `GateInstance` with a new
- * object on every real state transition (see its own doc comment) — so a
- * cleanup that captured the *original* `GateInstance` and compared it by
- * reference against the current map entry would find them unequal after the
- * very first state change, permanently defeating the "still mine" check
- * below and leaking the entry (and its `element`) for the life of the
- * process. A token minted once per registration and left untouched by
- * `updateGateState` tracks the thing that actually needs tracking — which
- * `registerGate` call owns this id — independent of how many times its
- * state has been updated in place.
+ * Every atom set builds its own (`QadiAtoms.gates`); call this directly only to
+ * hand `QadiProvider` one registry for several atom sets, and build it once, at
+ * module scope, like `makeQadiAtoms`.
  */
-const owners = new Map<string, object>();
+export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry => {
+  const entries = new Map<string, GateInstance>();
+  const listeners = new Set<() => void>();
+  const reported = new Set<string>();
+  let collisions = 0;
 
-/**
- * The cached array `useSyncExternalStore` compares by reference.
- *
- * Rebuilt on the first read after a change and not before. `getSnapshot` must
- * return the identical reference while nothing has changed or React re-renders
- * forever, so this cannot be a fresh `[...instances.values()]` per call.
- */
-let snapshot: ReadonlyArray<GateInstance> = [];
-let stale = false;
+  // The cached array `useSyncExternalStore` compares by reference: rebuilt on
+  // the first read after a change and not before, or React re-renders forever.
+  let snapshot: ReadonlyArray<GateInstance> = [];
+  let stale = false;
 
-const changed = (): void => {
-  stale = true;
-  // Isolated per listener: a subscriber's own bug must not stop the rest of
-  // the fan-out from being notified, and must not propagate into the guard
-  // effect that called `changed()` in the first place — the one place in this
-  // file a single member's failure could otherwise take the notifier down
-  // with it. Swallowed rather than logged: this module has no reporter of its
-  // own to route through, and a bare `console.*` call here would be a second,
-  // undeclared confinement point alongside `HydrationWarning.ts`'s.
-  for (const listener of listeners) {
-    try {
-      listener();
-    } catch {
-      // Intentionally ignored — see above.
-    }
-  }
-};
-
-/** Every instance currently mounted, in registration order. */
-export const gateInstances = (): ReadonlyArray<GateInstance> => {
-  if (stale) {
-    snapshot = [...instances.values()];
-    stale = false;
-  }
-  return snapshot;
-};
-
-/** Subscribes to mounts, unmounts and render-state changes. */
-export const subscribeGates = (listener: () => void): (() => void) => {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-};
-
-/**
- * Records one instance until the returned function is called.
- *
- * Called from an effect, so the cleanup runs on unmount and the map cannot
- * outlive the tree — which matters more than usual here, because an entry holds
- * a DOM element and a leaked one would keep a detached subtree alive.
- *
- * The cleanup only deletes `instance.id` while this call's own token is still
- * the one recorded for it — never unconditionally, and never by comparing
- * the `GateInstance` object itself (see `owners`' doc comment for why that
- * would break the very first time `updateGateState` touches this id).
- * Without this check, a stale cleanup firing after a newer registration for
- * the same id (a same-id remount ordered the way this file's ordering
- * section describes) would evict the live registration it has no
- * relationship to, rather than the one it owns; the newer instance would
- * then be silently missing from the panel with nothing to say why.
- */
-export const registerGate = (instance: GateInstance): (() => void) => {
-  const owner = {};
-  instances.set(instance.id, instance);
-  owners.set(instance.id, owner);
-  changed();
-  return () => {
-    if (owners.get(instance.id) === owner) {
-      instances.delete(instance.id);
-      owners.delete(instance.id);
-      changed();
+  const changed = (): void => {
+    stale = true;
+    // Isolated per listener: a subscriber's own bug must not stop the rest of
+    // the fan-out from being notified, and must not propagate into the guard
+    // effect that triggered it. Swallowed rather than logged: this module has no
+    // reporter of its own, and a bare `console.*` call here would be a second,
+    // undeclared confinement point alongside `HydrationWarning.ts`'s.
+    for (const listener of listeners) {
+      try {
+        listener();
+      } catch {
+        // Intentionally ignored — see above.
+      }
     }
   };
-};
 
-/**
- * Updates an already-registered instance's render state in place, without
- * tearing it down and rebuilding it.
- *
- * `useGate` splits identity lifecycle (mount/unmount, owned by `registerGate`)
- * from the per-render state update, which this is: a decision's state changes
- * far more often than a component mounts or unmounts, and routing every state
- * transition through `registerGate`'s cleanup-then-register would unregister
- * and immediately re-register the same instance for each one — one `changed()`
- * call becomes two. A no-op when `id` is not currently registered — the case
- * covered by this file's top-of-file ordering guarantee, e.g. a state update
- * effect firing after the corresponding unregister effect.
- */
-export const updateGateState = (id: string, state: GateRenderState): void => {
-  const existing = instances.get(id);
-  if (existing === undefined || existing.state === state) return;
-  instances.set(id, { ...existing, state });
-  changed();
-};
+  const register = (instance: GateInstance): GateHandle => {
+    let key = instance.id;
+    if (entries.has(key)) {
+      key = `${instance.id}~${++collisions}`;
+      if (!reported.has(instance.id)) {
+        reported.add(instance.id);
+        options?.onIdCollision?.(instance.id);
+      }
+    }
+    entries.set(key, { ...instance, id: key });
+    changed();
 
-/**
- * Empties the registry.
- *
- * For tests, which mount and unmount trees in one process and would otherwise
- * read each other's instances. Not part of the flow a page takes: a gate
- * unregisters itself when it unmounts.
- */
-export const clearGatesUnsafe = (): void => {
-  instances.clear();
-  owners.clear();
-  changed();
+    // `live` and `key` are this registration's own: the handle *is* the
+    // per-registration token, so a stale cleanup can only touch the entry it made.
+    let live = true;
+    return {
+      update: (state: GateRenderState) => {
+        const existing = entries.get(key);
+        if (!live || existing === undefined || existing.state === state) return;
+        entries.set(key, { ...existing, state });
+        changed();
+      },
+      unregister: () => {
+        if (!live) return;
+        live = false;
+        entries.delete(key);
+        changed();
+      },
+    };
+  };
+
+  const registry: GateRegistry = {
+    instances: () => {
+      if (stale) {
+        snapshot = [...entries.values()];
+        stale = false;
+      }
+      return snapshot;
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+  bindGateWriter(registry, { register });
+  return registry;
 };

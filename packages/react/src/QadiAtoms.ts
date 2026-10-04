@@ -38,6 +38,9 @@ import {
   makeSeededQuestion,
   resolveMismatchReporter,
 } from "./HydrationEngine.ts";
+import type { GateRegistry } from "./GateRegistry.ts";
+import { makeGateRegistry } from "./GateRegistry.ts";
+import { gateIdCollisionReporter } from "./HydrationWarning.ts";
 import type { ClientDecision } from "./SeededDecision.ts";
 
 // `HydrationWarning.ts` is out of the barrel — its ambient-global boundary is
@@ -115,10 +118,11 @@ export interface QadiAtoms {
    * Keyed by **question**, not by component instance, because `Atom.family` keys
    * structurally: ten `<Can policy={isAdmin}>` in different places in the tree
    * are one atom, and the atom layer cannot tell them apart. What is *asking* is
-   * recorded separately, by the components themselves, in `GateRegistry.ts`
-   * ([ADR-QD-053](../../../spec/decisions/053-a-gate-can-be-found.md)); a host that
-   * wants both subscribes to that registry itself (`examples/nextjs-newsroom`'s
-   * `Dock.tsx` does), as AGENTS.md §13 describes.
+   * {@link QadiAtoms.gates}, beside this
+   * ([ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md),
+   * superseding the module-scope registry of ADR-QD-053). The devtools panel
+   * joins the two structurally, with `Equal.equals`, because `@qadi/devtools`
+   * does not depend on this package.
    *
    * Read the verdict for each with `decision`/`decisionFor`, which is what keeps a
    * stale entry rendering as re-checking rather than as its old answer
@@ -129,6 +133,16 @@ export interface QadiAtoms {
    * open — see {@link TrackedQuestion}.
    */
   readonly asked: () => ReadonlyArray<AskedQuestion>;
+  /**
+   * Every live guard under this atom set: the "asking" half of the panel.
+   *
+   * Owned by the same atom set as {@link QadiAtoms.asked}, so the two share one
+   * scope and one lifetime. Every instrumented `QadiProvider` over this atom set
+   * writes here unless it was handed its own `gates`. Read it with `instances()`
+   * and `subscribe()`, or with `useGateInstances()` inside a provider. Empty for
+   * the atom set's life when nothing is instrumented.
+   */
+  readonly gates: GateRegistry;
   /**
    * Evicts tracked questions with no reader currently holding them, until at
    * most `maxTrackedQuestions` remain — or until every question left over
@@ -254,6 +268,15 @@ export interface QadiAtomsOptions {
    */
   readonly onHydrationMismatch?: HydrationMismatchReporter;
   /**
+   * Called once per id when two live guards under this atom set minted the same
+   * React `useId` (two hydrated roots do).
+   *
+   * Supplying this replaces the development-mode console warning, and runs in
+   * production too. Both guards stay listed; the second under a disambiguated
+   * `id`. The fix at the source is a distinct `identifierPrefix` per root.
+   */
+  readonly onGateIdCollision?: (id: string) => void;
+  /**
    * The most distinct questions this atom set keeps in `asked()` and its own
    * `Atom.family` tracking at once.
    *
@@ -312,6 +335,10 @@ export const makeQadiAtoms = (
     Atom.withEquality(subjectsEqual),
   );
   const report = resolveMismatchReporter(options?.onHydrationMismatch);
+  const collisionReporter = gateIdCollisionReporter(options?.onGateIdCollision);
+  const gates = makeGateRegistry(
+    collisionReporter === undefined ? {} : { onIdCollision: collisionReporter },
+  );
 
   const seededDecision = (
     policy: Policy,
@@ -479,6 +506,7 @@ export const makeQadiAtoms = (
     // atom set's own record of what it has been asked (or reach `liveCount`,
     // which is not part of the public `AskedQuestion` shape).
     asked: () => tracked.map((entry) => entry.question),
+    gates,
     sweepEvictions,
     // The one place a seed atom is looked up, and it never leaves this closure:
     // `hydrateWith` is handed the lookup, not the atoms.

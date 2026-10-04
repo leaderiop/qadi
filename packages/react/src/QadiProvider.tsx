@@ -36,6 +36,8 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+import type { GateRegistry } from "./GateRegistry.ts";
+import { gateWriterFor } from "./GateWriter.ts";
 import type { InitialValues } from "./HydrationEngine.ts";
 import { isDevelopment } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
@@ -52,6 +54,11 @@ export interface QadiContextValue {
    * without touching process state.
    */
   readonly instrument: boolean;
+  /**
+   * The registry this subtree's guards write to: the provider's `gates` prop if
+   * given, else `atoms.gates`.
+   */
+  readonly gates: GateRegistry;
 }
 
 const QadiContext = createContext<QadiContextValue | null>(null);
@@ -183,6 +190,18 @@ export interface QadiProviderProps {
    */
   readonly instrument?: boolean;
   /**
+   * The registry this subtree's guards write to, instead of `atoms.gates`.
+   *
+   * For one registry over several atom sets, such as a micro-frontend shell or a
+   * multi-tenant debug page. `atoms.asked()` and this registry are then no longer
+   * co-located, so the host owns that join. It must come from `makeGateRegistry()`:
+   * a hand-built object cannot be written to, so its guards register nothing and
+   * render no marker (a development warning says so). Build it once, at module
+   * scope, like `makeQadiAtoms`; a registry rebuilt every render re-registers
+   * every guard every render.
+   */
+  readonly gates?: GateRegistry;
+  /**
    * How often, in milliseconds, this provider sweeps `atoms` for tracked
    * questions to evict.
    *
@@ -219,9 +238,11 @@ export const QadiProvider = ({
   subject,
   initialValues,
   instrument = false,
+  gates: gatesProp,
   sweepIntervalMillis = DEFAULT_SWEEP_INTERVAL_MILLIS,
   children,
 }: QadiProviderProps): ReactNode => {
+  const gates = gatesProp ?? atoms.gates;
   // The subject is seeded at registry construction rather than written in an
   // effect, so the first render already has it. Writing it afterwards would
   // show every guarded control in its pending state for one frame.
@@ -282,6 +303,15 @@ export const QadiProvider = ({
     if (instrument && !isDevelopment()) warnInstrumentedInProduction();
   }, [instrument]);
 
+  useEffect(() => {
+    if (instrument && isDevelopment() && gateWriterFor(gates) === undefined) {
+      console.warn(
+        "[qadi] <QadiProvider>'s `gates` was not built by makeGateRegistry(); " +
+          "guards under this provider will not register.",
+      );
+    }
+  }, [instrument, gates]);
+
   const disposeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     // Disposal is deferred by a tick and cancelled on remount, so React's
@@ -322,8 +352,8 @@ export const QadiProvider = ({
   // Memoised, or every render of the provider gives every consumer a new
   // context value and re-renders the whole guarded subtree.
   const value = useMemo(
-    () => ({ atoms, registry, instrument }),
-    [atoms, registry, instrument],
+    () => ({ atoms, registry, instrument, gates }),
+    [atoms, registry, instrument, gates],
   );
 
   return (

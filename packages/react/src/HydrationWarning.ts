@@ -80,6 +80,36 @@ export const hydrationMismatchReporter = (
   supplied ?? (isDevelopment() ? warnMismatch : undefined);
 
 /**
+ * Told when two live guards registered the same id with one gate registry.
+ *
+ * React's `useId` is unique within a root; two hydrated roots derive ids from
+ * tree position and so collide. The registry keeps both guards (the second under
+ * a disambiguated id) and says so once per id.
+ */
+export type GateIdCollisionReporter = (id: string) => void;
+
+const warnGateIdCollision = (id: string): void => {
+  console.warn(
+    `[qadi] two React roots minted the gate id "${id}" for one gate registry. ` +
+      `Both guards are kept, the second under a disambiguated panel id. Give each ` +
+      `root a distinct \`identifierPrefix\` in its hydrateRoot/createRoot options ` +
+      `to fix the cause.`,
+  );
+};
+
+/**
+ * The reporter a gate registry will use, or `undefined` for none.
+ *
+ * The sibling of {@link hydrationMismatchReporter}: a development-mode warning
+ * by default, replaced outright by a supplied callback, which then runs in
+ * production too.
+ */
+export const gateIdCollisionReporter = (
+  supplied: GateIdCollisionReporter | undefined,
+): GateIdCollisionReporter | undefined =>
+  supplied ?? (isDevelopment() ? warnGateIdCollision : undefined);
+
+/**
  * Told which entries a payload discarded.
  *
  * Generic in the element, so this module needs no import from `Hydration.ts` —

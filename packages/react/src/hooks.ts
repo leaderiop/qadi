@@ -10,7 +10,8 @@ import type { AuthSubject, Policy, Resource } from "@qadi/core";
 import { projectVisible } from "@qadi/core";
 import { useAtomSuspense } from "@effect/atom-react/Hooks";
 import * as Atom from "effect/reactivity/Atom";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import type { GateInstance } from "./GateRegistry.ts";
 import type { DecisionResult, QadiAtoms } from "./QadiAtoms.ts";
 import { currentDecision } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
@@ -163,4 +164,22 @@ export const useInvalidate = (): (() => void) => {
   return useCallback(() => {
     registry.set(atoms.invalidate, undefined);
   }, [registry, atoms]);
+};
+
+/**
+ * Every live guard under this provider's gate registry, re-rendering its caller
+ * as guards mount, unmount and change what they render.
+ *
+ * The host-side adapter ADR-QD-053 sanctions: it holds guard *instances*, never
+ * a decision (AGENTS.md §13), and it re-renders only its caller, never a guard.
+ * It reads the provider's effective registry (the `gates` prop, else
+ * `atoms.gates`), so a host using the override gets the right one without
+ * knowing which it is. Empty unless the provider is `instrument`ed. Outside a
+ * provider, read `atoms.gates` with `useSyncExternalStore` instead.
+ */
+export const useGateInstances = (): ReadonlyArray<GateInstance> => {
+  const { gates } = useQadiContext("useGateInstances");
+  // The third argument is the server snapshot: no effect runs during SSR, so the
+  // registry is empty there, and `[]` is the correct answer.
+  return useSyncExternalStore(gates.subscribe, gates.instances, gates.instances);
 };
