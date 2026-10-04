@@ -26,7 +26,7 @@ import {
   subject,
   toPredicate,
 } from "@qadi/core";
-import { compilePrismaWhere } from "@qadi/predicate-prisma";
+import { compilePrismaWhere, nullableFieldsOf } from "@qadi/predicate-prisma";
 
 // Tenancy, compiled once and pushed into the query — nothing here mentions
 // a query until `compilePrismaWhere` is called.
@@ -38,10 +38,16 @@ const services = Layer.mergeAll(
   DecisionHistoryUnknown,
 );
 
+// Which columns accept NULL, read off your Prisma model — a declaration, never
+// an inspection: this package opens no connection and reads no schema.
+const nullable = nullableFieldsOf(
+  Prisma.dmmf.datamodel.models.find((model) => model.name === "Invoice") ?? { fields: [] },
+);
+
 const where = await Effect.runPromise(
   toPredicate(visible).pipe(
     Effect.provide(services),
-    Effect.flatMap(compilePrismaWhere),
+    Effect.flatMap((predicate) => compilePrismaWhere(predicate, { nullable })),
   ),
 );
 // { tenantId: "t-1" }
@@ -61,10 +67,21 @@ explicit assertion (or a thin typed wrapper around `compilePrismaWhere` in
 your own code) — `Record<string, unknown>` is not structurally assignable to
 a generated `WhereInput` on its own.
 
+## Declare which columns accept NULL
+
+`compilePrismaWhere`'s second argument is required: `{ nullable }`, the set of
+columns that accept NULL (`nullableFieldsOf` builds it from a Prisma model).
+Prisma refuses any filter that mentions `null` on a required field, and a plain
+`NOT` over a nullable column's comparison silently drops the NULL rows the
+evaluator admits — so the compiler needs this one schema fact. A wrong
+declaration can only lose rows or fail loudly; it never admits a row the
+predicate denies. A `null` comparison on a column declared NOT NULL fails
+`PredicateNotRenderable`.
+
 ## Refuses rather than approximates
 
 A `Predicate`'s comparison values are `unknown`. A value outside the safe
-allowlist (`string | number | boolean | null | Date`) fails
+allowlist (`string | finite number | boolean | null`; `Date` is refused) fails
 `PredicateNotRenderable` rather than being handed to Prisma's query engine.
 
 ## Agreement with the evaluator

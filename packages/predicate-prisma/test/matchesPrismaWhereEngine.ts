@@ -1,8 +1,9 @@
 /**
  * A test-only reader for `WhereInput` shapes that models Prisma's *actual*
- * query engine behavior for a vacuous `{AND: []}`/`{OR: []}` reached below
- * the top level of the query — not the naive JS semantics `matchesPrismaWhere`
- * (this directory) implements.
+ * query engine behavior — not the naive JS semantics `matchesPrismaWhere`
+ * (this directory) implements. Two engine behaviors are modelled.
+ *
+ * **1. A vacuous `{AND: []}`/`{OR: []}` reached below the top level.**
  *
  * `matchesPrismaWhere` computes `.every`/`.some` recursively at every depth,
  * which is exactly `evaluatePredicate`'s own semantics — so it cannot
@@ -31,25 +32,33 @@
  * - Only the entire `where` object being *itself* exactly `{AND: []}`/
  *   `{OR: []}` — the true top level of the compiled query, nothing
  *   containing it — gets the correct, designed answer: `{AND: []}` always
- *   matches, `{OR: []}` never does. Both of the above issues' own "correct"
- *   baseline cases confirm this: `{AND: []}`/`{OR: []}` alone, un-nested,
- *   both behave exactly as designed.
+ *   matches, `{OR: []}` never does.
  *
  * Neither linked issue exercises a vacuous identity nested inside an `OR`
  * array specifically (only `AND` arrays and `NOT`), so this reader extends
  * the same "dropped from the list, and Empty propagates through whatever
  * contains it" rule to `OR` too, rather than inventing a second,
- * un-evidenced rule — `extract_filter` is one function applied uniformly
- * regardless of which combinator its result ends up feeding, per the engine
- * source citation in `../src/index.ts`.
+ * un-evidenced rule.
  *
- * The correctness this reader exists to protect — `renderNode` never emits
- * a vacuous identity anywhere but the very top of the compiled query — makes
- * the distinction from `matchesPrismaWhere` unobservable on `renderNode`'s
- * own output going forward: the two readers can only disagree on a shape
- * `renderNode` no longer produces. Both are still checked together in
- * `Agreement.test.ts` for exactly that reason — agreement between them is
- * itself the regression signal for this class of bug.
+ * **2. SQL's three-valued logic, and Prisma's refusal of `null` on a required
+ * column (CCR-QD-153).**
+ *
+ * `matchesPrismaWhere` and the first version of this reader both treated
+ * `NOT` as a two-valued `!`, so neither could see that `{NOT: {level: {gte:
+ * 3}}}` renders `WHERE (NOT level >= ?)`, which excludes a NULL-valued row
+ * (`NOT UNKNOWN` is `UNKNOWN`) that `evaluatePredicate` admits. A real
+ * Prisma 7.10 client over SQLite found it: 127 of 3000 random predicates
+ * mismatched, every one under a `Negate`, none an over-admission. This
+ * reader now evaluates under Kleene's logic — a comparison with a non-null
+ * operand against a NULL-valued column is `unknown`, `AND`/`OR`/`NOT` follow
+ * the strong Kleene tables, and the top level maps `unknown` to `false`
+ * (`WHERE` excludes UNKNOWN). It also throws what Prisma's validator throws
+ * (``Argument `col` is missing.``) for a `null` mention on a column the
+ * caller did not declare nullable (N1).
+ *
+ * It is still a *model*: it shares this repository's belief about those
+ * engines, and `EngineAgreement.test.ts` checks the same shapes against the
+ * real thing.
  */
 import type { PrismaWhereInput } from "../src/index.ts";
 
@@ -72,16 +81,86 @@ const isVacuous = (where: PrismaWhereInput): boolean => {
 };
 
 /**
- * `Filter::Empty`'s two-valued domain: either a real boolean result, or the
- * "no restriction" marker a below-top-level vacuous identity strips to. Kept
- * distinct from `boolean` rather than coerced immediately — a node that
+ * A node's value: a real boolean, the "no restriction" marker a
+ * below-top-level vacuous identity strips to, or `"unknown"` — what a
+ * comparison against a NULL-valued column evaluates to under SQL's
+ * three-valued logic.
+ *
+ * Kept distinct from `boolean` rather than coerced immediately. A node that
  * reduces entirely to Empty must still propagate that (not just a truth
  * value) to whatever combinator contains it, since Empty is dropped from an
- * `AND`/`OR` list rather than counted as one of its members either way.
+ * `AND`/`OR` list rather than counted as one of its members either way. And
+ * `"unknown"` must survive until `WHERE` itself, because `NOT unknown` is
+ * `unknown`. A closed union of three cases, not widened with ad hoc checks.
  */
-type EngineResult = boolean | "empty";
+type EngineResult = boolean | "empty" | "unknown";
+type Truth = boolean | "unknown";
 
-const evalLeaf = (where: PrismaWhereInput, row: Readonly<Record<string, unknown>>): boolean => {
+/** Kleene's strong three-valued AND: a `false` anywhere wins, then `unknown`. */
+const kleeneAnd = (results: ReadonlyArray<Truth>): Truth => {
+  if (results.some((r) => r === false)) return false;
+  return results.some((r) => r === "unknown") ? "unknown" : true;
+};
+/** Kleene's strong three-valued OR: a `true` anywhere wins, then `unknown`. */
+const kleeneOr = (results: ReadonlyArray<Truth>): Truth => {
+  if (results.some((r) => r === true)) return true;
+  return results.some((r) => r === "unknown") ? "unknown" : false;
+};
+const kleeneNot = (result: Truth): Truth => (result === "unknown" ? "unknown" : !result);
+
+/**
+ * Prisma's own validation refusal, modelled (N1): a filter that mentions
+ * `null` on a required (NOT NULL) column is rejected before it reaches the
+ * database — ``Argument `col` is missing.``
+ */
+const requireNullable = (column: string, nullable: ReadonlySet<string>): void => {
+  if (!nullable.has(column)) {
+    throw new Error(`prisma validation: Argument \`${column}\` is missing.`);
+  }
+};
+
+/**
+ * One operator of a column filter, against a row value. A comparison with a
+ * non-null operand against a NULL-valued column is `unknown`, never `false`.
+ * The type-mismatch arms mirror `evaluatePredicate` (a string `level` never
+ * satisfies a numeric bound), so the model stays a model of the *shape*, not
+ * of a coercing engine (N2).
+ */
+const evalOperator = (
+  column: string,
+  operator: string,
+  operand: unknown,
+  value: unknown,
+  nullable: ReadonlySet<string>,
+): Truth => {
+  if (operator === "in") {
+    if (!Array.isArray(operand)) throw new Error("in must be an array");
+    if (operand.includes(null)) throw new Error("prisma validation: `in` refuses a null member");
+    return value === null ? "unknown" : operand.includes(value);
+  }
+  if (operand === null) {
+    requireNullable(column, nullable);
+    if (operator === "equals") return value === null;
+    if (operator === "not") return value !== null;
+    throw new Error(`prisma validation: ${operator} refuses null`);
+  }
+  if (value === null) return "unknown";
+  if (operator === "equals") return value === operand;
+  if (operator === "not") return value !== operand;
+  if (operator === "gte") {
+    return typeof value === "number" && typeof operand === "number" && value >= operand;
+  }
+  if (operator === "lt") {
+    return typeof value === "number" && typeof operand === "number" && value < operand;
+  }
+  throw new Error(`unrecognized column filter operator: ${operator}`);
+};
+
+const evalLeaf = (
+  where: PrismaWhereInput,
+  row: Readonly<Record<string, unknown>>,
+  nullable: ReadonlySet<string>,
+): Truth => {
   const entries = Object.entries(where);
   if (entries.length !== 1) {
     throw new Error(`expected exactly one column filter, got ${entries.length}`);
@@ -89,23 +168,22 @@ const evalLeaf = (where: PrismaWhereInput, row: Readonly<Record<string, unknown>
   const entry = entries[0];
   if (entry === undefined) throw new Error("unreachable: length checked above");
   const [column, filter] = entry;
+  if (!(column in row)) throw new Error(`prisma validation: unknown field \`${column}\``);
   const value = row[column];
 
   if (isRecord(filter)) {
-    if ("not" in filter) return value !== filter.not;
-    if ("gte" in filter) {
-      return typeof value === "number" && typeof filter.gte === "number" && value >= filter.gte;
+    const operators = Object.entries(filter);
+    if (operators.length === 0) {
+      throw new Error(`unrecognized column filter: ${JSON.stringify(filter)}`);
     }
-    if ("lt" in filter) {
-      return typeof value === "number" && typeof filter.lt === "number" && value < filter.lt;
-    }
-    if ("in" in filter) {
-      if (!Array.isArray(filter.in)) throw new Error("in must be an array");
-      return filter.in.includes(value);
-    }
-    throw new Error(`unrecognized column filter: ${JSON.stringify(filter)}`);
+    // Several operators in one filter object combine as a Kleene AND.
+    return kleeneAnd(
+      operators.map(([operator, operand]) =>
+        evalOperator(column, operator, operand, value, nullable),
+      ),
+    );
   }
-  return value === filter;
+  return evalOperator(column, "equals", filter, value, nullable);
 };
 
 /**
@@ -114,41 +192,50 @@ const evalLeaf = (where: PrismaWhereInput, row: Readonly<Record<string, unknown>
  * below-top-level node, so the vacuous-strips-to-Empty rule applies
  * uniformly at every depth this function is entered at.
  */
-const evalBelowTop = (where: PrismaWhereInput, row: Readonly<Record<string, unknown>>): EngineResult => {
+const evalBelowTop = (
+  where: PrismaWhereInput,
+  row: Readonly<Record<string, unknown>>,
+  nullable: ReadonlySet<string>,
+): EngineResult => {
   if (isVacuous(where)) return "empty";
 
+  const real = (clauses: unknown, context: string): ReadonlyArray<Truth> => {
+    if (!Array.isArray(clauses)) throw new Error(`${context} must be an array`);
+    return clauses
+      .map((clause) => evalBelowTop(asWhere(clause, `${context} clause`), row, nullable))
+      .filter((result): result is Truth => result !== "empty");
+  };
+
   if ("AND" in where) {
-    const clauses = where.AND;
-    if (!Array.isArray(clauses)) throw new Error("AND must be an array");
-    const real = clauses
-      .map((clause) => evalBelowTop(asWhere(clause, "AND clause"), row))
-      .filter((result): result is boolean => result !== "empty");
-    return real.length === 0 ? "empty" : real.every(Boolean);
+    const parts = real(where.AND, "AND");
+    return parts.length === 0 ? "empty" : kleeneAnd(parts);
   }
   if ("OR" in where) {
-    const clauses = where.OR;
-    if (!Array.isArray(clauses)) throw new Error("OR must be an array");
-    const real = clauses
-      .map((clause) => evalBelowTop(asWhere(clause, "OR clause"), row))
-      .filter((result): result is boolean => result !== "empty");
-    return real.length === 0 ? "empty" : real.some(Boolean);
+    const parts = real(where.OR, "OR");
+    return parts.length === 0 ? "empty" : kleeneOr(parts);
   }
   if ("NOT" in where) {
-    const inner = evalBelowTop(asWhere(where.NOT, "NOT"), row);
-    return inner === "empty" ? "empty" : !inner;
+    const inner = evalBelowTop(asWhere(where.NOT, "NOT"), row, nullable);
+    return inner === "empty" ? "empty" : kleeneNot(inner);
   }
 
-  return evalLeaf(where, row);
+  return evalLeaf(where, row, nullable);
 };
 
 /**
  * Interprets a `WhereInput` the way Prisma's real query engine does,
- * nested-vacuous-identity stripping bug included — see the module doc
- * comment above.
+ * nested-vacuous-identity stripping bug included, under SQL's three-valued
+ * logic, and refusing a `null` mention on a column outside `nullable` the way
+ * Prisma's validator does — see the module doc comment above.
+ *
+ * `nullable` is the caller's declaration of which columns accept NULL. The
+ * top level maps `"unknown"` to `false`: `WHERE` excludes UNKNOWN exactly as
+ * it excludes FALSE.
  */
 export const matchesPrismaWhereEngine = (
   where: PrismaWhereInput,
   row: Readonly<Record<string, unknown>>,
+  nullable: ReadonlySet<string>,
 ): boolean => {
   // The one place a vacuous identity is not "reached below the top level":
   // the entire compiled query being exactly `{AND: []}`/`{OR: []}`. Every
@@ -157,6 +244,6 @@ export const matchesPrismaWhereEngine = (
   // nested one level down from `where` regardless of how shallow `where`
   // itself is.
   if (isVacuous(where)) return "AND" in where;
-  const result = evalBelowTop(where, row);
-  return result === "empty" ? true : result;
+  const result = evalBelowTop(where, row, nullable);
+  return result === "empty" ? true : result === "unknown" ? false : result;
 };

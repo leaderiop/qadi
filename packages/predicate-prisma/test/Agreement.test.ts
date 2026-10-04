@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as FastCheck from "fast-check";
 import { evaluatePredicate, type Predicate } from "@qadi/core";
-import { compilePrismaWhere } from "../src/index.ts";
+import { compile, FIXTURE_NULLABLE } from "./fixture.ts";
 import { matchesPrismaWhere } from "./matchesPrismaWhere.ts";
 import { matchesPrismaWhereEngine } from "./matchesPrismaWhereEngine.ts";
 
@@ -16,7 +16,11 @@ const rows: FastCheck.Arbitrary<Row> = FastCheck.record({
     FastCheck.constantFrom("3", "0"),
     FastCheck.constant(null),
   ),
-  tag: FastCheck.constantFrom("red", "blue", "green"),
+  // `level` and `tag` are the nullable columns (`FIXTURE_NULLABLE`); `tenantId`
+  // and `sealed` are required, so a generated row never holds `null` there —
+  // which is what a real NOT NULL column guarantees, and what lets the
+  // required-column property (CCR-QD-153, N1) be stated at all.
+  tag: FastCheck.oneof(FastCheck.constantFrom("red", "blue", "green"), FastCheck.constant(null)),
   sealed: FastCheck.boolean(),
 });
 
@@ -37,9 +41,17 @@ const leaf: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
     (n): Predicate => ({ _tag: "Compare", column: "level", op: "Lt", value: n }),
   ),
   FastCheck.constant<Predicate>({ _tag: "Compare", column: "sealed", op: "Eq", value: true }),
-  FastCheck.constant<Predicate>({ _tag: "Compare", column: "missing", op: "Eq", value: "x" }),
+  // (No leaf over an absent column: a table has no absent columns, and the
+  // engine model refuses an unknown field the way Prisma's validator does.
+  // `Predicate.test.ts` keeps covering `undefined`.)
   FastCheck.subarray(["red", "blue", "green"]).map(
     (vs): Predicate => ({ _tag: "MemberOf", column: "tag", values: vs }),
+  ),
+  FastCheck.constantFrom("red", "blue").map(
+    (v): Predicate => ({ _tag: "Compare", column: "tag", op: "Eq", value: v }),
+  ),
+  FastCheck.constantFrom("red", "blue").map(
+    (v): Predicate => ({ _tag: "Compare", column: "tag", op: "Neq", value: v }),
   ),
   FastCheck.constant<Predicate>({ _tag: "MemberOf", column: "tag", values: [] }),
   // `level` can be `null` in a generated row (above) — these leaves are what
@@ -151,7 +163,7 @@ describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the p
       const sample = FastCheck.sample(rows, { numRuns: 12, seed: 4096 });
 
       for (const predicate of predicates) {
-        const where = yield* compilePrismaWhere(predicate);
+        const where = yield* compile(predicate);
         for (const row of sample) {
           assert.strictEqual(
             matchesPrismaWhere(where, row),
@@ -197,10 +209,10 @@ describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the p
         const sample = FastCheck.sample(rows, { numRuns: 12, seed: 4096 });
 
         for (const predicate of predicates) {
-          const where = yield* compilePrismaWhere(predicate);
+          const where = yield* compile(predicate);
           for (const row of sample) {
             assert.strictEqual(
-              matchesPrismaWhereEngine(where, row),
+              matchesPrismaWhereEngine(where, row, FIXTURE_NULLABLE),
               evaluatePredicate(predicate, row),
               JSON.stringify({ predicate, row, where }),
             );
@@ -226,7 +238,7 @@ describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the p
       let refusals = 0;
       let compiled = 0;
       for (const predicate of predicates) {
-        const result = yield* Effect.result(compilePrismaWhere(predicate));
+        const result = yield* Effect.result(compile(predicate));
         if (result._tag === "Failure") {
           refusals += 1;
           assert.strictEqual(result.failure._tag, "PredicateNotRenderable");
@@ -247,7 +259,7 @@ describe("INV-QD-048: a compiled Prisma WhereInput admits exactly the rows the p
         // this file exists for.
         for (const row of sample) {
           assert.strictEqual(
-            matchesPrismaWhereEngine(where, row),
+            matchesPrismaWhereEngine(where, row, FIXTURE_NULLABLE),
             evaluatePredicate(predicate, row),
             JSON.stringify({ predicate, row, where }),
           );

@@ -59,14 +59,22 @@ export const matchesPrismaWhere = (
   const value = row[column];
 
   if (isRecord(filter)) {
-    if ("not" in filter) return value !== filter.not;
-    if ("gte" in filter) return typeof value === "number" && typeof filter.gte === "number" && value >= filter.gte;
-    if ("lt" in filter) return typeof value === "number" && typeof filter.lt === "number" && value < filter.lt;
-    if ("in" in filter) {
-      if (!Array.isArray(filter.in)) throw new Error("in must be an array");
-      return filter.in.includes(value);
-    }
-    throw new Error(`unrecognized column filter: ${JSON.stringify(filter)}`);
+    // Several operators in one filter object (`{equals: v, not: null}`, the
+    // NULL-guarded shape of CCR-QD-153) are a conjunction, two-valued as
+    // everywhere in this reader.
+    const operators = Object.entries(filter);
+    if (operators.length === 0) throw new Error(`unrecognized column filter: ${JSON.stringify(filter)}`);
+    return operators.every(([operator, operand]) => {
+      if (operator === "equals") return value === operand;
+      if (operator === "not") return value !== operand;
+      if (operator === "gte") return typeof value === "number" && typeof operand === "number" && value >= operand;
+      if (operator === "lt") return typeof value === "number" && typeof operand === "number" && value < operand;
+      if (operator === "in") {
+        if (!Array.isArray(operand)) throw new Error("in must be an array");
+        return operand.includes(value);
+      }
+      throw new Error(`unrecognized column filter: ${JSON.stringify(filter)}`);
+    });
   }
   return value === filter;
 };

@@ -22,9 +22,16 @@ while others refuse to translate at all, see
 ```ts
 import * as Effect from "effect/Effect";
 import { toPredicate } from "@qadi/core";
-import { compilePrismaWhere } from "@qadi/predicate-prisma";
+import { compilePrismaWhere, nullableFieldsOf } from "@qadi/predicate-prisma";
 
-const where = toPredicate(visible).pipe(Effect.flatMap(compilePrismaWhere));
+// Which columns accept NULL, read off your Prisma model.
+const nullable = nullableFieldsOf(
+  Prisma.dmmf.datamodel.models.find((model) => model.name === "Invoice") ?? { fields: [] },
+);
+
+const where = toPredicate(visible).pipe(
+  Effect.flatMap((predicate) => compilePrismaWhere(predicate, { nullable })),
+);
 // { tenantId: "t-1" }
 
 const rows = await prisma.invoice.findMany({ where });
@@ -34,11 +41,22 @@ const rows = await prisma.invoice.findMany({ where });
 never sees a generated Prisma schema, so it cannot claim a narrower type.
 Assign the result to your own model's `WhereInput` at the call site.
 
+## Declare which columns accept NULL
+
+`compilePrismaWhere`'s second argument is required: `{ nullable }`, the set of
+columns that accept NULL (`nullableFieldsOf` builds it from a Prisma model).
+Prisma refuses any filter that mentions `null` on a required field, and a plain
+`NOT` over a nullable column's comparison silently drops the NULL rows the
+evaluator admits, so the compiler needs this one schema fact. A wrong
+declaration can only lose rows or fail loudly; it never admits a row the
+predicate denies.
+
 ## Refuses rather than approximates
 
 A `Predicate`'s comparison values are `unknown`. A value outside the safe
-allowlist (`string | number | boolean | null | Date`) fails with
+allowlist (`string | finite number | boolean | null`) fails with
 `PredicateNotRenderable` rather than being handed to Prisma's query engine.
+`Date` is refused too.
 
 ## Agreement with the evaluator
 

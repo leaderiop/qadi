@@ -1825,6 +1825,23 @@ to reach the emitted `WhereInput` — now guards it here, so a future widening
 of the allowlist fails in both packages rather than one (issue #65,
 CCR-QD-120).
 
+**A third time a test-only reader shared the compiler's belief, and a real
+engine found it (CCR-QD-153).** `matchesPrismaWhere` and the first
+`matchesPrismaWhereEngine` both read `NOT` as a two-valued `!`, so neither could
+see that a plain `{NOT: {level: {gte: 3}}}` renders `WHERE (NOT level >= ?)` and
+SQL's `NOT UNKNOWN` is `UNKNOWN`: a NULL-valued row `evaluatePredicate` admits
+went missing under every `Negate`. Real Prisma 7.10 over SQLite, 3000 random
+predicates against a 48-row table: **127 result-set mismatches, every one under
+a `Negate`, and 0 over-admissions** — each mismatch is the engine returning a
+strict subset, because Kleene's logic is monotone and the defect fails closed.
+The converse hazard is Prisma's own validator, which refuses any filter that
+mentions `null` on a required field (153 of 1500 queries). `matchesPrismaWhereEngine`
+now evaluates under three-valued logic and throws what Prisma's validator
+throws, and `compilePrismaWhere` takes a declared `nullable` set: each leaf
+under an odd number of `Negate`s on a nullable column carries `not: null`, and a
+required column never mentions `null`. A wrong declaration can only under-admit
+or fail loudly, never admit a row the predicate denies.
+
 **Related**: [BEH-QD-238](behaviors/31-predicate-compilation.md#beh-qd-238-an-unsafe-value-refuses-rather-than-binds-blind), [BEH-QD-242](behaviors/31-predicate-compilation.md), [BEH-QD-244](behaviors/31-predicate-compilation.md#beh-qd-244-a-compiled-fragment-handles-null-the-way-evaluatepredicate-does), [ADR-QD-054](decisions/054-a-companion-package-may-compile-a-dialect.md).
 
 ## INV-QD-049: An unregistered custom predicate name is an error, never a denial
