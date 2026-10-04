@@ -25,6 +25,7 @@ import {
   hasPermission,
   hasRelationship,
   hasRole,
+  labeled,
   literal,
   obligation,
   obliged,
@@ -44,6 +45,7 @@ import {
   whatIf,
 } from "../../src/index.ts";
 import type { Comparison, SimulationEdit, SimulationInput, WhatIfRow } from "../../src/index.ts";
+import { chain } from "../helpers.ts";
 
 const read = permission("doc", "read");
 
@@ -338,6 +340,15 @@ describe("sweepPlan — what a sweep would cost, before it costs it", () => {
 
     assert.strictEqual(plan.edits.length, 2);
     assert.strictEqual(plan.evaluations, 3);
+  });
+
+  it("plans a sweep over a 100k-deep caller-held policy without overflowing (ARCH-02 C7)", () => {
+    // The public entry point the simulator uses. The remedy derivation behind it
+    // recursed natively and crashed at about 2,000 levels; `sweepPlan` has no
+    // `maxDepth` to consult, so the derivation itself has to be stack-safe.
+    const policy = chain((p) => labeled("l", p), 100_000, hasRole("admin"));
+    const plan = sweepPlan(policy, alice);
+    assert.isTrue(plan.edits.some((edit) => edit.label === "with role admin"));
   });
 
   // E3.2, closed here rather than in JOB 3: the count only exists once there is

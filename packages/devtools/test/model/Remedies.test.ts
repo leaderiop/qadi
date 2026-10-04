@@ -52,6 +52,7 @@ import {
 import type { Matcher, MatcherContext } from "@qadi/core";
 import { remedyEdits, satisfyingValue } from "../../src/index.ts";
 import type { SimulationInput } from "../../src/index.ts";
+import { chain } from "../helpers.ts";
 
 const alice: SimulationInput = {
   subject: { id: "alice", attributes: { dept: "legal", tier: 3 } },
@@ -602,5 +603,46 @@ describe("remedyEdits — what it could not build, and why", () => {
     assert.deepStrictEqual(labels(hasAttribute("x", eq(literal(undefined)))), [
       "with subject attribute x = undefined",
     ]);
+  });
+});
+
+describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C7, N2)", () => {
+  const n = 100_000;
+
+  it("remedyEdits over a 100k-deep chain of each single-child wrapper", () => {
+    const leaf = hasRole("editor");
+    const chains = [
+      chain((p) => labeled("l", p), n, leaf),
+      chain((p) => obliged(obligation("audit.log"), p), n, leaf),
+      chain((p) => allOf([p]), n, leaf),
+      chain((p) => rules([permitWhen(p)]), n, leaf),
+    ];
+    for (const policy of chains) {
+      assert.deepStrictEqual(labels(policy), ["with role editor"]);
+    }
+  });
+
+  it("a 100k-deep chain of not offers no edits, because Not is never descended into", () => {
+    assert.deepStrictEqual(labels(chain(not, n, hasRole("editor"))), []);
+  });
+
+  it("satisfyingValue builds a 100k-deep witness for a 100k-deep matcher", () => {
+    const found = satisfyingValue(chain((m) => fieldMatch("a", m), n, eq(literal(1))), alice);
+    assert.strictEqual(found._tag, "Value");
+    if (found._tag !== "Value") return;
+    // Walked iteratively: n objects of one field each, then the literal.
+    let depth = 0;
+    let node: unknown = found.value;
+    while (typeof node === "object" && node !== null && "a" in node) {
+      depth += 1;
+      node = node.a;
+    }
+    assert.strictEqual(depth, n);
+    assert.strictEqual(node, 1);
+  });
+
+  it("a Size witness still declines through a deep wrapper chain", () => {
+    const found = satisfyingValue(chain(someMatch, n, size(eq(literal("two")))), alice);
+    assert.strictEqual(found._tag, "Unsynthesisable");
   });
 });
