@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-27                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -296,6 +296,18 @@ REQUIREMENT: A `Failed` outcome MUST produce no tree at all.
 
 An empty requirement tree reads as *no requirements*, which reads as *allowed*.
 `inspectEntry` returns nothing so the caller is forced to render an error panel.
+
+```
+REQUIREMENT: `inspect` and `flattenTree` MUST NOT exhaust the call stack for any
+             caller-held policy, whatever its nesting depth.
+```
+
+`explain` is stack-safe, so the tree zipped from its output has to be: `inspect`
+used to overflow at about 1,759 levels. It folds over zipped positions through a
+package-private `TreeFold.ts` twin
+([ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md)), and
+`flattenTree` is a pre-order loop, not a fold, because folding would concatenate a
+result array per level.
 
 ```
 REQUIREMENT: A trace truncated below the root MUST be reported as undisclosed

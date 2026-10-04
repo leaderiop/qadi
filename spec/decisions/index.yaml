@@ -266,3 +266,7 @@ entries:
     file: "077-both-interpreters-read-ports-through-one-module.md"
     title: "Both interpreters read ports through one module, and stop where the evaluator stops"
     status: "Accepted — amends ADR-QD-024, ADR-QD-051, ADR-QD-073"
+  - id: "ADR-QD-090"
+    file: "090-a-tree-is-folded-through-one-seam.md"
+    title: "A tree is folded through one seam, and nesting depth is a property of the policy"
+    status: "Accepted — amends ADR-QD-034, ADR-QD-024"

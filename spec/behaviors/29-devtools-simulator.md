@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -172,6 +172,18 @@ REQUIREMENT: A requirement no remedy could be built for MUST be named, with the 
 
 A remedy row that does not remedy is worse than an absent one, because the reader
 takes it as *and even that would not help*.
+
+```
+REQUIREMENT: A sweep's remedy derivation and a matcher witness MUST NOT exhaust the
+             call stack for any caller-held policy or matcher, whatever its nesting
+             depth.
+```
+
+`remedyEdits`, `sweepPlan` and `whatIf` have no `maxDepth` to consult, and a policy
+built with the smart constructors is not bounded by the decode limit, so the
+derivation is a fold over `foldPolicy` and `foldMatcher` rather than a native
+recursion that crashed at about two thousand levels (ARCH-02,
+[ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md)).
 
 ## BEH-QD-223: A matcher is read backwards to a witness, or declined
 

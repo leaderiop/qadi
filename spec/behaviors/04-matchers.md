@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-04                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-09-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-116)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-10-04): BEH-QD-304 added (`foldMatcher`, `matcherDepth`) and `referencesAction`/`referencesResource` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-116)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -185,6 +185,43 @@ Totality has a consequence the evaluator has to absorb. A matcher cannot report
 that it lacked an input, so anything a matcher *needs* must be checked before it
 runs. `referencesAction` is that check for the action; see
 [INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one).
+
+## BEH-QD-304: A matcher folds bottom-up, and its nesting is measurable
+
+> **Invariant:** [INV-QD-090](../invariants.md#inv-qd-090-a-pure-walk-over-a-caller-held-tree-never-exhausts-the-call-stack)
+> **See:** [ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md)
+
+```ts
+export const foldMatcher: <R>(
+  self: Matcher,
+  combine: (node: Matcher, children: ReadonlyArray<R>) => R,
+) => R;
+
+export const matcherDepth: (self: Matcher) => number;
+```
+
+```
+REQUIREMENT: `foldMatcher` MUST combine a node only after its children, combine a
+             shared subtree once, and MUST NOT exhaust the call stack for any
+             nesting depth.
+```
+
+```
+REQUIREMENT: `matcherDepth` MUST be 0 for a matcher with no wrapped matcher and
+             one more than its wrapped matcher's depth for `FieldMatch`,
+             `SomeMatch`, `EveryMatch` and `Size` — the way `evaluateMatcher`
+             recurses.
+```
+
+```
+REQUIREMENT: `referencesAction` and `referencesResource` MUST NOT exhaust the call
+             stack for any matcher nesting depth.
+```
+
+A matcher assembled in process has no decode bound either, and every walker over
+one recursed natively: `referencesAction(size^10000(eq(action())))` threw a raw
+`RangeError`. `matcherDepth` is what `policyDepth` adds for a matcher-bearing leaf
+([BEH-QD-191](./25-inspection.md)).
 
 ---
 
