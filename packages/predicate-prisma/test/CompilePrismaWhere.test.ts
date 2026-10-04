@@ -1,8 +1,16 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
-import { evaluatePredicate, type Predicate } from "@qadi/core";
-import { compilePrismaWhere, nullableFieldsOf } from "../src/index.ts";
+import * as FastCheck from "fast-check";
+import { DEFAULT_MAX_IN_VALUES, evaluatePredicate, toRenderable } from "@qadi/core";
+import { PredicateNotRenderable as CorePredicateNotRenderable } from "@qadi/core";
+import type { Predicate, RenderRules } from "@qadi/core";
+import {
+  compilePrismaWhere,
+  nullableFieldsOf,
+  PredicateNotRenderable,
+  type CompilePrismaWhereOptions,
+} from "../src/index.ts";
 import { compile, FIXTURE_NULLABLE } from "./fixture.ts";
 import { matchesPrismaWhereEngine } from "./matchesPrismaWhereEngine.ts";
 
@@ -585,6 +593,162 @@ describe("compilePrismaWhere — a required column never mentions null (N1)", ()
     };
     assert.deepStrictEqual([...nullableFieldsOf(model)].sort(), ["level", "tag"]);
   });
+});
+
+// ADR-QD-077: `maxInValues` and the identifier rule are core's, applied to this
+// renderer too. Before, a 1001-member `MemberOf` and a column named `first name`
+// compiled here and refused in `@qadi/predicate-sql`, against BEH-QD-238.
+describe("compilePrismaWhere — the rules core owns (maxInValues, identifiers)", () => {
+  const nullable: ReadonlySet<string> = new Set(["level"]);
+  const values = (n: number): ReadonlyArray<number> => Array.from({ length: n }, (_, i) => i);
+
+  it.effect("a MemberOf past maxInValues refuses, the default bound being 1000", () =>
+    Effect.gen(function* () {
+      const atBound = yield* compilePrismaWhere(
+        { _tag: "MemberOf", column: "level", values: values(1000) },
+        { nullable },
+      );
+      assert.deepStrictEqual(atBound, { level: { in: values(1000) } });
+      const over = yield* Effect.flip(
+        compilePrismaWhere({ _tag: "MemberOf", column: "level", values: values(1001) }, { nullable }),
+      );
+      assert.strictEqual(over.refusal, "TooManyValues");
+      assert.strictEqual(over.predicateTag, "MemberOf");
+      assert.strictEqual(over.reason, "1001 values exceeds maxInValues (1000)");
+    }));
+
+  it.effect("maxInValues is configurable", () =>
+    Effect.gen(function* () {
+      const failure = yield* Effect.flip(
+        compilePrismaWhere(
+          { _tag: "MemberOf", column: "level", values: values(4) },
+          { nullable, maxInValues: 3 },
+        ),
+      );
+      assert.strictEqual(failure.reason, "4 values exceeds maxInValues (3)");
+    }));
+
+  it.effect("a column outside the identifier rule refuses; UnicodeBmp opts a Prisma field like é in", () =>
+    Effect.gen(function* () {
+      const accented: Predicate = { _tag: "Compare", column: "é", op: "Eq", value: 1 };
+      const refused = yield* Effect.flip(compilePrismaWhere(accented, { nullable }));
+      assert.strictEqual(refused.refusal, "UnsafeColumn");
+      assert.strictEqual(refused.reason, "column 'é' is not a safe identifier");
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere(accented, { nullable, identifiers: "UnicodeBmp" }),
+        { é: 1 },
+      );
+      for (const column of ["first name", "a.b"]) {
+        const failure = yield* Effect.flip(
+          compilePrismaWhere({ _tag: "Compare", column, op: "Eq", value: 1 }, { nullable }),
+        );
+        assert.strictEqual(failure.refusal, "UnsafeColumn", column);
+      }
+    }));
+
+  it.effect("a Prisma operator keyword is a ReservedColumn refusal, not an UnsafeColumn one", () =>
+    Effect.gen(function* () {
+      const failure = yield* Effect.flip(
+        compilePrismaWhere({ _tag: "Compare", column: "gte", op: "Eq", value: 1 }, { nullable }),
+      );
+      assert.strictEqual(failure.refusal, "ReservedColumn");
+      assert.strictEqual(failure.reason, "column 'gte' is not a safe identifier");
+    }));
+});
+
+// ADR-QD-077: one `PredicateNotRenderable`, declared in `@qadi/core`.
+describe("compilePrismaWhere — the refusal is @qadi/core's PredicateNotRenderable", () => {
+  const unsafe: Predicate = { _tag: "Compare", column: "x", op: "Eq", value: { foo: 1 } };
+
+  it.effect("is an instance of the class @qadi/core exports, and the package re-exports that class", () =>
+    Effect.gen(function* () {
+      const failure = yield* Effect.flip(compilePrismaWhere(unsafe, { nullable: new Set() }));
+      assert.instanceOf(failure, CorePredicateNotRenderable);
+      assert.strictEqual(PredicateNotRenderable, CorePredicateNotRenderable);
+      assert.strictEqual(failure.refusal, "UnsafeValue");
+    }));
+
+  it.effect("Effect.catchTag(\"PredicateNotRenderable\") catches it", () =>
+    Effect.gen(function* () {
+      const caught = yield* compilePrismaWhere(unsafe, { nullable: new Set() }).pipe(
+        Effect.map(() => "compiled"),
+        Effect.catchTag("PredicateNotRenderable", (error) => Effect.succeed(error.refusal)),
+      );
+      assert.strictEqual(caught, "UnsafeValue");
+    }));
+});
+
+// ADR-QD-077: the compiler decides nothing about what is renderable. It refuses
+// exactly when `toRenderable` does, under the rules it declares; the two
+// renderers' rule sets differ only in `reservedColumns`.
+describe("compilePrismaWhere — refusal parity with toRenderable", () => {
+  const prismaRules = (options: CompilePrismaWhereOptions): RenderRules => ({
+    identifiers: options.identifiers ?? "Ascii",
+    reservedColumns: new Set([
+      "AND", "OR", "NOT", "equals", "not", "in", "notIn", "lt", "lte", "gt", "gte", "is", "isNot",
+    ]),
+    maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
+    nullability: { _tag: "Declared", nullable: options.nullable },
+    negation: "ThreeValued",
+  });
+
+  const columnArb = FastCheck.constantFrom("tenantId", "level", "a b", "é", "gte", "NOT", "Gte");
+  const valueArb: FastCheck.Arbitrary<unknown> = FastCheck.oneof(
+    FastCheck.constantFrom("t-1", 3, true, null),
+    FastCheck.constantFrom(Number.NaN, Infinity, { bad: 1 }, undefined),
+  );
+  const leafArb: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
+    FastCheck.tuple(columnArb, FastCheck.constantFrom("Eq", "Neq", "Gte", "Lt"), valueArb).map(
+      ([column, op, value]): Predicate => ({ _tag: "Compare", column, op, value }),
+    ),
+    FastCheck.tuple(columnArb, FastCheck.array(valueArb, { maxLength: 6 })).map(
+      ([column, values]): Predicate => ({ _tag: "MemberOf", column, values }),
+    ),
+  );
+  const treeArb: FastCheck.Arbitrary<Predicate> = FastCheck.letrec<{ node: Predicate }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth: 3, withCrossShrink: true },
+      leafArb,
+      FastCheck.array(tie("node"), { maxLength: 3 }).map(
+        (predicates): Predicate => ({ _tag: "And", predicates }),
+      ),
+      FastCheck.array(tie("node"), { maxLength: 3 }).map(
+        (predicates): Predicate => ({ _tag: "Or", predicates }),
+      ),
+      tie("node").map((predicate): Predicate => ({ _tag: "Negate", predicate })),
+    ),
+  })).node;
+
+  const optionSets: ReadonlyArray<CompilePrismaWhereOptions> = [
+    { nullable: new Set(["level"]) },
+    { nullable: new Set() },
+    { nullable: new Set(["level"]), maxInValues: 2 },
+    { nullable: new Set(["tenantId", "level"]), identifiers: "UnicodeBmp", maxInValues: 3 },
+  ];
+
+  it.effect("PROPERTY: compilePrismaWhere fails exactly when toRenderable fails, with an equal refusal", () =>
+    Effect.gen(function* () {
+      const predicates = FastCheck.sample(treeArb, { numRuns: 300, seed: 99 });
+      let refusals = 0;
+      let compiled = 0;
+      for (const options of optionSets) {
+        for (const predicate of predicates) {
+          const prisma = yield* Effect.result(compilePrismaWhere(predicate, options));
+          const core = yield* Effect.result(toRenderable(predicate, prismaRules(options)));
+          assert.strictEqual(Result.isFailure(prisma), Result.isFailure(core), JSON.stringify({ predicate, options }));
+          if (Result.isFailure(prisma) && Result.isFailure(core)) {
+            refusals += 1;
+            assert.strictEqual(prisma.failure.refusal, core.failure.refusal);
+            assert.strictEqual(prisma.failure.reason, core.failure.reason);
+            assert.strictEqual(prisma.failure.predicateTag, core.failure.predicateTag);
+          } else {
+            compiled += 1;
+          }
+        }
+      }
+      assert.isAbove(refusals, 100);
+      assert.isAbove(compiled, 100);
+    }));
 });
 
 describe("compilePrismaWhere — refusals", () => {
