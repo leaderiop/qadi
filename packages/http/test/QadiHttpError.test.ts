@@ -376,6 +376,17 @@ describe("ENFORCEMENT_ERROR_WIRE", () => {
     });
   }
 
+  it("SignatureHistoryUnavailable's projection carries resourceId only when the error had one", () => {
+    const subjectId = makeSubjectId("u-1");
+    const scoped = projectHttpEnforcementFailure(
+      new SignatureHistoryUnavailable({ subjectId, resourceId: makeResourceId("doc-1"), cause: "down" }),
+    );
+    const unscoped = projectHttpEnforcementFailure(new SignatureHistoryUnavailable({ subjectId, cause: "down" }));
+    expect(scoped).toEqual({ _tag: "SignatureHistoryUnavailable", subjectId, resourceId: "doc-1" });
+    expect(unscoped).toEqual({ _tag: "SignatureHistoryUnavailable", subjectId });
+    expect("resourceId" in unscoped).toBe(false);
+  });
+
   it("the projection of a real AccessDenied drops the trace before the encoder", () => {
     const projected = projectHttpEnforcementFailure(everyHttpEnforcementFailure.AccessDenied());
     expect(Object.keys(projected).sort()).toEqual(["_tag", "policyTag", "reason", "subjectId"]);
