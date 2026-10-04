@@ -27,6 +27,8 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 import { Can, Cannot } from "../src/components.tsx";
 import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
@@ -469,5 +471,53 @@ describe("what the page still renders", () => {
       true,
     );
     expect(screen.getByText("denied")).toBeDefined();
+  });
+});
+
+describe("scope (ARCH-06 reproductions)", () => {
+  // Both pin a defect that exists on this commit and are expected to fail.
+  // flips to it(...) in ARCH-06 T5
+  it.fails("two hydrated roots sharing one atom set both stay listed", () => {
+    const shared = atoms();
+    const tree = (policy: typeof canRead) => (
+      <QadiProvider atoms={shared} subject={alice} instrument>
+        <Can policy={policy}>guarded</Can>
+      </QadiProvider>
+    );
+    const a = document.createElement("div");
+    const b = document.createElement("div");
+    document.body.append(a, b);
+    a.innerHTML = renderToString(tree(canRead));
+    b.innerHTML = renderToString(tree(isAdmin));
+
+    const roots: Array<ReturnType<typeof hydrateRoot>> = [];
+    act(() => {
+      roots.push(hydrateRoot(a, tree(canRead), { onRecoverableError: () => {} }));
+    });
+    act(() => {
+      roots.push(hydrateRoot(b, tree(isAdmin), { onRecoverableError: () => {} }));
+    });
+    try {
+      expect(gateInstances()).toHaveLength(2);
+    } finally {
+      act(() => roots.forEach((root) => root.unmount()));
+    }
+  });
+
+  // flips to it(...) in ARCH-06 T5
+  it.fails("two atom sets do not share guards", () => {
+    const tenantA = atoms();
+    const tenantB = atoms();
+    render(
+      <>
+        <QadiProvider atoms={tenantA} subject={alice} instrument>
+          <Can policy={canRead}>a</Can>
+        </QadiProvider>
+        <QadiProvider atoms={tenantB} subject={alice} instrument>
+          <Can policy={isAdmin}>b</Can>
+        </QadiProvider>
+      </>,
+    );
+    expect(gateInstances().filter((one) => one.kind === "Can")).toHaveLength(1);
   });
 });
