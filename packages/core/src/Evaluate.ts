@@ -1169,7 +1169,7 @@ const evaluateRules = Effect.fnUntraced(function* (
     // the first index that is either decisive or a failure wins (ADR-QD-026).
     // `rule` and `index` still travel with the trace from the same `forEach`
     // that produced it, rather than being re-associated afterward by indexing
-    // a second array — the same reasoning as `translateRules` in
+    // a second array — the same reasoning as `compile`'s rule table in
     // Predicate.ts.
     const exits = yield* Effect.forEach(
       policy.rules,

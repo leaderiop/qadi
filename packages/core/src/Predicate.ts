@@ -32,7 +32,8 @@ import {
 import { permissionKey } from "./Permission.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import { askActedAny, readAttribute } from "./PortAccess.ts";
-import type { Policy, Rule } from "./Policy.ts";
+import type { Combining, Policy, RuleEffect } from "./Policy.ts";
+import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
 
 // ---------------------------------------------------------------------------
 // The predicate
@@ -304,14 +305,14 @@ type TooDeep = typeof TOO_DEEP;
 
 /**
  * True when any node in the tree restricts visible fields — bounded by
- * `depth`/`maxDepth`, the same guard `translateNode`/`evaluateNode` check
+ * `depth`/`maxDepth`, the same guard `evaluateNode` checks
  * before recursing further.
  *
- * `toPredicate` calls this *before* `translateNode`'s own depth-bounded walk,
+ * `toPredicate` calls this *before* `compile` (which demands the proof this produces),
  * so without a guard here a pathological, hand-built-in-process `Policy` (not
  * one decoded from untrusted JSON — `MAX_DECODE_DEPTH` already bounds that
  * path in `Policy.ts`) could overflow the call stack with a raw `RangeError`
- * before `translateNode` is ever reached. Unlike `evaluateNode`'s recursion,
+ * before `compile` is ever reached. Unlike `evaluateNode`'s recursion,
  * which runs inside `Effect.gen` and is trampolined by the runtime, this is a
  * plain synchronous function — its recursion genuinely consumes the native
  * call stack, so the depth check has to run first, not merely exist.
@@ -363,65 +364,125 @@ const restrictsFields = (policy: Policy, depth: number, maxDepth: number): boole
 };
 
 /**
- * The subset of {@link EvaluationError} `translateNode`/`toPredicate` can
- * actually raise — a `HasRelationship` node always short-circuits to
- * `PolicyNotTranslatable` before touching `RelationshipResolver`, and a
- * predicate translation never carries a resource, so `MissingResource` and
- * `MissingResourceId` cannot occur here by construction.
+ * Proof that a tree is no deeper than `maxDepth`.
+ *
+ * A module-private class, so nothing outside this module can construct one, and
+ * `compile` demands one. That turns "the depth
+ * was already checked" from a second runtime guard — whose failing branch could
+ * never run, an unkillable mutant — into something the type checker proves.
  */
-type PredicateError = AttributeResolveError | DecisionHistoryUnavailable | MissingAction | PolicyTooDeep;
+class WithinDepth {
+  readonly _tag = "WithinDepth";
+}
+
+type FieldsCheck =
+  | { readonly _tag: "TooDeep" }
+  | { readonly _tag: "Within"; readonly restricts: boolean; readonly proof: WithinDepth };
 
 /**
- * Recursively folds one `Policy` node into a `Predicate`.
- *
- * `foldAttribute` and `foldHistory` below read `AttributeResolver` and
- * `DecisionHistory` through `PortAccess.ts` — the same reads `Evaluate.ts` makes,
- * so a port that dies is converted into its typed error here exactly as there
- * (issue #100), and the subject-first attribute lookup is stated once.
- * Those reads span as `qadi.attribute`/`qadi.acted` annotated
- * `qadi.interpreter: "toPredicate"`, and count in `predicatePortCallsTotal`
- * rather than `portCallsTotal`, which stays the evaluator's.
+ * {@link restrictsFields}' answer as a closed result, carrying the {@link WithinDepth}
+ * proof `compile` needs. The early-exit order is `restrictsFields`' own, so which
+ * of `PolicyTooDeep` and the `fields` refusal wins is unchanged.
  */
-const translateNode = (
+const checkFields = (policy: Policy, maxDepth: number): FieldsCheck => {
+  const result = restrictsFields(policy, 0, maxDepth);
+  return result === TOO_DEEP
+    ? { _tag: "TooDeep" }
+    : { _tag: "Within", restricts: result, proof: new WithinDepth() };
+};
+
+/**
+ * What a translation can fail with once it is running — a port that failed, or
+ * an action nobody supplied. Refusals and depth are decided before anything runs
+ * (see {@link compile}), so `PolicyNotTranslatable` and `PolicyTooDeep` are not
+ * in this set.
+ */
+type RunError = AttributeResolveError | DecisionHistoryUnavailable | MissingAction;
+
+/**
+ * A translation, planned.
+ *
+ * What `compile` produces and `run` walks. Closed, so `run` is exhaustive over
+ * it: a node that cannot be translated is not a member, and `run` never meets
+ * one — the refusal is `compile`'s output, not an arm `run` could reach.
+ */
+type Plan =
+  | { readonly _tag: "Constant"; readonly value: boolean }
+  | { readonly _tag: "Column"; readonly predicate: Predicate }
+  | { readonly _tag: "AskAttribute"; readonly attribute: string; readonly matcher: Matcher }
+  | { readonly _tag: "AskActed"; readonly wanted: ActedResult; readonly event: string }
+  | { readonly _tag: "NeedAction"; readonly expected: string | undefined }
+  | { readonly _tag: "Conjunction"; readonly plans: ReadonlyArray<Plan> }
+  | {
+      readonly _tag: "Disjunction";
+      readonly plans: ReadonlyArray<Plan>;
+      readonly stopsAtTrue: boolean;
+    }
+  | { readonly _tag: "Negation"; readonly plan: Plan }
+  | {
+      readonly _tag: "RuleTable";
+      readonly rules: ReadonlyArray<{ readonly effect: RuleEffect; readonly plan: Plan }>;
+      readonly combining: Combining;
+    };
+
+type Compiled =
+  | { readonly _tag: "Planned"; readonly plan: Plan }
+  | { readonly _tag: "Refused"; readonly policyTag: string; readonly reason: string };
+
+const planned = (plan: Plan): Compiled => ({ _tag: "Planned", plan });
+
+const refused = (policyTag: string, reason: string): Compiled => ({
+  _tag: "Refused",
+  policyTag,
+  reason,
+});
+
+/** What a matcher sees: the subject, the request's action, and no resource. */
+const matcherContextFor = (subject: AuthSubject, action: string | undefined): MatcherContext => ({
+  subject: subject.attributes,
+  subjectId: subject.id,
+  // There is no resource: that is the whole point. A matcher that reads one
+  // is rejected rather than folded against `undefined`.
+  resource: undefined,
+  action,
+});
+
+/**
+ * Plans one `Policy` tree — or refuses it. Pure and synchronous.
+ *
+ * Every property of the *tree* is decided here: whether a node is in the
+ * translatable subset (`PolicyNotTranslatable`, BEH-QD-123) and, by the
+ * {@link WithinDepth} proof it demands, whether it is too deep. None of it
+ * depends on the subject's attributes, the action, or what any port answers, so
+ * a policy that refuses for one caller refuses for all of them — it cannot work
+ * for an admin in development and fail in production. The first refusal in
+ * depth-first declaration order wins.
+ *
+ * What is *not* decided here is what depends on the request and the stores: an
+ * absent action becomes a `NeedAction` node and fails only if `run` reaches it
+ * (INV-QD-011), exactly as the evaluator fails only on reach.
+ */
+const compileTree = (
   policy: Policy,
   subject: AuthSubject,
   action: string | undefined,
-  depth: number,
-  maxDepth: number,
-): Effect.Effect<
-  Predicate,
-  PolicyNotTranslatable | PredicateError,
-  AttributeResolver | DecisionHistory
-> => {
-  if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
+): Compiled => {
+  const context = matcherContextFor(subject, action);
+  const child = (p: Policy): Compiled => compileTree(p, subject, action);
 
-  const context: MatcherContext = {
-    subject: subject.attributes,
-    subjectId: subject.id,
-    // There is no resource: that is the whole point. A matcher that reads one
-    // is rejected rather than folded against `undefined`.
-    resource: undefined,
-    action,
-  };
-
-  const child = (p: Policy) => translateNode(p, subject, action, depth + 1, maxDepth);
-
-  /** Folds a subject-side attribute question to a constant. */
-  const foldAttribute = (attribute: string, matcher: Matcher) => {
-    // Folds against the subject — but only if it does not reach for a column on
-    // the other side of the comparison.
-    if (referencesResource(matcher)) {
-      return untranslatable(
-        "HasAttribute",
-        "the matcher compares against the resource, which is a column",
-      );
+  /** Plans every child in order, stopping at the first refusal. */
+  const children = (
+    policies: ReadonlyArray<Policy>,
+  ):
+    | { readonly _tag: "All"; readonly plans: ReadonlyArray<Plan> }
+    | Extract<Compiled, { _tag: "Refused" }> => {
+    const plans: Array<Plan> = [];
+    for (const p of policies) {
+      const compiled = child(p);
+      if (compiled._tag === "Refused") return compiled;
+      plans.push(compiled.plan);
     }
-    if (action === undefined && referencesAction(matcher)) {
-      return Effect.fail(new MissingAction({ expected: undefined }));
-    }
-    return Effect.map(readAttribute("toPredicate", subject, attribute), (value) =>
-      constant(evaluateMatcher(matcher, value, context)),
-    );
+    return { _tag: "All", plans };
   };
 
   /**
@@ -429,61 +490,70 @@ const translateNode = (
    * subject and folds; `"Resource"` asks once per row, which is the cost a
    * predicate exists to avoid.
    */
-  const foldHistory = (
+  const history = (
     tag: "HasActed" | "HasNotActed",
     event: string,
     scope: "Resource" | "Any",
-  ) => {
-    if (scope === "Resource") {
-      return untranslatable(tag, "a resource-scoped history question is keyed by the row");
-    }
-    const wanted: ActedResult = tag === "HasActed" ? "Acted" : "NotActed";
-    return Effect.map(askActedAny("toPredicate", subject, event), (answer) =>
-      constant(answer === wanted),
-    );
-  };
+  ): Compiled =>
+    scope === "Resource"
+      ? refused(tag, "a resource-scoped history question is keyed by the row")
+      : planned({
+          _tag: "AskActed",
+          wanted: tag === "HasActed" ? "Acted" : "NotActed",
+          event,
+        });
 
   return Match.value(policy).pipe(
     Match.tagsExhaustive({
-      HasRole: (p) => Effect.succeed(constant(subject.roles.has(p.role))),
+      HasRole: (p) => planned({ _tag: "Constant", value: subject.roles.has(p.role) }),
 
       HasPermission: (p) =>
-        Effect.succeed(constant(subject.permissions.has(permissionKey(p.permission)))),
+        planned({ _tag: "Constant", value: subject.permissions.has(permissionKey(p.permission)) }),
 
       HasAction: (p) =>
         action === undefined
-          ? Effect.fail(new MissingAction({ expected: p.action }))
-          : Effect.succeed(constant(action === p.action)),
+          ? planned({ _tag: "NeedAction", expected: p.action })
+          : planned({ _tag: "Constant", value: action === p.action }),
 
-      HasAttribute: (p) => foldAttribute(p.attribute, p.matcher),
+      HasAttribute: (p) => {
+        // Folds against the subject — but only if it does not reach for a column
+        // on the other side of the comparison.
+        if (referencesResource(p.matcher)) {
+          return refused(
+            "HasAttribute",
+            "the matcher compares against the resource, which is a column",
+          );
+        }
+        if (action === undefined && referencesAction(p.matcher)) {
+          return planned({ _tag: "NeedAction", expected: undefined });
+        }
+        return planned({ _tag: "AskAttribute", attribute: p.attribute, matcher: p.matcher });
+      },
 
       HasResourceAttribute: (p) => {
         if (action === undefined && referencesAction(p.matcher)) {
-          return Effect.fail(new MissingAction({ expected: undefined }));
+          return planned({ _tag: "NeedAction", expected: undefined });
         }
-        const compiled = columnPredicate(p.attribute, p.matcher, context);
-        return compiled === undefined
-          ? untranslatable(
+        const column = columnPredicate(p.attribute, p.matcher, context);
+        return column === undefined
+          ? refused(
               "HasResourceAttribute",
               `matcher '${p.matcher._tag}' on column '${p.attribute}' has no predicate form`,
             )
-          : Effect.succeed(compiled);
+          : planned({ _tag: "Column", predicate: column });
       },
 
-      HasActed: (p) => foldHistory("HasActed", p.event, p.scope),
-      HasNotActed: (p) => foldHistory("HasNotActed", p.event, p.scope),
+      HasActed: (p) => history("HasActed", p.event, p.scope),
+      HasNotActed: (p) => history("HasNotActed", p.event, p.scope),
 
       HasRelationship: () =>
-        untranslatable(
-          "HasRelationship",
-          "a relationship is keyed by the row's id and cannot fold",
-        ),
+        refused("HasRelationship", "a relationship is keyed by the row's id and cannot fold"),
 
       // Opaque, externally-registered logic — there is nothing here to fold,
       // and approximating it would be exactly the failure mode ADR-QD-024
       // refuses (ADR-QD-055).
       HasCustom: (p) =>
-        untranslatable(
+        refused(
           "HasCustom",
           `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`,
         ),
@@ -493,7 +563,7 @@ const translateNode = (
       // HasRelationship refuses rather than HasCustom's opacity reason
       // (INV-QD-056).
       HasSignature: () =>
-        untranslatable(
+        refused(
           "HasSignature",
           "a signature is looked up through an external port and cannot fold into a resource-independent expression",
         ),
@@ -502,81 +572,188 @@ const translateNode = (
       // predicate has no channel to carry a duty, so rows selected by one would
       // be handed over with a condition nobody was told about.
       Obliged: () =>
-        untranslatable(
+        refused(
           "Obliged",
           "a predicate cannot carry an obligation, and rows would be handed over with it unmet",
         ),
 
-      AllOf: (p) => Effect.map(Effect.forEach(p.policies, child), and),
-      AnyOf: (p) => Effect.map(Effect.forEach(p.policies, child), or),
-      Not: (p) => Effect.map(child(p.policy), negate),
+      AllOf: (p) => {
+        const all = children(p.policies);
+        return all._tag === "Refused" ? all : planned({ _tag: "Conjunction", plans: all.plans });
+      },
+
+      AnyOf: (p) => {
+        const all = children(p.policies);
+        return all._tag === "Refused"
+          ? all
+          : planned({
+              _tag: "Disjunction",
+              plans: all.plans,
+              stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy),
+            });
+      },
+
+      Not: (p) => {
+        const inner = child(p.policy);
+        return inner._tag === "Refused" ? inner : planned({ _tag: "Negation", plan: inner.plan });
+      },
 
       // Transparent. The label survives only in the caller's own logging; a
       // predicate has no trace to put it on.
       Labeled: (p) => child(p.policy),
 
-      Rules: (p) => translateRules(p, child),
+      Rules: (p) => {
+        // Carrying the effect and its plan together, rather than indexing two
+        // parallel arrays back into alignment, makes a reorder-one-without-the-
+        // other bug unrepresentable rather than merely unlikely.
+        const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = [];
+        for (const rule of p.rules) {
+          const compiled = child(rule.condition);
+          if (compiled._tag === "Refused") return compiled;
+          rules.push({ effect: rule.effect, plan: compiled.plan });
+        }
+        return planned({ _tag: "RuleTable", rules, combining: p.combining });
+      },
     }),
   );
 };
 
 /**
- * A rule table as a set-based formula.
+ * {@link compileTree}, for a tree already shown to be within `maxDepth`.
+ *
+ * The {@link WithinDepth} parameter is a proof, not data: it is never read, and
+ * exists so a caller cannot reach the walk without having checked the depth.
+ */
+const compile = (
+  policy: Policy,
+  subject: AuthSubject,
+  action: string | undefined,
+  _within: WithinDepth,
+): Compiled => compileTree(policy, subject, action);
+
+/**
+ * A rule table as a set-based formula, over the conditions `run` asked.
  *
  * The overrides do not depend on position, so each is one line. `FirstApplicable`
  * does, and pays for it: every `Permit` row must exclude every row above it, so
  * an n-row table becomes O(n²) conjuncts. That is the honest cost of pushing an
  * ordered walk into an engine that has no order.
  */
-const translateRules = (
-  policy: Extract<Policy, { _tag: "Rules" }>,
-  child: (
-    p: Policy,
-  ) => Effect.Effect<
-    Predicate,
-    PolicyNotTranslatable | PredicateError,
-    AttributeResolver | DecisionHistory
-  >,
-): Effect.Effect<
-  Predicate,
-  PolicyNotTranslatable | PredicateError,
-  AttributeResolver | DecisionHistory
-> =>
-  Effect.map(
-    Effect.forEach(policy.rules, (rule: Rule) =>
-      Effect.map(child(rule.condition), (condition) => ({ rule, condition })),
-    ),
-    (translated) => {
-      // Carrying `rule` and `condition` together, rather than indexing two
-      // parallel arrays back into alignment, makes a reorder-one-without-the-
-      // other bug unrepresentable rather than merely unlikely.
-      const permits = translated
-        .filter(({ rule }) => rule.effect === "Permit")
-        .map(({ condition }) => condition);
-      const denies = translated
-        .filter(({ rule }) => rule.effect === "Deny")
-        .map(({ condition }) => condition);
+const formulaFor = (
+  combining: Combining,
+  translated: ReadonlyArray<{ readonly effect: RuleEffect; readonly condition: Predicate }>,
+): Predicate => {
+  const permits = translated
+    .filter(({ effect }) => effect === "Permit")
+    .map(({ condition }) => condition);
+  const denies = translated
+    .filter(({ effect }) => effect === "Deny")
+    .map(({ condition }) => condition);
 
-      return Match.value(policy.combining).pipe(
-        // A Permit anywhere decides; otherwise a Deny does, or nothing applied.
-        // Both remaining cases refuse.
-        Match.when("PermitOverrides", () => or(permits)),
-        Match.when("DenyOverrides", () => and([negate(or(denies)), or(permits)])),
-        Match.when("FirstApplicable", () =>
-          or(
-            translated.map(({ rule, condition }, index) =>
-              rule.effect === "Permit"
-                ? and([
-                    ...translated.slice(0, index).map(({ condition: c }) => negate(c)),
-                    condition,
-                  ])
-                : FALSE,
-            ),
-          ),
+  return Match.value(combining).pipe(
+    // A Permit anywhere decides; otherwise a Deny does, or nothing applied.
+    // Both remaining cases refuse.
+    Match.when("PermitOverrides", () => or(permits)),
+    Match.when("DenyOverrides", () => and([negate(or(denies)), or(permits)])),
+    Match.when("FirstApplicable", () =>
+      or(
+        translated.map(({ effect, condition }, index) =>
+          effect === "Permit"
+            ? and([
+                ...translated.slice(0, index).map(({ condition: c }) => negate(c)),
+                condition,
+              ])
+            : FALSE,
         ),
-        Match.exhaustive,
-      );
-    },
+      ),
+    ),
+    Match.exhaustive,
+  );
+};
+
+/**
+ * Walks a {@link Plan}, asking ports through `PortAccess.ts`, and stops where the
+ * evaluator stops.
+ *
+ * A composite stops at the first child that runs to a *constant* that settles it
+ * under the evaluator's own rule (`ShortCircuit.ts`): a `False` for `allOf`, a
+ * `True` for an `anyOf` that may stop at an allow, and for a rule table the
+ * condition that is `True` with the effect nothing later can beat (INV-QD-017).
+ * So translation asks no port the evaluator would not, and fails on no port the
+ * evaluator would not reach (INV-QD-NEXT).
+ *
+ * **Pruning never changes a successful predicate**, which is why it is safe to
+ * stop early and what Stryker cannot tell a reader. A pruned `Conjunction` child
+ * could only have been `and`-ed with a `False`, so the result is `False`
+ * regardless. A pruned `Disjunction` child could only have been `or`-ed with a
+ * `True`, so the result is `True` regardless. A pruned `RuleTable` suffix
+ * contributes only `False` terms under `FirstApplicable` (each later permit
+ * conjoins the negation of the settled `True` condition, which is `False`),
+ * cannot undo a `True` permit under `PermitOverrides`, and cannot undo
+ * `Negate(Or(denies)) = False` under `DenyOverrides`. Pruning therefore removes
+ * port calls and failures the evaluator would also never reach, and nothing else.
+ *
+ * A plain function, not `Effect.fn`: it runs once per translation, not per row,
+ * and a port read inside it owns its own span.
+ */
+const run = (
+  plan: Plan,
+  subject: AuthSubject,
+  context: MatcherContext,
+): Effect.Effect<Predicate, RunError, AttributeResolver | DecisionHistory> =>
+  Match.value(plan).pipe(
+    Match.tagsExhaustive({
+      Constant: (p) => Effect.succeed(constant(p.value)),
+      Column: (p) => Effect.succeed(p.predicate),
+      AskAttribute: (p) =>
+        Effect.map(readAttribute("toPredicate", subject, p.attribute), (value) =>
+          constant(evaluateMatcher(p.matcher, value, context)),
+        ),
+      AskActed: (p) =>
+        Effect.map(askActedAny("toPredicate", subject, p.event), (answer) =>
+          constant(answer === p.wanted),
+        ),
+      NeedAction: (p) => Effect.fail(new MissingAction({ expected: p.expected })),
+      Negation: (p) => Effect.map(run(p.plan, subject, context), negate),
+      Conjunction: (p) =>
+        Effect.gen(function* () {
+          const collected: Array<Predicate> = [];
+          for (const inner of p.plans) {
+            const result = yield* run(inner, subject, context);
+            // `False` settles an `and`: nothing after it can matter.
+            if (result._tag === "False") return FALSE;
+            collected.push(result);
+          }
+          return and(collected);
+        }),
+      Disjunction: (p) =>
+        Effect.gen(function* () {
+          const collected: Array<Predicate> = [];
+          for (const inner of p.plans) {
+            const result = yield* run(inner, subject, context);
+            if (p.stopsAtTrue && result._tag === "True") return TRUE;
+            collected.push(result);
+          }
+          return or(collected);
+        }),
+      RuleTable: (p) =>
+        Effect.gen(function* () {
+          const decisive = rulesDecisiveEffect(p.combining);
+          const translated: Array<{ readonly effect: RuleEffect; readonly condition: Predicate }> =
+            [];
+          for (const rule of p.rules) {
+            const condition = yield* run(rule.plan, subject, context);
+            translated.push({ effect: rule.effect, condition });
+            // A condition that holds for every row settles the walk when the
+            // evaluator would stop there: any applying rule under
+            // `FirstApplicable`, the overriding effect under the others.
+            if (condition._tag === "True" && (decisive === undefined || rule.effect === decisive)) {
+              break;
+            }
+          }
+          return formulaFor(p.combining, translated);
+        }),
+    }),
   );
 
 /**
@@ -610,18 +787,28 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   const subject = yield* CurrentSubject;
   const maxDepth = options?.maxDepth ?? DEFAULT_MAX_DEPTH;
 
-  const fieldsCheck = restrictsFields(policy, 0, maxDepth);
-  if (fieldsCheck === TOO_DEEP) {
+  const fieldsCheck = checkFields(policy, maxDepth);
+  if (fieldsCheck._tag === "TooDeep") {
     return yield* Effect.fail(new PolicyTooDeep({ maxDepth }));
   }
-  if (fieldsCheck) {
+  if (fieldsCheck.restricts) {
     return yield* untranslatable(
       policy._tag,
       "the policy restricts visible fields, and a predicate selects rows rather than columns",
     );
   }
 
-  const predicate = yield* translateNode(policy, subject, options?.action, 0, maxDepth);
+  // Refusals first, and from the tree alone: they cannot depend on the subject
+  // or on what any port answers (BEH-QD-NEXT-c). Only then does anything run.
+  const compiled = compile(policy, subject, options?.action, fieldsCheck.proof);
+  if (compiled._tag === "Refused") {
+    return yield* untranslatable(compiled.policyTag, compiled.reason);
+  }
+  const predicate = yield* run(
+    compiled.plan,
+    subject,
+    matcherContextFor(subject, options?.action),
+  );
 
   yield* Effect.annotateCurrentSpan({
     "qadi.subject_id": subject.id,
