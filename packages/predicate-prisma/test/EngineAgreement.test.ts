@@ -10,7 +10,7 @@ import { EngineRefused, PrismaEngine, PrismaEngineTest, ROWS } from "./prismaEng
 
 /**
  * INV-QD-048, checked against a real Prisma 7.10 query engine over SQLite
- * (CCR-QD-153) rather than a JavaScript model of one. The row universe is the
+ * (CCR-QD-157) rather than a JavaScript model of one. The row universe is the
  * 48-row table `prismaEngine.ts` seeds; every property samples 300 predicates
  * at a fixed seed, so a failure reproduces.
  */

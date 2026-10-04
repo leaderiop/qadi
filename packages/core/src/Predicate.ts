@@ -154,7 +154,7 @@ const dispatchCompare: (op: CompareOp) => (value: unknown, against: unknown) => 
     // `NaN >= x` is false in both interpreters and `Infinity >= x` is true in
     // both. `isRangeBound` (`PredicateLiteral.ts`) is that check, and the
     // renderable classifier calls the same function, so the rule has one
-    // definition (ADR-QD-077).
+    // definition (ADR-QD-079).
     Match.when(
       "Gte",
       () => (value: unknown, against: unknown) =>

@@ -10,7 +10,7 @@
  * This package is a *renderer*. What a `Predicate` may hold and what it means —
  * which values are safe, what `Compare` means against NULL and against a
  * non-number, that an empty `MemberOf` is false, which columns are refused, how
- * large an `in` list may be — is `@qadi/core`'s `toRenderable` (ADR-QD-077); it
+ * large an `in` list may be — is `@qadi/core`'s `toRenderable` (ADR-QD-079); it
  * hands this module a closed `RenderableNode` tree with every decision already
  * made. What is left here is what only Prisma has: its filter grammar, and the
  * vacuous-identity folding its query engine needs (`isVacuousTrue`).
@@ -46,7 +46,7 @@ export { PredicateNotRenderable } from "@qadi/core";
  * `@prisma/internals`); Prisma 7's runtime `Prisma.dmmf` strips that field, so a
  * caller without such a DMMF writes the set out.
  *
- * Required, not optional (CCR-QD-153): a schema-blind renderer cannot emit one
+ * Required, not optional (CCR-QD-157): a schema-blind renderer cannot emit one
  * leaf valid on both kinds of column. Prisma refuses every filter that mentions
  * `null` on a required field, and a plain `NOT` over a nullable column's
  * comparison drops the NULL rows `evaluatePredicate` admits. A wrong declaration
@@ -59,7 +59,7 @@ export interface CompilePrismaWhereOptions {
   readonly nullable: ReadonlySet<string>;
   /**
    * Refuses a `MemberOf` whose member count exceeds this. Default 1000
-   * (ADR-QD-077): an unbounded `in` is the same resource-exhaustion vector
+   * (ADR-QD-079): an unbounded `in` is the same resource-exhaustion vector
    * whichever grammar carries it.
    */
   readonly maxInValues?: number;
@@ -136,7 +136,7 @@ export type PrismaWhereInput = Record<string, unknown>;
  *
  * This is the one rule here that is about Prisma's *syntax* rather than about
  * what a predicate means, which is why it stays in this package: it is the
- * reserved set a `RenderRules` declares, not a leaf rule core owns (ADR-QD-077).
+ * reserved set a `RenderRules` declares, not a leaf rule core owns (ADR-QD-079).
  */
 const RESERVED_PRISMA_KEYS: ReadonlySet<string> = new Set([
   "AND",
@@ -196,7 +196,7 @@ const RESERVED_PRISMA_KEYS: ReadonlySet<string> = new Set([
  *
  * This folding is a workaround for Prisma's engine bugs, not a leaf rule, so it
  * stays in this renderer: core's classifier preserves structure exactly
- * (ADR-QD-077).
+ * (ADR-QD-079).
  */
 const isVacuousTrue = (where: PrismaWhereInput): boolean => {
   const keys = Object.keys(where);
@@ -208,7 +208,7 @@ const isVacuousFalse = (where: PrismaWhereInput): boolean => {
 };
 
 /**
- * The shape of a leaf: a field filter, and what its null guard adds (CCR-QD-153).
+ * The shape of a leaf: a field filter, and what its null guard adds (CCR-QD-157).
  *
  * `null` never reaches these tables as an operand: `toRenderable` turned a null
  * comparison into `IsNull` and carried a `null` `MemberOf` member as an
@@ -381,7 +381,7 @@ const compiledRefusedTotal = Metric.withAttributes(compiledTotal, { outcome: "re
  * (`@qadi/core`'s, re-exported here) rather than being handed to Prisma's query
  * engine.
  *
- * `options.nullable` declares which columns accept NULL (CCR-QD-153); see
+ * `options.nullable` declares which columns accept NULL (CCR-QD-157); see
  * `CompilePrismaWhereOptions`. See `spec/behaviors/31-predicate-compilation.md`.
  */
 export const compilePrismaWhere = Effect.fn("qadi.predicatePrisma.compilePrismaWhere")(

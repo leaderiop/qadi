@@ -721,7 +721,7 @@ describe("toRenderable with a declared nullability", () => {
       );
     }));
 
-  // The lie-safety finding (CCR-QD-154). A `TwoValued` renderer's `NOT` collapses
+  // The lie-safety finding (CCR-QD-158). A `TwoValued` renderer's `NOT` collapses
   // UNKNOWN to FALSE, so an unguarded leaf the reference admits on NULL, under an
   // odd number of Negates, on a column that turns out to hold NULL, flips to TRUE
   // where the reference says FALSE: an over-admission, not an under-admission.

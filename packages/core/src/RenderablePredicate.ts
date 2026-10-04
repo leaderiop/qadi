@@ -9,7 +9,7 @@
  * NULL and against a non-number, that an empty `MemberOf` is false, which column
  * names are refused, how large an `IN` list may be. Those are properties of
  * `evaluatePredicate`, not of SQL or Prisma, and the copies drifted (CCR-QD-120,
- * and the Prisma `Negate` defect of CCR-QD-153). Here they are stated once,
+ * and the Prisma `Negate` defect of CCR-QD-157). Here they are stated once,
  * beside the thing they describe, and a renderer matches on `RenderableNode` and
  * emits syntax.
  *
@@ -21,7 +21,7 @@
  * The one thing core accepts that it did not before is a *declaration* of which
  * columns may hold NULL (`ColumnNullability`). It never folds anything on the
  * strength of one, so a wrong declaration can only make a renderer under-admit
- * or fail loudly, never admit a row `evaluatePredicate` denies (ADR-QD-077).
+ * or fail loudly, never admit a row `evaluatePredicate` denies (ADR-QD-079).
  */
 import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
@@ -204,13 +204,13 @@ const isRequired = (nullability: ColumnNullability, column: string): boolean =>
  * under-admit: a three-valued `NOT` is monotone, so UNKNOWN where the reference
  * has FALSE can only lose rows.
  *
- * A `TwoValued` renderer is different, and ADR-QD-077's lie-safety property is why
+ * A `TwoValued` renderer is different, and ADR-QD-079's lie-safety property is why
  * the table is not simply "NOT NULL means `None`". Its `NOT` collapses UNKNOWN to
  * FALSE (`CASE WHEN (inner) THEN FALSE ELSE TRUE END`), so an *unguarded* leaf the
  * reference admits on NULL (`Neq`, or a `null` `MemberOf` member), reached under an
  * odd number of `Negate`s on a column that turns out to hold NULL, would flip to
  * TRUE where the reference says FALSE: an over-admission. Found by a real engine
- * (CCR-QD-154): `Negate(Neq level 3)` over a column declared NOT NULL admitted
+ * (CCR-QD-158): `Negate(Neq level 3)` over a column declared NOT NULL admitted
  * the NULL rows. So under `TwoValued`, such a leaf keeps `AdmitNull` at negative
  * polarity even on a declared NOT NULL column (`OR col IS NULL` is valid there and
  * costs nothing), and drops it only at positive polarity, where UNKNOWN is

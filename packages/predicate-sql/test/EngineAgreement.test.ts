@@ -16,7 +16,7 @@ import {
 } from "./sqlEngines.ts";
 
 /**
- * INV-QD-047, checked against real engines (CCR-QD-154): PostgreSQL through
+ * INV-QD-047, checked against real engines (CCR-QD-158): PostgreSQL through
  * PGlite and SQLite through `node:sqlite`, rather than against a JavaScript
  * model of either. MySQL has no embeddable Node engine, so S2 carries the
  * guarantee to it structurally. The row universe is the 48-row table
@@ -90,7 +90,7 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
         }
       }));
 
-    // S3: a nullability declaration can only narrow or refuse (ADR-QD-077). The
+    // S3: a nullability declaration can only narrow or refuse (ADR-QD-079). The
     // table's truth is `level` and `tag` nullable, `tenantId` and `sealed` NOT NULL.
     const compileWith = (predicate: Predicate, dialect: "postgres" | "sqlite", nullable: ReadonlySet<string>) =>
       Effect.result(compileSql(predicate, { dialect, nullable }));

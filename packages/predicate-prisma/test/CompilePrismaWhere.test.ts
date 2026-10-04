@@ -414,7 +414,7 @@ describe("compilePrismaWhere — nested vacuous identities constant-fold (C1)", 
   );
 });
 
-// CCR-QD-153 (ARCH-03 C6). A plain `{NOT: {level: {gte: 3}}}` renders
+// CCR-QD-157 (ARCH-03 C6). A plain `{NOT: {level: {gte: 3}}}` renders
 // `WHERE (NOT level >= ?)`, and SQL's `NOT UNKNOWN` is `UNKNOWN`, which `WHERE`
 // excludes — so a NULL-valued row, which `evaluatePredicate`'s two-valued `!`
 // admits, silently went missing. Found by running the compiled shapes through
@@ -494,7 +494,7 @@ describe("compilePrismaWhere — Negate is NULL-safe on nullable columns (C6)", 
     }));
 });
 
-// CCR-QD-153 (ARCH-03 N1). Prisma refuses every filter that mentions `null` on
+// CCR-QD-157 (ARCH-03 N1). Prisma refuses every filter that mentions `null` on
 // a required field — ``Argument `tenantId` is missing.`` — so the NULL-correct
 // shape for `Neq` (`OR: [{not: v}, {c: null}]`) is a query-time failure on a
 // NOT NULL column. A schema-blind renderer cannot emit one leaf valid on both
@@ -586,7 +586,7 @@ describe("compilePrismaWhere — a required column never mentions null (N1)", ()
   });
 });
 
-// ADR-QD-077: `maxInValues` and the identifier rule are core's, applied to this
+// ADR-QD-079: `maxInValues` and the identifier rule are core's, applied to this
 // renderer too. Before, a 1001-member `MemberOf` and a column named `first name`
 // compiled here and refused in `@qadi/predicate-sql`, against BEH-QD-238.
 describe("compilePrismaWhere — the rules core owns (maxInValues, identifiers)", () => {
@@ -647,7 +647,7 @@ describe("compilePrismaWhere — the rules core owns (maxInValues, identifiers)"
     }));
 });
 
-// ADR-QD-077: one `PredicateNotRenderable`, declared in `@qadi/core`.
+// ADR-QD-079: one `PredicateNotRenderable`, declared in `@qadi/core`.
 describe("compilePrismaWhere — the refusal is @qadi/core's PredicateNotRenderable", () => {
   const unsafe: Predicate = { _tag: "Compare", column: "x", op: "Eq", value: { foo: 1 } };
 
@@ -669,7 +669,7 @@ describe("compilePrismaWhere — the refusal is @qadi/core's PredicateNotRendera
     }));
 });
 
-// ADR-QD-077: the compiler decides nothing about what is renderable. It refuses
+// ADR-QD-079: the compiler decides nothing about what is renderable. It refuses
 // exactly when `toRenderable` does, under the rules it declares; the two
 // renderers' rule sets differ only in `reservedColumns`.
 describe("compilePrismaWhere — refusal parity with toRenderable", () => {

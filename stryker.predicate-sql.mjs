@@ -9,7 +9,7 @@
  * `index.ts` is the renderer, not a barrel — there is nothing to exclude the way
  * `packages/core/src/index.ts` is excluded from `stryker.config.mjs`'s `mutate`
  * list. The leaf rules it used to carry (safe values, identifiers, `maxInValues`,
- * NULL handling) are `@qadi/core`'s `toRenderable` now (ADR-QD-077), so their
+ * NULL handling) are `@qadi/core`'s `toRenderable` now (ADR-QD-079), so their
  * mutants are measured under `stryker.config.mjs` against core's tests; what is
  * mutated here is syntax, killed by the goldens and by the real-engine properties
  * (`test/EngineAgreement.test.ts`: PGlite and `node:sqlite`). The syntax tables

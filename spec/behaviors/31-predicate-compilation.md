@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-04): Dialect-free leaf rules move beside `evaluatePredicate` (ADR-QD-077, CCR-QD-154). BEH-QD-236 now says `@qadi/core` declares the one `PredicateNotRenderable` (reversing the per-package declaration and ticket 95) and shows the options both packages take; BEH-QD-238, BEH-QD-240 and BEH-QD-258 state the shared rules once (`isSafeLiteral`, `maxInValues` for both packages, `IdentifierRule`) and BEH-QD-238/242 replace the false claim that the two packages "agree on which predicates compile at all" with the exact difference, which is the renderer-declared reserved columns; BEH-QD-241/242 name real engines (PGlite, `node:sqlite`, Prisma over SQLite) as the check and record that the JavaScript readers are retired; BEH-QD-244 widens the accepted type-coercion limitation to `Eq`/`Neq`/`MemberOf` (N2), records SQLite boolean binding as `1`/`0` and the two-valued-`NOT` lie-safety rule; BEH-QD-264/265 added (classification once, in core; a nullability declaration can only narrow or refuse)<br>1.6 (2026-10-04): BEH-QD-244 gains a fourth REQUIREMENT and `compilePrismaWhere` gains a required `options.nullable` — a compiled Prisma `Negate` over a leaf on a nullable column dropped the NULL rows `evaluatePredicate` admits (`NOT UNKNOWN` is `UNKNOWN`), and a filter mentioning `null` on a required column is refused by Prisma at query time. Found by running 3000 random predicates through a real Prisma 7.10 client over SQLite: 127 result-set mismatches, every one under a `Negate`, none an over-admission. The leaf is now null-guarded by polarity (CCR-QD-153, ADR-QD-077)<br>1.5 (2026-09-08): BEH-QD-238's allowlist corrected again — the `number` branch is *finite* numbers, in both compilers. `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`/`±Infinity`, and its only exclusion was a `Gte`/`Lt`-specific guard, so a `NaN`-valued `Eq`/`Neq`/`MemberOf` bound `NaN` as a real parameter — and PostgreSQL's `NaN = NaN` is TRUE where `evaluatePredicate`'s `===` is false for every row (INV-QD-047). `@qadi/predicate-prisma` already refused all three; the two compilers now share one allowlist across all four `CompareOp`s, and a `NaN`-valued `Gte`/`Lt` refuses where it used to render `FALSE` (issue #65, CCR-QD-120)<br>1.4 (2026-09-07): BEH-QD-239 and BEH-QD-242 corrected — both encoded the belief that a vacuous `{OR: []}`/`{AND: []}` behaves the same nested inside `AND`/`OR`/`NOT` as it does at the top of the query; per real Prisma engine behavior it does not (Prisma issues #17367, #21856), and `@qadi/predicate-prisma`'s `renderNode` nested it verbatim, an audit's Critical finding (C1, issue 34). `renderNode` now constant-folds every `And`/`Or` child so a vacuous identity is never left nested, and `BEH-QD-242`'s agreement property is checked against a second, engine-accurate test reader in addition to the original JS-semantics one, since the original alone shares the same wrong belief and cannot see the difference (CCR-QD-111)<br>1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
+> | Change History | 1.7 (2026-10-04): Dialect-free leaf rules move beside `evaluatePredicate` (ADR-QD-079, CCR-QD-158). BEH-QD-236 now says `@qadi/core` declares the one `PredicateNotRenderable` (reversing the per-package declaration and ticket 95) and shows the options both packages take; BEH-QD-238, BEH-QD-240 and BEH-QD-258 state the shared rules once (`isSafeLiteral`, `maxInValues` for both packages, `IdentifierRule`) and BEH-QD-238/242 replace the false claim that the two packages "agree on which predicates compile at all" with the exact difference, which is the renderer-declared reserved columns; BEH-QD-241/242 name real engines (PGlite, `node:sqlite`, Prisma over SQLite) as the check and record that the JavaScript readers are retired; BEH-QD-244 widens the accepted type-coercion limitation to `Eq`/`Neq`/`MemberOf` (N2), records SQLite boolean binding as `1`/`0` and the two-valued-`NOT` lie-safety rule; BEH-QD-271/265 added (classification once, in core; a nullability declaration can only narrow or refuse)<br>1.6 (2026-10-04): BEH-QD-244 gains a fourth REQUIREMENT and `compilePrismaWhere` gains a required `options.nullable` — a compiled Prisma `Negate` over a leaf on a nullable column dropped the NULL rows `evaluatePredicate` admits (`NOT UNKNOWN` is `UNKNOWN`), and a filter mentioning `null` on a required column is refused by Prisma at query time. Found by running 3000 random predicates through a real Prisma 7.10 client over SQLite: 127 result-set mismatches, every one under a `Negate`, none an over-admission. The leaf is now null-guarded by polarity (CCR-QD-157, ADR-QD-079)<br>1.5 (2026-09-08): BEH-QD-238's allowlist corrected again — the `number` branch is *finite* numbers, in both compilers. `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`/`±Infinity`, and its only exclusion was a `Gte`/`Lt`-specific guard, so a `NaN`-valued `Eq`/`Neq`/`MemberOf` bound `NaN` as a real parameter — and PostgreSQL's `NaN = NaN` is TRUE where `evaluatePredicate`'s `===` is false for every row (INV-QD-047). `@qadi/predicate-prisma` already refused all three; the two compilers now share one allowlist across all four `CompareOp`s, and a `NaN`-valued `Gte`/`Lt` refuses where it used to render `FALSE` (issue #65, CCR-QD-120)<br>1.4 (2026-09-07): BEH-QD-239 and BEH-QD-242 corrected — both encoded the belief that a vacuous `{OR: []}`/`{AND: []}` behaves the same nested inside `AND`/`OR`/`NOT` as it does at the top of the query; per real Prisma engine behavior it does not (Prisma issues #17367, #21856), and `@qadi/predicate-prisma`'s `renderNode` nested it verbatim, an audit's Critical finding (C1, issue 34). `renderNode` now constant-folds every `And`/`Or` child so a vacuous identity is never left nested, and `BEH-QD-242`'s agreement property is checked against a second, engine-accurate test reader in addition to the original JS-semantics one, since the original alone shares the same wrong belief and cannot see the difference (CCR-QD-111)<br>1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
 
 _Previous: [30 — Port Calls](./30-port-calls.md)_
 
@@ -77,7 +77,7 @@ REQUIREMENT: Neither package MAY be required to obtain a `Predicate` — every
 [BEH-QD-121](./16-predicates.md#beh-qd-121-a-predicate-is-abstract-and-qadi-owns-no-dialect)
 shipped. `@qadi/core` declares the one `PredicateNotRenderable`, matching
 `PolicyNotTranslatable`'s shape, and both packages re-export it
-([ADR-QD-077](../decisions/077-renderability-is-a-core-rule.md), reversing the
+([ADR-QD-079](../decisions/079-renderability-is-a-core-rule.md), reversing the
 earlier "each package declares its own" and the shared-`_tag` rationale of ticket
 95). Core still emits no dialect text and gains no dependency: the REQUIREMENT
 above stands, and the new core modules import only `effect/*` and other core
@@ -162,7 +162,7 @@ of four, and a compiler that refuses a value under `Eq` while quietly folding
 it under `Gte` is two definitions of "safe value" in one file.
 
 **The allowlist is now one definition, and the two compile sets differ by
-exactly one declared thing.** Until ADR-QD-077 each package kept its own copy of
+exactly one declared thing.** Until ADR-QD-079 each package kept its own copy of
 `isSafeValue`, which is how CCR-QD-120 happened (the copies lagged). It is
 `@qadi/core`'s `isSafeLiteral` now, beside `evaluatePredicate`, and the
 `Gte`/`Lt` bound rule (`isRangeBound`) is called by `evaluatePredicate` and by the
@@ -170,7 +170,7 @@ classifier alike. This section used to end "the dialect packages now agree on
 which predicates compile at all", and that was false: the identifier rule differed
 (an ASCII allowlist in one package, a 13-key blocklist in the other) and only SQL
 had `maxInValues`, so `first name`, `a.b`, `gte`, `NOT` and a 1001-member
-`MemberOf` each compiled in one package and not the other (CCR-QD-154). For each
+`MemberOf` each compiled in one package and not the other (CCR-QD-158). For each
 `IdentifierRule` and each `maxInValues`, `compileSql` and `compilePrismaWhere`
 now refuse the same predicates, **except** that `compilePrismaWhere` additionally
 refuses Prisma's 13 reserved keys, which is the renderer's own vocabulary and the
@@ -192,7 +192,7 @@ both packages, is `[A-Za-z_][A-Za-z0-9_]*`; `"UnicodeBmp"` is letters, digits an
 plus the renderer's own *reserved* set (`RenderRules.reservedColumns`): the regex
 guards against text injection, the reserved set against a name the target gives a
 meaning. Both are core vocabulary applied per renderer
-([ADR-QD-077](../decisions/077-renderability-is-a-core-rule.md)).
+([ADR-QD-079](../decisions/079-renderability-is-a-core-rule.md)).
 
 `Predicate.column` is a plain `string` on an AST that crosses a trust
 boundary (AGENTS.md §7) with no schema either compiler can validate it
@@ -261,7 +261,7 @@ an `in` clause there is Prisma's own array literal and bounding it is a caller
 concern. That was the same vector handed to the same database through another
 grammar, and it made the two compile sets differ for no reason a caller could
 name; the bound is core's now (`RenderRules.maxInValues`) and both packages take
-`maxInValues?` (ADR-QD-077). It is a breaking change for `@qadi/predicate-prisma`.
+`maxInValues?` (ADR-QD-079). It is a breaking change for `@qadi/predicate-prisma`.
 
 ## BEH-QD-241: The compiled SQL fragment agrees with the reference interpreter
 
@@ -282,7 +282,7 @@ against `toPredicate`'s input a second time.
 **The interpreter is a real engine.** The property is checked against
 PostgreSQL (PGlite, WASM) and SQLite (`node:sqlite`) over a 48-row table, 300
 generated predicates per engine, rather than against a JavaScript reader of the
-grammar `compileSql` emits (`sqlInterpreter.ts`, retired in ADR-QD-077): that
+grammar `compileSql` emits (`sqlInterpreter.ts`, retired in ADR-QD-079): that
 reader shared its author's belief and agreed with the original NULL defect and the
 `NaN` one, both of which a real engine found. MySQL has no embeddable Node engine,
 so its text is checked structurally — equal to SQLite's modulo identifier quote
@@ -307,7 +307,7 @@ and apart from `compilePrismaWhere`'s reserved columns (BEH-QD-238) no `Predicat
 renders to one target and not the other, so the two properties differ only in
 which compiler and which engine they run. This section used to say "there is no
 `Predicate` shape that renders to one target and not the other", which was false
-before ADR-QD-077 (identifier rule, `maxInValues`).
+before ADR-QD-079 (identifier rule, `maxInValues`).
 
 **"Interpreting... the way Prisma's real query engine does" is deliberate
 wording, corrected from a bare "interpreting" (C1, issue 34, CCR-QD-111).**
@@ -327,7 +327,7 @@ reader modeling Prisma's actual nested-empty-array stripping instead of
 never nested — see [BEH-QD-239](#beh-qd-239-an-empty-memberof-is-false-never-in).
 
 **Both readers are models, and the check is now a real engine
-(ADR-QD-077).** A model shares its author's belief, and a third defect proved it:
+(ADR-QD-079).** A model shares its author's belief, and a third defect proved it:
 neither reader treated `NOT` as three-valued, so neither could see a plain
 `{NOT: ...}` drop NULL rows (BEH-QD-244). `EngineAgreement.test.ts` runs the
 compiled `WhereInput` through Prisma Client 7.10 over an in-memory SQLite database
@@ -422,7 +422,7 @@ Prisma grammar — not merely reasoned about.
 **A known, accepted limitation, not fixed here: a literal whose JavaScript type
 differs from its column's type compares under the engine's own coercion, not
 `evaluatePredicate`'s strict `===`/`typeof`.** The `Gte`/`Lt` text-column case
-below is one direction; `Eq`/`Neq`/`MemberOf` are the other (N2, ADR-QD-077): run
+below is one direction; `Eq`/`Neq`/`MemberOf` are the other (N2, ADR-QD-079): run
 against real engines, a string literal `"3"` against an `INTEGER` column matched
 `level = 3` on both PostgreSQL (PGlite) and SQLite (`node:sqlite`) — 13 of 3000
 random predicates per dialect, every one of that shape — where
@@ -444,7 +444,7 @@ a dialect syntax-table entry like quoting and placeholders. PostgreSQL and MySQL
 keep the boolean itself.
 
 **A nullability declaration can only narrow or refuse, and the rule is a property
-of the target's `NOT`** (BEH-QD-265). The two-valued case is subtle and a real
+of the target's `NOT`** (BEH-QD-272). The two-valued case is subtle and a real
 engine found it: with a column declared NOT NULL that actually holds NULL, an
 unguarded `Neq` (or `MemberOf` with a `null` member) under an odd number of
 `Negate`s over-admits in `compileSql`, because `CASE WHEN` collapses UNKNOWN to
@@ -485,11 +485,11 @@ field is refused (``Argument `tenantId` is missing.``; 153 of 1500 queries), so
 `Neq "t-1"` on a NOT NULL column cannot render the NULL-admitting `OR` that a
 nullable one needs. No renderer that cannot see the schema can emit one leaf
 valid on both, which is why a nullability declaration is an input
-([ADR-QD-077](../decisions/077-renderability-is-a-core-rule.md)). A wrong
+([ADR-QD-079](../decisions/079-renderability-is-a-core-rule.md)). A wrong
 declaration can only under-admit or fail loudly, never admit a row the
 predicate denies.
 
-## BEH-QD-264: A predicate is classified once, in core, into a renderable tree
+## BEH-QD-271: A predicate is classified once, in core, into a renderable tree
 
 ```
 REQUIREMENT: `@qadi/core`'s `toRenderable(predicate, rules)` MUST turn a
@@ -508,7 +508,7 @@ REQUIREMENT: Refusals MUST be reported leftmost-first, in this order for a leaf:
              `UnsafeValue`.
 REQUIREMENT: In two-valued logic a `RenderableNode`, with every `NullGuard`
              applied literally, MUST equal `evaluatePredicate` on every row
-             whose columns are all present (INV-QD-058).
+             whose columns are all present (INV-QD-061).
 ```
 
 ```ts
@@ -526,7 +526,7 @@ semantic fix such as CCR-QD-120 lands once. `RenderRules` carries the identifier
 rule, `reservedColumns`, `maxInValues`, the nullability declaration and
 `negation: "TwoValued" | "ThreeValued"`.
 
-## BEH-QD-265: A nullability declaration can only narrow or refuse
+## BEH-QD-272: A nullability declaration can only narrow or refuse
 
 ```
 REQUIREMENT: `ColumnNullability` is `Unknown` (every column may hold NULL; the
@@ -543,14 +543,14 @@ REQUIREMENT: For a three-valued `NOT` (Prisma), a column declared NOT NULL MUST
              `evaluatePredicate` admits on NULL MUST keep `AdmitNull` under an odd
              number of `Negate`s even on a column declared NOT NULL.
 REQUIREMENT: A wrong declaration MUST NOT admit a row `evaluatePredicate`
-             denies: it can only lose rows or be refused (INV-QD-059).
+             denies: it can only lose rows or be refused (INV-QD-062).
 ```
 
 The declaration is the minimum schema fact a renderer needs. A schema-blind
 Prisma renderer cannot emit one leaf valid on both kinds of column — Prisma refuses
 any filter that mentions `null` on a required field — and a plain `NOT` over a
 nullable column drops NULL rows (BEH-QD-244). Declared, the package still never
-opens a connection or reads a schema ([ADR-QD-077](../decisions/077-renderability-is-a-core-rule.md)
+opens a connection or reads a schema ([ADR-QD-079](../decisions/079-renderability-is-a-core-rule.md)
 narrows ADR-QD-054's "never sees a schema"). `nullableFieldsOf(model)` derives it
 from a DMMF model that keeps `isRequired`; Prisma 7's runtime `Prisma.dmmf` strips
 that field, so a caller there writes the set out.

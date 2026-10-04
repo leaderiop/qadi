@@ -8,7 +8,7 @@
  *
  * `index.ts` is the renderer, not a barrel. The leaf rules it used to carry (safe
  * values, identifiers, `maxInValues`, NULL handling) are `@qadi/core`'s
- * `toRenderable` now (ADR-QD-077), so their mutants are measured under
+ * `toRenderable` now (ADR-QD-079), so their mutants are measured under
  * `stryker.config.mjs` against core's tests; what is mutated here is Prisma's
  * grammar and its vacuous-identity folding, killed by the goldens and by the
  * real-engine properties (`test/EngineAgreement.test.ts`: Prisma Client over

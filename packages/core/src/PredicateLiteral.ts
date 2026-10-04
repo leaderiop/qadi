@@ -4,7 +4,7 @@
  * column names a renderer may interpolate.
  *
  * These are properties of `evaluatePredicate`'s semantics, not of SQL or Prisma,
- * which is why they live beside it (ADR-QD-077). Before this module each dialect
+ * which is why they live beside it (ADR-QD-079). Before this module each dialect
  * package kept its own copy, and the copies lagged: `@qadi/predicate-sql` admitted
  * `NaN` for a release after `@qadi/predicate-prisma` had learned to refuse it
  * (CCR-QD-120). `evaluatePredicate`'s `Gte`/`Lt` arms and `toRenderable`'s

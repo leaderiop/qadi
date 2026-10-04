@@ -119,7 +119,7 @@ export const PgliteEngineTest: Layer.Layer<PgliteEngine, EngineRefused> = Layer.
 
 /**
  * What the driver accepts as a parameter. Both Node SQLite drivers refuse a JS
- * boolean, so one reaching here is `compileSql`'s defect (ADR-QD-077, N3), not
+ * boolean, so one reaching here is `compileSql`'s defect (ADR-QD-079, N3), not
  * something to coerce quietly.
  */
 const toSqliteInput = (value: SqlSafeValue): SQLInputValue => {

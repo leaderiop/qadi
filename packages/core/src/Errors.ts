@@ -315,10 +315,10 @@ export type RenderRefusal =
  * policy node has no row-filter meaning, `toRenderable` raises this when a
  * `Compare`/`MemberOf` has one but no safe rendering — an unsafe value or
  * column, a `MemberOf` past `maxInValues`, a null comparison on a column
- * declared NOT NULL (ADR-QD-077).
+ * declared NOT NULL (ADR-QD-079).
  *
  * Declared once, here, and re-exported by `@qadi/predicate-sql` and
- * `@qadi/predicate-prisma`. Before ADR-QD-077 each package declared its own
+ * `@qadi/predicate-prisma`. Before ADR-QD-079 each package declared its own
  * class with the same `_tag` (ticket 95), which ADR-QD-008's "the `_tag` is the
  * identity" bent: a `catchTag` site saw two structurally identical classes.
  * `Data.TaggedError`, not `Schema.TaggedError`: it crosses no codec.

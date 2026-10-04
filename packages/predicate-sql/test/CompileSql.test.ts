@@ -17,12 +17,12 @@ const refusalOf = (predicate: Predicate, dialect: SqlDialect, maxInValues?: numb
     Result.isFailure(r) ? r.failure : undefined,
   );
 
-// ADR-QD-077. A declaration of which columns accept NULL lets a renderer drop the
+// ADR-QD-079. A declaration of which columns accept NULL lets a renderer drop the
 // `OR col IS NULL` a NOT NULL column never needs — at positive polarity only (see
 // `RenderablePredicate.ts`'s table: a two-valued `NOT` keeps the guard under an odd
 // number of negations, which a real engine showed is what makes a wrong declaration
 // safe).
-describe("compileSql — a nullability declaration (ADR-QD-077)", () => {
+describe("compileSql — a nullability declaration (ADR-QD-079)", () => {
   const nullable: ReadonlySet<string> = new Set(["level"]);
   const neq = (column: string): Predicate => ({ _tag: "Compare", column, op: "Neq", value: 1 });
 
@@ -90,7 +90,7 @@ describe("compileSql — a nullability declaration (ADR-QD-077)", () => {
     }));
 });
 
-// ADR-QD-077: one `PredicateNotRenderable`, declared in `@qadi/core`.
+// ADR-QD-079: one `PredicateNotRenderable`, declared in `@qadi/core`.
 describe("compileSql — the refusal is @qadi/core's PredicateNotRenderable", () => {
   const unsafe: Predicate = { _tag: "Compare", column: "x", op: "Eq", value: { foo: 1 } };
 
@@ -112,7 +112,7 @@ describe("compileSql — the refusal is @qadi/core's PredicateNotRenderable", ()
     }));
 });
 
-// ADR-QD-077: the compiler decides nothing about what is renderable. It refuses
+// ADR-QD-079: the compiler decides nothing about what is renderable. It refuses
 // exactly when `toRenderable` does, under the rules it declares.
 describe("compileSql — refusal parity with toRenderable", () => {
   const sqlRules = (options: {
@@ -206,7 +206,7 @@ describe("compileSql — refusal parity with toRenderable", () => {
     }));
 });
 
-// ADR-QD-077 (ARCH-03 N3). `SqlSafeValue` includes `boolean`, but `node:sqlite`
+// ADR-QD-079 (ARCH-03 N3). `SqlSafeValue` includes `boolean`, but `node:sqlite`
 // throws "Provided value cannot be bound to SQLite parameter" and better-sqlite3
 // throws "SQLite3 can only bind numbers, strings, bigints, buffers, and null" for
 // one. SQLite stores a boolean as 1/0, so `sealed = 1` is the faithful rendering;
@@ -322,7 +322,7 @@ describe("compileSql — golden fragments, one row per dialect", () => {
         text: '("tenantId" = $1 AND "tag" IN ($2, $3) AND CASE WHEN ("sealed" = $4) THEN FALSE ELSE TRUE END)',
         params: ["t-1", "red", "blue", true],
       });
-      // sqlite binds a boolean as 1 (ADR-QD-077): neither Node driver can bind a JS boolean.
+      // sqlite binds a boolean as 1 (ADR-QD-079): neither Node driver can bind a JS boolean.
       assert.deepStrictEqual(yield* render(compound, "sqlite"), {
         text: '("tenantId" = ? AND "tag" IN (?, ?) AND CASE WHEN ("sealed" = ?) THEN FALSE ELSE TRUE END)',
         params: ["t-1", "red", "blue", 1],

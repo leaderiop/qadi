@@ -11,7 +11,7 @@
  * which values are safe to bind, what `Compare` means against NULL and against
  * a non-number, that an empty `MemberOf` is false, which columns are refused,
  * how large an `IN` list may be — is `@qadi/core`'s `toRenderable`
- * (ADR-QD-077); it hands this module a closed `RenderableNode` tree with every
+ * (ADR-QD-079); it hands this module a closed `RenderableNode` tree with every
  * decision already made, and what is left here is syntax. The three dialects
  * share one recursive renderer; what differs is a small syntax table
  * (identifier quoting, placeholder style, how a literal is bound). See
@@ -61,7 +61,7 @@ export interface CompileSqlOptions {
    * Which columns accept NULL. Absent declares nothing (every column may), and
    * the output is what it was before this option existed. Declared, a column
    * outside the set is NOT NULL: `Neq` renders a plain `!=` with no `OR col IS
-   * NULL`, and a null comparison on it refuses (ADR-QD-077). A wrong declaration
+   * NULL`, and a null comparison on it refuses (ADR-QD-079). A wrong declaration
    * can only under-admit or refuse, never admit a row the predicate denies.
    */
   readonly nullable?: ReadonlySet<string>;
@@ -78,7 +78,7 @@ interface DialectSyntax {
   /** `paramCount` is the 1-based position of the just-pushed parameter. */
   readonly placeholder: (paramCount: number) => string;
   /**
-   * The value a driver is handed for a safe literal (ADR-QD-077). Identity for
+   * The value a driver is handed for a safe literal (ADR-QD-079). Identity for
    * postgres and mysql; sqlite stores a boolean as 1/0 and neither Node driver
    * (`node:sqlite`, `better-sqlite3`) can take a JavaScript boolean as a
    * parameter, so it maps `true`/`false` to `1`/`0`.

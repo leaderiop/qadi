@@ -7,10 +7,10 @@
 > | Document ID    | QADI-ADR-054                                   |
 > | Revision       | 1.0                                            |
 > | Effective Date | 2026-08-25                                     |
-> | Status         | Accepted — narrows ADR-QD-024; amended by ADR-QD-077 |
+> | Status         | Accepted — narrows ADR-QD-024; amended by ADR-QD-079 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-25): Initial release (CCR-QD-079); 1.1 (2026-10-04): forward pointers to ADR-QD-077 under the schema and `PredicateNotRenderable` paragraphs (CCR-QD-154) |
+> | Change History | 1.0 (2026-08-25): Initial release (CCR-QD-079); 1.1 (2026-10-04): forward pointers to ADR-QD-079 under the schema and `PredicateNotRenderable` paragraphs (CCR-QD-158) |
 
 ---
 
@@ -79,7 +79,7 @@ deeper, same method. `@casl/mongoose` and `@casl/prisma` are direct evidence
 this exact boundary — compile-only, schema-blind, separately packaged — holds
 in a library facing the same trade-off.
 
-> **Amended by [ADR-QD-077](./077-renderability-is-a-core-rule.md) (2026-10-04).** "Never sees a schema" is narrowed: a
+> **Amended by [ADR-QD-079](./079-renderability-is-a-core-rule.md) (2026-10-04).** "Never sees a schema" is narrowed: a
 > renderer accepts one schema fact, a per-column nullability declaration, which can only narrow or refuse.
 > The package still never opens a connection or reads a schema itself.
 
@@ -94,7 +94,7 @@ the AST. Each companion package declares its own unprefixed
 not shared via `@qadi/core`, because `@qadi/core` has no reason to know this
 error exists.
 
-> **Amended by [ADR-QD-077](./077-renderability-is-a-core-rule.md) (2026-10-04).** The paragraph above is superseded:
+> **Amended by [ADR-QD-079](./079-renderability-is-a-core-rule.md) (2026-10-04).** The paragraph above is superseded:
 > `@qadi/core` now declares the one `PredicateNotRenderable` (a `QadiError` member, code `ACL018`) and both
 > packages re-export it. Ticket 95's shared-`_tag` rationale no longer applies.
 

@@ -1,16 +1,16 @@
-# ADR-QD-077 — Renderability is a core rule
+# ADR-QD-079 — Renderability is a core rule
 
 > **Document Control**
 >
 > | Property       | Value                                                  |
 > | -------------- | ------------------------------------------------------ |
-> | Document ID    | QADI-ADR-077                                           |
+> | Document ID    | QADI-ADR-079                                           |
 > | Revision       | 1.0                                                    |
 > | Effective Date | 2026-10-04                                             |
 > | Status         | Accepted — amends ADR-QD-054                           |
 > | Author         | Qadi Engineering                                       |
 > | Classification | Architecture Decision Record                           |
-> | Change History | 1.0 (2026-10-04): Initial release (CCR-QD-153, CCR-QD-154) |
+> | Change History | 1.0 (2026-10-04): Initial release (CCR-QD-157, CCR-QD-158) |
 
 ---
 
