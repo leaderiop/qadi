@@ -28,6 +28,8 @@ import {
 } from "../src/EvaluationId.ts";
 import * as M from "../src/Matcher.ts";
 import * as P from "../src/Policy.ts";
+import { portCallsTotal, predicatePortCallsTotal } from "../src/PortMetrics.ts";
+import { toPredicate } from "../src/Predicate.ts";
 import {
   RelationshipResolver,
   RelationshipResolverNever,
@@ -323,6 +325,110 @@ describe("port activity is counted", () => {
       const calls = frequencyOf(snapshots, "qadi_port_calls_total");
       assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
     }));
+});
+
+/**
+ * `toPredicate` reads the same two ports the evaluator does, so its traffic is
+ * counted too — in a sibling metric, because `qadi_port_calls_total` keeps its
+ * meaning and its registry key (ADR-QD-052).
+ */
+describe("translation's port activity is counted separately", () => {
+  const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
+        s.type === "Frequency" && s.id === id,
+    );
+
+  it.effect("an attribute lookup and a history query count against their ports", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        toPredicate(
+          P.allOf([P.hasAttribute("clearance", M.gte(1)), P.hasActed("approved", { scope: "Any" })]),
+        )
+          .pipe(
+            Effect.provide(
+              testLayer(subjectWith({}), {
+                attributes: attributeResolverFromRecord({ clearance: 5 }),
+              }),
+            ),
+          )
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const calls = frequencyOf(snapshots, "qadi_predicate_port_calls_total");
+      assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
+      assert.strictEqual(calls?.state.occurrences.get("DecisionHistory"), 1);
+      // The evaluator's series is not touched by a translation.
+      assert.isUndefined(frequencyOf(snapshots, "qadi_port_calls_total"));
+    }));
+
+  it.effect("both ports are preregistered, so an untouched one reads zero", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        toPredicate(P.hasAttribute("clearance", M.gte(1)))
+          .pipe(
+            Effect.provide(
+              testLayer(subjectWith({}), {
+                attributes: attributeResolverFromRecord({ clearance: 5 }),
+              }),
+            ),
+          )
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const calls = frequencyOf(snapshots, "qadi_predicate_port_calls_total");
+      assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
+      assert.strictEqual(calls?.state.occurrences.get("DecisionHistory"), 0);
+    }));
+
+  it.effect("an attribute already on the subject counts nothing in either series", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        toPredicate(P.hasAttribute("clearance", M.gte(1)))
+          .pipe(Effect.provide(testLayer(subjectWith({ attributes: { clearance: 5 } }))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      assert.isUndefined(frequencyOf(snapshots, "qadi_predicate_port_calls_total"));
+      assert.isUndefined(frequencyOf(snapshots, "qadi_port_calls_total"));
+    }));
+
+  it.effect("an evaluation does not count in the translation series", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasAttribute("clearance", M.gte(1)))
+          .pipe(
+            Effect.provide(
+              testLayer(subjectWith({}), {
+                attributes: attributeResolverFromRecord({ clearance: 5 }),
+              }),
+            ),
+          )
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      assert.isUndefined(frequencyOf(snapshots, "qadi_predicate_port_calls_total"));
+      assert.strictEqual(
+        frequencyOf(snapshots, "qadi_port_calls_total")?.state.occurrences.get("AttributeResolver"),
+        1,
+      );
+    }));
+
+  it("the descriptions are pinned, because the description is part of the registry key", () => {
+    // `effect/Metric` keys its registry on `type:id:description` (ADR-QD-052):
+    // rewording either string silently creates a second metric.
+    assert.strictEqual(
+      predicatePortCallsTotal.description,
+      "Calls toPredicate made into a resolver or history port while folding a policy, by port. " +
+        "The evaluator's calls are qadi_port_calls_total.",
+    );
+    assert.strictEqual(
+      portCallsTotal.description,
+      "Calls the evaluator made into a resolver or history port, by port. " +
+        "Scoped to Evaluate.ts only — Predicate.ts's translateNode reaches the " +
+        "same ports via a second interpreter and is not counted here.",
+    );
+  });
 });
 
 describe("EvaluationServicesNone", () => {

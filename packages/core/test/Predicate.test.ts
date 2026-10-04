@@ -4,8 +4,10 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
+import type * as Tracer from "effect/Tracer";
 import * as FastCheck from "fast-check";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
@@ -18,7 +20,7 @@ import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import type { Predicate } from "../src/Predicate.ts";
 import { evaluatePredicate, toPredicate } from "../src/Predicate.ts";
-import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 const tenant = subjectWith({
   id: "u-1",
@@ -1040,5 +1042,113 @@ describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", ()
       );
       assert.deepStrictEqual(predicate, { _tag: "True" });
       assert.strictEqual(yield* Ref.get(attempts), 3);
+    }));
+});
+
+/**
+ * `toPredicate`'s port reads are spans too (ADR-QD-051, BEH-QD-NEXT-d): the same
+ * `qadi.attribute`/`qadi.acted` the evaluator emits, under `qadi.toPredicate`,
+ * annotated `qadi.interpreter: "toPredicate"` so a trace reader can tell a
+ * translation's read from an evaluation's.
+ */
+describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
+  const named = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
+    spans.find((s) => s.name === name);
+  const attributesOf = (span: Tracer.Span | undefined): Record<string, unknown> =>
+    span === undefined ? {} : Object.fromEntries(span.attributes);
+
+  const resolver = Layer.succeed(AttributeResolver, {
+    name: "record",
+    resolve: (_id: string, attribute: string) => Effect.succeed(attribute === "riskScore" ? 20 : undefined),
+  });
+
+  it.effect("a resolved attribute spans under qadi.toPredicate and records no value", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u9" }), { attributes: resolver }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      const span = named(spans, "qadi.attribute");
+      const root = named(spans, "qadi.toPredicate");
+      assert.isDefined(span);
+      assert.isDefined(root);
+      assert.deepStrictEqual(attributesOf(span), {
+        "qadi.attribute": "riskScore",
+        "qadi.subject_id": "u9",
+        "qadi.interpreter": "toPredicate",
+        "qadi.resolved": true,
+      });
+      // The parent is the translation, not some ambient span.
+      assert.deepStrictEqual(
+        Option.map(span?.parent ?? Option.none(), (p) => p.spanId),
+        Option.some(root?.spanId),
+      );
+    }));
+
+  it.effect("an attribute the subject carries emits no span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ attributes: { riskScore: 20 } }), { attributes: resolver }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.isUndefined(named(spans, "qadi.attribute"));
+    }));
+
+  it.effect("a failing port's span still carries the question", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const failing = Layer.succeed(AttributeResolver, {
+        resolve: (_id: string, attribute: string) =>
+          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
+      });
+      yield* Effect.result(
+        toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(subjectWith({ id: "u9" }), { attributes: failing }),
+              collectingTracer(spans),
+            ),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributesOf(named(spans, "qadi.attribute")), {
+        "qadi.attribute": "riskScore",
+        "qadi.subject_id": "u9",
+        "qadi.interpreter": "toPredicate",
+      });
+    }));
+
+  it.effect("a history question spans as qadi.acted, scoped to Any", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasActed("onboarded", { scope: "Any" })).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u9" }), { history: acted }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributesOf(named(spans, "qadi.acted")), {
+        "qadi.subject_id": "u9",
+        "qadi.event": "onboarded",
+        "qadi.scope": "Any",
+        "qadi.interpreter": "toPredicate",
+        "qadi.answer": "Acted",
+      });
     }));
 });
