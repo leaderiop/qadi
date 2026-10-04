@@ -24,6 +24,7 @@ import type {
   EvaluationServices,
   Policy,
   Resource,
+  StandingEvaluationServices,
 } from "@qadi/core";
 import {
   assert as assertCore,
@@ -44,7 +45,7 @@ import * as ManagedRuntime from "effect/ManagedRuntime";
  * subject would be a per-process subject — the wrong shape for a server and a hazard
  * in a multi-tenant one. The subject travels per call instead.
  */
-export type QadiLayer = Layer.Layer<Exclude<EvaluationServices, CurrentSubject>>;
+export type QadiLayer = Layer.Layer<StandingEvaluationServices>;
 
 export interface Qadi {
   /**

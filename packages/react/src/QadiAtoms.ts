@@ -17,9 +17,9 @@ import type {
   AuthSubject,
   Decision,
   EvaluationError,
-  EvaluationServices,
   Policy,
   Resource,
+  StandingEvaluationServices,
 } from "@qadi/core";
 import { CurrentSubject, DecisionCache, evaluate } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -45,7 +45,7 @@ export type { HydrationMismatch, HydrationMismatchReporter } from "./HydrationWa
  * provided per evaluation from {@link QadiAtoms.subject} rather than baked
  * into the runtime — a login must not rebuild the attribute resolver.
  */
-export type QadiRuntimeServices = Exclude<EvaluationServices, CurrentSubject>;
+export type QadiRuntimeServices = StandingEvaluationServices;
 
 /**
  * The layer a Qadi runtime is built from.

@@ -37,11 +37,10 @@
  */
 import * as Layer from "effect/Layer";
 import { AttributeResolverNone } from "./AttributeResolver.ts";
-import type { CurrentSubject } from "./CurrentSubject.ts";
 import { CustomPredicateNone } from "./CustomPredicate.ts";
 import { DecisionHistoryUnknown } from "./DecisionHistory.ts";
 import { EvaluationIdLive } from "./EvaluationId.ts";
-import type { EvaluationServices } from "./Evaluate.ts";
+import type { StandingEvaluationServices } from "./Evaluate.ts";
 import { RelationshipResolverNever } from "./RelationshipResolver.ts";
 import { SignatureHistoryNone } from "./SignatureHistory.ts";
 
@@ -50,9 +49,7 @@ import { SignatureHistoryNone } from "./SignatureHistory.ts";
  * DecisionHistoryUnknown, EvaluationIdLive, CustomPredicateNone,
  * SignatureHistoryNone)` — nothing more.
  */
-export const EvaluationServicesNone: Layer.Layer<
-  Exclude<EvaluationServices, CurrentSubject>
-> = Layer.mergeAll(
+export const EvaluationServicesNone: Layer.Layer<StandingEvaluationServices> = Layer.mergeAll(
   AttributeResolverNone,
   RelationshipResolverNever,
   DecisionHistoryUnknown,

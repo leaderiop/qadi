@@ -285,6 +285,23 @@ export type EvaluationServices =
   | SignatureHistory;
 
 /**
+ * Everything an evaluation needs except who is asking.
+ *
+ * The services a runtime holds for its lifetime while the subject travels per
+ * call. Written as `Exclude` rather than as a hand-listed union so it tracks
+ * {@link EvaluationServices}: a port added to that union reaches every
+ * adapter that names this alias without a second edit. Its domain-named
+ * aliases keep their own meaning and public names: `SubjectSetServices`
+ * (`SubjectSet.ts`), `QadiRuntimeServices` (`@qadi/react`), and the
+ * `@qadi/promise` and `@qadi/http` runtime requirement sets.
+ *
+ * Before this alias the same `Exclude` was spelled out six times across four
+ * packages, and `@qadi/http`'s `RequirePermission.ts` re-listed the six
+ * services by hand instead (ARCH-04).
+ */
+export type StandingEvaluationServices = Exclude<EvaluationServices, CurrentSubject>;
+
+/**
  * The services a single recursive walk (`evaluateNode` and its lookup) reads —
  * `EvaluationServices` minus `CurrentSubject` and `EvaluationId`, which the
  * root `evaluate` resolves once and never threads into the walk itself.
