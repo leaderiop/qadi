@@ -11,5 +11,9 @@ export default defineConfig({
   test: {
     name: "predicate-prisma",
     include: ["test/**/*.test.ts"],
+    // Generates the fixture Prisma client when it is missing (Stryker's sandbox).
+    globalSetup: ["./test/globalSetup.ts"],
+    // A real Prisma engine boots per test file; the default 5 s is for pure code.
+    testTimeout: 30_000,
   },
 });

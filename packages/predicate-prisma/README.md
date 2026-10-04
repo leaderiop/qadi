@@ -26,7 +26,7 @@ import {
   subject,
   toPredicate,
 } from "@qadi/core";
-import { compilePrismaWhere, nullableFieldsOf } from "@qadi/predicate-prisma";
+import { compilePrismaWhere } from "@qadi/predicate-prisma";
 
 // Tenancy, compiled once and pushed into the query — nothing here mentions
 // a query until `compilePrismaWhere` is called.
@@ -38,11 +38,10 @@ const services = Layer.mergeAll(
   DecisionHistoryUnknown,
 );
 
-// Which columns accept NULL, read off your Prisma model — a declaration, never
-// an inspection: this package opens no connection and reads no schema.
-const nullable = nullableFieldsOf(
-  Prisma.dmmf.datamodel.models.find((model) => model.name === "Invoice") ?? { fields: [] },
-);
+// Which columns accept NULL — a declaration, never an inspection: this package
+// opens no connection and reads no schema. Write the set out, or derive it with
+// `nullableFieldsOf` from a DMMF model that keeps `isRequired` (see below).
+const nullable = new Set(["deletedAt", "note"]);
 
 const where = await Effect.runPromise(
   toPredicate(visible).pipe(
@@ -70,7 +69,9 @@ a generated `WhereInput` on its own.
 ## Declare which columns accept NULL
 
 `compilePrismaWhere`'s second argument is required: `{ nullable }`, the set of
-columns that accept NULL (`nullableFieldsOf` builds it from a Prisma model).
+columns that accept NULL. `nullableFieldsOf(model)` builds it from a DMMF model
+that keeps `isRequired` (`getDMMF` from `@prisma/internals`; Prisma 7's runtime
+`Prisma.dmmf` strips it, so write the set out by hand there).
 Prisma refuses any filter that mentions `null` on a required field, and a plain
 `NOT` over a nullable column's comparison silently drops the NULL rows the
 evaluator admits — so the compiler needs this one schema fact. A wrong

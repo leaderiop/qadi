@@ -22,12 +22,10 @@ while others refuse to translate at all, see
 ```ts
 import * as Effect from "effect/Effect";
 import { toPredicate } from "@qadi/core";
-import { compilePrismaWhere, nullableFieldsOf } from "@qadi/predicate-prisma";
+import { compilePrismaWhere } from "@qadi/predicate-prisma";
 
-// Which columns accept NULL, read off your Prisma model.
-const nullable = nullableFieldsOf(
-  Prisma.dmmf.datamodel.models.find((model) => model.name === "Invoice") ?? { fields: [] },
-);
+// Which columns accept NULL, declared once for the model.
+const nullable = new Set(["deletedAt", "note"]);
 
 const where = toPredicate(visible).pipe(
   Effect.flatMap((predicate) => compilePrismaWhere(predicate, { nullable })),
@@ -44,7 +42,9 @@ Assign the result to your own model's `WhereInput` at the call site.
 ## Declare which columns accept NULL
 
 `compilePrismaWhere`'s second argument is required: `{ nullable }`, the set of
-columns that accept NULL (`nullableFieldsOf` builds it from a Prisma model).
+columns that accept NULL. `nullableFieldsOf(model)` builds it from a DMMF model
+that keeps `isRequired` (`getDMMF` from `@prisma/internals`; Prisma 7's runtime
+`Prisma.dmmf` strips it, so write the set out by hand there).
 Prisma refuses any filter that mentions `null` on a required field, and a plain
 `NOT` over a nullable column's comparison silently drops the NULL rows the
 evaluator admits, so the compiler needs this one schema fact. A wrong

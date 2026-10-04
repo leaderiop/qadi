@@ -25,7 +25,9 @@ import type { Predicate } from "@qadi/core";
  *
  * A declaration, never an inspection — this package still never opens a
  * connection or reads a schema (ADR-QD-054). `nullableFieldsOf` derives it from
- * a Prisma DMMF model; a caller with no DMMF at hand writes the set out.
+ * a Prisma DMMF model that keeps `isRequired` (`getDMMF` from
+ * `@prisma/internals`); Prisma 7's runtime `Prisma.dmmf` strips that field, so
+ * a caller without such a DMMF writes the set out.
  *
  * Required, not optional (CCR-QD-153): a schema-blind renderer cannot emit one
  * leaf valid on both kinds of column. Prisma refuses every filter that mentions

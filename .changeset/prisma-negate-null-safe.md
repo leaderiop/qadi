@@ -15,6 +15,6 @@ Migration:
 compilePrismaWhere(predicate);
 // after
 compilePrismaWhere(predicate, {
-  nullable: nullableFieldsOf(Prisma.dmmf.datamodel.models.find((m) => m.name === "Invoice")),
+  nullable: new Set(["deletedAt", "note"]), // or nullableFieldsOf(model) from a DMMF that keeps isRequired
 });
 ```

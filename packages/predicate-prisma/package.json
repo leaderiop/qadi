@@ -41,7 +41,8 @@
     "build": "tsc -b tsconfig.json",
     "prepack": "pnpm -w run build",
     "typecheck": "tsc -b tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate": "PRISMA_HIDE_UPDATE_MESSAGE=1 CHECKPOINT_DISABLE=1 prisma generate"
   },
   "dependencies": {
     "@qadi/core": "workspace:^"
@@ -51,7 +52,9 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
+    "@prisma/adapter-better-sqlite3": "7.10.0",
     "@prisma/client": "7.10.0",
+    "better-sqlite3": "12.11.1",
     "effect": "catalog:",
     "fast-check": "catalog:",
     "prisma": "7.10.0",
