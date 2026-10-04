@@ -21,12 +21,12 @@
  * `resetTimeoutMs`, `half-open → closed` on the next success, `half-open →
  * open` on the next failure. Added since (ticket #38 / H4, narrowed by
  * ticket #47): `half-open → open` also on a probe that never resolves at
- * all — `recordFailure` itself now covers a defecting or interrupted probe
- * write directly (`AuditDecisionSinkLive.ts` runs `trailPort.write` under
- * `Effect.exit`), with `releaseProbe` (from `AuditDecisionSinkLive.ts`'s
- * `Effect.onExit`) and `status`'s own age-out check left as fallbacks for
- * whatever settles *after* that — so an interrupted or defecting probe
- * cannot wedge the breaker `HalfOpen` forever.
+ * all. `Effect.exit` around `trailPort.write` folds a typed failure, a defect
+ * and an adapter's own self-interruption into `recordFailure`. A *caller's*
+ * interruption is not folded (the fiber itself is interrupted), so for a probe
+ * the release finalizer's `releaseProbe` is the primary path, and for a
+ * non-probe write nothing is recorded. `status`'s own age-out check is the
+ * last fallback — so none of these can wedge the breaker `HalfOpen` forever.
  *
  * Not exported from the package barrel — this module is assembly-internal.
  */
@@ -61,7 +61,12 @@ export interface CircuitBreaker {
   readonly status: Effect.Effect<CircuitBreakerStatus>;
   /** A write attempt succeeded. May close a half-open breaker. */
   readonly recordSuccess: Effect.Effect<void>;
-  /** A write attempt failed with `AuditWriteError`. May trip the breaker. */
+  /**
+   * A write attempt failed with `AuditWriteError`. May trip the breaker.
+   *
+   * A no-op while `Open`: a write admitted before the trip and settling after
+   * it is not evidence about the store since.
+   */
   readonly recordFailure: Effect.Effect<void>;
   /**
    * Claims the single write half-open admits, for a caller who has already
@@ -108,12 +113,11 @@ export interface CircuitBreaker {
    * backend could recover and it would make no difference.
    *
    * **Narrowed by ticket #47.** `trailPort.write` now runs under
-   * `Effect.exit` instead, so a defecting or interrupted write already
-   * reaches `recordFailure` directly — which reopens a `HalfOpen` breaker
-   * exactly as this method does. `releaseProbe` remains the fallback for the
-   * narrower window *after* that `Exit` is captured (`recordFailure` itself,
-   * or a metric update after it, getting interrupted before completing),
-   * rather than the primary path for the write's own failure.
+   * `Effect.exit` instead, so a typed failure, a defect or an adapter's own
+   * self-interruption reaches `recordFailure` directly — which reopens a
+   * `HalfOpen` breaker exactly as this method does. A *caller's* interruption
+   * is not folded by `Effect.exit`, so for it this method is the primary
+   * release path, not a fallback.
    *
    * `AuditDecisionSinkLive.ts` calls this from an `Effect.onExit` wrapped
    * around the probe's write, so it fires on every abnormal exit. It is a
@@ -299,6 +303,9 @@ export const makeCircuitBreaker = Effect.fn("qadi.audit.makeCircuitBreaker")(fun
   const recordFailure: Effect.Effect<void> = Effect.gen(function* () {
     const now = yield* Clock.currentTimeMillis;
     const openedNow = yield* Ref.modify(ref, (state) => {
+      // A no-op while `Open`: a write admitted before the trip and settling
+      // after it is not evidence about the store since (ARCH-07 C5, D-07-c).
+      if (state.status === "Open") return [false, state];
       if (state.status === "HalfOpen") {
         return [
           true,

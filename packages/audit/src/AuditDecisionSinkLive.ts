@@ -230,10 +230,10 @@ export const AuditDecisionSinkLive = (
           // exists to detect, so a defect has to reach `recordFailure` the
           // same as a typed `AuditWriteError` does — not disappear into an
           // unhandled defect the breaker and the metrics both stay blind to.
-          // The `Effect.onExit` around this whole block (below) still runs
-          // regardless, as a second line of defense for the probe claim
-          // specifically — `releaseProbe` is a no-op once `recordFailure`
-          // has already turned the half-open window back to `Open` itself.
+          // `Effect.exit` folds a typed failure, a defect and an adapter's
+          // self-interruption. It does not fold a *caller's* interruption:
+          // for a probe the release finalizer (below) handles that, and for a
+          // non-probe write nothing is recorded.
           const attemptWrite = Effect.gen(function* () {
             const written = yield* Effect.exit(trailPort.write(entry));
             if (Exit.isSuccess(written)) {

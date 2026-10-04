@@ -129,10 +129,13 @@ typed `E` channel, so a defect or an interruption from a misbehaving store
 adapter used to unwind straight past `breaker.recordFailure` and the
 `qadi_audit_writes_total` `write_failed` counter alike — a store that never
 resolves observably, and never tripped the one mechanism that exists to
-detect it. `Effect.exit` folds every way `write` can conclude — success,
-typed failure, defect, interruption — into one `Exit` value the same code
-path branches on, so a defect reaches `recordFailure` exactly as a typed
-`AuditWriteError` does.
+detect it. `Effect.exit` folds success, a typed failure, a defect and an
+adapter's own self-interruption into one `Exit` value the same code path
+branches on, so a defect reaches `recordFailure` exactly as a typed
+`AuditWriteError` does. A *caller's* interruption of `record` (a client
+disconnect, an `Effect.timeout`) is not folded by `Effect.exit`: it is not a
+store failure. A caller-interrupted write while `Closed` records nothing, and a
+caller-interrupted half-open probe releases its claim, reopening the breaker.
 
 ## BEH-QD-252: Staging is best-effort, and provably non-observable in the happy path
 

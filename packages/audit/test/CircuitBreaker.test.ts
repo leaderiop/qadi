@@ -220,6 +220,50 @@ describe("CircuitBreaker — threshold boundary, scripted rather than generated"
     }));
 });
 
+describe("CircuitBreaker — a failure landing on an already-Open breaker is not a transition", () => {
+  const openOccurrences = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>) =>
+    snapshots
+      .find(
+        (s): s is FrequencySnapshot =>
+          s.type === "Frequency" && s.id === "qadi_audit_circuit_breaker_transitions_total",
+      )
+      ?.state.occurrences.get("Open");
+
+  it.effect("a late failure neither re-announces Open nor restarts the open window", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          const breaker = yield* makeCircuitBreaker(OPTIONS);
+          yield* breaker.recordFailure;
+          yield* breaker.recordFailure;
+          yield* breaker.recordFailure;
+          yield* TestClock.adjust("9 seconds");
+          yield* breaker.recordFailure; // admitted before the trip, settling after it
+          yield* TestClock.adjust("1 second");
+          assert.strictEqual(yield* breaker.status, "HalfOpen", "the window is measured from the trip");
+          return yield* Metric.snapshot;
+        }),
+      );
+      assert.strictEqual(openOccurrences(snapshots), 1);
+    }));
+
+  it.effect("failureThreshold + 5 concurrent failures record exactly one Open transition", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          const breaker = yield* makeCircuitBreaker({ failureThreshold: 25, resetTimeoutMs: 10_000 });
+          yield* Effect.all(
+            Array.from({ length: 30 }, () => breaker.recordFailure),
+            { concurrency: "unbounded" },
+          );
+          assert.strictEqual(yield* breaker.status, "Open");
+          return yield* Metric.snapshot;
+        }),
+      );
+      assert.strictEqual(openOccurrences(snapshots), 1);
+    }));
+});
+
 describe("CircuitBreaker — concurrent record() calls (Qadi.ts's filter/filterStream fan-out)", () =>
   it.effect(
     "exactly failureThreshold consecutive failures trips it, even run concurrently — no lost update, no double-count",
