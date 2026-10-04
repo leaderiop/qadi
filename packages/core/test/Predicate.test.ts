@@ -1,12 +1,16 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as Ref from "effect/Ref";
+import * as Schedule from "effect/Schedule";
 import * as FastCheck from "fast-check";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { DecisionHistory } from "../src/DecisionHistory.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
+import { AttributeResolveError, DecisionHistoryUnavailable } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -935,5 +939,106 @@ describe("qadi_predicates_translated_total", () => {
           s.type === "Counter" && s.id === "qadi_predicates_translated_total",
       );
       assert.isUndefined(counter);
+    }));
+});
+
+/**
+ * A port that *dies* — throws out of its own Effect construction, or
+ * `Effect.die`s — must reach a caller of `toPredicate` as the port's own typed
+ * error, exactly as it does through `evaluate` (issue #100, BEH-QD-261). A
+ * defect would sail past `Effect.retry` and `Effect.catchTag`, which only ever
+ * see the typed channel.
+ */
+describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", () => {
+  const riskPolicy = P.hasAttribute("riskScore", M.lt(50));
+  const actedPolicy = P.hasActed("onboarded", { scope: "Any" });
+
+  const run = (policy: P.Policy, overrides: Parameters<typeof testLayer>[1]) =>
+    Effect.result(
+      toPredicate(policy).pipe(Effect.provide(testLayer(subjectWith({}), overrides))),
+    );
+
+  it.effect("a dying AttributeResolver surfaces as AttributeResolveError", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.die(new Error("boom")),
+      });
+      const r = yield* run(riskPolicy, { attributes: dying });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, AttributeResolveError);
+      if (!(r.failure instanceof AttributeResolveError)) return;
+      assert.strictEqual(r.failure.attribute, "riskScore");
+    }));
+
+  it.effect("a synchronously throwing AttributeResolver surfaces as AttributeResolveError", () =>
+    Effect.gen(function* () {
+      const throwing = Layer.succeed(AttributeResolver, {
+        resolve: () => {
+          throw new Error("boom");
+        },
+      });
+      const r = yield* run(riskPolicy, { attributes: throwing });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, AttributeResolveError);
+    }));
+
+  it.effect("a dying DecisionHistory surfaces as DecisionHistoryUnavailable", () =>
+    Effect.gen(function* () {
+      const dying = Layer.succeed(DecisionHistory, {
+        hasActed: () => Effect.die(new Error("boom")),
+      });
+      const r = yield* run(actedPolicy, { history: dying });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, DecisionHistoryUnavailable);
+      if (!(r.failure instanceof DecisionHistoryUnavailable)) return;
+      assert.strictEqual(r.failure.event, "onboarded");
+    }));
+
+  it.effect("a port's own typed failure is the same instance after translation", () =>
+    Effect.gen(function* () {
+      const original = new AttributeResolveError({ attribute: "riskScore", cause: "down" });
+      const failing = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.fail(original),
+      });
+      const r = yield* run(riskPolicy, { attributes: failing });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure, original);
+    }));
+
+  it.effect("an interrupting port is never converted into a retryable error", () =>
+    Effect.gen(function* () {
+      const interrupting = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.interrupt,
+      });
+      const exit = yield* Effect.exit(
+        toPredicate(riskPolicy).pipe(
+          Effect.provide(testLayer(subjectWith({}), { attributes: interrupting })),
+        ),
+      );
+      assert.isTrue(Exit.isFailure(exit));
+      if (!Exit.isFailure(exit)) return;
+      assert.isTrue(Cause.hasInterruptsOnly(exit.cause));
+    }));
+
+  it.effect("Effect.retry sees a defecting port, and a later answer translates", () =>
+    Effect.gen(function* () {
+      const attempts = yield* Ref.make(0);
+      const flaky = Layer.succeed(AttributeResolver, {
+        resolve: () =>
+          Effect.flatMap(
+            Ref.updateAndGet(attempts, (n) => n + 1),
+            (n) => (n <= 2 ? Effect.die(new Error("boom")) : Effect.succeed(9)),
+          ),
+      });
+      const predicate = yield* toPredicate(P.hasAttribute("riskScore", M.gte(5))).pipe(
+        Effect.provide(testLayer(subjectWith({}), { attributes: flaky })),
+        Effect.retry(Schedule.recurs(2)),
+      );
+      assert.deepStrictEqual(predicate, { _tag: "True" });
+      assert.strictEqual(yield* Ref.get(attempts), 3);
     }));
 });

@@ -15,10 +15,10 @@
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
-import { AttributeResolver } from "./AttributeResolver.ts";
+import type { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
-import { DecisionHistory } from "./DecisionHistory.ts";
+import type { DecisionHistory } from "./DecisionHistory.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import { MissingAction, PolicyNotTranslatable, PolicyTooDeep } from "./Errors.ts";
@@ -31,6 +31,7 @@ import {
 } from "./Matcher.ts";
 import { permissionKey } from "./Permission.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
+import { askActedAny, readAttribute } from "./PortAccess.ts";
 import type { Policy, Rule } from "./Policy.ts";
 
 // ---------------------------------------------------------------------------
@@ -373,14 +374,13 @@ type PredicateError = AttributeResolveError | DecisionHistoryUnavailable | Missi
 /**
  * Recursively folds one `Policy` node into a `Predicate`.
  *
- * `foldAttribute` and `foldHistory` below call directly into
- * `AttributeResolver`/`DecisionHistory` without updating `PortMetrics.ts`'s
- * `portCallsTotal` — unlike `Evaluate.ts`'s equivalent calls, which do.
- * That is deliberate, not an oversight: `PortMetrics.ts`'s own doc frames the
- * counter as "one per port `Evaluate.ts` can call into", and this is a
- * second interpreter over the same tree (ADR-QD-024), not `Evaluate.ts`
- * itself. A deployment leaning on `toPredicate` for row-level security should
- * not read `qadi_port_calls_total` as its port-traffic total.
+ * `foldAttribute` and `foldHistory` below read `AttributeResolver` and
+ * `DecisionHistory` through `PortAccess.ts` — the same reads `Evaluate.ts` makes,
+ * so a port that dies is converted into its typed error here exactly as there
+ * (issue #100), and the subject-first attribute lookup is stated once.
+ * Those reads span as `qadi.attribute`/`qadi.acted` annotated
+ * `qadi.interpreter: "toPredicate"`, and count in `predicatePortCallsTotal`
+ * rather than `portCallsTotal`, which stays the evaluator's.
  */
 const translateNode = (
   policy: Policy,
@@ -419,10 +419,9 @@ const translateNode = (
     if (action === undefined && referencesAction(matcher)) {
       return Effect.fail(new MissingAction({ expected: undefined }));
     }
-    const read = Object.hasOwn(subject.attributes, attribute)
-      ? Effect.succeed(subject.attributes[attribute])
-      : AttributeResolver.resolve(subject.id, attribute);
-    return Effect.map(read, (value) => constant(evaluateMatcher(matcher, value, context)));
+    return Effect.map(readAttribute("toPredicate", subject, attribute), (value) =>
+      constant(evaluateMatcher(matcher, value, context)),
+    );
   };
 
   /**
@@ -439,9 +438,8 @@ const translateNode = (
       return untranslatable(tag, "a resource-scoped history question is keyed by the row");
     }
     const wanted: ActedResult = tag === "HasActed" ? "Acted" : "NotActed";
-    return Effect.map(
-      DecisionHistory.hasActed({ subjectId: subject.id, event, resourceId: undefined }),
-      (answer) => constant(answer === wanted),
+    return Effect.map(askActedAny("toPredicate", subject, event), (answer) =>
+      constant(answer === wanted),
     );
   };
 
