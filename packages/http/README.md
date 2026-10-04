@@ -34,7 +34,9 @@ reviewer can see that someone chose this.
 | `MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep` | 500 | a wiring mistake in this service |
 
 The 403/502 split is the library's central rule at the wire: a broken attribute
-store must never be reported as "not permitted". Bodies are empty — a trace
+store must never be reported as "not permitted". The bare-route `toResponse` answers
+an empty body; `RequirePermission` answers a redacted body that always carries
+`_tag` (a denial adds `subjectId`, `policyTag` and `reason`). Never the trace — it
 names every node and why it refused, which is not for the caller.
 
 ## Generated clients over-approximate errors

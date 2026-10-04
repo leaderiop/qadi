@@ -95,9 +95,21 @@ implementation, matching the scheme case-insensitively per RFC 7235 §2.1.
 ## Status mapping
 
 ```ts
+// From @qadi/core: the class of every tag, decided once.
 export const ENFORCEMENT_ERROR_TAGS: ReadonlyArray<EnforcementError["_tag"]>;
+export const classifyEnforcementError: (error: { readonly _tag: EnforcementError["_tag"] }) => "denied" | "outage" | "wiringMistake";
+
+// From @qadi/http: the status each class answers with, on every route.
+export const HTTP_STATUS_BY_CLASS: { denied: 403; outage: 502; wiringMistake: 500 };
 export const toResponse: (error: EnforcementError) => HttpServerResponse;
 ```
+
+`@qadi/core` decides which of three classes each tag is (`denied`, `outage`,
+`wiringMistake`), and `HTTP_STATUS_BY_CLASS` is the single place a class becomes a
+status. `toResponse`, `RequirePermission`'s declared error schemas and the OpenAPI
+document all read it through `ENFORCEMENT_ERROR_WIRE`, so the two routing shapes
+cannot disagree about a tag. `ENFORCEMENT_ERROR_TAGS` and `classifyEnforcementError`
+are imported from `@qadi/core`, not from `@qadi/http`.
 
 | Error | Status | Because |
 | ----- | ------ | ------- |
@@ -110,9 +122,11 @@ extractor rejects) is handled separately from this table — it isn't a member
 of `EnforcementError`, since it happens before enforcement runs at all.
 
 The 403/502 split is the library's central rule carried to the wire: a broken
-attribute store must never be reported as "not permitted." Every response body
-is empty — a trace names every node and why it refused, and that detail is not
-for the caller.
+attribute store must never be reported as "not permitted." The bare-route
+`toResponse` answers an empty body for every enforcement error. A route guarded by
+`RequirePermission` answers a redacted body that always carries `_tag` — and for a
+denial, only `subjectId`, `policyTag` and `reason`. Never the trace: it names every
+node and why it refused, and that detail is not for the caller.
 
 ## The permission registry
 
