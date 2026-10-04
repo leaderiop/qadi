@@ -24,11 +24,12 @@ import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type * as SchemaAST from "effect/SchemaAST";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
-import { Matcher } from "./Matcher.ts";
+import { Matcher, matcherDepth } from "./Matcher.ts";
 import { Obligation } from "./Obligation.ts";
 import type { Permission } from "./Permission.ts";
 import { PermissionSchema, SEGMENT_PATTERN } from "./Permission.ts";
 import type { SignatureMeaning } from "./Signature.ts";
+import { foldTree } from "./TreeFold.ts";
 
 /**
  * The default recursion bound for walking a `Policy` tree, shared by both
@@ -513,7 +514,7 @@ const Labeled = Schema.TaggedStruct("Labeled", {
   policy: PolicyRef,
 });
 
-export const Policy: Schema.Codec<Policy, PolicyEncoded> = Schema.Union([
+const PolicyUnion = Schema.Union([
   HasPermission,
   HasRole,
   HasAttribute,
@@ -530,7 +531,21 @@ export const Policy: Schema.Codec<Policy, PolicyEncoded> = Schema.Union([
   Not,
   Obliged,
   Labeled,
-]);
+]).pipe(Schema.toTaggedUnion("_tag"));
+
+export const Policy: Schema.Codec<Policy, PolicyEncoded> = PolicyUnion;
+
+/**
+ * Every `Policy` tag, in the union's declaration order.
+ *
+ * Derived from the schema union itself rather than restated, so the tag list is
+ * not a fifth hand-maintained site beside the type, the encoded type, the
+ * structs and the union (ADR-QD-002's spirit: one definition). It replaces two
+ * byte-for-byte exhaustive tag records that `Decision.ts` and
+ * `Evaluate.ts` each kept (ARCH-02 C5). The element type is exactly
+ * `Policy["_tag"]`, which `Policy.tst.ts` proves.
+ */
+export const POLICY_TAGS = PolicyUnion.discriminants;
 
 // ---------------------------------------------------------------------------
 // Combinators
@@ -1050,15 +1065,13 @@ export const fromJsonValue = (
  * `AllOf`/`AnyOf`'s `policies`, `Rules`'s row conditions, `Not`/`Obliged`/
  * `Labeled`'s wrapped policy, and `[]` for every leaf.
  *
- * Factored out so `policyDepth` can walk with an explicit stack instead of
- * native recursion (see its own comment), while `Match.tagsExhaustive` still
- * makes a new `Policy` tag a compile error here rather than a silently-empty
- * child list. Exported so other pure, non-`Effect` walkers over a caller-held
- * `Policy` can share the same explicit-stack technique instead of recursing
- * natively — `Simplify.ts`'s `simplify` is the other one, per the same class
- * of gap `policyDepth` itself was fixed for (a smart-constructor-built policy
- * has no `MAX_DECODE_DEPTH` bound, so native recursion here can raise a raw
- * `RangeError`, a defect rather than a typed failure).
+ * The per-tag fact {@link foldPolicy} folds over: `Match.tagsExhaustive` makes a
+ * new `Policy` tag a compile error here rather than a silently-empty child
+ * list. Exported for a caller that needs one level of structure; a caller that
+ * walks the whole tree should fold through {@link foldPolicy} instead of writing
+ * its own traversal, so a caller-held policy (which has no `MAX_DECODE_DEPTH`
+ * bound) cannot overflow the call stack with a raw `RangeError`, a defect rather
+ * than a typed failure.
  */
 export const childrenOf: (self: Policy) => ReadonlyArray<Policy> = Match.type<Policy>().pipe(
   Match.tagsExhaustive({
@@ -1082,12 +1095,111 @@ export const childrenOf: (self: Policy) => ReadonlyArray<Policy> = Match.type<Po
 );
 
 /**
+ * The field restriction this node itself carries — never its children's;
+ * `undefined` means it narrows nothing.
+ *
+ * The per-tag fact "which tags carry `fields`", owned here beside the ADT so a
+ * walker asking "does anything in this tree restrict visible fields?" does not
+ * list ten leaves of its own (ARCH-02 C4). `Match.tagsExhaustive` is deliberate:
+ * a new tag is a compile error here, so its author must *decide* whether it
+ * narrows visibility — field visibility is this library's central concern, and a
+ * structural `"fields" in p` check would count a tag that forgot `fields` as
+ * "never restricts", which widens it silently.
+ *
+ * A leaf with `fields: []` returns `[]`, not `undefined`: an empty list is a
+ * restriction to nothing, which is the opposite of no restriction.
+ */
+export const fieldsOf: (self: Policy) => ReadonlyArray<string> | undefined = Match.type<Policy>().pipe(
+  Match.tagsExhaustive({
+    HasPermission: (p) => p.fields,
+    HasRole: (p) => p.fields,
+    HasAttribute: (p) => p.fields,
+    HasResourceAttribute: (p) => p.fields,
+    HasRelationship: (p) => p.fields,
+    HasAction: (p) => p.fields,
+    HasActed: (p) => p.fields,
+    HasNotActed: (p) => p.fields,
+    HasCustom: (p) => p.fields,
+    HasSignature: (p) => p.fields,
+    AllOf: () => undefined,
+    AnyOf: () => undefined,
+    Rules: () => undefined,
+    Not: () => undefined,
+    Obliged: () => undefined,
+    Labeled: () => undefined,
+  }),
+);
+
+/**
+ * Folds a policy bottom-up, without native recursion.
+ *
+ * `combine` receives a node and the results for its children, in
+ * {@link childrenOf} order (`Rules` rows in row order). A subtree shared by
+ * identity folds once, and every parent receives the same result reference. The
+ * fold is stack-safe for any nesting depth or width, and a cyclic policy — which
+ * only in-process mutation can build — throws rather than hanging.
+ *
+ * The seam `policyDepth`, `simplify`, `explain` and the other whole-tree walkers
+ * share, so each keeps only its per-tag semantics and none re-states traversal
+ * order or the stack (ARCH-02). A thin adapter over the internal `TreeFold.ts`.
+ */
+export const foldPolicy = <R>(
+  self: Policy,
+  combine: (node: Policy, children: ReadonlyArray<R>) => R,
+): R => foldTree(self, childrenOf, combine);
+
+/**
+ * The matcher a node itself carries: `HasAttribute` and `HasResourceAttribute`
+ * hold one, every other tag does not.
+ *
+ * The third per-tag structural fact beside {@link childrenOf} and
+ * {@link fieldsOf}. A matcher nests (`someMatch`, `fieldMatch`, …) and the
+ * evaluator recurses through it natively, so its nesting counts toward
+ * {@link policyDepth} (ARCH-02 D-02-f).
+ */
+const matcherOf: (self: Policy) => Matcher | undefined = Match.type<Policy>().pipe(
+  Match.tagsExhaustive({
+    HasAttribute: (p) => p.matcher,
+    HasResourceAttribute: (p) => p.matcher,
+    HasPermission: () => undefined,
+    HasRole: () => undefined,
+    HasRelationship: () => undefined,
+    HasAction: () => undefined,
+    HasActed: () => undefined,
+    HasNotActed: () => undefined,
+    HasCustom: () => undefined,
+    HasSignature: () => undefined,
+    AllOf: () => undefined,
+    AnyOf: () => undefined,
+    Rules: () => undefined,
+    Not: () => undefined,
+    Obliged: () => undefined,
+    Labeled: () => undefined,
+  }),
+);
+
+/** What a childless node contributes: its matcher's nesting, or `0`. */
+const leafNesting = (node: Policy): number => {
+  const matcher = matcherOf(node);
+  return matcher === undefined ? 0 : matcherDepth(matcher);
+};
+
+const maxOf = (values: ReadonlyArray<number>): number => {
+  let max = 0;
+  for (const value of values) if (value > max) max = value;
+  return max;
+};
+
+/**
  * How deeply a policy nests, counted the way the evaluator counts.
  *
- * A leaf is `0`; each recursive position adds one. So `policyDepth(p) <= n` is
- * exactly the condition under which `evaluate(p, { maxDepth: n })` will not
- * raise `PolicyTooDeep`, and `RolesAndDepth.test.ts` asserts that agreement
- * in both directions rather than asserting a number.
+ * A leaf is `0`; each recursive position adds one, and a leaf that carries a
+ * matcher (`HasAttribute`, `HasResourceAttribute`) contributes the matcher's own
+ * nesting (`matcherDepth`), because the evaluator recurses through it too. So
+ * `policyDepth(p) <= n` is
+ * the condition under which `evaluate(p, { maxDepth: n })` will not raise
+ * `PolicyTooDeep`; `RolesAndDepth.test.ts` asserts that agreement in both
+ * directions rather than asserting a number.
  *
  * That agreement is the whole point, and the reason this lives beside the ADT
  * rather than in a caller. `maxDepth` is an evaluation *input* with a default of
@@ -1100,39 +1212,36 @@ export const childrenOf: (self: Policy) => ReadonlyArray<Policy> = Match.type<Po
  * An empty `allOf`, `anyOf` or `rules` is depth `0`, not `1`: it has no
  * children, so the evaluator never descends, and the bound is about descent.
  *
- * Walks with an explicit array-backed stack (the same technique
- * `DecodeDepthGuard.ts`'s `exceedsJsonDepth` uses) rather than native
- * recursion. A decoded policy's nesting is already bounded by
- * `MAX_DECODE_DEPTH`, but a policy assembled programmatically never crosses
- * that boundary — the smart constructors do not depth-check, so a loop of
- * `not()` builds a tree exactly as deep as the loop runs — and this function's
- * own doc above advertises it as the check a tool runs to decide whether a
- * policy "will evaluate at all"; that check must not itself be able to
- * overflow the stack on the input it exists to validate.
+ * Folds through {@link foldPolicy}, so it cannot overflow the stack: a decoded
+ * policy's nesting is already bounded by `MAX_DECODE_DEPTH`, but a policy
+ * assembled programmatically never crosses that boundary — the smart
+ * constructors do not depth-check, so a loop of `not()` builds a tree exactly as
+ * deep as the loop runs — and this function is advertised as the check a tool
+ * runs to decide whether a policy "will evaluate at all"; that check must not
+ * itself be able to overflow the stack on the input it exists to validate.
  */
 export const policyDepth = (self: Policy): number => {
-  const depths = new Map<Policy, number>();
-  const stack: Array<{ readonly node: Policy; readonly expanded: boolean }> = [
-    { node: self, expanded: false },
-  ];
-  while (stack.length > 0) {
-    const frame = stack.pop();
-    if (frame === undefined) break;
-    if (frame.expanded) {
-      const children = childrenOf(frame.node);
-      let max = 0;
-      for (const child of children) {
-        const depth = depths.get(child) ?? 0;
-        if (depth > max) max = depth;
-      }
-      depths.set(frame.node, children.length === 0 ? 0 : 1 + max);
-      continue;
-    }
-    if (depths.has(frame.node)) continue;
-    stack.push({ node: frame.node, expanded: true });
-    for (const child of childrenOf(frame.node)) {
-      stack.push({ node: child, expanded: false });
-    }
-  }
-  return depths.get(self) ?? 0;
+  const known = depthMemo.get(self);
+  if (known !== undefined) return known;
+  const depth = foldPolicy<number>(self, (node, children) => {
+    // Asked of every node, though only a childless one can carry a matcher:
+    // `matcherOf` is exhaustive by tag, and asking it everywhere keeps that
+    // true of what runs, not only of what compiles.
+    const own = leafNesting(node);
+    return children.length === 0 ? own : 1 + maxOf(children);
+  });
+  depthMemo.set(self, depth);
+  return depth;
 };
+
+/**
+ * `policyDepth`'s answer per policy object.
+ *
+ * A policy is an immutable value, and `evaluate` asks its depth before every
+ * uncached evaluation (ARCH-02 D-02-e), so the answer is remembered per object
+ * rather than re-walked. Weakly held: a policy nothing references is collected
+ * with its entry. Only the root a caller passed is remembered; subtrees fold
+ * within one call.
+ */
+const depthMemo = new WeakMap<Policy, number>();
+

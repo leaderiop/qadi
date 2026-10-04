@@ -18,7 +18,16 @@
  */
 import { expect, test } from "tstyche";
 import type { Policy as PolicyTree, PolicyEncoded } from "../src/Policy.ts";
-import { allOf, anyOf, hasPermission, hasRole, Policy } from "../src/Policy.ts";
+import {
+  allOf,
+  anyOf,
+  fieldsOf,
+  foldPolicy,
+  hasPermission,
+  hasRole,
+  Policy,
+  POLICY_TAGS,
+} from "../src/Policy.ts";
 import { permission } from "../src/Permission.ts";
 
 // Three levels deep — `AllOf` over a leaf and an `AnyOf` of two more leaves —
@@ -42,4 +51,16 @@ test("a well-formed, three-level-deep composite policy assigns to the schema's o
 test("the schema's own Encoded type agrees with the hand-written PolicyEncoded union in both directions", () => {
   expect<typeof Policy.Encoded>().type.toBeAssignableTo<PolicyEncoded>();
   expect<PolicyEncoded>().type.toBeAssignableTo<typeof Policy.Encoded>();
+});
+
+test("POLICY_TAGS is derived from the union: its element type is exactly Policy['_tag']", () => {
+  expect<(typeof POLICY_TAGS)[number]>().type.toBe<PolicyTree["_tag"]>();
+});
+
+test("fieldsOf takes a policy and answers a field list or undefined", () => {
+  expect(fieldsOf).type.toBe<(self: PolicyTree) => ReadonlyArray<string> | undefined>();
+});
+
+test("foldPolicy infers its result type from combine", () => {
+  expect(foldPolicy(hasRole("a"), (_node, children: ReadonlyArray<number>) => children.length)).type.toBe<number>();
 });

@@ -104,6 +104,10 @@ describe("policyDepth", () => {
         P.rules([{ condition: P.not(P.hasPermission(read)), effect: "Permit" }], {
           combining: "DenyOverrides",
         }),
+        // Matcher nesting counts too (ARCH-02 D-02-f): the evaluator recurses
+        // through it, so a matcher-bearing leaf is as deep as its matcher.
+        P.hasAttribute("tags", M.someMatch(M.eq(M.literal(1)))),
+        P.not(P.hasAttribute("tags", M.someMatch(M.fieldMatch("a", M.eq(M.literal(1)))))),
       ];
 
       for (const policy of policies) {
@@ -119,7 +123,39 @@ describe("policyDepth", () => {
           assert.strictEqual(below._tag, "Failure", `depth ${depth - 1} should be too deep`);
         }
       }
-    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"], attributes: { tags: [{ a: 1 }] } })))));
+
+  it.effect(
+    "agrees in both directions even where evaluation would short-circuit past the deep branch (ARCH-02 N3)",
+    () =>
+      Effect.gen(function* () {
+        // The converse used to fail: `anyOf([allowing, deep])` has a large
+        // `policyDepth`, yet evaluated fine for a subject the first child allowed
+        // because `First` never descended into `deep`. Whether a policy was "too
+        // deep" then depended on who asked. It is now a property of the policy.
+        const deep = P.not(P.not(P.not(P.hasRole("x"))));
+        const policies = [
+          P.anyOf([P.hasRole("editor"), deep]),
+          P.allOf([P.hasRole("nope"), deep]),
+          P.rules([P.permitWhen(P.hasRole("editor")), P.permitWhen(deep)]),
+        ];
+        for (const roles of [["editor"], []]) {
+          for (const policy of policies) {
+            const depth = P.policyDepth(policy);
+            for (const maxDepth of [0, 1, depth - 1, depth, depth + 1]) {
+              const result = yield* Effect.result(evaluate(policy, { maxDepth })).pipe(
+                Effect.provide(testLayer(subjectWith({ roles }))),
+              );
+              assert.strictEqual(
+                result._tag === "Failure",
+                depth > maxDepth,
+                `${policy._tag} depth ${depth} at maxDepth ${maxDepth} for roles [${roles}]`,
+              );
+            }
+          }
+        }
+      }),
+  );
 
   it("a wide tree (250k direct children) does not overflow the argument list", () => {
     // Regression for the `Math.max(...children.map(policyDepth))` spread:
@@ -157,6 +193,29 @@ describe("policyDepth", () => {
       depth = P.policyDepth(policy);
     });
     assert.strictEqual(depth, n);
+  });
+
+  it("counts a matcher's nesting at a matcher-bearing leaf (ARCH-02 D-02-f)", () => {
+    const nested = P.hasAttribute("x", M.size(M.size(M.eq(M.literal(1)))));
+    assert.strictEqual(P.policyDepth(nested), 2);
+    assert.strictEqual(P.policyDepth(P.not(nested)), 3);
+    assert.strictEqual(P.policyDepth(P.hasAttribute("x", M.eq(M.literal(1)))), 0);
+    assert.strictEqual(
+      P.policyDepth(P.hasResourceAttribute("x", M.someMatch(M.exists()))),
+      1,
+    );
+  });
+
+  it("remembers the answer per policy object, because a policy is an immutable value", () => {
+    // Deliberately mutates a policy, which no caller may do, to prove the answer
+    // is remembered rather than re-walked: `evaluate` asks the depth before every
+    // uncached evaluation (ARCH-02 D-02-e), so a re-walk would be paid each time.
+    const wrapper: { _tag: "Not"; policy: P.Policy } = { _tag: "Not", policy: P.hasRole("a") };
+    assert.strictEqual(P.policyDepth(wrapper), 1);
+    wrapper.policy = P.not(P.not(P.hasRole("a")));
+    assert.strictEqual(P.policyDepth(wrapper), 1);
+    // A different object is a different question.
+    assert.strictEqual(P.policyDepth({ _tag: "Not", policy: wrapper.policy }), 3);
   });
 
   it("a right-leaning spine counts its own length", () => {

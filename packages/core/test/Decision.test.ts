@@ -7,11 +7,13 @@
  * would otherwise wrongly conclude these exports were untested (issue #67).
  */
 import { assert, describe, it, vi } from "@effect/vitest";
+import * as Schema from "effect/Schema";
 import * as FastCheck from "fast-check";
-import { Allow, Deny, intersectFields, project, unionFields } from "../src/Decision.ts";
+import { Allow, Deny, intersectFields, project, TraceSchema, unionFields } from "../src/Decision.ts";
 import type { VisibleFields } from "../src/Decision.ts";
 import * as FieldPath from "../src/FieldPath.ts";
 import { makeSubjectId } from "../src/Identity.ts";
+import { POLICY_TAGS } from "../src/Policy.ts";
 
 describe("field lattice", () => {
   it("undefined is the top: intersecting with it is identity", () => {
@@ -285,5 +287,19 @@ describe("project", () => {
       id: "1",
       contact: { email: "a@b.com" },
     });
+  });
+});
+
+describe("TraceSchema's tag list (ARCH-02 C5)", () => {
+  it("decodes a trace node carrying each of the 16 Policy tags and rejects an unknown one", () => {
+    const decode = Schema.decodeUnknownSync(TraceSchema);
+    assert.strictEqual(POLICY_TAGS.length, 16);
+    for (const policyTag of POLICY_TAGS) {
+      const node = { policyTag, allowed: true, children: [], obligations: [] };
+      assert.strictEqual(decode(node).policyTag, policyTag);
+    }
+    assert.throws(() =>
+      decode({ policyTag: "Probe", allowed: true, children: [], obligations: [] }),
+    );
   });
 });

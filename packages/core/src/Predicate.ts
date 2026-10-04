@@ -30,7 +30,7 @@ import {
   referencesResource,
 } from "./Matcher.ts";
 import { permissionKey } from "./Permission.ts";
-import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
+import { DEFAULT_MAX_DEPTH, fieldsOf, foldPolicy, policyDepth } from "./Policy.ts";
 import { askActedAny, readAttribute } from "./PortAccess.ts";
 import type { Combining, Policy, RuleEffect } from "./Policy.ts";
 import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
@@ -192,9 +192,8 @@ const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
  * this is *not* one of — each arm returns a closure over `row` rather than
  * reading it directly. Matcher.ts's `referencesAction`/`referencesResource`
  * (imported below, used further down) need no such closure because they take
- * no second argument; `restrictsFields` (below) is a third shape again — it
- * takes a `depth`/`maxDepth` pair and stays a per-call `Match.value`,
- * documented at its own definition.
+ * no second argument; `restrictsFields` (below) is a fold over `Policy.ts`'s
+ * `fieldsOf` and dispatches on nothing here.
  */
 type Row = Readonly<Record<string, unknown>>;
 
@@ -299,69 +298,25 @@ const columnPredicate = (
   );
 };
 
-/** Sentinel `restrictsFields` returns instead of recursing past `maxDepth`. */
-const TOO_DEEP = "TooDeep" as const;
-type TooDeep = typeof TOO_DEEP;
+const isTrue = (value: boolean): boolean => value;
 
 /**
- * True when any node in the tree restricts visible fields — bounded by
- * `depth`/`maxDepth`, the same guard `evaluateNode` checks
- * before recursing further.
+ * True when any node in the tree restricts visible fields.
  *
- * `toPredicate` calls this *before* `compile` (which demands the proof this produces),
- * so without a guard here a pathological, hand-built-in-process `Policy` (not
- * one decoded from untrusted JSON — `MAX_DECODE_DEPTH` already bounds that
- * path in `Policy.ts`) could overflow the call stack with a raw `RangeError`
- * before `compile` is ever reached. Unlike `evaluateNode`'s recursion,
- * which runs inside `Effect.gen` and is trampolined by the runtime, this is a
- * plain synchronous function — its recursion genuinely consumes the native
- * call stack, so the depth check has to run first, not merely exist.
- *
- * Dispatches with a per-call `Match.value(policy)` rather than a hoisted
- * `Match.type<Policy>()`. Not because of where `depth`/`maxDepth` would live —
- * that is the same closure shape `dispatchCompare` and `dispatchPredicate`
- * above already use for their own call-time state, and would work here too
- * (JC-06). The real reason is call frequency: this walk runs once per
- * `toPredicate` call, over the policy tree, not once per row the way
- * `dispatchPredicate`/`dispatchCompare` do — so it never reaches the per-row
- * hot path AGENTS.md §5a's hoisting guidance is about, and the 3.5–7.7×
- * per-call-rebuild cost that guidance measures does not apply at this call
- * frequency. If a future caller ever runs `restrictsFields` per row instead
- * of once per translation, hoist it the same way `dispatchCompare` was.
+ * `toPredicate` calls this *before* `compile` (which demands the proof it feeds),
+ * over a policy already shown to be within `maxDepth`. A plain fold over
+ * `Policy.ts`'s `fieldsOf` — which tags carry `fields` is that module's fact, not
+ * a list kept here (ARCH-02 C4) — so a new tag that narrows visibility is a
+ * compile error there rather than a silent `false` here. Stack-safe through
+ * `foldPolicy`, which matters because the caller chooses `maxDepth`: the guard
+ * used to be only as good as that number, and `toPredicate(not^1000(…), {
+ * maxDepth: 1e9 })` threw a raw `RangeError` from the old native recursion.
  */
-const restrictsFields = (policy: Policy, depth: number, maxDepth: number): boolean | TooDeep => {
-  if (depth > maxDepth) return TOO_DEEP;
-
-  const child = (p: Policy): boolean | TooDeep => restrictsFields(p, depth + 1, maxDepth);
-  const anyChild = (children: ReadonlyArray<Policy>): boolean | TooDeep => {
-    for (const c of children) {
-      const result = child(c);
-      if (result === TOO_DEEP || result) return result;
-    }
-    return false;
-  };
-
-  return Match.value(policy).pipe(
-    Match.tagsExhaustive({
-      HasPermission: (p) => p.fields !== undefined,
-      HasAttribute: (p) => p.fields !== undefined,
-      HasResourceAttribute: (p) => p.fields !== undefined,
-      HasRelationship: (p) => p.fields !== undefined,
-      HasAction: (p) => p.fields !== undefined,
-      HasActed: (p) => p.fields !== undefined,
-      HasNotActed: (p) => p.fields !== undefined,
-      HasCustom: (p) => p.fields !== undefined,
-      HasSignature: (p) => p.fields !== undefined,
-      HasRole: (p) => p.fields !== undefined,
-      AllOf: (p) => anyChild(p.policies),
-      AnyOf: (p) => anyChild(p.policies),
-      Rules: (p) => anyChild(p.rules.map((r) => r.condition)),
-      Not: (p) => child(p.policy),
-      Obliged: (p) => child(p.policy),
-      Labeled: (p) => child(p.policy),
-    }),
+const restrictsFields = (policy: Policy): boolean =>
+  foldPolicy<boolean>(
+    policy,
+    (node, children) => fieldsOf(node) !== undefined || children.some(isTrue),
   );
-};
 
 /**
  * A tree shown to be no deeper than `maxDepth`, and whether any node in it
@@ -377,15 +332,16 @@ class Checked {
 }
 
 /**
- * {@link restrictsFields}' answer as a result: `undefined` when the tree is too
- * deep, otherwise the {@link Checked} proof. The early-exit order is
- * `restrictsFields`' own, so which of `PolicyTooDeep` and the `fields` refusal
- * wins is unchanged.
+ * The depth check, as a result: `undefined` when the policy nests deeper than
+ * `maxDepth`, otherwise the {@link Checked} proof.
+ *
+ * Depth is judged first and from the policy alone (`policyDepth`, which counts
+ * matcher nesting too), so a policy that is both too deep and field-restricting
+ * is always `PolicyTooDeep` — independent of child order, as the evaluator's own
+ * root check is independent of who is asking (ARCH-02 D-02-e, N4).
  */
-const checkFields = (policy: Policy, maxDepth: number): Checked | undefined => {
-  const result = restrictsFields(policy, 0, maxDepth);
-  return result === TOO_DEEP ? undefined : new Checked(result);
-};
+const checkFields = (policy: Policy, maxDepth: number): Checked | undefined =>
+  policyDepth(policy) > maxDepth ? undefined : new Checked(restrictsFields(policy));
 
 /**
  * What a translation can fail with once it is running — a port that failed, or
@@ -472,17 +428,27 @@ const compileTree = (
   action: string | undefined,
 ): Compiled => {
   const context = matcherContextFor(subject, action);
-  const child = (p: Policy): Compiled => compileTree(p, subject, action);
 
-  /** Plans every child in order, stopping at the first refusal. */
-  const children = (policies: ReadonlyArray<Policy>): ReadonlyArray<Plan> | Refusal => {
+  /** Plans every folded child in order, stopping at the first refusal. */
+  const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => {
     const plans: Array<Plan> = [];
-    for (const p of policies) {
-      const compiled = child(p);
+    for (const compiled of folded) {
       if (compiled instanceof Refusal) return compiled;
       plans.push(compiled);
     }
     return plans;
+  };
+
+  /**
+   * The one child a wrapper folded, or a thrown invariant failure: `Not` and
+   * `Labeled` always fold exactly one, by construction of `childrenOf`.
+   */
+  const onlyChild = (tag: string, folded: ReadonlyArray<Compiled>): Compiled => {
+    const [first, ...rest] = folded;
+    if (first === undefined || rest.length !== 0) {
+      throw new Error(`toPredicate: ${tag} expected exactly one child, got ${folded.length}`);
+    }
+    return first;
   };
 
   /**
@@ -503,7 +469,12 @@ const compileTree = (
           event,
         });
 
-  return Match.value(policy).pipe(
+  /**
+   * One node's plan, from its already-compiled children, supplied in
+   * `childrenOf`'s order (a leaf's `folded` is empty).
+   */
+  const compileNode = (node: Policy, folded: ReadonlyArray<Compiled>): Compiled =>
+  Match.value(node).pipe(
     Match.tagsExhaustive({
       HasRole: (p) => planned({ _tag: "Constant", value: subject.roles.has(p.role) }),
 
@@ -577,13 +548,13 @@ const compileTree = (
           "a predicate cannot carry an obligation, and rows would be handed over with it unmet",
         ),
 
-      AllOf: (p) => {
-        const plans = children(p.policies);
+      AllOf: () => {
+        const plans = plansOf(folded);
         return plans instanceof Refusal ? plans : planned({ _tag: "Conjunction", plans });
       },
 
       AnyOf: (p) => {
-        const plans = children(p.policies);
+        const plans = plansOf(folded);
         return plans instanceof Refusal
           ? plans
           : planned({
@@ -593,29 +564,40 @@ const compileTree = (
             });
       },
 
-      Not: (p) => {
-        const plan = child(p.policy);
+      Not: () => {
+        const plan = onlyChild("Not", folded);
         return plan instanceof Refusal ? plan : planned({ _tag: "Negation", plan });
       },
 
       // Transparent. The label survives only in the caller's own logging; a
       // predicate has no trace to put it on.
-      Labeled: (p) => child(p.policy),
+      Labeled: () => onlyChild("Labeled", folded),
 
       Rules: (p) => {
+        const plans = plansOf(folded);
+        if (plans instanceof Refusal) return plans;
         // Carrying the effect and its plan together, rather than indexing two
         // parallel arrays back into alignment, makes a reorder-one-without-the-
-        // other bug unrepresentable rather than merely unlikely.
+        // other bug unrepresentable rather than merely unlikely. The plans arrive
+        // in row order, so one iterator pairs each row with its own.
+        const remaining = plans[Symbol.iterator]();
         const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = [];
         for (const rule of p.rules) {
-          const compiled = child(rule.condition);
-          if (compiled instanceof Refusal) return compiled;
-          rules.push({ effect: rule.effect, plan: compiled });
+          const next = remaining.next();
+          if (next.done) throw new Error("toPredicate: Rules folded fewer children than rows");
+          rules.push({ effect: rule.effect, plan: next.value });
         }
         return planned({ _tag: "RuleTable", rules, combining: p.combining });
       },
     }),
   );
+
+  // Folded through `foldPolicy`, not recursed natively: a caller-held policy has
+  // no decode bound and `maxDepth` is the caller's to set arbitrarily high. Every
+  // child is compiled before its parent, which is harmless because compiling is
+  // pure, and the first refusal in declaration order still wins because
+  // `plansOf` takes the first one it meets in `childrenOf`'s order.
+  return foldPolicy<Compiled>(policy, compileNode);
 };
 
 /**
@@ -714,7 +696,9 @@ const run = (
           constant(answer === p.wanted),
         ),
       NeedAction: (p) => Effect.fail(new MissingAction({ expected: p.expected })),
-      Negation: (p) => Effect.map(run(p.plan, subject, context), negate),
+      // Suspended: building the child eagerly recursed natively once per `Not`
+      // level, so a deep chain under a large `maxDepth` overflowed the stack.
+      Negation: (p) => Effect.map(Effect.suspend(() => run(p.plan, subject, context)), negate),
       Conjunction: (p) =>
         Effect.gen(function* () {
           const collected: Array<Predicate> = [];

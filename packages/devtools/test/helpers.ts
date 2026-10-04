@@ -140,3 +140,14 @@ export const obligationRecord = (options?: {
     }),
     options?.environment ?? "Server",
   );
+
+// ---------------------------------------------------------------------------
+// ARCH-02 — chain builder
+// ---------------------------------------------------------------------------
+
+/** An n-deep single-child chain, built iteratively so building cannot overflow. */
+export const chain = <T>(wrap: (inner: T) => T, n: number, leaf: T): T => {
+  let current = leaf;
+  for (let i = 0; i < n; i++) current = wrap(current);
+  return current;
+};

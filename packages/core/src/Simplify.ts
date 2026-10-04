@@ -18,7 +18,7 @@
  */
 import * as Match from "effect/Match";
 import type { FieldStrategy, Policy } from "./Policy.ts";
-import { childrenOf } from "./Policy.ts";
+import { foldPolicy } from "./Policy.ts";
 
 /**
  * Whether a composite's children can be absorbed into a parent of the same tag.
@@ -188,44 +188,12 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
 /**
  * Rewrites a policy to an equivalent one with fewer nodes.
  *
- * Walks with an explicit array-backed stack — the same technique
- * `DecodeDepthGuard.ts`'s `exceedsJsonDepth` and `Policy.ts`'s `policyDepth`
- * use, via the same `childrenOf` — rather than native recursion. A decoded
- * policy's nesting is bounded by `MAX_DECODE_DEPTH`, but a policy assembled
- * programmatically never crosses that boundary: the smart constructors do not
- * depth-check, so a loop of `not()` builds a tree exactly as deep as the loop
- * runs, and this function is reachable directly on a caller-held `Policy`
- * with no prior decode step at all.
+ * Folds through `foldPolicy` rather than recursing natively, so it cannot
+ * overflow the stack: a decoded policy's nesting is bounded by
+ * `MAX_DECODE_DEPTH`, but a policy assembled programmatically never crosses that
+ * boundary — the smart constructors do not depth-check, so a loop of `not()`
+ * builds a tree exactly as deep as the loop runs — and this function is
+ * reachable directly on a caller-held `Policy` with no prior decode step at all.
  */
-export const simplify = (policy: Policy): Policy => {
-  const results = new Map<Policy, Policy>();
-  const stack: Array<{ readonly node: Policy; readonly expanded: boolean }> = [
-    { node: policy, expanded: false },
-  ];
-  while (stack.length > 0) {
-    const frame = stack.pop();
-    if (frame === undefined) break;
-    if (frame.expanded) {
-      if (results.has(frame.node)) continue;
-      const children = childrenOf(frame.node).map((child) => {
-        const result = results.get(child);
-        if (result === undefined) {
-          throw new Error("simplify: child rewritten after its parent — traversal order bug");
-        }
-        return result;
-      });
-      results.set(frame.node, rebuild(frame.node)(children));
-      continue;
-    }
-    if (results.has(frame.node)) continue;
-    stack.push({ node: frame.node, expanded: true });
-    for (const child of childrenOf(frame.node)) {
-      stack.push({ node: child, expanded: false });
-    }
-  }
-  const result = results.get(policy);
-  if (result === undefined) {
-    throw new Error("simplify: root never rewritten — traversal order bug");
-  }
-  return result;
-};
+export const simplify = (policy: Policy): Policy =>
+  foldPolicy<Policy>(policy, (node, children) => rebuild(node)(children));

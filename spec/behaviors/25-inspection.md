@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -96,11 +96,30 @@ export const policyDepth: (self: Policy) => number;
 
 ```
 REQUIREMENT: `policyDepth(p) <= n` MUST hold exactly when
-             `evaluate(p, { maxDepth: n })` does not raise `PolicyTooDeep`.
+             `evaluate(p, { maxDepth: n })` does not raise `PolicyTooDeep`,
+             whichever subject asks and whatever any branch would short-circuit
+             past.
+```
+
+```
+REQUIREMENT: `evaluate` and `toPredicate` MUST check nesting depth before any
+             other judgement: an over-deep policy is `PolicyTooDeep` whatever its
+             child order, and ahead of the fields refusal.
+```
+
+```
+REQUIREMENT: A leaf that carries a matcher (`HasAttribute`,
+             `HasResourceAttribute`) MUST contribute `matcherDepth` of that matcher
+             to `policyDepth`, because the evaluator recurses through it.
 ```
 
 ```
 REQUIREMENT: An empty `allOf`, `anyOf` or `rules` MUST be depth 0.
+```
+
+```
+REQUIREMENT: `policyDepth` MUST NOT exhaust the call stack for any caller-held
+             policy, whatever its nesting depth or width.
 ```
 
 `maxDepth` is an evaluation *input* defaulting to
@@ -114,6 +133,81 @@ than asserting a number.
 
 Empty composites are 0 because the evaluator never descends into them, and the
 bound is about descent.
+
+Until [ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md) the
+converse did not hold. `anyOf([hasRole("editor"), not(not(not(hasRole("x"))))])`
+has depth 4, yet `evaluate(…, { maxDepth: 1 })` succeeded for a subject holding
+`editor`, because `First` short-circuits before descending: whether a policy was
+"too deep" depended on who was asking. It is now a property of the policy, and
+`RolesAndDepth.test.ts` asserts the agreement over short-circuiting policies too.
+
+## BEH-QD-300: A policy folds bottom-up through one seam
+
+> **Invariant:** [INV-QD-090](../invariants.md#inv-qd-090-a-pure-walk-over-a-caller-held-tree-never-exhausts-the-call-stack)
+> **See:** [ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md)
+
+```ts
+export const foldPolicy: <R>(
+  self: Policy,
+  combine: (node: Policy, children: ReadonlyArray<R>) => R,
+) => R;
+```
+
+```
+REQUIREMENT: `foldPolicy` MUST call `combine` for a node only after it has
+             combined every one of that node's children, handing the results over
+             in `childrenOf` order (`Rules` rows in row order).
+```
+
+```
+REQUIREMENT: A subtree reachable by two paths (the same object) MUST be combined
+             once, and every parent MUST receive the same result reference.
+```
+
+```
+REQUIREMENT: `foldPolicy` MUST NOT exhaust the call stack for any nesting depth
+             or width, and a cyclic policy MUST throw rather than hang.
+```
+
+`policyDepth`, `simplify`, `explain`, `toPredicate`'s refusal pass and devtools'
+remedy derivation are all `foldPolicy` users, so each keeps only its per-tag
+semantics and none writes its own traversal.
+
+## BEH-QD-301: A node reports its own field restriction
+
+```ts
+export const fieldsOf: (self: Policy) => ReadonlyArray<string> | undefined;
+```
+
+```
+REQUIREMENT: `fieldsOf(p)` MUST be the `fields` that node itself carries, never
+             its children's, and `undefined` for a node that narrows nothing. A
+             leaf restricted to no fields (`fields: []`) MUST return `[]`, not
+             `undefined`.
+```
+
+A walker asking whether anything in a tree restricts visible fields folds over
+this rather than listing the field-bearing tags itself, and a new `Policy` tag is
+a compile error here, so its author must decide whether it narrows visibility.
+
+## BEH-QD-302: The tag list is derived from the schema
+
+```ts
+export const POLICY_TAGS: readonly [
+  "HasPermission", "HasRole", "HasAttribute", "HasResourceAttribute",
+  "HasRelationship", "HasAction", "HasActed", "HasNotActed", "HasCustom",
+  "HasSignature", "AllOf", "AnyOf", "Rules", "Not", "Obliged", "Labeled",
+];
+```
+
+```
+REQUIREMENT: `POLICY_TAGS` MUST list every `Policy` tag exactly once, in the
+             schema union's declaration order, and MUST be derived from that
+             union rather than restated.
+```
+
+`TraceSchema`'s `policyTag` and the `qadi_denials_by_policy_tag_total` metric's
+closed domain both read it, replacing two hand-written copies.
 
 ## BEH-QD-192: A permission names the role that granted it
 

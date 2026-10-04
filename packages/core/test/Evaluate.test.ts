@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as FastCheck from "fast-check";
 import * as TestClock from "effect/testing/TestClock";
@@ -34,7 +35,7 @@ import {
   relationshipResolverFromEdges,
 } from "../src/RelationshipResolver.ts";
 import { SignatureHistory, signatureHistoryFromSignatures } from "../src/SignatureHistory.ts";
-import { collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { chain, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -3233,6 +3234,18 @@ describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
       assert.strictEqual(denials?.state.occurrences.get("HasPermission"), 1);
     }));
 
+  it.effect("preregisters every Policy tag, in the union's order (ARCH-02 C5)", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasRole("editor"))
+          .pipe(Effect.provide(testLayer(subjectWith({ id: "u1" }))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+      const frequency = frequencyOf(snapshots, "qadi_denials_by_policy_tag_total");
+      assert.isDefined(frequency);
+      assert.deepStrictEqual([...(frequency?.state.occurrences.keys() ?? [])], [...P.POLICY_TAGS]);
+    }));
+
   it.effect("an allow adds nothing to the denial frequency", () =>
     Effect.gen(function* () {
       const snapshots = yield* isolatedMetrics(
@@ -4059,4 +4072,79 @@ describe("port defects become typed errors", () => {
         assert.instanceOf(r.failure, AttributeResolveError);
       }),
   );
+});
+
+describe("nesting depth is a property of the policy (ARCH-02 D-02-e, D-02-g)", () => {
+  it.effect("PolicyTooDeep is reported identically for subjects with different roles", () =>
+    Effect.gen(function* () {
+      // `anyOf([allowing, deep])` used to succeed for the subject the first child
+      // allowed (evaluation never descended into `deep`) and fail for the other.
+      const policy = P.anyOf([P.hasRole("editor"), chain(P.not, 5, P.hasRole("x"))]);
+      const tooDeep = (roles: ReadonlyArray<string>) =>
+        Effect.result(evaluate(policy, { maxDepth: 2 })).pipe(
+          Effect.provide(testLayer(subjectWith({ roles }))),
+        );
+      const allowed = yield* tooDeep(["editor"]);
+      const denied = yield* tooDeep([]);
+      assert.strictEqual(allowed._tag, "Failure");
+      assert.deepStrictEqual(allowed, denied);
+      if (allowed._tag !== "Failure") return;
+      assert.strictEqual(allowed.failure._tag, "PolicyTooDeep");
+    }),
+  );
+
+  it.effect("a 100k-deep matcher fails with PolicyTooDeep, not a defect (ARCH-02 D-02-f)", () =>
+    Effect.gen(function* () {
+      // `evaluateMatcher` recurses natively through the matcher; matcher nesting
+      // now counts toward `maxDepth`, so the root check refuses it first.
+      const policy = P.hasAttribute("x", chain(M.someMatch, 100_000, M.eq(M.literal(1))));
+      const exit = yield* Effect.exit(evaluate(policy));
+      assert.strictEqual(exit._tag, "Failure");
+      if (exit._tag !== "Failure") return;
+      assert.isFalse(Cause.hasDies(exit.cause));
+      assert.isTrue(Cause.hasFails(exit.cause));
+      const failed = yield* Effect.result(evaluate(policy));
+      assert.strictEqual(failed._tag === "Failure" ? failed.failure._tag : failed._tag, "PolicyTooDeep");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { x: 1 } })))),
+  );
+
+  it.effect("matcher nesting counts toward maxDepth exactly", () =>
+    Effect.gen(function* () {
+      const policy = P.not(P.hasAttribute("x", M.someMatch(M.someMatch(M.eq(M.literal(1))))));
+      // `not` is one level and the matcher adds two.
+      assert.strictEqual(P.policyDepth(policy), 3);
+      const at = yield* Effect.result(evaluate(policy, { maxDepth: 3 }));
+      const below = yield* Effect.result(evaluate(policy, { maxDepth: 2 }));
+      assert.strictEqual(at._tag, "Success");
+      assert.strictEqual(below._tag, "Failure");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { x: [[1]] } })))),
+  );
+
+  const wrappers = [
+    ["labeled", (p: P.Policy) => P.labeled("l", p)],
+    ["not", P.not],
+    ["obliged", (p: P.Policy) => P.obliged(obligation("audit.log"), p)],
+  ] as const;
+
+  for (const [name, wrap] of wrappers) {
+    it.effect(`a 100k-deep ${name} chain evaluates with maxDepth: Infinity, not a defect`, () =>
+      Effect.gen(function* () {
+        const n = 100_000;
+        const exit = yield* Effect.exit(
+          evaluate(chain(wrap, n, P.hasRole("editor")), { maxDepth: Infinity }),
+        );
+        assert.strictEqual(exit._tag, "Success", `${name} chain did not succeed`);
+        if (exit._tag !== "Success") return;
+        // Walked iteratively: the trace is as deep as the policy.
+        let depth = 0;
+        let node = exit.value.trace;
+        while (node.children[0] !== undefined) {
+          depth += 1;
+          node = node.children[0];
+        }
+        assert.strictEqual(depth, n);
+      }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))),
+      60_000,
+    );
+  }
 });

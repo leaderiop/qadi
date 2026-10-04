@@ -49,7 +49,7 @@ import * as Record from "effect/Record";
  * domain.
  *
  * Written as a `Record<PortName, true>` rather than an array literal, the
- * `Decision.ts` `TRACE_TAGS_BY_TAG` idiom: TypeScript requires every key of
+ * idiom the policy tag list used before it was derived: TypeScript requires every key of
  * `PortName` to be present (TS2741 otherwise), so a sixth port added to the
  * evaluator without a matching entry here is a compile error rather than an
  * unregistered word silently missing from a snapshot.

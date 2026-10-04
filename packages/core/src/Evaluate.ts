@@ -49,7 +49,7 @@ import {
   askSignature,
   readAttribute,
 } from "./PortAccess.ts";
-import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
+import { DEFAULT_MAX_DEPTH, POLICY_TAGS, policyDepth } from "./Policy.ts";
 import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
@@ -78,40 +78,6 @@ const decisionsTotal = Metric.counter("qadi_decisions_total", {
 });
 const decisionsAllowedTotal = Metric.withAttributes(decisionsTotal, { outcome: "allow" });
 const decisionsDeniedTotal = Metric.withAttributes(decisionsTotal, { outcome: "deny" });
-
-/**
- * Every `Policy` tag — {@link denialsByPolicyTagTotal}'s closed domain.
- *
- * A `Record<Policy["_tag"], true>` rather than an array literal, `Decision.ts`'s
- * `TRACE_TAGS_BY_TAG` idiom: TypeScript requires every key of the type to be
- * present (TS2741 otherwise), so a new `Policy` variant added without a
- * matching entry here is a compile error rather than a word silently missing
- * from this metric's snapshot. Not reused from `Decision.ts`'s own (private)
- * copy: exporting it would leak an internal helper through `index.ts`'s
- * `export * from "./Decision.ts"` and into the public surface `spec/
- * overview.md` tracks (AGENTS.md §9), for a list four lines long.
- */
-const POLICY_TAGS_BY_TAG: Record<Policy["_tag"], true> = {
-  HasPermission: true,
-  HasRole: true,
-  HasAttribute: true,
-  HasResourceAttribute: true,
-  HasRelationship: true,
-  HasAction: true,
-  HasActed: true,
-  HasNotActed: true,
-  HasCustom: true,
-  HasSignature: true,
-  AllOf: true,
-  AnyOf: true,
-  Rules: true,
-  Not: true,
-  Obliged: true,
-  Labeled: true,
-};
-
-/** `POLICY_TAGS_BY_TAG`'s keys, in the array form `preregisteredWords` takes. */
-const POLICY_TAGS: ReadonlyArray<Policy["_tag"]> = Record.keys(POLICY_TAGS_BY_TAG);
 
 /**
  * Denials, by the top-level policy tag `evaluate` was asked to decide.
@@ -149,9 +115,10 @@ const evaluationDurationMillis = Metric.histogram("qadi_evaluation_duration_mill
 
 /**
  * Every `EvaluationError` tag — {@link evaluationErrorsTotal}'s closed domain,
- * by the same `Record<Tag, true>` exhaustiveness idiom {@link POLICY_TAGS_BY_TAG}
- * uses and for the same reason: a tenth error added to the union without a
- * matching entry here is a compile error rather than a silently-missing word.
+ * by the `Record<Tag, true>` exhaustiveness idiom: a tenth error added to the
+ * union without a matching entry here is a compile error rather than a
+ * silently-missing word. (The policy tag list used the same idiom until
+ * `Policy.ts` derived it from the schema union.)
  */
 const EVALUATION_ERROR_TAGS_BY_TAG: Record<EvaluationError["_tag"], true> = {
   AttributeResolveError: true,
@@ -645,16 +612,21 @@ const evaluateHasSignature = (
 /**
  * Dispatches a single policy node to its verdict, recursing into composites.
  *
- * `depth > maxDepth` is the one guard standing between a decoded policy tree
- * and unbounded recursion (BEH-QD-038); `Policy.ts`'s `policyDepth` and
- * `RolesAndDepth.test.ts` assert the two agree in both directions —
- * `policyDepth(p) <= n` exactly when `evaluate(p, { maxDepth: n })` succeeds.
+ * `depth > maxDepth` is the per-node guard (BEH-QD-038), kept as defense in depth:
+ * the root `evaluate` has already rejected any policy whose `policyDepth`
+ * exceeds `maxDepth` before the first node, so `policyDepth(p) <= n` exactly
+ * when `evaluate(p, { maxDepth: n })` does not raise `PolicyTooDeep`
+ * (`RolesAndDepth.test.ts` asserts the agreement in both directions).
  *
- * Not `Effect.suspend`-wrapped: a leaf tag's real comparison
+ * Not `Effect.suspend`-wrapped as a whole: a leaf tag's real comparison
  * (`subject.roles.has(...)`, `evaluateMatcher`) runs immediately, as part of
  * building the `Effect.succeed(...)` this returns, rather than lazily when
- * that `Effect` is later run. The root `evaluate`'s cache path defends itself
- * against this with its own `Effect.suspend` around the call; a future caller
+ * that `Effect` is later run. A wrapper's *child*, though, is suspended
+ * (`Not`/`Obliged`/`Labeled`): building the child's effect eagerly recursed
+ * natively once per wrapper level, so a deep chain under a large `maxDepth`
+ * overflowed the stack and became a defect (ARCH-02 C3e). The root
+ * `evaluate`'s cache path defends itself against the leaf case with its own
+ * `Effect.suspend` around the call; a future caller
  * that memoizes or races calls to this function directly needs the same
  * defense.
  */
@@ -787,7 +759,9 @@ const evaluateNode = (
 
     case "Not":
       return Effect.map(
-        evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        Effect.suspend(() =>
+          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        ),
         (child) =>
           child.allowed
             ? deny("Not", "negated policy allowed", [child])
@@ -800,7 +774,9 @@ const evaluateNode = (
 
     case "Obliged":
       return Effect.map(
-        evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        Effect.suspend(() =>
+          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        ),
         (child) =>
           child.allowed
             ? // The duty attaches only to a permission that was granted.
@@ -816,7 +792,9 @@ const evaluateNode = (
 
     case "Labeled":
       return Effect.map(
-        evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        Effect.suspend(() =>
+          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+        ),
         (child) => ({
           policyTag: "Labeled" as const,
           label: policy.label,
@@ -1311,14 +1289,15 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
       resource: request.resource,
       action: request.action,
     };
-    return evaluateNode(
-      policy,
-      subject,
-      request,
-      matcherContext,
-      0,
-      options?.maxDepth ?? DEFAULT_MAX_DEPTH,
-    );
+    const maxDepth = options?.maxDepth ?? DEFAULT_MAX_DEPTH;
+    // Nesting depth is a property of the policy, so it is judged before any
+    // node is visited: whether a policy is "too deep" must not depend on which
+    // branches this subject's attributes happen to short-circuit past, or on
+    // who is asking (ARCH-02 D-02-e, INV-QD-037). `policyDepth` is memoised per
+    // policy object, so after the first evaluation this is a lookup.
+    // `evaluateNode` keeps its own per-node guard as defense in depth.
+    if (policyDepth(policy) > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
+    return evaluateNode(policy, subject, request, matcherContext, 0, maxDepth);
   });
 
   // The TRACE is cached, never the `Decision`. A cached decision would carry a

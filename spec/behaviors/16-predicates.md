@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-16                                    |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-10-04): BEH-QD-123 — a failing port fails the translation with its own typed error; BEH-QD-264/265/266 — a defecting port fails typed, translation stops where the evaluator stops, a refusal depends on the tree alone; BEH-QD-127 — points at INV-QD-058 for faulty ports (CCR-QD-153, ADR-QD-077)<br>1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
+> | Change History | 1.4 (2026-10-04): BEH-QD-266 — an over-deep policy is `PolicyTooDeep` before the fields refusal whatever the child order, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-10-04): BEH-QD-123 — a failing port fails the translation with its own typed error; BEH-QD-264/265/266 — a defecting port fails typed, translation stops where the evaluator stops, a refusal depends on the tree alone; BEH-QD-127 — points at INV-QD-058 for faulty ports (CCR-QD-153, ADR-QD-077)<br>1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
 
 _Previous: [15 — Rule Tables](./15-rules.md)_
 
@@ -243,6 +243,26 @@ REQUIREMENT: `MissingAction` MUST be raised when the walk **reaches** a node tha
 
 `PolicyNotTranslatable` and `PolicyTooDeep` are properties of the tree;
 `MissingAction` and port errors are properties of the request and the stores.
+
+```
+REQUIREMENT: An over-deep policy MUST be refused with `PolicyTooDeep` before the
+             fields check, so a policy that is both too deep and
+             field-restricting is `PolicyTooDeep` whatever its child order.
+```
+
+```
+REQUIREMENT: `toPredicate` MUST NOT raise a defect for any `maxDepth` a caller
+             supplies: the refusal pass folds the tree and translation builds
+             each negation's child lazily, so neither overflows the call stack.
+```
+
+Before [ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md) the
+refusal pass was an early-exit search in child order, so
+`allOf([hasRole("editor", { fields: ["a"] }), deep])` was
+`PolicyNotTranslatable` and the reversed order was `PolicyTooDeep` — which of the
+two a caller saw depended on child order. And a recursion that was only as safe as
+the caller's `maxDepth` raised a `RangeError` for `toPredicate(not^1000(…), {
+maxDepth: 1e9 })`.
 
 ## BEH-QD-124: A duty and a column restriction both refuse
 

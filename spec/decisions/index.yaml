@@ -270,3 +270,7 @@ entries:
     file: "081-enforcement-error-classes-live-in-core.md"
     title: "Enforcement-error classes live in core; the HTTP description is one derived table"
     status: "Accepted — amends ADR-QD-072, ADR-QD-075"
+  - id: "ADR-QD-090"
+    file: "090-a-tree-is-folded-through-one-seam.md"
+    title: "A tree is folded through one seam, and nesting depth is a property of the policy"
+    status: "Accepted — amends ADR-QD-034, ADR-QD-024"

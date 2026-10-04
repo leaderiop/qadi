@@ -14,6 +14,7 @@ import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type { SubjectId } from "./Identity.ts";
 import { isSecurityLabel, labelDominates } from "./SecurityLabel.ts";
+import { foldTree } from "./TreeFold.ts";
 
 // ---------------------------------------------------------------------------
 // Value references
@@ -427,6 +428,83 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
 };
 
 /**
+ * A matcher node's immediate children: the one wrapped matcher of
+ * `FieldMatch`/`SomeMatch`/`EveryMatch`/`Size`, and none for the other eight.
+ *
+ * The per-tag structural fact {@link foldMatcher} folds over, and the one place
+ * a new `Matcher` tag has to say whether it nests — `Match.tagsExhaustive`
+ * makes a missed arm a compile error, so `referencesAction`,
+ * `referencesResource` and `matcherDepth` stay in lockstep by construction
+ * (SM-04/WZ-04).
+ */
+const matcherChildrenOf: (self: Matcher) => ReadonlyArray<Matcher> = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    FieldMatch: (m) => [m.matcher],
+    SomeMatch: (m) => [m.matcher],
+    EveryMatch: (m) => [m.matcher],
+    Size: (m) => [m.matcher],
+    Eq: () => [],
+    Neq: () => [],
+    Dominates: () => [],
+    In: () => [],
+    Exists: () => [],
+    Gte: () => [],
+    Lt: () => [],
+    Contains: () => [],
+  }),
+);
+
+/** The value reference a matcher node itself carries, if its tag carries one. */
+const refOf: (self: Matcher) => ValueRef | undefined = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    Eq: (m) => m.ref,
+    Neq: (m) => m.ref,
+    Dominates: (m) => m.ref,
+    FieldMatch: () => undefined,
+    SomeMatch: () => undefined,
+    EveryMatch: () => undefined,
+    Size: () => undefined,
+    In: () => undefined,
+    Exists: () => undefined,
+    Gte: () => undefined,
+    Lt: () => undefined,
+    Contains: () => undefined,
+  }),
+);
+
+/**
+ * Folds a matcher bottom-up, without native recursion.
+ *
+ * `combine` receives a node and the results for its children, in
+ * `matcherChildrenOf` order. The `Matcher` twin of `foldPolicy`: a thin adapter
+ * over the internal `TreeFold.ts`. A matcher assembled in process has no decode
+ * bound either, and every walker over one used to recurse natively — so
+ * `referencesAction(size^10000(eq(action())))` threw a raw `RangeError`
+ * (ARCH-02 N2).
+ */
+export const foldMatcher = <R>(
+  self: Matcher,
+  combine: (node: Matcher, children: ReadonlyArray<R>) => R,
+): R => foldTree(self, matcherChildrenOf, combine);
+
+const isTrue = (value: boolean): boolean => value;
+
+/**
+ * How deeply a matcher nests: a leaf is `0` and each wrapper adds one.
+ *
+ * Counted the way {@link evaluateMatcher} recurses — one level per
+ * `FieldMatch`/`SomeMatch`/`EveryMatch`/`Size` — so the number bounds the
+ * evaluator's native recursion over the matcher. `policyDepth` adds it for a
+ * matcher-bearing leaf (ARCH-02 D-02-f).
+ */
+export const matcherDepth = (self: Matcher): number =>
+  foldMatcher<number>(self, (_node, children) => {
+    let deepest = 0;
+    for (const depth of children) if (depth > deepest) deepest = depth;
+    return children.length === 0 ? 0 : 1 + deepest;
+  });
+
+/**
  * Builds a "does this matcher reference `leafTag` anywhere within it" walker.
  *
  * `referencesAction` and `referencesResource` below are this walker applied to
@@ -434,29 +512,14 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
  * construction (SM-04/WZ-04: every new `Matcher` tag needs an arm in both, in
  * lockstep, forever), so one parameterized tree walk replaces two copies that
  * could only ever drift by accident. Built once per call, at module scope
- * below (not per evaluation, so `Match.type`'s "build once" preference from
- * AGENTS.md §5a still holds) — `Match.tagsExhaustive` still makes a missed arm
- * a compile error for both resulting walkers.
+ * below — `matcherChildrenOf` and `refOf` make a missed tag a compile error for
+ * both resulting walkers, and folding through {@link foldMatcher} makes them
+ * stack-safe.
  */
-const referencesRef = (leafTag: "ActionRef" | "ResourceRef"): ((self: Matcher) => boolean) => {
-  const walk: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
-    Match.tagsExhaustive({
-      Eq: (m) => m.ref._tag === leafTag,
-      Neq: (m) => m.ref._tag === leafTag,
-      Dominates: (m) => m.ref._tag === leafTag,
-      FieldMatch: (m) => walk(m.matcher),
-      SomeMatch: (m) => walk(m.matcher),
-      EveryMatch: (m) => walk(m.matcher),
-      Size: (m) => walk(m.matcher),
-      In: () => false,
-      Exists: () => false,
-      Gte: () => false,
-      Lt: () => false,
-      Contains: () => false,
-    }),
-  );
-  return walk;
-};
+const referencesRef =
+  (leafTag: "ActionRef" | "ResourceRef"): ((self: Matcher) => boolean) =>
+  (self) =>
+    foldMatcher<boolean>(self, (node, children) => refOf(node)?._tag === leafTag || children.some(isTrue));
 
 /**
  * True when a matcher reads the action anywhere within it.

@@ -17,10 +17,12 @@
  * leak whether the viewer satisfies a policy they are only meant to read.
  */
 import * as Match from "effect/Match";
+import { foldMatcher } from "./Matcher.ts";
 import type { Matcher, ValueRef } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
-import { childrenOf, defaultFieldStrategy } from "./Policy.ts";
+import { defaultFieldStrategy, foldPolicy } from "./Policy.ts";
+import { foldTree } from "./TreeFold.ts";
 import type { Combining, FieldStrategy, Policy } from "./Policy.ts";
 
 /** What kind of leaf a {@link Requirement} came from. */
@@ -111,6 +113,40 @@ export interface Table {
 
 export type Explanation = Requirement | All | Any | Negated | Named | Owing | Table;
 
+/**
+ * An explanation node's immediate children: an `All`/`Any`'s parts, a wrapper's
+ * one part, a `Table`'s row conditions in row order, and none for a `Requirement`.
+ *
+ * Mirrors `childrenOf` (`Policy.ts`) for the output tree, and for the same
+ * reason: `Match.tagsExhaustive` makes a new `Explanation` tag a compile error.
+ */
+const explanationChildrenOf: (self: Explanation) => ReadonlyArray<Explanation> =
+  Match.type<Explanation>().pipe(
+    Match.tagsExhaustive({
+      Requirement: () => [],
+      All: (e) => e.parts,
+      Any: (e) => e.parts,
+      Negated: (e) => [e.part],
+      Named: (e) => [e.part],
+      Owing: (e) => [e.part],
+      Table: (e) => e.rows.map((row) => row.condition),
+    }),
+  );
+
+/**
+ * Folds an explanation bottom-up, without native recursion.
+ *
+ * The `Explanation` twin of `foldPolicy`: `combine` receives a node and its
+ * children's results in `explanationChildrenOf` order, a subtree shared by
+ * identity folds once, and a cyclic tree throws. A thin adapter over the
+ * internal `TreeFold.ts` — `explain` is stack-safe, so what reads its output
+ * has to be too (ARCH-02 N1).
+ */
+export const foldExplanation = <R>(
+  self: Explanation,
+  combine: (node: Explanation, children: ReadonlyArray<R>) => R,
+): R => foldTree(self, explanationChildrenOf, combine);
+
 // ---------------------------------------------------------------------------
 // Value grammar
 // ---------------------------------------------------------------------------
@@ -125,22 +161,50 @@ const refText: (self: ValueRef) => string = Match.type<ValueRef>().pipe(
   }),
 );
 
-const matcherText: (self: Matcher) => string = Match.type<Matcher>().pipe(
-  Match.tagsExhaustive({
-    Eq: (m) => `equals ${refText(m.ref)}`,
-    Neq: (m) => `differs from ${refText(m.ref)}`,
-    In: (m) => `is one of ${JSON.stringify(m.values)}`,
-    Exists: () => "is present",
-    Gte: (m) => `is at least ${m.value}`,
-    Lt: (m) => `is below ${m.value}`,
-    Contains: (m) => `contains ${JSON.stringify(m.value)}`,
-    Dominates: (m) => `dominates ${refText(m.ref)}`,
-    Size: (m) => `has a size that ${matcherText(m.matcher)}`,
-    FieldMatch: (m) => `has ${m.field} that ${matcherText(m.matcher)}`,
-    SomeMatch: (m) => `has an entry that ${matcherText(m.matcher)}`,
-    EveryMatch: (m) => `has every entry that ${matcherText(m.matcher)}`,
-  }),
-);
+/**
+ * The one child text a wrapper matcher folds, or a thrown invariant failure.
+ *
+ * `Size`/`FieldMatch`/`SomeMatch`/`EveryMatch` always fold exactly one child, by
+ * construction of `Matcher.ts`'s `matcherChildrenOf`; failing loudly keeps a
+ * wiring bug a thrown error rather than a matcher quietly described wrong.
+ */
+const expectOneText = (tag: string, children: ReadonlyArray<string>): string => {
+  const [only, ...rest] = children;
+  if (only === undefined || rest.length !== 0) {
+    throw new Error(`explain: ${tag} matcher expected exactly one child, got ${children.length}`);
+  }
+  return only;
+};
+
+/**
+ * One matcher node's phrase, from its already-phrased children — the recursive
+ * tags read their one child's text instead of calling back into themselves.
+ */
+const matcherTextStep: (self: Matcher) => (children: ReadonlyArray<string>) => string =
+  Match.type<Matcher>().pipe(
+    Match.tagsExhaustive({
+      Eq: (m) => () => `equals ${refText(m.ref)}`,
+      Neq: (m) => () => `differs from ${refText(m.ref)}`,
+      In: (m) => () => `is one of ${JSON.stringify(m.values)}`,
+      Exists: () => () => "is present",
+      Gte: (m) => () => `is at least ${m.value}`,
+      Lt: (m) => () => `is below ${m.value}`,
+      Contains: (m) => () => `contains ${JSON.stringify(m.value)}`,
+      Dominates: (m) => () => `dominates ${refText(m.ref)}`,
+      Size: () => (children: ReadonlyArray<string>) =>
+        `has a size that ${expectOneText("Size", children)}`,
+      FieldMatch: (m) => (children: ReadonlyArray<string>) =>
+        `has ${m.field} that ${expectOneText("FieldMatch", children)}`,
+      SomeMatch: () => (children: ReadonlyArray<string>) =>
+        `has an entry that ${expectOneText("SomeMatch", children)}`,
+      EveryMatch: () => (children: ReadonlyArray<string>) =>
+        `has every entry that ${expectOneText("EveryMatch", children)}`,
+    }),
+  );
+
+/** A matcher's phrase, folded so a deeply nested matcher cannot overflow the stack. */
+const matcherText = (self: Matcher): string =>
+  foldMatcher<string>(self, (node, children) => matcherTextStep(node)(children));
 
 // ---------------------------------------------------------------------------
 // Explanation
@@ -171,10 +235,10 @@ const expectOne = (tag: string, children: ReadonlyArray<Explanation>): Explanati
 /**
  * Builds one node's `Explanation` from its own **already-explained**
  * children, supplied in the same order `childrenOf` (`Policy.ts`) produced
- * them — the one piece of state `explain`'s explicit-stack walk (below)
- * passes in that this function's previous native-recursion form got by
- * calling itself directly instead. A leaf ignores `children` (always `[]`)
- * and computes its own `Requirement` directly, exactly as before.
+ * them — the one piece of state `explain`'s `foldPolicy` fold (below) passes
+ * in that this function's previous native-recursion form got by calling itself
+ * directly instead. A leaf ignores `children` (always `[]`) and computes its
+ * own `Requirement` directly, exactly as before.
  */
 const rebuildExplanation: (node: Policy) => (children: ReadonlyArray<Explanation>) => Explanation =
   Match.type<Policy>().pipe(
@@ -302,46 +366,14 @@ const rebuildExplanation: (node: Policy) => (children: ReadonlyArray<Explanation
  * translate, this refuses nothing — a policy a reviewer cannot read is worse
  * than one they can only partly act on.
  *
- * Walks with an explicit array-backed stack — the same technique
- * `DecodeDepthGuard.ts`'s `exceedsJsonDepth`, `Policy.ts`'s `policyDepth` and
- * `Simplify.ts`'s `simplify` use, via the same `childrenOf` — rather than
- * native recursion. A decoded policy's nesting is bounded by
- * `MAX_DECODE_DEPTH`, but a policy assembled programmatically never crosses
- * that boundary, and `explain` is reachable directly on a caller-held
- * `Policy` with no prior decode step at all (RP-01, 100-lens audit).
+ * Folds through `foldPolicy` rather than recursing natively. A decoded policy's
+ * nesting is bounded by `MAX_DECODE_DEPTH`, but a policy assembled
+ * programmatically never crosses that boundary, and `explain` is reachable
+ * directly on a caller-held `Policy` with no prior decode step at all (RP-01,
+ * 100-lens audit).
  */
-export const explain = (policy: Policy): Explanation => {
-  const results = new Map<Policy, Explanation>();
-  const stack: Array<{ readonly node: Policy; readonly expanded: boolean }> = [
-    { node: policy, expanded: false },
-  ];
-  while (stack.length > 0) {
-    const frame = stack.pop();
-    if (frame === undefined) break;
-    if (frame.expanded) {
-      if (results.has(frame.node)) continue;
-      const children = childrenOf(frame.node).map((child) => {
-        const result = results.get(child);
-        if (result === undefined) {
-          throw new Error("explain: child explained after its parent — traversal order bug");
-        }
-        return result;
-      });
-      results.set(frame.node, rebuildExplanation(frame.node)(children));
-      continue;
-    }
-    if (results.has(frame.node)) continue;
-    stack.push({ node: frame.node, expanded: true });
-    for (const child of childrenOf(frame.node)) {
-      stack.push({ node: child, expanded: false });
-    }
-  }
-  const result = results.get(policy);
-  if (result === undefined) {
-    throw new Error("explain: root never explained — traversal order bug");
-  }
-  return result;
-};
+export const explain = (policy: Policy): Explanation =>
+  foldPolicy<Explanation>(policy, (node, children) => rebuildExplanation(node)(children));
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -435,6 +467,110 @@ const isAtomic: (self: Explanation) => boolean = Match.type<Explanation>().pipe(
   }),
 );
 
+/** What one rendered node hands its parent: its text, and whether it needs parentheses. */
+interface Piece {
+  readonly text: string;
+  readonly atomic: boolean;
+}
+
+/**
+ * A child, parenthesised unless it reads as one unit.
+ *
+ * Every position that embeds a child goes through here — the alternative is
+ * remembering to do it at seven call sites, and the one forgotten site is the
+ * ambiguity.
+ */
+const embed = (piece: Piece): string => (piece.atomic ? piece.text : `(${piece.text})`);
+
+/**
+ * The one child a single-child node renders, or a thrown invariant failure.
+ *
+ * Mirrors {@link expectOne}: `Negated`/`Named`/`Owing` always fold exactly one
+ * child result, by construction of `explanationChildrenOf`.
+ */
+const expectOnePiece = (tag: string, children: ReadonlyArray<Piece>): Piece => {
+  const [only, ...rest] = children;
+  if (only === undefined || rest.length !== 0) {
+    throw new Error(`renderExplanation: ${tag} expected exactly one child, got ${children.length}`);
+  }
+  return only;
+};
+
+/** What a node's own text needs beyond its children: how to wrap a term. */
+interface RenderContext {
+  readonly term: (text: string) => string;
+}
+
+/** A node's text from its folded children; `render` only gives each arm its parameter types. */
+type Render = (children: ReadonlyArray<Piece>, context: RenderContext) => string;
+const render = (self: Render): Render => self;
+
+const fieldsText = (fields: ReadonlyArray<string> | undefined, term: RenderContext["term"]) => {
+  if (fields === undefined) return "";
+  // An empty array is the bottom of the lattice, not a missing list — say
+  // so outright rather than joining zero terms into a dangling
+  // ", exposing only ".
+  if (fields.length === 0) return ", exposing no fields";
+  return `, exposing only ${fields.map(term).join(", ")}`;
+};
+
+/**
+ * One node's own text, from its already-rendered children.
+ *
+ * Built once at module scope, per AGENTS.md §5a: each arm returns a function of
+ * the folded children and the per-call context, so nothing here recurses —
+ * {@link renderExplanation} folds the tree and this describes one node.
+ */
+const renderStep: (self: Explanation) => Render = Match.type<Explanation>().pipe(
+  Match.tagsExhaustive({
+    Requirement: (e) =>
+      render((_children, { term }) =>
+        `requires ${e.kind} ${term(e.detail)}${fieldsText(e.fields, term)}`),
+
+    // An empty `allOf` allows and an empty `anyOf` denies, which is the least
+    // guessable thing about the ADT — so it is said outright rather than
+    // rendered as an empty list the reader has to interpret.
+    All: (e) =>
+      render((children) =>
+        e.parts.length === 0
+          ? "always allows (an empty conjunction)"
+          : `${children.map(embed).join(" and ")}${fieldStrategyClause("All", e)}`),
+
+    // "either" opens a disjunction but nothing closes it, so a following
+    // " and …" reads as part of the last alternative rather than as a
+    // sibling of the whole. That is the collision this fixes.
+    Any: (e) =>
+      render((children) =>
+        e.parts.length === 0
+          ? "never allows (an empty disjunction)"
+          : `either ${children.map(embed).join(" or ")}${fieldStrategyClause("Any", e)}`),
+
+    Negated: () =>
+      render((children) => `does not hold that ${embed(expectOnePiece("Negated", children))}`),
+
+    Named: (e) =>
+      render((children, { term }) =>
+        `${embed(expectOnePiece("Named", children))} (${term(e.label)})`),
+
+    Owing: (e) =>
+      render((children, { term }) =>
+        `${embed(expectOnePiece("Owing", children))}, and owes ${term(e.obligation.id)}${
+          e.obligation.advisory ? " (advisory)" : ""
+        }`),
+
+    Table: (e) =>
+      render((children) => {
+        if (e.rows.length === 0) return "never allows (an empty rule table)";
+        // One embedded condition per row, in row order: the fold hands the
+        // children back in `explanationChildrenOf`'s order, which is `rows`'.
+        const conditions = children.map(embed);
+        return `a rule table where ${combiningText(e.combining)}: ${e.rows
+          .map((r, i) => `[${i}] ${r.effect.toLowerCase()} when ${conditions[i]}`)
+          .join("; ")}`;
+      }),
+  }),
+);
+
 /**
  * One English rendering. Deliberately the only place in the library where prose
  * about a policy is assembled.
@@ -445,72 +581,22 @@ const isAtomic: (self: Explanation) => boolean = Match.type<Explanation>().pipe(
  * sentence, and they are not the same policy — the first admits a lone `a` and
  * the second does not. Prose a reviewer cannot map back to a policy is worse
  * than no prose, which is the argument this library was built on.
+ *
+ * Folds through {@link foldExplanation}, so it is stack-safe for any nesting
+ * depth. `explain` already was, and its output used to overflow here at about
+ * 700 levels (ARCH-02 N1).
  */
 export const renderExplanation = (
   explanation: Explanation,
   options?: RenderOptions,
 ): string => {
-  const term = options?.term ?? ((t: string) => `\`${t}\``);
-
-  const fieldsText = (fields: ReadonlyArray<string> | undefined): string => {
-    if (fields === undefined) return "";
-    // An empty array is the bottom of the lattice, not a missing list — say
-    // so outright rather than joining zero terms into a dangling
-    // ", exposing only ".
-    if (fields.length === 0) return ", exposing no fields";
-    return `, exposing only ${fields.map(term).join(", ")}`;
-  };
-
-  const go = (self: Explanation): string =>
-    Match.value(self).pipe(
-      Match.tagsExhaustive({
-        Requirement: (e) => `requires ${e.kind} ${term(e.detail)}${fieldsText(e.fields)}`,
-
-        // An empty `allOf` allows and an empty `anyOf` denies, which is the least
-        // guessable thing about the ADT — so it is said outright rather than
-        // rendered as an empty list the reader has to interpret.
-        All: (e) =>
-          e.parts.length === 0
-            ? "always allows (an empty conjunction)"
-            : `${e.parts.map(embed).join(" and ")}${fieldStrategyClause("All", e)}`,
-
-        // "either" opens a disjunction but nothing closes it, so a following
-        // " and …" reads as part of the last alternative rather than as a
-        // sibling of the whole. That is the collision this fixes.
-        Any: (e) =>
-          e.parts.length === 0
-            ? "never allows (an empty disjunction)"
-            : `either ${e.parts.map(embed).join(" or ")}${fieldStrategyClause("Any", e)}`,
-
-        Negated: (e) => `does not hold that ${embed(e.part)}`,
-
-        Named: (e) => `${embed(e.part)} (${term(e.label)})`,
-
-        Owing: (e) =>
-          `${embed(e.part)}, and owes ${term(e.obligation.id)}${
-            e.obligation.advisory ? " (advisory)" : ""
-          }`,
-
-        Table: (e) =>
-          e.rows.length === 0
-            ? "never allows (an empty rule table)"
-            : `a rule table where ${combiningText(e.combining)}: ${e.rows
-                .map((r, i) => `[${i}] ${r.effect.toLowerCase()} when ${embed(r.condition)}`)
-                .join("; ")}`,
-      }),
-    );
-
-  /**
-   * A child, parenthesised unless it reads as one unit.
-   *
-   * Every position that embeds a child goes through here — the alternative is
-   * remembering to do it at seven call sites, and the one forgotten site is the
-   * ambiguity.
-   */
-  const embed = (self: Explanation): string =>
-    isAtomic(self) ? go(self) : `(${go(self)})`;
+  const context: RenderContext = { term: options?.term ?? ((t: string) => `\`${t}\``) };
 
   // The top level is never wrapped: nothing follows it, so there is nothing for
-  // it to run into. `go`, not `embed`.
-  return go(explanation);
+  // it to run into.
+  return foldExplanation<Piece>(explanation, (node, children) => ({
+    text: renderStep(node)(children, context),
+    atomic: isAtomic(node),
+  })).text;
 };
+
