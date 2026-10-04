@@ -302,6 +302,3 @@ export const chain = <T>(wrap: (inner: T) => T, n: number, leaf: T): T => {
   return current;
 };
 
-/** `allOf([leaf, next])` nested `n` times. */
-export const comb = (n: number): P.Policy =>
-  chain((next) => P.allOf([P.hasRole("a"), next]), n, P.hasRole("z"));

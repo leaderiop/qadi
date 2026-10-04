@@ -6,7 +6,7 @@ import * as M from "../src/Matcher.ts";
 import { Obligation, obligation, unionObligations } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { policyArbitrary } from "./helpers.ts";
+import { policyArbitrary, sharedPolicyArbitrary } from "./helpers.ts";
 
 describe("Policy combinators", () => {
   it("allOf defaults to Intersection — least privilege for a conjunction", () => {
@@ -935,6 +935,22 @@ describe("structural facts (ARCH-02 T6)", () => {
       }),
       { seed: 2026100407, numRuns: 300 },
     );
+  });
+
+  it("policyDepth equals a manual recursive count, shared subtrees included", () => {
+    const manual = (policy: P.Policy): number => {
+      const children = P.childrenOf(policy);
+      return children.length === 0 ? 0 : 1 + Math.max(...children.map(manual));
+    };
+    for (const [arbitrary, seed] of [
+      [policyArbitrary(), 2026100408],
+      [sharedPolicyArbitrary, 2026100409],
+    ] as const) {
+      FastCheck.assert(
+        FastCheck.property(arbitrary, (policy) => P.policyDepth(policy) === manual(policy)),
+        { seed, numRuns: 500 },
+      );
+    }
   });
 
   it("foldPolicy hands children to combine in childrenOf order, rows in row order", () => {

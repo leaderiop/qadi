@@ -3234,6 +3234,18 @@ describe("qadi_decisions_total / qadi_denials_by_policy_tag_total", () => {
       assert.strictEqual(denials?.state.occurrences.get("HasPermission"), 1);
     }));
 
+  it.effect("preregisters every Policy tag, in the union's order (ARCH-02 C5)", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasRole("editor"))
+          .pipe(Effect.provide(testLayer(subjectWith({ id: "u1" }))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+      const frequency = frequencyOf(snapshots, "qadi_denials_by_policy_tag_total");
+      assert.isDefined(frequency);
+      assert.deepStrictEqual([...(frequency?.state.occurrences.keys() ?? [])], [...P.POLICY_TAGS]);
+    }));
+
   it.effect("an allow adds nothing to the denial frequency", () =>
     Effect.gen(function* () {
       const snapshots = yield* isolatedMetrics(

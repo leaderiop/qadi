@@ -195,6 +195,17 @@ describe("policyDepth", () => {
     assert.strictEqual(depth, n);
   });
 
+  it("counts a matcher's nesting at a matcher-bearing leaf (ARCH-02 D-02-f)", () => {
+    const nested = P.hasAttribute("x", M.size(M.size(M.eq(M.literal(1)))));
+    assert.strictEqual(P.policyDepth(nested), 2);
+    assert.strictEqual(P.policyDepth(P.not(nested)), 3);
+    assert.strictEqual(P.policyDepth(P.hasAttribute("x", M.eq(M.literal(1)))), 0);
+    assert.strictEqual(
+      P.policyDepth(P.hasResourceAttribute("x", M.someMatch(M.exists()))),
+      1,
+    );
+  });
+
   it("remembers the answer per policy object, because a policy is an immutable value", () => {
     // Deliberately mutates a policy, which no caller may do, to prove the answer
     // is remembered rather than re-walked: `evaluate` asks the depth before every

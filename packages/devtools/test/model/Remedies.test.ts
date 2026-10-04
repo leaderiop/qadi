@@ -641,6 +641,21 @@ describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C7
     assert.strictEqual(node, 1);
   });
 
+  it("requirements come out pre-order, left to right, and duplicates collapse by label", () => {
+    assert.deepStrictEqual(
+      labels(allOf([hasRole("a"), allOf([hasRole("b"), hasRole("c")]), hasRole("d")])),
+      ["with role a", "with role b", "with role c", "with role d"],
+    );
+    assert.deepStrictEqual(labels(allOf([hasRole("a"), hasRole("a")])), ["with role a"]);
+  });
+
+  it("a Deny row's conditions are skipped, whatever its position", () => {
+    assert.deepStrictEqual(
+      labels(rules([denyWhen(hasRole("a")), permitWhen(hasRole("b")), denyWhen(hasRole("c"))])),
+      ["with role b"],
+    );
+  });
+
   it("a Size witness still declines through a deep wrapper chain", () => {
     const found = satisfyingValue(chain(someMatch, n, size(eq(literal("two")))), alice);
     assert.strictEqual(found._tag, "Unsynthesisable");

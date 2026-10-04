@@ -4,7 +4,7 @@ import * as Schema from "effect/Schema";
 import * as FastCheck from "fast-check";
 import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
-import { chain } from "./helpers.ts";
+import { chain, matcherArbitrary } from "./helpers.ts";
 import {
   compareLabels,
   isSecurityLabel,
@@ -896,6 +896,60 @@ describe("getByPath", () => {
   });
 });
 
+describe("evaluateMatcher, one row per arm (pinned across ARCH-02)", () => {
+  const label = (level: number): { level: number; compartments: ReadonlyArray<string> } => ({
+    level,
+    compartments: [],
+  });
+
+  const table: ReadonlyArray<readonly [string, M.Matcher, unknown, boolean]> = [
+    ["Eq literal match", M.eq(M.literal(1)), 1, true],
+    ["Eq literal miss", M.eq(M.literal(1)), 2, false],
+    ["Eq absent value", M.eq(M.literal(1)), undefined, false],
+    ["Eq absent operand", M.eq(M.resource("missing")), 1, false],
+    ["Eq subject ref", M.eq(M.subject("dept")), "eng", true],
+    ["Eq subject id", M.eq(M.subjectId()), "u1", true],
+    ["Eq action", M.eq(M.action()), "write", true],
+    ["Neq differs", M.neq(M.literal(1)), 2, true],
+    ["Neq same", M.neq(M.literal(1)), 1, false],
+    ["Neq absent operand", M.neq(M.resource("missing")), 1, false],
+    ["Dominates non-label", M.dominates(M.literal(label(1))), "x", false],
+    ["In hit", M.inArray([1, 2]), 2, true],
+    ["In miss", M.inArray([1, 2]), 3, false],
+    ["Exists value", M.exists(), 0, true],
+    ["Exists null", M.exists(), null, false],
+    ["Exists undefined", M.exists(), undefined, false],
+    ["Gte ok", M.gte(3), 3, true],
+    ["Gte low", M.gte(3), 2, false],
+    ["Gte infinity", M.gte(3), Infinity, false],
+    ["Gte non-number", M.gte(3), "9", false],
+    ["Lt ok", M.lt(3), 2, true],
+    ["Lt high", M.lt(3), 3, false],
+    ["Contains array", M.contains("x"), ["x", "y"], true],
+    ["Contains miss", M.contains("z"), ["x", "y"], false],
+    ["FieldMatch own", M.fieldMatch("a", M.eq(M.literal(1))), { a: 1 }, true],
+    ["FieldMatch absent", M.fieldMatch("a", M.exists()), {}, false],
+    ["FieldMatch __proto__", M.fieldMatch("__proto__", M.exists()), {}, false],
+    ["FieldMatch constructor", M.fieldMatch("constructor", M.exists()), {}, false],
+    ["FieldMatch non-object", M.fieldMatch("a", M.exists()), 3, false],
+    ["SomeMatch hit", M.someMatch(M.eq(M.literal(2))), [1, 2], true],
+    ["SomeMatch empty", M.someMatch(M.exists()), [], false],
+    ["SomeMatch non-array", M.someMatch(M.exists()), "ab", false],
+    ["EveryMatch all", M.everyMatch(M.gte(1)), [1, 2], true],
+    ["EveryMatch one miss", M.everyMatch(M.gte(2)), [1, 2], false],
+    ["EveryMatch empty", M.everyMatch(M.gte(2)), [], true],
+    ["Size array", M.size(M.eq(M.literal(2))), [1, 2], true],
+    ["Size string", M.size(M.eq(M.literal(2))), "ab", true],
+    ["Size no length", M.size(M.exists()), 5, false],
+  ];
+
+  for (const [name, matcher, value, expected] of table) {
+    it(name, () => {
+      assert.strictEqual(run(matcher, value), expected);
+    });
+  }
+});
+
 describe("stack-safe matcher walkers (ARCH-02 N2)", () => {
   const n = 100_000;
 
@@ -917,6 +971,34 @@ describe("stack-safe matcher walkers (ARCH-02 N2)", () => {
     assert.strictEqual(
       M.matcherDepth(M.fieldMatch("a", M.everyMatch(M.someMatch(M.exists())))),
       3,
+    );
+  });
+
+  it("the walkers agree with a manual recursive walk over every matcher shape", () => {
+    const hasRef = (m: M.Matcher, tag: "ActionRef" | "ResourceRef"): boolean =>
+      m._tag === "Eq" || m._tag === "Neq" || m._tag === "Dominates"
+        ? m.ref._tag === tag
+        : m._tag === "FieldMatch" ||
+            m._tag === "SomeMatch" ||
+            m._tag === "EveryMatch" ||
+            m._tag === "Size"
+          ? hasRef(m.matcher, tag)
+          : false;
+    const depth = (m: M.Matcher): number =>
+      m._tag === "FieldMatch" ||
+      m._tag === "SomeMatch" ||
+      m._tag === "EveryMatch" ||
+      m._tag === "Size"
+        ? 1 + depth(m.matcher)
+        : 0;
+    FastCheck.assert(
+      FastCheck.property(matcherArbitrary(8), (m) => {
+        assert.strictEqual(M.referencesAction(m), hasRef(m, "ActionRef"));
+        assert.strictEqual(M.referencesResource(m), hasRef(m, "ResourceRef"));
+        assert.strictEqual(M.matcherDepth(m), depth(m));
+        return true;
+      }),
+      { seed: 2026100410, numRuns: 500 },
     );
   });
 

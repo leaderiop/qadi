@@ -10,50 +10,18 @@
  */
 import {
   Allow,
-  action,
-  allOf,
-  anyOf,
   Decided,
   DecisionRecord,
   Deny,
-  denyWhen,
-  contains,
-  dominates,
-  eq,
-  everyMatch,
-  exists,
-  fieldMatch,
   Failed,
-  gte,
-  inArray,
-  hasAction,
-  hasAttribute,
   hasPermission,
-  hasResourceAttribute,
-  hasRole,
-  labeled,
-  literal,
-  lt,
-  neq,
   makeSubjectId,
   MissingResource,
-  not,
-  obligation,
-  obliged,
   ObligationRecord,
   permission,
-  permitWhen,
-  rules,
-  size,
-  someMatch,
-  resource,
   stampRecord,
-  subject,
-  subjectId,
 } from "@qadi/core";
 import type {
-  Matcher,
-  ValueRef,
   EvaluationError,
   ObligationOutcome,
   Policy,
@@ -174,7 +142,7 @@ export const obligationRecord = (options?: {
   );
 
 // ---------------------------------------------------------------------------
-// ARCH-02 — chain builder and a seeded policy generator
+// ARCH-02 — chain builder
 // ---------------------------------------------------------------------------
 
 /** An n-deep single-child chain, built iteratively so building cannot overflow. */
@@ -182,88 +150,4 @@ export const chain = <T>(wrap: (inner: T) => T, n: number, leaf: T): T => {
   let current = leaf;
   for (let i = 0; i < n; i++) current = wrap(current);
   return current;
-};
-
-/** A small deterministic PRNG (mulberry32), so no property-test dependency is needed. */
-const prng = (seed: number): (() => number) => {
-  let state = seed;
-  return () => {
-    state = (state + 0x6d2b79f5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
-/**
- * A pseudo-random `Policy` over the tags the remedy derivation distinguishes
- * (roles, permissions, attributes, `Not`, wrappers, combinators, rule tables).
- */
-export const randomPolicy = (seed: number, depth = 4): Policy => {
-  const next = prng(seed);
-  const pick = (n: number): number => Math.floor(next() * n);
-  const build = (remaining: number): Policy => {
-    const leaves: ReadonlyArray<() => Policy> = [
-      () => hasRole("editor"),
-      () => hasPermission(read),
-      () => hasAttribute("seniority", gte(3)),
-      () => hasAttribute("tags", someMatch(eq(literal("a")))),
-      () => hasAction("read"),
-      () => hasResourceAttribute("ownerId", eq(subjectId())),
-    ];
-    const composites: ReadonlyArray<() => Policy> = [
-      () => allOf(Array.from({ length: pick(4) }, () => build(remaining - 1))),
-      () => anyOf(Array.from({ length: pick(4) }, () => build(remaining - 1))),
-      () => not(build(remaining - 1)),
-      () => labeled("l", build(remaining - 1)),
-      () => obliged(obligation("audit.log"), build(remaining - 1)),
-      () =>
-        rules(
-          Array.from({ length: pick(4) }, () =>
-            pick(2) === 0 ? permitWhen(build(remaining - 1)) : denyWhen(build(remaining - 1)),
-          ),
-        ),
-    ];
-    const table = remaining <= 0 || pick(3) === 0 ? leaves : composites;
-    const make = table[pick(table.length)];
-    return make === undefined ? hasRole("editor") : make();
-  };
-  return build(depth);
-};
-
-/** A pseudo-random `Matcher` over all twelve tags, seeded like {@link randomPolicy}. */
-export const randomMatcher = (seed: number, depth = 4): Matcher => {
-  const next = prng(seed);
-  const pick = (n: number): number => Math.floor(next() * n);
-  const refs: ReadonlyArray<ValueRef> = [
-    subject("dept"),
-    subjectId(),
-    resource("owner"),
-    action(),
-    literal("legal"),
-    literal(2),
-  ];
-  const ref = (): ValueRef => refs[pick(refs.length)] ?? literal(1);
-  const build = (remaining: number): Matcher => {
-    const leaves: ReadonlyArray<() => Matcher> = [
-      () => eq(ref()),
-      () => neq(ref()),
-      () => dominates(ref()),
-      () => inArray(pick(2) === 0 ? [] : [1, "a"]),
-      () => exists(),
-      () => gte(pick(5)),
-      () => lt(pick(5)),
-      () => contains("x"),
-    ];
-    const composites: ReadonlyArray<() => Matcher> = [
-      () => fieldMatch("a", build(remaining - 1)),
-      () => someMatch(build(remaining - 1)),
-      () => everyMatch(build(remaining - 1)),
-      () => size(build(remaining - 1)),
-    ];
-    const table = remaining <= 0 || pick(3) === 0 ? leaves : composites;
-    const make = table[pick(table.length)];
-    return make === undefined ? exists() : make();
-  };
-  return build(depth);
 };

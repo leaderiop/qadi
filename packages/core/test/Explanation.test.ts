@@ -615,6 +615,14 @@ describe("explain", () => {
     assert.strictEqual(combines, 2);
   });
 
+  it("a child shared by identity is explained once, and both parts are the same object", () => {
+    const shared = P.labeled("shared", P.not(P.hasRole("editor")));
+    const e = explain(P.allOf([shared, shared]));
+    assert.strictEqual(e._tag, "All");
+    if (e._tag !== "All") return;
+    assert.strictEqual(e.parts[0], e.parts[1]);
+  });
+
   it("explain over a 100k-deep matcher completes (ARCH-02 N2)", () => {
     const e = explain(P.hasAttribute("x", chain(M.size, 100_000, M.eq(M.literal(1)))));
     assert.strictEqual(e._tag, "Requirement");

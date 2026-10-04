@@ -344,3 +344,31 @@ describe("simplify", () => {
     assert.strictEqual(result.policies.length, 250_000);
   });
 });
+
+describe("simplify folds through foldPolicy (ARCH-02)", () => {
+  it("Rules children stay aligned with their rows", () => {
+    const original = P.rules([
+      P.permitWhen(P.hasRole("a")),
+      P.denyWhen(P.not(P.not(P.hasRole("b")))),
+      P.permitWhen(P.hasRole("c")),
+    ]);
+    const out = simplify(original);
+    assert.strictEqual(out._tag, "Rules");
+    if (out._tag !== "Rules") return;
+    assert.deepStrictEqual(
+      out.rules.map((r) => r.effect),
+      ["Permit", "Deny", "Permit"],
+    );
+    // The middle row keeps its `Not`: double negation is not rewritten (ADR-QD-030).
+    assert.deepStrictEqual(
+      out.rules.map((r) => (r.condition._tag === "HasRole" ? r.condition.role : r.condition._tag)),
+      ["a", "Not", "c"],
+    );
+  });
+
+  it("a child shared by identity is rewritten once and shared in the result", () => {
+    const shared = P.labeled("shared", P.not(P.hasRole("editor")));
+    const out = simplify(P.allOf([shared, shared]));
+    if (out._tag === "AllOf") assert.strictEqual(out.policies[0], out.policies[1]);
+  });
+});
