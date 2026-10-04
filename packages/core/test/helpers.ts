@@ -2,6 +2,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Tracer from "effect/Tracer";
+import * as FastCheck from "fast-check";
 import { AttributeResolver, AttributeResolverNone } from "../src/AttributeResolver.ts";
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
@@ -13,6 +14,10 @@ import {
   RelationshipResolver,
   RelationshipResolverNever,
 } from "../src/RelationshipResolver.ts";
+import * as M from "../src/Matcher.ts";
+import { obligation } from "../src/Obligation.ts";
+import { permission } from "../src/Permission.ts";
+import * as P from "../src/Policy.ts";
 import { SignatureHistory, SignatureHistoryNone } from "../src/SignatureHistory.ts";
 
 export type QadiServices =
@@ -180,3 +185,123 @@ export const forkAllAndSettle = <A, E, R>(effects: ReadonlyArray<Effect.Effect<A
     for (let i = 0; i < SETTLE_TURNS; i++) yield* Effect.yieldNow;
     return fibers;
   });
+
+// ---------------------------------------------------------------------------
+// ARCH-02 — tree arbitraries and chain builders
+// ---------------------------------------------------------------------------
+
+const fieldsOption: FastCheck.Arbitrary<{ readonly fields?: ReadonlyArray<string> }> =
+  FastCheck.oneof(
+    FastCheck.constant({}),
+    FastCheck.constant({ fields: [] }),
+    FastCheck.constant({ fields: ["title", "body"] }),
+  );
+
+/**
+ * One generator per `Policy` tag, keyed by tag so a new tag is a compile error
+ * here too. Composites take the recursive position as an argument.
+ */
+const policyBuilders = (
+  node: FastCheck.Arbitrary<P.Policy>,
+): Record<P.Policy["_tag"], FastCheck.Arbitrary<P.Policy>> => ({
+  HasRole: fieldsOption.map((o) => P.hasRole("editor", o)),
+  HasPermission: fieldsOption.map((o) => P.hasPermission(permission("doc", "read"), o)),
+  HasAttribute: fieldsOption.map((o) => P.hasAttribute("seniority", M.gte(3), o)),
+  HasResourceAttribute: fieldsOption.map((o) =>
+    P.hasResourceAttribute("ownerId", M.eq(M.subjectId()), o),
+  ),
+  HasRelationship: fieldsOption.map((o) => P.hasRelationship("owner", o)),
+  HasAction: fieldsOption.map((o) => P.hasAction("read", o)),
+  HasActed: fieldsOption.map((o) => P.hasActed("raised", o)),
+  HasNotActed: fieldsOption.map((o) => P.hasNotActed("approved", { scope: "Any", ...o })),
+  HasCustom: FastCheck.oneof(
+    fieldsOption.map((o) => P.hasCustom("isOwner", undefined, o)),
+    FastCheck.constant(P.hasCustom("quota", { limit: 3 })),
+  ),
+  HasSignature: fieldsOption.map((o) => P.hasSignature("approved", o)),
+  AllOf: FastCheck.array(node, { maxLength: 3 }).map((ps) => P.allOf(ps)),
+  AnyOf: FastCheck.array(node, { maxLength: 3 }).map((ps) => P.anyOf(ps)),
+  Rules: FastCheck.tuple(
+    FastCheck.array(
+      FastCheck.tuple(node, FastCheck.boolean()).map(([c, permits]) =>
+        permits ? P.permitWhen(c) : P.denyWhen(c),
+      ),
+      { maxLength: 3 },
+    ),
+    FastCheck.constantFrom<P.Combining>("FirstApplicable", "PermitOverrides", "DenyOverrides"),
+  ).map(([rs, combining]) => P.rules(rs, { combining })),
+  Not: node.map(P.not),
+  Obliged: node.map((p) => P.obliged(obligation("audit.log"), p)),
+  Labeled: node.map((p) => P.labeled("l", p)),
+});
+
+/** Every one of the 16 `Policy` tags is reachable. */
+export const policyArbitrary = (options?: {
+  readonly maxDepth?: number;
+}): FastCheck.Arbitrary<P.Policy> =>
+  FastCheck.letrec<{ node: P.Policy }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth: options?.maxDepth ?? 4, withCrossShrink: true },
+      ...Object.values(policyBuilders(tie("node"))),
+    ),
+  })).node;
+
+/**
+ * A node composed into a parent that references the *same object* two or three
+ * times, which pins identity-memo behaviour.
+ */
+export const sharedPolicyArbitrary: FastCheck.Arbitrary<P.Policy> = policyArbitrary({
+  maxDepth: 3,
+}).chain((x) =>
+  FastCheck.constantFrom(
+    P.allOf([x, P.not(x), x]),
+    P.anyOf([x, x]),
+    P.rules([P.permitWhen(x), P.denyWhen(x)]),
+    P.labeled("shared", P.allOf([x, x, x])),
+  ),
+);
+
+const valueRefArbitrary: FastCheck.Arbitrary<M.ValueRef> = FastCheck.oneof(
+  FastCheck.constant(M.subject("team")),
+  FastCheck.constant(M.subjectId()),
+  FastCheck.constant(M.resource("ownerId")),
+  FastCheck.constant(M.action()),
+  FastCheck.constant(M.literal(1)),
+);
+
+/** Every one of the 12 `Matcher` tags (and all five `ValueRef` tags) is reachable. */
+export const matcherArbitrary = (maxDepth: number): FastCheck.Arbitrary<M.Matcher> => {
+  const builders = (
+    node: FastCheck.Arbitrary<M.Matcher>,
+  ): Record<M.Matcher["_tag"], FastCheck.Arbitrary<M.Matcher>> => ({
+    Eq: valueRefArbitrary.map(M.eq),
+    Neq: valueRefArbitrary.map(M.neq),
+    Dominates: valueRefArbitrary.map(M.dominates),
+    In: FastCheck.constant(M.inArray([1, 2, "a"])),
+    Exists: FastCheck.constant(M.exists()),
+    Gte: FastCheck.constant(M.gte(3)),
+    Lt: FastCheck.constant(M.lt(3)),
+    Contains: FastCheck.constant(M.contains("x")),
+    FieldMatch: node.map((m) => M.fieldMatch("a", m)),
+    SomeMatch: node.map(M.someMatch),
+    EveryMatch: node.map(M.everyMatch),
+    Size: node.map(M.size),
+  });
+  return FastCheck.letrec<{ node: M.Matcher }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth, withCrossShrink: true },
+      ...Object.values(builders(tie("node"))),
+    ),
+  })).node;
+};
+
+/** An n-deep single-child chain, built iteratively so building cannot overflow. */
+export const chain = <T>(wrap: (inner: T) => T, n: number, leaf: T): T => {
+  let current = leaf;
+  for (let i = 0; i < n; i++) current = wrap(current);
+  return current;
+};
+
+/** `allOf([leaf, next])` nested `n` times. */
+export const comb = (n: number): P.Policy =>
+  chain((next) => P.allOf([P.hasRole("a"), next]), n, P.hasRole("z"));

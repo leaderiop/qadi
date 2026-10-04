@@ -6,6 +6,7 @@ import * as M from "../src/Matcher.ts";
 import { Obligation, obligation, unionObligations } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
+import { policyArbitrary } from "./helpers.ts";
 
 describe("Policy combinators", () => {
   it("allOf defaults to Intersection — least privilege for a conjunction", () => {
@@ -872,4 +873,20 @@ describe("Policy serialization", () => {
         }
       }),
   );
+});
+
+describe("policyArbitrary (ARCH-02 T1)", () => {
+  it("reaches all 16 Policy tags", () => {
+    const seen = new Set<string>();
+    for (const policy of FastCheck.sample(policyArbitrary(), { numRuns: 500, seed: 2026100401 })) {
+      const stack: Array<P.Policy> = [policy];
+      while (stack.length > 0) {
+        const node = stack.pop();
+        if (node === undefined) break;
+        seen.add(node._tag);
+        for (const child of P.childrenOf(node)) stack.push(child);
+      }
+    }
+    assert.strictEqual(seen.size, 16, `saw ${[...seen].join(",")}`);
+  });
 });

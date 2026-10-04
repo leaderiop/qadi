@@ -10,16 +10,34 @@
  */
 import {
   Allow,
+  allOf,
+  anyOf,
   Decided,
   DecisionRecord,
   Deny,
+  denyWhen,
+  eq,
   Failed,
+  gte,
+  hasAction,
+  hasAttribute,
   hasPermission,
+  hasResourceAttribute,
+  hasRole,
+  labeled,
+  literal,
   makeSubjectId,
   MissingResource,
+  not,
+  obligation,
+  obliged,
   ObligationRecord,
   permission,
+  permitWhen,
+  rules,
+  someMatch,
   stampRecord,
+  subjectId,
 } from "@qadi/core";
 import type {
   EvaluationError,
@@ -140,3 +158,61 @@ export const obligationRecord = (options?: {
     }),
     options?.environment ?? "Server",
   );
+
+// ---------------------------------------------------------------------------
+// ARCH-02 — chain builder and a seeded policy generator
+// ---------------------------------------------------------------------------
+
+/** An n-deep single-child chain, built iteratively so building cannot overflow. */
+export const chain = <T>(wrap: (inner: T) => T, n: number, leaf: T): T => {
+  let current = leaf;
+  for (let i = 0; i < n; i++) current = wrap(current);
+  return current;
+};
+
+/** A small deterministic PRNG (mulberry32), so no property-test dependency is needed. */
+const prng = (seed: number): (() => number) => {
+  let state = seed;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+/**
+ * A pseudo-random `Policy` over the tags the remedy derivation distinguishes
+ * (roles, permissions, attributes, `Not`, wrappers, combinators, rule tables).
+ */
+export const randomPolicy = (seed: number, depth = 4): Policy => {
+  const next = prng(seed);
+  const pick = (n: number): number => Math.floor(next() * n);
+  const build = (remaining: number): Policy => {
+    const leaves: ReadonlyArray<() => Policy> = [
+      () => hasRole("editor"),
+      () => hasPermission(read),
+      () => hasAttribute("seniority", gte(3)),
+      () => hasAttribute("tags", someMatch(eq(literal("a")))),
+      () => hasAction("read"),
+      () => hasResourceAttribute("ownerId", eq(subjectId())),
+    ];
+    const composites: ReadonlyArray<() => Policy> = [
+      () => allOf(Array.from({ length: pick(4) }, () => build(remaining - 1))),
+      () => anyOf(Array.from({ length: pick(4) }, () => build(remaining - 1))),
+      () => not(build(remaining - 1)),
+      () => labeled("l", build(remaining - 1)),
+      () => obliged(obligation("audit.log"), build(remaining - 1)),
+      () =>
+        rules(
+          Array.from({ length: pick(4) }, () =>
+            pick(2) === 0 ? permitWhen(build(remaining - 1)) : denyWhen(build(remaining - 1)),
+          ),
+        ),
+    ];
+    const table = remaining <= 0 || pick(3) === 0 ? leaves : composites;
+    const make = table[pick(table.length)];
+    return make === undefined ? hasRole("editor") : make();
+  };
+  return build(depth);
+};
