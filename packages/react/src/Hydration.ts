@@ -13,171 +13,39 @@
  * authorization state crossing a network, so it is **bound to a subject id**, it
  * **carries no trace** by default, and every entry it cannot verify is
  * **dropped** rather than trusted.
+ *
+ * The public interface over `HydrationEngine.ts`, which owns the payload codec,
+ * the seed atoms and the precedence rule, and stays out of the barrel
+ * (ADR-QD-039). What a consumer may hold is re-exported here **by name**.
  */
-import type { AuthSubject, Decision, Policy, Resource, SubjectId, Trace } from "@qadi/core";
-import {
-  Allow,
-  Deny,
-  MAX_DECODE_DEPTH,
-  Obligation,
-  Policy as PolicySchema,
-  TraceSchema,
-  UNTRUSTED_DECODE_OPTIONS,
-  exceedsJsonDepth,
-} from "@qadi/core";
-import * as Option from "effect/Option";
-import * as Schema from "effect/Schema";
-import type * as Atom from "effect/reactivity/Atom";
-import { countDehydrated, countDropped, countSeeded } from "./HydrationCounts.ts";
-import type { InitialValues } from "./HydrationEngine.ts";
-import { hydrationSeedFor } from "./HydrationEngine.ts";
-import type { HydrationDropReporter } from "./HydrationWarning.ts";
-import { droppedEntriesReporter, hydrationDropReporter } from "./HydrationWarning.ts";
+import type { AuthSubject } from "@qadi/core";
+import { countDropped } from "./HydrationCounts.ts";
+import type { DecisionEntry, DehydratedDecisions, DehydratedPayload, HydrateOptions, InitialValues } from "./HydrationEngine.ts";
+import { dehydratedPayload, dehydrateEntry, hydrateWith, hydrationSeedFor } from "./HydrationEngine.ts";
+import { droppedEntriesReporter } from "./HydrationWarning.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 
 // Named explicitly rather than reached through the barrel: `HydrationWarning.ts`
-// stays out of it (AGENTS.md §9), and `.d.ts` emission has to be able to name
-// what `HydrateOptions` refers to (TS2883). The same re-export `QadiAtoms.ts`
-// makes for `HydrationMismatch`, for the same reason.
+// and `HydrationEngine.ts` stay out of it (AGENTS.md §9), and `.d.ts` emission has
+// to be able to name what `HydrateOptions` refers to (TS2883). The same re-export
+// `QadiAtoms.ts` makes for `HydrationMismatch`, for the same reason.
 export type { HydrationDrop, HydrationDropReporter } from "./HydrationWarning.ts";
-
-/** Encoding a typed policy cannot fail, so this side is sync and total. */
-const encodePolicy = Schema.encodeSync(PolicySchema);
-
-/**
- * Decoding is the untrusted side, so it returns an Option and a malformed entry
- * is dropped rather than thrown on — the same fail-closed treatment a mismatched
- * subject gets.
- *
- * `Schema`'s own recursive descent through `PolicySchema`'s `Schema.suspend` has
- * no depth cap of its own — `hydrateDecisions` runs {@link exceedsJsonDepth}
- * over each entry before this (and before {@link decodeEntryFields}, which
- * shares the same recursive `TraceSchema`) so a payload nested past the call
- * stack's limit is dropped as a typed reason rather than raising a raw
- * `RangeError` defect, mirroring the guard-then-decode order `SinkCodec.ts`'s
- * `decodeRecordWire` already uses for the identical trust boundary.
- *
- * Decodes with {@link UNTRUSTED_DECODE_OPTIONS} — without it, `Schema`'s default
- * `onExcessProperty: "ignore"` would silently strip an unrecognized key from an
- * otherwise-valid tag instead of refusing to decode it, the same silent-data-loss
- * shape `UNTRUSTED_DECODE_OPTIONS`'s own doc comment in `Policy.ts` exists to
- * rule out, reached here through this module's own decode call rather than one
- * of `Policy.ts`'s or `SinkCodec.ts`'s.
- */
-const decodePolicy = Schema.decodeUnknownOption(PolicySchema, UNTRUSTED_DECODE_OPTIONS);
-
-/**
- * Every field of a `DehydratedEntry`, decoded against the whole entry object —
- * `policy` included, even though this struct doesn't validate it. `policy`
- * keeps its own decode path above: it needs a type transformation (`unknown`
- * to `Policy`) this struct doesn't perform, so folding it in here would just
- * re-run `PolicySchema` a second time for no benefit. It is declared as
- * `Schema.Unknown` rather than left off the struct entirely so that decoding
- * with {@link UNTRUSTED_DECODE_OPTIONS} below — `onExcessProperty: "error"` —
- * flags a genuinely unrecognized key without also flagging `policy` itself as
- * one on every single entry.
- *
- * Field-for-field with the interface's own optionality otherwise: `resource`
- * follows the inline `Schema.Record(Schema.String, Schema.Unknown)` convention
- * `SinkCodec.ts` already uses for the same shape — no named `Resource` schema
- * exists to import. `obligations` and `trace` reuse `Obligation` and
- * `TraceSchema` from `@qadi/core` rather than re-describing either union here,
- * for the same drift reason `SinkCodec.ts`'s own doc comment gives.
- */
-const DehydratedEntryFields = Schema.Struct({
-  policy: Schema.Unknown,
-  resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
-  allowed: Schema.Boolean,
-  evaluationId: Schema.String,
-  durationMillis: Schema.Number,
-  visibleFields: Schema.optional(Schema.Array(Schema.String)),
-  obligations: Schema.optional(Schema.Array(Obligation)),
-  reason: Schema.optional(Schema.String),
-  trace: Schema.optional(TraceSchema),
-});
-
-/**
- * Decoding is the untrusted side, so — like `decodePolicy` — this returns an
- * Option and a malformed entry is dropped rather than thrown on. Every field
- * but `policy` used to reach `rebuild` compile-time-typed and runtime-unchecked;
- * this closes that gap.
- *
- * Decodes with {@link UNTRUSTED_DECODE_OPTIONS}, for the same reason
- * `decodePolicy` above does: an entry carrying an excess key alongside
- * otherwise-valid fields must be refused, not silently accepted with the extra
- * key ignored.
- */
-const decodeEntryFields = Schema.decodeUnknownOption(
-  DehydratedEntryFields,
-  UNTRUSTED_DECODE_OPTIONS,
-);
-
-/** One decision the server made, ready to be dehydrated. */
-export interface DecisionEntry {
-  readonly policy: Policy;
-  /** Present when the decision was made against a resource. */
-  readonly resource?: Resource | undefined;
-  readonly decision: Decision;
-}
-
-/** One dehydrated entry. `policy` is a plain JSON value, not a `Policy`. */
-export interface DehydratedEntry {
-  readonly policy: unknown;
-  readonly resource?: Resource | undefined;
-  readonly allowed: boolean;
-  readonly evaluationId: string;
-  readonly durationMillis: number;
-  readonly visibleFields?: ReadonlyArray<string> | undefined;
-  readonly obligations?: Allow["obligations"] | undefined;
-  readonly reason?: string | undefined;
-  /** Present only when the caller opted into disclosing it. */
-  readonly trace?: Trace | undefined;
-}
-
-/**
- * A serializable projection of decisions, bound to one subject.
- *
- * Named for what it is. It is **not** `ReadonlyArray<Decision>`: the trace is
- * reduced and a denial's reason is replaced, so a hydrated decision is not equal
- * to the one the server made. It carries the same verdict, visible fields and
- * obligations — the things a UI acts on.
- */
-export interface DehydratedDecisions {
-  /**
-   * The subject these decisions were made for. Checked on hydration.
-   *
-   * **`undefined` means an empty payload** — `dehydrateDecisions([])`, with no
-   * entries to name a subject — and is not itself a subject id.
-   * Representing "no entries" as the empty string made an illegal state
-   * representable: `""` looks like data a caller could key a cache or store
-   * on, when it means "there is nothing here" (EC-06). A real subject id is
-   * never empty ({@link SubjectId}'s own brand), so this is the one case a
-   * subject id cannot actually take.
-   */
-  readonly subjectId: string | undefined;
-  readonly entries: ReadonlyArray<DehydratedEntry>;
-}
-
-/** The stand-in reason a hydrated denial carries when the trace is withheld. */
-const HYDRATED = "hydrated";
-
-const reducedTrace = (decision: Decision): Trace => ({
-  policyTag: decision.trace.policyTag,
-  allowed: decision._tag === "Allow",
-  reason: decision._tag === "Allow" ? undefined : HYDRATED,
-  children: [],
-  visibleFields: decision._tag === "Allow" ? decision.visibleFields : undefined,
-  obligations: decision._tag === "Allow" ? decision.obligations : [],
-});
+export type { DecisionEntry, DehydratedDecisions, DehydratedEntry } from "./HydrationEngine.ts";
+export type { DehydratedDecisionsV1, DehydratedEntryV1, DehydratedPayload } from "./HydrationEngine.ts";
+export type { HydrateOptions } from "./HydrationEngine.ts";
+export type { AllowDisclosure, ClientDecision, DenyDisclosure } from "./SeededDecision.ts";
+export type { SeededDecision } from "./SeededDecision.ts";
+export { SeededAllow, SeededDeny, isSeeded, permits } from "./SeededDecision.ts";
 
 export interface DehydrateOptions {
   /**
-   * Ship the full trace.
+   * Ship the full trace, and a denial's reason.
    *
    * Off by default, and the default is the security decision. A trace names every
    * node's tag, its label and the sentence explaining why it refused — a
    * description of the policy's internal structure plus which branch this subject
    * failed, readable by anyone with developer tools and by any script on the page.
+   * Withheld, an entry carries `disclosure: { _tag: "Withheld" }` and neither.
    */
   readonly includeTrace?: boolean;
   /**
@@ -230,225 +98,37 @@ export const dehydrateDecisions = (
   // Counted here rather than left to the caller. A count is what makes the
   // *other* end legible: `qadi_hydration_seeded_total` next to this one is the
   // difference between "hydration ran" and "hydration ran and did nothing".
-  countDehydrated(kept.length);
-
-  return {
+  return dehydratedPayload(
     subjectId,
-    entries: kept
-      .map((e): DehydratedEntry => ({
-        policy: encodePolicy(e.policy),
-        resource: e.resource,
-        allowed: e.decision._tag === "Allow",
-        evaluationId: e.decision.evaluationId,
-        durationMillis: e.decision.durationMillis,
-        visibleFields: e.decision._tag === "Allow" ? e.decision.visibleFields : undefined,
-        obligations: e.decision._tag === "Allow" ? e.decision.obligations : undefined,
-        // A denial's own reason is withheld with the trace: it is the same
-        // disclosure in one sentence.
-        reason: e.decision._tag === "Deny" ? (includeTrace ? e.decision.reason : HYDRATED) : undefined,
-        trace: includeTrace ? e.decision.trace : reducedTrace(e.decision),
-      })),
-  };
+    kept.map((entry) => dehydrateEntry(entry, includeTrace)),
+  );
 };
-
-/**
- * Rebuilds one entry's `Decision`, fabricating a trace when the payload has none.
- *
- * `dehydrateDecisions` never produces an entry without a `trace`: it always sets
- * one, either the real thing (`includeTrace: true`) or `reducedTrace`'s
- * projection. So the `?? {...}` branch below only runs for a payload this module
- * did not produce — hand-crafted or version-skewed input missing the field
- * entirely, the same case `decodeEntryFields` already treats as tolerable because
- * `trace` is `Schema.optional` on `DehydratedEntryFields`.
- *
- * The fallback's `policyTag` is `"AllOf"`, and that value is arbitrary rather
- * than meaningful: `Trace.policyTag` is typed `Policy["_tag"]`, a closed union
- * enforced structurally by `TRACE_TAGS` in `packages/core/src/SinkCodec.ts`, so
- * there is no "unknown" or "synthetic" tag to reach for without widening that
- * union across `@qadi/core` — a change with a much larger blast radius than this
- * defensive branch justifies. `"AllOf"` was picked only because it is a valid
- * member of that union; it does not claim the entry was actually an `AllOf`
- * policy, and nothing downstream treats it as identifying one — `warnMismatch`
- * in `HydrationWarning.ts` already documents this trace as "a stand-in, naming
- * nothing", and `spec/devtools-spec/adr-draft-unified-stream.md`'s "Still open"
- * section tracks it as a disclosure gap rather than a defect: the fix, if one is
- * wanted, is a UI that renders "trace not disclosed" for a reduced or fabricated
- * trace, not a different fabricated tag.
- */
-const rebuild = (entry: DehydratedEntry, subjectId: SubjectId): Decision => {
-  const trace = entry.trace ?? {
-    policyTag: "AllOf" as const,
-    allowed: entry.allowed,
-    children: [],
-    visibleFields: entry.visibleFields,
-    obligations: entry.obligations ?? [],
-  };
-
-  return entry.allowed
-    ? new Allow({
-        evaluationId: entry.evaluationId,
-        subjectId,
-        durationMillis: entry.durationMillis,
-        trace,
-        visibleFields: entry.visibleFields,
-        obligations: entry.obligations ?? [],
-      })
-    : new Deny({
-        evaluationId: entry.evaluationId,
-        subjectId,
-        durationMillis: entry.durationMillis,
-        trace,
-        reason: entry.reason ?? HYDRATED,
-      });
-};
-
-export interface HydrateOptions {
-  /**
-   * Called with the entries this client refused to seed, and why.
-   *
-   * The sibling of {@link DehydrateOptions.onDropped}, and it carries a reason
-   * because the five ways a payload fails to seed have five different causes:
-   * the payload naming another subject is a cache-key bug, an unregistered atom
-   * set is a wiring mistake, an entry malformed apart from its policy is
-   * usually version skew, an undecodable policy is version skew of the
-   * policy shape specifically, and an entry nested past the structural depth
-   * guard is not a shape a well-behaved server produces at all. A bare count
-   * cannot tell them apart, and each wants a different fix.
-   *
-   * Supplying this replaces the development-mode console warning and runs in
-   * production, exactly as {@link DehydrateOptions.onDropped} and
-   * `onHydrationMismatch` do.
-   *
-   * It observes; it cannot change the outcome. The entries are not seeded either
-   * way — the only safe reading of a payload that cannot be verified is to ask
-   * the questions again.
-   */
-  readonly onDropped?: HydrationDropReporter<DehydratedEntry>;
-}
 
 /**
  * Turns a payload into `initialValues` for `QadiProvider`.
  *
  * **Drops** every entry whose `subjectId` is not this subject's, and every entry
- * whose shape or policy this client cannot verify. A dropped entry leaves its atom `Initial`, so the
- * client asks the question properly — the page flashes, which is exactly what
- * would have happened without hydration and is the correct outcome for a payload
- * that cannot be verified.
+ * whose shape or policy this client cannot verify. A dropped entry leaves its atom
+ * `Initial`, so the client asks the question properly — the page flashes, which is
+ * exactly what would have happened without hydration and is the correct outcome
+ * for a payload that cannot be verified.
  *
- * Not throwing is deliberate: a cache serving one user's page to another is a
- * misconfiguration, and turning it into a blank page would be a worse outcome than
- * re-deciding. Trusting it would be a breach.
+ * Not throwing is deliberate, **whatever the payload is**: it arrives as JSON in
+ * a page, and `JSON.parse` yields `any`, so a value that is not even an envelope
+ * is dropped and counted like any other. A cache serving one user's page to
+ * another is a misconfiguration, and turning it into a blank page would be a
+ * worse outcome than re-deciding. Trusting it would be a breach.
  *
- * Every one of those exits is **announced and counted**. They were all three
- * silent, which made a page that re-decided everything from scratch
- * indistinguishable from one that had nothing to hydrate.
+ * Every one of those exits is **announced and counted**. They were all silent,
+ * which made a page that re-decided everything from scratch indistinguishable
+ * from one that had nothing to hydrate.
+ *
+ * Accepts the current payload and the one before it (no `version` field); the
+ * older one always seeds with its trace withheld.
  */
 export const hydrateDecisions = (
   atoms: QadiAtoms,
-  dehydrated: DehydratedDecisions,
+  dehydrated: DehydratedPayload,
   subject: AuthSubject,
   options?: HydrateOptions,
-): InitialValues => {
-  const report = hydrationDropReporter(options?.onDropped);
-
-  // `undefined` names an empty payload (EC-06), not a subject that failed to
-  // match — there is nothing to seed and nothing to warn about, the same
-  // fail-quiet outcome as a genuinely empty `entries`. A payload that lied —
-  // `subjectId: undefined` alongside real `entries` — still gets no trust:
-  // there is no subject here to check them against, so they are dropped the
-  // same way a real mismatch drops them, just without asserting a wrong id
-  // that was never named.
-  if (dehydrated.subjectId === undefined) {
-    if (dehydrated.entries.length > 0) {
-      countDropped("PayloadSubjectMismatch", dehydrated.entries.length);
-      report?.({ reason: "PayloadSubjectMismatch", entries: dehydrated.entries });
-    }
-    return [];
-  }
-
-  // The whole payload is rejected on a subject mismatch, not entry by entry: the
-  // id is a property of the payload, so one wrong id means the wrong page.
-  if (dehydrated.subjectId !== subject.id) {
-    countDropped("PayloadSubjectMismatch", dehydrated.entries.length);
-    // The entries are handed back whole. Unlike the dehydrate side this
-    // discloses nothing new — they are the caller's own argument, returned to
-    // them — so only the *default* reporter withholds them.
-    report?.({ reason: "PayloadSubjectMismatch", entries: dehydrated.entries });
-    return [];
-  }
-
-  // Written to the seed atom, never to the decision atom. Seeding the decision
-  // atom directly is what let a server allow outlive the client's own denial:
-  // `AtomRegistry` preserves a seeded value over the one the node computes, and
-  // a policy that evaluates synchronously has its computed answer discarded. See
-  // `SeededDecision` in `QadiAtoms.ts`.
-  const seedFor = hydrationSeedFor(atoms);
-  // An atom set this module did not build has no seed to write to. Seeding
-  // nothing leaves every atom `Initial`, so the client asks the question
-  // properly — the same fail-closed outcome a dropped entry gets.
-  if (seedFor === undefined) {
-    countDropped("UnregisteredAtoms", dehydrated.entries.length);
-    report?.({ reason: "UnregisteredAtoms", entries: dehydrated.entries });
-    return [];
-  }
-
-  const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
-  const tooDeep: Array<DehydratedEntry> = [];
-  const malformed: Array<DehydratedEntry> = [];
-  const undecodable: Array<DehydratedEntry> = [];
-
-  for (const entry of dehydrated.entries) {
-    // Checked ahead of any `Schema` decode, mirroring the guard-then-decode
-    // order `SinkCodec.ts`'s `decodeRecordWire` uses for the identical
-    // trust boundary: `decodeEntryFields`/`decodePolicy` both recurse through
-    // a `Schema.suspend`-based shape with no depth cap of its own, so a
-    // payload nested past the call stack's limit would otherwise raise a raw
-    // `RangeError` defect here instead of the fail-closed "drop the entry"
-    // every other malformed-payload path in this module gets.
-    if (exceedsJsonDepth(entry, MAX_DECODE_DEPTH)) {
-      tooDeep.push(entry);
-      continue;
-    }
-
-    const fields = decodeEntryFields(entry);
-    // Checked before the policy: an envelope malformed at this level — a string
-    // where durationMillis belongs, an obligations value that isn't an array, a
-    // trace of the wrong shape — is a different failure than a policy shape this
-    // schema doesn't know, and warrants its own reason.
-    if (!Option.isSome(fields)) {
-      malformed.push(entry);
-      continue;
-    }
-
-    const decoded = decodePolicy(entry.policy);
-    // Collected rather than reported one at a time: a version skew makes *every*
-    // entry of a shape undecodable, and one warning per entry would bury the
-    // page's other output under a payload's worth of identical lines.
-    if (!Option.isSome(decoded)) {
-      undecodable.push(entry);
-      continue;
-    }
-    const policy = decoded.value;
-
-    seeded.push([seedFor(policy, entry.resource), rebuild(entry, subject.id)]);
-  }
-
-  if (tooDeep.length > 0) {
-    countDropped("EntryTooDeep", tooDeep.length);
-    report?.({ reason: "EntryTooDeep", entries: tooDeep });
-  }
-
-  if (malformed.length > 0) {
-    countDropped("MalformedEntry", malformed.length);
-    report?.({ reason: "MalformedEntry", entries: malformed });
-  }
-
-  if (undecodable.length > 0) {
-    countDropped("UndecodablePolicy", undecodable.length);
-    report?.({ reason: "UndecodablePolicy", entries: undecodable });
-  }
-
-  countSeeded(seeded.length);
-
-  return seeded;
-};
+): InitialValues => hydrateWith(hydrationSeedFor(atoms), dehydrated, subject, options);

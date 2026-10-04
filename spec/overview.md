@@ -401,7 +401,7 @@ because this section is called the *public API surface*, and a reader looking fo
 | `makeQadiAtoms`, `currentDecision` | function | `QadiAtoms.ts` |
 | `QadiAtoms`, `QadiLayer`, `QadiRuntimeServices`, `DecisionResult`, `AskedQuestion` | type | `QadiAtoms.ts` |
 | `QadiAtomsOptions` | type | `QadiAtoms.ts` |
-| `HydrationMismatch`, `HydrationMismatchReporter` | type, re-exported from `./HydrationWarning.ts` | `QadiAtoms.ts` |
+| `HydrationMismatch`, `HydrationMismatchReporter` | type, re-exported from `./HydrationEngine.ts` (declared in `HydrationWarning.ts`) | `QadiAtoms.ts` |
 | `Can`, `Cannot` | component | `components.tsx` |
 | `CanProps`, `CannotProps`, `DeniedNode` | type | `components.tsx` |
 | `useSubject`, `useDecision`, `useCan`, `useDecisionSuspense` | hook | `hooks.ts` |
@@ -409,8 +409,13 @@ because this section is called the *public API surface*, and a reader looking fo
 | `dehydrateDecisions`, `hydrateDecisions` | function | `Hydration.ts` |
 | `gateInstances`, `subscribeGates`, `registerGate`, `updateGateState`, `clearGatesUnsafe` | function | `GateRegistry.ts` |
 | `GateInstance`, `GateKind`, `GateRenderState` | type | `GateRegistry.ts` |
-| `DehydratedDecisions`, `DehydratedEntry`, `DecisionEntry`, `DehydrateOptions` | type | `Hydration.ts` |
+| `DehydratedDecisions`, `DehydratedEntry`, `DecisionEntry`, `DehydrateOptions` | type | `Hydration.ts` — `DehydratedDecisions` carries `version: 2` and each entry nests a `decision` derived from `DecisionWire`, with a tagged `disclosure` where the withheld trace (and a denial's reason) would be; declared in `HydrationEngine.ts` |
+| `DehydratedPayload`, `DehydratedDecisionsV1`, `DehydratedEntryV1` | type | `Hydration.ts` — `hydrateDecisions` reads the current payload and, for one release, the one before `version` existed (`DehydratedDecisionsV1`, deprecated; always seeded `Withheld`) |
 | `HydrateOptions` | type | `Hydration.ts` |
+| `SeededAllow`, `SeededDeny` | class | `Hydration.ts` — the server's decision as a client received it: a projection (verdict, visible fields, obligations) and a `disclosure`, never a fabricated trace or reason; declared in `SeededDecision.ts` |
+| `SeededDecision`, `ClientDecision` | type | `Hydration.ts` — `SeededDecision` is `SeededAllow | SeededDeny`; `ClientDecision` is the closed union `Allow | Deny | SeededAllow | SeededDeny` a decision atom holds |
+| `AllowDisclosure`, `DenyDisclosure` | schema + type | `Hydration.ts` — `Withheld`, or `Disclosed` with the server's trace (and a denial's reason) |
+| `permits`, `isSeeded` | function | `Hydration.ts` — `permits` is the verdict read for a `ClientDecision` (`isAllowed` from `@qadi/core` rejects one, on purpose); `isSeeded` tells a seed from this client's own evaluation |
 | `HydrationDrop`, `HydrationDropReporter` | type, re-exported from `./HydrationWarning.ts` | `Hydration.ts` |
 
 `currentDecision` is the one to read twice: it is the single place the rule "a decision

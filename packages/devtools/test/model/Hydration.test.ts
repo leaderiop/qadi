@@ -86,6 +86,27 @@ describe("hydrationActivity", () => {
       );
     }));
 
+  it.effect("explains the two payload-level reasons, rather than calling them unrecognised", () =>
+    Effect.gen(function* () {
+      const read = yield* hydrationActivity;
+
+      // Written out, not read from `hydrationDropReasons`: that constant is the
+      // thing a deleted reason would also delete from.
+      for (const reason of ["UnsupportedPayloadVersion", "MalformedPayload"]) {
+        const row = read.drops.find((drop) => drop.reason === reason);
+        assert.isDefined(row, reason);
+        assert.notInclude(row?.meaning ?? "", "not a reason this build knows");
+      }
+      assert.include(
+        read.drops.find((drop) => drop.reason === "UnsupportedPayloadVersion")?.meaning ?? "",
+        "version",
+      );
+      assert.include(
+        read.drops.find((drop) => drop.reason === "MalformedPayload")?.meaning ?? "",
+        "dehydrated payload",
+      );
+    }));
+
   it.effect("reports a key it does not recognise rather than hiding it", () =>
     Effect.gen(function* () {
       // Nothing stops another module writing into this frequency, and a count

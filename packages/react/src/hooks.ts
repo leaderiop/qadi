@@ -6,14 +6,16 @@
  * or cancellation logic here — the registry does all of it, which is why two
  * components asking the same question cost one evaluation rather than two.
  */
-import type { AuthSubject, Decision, Policy, Resource } from "@qadi/core";
-import { isAllowed, project } from "@qadi/core";
+import type { AuthSubject, Policy, Resource } from "@qadi/core";
+import { projectVisible } from "@qadi/core";
 import { useAtomSuspense } from "@effect/atom-react/Hooks";
 import * as Atom from "effect/reactivity/Atom";
 import { useCallback, useEffect, useMemo } from "react";
 import type { DecisionResult, QadiAtoms } from "./QadiAtoms.ts";
 import { currentDecision } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
+import type { ClientDecision } from "./SeededDecision.ts";
+import { permits } from "./SeededDecision.ts";
 import { useGate } from "./useGate.ts";
 
 /** The subject under authorization, or `undefined` while it is still loading. */
@@ -49,7 +51,7 @@ export const useCan = (policy: Policy, resource?: Resource): boolean => {
   // registers **once**, as itself. Nesting the two would report one `useCan`
   // as two instances, the inner one labelled `useDecision`.
   const decision = currentDecision(useGate("useCan", policy, resource).result);
-  return decision !== undefined && isAllowed(decision);
+  return decision !== undefined && permits(decision);
 };
 
 /**
@@ -59,7 +61,7 @@ export const useCan = (policy: Policy, resource?: Resource): boolean => {
  * is the point: an unreachable attribute store should surface as an error, not
  * as a hidden button.
  */
-export const useDecisionSuspense = (policy: Policy, resource?: Resource): Decision => {
+export const useDecisionSuspense = (policy: Policy, resource?: Resource): ClientDecision => {
   const { atoms } = useQadiContext("useDecisionSuspense");
   const atom = useMemo(
     () =>
@@ -141,7 +143,11 @@ export const useProjected = <A extends Resource>(
   data: A,
 ): Partial<A> => {
   const decision = currentDecision(useGate("useProjected", policy, data).result);
-  return decision === undefined ? {} : project(decision, data);
+  // `permits` narrows to the two allow classes, both of which carry
+  // `visibleFields`; a denial of either kind projects to nothing.
+  return decision !== undefined && permits(decision)
+    ? projectVisible(decision.visibleFields, data)
+    : {};
 };
 
 /**

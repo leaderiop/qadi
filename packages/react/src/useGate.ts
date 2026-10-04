@@ -13,7 +13,6 @@
  * consumer able to pass one could register a `<Can>` that does not exist.
  */
 import type { Policy, Resource } from "@qadi/core";
-import { isAllowed } from "@qadi/core";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import { useEffect, useId, useMemo, useRef } from "react";
 import type { RefObject } from "react";
@@ -21,6 +20,7 @@ import type { GateKind, GateRenderState } from "./GateRegistry.ts";
 import { registerGate, updateGateState } from "./GateRegistry.ts";
 import type { DecisionResult } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
+import { permits } from "./SeededDecision.ts";
 
 /**
  * What an instance in this result state renders.
@@ -34,7 +34,7 @@ export const renderStateOf = (result: DecisionResult): GateRenderState => {
   if (AsyncResult.isInitial(result)) return "Pending";
   if (result.waiting) return "Rechecking";
   if (AsyncResult.isFailure(result)) return "Failed";
-  return isAllowed(result.value) ? "Allowed" : "Denied";
+  return permits(result.value) ? "Allowed" : "Denied";
 };
 
 export interface Gate {

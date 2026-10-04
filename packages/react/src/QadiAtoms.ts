@@ -35,6 +35,7 @@ import {
   registerHydrationSeeds,
   resolveMismatchReporter,
 } from "./HydrationEngine.ts";
+import type { ClientDecision } from "./SeededDecision.ts";
 
 // `HydrationWarning.ts` is out of the barrel — its ambient-global boundary is
 // not a public surface — so the two types callers name are re-exported here.
@@ -71,8 +72,12 @@ export type QadiLayer = Layer.Layer<
  * distinct again from a `Failure`, which means the question could not be
  * answered at all. Collapsing those three into a boolean is what makes an
  * attribute-store outage look like a permissions problem.
+ *
+ * A success holds a {@link ClientDecision}: this client's own evaluation, or —
+ * for the first frames of a server-rendered page — the server's seed, which is a
+ * projection and not an evaluation. Read its verdict with `permits`.
  */
-export type DecisionResult = AsyncResult.AsyncResult<Decision, EvaluationError>;
+export type DecisionResult = AsyncResult.AsyncResult<ClientDecision, EvaluationError>;
 
 /**
  * The decision, or `undefined` when there is not a current one.
@@ -84,7 +89,7 @@ export type DecisionResult = AsyncResult.AsyncResult<Decision, EvaluationError>;
  * before. Every consumer in this package goes through here, so a stale allow
  * reads as "not decided yet" rather than as permission.
  */
-export const currentDecision = (result: DecisionResult): Decision | undefined =>
+export const currentDecision = (result: DecisionResult): ClientDecision | undefined =>
   AsyncResult.isSuccess(result) && !result.waiting ? result.value : undefined;
 
 /** The reactivity key every decision atom is registered under. */

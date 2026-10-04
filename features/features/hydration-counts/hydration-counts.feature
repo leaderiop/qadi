@@ -61,6 +61,20 @@ Feature: Hydration accounts for every entry, and says when it seeds nothing
     And 2 entries are counted as dropped for "MalformedEntry"
     And the reported reason is "MalformedEntry"
 
+  Scenario: A payload of a version this client does not read is refused by name
+    Given a payload for "alice" of version 3 carrying 2 entries
+    When the payload is hydrated by "alice"
+    Then nothing is seeded
+    And 2 entries are counted as dropped for "UnsupportedPayloadVersion"
+    And the reported reason is "UnsupportedPayloadVersion"
+
+  Scenario: A payload that is not an envelope at all is dropped, not thrown on
+    Given a payload that is not an envelope at all
+    When the payload is hydrated by "alice"
+    Then nothing is seeded
+    And 1 entry is counted as dropped for "MalformedPayload"
+    And the reported reason is "MalformedPayload"
+
   Scenario: Undecodable entries are reported once, not once each
     Given a payload for "alice" carrying 3 entries the client cannot decode
     When the payload is hydrated by "alice"
@@ -81,7 +95,7 @@ Feature: Hydration accounts for every entry, and says when it seeds nothing
 
   Scenario: Every reason is reported, including the ones that never fired
     When the hydration counts are read
-    Then all 6 drop reasons appear
+    Then all 8 drop reasons appear
     And each reason carries a distinct explanation
 
   Scenario: The panel refuses a subtraction that would go negative

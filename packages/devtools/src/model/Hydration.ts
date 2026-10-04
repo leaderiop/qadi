@@ -76,6 +76,9 @@ const MEANINGS: Record<HydrationDropReason, string> = {
   MalformedEntry: "an entry's shape didn't match what this client expects, apart from its policy",
   UndecodablePolicy: "a policy shape the client's schema does not know — usually version skew",
   EntryTooDeep: "an entry nested past the client's structural depth guard, before any decode ran",
+  UnsupportedPayloadVersion:
+    "a payload version this client does not read — a deploy in flight, or mismatched releases",
+  MalformedPayload: "a payload that is not shaped like a dehydrated payload at all",
 };
 
 const UNRECOGNISED = "not a reason this build knows — something else writes to this metric";

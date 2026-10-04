@@ -36,9 +36,13 @@ export const dynamic = "force-dynamic";
  */
 const fromTheFuture = (index: number): DehydratedEntry => ({
   policy: { _tag: "HasQuantumClearance", threshold: index },
-  allowed: true,
-  evaluationId: `skew-${index}`,
-  durationMillis: 0,
+  decision: {
+    _tag: "Allow",
+    evaluationId: `skew-${index}`,
+    durationMillis: 0,
+    obligations: [],
+    disclosure: { _tag: "Withheld" },
+  },
 });
 
 const Page = async () => {
@@ -53,6 +57,7 @@ const Page = async () => {
   // seed: a refused entry may not prevent the entries that did decode from being
   // seeded, or a single unknown shape would take a whole page's hydration with it.
   const payload: DehydratedDecisions = {
+    version: real.version,
     subjectId: real.subjectId,
     entries: [...real.entries, fromTheFuture(1), fromTheFuture(2), fromTheFuture(3)],
   };

@@ -18,7 +18,6 @@ import {
   hasAttribute,
   hasPermission,
   hasRole,
-  isAllowed,
   makeSubject,
   permission,
 } from "@qadi/core";
@@ -28,6 +27,7 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
+import { permits } from "../src/SeededDecision.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
@@ -94,17 +94,17 @@ describe("makeQadiAtoms", () => {
     registry.set(atoms.subject, reader);
 
     const decision = await settle(registry, atoms, canRead);
-    expect(isAllowed(decision)).toBe(true);
+    expect(permits(decision)).toBe(true);
   });
 
   it("re-decides when the subject changes", async () => {
     const atoms = makeQadiAtoms(baseLayer);
     const registry = makeRegistry();
     registry.set(atoms.subject, reader);
-    expect(isAllowed(await settle(registry, atoms, isAdmin))).toBe(false);
+    expect(permits(await settle(registry, atoms, isAdmin))).toBe(false);
 
     registry.set(atoms.subject, makeSubject({ id: "u2", roles: ["admin"] }));
-    expect(isAllowed(await settle(registry, atoms, isAdmin))).toBe(true);
+    expect(permits(await settle(registry, atoms, isAdmin))).toBe(true);
   });
 
   it("does not re-decide when a fresh but structurally equal subject replaces the current one (RC-01)", async () => {
@@ -266,8 +266,8 @@ describe("makeQadiAtoms", () => {
     registry.set(tenantA.subject, reader);
     registry.set(tenantB.subject, makeSubject({ id: "other" }));
 
-    expect(isAllowed(await settle(registry, tenantA, canRead))).toBe(true);
-    expect(isAllowed(await settle(registry, tenantB, canRead))).toBe(false);
+    expect(permits(await settle(registry, tenantA, canRead))).toBe(true);
+    expect(permits(await settle(registry, tenantB, canRead))).toBe(false);
   });
 });
 

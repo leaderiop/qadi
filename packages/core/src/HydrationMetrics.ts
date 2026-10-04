@@ -72,7 +72,25 @@ export type ClientHydrationDropReason =
    * is what an adversarial payload would try, and the two want different
    * follow-up.
    */
-  | "EntryTooDeep";
+  | "EntryTooDeep"
+  /**
+   * The payload names a `version` this client does not read.
+   *
+   * Not the same as malformed: a page cached by one deploy and hydrated by the
+   * next carries a format the other end has not heard of, and the failure is gone
+   * when the deploy finishes. Named separately so a dashboard can tell a rollout
+   * from a bug.
+   */
+  | "UnsupportedPayloadVersion"
+  /**
+   * The payload is not an envelope at all — not an object, no `entries` array,
+   * an excess key, or nested past the depth guard outside its entries.
+   *
+   * `hydrateDecisions` receives JSON from a page, and `JSON.parse` yields `any`,
+   * so the parameter's type protects nothing. This is what a value that is not
+   * even shaped like a payload is dropped as, instead of throwing.
+   */
+  | "MalformedPayload";
 
 /**
  * Every reason a decision failed to survive the trip, from either end.
@@ -92,6 +110,8 @@ export const hydrationDropReasons: ReadonlyArray<HydrationDropReason> = [
   "MalformedEntry",
   "UndecodablePolicy",
   "EntryTooDeep",
+  "UnsupportedPayloadVersion",
+  "MalformedPayload",
 ];
 
 /**

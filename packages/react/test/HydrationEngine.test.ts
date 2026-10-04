@@ -1,11 +1,12 @@
 import type { Decision } from "@qadi/core";
-import { Allow, Deny, hasRole, makeSubjectId } from "@qadi/core";
+import { Deny, hasRole, makeSubjectId } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { makeSeededQuestion } from "../src/HydrationEngine.ts";
 import type { HydrationMismatch } from "../src/HydrationEngine.ts";
+import { SeededAllow } from "../src/SeededDecision.ts";
 
 const subjectId = makeSubjectId("u1");
 const trace = (allowed: boolean) => ({
@@ -16,13 +17,13 @@ const trace = (allowed: boolean) => ({
 });
 const policy = hasRole("admin");
 
-const allow = new Allow({
+const allow = new SeededAllow({
   evaluationId: "e1",
   subjectId,
   durationMillis: 0,
-  trace: trace(true),
   visibleFields: undefined,
   obligations: [],
+  disclosure: { _tag: "Withheld" },
 });
 const deny = new Deny({
   evaluationId: "e2",

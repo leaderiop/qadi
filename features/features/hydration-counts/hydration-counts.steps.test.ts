@@ -64,11 +64,23 @@ const decisionFor = (subjectId: string, index: number): Decision =>
   });
 
 /** An entry no schema can decode — a policy shape from another version. */
+const withheldAllow = (evaluationId: string, durationMillis: unknown = 1) => ({
+  _tag: "Allow",
+  evaluationId,
+  durationMillis,
+  obligations: [],
+  disclosure: { _tag: "Withheld" },
+});
+
 const gibberish = (index: number): DehydratedEntry => ({
   policy: { _tag: "NotAPolicy", index },
-  allowed: true,
-  evaluationId: `x${String(index)}`,
-  durationMillis: 1,
+  decision: {
+    _tag: "Allow",
+    evaluationId: `x${String(index)}`,
+    durationMillis: 1,
+    obligations: [],
+    disclosure: { _tag: "Withheld" },
+  },
 });
 
 /**
@@ -84,9 +96,7 @@ const malformed = (index: number): DehydratedEntry =>
   JSON.parse(
     JSON.stringify({
       policy: { _tag: "NotAPolicy", index },
-      allowed: true,
-      evaluationId: `m${String(index)}`,
-      durationMillis: "not-a-number",
+      decision: withheldAllow(`m${String(index)}`, "not-a-number"),
     }),
   );
 
@@ -103,9 +113,7 @@ const excessField = (index: number): DehydratedEntry =>
   JSON.parse(
     JSON.stringify({
       policy: { _tag: "NotAPolicy", index },
-      allowed: true,
-      evaluationId: `x${String(index)}`,
-      durationMillis: 1,
+      decision: withheldAllow(`x${String(index)}`),
       sneaky: "not a real field",
     }),
   );
@@ -119,7 +127,7 @@ interface HydrationCountsWorldState {
   // `InitialValues` is an `Iterable`, not an array, so what a scenario asserts on
   // is the materialised pairs rather than the return value itself.
   readonly seeded: ReadonlyArray<unknown>;
-  readonly drops: ReadonlyArray<HydrationDrop<DehydratedEntry>>;
+  readonly drops: ReadonlyArray<HydrationDrop<unknown>>;
   readonly before: HydrationActivity | undefined;
   readonly after: HydrationActivity | undefined;
   readonly fabricated: HydrationActivity | undefined;
@@ -185,7 +193,7 @@ const hydrateWith = Effect.fn("hydration-counts.hydrateWith")(function* (
       ? built
       : { ...built, entries: [...built.entries, ...s.extraEntries] };
 
-  const drops: Array<HydrationDrop<DehydratedEntry>> = [];
+  const drops: Array<HydrationDrop<unknown>> = [];
   const seeded = [
     ...hydrateDecisions(atoms, whole, subjectFor(id), {
       onDropped: (drop) => drops.push(drop),
@@ -242,6 +250,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     function* (id: string, count: number) {
       yield* patch(() => ({
         payload: {
+          version: 2,
           subjectId: id,
           entries: Array.from({ length: count }, (_unused, index) => gibberish(index)),
         },
@@ -260,6 +269,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     function* (id: string, count: number) {
       yield* patch(() => ({
         payload: {
+          version: 2,
           subjectId: id,
           entries: Array.from({ length: count }, (_unused, index) => malformed(index)),
         },
@@ -272,12 +282,35 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     function* (id: string, count: number) {
       yield* patch(() => ({
         payload: {
+          version: 2,
           subjectId: id,
           entries: Array.from({ length: count }, (_unused, index) => excessField(index)),
         },
       }));
     },
   );
+
+  Given(
+    "a payload for {string} of version {int} carrying {int} entries",
+    function* (id: string, version: number, count: number) {
+      // Round-tripped through JSON, like a payload read out of a page: a version
+      // this build's types do not name is what the type cannot rule out for real,
+      // untrusted JSON.
+      yield* patch(() => ({
+        payload: JSON.parse(
+          JSON.stringify({
+            version,
+            subjectId: id,
+            entries: Array.from({ length: count }, (_unused, index) => gibberish(index)),
+          }),
+        ),
+      }));
+    },
+  );
+
+  Given("a payload that is not an envelope at all", function* () {
+    yield* patch(() => ({ payload: JSON.parse("5") }));
+  });
 
   Given("a process that seeded {int} entries and built none", function* (count: number) {
     // Fabricated rather than driven: producing this state for real needs a
