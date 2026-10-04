@@ -291,6 +291,30 @@ describe("CircuitBreaker — threshold boundary, scripted rather than generated"
       assert.strictEqual(yield* permitOf(breaker), "probe", "a probe is admitted exactly resetTimeoutMs later");
     }));
 
+  it.effect("a released probe announces exactly one more Open transition", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Effect.gen(function* () {
+          const breaker = yield* makeCircuitBreaker(OPTIONS);
+          yield* trip(breaker);
+          yield* TestClock.adjust("10 seconds");
+          const held = yield* Latch.make();
+          const prober = yield* holdPermit(breaker, held);
+          yield* held.await;
+          yield* Fiber.interrupt(prober);
+          return yield* Metric.snapshot;
+        }),
+      );
+      const occurrences = snapshots
+        .find(
+          (s): s is FrequencySnapshot =>
+            s.type === "Frequency" && s.id === "qadi_audit_circuit_breaker_transitions_total",
+        )
+        ?.state.occurrences;
+      assert.strictEqual(occurrences?.get("Open"), 2, "the trip, then the release");
+      assert.strictEqual(occurrences?.get("HalfOpen"), 1);
+    }));
+
   it.effect("attempt records only the first outcome per permit", () =>
     Effect.gen(function* () {
       const breaker = yield* makeCircuitBreaker(OPTIONS);
@@ -412,6 +436,59 @@ describe("CircuitBreaker — an outcome counts only toward the window that admit
       yield* bSettle.open;
       yield* Fiber.join(b);
       assert.strictEqual(yield* breaker.status, "Closed", "the probe's own success counts");
+    }));
+
+  it.effect("releasing a probe whose window already moved on does not steal the newer window's claim", () =>
+    Effect.gen(function* () {
+      const breaker = yield* makeCircuitBreaker(OPTIONS);
+      yield* trip(breaker);
+      yield* TestClock.adjust("10 seconds");
+      const aHeld = yield* Latch.make();
+      const aSettle = yield* Latch.make();
+      const a = yield* settleLater(breaker, aHeld, aSettle, true); // probe A, never settled
+      yield* aHeld.await;
+      yield* TestClock.adjust("10 seconds"); // A's window ages out: Open
+      assert.strictEqual(yield* breaker.status, "Open");
+      yield* TestClock.adjust("10 seconds");
+      const bHeld = yield* Latch.make();
+      const bSettle = yield* Latch.make();
+      const b = yield* settleLater(breaker, bHeld, bSettle, true); // probe B, a newer window
+      yield* bHeld.await;
+
+      yield* Fiber.interrupt(a); // A's release must find B's claim not its own
+      assert.strictEqual(yield* breaker.status, "HalfOpen", "B's window is untouched");
+      assert.strictEqual(yield* permitOf(breaker), "refused", "B still holds the claim");
+
+      yield* bSettle.open;
+      yield* Fiber.join(b);
+      assert.strictEqual(yield* breaker.status, "Closed");
+    }));
+
+  it.effect("a failure after the probe already settled does not reopen the breaker through the release", () =>
+    Effect.gen(function* () {
+      const breaker = yield* makeCircuitBreaker(OPTIONS);
+      yield* trip(breaker);
+      yield* TestClock.adjust("10 seconds");
+      yield* Effect.exit(
+        breaker.withPermit((p) =>
+          p._tag === "Admitted"
+            ? p.attempt(Effect.void).pipe(Effect.andThen(Effect.die("after the write")))
+            : Effect.void,
+        ),
+      );
+      assert.strictEqual(yield* breaker.status, "Closed", "the settled probe's release is a no-op");
+    }));
+
+  it.effect("only a permit's first attempt counts, even within the same window", () =>
+    Effect.gen(function* () {
+      const breaker = yield* makeCircuitBreaker({ failureThreshold: 2, resetTimeoutMs: 10_000 });
+      yield* breaker.withPermit((p) =>
+        p._tag === "Admitted"
+          ? p.attempt(Effect.void).pipe(Effect.andThen(p.attempt(Effect.fail("offline"))))
+          : Effect.void,
+      );
+      yield* failOnce(breaker);
+      assert.strictEqual(yield* breaker.status, "Closed", "the second attempt's failure was not counted");
     }));
 
   it.effect("a stale success from before the trip does not close a newer half-open window", () =>
