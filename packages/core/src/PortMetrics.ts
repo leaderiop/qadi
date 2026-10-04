@@ -27,14 +27,15 @@
  * wrapper (`AttributeResolver.ts`, `RelationshipResolver.ts`,
  * `CustomPredicate.ts`) ever update it.
  *
- * `Predicate.ts`'s `translateNode` also calls into `AttributeResolver` and
+ * `Predicate.ts`'s `toPredicate` also calls into `AttributeResolver` and
  * `DecisionHistory` — it is a second interpreter over the same tree
- * (ADR-QD-024), not `Evaluate.ts` — and deliberately does not update
- * `portCallsTotal` for those calls, per the "`Evaluate.ts` can call into"
- * scoping above. A deployment that leans on `toPredicate` for row-level
- * security will see fewer calls counted here than actually reached a port.
+ * (ADR-QD-024), not `Evaluate.ts` — and those calls do not update
+ * `portCallsTotal`, per the "`Evaluate.ts` can call into" scoping above. They
+ * are counted in the sibling `predicatePortCallsTotal` instead, so a
+ * deployment that leans on `toPredicate` for row-level security reads its port
+ * traffic as the sum of the two, and neither metric's meaning or registry key
+ * moved (ADR-QD-052).
  *
-
  * The `description` strings below survive mutation testing, as `DecisionCache`'s
  * do: nothing reads them back, so no test can distinguish a metric carrying one
  * from a metric carrying none. They are for whoever reads the exported metric,
@@ -74,13 +75,15 @@ const PORT_NAMES: ReadonlyArray<PortName> = Record.keys(PORT_NAMES_BY_NAME);
 /**
  * Every call the evaluator made into a port, by which port.
  *
- * Scoped to `Evaluate.ts` only — see this module's own doc comment above.
- * `Predicate.ts`'s `translateNode` reaches the same ports and does not update
- * this counter, so a deployment leaning on `toPredicate` (row-level security,
- * say) sees fewer calls here than actually reached a port. The caveat is
- * repeated in the description string itself (werner-vogels, WV-06) so an
- * operator reading `qadi_port_calls_total` sees the scoping where they read
- * the metric, not only in source a dashboard viewer never opens.
+ * Scoped to the evaluator only — see this module's own doc comment above.
+ * `toPredicate` reaches the same two ports and counts them in
+ * {@link predicatePortCallsTotal}, so do not read `qadi_port_calls_total` as
+ * total port traffic: that is the sum of the two. The caveat is repeated in
+ * the description string itself (werner-vogels, WV-06) so an operator reading
+ * `qadi_port_calls_total` sees the scoping where they read the metric, not
+ * only in source a dashboard viewer never opens. The description is part of the
+ * metric's registry key (ADR-QD-052) and is pinned by `Ports.test.ts`, so it
+ * is not reworded here.
  */
 export const portCallsTotal = Metric.frequency("qadi_port_calls_total", {
   description:
@@ -159,4 +162,40 @@ const TIMING_OUT_PORT_NAMES: ReadonlyArray<TimingOutPortName> = Record.keys(
 export const portTimeoutsTotal = Metric.frequency("qadi_port_timeouts_total", {
   description: "Port calls that hit their deadline inside a timing-out wrapper, by port.",
   preregisteredWords: TIMING_OUT_PORT_NAMES,
+});
+
+/**
+ * The two ports `toPredicate` reads — {@link predicatePortCallsTotal}'s closed
+ * domain, and a proper subset of {@link PortName}: translation refuses
+ * `HasRelationship`, `HasCustom` and `HasSignature` before it would ask
+ * (BEH-QD-123), so only `AttributeResolver` and `DecisionHistory` are ever
+ * called. A translation read of any other port is a compile error through
+ * `PortAccess.ts`'s signatures, rather than a word silently missing from this
+ * metric.
+ */
+export type PredicatePortName = "AttributeResolver" | "DecisionHistory";
+
+const PREDICATE_PORT_NAMES_BY_NAME: Record<PredicatePortName, true> = {
+  AttributeResolver: true,
+  DecisionHistory: true,
+};
+
+const PREDICATE_PORT_NAMES: ReadonlyArray<PredicatePortName> = Record.keys(
+  PREDICATE_PORT_NAMES_BY_NAME,
+);
+
+/**
+ * Every call `toPredicate` made into a port, by which port.
+ *
+ * {@link portCallsTotal}'s sibling, not a second series of it: that counter keeps
+ * its meaning ("calls the evaluator made") and its registry key (ADR-QD-052 — the
+ * `description` is part of the key), so nothing reading it changes. A deployment
+ * leaning on `toPredicate` for row-level security reads its port traffic here,
+ * and total port traffic is the sum of the two.
+ */
+export const predicatePortCallsTotal = Metric.frequency("qadi_predicate_port_calls_total", {
+  description:
+    "Calls toPredicate made into a resolver or history port while folding a policy, by port. " +
+    "The evaluator's calls are qadi_port_calls_total.",
+  preregisteredWords: PREDICATE_PORT_NAMES,
 });

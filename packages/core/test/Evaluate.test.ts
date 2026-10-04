@@ -2765,6 +2765,7 @@ describe("observability", () => {
       assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.resolved": true,
       });
     }));
@@ -2807,6 +2808,7 @@ describe("observability", () => {
       assert.deepStrictEqual(attributes(span), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
       });
       // No answer to record, and the span must still close or a failing
       // dependency would leave traces open.
@@ -2851,6 +2853,7 @@ describe("observability", () => {
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
         "qadi.scope": "Any",
         "qadi.answer": "Acted",
@@ -2872,6 +2875,7 @@ describe("observability", () => {
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
         "qadi.scope": "Resource",
         "qadi.resource_id": "doc-1",
@@ -2905,6 +2909,7 @@ describe("observability", () => {
       const span = named(spans, "qadi.acted");
       assert.deepStrictEqual(attributes(span), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
         "qadi.scope": "Resource",
       });
@@ -2926,6 +2931,7 @@ describe("observability", () => {
 
       assert.deepStrictEqual(attributes(named(spans, "qadi.hasRelationship")), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.relation": "owner",
         "qadi.resource_id": "doc-1",
         "qadi.answer": "Related",
@@ -2969,6 +2975,7 @@ describe("observability", () => {
       const span = named(spans, "qadi.hasRelationship");
       assert.deepStrictEqual(attributes(span), {
         "qadi.subject_id": "u1",
+        "qadi.interpreter": "evaluate",
         "qadi.relation": "owner",
       });
       assert.notStrictEqual(span?.status._tag, "Started");
