@@ -155,19 +155,23 @@ export const AuditDecisionSinkLive = (
           // open at all. Anything else (still `HalfOpen`, or re-`Open`ed by
           // the prober's own failure) still means "not my probe to attempt",
           // so it collapses to `"Open"` exactly as before.
-          const initialStatus = yield* breaker.status;
-          let status = initialStatus;
-          if (initialStatus === "HalfOpen" && !(yield* breaker.claimProbe)) {
-            const current = yield* breaker.status;
-            status = current === "Closed" ? "Closed" : "Open";
-          }
-          // This call holds the half-open window's one probe claim exactly
-          // when `status` is still `"HalfOpen"` here: the branch above only
-          // ever reassigns it away (to `"Closed"` or `"Open"`) when
-          // `claimProbe` was lost to another caller. See the write attempt
-          // below (ticket #38 / H4) for why this distinction matters.
-          const isProbe = status === "HalfOpen";
-
+          //
+          // The claim is acquired uninterruptibly and released by the
+          // `acquireUseRelease` finalizer below on any non-success exit of the
+          // staging-plus-write body, so there is no instant in which it is held
+          // unguarded (ARCH-07 C4b, CCR-QD-NEXT). `status` is `"HalfOpen"` in the
+          // body exactly when this call holds the window's one probe claim.
+          yield* Effect.acquireUseRelease(
+            Effect.gen(function* () {
+              const initialStatus = yield* breaker.status;
+              if (initialStatus === "HalfOpen" && !(yield* breaker.claimProbe)) {
+                const current = yield* breaker.status;
+                return current === "Closed" ? ("Closed" as const) : ("Open" as const);
+              }
+              return initialStatus;
+            }),
+            (status) =>
+              Effect.gen(function* () {
           // Ties "was staged" and "how to commit it" to one value, rather
           // than a `handle` and a `stagingPort !== undefined` check that
           // must always agree with each other — one Optional value the type
@@ -255,32 +259,15 @@ export const AuditDecisionSinkLive = (
             }
           });
 
-          // Ticket #38 (H4), narrowed by ticket #47. `trailPort.write`
-          // itself now runs under `Effect.exit` (above), so a write that
-          // defects or is interrupted already reaches `recordFailure` — and,
-          // for the one call holding the half-open probe, `recordFailure`
-          // reopens the breaker exactly as `releaseProbe` would, leaving
-          // `releaseProbe` nothing to do. What this `Effect.onExit` still
-          // guards against is narrower than it was before #47: `written`'s
-          // `Exit` is only ever captured *after* `trailPort.write` itself has
-          // settled, so `recordSuccess`/`recordFailure`, `commitStaged`'s
-          // `Effect.catchCause`, and the metric updates that follow are all
-          // still ordinary interruptible steps a fiber can be cut off inside
-          // — e.g. interrupted after `written` resolves but before
-          // `recordFailure`'s own `Ref.modify` completes. `Effect.onExit`
-          // guarantees a finalizer on every path `attemptWrite` can end on
-          // regardless of where inside it that happens (confirmed by this
-          // file's own interruption test, and already relied on the same way
-          // in `DecisionCache.ts`) — unlike a plain `Effect.exit` followed by
-          // more steps, which a fiber interrupted mid-`attemptWrite` would
-          // never return to run. `breaker.releaseProbe` is itself a no-op
-          // once `attemptWrite` already settled normally, so this costs
-          // nothing on the ordinary path.
-          yield* isProbe
-            ? Effect.onExit(attemptWrite, (exit) =>
-                Exit.isFailure(exit) ? breaker.releaseProbe : Effect.void,
-              )
-            : attemptWrite;
+          // The release finalizer (below) runs on every non-success exit of this
+          // body, staging included. `breaker.releaseProbe` is a no-op once
+          // `recordFailure` has already reopened the window, so it costs nothing
+          // on the ordinary path.
+          yield* attemptWrite;
+              }),
+            (status, exit) =>
+              status === "HalfOpen" && Exit.isFailure(exit) ? breaker.releaseProbe : Effect.void,
+          );
         });
 
       return { record };
