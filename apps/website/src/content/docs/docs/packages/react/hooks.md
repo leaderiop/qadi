@@ -13,7 +13,7 @@ rest collapse part of its state for convenience.
 export const useSubject: () => AuthSubject | undefined;
 export const useDecision: (policy: Policy, resource?: Resource) => DecisionResult;
 export const useCan: (policy: Policy, resource?: Resource) => boolean;
-export const useDecisionSuspense: (policy: Policy, resource?: Resource) => Decision;
+export const useDecisionSuspense: (policy: Policy, resource?: Resource) => ClientDecision;
 export const usePolicies: (
   policies: Readonly<Record<string, Policy>>,
 ) => Readonly<Record<string, DecisionResult>>;
@@ -24,14 +24,14 @@ export const useProjected: <A extends Record<string, unknown>>(
 export const useInvalidate: () => () => void;
 ```
 
-`DecisionResult` is an `AsyncResult<Decision, EvaluationError>` and keeps four
+`DecisionResult` is an `AsyncResult<ClientDecision, EvaluationError>` and keeps four
 states apart, where a naive `{ allowed, loading, error }` shape keeps two and a
 half:
 
 | State | Meaning |
 | ----- | ------- |
 | `Initial` | Not known yet — no subject, or the first evaluation is running |
-| `Success`, `waiting: false` | Decided: allow or deny |
+| `Success`, `waiting: false` | Decided: allow or deny — or, before this client has answered, the server's seeded allow or deny |
 | `Success`, `waiting: true` | The previous decision, while a new one is computed |
 | `Failure` | The question could not be answered at all |
 
@@ -40,8 +40,8 @@ and failed. That is safe for hiding a control and useless for explaining why
 it is hidden; reach for `useDecision` when the difference matters.
 
 ```tsx
-import { useCan, useDecision } from "@qadi/react";
-import { hasPermission, isAllowed, permission } from "@qadi/core";
+import { permits, useCan, useDecision } from "@qadi/react";
+import { hasPermission, permission } from "@qadi/core";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 
 const canEditDoc = hasPermission(permission("doc", "write"));
@@ -58,7 +58,10 @@ export const EditPanel = () => {
     return <span>Could not check your permissions. Try again.</span>;
   }
 
-  return isAllowed(result.value) ? <textarea /> : <span>Read only</span>;
+  // `permits`, not `isAllowed`: the value is a `ClientDecision`, which is this
+  // client's own evaluation or, on a server-rendered page's first frames, the
+  // server's seed.
+  return permits(result.value) ? <textarea /> : <span>Read only</span>;
 };
 ```
 
@@ -81,7 +84,7 @@ to present as a permissions problem.
 ## `Can` and `Cannot`
 
 ```ts
-export type DeniedNode = ReactNode | ((decision: Deny) => ReactNode);
+export type DeniedNode = ReactNode | ((decision: Deny | SeededDeny) => ReactNode);
 
 export const Can: (props: {
   readonly policy: Policy;
@@ -104,12 +107,15 @@ export const Cannot: (props: {
 `Can` renders its children when the policy allows, and `fallback` (or nothing)
 otherwise; `Cannot` is the mirror, rendering `children` when the policy
 denies. Where `fallback` (`Can`) or `children` (`Cannot`) is a function, it is
-called with the `Deny` that produced it — a guard is already holding that
+called with the denial that produced it — a guard is already holding that
 value at the moment it decides to render nothing, so a caller wanting to
-explain *why* a control is absent does not need a second lookup.
+explain *why* a control is absent does not need a second lookup. It is a `Deny`
+once this client has decided, and a `SeededDeny` while a server-rendered page's
+seed stands in; the seed carries a reason and a trace only if the server
+disclosed them, so narrow with `isSeeded` before reading either.
 
 ```tsx
-import { Can } from "@qadi/react";
+import { Can, isSeeded } from "@qadi/react";
 import { hasPermission, permission } from "@qadi/core";
 
 const canPublish = hasPermission(permission("article", "publish"));
@@ -120,7 +126,10 @@ export const PublishControl = () => (
     policy={canPublish}
     pending={<Spinner />}
     failure={<span>Couldn't check — try again</span>}
-    fallback={(deny) => <span title={deny.reason}>Not available</span>}
+    // A `SeededDeny` has no reason of its own unless the server disclosed one.
+    fallback={(deny) => (
+      <span title={isSeeded(deny) ? undefined : deny.reason}>Not available</span>
+    )}
   >
     <button type="button">Publish</button>
   </Can>

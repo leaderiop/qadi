@@ -18,7 +18,6 @@ import {
   hasAttribute,
   hasPermission,
   hasRole,
-  isAllowed,
   makeSubject,
   permission,
 } from "@qadi/core";
@@ -28,6 +27,7 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
+import { permits } from "../src/SeededDecision.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
@@ -94,17 +94,17 @@ describe("makeQadiAtoms", () => {
     registry.set(atoms.subject, reader);
 
     const decision = await settle(registry, atoms, canRead);
-    expect(isAllowed(decision)).toBe(true);
+    expect(permits(decision)).toBe(true);
   });
 
   it("re-decides when the subject changes", async () => {
     const atoms = makeQadiAtoms(baseLayer);
     const registry = makeRegistry();
     registry.set(atoms.subject, reader);
-    expect(isAllowed(await settle(registry, atoms, isAdmin))).toBe(false);
+    expect(permits(await settle(registry, atoms, isAdmin))).toBe(false);
 
     registry.set(atoms.subject, makeSubject({ id: "u2", roles: ["admin"] }));
-    expect(isAllowed(await settle(registry, atoms, isAdmin))).toBe(true);
+    expect(permits(await settle(registry, atoms, isAdmin))).toBe(true);
   });
 
   it("does not re-decide when a fresh but structurally equal subject replaces the current one (RC-01)", async () => {
@@ -128,6 +128,52 @@ describe("makeQadiAtoms", () => {
 
     expect(counter.count).toBe(countAfterFirst);
     expect(registry.get(atoms.decision(needsLookup))).toBe(decisionBefore);
+  });
+
+  it("does not re-decide when the replacement subject's nested attributes are equal by structure", async () => {
+    // The shallow comparison this atom used to make (`Object.is` per attribute
+    // key) called two subjects whose `org` is an equal-but-distinct object
+    // different, and re-ran every mounted decision for it. `subjectEquivalence`
+    // is the deep rule `DecisionCache`'s key already uses.
+    const counter = { count: 0 };
+    const atoms = makeQadiAtoms(countingLayer(counter));
+    const registry = makeRegistry();
+    registry.set(
+      atoms.subject,
+      makeSubject({ id: "u1", permissions: ["doc:read"], attributes: { org: { id: 1 } } }),
+    );
+    await settle(registry, atoms, needsLookup);
+    const decisionBefore = registry.get(atoms.decision(needsLookup));
+    const countAfterFirst = counter.count;
+
+    registry.set(
+      atoms.subject,
+      makeSubject({ id: "u1", permissions: ["doc:read"], attributes: { org: { id: 1 } } }),
+    );
+    await Promise.resolve();
+
+    expect(counter.count).toBe(countAfterFirst);
+    expect(registry.get(atoms.decision(needsLookup))).toBe(decisionBefore);
+  });
+
+  it("still re-decides when a nested attribute really changed", async () => {
+    const counter = { count: 0 };
+    const atoms = makeQadiAtoms(countingLayer(counter));
+    const registry = makeRegistry();
+    registry.set(
+      atoms.subject,
+      makeSubject({ id: "u1", permissions: ["doc:read"], attributes: { org: { id: 1 } } }),
+    );
+    await settle(registry, atoms, needsLookup);
+    const countAfterFirst = counter.count;
+
+    registry.set(
+      atoms.subject,
+      makeSubject({ id: "u1", permissions: ["doc:read"], attributes: { org: { id: 2 } } }),
+    );
+    await settle(registry, atoms, needsLookup);
+
+    expect(counter.count).toBeGreaterThan(countAfterFirst);
   });
 
   it("returns the same atom for the same policy", () => {
@@ -220,8 +266,8 @@ describe("makeQadiAtoms", () => {
     registry.set(tenantA.subject, reader);
     registry.set(tenantB.subject, makeSubject({ id: "other" }));
 
-    expect(isAllowed(await settle(registry, tenantA, canRead))).toBe(true);
-    expect(isAllowed(await settle(registry, tenantB, canRead))).toBe(false);
+    expect(permits(await settle(registry, tenantA, canRead))).toBe(true);
+    expect(permits(await settle(registry, tenantB, canRead))).toBe(false);
   });
 });
 

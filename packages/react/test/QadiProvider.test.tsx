@@ -26,6 +26,7 @@ import {
   Cannot,
   QadiProvider,
   MissingQadiProviderError,
+  isSeeded,
   makeQadiAtoms,
   useCan,
   useSubject,
@@ -72,7 +73,7 @@ describe("Can / Cannot", () => {
     // here?" the one question the declarative API could not answer.
     wrap(
       nobody,
-      <Can policy={canRead} fallback={(decision) => <span>{decision.reason}</span>}>
+      <Can policy={canRead} fallback={(decision) => <span>{isSeeded(decision) ? "seeded" : decision.reason}</span>}>
         allowed
       </Can>,
     );
@@ -83,7 +84,9 @@ describe("Can / Cannot", () => {
     wrap(
       nobody,
       <Cannot policy={canRead}>
-        {(decision) => <span>{`blocked: ${decision.trace.policyTag}`}</span>}
+        {(decision) => (
+          <span>{`blocked: ${isSeeded(decision) ? "seeded" : decision.trace.policyTag}`}</span>
+        )}
       </Cannot>,
     );
     await waitFor(() => expect(screen.getByText("blocked: HasPermission")).toBeDefined());
@@ -94,7 +97,9 @@ describe("Can / Cannot", () => {
       nobody,
       <Can
         policy={canRead}
-        fallback={(decision) => <pre>{renderTrace(decision.trace, { term: (t) => t })}</pre>}
+        fallback={(decision) =>
+          isSeeded(decision) ? null : <pre>{renderTrace(decision.trace, { term: (t) => t })}</pre>
+        }
       >
         allowed
       </Can>,
@@ -138,7 +143,7 @@ describe("Can / Cannot", () => {
     // hand it. Nothing renders, which is still closed.
     render(
       <QadiProvider atoms={failing} subject={reader}>
-        <Can policy={needsAttribute} fallback={(d) => <span>{`denied: ${d.reason}`}</span>}>
+        <Can policy={needsAttribute} fallback={(d) => <span>{`denied: ${isSeeded(d) ? "seeded" : d.reason}`}</span>}>
           allowed
         </Can>
       </QadiProvider>,

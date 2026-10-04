@@ -21,8 +21,7 @@
  * states separately instead of collapsing them into "not yet".
  */
 import { Suspense } from "react";
-import { isAllowed } from "@qadi/core";
-import { useDecisionSuspense } from "@qadi/react";
+import { permits, useDecisionSuspense } from "@qadi/react";
 import { inGoodStanding, readSourceContact } from "../domain/policies.ts";
 import { GateState } from "./Guards.tsx";
 import { badge, card, colors, h2, mono, muted, note } from "../ui/theme.ts";
@@ -32,8 +31,8 @@ const Verdict = () => {
   const decision = useDecisionSuspense(readSourceContact);
   return (
     <span style={mono} data-testid="suspense-verdict">
-      <span style={badge(isAllowed(decision) ? "allow" : "deny")}>
-        {isAllowed(decision) ? "Allowed" : "Denied"}
+      <span style={badge(permits(decision) ? "allow" : "deny")}>
+        {permits(decision) ? "Allowed" : "Denied"}
       </span>{" "}
       evaluation {decision.evaluationId}
     </span>

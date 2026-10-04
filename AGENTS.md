@@ -607,10 +607,12 @@ state-management layer of its own. The rules that keep it that way:
   nothing — caching, sharing and invalidation are properties of the atoms, and
   proving them through components only makes the test slower and vaguer.
 - **A guard may record that it exists, what it renders now, and where — never
-  a retained verdict** (ADR-QD-053). `GateRegistry.ts` is a module-scope map a
-  guard writes to from an effect — the shape `HydrationSeed.ts` already uses —
-  carrying its policy, its resource, its current render state, and a ref React
-  filled in. Nothing re-renders because a guard registered, and nothing in
+  a retained verdict** (ADR-QD-053). Each atom set's `gates` registry
+  (`makeGateRegistry`, ADR-QD-080) is what a guard writes to from an effect,
+  through a handle only `@qadi/react` can reach — carrying its policy, its
+  resource, its current render state, and a ref React filled in. No module-scope
+  state is left in this package: hydration's seed lookup is a closure the atom set
+  owns (`QadiAtoms.hydrate`, ADR-QD-078) and so is this. Nothing re-renders because a guard registered, and nothing in
   that file can affect what one renders.
 
   This section previously read as forbidding it, and `@qadi/devtools`'s React
@@ -618,25 +620,37 @@ state-management layer of its own. The rules that keep it that way:
   twice over."* It would not, and the two rules it was said to breach are both
   still intact. Decisions are still not in React state, and the React glue in
   `QadiProvider.tsx` is `@effect/atom-react`'s `useAtomValue` (CCR-QD-150), not
-  a hand-rolled subscription of its own — `GateRegistry.ts` exposes its own,
-  separate `subscribe`/`snapshot` pair for exactly the instance-registry
+  a hand-rolled subscription of its own — `makeGateRegistry` exposes its own,
+  separate `subscribe`/`instances` pair for exactly the instance-registry
   purpose this bullet describes.
 
   **Correction:** this section, and ADR-QD-053, previously went on to say
   present-tense "and it is `@qadi/devtools`, a DOM package already, that
   subscribes." `@qadi/devtools` has no dependency on `@qadi/react` at all
-  (`GateRegistry.ts` lives in `@qadi/react`) and `DevtoolsDock.tsx` takes
+  (the registry lives in `@qadi/react`) and `DevtoolsDock.tsx` takes
   `gates` as a plain, one-shot prop — it does not subscribe to anything.
   What subscribes is the **host** wiring the two packages together:
-  `examples/nextjs-newsroom/src/client/Dock.tsx` calls `useSyncExternalStore(
-  subscribeGates, gateInstances, gateInstances)` and passes the result down as
-  `gates`. That is the correct place for it — `@qadi/devtools`'s panel is
+  `examples/nextjs-newsroom/src/client/Dock.tsx` calls `useGateInstances()`
+  (or `useSyncExternalStore(atoms.gates.subscribe, atoms.gates.instances,
+  atoms.gates.instances)`) and passes the result down as `gates`. That is the correct place for it — `@qadi/devtools`'s panel is
   meant to render for a host that has no `@qadi/react` at all, fed `gates`
   from wherever it likes — not a gap in `@qadi/devtools` to close.
 
   What the argument actually established is that the **atom layer** cannot see
   instances, which is true and is why the panel is still keyed by question. A
   component knows perfectly well that it exists; nothing was asking it.
+
+  > **Corrected in CCR-QD-160.** This bullet used to say `GateRegistry.ts` "is a
+  > module-scope map a guard writes to from an effect", shared by every
+  > `QadiProvider` in the process, and that the host calls
+  > `useSyncExternalStore(subscribeGates, gateInstances, gateInstances)`. Both are
+  > gone. The registry is per atom set, the scope `asked()` already had, so two
+  > tenants no longer list each other's guards and a hydrated root can no longer
+  > replace another's. The host call is `useGateInstances()` inside the provider,
+  > or `useSyncExternalStore(atoms.gates.subscribe, atoms.gates.instances,
+  > atoms.gates.instances)` outside it. The write side is not exported, because
+  > the kind is not a caller's to choose. `@qadi/devtools` is still fed `gates` as
+  > a plain prop and still has no dependency on `@qadi/react`.
 - **Instrumentation is opt-in, and off means absent.** `QadiProvider`'s
   `instrument` defaults to `false`, and with it off no guard registers and no
   marker element is rendered — not a wrapper that does nothing, no wrapper. A

@@ -96,7 +96,7 @@ export interface DevtoolsDockProps {
   /** Usually `atoms.asked()` from `@qadi/react`. */
   readonly questions?: ReadonlyArray<AskedQuestionLike>;
   /**
-   * The live guards, usually `gateInstances()` from `@qadi/react`.
+   * The live guards, usually `useGateInstances()` or `atoms.gates.instances()` from `@qadi/react`.
    *
    * Needs `instrument` on the `QadiProvider`, so it is opt-in twice over — a
    * host has to ask for the registry and then hand it here.

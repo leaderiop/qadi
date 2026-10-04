@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-053                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-08-24                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted — amended by ADR-QD-080               |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-073) |
+> | Change History | 1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
 
 ---
 
@@ -48,8 +48,13 @@ point at it.**
 
 ### The registry
 
-`GateRegistry.ts` is a module-scope `Map` a guard writes to from an effect —
-the shape `HydrationSeed.ts` already uses for the seed lookup. An entry carries
+> **Amended by ADR-QD-080.** The registry is no longer module-scope: each atom
+> set owns one (`atoms.gates`, built by `makeGateRegistry`), written through a handle
+> only `@qadi/react` can reach, so "asked" and "asking" share one scope. The sentence
+> below is the original decision and is kept for the record.
+
+`GateRegistry.ts` is a module-scope `Map` a guard writes to from an effect. An
+entry carries
 the instance's `useId`, which surface it is, its policy, its resource, what it
 rendered, and the marker element.
 
@@ -145,6 +150,11 @@ nothing re-renders because a guard registered. The React glue is still **one**
 > together — `examples/nextjs-newsroom/src/client/Dock.tsx` does exactly this.
 > That is the correct place for it: `@qadi/devtools`'s panel is meant to render
 > for a host with no `@qadi/react` at all, fed `gates` from wherever it likes.
+
+> **Correction (2026-10-04, ADR-QD-080).** The host call is now `useGateInstances()`
+> inside the provider, or `useSyncExternalStore(atoms.gates.subscribe,
+> atoms.gates.instances, atoms.gates.instances)` outside it. The module-scope
+> `subscribeGates`/`gateInstances` pair no longer exists.
 
 **Enumerable is not the same as locatable.** A hook has no node of its own, so it
 appears in the list and its highlight is disabled with the reason on it. A panel

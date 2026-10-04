@@ -53,6 +53,10 @@ import type { SignatureHistory } from "./SignatureHistory.ts";
  * `AuthSubject` compares structurally, grants included, so the key now covers
  * everything a decision can depend on.
  *
+ * That structural comparison is exported by name as `subjectEquivalence`
+ * (`AuthSubject.ts`), so `@qadi/react`'s `subject` atom decides "same subject"
+ * by the same rule rather than by a second, shallower one.
+ *
  * Used as a `HashMap` key **directly**, with no serialization step
  * ([INV-QD-030](../../../spec/invariants.md#inv-qd-030-cache-key-uniqueness)).
  * Effect's `Equal`/`Hash` compare plain objects structurally, nested included —
@@ -60,7 +64,7 @@ import type { SignatureHistory } from "./SignatureHistory.ts";
  * questions hit however their properties were ordered, and two different ones
  * cannot collide. `AuthSubject.roles`/`.permissions` are `ReadonlySet<RoleName>`
  * / `ReadonlySet<PermissionKey>` — the built-in JS `Set`, not `effect/HashSet`
- * — but that is not a gap: the installed `effect@4.0.0-rc.116`'s
+ * — but that is not a gap: the installed `effect@4.0.0`'s
  * `Equal.equals`/`Hash.hash` special-case `self instanceof Set` (and `Map`)
  * and fold over their elements order-independently, the same way they fold
  * over an array's, so two subjects whose grants are equal in content but held

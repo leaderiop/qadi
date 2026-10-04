@@ -31,7 +31,7 @@ import type { HydrationDropReason } from "@qadi/core";
 import * as Context from "effect/Context";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
-import type { DehydratedDecisions, HydrationDrop, DehydratedEntry } from "../src/Hydration.ts";
+import type { DehydratedDecisions, HydrationDrop } from "../src/Hydration.ts";
 import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
 import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
 
@@ -60,6 +60,15 @@ const serverAllow = (subjectId: string, id: string) =>
     visibleFields: undefined,
     obligations: [],
   });
+
+/** The wire form of an allow whose trace the server withheld, as a hand-built entry. */
+const withheldAllow = (evaluationId: string) => ({
+  _tag: "Allow" as const,
+  evaluationId,
+  durationMillis: 1,
+  obligations: [],
+  disclosure: { _tag: "Withheld" as const },
+});
 
 const counted = (metric: { readonly valueUnsafe: (c: typeof registry) => { readonly count: number } }, act: () => void): number => {
   const before = metric.valueUnsafe(registry).count;
@@ -158,11 +167,9 @@ describe("counting what crosses the network", () => {
       { policy: isAdmin, decision: serverAllow("u1", "e2") },
     ]);
     const payload: DehydratedDecisions = {
+      version: 2,
       subjectId: "u1",
-      entries: [
-        ...good.entries,
-        { policy: { _tag: "NotAPolicy" }, allowed: true, evaluationId: "e3", durationMillis: 1 },
-      ],
+      entries: [...good.entries, { policy: { _tag: "NotAPolicy" }, decision: withheldAllow("e3") }],
     };
 
     let seeded = 0;
@@ -213,13 +220,14 @@ describe("counting what crosses the network", () => {
 
 describe("a payload that seeds nothing says so", () => {
   const undecodable: DehydratedDecisions = {
+    version: 2,
     subjectId: "u1",
-    entries: [{ policy: { _tag: "NotAPolicy" }, allowed: true, evaluationId: "e1", durationMillis: 1 }],
+    entries: [{ policy: { _tag: "NotAPolicy" }, decision: withheldAllow("e1") }],
   };
 
   it("announces a payload made for another subject", () => {
     const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1", "e1") }]);
-    const drops: Array<HydrationDrop<DehydratedEntry>> = [];
+    const drops: Array<HydrationDrop<unknown>> = [];
 
     const seeded = hydrateDecisions(atoms, payload, bob, {
       onDropped: (drop) => drops.push(drop),
@@ -233,22 +241,34 @@ describe("a payload that seeds nothing says so", () => {
     expect(drops[0]?.entries).toHaveLength(1);
   });
 
-  it("announces an atom set it did not build", () => {
-    const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1", "e1") }]);
-    const drops: Array<HydrationDrop<DehydratedEntry>> = [];
+  it("announces a payload whose version this client does not read", () => {
+    const drops: Array<HydrationDrop<unknown>> = [];
 
-    // A wrapper is not registered. Structurally a `QadiAtoms`, and refused.
-    const wrapper = { ...atoms };
-    const seeded = hydrateDecisions(wrapper, payload, alice, {
+    // A payload arrives as JSON in a page, and `JSON.parse` yields `any`.
+    const seeded = hydrateDecisions(
+      atoms,
+      JSON.parse('{"version":3,"subjectId":"u1","entries":[]}'),
+      alice,
+      { onDropped: (drop) => drops.push(drop) },
+    );
+
+    expect(seeded).toEqual([]);
+    expect(drops.map((drop) => drop.reason)).toEqual(["UnsupportedPayloadVersion"]);
+  });
+
+  it("announces a payload that is not an envelope", () => {
+    const drops: Array<HydrationDrop<unknown>> = [];
+
+    const seeded = hydrateDecisions(atoms, JSON.parse("5"), alice, {
       onDropped: (drop) => drops.push(drop),
     });
 
     expect(seeded).toEqual([]);
-    expect(drops[0]?.reason).toBe("UnregisteredAtoms");
+    expect(drops.map((drop) => drop.reason)).toEqual(["MalformedPayload"]);
   });
 
   it("announces entries whose policy did not decode", () => {
-    const drops: Array<HydrationDrop<DehydratedEntry>> = [];
+    const drops: Array<HydrationDrop<unknown>> = [];
 
     const seeded = hydrateDecisions(atoms, undecodable, alice, {
       onDropped: (drop) => drops.push(drop),
@@ -264,6 +284,7 @@ describe("a payload that seeds nothing says so", () => {
     // reporting would bury a page's other output under a payload's worth of
     // identical lines.
     const many: DehydratedDecisions = {
+      version: 2,
       subjectId: "u1",
       entries: [
         ...undecodable.entries,
@@ -271,7 +292,7 @@ describe("a payload that seeds nothing says so", () => {
         ...undecodable.entries,
       ],
     };
-    const drops: Array<HydrationDrop<DehydratedEntry>> = [];
+    const drops: Array<HydrationDrop<unknown>> = [];
 
     hydrateDecisions(atoms, many, alice, { onDropped: (drop) => drops.push(drop) });
 
@@ -283,10 +304,11 @@ describe("a payload that seeds nothing says so", () => {
     // The undecodable ones are dropped; the rest are not held hostage to them.
     const good = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1", "e1") }]);
     const mixed: DehydratedDecisions = {
+      version: 2,
       subjectId: "u1",
       entries: [...undecodable.entries, ...good.entries],
     };
-    const drops: Array<HydrationDrop<DehydratedEntry>> = [];
+    const drops: Array<HydrationDrop<unknown>> = [];
 
     const seeded = hydrateDecisions(atoms, mixed, alice, {
       onDropped: (drop) => drops.push(drop),
@@ -305,8 +327,15 @@ describe("a payload that seeds nothing says so", () => {
       ),
     ).toBe(1);
     expect(
-      dropped("UnregisteredAtoms", () =>
-        quietly(() => hydrateDecisions({ ...atoms }, payload, alice)),
+      dropped("UnsupportedPayloadVersion", () =>
+        quietly(() =>
+          hydrateDecisions(atoms, JSON.parse('{"version":3,"subjectId":"u1","entries":[]}'), alice),
+        ),
+      ),
+    ).toBe(1);
+    expect(
+      dropped("MalformedPayload", () =>
+        quietly(() => hydrateDecisions(atoms, JSON.parse("5"), alice)),
       ),
     ).toBe(1);
     expect(
@@ -320,8 +349,9 @@ describe("a payload that seeds nothing says so", () => {
     let policy: unknown = { _tag: "HasRole", role: "x" };
     for (let i = 0; i < MAX_DECODE_DEPTH + 10; i++) policy = { _tag: "Not", policy };
     const tooDeep: DehydratedDecisions = {
+      version: 2,
       subjectId: "u1",
-      entries: [{ policy, allowed: true, evaluationId: "e", durationMillis: 0 }],
+      entries: [{ policy, decision: withheldAllow("e") }],
     };
 
     expect(
@@ -349,11 +379,11 @@ describe("a payload that seeds nothing says so", () => {
     try {
       const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1", "e1") }]);
       hydrateDecisions(atoms, payload, bob);
-      hydrateDecisions({ ...atoms }, payload, alice);
+      hydrateDecisions(atoms, JSON.parse('{"version":3,"subjectId":"u1","entries":[]}'), alice);
 
       const messages = warn.mock.calls.map((call) => String(call[0]));
       expect(messages[0]).toContain("different subject");
-      expect(messages[1]).toContain("makeQadiAtoms");
+      expect(messages[1]).toContain("version");
     } finally {
       warn.mockRestore();
     }
@@ -367,7 +397,7 @@ describe("a payload that seeds nothing says so", () => {
       hydrateDecisions(atoms, undecodable, alice);
       expect(warn).not.toHaveBeenCalled();
 
-      const drops: Array<HydrationDrop<DehydratedEntry>> = [];
+      const drops: Array<HydrationDrop<unknown>> = [];
       hydrateDecisions(atoms, undecodable, alice, { onDropped: (drop) => drops.push(drop) });
       // A supplied reporter runs in production, as `onHydrationMismatch` does.
       expect(drops).toHaveLength(1);

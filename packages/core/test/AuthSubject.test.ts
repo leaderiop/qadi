@@ -7,7 +7,7 @@
  * already-built subject (ticket 179).
  */
 import { assert, describe, it } from "@effect/vitest";
-import { fromRoles, makeSubject, withAttributes } from "../src/AuthSubject.ts";
+import { fromRoles, makeSubject, subjectEquivalence, withAttributes } from "../src/AuthSubject.ts";
 import { permission } from "../src/Permission.ts";
 import { role } from "../src/Role.ts";
 
@@ -55,5 +55,48 @@ describe("withAttributes", () => {
     extra["clearance"] = 99;
 
     assert.strictEqual(updated.attributes["clearance"], 3);
+  });
+});
+
+describe("subjectEquivalence", () => {
+  const build = (attributes: Record<string, unknown> = { org: { id: 1 } }) =>
+    makeSubject({ id: "u1", roles: ["editor", "admin"], permissions: ["doc:read"], attributes });
+
+  it("holds for equal subjects built twice", () => {
+    assert.isTrue(subjectEquivalence(build(), build()));
+  });
+
+  it("does not depend on the order a Set was filled in", () => {
+    const a = makeSubject({ id: "u1", roles: ["editor", "admin"] });
+    const b = makeSubject({ id: "u1", roles: ["admin", "editor"] });
+    assert.isTrue(subjectEquivalence(a, b));
+  });
+
+  it("compares a nested attribute object by structure", () => {
+    assert.isTrue(subjectEquivalence(build({ org: { id: 1 } }), build({ org: { id: 1 } })));
+  });
+
+  it("tells subjects with a differing id apart", () => {
+    const other = makeSubject({
+      id: "u2",
+      roles: ["editor", "admin"],
+      permissions: ["doc:read"],
+      attributes: { org: { id: 1 } },
+    });
+    assert.isFalse(subjectEquivalence(build(), other));
+  });
+
+  it("tells subjects with a differing role apart", () => {
+    const other = makeSubject({ id: "u1", roles: ["editor"], permissions: ["doc:read"], attributes: { org: { id: 1 } } });
+    assert.isFalse(subjectEquivalence(build(), other));
+  });
+
+  it("tells subjects with a differing nested attribute apart", () => {
+    assert.isFalse(subjectEquivalence(build({ org: { id: 1 } }), build({ org: { id: 2 } })));
+  });
+
+  it("tells subjects with a differing permission apart", () => {
+    const other = makeSubject({ id: "u1", roles: ["editor", "admin"], permissions: ["doc:write"], attributes: { org: { id: 1 } } });
+    assert.isFalse(subjectEquivalence(build(), other));
   });
 });

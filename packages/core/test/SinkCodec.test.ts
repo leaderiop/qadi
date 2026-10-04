@@ -562,30 +562,54 @@ describe("the wire is untrusted", () => {
       }
     }));
 
-  it("a Deny arriving with no reason gets the same default the evaluator uses", () => {
-    const back = fromWireUnsafe({
-      _tag: "Decision",
-      evaluationId: "e",
-      at: 0,
-      subjectId: "u1",
-      policy: P.hasPermission(read),
-      decided: {
-        _tag: "Deny",
-        evaluationId: "e",
-        subjectId: "u1",
-        durationMillis: 1,
-        trace: trace(false),
-        obligations: [],
-      },
-    });
+  it.effect("a Deny arriving with no reason is refused, not given an invented one", () =>
+    Effect.gen(function* () {
+      // `DecisionWire` is a tagged union, so a `Deny` without its sentence is not
+      // a shape this module ever encodes. It used to decode to a made-up
+      // "denied"; a sender that predates the field is a malformed record, not a
+      // reason to put words in a denial's mouth.
+      const result = yield* Effect.result(
+        decodeRecord({
+          _tag: "Decision",
+          evaluationId: "e",
+          at: 0,
+          subjectId: "u1",
+          policy: P.hasPermission(read),
+          decided: {
+            _tag: "Deny",
+            evaluationId: "e",
+            subjectId: "u1",
+            durationMillis: 1,
+            trace: trace(false),
+            obligations: [],
+          },
+        }),
+      );
+      assert.strictEqual(result._tag, "Failure");
+    }));
 
-    assert.strictEqual(back._tag, "Decision");
-    if (back._tag === "Decision" && back.outcome._tag === "Decided") {
-      const decision = back.outcome.decision;
-      assert.strictEqual(decision._tag, "Deny");
-      if (decision._tag === "Deny") assert.strictEqual(decision.reason, "denied");
-    }
-  });
+  it.effect("an Allow carrying a reason is refused", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        decodeRecord({
+          _tag: "Decision",
+          evaluationId: "e",
+          at: 0,
+          subjectId: "u1",
+          policy: P.hasPermission(read),
+          decided: {
+            _tag: "Allow",
+            evaluationId: "e",
+            subjectId: "u1",
+            durationMillis: 1,
+            trace: trace(true),
+            obligations: [],
+            reason: "a verdict that permits has nothing to refuse",
+          },
+        }),
+      );
+      assert.strictEqual(result._tag, "Failure");
+    }));
 
   it("a record naming neither outcome becomes a Failed that says so (ticket 96: pins the current MissingResource/ACL004 stand-in)", () => {
     // Unreachable for anything this module encoded, but the wire is untrusted.
@@ -643,6 +667,7 @@ describe("the wire is untrusted", () => {
         durationMillis: 1,
         trace: trace(false),
         obligations: [],
+        reason: "no",
       },
       failed: new MissingResource({ attribute: "owner" }),
     });
@@ -1028,5 +1053,79 @@ describe("isRecordJsonSafe", () => {
       outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
     });
     assert.isTrue(isRecordJsonSafe(record));
+  });
+});
+
+/**
+ * The bytes a `Decided` record puts on the wire, pinned at commit 1caf04c —
+ * before the decision codec moved into `DecisionWire.ts` (ARCH-05 T1). The move
+ * must not change a byte of what `SinkRecordWire` carries between processes
+ * (ADR-QD-060, BEH-QD-199), so these are literals, not re-derived.
+ */
+describe("a decided record encodes byte-identically to 1caf04c", () => {
+  const goldenRecord = (decision: Allow | Deny): SinkRecord =>
+    new DecisionRecord({
+      evaluationId: "g",
+      at: 1,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasPermission(read),
+      outcome: new Decided({ decision }),
+    });
+  const goldenTrace = (allowed: boolean) => ({
+    policyTag: "HasPermission" as const,
+    allowed,
+    children: [],
+    obligations: [],
+  });
+  const encoded = (record: SinkRecord): string => JSON.stringify(encodeRecordSync(toWire(record)));
+
+  it("an Allow with visibleFields and an obligation", () => {
+    const record = goldenRecord(
+      new Allow({
+        evaluationId: "g",
+        subjectId: makeSubjectId("u1"),
+        durationMillis: 2,
+        trace: { ...goldenTrace(true), visibleFields: ["id"] },
+        visibleFields: ["id"],
+        obligations: [obligation("audit.log")],
+      }),
+    );
+    assert.strictEqual(
+      encoded(record),
+      '{"_tag":"Decision","evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decided":{"_tag":"Allow","evaluationId":"g","subjectId":"u1","durationMillis":2,"trace":{"policyTag":"HasPermission","allowed":true,"children":[],"visibleFields":["id"],"obligations":[]},"visibleFields":["id"],"obligations":[{"id":"audit.log","attributes":{},"advisory":false}]}}',
+    );
+  });
+
+  it("an Allow with no visibleFields (everything visible)", () => {
+    const record = goldenRecord(
+      new Allow({
+        evaluationId: "g",
+        subjectId: makeSubjectId("u1"),
+        durationMillis: 2,
+        trace: goldenTrace(true),
+        visibleFields: undefined,
+        obligations: [],
+      }),
+    );
+    assert.strictEqual(
+      encoded(record),
+      '{"_tag":"Decision","evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decided":{"_tag":"Allow","evaluationId":"g","subjectId":"u1","durationMillis":2,"trace":{"policyTag":"HasPermission","allowed":true,"children":[],"obligations":[]},"obligations":[]}}',
+    );
+  });
+
+  it("a Deny", () => {
+    const record = goldenRecord(
+      new Deny({
+        evaluationId: "g",
+        subjectId: makeSubjectId("u1"),
+        durationMillis: 2,
+        trace: { ...goldenTrace(false), reason: "no" },
+        reason: "no",
+      }),
+    );
+    assert.strictEqual(
+      encoded(record),
+      '{"_tag":"Decision","evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decided":{"_tag":"Deny","evaluationId":"g","subjectId":"u1","durationMillis":2,"trace":{"policyTag":"HasPermission","allowed":false,"reason":"no","children":[],"obligations":[]},"obligations":[],"reason":"no"}}',
+    );
   });
 });

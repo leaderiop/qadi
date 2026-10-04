@@ -592,6 +592,6 @@ describe("through a provider, as an application reads it", () => {
     // The client's own answer is what is in effect (INV-QD-028) …
     await waitFor(() => expect(screen.getByTestId("verdict").textContent).toBe("Deny"));
     // … and the disagreement is announced exactly once (BEH-QD-152).
-    expect(seen).toEqual([{ seeded: "Allow", decided: "Deny" }]);
+    expect(seen).toEqual([{ seeded: "SeededAllow", decided: "Deny" }]);
   });
 });

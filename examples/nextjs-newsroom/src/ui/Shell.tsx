@@ -24,7 +24,7 @@ const ROUTES = [
   ["/edge/wrong-subject", "wrong-subject"],
   ["/edge/version-skew", "version-skew"],
   ["/edge/mixed-payload", "mixed-payload"],
-  ["/edge/unregistered", "unregistered"],
+  ["/edge/wrapped-atoms", "wrapped-atoms"],
   ["/edge/middleware", "middleware"],
   ["/edge/leakage", "leakage"],
   ["/edge/action", "action"],

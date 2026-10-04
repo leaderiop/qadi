@@ -5,10 +5,11 @@
  * These render nothing of their own; they choose between the nodes they are
  * given. All the state lives in the atoms.
  */
-import type { Decision, Deny, Policy, Resource } from "@qadi/core";
-import { isAllowed } from "@qadi/core";
+import type { Deny, Policy, Resource } from "@qadi/core";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import type { CSSProperties, ReactNode, RefObject } from "react";
+import type { ClientDecision, SeededDeny } from "./SeededDecision.ts";
+import { permits } from "./SeededDecision.ts";
 import { useGate } from "./useGate.ts";
 
 /**
@@ -57,12 +58,17 @@ const marked = (
  * therefore the one question the declarative API could not answer, and the
  * answer was one argument away. Render it with `renderTrace`.
  *
+ * A `Deny` once this client has decided; a `SeededDeny` while the server's seed
+ * stands in for the first frames of a server-rendered page, whose reason and
+ * trace exist only if the server disclosed them (`disclosure`) — narrow with
+ * `isSeeded` before reaching for either.
+ *
  * A plain node stays the common case: most fallbacks say nothing about the
  * denial, and should not have to take one.
  */
-export type DeniedNode = ReactNode | ((decision: Deny) => ReactNode);
+export type DeniedNode = ReactNode | ((decision: Deny | SeededDeny) => ReactNode);
 
-const renderDenied = (node: DeniedNode, decision: Deny): ReactNode =>
+const renderDenied = (node: DeniedNode, decision: Deny | SeededDeny): ReactNode =>
   typeof node === "function" ? node(decision) : node;
 
 /**
@@ -83,7 +89,7 @@ const renderDenied = (node: DeniedNode, decision: Deny): ReactNode =>
 type GateOutcome =
   | { readonly _tag: "Pending" }
   | { readonly _tag: "Failure" }
-  | { readonly _tag: "Settled"; readonly decision: Decision };
+  | { readonly _tag: "Settled"; readonly decision: ClientDecision };
 
 const classify = (result: ReturnType<typeof useGate>["result"]): GateOutcome => {
   if (AsyncResult.isInitial(result) || result.waiting) return { _tag: "Pending" };
@@ -153,7 +159,7 @@ const chosen = (
   if (outcome._tag === "Failure") {
     return failure !== undefined ? failure : typeof fallback === "function" ? null : fallback;
   }
-  return isAllowed(outcome.decision) ? children : renderDenied(fallback, outcome.decision);
+  return permits(outcome.decision) ? children : renderDenied(fallback, outcome.decision);
 };
 
 export interface CannotProps {
@@ -192,5 +198,5 @@ const refused = (
   const outcome = classify(result);
   if (outcome._tag === "Pending") return pending;
   if (outcome._tag === "Failure") return failure;
-  return isAllowed(outcome.decision) ? null : renderDenied(children, outcome.decision);
+  return permits(outcome.decision) ? null : renderDenied(children, outcome.decision);
 };

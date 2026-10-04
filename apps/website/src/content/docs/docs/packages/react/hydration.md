@@ -22,11 +22,16 @@ export const dehydrateDecisions: (
 
 export const hydrateDecisions: (
   atoms: QadiAtoms,
-  dehydrated: DehydratedDecisions,
+  dehydrated: DehydratedPayload,
   subject: AuthSubject,
   options?: HydrateOptions,
 ) => InitialValues;
 ```
+
+The payload carries `version: 2`. `hydrateDecisions` also reads the format that
+predates `version` for one release, seeding it with its trace withheld; any
+other `version` is dropped as `UnsupportedPayloadVersion`, which is what a page
+cached by one deploy and hydrated by the next looks like.
 
 `hydrateDecisions`'s result is assignable to `QadiProvider`'s
 `initialValues` prop directly. Seeding through that prop, rather than through
@@ -80,7 +85,7 @@ not hidden and not allowed to change the outcome:
 export interface HydrationMismatch {
   readonly policy: Policy;
   readonly resource: Resource | undefined;
-  readonly seeded: Decision;
+  readonly seeded: SeededDecision;
   readonly decided: Decision;
 }
 
@@ -108,9 +113,10 @@ escalation with no lookup to catch it. A refused payload leaves every atom
 exactly what would have happened with no hydration at all, and is the correct
 outcome for a payload that cannot be verified.
 
-Every other way `hydrateDecisions` can decline to seed an entry — an
-unregistered atom set, a policy that no longer decodes, a payload naming the
-wrong subject — is announced too, with a reason rather than a bare count, so a
+Every other way `hydrateDecisions` can decline to seed an entry — a policy
+that no longer decodes, a payload naming the wrong subject or a `version` this
+client does not read, a payload that is not an envelope at all — is announced
+too, and `hydrateDecisions` never throws, whatever it is handed, with a reason rather than a bare count, so a
 developer can tell a server-side cache bug from version skew from a wiring
 mistake at the call site. `dehydrateDecisions` likewise reports what it drops:
 an entry belonging to a different subject than the payload's is dropped, and
@@ -118,7 +124,13 @@ silently would have been the wrong choice for the same reason.
 
 A dehydrated decision withholds its trace and a denial's reason by default —
 that detail names the policy's internal structure and which branch a specific
-subject failed, which is not safe to ship to a browser unasked. Obligations
+subject failed, which is not safe to ship to a browser unasked. What is rebuilt
+from it is a `SeededAllow` or `SeededDeny`, not an `Allow` or `Deny`: a seed is a
+projection of the server's decision, carrying a `disclosure` that is `Withheld`
+unless the server shipped the trace, and no trace or reason is invented to make
+it look like an evaluation. Read its verdict with `permits`, which accepts every
+case of the closed `ClientDecision` union; `isAllowed` from `@qadi/core` does not
+accept one. Obligations
 are carried regardless, since a UI that has to discharge one needs to know
 about it; a caller who has put something sensitive in an obligation attribute
 should not hydrate that policy.

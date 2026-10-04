@@ -111,11 +111,14 @@ describe("the payload the server builds", () => {
     const withheld = dehydrateDecisions(entries);
     const disclosed = dehydrateDecisions(entries, { includeTrace: true });
 
-    expect(withheld.entries[0]?.allowed).toBe(false);
-    expect(withheld.entries[0]?.reason).toBe("hydrated");
+    expect(withheld.entries[0]?.decision._tag).toBe("Deny");
+    // Withheld is a tagged case, not a stand-in sentence posing as the reason.
+    expect(withheld.entries[0]?.decision.disclosure).toEqual({ _tag: "Withheld" });
+    expect(JSON.stringify(withheld)).not.toContain("hydrated");
     // The real reason names a branch of the policy; the default does not.
-    expect(disclosed.entries[0]?.reason).not.toBe("hydrated");
-    expect(disclosed.entries[0]?.trace?.children.length).toBeGreaterThan(0);
+    const disclosure = disclosed.entries[0]?.decision.disclosure;
+    expect(disclosure?._tag).toBe("Disclosed");
+    expect(disclosure?._tag === "Disclosed" && disclosure.trace.children.length).toBeGreaterThan(0);
   });
 
   it("drops another subject's decisions and reports the drop", async () => {
@@ -164,14 +167,19 @@ describe("what the client does with it", () => {
     const entries = await decideAs(omar, [{ policy: readSourceContact }]);
     const real = dehydrateDecisions(entries);
     const payload: DehydratedDecisions = {
+      version: real.version,
       subjectId: real.subjectId,
       entries: [
         ...real.entries,
         ...[1, 2, 3].map((n) => ({
           policy: { _tag: "HasQuantumClearance", threshold: n },
-          allowed: true,
-          evaluationId: `skew-${n}`,
-          durationMillis: 0,
+          decision: {
+            _tag: "Allow" as const,
+            evaluationId: `skew-${n}`,
+            durationMillis: 0,
+            obligations: [],
+            disclosure: { _tag: "Withheld" as const },
+          },
         })),
       ],
     };
@@ -188,22 +196,23 @@ describe("what the client does with it", () => {
     expect(seeded).toHaveLength(1);
   });
 
-  it("seeds nothing into a copy of the atom set", async () => {
+  it("seeds the same questions through a copy of the atom set", async () => {
     const entries = await decideAs(omar, [{ policy: readSourceContact }]);
     const payload = dehydrateDecisions(entries);
     const atoms = freshAtoms();
 
     const drops: Array<HydrationDrop<unknown>> = [];
     const registered = Array.from(hydrateDecisions(atoms, payload, omar));
-    // Every property, a different object. The seed lookup is a `WeakMap` keyed
-    // by identity, so a faithful copy is not the thing it copied.
-    const foreign = Array.from(
+    // Every property, a different object. The atom set owns the capability and a
+    // copy carries it along, and its decision atoms are the real ones — so it
+    // seeds exactly the questions the original does.
+    const copied = Array.from(
       hydrateDecisions({ ...atoms }, payload, omar, { onDropped: (drop) => drops.push(drop) }),
     );
 
     expect(registered).toHaveLength(1);
-    expect(foreign).toHaveLength(0);
-    expect(drops.map((drop) => drop.reason)).toEqual(["UnregisteredAtoms"]);
+    expect(copied).toHaveLength(1);
+    expect(drops).toEqual([]);
   });
 });
 

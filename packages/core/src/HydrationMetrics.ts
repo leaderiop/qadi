@@ -50,15 +50,19 @@ export type DehydrationDropReason =
 /**
  * Why the **client** did not seed an entry, or a whole payload.
  *
- * The first two reject the payload entire rather than entry by entry: the
- * subject id is a property of the payload, and an atom set with no seed lookup
- * has nowhere for any of them to go.
+ * `PayloadSubjectMismatch`, `UnsupportedPayloadVersion` and `MalformedPayload`
+ * reject the payload entire rather than entry by entry: the subject id and the
+ * version are properties of the payload, and a value that is not an envelope has
+ * no entries to speak of.
+ *
+ * There is no reason for an atom set that was not built by `makeQadiAtoms`.
+ * That was `UnregisteredAtoms`, and it existed because the seed lookup was a
+ * side table keyed on the atom set's identity; the atom set now owns the
+ * capability (`QadiAtoms.hydrate`), so the situation cannot arise.
  */
 export type ClientHydrationDropReason =
   /** The payload names a subject this client is not. */
   | "PayloadSubjectMismatch"
-  /** The atom set was not built by `makeQadiAtoms`, so it has no seed to write to. */
-  | "UnregisteredAtoms"
   /** A field other than `policy` did not match `DehydratedEntry`'s shape. */
   | "MalformedEntry"
   /** The entry's policy did not decode. */
@@ -72,7 +76,25 @@ export type ClientHydrationDropReason =
    * is what an adversarial payload would try, and the two want different
    * follow-up.
    */
-  | "EntryTooDeep";
+  | "EntryTooDeep"
+  /**
+   * The payload names a `version` this client does not read.
+   *
+   * Not the same as malformed: a page cached by one deploy and hydrated by the
+   * next carries a format the other end has not heard of, and the failure is gone
+   * when the deploy finishes. Named separately so a dashboard can tell a rollout
+   * from a bug.
+   */
+  | "UnsupportedPayloadVersion"
+  /**
+   * The payload is not an envelope at all — not an object, no `entries` array,
+   * an excess key, or nested past the depth guard outside its entries.
+   *
+   * `hydrateDecisions` receives JSON from a page, and `JSON.parse` yields `any`,
+   * so the parameter's type protects nothing. This is what a value that is not
+   * even shaped like a payload is dropped as, instead of throwing.
+   */
+  | "MalformedPayload";
 
 /**
  * Every reason a decision failed to survive the trip, from either end.
@@ -88,10 +110,11 @@ export type HydrationDropReason = DehydrationDropReason | ClientHydrationDropRea
 export const hydrationDropReasons: ReadonlyArray<HydrationDropReason> = [
   "ForeignSubject",
   "PayloadSubjectMismatch",
-  "UnregisteredAtoms",
   "MalformedEntry",
   "UndecodablePolicy",
   "EntryTooDeep",
+  "UnsupportedPayloadVersion",
+  "MalformedPayload",
 ];
 
 /**

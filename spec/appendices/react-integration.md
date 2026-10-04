@@ -179,8 +179,8 @@ is hidden. When the difference matters, read the decision.
 ## 5. Read the whole decision
 
 ```tsx
-import { useDecision } from "@qadi/react";
-import { isAllowed, hasPermission, permission } from "@qadi/core";
+import { permits, useDecision } from "@qadi/react";
+import { hasPermission, permission } from "@qadi/core";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 
 const canEditDoc = hasPermission(permission("doc", "write"));
@@ -197,7 +197,11 @@ export const EditPanel = () => {
     return <span>Could not check your permissions. Try again.</span>;
   }
 
-  return isAllowed(result.value) ? <Editor /> : <span>Read only</span>;
+  // `permits`, not `isAllowed`: while a server-rendered page's seed stands in for
+  // this client's own answer, the value is a `SeededAllow`/`SeededDeny` — a
+  // projection of the server's decision, not an evaluation — and `permits` is the
+  // one verdict read that accepts every case.
+  return permits(result.value) ? <Editor /> : <span>Read only</span>;
 };
 
 const Editor = () => <textarea />;
@@ -337,15 +341,15 @@ decisions take over.
 For interfaces that would rather not write pending branches by hand.
 
 ```tsx
-import { useDecisionSuspense } from "@qadi/react";
-import { isAllowed, hasPermission, permission } from "@qadi/core";
+import { permits, useDecisionSuspense } from "@qadi/react";
+import { hasPermission, permission } from "@qadi/core";
 import { Suspense } from "react";
 
 const canReadDoc = hasPermission(permission("doc", "read"));
 
 const Body = () => {
   const decision = useDecisionSuspense(canReadDoc);
-  return <article>{isAllowed(decision) ? "the document" : "not for you"}</article>;
+  return <article>{permits(decision) ? "the document" : "not for you"}</article>;
 };
 
 export const Page = () => (
@@ -405,8 +409,8 @@ Two levels, and most tests want the first.
 graph. Proving them needs a registry, not a DOM.
 
 ```typescript
-import { EvaluationServicesNone, hasRole, isAllowed, makeSubject } from "@qadi/core";
-import { makeQadiAtoms } from "@qadi/react";
+import { EvaluationServicesNone, hasRole, makeSubject } from "@qadi/core";
+import { makeQadiAtoms, permits } from "@qadi/react";
 import * as Effect from "effect/Effect";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 
@@ -423,7 +427,7 @@ export const adminIsAllowed = Effect.gen(function* () {
   );
 
   registry.dispose();
-  return isAllowed(decision);
+  return permits(decision);
 });
 ```
 
@@ -445,6 +449,36 @@ export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
     </QadiProvider>
   );
 };
+```
+
+## Seeing who is asking
+
+An instrumented provider records each guard in its atom set's `gates` registry, beside
+`atoms.asked()` ([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md)).
+Read it with `instances()` and `subscribe()`, or `useGateInstances()` inside the provider.
+
+```tsx
+import { EvaluationServicesNone } from "@qadi/core";
+import type { AuthSubject } from "@qadi/core";
+import { QadiProvider, makeQadiAtoms } from "@qadi/react";
+import type { ReactNode } from "react";
+
+const debugAtoms = makeQadiAtoms(EvaluationServicesNone);
+
+// Outside React, or from a second root: the registry is a plain value.
+export const guardCount = (): number => debugAtoms.gates.instances().length;
+
+export const DebugApp = ({
+  subject,
+  children,
+}: {
+  readonly subject: AuthSubject | undefined;
+  readonly children: ReactNode;
+}) => (
+  <QadiProvider atoms={debugAtoms} subject={subject} instrument>
+    {children}
+  </QadiProvider>
+);
 ```
 
 ## Pitfalls

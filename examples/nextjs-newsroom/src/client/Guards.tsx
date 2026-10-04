@@ -9,9 +9,9 @@
  */
 import type { ReactNode } from "react";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
-import type { Deny, Policy, Resource } from "@qadi/core";
-import { Can, useDecision } from "@qadi/react";
-import { currentDecision } from "@qadi/react";
+import type { Policy, Resource } from "@qadi/core";
+import type { DeniedNode } from "@qadi/react";
+import { Can, currentDecision, permits, useDecision } from "@qadi/react";
 import { badge, card, mono, muted } from "../ui/theme.ts";
 
 /**
@@ -53,7 +53,7 @@ export const GateState = ({
     ? "Failed"
     : decision === undefined
     ? "Pending"
-    : decision._tag === "Allow"
+    : permits(decision)
     ? "Allowed"
     : "Denied";
 
@@ -77,7 +77,7 @@ export interface GuardedProps {
   readonly testId: string;
   readonly children: ReactNode;
   /** Rendered instead when the answer is no. Given the denial, so it can say why. */
-  readonly denied?: ReactNode | ((decision: Deny) => ReactNode);
+  readonly denied?: DeniedNode;
 }
 
 /**

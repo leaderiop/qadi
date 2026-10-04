@@ -30,7 +30,7 @@ import { policyLabel } from "./Catalogue.ts";
  *
  * Structurally identical to that package's `GateInstance` and deliberately not
  * imported from it, exactly as `AskedQuestionLike` is not: `@qadi/devtools` does
- * not depend on `@qadi/react`. A host passes `gateInstances()` straight in.
+ * not depend on `@qadi/react`. A host passes `useGateInstances()` or `atoms.gates.instances()` straight in.
  *
  * `kind` and `state` are `string` rather than the unions that produced them, for
  * the reason `PortCalls.ts` gives about span attributes and `Hydration.ts` gives

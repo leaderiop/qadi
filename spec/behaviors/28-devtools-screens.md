@@ -279,6 +279,11 @@ the React glue is still one `useSyncExternalStore` call in `QadiProvider.tsx`.
 > the correct place for it, since `@qadi/devtools`'s panel renders for any host,
 > including one with no `@qadi/react` at all.
 
+> **Correction (2026-10-04, ADR-QD-080).** The host call is now `useGateInstances()`
+> inside the provider, or `useSyncExternalStore(atoms.gates.subscribe,
+> atoms.gates.instances, atoms.gates.instances)` outside it; the module-scope
+> pair named above no longer exists.
+
 A component knows perfectly well that it exists. Nothing was asking it.
 
 ```
@@ -324,8 +329,14 @@ The distinctions each empty state must keep:
 > **Invariant:** [INV-QD-046](../invariants.md#inv-qd-046-instrumentation-never-changes-what-a-guard-renders)
 
 ```ts
-export const gateInstances: () => ReadonlyArray<GateInstance>;
-export const subscribeGates: (listener: () => void) => () => void;
+export const makeGateRegistry: (options?: GateRegistryOptions) => GateRegistry;
+export interface GateRegistry {
+  readonly instances: () => ReadonlyArray<GateInstance>;
+  readonly subscribe: (listener: () => void) => () => void;
+}
+// QadiAtoms.gates: GateRegistry — the registry this atom set's guards write to.
+// QadiProviderProps.gates?: GateRegistry — an override, built by makeGateRegistry.
+export const useGateInstances: () => ReadonlyArray<GateInstance>;
 ```
 
 ```
@@ -372,6 +383,34 @@ REQUIREMENT: An instance MUST be dropped when it unmounts.
 ```
 
 An entry holds a DOM element, so a leaked one keeps a detached subtree alive.
+
+```
+REQUIREMENT: A guard MUST be listed only by the registry its provider writes to;
+             two atom sets MUST NOT see each other's guards.
+```
+
+The registry belongs to the atom set (`atoms.gates`), the scope `asked()` already
+has, unless the provider is handed another. Two providers over one atom set share
+it, exactly as they share `asked()`
+([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md),
+[INV-QD-064](../invariants.md#inv-qd-064-a-guard-is-listed-only-by-the-registry-its-provider-writes-to)).
+
+```
+REQUIREMENT: Two live registrations MUST NOT overwrite each other; the ids in one
+             snapshot MUST be distinct.
+```
+
+Two hydrated roots derive `useId` from tree position and so mint the same id. The
+registry keeps both, the second under `${id}~${n}`, and reports the collision once;
+`data-qadi-gate` keeps React's raw id, which is hydration-stable.
+
+```
+REQUIREMENT: A registry not built by `makeGateRegistry` MUST receive no
+             registration, and its guards MUST render no marker.
+```
+
+A hand-built `{ instances, subscribe }` has no writer. Off means absent extends to a
+registry nothing here can write to.
 
 ## BEH-QD-234: The lens points at a guard, in both directions
 

@@ -66,9 +66,9 @@ const Page = async () => {
           <>
             The same denial, dehydrated twice: once with the default and once with{" "}
             <code>includeTrace: true</code>. Both payloads are below, verbatim. Note that the
-            default replaces a denial&rsquo;s reason with the literal string{" "}
-            <code>&ldquo;hydrated&rdquo;</code> — the reason is withheld with the trace, because it
-            is the same disclosure in one sentence.
+            default carries a tagged <code>Withheld</code> where the trace and a denial&rsquo;s
+            reason would be — the reason is withheld with the trace, because it is the same
+            disclosure in one sentence, and nothing is invented to stand in for either.
           </>
         }
         watch={

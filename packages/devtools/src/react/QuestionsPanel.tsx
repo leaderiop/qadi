@@ -12,7 +12,7 @@
  *
  * So the panel now shows both, and they are different questions rather than
  * rival answers. `QadiAtoms.asked()` says what has been **asked** — the atom's
- * view, unchanged. `gateInstances()` says who is **asking**, right now, and what
+ * view, unchanged. `QadiAtoms.gates` says who is **asking**, right now, and what
  * each of them rendered. The grouping still goes through `Equal.equals`, so a
  * group is exactly an atom and the panel cannot claim two questions where the
  * evaluator sees one ([ADR-QD-053](../../../../spec/decisions/053-a-gate-can-be-found.md)).
@@ -64,7 +64,7 @@ export interface QuestionsPanelProps {
    */
   readonly hydrationMismatches?: number;
   /**
-   * The live guards, usually `gateInstances()` from `@qadi/react`.
+   * The live guards, usually `useGateInstances()` or `atoms.gates.instances()` from `@qadi/react`.
    *
    * Absent, or empty because the provider is not instrumented, and the panel
    * shows only what has been asked and says how to see who is asking. Those two
@@ -111,7 +111,7 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
       {instances.length === 0 ? (
         <p style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-gates-absent">
           {gates === undefined
-            ? "No live guards were handed to the dock. Pass gates — usually gateInstances() — to list who is asking."
+            ? "No live guards were handed to the dock. Pass gates — usually useGateInstances(), or atoms.gates.instances() — to list who is asking."
             : "No guard is registered. Pass instrument to QadiProvider to let them say that they exist."}
         </p>
       ) : (

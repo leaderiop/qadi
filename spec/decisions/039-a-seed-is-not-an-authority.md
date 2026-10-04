@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-039                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-23                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-08-23): Initial release (CCR-QD-052) |
+> | Change History | 1.1 (2026-10-04): The seed lives in `HydrationEngine.ts`, and the lookup is a closure capability of the atom set (`QadiAtoms.hydrate`) rather than a module-scope `WeakMap`; `HydrationSeed.ts` is removed (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-23): Initial release (CCR-QD-052) |
 
 _Amends: [ADR-QD-028](./028-decision-hydration.md), which decided the payload and
 said nothing about what happens to a seed once the client answers._
@@ -86,9 +86,22 @@ Three consequences of that gate are deliberate:
   reads `undefined` and the client simply decides. Nothing re-seeds.
 
 `hydrateDecisions` writes to the seed atom, found through a package-internal
-lookup (`HydrationSeed.ts`) that is deliberately out of the barrel: a consumer
-able to reach a seed atom could write an authorization decision straight into the
-registry, past both the subject check and the evaluator.
+lookup that is deliberately out of the barrel: a consumer able to reach a seed atom
+could write an authorization decision straight into the registry, past both the
+subject check and the evaluator.
+
+> **Amended in CCR-QD-156 ([ADR-QD-078](./078-a-seed-is-its-own-type-and-the-payload-is-versioned.md)).**
+> That lookup was `HydrationSeed.ts`, a module-scope `WeakMap` keyed on the atom
+> set's object identity, and it is gone. The seed atoms and the precedence rule
+> now live in `HydrationEngine.ts` (`makeSeededQuestion`), and the capability to
+> seed is a closure the atom set owns: `QadiAtoms.hydrate`, built inside
+> `makeQadiAtoms` over its own families, which `hydrateDecisions` delegates to.
+> ADR-QD-039's real requirement was that no consumer can *reach* a seed atom, and
+> a closure meets it — the atoms are unreachable by reflection or import, with no
+> symbol-keyed property to enumerate. What the side table added beyond that was
+> a failure mode: a spread copy of an atom set, whose decision atoms are the real
+> ones, was refused whole as `UnregisteredAtoms`. That was a property of the
+> keying, not a defence of anything, and it is removed rather than reported.
 
 ## Alternatives considered
 

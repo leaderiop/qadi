@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 2.9                                                          |
-> | Effective Date | 2026-09-19                                                   |
+> | Revision       | 3.0                                                          |
+> | Effective Date | 2026-10-04                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -61,6 +61,12 @@ export interface QadiAtoms {
   readonly invalidate: Atom.AtomResultFn<void, void>;
   /** Normative home: [BEH-QD-198](./25-inspection.md#beh-qd-198-an-atom-set-records-the-questions-it-was-asked). */
   readonly asked: () => ReadonlyArray<AskedQuestion>;
+  /** The seeding capability `hydrateDecisions` calls — see [BEH-QD-145](./19-hydration.md). */
+  readonly hydrate: (
+    dehydrated: DehydratedPayload,
+    subject: AuthSubject,
+    options?: HydrateOptions,
+  ) => InitialValues;
 }
 ```
 
@@ -86,9 +92,14 @@ REQUIREMENT: The layer MUST NOT be able to fail. A resolver that cannot be
 ## BEH-QD-066: Decision state
 
 ```ts
-export type DecisionResult = AsyncResult.AsyncResult<Decision, EvaluationError>;
+export type DecisionResult = AsyncResult.AsyncResult<ClientDecision, EvaluationError>;
 
-export const currentDecision: (result: DecisionResult) => Decision | undefined;
+export const currentDecision: (result: DecisionResult) => ClientDecision | undefined;
+
+// An evaluated decision, or the server's seed (BEH-QD-148): four distinct tags.
+export type ClientDecision = Allow | Deny | SeededAllow | SeededDeny;
+export const permits: (self: ClientDecision) => self is Allow | SeededAllow;
+export const isSeeded: (self: ClientDecision) => self is SeededDecision;
 ```
 
 `DecisionResult` keeps four states apart, where the predecessor's
@@ -97,7 +108,7 @@ export const currentDecision: (result: DecisionResult) => Decision | undefined;
 | State | Meaning |
 | ----- | ------- |
 | `Initial` | Not known yet — no subject, or the first evaluation is running |
-| `Success`, `waiting: false` | Decided: `Allow` or `Deny` |
+| `Success`, `waiting: false` | Decided: `Allow` or `Deny` — or, before this client has answered, the server's `SeededAllow`/`SeededDeny` |
 | `Success`, `waiting: true` | The previous decision, while a new one is computed |
 | `Failure` | The question could not be answered at all |
 
@@ -112,6 +123,17 @@ REQUIREMENT: A `waiting` result MUST be treated as not decided by every
              convenience API. A stale allow is a grant nobody authorised.
              See ADR-QD-017.
 ```
+
+```
+REQUIREMENT: A verdict MUST be read from a `ClientDecision` with `permits`.
+             `isAllowed` from `@qadi/core` MUST NOT accept one.
+```
+
+A seeded decision is a projection of the server's, not an evaluation
+([BEH-QD-148](./19-hydration.md)), so the compiler is what finds every site that
+would have read a seed as if it were an evaluation. A consumer comparing
+`decision._tag === "Allow"` keeps compiling and now treats a seeded allow as not
+allowed, which fails closed.
 
 ## BEH-QD-067: Provider
 
@@ -150,6 +172,22 @@ REQUIREMENT: A later `subject` prop change MUST be written to the registry in
              the atom has not been told the subject changed yet. See
              ADR-QD-017's Consequences and the react integration guide's §8.
 ```
+
+```
+REQUIREMENT: Writing a subject equal to the current one MUST NOT re-evaluate any
+             mounted decision. "Equal" is `subjectEquivalence` (`@qadi/core`):
+             the structural rule `DecisionCache`'s key uses, under which
+             `roles` and `permissions` compare by content and a nested
+             attribute object compares by structure.
+```
+
+`makeSubject`/`fromRoles` return a fresh object every call, so a host building its
+subject inline re-writes an equal one on every render (RC-01). The `subject` atom
+used to compare `attributes` shallowly (`Object.is` per key), which called two
+subjects with an equal-but-distinct nested attribute object different and re-ran
+every mounted decision for it; the library now has one definition of "same
+subject" rather than a cache that compares deeply and an atom that compared
+shallowly.
 
 ```
 REQUIREMENT: Each provider MUST own its registry, and MUST NOT dispose it
@@ -195,7 +233,7 @@ one that reaches a resolver cannot, however fast that resolver is, because
 export const useSubject: () => AuthSubject | undefined;
 export const useDecision: (policy: Policy, resource?: Resource) => DecisionResult;
 export const useCan: (policy: Policy, resource?: Resource) => boolean;
-export const useDecisionSuspense: (policy: Policy, resource?: Resource) => Decision;
+export const useDecisionSuspense: (policy: Policy, resource?: Resource) => ClientDecision;
 export const usePolicies: (
   policies: Readonly<Record<string, Policy>>,
 ) => Readonly<Record<string, DecisionResult>>;
@@ -205,7 +243,7 @@ export const useProjected: <A extends Record<string, unknown>>(
 ) => Partial<A>;
 export const useInvalidate: () => () => void;
 
-export type DeniedNode = ReactNode | ((decision: Deny) => ReactNode);
+export type DeniedNode = ReactNode | ((decision: Deny | SeededDeny) => ReactNode);
 
 export const Can: (props: {
   readonly policy: Policy;
@@ -301,8 +339,11 @@ REQUIREMENT: Where `Can`'s `fallback` and `Cannot`'s `children` are functions,
 REQUIREMENT: A function `fallback` MUST NOT be used for the failure branch.
 ```
 
-A guard is already holding the `Deny` — with its reason and its whole trace — at
-the moment it decides to render nothing, and used to discard it. So "why is this
+A guard is already holding the denial — with its reason and its whole trace, once
+this client has decided — at the moment it decides to render nothing, and used to
+discard it. While the server's seed stands in for the first frames of a
+server-rendered page the denial is a `SeededDeny`, whose reason and trace exist only
+if the server disclosed them: narrow with `isSeeded` before reading either. So "why is this
 control not here?" was the one question the declarative API could not answer,
 while the answer sat one argument away. It is the same defect as
 [BEH-QD-054](./07-enforcement.md) at a different surface: a value in scope,

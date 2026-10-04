@@ -27,18 +27,22 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type { ReactNode } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Can, Cannot } from "../src/components.tsx";
-import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
+import { makeGateRegistry } from "../src/GateRegistry.ts";
 import {
-  clearGatesUnsafe,
-  gateInstances,
-  registerGate,
-  subscribeGates,
-  updateGateState,
-} from "../src/GateRegistry.ts";
-import { useCan, useDecision, useInvalidate, useProjected } from "../src/hooks.ts";
+  useCan,
+  useDecision,
+  useGateInstances,
+  useInvalidate,
+  useProjected,
+} from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
+import type { QadiAtoms } from "../src/QadiAtoms.ts";
+import { MissingQadiProviderError } from "../src/QadiProvider.tsx";
 import { QadiProvider } from "../src/QadiProvider.tsx";
 
 const canRead = hasPermission(permission("doc", "read"));
@@ -48,15 +52,24 @@ const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });
 
 const atoms = () => makeQadiAtoms(EvaluationServicesNone);
 
-const mount = (children: ReactNode, instrument: boolean) =>
-  render(
-    <QadiProvider atoms={atoms()} subject={alice} instrument={instrument}>
+// Each mount builds its own atom set, so its registry is its own: no test reads
+// another's guards, and nothing needs resetting between them (ADR-QD-080).
+let current: QadiAtoms = atoms();
+
+const mount = (children: ReactNode, instrument: boolean) => {
+  const set = atoms();
+  current = set;
+  return render(
+    <QadiProvider atoms={set} subject={alice} instrument={instrument}>
       {children}
     </QadiProvider>,
   );
+};
+
+/** The guards listed by the most recent `mount`'s atom set. */
+const gateInstances = () => current.gates.instances();
 
 afterEach(() => {
-  clearGatesUnsafe();
   document.body.innerHTML = "";
 });
 
@@ -75,8 +88,9 @@ describe("uninstrumented, nothing changes", () => {
   });
 
   it("is the default", () => {
+    current = atoms();
     render(
-      <QadiProvider atoms={atoms()} subject={alice}>
+      <QadiProvider atoms={current} subject={alice}>
         <Can policy={canRead}>allowed</Can>
       </QadiProvider>,
     );
@@ -136,6 +150,7 @@ describe("instrumented, a guard says it exists", () => {
       SignatureHistoryNone,
     );
     const set = makeQadiAtoms(controlled);
+    current = set;
     const standing = hasAttribute("standing", eq(literal("good")));
 
     const Invalidate = () => {
@@ -245,7 +260,7 @@ describe("instrumented, a guard says it exists", () => {
     // about the question or its answer changed.
     const shared = atoms();
     let notified = 0;
-    const unsubscribe = subscribeGates(() => {
+    const unsubscribe = shared.gates.subscribe(() => {
       notified += 1;
     });
 
@@ -261,7 +276,7 @@ describe("instrumented, a guard says it exists", () => {
       </QadiProvider>,
     );
 
-    const idBefore = gateInstances()[0]?.id;
+    const idBefore = shared.gates.instances()[0]?.id;
     const notifiedAfterMount = notified;
 
     view.rerender(
@@ -270,9 +285,9 @@ describe("instrumented, a guard says it exists", () => {
       </QadiProvider>,
     );
 
-    expect(gateInstances()).toHaveLength(1);
+    expect(shared.gates.instances()).toHaveLength(1);
     // The SAME instance, not one torn down and rebuilt.
-    expect(gateInstances()[0]?.id).toBe(idBefore);
+    expect(shared.gates.instances()[0]?.id).toBe(idBefore);
     // No unregister/re-register churn from the re-render.
     expect(notified).toBe(notifiedAfterMount);
 
@@ -332,128 +347,6 @@ describe("locating a guard", () => {
   });
 });
 
-describe("the store contract", () => {
-  it("returns the same snapshot reference until something changes", () => {
-    // `useSyncExternalStore` compares by reference. A fresh array per call
-    // re-renders forever.
-    mount(<Can policy={canRead}>allowed</Can>, true);
-    expect(gateInstances()).toBe(gateInstances());
-  });
-
-  it("returns a new reference after a change", () => {
-    mount(<Can policy={canRead}>allowed</Can>, true);
-    const before = gateInstances();
-
-    act(() => {
-      clearGatesUnsafe();
-    });
-    expect(gateInstances()).not.toBe(before);
-  });
-
-  it("tells a subscriber when a guard mounts", () => {
-    let notified = 0;
-    const unsubscribe = subscribeGates(() => {
-      notified += 1;
-    });
-
-    mount(<Can policy={canRead}>allowed</Can>, true);
-    expect(notified).toBeGreaterThan(0);
-    unsubscribe();
-  });
-
-  it("stops telling a subscriber that unsubscribed", () => {
-    let notified = 0;
-    const unsubscribe = subscribeGates(() => {
-      notified += 1;
-    });
-    unsubscribe();
-
-    mount(<Can policy={canRead}>allowed</Can>, true);
-    expect(notified).toBe(0);
-  });
-
-  describe("interleaving: applied in firing order, eventually consistent", () => {
-    // These call `registerGate`/`updateGateState` directly rather than through
-    // React, to pin the exact firing order each scenario names instead of the
-    // order React's own effect scheduling happens to produce. The file's
-    // top-of-file doc comment states the guarantee these pin: no ordering
-    // across effects, eventually consistent, last-write-wins.
-    const makeInstance = (id: string, state: GateRenderState): GateInstance => ({
-      id,
-      kind: "Can",
-      policy: canRead,
-      resource: undefined,
-      state,
-      element: undefined,
-    });
-
-    it("a state update firing after the matching unregister stays a no-op", () => {
-      const unregister = registerGate(makeInstance("interleave-1", "Pending"));
-      unregister();
-
-      updateGateState("interleave-1", "Allowed");
-
-      expect(gateInstances()).toEqual([]);
-    });
-
-    it("cleanup still evicts after updateGateState replaced the stored instance (regression)", () => {
-      // updateGateState stores a brand-new object (`{ ...existing, state }`),
-      // not a mutation of the one `registerGate` was called with. A cleanup
-      // that compared `instances.get(id)` against the *original* object by
-      // reference would find them unequal forever after this line and never
-      // evict — the leak this test pins.
-      const unregister = registerGate(makeInstance("interleave-1b", "Pending"));
-      updateGateState("interleave-1b", "Allowed");
-      expect(gateInstances()).toEqual([makeInstance("interleave-1b", "Allowed")]);
-
-      unregister();
-
-      expect(gateInstances()).toEqual([]);
-    });
-
-    it("a fresh registration firing after an unregister for the same id resurrects cleanly", () => {
-      const unregister = registerGate(makeInstance("interleave-2", "Pending"));
-      unregister();
-
-      registerGate(makeInstance("interleave-2", "Allowed"));
-
-      expect(gateInstances()).toEqual([makeInstance("interleave-2", "Allowed")]);
-    });
-
-    it("two updates for the same id in rapid succession: the last one applied wins", () => {
-      registerGate(makeInstance("interleave-3", "Pending"));
-
-      updateGateState("interleave-3", "Allowed");
-      updateGateState("interleave-3", "Denied");
-
-      expect(gateInstances()).toHaveLength(1);
-      expect(gateInstances()[0]?.state).toBe("Denied");
-    });
-
-    it("register, immediate unregister, immediate re-register (same id) ends registered with the second registration's data", () => {
-      const firstUnregister = registerGate(makeInstance("interleave-4", "Pending"));
-      firstUnregister();
-
-      registerGate(makeInstance("interleave-4", "Allowed"));
-
-      expect(gateInstances()).toEqual([makeInstance("interleave-4", "Allowed")]);
-    });
-
-    it("a stale unregister firing AFTER a newer registration for the same id does not evict it", () => {
-      // The interleaving the previous test does not cover: here the first
-      // instance's own cleanup runs LAST, after a second instance has already
-      // taken over the same id. Delete-by-id-alone would evict the live,
-      // newer registration; the registry deletes only when the id still maps
-      // to the instance the cleanup belongs to.
-      const firstUnregister = registerGate(makeInstance("interleave-5", "Pending"));
-      registerGate(makeInstance("interleave-5", "Allowed"));
-
-      firstUnregister();
-
-      expect(gateInstances()).toEqual([makeInstance("interleave-5", "Allowed")]);
-    });
-  });
-});
 
 describe("what the page still renders", () => {
   it("renders children through the marker", () => {
@@ -469,5 +362,179 @@ describe("what the page still renders", () => {
       true,
     );
     expect(screen.getByText("denied")).toBeDefined();
+  });
+});
+
+
+describe("the registry, read from a host", () => {
+  it("tells a subscribed host on mount, and not after it unsubscribed", () => {
+    const set = atoms();
+    let notified = 0;
+    const unsubscribe = set.gates.subscribe(() => {
+      notified += 1;
+    });
+    const view = render(
+      <QadiProvider atoms={set} subject={alice} instrument>
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>,
+    );
+    expect(notified).toBeGreaterThan(0);
+
+    unsubscribe();
+    const settled = notified;
+    view.unmount();
+    expect(notified).toBe(settled);
+  });
+});
+
+describe("scoped to its atom set", () => {
+  it("two atom sets do not share guards", () => {
+    const tenantA = atoms();
+    const tenantB = atoms();
+    render(
+      <>
+        <QadiProvider atoms={tenantA} subject={alice} instrument>
+          <Can policy={canRead}>a</Can>
+        </QadiProvider>
+        <QadiProvider atoms={tenantB} subject={alice} instrument>
+          <Can policy={isAdmin}>b</Can>
+        </QadiProvider>
+      </>,
+    );
+    expect(tenantA.gates.instances().map((one) => one.policy)).toEqual([canRead]);
+    expect(tenantB.gates.instances().map((one) => one.policy)).toEqual([isAdmin]);
+  });
+
+  it("two hydrated roots sharing one atom set both stay listed", () => {
+    const collisions: Array<string> = [];
+    const shared = makeQadiAtoms(EvaluationServicesNone, {
+      onGateIdCollision: (id) => collisions.push(id),
+    });
+    const tree = (policy: typeof canRead) => (
+      <QadiProvider atoms={shared} subject={alice} instrument>
+        <Can policy={policy}>guarded</Can>
+      </QadiProvider>
+    );
+    const a = document.createElement("div");
+    const b = document.createElement("div");
+    document.body.append(a, b);
+    a.innerHTML = renderToString(tree(canRead));
+    b.innerHTML = renderToString(tree(isAdmin));
+
+    const roots: Array<ReturnType<typeof hydrateRoot>> = [];
+    act(() => {
+      roots.push(hydrateRoot(a, tree(canRead), { onRecoverableError: () => {} }));
+    });
+    act(() => {
+      roots.push(hydrateRoot(b, tree(isAdmin), { onRecoverableError: () => {} }));
+    });
+    try {
+      const listed = shared.gates.instances();
+      expect(listed).toHaveLength(2);
+      expect(new Set(listed.map((one) => one.id)).size).toBe(2);
+      expect(listed.map((one) => one.state).sort()).toEqual(["Allowed", "Denied"]);
+      expect(collisions).toEqual(["_R_0_"]);
+
+      act(() => roots[0]?.unmount());
+      expect(shared.gates.instances()).toHaveLength(1);
+    } finally {
+      act(() => roots.forEach((root) => root.unmount()));
+    }
+  });
+
+  it("the `gates` prop routes registration to the registry it names", () => {
+    const set = atoms();
+    const own = makeGateRegistry();
+    render(
+      <QadiProvider atoms={set} subject={alice} instrument gates={own}>
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>,
+    );
+    expect(own.instances()).toHaveLength(1);
+    expect(set.gates.instances()).toEqual([]);
+  });
+
+  it("a hand-built `gates` registers nothing and renders no marker", () => {
+    // Off means absent extends to a registry this package cannot write to.
+    const foreign = { instances: () => [], subscribe: () => () => {} };
+    const { container } = render(
+      <QadiProvider atoms={atoms()} subject={alice} instrument gates={foreign}>
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>,
+    );
+    expect(container.querySelector("[data-qadi-gate]")).toBeNull();
+    expect(foreign.instances()).toEqual([]);
+  });
+
+  it("StrictMode registers once", () => {
+    const set = atoms();
+    const view = render(
+      <StrictMode>
+        <QadiProvider atoms={set} subject={alice} instrument>
+          <Can policy={canRead}>allowed</Can>
+        </QadiProvider>
+      </StrictMode>,
+    );
+    expect(set.gates.instances()).toHaveLength(1);
+    view.unmount();
+    expect(set.gates.instances()).toHaveLength(0);
+  });
+});
+
+describe("useGateInstances", () => {
+  const Count = () => <output data-testid="count">{useGateInstances().length}</output>;
+
+  it("re-renders its caller as guards mount and unmount", () => {
+    const set = atoms();
+    const tree = (guarded: boolean) => (
+      <QadiProvider atoms={set} subject={alice} instrument>
+        <Count />
+        {guarded ? <Can policy={canRead}>allowed</Can> : null}
+      </QadiProvider>
+    );
+    const view = render(tree(true));
+    expect(screen.getByTestId("count").textContent).toBe("1");
+    view.rerender(tree(false));
+    expect(screen.getByTestId("count").textContent).toBe("0");
+  });
+
+  it("returns the same array reference across a rerender with no change", () => {
+    const seen: Array<ReadonlyArray<unknown>> = [];
+    const Probe = ({ tick }: { tick: number }) => {
+      seen.push(useGateInstances());
+      return <span>{tick}</span>;
+    };
+    const set = atoms();
+    const tree = (tick: number) => (
+      <QadiProvider atoms={set} subject={alice} instrument>
+        <Can policy={canRead}>allowed</Can>
+        <Probe tick={tick} />
+      </QadiProvider>
+    );
+    const view = render(tree(0));
+    view.rerender(tree(1));
+    expect(seen.length).toBeGreaterThan(1);
+    expect(seen[seen.length - 1]).toBe(seen[seen.length - 2]);
+  });
+
+  it("throws MissingQadiProviderError outside a provider", () => {
+    const quiet = console.error;
+    console.error = () => {};
+    try {
+      expect(() => render(<Count />)).toThrow(MissingQadiProviderError);
+    } finally {
+      console.error = quiet;
+    }
+  });
+
+  it("lists the `gates` override's guards", () => {
+    const own = makeGateRegistry();
+    render(
+      <QadiProvider atoms={atoms()} subject={alice} instrument gates={own}>
+        <Count />
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>,
+    );
+    expect(screen.getByTestId("count").textContent).toBe("1");
   });
 });

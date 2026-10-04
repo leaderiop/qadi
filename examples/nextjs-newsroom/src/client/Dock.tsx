@@ -30,7 +30,7 @@ import {
 } from "@qadi/devtools";
 import type { HydrationActivity, PortActivity, PortCallLog, WiringReport } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
-import { gateInstances, subscribeGates, useInvalidate, useSubject } from "@qadi/react";
+import { useGateInstances, useInvalidate, useSubject } from "@qadi/react";
 import { catalogue } from "../domain/policies.ts";
 import { readDevtools } from "../domain/permissions.ts";
 import { allRoles } from "../domain/roles.ts";
@@ -124,7 +124,9 @@ export const Dock = () => {
   // changes — and never on a re-render that changes nothing about it.
   const source = useMemo(makeSource, [subject?.id]);
 
-  const gates = useSyncExternalStore(subscribeGates, gateInstances, gateInstances);
+  // Who is asking, from the provider's own registry — the one `atoms.asked()`
+  // below belongs to, so the two halves of the Questions panel share a scope.
+  const gates = useGateInstances();
   const mismatches = useSyncExternalStore(
     subscribeMismatches,
     mismatchSnapshot,
