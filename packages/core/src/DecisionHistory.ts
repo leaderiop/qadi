@@ -13,13 +13,16 @@
  * list, and React's `Can` re-evaluates on render, so a component mounting would
  * record accesses that never happened.
  */
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
-import type { DecisionHistoryUnavailable } from "./Errors.ts";
+import { DecisionHistoryUnavailable } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
+import { nonePort } from "./PortDerivation.ts";
+import type { PortDescription } from "./PortDescription.ts";
 
 /**
  * What the port can say about a past event.
@@ -74,17 +77,43 @@ export class DecisionHistory extends Context.Service<
 }
 
 /**
+ * The decision-history port, described once (`PortDescription.ts`).
+ *
+ * A request is keyed by `(subjectId, event, resourceId)`, with an absent
+ * resource as `null`, so an "ever, at all" question stays distinct from any
+ * resource-scoped one.
+ */
+export const decisionHistoryPort: PortDescription<
+  "DecisionHistory",
+  DecisionHistory,
+  DecisionHistoryShape,
+  [query: ActedQuery],
+  ActedResult,
+  DecisionHistoryUnavailable
+> = {
+  port: "DecisionHistory",
+  method: "hasActed",
+  span: "qadi.acted",
+  service: DecisionHistory,
+  invoke: (shape) => (query) => shape.hasActed(query),
+  make: (name, call) => ({ name, hasActed: call }),
+  failure: ([query], cause) => new DecisionHistoryUnavailable({ event: query.event, cause }),
+  defect: ([query], cause) =>
+    new DecisionHistoryUnavailable({ event: query.event, cause: Cause.squash(cause) }),
+  key: ([query]) => JSON.stringify([query.subjectId, query.event, query.resourceId ?? null]),
+  none: { name: "DecisionHistoryUnknown", answer: "Unknown" },
+};
+
+/**
  * Knows nothing, so every history policy denies.
  *
  * The default. Unlike `RelationshipResolverNever` this needs no polarity
  * argument: `"Unknown"` is not "did not act", so `hasNotActed` denies under it
  * just as `hasActed` does. That is why the port is three-valued
  * ([INV-QD-007](../../../spec/invariants.md#inv-qd-007-defaults-fail-closed)).
+ * Derived from {@link decisionHistoryPort}'s `none` (ADR-QD-040).
  */
-export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory> = Layer.succeed(
-  DecisionHistory,
-  { name: "DecisionHistoryUnknown", hasActed: () => Effect.succeed("Unknown") },
-);
+export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory> = nonePort(decisionHistoryPort);
 
 /**
  * One event to seed {@link decisionHistoryFromEvents} with.

@@ -25,6 +25,8 @@ export * from "./Matcher.ts";
 export * from "./Obligation.ts";
 export * from "./Permission.ts";
 export * from "./Policy.ts";
+export * from "./PortDescription.ts";
+export * from "./PortDoubles.ts";
 export * from "./PortMetrics.ts";
 export * from "./Predicate.ts";
 export * from "./PredicateLiteral.ts";

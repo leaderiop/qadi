@@ -12,7 +12,7 @@
  * what is genuinely its own: what to do with the answer.
  *
  * Deliberately out of the barrel (AGENTS.md §9): scaffolding shared by the two
- * interpreters, like `RetryingLayer.ts`, reachable only through the `./*`
+ * interpreters, like `PortDerivation.ts`, reachable only through the `./*`
  * subpath.
  */
 import * as Cause from "effect/Cause";

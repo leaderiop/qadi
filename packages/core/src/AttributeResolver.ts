@@ -7,23 +7,17 @@
  * short-circuiting: an `anyOf` whose first branch allowed still paid for every
  * lookup in every other branch.
  */
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
-import * as Semaphore from "effect/Semaphore";
 import { AttributeResolveError } from "./Errors.ts";
-import { InvalidBoundedPermits } from "./Errors.ts";
+import type { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
-import { portTimeoutsTotal } from "./PortMetrics.ts";
-import {
-  boundedPermits,
-  retryCountingAttempts,
-  wrapService,
-  wrapServiceEffect,
-} from "./RetryingLayer.ts";
+import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
+import type { PortDescription } from "./PortDescription.ts";
 
 export interface AttributeResolverShape {
   /**
@@ -83,15 +77,42 @@ export class AttributeResolver extends Context.Service<
 }
 
 /**
+ * The attribute port, described once (`PortDescription.ts`): the wrappers and
+ * the default below, `PortAccess.ts`'s defect mapping and span, the doubles
+ * (`PortDoubles.ts`) and `@qadi/devtools`' capture/replay all read it.
+ *
+ * A request is keyed by `(subjectId, attribute)`.
+ */
+export const attributeResolverPort: PortDescription<
+  "AttributeResolver",
+  AttributeResolver,
+  AttributeResolverShape,
+  [subjectId: SubjectId, attribute: string],
+  unknown,
+  AttributeResolveError
+> = {
+  port: "AttributeResolver",
+  method: "resolve",
+  span: "qadi.attribute",
+  service: AttributeResolver,
+  invoke: (shape) => (subjectId, attribute) => shape.resolve(subjectId, attribute),
+  make: (name, call) => ({ name, resolve: call }),
+  failure: ([, attribute], cause) => new AttributeResolveError({ attribute, cause }),
+  defect: ([, attribute], cause) =>
+    new AttributeResolveError({ attribute, cause: Cause.squash(cause) }),
+  key: ([subjectId, attribute]) => JSON.stringify([subjectId, attribute]),
+  none: { name: "AttributeResolverNone", answer: undefined },
+};
+
+/**
  * Resolves nothing.
  *
  * The default. Policies that reference only attributes already present on the
- * subject need no resolver, and this layer lets them run without one.
+ * subject need no resolver, and this layer lets them run without one. Derived
+ * from {@link attributeResolverPort}'s `none` (ADR-QD-040): it answers
+ * `undefined` to every request.
  */
-export const AttributeResolverNone: Layer.Layer<AttributeResolver> = Layer.succeed(
-  AttributeResolver,
-  { name: "AttributeResolverNone", resolve: () => Effect.succeed(undefined) },
-);
+export const AttributeResolverNone: Layer.Layer<AttributeResolver> = nonePort(attributeResolverPort);
 
 /** Resolves from a static table. Useful for tests and fixed configuration. */
 export const attributeResolverFromRecord = (
@@ -114,31 +135,15 @@ export const attributeResolverFromRecord = (
  * graph database or a remote service", which does.
  *
  * **The attempt count is annotated onto the caller's current span** (KH-01)
- * — `qadi.attempts`, `1` when the first attempt simply succeeds. Without
- * this, `PortAccess.ts`'s `resolveAttribute` opens one `qadi.attribute` span
- * around the whole wrapped call, and every retry this layer performs happens
- * silently inside that one span's duration: a trace reader sees one
- * deceptively slow call rather than the N store round trips that actually
- * happened. `portRetriesTotal` (`PortMetrics.ts`) already counts failed
- * attempts, but as a process-wide aggregate with no correlation back to the
- * request that triggered them — this annotation is the per-call signal that
- * aggregate cannot give. The accounting lives in `RetryingLayer.ts`'s
- * `retryCountingAttempts`, shared with every other `*Retrying` wrapper.
+ * — `qadi.attempts`, `1` when the first attempt simply succeeds — and failed
+ * attempts count in `portRetriesTotal`. Derived from
+ * {@link attributeResolverPort} by `PortDerivation.ts`'s `retryingPort`, which
+ * says why both exist and why each attempt re-invokes `resolve`.
  */
-export const attributeResolverRetrying =
-  (schedule: Schedule.Schedule<unknown, AttributeResolveError>) =>
-  (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver> =>
-    wrapService(AttributeResolver, layer, (inner) => ({
-      // The wrapper names itself around whatever it wrapped, so a panel reports
-      // the whole stack rather than losing the base implementation's identity.
-      name: `${inner.name ?? "?"} (retrying)`,
-      resolve: (subjectId, attribute) =>
-        retryCountingAttempts(
-          "AttributeResolver",
-          schedule,
-          inner.resolve(subjectId, attribute),
-        ),
-    }));
+export const attributeResolverRetrying: (
+  schedule: Schedule.Schedule<unknown, AttributeResolveError>,
+) => (layer: Layer.Layer<AttributeResolver>) => Layer.Layer<AttributeResolver> =
+  retryingPort(attributeResolverPort);
 
 /**
  * Wraps a resolver layer so no more than `permits` calls to `resolve` run at
@@ -151,84 +156,37 @@ export const attributeResolverRetrying =
  * to `filter` over a large collection has no way, short of this, to keep that
  * fan-out from overwhelming whatever store `resolve` is backed by.
  *
- * Built on `effect/Semaphore` rather than a request-rate limiter: the problem
- * this solves is concurrent in-flight calls, not calls-per-second, and a
- * permit-based bound is the stable, direct tool for that — `effect/Semaphore`
- * is the concurrency primitive; there is no top-level stable rate limiter to
- * reach for instead (`effect/persistence/RateLimiter` exists, but is
- * unstable and shaped for distributed, cross-process quotas, not this).
- *
- * Additive, like {@link attributeResolverRetrying}: a caller who does not
- * reach for this sees no change.
- *
- * Rejects `permits <= 0` rather than building a layer that deadlocks every
- * call. `Semaphore.make` performs no validation of its own — `SemaphoreImpl`
- * just assigns the field — so with `permits` zero, negative, `NaN` or
- * infinite, `free` is permanently below the `1` every `withPermit` call
- * needs, and every wrapped `resolve` enqueues in `waitForPermits` forever.
- * Failing here, at layer construction, turns that into a diagnosable
- * `InvalidBoundedPermits` instead of an unexplained hang the first time a
- * caller reaches the wrapped resolver.
+ * Rejects `permits <= 0` (and non-integers) at layer construction with
+ * `InvalidBoundedPermits`, rather than building a layer that deadlocks every
+ * call. Derived from {@link attributeResolverPort} by `PortDerivation.ts`'s
+ * `boundedPort`, which says why a semaphore and not a rate limiter.
  */
-export const attributeResolverBounded =
-  (permits: number) =>
-  (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver, InvalidBoundedPermits> =>
-    wrapServiceEffect(AttributeResolver, layer, (inner) =>
-      Effect.map(boundedPermits(permits), (semaphore) => ({
-        name: `${inner.name ?? "?"} (bounded ${permits})`,
-        resolve: (subjectId, attribute) =>
-          Semaphore.withPermit(semaphore)(inner.resolve(subjectId, attribute)),
-      })),
-    );
+export const attributeResolverBounded: (
+  permits: number,
+) => (
+  layer: Layer.Layer<AttributeResolver>,
+) => Layer.Layer<AttributeResolver, InvalidBoundedPermits> = boundedPort(attributeResolverPort);
 
 /**
  * Wraps a resolver layer so a `resolve` call that does not settle within
  * `duration` fails with a typed `AttributeResolveError` instead of holding
- * its caller open indefinitely (JM-01/WV-01/SP-01).
+ * its caller open indefinitely (JM-01/WV-01/SP-01), and counts in
+ * `portTimeoutsTotal`.
  *
- * `attributeResolverRetrying` only ever sees `resolve` *fail* —
- * `Effect.retry`'s schedule fires on a settled error, and a resolver backed by
- * a store whose TCP connection black-holes never settles at all, so it
- * produces neither a retry nor a typed failure; it just holds the fiber.
- * `attributeResolverBounded` makes this worse rather than better on its own:
- * a hung call parked under its semaphore keeps the permit it acquired
- * forever, so one wedged resolver call eventually queues every subsequent
- * one behind it, turning a single slow dependency into a standing outage of
- * the whole enforcement path. Composing `attributeResolverTimingOut` beneath
- * `attributeResolverBounded` closes that: a timed-out call fails and releases
- * its permit like any other failure, rather than holding it.
+ * A retry schedule only ever fires on a *settled* failure, and a bounded
+ * wrapper's permit stays held by a hung call — so this is the wrapper that
+ * turns a black-holed store into a failure. Composes with both: put outermost
+ * (closest to the caller) so a request that has already exhausted its retries
+ * is not then held open a second, unbounded time; put innermost (closest to
+ * the real resolver) so each individual attempt, not the whole retried
+ * sequence, is what the deadline bounds. Beneath `attributeResolverBounded`, a
+ * timed-out call releases its permit like any other failure.
  *
- * `duration` is `Duration.Input`, matching `CircuitBreaker.ts`'s
- * `resetTimeoutMs` — a plain millisecond number is still valid input, the
- * type only widens what else is accepted.
- *
- * Additive, like `attributeResolverRetrying`/`attributeResolverBounded`: a
- * caller who does not reach for this sees no change. Composes with both — put
- * outermost (closest to the caller) so a request that has already exhausted
- * its retries is not then held open a second, unbounded time by a resolver
- * that stopped answering mid-retry; put innermost (closest to the real
- * resolver) so each individual attempt, not the whole retried sequence, is
- * what the deadline bounds.
+ * `duration` is `Duration.Input` — a plain millisecond number is still valid.
+ * Derived from {@link attributeResolverPort} by `PortDerivation.ts`'s
+ * `timingOutPort`.
  */
-export const attributeResolverTimingOut =
-  (duration: Duration.Input) =>
-  (layer: Layer.Layer<AttributeResolver>): Layer.Layer<AttributeResolver> =>
-    wrapService(AttributeResolver, layer, (inner) => ({
-      name: `${inner.name ?? "?"} (timing out)`,
-      resolve: (subjectId, attribute) =>
-        inner.resolve(subjectId, attribute).pipe(
-          Effect.timeout(duration),
-          Effect.catchTag("TimeoutError", () =>
-            Metric.update(portTimeoutsTotal, "AttributeResolver").pipe(
-              Effect.flatMap(() =>
-                Effect.fail(
-                  new AttributeResolveError({
-                    attribute,
-                    cause: new Error(`AttributeResolver.resolve did not settle within the configured deadline`),
-                  }),
-                ),
-              ),
-            ),
-          ),
-        ),
-    }));
+export const attributeResolverTimingOut: (
+  duration: Duration.Input,
+) => (layer: Layer.Layer<AttributeResolver>) => Layer.Layer<AttributeResolver> =
+  timingOutPort(attributeResolverPort);

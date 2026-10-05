@@ -5,7 +5,7 @@
  * *means*, not a new shape crossing the wire. `FieldOptions.fields` stays
  * `ReadonlyArray<string>` in `Policy.ts` — nothing here is `Schema`-encoded,
  * and nothing here is exported from `index.ts`'s barrel, for the same reason
- * `RetryingLayer.ts` isn't (`PortMetrics.ts` *is* barrel-exported — citing it
+ * `PortDerivation.ts` isn't (`PortMetrics.ts` *is* barrel-exported — citing it
  * here as a like-for-like exclusion was stale): this is machinery
  * `Decision.ts` calls, not a public surface of its own.
  *
