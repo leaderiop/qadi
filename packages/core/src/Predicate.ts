@@ -16,6 +16,7 @@ import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import type { AttributeResolver } from "./AttributeResolver.ts";
+import { compareVerdict, holds, memberVerdict } from "./Compare.ts";
 import type { CompareOp } from "./Compare.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
@@ -34,7 +35,6 @@ import { permissionKey } from "./Permission.ts";
 import { DEFAULT_MAX_DEPTH, fieldsOf, foldPolicy, policyDepth } from "./Policy.ts";
 import { askActedAny, readAttribute } from "./PortAccess.ts";
 import type { Combining, Policy, RuleEffect } from "./Policy.ts";
-import { isRangeBound } from "./PredicateLiteral.ts";
 import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
 
 // ---------------------------------------------------------------------------
@@ -115,66 +115,27 @@ const negate = (predicate: Predicate): Predicate => {
   return { _tag: "Negate", predicate };
 };
 
-/**
- * Dispatches through a `Match.type<CompareOp>()` built once at module scope,
- * mirroring `dispatchPredicate` above and for the identical reason
- * (AGENTS.md §5a): `compare` runs once per `Compare` node **per row**, on
- * `evaluatePredicate`'s own reference-interpreter path that the predicate-sql
- * and predicate-prisma differential property tests drive at 150 predicates ×
- * 12 rows per property (`Agreement.test.ts`) — exactly the per-row hot path
- * §5a measures a per-call `Match.value` rebuild at 3.5–7.7× slower on
- * (JC-03, AN-04). `value`/`against` are call-time state a matcher built once
- * at module scope cannot see, so — the same shape `dispatchPredicate` already
- * uses for `row` — each arm returns a closure over them rather than reading
- * them directly.
+/*
+ * Module-local bindings of `Compare.ts`'s verdicts, read once at load:
+ * `evaluatePredicate` runs once per node per row, and under a module runner
+ * that turns imported bindings into getters a direct call pays one per leaf
+ * per row (the same measurement that put them in `Matcher.ts`, ARCH-08 T8).
  */
-const dispatchCompare: (op: CompareOp) => (value: unknown, against: unknown) => boolean =
-  Match.type<CompareOp>().pipe(
-    // Mirrors `Matcher.ts`'s `Eq`/`Neq` (CCR-QD-112): an absent operand —
-    // either a missing column or a subject-side ref that resolved to
-    // nothing — denies rather than comparing. Without this,
-    // `evaluatePredicate` and `evaluateMatcher` would disagree on exactly
-    // the shapes `PROPERTY: the two interpreters agree, row by row` fuzzes.
-    Match.when(
-      "Eq",
-      () => (value: unknown, against: unknown) =>
-        value !== undefined && against !== undefined && value === against,
-    ),
-    Match.when(
-      "Neq",
-      () => (value: unknown, against: unknown) =>
-        value !== undefined && against !== undefined && value !== against,
-    ),
-    // Both operands must be finite numbers, exactly as in `evaluateMatcher`'s
-    // `Gte`/`Lt` (BEH-QD-027, CCR-QD-116); `isRangeBound` (`PredicateLiteral.ts`)
-    // is that check, and as a type predicate it leaves no `typeof` half behind.
-    //
-    // Until CCR-QD-172 only the bound was guarded (issue #65, CCR-QD-120), on
-    // the belief that the two interpreters could not disagree about a
-    // non-finite *row* value. They did: the matcher denies `Infinity >= x`, so `gte(3)` admitted an `Infinity` row and `lt(3)` a
-    // `-Infinity` row here while `evaluate` denied both — an INV-QD-018
-    // divergence in the fail-open direction.
-    Match.when(
-      "Gte",
-      () => (value: unknown, against: unknown) =>
-        isRangeBound(value) && isRangeBound(against) && value >= against,
-    ),
-    Match.when(
-      "Lt",
-      () => (value: unknown, against: unknown) =>
-        isRangeBound(value) && isRangeBound(against) && value < against,
-    ),
-    Match.exhaustive,
-  );
-
-const compare = (op: CompareOp, value: unknown, against: unknown): boolean =>
-  dispatchCompare(op)(value, against);
+const compareLocal = compareVerdict;
+const memberLocal = memberVerdict;
+const holdsLocal = holds;
 
 /**
  * The reference semantics of a predicate, applied to one row.
  *
  * This is what makes a second interpreter trustworthy rather than merely
  * plausible. Callers compiling to SQL should differential-test against it.
+ *
+ * A `Compare` or `MemberOf` leaf is `Compare.ts`'s verdict for the row's cell —
+ * the same function `judgeMatcher` applies to a resolved value — so the leaves
+ * of the two interpreters cannot disagree by construction (INV-QD-091). Before
+ * ARCH-08 they were two hand-kept copies, and the row half of the finite rule
+ * was missing here (CCR-QD-172).
  *
  * Dispatches through a `Match.type<Predicate>()` built once at module scope,
  * per AGENTS.md §5a's guidance for a per-row, per-node hot path — this
@@ -194,8 +155,8 @@ const dispatchPredicate: (self: Predicate) => (row: Row) => boolean = Match.type
   Match.tagsExhaustive({
     True: () => (_row: Row) => true,
     False: () => (_row: Row) => false,
-    Compare: (p) => (row: Row) => compare(p.op, row[p.column], p.value),
-    MemberOf: (p) => (row: Row) => p.values.includes(row[p.column]),
+    Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, row[p.column], p.value)),
+    MemberOf: (p) => (row: Row) => holdsLocal(memberLocal(row[p.column], p.values)),
     And: (p) => (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)),
     Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),
     Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row),
@@ -262,7 +223,13 @@ const constantRef = (ref: ValueRef, context: MatcherContext): Folded =>
     }),
   );
 
-/** Translates a resource-attribute matcher into a column comparison. */
+/**
+ * Translates a resource-attribute matcher into a column comparison.
+ *
+ * This maps a matcher tag to a `CompareOp` (or `MemberOf`) and nothing more:
+ * what each operator *means* is `Compare.ts`'s, which both `judgeMatcher` and
+ * `evaluatePredicate` apply, so the mapping cannot carry a second copy of a rule.
+ */
 const columnPredicate = (
   column: string,
   matcher: Matcher,
