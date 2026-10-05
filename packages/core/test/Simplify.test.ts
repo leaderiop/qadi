@@ -372,3 +372,67 @@ describe("simplify folds through foldPolicy (ARCH-02)", () => {
     if (out._tag === "AllOf") assert.strictEqual(out.policies[0], out.policies[1]);
   });
 });
+
+describe("INV-QD-024 counterexamples (C4)", () => {
+  /**
+   * `simplify(p)` must disclose exactly what `p` does. An empty `allOf` allows
+   * with `undefined` — the lattice's top — and top is `Intersection`'s unit but
+   * `Union`'s *absorbing* element, and `First` has no unit at all, so absorbing
+   * an empty same-strategy child is sound only under `Intersection`. A strategy
+   * outside the union merges to `[]`, so unwrapping its one child widens from no
+   * fields to that child's (CCR-QD-174, ARCH-12 C4).
+   */
+  const sameDisclosure = (policy: P.Policy, roles: ReadonlyArray<string>) =>
+    Effect.gen(function* () {
+      const layer = testLayer(subjectWith({ id: "u-1", roles: [...roles] }));
+      const before = yield* evaluate(policy).pipe(Effect.provide(layer));
+      const after = yield* evaluate(simplify(policy)).pipe(Effect.provide(layer));
+      assert.strictEqual(isAllowed(after), isAllowed(before), "verdict");
+      if (!isAllowed(before) || !isAllowed(after)) return;
+      assert.deepStrictEqual(after.visibleFields, before.visibleFields, "fields");
+    });
+
+  const x = P.hasRole("editor", { fields: ["a"] });
+  const xor: P.FieldStrategy = JSON.parse('"Xor"');
+
+  it.effect("an empty Union allOf ahead of a restricting child is not absorbed", () =>
+    sameDisclosure(
+      P.allOf([P.allOf([], { fieldStrategy: "Union" }), x], { fieldStrategy: "Union" }),
+      ["editor"],
+    ));
+
+  it.effect("an empty Union allOf after a restricting child is not absorbed", () =>
+    sameDisclosure(
+      P.allOf([x, P.allOf([], { fieldStrategy: "Union" })], { fieldStrategy: "Union" }),
+      ["editor"],
+    ));
+
+  it.effect("an empty First allOf ahead of a restricting child is not absorbed", () =>
+    sameDisclosure(
+      P.allOf([P.allOf([], { fieldStrategy: "First" }), x], { fieldStrategy: "First" }),
+      ["editor"],
+    ));
+
+  it.effect("an empty Intersection allOf is still absorbed: top is its unit", () =>
+    Effect.gen(function* () {
+      const policy = P.allOf([P.allOf([]), x]);
+      yield* sameDisclosure(policy, ["editor"]);
+      // Still a sound rewrite, so still taken.
+      assert.deepStrictEqual(simplify(policy), x);
+    }));
+
+  it.effect("an empty nested anyOf denies and contributes no field set, so it is absorbed", () =>
+    Effect.gen(function* () {
+      for (const fieldStrategy of ["Intersection", "Union", "First"] as const) {
+        const policy = P.anyOf([P.anyOf([], { fieldStrategy }), x], { fieldStrategy });
+        yield* sameDisclosure(policy, ["editor"]);
+        assert.deepStrictEqual(simplify(policy), x, fieldStrategy);
+      }
+    }));
+
+  it.effect("a single-child allOf under a strategy outside the union is not unwrapped", () =>
+    sameDisclosure(P.allOf([P.hasRole("a")], { fieldStrategy: xor }), ["a"]));
+
+  it.effect("a single-child anyOf under a strategy outside the union is not unwrapped", () =>
+    sameDisclosure(P.anyOf([P.hasRole("a")], { fieldStrategy: xor }), ["a"]));
+});

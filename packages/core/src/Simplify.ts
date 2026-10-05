@@ -35,15 +35,42 @@ import { foldPolicy } from "./Policy.ts";
  * library exists, which makes this the failure mode that matters most and the one
  * an "obviously safe" rewrite walks into.
  *
- * Equal strategies are safe because each merge is associative: intersection and
- * union both are, and `First` takes the first child's set either way.
+ * Equal strategies are necessary, because each merge is associative:
+ * intersection and union both are, and `First` takes the first child's set
+ * either way. They are **not sufficient** when the absorbed child is **empty**.
+ * An empty `allOf` allows with `undefined` — what a merge of no inputs grants,
+ * the lattice's top — and top is `Intersection`'s unit but `Union`'s
+ * *absorbing* element, and `First` has no unit at all. So
+ * `allOf([allOf([], { fieldStrategy: "Union" }), x], { fieldStrategy: "Union" })`
+ * grants every field, and flattening it to `x` granted only `x`'s (CCR-QD-174,
+ * ARCH-12 C4). An empty child is absorbed only where top is the merge's unit
+ * (`Intersection`), or under `anyOf`, where an empty child denies and so
+ * contributes no field set to merge at all.
  */
 const absorbable = (
   child: Policy,
   tag: "AllOf" | "AnyOf",
   fieldStrategy: FieldStrategy,
 ): child is Extract<Policy, { _tag: "AllOf" | "AnyOf" }> =>
-  child._tag === tag && child.fieldStrategy === fieldStrategy;
+  child._tag === tag &&
+  child.fieldStrategy === fieldStrategy &&
+  (tag === "AnyOf" || child.policies.length > 0 || fieldStrategy === "Intersection");
+
+/**
+ * The strategies whose one-input merge discloses exactly that input, read
+ * through `Object.hasOwn` so a key `Object.prototype` supplies is not one.
+ *
+ * A strategy outside the union merges to `[]` — no fields — so replacing its
+ * one-child composite with the child would widen from none to that child's
+ * (CCR-QD-174, ARCH-12 C4).
+ */
+const KNOWN: Readonly<Record<FieldStrategy, true>> = {
+  Intersection: true,
+  Union: true,
+  First: true,
+};
+
+const unwrappable = (fieldStrategy: FieldStrategy): boolean => Object.hasOwn(KNOWN, fieldStrategy);
 
 const flatten = (
   policies: ReadonlyArray<Policy>,
@@ -101,8 +128,9 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
 
     AllOf: (p) => (simplifiedChildren: ReadonlyArray<Policy>) => {
       const children = flatten(simplifiedChildren, "AllOf", p.fieldStrategy);
-      // One child means the merge has one input, so every strategy yields that
-      // child's own field set and the wrapper carries nothing.
+      // One child means the merge has one input, so every known strategy yields
+      // that child's own field set and the wrapper carries nothing — but only a
+      // known one: outside the union the merge is `[]` (`unwrappable`).
       //
       // Deliberately `[only, ...rest]`, not `children[0]` plus a length check:
       // TS can't correlate "`children.length === 1`" with "`children[0]` is
@@ -114,7 +142,7 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
       // Destructuring keeps `only`'s definedness and "there was exactly one"
       // tied to the same fact, at the cost of one small discarded array.
       const [only, ...rest] = children;
-      return only !== undefined && rest.length === 0
+      return only !== undefined && rest.length === 0 && unwrappable(p.fieldStrategy)
         ? only
         : { ...p, policies: children };
     },
@@ -122,7 +150,7 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
     AnyOf: (p) => (simplifiedChildren: ReadonlyArray<Policy>) => {
       const children = flatten(simplifiedChildren, "AnyOf", p.fieldStrategy);
       const [only, ...rest] = children;
-      return only !== undefined && rest.length === 0
+      return only !== undefined && rest.length === 0 && unwrappable(p.fieldStrategy)
         ? only
         : { ...p, policies: children };
     },
