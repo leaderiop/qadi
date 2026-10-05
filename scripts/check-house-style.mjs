@@ -492,7 +492,7 @@ const PORT_DOUBLE_BUDGET = {
   "packages/core/test/SignatureHistory.test.ts": 1,
   // Every error round-trips through the wire codec, and a resolver error's
   // `cause` is the position the record codec must carry or refuse (ARCH-09).
-  "packages/core/test/SinkCodec.test.ts": 8,
+  "packages/core/test/SinkCodec.test.ts": 10,
   // An error as a value, for its `_tag`/code.
   "packages/core/test/Tokens.test.ts": 1,
   // A `Failed` record carrying a resolver `cause`, as data the audit encoder

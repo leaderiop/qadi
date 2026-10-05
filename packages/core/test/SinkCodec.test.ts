@@ -1,14 +1,18 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Predicate from "effect/Predicate";
+import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
 import { Allow, Deny } from "../src/Decision.ts";
+import type { Trace } from "../src/Decision.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "../src/DecisionRecord.ts";
+import { exceedsJsonDepth } from "../src/DecodeDepthGuard.ts";
 import {
   AttributeResolveError,
   CustomPredicateError,
   DecisionHistoryUnavailable,
+  EncodeRefusal,
   ERROR_CODES,
   errorCode,
   MissingAction,
@@ -28,6 +32,8 @@ import {
   decodeRecord,
   encodeRecord,
   encodeRecordSync,
+  encodeSinkRecord,
+  encodeSinkRecordString,
   fromWireUnsafe,
   isJsonSafe,
   isRecordJsonSafe,
@@ -1099,6 +1105,420 @@ describe("isRecordJsonSafe", () => {
   });
 });
 
+/** The text `encodeSinkRecordString` produces, failing the test on a refusal. */
+const stringOf = (record: SinkRecord): string =>
+  Result.match(encodeSinkRecordString(record), {
+    onSuccess: (text) => text,
+    onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
+  });
+
+/** The refusal `encodeSinkRecord` gives, or `undefined` when it accepts. */
+const refusalOf = (record: SinkRecord): EncodeRefusal | undefined =>
+  Result.match(encodeSinkRecord(record), {
+    onSuccess: () => undefined,
+    onFailure: (error) => error.refusal,
+  });
+
+/** A `Failed` record whose resolver error carries `cause`, and `resource` if given. */
+const failedRecordWith = (cause: unknown, resource?: Record<string, unknown>): SinkRecord =>
+  new DecisionRecord({
+    evaluationId: "f",
+    at: 1,
+    subjectId: makeSubjectId("u1"),
+    policy: P.hasPermission(read),
+    ...(resource === undefined ? {} : { resource }),
+    outcome: new Failed({ error: new AttributeResolveError({ attribute: "clearance", cause }) }),
+  });
+
+/** A record with a harmless outcome, carrying `resource` and `policy`. */
+const recordWith = (options: { readonly resource?: Record<string, unknown>; readonly policy?: P.Policy }) =>
+  new DecisionRecord({
+    evaluationId: "r",
+    at: 1,
+    subjectId: makeSubjectId("u1"),
+    policy: options.policy ?? P.hasPermission(read),
+    ...(options.resource === undefined ? {} : { resource: options.resource }),
+    outcome: new Failed({ error: new MissingResource({ attribute: "owner" }) }),
+  });
+
+/** The `cause` an encoded `Failed` record carries, read back from its JSON text. */
+const causeOnTheWire = (record: SinkRecord): unknown => {
+  const parsed: unknown = JSON.parse(stringOf(record));
+  return Predicate.hasProperty(parsed, "failed") && Predicate.hasProperty(parsed.failed, "cause")
+    ? parsed.failed.cause
+    : "<absent>";
+};
+
+/** An axios-style HTTP client error: `config`/`request` reference each other. */
+const httpClientError = (): Error => {
+  const config: { url: string; request?: unknown } = { url: "https://attributes.internal/x" };
+  const request = { config };
+  config.request = request;
+  return Object.assign(new Error("Request failed with status code 503"), { config, request });
+};
+
+const nestedAllOf = (levels: number): P.Policy => {
+  let policy: P.Policy = P.hasPermission(read);
+  for (let i = 0; i < levels; i++) policy = P.allOf([policy]);
+  return policy;
+};
+
+const decidedWith = (policy: P.Policy, decisionTrace: Trace): SinkRecord =>
+  new DecisionRecord({
+    evaluationId: "d",
+    at: 1,
+    subjectId: makeSubjectId("u1"),
+    policy,
+    outcome: new Decided({
+      decision: new Allow({
+        evaluationId: "d",
+        subjectId: makeSubjectId("u1"),
+        durationMillis: 1,
+        trace: decisionTrace,
+        visibleFields: undefined,
+        obligations: [],
+      }),
+    }),
+  });
+
+const nestedTrace = (levels: number): Trace => {
+  let node: Trace = { policyTag: "HasPermission", allowed: true, children: [], obligations: [] };
+  for (let i = 0; i < levels; i++) node = { policyTag: "AllOf", allowed: true, children: [node], obligations: [] };
+  return node;
+};
+
+describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
+  describe("a resolver cause crosses through Schema.Defect(), never refused", () => {
+    it("an Error cause becomes {name, message}", () => {
+      assert.deepStrictEqual(causeOnTheWire(failedRecordWith(new Error("db down"))), {
+        name: "Error",
+        message: "db down",
+      });
+    });
+
+    it("a cyclic cause is accepted with the cycle dropped", () => {
+      const cyclic: Record<string, unknown> = { a: 1 };
+      cyclic.self = cyclic;
+      assert.deepStrictEqual(causeOnTheWire(failedRecordWith(cyclic)), { a: 1 });
+    });
+
+    it("a BigInt cause becomes \"10n\"", () => {
+      assert.strictEqual(causeOnTheWire(failedRecordWith(10n)), "10n");
+    });
+
+    it("NaN in a cause becomes null", () => {
+      assert.deepStrictEqual(causeOnTheWire(failedRecordWith({ n: Number.NaN })), { n: null });
+    });
+
+    it("the HTTP-client error becomes {name, message}", () => {
+      assert.deepStrictEqual(causeOnTheWire(failedRecordWith(httpClientError())), {
+        name: "Error",
+        message: "Request failed with status code 503",
+      });
+    });
+  });
+
+  describe("a value that would not round-trip is refused, with its path", () => {
+    it("a cyclic resource is Circular where the repeat is met", () => {
+      // The walk runs over the encoded output, and the schema encode copies a
+      // resource's top level into a fresh object: the copy's `self` is the
+      // caller's object, whose own `self` is where the walk meets it again.
+      const cyclic: Record<string, unknown> = { name: "doc-1" };
+      cyclic.self = cyclic;
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: cyclic })),
+        EncodeRefusal.Circular({ path: ["resource", "self", "self"] }),
+      );
+      const inner: Record<string, unknown> = { name: "inner" };
+      inner.self = inner;
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { inner } })),
+        EncodeRefusal.Circular({ path: ["resource", "inner", "self"] }),
+      );
+    });
+
+    it("a Set in the resource is Opaque Set", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { tags: new Set(["finance"]) } })),
+        EncodeRefusal.Opaque({ path: ["resource", "tags"], kind: "Set", brand: "Set" }),
+      );
+    });
+
+    it("a Map, a RegExp, binary data, a Promise and a boxed primitive are each Opaque, by kind", () => {
+      const kindOf = (value: unknown) => {
+        const refusal = refusalOf(recordWith({ resource: { value } }));
+        return refusal?._tag === "Opaque" ? refusal.kind : refusal?._tag;
+      };
+      assert.strictEqual(kindOf(new Map([["a", 1]])), "Map");
+      assert.strictEqual(kindOf(new WeakMap()), "WeakMap");
+      assert.strictEqual(kindOf(new WeakSet()), "WeakSet");
+      assert.strictEqual(kindOf(/x/), "RegExp");
+      assert.strictEqual(kindOf(new Uint8Array([1, 2])), "BinaryData");
+      assert.strictEqual(kindOf(new ArrayBuffer(2)), "BinaryData");
+      assert.strictEqual(kindOf(new DataView(new ArrayBuffer(2))), "BinaryData");
+      assert.strictEqual(kindOf(Promise.resolve(1)), "Promise");
+      assert.strictEqual(kindOf(Object(1)), "BoxedPrimitive");
+      assert.strictEqual(kindOf(Object("s")), "BoxedPrimitive");
+      assert.strictEqual(kindOf(Object(true)), "BoxedPrimitive");
+    });
+
+    it("a HasCustom.params holding a BigInt is Unrepresentable bigint under [policy, params]", () => {
+      const refusal = refusalOf(recordWith({ policy: P.hasCustom("legalHold", { limit: 10n }) }));
+      assert.deepStrictEqual(refusal, EncodeRefusal.Unrepresentable({ path: ["policy", "params", "limit"], kind: "bigint" }));
+    });
+
+    it("a function and a symbol are Unrepresentable, by kind", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { handler: () => "nope" } })),
+        EncodeRefusal.Unrepresentable({ path: ["resource", "handler"], kind: "function" }),
+      );
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { tag: Symbol("x") } })),
+        EncodeRefusal.Unrepresentable({ path: ["resource", "tag"], kind: "symbol" }),
+      );
+    });
+
+    it("an object with an enumerable symbol key is Unrepresentable symbol — JSON drops the key", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { meta: { [Symbol("k")]: 1 } } })),
+        EncodeRefusal.Unrepresentable({ path: ["resource", "meta"], kind: "symbol" }),
+      );
+    });
+
+    it("NaN and the infinities in the resource are NonFinite", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { score: Number.NaN } })),
+        EncodeRefusal.NonFinite({ path: ["resource", "score"] }),
+      );
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { score: [1, Number.NEGATIVE_INFINITY] } })),
+        EncodeRefusal.NonFinite({ path: ["resource", "score", 1] }),
+      );
+    });
+
+    it("an invalid Date is NonFinite", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { at: new Date(Number.NaN) } })),
+        EncodeRefusal.NonFinite({ path: ["resource", "at"] }),
+      );
+    });
+
+    it("an undefined array element is Unrepresentable undefined-element", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { list: [1, undefined] } })),
+        EncodeRefusal.Unrepresentable({ path: ["resource", "list", 1], kind: "undefined-element" }),
+      );
+    });
+
+    it("a URL is Opaque CustomToJSON", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { link: new URL("https://example.com/a") } })),
+        EncodeRefusal.Opaque({ path: ["resource", "link"], kind: "CustomToJSON", brand: "URL" }),
+      );
+    });
+
+    it("an Error inside the resource is Opaque Error", () => {
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { last: new Error("x") } })),
+        EncodeRefusal.Opaque({ path: ["resource", "last"], kind: "Error", brand: "Error" }),
+      );
+    });
+
+    it("any other built-in is Opaque OtherBuiltIn", () => {
+      const refusal = refusalOf(recordWith({ resource: { gen: (function* () {})() } }));
+      assert.strictEqual(refusal?._tag === "Opaque" ? refusal.kind : undefined, "OtherBuiltIn");
+    });
+
+    it("a throwing getter is EncodeFailed, never a throw", () => {
+      const hostile = {
+        get boom(): unknown {
+          throw new Error("getter exploded");
+        },
+      };
+      const refusal = refusalOf(recordWith({ resource: { nested: hostile } }));
+      assert.deepStrictEqual(refusal, EncodeRefusal.EncodeFailed({ message: "getter exploded" }));
+    });
+
+    it("the refusal names the record it refused", () => {
+      const result = encodeSinkRecord(recordWith({ resource: { tags: new Set() } }));
+      assert.isTrue(Result.isFailure(result));
+      if (Result.isFailure(result)) {
+        assert.strictEqual(result.failure._tag, "SinkRecordNotEncodable");
+        assert.strictEqual(result.failure.recordTag, "Decision");
+        assert.strictEqual(result.failure.evaluationId, "r");
+        assert.strictEqual(errorCode(result.failure), "ACL090");
+      }
+    });
+  });
+
+  describe("what is accepted", () => {
+    it("an undefined property arrives with the key absent", () => {
+      const parsed: unknown = JSON.parse(stringOf(recordWith({ resource: { a: undefined, b: 1 } })));
+      assert.deepStrictEqual(Predicate.hasProperty(parsed, "resource") ? parsed.resource : undefined, { b: 1 });
+    });
+
+    it("a valid Date arrives as its ISO string", () => {
+      const parsed: unknown = JSON.parse(
+        stringOf(recordWith({ resource: { at: new Date("2026-01-01T00:00:00.000Z") } })),
+      );
+      assert.deepStrictEqual(Predicate.hasProperty(parsed, "resource") ? parsed.resource : undefined, {
+        at: "2026-01-01T00:00:00.000Z",
+      });
+    });
+
+    it("a shared, non-cyclic child reached twice is accepted", () => {
+      const shared = { street: "Main St" };
+      assert.isUndefined(refusalOf(recordWith({ resource: { billing: shared, shipping: shared } })));
+    });
+
+    it("an ObligationRecord is accepted as it is", () => {
+      const record: SinkRecord = new ObligationRecord({
+        evaluationId: "o",
+        at: 1,
+        outcome: "Discharged",
+        obligationIds: ["audit.log"],
+      });
+      assert.strictEqual(
+        stringOf(record),
+        '{"_tag":"Obligations","evaluationId":"o","at":1,"outcome":"Discharged","obligationIds":["audit.log"]}',
+      );
+    });
+  });
+
+  describe("depth is bounded by what a receiver accepts, and the encode cannot overflow", () => {
+    it("a 5,000-deep policy is TooDeep at [policy], with no throw", () => {
+      let deep: P.Policy = P.hasPermission(read);
+      for (let i = 0; i < 5_000; i++) deep = P.not(deep);
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ policy: deep })),
+        EncodeRefusal.TooDeep({ path: ["policy"], maxDepth: P.MAX_DECODE_DEPTH }),
+      );
+    });
+
+    it("a cyclic policy is Circular at [policy]", () => {
+      const children: Array<P.Policy> = [];
+      const cyclic = P.allOf(children);
+      children.push(cyclic);
+      assert.deepStrictEqual(refusalOf(recordWith({ policy: cyclic })), EncodeRefusal.Circular({ path: ["policy"] }));
+    });
+
+    it("a hand-built 300-deep trace is TooDeep at [decided, trace]", () => {
+      assert.deepStrictEqual(
+        refusalOf(decidedWith(P.hasPermission(read), nestedTrace(300))),
+        EncodeRefusal.TooDeep({ path: ["decided", "trace"], maxDepth: P.MAX_DECODE_DEPTH }),
+      );
+    });
+
+    it("an allOf×130 record — one a receiver refuses — is TooDeep", () => {
+      const refusal = refusalOf(decidedWith(nestedAllOf(130), nestedTrace(1)));
+      assert.strictEqual(refusal?._tag, "TooDeep");
+    });
+
+    it("an allOf×90 record succeeds", () => {
+      assert.isUndefined(refusalOf(decidedWith(nestedAllOf(90), nestedTrace(90))));
+    });
+
+    it("a deep resource is TooDeep at the first value past the bound", () => {
+      let resource: Record<string, unknown> = { leaf: 1 };
+      for (let i = 0; i < 300; i++) resource = { next: resource };
+      const refusal = refusalOf(recordWith({ resource }));
+      assert.strictEqual(refusal?._tag, "TooDeep");
+      if (refusal?._tag === "TooDeep") assert.strictEqual(refusal.path.length, P.MAX_DECODE_DEPTH + 1);
+    });
+  });
+
+  describe("properties", () => {
+    /** Anything a caller could put in a `resource`, a `params` or a `cause`. */
+    const hostile: FastCheck.Arbitrary<unknown> = FastCheck.letrec<{ value: unknown }>((tie) => ({
+      value: FastCheck.oneof(
+        { maxDepth: 4 },
+        FastCheck.jsonValue({ maxDepth: 2 }),
+        FastCheck.constantFrom<unknown>(
+          undefined,
+          Number.NaN,
+          Number.POSITIVE_INFINITY,
+          10n,
+          Symbol("s"),
+          () => 1,
+          new Date(Number.NaN),
+          new Date(0),
+          /x/,
+          new Uint8Array([1]),
+          new Error("e"),
+          httpClientError(),
+        ),
+        FastCheck.array(tie("value"), { maxLength: 3 }).map((items) => new Set(items)),
+        FastCheck.array(FastCheck.tuple(FastCheck.string(), tie("value")), { maxLength: 3 }).map(
+          (entries) => new Map(entries),
+        ),
+        FastCheck.array(tie("value"), { maxLength: 3 }),
+        FastCheck.dictionary(FastCheck.string(), tie("value"), { maxKeys: 3 }),
+        tie("value").map((inner) => {
+          const cyclic: Record<string, unknown> = { inner };
+          cyclic.self = cyclic;
+          return cyclic;
+        }),
+        FastCheck.constant({
+          get boom(): unknown {
+            throw new Error("getter");
+          },
+        }),
+        FastCheck.constant({
+          toString: () => {
+            throw new Error("toString");
+          },
+        }),
+      ),
+    })).value;
+
+    it("totality: encodeSinkRecord never throws, over hostile resources, params and causes (INV-QD-903)", () => {
+      FastCheck.assert(
+        FastCheck.property(hostile, hostile, hostile, (resource, params, cause) => {
+          const record = new DecisionRecord({
+            evaluationId: "h",
+            at: 1,
+            subjectId: makeSubjectId("u1"),
+            policy: P.allOf([P.hasPermission(read), P.hasCustom("custom", params)]),
+            resource: { value: resource },
+            outcome: new Failed({ error: new AttributeResolveError({ attribute: "a", cause }) }),
+          });
+          encodeSinkRecord(record);
+          encodeSinkRecordString(record);
+        }),
+        { numRuns: 300, seed: 9091 },
+      );
+    });
+
+    it("agreement: a resource is TooDeep exactly when the receiver's depth guard would refuse the wire", () => {
+      // Wraps a small JSON value in 240–270 container levels, so the record
+      // lands either side of `MAX_DECODE_DEPTH`; the expected verdict is the
+      // receiver's own guard over the same wire, hand-built.
+      const nested = FastCheck.tuple(
+        FastCheck.jsonValue({ maxDepth: 2 }),
+        FastCheck.array(FastCheck.boolean(), { minLength: 240, maxLength: 270 }),
+      ).map(([leaf, wrappers]) =>
+        wrappers.reduce<unknown>((inner, asArray) => (asArray ? [inner] : { inner }), leaf),
+      );
+      FastCheck.assert(
+        FastCheck.property(nested, (value) => {
+          const record = recordWith({ resource: { value } });
+          const wire = {
+            _tag: "Decision",
+            evaluationId: "r",
+            at: 1,
+            subjectId: "u1",
+            policy: { _tag: "HasPermission", permission: { resource: "doc", action: "read" } },
+            resource: { value },
+            failed: { _tag: "MissingResource", attribute: "owner" },
+          };
+          return (refusalOf(record)?._tag === "TooDeep") === exceedsJsonDepth(wire, P.MAX_DECODE_DEPTH);
+        }),
+        { numRuns: 200, seed: 7319 },
+      );
+    });
+  });
+});
+
 /**
  * The bytes a `Decided` record puts on the wire, pinned at commit 1caf04c —
  * before the decision codec moved into `DecisionWire.ts` (ARCH-05 T1). The move
@@ -1120,7 +1540,11 @@ describe("a decided record encodes byte-identically to 1caf04c", () => {
     children: [],
     obligations: [],
   });
-  const encoded = (record: SinkRecord): string => JSON.stringify(encodeRecordSync(toWire(record)));
+  const encoded = (record: SinkRecord): string => {
+    const viaOperation = stringOf(record);
+    assert.strictEqual(viaOperation, JSON.stringify(encodeRecordSync(toWire(record))));
+    return viaOperation;
+  };
 
   it("an Allow with visibleFields and an obligation", () => {
     const record = goldenRecord(

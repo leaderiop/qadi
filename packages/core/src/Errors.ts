@@ -349,6 +349,128 @@ export class InvalidBoundedPermits extends Data.TaggedError("InvalidBoundedPermi
   readonly permits: number;
 }> {}
 
+/**
+ * The `_tag` of a `SinkRecord` — `"Decision"` or `"Obligations"`.
+ *
+ * Restated as a literal union rather than imported: `DecisionRecord.ts`
+ * imports `EvaluationError` from this module, so importing `SinkRecord` back —
+ * even as a type, which madge counts (ADR-QD-037) — would be a cycle.
+ * `Errors.tst.ts` pins it equal to `SinkRecord["_tag"]`, so the two cannot
+ * drift.
+ */
+export type SinkRecordTag = "Decision" | "Obligations";
+
+/**
+ * Where in a record's wire form a refusal was found: object keys and array
+ * indices from the wire record's root, e.g. `["resource", "tags"]`.
+ */
+export type WirePath = ReadonlyArray<string | number>;
+
+/**
+ * Which kind of object has no JSON form.
+ *
+ * Each is something `JSON.stringify` renders as `{}` (a `Map`, a `Set`, a
+ * `RegExp`, an `Error`, a `Promise`), as an index object (binary data), as its
+ * unboxed value (a boxed primitive), or through a `toJSON` of its own that the
+ * receiver cannot reverse (`CustomToJSON`, a `URL` for example).
+ * `OtherBuiltIn` is any other built-in brand.
+ */
+export type OpaqueKind =
+  | "Map"
+  | "Set"
+  | "WeakMap"
+  | "WeakSet"
+  | "RegExp"
+  | "BinaryData"
+  | "Promise"
+  | "Error"
+  | "BoxedPrimitive"
+  | "CustomToJSON"
+  | "OtherBuiltIn";
+
+/** A value JSON cannot carry at all: it would be dropped, or throw. */
+export type UnrepresentableKind = "function" | "symbol" | "bigint" | "undefined-element";
+
+/**
+ * Why `encodeSinkRecord` refused a record.
+ *
+ * A closed union, so a reporter matching on it with `Match.tagsExhaustive` is a
+ * compile error away from a new reason.
+ *
+ * - `Circular`: an object is its own ancestor at `path`.
+ * - `TooDeep`: the wire form nests deeper than `maxDepth`, the bound every
+ *   receiver's decode enforces, so a receiver would refuse it.
+ * - `NonFinite`: `NaN`, `±Infinity` or an invalid `Date`, which JSON writes as
+ *   `null`.
+ * - `Unrepresentable`: a function, a symbol, a `bigint`, or `undefined` as an
+ *   array element.
+ * - `Opaque`: an object JSON renders as something it is not; `brand` is its
+ *   `Object.prototype.toString` brand (`"Set"`, `"URL"`).
+ * - `EncodeFailed`: the wire schema rejected the record, or inspecting it
+ *   threw (a throwing getter, for example).
+ */
+export type EncodeRefusal = Data.TaggedEnum<{
+  Circular: { readonly path: WirePath };
+  TooDeep: { readonly path: WirePath; readonly maxDepth: number };
+  NonFinite: { readonly path: WirePath };
+  Unrepresentable: { readonly path: WirePath; readonly kind: UnrepresentableKind };
+  Opaque: { readonly path: WirePath; readonly kind: OpaqueKind; readonly brand: string };
+  EncodeFailed: { readonly message: string };
+}>;
+
+/** Constructors and guards for {@link EncodeRefusal}. */
+export const EncodeRefusal = Data.taggedEnum<EncodeRefusal>();
+
+/**
+ * A record `encodeSinkRecord` will not put on the wire, and why.
+ *
+ * A refusal is a value, never a thrown error and never a defect: every
+ * outbound adapter (forwarding, the decision stream, the audit encoder)
+ * reports it and drops that one record (INV-QD-903).
+ *
+ * Declared here rather than in `SinkCodec.ts`, which raises it, because it
+ * joins `QadiError` and `ERROR_CODES`, and `Errors.ts` cannot import
+ * `SinkCodec.ts` without a cycle (ADR-QD-037). `Data.TaggedError`, not
+ * `Schema.TaggedError`: it is reported where it happens and crosses no codec,
+ * so `SCHEMA_ERROR_BUDGET` is unchanged.
+ */
+export class SinkRecordNotEncodable extends Data.TaggedError("SinkRecordNotEncodable")<{
+  readonly recordTag: SinkRecordTag;
+  readonly evaluationId: string;
+  readonly refusal: EncodeRefusal;
+}> {}
+
+/**
+ * Why `decodeSinkRecord` refused its input.
+ *
+ * A closed union, edited as a whole when a reason is added (a wire-version
+ * check is expected to add one).
+ *
+ * - `NotJson`: the text did not parse as JSON (`decodeSinkRecordString` only).
+ * - `TooDeep`: the input nests deeper than `maxDepth`; refused before the
+ *   schema recurses into it.
+ * - `Malformed`: the input is JSON but not a record this version accepts.
+ */
+export type DecodeRefusal = Data.TaggedEnum<{
+  NotJson: Record<never, never>;
+  TooDeep: { readonly maxDepth: number };
+  Malformed: { readonly message: string };
+}>;
+
+/** Constructors and guards for {@link DecodeRefusal}. */
+export const DecodeRefusal = Data.taggedEnum<DecodeRefusal>();
+
+/**
+ * Input `decodeSinkRecord` could not turn into a record, and why.
+ *
+ * A value, never a thrown error or a defect, whatever the input
+ * (INV-QD-903). Declared here for the same reason as
+ * {@link SinkRecordNotEncodable}.
+ */
+export class SinkRecordNotDecodable extends Data.TaggedError("SinkRecordNotDecodable")<{
+  readonly refusal: DecodeRefusal;
+}> {}
+
 /** Every error this library can produce during evaluation. */
 export type EvaluationError =
   | AttributeResolveError
@@ -383,7 +505,9 @@ export type QadiError =
   | DuplicateRoleDefinition
   | InvalidPermissionSegment
   | PolicyDecodeTooDeep
-  | InvalidBoundedPermits;
+  | InvalidBoundedPermits
+  | SinkRecordNotEncodable
+  | SinkRecordNotDecodable;
 
 /**
  * Stable numeric codes for logging and cross-process correlation.
@@ -411,6 +535,8 @@ export const ERROR_CODES = {
   "InvalidBoundedPermits": "ACL016",
   "PolicyDecodeTooDeep": "ACL017",
   "PredicateNotRenderable": "ACL018",
+  "SinkRecordNotEncodable": "ACL090",
+  "SinkRecordNotDecodable": "ACL091",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

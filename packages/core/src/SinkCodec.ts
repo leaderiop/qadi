@@ -27,7 +27,9 @@
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Predicate from "effect/Predicate";
+import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
+import type { Trace } from "./Decision.ts";
 import type { DecisionOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
@@ -42,9 +44,18 @@ import {
   PolicyTooDeep,
   RelationshipResolveError,
   SignatureHistoryUnavailable,
+  EncodeRefusal,
+  SinkRecordNotEncodable,
 } from "./Errors.ts";
+import type { OpaqueKind, WirePath } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
-import { MAX_DECODE_DEPTH, Policy, PolicyDecodeTooDeep, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
+import {
+  MAX_DECODE_DEPTH,
+  Policy,
+  PolicyDecodeTooDeep,
+  policyDepth,
+  UNTRUSTED_DECODE_OPTIONS,
+} from "./Policy.ts";
 
 /**
  * An `EvaluationError` on the wire — the union of the nine wire-crossing
@@ -333,7 +344,7 @@ export const isRecordJsonSafe: (record: SinkRecord) => boolean = Match.type<Sink
  * see {@link isRecordJsonSafe}'s doc comment for why a ternary here is
  * false-exhaustive rather than merely stylistic.
  */
-export const toWire: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>().pipe(
+const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>().pipe(
   Match.tagsExhaustive({
     Obligations: (record) => ({
       _tag: "Obligations" as const,
@@ -447,6 +458,241 @@ export const fromWireUnsafe: (wire: SinkRecordWire) => SinkRecord = Match.type<S
       }),
   }),
 );
+
+/**
+ * The wire projection of a record. Kept exported only until every caller has
+ * moved to {@link encodeSinkRecord} (ARCH-09 T10 removes it).
+ */
+export const toWire: (record: SinkRecord) => SinkRecordWire = project;
+
+/**
+ * The encoded form of a record: what {@link encodeSinkRecord} returns, what
+ * forwarding's `send` receives, and what an audit row carries.
+ *
+ * Derived from the one wire schema (ADR-QD-002), never hand-written:
+ * `Schema.toEncoded` gives the schema whose `Type` is the wire's encoded
+ * side, so `@qadi/audit` can embed it in its own row schema.
+ */
+export const SinkRecordJson = Schema.toEncoded(SinkRecordWire);
+
+export type SinkRecordJson = typeof SinkRecordWire.Encoded;
+
+/** One step of a walk: an object key or array index, and the value under it. */
+type WireEntry = readonly [key: string | number, child: unknown];
+
+/** A container the walk has entered and not yet left. */
+interface WalkFrame {
+  readonly container: object;
+  readonly entries: ReadonlyArray<WireEntry>;
+  readonly depth: number;
+  readonly isArray: boolean;
+  index: number;
+}
+
+/**
+ * The `OpaqueKind` of each built-in brand JSON cannot carry. A lookup table
+ * rather than a dispatch: any brand absent here (and not `Object`/`Array`) is
+ * `"OtherBuiltIn"`. Binary data is recognised by `ArrayBuffer.isView` or its
+ * buffer brands, since each typed array has a brand of its own.
+ */
+const OPAQUE_KIND_BY_BRAND: ReadonlyMap<string, OpaqueKind> = new Map<string, OpaqueKind>([
+  ["Map", "Map"],
+  ["Set", "Set"],
+  ["WeakMap", "WeakMap"],
+  ["WeakSet", "WeakSet"],
+  ["RegExp", "RegExp"],
+  ["Promise", "Promise"],
+  ["Error", "Error"],
+  ["ArrayBuffer", "BinaryData"],
+  ["SharedArrayBuffer", "BinaryData"],
+  ["DataView", "BinaryData"],
+  ["Boolean", "BoxedPrimitive"],
+  ["Number", "BoxedPrimitive"],
+  ["String", "BoxedPrimitive"],
+]);
+
+/** `"Set"` for a `Set`: the `Object.prototype.toString` brand, unwrapped. */
+const brandOf = (value: object): string => Object.prototype.toString.call(value).slice(8, -1);
+
+const opaqueKindOf = (value: object, brand: string): OpaqueKind =>
+  ArrayBuffer.isView(value) ? "BinaryData" : (OPAQUE_KIND_BY_BRAND.get(brand) ?? "OtherBuiltIn");
+
+const hasCustomToJSON = (value: object): boolean =>
+  Predicate.hasProperty(value, "toJSON") && typeof value.toJSON === "function";
+
+const hasEnumerableSymbolKey = (value: object): boolean =>
+  Object.getOwnPropertySymbols(value).some((key) => Object.prototype.propertyIsEnumerable.call(value, key));
+
+const entriesOf = (value: object): ReadonlyArray<WireEntry> =>
+  Array.isArray(value)
+    ? Array.from(value, (child: unknown, index): WireEntry => [index, child])
+    : Object.entries(value);
+
+/**
+ * The first value in an encoded record that would not survive JSON as itself,
+ * or `undefined` when the whole value round-trips.
+ *
+ * One iterative walk with one mutable on-path set, the technique `isJsonSafe`
+ * used, over the *encoded* output — so it cannot miss a field the way per-field
+ * guards did: whatever the encode emitted is what it checks. Its depth count
+ * matches `exceedsJsonDepth`'s (the root is depth 0, each child one more, and
+ * any value deeper than `maxDepth` is refused), so it refuses exactly what a
+ * receiver's depth guard would.
+ *
+ * An `undefined` object property is absence, not a hazard: JSON drops the key
+ * and decode reads it as absent, and `Schema`'s own encoded output carries such
+ * keys for unset optional fields. An `undefined` array element is refused,
+ * because JSON writes it as `null`. A valid `Date` is accepted and crosses as
+ * its ISO string, a named normalisation. The path is rebuilt from the stack
+ * only when a hazard is found, so the accepting walk allocates no paths.
+ */
+const wireHazard = (root: unknown, maxDepth: number): EncodeRefusal | undefined => {
+  const onPath = new Set<object>();
+  const stack: Array<WalkFrame> = [];
+  const pathHere = (): WirePath =>
+    stack.flatMap((frame) => {
+      const entry = frame.entries[frame.index - 1];
+      return entry === undefined ? [] : [entry[0]];
+    });
+
+  const visit = (value: unknown, depth: number, isElement: boolean): EncodeRefusal | undefined => {
+    if (value === undefined) {
+      return isElement ? EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "undefined-element" }) : undefined;
+    }
+    if (depth > maxDepth) return EncodeRefusal.TooDeep({ path: pathHere(), maxDepth });
+    if (value === null || typeof value === "string" || typeof value === "boolean") return undefined;
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? undefined : EncodeRefusal.NonFinite({ path: pathHere() });
+    }
+    if (typeof value === "function") return EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "function" });
+    if (typeof value === "symbol") return EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "symbol" });
+    if (typeof value === "bigint") return EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "bigint" });
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? EncodeRefusal.NonFinite({ path: pathHere() }) : undefined;
+    }
+    if (onPath.has(value)) return EncodeRefusal.Circular({ path: pathHere() });
+    const brand = brandOf(value);
+    if (hasCustomToJSON(value)) return EncodeRefusal.Opaque({ path: pathHere(), kind: "CustomToJSON", brand });
+    const isArray = Array.isArray(value);
+    if (!isArray && brand !== "Object") {
+      return EncodeRefusal.Opaque({ path: pathHere(), kind: opaqueKindOf(value, brand), brand });
+    }
+    if (hasEnumerableSymbolKey(value)) return EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "symbol" });
+    onPath.add(value);
+    stack.push({ container: value, entries: entriesOf(value), depth, isArray, index: 0 });
+    return undefined;
+  };
+
+  const atRoot = visit(root, 0, false);
+  if (atRoot !== undefined) return atRoot;
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    if (frame === undefined) break;
+    const entry = frame.entries[frame.index];
+    if (entry === undefined) {
+      onPath.delete(frame.container);
+      stack.pop();
+      continue;
+    }
+    frame.index += 1;
+    const refusal = visit(entry[1], frame.depth + 1, frame.isArray);
+    if (refusal !== undefined) return refusal;
+  }
+  return undefined;
+};
+
+/**
+ * `true` once a trace nests deeper than `maxDepth` nodes. Iterative, and
+ * bounded by `maxDepth`, so a trace no evaluation produced (a cyclic one)
+ * still terminates, as too deep.
+ */
+const traceExceeds = (trace: Trace, maxDepth: number): boolean => {
+  const stack: Array<{ readonly node: Trace; readonly depth: number }> = [{ node: trace, depth: 1 }];
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (frame === undefined) break;
+    if (frame.depth > maxDepth) return true;
+    for (const child of frame.node.children) stack.push({ node: child, depth: frame.depth + 1 });
+  }
+  return false;
+};
+
+/**
+ * Refuses, before the encode, the two recursive positions the wire schema
+ * descends with no bound of its own — so the encode itself cannot overflow
+ * the stack (a policy about 5,000 levels deep made it throw). Each bound is
+ * no tighter than the final walk's: a policy or trace more than
+ * `MAX_DECODE_DEPTH` nodes deep is more than that deep on the wire too, so
+ * these refuse nothing the walk would accept.
+ *
+ * `policyDepth` is memoised per policy object and already computed for any
+ * record `evaluate` produced; it throws only on a cycle.
+ */
+const preEncodeHazard: (record: SinkRecord) => EncodeRefusal | undefined = Match.type<SinkRecord>().pipe(
+  Match.tagsExhaustive({
+    Obligations: () => undefined,
+    Decision: (record) => {
+      const depth = Result.try(() => policyDepth(record.policy));
+      if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: ["policy"] });
+      if (depth.success > MAX_DECODE_DEPTH) {
+        return EncodeRefusal.TooDeep({ path: ["policy"], maxDepth: MAX_DECODE_DEPTH });
+      }
+      return record.outcome._tag === "Decided" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH)
+        ? EncodeRefusal.TooDeep({ path: ["decided", "trace"], maxDepth: MAX_DECODE_DEPTH })
+        : undefined;
+    },
+  }),
+);
+
+/** The wire schema's encoder, built once. */
+const encodeWire = Schema.encodeResult(SinkRecordWire);
+
+/** A thrown value's message, without letting a hostile `toString` throw again. */
+const describeThrown = (thrown: unknown): string =>
+  Result.getOrElse(
+    Result.try(() => (thrown instanceof Error ? thrown.message : String(thrown))),
+    () => "a value that could not be described",
+  );
+
+const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFailed({ message: describeThrown(thrown) });
+
+/**
+ * A record as a verified JSON wire value, or the reason it cannot be one.
+ *
+ * Runs the depth pre-checks, the schema encode (so every resolver error's
+ * `cause` crosses through `Schema.Defect()`, ADR-QD-060), and then one walk
+ * over the encoded output. What it returns `JSON.stringify` renders without
+ * throwing and {@link decodeSinkRecord} accepts (INV-QD-902); it never
+ * throws, whatever the record holds (INV-QD-903).
+ */
+export const encodeSinkRecord = (record: SinkRecord): Result.Result<SinkRecordJson, SinkRecordNotEncodable> => {
+  const refuse = (refusal: EncodeRefusal) =>
+    Result.fail(new SinkRecordNotEncodable({ recordTag: record._tag, evaluationId: record.evaluationId, refusal }));
+
+  const before = Result.try({ try: () => preEncodeHazard(record), catch: encodeFailed });
+  if (Result.isFailure(before)) return refuse(before.failure);
+  if (before.success !== undefined) return refuse(before.success);
+
+  const encoded = Result.try({ try: () => encodeWire(project(record)), catch: encodeFailed });
+  if (Result.isFailure(encoded)) return refuse(encoded.failure);
+  if (Result.isFailure(encoded.success)) return refuse(encodeFailed(encoded.success.failure));
+  const json = encoded.success.success;
+
+  const hazard = Result.try({ try: () => wireHazard(json, MAX_DECODE_DEPTH), catch: encodeFailed });
+  if (Result.isFailure(hazard)) return refuse(hazard.failure);
+  if (hazard.success !== undefined) return refuse(hazard.success);
+  return Result.succeed(json);
+};
+
+/**
+ * A record as JSON text, or the reason it cannot be.
+ *
+ * `JSON.stringify` cannot throw here: {@link encodeSinkRecord} has verified the
+ * value is cycle-free, at most `MAX_DECODE_DEPTH` levels deep, holds no
+ * `bigint`, and has no `toJSON` but `Date`'s.
+ */
+export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string, SinkRecordNotEncodable> =>
+  Result.map(encodeSinkRecord(record), (json) => JSON.stringify(json));
 
 /** Encodes a record to a plain JSON value. */
 export const encodeRecord = Schema.encodeEffect(SinkRecordWire);

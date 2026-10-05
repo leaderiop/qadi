@@ -293,6 +293,8 @@ answered.
 | `toWire`, `fromWireUnsafe`, `encodeRecord`, `encodeRecordSync`, `decodeRecord`, `decodeRecordWire` | codec | `SinkCodec.ts` — `encodeRecordSync` is `encodeRecord`'s synchronous sibling, for a caller (`DecisionSinkForwarding.ts`) who already knows the encode is total and does not want to pay for the `Effect` wrapping (issue #107). `fromWireUnsafe` (renamed from `fromWire`, PH-05) performs no validation — it rebuilds a record from an already-typed `SinkRecordWire`; `decodeRecord` is the validating entry point for untrusted input |
 | `isJsonSafe` | predicate | `SinkCodec.ts` — a general recursive walk over any `unknown` value, not specialized to one field; `isRecordJsonSafe` below is its only caller |
 | `isRecordJsonSafe` | predicate | `SinkCodec.ts` — `isJsonSafe` over **both** of a `SinkRecord`'s caller-supplied `unknown` surfaces, `resource` and `policy`'s `HasCustom.params`; `@qadi/audit`'s `encodeAuditEntry` and `@qadi/http`'s decision-stream route both call this, not `isJsonSafe` directly, closing the gap left by `encodeAuditEntry`'s previous `resource`-only check (issue #104, CCR-QD-143) |
+| `SinkRecordJson` | schema + type | `SinkCodec.ts` — the encoded wire form of a `SinkRecord`, `Schema.toEncoded` of the one wire schema: what `encodeSinkRecord` returns, what forwarding's `send` receives and what an audit row carries (ARCH-09) |
+| `encodeSinkRecord`, `encodeSinkRecordString` | codec | `SinkCodec.ts` — the outbound operation: a record becomes a verified JSON wire value (or its text), or a `SinkRecordNotEncodable` naming the refusal and its path. Runs the depth pre-checks, the schema encode (every resolver `cause` crosses through `Schema.Defect()`) and one walk over the encoded output; returns `Result` and never throws (ARCH-09) |
 | `CacheOutcome`, `CacheLookup` | type | `DecisionCache.ts` |
 
 **Nine services, and only seven are required.** `DecisionHistory` was the one added
@@ -375,6 +377,8 @@ a what-if needs and that `isMismatch`, which compares verdicts alone, cannot giv
 `DecisionHistoryUnavailable`, `UndischargedObligation`, `PolicyNotTranslatable`,
 `CustomPredicateError`, `SignatureHistoryUnavailable`, `PolicyDecodeTooDeep`,
 `InvalidBoundedPermits`, `PredicateNotRenderable` (with its `RenderRefusal` union),
+`SinkRecordNotEncodable` (with `EncodeRefusal`, `OpaqueKind`, `UnrepresentableKind`,
+`WirePath` and `SinkRecordTag`), `SinkRecordNotDecodable` (with `DecodeRefusal`),
 plus `toAccessDeniedPublic`, `ERROR_CODES` and `errorCode`, and the two unions
 `EvaluationError` and `QadiError`. See [ADR-QD-008](decisions/008-error-taxonomy.md).
 
@@ -419,6 +423,19 @@ declared its own class with the same `_tag`. It carries `predicateTag`
 (`"Compare" | "MemberOf"`), a closed `refusal: RenderRefusal` and the human
 `reason`. A `Data.TaggedError`, not a `Schema.TaggedError`: it crosses no codec.
 `ERROR_CODES["PredicateNotRenderable"]` is `ACL018`.
+
+`SinkRecordNotEncodable` and `SinkRecordNotDecodable` join `QadiError` (not
+`EvaluationError` — they are raised by the record codec, `SinkCodec.ts`'s
+`encodeSinkRecord` and `decodeSinkRecord`, never by evaluation). Each carries a
+closed `Data.TaggedEnum` reason: `EncodeRefusal` (`Circular`, `TooDeep`,
+`NonFinite`, `Unrepresentable`, `Opaque`, `EncodeFailed`, each but the last with
+the `WirePath` it was found at) and `DecodeRefusal` (`NotJson`, `TooDeep`,
+`Malformed`). Both are declared in `Errors.ts`, which cannot import
+`SinkCodec.ts` or `DecisionRecord.ts` without a cycle (ADR-QD-037);
+`SinkRecordTag` restates `SinkRecord["_tag"]` for that reason and a type test
+pins the two equal. `Data.TaggedError`, not `Schema.TaggedError`: a refusal is
+reported where it happens and crosses no codec. `ERROR_CODES` gives them
+`ACL090` and `ACL091` (branch-local numbering, renumbered at merge).
 
 `InvalidBoundedPermits` joins `QadiError` (construction-time, not evaluation)
 and is shared by every `…Bounded` port wrapper — `AttributeResolver.ts`'s
