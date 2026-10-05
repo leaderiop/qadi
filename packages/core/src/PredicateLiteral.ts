@@ -7,8 +7,10 @@
  * which is why they live beside it (ADR-QD-079). Before this module each dialect
  * package kept its own copy, and the copies lagged: `@qadi/predicate-sql` admitted
  * `NaN` for a release after `@qadi/predicate-prisma` had learned to refuse it
- * (CCR-QD-120). `evaluatePredicate`'s `Gte`/`Lt` arms and `toRenderable`'s
- * classifier both call `isRangeBound`, so that rule has exactly one definition.
+ * (CCR-QD-120). `evaluatePredicate`'s `Gte`/`Lt` arms check both operands —
+ * the bound and the row value — with `isRangeBound`, and `toRenderable`'s
+ * classifier checks the bound with the same function, so that rule has exactly
+ * one definition.
  *
  * Nothing here imports another core module: `Predicate.ts` imports this one.
  */
@@ -45,14 +47,13 @@ export const isSafeLiteral = (value: unknown): value is SafeLiteral =>
   typeof value === "boolean";
 
 /**
- * Whether `value` is a bound `evaluatePredicate`'s `Gte`/`Lt` can compare
- * against: a finite number.
+ * Whether `value` is a number `evaluatePredicate`'s `Gte`/`Lt` can compare: a
+ * finite number.
  *
- * The bound is reachable from untrusted JSON (`1e400` decodes to `Infinity`), and
- * an unguarded `Infinity` bound dominates every finite attribute value
- * (CCR-QD-120). Only the bound needs the check: a non-finite *row* value already
- * agrees across interpreters, since `NaN >= x` is false in both and `Infinity >=
- * x` is true in both.
+ * Both operands are checked: the bound, which is reachable from untrusted JSON
+ * (`1e400` decodes to `Infinity`, and an unguarded `Infinity` bound dominates
+ * every finite attribute value — CCR-QD-120), and the row value, which a real
+ * column can hold as `±Infinity`/`NaN` (CCR-QD-172).
  */
 export const isRangeBound = (value: unknown): value is number => Number.isFinite(value);
 

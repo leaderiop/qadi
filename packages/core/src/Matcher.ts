@@ -252,7 +252,7 @@ export const exists = (): Matcher => ({ _tag: "Exists" });
  * `AttributeResolver`, not from decoding a `Matcher` — so it is still checked
  * with `Number.isFinite` at evaluation time (see `evaluateMatcher`'s `Gte`
  * case). Left unguarded there, an `Infinity`-valued attribute would dominate
- * every finite bound via `>=` — the failure mode CCR-QD-115 closed (the value
+ * every finite bound via `>=` — the failure mode CCR-QD-116 closed (the value
  * side was unguarded until then, so an `Infinity`-valued attribute satisfied
  * every `gte(...)` bound regardless of the bound itself).
  */
@@ -591,7 +591,7 @@ export const evaluateMatcher = (
     case "Gte":
       // `value` is guarded the same way the bound is (see `gte`'s doc
       // comment): an attribute that itself decoded to `Infinity` must not
-      // dominate every bound the way an unguarded one would (CCR-QD-115).
+      // dominate every bound the way an unguarded one would (CCR-QD-116).
       return (
         typeof value === "number" &&
         Number.isFinite(value) &&
@@ -599,9 +599,9 @@ export const evaluateMatcher = (
         value >= self.value
       );
     case "Lt":
-      // Symmetric with `Gte` above, for the same reason and the same doc
-      // comment — `Infinity < finiteBound` already fails closed without this,
-      // but the guard is added for consistency rather than left asymmetric.
+      // Symmetric with `Gte` and load-bearing: `-Infinity < bound` is true
+      // for every finite bound, so without the value guard an attribute that
+      // decoded to `-Infinity` satisfies every `lt(…)` (CCR-QD-116).
       return (
         typeof value === "number" &&
         Number.isFinite(value) &&

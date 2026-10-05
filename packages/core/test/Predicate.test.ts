@@ -883,7 +883,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
       P.hasResourceAttribute("level", M.gte(n)),
     ),
     FastCheck.integer({ min: 0, max: 5 }).map((n) => P.hasResourceAttribute("level", M.lt(n))),
-    // Not just finite integers (CCR-QD-115). `Matcher.ts`'s `gte`/`lt` guard
+    // Not just finite integers (CCR-QD-120). `Matcher.ts`'s `gte`/`lt` guard
     // their bound with `Number.isFinite` because a bound arrives from
     // untrusted JSON, where `1e400` decodes to `Infinity`; `compare` in
     // `Predicate.ts` did not, so `M.gte(-Infinity)` admitted every numeric row
@@ -980,7 +980,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
 
   // The named case the property above now samples, kept as its own test
   // because a seeded sample is not evidence a reader can check by eye
-  // (CCR-QD-115, issue #65). Before the `Number.isFinite` guard in `compare`,
+  // (CCR-QD-120, issue #65). Before the `Number.isFinite` guard in `compare`,
   // `toPredicate` on this policy admitted every row with a numeric `level`
   // while `evaluate` on the identical policy denied every one — the exact
   // failure mode ADR-QD-024 warns would make `toPredicate` worse than not

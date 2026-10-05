@@ -145,9 +145,8 @@ const dispatchCompare: (op: CompareOp) => (value: unknown, against: unknown) => 
     // is that check, and as a type predicate it leaves no `typeof` half behind.
     //
     // Until CCR-QD-172 only the bound was guarded (issue #65, CCR-QD-120), on
-    // the belief that a non-finite *row* value already agreed because
-    // `Infinity >= x` is true in both interpreters. It is not: the matcher
-    // denies it, so `gte(3)` admitted an `Infinity` row and `lt(3)` a
+    // the belief that the two interpreters could not disagree about a
+    // non-finite *row* value. They did: the matcher denies `Infinity >= x`, so `gte(3)` admitted an `Infinity` row and `lt(3)` a
     // `-Infinity` row here while `evaluate` denied both — an INV-QD-018
     // divergence in the fail-open direction.
     Match.when(

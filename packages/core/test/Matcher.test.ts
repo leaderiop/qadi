@@ -143,15 +143,19 @@ describe("matchers", () => {
   );
 
   it("gte and lt reject a non-finite resolved value, not only a non-finite bound", () => {
-    // CCR-QD-115: an attribute that itself decoded to `Infinity` (e.g. stored
-    // as `1e400` and read back with `JSON.parse`) must not dominate every
-    // finite bound the way an unguarded `SecurityLabel.level` would. `Gte`
-    // was the affected direction — `Infinity >= 3` is `true` regardless of
-    // the bound — while `Lt` already failed closed (`Infinity < 3` is
-    // `false`) even before the value side was guarded.
+    // CCR-QD-116: an attribute that itself decoded to a non-finite number
+    // (e.g. stored as `1e400` and read back with `JSON.parse`) must not
+    // satisfy a range the way an unguarded `SecurityLabel.level` would. Each
+    // direction has its own load-bearing value: `+Infinity` for `Gte`
+    // (`Infinity >= 3` is `true`) and `-Infinity` for `Lt` (`-Infinity < 3`
+    // is `true`). The `Lt` guard is not cosmetic — before CCR-QD-172 nothing
+    // here evaluated `lt(3)` against `-Infinity`, so a mutant dropping it
+    // survived.
     assert.isFalse(run(M.gte(3), Number.POSITIVE_INFINITY));
+    assert.isFalse(run(M.gte(3), Number.NEGATIVE_INFINITY));
     assert.isFalse(run(M.gte(3), Number.NaN));
     assert.isFalse(run(M.lt(3), Number.POSITIVE_INFINITY));
+    assert.isFalse(run(M.lt(3), Number.NEGATIVE_INFINITY));
     assert.isFalse(run(M.lt(3), Number.NaN));
   });
 

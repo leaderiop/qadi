@@ -142,10 +142,19 @@ REQUIREMENT: `gte` and `lt` MUST return false unless BOTH operands — the
              `Infinity`, but `1e400` decodes to it, on either side of the
              comparison. Guarding only the bound left `gte(3)` satisfied by
              an `Infinity`-valued attribute regardless of the bound
-             (`Infinity >= 3` is `true`); `lt` already failed closed in the
-             mirror case, but is guarded the same way for consistency
-             (CCR-QD-116).
+             (`Infinity >= 3` is `true`); `lt`'s mirror case is `-Infinity`,
+             which `-Infinity < 3` admits, so both guards are load-bearing
+             (CCR-QD-116, corrected in CCR-QD-172).
 ```
+
+> **Corrected (CCR-QD-172).** The requirement above previously ended: "`lt`
+> already failed closed in the mirror case, but is guarded the same way for
+> consistency (CCR-QD-116)." It does not: the mirror of `Infinity >= 3` is
+> `-Infinity < 3`, which is true, so without the value guard every `lt(…)` admits
+> a `-Infinity` attribute. Nothing evaluated `lt(3)` against `-Infinity`, and a
+> mutation dropping the guard survived. The same false belief, applied to the
+> row side of `evaluatePredicate`, let `toPredicate` admit non-finite rows the
+> evaluator denies (INV-QD-018).
 
 ```
 REQUIREMENT: `contains` MUST apply to arrays and strings only.
