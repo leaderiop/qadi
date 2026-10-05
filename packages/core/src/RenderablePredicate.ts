@@ -398,11 +398,13 @@ const dispatch: (predicate: Predicate) => (ctx: Classify) => Classified = Match.
           `value for column '${p.column}' is not a safe query parameter`,
         );
       }
-      // `evaluatePredicate`'s `Gte`/`Lt` are false unless *both* sides are finite
-      // numbers, so a bound that is not one is a constant `false`, not a
-      // comparison the target would coerce: `int_col >= '10'` is admitted by
-      // PostgreSQL, SQLite and MySQL alike, and `null >= x` is not a question a
-      // renderer should ask. The row side is the `finiteGuard`'s job.
+      // A `Range` exists exactly when the bound is a finite number: for any other
+      // bound `Compare.ts`'s `atLeastVerdict`/`belowVerdict` answer `Incomparable`
+      // (or `ReferenceAbsent`) on every row, so the leaf is a constant `false`,
+      // not a comparison the target would coerce — `int_col >= '10'` is admitted
+      // by PostgreSQL, SQLite and MySQL alike, and `null >= x` is not a question a
+      // renderer should ask. `isRangeBound` is that rule's `isFiniteNumber`
+      // itself. The row side is the `finiteGuard`'s job.
       if (p.op === "Gte" || p.op === "Lt") {
         if (!isRangeBound(value)) return ok({ _tag: "Constant", value: false });
         const finiteGuard = finiteGuardFor(p, p.column, ctx.rules);

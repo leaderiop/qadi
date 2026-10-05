@@ -7,13 +7,16 @@
  * which is why they live beside it (ADR-QD-079). Before this module each dialect
  * package kept its own copy, and the copies lagged: `@qadi/predicate-sql` admitted
  * `NaN` for a release after `@qadi/predicate-prisma` had learned to refuse it
- * (CCR-QD-120). `evaluatePredicate`'s `Gte`/`Lt` arms check both operands —
- * the bound and the row value — with `isRangeBound`, and `toRenderable`'s
- * classifier checks the bound with the same function, so that rule has exactly
- * one definition.
+ * (CCR-QD-120). The finite-number rule itself is `Compare.ts`'s
+ * `isFiniteNumber`, which `evaluatePredicate`'s `Gte`/`Lt` apply to both
+ * operands; `isRangeBound` is that same function under the renderer-facing name,
+ * so `toRenderable`'s classifier checks a bound with exactly the rule the
+ * reference uses (ADR-QD-091).
  *
- * Nothing here imports another core module: `Predicate.ts` imports this one.
+ * The only core module this imports is `Compare.ts`, which imports nothing but
+ * `SecurityLabel.ts`; `Predicate.ts` and `RenderablePredicate.ts` import this one.
  */
+import { isFiniteNumber } from "./Compare.ts";
 
 /**
  * A value every renderer can bind as a query parameter: a string, a finite
@@ -43,7 +46,7 @@ export type SafeLiteral = string | number | boolean | null;
 export const isSafeLiteral = (value: unknown): value is SafeLiteral =>
   value === null ||
   typeof value === "string" ||
-  Number.isFinite(value) ||
+  isFiniteNumber(value) ||
   typeof value === "boolean";
 
 /**
@@ -54,8 +57,12 @@ export const isSafeLiteral = (value: unknown): value is SafeLiteral =>
  * (`1e400` decodes to `Infinity`, and an unguarded `Infinity` bound dominates
  * every finite attribute value — CCR-QD-120), and the row value, which a real
  * column can hold as `±Infinity`/`NaN` (CCR-QD-172).
+ *
+ * It *is* `Compare.ts`'s `isFiniteNumber` — the same function object, under the
+ * name a renderer reads — so the renderer-facing rule cannot drift from the one
+ * `atLeastVerdict`/`belowVerdict` apply.
  */
-export const isRangeBound = (value: unknown): value is number => Number.isFinite(value);
+export const isRangeBound: (value: unknown) => value is number = isFiniteNumber;
 
 /**
  * How strictly a renderer constrains a column name it interpolates as text.

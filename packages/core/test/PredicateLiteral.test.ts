@@ -1,11 +1,20 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
+import { isFiniteNumber } from "../src/Compare.ts";
 import {
   isRangeBound,
   isRenderableIdentifier,
   isSafeLiteral,
   type IdentifierRule,
 } from "../src/PredicateLiteral.ts";
+
+// The "one definition" claim, made checkable: the renderer-facing range rule is
+// the comparison rule's own function object, not a copy of it (ARCH-08 T10).
+describe("isRangeBound is Compare.ts's isFiniteNumber", () => {
+  it("is the same function, by identity", () => {
+    assert.strictEqual(isRangeBound, isFiniteNumber);
+  });
+});
 
 describe("isSafeLiteral: what a renderer may bind as a parameter", () => {
   it("admits a string, a finite number, a boolean and null", () => {
