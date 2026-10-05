@@ -453,6 +453,20 @@ directions like the others, not a convention left to be remembered. The one
 entry there today is `features/step-definitions/CustomPredicateWhenSteps.ts`
 — the BDD acceptance step that exercises `hasCustom` itself.
 
+**A test that needs a broken port scripts it; constructing a port's error by
+hand in a test is a sixth budget, `PORT_DOUBLE_BUDGET`** (ADR-QD-901). Every
+port's description builds its own error, and `@qadi/core`'s `scriptedPort`
+derives a failing, dying or throwing double from it:
+`scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer`.
+Before this budget there were 65 hand-written failing port layers in 27 test
+files plus 19 dying ones, each restating its port's error shape. Unlike the
+five above it is **test-scope**, not src-scope — shipped source constructs
+these errors legitimately (each port's description, `PortAccess.ts`); what it
+guards is how a test describes a broken port. A file on the list needs the
+error as a value (an instance-identity check, a codec round trip, a cause
+matrix with no port) or a double a script cannot express (a latch), with its
+exact line count and reason, checked in both directions.
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal
