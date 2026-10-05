@@ -447,7 +447,7 @@ const SCHEMA_TAGGED_ERROR = /\bextends\s+Schema\.TaggedError\b/;
 
 /**
  * Test files that construct a port's typed error by hand, by file and exact
- * count of lines doing so (ARCH-10, ADR-QD-901).
+ * count of lines doing so (ARCH-10, ADR-QD-094).
  *
  * Every port's description builds its own error (`failure`), and
  * `@qadi/core`'s `scriptedPort` derives a failing, dying or throwing double

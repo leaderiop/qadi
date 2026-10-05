@@ -10,7 +10,7 @@
 > | Status         | Accepted — narrows ADR-QD-016                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-903) (CCR-QD-904)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-902) (CCR-QD-903)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -279,7 +279,7 @@ through
 Mutation testing (`stryker.audit.mjs`, `pnpm check` gate 20) scores 92%,
 clearing both the 80% break and the 90% high threshold.
 
-## Amendment (2026-10-05, CCR-QD-903)
+## Amendment (2026-10-05, CCR-QD-179)
 
 **An audit row carries the encoded wire.** `AuditEntry.record` is `SinkRecordJson`,
 `@qadi/core`'s `encodeSinkRecord` output, so `JSON.stringify(entry)` is exactly the
@@ -288,13 +288,13 @@ handed a row its `JSON.stringify` throws on or renders as something it is not.
 Rows are read back with `decodeAuditEntry`, which reads the record through the
 depth-guarded `decodeSinkRecord` before decoding the row. `AuditEntryNotEncodable`
 gains `refusal` (core's `EncodeRefusal`); it stays this package's own error, per
-ADR-QD-054 ([ADR-QD-902](./902-sinkcodec-owns-both-directions.md)).
+ADR-QD-054 ([ADR-QD-095](./095-sinkcodec-owns-both-directions.md)).
 
-## Amendment (2026-10-05, CCR-QD-904)
+## Amendment (2026-10-05, CCR-QD-180)
 
 **A persisted row is a closed union of wire versions.** `AuditEntry.record` is
 `SinkRecordJson`, which is now version-2 bytes or version-1 bytes: rows written
-before [ADR-QD-903](./903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)
+before [ADR-QD-096](./096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)
 are version 1, and stay readable for good, because a compliance record must still
 read years after the library that wrote it moved on. `decodeAuditEntry` is the one
 sanctioned re-parse path and reads either version; decoding a row with the

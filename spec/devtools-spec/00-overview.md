@@ -10,7 +10,7 @@
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.7 (2026-10-05): the data plane is one decision log per process — the ring and the feed are gone, `ingest` reaches live readers, and `/__decisions` sends the backlog as a prelude (ADR-QD-904, CCR-QD-905)<br>0.6 (2026-08-24): Screens 3, 6 and 7 re-marked **Built** and four stale data claims corrected — resolver calls, port counts, wired implementations and hydration counts are all obtainable now (CCR-QD-074)<br>0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.7 (2026-10-05): the data plane is one decision log per process — the ring and the feed are gone, `ingest` reaches live readers, and `/__decisions` sends the backlog as a prelude (ADR-QD-097, CCR-QD-181)<br>0.6 (2026-08-24): Screens 3, 6 and 7 re-marked **Built** and four stale data claims corrected — resolver calls, port counts, wired implementations and hydration counts are all obtainable now (CCR-QD-074)<br>0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -70,12 +70,12 @@ Events at `/__decisions` — the backlog as a prelude, a `synced` marker, then l
 frames, each naming the process that made the record — guarded by a policy, with
 no unguarded variant and no environment-variable gate
 ([ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md),
-[ADR-QD-904](../decisions/904-a-decision-log-is-a-sink-and-its-own-history.md)).
+[ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md)).
 The log's `ingest` is the receiving half, and an ingested record reaches the
 log's live readers as well as its backlog, so several processes merge into one
 timeline that a reader watching sees grow.
 
-> **Corrected 2026-10-05 (CCR-QD-905).** This paragraph named
+> **Corrected 2026-10-05 (CCR-QD-181).** This paragraph named
 > `decisionSinkFeed` as the buffer and `decisionSinkRing`'s `ingest` as the
 > receiving half. Both were replaced by one decision log; an ingested record
 > used to reach the ring and never a live reader, so an `Edge` row could not

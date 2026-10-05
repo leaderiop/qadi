@@ -12,7 +12,7 @@
  * double per port. A description states those facts once, beside the service
  * it describes; `PortDerivation.ts` and `PortDoubles.ts` derive the wrappers,
  * the named default and the scriptable doubles from it, and `Ports.ts` holds
- * the closed registry of all five (ADR-QD-901).
+ * the closed registry of all five (ADR-QD-094).
  *
  * The description is a **lens over the Shape, not a replacement for it**
  * (ADR-QD-010 is unchanged). The five Shapes keep their own method names and
@@ -81,7 +81,7 @@ export interface PortDescription<
    * The port's own typed error for a call that failed with `cause`: a
    * deadline (`timingOutPort`), a scripted `Fail` (`scriptedPort`), a replayed
    * outage (`@qadi/devtools`). Every derived layer fails only with an error
-   * this builds (INV-QD-901).
+   * this builds (INV-QD-095).
    */
   readonly failure: (args: Args, cause: unknown) => E;
   /**

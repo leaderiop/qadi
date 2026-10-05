@@ -1,4 +1,4 @@
-@decision-log @REQ-QD-902
+@decision-log @REQ-QD-033
 Feature: One decision log is a process's sink, its history and its live stream
 
   A process wires one decision log. Evaluations record into it, a devtools

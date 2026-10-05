@@ -132,7 +132,7 @@ same shape repeats in each of the five port modules (`RelationshipResolver.ts`,
 `CustomPredicate.ts`, `DecisionHistory.ts`, `SignatureHistory.ts`).
 
 **A port's wrappers and default are derived from its description, not written
-by hand** (ADR-QD-901). The description states the port's facts once — name,
+by hand** (ADR-QD-094). The description states the port's facts once — name,
 method, span, a lens onto its one method, its typed-error constructors, its
 request key and its fail-closed answer — and each exported layer is a one-line
 derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
@@ -470,7 +470,7 @@ entry there today is `features/step-definitions/CustomPredicateWhenSteps.ts`
 — the BDD acceptance step that exercises `hasCustom` itself.
 
 **A test that needs a broken port scripts it; constructing a port's error by
-hand in a test is a sixth budget, `PORT_DOUBLE_BUDGET`** (ADR-QD-901). Every
+hand in a test is a sixth budget, `PORT_DOUBLE_BUDGET`** (ADR-QD-094). Every
 port's description builds its own error, and `@qadi/core`'s `scriptedPort`
 derives a failing, dying or throwing double from it:
 `scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer`.
@@ -518,7 +518,7 @@ shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 | `…Live` / `…Test` / `Default` | layers |
 | `is…` | type guards |
 | `…Shape` | a service's payload interface |
-| `…Port` | a port's description (`attributeResolverPort`) — the value its wrappers, default and doubles are derived from (ADR-QD-901); distinct from the service class it describes |
+| `…Port` | a port's description (`attributeResolverPort`) — the value its wrappers, default and doubles are derived from (ADR-QD-094); distinct from the service class it describes |
 | `…Like` | structural brand for requirement bubbling |
 | `…Refused` | `@qadi/http`'s tag-only, `httpApiStatus`-annotated wire schema for a real error class the response body must not carry full-fielded (`AccessDeniedRefused`, `UndischargedObligationRefused`, `SubjectExtractionRefused`, `QadiHttpError.ts`) — a different, exported *const* from the class its `_tag` matches, deliberately: the identifier names the disclosure decision ("this crosses the wire refused, not admitted"), the `_tag` still names the failure. Corroborated in GVR-05: a reader grepping a shared tag across `@qadi/core` and `@qadi/http` lands on two exports for one concept, on purpose. |
 

@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-05): BEH-QD-905 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-903, CCR-QD-904)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-905 — `decodeAuditEntry`, the guarded reader (ADR-QD-902, CCR-QD-903)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-902)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
+> | Change History | 1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
 
 _Previous: [32 — Custom Predicates](./32-custom-predicates.md)_
 
@@ -80,12 +80,12 @@ hatch) and the outcome.
 record's in-memory projection and the store's own `JSON.stringify` did the rest,
 behind a guard that walked some fields: a circular or `BigInt`-valued `params`
 passed it until issue #104, and a cyclic or `BigInt` resolver `cause` passed it
-until CCR-QD-902. Each threw at the store's `JSON.stringify`, which the breaker
+until CCR-QD-178. Each threw at the store's `JSON.stringify`, which the breaker
 counts as a write failure — so during an attribute-store outage, five such
 records opened it and the healthy rows after them were dropped. An `Error`
 cause was written as `{}`, and a `Set` in a resource as `{}`. Now the row *is*
 the encoded wire, checked over its whole encoded form by one walk
-([ADR-QD-902](../decisions/902-sinkcodec-owns-both-directions.md)): there is no
+([ADR-QD-095](../decisions/095-sinkcodec-owns-both-directions.md)): there is no
 encode step left for a store to forget, a `Failed` record is written with its
 `cause` normalised, and the breaker trips only on genuine store failures. The
 walk is iterative with one mutable ancestor set, so a merely deep value cannot
@@ -94,11 +94,11 @@ refused.
 
 A property whose value is `undefined` is absence — JSON drops the key — not a
 refusal; a valid `Date` is persisted as its ISO string (the named normalisations
-of [INV-QD-902](../invariants.md#inv-qd-902-whatever-the-record-codec-emits-it-accepts)).
+of [INV-QD-096](../invariants.md#inv-qd-096-whatever-the-record-codec-emits-it-accepts)).
 
-## BEH-QD-905: A stored row is read back through a guard
+## BEH-QD-312: A stored row is read back through a guard
 
-> **Invariant:** [INV-QD-903](../invariants.md#inv-qd-903-the-record-codec-is-total)
+> **Invariant:** [INV-QD-097](../invariants.md#inv-qd-097-the-record-codec-is-total)
 
 ```ts
 export const decodeAuditEntry: (
@@ -126,7 +126,7 @@ REQUIREMENT: decodeAuditEntry MUST read a row of either wire version — one
 
 A store keeps every row it was ever handed, so it holds rows of every wire
 version a writer ever used, for good
-([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
+([ADR-QD-096](../decisions/096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
 `AuditEntry.record` is `SinkRecordJson`, the closed union of both byte formats,
 and `AuditArchive`'s `archiveVersion` stays `"1"`: each entry names its own wire
 version.

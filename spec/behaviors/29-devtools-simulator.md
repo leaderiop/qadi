@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-901, CCR-QD-901)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.2 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -136,7 +136,7 @@ that port description's `key`, so the capture and the replay agree about a key b
 construction. Both are written once over `@qadi/core`'s port registry —
 `capturing` is `decoratePorts`, `replayLayer` is each port's `scriptedPort` — so a
 port added to the registry is captured and replayed with no edit here
-([ADR-QD-901](../decisions/901-a-port-is-described-once.md)).
+([ADR-QD-094](../decisions/094-a-port-is-described-once.md)).
 
 ## BEH-QD-222: A what-if sweep varies the input in both directions
 

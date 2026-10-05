@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-904's frame carries the stored-record envelope; BEH-QD-907 (the backlog travels on the stream, every frame names its producer), BEH-QD-908 (`decisionBacklogRoute`) and BEH-QD-909 (resume on reconnect) added (ADR-QD-904, CCR-QD-905)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-905)<br>1.4 (2026-10-05): BEH-QD-904 — a frame's data is wire version 2 (ADR-QD-903, CCR-QD-904)<br>1.3 (2026-10-05): BEH-QD-904 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.6 (2026-10-05): ARCH-11 — BEH-QD-201 rewritten for the decision log's live half; BEH-QD-202 takes a `DecisionLogReader`; BEH-QD-311's frame carries the stored-record envelope; BEH-QD-314 (the backlog travels on the stream, every frame names its producer), BEH-QD-315 (`decisionBacklogRoute`) and BEH-QD-316 (resume on reconnect) added (ADR-QD-097, CCR-QD-181)<br>1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-311 — a frame's data is wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-311 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -21,11 +21,11 @@ The transport, built on the seam
 decision log in `@qadi/core` that is a sink, a backlog and a live stream at once,
 and routes in `@qadi/http` that serve it. See
 [ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md) and
-[ADR-QD-904](../decisions/904-a-decision-log-is-a-sink-and-its-own-history.md).
+[ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md).
 
 ## BEH-QD-201: A decision log's live half never blocks, and every reader gets its own copy
 
-> **Rewritten in CCR-QD-905 (ARCH-11).** The feed this requirement described,
+> **Rewritten in CCR-QD-181 (ARCH-11).** The feed this requirement described,
 > `decisionSinkFeed`, is gone: one decision log
 > ([BEH-QD-185](./24-decision-sink.md)) is the sink, the backlog and the live
 > stream, so the feed's guarantees now belong to the log's live half. Nothing a
@@ -103,7 +103,7 @@ The superseded text, kept for the record:
 > reaches, and for a sliding `PubSub` that path is synchronous throughout, so the
 > awaited form costs no blocking.
 >
-> > **Corrected in CCR-QD-905.** This paragraph previously read:
+> > **Corrected in CCR-QD-181.** This paragraph previously read:
 > >
 > > `publishUnsafe` rather than `publish`, because the awaiting form would reintroduce
 > > exactly the blocking this removes.
@@ -189,15 +189,15 @@ it passes through the same `HttpRouter`, the same middleware and the same
 `guardRoute` as every other route in the package — a socket would need an upgrade
 path outside all three and would have to re-answer authorization on its own
 terms. `EventSource` reconnects by itself, and a reconnect reads the log again —
-the minimal protocol of [BEH-QD-907](#beh-qd-907-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)
-and [BEH-QD-909](#beh-qd-909-a-reconnect-resumes-where-it-left-off), and nothing
+the minimal protocol of [BEH-QD-314](#beh-qd-314-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)
+and [BEH-QD-316](#beh-qd-316-a-reconnect-resumes-where-it-left-off), and nothing
 more.
 
-> **Amended in CCR-QD-905.** This paragraph previously ended "which pairs with
+> **Amended in CCR-QD-181.** This paragraph previously ended "which pairs with
 > `replay` to recover a dropped connection with no protocol of ours". The route
 > now serves a decision log (`log: DecisionLogReader`, previously
 > `stream: Stream<SinkRecord>`), and what a reader receives, in order, is
-> BEH-QD-907's: the backlog, `synced`, then live frames.
+> BEH-QD-314's: the backlog, `synced`, then live frames.
 
 Effect's own devtools uses a WebSocket, and that is right for what it is: a
 bidirectional RPC channel. This is a feed.
@@ -251,9 +251,9 @@ test double does not — so an interval nobody asked for would only be needless
 load for a deployment with no revocation source to notice. See
 [ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md) Rev 1.1.
 
-## BEH-QD-904: One record never ends the feed, and a refused one is reported
+## BEH-QD-311: One record never ends the feed, and a refused one is reported
 
-> **Invariant:** [INV-QD-903](../invariants.md#inv-qd-903-the-record-codec-is-total)
+> **Invariant:** [INV-QD-097](../invariants.md#inv-qd-097-the-record-codec-is-total)
 
 ```ts
 export type DecisionFrameEvent = "backlog" | "message";
@@ -279,9 +279,9 @@ REQUIREMENT: A frame's data MUST be the stored record's
              stores.
 ```
 
-> **Amended in CCR-QD-905.** The third requirement previously named
+> **Amended in CCR-QD-181.** The third requirement previously named
 > `encodeSinkRecordString`; a frame now carries the stored-record envelope
-> around those same bytes (BEH-QD-907).
+> around those same bytes (BEH-QD-314).
 
 Every subscriber reads the same feed, so a throw while framing one record used
 to end every open `/__decisions` connection at once. It happened for a reachable
@@ -291,19 +291,19 @@ a resolver's `cause`, and `JSON.stringify` threw. Framing is now one call to
 `@qadi/core`'s `encodeSinkRecordString`, which never throws, normalises a
 `cause` through `Schema.Defect()` rather than refusing it, and refuses with a
 reason whatever else would not round-trip
-([ADR-QD-902](../decisions/902-sinkcodec-owns-both-directions.md)). The text is
+([ADR-QD-095](../decisions/095-sinkcodec-owns-both-directions.md)). The text is
 wire version 2, which a subscriber on a release before the versioned wire
 refuses, so subscribers upgrade before the server
-([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
+([ADR-QD-096](../decisions/096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
 
 A refusal was silent before — the frame simply did not appear — against the
 precedent of `onFailure`, `onDropped` and `onMalformed`: a feed dropping records
 while looking healthy is the defect, not the drop.
 
 
-## BEH-QD-907: The backlog travels on the stream, and every frame names its producer
+## BEH-QD-314: The backlog travels on the stream, and every frame names its producer
 
-> **Invariant:** [INV-QD-906](../invariants.md#inv-qd-906-a-log-reader-sees-every-retained-record-exactly-once)
+> **Invariant:** [INV-QD-100](../invariants.md#inv-qd-100-a-log-reader-sees-every-retained-record-exactly-once)
 
 ```ts
 export const DecisionStreamSynced: Schema.Struct<{ backlog: Schema.Number }>;
@@ -354,7 +354,7 @@ been shown as `Server` (C3, C10). It now travels on the wire, stamped once by
 the producing log. The envelope wraps the record wire rather than adding a field
 to it, so forwarding and `@qadi/audit`, which read the record wire and never
 asked for a label, are untouched; the record's own `version`
-([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md))
+([ADR-QD-096](../decisions/096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md))
 lives inside `record`. An unknown top-level envelope key is ignored, as one on
 the record is.
 
@@ -370,7 +370,7 @@ a reader older than the envelope reading a newer server — reports every frame
 as `not-a-record` through its `onMalformed` ([BEH-QD-204](./27-devtools-timeline.md)):
 loud, not silently mislabelled.
 
-## BEH-QD-908: The backlog is readable without a stream
+## BEH-QD-315: The backlog is readable without a stream
 
 ```ts
 export const decisionBacklogRoute: (
@@ -398,7 +398,7 @@ atomic with `/__decisions` — two requests are two reads, and a record made
 between them is in neither — so a reader that wants the past and the future
 without a gap uses the stream's prelude.
 
-## BEH-QD-909: A reconnect resumes where it left off
+## BEH-QD-316: A reconnect resumes where it left off
 
 ```ts
 export interface LogCursor { readonly epoch: number; readonly seq: number }

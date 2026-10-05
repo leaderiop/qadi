@@ -426,7 +426,7 @@ export const EncodeRefusal = Data.taggedEnum<EncodeRefusal>();
  *
  * A refusal is a value, never a thrown error and never a defect: every
  * outbound adapter (forwarding, the decision stream, the audit encoder)
- * reports it and drops that one record (INV-QD-903).
+ * reports it and drops that one record (INV-QD-097).
  *
  * Declared here rather than in `SinkCodec.ts`, which raises it, because it
  * joins `QadiError` and `ERROR_CODES`, and `Errors.ts` cannot import
@@ -441,10 +441,10 @@ export class SinkRecordNotEncodable extends Data.TaggedError("SinkRecordNotEncod
 }> {}
 
 /**
- * A version of the record wire (ADR-QD-903).
+ * A version of the record wire (ADR-QD-096).
  *
  * Version 1 is spelled by the absence of a `version` key — every `@qadi/core`
- * before ADR-QD-903 wrote it — and carries a decision's outcome as two optional
+ * before ADR-QD-096 wrote it — and carries a decision's outcome as two optional
  * fields, `decided`/`failed`. Version 2 carries `version: 2` and the outcome as
  * one tagged value. A closed union: a third version is a full-union edit.
  *
@@ -468,7 +468,7 @@ export const WIRE_VERSIONS: ReadonlyArray<WireVersion> = [1, 2];
  *   including a decision naming neither outcome, or both.
  * - `UnsupportedVersion`: the input's `version` is not one this reader reads
  *   (`supported`). A different fix from `Malformed`: the sender is newer than
- *   this reader, so upgrade the reader (ADR-QD-903). `version` is the value as
+ *   this reader, so upgrade the reader (ADR-QD-096). `version` is the value as
  *   sent, which may be any JSON value.
  */
 export type DecodeRefusal = Data.TaggedEnum<{
@@ -485,7 +485,7 @@ export const DecodeRefusal = Data.taggedEnum<DecodeRefusal>();
  * Input `decodeSinkRecord` could not turn into a record, and why.
  *
  * A value, never a thrown error or a defect, whatever the input
- * (INV-QD-903). Declared here for the same reason as
+ * (INV-QD-097). Declared here for the same reason as
  * {@link SinkRecordNotEncodable}.
  */
 export class SinkRecordNotDecodable extends Data.TaggedError("SinkRecordNotDecodable")<{
@@ -556,8 +556,8 @@ export const ERROR_CODES = {
   "InvalidBoundedPermits": "ACL016",
   "PolicyDecodeTooDeep": "ACL017",
   "PredicateNotRenderable": "ACL018",
-  "SinkRecordNotEncodable": "ACL090",
-  "SinkRecordNotDecodable": "ACL091",
+  "SinkRecordNotEncodable": "ACL019",
+  "SinkRecordNotDecodable": "ACL020",
 } as const satisfies Record<QadiError["_tag"], `ACL${string}`>;
 
 /** The stable code for a guard error. */

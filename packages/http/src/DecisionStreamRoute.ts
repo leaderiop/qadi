@@ -2,7 +2,7 @@
  * `/__decisions` — this process's decision log, as Server-Sent Events: what it
  * already holds, then what it decides next.
  *
- * **What a reader receives, in order** (ADR-QD-904). One `log.read` per
+ * **What a reader receives, in order** (ADR-QD-097). One `log.read` per
  * connection — subscribe, then snapshot — so the two halves cannot lose or
  * repeat a record between them:
  *

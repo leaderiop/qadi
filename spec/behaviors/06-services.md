@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-901 (every port has the standard wrapper set), BEH-QD-902 (an environment names only what it overrides) and BEH-QD-903 (a port can be scripted) added (ADR-QD-901, CCR-QD-901)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.7 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -100,7 +100,7 @@ The five port defaults are each derived from the port's description —
 `AttributeResolverNone = nonePort(attributeResolverPort)` — whose `none` field is the
 only statement of the name and the answer; `@qadi/devtools`' replay reads the same
 field for a request its capture never saw
-([ADR-QD-901](../decisions/901-a-port-is-described-once.md)).
+([ADR-QD-094](../decisions/094-a-port-is-described-once.md)).
 
 ```
 REQUIREMENT: Every default layer MUST fail closed. An unwired relationship
@@ -230,9 +230,9 @@ was never actually verified. This was previously implicit — spread across
 about a long-lived runtime holding one subject, and ADR-QD-058's capture-side
 scoping — with no single normative statement of it (WD-05).
 
-## BEH-QD-901: Every port has the standard wrapper set
+## BEH-QD-308: Every port has the standard wrapper set
 
-> **Invariant:** [INV-QD-901](../invariants.md#inv-qd-901-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description)
+> **Invariant:** [INV-QD-095](../invariants.md#inv-qd-095-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description)
 
 ```ts
 export const attributeResolverRetrying:  (schedule) => (layer) => Layer<AttributeResolver>;
@@ -273,7 +273,7 @@ REQUIREMENT: Each wrapper MUST name itself around the implementation it wraps
              for an unnamed inner ([BEH-QD-196](./25-inspection.md)).
 ```
 
-## BEH-QD-902: An environment names only what it overrides
+## BEH-QD-309: An environment names only what it overrides
 
 > **Invariant:** [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed)
 
@@ -309,9 +309,9 @@ const services = Layer.merge(
 );
 ```
 
-## BEH-QD-903: A port can be scripted
+## BEH-QD-310: A port can be scripted
 
-> **Invariant:** [INV-QD-901](../invariants.md#inv-qd-901-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description)
+> **Invariant:** [INV-QD-095](../invariants.md#inv-qd-095-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description)
 
 ```ts
 export const scriptedPort: (port, script: (...request) => PortReply<A> | undefined, name?) => PortDouble;

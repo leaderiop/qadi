@@ -341,7 +341,7 @@ describe("decodeAuditEntry refuses what the row schema alone would accept", () =
 });
 
 /**
- * A store holds rows of both wire versions for good (ADR-QD-903 D-15-h): rows
+ * A store holds rows of both wire versions for good (ADR-QD-096 D-15-h): rows
  * written before version 2, rows written by a sender held at version 1, and
  * version-2 rows. `decodeAuditEntry` reads every one, with the same envelope
  * leniency and content strictness as the core decode.

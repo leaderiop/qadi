@@ -10,7 +10,7 @@
 > | Status         | Draft — **implementable**; allocation still pending CCR |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record (draft)           |
-> | Change History | 0.4 (2026-10-05): the badge's source and the transport item name the decision log that replaced the ring and the feed (ADR-QD-904, CCR-QD-905)<br>0.3 (2026-08-24): Two of the four remaining gaps are closed — the id is threaded and a transport exists (CCR-QD-066)<br>0.2 (2026-08-24): The pairing mechanism corrected — it did not exist when this was written, and half of it exists now (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.4 (2026-10-05): the badge's source and the transport item name the decision log that replaced the ring and the feed (ADR-QD-097, CCR-QD-181)<br>0.3 (2026-08-24): Two of the four remaining gaps are closed — the id is threaded and a transport exists (CCR-QD-066)<br>0.2 (2026-08-24): The pairing mechanism corrected — it did not exist when this was written, and half of it exists now (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -65,12 +65,12 @@ made; over SSE it travels inside each frame. Core's evaluator deliberately does
 not claim one, since it cannot know whether it is in a browser, on a server or
 at an edge.
 
-> **Corrected 2026-10-05 (CCR-QD-905).** This paragraph read:
+> **Corrected 2026-10-05 (CCR-QD-181).** This paragraph read:
 >
 > `decisionSinkRing` requires an `environment` and stamps it.
 >
 > The ring is replaced by the decision log
-> ([ADR-QD-904](../decisions/904-a-decision-log-is-a-sink-and-its-own-history.md)).
+> ([ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md)).
 > Under the ring the badge was stated a second time by the SSE reader, and the
 > reader's label won for every live row.
 
@@ -92,9 +92,9 @@ Naming these so the draft cannot again claim more than it has.
   timeline
   ([ADR-QD-045](../decisions/045-the-topology-is-a-choice-of-sink.md),
   [ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md),
-  [ADR-QD-904](../decisions/904-a-decision-log-is-a-sink-and-its-own-history.md)).
+  [ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md)).
 
-  > **Corrected 2026-10-05 (CCR-QD-905).** This item named
+  > **Corrected 2026-10-05 (CCR-QD-181).** This item named
   > `decisionSinkFeed`, since replaced by the decision log.
 
 **Still open:**

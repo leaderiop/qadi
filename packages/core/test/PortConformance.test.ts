@@ -1,6 +1,6 @@
 /**
  * One conformance suite, run over every port in the registry (ARCH-10,
- * INV-QD-901): each port's named default, its three exported wrappers, its
+ * INV-QD-095): each port's named default, its three exported wrappers, its
  * scripted and recording doubles and its defect constructor must agree with
  * its description.
  *

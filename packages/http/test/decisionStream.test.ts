@@ -835,7 +835,7 @@ describe("one record cannot end the feed", () => {
 });
 
 /**
- * Each frame is written as wire version 2 (ADR-QD-903). The obligation
+ * Each frame is written as wire version 2 (ADR-QD-096). The obligation
  * record's bytes are short enough to pin whole.
  */
 describe("decisionFrames writes wire version 2", () => {
@@ -859,7 +859,7 @@ describe("decisionFrames writes wire version 2", () => {
 });
 
 /**
- * What a reader receives, in order (ADR-QD-904): the backlog as `backlog`
+ * What a reader receives, in order (ADR-QD-097): the backlog as `backlog`
  * frames, one `synced`, then live `message` frames — each an envelope naming
  * its producer. Read through `decisionFrames` over a real log's `read`, which
  * is exactly the route's body; the last case reads the route's own response.

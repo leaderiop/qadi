@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-904, CCR-QD-905)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-903, CCR-QD-904)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -38,12 +38,12 @@ export interface Source {
 }
 ```
 
-> **Amended in CCR-QD-905 (ARCH-11).** `Source` was `{ backlog?: Effect<…>;
+> **Amended in CCR-QD-181 (ARCH-11).** `Source` was `{ backlog?: Effect<…>;
 > live: Stream<…> }`: two fields a consumer ran one after the other, so a record
 > made between them was lost, and nothing stopped a consumer running `live`
 > without `backlog`. It is one scoped `read` now, which hands both over together;
 > a `DecisionLog` satisfies it as is
-> ([BEH-QD-906](./24-decision-sink.md#beh-qd-906-a-reader-sees-each-retained-record-once-across-backlog-and-live)).
+> ([BEH-QD-313](./24-decision-sink.md#beh-qd-313-a-reader-sees-each-retained-record-once-across-backlog-and-live)).
 
 ```
 REQUIREMENT: Every screen MUST consume a `Source`, and no screen may know what
@@ -80,11 +80,11 @@ Core's evaluator deliberately does not claim one, because it cannot know whether
 it is in a browser, on a server or at an edge ([BEH-QD-182](./24-decision-sink.md)).
 The process that makes the log does, and says so once
 ([BEH-QD-185](./24-decision-sink.md)); `/__decisions` carries it in each frame's
-envelope ([BEH-QD-907](./26-decision-stream.md#beh-qd-907-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)),
+envelope ([BEH-QD-314](./26-decision-stream.md#beh-qd-314-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)),
 and `sourceFromEventSource` reads it from there. Only a bare record from a server
 older than the envelope is stamped by the reader, with `legacyEnvironment`.
 
-> **Superseded in CCR-QD-905 (ARCH-11).** The requirement read: "The environment
+> **Superseded in CCR-QD-181 (ARCH-11).** The requirement read: "The environment
 > MUST be stamped by the source, not read off a record." It made the reader's
 > label win for every live row and the sink's for every backlog row, with
 > nothing checking the two agreed — and an `Edge` record could only ever be shown
@@ -173,7 +173,7 @@ bare record with no `legacyEnvironment` is `"not-a-record"`, and so is every
 frame a panel older than the envelope reads from a newer server: loud, not
 silently mislabelled. `"unsupported-version"` is a server newer than
 this panel, writing a wire version its `@qadi/core` does not read
-([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)):
+([ADR-QD-096](../decisions/096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)):
 the fix is upgrading the panel, which is exactly what `"not-a-record"` would
 have hidden. A frame naming neither outcome or both is `"not-a-record"`; it is
 never rebuilt into a row. Reported rather than silent,

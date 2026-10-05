@@ -72,6 +72,6 @@ test("SinkRecordTag is exactly SinkRecord's tag, though Errors.ts cannot import 
 test("the two record-codec refusals are QadiError members with codes", () => {
   expect<SinkRecordNotEncodable>().type.toBeAssignableTo<QadiError>();
   expect<SinkRecordNotDecodable>().type.toBeAssignableTo<QadiError>();
-  expect<(typeof ERROR_CODES)["SinkRecordNotEncodable"]>().type.toBe<"ACL090">();
-  expect<(typeof ERROR_CODES)["SinkRecordNotDecodable"]>().type.toBe<"ACL091">();
+  expect<(typeof ERROR_CODES)["SinkRecordNotEncodable"]>().type.toBe<"ACL019">();
+  expect<(typeof ERROR_CODES)["SinkRecordNotDecodable"]>().type.toBe<"ACL020">();
 });

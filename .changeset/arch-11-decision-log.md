@@ -4,7 +4,7 @@
 "@qadi/devtools": minor
 ---
 
-One decision log replaces the ring, the feed and their pairing: a process's sink, its backlog and its live stream in one value, with every retained record reaching a reader exactly once (ADR-QD-904, INV-QD-906).
+One decision log replaces the ring, the feed and their pairing: a process's sink, its backlog and its live stream in one value, with every retained record reaching a reader exactly once (ADR-QD-097, INV-QD-100).
 
 **Rollout.** `/__decisions` frames are now `{ environment, record }` envelopes. A devtools panel older than this release reads every frame from a newer server as `not-a-record` (reported through `onMalformed`, never shown mislabelled): upgrade the panel with the server. A newer panel reading an older server's bare frames labels them with `legacyEnvironment` when given, and reports them otherwise.
 

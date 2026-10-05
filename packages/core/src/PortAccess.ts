@@ -17,7 +17,7 @@
  *
  * The per-port facts a read needs — the span it opens and the typed error a
  * defect becomes — come from each port's description (`PortDescription.ts`,
- * ADR-QD-901), so no port's error class or span name is spelled here. The
+ * ADR-QD-094), so no port's error class or span name is spelled here. The
  * defect *rule* — which causes are converted at all — stays here, in
  * `catchPortDefect` (ADR-QD-077).
  */

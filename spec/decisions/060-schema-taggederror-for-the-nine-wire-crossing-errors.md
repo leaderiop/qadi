@@ -10,7 +10,7 @@
 > | Status         | Accepted                                          |
 > | Author         | Qadi Engineering                                  |
 > | Classification | Architecture Decision Record                      |
-> | Change History | 1.2 (2026-10-05): dropping `code` was an unversioned wire change; the v1 reader tolerates it (ADR-QD-903) (CCR-QD-904)<br>1.1 (2026-10-05): `Schema.Defect()` governs `cause` on every outbound path; `EvaluationErrorSchema` is private (ADR-QD-902) (CCR-QD-903)<br>1.0 (2026-09-08): Initial release (CCR-QD-140)    |
+> | Change History | 1.2 (2026-10-05): dropping `code` was an unversioned wire change; the v1 reader tolerates it (ADR-QD-096) (CCR-QD-180)<br>1.1 (2026-10-05): `Schema.Defect()` governs `cause` on every outbound path; `EvaluationErrorSchema` is private (ADR-QD-095) (CCR-QD-179)<br>1.0 (2026-09-08): Initial release (CCR-QD-140)    |
 
 ---
 
@@ -160,7 +160,7 @@ Consequences of the class itself now being the schema:
 **Implemented**: `packages/core/src/Errors.ts`, `packages/core/src/Identity.ts`,
 `packages/core/src/SinkCodec.ts`, `packages/core/test/SinkCodec.test.ts`.
 
-## Amendment (2026-10-05, CCR-QD-903)
+## Amendment (2026-10-05, CCR-QD-179)
 
 "`cause`'s wire representation (`Schema.Defect()`) is a maintained library schema"
 was true on one outbound path of four: only forwarding ran a schema encode, and the
@@ -169,14 +169,14 @@ decision stream, the audit encoder and the example route wrote an `Error` cause 
 `Schema.Defect()` governs `cause` everywhere. The union of the nine classes is now
 private to `SinkCodec.ts` (`EvaluationErrorSchema` is no longer exported); the
 classes themselves remain the schema
-([ADR-QD-902](./902-sinkcodec-owns-both-directions.md)).
+([ADR-QD-095](./095-sinkcodec-owns-both-directions.md)).
 
-## Amendment (2026-10-05, CCR-QD-904)
+## Amendment (2026-10-05, CCR-QD-180)
 
 Removing `code` from the error's wire form in 0.5.0 was an **unversioned** wire
 change: `@qadi/audit` had persisted rows since 0.3.0, and every `Failed` row written
 by 0.3.x or 0.4.x carries `failed.code`, which the strict decode then refused.
-[ADR-QD-903](./903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md) versions
+[ADR-QD-096](./096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md) versions
 the record wire and its permanent version-1 reader tolerates exactly that key, at
 that position: `failed.code` is dropped before the strict decode, and any other
 excess key under `failed` is still refused. In version 2 the error sits at

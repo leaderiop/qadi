@@ -12,7 +12,7 @@
  * none failed to compile if it was forgotten. Here the set is stated once:
  * `PortTypes` is indexed by `PortName`, so a port name without a registry
  * entry is a compile error, and every type and environment below is derived
- * from it (ADR-QD-901).
+ * from it (ADR-QD-094).
  *
  * `CurrentSubject`, `EvaluationId`, `DecisionCache` and `DecisionSink` are not
  * ports in this sense — no request, no typed failure, or optional — and stay

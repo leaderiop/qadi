@@ -8,7 +8,7 @@
  * Only the public interface is used — `encodeSinkRecordString`,
  * `decodeSinkRecordString` and `@qadi/audit`'s `decodeAuditEntry` — and the
  * version-1 bytes are literals, written the way a release before the versioned
- * wire wrote them: nothing writes version 1 any more (ADR-QD-903).
+ * wire wrote them: nothing writes version 1 any more (ADR-QD-096).
  */
 import { describeFeature, loadFeature } from "@effect-cucumber/vitest";
 import assert from "node:assert/strict";

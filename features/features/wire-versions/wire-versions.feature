@@ -1,4 +1,4 @@
-@wire-versions @REQ-QD-901
+@wire-versions @REQ-QD-032
 Feature: A decision record reads the same whichever wire version carried it
 
   A decision record leaves one process and is read by another: a devtools

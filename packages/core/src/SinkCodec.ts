@@ -18,8 +18,8 @@
  *
  * **Two invariants the interface carries.** Whatever the outbound operation
  * emits, the inbound operation accepts, and rebuilds equal to the original up
- * to the named normalisations below (INV-QD-902). Neither direction throws,
- * whatever it is given, so one record can never end a feed (INV-QD-903).
+ * to the named normalisations below (INV-QD-096). Neither direction throws,
+ * whatever it is given, so one record can never end a feed (INV-QD-097).
  *
  * **Named normalisations.** A resolver error's `cause` crosses through
  * `Schema.Defect()` on every path (ADR-QD-060): an `Error` keeps `name`,
@@ -123,22 +123,22 @@ const EvaluationErrorSchema = Schema.Union([
  * decoded record back.
  *
  * Used by {@link upgradeV1} alone: version 2 requires `subjectId`
- * (ADR-QD-903 D-15-i), so this skew can only arrive as version 1.
+ * (ADR-QD-096 D-15-i), so this skew can only arrive as version 1.
  */
 const UNKNOWN_SUBJECT = makeSubjectId("<unknown subject: wire version skew>");
 
 // ---------------------------------------------------------------------------
-// Version 1 — FROZEN (ADR-QD-903 D-15-d)
+// Version 1 — FROZEN (ADR-QD-096 D-15-d)
 // ---------------------------------------------------------------------------
 
 /**
  * A version-1 decision's fields, in the order every release before
- * ADR-QD-903 wrote them (`test/fixtures/sinkWireV1.ts` holds those bytes).
+ * ADR-QD-096 wrote them (`test/fixtures/sinkWireV1.ts` holds those bytes).
  *
  * **FROZEN, and read-only.** Version 1 is read for good — audit rows are
- * durable, and a row written before ADR-QD-903 must still read years later —
+ * durable, and a row written before ADR-QD-096 must still read years later —
  * so nothing here may change; a change to the wire is a new version. It is no
- * longer written: the writer writes version 2 (ADR-QD-903 Phase C).
+ * longer written: the writer writes version 2 (ADR-QD-096 Phase C).
  *
  * `subjectId` is optional because a sender older than the field omitted it;
  * {@link upgradeV1} substitutes {@link UNKNOWN_SUBJECT}.
@@ -163,7 +163,7 @@ type DecisionV1Fields = Schema.Struct.Type<typeof decisionV1Fields>;
  *
  * The two optional fields admit four states and only two are meaningful, so a
  * record naming neither or both is refused here, at decode, rather than given
- * an outcome its sender never sent (tickets 96 and 155, CCR-QD-904). Before,
+ * an outcome its sender never sent (tickets 96 and 155, CCR-QD-180). Before,
  * "neither" became a fabricated `MissingResource`, indistinguishable by code
  * (`ACL004`) from a real resolver failure, and "both" silently preferred
  * `decided`, an artifact of check order. Version 2 cannot express either.
@@ -210,7 +210,7 @@ const isExclusive = (wire: SinkRecordWireV1): wire is ExclusiveSinkRecordWireV1 
   wire._tag === "Obligations" || (wire.decided === undefined) !== (wire.failed === undefined);
 
 // ---------------------------------------------------------------------------
-// Version 2 (ADR-QD-903)
+// Version 2 (ADR-QD-096)
 // ---------------------------------------------------------------------------
 
 /**
@@ -395,7 +395,7 @@ const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>
 
 /**
  * The encoded form of a record — version-2 bytes or version-1 bytes, a closed
- * union (ADR-QD-903): what {@link decodeSinkRecord} reads, what an audit row
+ * union (ADR-QD-096): what {@link decodeSinkRecord} reads, what an audit row
  * holds (a store keeps rows of both for good), and what forwarding's `send`
  * receives. {@link encodeSinkRecord} writes the version-2 member only; the
  * type stays the union because a receiver of the wire, or a row, may hold
@@ -590,7 +590,7 @@ const preEncodeHazard: (record: SinkRecord) => EncodeRefusal | undefined = Match
 
 /**
  * The wire schema's encoder, built once. It writes version 2 only: version 1
- * is read for good and written no more (ADR-QD-903 Phase C).
+ * is read for good and written no more (ADR-QD-096 Phase C).
  */
 const encodeWire = Schema.encodeResult(SinkRecordWire);
 
@@ -606,14 +606,14 @@ const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFai
 /**
  * A record as a verified JSON wire value, or the reason it cannot be one.
  *
- * Written as wire version 2 (ADR-QD-903). A reader on a release before the
+ * Written as wire version 2 (ADR-QD-096). A reader on a release before the
  * versioned wire reads only version 1, so readers upgrade before writers.
  *
  * Runs the depth pre-checks, the schema encode (so every resolver error's
  * `cause` crosses through `Schema.Defect()`, ADR-QD-060), and then one walk
  * over the encoded output. What it returns `JSON.stringify` renders without
- * throwing and {@link decodeSinkRecord} accepts (INV-QD-902); it never
- * throws, whatever the record holds (INV-QD-903).
+ * throwing and {@link decodeSinkRecord} accepts (INV-QD-096); it never
+ * throws, whatever the record holds (INV-QD-097).
  */
 export const encodeSinkRecord = (record: SinkRecord): Result.Result<SinkRecordJson, SinkRecordNotEncodable> => {
   const refuse = (refusal: EncodeRefusal) =>
@@ -651,7 +651,7 @@ export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string
  * embedded policy fails rather than decoding with the grant silently dropped
  * (ADR-QD-002). Each is handed the {@link envelopeOf} projection, so the one
  * place an unknown key is tolerated is the envelope's top level (GH-01,
- * ADR-QD-903).
+ * ADR-QD-096).
  */
 const decodeWireV1 = Schema.decodeUnknownResult(SinkRecordWireV1, UNTRUSTED_DECODE_OPTIONS);
 const decodeWireV2 = Schema.decodeUnknownResult(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
@@ -674,7 +674,7 @@ const ownValue = (input: object, key: string): unknown => Object.getOwnPropertyD
  * `Schema`'s parse options apply to a whole decode call, not to one position,
  * so tolerating an unknown envelope key while refusing one inside the policy
  * cannot be said to the decoder; it is said here instead, by handing the
- * strict decode only what the envelope declares (ADR-QD-903 D-15-c). A newer
+ * strict decode only what the envelope declares (ADR-QD-096 D-15-c). A newer
  * sender's additive envelope metadata then no longer refuses the whole record
  * for the length of a rolling deploy (GH-01). Nothing nested is touched. An
  * unknown `_tag` takes the decision's key set and fails in the decode, as it
@@ -686,7 +686,7 @@ const envelopeOf = (input: object, decisionKeys: ReadonlySet<string>, obligation
 };
 
 /**
- * A pre-0.5 error's `code`, dropped (ADR-QD-903 D-15-g).
+ * A pre-0.5 error's `code`, dropped (ADR-QD-096 D-15-g).
  *
  * ADR-QD-060 removed `code` from the error's wire form in 0.5.0, unversioned,
  * and `@qadi/audit` had persisted rows since 0.3.0: every `Failed` row written
@@ -734,15 +734,15 @@ const decodeV2 = (input: object): Result.Result<SinkRecord, SinkRecordNotDecodab
  * `Trace` cannot overflow. Then the version: no `version` key is version 1,
  * read for good; `version: 2` is version 2; any other value is
  * `UnsupportedVersion` — the sender is newer than this reader — rather than
- * `Malformed` (ADR-QD-903, the same convention ADR-QD-078 gives the hydration
+ * `Malformed` (ADR-QD-096, the same convention ADR-QD-078 gives the hydration
  * payload). Each version is projected onto its envelope's declared keys,
  * decoded with `UNTRUSTED_DECODE_OPTIONS`, and rebuilt into record classes. It
- * accepts whatever {@link encodeSinkRecord} emits (INV-QD-902), and a record
- * decodes to the same `SinkRecord` whichever version carried it (INV-QD-905).
+ * accepts whatever {@link encodeSinkRecord} emits (INV-QD-096), and a record
+ * decodes to the same `SinkRecord` whichever version carried it (INV-QD-099).
  *
  * **The seam for the wire's shape.** How the outcome is carried, the refusal
  * of a record naming neither outcome or both (tickets 96 and 155,
- * CCR-QD-904), and the version dispatch live behind this function, so no
+ * CCR-QD-180), and the version dispatch live behind this function, so no
  * adapter observes them and a change to them is an edit to this module alone.
  *
  * The depth guard is `DecodeDepthGuard.ts`'s, shared with `Policy.ts`'s own
@@ -774,7 +774,7 @@ export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, Sink
 /**
  * JSON text as a record, or the reason it is not one: `NotJson` when the text
  * does not parse, otherwise whatever {@link decodeSinkRecord} says. Never
- * throws (INV-QD-903).
+ * throws (INV-QD-097).
  */
 export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
   const parsed = Result.try((): unknown => JSON.parse(text));
@@ -791,7 +791,7 @@ export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, 
  *
  * An envelope rather than an `environment` field on the record wire, because
  * forwarding and `@qadi/audit` read the record wire too and never asked for a
- * label. The `version` key lives inside `record` (ADR-QD-903), so the envelope
+ * label. The `version` key lives inside `record` (ADR-QD-096), so the envelope
  * itself is unversioned: a later change to it is additive at its top level,
  * which {@link decodeStoredRecord} ignores, or a new `record` version.
  *
@@ -844,7 +844,7 @@ const notAnEnvelope = (message: string) => notDecodable(DecodeRefusal.Malformed(
  * own `record` — and `record` then goes through {@link decodeSinkRecord}, so
  * every rule about the record (depth, version, strictness inside the policy) is
  * that function's. A top-level envelope key this reader does not declare is
- * ignored, as {@link decodeSinkRecord} ignores one on the record (ADR-QD-903
+ * ignored, as {@link decodeSinkRecord} ignores one on the record (ADR-QD-096
  * D-15-c): a newer server's additive metadata must not refuse every frame for
  * the length of a rolling deploy.
  *

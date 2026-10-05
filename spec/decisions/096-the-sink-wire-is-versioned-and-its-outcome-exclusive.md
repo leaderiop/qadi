@@ -1,4 +1,4 @@
-# ADR-QD-903 — The record wire is versioned, its outcome is exclusive, and its envelope tolerates unknown keys
+# ADR-QD-096 — The record wire is versioned, its outcome is exclusive, and its envelope tolerates unknown keys
 
 > **Document Control**
 >
@@ -17,7 +17,7 @@
 
 A `SinkRecord` crosses process boundaries as JSON — forwarding's `send`, the
 `/__decisions` stream, an `@qadi/audit` row — through the one codec
-[ADR-QD-902](./902-sinkcodec-owns-both-directions.md) gave it
+[ADR-QD-095](./095-sinkcodec-owns-both-directions.md) gave it
 (`encodeSinkRecord`/`decodeSinkRecord`). ARCH-15 verified its wire at
 `e0ee958` and re-read it after ARCH-09 at `899465c`:
 
@@ -51,7 +51,7 @@ A `SinkRecord` crosses process boundaries as JSON — forwarding's `send`, the
 - **C10. The audit row schema, decoded on its own, was not a reader.** Under
   `Schema`'s default options `AuditEntry` accepted a record naming no outcome
   and silently stripped a typo inside the embedded policy. `decodeAuditEntry`
-  (ADR-QD-902) reads the record through `decodeSinkRecord` and refuses both.
+  (ADR-QD-095) reads the record through `decodeSinkRecord` and refuses both.
 - **The hydration payload already has a version convention**
   ([ADR-QD-078](./078-a-seed-is-its-own-type-and-the-payload-is-versioned.md)):
   a `version` key, absent meaning v1, an unknown value a named failure. The
@@ -68,9 +68,9 @@ nested position strict. The writer writes version 2.**
 | -------- | ------ |
 | D-15-a — the outcome | `outcome: { _tag: "Decided", decision } \| { _tag: "Failed", error }` on the `Decision` envelope, mirroring `DecisionRecord.outcome` one for one. "Both" and "neither" are unrepresentable in the type, and the rebuild is one exhaustive `Match` with no defensive arm. The envelope's `_tag` stays `"Decision" \| "Obligations"` (ADR-QD-003) |
 | D-15-b — version and rollout | A `version: 2` key on both envelope members; absent means version 1, the same spelling and the same "absent is v1" rule as ADR-QD-078. Planned as three releases (readers first, then the writer's default, then the v1 writer's removal); **landed in one** — see below |
-| D-15-c — lenient envelope, strict content | Before one strict decode (`UNTRUSTED_DECODE_OPTIONS`), the input is projected onto the declared top-level keys of its member, the key set derived from the schema's own fields so it cannot drift. Everything nested — `Policy`, `Trace`, the decision, the error, the outcome — stays strict. The ignored keys are **not** logged: the codec is pure and returns `Result` (ADR-QD-902 D-09-a), so it has no logger to write to; see Consequences |
+| D-15-c — lenient envelope, strict content | Before one strict decode (`UNTRUSTED_DECODE_OPTIONS`), the input is projected onto the declared top-level keys of its member, the key set derived from the schema's own fields so it cannot drift. Everything nested — `Policy`, `Trace`, the decision, the error, the outcome — stays strict. The ignored keys are **not** logged: the codec is pure and returns `Result` (ADR-QD-095 D-09-a), so it has no logger to write to; see Consequences |
 | D-15-d — the v1 reader | Permanent, and its schema frozen: the field order is part of the bytes, pinned by golden fixtures. This deliberately differs from ADR-QD-078, which retires its v1 reader after one minor: a hydration payload lives in one cached page, an audit row for years. Do not "harmonise" the two |
-| D-15-e — the error surface | No new error class. `DecodeRefusal` (ADR-QD-902 D-09-b) gains `UnsupportedVersion { version, supported }`, as a full-union edit, so a version mismatch — fixed by upgrading the reader — is told apart from `Malformed`. A malformed outcome in either version is `Malformed`: in v1 from the exactly-one-outcome check, in v2 structurally |
+| D-15-e — the error surface | No new error class. `DecodeRefusal` (ADR-QD-095 D-09-b) gains `UnsupportedVersion { version, supported }`, as a full-union edit, so a version mismatch — fixed by upgrading the reader — is told apart from `Malformed`. A malformed outcome in either version is `Malformed`: in v1 from the exactly-one-outcome check, in v2 structurally |
 | D-15-f — devtools | `MalformedReason` gains `"unsupported-version"`, the full closed union `"not-json" \| "too-deep" \| "not-a-record" \| "unsupported-version"` |
 | D-15-g — pre-0.5 rows | The v1 reader tolerates exactly `failed.code`: that key, at that position, in version 1 only, dropped before the strict decode as the documented ADR-QD-060 artifact. Any other key under `failed` is still refused. A pre-0.5 `cause` rendered to a string decodes as that string (a string is a valid `Schema.Defect()` encoding) |
 | D-15-h — the audit row | `AuditEntry.record` is `SinkRecordJson`, the closed union of both byte formats: what a store holds. `decodeAuditEntry` keeps its shape, `Result<{ entry, record }, SinkRecordNotDecodable>`, and reads either version. `AuditArchive`'s `archiveVersion` stays `"1"`: entries are self-describing, and the bundle's own shape did not change |
@@ -133,9 +133,9 @@ and the release notes say this in bold.
   reader's check order: tickets 96 and 155 are closed, and the invented
   `MissingResource` is gone, so `ACL004` once again means only a resolver that
   could not find an attribute
-  ([INV-QD-904](../invariants.md#inv-qd-904-a-decoded-decision-record-has-exactly-the-outcome-its-sender-sent)).
+  ([INV-QD-098](../invariants.md#inv-qd-098-a-decoded-decision-record-has-exactly-the-outcome-its-sender-sent)).
 - A record decodes to the same `SinkRecord` whichever version carried it
-  ([INV-QD-905](../invariants.md#inv-qd-905-a-record-decodes-the-same-whichever-wire-version-carried-it)).
+  ([INV-QD-099](../invariants.md#inv-qd-099-a-record-decodes-the-same-whichever-wire-version-carried-it)).
 - GH-01 is closed: additive envelope metadata no longer breaks a rolling
   deploy, while a typo inside the embedded policy is still refused.
 - Rows written by `@qadi/audit` 0.3.x and 0.4.x read again.
@@ -155,7 +155,7 @@ and the release notes say this in bold.
 - **Ignored envelope keys are silent.** A reader cannot tell from the decode
   that a newer sender added metadata. Making it observable would need either an
   effectful decode (a logger) or a second return value, each a change to
-  ADR-QD-902's interface for a diagnostic; not taken.
+  ADR-QD-095's interface for a diagnostic; not taken.
 - **The v1 schema can never change.** It is frozen by golden fixtures, which
   are now read-only: nothing writes version 1.
 - **A trace is one level deeper.** Version 2 carries a decision's trace at
@@ -194,7 +194,7 @@ and the release notes say this in bold.
   persisted records: old audit rows would become unreadable by the library that
   wrote them.
 - **A separate `UnsupportedWireVersion` error class with its own code.** The
-  plan's first shape; with ADR-QD-902's closed `DecodeRefusal` in place, a
+  plan's first shape; with ADR-QD-095's closed `DecodeRefusal` in place, a
   second error would layer a parallel failure channel over the one reason union.
 - **Ship the stages as three releases.** The plan's design, and the safer one
   for a fleet with independently deployed readers; set aside at the maintainer's
@@ -217,10 +217,10 @@ union of wire versions, read back with `decodeAuditEntry`) and
 [ADR-QD-045](./045-the-topology-is-a-choice-of-sink.md),
 [ADR-QD-046](./046-a-decision-feed-is-sse-and-guarded.md),
 [ADR-QD-078](./078-a-seed-is-its-own-type-and-the-payload-is-versioned.md),
-[ADR-QD-902](./902-sinkcodec-owns-both-directions.md).
-[INV-QD-904](../invariants.md#inv-qd-904-a-decoded-decision-record-has-exactly-the-outcome-its-sender-sent),
-[INV-QD-905](../invariants.md#inv-qd-905-a-record-decodes-the-same-whichever-wire-version-carried-it);
+[ADR-QD-095](./095-sinkcodec-owns-both-directions.md).
+[INV-QD-098](../invariants.md#inv-qd-098-a-decoded-decision-record-has-exactly-the-outcome-its-sender-sent),
+[INV-QD-099](../invariants.md#inv-qd-099-a-record-decodes-the-same-whichever-wire-version-carried-it);
 [BEH-QD-199](../behaviors/25-inspection.md),
 [BEH-QD-200](../behaviors/25-inspection.md),
 [BEH-QD-204](../behaviors/27-devtools-timeline.md),
-[BEH-QD-905](../behaviors/33-audit-pipeline.md#beh-qd-905-a-stored-row-is-read-back-through-a-guard).
+[BEH-QD-312](../behaviors/33-audit-pipeline.md#beh-qd-312-a-stored-row-is-read-back-through-a-guard).

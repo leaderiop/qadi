@@ -71,7 +71,7 @@ export const sourceFromRecords = (records: ReadonlyArray<StoredRecord>): Source 
 });
 
 /**
- * The SSE events `/__decisions` sends (ADR-QD-904): `backlog` frames, one
+ * The SSE events `/__decisions` sends (ADR-QD-097): `backlog` frames, one
  * `synced`, then `message` frames. A closed union — the adapter registers one
  * listener per name.
  */
@@ -311,7 +311,7 @@ const decodeFrame = (
  * naming neither outcome or both, a field of the wrong type); and
  * `unsupported-version` is a sender newer than this panel, writing a wire
  * version its `@qadi/core` does not read — fixed by upgrading this panel, not
- * the far side (ADR-QD-903).
+ * the far side (ADR-QD-096).
  *
  * A closed union rather than a free string: this is a value a caller branches
  * on, and adding a reason should be a compile error at every consumer.

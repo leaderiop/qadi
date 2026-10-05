@@ -15,7 +15,7 @@
  * **What the log hides, so no host can get it wrong.** Append before publish,
  * and subscribe before snapshot, with a sequence number filtering the live half
  * at the snapshot's high-water mark: a record lands in a reader's backlog, or in
- * its live stream, never both and never neither (INV-QD-906). Sliding `publish`,
+ * its live stream, never both and never neither (INV-QD-100). Sliding `publish`,
  * so the newest record wins on a full buffer and the evaluation never waits on a
  * reader. `Chunk` head-eviction by arrival. The prototype-preserving stamp. One
  * capacity, validated once, bounding both the retained backlog and each reader's

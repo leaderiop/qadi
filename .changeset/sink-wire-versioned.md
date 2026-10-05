@@ -5,7 +5,7 @@
 "@qadi/devtools": minor
 ---
 
-The decision-record wire is versioned, a decision's outcome on it is exclusive, and a reader ignores envelope metadata it does not know (ADR-QD-903, INV-QD-904, INV-QD-905).
+The decision-record wire is versioned, a decision's outcome on it is exclusive, and a reader ignores envelope metadata it does not know (ADR-QD-096, INV-QD-098, INV-QD-099).
 
 **Rollout — read this first. This release writes wire version 2, and a reader on an earlier release refuses it. Upgrade every *reader* of decision records — devtools panels, aggregators, audit tooling, anything that decodes another process's records or another deployment's audit rows — to this version before any *writer* (`decisionSinkForwarding`, `decisionStreamRoute`, `AuditDecisionSinkLive`).** The change was planned as three releases — readers of both versions first, then writers defaulting to version 2 with a `wireVersion: 1` option to hold a lagging fleet, then the option's removal — and ships as one, so there is no option to hold a writer at version 1: the order above is the only lever. A process that reads its own records (the in-process devtools, a store written and read by one deployment) is unaffected.
 

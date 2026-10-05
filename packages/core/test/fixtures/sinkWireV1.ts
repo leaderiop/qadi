@@ -4,7 +4,7 @@
  *
  * Wire version 1 is the record wire with no `version` key, written by every
  * `@qadi/core` before ARCH-15. Audit rows are durable, so a v1 row written in
- * 2026 must still read in 2030 (ADR-QD-903, D-15-d): these bytes are decoded
+ * 2026 must still read in 2030 (ADR-QD-096, D-15-d): these bytes are decoded
  * by the tests forever, and are never re-derived from the current encoder.
  *
  * The first three were pinned at commit `1caf04c`, before the decision codec

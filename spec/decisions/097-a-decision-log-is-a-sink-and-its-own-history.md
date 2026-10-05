@@ -1,4 +1,4 @@
-# ADR-QD-904 — A decision log is a sink and its own history
+# ADR-QD-097 — A decision log is a sink and its own history
 
 > **Document Control**
 >
@@ -10,7 +10,7 @@
 > | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-905) |
+> | Change History | 1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
 
 ---
 
@@ -55,7 +55,7 @@ internal: append before publish, subscribe before snapshot, a sequence
 high-water mark filtering the live half, sliding `publish`, `Chunk` eviction by
 arrival, the prototype-preserving stamp. `ingest` reaches the backlog **and**
 every live reader. A reader sees each retained record exactly once
-([INV-QD-906](../invariants.md#inv-qd-906-a-log-reader-sees-every-retained-record-exactly-once)).
+([INV-QD-100](../invariants.md#inv-qd-100-a-log-reader-sees-every-retained-record-exactly-once)).
 
 **Replace, don't layer** (D-11-b). `decisionSinkRing`, `decisionSinkFeed`,
 `DEFAULT_RING_CAPACITY`, `DEFAULT_FEED_CAPACITY` and `sourceFromFeed` are removed
@@ -74,11 +74,11 @@ refused because the same number sizes the live buffer. Devtools'
 **The environment travels in an envelope** (D-11-e): every SSE frame and backlog
 element is `StoredRecordJson = { environment, record }`, `record` being the
 record wire unchanged (its `version` lives inside it,
-[ADR-QD-903](./903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
+[ADR-QD-096](./096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
 `encodeStoredRecord`/`decodeStoredRecord` are members of the one codec
-([ADR-QD-902](./902-sinkcodec-owns-both-directions.md)), not a second pipeline;
+([ADR-QD-095](./095-sinkcodec-owns-both-directions.md)), not a second pipeline;
 the decode stamps the producer's label, so devtools stamps nothing. An unknown
-top-level envelope key is ignored, as on the record (ADR-QD-903 D-15-c). A bare
+top-level envelope key is ignored, as on the record (ADR-QD-096 D-15-c). A bare
 record is accepted only with the deprecated `legacyEnvironment`, for one minor.
 
 **The backlog travels on the stream, and has a JSON route too** (D-11-f, option
@@ -154,10 +154,10 @@ timeline both read.
 [ADR-QD-046](./046-a-decision-feed-is-sse-and-guarded.md),
 [ADR-QD-047](./047-a-headless-devtools-model.md),
 [ADR-QD-049](./049-the-second-shell-is-a-cli.md),
-[ADR-QD-902](./902-sinkcodec-owns-both-directions.md),
-[ADR-QD-903](./903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md);
-[BEH-QD-185](../behaviors/24-decision-sink.md), BEH-QD-188, BEH-QD-906,
-[BEH-QD-201](../behaviors/26-decision-stream.md), BEH-QD-202, BEH-QD-907–909,
+[ADR-QD-095](./095-sinkcodec-owns-both-directions.md),
+[ADR-QD-096](./096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md);
+[BEH-QD-185](../behaviors/24-decision-sink.md), BEH-QD-188, BEH-QD-313,
+[BEH-QD-201](../behaviors/26-decision-stream.md), BEH-QD-202, BEH-QD-314–909,
 [BEH-QD-203](../behaviors/27-devtools-timeline.md), BEH-QD-235;
 [INV-QD-039](../invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival),
-[INV-QD-906](../invariants.md#inv-qd-906-a-log-reader-sees-every-retained-record-exactly-once).
+[INV-QD-100](../invariants.md#inv-qd-100-a-log-reader-sees-every-retained-record-exactly-once).

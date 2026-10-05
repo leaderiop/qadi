@@ -46,7 +46,7 @@ import { portsLayer } from "./Ports.ts";
  *
  * One line over the registry (`Ports.ts`) rather than a hand list of the five
  * named defaults, so a port added to the registry is here without an edit
- * (ADR-QD-901). To override one port, pass it to `portsLayer` instead of
+ * (ADR-QD-094). To override one port, pass it to `portsLayer` instead of
  * merging a layer after this one: `portsLayer({ AttributeResolver: … })`
  * places it in its own slot, where order cannot silently keep the default.
  */

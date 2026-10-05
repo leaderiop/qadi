@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-05): ARCH-11 — BEH-QD-185 rewritten for `makeDecisionLog` (one positive-integer bound; `decisionSinkRing` removed); BEH-QD-187's example is a log and a forwarder; BEH-QD-188 requires an ingested record to reach live readers; BEH-QD-906 (a reader sees each retained record once, across backlog and live) added (ADR-QD-904, CCR-QD-905)<br>1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-903, CCR-QD-904)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-902, CCR-QD-903)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.7 (2026-10-05): ARCH-11 — BEH-QD-185 rewritten for `makeDecisionLog` (one positive-integer bound; `decisionSinkRing` removed); BEH-QD-187's example is a log and a forwarder; BEH-QD-188 requires an ingested record to reach live readers; BEH-QD-313 (a reader sees each retained record once, across backlog and live) added (ADR-QD-097, CCR-QD-181)<br>1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-096, CCR-QD-180)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-095, CCR-QD-179)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 _Previous: [23 — HTTP Enforcement](./23-http.md)_
 
@@ -236,7 +236,7 @@ A merged server/client timeline whose rows are unlabelled is the thing a
 cross-environment record log most exists to prevent, and a default would let that
 happen silently. It is stated once, at the producer: a reader takes it off each
 record, and over SSE off each frame
-([BEH-QD-907](./26-decision-stream.md#beh-qd-907-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)).
+([BEH-QD-314](./26-decision-stream.md#beh-qd-314-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)).
 It is a plain `string`, not a closed union, because nothing branches on it: it is
 a label a reader sees, not an input a decision is computed from. Closed unions
 are reserved here for values that decide something.
@@ -244,9 +244,9 @@ are reserved here for values that decide something.
 The log is still one **implementation** of the write-only port
 ([BEH-QD-181](#beh-qd-181-the-sink-is-optional-and-write-only)): `layer` provides
 `DecisionSink`, and the readable surface belongs to the log, never to the port
-([ADR-QD-904](../decisions/904-a-decision-log-is-a-sink-and-its-own-history.md)).
+([ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md)).
 
-> **Rewritten in CCR-QD-905 (ARCH-11).** This requirement described
+> **Rewritten in CCR-QD-181 (ARCH-11).** This requirement described
 > `decisionSinkRing`, removed with `decisionSinkFeed` when one decision log
 > replaced both. The superseded text:
 >
@@ -356,11 +356,11 @@ deep for the schema encode — or one a receiver would refuse — was reported a
 operator wants to see, never left the process with nothing saying why. Now the
 refusal names its reason and its path, and `send` only ever sees a value that
 `JSON.stringify` renders and a receiver's `decodeSinkRecord` accepts
-([ADR-QD-902](../decisions/902-sinkcodec-owns-both-directions.md)).
+([ADR-QD-095](../decisions/095-sinkcodec-owns-both-directions.md)).
 
 `send` receives wire version 2. A receiver on a release before the wire was
 versioned reads only version 1, so every receiver upgrades before the sender
-([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
+([ADR-QD-096](../decisions/096-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
 
 The in-process decision log answers "what did *this* process decide", and three
 of the six deployments Qadi runs in cannot be served by that: a replicated server
@@ -398,7 +398,7 @@ Merging two `Layer`s for one service does **not** do this — the later simply
 wins, and the first sink silently sees nothing. A server with devtools wants a
 local decision log *and* a forwarder, so the fan-out is explicit. (A log is no
 longer paired with a feed this way: one log is both
-([BEH-QD-906](#beh-qd-906-a-reader-sees-each-retained-record-once-across-backlog-and-live)).) Sequential, because
+([BEH-QD-313](#beh-qd-313-a-reader-sees-each-retained-record-once-across-backlog-and-live)).) Sequential, because
 these run inside the evaluation and a sink that would benefit from concurrency is
 one already violating the rule above.
 
@@ -414,7 +414,7 @@ REQUIREMENT: An ingested record MUST reach every live reader of the log, as well
              as its backlog.
 ```
 
-> **Amended in CCR-QD-905 (ARCH-11).** The first requirement said "not the
+> **Amended in CCR-QD-181 (ARCH-11).** The first requirement said "not the
 > ring's own". The second is new: the ring an aggregator ingested into reached
 > no live reader, so an `Edge` record could not reach a devtools dock by any
 > path (C10).
@@ -435,9 +435,9 @@ An aggregator taking records from n replicas is where an unbounded log would hur
 most, so there is one bound and one eviction path for both routes in.
 
 
-## BEH-QD-906: A reader sees each retained record once, across backlog and live
+## BEH-QD-313: A reader sees each retained record once, across backlog and live
 
-> **Invariant:** [INV-QD-906](../invariants.md#inv-qd-906-a-log-reader-sees-every-retained-record-exactly-once)
+> **Invariant:** [INV-QD-100](../invariants.md#inv-qd-100-a-log-reader-sees-every-retained-record-exactly-once)
 
 ```ts
 export interface DecisionLogRead {
@@ -470,7 +470,7 @@ live half by the snapshot's high-water mark.
 A `DecisionLog` is a devtools `Source` as it is
 ([BEH-QD-203](./27-devtools-timeline.md)), and `/__decisions` serves the same
 `read` per connection
-([BEH-QD-907](./26-decision-stream.md#beh-qd-907-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)).
+([BEH-QD-314](./26-decision-stream.md#beh-qd-314-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)).
 Exactly-once is per read: across several sources, or a reconnect, the timeline's
 identity rule still absorbs a repeat
 ([INV-QD-039](../invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival)).

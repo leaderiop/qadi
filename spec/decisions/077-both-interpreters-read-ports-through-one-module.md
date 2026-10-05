@@ -151,7 +151,7 @@ ignore list ([ADR-QD-025](./025-mutation-testing.md)).
 walk-equality property; a change to when `anyOf` may stop would have to be made
 twice.
 
-## Amendment (2026-10-05, CCR-QD-901)
+## Amendment (2026-10-05, CCR-QD-177)
 
 `PortAccess.ts` no longer names a port's error class or span. Each read builds its
 request once, passes it to the port, and on a defect builds the typed error through
@@ -160,4 +160,4 @@ from the description's `span`. Results are byte-identical —
 `CustomPredicateError.reason` is still `Cause.pretty(cause)`, which is why the
 description carries `defect` beside `failure`. The defect *rule* — which causes are
 converted at all — stays here, in `catchPortDefect`
-([ADR-QD-901](./901-a-port-is-described-once.md)).
+([ADR-QD-094](./094-a-port-is-described-once.md)).

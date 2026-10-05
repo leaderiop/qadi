@@ -1,6 +1,6 @@
 /**
  * Version-2 decision-record bytes, as literals: the same records as
- * `sinkWireV1.ts`, carried as wire version 2 (ADR-QD-903).
+ * `sinkWireV1.ts`, carried as wire version 2 (ADR-QD-096).
  *
  * Version 2 adds `version: 2` to both envelope members and carries a
  * decision's outcome as one tagged value, `outcome: { _tag: "Decided",

@@ -724,7 +724,7 @@ describe("decodeSinkRecord rejects an excess property inside its embedded Policy
 /**
  * GH-01: a newer sender, mid rolling-deploy, may add envelope metadata an
  * older reader does not know. The envelope is lenient and the content strict
- * (ADR-QD-903): only a top-level key is ignored.
+ * (ADR-QD-096): only a top-level key is ignored.
  */
 describe("decodeSinkRecord ignores an unknown envelope key and refuses one anywhere nested", () => {
   const withEnvelopeKey = (text: string): string => JSON.stringify({ ...JSON.parse(text), traceparent: "00-abc" });
@@ -784,7 +784,7 @@ const wireErrorOf = (json: SinkRecordJson) =>
 /**
  * A decision record's version-2 text as version 1 carried it — no `version`,
  * the outcome as `decided` or `failed`, last — built by hand, since nothing in
- * the library writes version 1 any more (ADR-QD-903 Phase C).
+ * the library writes version 1 any more (ADR-QD-096 Phase C).
  */
 const asV1Bytes = (v2: string): string => {
   const { version: _version, outcome, ...envelope } = JSON.parse(v2);
@@ -1053,7 +1053,7 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
         assert.strictEqual(result.failure._tag, "SinkRecordNotEncodable");
         assert.strictEqual(result.failure.recordTag, "Decision");
         assert.strictEqual(result.failure.evaluationId, "r");
-        assert.strictEqual(errorCode(result.failure), "ACL090");
+        assert.strictEqual(errorCode(result.failure), "ACL019");
       }
     });
   });
@@ -1188,7 +1188,7 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       ),
     })).value;
 
-    it("totality: encodeSinkRecord never throws, over hostile resources, params and causes (INV-QD-903)", () => {
+    it("totality: encodeSinkRecord never throws, over hostile resources, params and causes (INV-QD-097)", () => {
       FastCheck.assert(
         FastCheck.property(hostile, hostile, hostile, (resource, params, cause) => {
           const record = new DecisionRecord({
@@ -1279,7 +1279,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
       assert.isTrue(Result.isFailure(result));
       if (Result.isFailure(result)) {
         assert.strictEqual(result.failure._tag, "SinkRecordNotDecodable");
-        assert.strictEqual(errorCode(result.failure), "ACL091");
+        assert.strictEqual(errorCode(result.failure), "ACL020");
       }
     });
 
@@ -1422,7 +1422,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
       loose.map((cause) => new Failed({ error: new AttributeResolveError({ attribute: "a", cause }) })),
     );
 
-    it("round trip: whatever encodeSinkRecordString emits, decodeSinkRecordString rebuilds, up to the named normalisations (INV-QD-902)", () => {
+    it("round trip: whatever encodeSinkRecordString emits, decodeSinkRecordString rebuilds, up to the named normalisations (INV-QD-096)", () => {
       FastCheck.assert(
         FastCheck.property(tree(loose), FastCheck.option(loose, { nil: undefined }), outcome, (policy, value, result) => {
           const record = new DecisionRecord({
@@ -1455,7 +1455,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
       );
     });
 
-    it("two versions, one meaning: a record's v2 bytes and the same record as v1 bytes decode alike (INV-QD-905)", () => {
+    it("two versions, one meaning: a record's v2 bytes and the same record as v1 bytes decode alike (INV-QD-099)", () => {
       let checked = 0;
       FastCheck.assert(
         FastCheck.property(tree(loose), FastCheck.option(loose, { nil: undefined }), outcome, (policy, value, result) => {
@@ -1480,7 +1480,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
       assert.isAbove(checked, 100);
     });
 
-    it("totality: decodeSinkRecordString never throws, over any string (INV-QD-903)", () => {
+    it("totality: decodeSinkRecordString never throws, over any string (INV-QD-097)", () => {
       FastCheck.assert(
         FastCheck.property(FastCheck.string(), (text) => {
           decodeSinkRecordString(text);
@@ -1489,7 +1489,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
       );
     });
 
-    it("totality: decodeSinkRecord never throws, over any JSON value (INV-QD-903)", () => {
+    it("totality: decodeSinkRecord never throws, over any JSON value (INV-QD-097)", () => {
       FastCheck.assert(
         FastCheck.property(FastCheck.jsonValue(), (value) => {
           decodeSinkRecord(value);
@@ -1547,7 +1547,7 @@ const goldenFullEnvelope: SinkRecord = new DecisionRecord({
 
 /**
  * The bytes a record puts on the wire: version 2, against the hand-written
- * `fixtures/sinkWireV2.ts`. Version 1 is no longer written (ADR-QD-903 Phase
+ * `fixtures/sinkWireV2.ts`. Version 1 is no longer written (ADR-QD-096 Phase
  * C); its fixtures are read for good, below.
  */
 describe("v2 bytes: the writer writes the version-2 goldens", () => {
@@ -1592,7 +1592,7 @@ describe("v2 bytes: the writer writes the version-2 goldens", () => {
 });
 
 /**
- * Both wire versions are read, for good (ADR-QD-903). Version 1 has no
+ * Both wire versions are read, for good (ADR-QD-096). Version 1 has no
  * `version` key and carries the outcome as `decided`/`failed`; version 2
  * carries `version: 2` and one tagged `outcome`. Each pair of fixtures is the
  * same record, so each pair decodes to the same `SinkRecord`.
@@ -1676,7 +1676,7 @@ describe("decodeSinkRecord reads wire versions 1 and 2", () => {
   for (const [name, v1, v2, original] of pairs) {
     it(`${name}: v1 and v2 bytes decode to the same record, the one encoded`, () => {
       assert.deepStrictEqual(recordOf(v1), recordOf(v2));
-      // Equal up to the named normalisations (INV-QD-902): what the writer's
+      // Equal up to the named normalisations (INV-QD-096): what the writer's
       // own output decodes to.
       assert.deepStrictEqual(recordOf(v2), recordOf(stringOf(original)));
     });
@@ -1747,7 +1747,7 @@ describe("decodeSinkRecord reads wire versions 1 and 2", () => {
     });
   });
 
-  it("property: a v1 record naming no outcome, both, or an unknown nested key never decodes, and never throws (INV-QD-904)", () => {
+  it("property: a v1 record naming no outcome, both, or an unknown nested key never decodes, and never throws (INV-QD-098)", () => {
     const base = JSON.parse(V1.V1_DECIDED_DENY);
     const failedWire = { _tag: "MissingResource", attribute: "owner" };
     const malformed: FastCheck.Arbitrary<unknown> = FastCheck.oneof(
@@ -1859,7 +1859,7 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
     );
   });
 
-  it("an unknown top-level envelope key is ignored, as on the record (ADR-QD-903 D-15-c)", () => {
+  it("an unknown top-level envelope key is ignored, as on the record (ADR-QD-096 D-15-c)", () => {
     const back = decodeStoredRecord({ environment: "Edge", record: JSON.parse(V2.V2_OBLIGATIONS), cursor: "x" });
     assert.isTrue(Result.isSuccess(back));
   });

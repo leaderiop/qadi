@@ -1,4 +1,4 @@
-# ADR-QD-901 — A port is described once; its wrappers, default, environment and double are derived
+# ADR-QD-094 — A port is described once; its wrappers, default, environment and double are derived
 
 > **Document Control**
 >
@@ -176,7 +176,7 @@ script by `d.key`.
 [ADR-QD-077](./077-both-interpreters-read-ports-through-one-module.md);
 [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed),
 [INV-QD-043](../invariants.md),
-[INV-QD-901](../invariants.md#inv-qd-901-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description);
-[BEH-QD-901](../behaviors/06-services.md#beh-qd-901-every-port-has-the-standard-wrapper-set),
-[BEH-QD-902](../behaviors/06-services.md#beh-qd-902-an-environment-names-only-what-it-overrides),
-[BEH-QD-903](../behaviors/06-services.md#beh-qd-903-a-port-can-be-scripted).
+[INV-QD-095](../invariants.md#inv-qd-095-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description);
+[BEH-QD-308](../behaviors/06-services.md#beh-qd-308-every-port-has-the-standard-wrapper-set),
+[BEH-QD-309](../behaviors/06-services.md#beh-qd-309-an-environment-names-only-what-it-overrides),
+[BEH-QD-310](../behaviors/06-services.md#beh-qd-310-a-port-can-be-scripted).

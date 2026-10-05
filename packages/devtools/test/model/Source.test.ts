@@ -217,7 +217,7 @@ describe("sourceFromEventSource", () => {
     );
   const ids = (records: ReadonlyArray<StoredRecord> | undefined) => (records ?? []).map((r) => r.evaluationId);
 
-  describe("the prelude (ADR-QD-904)", () => {
+  describe("the prelude (ADR-QD-097)", () => {
     it.effect("a prelude becomes the backlog, in storedRecordOrder", () =>
       Effect.gen(function* () {
         const fake = fakeEventSource();
@@ -490,7 +490,7 @@ describe("sourceFromEventSource", () => {
     }));
 
   /**
-   * Wire versions (ADR-QD-903): a panel reads a server older than itself and
+   * Wire versions (ADR-QD-096): a panel reads a server older than itself and
    * one on its own version, and names a server newer than itself — whose fix
    * is upgrading this panel — apart from a malformed record.
    */

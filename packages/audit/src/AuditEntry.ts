@@ -92,7 +92,7 @@ const describeRefusal: (refusal: EncodeRefusal) => string = Match.type<EncodeRef
  * already JSON-shaped, so a store persists `JSON.stringify(entry)` as it is.
  *
  * `record` is a closed union of two byte formats, by wire version
- * (ADR-QD-903): version-2 bytes (`version: 2`, one tagged `outcome`) and
+ * (ADR-QD-096): version-2 bytes (`version: 2`, one tagged `outcome`) and
  * version-1 bytes (no `version` key, `decided`/`failed`). A store keeps rows of
  * both for good; narrow on `"version" in entry.record` to read one directly, or
  * read it back with {@link decodeAuditEntry}, which reads either.
@@ -123,7 +123,7 @@ export type AuditEntry = typeof AuditEntry.Type;
  * (ARCH-09). Refuses rather than approximates: an unsafe record fails
  * `AuditEntryNotEncodable`, never partially written or silently dropped.
  *
- * Written as wire version 2 (ADR-QD-903). A row is read back by whatever reads
+ * Written as wire version 2 (ADR-QD-096). A row is read back by whatever reads
  * the store, so every such reader upgrades before the writer.
  */
 export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(function* (
@@ -157,7 +157,7 @@ const decodeRow = Schema.decodeUnknownResult(
  * The row's record as `SinkRecordJson`, once `decodeSinkRecord` has accepted
  * it. Default options, deliberately and only here: the strict read has run,
  * so the one thing left to drop is what that read tolerates — an envelope key
- * this version does not declare, a pre-0.5 `failed.code` (ADR-QD-903) — and
+ * this version does not declare, a pre-0.5 `failed.code` (ADR-QD-096) — and
  * the entry is the row as this version describes it, not a copy of whatever
  * extra a newer writer added.
  */
@@ -176,7 +176,7 @@ const malformed = (message: string) =>
  * died with a `RangeError` on a deeply nested stored policy. Only then is the
  * rest of the row decoded, now safe. A refusal is a value, never a throw.
  *
- * Reads both wire versions (ADR-QD-903): a store holds version-1 rows for
+ * Reads both wire versions (ADR-QD-096): a store holds version-1 rows for
  * good, and whatever leniency and strictness `decodeSinkRecord` applies —
  * an unknown envelope key ignored, a typo inside the embedded policy refused,
  * an unknown `version` refused as `UnsupportedVersion` — applies here too.

@@ -4,7 +4,7 @@
 "@qadi/devtools": minor
 ---
 
-Each evaluation port is described once, and its wrappers, fail-closed default, test doubles and environment are derived from that description (ADR-QD-901, INV-QD-901).
+Each evaluation port is described once, and its wrappers, fail-closed default, test doubles and environment are derived from that description (ADR-QD-094, INV-QD-095).
 
 - **Every port has the full wrapper set.** `decisionHistoryRetrying`, `decisionHistoryBounded`, `decisionHistoryTimingOut`, `signatureHistoryRetrying`, `signatureHistoryBounded`, `signatureHistoryTimingOut` and `customPredicateTimingOut` are new, so a hung history or signature store no longer holds an evaluation open with no deadline. Every retrying wrapper annotates `qadi.attempts` on the caller's span. Each wrapper's retry now re-invokes the port's method on every attempt rather than re-running the effect the first call returned.
 - **Port descriptions.** `attributeResolverPort`, `relationshipResolverPort`, `customPredicatePort`, `decisionHistoryPort` and `signatureHistoryPort` state each port's name, method, span, typed-error constructors, request key and fail-closed answer. New types `PortDescription`, `PortShape`, `PortReply`, `PortScript`, `PortSpanName`.

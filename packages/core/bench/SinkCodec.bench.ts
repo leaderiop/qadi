@@ -11,7 +11,7 @@
  * - (c) a `Failed` record with an `Error` cause and a 20-key resource.
  *
  * When this replaced the per-caller guards (ARCH-09 T5, recorded in
- * ADR-QD-902), the old paths were measured beside it in this file: by per-call
+ * ADR-QD-095), the old paths were measured beside it in this file: by per-call
  * minimum the new path cost about 1.8–1.9× the old forwarding encode and 2–3.7×
  * the old SSE path, which ran no schema encode at all. The old cases went with
  * the old exports.

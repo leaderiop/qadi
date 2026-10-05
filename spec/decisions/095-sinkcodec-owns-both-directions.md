@@ -1,4 +1,4 @@
-# ADR-QD-902 — SinkCodec owns both directions of the record wire
+# ADR-QD-095 — SinkCodec owns both directions of the record wire
 
 > **Document Control**
 >
@@ -58,12 +58,12 @@ the bytes go and how a refusal is reported.
 | Decision | Chosen |
 | -------- | ------ |
 | D-09-a — interface | Four pure functions returning `Result`: `encodeSinkRecord` (→ `SinkRecordJson`), `encodeSinkRecordString`, `decodeSinkRecord` (`unknown` →), `decodeSinkRecordString`. `SinkRecordJson` is `Schema.toEncoded` of the one wire schema. No `Effect`, so no span per record and no `Effect.fn` owed; Effect callers use `Effect.fromResult` |
-| D-09-b — refusal types | `SinkRecordNotEncodable` and `SinkRecordNotDecodable`, `Data.TaggedError`s in `Errors.ts` (which cannot import `SinkCodec.ts` without a cycle), each carrying a closed `Data.TaggedEnum`: `EncodeRefusal` (`Circular`, `TooDeep`, `NonFinite`, `Unrepresentable`, `Opaque`, `EncodeFailed`) and `DecodeRefusal` (`NotJson`, `TooDeep`, `Malformed`). Both join `QadiError` with stable codes (`ACL090`, `ACL091`, branch-local numbering). `SinkRecordTag` restates `SinkRecord["_tag"]`, pinned equal by a type test |
+| D-09-b — refusal types | `SinkRecordNotEncodable` and `SinkRecordNotDecodable`, `Data.TaggedError`s in `Errors.ts` (which cannot import `SinkCodec.ts` without a cycle), each carrying a closed `Data.TaggedEnum`: `EncodeRefusal` (`Circular`, `TooDeep`, `NonFinite`, `Unrepresentable`, `Opaque`, `EncodeFailed`) and `DecodeRefusal` (`NotJson`, `TooDeep`, `Malformed`). Both join `QadiError` with stable codes (`ACL019`, `ACL020`, branch-local numbering). `SinkRecordTag` restates `SinkRecord["_tag"]`, pinned equal by a type test |
 | D-09-c — what outbound refuses | One iterative walk over the *encoded* output, with the path reconstructed only on a hazard: a cycle, depth past `MAX_DECODE_DEPTH` counted as `exceedsJsonDepth` counts, `NaN`/`±Infinity`/invalid `Date`, a function, symbol, `bigint` or `undefined` array element, an enumerable symbol key, and any object whose brand is not `Object`/`Array`/`Date` or that has its own `toJSON`. An `undefined` property is absence. Two pre-checks (`policyDepth`, which throws on a cycle, and a bounded trace depth) keep the encode itself from overflowing; the encode and the walk run under `Result.try`, so a throw is an `EncodeFailed` refusal |
 | D-09-d — the audit row | `AuditEntry.record` is `SinkRecordJson`, the encoded wire, so `JSON.stringify(entry)` is the bytes the stream and forwarding emit. `decodeAuditEntry(input)` returns `Result<{ entry, record }, SinkRecordNotDecodable>`, reading the record through the depth-guarded `decodeSinkRecord` first |
 | D-09-e — reporting | Forwarding: `onFailure` receives the `SinkRecordNotEncodable`, else a log line "could not be encoded for forwarding". SSE: `DecisionStreamOptions.onRefused`, else "could not be framed". Both annotate `qadi.refusal`, `qadi.path`, `evaluationId`. Audit: `AuditEntryNotEncodable` gains `refusal`, and `reason` is that refusal as a sentence |
 | D-09-f — devtools | `MalformedReason` is the closed union `"not-json" \| "too-deep" \| "not-a-record"`, mapped from `DecodeRefusal` by a module-scope `Match.tagsExhaustive` |
-| D-09-g — a hotfix first | Yes: a patch walked the resolver `cause` and refused opaque built-ins in the old guard (CCR-QD-902), then the refactor replaced the guard |
+| D-09-g — a hotfix first | Yes: a patch walked the resolver `cause` and refused opaque built-ins in the old guard (CCR-QD-178), then the refactor replaced the guard |
 
 **A cause is never a reason to refuse.** `Schema.Defect()` now governs `cause` on
 every outbound path: an `Error` keeps `name`/`message`/`cause`, a cycle is dropped, a
@@ -85,9 +85,9 @@ check (a `DecodeRefusal` variant, added as a full-union edit), is one module's e
   records are byte-identical to before (the `1caf04c` golden literals).
 - Two invariants the interface carries: what the outbound operation emits, the
   inbound operation accepts, up to the named normalisations
-  ([INV-QD-902](../invariants.md#inv-qd-902-whatever-the-record-codec-emits-it-accepts));
+  ([INV-QD-096](../invariants.md#inv-qd-096-whatever-the-record-codec-emits-it-accepts));
   and neither direction throws, so one record never ends a feed, fails a decision
-  or trips a breaker ([INV-QD-903](../invariants.md#inv-qd-903-the-record-codec-is-total)).
+  or trips a breaker ([INV-QD-097](../invariants.md#inv-qd-097-the-record-codec-is-total)).
 - C3–C9 closed at their cause, not per caller; a future field is covered because
   the walk reads what the encode emitted.
 
@@ -154,12 +154,12 @@ wire; `decodeAuditEntry` is the guarded reader) and
 [ADR-QD-054](./054-a-companion-package-may-compile-a-dialect.md),
 [ADR-QD-078](./078-a-seed-is-its-own-type-and-the-payload-is-versioned.md),
 [ADR-QD-090](./090-a-tree-is-folded-through-one-seam.md).
-[INV-QD-902](../invariants.md#inv-qd-902-whatever-the-record-codec-emits-it-accepts),
-[INV-QD-903](../invariants.md#inv-qd-903-the-record-codec-is-total);
+[INV-QD-096](../invariants.md#inv-qd-096-whatever-the-record-codec-emits-it-accepts),
+[INV-QD-097](../invariants.md#inv-qd-097-the-record-codec-is-total);
 [BEH-QD-187](../behaviors/24-decision-sink.md),
 [BEH-QD-199](../behaviors/25-inspection.md),
 [BEH-QD-200](../behaviors/25-inspection.md),
 [BEH-QD-204](../behaviors/27-devtools-timeline.md),
 [BEH-QD-250](../behaviors/33-audit-pipeline.md),
-[BEH-QD-904](../behaviors/26-decision-stream.md#beh-qd-904-one-record-never-ends-the-feed-and-a-refused-one-is-reported),
-[BEH-QD-905](../behaviors/33-audit-pipeline.md#beh-qd-905-a-stored-row-is-read-back-through-a-guard).
+[BEH-QD-311](../behaviors/26-decision-stream.md#beh-qd-311-one-record-never-ends-the-feed-and-a-refused-one-is-reported),
+[BEH-QD-312](../behaviors/33-audit-pipeline.md#beh-qd-312-a-stored-row-is-read-back-through-a-guard).

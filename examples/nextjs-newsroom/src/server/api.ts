@@ -186,7 +186,7 @@ const ArticleRoute = addGuardedRoute(
  * A sender newer than this aggregator — writing a wire version its
  * `@qadi/core` does not read — is told apart from a body that is not a record
  * at all, because the fix is different: upgrade the aggregator, not the
- * sender (ADR-QD-903).
+ * sender (ADR-QD-096).
  */
 const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefusal>().pipe(
   Match.tagsExhaustive({
