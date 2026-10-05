@@ -189,7 +189,7 @@ describe("INV-QD-016: a batch decision is the decision made alone", () => {
       const { subjects: allowed } = yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
         nobody("cleared"),
         nobody("uncleared"),
-      ]).pipe(Effect.provide(subjectSetLayer({ attributes: recording })));
+      ]).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: recording })));
 
       assert.deepStrictEqual(asked, ["cleared/level", "uncleared/level"]);
       assert.deepStrictEqual(ids(allowed), ["cleared"]);
@@ -394,7 +394,7 @@ describe("request inputs and failures", () => {
           nobody("a"),
           nobody("b"),
           nobody("c"),
-        ]).pipe(Effect.provide(subjectSetLayer({ attributes: broken })));
+        ]).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: broken })));
 
         assert.deepStrictEqual(
           outcome.decisions.map((d) => d.subject.id),
@@ -421,7 +421,7 @@ describe("request inputs and failures", () => {
       const { subjects: allowed, failures } = yield* filterSubjects(
         P.hasAttribute("level", M.gte(3)),
         [nobody("a"), nobody("b"), nobody("c")],
-      ).pipe(Effect.provide(subjectSetLayer({ attributes: broken })));
+      ).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: broken })));
 
       assert.deepStrictEqual(ids(allowed), ["a", "c"]);
       assert.deepStrictEqual(
@@ -451,7 +451,7 @@ describe("request inputs and failures", () => {
       yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
         nobody("a"),
         nobody("b"),
-      ]).pipe(Effect.provide(subjectSetLayer({ attributes: slow })));
+      ]).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: slow })));
 
       assert.deepStrictEqual(log, ["start:a", "end:a", "start:b", "end:b"]);
     }));
@@ -472,7 +472,7 @@ describe("request inputs and failures", () => {
         nobody("a"),
         nobody("b"),
         nobody("c"),
-      ]).pipe(Effect.provide(subjectSetLayer({ attributes: brokenAfterFirst })));
+      ]).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: brokenAfterFirst })));
 
       // All three, not two: `Effect.partition` runs every element regardless
       // of an earlier one's failure, which is the whole point of this
@@ -569,7 +569,7 @@ describe("decideSubjectsStream", () => {
         decideSubjectsStream(
           P.hasAttribute("level", M.gte(3)),
           Stream.fromIterable([nobody("a"), nobody("b")]),
-        ).pipe(Stream.provide(subjectSetLayer({ attributes: slow }))),
+        ).pipe(Stream.provide(subjectSetLayer({ AttributeResolver: slow }))),
       );
 
       assert.deepStrictEqual(log, ["start:a", "end:a", "start:b", "end:b"]);
@@ -590,7 +590,7 @@ describe("decideSubjectsStream", () => {
           decideSubjectsStream(
             P.hasAttribute("level", M.gte(3)),
             Stream.fromIterable([nobody("a"), nobody("b")]),
-          ).pipe(Stream.provide(subjectSetLayer({ attributes: broken }))),
+          ).pipe(Stream.provide(subjectSetLayer({ AttributeResolver: broken }))),
         ),
       );
 
@@ -622,7 +622,7 @@ describe("decideSubjectsStream", () => {
             decideSubjectsStream(
               P.hasAttribute("level", M.gte(3)),
               Stream.fromIterable([nobody("a"), nobody("b"), nobody("c")]),
-            ).pipe(Stream.provide(subjectSetLayer({ attributes: broken }))),
+            ).pipe(Stream.provide(subjectSetLayer({ AttributeResolver: broken }))),
             (decision) => Effect.sync(() => observed.push(decision.subject.id)),
           ),
         );

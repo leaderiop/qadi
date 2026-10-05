@@ -175,7 +175,7 @@ describe("attribute resolution", () => {
 
       const d = yield* evaluate(P.hasAttribute("level", M.gte(1))).pipe(
         Effect.provide(
-          testLayer(subjectWith({ attributes: { level: 5 } }), { attributes: counting }),
+          testLayer(subjectWith({ attributes: { level: 5 } }), { AttributeResolver: counting }),
         ),
       );
 

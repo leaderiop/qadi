@@ -70,7 +70,7 @@ describe("createGuardHealthCheck", () => {
 
         assert.isFalse(result.healthy);
         assert.deepStrictEqual(result.errors, ["AttributeResolveError"]);
-      }).pipe(Effect.provide(testLayer(subjectWith({}), { attributes: dying })));
+      }).pipe(Effect.provide(testLayer(subjectWith({}), { AttributeResolver: dying })));
     },
   );
 });

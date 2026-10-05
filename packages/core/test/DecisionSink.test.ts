@@ -161,7 +161,7 @@ describe("DecisionSink — failures are observable", () => {
       // And the caller still sees the error, untouched.
       assert.isTrue(result._tag === "Failure");
     }).pipe(
-      Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes })),
+      Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes })),
     ));
 
   const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
@@ -176,7 +176,7 @@ describe("DecisionSink — failures are observable", () => {
         Effect.result(evaluate(P.hasAttribute("clearance", M.gte(3))))
           .pipe(
             Effect.provide(
-              testLayer(subjectWith({}), { attributes: brokenAttributes }),
+              testLayer(subjectWith({}), { AttributeResolver: brokenAttributes }),
             ),
           )
           .pipe(Effect.flatMap(() => Metric.snapshot)),
@@ -290,7 +290,7 @@ describe("DecisionSink — record ordering", () => {
         yield* isolatedMetrics(
           Effect.result(
             evaluate(P.hasAttribute("clearance", M.gte(3))).pipe(Effect.provide(sink)),
-          ).pipe(Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes }))),
+          ).pipe(Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes }))),
         );
 
         assert.deepStrictEqual(countsAtRecordTime, [1]);
@@ -402,7 +402,7 @@ describe("DecisionSink — a sink cannot change a decision", () => {
         assert.include(JSON.stringify(result.failure), "AttributeResolveError");
       }
     }).pipe(
-      Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes })),
+      Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes })),
     ));
 
   it.effect("no sink provided changes nothing and records nothing", () =>
@@ -546,7 +546,7 @@ describe("decisionSinkRing", () => {
       assert.strictEqual(first?._tag, "Decision");
       if (first?._tag === "Decision") assert.strictEqual(first.outcome._tag, "Failed");
     }).pipe(
-      Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes })),
+      Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes })),
     ));
 
   it("defaults to a bounded capacity, unlike the cache", () => {

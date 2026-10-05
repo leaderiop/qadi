@@ -98,7 +98,7 @@ describe("port activity is counted", () => {
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                attributes: attributeResolverFromRecord({ clearance: 5 }),
+                AttributeResolver: attributeResolverFromRecord({ clearance: 5 }),
               }),
             ),
           )
@@ -157,7 +157,7 @@ describe("port activity is counted", () => {
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                customPredicate: customPredicateFromRecord({
+                CustomPredicate: customPredicateFromRecord({
                   isOwner: () => Effect.succeed(true),
                 }),
               }),
@@ -209,7 +209,7 @@ describe("port activity is counted", () => {
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                relationships: relationshipResolverRetrying(Schedule.recurs(3))(flaky),
+                RelationshipResolver: relationshipResolverRetrying(Schedule.recurs(3))(flaky),
               }),
             ),
           )
@@ -274,7 +274,7 @@ describe("port activity is counted", () => {
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                attributes: attributeResolverRetrying(Schedule.recurs(3))(flaky),
+                AttributeResolver: attributeResolverRetrying(Schedule.recurs(3))(flaky),
               }),
             ),
           )
@@ -312,7 +312,7 @@ describe("translation's port activity is counted separately", () => {
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                attributes: attributeResolverFromRecord({ clearance: 5 }),
+                AttributeResolver: attributeResolverFromRecord({ clearance: 5 }),
               }),
             ),
           )
@@ -333,7 +333,7 @@ describe("translation's port activity is counted separately", () => {
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                attributes: attributeResolverFromRecord({ clearance: 5 }),
+                AttributeResolver: attributeResolverFromRecord({ clearance: 5 }),
               }),
             ),
           )
@@ -364,7 +364,7 @@ describe("translation's port activity is counted separately", () => {
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                attributes: attributeResolverFromRecord({ clearance: 5 }),
+                AttributeResolver: attributeResolverFromRecord({ clearance: 5 }),
               }),
             ),
           )

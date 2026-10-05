@@ -46,7 +46,7 @@ const acted = Layer.succeed(DecisionHistory, {
   hasActed: (query) => Effect.succeed(query.event === "onboarded" ? "Acted" : "NotActed"),
 });
 
-const layer = testLayer(tenant, { attributes: resolving, history: acted });
+const layer = testLayer(tenant, { AttributeResolver: resolving, DecisionHistory: acted });
 
 const translate = (policy: P.Policy, options?: { readonly action?: string }) =>
   toPredicate(policy, options).pipe(Effect.provide(layer));
@@ -402,7 +402,7 @@ describe("untranslatable fails loudly and never widens", () => {
       });
       const r = yield* Effect.result(
         toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
-          Effect.provide(testLayer(tenant, { attributes: broken })),
+          Effect.provide(testLayer(tenant, { AttributeResolver: broken })),
         ),
       );
       assert.strictEqual(r._tag, "Failure");
@@ -1057,14 +1057,14 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
   /** Ports driven by `world`, appending to `log` before honouring each call. */
   const worldLayer = (world: PortWorld, log: Array<PortCallKey>) =>
     testLayer(tenant, {
-      attributes: Layer.succeed(AttributeResolver, {
+      AttributeResolver: Layer.succeed(AttributeResolver, {
         resolve: (_id: string, attribute: string) => {
           const key = attribute === "riskScore" ? "riskScore" : "absent";
           log.push(key === "riskScore" ? "attr:riskScore" : "attr:absent");
           return behave(world[key], () => new AttributeResolveError({ attribute, cause: "down" }));
         },
       }),
-      history: Layer.succeed(DecisionHistory, {
+      DecisionHistory: Layer.succeed(DecisionHistory, {
         hasActed: (query) => {
           const key = query.event === "onboarded" ? "onboarded" : "never";
           log.push(key === "onboarded" ? "acted:onboarded" : "acted:never");
@@ -1308,7 +1308,7 @@ describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", ()
       const dying = Layer.succeed(AttributeResolver, {
         resolve: () => Effect.die(new Error("boom")),
       });
-      const r = yield* run(riskPolicy, { attributes: dying });
+      const r = yield* run(riskPolicy, { AttributeResolver: dying });
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
       assert.instanceOf(r.failure, AttributeResolveError);
@@ -1323,7 +1323,7 @@ describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", ()
           throw new Error("boom");
         },
       });
-      const r = yield* run(riskPolicy, { attributes: throwing });
+      const r = yield* run(riskPolicy, { AttributeResolver: throwing });
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
       assert.instanceOf(r.failure, AttributeResolveError);
@@ -1334,7 +1334,7 @@ describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", ()
       const dying = Layer.succeed(DecisionHistory, {
         hasActed: () => Effect.die(new Error("boom")),
       });
-      const r = yield* run(actedPolicy, { history: dying });
+      const r = yield* run(actedPolicy, { DecisionHistory: dying });
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
       assert.instanceOf(r.failure, DecisionHistoryUnavailable);
@@ -1348,7 +1348,7 @@ describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", ()
       const failing = Layer.succeed(AttributeResolver, {
         resolve: () => Effect.fail(original),
       });
-      const r = yield* run(riskPolicy, { attributes: failing });
+      const r = yield* run(riskPolicy, { AttributeResolver: failing });
       assert.strictEqual(r._tag, "Failure");
       if (r._tag !== "Failure") return;
       assert.strictEqual(r.failure, original);
@@ -1361,7 +1361,7 @@ describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", ()
       });
       const exit = yield* Effect.exit(
         toPredicate(riskPolicy).pipe(
-          Effect.provide(testLayer(subjectWith({}), { attributes: interrupting })),
+          Effect.provide(testLayer(subjectWith({}), { AttributeResolver: interrupting })),
         ),
       );
       assert.isTrue(Exit.isFailure(exit));
@@ -1380,7 +1380,7 @@ describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", ()
           ),
       });
       const predicate = yield* toPredicate(P.hasAttribute("riskScore", M.gte(5))).pipe(
-        Effect.provide(testLayer(subjectWith({}), { attributes: flaky })),
+        Effect.provide(testLayer(subjectWith({}), { AttributeResolver: flaky })),
         Effect.retry(Schedule.recurs(2)),
       );
       assert.deepStrictEqual(predicate, { _tag: "True" });
@@ -1411,7 +1411,7 @@ describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
       yield* toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(subjectWith({ id: "u9" }), { attributes: resolver }),
+            testLayer(subjectWith({ id: "u9" }), { AttributeResolver: resolver }),
             collectingTracer(spans),
           ),
         ),
@@ -1440,7 +1440,7 @@ describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
       yield* toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(subjectWith({ attributes: { riskScore: 20 } }), { attributes: resolver }),
+            testLayer(subjectWith({ attributes: { riskScore: 20 } }), { AttributeResolver: resolver }),
             collectingTracer(spans),
           ),
         ),
@@ -1460,7 +1460,7 @@ describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
         toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(subjectWith({ id: "u9" }), { attributes: failing }),
+              testLayer(subjectWith({ id: "u9" }), { AttributeResolver: failing }),
               collectingTracer(spans),
             ),
           ),
@@ -1480,7 +1480,7 @@ describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
       yield* toPredicate(P.hasActed("onboarded", { scope: "Any" })).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(subjectWith({ id: "u9" }), { history: acted }),
+            testLayer(subjectWith({ id: "u9" }), { DecisionHistory: acted }),
             collectingTracer(spans),
           ),
         ),
@@ -1523,7 +1523,7 @@ describe("BEH-QD-NEXT-b: translation stops where the evaluator stops", () => {
   ) =>
     Effect.result(
       toPredicate(policy, options?.action === undefined ? undefined : { action: options.action }).pipe(
-        Effect.provide(testLayer(options?.subject ?? tenant, { attributes })),
+        Effect.provide(testLayer(options?.subject ?? tenant, { AttributeResolver: attributes })),
       ),
     );
 
@@ -1625,7 +1625,7 @@ describe("BEH-QD-NEXT-c: a refusal depends on the tree alone", () => {
   ) =>
     Effect.result(
       toPredicate(policy, options).pipe(
-        Effect.provide(testLayer(subject, { attributes: throwing })),
+        Effect.provide(testLayer(subject, { AttributeResolver: throwing })),
       ),
     );
 

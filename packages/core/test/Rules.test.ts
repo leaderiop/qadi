@@ -160,7 +160,7 @@ describe("INV-QD-017: a rule list stops at the first rule that cannot be overrid
     Effect.gen(function* () {
       const counter = { calls: 0 };
       const d = yield* evaluate(policy).pipe(
-        Effect.provide(testLayer(editor, { attributes: countingResolver(counter) })),
+        Effect.provide(testLayer(editor, { AttributeResolver: countingResolver(counter) })),
       );
       return { allowed: isAllowed(d), calls: counter.calls, trace: d.trace };
     });
@@ -374,7 +374,7 @@ describe("rules compose with the rest of the ADT", () => {
       });
       const r = yield* Effect.result(
         evaluate(P.rules([P.denyWhen(P.hasAttribute("risk", M.gte(1))), P.permitWhen(always)]))
-          .pipe(Effect.provide(testLayer(editor, { attributes: failing }))),
+          .pipe(Effect.provide(testLayer(editor, { AttributeResolver: failing }))),
       );
       assert.strictEqual(r._tag, "Failure");
     }));

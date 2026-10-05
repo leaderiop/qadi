@@ -50,9 +50,6 @@ import { test } from "vitest";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
-import { CustomPredicateNone } from "../src/CustomPredicate.ts";
-import { SignatureHistoryNone } from "../src/SignatureHistory.ts";
-import { DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
 import { EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
@@ -61,6 +58,7 @@ import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import { allOf, anyOf, hasAttribute, hasPermission, labeled, not, obliged } from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
+import { portsLayer } from "../src/Ports.ts";
 import { filter } from "../src/Qadi.ts";
 import { decideSubjects } from "../src/SubjectSet.ts";
 // `RelationshipResolver.ts` used to contain literal NUL bytes as a key
@@ -68,7 +66,6 @@ import { decideSubjects } from "../src/SubjectSet.ts";
 // finding that made gate 9 read files with `readFileSync` rather than shelling
 // out (CCR-QD-034). The NUL bytes are gone (see check-api-surface.mjs's
 // `exportsOf`), but the `readFileSync` choice there stands regardless.
-import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
 import { role } from "../src/Role.ts";
 
 const read = permission("document", "read");
@@ -92,17 +89,15 @@ const services = Layer.mergeAll(EvaluationServicesNone, currentSubjectLayer(alic
  * port — the path a subject hit never reaches.
  */
 const resolving = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, {
-    name: "record",
-    resolve: (_subjectId, attribute: string) =>
-      Effect.succeed(attribute === "tier" ? 5 : undefined),
+  portsLayer({
+    AttributeResolver: Layer.succeed(AttributeResolver, {
+      name: "record",
+      resolve: (_subjectId, attribute: string) =>
+        Effect.succeed(attribute === "tier" ? 5 : undefined),
+    }),
   }),
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   currentSubjectLayer(alice),
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 /**
