@@ -3551,7 +3551,7 @@ describe("concurrent evaluation", () => {
       assert.deepStrictEqual(concurrent.decision.trace, sequential.decision.trace);
     }));
 
-  it.effect("a failure before any decisive child still fails, matching sequential", () =>
+  it.effect("BEH-QD-134: a failure before any decisive child still fails, matching sequential", () =>
     Effect.gen(function* () {
       // INV-QD-006 under concurrency: a resolver failure is an error, and it must
       // not be swallowed into a denial just because a sibling denies later. Here
@@ -3580,7 +3580,7 @@ describe("concurrent evaluation", () => {
     }));
 
   it.effect(
-    "a failure past the decisive index is discarded, matching sequential (CCR-QD-152)",
+    "BEH-QD-134: a failure past the decisive index is discarded, matching sequential (CCR-QD-152)",
     () =>
       Effect.gen(function* () {
         // The gap this fix closed: `hasRole("legal")` denies at index 0, which
