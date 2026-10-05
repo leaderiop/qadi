@@ -86,8 +86,6 @@ for the second only when the grant lives somewhere else.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -99,6 +97,7 @@ import {
   hasResourceAttribute,
   makeSubject,
   subjectId,
+  portsLayer,
 } from "@qadi/core";
 
 interface Grant {
@@ -141,7 +140,10 @@ const program = check(canRead, {
 }).pipe(
   Effect.provide(currentSubjectLayer(makeSubject({ id: "u-1" }))),
   Effect.provide(
-    Layer.mergeAll(GrantTableResolver, AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive),
+    Layer.mergeAll(
+      portsLayer({ RelationshipResolver: GrantTableResolver }),
+      EvaluationIdLive,
+    ),
   ),
 );
 ```

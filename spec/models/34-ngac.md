@@ -88,8 +88,6 @@ the example is left as written only because it predates it.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -101,6 +99,7 @@ import {
   hasRelationship,
   hasRole,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 // The caller's policy graph. Qadi never sees it — it sees only the answer.
@@ -141,11 +140,9 @@ const PolicyGraphResolver: Layer.Layer<RelationshipResolver> = Layer.succeed(
 const canRead = anyOf([hasRole("policy-admin"), hasRelationship("read")]);
 
 const environment = Layer.mergeAll(
+  portsLayer({ RelationshipResolver: PolicyGraphResolver }),
   currentSubjectLayer(makeSubject({ id: "u-alice" })),
-  PolicyGraphResolver,
-  AttributeResolverNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
 );
 
 const decision = check(canRead, { resource: { id: "o-budget-2026" } }).pipe(

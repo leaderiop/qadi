@@ -119,8 +119,6 @@ it as its own scenario.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   anyOf,
   check,
@@ -129,6 +127,7 @@ import {
   hasRole,
   makeSubject,
   relationshipResolverFromEdges,
+  portsLayer,
 } from "@qadi/core";
 
 // Module scope: a policy rebuilt per call is a new reference every time.
@@ -139,14 +138,14 @@ const canReadDocument = anyOf([
 ]);
 
 const services = Layer.mergeAll(
+  portsLayer({
+    RelationshipResolver: relationshipResolverFromEdges([
+      { subjectId: "u-olivia", relation: "owner", resourceId: "doc-1" },
+      { subjectId: "u-peggy", relation: "member", resourceId: "doc-1" },
+    ]),
+  }),
   currentSubjectLayer(makeSubject({ id: "u-olivia" })),
-  relationshipResolverFromEdges([
-    { subjectId: "u-olivia", relation: "owner", resourceId: "doc-1" },
-    { subjectId: "u-peggy", relation: "member", resourceId: "doc-1" },
-  ]),
-  AttributeResolverNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
 );
 
 const allowed = check(canReadDocument, { resource: { id: "doc-1" } }).pipe(
@@ -180,7 +179,7 @@ question with a depth budget attached.
 | An unevaluated branch performs **no relationship lookup**, under both `anyOf` and `allOf`; `Union` performs every lookup by design; a resolver failure propagates rather than denying | `packages/core/test/Evaluate.test.ts` |
 | `RelationshipResolverNever` denies everything; `relationshipResolverFromEdges` matches direct edges only | `packages/core/test/Layers.test.ts` |
 | `hasRelationship` carries `depth` and `fields`; JSON round trip via the FastCheck generator | `packages/core/test/Policy.test.ts` |
-| `edgeRelationshipResolver` records its queries; `qadiTestLayer` defaults fail closed | `packages/testing/test/TestLayers.test.ts` |
+| The `relationships` option answers `Unrelated` for an edge it does not hold; `qadiTestLayer` defaults fail closed | `packages/testing/test/TestLayers.test.ts` |
 | Acceptance scenarios, tagged `@REQ-QD-005` | `features/features/rebac/relationships.feature` |
 
 `REQ-QD-005` maps to `BEH-QD-036` in the

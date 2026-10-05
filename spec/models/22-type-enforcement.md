@@ -111,11 +111,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
   check,
   currentSubjectLayer,
   eq,
@@ -126,6 +122,7 @@ import {
   type AttributeResolveError,
   type EvaluationError,
   type Policy,
+  portsLayer,
 } from "@qadi/core";
 
 // The access matrix, owned by the caller: domain → attribute key → the types
@@ -160,13 +157,9 @@ const program: Effect.Effect<boolean, EvaluationError> = check(mayPerform("read"
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
+      portsLayer({ AttributeResolver: MatrixResolver }),
       currentSubjectLayer(makeSubject({ id: "svc-indexer" })),
-      MatrixResolver,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
     ),
   ),
 );

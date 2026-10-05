@@ -775,10 +775,7 @@ standard the rest of the specification holds itself to.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   currentSubjectLayer,
   enforceProjected,
@@ -787,6 +784,7 @@ import {
   hasRole,
   permission,
   role,
+  portsLayer,
 } from "@qadi/core";
 
 const readDoc = permission("doc", "read");
@@ -799,9 +797,7 @@ const canReadTitle = allOf([
 ]);
 
 const qadiServices = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer(),
   EvaluationIdLive,
 );
 

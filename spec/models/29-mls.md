@@ -133,10 +133,7 @@ with the classifications that clearance dominates.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   anyOf,
   check,
@@ -145,6 +142,7 @@ import {
   hasResourceAttribute,
   inArray,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 // One rung per clearance, pairing it with the down-set it dominates. This is
@@ -166,12 +164,10 @@ const program = check(mayRead, {
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
+      portsLayer(),
       currentSubjectLayer(
         makeSubject({ id: "u-1", attributes: { clearance: "confidential" } }),
       ),
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
     ),
   ),

@@ -103,10 +103,7 @@ exactly the case that boundary exists for.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   check,
   currentSubjectLayer,
@@ -118,6 +115,7 @@ import {
   makeSubject,
   subject,
   toJson,
+  portsLayer,
 } from "@qadi/core";
 
 // Tenant isolation, in one line and with no resolver: the subject's own
@@ -133,6 +131,7 @@ const acmeMayReadRecord = allOf([
 ]);
 
 const services = Layer.mergeAll(
+  portsLayer(),
   currentSubjectLayer(
     makeSubject({
       id: "u-1",
@@ -140,10 +139,7 @@ const services = Layer.mergeAll(
       attributes: { orgId: "acme" },
     }),
   ),
-  AttributeResolverNone,
-  RelationshipResolverNever,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
 );
 
 // The rule as it would be stored and reloaded — malformed input fails the

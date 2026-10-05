@@ -186,10 +186,7 @@ rules)` loop.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   currentSubjectLayer,
   decide,
@@ -203,6 +200,7 @@ import {
   permitWhen,
   rules,
   subjectId,
+  portsLayer,
 } from "@qadi/core";
 
 const table = rules(
@@ -230,9 +228,7 @@ const program = decide(table, {
   ),
   Effect.provide(
     Layer.mergeAll(
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
+      portsLayer(),
       EvaluationIdLive,
     ),
   ),

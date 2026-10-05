@@ -80,6 +80,7 @@ import {
   AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive,
   RelationshipResolverNever, allOf, check, currentSubjectLayer, eq, evaluate, exists,
   hasResourceAttribute, hasRole, labeled, makeSubject, not, subjectId,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -133,9 +134,7 @@ const program = Effect.gen(function* () {
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
+      portsLayer(),
       EvaluationIdLive,
     ),
   ),

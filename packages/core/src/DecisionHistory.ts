@@ -147,9 +147,10 @@ export interface ActedAnywhereInput {
  * membership compares each field independently and the collision is
  * unrepresentable, not just harder to hit.
  *
- * Exported so `@qadi/testing`'s `eventDecisionHistory` can reuse these exact
- * classes instead of pasting identical ones — see `RelationshipEdge` in
- * `RelationshipResolver.ts` for the same reasoning.
+ * Exported, as `RelationshipEdge` in `RelationshipResolver.ts` is: a value
+ * class with no behaviour beyond structural equality has nothing to leak, and
+ * a consumer building its own history fixture reuses these exact classes
+ * rather than pasting identical ones.
  */
 export class ActedEvent extends Data.Class<ActedEventInput> {}
 

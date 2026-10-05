@@ -103,8 +103,6 @@ ship a break-glass branch without an audit trail it owns.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -115,6 +113,7 @@ import {
   hasRelationship,
   hasRole,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 /** `teamRole` is the member's role within the team: "lead", "member", … */
@@ -157,7 +156,10 @@ const canReadRecord = anyOf([
 
 const program = check(canReadRecord, { resource: { id: "patient-42" } }).pipe(
   Effect.provide(currentSubjectLayer(makeSubject({ id: "u-nadia", roles: ["nurse"] }))),
-  Effect.provide(Layer.mergeAll(CareTeamResolver, AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive)),
+  Effect.provide(Layer.mergeAll(
+    portsLayer({ RelationshipResolver: CareTeamResolver }),
+    EvaluationIdLive,
+  )),
 );
 ```
 

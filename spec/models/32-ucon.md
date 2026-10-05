@@ -122,10 +122,10 @@ what deployed usage-control systems actually do.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  DecisionHistoryUnknown,
   EvaluationIdLive, RelationshipResolverNever, allOf, attributeResolverFromRecord,
   currentSubjectLayer, enforce, eq, exists, gte, hasAttribute, hasResourceAttribute,
   hasRole, inArray, labeled, literal, makeSubject, not, subject, subjectId,
+  portsLayer,
 } from "@qadi/core";
 
 const mayStream = labeled(
@@ -152,15 +152,15 @@ const program = openStream.pipe(
   enforce(mayStream, { resource: { id: "film-1", licenseeId: "u-9", region: "eu" } }),
   Effect.provide(
     Layer.mergeAll(
+      portsLayer({
+        AttributeResolver: attributeResolverFromRecord({
+          viewsRemaining: 3, deviceAttested: true, networkZone: "vpn",
+        }),
+      }),
       currentSubjectLayer(
         makeSubject({ id: "u-9", roles: ["subscriber"], attributes: { region: "eu" } }),
       ),
-      attributeResolverFromRecord({
-        viewsRemaining: 3, deviceAttested: true, networkZone: "vpn",
-      }),
-      RelationshipResolverNever,
       EvaluationIdLive,
-      DecisionHistoryUnknown,
     ),
   ),
 );

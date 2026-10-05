@@ -103,8 +103,8 @@ export const DEFAULT_RING_CAPACITY = 500;
  * it would let that happen silently.
  *
  * The state lives in this function's closure rather than in the layer's, so
- * `snapshot` can read what the layer wrote — the shape `recordingAttributeResolver`
- * already uses in `@qadi/testing`. Providing the returned layer more than once
+ * `snapshot` can read what the layer wrote — the shape `recordingPort` uses in
+ * `PortDoubles.ts`. Providing the returned layer more than once
  * therefore shares one log, which is what a reader wants.
  */
 export const decisionSinkRing = (options: {

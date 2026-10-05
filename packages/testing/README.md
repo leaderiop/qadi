@@ -44,7 +44,7 @@ the requests it saw. Both return `{ layer, calls }`, so a test can assert not
 only the decision but **the work done to reach it** — which is how
 short-circuiting is verified.
 
-```ts
+```typescript
 import {
   PortReply,
   anyOf,
@@ -71,6 +71,7 @@ const program = evaluate(anyOf([hasAttribute("tier", gte(1)), hasAttribute("othe
 // After running `program`, `table.calls` is `[["test-subject", "tier"]]`:
 // `anyOf` stopped at the first allow. `down.layer` in the same slot would make
 // `program` fail rather than deny.
+export { down, program };
 ```
 
 ## License

@@ -96,10 +96,8 @@ import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  DecisionHistoryUnknown,
   AttributeResolver,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   check,
   currentSubjectLayer,
@@ -111,6 +109,7 @@ import {
   labeled,
   literal,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 const utcHour = (millis: number): number => Math.floor(millis / 3_600_000) % 24;
@@ -148,7 +147,10 @@ const program = Effect.gen(function* () {
   }).pipe(Effect.provide(currentSubjectLayer(subject)));
 }).pipe(
   Effect.provide(
-    Layer.mergeAll(BusinessHoursResolver, RelationshipResolverNever, DecisionHistoryUnknown, EvaluationIdLive),
+    Layer.mergeAll(
+      portsLayer({ AttributeResolver: BusinessHoursResolver }),
+      EvaluationIdLive,
+    ),
   ),
 );
 ```

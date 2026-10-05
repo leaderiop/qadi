@@ -90,10 +90,7 @@ expect, and most of what "cell-level" means in practice.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   anyOf,
   currentSubjectLayer,
@@ -105,6 +102,7 @@ import {
   makeSubject,
   project,
   subjectId,
+  portsLayer,
 } from "@qadi/core";
 
 // A `type`, not an `interface`: `project` requires
@@ -149,11 +147,9 @@ const visibleFor = (row: PatientRecord) =>
     Effect.map((decision) => project(decision, row)),
     Effect.provide(
       Layer.mergeAll(
+        portsLayer(),
         currentSubjectLayer(makeSubject({ id: "u-31", roles: ["scheduler"] })),
-        AttributeResolverNone,
-        RelationshipResolverNever,
         EvaluationIdLive,
-        DecisionHistoryUnknown,
       ),
     ),
   );

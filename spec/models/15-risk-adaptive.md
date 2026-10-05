@@ -93,10 +93,8 @@ moderate-risk one a reduced view, a high-risk one nothing.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  DecisionHistoryUnknown,
   AttributeResolver,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   anyOf,
   currentSubjectLayer,
@@ -108,6 +106,7 @@ import {
   permission,
   project,
   type AttributeResolveError,
+  portsLayer,
 } from "@qadi/core";
 
 // The caller's risk engine — device reputation, travel plausibility, breach
@@ -135,11 +134,9 @@ const riskTier = anyOf([
 const canReadAccount = allOf([hasPermission(permission("account", "read")), riskTier]);
 
 const services = Layer.mergeAll(
+  portsLayer({ AttributeResolver: RiskResolver }),
   currentSubjectLayer(makeSubject({ id: "u-7", permissions: ["account:read"] })),
-  RiskResolver,
-  RelationshipResolverNever,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
 );
 
 declare const loadAccount: (

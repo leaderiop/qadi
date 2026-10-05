@@ -85,6 +85,7 @@ import {
   AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever, allOf,
   check, currentSubjectLayer, decisionHistoryFromEvents, hasAttribute, hasNotActed,
   hasRole, labeled, lt, makeSubject, withAttributes,
+  portsLayer,
 } from "@qadi/core";
 
 // The COUNT is still the caller's: their store, their query, their window. Qadi
@@ -117,13 +118,13 @@ const program = Effect.gen(function* () {
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      // A claim on a DIFFERENT offer, so this allows — and the keyed question is
-      // demonstrated rather than asserted.
-      decisionHistoryFromEvents([
-        { subjectId: "u-1", event: "claimed", resourceId: "offer-8" },
-      ]),
+      portsLayer({
+        // A claim on a DIFFERENT offer, so this allows — and the keyed question is
+        // demonstrated rather than asserted.
+        DecisionHistory: decisionHistoryFromEvents([
+          { subjectId: "u-1", event: "claimed", resourceId: "offer-8" },
+        ]),
+      }),
       EvaluationIdLive,
     ),
   ),

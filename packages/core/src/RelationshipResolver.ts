@@ -44,8 +44,8 @@ export interface RelationshipCheck {
    * unbounded mandate — that is a real grant, not an oversight, and an
    * implementation accepting it must still terminate on its own. Every
    * resolver shipped with this library today (`relationshipResolverFromEdges`,
-   * `@qadi/testing`'s `edgeRelationshipResolver`) checks direct edges only and
-   * ignores `depth` entirely, so neither is a tested reference for the
+   * which `@qadi/testing`'s `relationships` option also builds) checks direct
+   * edges only and ignores `depth` entirely, so it is not a tested reference for the
    * traversal case this obligation describes; a resolver that does traverse
    * has no conformance test to check itself against yet.
    */
@@ -189,8 +189,9 @@ export interface RelationshipEdgeInput {
  * gives per-field `Equal`/`Hash`, so `HashSet` membership compares each field
  * independently and the collision is unrepresentable, not just harder to hit.
  *
- * Exported so `@qadi/testing`'s `edgeRelationshipResolver` can reuse this
- * exact class instead of pasting an identical one: a value class with no
+ * Exported so a consumer building its own edge fixture can reuse this exact
+ * class instead of pasting an identical one (as `@qadi/testing` once had to):
+ * a value class with no
  * behavior beyond structural equality has nothing sensitive to leak by being
  * public, and a future change to its equality semantics now has one
  * definition to reach, not two that could silently drift apart in the exact

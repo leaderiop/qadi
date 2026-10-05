@@ -102,11 +102,11 @@ subject attributes, resource attributes — against the shipped API.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  DecisionHistoryUnknown,
   AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever,
   allOf, anyOf, currentSubjectLayer, decide, eq, gte, hasAttribute,
   hasResourceAttribute, hasRole, inArray, isAllowed, labeled, makeSubject,
   subjectId,
+  portsLayer,
 } from "@qadi/core";
 
 // XACML <Target>: the rule applies to cardiology records. Qadi has no target
@@ -130,7 +130,10 @@ const program = decide(labeled("cardiology-access", allOf([target, condition])),
     ),
   ),
   Effect.provide(
-    Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, DecisionHistoryUnknown, EvaluationIdLive),
+    Layer.mergeAll(
+      portsLayer(),
+      EvaluationIdLive,
+    ),
   ),
 );
 ```

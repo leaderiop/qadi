@@ -52,17 +52,15 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   allOf,
-  AttributeResolverNone,
   currentSubjectLayer,
-  DecisionHistoryUnknown,
   enforce,
   EvaluationIdLive,
   fromRoles,
   hasPermission,
   hasSignature,
   permission,
-  RelationshipResolverNever,
   signatureHistoryFromSignatures,
+  portsLayer,
 } from "@qadi/core";
 
 const publish = permission("doc", "publish");
@@ -72,11 +70,10 @@ const publish = permission("doc", "publish");
 const mayPublish = allOf([hasPermission(publish), hasSignature("approved")]);
 
 const services = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer({
+    SignatureHistory: signatureHistoryFromSignatures([{ subjectId: "u1", meaning: "approved" }]),
+  }),
   EvaluationIdLive,
-  signatureHistoryFromSignatures([{ subjectId: "u1", meaning: "approved" }]),
 );
 
 declare const doPublish: Effect.Effect<void>;

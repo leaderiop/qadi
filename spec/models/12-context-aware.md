@@ -92,11 +92,7 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
   allOf,
   check,
   currentSubjectLayer,
@@ -107,6 +103,7 @@ import {
   lt,
   makeSubject,
   type EvaluationError,
+  portsLayer,
 } from "@qadi/core";
 
 // The caller's posture service. Qadi never sees it — only its answer.
@@ -143,13 +140,9 @@ const program: Effect.Effect<boolean, EvaluationError> = check(canExport, {
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
+      portsLayer({ AttributeResolver: PostureResolver }),
       currentSubjectLayer(makeSubject({ id: "u-42", attributes: { mfa: true } })),
-      PostureResolver,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
     ),
   ),
 );

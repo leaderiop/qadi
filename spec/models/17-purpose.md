@@ -123,10 +123,7 @@ both, which no single branch exposes; that composite must name
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   anyOf,
   currentSubjectLayer,
@@ -138,6 +135,7 @@ import {
   makeSubject,
   withAttributes,
   type Policy,
+  portsLayer,
 } from "@qadi/core";
 
 // A `type`, not an `interface`: `enforceProjected` requires
@@ -176,12 +174,10 @@ const session = makeSubject({ id: "dr-amina", roles: ["clinician"] });
 
 const services = (purpose: string) =>
   Layer.mergeAll(
+    portsLayer(),
     // Purpose belongs to the request, so the subject is rebuilt per call.
     currentSubjectLayer(withAttributes(session, { purpose })),
-    AttributeResolverNone,
-    RelationshipResolverNever,
     EvaluationIdLive,
-    DecisionHistoryUnknown,
   );
 
 // Same clinician, same record, two purposes, two shapes of answer.

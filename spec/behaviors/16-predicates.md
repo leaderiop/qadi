@@ -166,12 +166,12 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
-  DecisionHistoryUnknown,
   currentSubjectLayer,
   hasAttribute,
   lt,
   makeSubject,
   toPredicate,
+  portsLayer,
 } from "@qadi/core";
 
 // An adapter that throws instead of failing — the shape issue #100 is about.
@@ -180,9 +180,8 @@ const dying = Layer.succeed(AttributeResolver, {
 });
 
 const services = Layer.mergeAll(
+  portsLayer({ AttributeResolver: dying }),
   currentSubjectLayer(makeSubject({ id: "u-1", roles: [], attributes: {} })),
-  dying,
-  DecisionHistoryUnknown,
 );
 
 // The defect arrives as the port's own typed error, so `catchTag` sees it — and
@@ -362,8 +361,6 @@ Tenancy with an explicit deny, pushed into the query.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   allOf,
   currentSubjectLayer,
   denyWhen,
@@ -381,6 +378,7 @@ import {
   type Predicate,
   type PolicyNotTranslatable,
   type EvaluationError,
+  portsLayer,
 } from "@qadi/core";
 
 // Tenancy, then the rule table on top of it. Nothing here mentions a query.
@@ -399,11 +397,10 @@ const visible = allOf([
 // No `EvaluationId`: no decision is produced. No `RelationshipResolver` either —
 // a relationship cannot fold, so a policy needing one never reaches here.
 const services = Layer.mergeAll(
+  portsLayer(),
   currentSubjectLayer(
     makeSubject({ id: "u-1", roles: ["auditor"], attributes: { tenantId: "t-1" } }),
   ),
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
 );
 
 // The auditor row folds to `True`, so the whole table reduces to "not sealed".
