@@ -195,3 +195,13 @@ for a smaller benefit, since safety was never at stake here. It buys a library
 whose first-run failure mode explains itself. The predecessor's documentation
 problem was not that it said nothing; it was that it said things that were not
 true.
+
+## Amendment (2026-10-05, CCR-QD-901)
+
+Each named default is now `nonePort(<port>Port)`: the answer it gives lives in the
+port's description (`none: { name, answer }`), and `@qadi/devtools`' replay reads the
+same field instead of re-declaring it. Names and answers are unchanged —
+`AttributeResolverNone` (`undefined`), `RelationshipResolverNever` (`"Unknown"`),
+`DecisionHistoryUnknown` (`"Unknown"`), `CustomPredicateNone` (`false`),
+`SignatureHistoryNone` (`[]`, frozen) — and `PortConformance.test.ts` asserts both
+for every port ([ADR-QD-901](./901-a-port-is-described-once.md)).

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.7                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.8                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-901, CCR-QD-901)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -373,7 +373,10 @@ REQUIREMENT: Every port Shape MUST carry an optional `name`, and every
 ```
 
 ```
-REQUIREMENT: A wrapper MUST name itself around what it wrapped.
+REQUIREMENT: A wrapper MUST name itself around what it wrapped. Every derived
+             wrapper — `…Retrying`, `…Bounded`, `…TimingOut` for each of the
+             five ports, and the `recordingPort` decorator — composes
+             "<inner> (<suffix>)", reading "?" for an unnamed inner.
 ```
 
 A service value is an anonymous object literal, so the only way to distinguish a
@@ -422,7 +425,17 @@ it was never reached.
 
 `qadi_port_retries_total` counts failed attempts inside a retrying wrapper.
 Paired with the call count, that is a store *degrading* — the reading neither
-number gives alone.
+number gives alone. `qadi_port_timeouts_total` counts calls a timing-out wrapper
+cut off at its deadline — a store that stopped answering rather than one that
+answered with failure.
+
+```
+REQUIREMENT: `qadi_port_retries_total` and `qadi_port_timeouts_total` MUST be
+             keyed by port and MUST preregister all five port names, since every
+             port has a retrying and a timing-out wrapper (BEH-QD-901). Their
+             descriptions MUST NOT change, because a description is part of the
+             metric's registry key (ADR-QD-052).
+```
 
 **Metrics rather than the sink, deliberately.** `Metric.MetricRegistry`'s default
 is memoised on the reference, so these are readable with **zero wiring** — the

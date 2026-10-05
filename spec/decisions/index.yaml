@@ -286,3 +286,7 @@ entries:
     file: "090-a-tree-is-folded-through-one-seam.md"
     title: "A tree is folded through one seam, and nesting depth is a property of the policy"
     status: "Accepted — amends ADR-QD-034, ADR-QD-024"
+  - id: "ADR-QD-901"
+    file: "901-a-port-is-described-once.md"
+    title: "A port is described once; its wrappers, default, environment and double are derived"
+    status: "Accepted — amends ADR-QD-010, ADR-QD-040, ADR-QD-051, ADR-QD-077"

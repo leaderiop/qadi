@@ -37,3 +37,13 @@ was found by the API canary test, not by reading.
 **Trade-off accepted**: a library should not presume a default implementation
 for services like `RelationshipResolver`, where the only safe default is to deny
 everything. Being explicit is correct here.
+
+## Amendment (2026-10-05, CCR-QD-901)
+
+The five port Shapes are unchanged. A port module now also declares its
+**description** beside its service (`attributeResolverPort`, …), and the layers it
+exports — the three wrappers and the named fail-closed default — are one-line
+derivations from it ([ADR-QD-901](./901-a-port-is-described-once.md)). Test doubles
+are still ordinary layers; they are now derived too (`@qadi/core`'s `scriptedPort`,
+`recordingPort`), and `@qadi/testing`'s eleven hand-written per-port doubles are
+gone.
