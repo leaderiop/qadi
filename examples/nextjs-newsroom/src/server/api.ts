@@ -35,13 +35,13 @@ import {
   AttributeResolver,
   DecisionHistory,
   decodeSinkRecordString,
-  encodeSinkRecord,
   makeResourceId,
   RelationshipResolver,
 } from "@qadi/core";
 import type { ActedResult, DecodeRefusal, RelatedResult } from "@qadi/core";
 import {
   addGuardedRoute,
+  decisionBacklogRoute,
   decisionStreamRoute,
   permissionRegistryRoute,
   PermissionRegistryLive,
@@ -50,7 +50,7 @@ import {
 import { articleById } from "../domain/articles.ts";
 import { canReadArticle, canReadDevtools } from "../domain/policies.ts";
 import { readArticle, readDevtools } from "../domain/permissions.ts";
-import { AppLayer, feed, ring } from "./layer.ts";
+import { AppLayer, log } from "./layer.ts";
 import { userFromCookieHeader } from "./session.ts";
 
 /**
@@ -181,39 +181,6 @@ const ArticleRoute = addGuardedRoute(
 )((_authorized, article) => Effect.succeed(json(article)));
 
 /**
- * The past, for a dock that opened after the decisions were made.
- *
- * Each record crosses as the one wire every other path emits
- * (`encodeSinkRecord`), beside the environment it was stamped with; a record
- * that cannot be encoded is counted, not sent half-built. No reader in this
- * repo consumes this route — the dock reads its own client ring — so this is
- * the shape, not a protocol anything here depends on.
- */
-const BacklogRoute = addGuardedRoute(
-  "GET",
-  "/backlog",
-  readDevtools,
-  canReadDevtools,
-  () => Effect.succeed({}),
-)(() =>
-  Effect.map(ring.snapshot, (stored) => {
-    const records: Array<{ readonly environment: string; readonly record: unknown }> = [];
-    let refused = 0;
-    for (const entry of stored) {
-      Result.match(encodeSinkRecord(entry), {
-        onSuccess: (record) => {
-          records.push({ environment: entry.environment, record });
-        },
-        onFailure: () => {
-          refused += 1;
-        },
-      });
-    }
-    return json({ records, refused });
-  }),
-);
-
-/**
  * Why an ingested body was refused, as the 400's text.
  *
  * A sender newer than this aggregator — writing a wire version its
@@ -234,10 +201,13 @@ const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefu
 /**
  * The edge aggregator's receiving half.
  *
- * A serverless invocation cannot keep a ring — the process ends and takes it
+ * A serverless invocation cannot keep a log — the process ends and takes it
  * with it — so it forwards each record before returning and this ingests it,
  * stamped `Edge` rather than with this process's own environment
- * ([BEH-QD-188](../../../../spec/behaviors/24-decision-sink.md)).
+ * ([BEH-QD-188](../../../../spec/behaviors/24-decision-sink.md)). The ingested
+ * record reaches the log's backlog **and** every open `/__decisions`
+ * connection, labelled `Edge` on the wire — which is how the dock's Log shows
+ * an Edge row.
  *
  * A malformed body is a 400 naming why, and nothing else; a record of a wire
  * version this aggregator does not read is a 400 saying so.
@@ -264,7 +234,7 @@ const IngestRoute = HttpRouter.add(
       return HttpServerResponse.text(refusedBecause(record.failure.refusal), { status: 400 });
     }
 
-    yield* ring.ingest(record.success, "Edge");
+    yield* log.ingest(record.success, "Edge");
     return HttpServerResponse.empty({ status: 204 });
   }),
 );
@@ -274,9 +244,9 @@ const Routes = Layer.mergeAll(
   RelationshipPort,
   HistoryPort,
   ArticleRoute,
-  BacklogRoute,
   IngestRoute,
-  decisionStreamRoute(readDevtools, canReadDevtools, feed.stream),
+  decisionStreamRoute(readDevtools, canReadDevtools, log),
+  decisionBacklogRoute(readDevtools, canReadDevtools, log),
   permissionRegistryRoute(readDevtools, canReadDevtools),
 );
 
