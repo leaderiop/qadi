@@ -46,8 +46,6 @@ import {
   AttributeResolveError,
   AttributeResolver,
   CurrentSubject,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
   decisionCacheLayer,
   decisionSinkFeed,
   EvaluationIdLive,
@@ -60,8 +58,7 @@ import {
   makeSubject,
   permission,
   permissionKey,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
+  portsLayer,
 } from "@qadi/core";
 import {
   PermissionRegistryLive,
@@ -225,13 +222,11 @@ const AttributeServices = Layer.succeed(AttributeResolver, {
   },
 });
 
-const EvaluationServices = Layer.mergeAll(
-  AttributeServices,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+// Only the attribute store is wired; every other port sits at its fail-closed
+// default, so a policy reaching one denies rather than borrowing an answer.
+const EvaluationServices = Layer.merge(
+  portsLayer({ AttributeResolver: AttributeServices }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 const main = Effect.gen(function* () {

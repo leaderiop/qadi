@@ -17,12 +17,9 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
   currentSubjectLayer,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   decide,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
+  portsLayer,
 } from "@qadi/core";
 import type { AttributeResolverShape, SubjectId } from "@qadi/core";
 import {
@@ -70,12 +67,8 @@ describe("a seeded decision, with no Next in the way", () => {
         Effect.map((decision) => [{ policy: inGoodStanding, decision }]),
         Effect.provide(
           Layer.mergeAll(
-            good,
-            RelationshipResolverNever,
-            DecisionHistoryUnknown,
+            portsLayer({ AttributeResolver: good }),
             EvaluationIdLive,
-            CustomPredicateNone,
-            SignatureHistoryNone,
             currentSubjectLayer(omar),
           ),
         ),
@@ -88,14 +81,7 @@ describe("a seeded decision, with no Next in the way", () => {
 
     // The browser half.
     const atoms = makeQadiAtoms(
-      Layer.mergeAll(
-        silent,
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      ),
+      Layer.merge(portsLayer({ AttributeResolver: silent }), EvaluationIdLive),
     );
     const initialValues = Array.from(hydrateDecisions(atoms, payload, omar));
     expect(initialValues).toHaveLength(1);

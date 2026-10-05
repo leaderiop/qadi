@@ -22,13 +22,10 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import {
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
   decide,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  SignatureHistoryNone,
+  portsLayer,
   relationshipResolverFromEdges,
 } from "@qadi/core";
 import { forwardingSink } from "../src/server/forwarding.ts";
@@ -45,19 +42,17 @@ if (published === undefined) throw new Error("no published fixture article");
 const resource = policyResource(published, 0);
 
 /** The server's layer, minus the sink under test — mirrors `hydration.test.ts`. */
-const ports = Layer.mergeAll(
-  AttributeResolverNone,
-  relationshipResolverFromEdges(
-    articles.map((article) => ({
-      subjectId: article.authorId,
-      relation: "author-of",
-      resourceId: article.id,
-    })),
-  ),
-  DecisionHistoryUnknown,
+const ports = Layer.merge(
+  portsLayer({
+    RelationshipResolver: relationshipResolverFromEdges(
+      articles.map((article) => ({
+        subjectId: article.authorId,
+        relation: "author-of",
+        resourceId: article.id,
+      })),
+    ),
+  }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 const decideAndForward = (fetchStub: typeof fetch, onFailure: (error: unknown) => void) =>

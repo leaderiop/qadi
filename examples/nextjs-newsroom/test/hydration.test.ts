@@ -14,15 +14,12 @@ import { describe, expect, it } from "vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   decide,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   EvaluationServicesNone,
   isAllowed,
+  portsLayer,
   project,
   relationshipResolverFromEdges,
 } from "@qadi/core";
@@ -45,19 +42,17 @@ const omar = userNamed("omar");
 const nadia = userNamed("nadia");
 
 /** The server's layer, minus the sinks — nothing here reads a record. */
-const ports = Layer.mergeAll(
-  AttributeResolverNone,
-  relationshipResolverFromEdges(
-    articles.map((article) => ({
-      subjectId: article.authorId,
-      relation: "author-of",
-      resourceId: article.id,
-    })),
-  ),
-  DecisionHistoryUnknown,
+const ports = Layer.merge(
+  portsLayer({
+    RelationshipResolver: relationshipResolverFromEdges(
+      articles.map((article) => ({
+        subjectId: article.authorId,
+        relation: "author-of",
+        resourceId: article.id,
+      })),
+    ),
+  }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 const decideAs = (subject: AuthSubject, entries: ReadonlyArray<{
