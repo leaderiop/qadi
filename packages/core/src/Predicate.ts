@@ -16,6 +16,7 @@ import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import type { AttributeResolver } from "./AttributeResolver.ts";
+import type { CompareOp } from "./Compare.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import type { DecisionHistory } from "./DecisionHistory.ts";
@@ -40,7 +41,11 @@ import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
 // The predicate
 // ---------------------------------------------------------------------------
 
-export type CompareOp = "Eq" | "Neq" | "Gte" | "Lt";
+/**
+ * The comparison operators a `Compare` leaf carries. Declared in `Compare.ts`,
+ * which owns what each one means; this is its public home.
+ */
+export type { CompareOp } from "./Compare.ts";
 
 /**
  * A filter over rows. No SQL, no dialect, no database dependency.
