@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.10 (2026-10-05): BEH-QD-199 — the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-903); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-904)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-902, CCR-QD-903)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-901, CCR-QD-901)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.10 (2026-10-05): BEH-QD-199 — the wire is versioned: version 1 read for good, version 2 carries one tagged `outcome`, any other version refused as `UnsupportedVersion`, and the encoder takes `wireVersion`; the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-903); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-904)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-902, CCR-QD-903)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-901, CCR-QD-901)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -484,12 +484,23 @@ on the second view (`@qadi/devtools`'s lens), not dropped.
 ## BEH-QD-199: A record has a wire form, encoded and decoded by one operation each way
 
 ```ts
-export const SinkRecordJson: Schema.Codec<…>; // the encoded side of the one wire schema
+export const SinkRecordJson: Schema.Codec<…>; // version-2 bytes | version-1 bytes, each a version's encoded side
 export type SinkRecordJson = …;
-export const encodeSinkRecord: (record: SinkRecord) => Result<SinkRecordJson, SinkRecordNotEncodable>;
-export const encodeSinkRecordString: (record: SinkRecord) => Result<string, SinkRecordNotEncodable>;
+export type WireVersion = 1 | 2;
+export const WIRE_VERSIONS: ReadonlyArray<WireVersion>; // [1, 2]: what decodeSinkRecord reads
+export const DEFAULT_WIRE_VERSION: WireVersion;
+export interface SinkRecordEncodeOptions { readonly wireVersion?: WireVersion }
+export const encodeSinkRecord: (
+  record: SinkRecord,
+  options?: SinkRecordEncodeOptions,
+) => Result<SinkRecordJson, SinkRecordNotEncodable>;
+export const encodeSinkRecordString: (
+  record: SinkRecord,
+  options?: SinkRecordEncodeOptions,
+) => Result<string, SinkRecordNotEncodable>;
 export const decodeSinkRecord: (input: unknown) => Result<SinkRecord, SinkRecordNotDecodable>;
 export const decodeSinkRecordString: (text: string) => Result<SinkRecord, SinkRecordNotDecodable>;
+// SinkRecordNotDecodable.refusal: NotJson | TooDeep | Malformed | UnsupportedVersion { version, supported }
 ```
 
 ```
@@ -502,6 +513,27 @@ REQUIREMENT: Every outbound path — forwarding, the decision stream, the audit
 REQUIREMENT: `decodeSinkRecord` MUST validate untrusted input, MUST NOT
              produce a half-built record, and MUST NOT throw.
 ```
+
+```
+REQUIREMENT: `decodeSinkRecord` MUST read wire version 1 (no `version` key)
+             and wire version 2 (`version: 2`), and MUST decode both to the
+             same `SinkRecord` for the same record. It MUST refuse any other
+             `version` as `UnsupportedVersion`, naming the version sent and
+             the versions it reads, never as `Malformed`.
+REQUIREMENT: Version 1 MUST stay readable for good: its schema is frozen, and
+             a change to the wire is a new version.
+```
+
+The wire is versioned
+([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
+Version 2 carries `version: 2` and the decision's outcome as one tagged value,
+`outcome: { _tag: "Decided", decision } | { _tag: "Failed", error }`, the same
+closed union `DecisionRecord.outcome` is. Version 1 — every `@qadi/core` before
+ADR-QD-903 — has no `version` key and carries the outcome as two optional
+fields, `decided` and `failed`. Audit rows are durable, so version 1 is read for
+good, unlike the hydration payload's version 1 (ADR-QD-078), which lives in one
+cached page. An unknown version has a different fix from a malformed record —
+upgrade the reader — so it is a different refusal.
 
 An in-memory sink hands a consumer real objects. Anything crossing a process
 boundary — a socket to a devtools page, a replica forwarding to a shared store, a
@@ -518,7 +550,8 @@ exactly the reasoning [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md
 applies to policies. So the wire form is a Schema and decoding validates rather
 than casts: a payload naming a policy shape the ADT does not have is refused,
 not walked. A refusal is a `SinkRecordNotDecodable` whose closed
-`DecodeRefusal` says why: `NotJson` (text only), `TooDeep` or `Malformed`.
+`DecodeRefusal` says why: `NotJson` (text only), `TooDeep`, `Malformed` or
+`UnsupportedVersion`.
 
 `decodeSinkRecord` pre-checks structural depth before `Schema` ever recurses
 into the input — the same `DecodeDepthGuard.ts` guard, in the same order,
@@ -629,8 +662,10 @@ hazard: JSON drops the key and decode reads it as absent. A valid `Date` in
 and the `cause` normalisation above, are the only ways a decoded record differs
 from the one encoded ([INV-QD-902](../invariants.md#inv-qd-902-whatever-the-record-codec-emits-it-accepts)).
 
-A record naming neither outcome, or both, is unreachable for anything this
-library encodes, but the wire is untrusted, so the decode refuses it as
+In wire version 2 a record cannot name both outcomes or neither: `outcome` is
+one tagged value, and a missing or doubled one is a schema failure like any
+other. In version 1 it is unreachable for anything this library encodes, but
+the wire is untrusted, so the decode refuses it as
 `Malformed` ("names no outcome", "names both outcomes"). A record is not
 something to be repaired at the receiver: no outcome is invented and none is
 chosen.
