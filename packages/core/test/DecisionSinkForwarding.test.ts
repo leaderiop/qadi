@@ -2,16 +2,20 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
+import * as Predicate from "effect/Predicate";
 import * as References from "effect/References";
+import * as Result from "effect/Result";
 import { isAllowed } from "../src/Decision.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
-import { ObligationRecord } from "../src/DecisionRecord.ts";
+import { DecisionRecord, Failed, ObligationRecord } from "../src/DecisionRecord.ts";
 import { decisionSinkAll, decisionSinkForwarding } from "../src/DecisionSinkForwarding.ts";
 import { decisionSinkRing } from "../src/DecisionSinkRing.ts";
+import { PolicyTooDeep, SinkRecordNotEncodable } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { makeSubjectId } from "../src/Identity.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { decodeRecord } from "../src/SinkCodec.ts";
+import { decodeSinkRecord, encodeSinkRecord } from "../src/SinkCodec.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
@@ -22,22 +26,33 @@ describe("decisionSinkForwarding", () => {
   it.effect("hands each record onward, already encoded", () =>
     Effect.gen(function* () {
       const sent: Array<unknown> = [];
+      const ring = decisionSinkRing({ environment: "Server" });
 
       yield* evaluate(policy).pipe(
         Effect.provide(
-          decisionSinkForwarding({
-            send: (encoded) =>
-              Effect.sync(() => {
-                sent.push(encoded);
-              }),
-          }),
+          decisionSinkAll([
+            decisionSinkForwarding({
+              send: (encoded) =>
+                Effect.sync(() => {
+                  sent.push(encoded);
+                }),
+            }),
+            ring.layer,
+          ]),
         ),
       );
 
       assert.strictEqual(sent.length, 1);
       // Encoded, so a transport can hand it straight to JSON without knowing
-      // anything about the record type.
-      assert.doesNotThrow(() => JSON.stringify(sent[0]));
+      // anything about the record type — and encoded by the one outbound
+      // operation, so it is exactly what any other sink emits for the record.
+      const [stored] = yield* ring.snapshot;
+      assert.isDefined(stored);
+      if (stored === undefined) return;
+      assert.deepStrictEqual(
+        sent[0],
+        Result.match(encodeSinkRecord(stored), { onSuccess: (json) => json, onFailure: () => "refused" }),
+      );
     }).pipe(Effect.provide(testLayer(allowed))));
 
   it.effect("a send that FAILS cannot change the decision", () =>
@@ -148,6 +163,160 @@ describe("decisionSinkForwarding", () => {
       );
 
       assert.deepStrictEqual(logs, []);
+    }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+/**
+ * An encode refusal is not a delivery failure (ARCH-09 T1 #7/#8). A record the
+ * receiver would refuse must be refused at the sender, reported as a refusal,
+ * and never handed to `send`.
+ */
+describe("decisionSinkForwarding refuses what the receiver would refuse", () => {
+  const isTooDeepRefusal = (value: unknown): boolean =>
+    Predicate.isTagged(value, "SinkRecordNotEncodable") &&
+    Predicate.hasProperty(value, "refusal") &&
+    Predicate.isTagged(value.refusal, "TooDeep");
+
+  it.effect(
+    "a record whose policy is 5,000 levels deep is refused as TooDeep and reported as a refusal, " +
+      "never as a send failure",
+    () =>
+      Effect.gen(function* () {
+        let deep: P.Policy = policy;
+        for (let i = 0; i < 5_000; i++) deep = P.not(deep);
+        const record = new DecisionRecord({
+          evaluationId: "deep",
+          at: 0,
+          subjectId: makeSubjectId("u1"),
+          policy: deep,
+          outcome: new Failed({ error: new PolicyTooDeep({ maxDepth: 64 }) }),
+        });
+        const sent: Array<unknown> = [];
+        const seen: Array<unknown> = [];
+
+        yield* Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          yield* sink.record(record);
+        }).pipe(
+          Effect.provide(
+            decisionSinkForwarding({
+              send: (encoded) => Effect.sync(() => void sent.push(encoded)),
+              onFailure: (error) => void seen.push(error),
+            }),
+          ),
+        );
+
+        assert.strictEqual(sent.length, 0);
+        assert.strictEqual(seen.length, 1);
+        assert.isTrue(isTooDeepRefusal(seen[0]));
+        const path =
+          Predicate.hasProperty(seen[0], "refusal") && Predicate.hasProperty(seen[0].refusal, "path")
+            ? seen[0].refusal.path
+            : undefined;
+        assert.isTrue(Array.isArray(path) && path[0] === "policy");
+      }),
+  );
+
+  it.effect(
+    "a successful evaluation the receiver would refuse (allOf×130, maxDepth 200) is refused at the sender instead",
+    () =>
+      Effect.gen(function* () {
+        let nested: P.Policy = policy;
+        for (let i = 0; i < 130; i++) nested = P.allOf([nested]);
+        const sent: Array<unknown> = [];
+        const seen: Array<unknown> = [];
+
+        const decision = yield* evaluate(nested, { maxDepth: 200 }).pipe(
+          Effect.provide(
+            decisionSinkForwarding({
+              send: (encoded) => Effect.sync(() => void sent.push(encoded)),
+              onFailure: (error) => void seen.push(error),
+            }),
+          ),
+        );
+
+        assert.isTrue(isAllowed(decision));
+        assert.strictEqual(sent.length, 0);
+        assert.strictEqual(seen.length, 1);
+        assert.isTrue(isTooDeepRefusal(seen[0]));
+      }).pipe(Effect.provide(testLayer(allowed))),
+  );
+});
+
+describe("decisionSinkForwarding reports a refusal as a refusal (ARCH-09 T6)", () => {
+  const cyclicResource = (): Record<string, unknown> => {
+    const resource: Record<string, unknown> = { id: "doc-1" };
+    resource.self = resource;
+    return resource;
+  };
+
+  it.effect("a refusal is reported through onFailure as a SinkRecordNotEncodable, not a Cause", () =>
+    Effect.gen(function* () {
+      const sent: Array<unknown> = [];
+      const seen: Array<unknown> = [];
+
+      const decision = yield* evaluate(policy, { resource: cyclicResource() }).pipe(
+        Effect.provide(
+          decisionSinkForwarding({
+            send: (encoded) => Effect.sync(() => void sent.push(encoded)),
+            onFailure: (error) => void seen.push(error),
+          }),
+        ),
+      );
+
+      assert.isTrue(isAllowed(decision));
+      assert.strictEqual(sent.length, 0);
+      assert.strictEqual(seen.length, 1);
+      assert.instanceOf(seen[0], SinkRecordNotEncodable);
+      if (seen[0] instanceof SinkRecordNotEncodable) {
+        assert.strictEqual(seen[0].refusal._tag, "Circular");
+        assert.strictEqual(seen[0].evaluationId, decision.evaluationId);
+      }
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("with no onFailure, a refusal logs its own message, distinct from a send failure", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+
+      yield* evaluate(policy, { resource: { tags: new Set(["finance"]) } }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            decisionSinkForwarding({ send: () => Effect.void }),
+            Logger.layer([
+              Logger.make((o) => {
+                logs.push({
+                  message: o.message,
+                  annotations: o.fiber.getRef(References.CurrentLogAnnotations),
+                });
+              }),
+            ]),
+          ),
+        ),
+      );
+
+      assert.strictEqual(logs.length, 1);
+      const [entry] = logs;
+      if (entry === undefined) return;
+      assert.include(String(entry.message), "could not be encoded for forwarding");
+      assert.notInclude(String(entry.message), "could not be forwarded");
+      assert.strictEqual(entry.annotations["qadi.refusal"], "Opaque");
+      assert.strictEqual(entry.annotations["qadi.path"], "resource.tags");
+      assert.isString(entry.annotations["evaluationId"]);
+    }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("an onFailure that throws on a refusal still cannot change the decision", () =>
+    Effect.gen(function* () {
+      const decision = yield* evaluate(policy, { resource: cyclicResource() }).pipe(
+        Effect.provide(
+          decisionSinkForwarding({
+            send: () => Effect.void,
+            onFailure: () => {
+              throw new Error("alerting is down too");
+            },
+          }),
+        ),
+      );
+      assert.isTrue(isAllowed(decision));
     }).pipe(Effect.provide(testLayer(allowed))));
 });
 
@@ -289,7 +458,7 @@ describe("forward and ingest, end to end", () => {
       const json: unknown = JSON.parse(JSON.stringify(wire[0]));
 
       // ... and is ingested under the SENDER's label, not the aggregator's.
-      const record = yield* decodeRecord(json);
+      const record = yield* Effect.fromResult(decodeSinkRecord(json));
       yield* aggregator.ingest(record, "Replica-3");
 
       const stored = yield* aggregator.snapshot;
