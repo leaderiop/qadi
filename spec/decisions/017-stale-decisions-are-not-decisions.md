@@ -1,6 +1,6 @@
 # ADR-QD-017: A decision being re-checked is not a decision
 
-> **Status:** Accepted
+> **Status:** Accepted — amended by [ADR-QD-093](./093-a-decision-is-read-once.md) (2026-10-05, CCR-QD-175)
 > **Date:** 2026-07-26
 
 ## Context
@@ -24,6 +24,33 @@ no longer applies. A test caught this: after the subject was set back to
 `undefined`, `useCan` still returned `true`.
 
 ## Decision
+
+> **Amended by ADR-QD-093 (2026-10-05).** The rule's single home is now
+> `outcomeOf` (`packages/react/src/DecisionOutcome.ts`), which reads a
+> `DecisionResult` into one of five outcomes — `Pending`, `Rechecking`,
+> `Allowed`, `Denied`, `Failed` — of which only `Allowed` carries an allow.
+> `currentDecision` remains, as its projection:
+>
+> ```ts
+> export const currentDecision = (result: DecisionResult): ClientDecision | undefined =>
+>   DecisionOutcome.$match(outcomeOf(result), {
+>     Pending: () => undefined,
+>     Rechecking: () => undefined,
+>     Failed: () => undefined,
+>     Allowed: ({ decision }) => decision,
+>     Denied: ({ decision }) => decision,
+>   });
+> ```
+>
+> **`waiting` is not the only carrier.** A `Failure` holds the last success as
+> `previousSuccess`, and `AsyncResult.value`/`getOrElse`/`getOrThrow` return it —
+> after a re-check of an allow fails, they still say "allowed", with `waiting:
+> false`. The rule below speaks only of the flag; `outcomeOf` never reads
+> `previousSuccess`, and `Failed` carries only the cause, so no outcome can leak
+> it. Three hand-kept readers of this rule (`currentDecision`, `components.tsx`'s
+> `classify`, `useGate.ts`'s `renderStateOf`) became one, and a published guide
+> example that rendered a stale allow is corrected. The original decision is kept
+> below for the record.
 
 Every consumer in `@qadi/react` treats a `waiting` result as *not decided*.
 `currentDecision` is the single place that rule lives:

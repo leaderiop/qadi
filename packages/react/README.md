@@ -42,8 +42,28 @@ While a decision is being re-checked, this package reports **nothing** rather
 than the previous verdict. For most data staleness is a feature; for
 authorization it is an over-permission, however brief — the subject has logged
 out, or their grants were just revoked, and the answer on screen is the old one.
-Read decisions through `currentDecision`, which is the single place that rule
-lives.
+Read decisions through `outcomeOf`, which is the single place that rule lives:
+it reads a result into one of five outcomes — `Pending`, `Rechecking`,
+`Allowed`, `Denied`, `Failed` — and only `Allowed` carries an allow. A failed
+re-check keeps the previous answer too, as `previousSuccess`, and no outcome
+has a field for it. `currentDecision` is its projection, for a caller that
+wants a settled decision or nothing.
+
+```tsx
+import { DecisionOutcome, outcomeOf, useDecision } from "@qadi/react";
+import { hasPermission, permission } from "@qadi/core";
+
+const canEditDoc = hasPermission(permission("doc", "write"));
+
+export const EditButton = () =>
+  DecisionOutcome.$match(outcomeOf(useDecision(canEditDoc)), {
+    Pending: () => null,
+    Rechecking: () => null,
+    Failed: () => <span>Could not check your permissions.</span>,
+    Allowed: () => <button type="button">Edit</button>,
+    Denied: () => null,
+  });
+```
 
 ## Server rendering
 

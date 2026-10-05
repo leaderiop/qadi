@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-APP-REACT                                 |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Appendix — Worked Example                      |
-> | Change History | 1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
+> | Change History | 1.2 (2026-10-05): §5's "read the whole decision" example rendered the editor while an allow was being re-checked — `Success` with `waiting: true` is neither `Initial` nor `Failure`, so the ladder fell through to the previous verdict; it now reads the result once with `outcomeOf` (ADR-QD-093, CCR-QD-175)<br>1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
 
 ---
 
@@ -318,7 +318,8 @@ While the re-check runs, decisions report as *pending*, not as their previous
 value — a decision being re-checked is not a decision
 ([ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md)). If that
 flash is unwelcome for a particular control, `useDecision` hands you the raw
-`AsyncResult` and its `waiting` flag, and the choice.
+`AsyncResult` and its `waiting` flag, and the choice — `outcomeOf` tells
+`Rechecking` from `Pending` without reading the flag yourself.
 
 ### Identity changes, not just authority changes
 

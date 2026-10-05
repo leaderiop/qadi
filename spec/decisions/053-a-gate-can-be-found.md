@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-053                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-08-24                                     |
-> | Status         | Accepted — amended by ADR-QD-080               |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-05                                     |
+> | Status         | Accepted — amended by ADR-QD-080, ADR-QD-093   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
+> | Change History | 1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
 
 ---
 
@@ -64,6 +64,11 @@ calling it. Registering in the primitive and again in its callers would report
 one `<Can>` as two instances, the inner one labelled a hook its author never
 wrote. Every surface calls `useGate` naming itself, and `useDecision` is simply
 the case whose name is `"useDecision"`.
+
+> **Amended by ADR-QD-093.** What an entry records as "what it rendered" is
+> `GateRenderState = DecisionOutcome["_tag"]` — derived from the one read of the
+> result (`outcomeOf`), not a restated union kept in step with a second reader, so
+> the registry records exactly the outcome the guard rendered from.
 
 ### Opt-in, and off means absent
 
