@@ -24,11 +24,12 @@ import * as Effect from "effect/Effect";
 import { toPredicate } from "@qadi/core";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
 
-// Which columns accept NULL, declared once for the model.
+// Which columns accept NULL, and which are Float/Decimal, declared once for the model.
 const nullable = new Set(["deletedAt", "note"]);
+const floating = new Set(["amount"]);
 
 const where = toPredicate(visible).pipe(
-  Effect.flatMap((predicate) => compilePrismaWhere(predicate, { nullable })),
+  Effect.flatMap((predicate) => compilePrismaWhere(predicate, { nullable, floating })),
 );
 // { tenantId: "t-1" }
 
@@ -50,6 +51,16 @@ Prisma refuses any filter that mentions `null` on a required field, and a plain
 evaluator admits, so the compiler needs this one schema fact. A wrong
 declaration can only lose rows or fail loudly; it never admits a row the
 predicate denies.
+
+## Declare which columns hold floating-point numbers
+
+`compilePrismaWhere` also requires `{ floating }`, the set of `Float` and
+`Decimal` columns, which can hold `Infinity`/`-Infinity`.
+`floatingFieldsOf(Prisma.dmmf.datamodel.models[i])` derives it, because Prisma 7's
+runtime DMMF keeps each field's `type`. A `gte`/`lt` on such a column fails with
+`PredicateNotRenderable` (`refusal: "NonFiniteColumn"`): Prisma has no filter that
+keeps an infinite row out of a range, and the evaluator never admits one.
+Equality and `in` on the column still compile.
 
 ## Refuses rather than approximates
 

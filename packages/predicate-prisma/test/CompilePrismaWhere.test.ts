@@ -7,11 +7,19 @@ import { PredicateNotRenderable as CorePredicateNotRenderable } from "@qadi/core
 import type { Predicate, RenderRules } from "@qadi/core";
 import {
   compilePrismaWhere,
+  floatingFieldsOf,
   nullableFieldsOf,
   PredicateNotRenderable,
   type CompilePrismaWhereOptions,
 } from "../src/index.ts";
 import { compile } from "./fixture.ts";
+
+/**
+ * No floating columns: the shapes here predate the declaration (CCR-QD-172) and
+ * are about other rules, so they declare nothing floating and their goldens are
+ * byte-identical to what the compiler emitted before it existed.
+ */
+const NO_FLOATING: ReadonlySet<string> = new Set();
 
 const refusalOf = (predicate: Predicate) =>
   Effect.map(Effect.result(compile(predicate)), (r) =>
@@ -429,19 +437,19 @@ describe("compilePrismaWhere — Negate is NULL-safe on nullable columns (C6)", 
 
   it.effect("Negate(Gte) guards the leaf so a NULL-valued row is admitted", () =>
     Effect.gen(function* () {
-      const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: gte3 }, { nullable });
+      const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: gte3 }, { floating: NO_FLOATING, nullable });
       assert.deepStrictEqual(where, { NOT: { level: { gte: 3, not: null } } });
     }));
 
   it.effect("Negate(Eq) guards the leaf", () =>
     Effect.gen(function* () {
-      const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: tagRed }, { nullable });
+      const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: tagRed }, { floating: NO_FLOATING, nullable });
       assert.deepStrictEqual(where, { NOT: { tag: { equals: "red", not: null } } });
     }));
 
   it.effect("Negate(MemberOf) guards the leaf", () =>
     Effect.gen(function* () {
-      const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: tagIn }, { nullable });
+      const where = yield* compilePrismaWhere({ _tag: "Negate", predicate: tagIn }, { floating: NO_FLOATING, nullable });
       assert.deepStrictEqual(where, { NOT: { tag: { in: ["red"], not: null } } });
     }));
 
@@ -449,12 +457,12 @@ describe("compilePrismaWhere — Negate is NULL-safe on nullable columns (C6)", 
     Effect.gen(function* () {
       const twice = yield* compilePrismaWhere(
         { _tag: "Negate", predicate: { _tag: "Negate", predicate: gte3 } },
-        { nullable },
+        { floating: NO_FLOATING, nullable },
       );
       assert.deepStrictEqual(twice, { NOT: { NOT: { level: { gte: 3 } } } });
       const underOr = yield* compilePrismaWhere(
         { _tag: "Negate", predicate: { _tag: "Or", predicates: [gte3, tagRed] } },
-        { nullable },
+        { floating: NO_FLOATING, nullable },
       );
       assert.deepStrictEqual(underOr, {
         NOT: { OR: [{ level: { gte: 3, not: null } }, { tag: { equals: "red", not: null } }] },
@@ -465,30 +473,30 @@ describe("compilePrismaWhere — Negate is NULL-safe on nullable columns (C6)", 
     Effect.gen(function* () {
       const neq: Predicate = { _tag: "Compare", column: "tag", op: "Neq", value: "red" };
       const admit = { OR: [{ tag: { not: "red" } }, { tag: null }] };
-      assert.deepStrictEqual(yield* compilePrismaWhere(neq, { nullable }), admit);
+      assert.deepStrictEqual(yield* compilePrismaWhere(neq, { floating: NO_FLOATING, nullable }), admit);
       assert.deepStrictEqual(
-        yield* compilePrismaWhere({ _tag: "Negate", predicate: neq }, { nullable }),
+        yield* compilePrismaWhere({ _tag: "Negate", predicate: neq }, { floating: NO_FLOATING, nullable }),
         { NOT: admit },
       );
       const withNull: Predicate = { _tag: "MemberOf", column: "tag", values: ["red", null] };
       assert.deepStrictEqual(
-        yield* compilePrismaWhere({ _tag: "Negate", predicate: withNull }, { nullable }),
+        yield* compilePrismaWhere({ _tag: "Negate", predicate: withNull }, { floating: NO_FLOATING, nullable }),
         { NOT: { OR: [{ tag: { in: ["red"] } }, { tag: null }] } },
       );
     }));
 
   it.effect("an un-negated leaf is byte-identical to the pre-C6 output", () =>
     Effect.gen(function* () {
-      assert.deepStrictEqual(yield* compilePrismaWhere(gte3, { nullable }), { level: { gte: 3 } });
-      assert.deepStrictEqual(yield* compilePrismaWhere(tagRed, { nullable }), { tag: "red" });
-      assert.deepStrictEqual(yield* compilePrismaWhere(tagIn, { nullable }), { tag: { in: ["red"] } });
+      assert.deepStrictEqual(yield* compilePrismaWhere(gte3, { floating: NO_FLOATING, nullable }), { level: { gte: 3 } });
+      assert.deepStrictEqual(yield* compilePrismaWhere(tagRed, { floating: NO_FLOATING, nullable }), { tag: "red" });
+      assert.deepStrictEqual(yield* compilePrismaWhere(tagIn, { floating: NO_FLOATING, nullable }), { tag: { in: ["red"] } });
     }));
 
   it.effect("the declaration is the only thing guards read: no declaration, no guard", () =>
     Effect.gen(function* () {
       const where = yield* compilePrismaWhere(
         { _tag: "Negate", predicate: gte3 },
-        { nullable: new Set() },
+        { floating: NO_FLOATING, nullable: new Set() },
       );
       assert.deepStrictEqual(where, { NOT: { level: { gte: 3 } } });
     }));
@@ -506,7 +514,7 @@ describe("compilePrismaWhere — a required column never mentions null (N1)", ()
     Effect.gen(function* () {
       const where = yield* compilePrismaWhere(
         { _tag: "Compare", column: "tenantId", op: "Neq", value: "t-1" },
-        { nullable },
+        { floating: NO_FLOATING, nullable },
       );
       assert.deepStrictEqual(where, { tenantId: { not: "t-1" } });
     }));
@@ -515,7 +523,7 @@ describe("compilePrismaWhere — a required column never mentions null (N1)", ()
     Effect.gen(function* () {
       for (const op of ["Eq", "Neq"] as const) {
         const result = yield* Effect.result(
-          compilePrismaWhere({ _tag: "Compare", column: "tenantId", op, value: null }, { nullable }),
+          compilePrismaWhere({ _tag: "Compare", column: "tenantId", op, value: null }, { floating: NO_FLOATING, nullable }),
         );
         assert.isTrue(Result.isFailure(result));
         if (Result.isFailure(result)) {
@@ -533,7 +541,7 @@ describe("compilePrismaWhere — a required column never mentions null (N1)", ()
     Effect.gen(function* () {
       const where = yield* compilePrismaWhere(
         { _tag: "MemberOf", column: "tenantId", values: ["t-1", null] },
-        { nullable },
+        { floating: NO_FLOATING, nullable },
       );
       assert.deepStrictEqual(where, { tenantId: { in: ["t-1"] } });
     }));
@@ -541,7 +549,7 @@ describe("compilePrismaWhere — a required column never mentions null (N1)", ()
   it.effect("an all-null MemberOf on a required column refuses like a null Eq", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        compilePrismaWhere({ _tag: "MemberOf", column: "tenantId", values: [null] }, { nullable }),
+        compilePrismaWhere({ _tag: "MemberOf", column: "tenantId", values: [null] }, { floating: NO_FLOATING, nullable }),
       );
       assert.isTrue(Result.isFailure(result));
       if (Result.isFailure(result)) {
@@ -558,14 +566,14 @@ describe("compilePrismaWhere — a required column never mentions null (N1)", ()
       assert.deepStrictEqual(
         yield* compilePrismaWhere(
           { _tag: "Compare", column: "level", op: "Eq", value: null },
-          { nullable },
+          { floating: NO_FLOATING, nullable },
         ),
         { level: null },
       );
       assert.deepStrictEqual(
         yield* compilePrismaWhere(
           { _tag: "Compare", column: "level", op: "Neq", value: null },
-          { nullable },
+          { floating: NO_FLOATING, nullable },
         ),
         { level: { not: null } },
       );
@@ -597,11 +605,11 @@ describe("compilePrismaWhere — the rules core owns (maxInValues, identifiers)"
     Effect.gen(function* () {
       const atBound = yield* compilePrismaWhere(
         { _tag: "MemberOf", column: "level", values: values(1000) },
-        { nullable },
+        { floating: NO_FLOATING, nullable },
       );
       assert.deepStrictEqual(atBound, { level: { in: values(1000) } });
       const over = yield* Effect.flip(
-        compilePrismaWhere({ _tag: "MemberOf", column: "level", values: values(1001) }, { nullable }),
+        compilePrismaWhere({ _tag: "MemberOf", column: "level", values: values(1001) }, { floating: NO_FLOATING, nullable }),
       );
       assert.strictEqual(over.refusal, "TooManyValues");
       assert.strictEqual(over.predicateTag, "MemberOf");
@@ -613,7 +621,7 @@ describe("compilePrismaWhere — the rules core owns (maxInValues, identifiers)"
       const failure = yield* Effect.flip(
         compilePrismaWhere(
           { _tag: "MemberOf", column: "level", values: values(4) },
-          { nullable, maxInValues: 3 },
+          { floating: NO_FLOATING, nullable, maxInValues: 3 },
         ),
       );
       assert.strictEqual(failure.reason, "4 values exceeds maxInValues (3)");
@@ -622,16 +630,16 @@ describe("compilePrismaWhere — the rules core owns (maxInValues, identifiers)"
   it.effect("a column outside the identifier rule refuses; UnicodeBmp opts a Prisma field like é in", () =>
     Effect.gen(function* () {
       const accented: Predicate = { _tag: "Compare", column: "é", op: "Eq", value: 1 };
-      const refused = yield* Effect.flip(compilePrismaWhere(accented, { nullable }));
+      const refused = yield* Effect.flip(compilePrismaWhere(accented, { floating: NO_FLOATING, nullable }));
       assert.strictEqual(refused.refusal, "UnsafeColumn");
       assert.strictEqual(refused.reason, "column 'é' is not a safe identifier");
       assert.deepStrictEqual(
-        yield* compilePrismaWhere(accented, { nullable, identifiers: "UnicodeBmp" }),
+        yield* compilePrismaWhere(accented, { floating: NO_FLOATING, nullable, identifiers: "UnicodeBmp" }),
         { é: 1 },
       );
       for (const column of ["first name", "a.b"]) {
         const failure = yield* Effect.flip(
-          compilePrismaWhere({ _tag: "Compare", column, op: "Eq", value: 1 }, { nullable }),
+          compilePrismaWhere({ _tag: "Compare", column, op: "Eq", value: 1 }, { floating: NO_FLOATING, nullable }),
         );
         assert.strictEqual(failure.refusal, "UnsafeColumn", column);
       }
@@ -640,7 +648,7 @@ describe("compilePrismaWhere — the rules core owns (maxInValues, identifiers)"
   it.effect("a Prisma operator keyword is a ReservedColumn refusal, not an UnsafeColumn one", () =>
     Effect.gen(function* () {
       const failure = yield* Effect.flip(
-        compilePrismaWhere({ _tag: "Compare", column: "gte", op: "Eq", value: 1 }, { nullable }),
+        compilePrismaWhere({ _tag: "Compare", column: "gte", op: "Eq", value: 1 }, { floating: NO_FLOATING, nullable }),
       );
       assert.strictEqual(failure.refusal, "ReservedColumn");
       assert.strictEqual(failure.reason, "column 'gte' is not a safe identifier");
@@ -653,7 +661,7 @@ describe("compilePrismaWhere — the refusal is @qadi/core's PredicateNotRendera
 
   it.effect("is an instance of the class @qadi/core exports, and the package re-exports that class", () =>
     Effect.gen(function* () {
-      const failure = yield* Effect.flip(compilePrismaWhere(unsafe, { nullable: new Set() }));
+      const failure = yield* Effect.flip(compilePrismaWhere(unsafe, { floating: NO_FLOATING, nullable: new Set() }));
       assert.instanceOf(failure, CorePredicateNotRenderable);
       assert.strictEqual(PredicateNotRenderable, CorePredicateNotRenderable);
       assert.strictEqual(failure.refusal, "UnsafeValue");
@@ -661,7 +669,7 @@ describe("compilePrismaWhere — the refusal is @qadi/core's PredicateNotRendera
 
   it.effect("Effect.catchTag(\"PredicateNotRenderable\") catches it", () =>
     Effect.gen(function* () {
-      const caught = yield* compilePrismaWhere(unsafe, { nullable: new Set() }).pipe(
+      const caught = yield* compilePrismaWhere(unsafe, { floating: NO_FLOATING, nullable: new Set() }).pipe(
         Effect.map(() => "compiled"),
         Effect.catchTag("PredicateNotRenderable", (error) => Effect.succeed(error.refusal)),
       );
@@ -681,7 +689,8 @@ describe("compilePrismaWhere — refusal parity with toRenderable", () => {
     maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
     nullability: { _tag: "Declared", nullable: options.nullable },
     negation: "ThreeValued",
-    finiteness: { _tag: "Unrepresentable" },
+    finiteness: { _tag: "Declared", floating: options.floating },
+    finiteExclusion: "Inexpressible",
   });
 
   const columnArb = FastCheck.constantFrom("tenantId", "level", "a b", "é", "gte", "NOT", "Gte");
@@ -712,10 +721,12 @@ describe("compilePrismaWhere — refusal parity with toRenderable", () => {
   })).node;
 
   const optionSets: ReadonlyArray<CompilePrismaWhereOptions> = [
-    { nullable: new Set(["level"]) },
-    { nullable: new Set() },
-    { nullable: new Set(["level"]), maxInValues: 2 },
-    { nullable: new Set(["tenantId", "level"]), identifiers: "UnicodeBmp", maxInValues: 3 },
+    { floating: NO_FLOATING, nullable: new Set(["level"]) },
+    { floating: NO_FLOATING, nullable: new Set() },
+    { floating: NO_FLOATING, nullable: new Set(["level"]), maxInValues: 2 },
+    { floating: NO_FLOATING, nullable: new Set(["tenantId", "level"]), identifiers: "UnicodeBmp", maxInValues: 3 },
+    // A floating declaration adds the `NonFiniteColumn` refusal (CCR-QD-172).
+    { floating: new Set(["level"]), nullable: new Set(["level"]) },
   ];
 
   it.effect("PROPERTY: compilePrismaWhere fails exactly when toRenderable fails, with an equal refusal", () =>
@@ -741,6 +752,72 @@ describe("compilePrismaWhere — refusal parity with toRenderable", () => {
       assert.isAbove(refusals, 100);
       assert.isAbove(compiled, 100);
     }));
+});
+
+// CCR-QD-172: Prisma cannot exclude a non-finite row from a range, so a range on
+// a declared-floating column refuses rather than over-admit.
+describe("compilePrismaWhere — floating columns", () => {
+  const options = { floating: new Set(["score"]), nullable: new Set<string>() };
+
+  it.effect("a Gte or Lt on a floating column refuses NonFiniteColumn; on any other column it renders", () =>
+    Effect.gen(function* () {
+      for (const op of ["Gte", "Lt"] as const) {
+        const failure = yield* Effect.flip(
+          compilePrismaWhere({ _tag: "Compare", column: "score", op, value: 3 }, options),
+        );
+        assert.instanceOf(failure, CorePredicateNotRenderable);
+        assert.strictEqual(failure.refusal, "NonFiniteColumn");
+        assert.strictEqual(failure.predicateTag, "Compare");
+        assert.strictEqual(
+          failure.reason,
+          "column 'score' may hold a non-finite number, and this target cannot exclude one from a range",
+        );
+      }
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "Compare", column: "level", op: "Gte", value: 3 }, options),
+        { level: { gte: 3 } },
+      );
+    }));
+
+  it.effect("equality and membership on a floating column still render", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "Compare", column: "score", op: "Eq", value: 3 }, options),
+        { score: 3 },
+      );
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "MemberOf", column: "score", values: [0, 5] }, options),
+        { score: { in: [0, 5] } },
+      );
+    }));
+
+  it.effect("a non-finite bound is still the constant false, not a refusal", () =>
+    Effect.gen(function* () {
+      // `isRangeBound` decides the bound before the finite guard is asked for.
+      // A non-finite bound is not a safe literal, so it refuses as UnsafeValue.
+      const failure = yield* Effect.flip(
+        compilePrismaWhere({ _tag: "Compare", column: "score", op: "Gte", value: Number.NaN }, options),
+      );
+      assert.strictEqual(failure.refusal, "UnsafeValue");
+      assert.deepStrictEqual(
+        yield* compilePrismaWhere({ _tag: "Compare", column: "score", op: "Gte", value: "3" }, options),
+        { OR: [] },
+      );
+    }));
+
+  it("floatingFieldsOf keeps the scalar Float and Decimal fields and nothing else", () => {
+    const model = {
+      fields: [
+        { name: "id", kind: "scalar", type: "Int" },
+        { name: "score", kind: "scalar", type: "Float" },
+        { name: "amount", kind: "scalar", type: "Decimal" },
+        { name: "big", kind: "scalar", type: "BigInt" },
+        { name: "label", kind: "scalar", type: "String" },
+        { name: "owner", kind: "object", type: "Float" },
+      ],
+    };
+    assert.deepStrictEqual([...floatingFieldsOf(model)], ["score", "amount"]);
+  });
 });
 
 describe("compilePrismaWhere — refusals", () => {

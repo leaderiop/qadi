@@ -130,6 +130,7 @@ describe("compileSql — refusal parity with toRenderable", () => {
     negation: "TwoValued",
     // The postgres dialect's: any column may hold a non-finite number.
     finiteness: { _tag: "Unknown" },
+    finiteExclusion: "Expressible",
   });
 
   const columnArb = FastCheck.constantFrom("tenantId", "level", "a b", 'x"y', "é", "gte", "NOT");

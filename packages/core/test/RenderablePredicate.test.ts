@@ -26,6 +26,7 @@ const RULES: RenderRules = {
   nullability: { _tag: "Unknown" },
   negation: "TwoValued",
   finiteness: { _tag: "Unknown" },
+  finiteExclusion: "Expressible",
 };
 
 const declared = (...columns: ReadonlyArray<string>): RenderRules["nullability"] => ({
@@ -995,6 +996,38 @@ describe("R9: a Range excludes non-finite rows exactly where the target can hold
           }
         }
       }
+    }));
+
+  it.effect("R9: a target that cannot express the guard refuses exactly the ranges that need it", () =>
+    Effect.gen(function* () {
+      const finiteness: ColumnFiniteness = { _tag: "Declared", floating: new Set(["n"]) };
+      let refused = 0;
+      let rendered = 0;
+      for (const predicate of predicates) {
+        const expressible = yield* render(predicate, { finiteness });
+        const inexpressible = yield* Effect.result(
+          render(predicate, { finiteness, finiteExclusion: "Inexpressible" }),
+        );
+        const needsGuard = rangesOf(expressible).some((range) => range.finiteGuard === "ExcludeNonFinite");
+        if (Result.isFailure(inexpressible)) {
+          refused += 1;
+          assert.isTrue(needsGuard, JSON.stringify(predicate));
+          assert.strictEqual(inexpressible.failure.refusal, "NonFiniteColumn");
+          assert.strictEqual(inexpressible.failure.predicateTag, "Compare");
+        } else {
+          rendered += 1;
+          // Nothing refused means nothing needed the guard, so the two trees are one.
+          assert.isFalse(needsGuard, JSON.stringify(predicate));
+          assert.deepStrictEqual(inexpressible.success, expressible);
+        }
+      }
+      assert.isAbove(refused, 0);
+      assert.isAbove(rendered, 0);
+      const failure = yield* refusalOf(compare("n", "Lt", 3), { finiteness, finiteExclusion: "Inexpressible" });
+      assert.strictEqual(
+        failure?.reason,
+        "column 'n' may hold a non-finite number, and this target cannot exclude one from a range",
+      );
     }));
 
   it.effect("R9: without the guard a plain range admits the non-finite rows the reference denies", () =>

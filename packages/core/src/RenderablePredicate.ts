@@ -116,6 +116,20 @@ export type ColumnFiniteness =
  */
 export type FiniteGuard = "None" | "ExcludeNonFinite";
 
+/**
+ * Whether the renderer can express `ExcludeNonFinite`.
+ *
+ * - `Expressible`: it renders the guard (`@qadi/predicate-sql`'s
+ *   `col - col = 0`).
+ * - `Inexpressible`: it cannot, so a `Range` that needs the guard is refused
+ *   (`NonFiniteColumn`) rather than rendered without it. `@qadi/predicate-prisma`
+ *   is this case: Prisma has no column arithmetic, and a bounded filter is
+ *   unsound — Prisma binds `lte: Number.MAX_VALUE` as a 309-digit decimal string
+ *   that SQLite reads back as `Infinity`, so `{gte: 3, lte: Number.MAX_VALUE}`
+ *   still returns an `Infinity` row (CCR-QD-172, measured on Prisma 7.10).
+ */
+export type FiniteExclusion = "Expressible" | "Inexpressible";
+
 /** The rules a renderer declares to `toRenderable`. */
 export interface RenderRules {
   /** How strictly a column name is constrained. */
@@ -128,6 +142,8 @@ export interface RenderRules {
   readonly negation: Negation;
   /** Which columns may hold a non-finite number; decides each `Range`'s `finiteGuard`. */
   readonly finiteness: ColumnFiniteness;
+  /** Whether a `Range` that needs `ExcludeNonFinite` can be rendered, or must be refused. */
+  readonly finiteExclusion: FiniteExclusion;
 }
 
 /** The default `RenderRules.maxInValues`: an unbounded `IN` is a resource-exhaustion vector. */
@@ -328,6 +344,28 @@ const finiteGuardFor = (leaf: Predicate, column: string, rules: RenderRules): Fi
     ? "ExcludeNonFinite"
     : "None";
 
+/**
+ * A classified `Range`, or its refusal when the target cannot express the
+ * finite guard the range needs. A table over the closed `FiniteExclusion` ×
+ * `FiniteGuard`, never a `switch` (AGENTS.md §5a): only the one cell that needs a
+ * guard the target cannot print refuses.
+ */
+const RANGE_UNDER: Record<
+  FiniteExclusion,
+  Record<FiniteGuard, (range: Extract<RenderableNode, { _tag: "Range" }>) => Classified>
+> = {
+  Expressible: { None: ok, ExcludeNonFinite: ok },
+  Inexpressible: {
+    None: ok,
+    ExcludeNonFinite: (range) =>
+      refuse(
+        "Compare",
+        "NonFiniteColumn",
+        `column '${range.column}' may hold a non-finite number, and this target cannot exclude one from a range`,
+      ),
+  },
+};
+
 const isEqualityLiteral = (value: SafeLiteral): value is EqualityLiteral => value !== null;
 
 const FLIP: Record<Polarity, Polarity> = { Positive: "Negative", Negative: "Positive" };
@@ -367,13 +405,14 @@ const dispatch: (predicate: Predicate) => (ctx: Classify) => Classified = Match.
       // renderer should ask. The row side is the `finiteGuard`'s job.
       if (p.op === "Gte" || p.op === "Lt") {
         if (!isRangeBound(value)) return ok({ _tag: "Constant", value: false });
-        return ok({
+        const finiteGuard = finiteGuardFor(p, p.column, ctx.rules);
+        return RANGE_UNDER[ctx.rules.finiteExclusion][finiteGuard]({
           _tag: "Range",
           column: p.column,
           op: p.op,
           bound: value,
           nullGuard: nullGuardFor(p, p.column, ctx),
-          finiteGuard: finiteGuardFor(p, p.column, ctx.rules),
+          finiteGuard,
         });
       }
       if (value === null) {
@@ -467,7 +506,8 @@ const classify = (predicate: Predicate, ctx: Classify): Classified => dispatch(p
  *
  * Refuses rather than approximates (ADR-QD-024): an unsafe column or value, a
  * reserved column, a `MemberOf` past `maxInValues`, a null comparison on a column
- * declared NOT NULL. The first refusal in left-to-right order wins. Everything
+ * declared NOT NULL, a range on a column that may hold a non-finite number when
+ * the target cannot exclude one. The first refusal in left-to-right order wins. Everything
  * else renders: `evaluatePredicate`'s meaning is preserved in two-valued logic,
  * and the `nullGuard`s say what a three-valued target needs on top.
  */

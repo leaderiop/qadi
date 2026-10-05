@@ -25,12 +25,28 @@ export type EngineRow = {
   readonly level: number | null;
   readonly tag: string | null;
   readonly sealed: boolean;
+  readonly score: number | null;
 };
 
 /**
- * The row universe: `tenantId` x `level` x `tag` x `sealed`, 2 x 4 x 3 x 2 = 48.
- * `level` and `tag` are nullable; `tenantId` and `sealed` are not, matching the
- * schema.
+ * `score`'s values: a `Float?` field, stored as SQLite `REAL`, the one column
+ * type that can hold the infinities CCR-QD-172 found a plain range admits.
+ * SQLite stores `NaN` as `NULL`, so there is none here.
+ */
+export const SCORES: ReadonlyArray<number | null> = [
+  null,
+  0,
+  3,
+  5,
+  Number.POSITIVE_INFINITY,
+  Number.NEGATIVE_INFINITY,
+];
+
+/**
+ * The row universe: `tenantId` x `level` x `tag` x `sealed`, 2 x 4 x 3 x 2 = 48,
+ * with `score` assigned cyclically from `SCORES` so the universe stays 48 rows.
+ * `level`, `tag` and `score` are nullable; `tenantId` and `sealed` are not,
+ * matching the schema.
  */
 export const ROWS: ReadonlyArray<EngineRow> = (() => {
   const rows: Array<EngineRow> = [];
@@ -38,7 +54,8 @@ export const ROWS: ReadonlyArray<EngineRow> = (() => {
     for (const level of [null, 0, 3, 5]) {
       for (const tag of [null, "red", "blue"]) {
         for (const sealed of [false, true]) {
-          rows.push({ id: rows.length + 1, tenantId, level, tag, sealed });
+          const score = SCORES[rows.length % SCORES.length] ?? null;
+          rows.push({ id: rows.length + 1, tenantId, level, tag, sealed, score });
         }
       }
     }
@@ -77,14 +94,25 @@ const DDL = `CREATE TABLE "Row" (
   "tenantId" TEXT NOT NULL,
   "level" INTEGER,
   "tag" TEXT,
-  "sealed" BOOLEAN NOT NULL
+  "sealed" BOOLEAN NOT NULL,
+  "score" REAL
 )`;
 
 const acquire = Effect.tryPromise({
   try: async () => {
     const client = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: ":memory:" }) });
     await client.$executeRawUnsafe(DDL);
-    await client.row.createMany({ data: ROWS.map((row) => ({ ...row })) });
+    // Prisma's `create` takes no non-finite number, so an infinite score is
+    // written raw (`9e999` is how SQLite spells `Infinity`).
+    await client.row.createMany({
+      data: ROWS.map((row) => ({ ...row, score: Number.isFinite(row.score) ? row.score : null })),
+    });
+    for (const row of ROWS) {
+      if (row.score === null || Number.isFinite(row.score)) continue;
+      await client.$executeRawUnsafe(
+        `UPDATE "Row" SET "score" = ${row.score > 0 ? "9e999" : "-9e999"} WHERE "id" = ${row.id}`,
+      );
+    }
     return client;
   },
   catch: (cause) => new EngineRefused({ message: String(cause) }),

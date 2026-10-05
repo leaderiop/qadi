@@ -32,6 +32,16 @@ rendering an unbounded `IN (...)`, and so does a column name outside the
 identifier rule. `PredicateNotRenderable` is `@qadi/core`'s, re-exported here: what
 a predicate may hold is decided once, in core, and this package prints syntax.
 
+## Ranges exclude non-finite rows
+
+On PostgreSQL and SQLite a `Gte`/`Lt` renders with a guard,
+`("score" >= $1 AND "score" - "score" = 0)`, because a float column can hold
+`Infinity`, `-Infinity` and (on PostgreSQL) `NaN`, a plain `>=`/`<` admits some of
+them, and the evaluator admits none. The guard only removes rows. MySQL cannot
+store those values, so its ranges render without it. There is no option to turn
+the guard off: declaring a column finite when it is not would admit rows the
+predicate denies.
+
 ## Options
 
 - `maxInValues?`: the `IN` bound.

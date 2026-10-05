@@ -341,6 +341,8 @@ export const compileSql = Effect.fn("qadi.predicateSql.compileSql")(function* (
     // `Not` renders `CASE WHEN`, which makes it two-valued itself.
     negation: "TwoValued",
     finiteness: FINITENESS[options.dialect],
+    // `col - col = 0` (`FINITE_GUARDED`) expresses the guard on every dialect.
+    finiteExclusion: "Expressible",
   };
 
   const node = yield* toRenderable(predicate, rules).pipe(

@@ -37,8 +37,9 @@ export { PredicateNotRenderable } from "@qadi/core";
 // ---------------------------------------------------------------------------
 
 /**
- * The one schema fact `compilePrismaWhere` needs: which columns accept NULL,
- * plus the two optional knobs every renderer shares.
+ * The two schema facts `compilePrismaWhere` needs — which columns accept NULL,
+ * and which hold floating-point numbers — plus the two optional knobs every
+ * renderer shares.
  *
  * `nullable` is a declaration, never an inspection — this package still never
  * opens a connection or reads a schema (ADR-QD-054). `nullableFieldsOf` derives
@@ -57,6 +58,27 @@ export { PredicateNotRenderable } from "@qadi/core";
  */
 export interface CompilePrismaWhereOptions {
   readonly nullable: ReadonlySet<string>;
+  /**
+   * Which columns are `Float` or `Decimal` fields: the ones that can hold
+   * `Infinity`/`-Infinity` (CCR-QD-172). `floatingFieldsOf` derives it from a
+   * Prisma DMMF model, including Prisma 7's runtime `Prisma.dmmf`, which keeps
+   * each field's `type`.
+   *
+   * A `gte`/`lt` on a declared column is **refused** (`NonFiniteColumn`), not
+   * rendered. A plain `{gte: 3}` returns an `Infinity` row and `{lt: 3}` a
+   * `-Infinity` row that `evaluatePredicate` denies, and Prisma offers no
+   * filter that excludes them: it has no column arithmetic, and
+   * `{gte: 3, lte: Number.MAX_VALUE}` is bound as a 309-digit decimal string that
+   * SQLite reads back as `Infinity`, so the `Infinity` row still matches.
+   * `equals`, `not` and `in` on the column are unaffected.
+   *
+   * Required, like `nullable`. A wrong declaration in the loud direction (an
+   * `Int` column declared floating) refuses a range that would have been safe.
+   * The other direction (a `Float` column left out) renders a plain range that
+   * can admit an infinite row — the one declaration here that is not lie-safe,
+   * which is why it is required and derived mechanically rather than optional.
+   */
+  readonly floating: ReadonlySet<string>;
   /**
    * Refuses a `MemberOf` whose member count exceeds this. Default 1000
    * (ADR-QD-079): an unbounded `in` is the same resource-exhaustion vector
@@ -83,6 +105,22 @@ export interface PrismaModelLike {
 }
 
 /**
+ * The slice of a Prisma DMMF field `floatingFieldsOf` reads. Separate from
+ * `PrismaFieldLike` because Prisma 7's runtime `Prisma.dmmf` keeps `type` but
+ * strips `isRequired`, and a floating declaration should be derivable from it.
+ */
+export interface PrismaTypedFieldLike {
+  readonly name: string;
+  readonly kind: string;
+  readonly type: string;
+}
+
+/** The slice of a Prisma DMMF model `floatingFieldsOf` reads. */
+export interface PrismaTypedModelLike {
+  readonly fields: ReadonlyArray<PrismaTypedFieldLike>;
+}
+
+/**
  * The columns of a Prisma model that accept NULL.
  *
  * A field counts when it is a column (`kind !== "object"` — a relation field is
@@ -92,6 +130,21 @@ export const nullableFieldsOf = (model: PrismaModelLike): ReadonlySet<string> =>
   new Set(
     model.fields
       .filter((field) => field.kind !== "object" && !field.isRequired)
+      .map((field) => field.name),
+  );
+
+/**
+ * The columns of a Prisma model that can hold a non-finite number: its scalar
+ * `Float` and `Decimal` fields.
+ *
+ * Reads `type`, which Prisma 7's runtime `Prisma.dmmf` keeps, so
+ * `floatingFieldsOf(Prisma.dmmf.datamodel.models[i])` works without
+ * `@prisma/internals`.
+ */
+export const floatingFieldsOf = (model: PrismaTypedModelLike): ReadonlySet<string> =>
+  new Set(
+    model.fields
+      .filter((field) => field.kind === "scalar" && (field.type === "Float" || field.type === "Decimal"))
       .map((field) => field.name),
   );
 
@@ -304,6 +357,9 @@ const renderNode: (node: RenderableNode) => PrismaWhereInput = Match.type<Render
 
     Equals: (n) => GUARDED[n.nullGuard](n.column, FILTER[n.negated ? "Neq" : "Eq"](n.value)),
 
+    // `finiteGuard` is always `None` here: this renderer declares
+    // `finiteExclusion: "Inexpressible"`, so `toRenderable` refuses a range that
+    // needs `ExcludeNonFinite` instead of handing it over (CCR-QD-172).
     Range: (n) => GUARDED[n.nullGuard](n.column, FILTER[n.op](n.bound)),
 
     OneOf: (n) => GUARDED[n.nullGuard](n.column, { in: n.values }),
@@ -376,12 +432,14 @@ const compiledRefusedTotal = Metric.withAttributes(compiledTotal, { outcome: "re
  * Compiles a `Predicate` into a Prisma `WhereInput`.
  *
  * Refuses rather than approximates: an unsafe `Compare`/`MemberOf` value or
- * column, a column Prisma reserves, a `MemberOf` past `maxInValues`, or a null
- * comparison on a column declared NOT NULL fails `PredicateNotRenderable`
+ * column, a column Prisma reserves, a `MemberOf` past `maxInValues`, a null
+ * comparison on a column declared NOT NULL, or a `gte`/`lt` on a column declared
+ * floating fails `PredicateNotRenderable`
  * (`@qadi/core`'s, re-exported here) rather than being handed to Prisma's query
  * engine.
  *
- * `options.nullable` declares which columns accept NULL (CCR-QD-157); see
+ * `options.nullable` declares which columns accept NULL (CCR-QD-157), and
+ * `options.floating` which can hold a non-finite number (CCR-QD-172); see
  * `CompilePrismaWhereOptions`. See `spec/behaviors/31-predicate-compilation.md`.
  */
 export const compilePrismaWhere = Effect.fn("qadi.predicatePrisma.compilePrismaWhere")(
@@ -393,11 +451,10 @@ export const compilePrismaWhere = Effect.fn("qadi.predicatePrisma.compilePrismaW
       nullability: { _tag: "Declared", nullable: options.nullable },
       // Prisma's `{NOT: inner}` is the target's own, three-valued `NOT`.
       negation: "ThreeValued",
-      // T6 (ARCH-08): Prisma has no column arithmetic, so it cannot render the
-      // finite guard without knowing which fields are floats. Until it takes
-      // that declaration, it is told no column can hold a non-finite value —
-      // the known gap CCR-QD-172 records.
-      finiteness: { _tag: "Unrepresentable" },
+      // Only the declared `Float`/`Decimal` columns can hold a non-finite
+      // number, and Prisma cannot exclude one from a range (see `floating`).
+      finiteness: { _tag: "Declared", floating: options.floating },
+      finiteExclusion: "Inexpressible",
     };
     const node = yield* toRenderable(predicate, rules).pipe(
       Effect.tapError(() => Metric.update(compiledRefusedTotal, 1)),

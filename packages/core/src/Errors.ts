@@ -305,13 +305,17 @@ export class PolicyNotTranslatable extends Data.TaggedError(
  * - `TooManyValues`: a `MemberOf` exceeds `maxInValues`.
  * - `NullOnNonNullableColumn`: a null comparison on a column the caller declared
  *   NOT NULL.
+ * - `NonFiniteColumn`: a `Gte`/`Lt` on a column the target can hold a non-finite
+ *   number in, for a target that cannot exclude one from a range
+ *   (`FiniteExclusion: "Inexpressible"`, CCR-QD-172).
  */
 export type RenderRefusal =
   | "UnsafeColumn"
   | "ReservedColumn"
   | "UnsafeValue"
   | "TooManyValues"
-  | "NullOnNonNullableColumn";
+  | "NullOnNonNullableColumn"
+  | "NonFiniteColumn";
 
 /**
  * A predicate a renderer must refuse to render.
@@ -321,7 +325,8 @@ export type RenderRefusal =
  * policy node has no row-filter meaning, `toRenderable` raises this when a
  * `Compare`/`MemberOf` has one but no safe rendering — an unsafe value or
  * column, a `MemberOf` past `maxInValues`, a null comparison on a column
- * declared NOT NULL (ADR-QD-079).
+ * declared NOT NULL (ADR-QD-079), a range on a column that may hold a
+ * non-finite number the target cannot exclude (CCR-QD-172).
  *
  * Declared once, here, and re-exported by `@qadi/predicate-sql` and
  * `@qadi/predicate-prisma`. Before ADR-QD-079 each package declared its own

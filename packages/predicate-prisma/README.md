@@ -42,11 +42,14 @@ const services = Layer.mergeAll(
 // opens no connection and reads no schema. Write the set out, or derive it with
 // `nullableFieldsOf` from a DMMF model that keeps `isRequired` (see below).
 const nullable = new Set(["deletedAt", "note"]);
+// Which columns are `Float`/`Decimal` fields — derive it with `floatingFieldsOf`
+// (see below), which reads Prisma's runtime DMMF directly.
+const floating = new Set(["amount"]);
 
 const where = await Effect.runPromise(
   toPredicate(visible).pipe(
     Effect.provide(services),
-    Effect.flatMap((predicate) => compilePrismaWhere(predicate, { nullable })),
+    Effect.flatMap((predicate) => compilePrismaWhere(predicate, { nullable, floating })),
   ),
 );
 // { tenantId: "t-1" }
@@ -78,6 +81,23 @@ evaluator admits — so the compiler needs this one schema fact. A wrong
 declaration can only lose rows or fail loudly; it never admits a row the
 predicate denies. A `null` comparison on a column declared NOT NULL fails
 `PredicateNotRenderable`.
+
+## Declare which columns hold floating-point numbers
+
+`compilePrismaWhere` also requires `{ floating }`, the set of `Float` and
+`Decimal` columns: the ones that can hold `Infinity`/`-Infinity`. Derive it with
+`floatingFieldsOf(Prisma.dmmf.datamodel.models[i])` — Prisma 7's runtime DMMF
+keeps each field's `type`, so no `@prisma/internals` is needed.
+
+A `gte`/`lt` on a declared column fails `PredicateNotRenderable` with
+`refusal: "NonFiniteColumn"`. The evaluator denies an infinite value under every
+range, but a plain `{gte: 3}` returns an `Infinity` row and `{lt: 3}` a
+`-Infinity` one, and Prisma has no filter that keeps them out:
+`{gte: 3, lte: Number.MAX_VALUE}` still returns the `Infinity` row, because
+Prisma binds the bound as a decimal string SQLite reads back as `Infinity`.
+Equality and `in` on the column are unaffected. Leaving a `Float` column out of
+the declaration renders a plain range that can admit an infinite row, which is
+why the option is required.
 
 ## Refuses rather than approximates
 

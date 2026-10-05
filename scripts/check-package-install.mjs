@@ -429,7 +429,7 @@ const predicate = await Effect.runPromise(
 );
 const sqlFragment = await Effect.runPromise(compileSql(predicate, { dialect: "postgres" }));
 expect("predicate-sql fragment", sqlFragment.text, "TRUE");
-const prismaWhere = await Effect.runPromise(compilePrismaWhere(predicate, { nullable: new Set() }));
+const prismaWhere = await Effect.runPromise(compilePrismaWhere(predicate, { nullable: new Set(), floating: new Set() }));
 expect("predicate-prisma where", JSON.stringify(prismaWhere), JSON.stringify({ AND: [] }));
 
 // @qadi/audit's assembled pipeline: a real evaluation, recorded through

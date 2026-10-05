@@ -3,7 +3,8 @@
  * (`Agreement.test.ts`, `EngineAgreement.test.ts`).
  *
  * Every leaf is type-consistent with the fixture table (`tenantId` and `tag` are
- * text, `level` an integer, `sealed` a boolean), which is what lets a real
+ * text, `level` an integer, `sealed` a boolean, `score` a float that may hold
+ * `±Infinity`), which is what lets a real
  * engine be the oracle: a literal whose JS type differs from its column's is
  * the accepted N2 limitation, characterised separately.
  */
@@ -55,6 +56,18 @@ export const leaf: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
   ),
   FastCheck.subarray([0, 1, 2, null]).map(
     (vs): Predicate => ({ _tag: "MemberOf", column: "level", values: vs }),
+  ),
+  // `score` is the `Float` column, the only one that can hold an infinity
+  // (CCR-QD-172). Only the leaves Prisma can render on it: a range on a
+  // declared-floating column is refused (`NonFiniteColumn`), which P6 pins.
+  FastCheck.constantFrom(0, 3, 5).map(
+    (v): Predicate => ({ _tag: "Compare", column: "score", op: "Eq", value: v }),
+  ),
+  FastCheck.constantFrom(0, 3, 5).map(
+    (v): Predicate => ({ _tag: "Compare", column: "score", op: "Neq", value: v }),
+  ),
+  FastCheck.subarray([0, 3, 5]).map(
+    (vs): Predicate => ({ _tag: "MemberOf", column: "score", values: vs }),
   ),
 );
 
