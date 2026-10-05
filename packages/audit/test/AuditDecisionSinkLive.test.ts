@@ -262,6 +262,11 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
         );
 
         assert.isTrue(rows.some((row) => row.includes('"evaluationId":"healthy"')));
+        // Since the codec owns the encode, the poisoned records are not refused
+        // either: each is written with its cause normalised, and the store's
+        // JSON.stringify never throws, so the breaker never sees a failure.
+        assert.strictEqual(rows.length, 6);
+        assert.include(rows[0] ?? "", '"cause":{"name":"Error","message":"Request failed with status code 503"}');
       }),
   );
 

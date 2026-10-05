@@ -33,11 +33,22 @@ through the one call every evaluation already makes, unlike the reference
 implementation this was compared against, where the equivalent pieces were
 each unit-tested and never called from the real enforcement path.
 
+## One wire, read back through a guard
+
+An audit row's `record` is the same JSON the decision stream and forwarding
+emit for that record — `@qadi/core`'s `encodeSinkRecord` output — so a store
+persists `JSON.stringify(entry)` as it is, and a resolver error's `cause`
+arrives as `{ name, message }` rather than `{}`. Read rows back with
+`decodeAuditEntry`, which refuses a row nested past the decode bound with a
+typed reason instead of overflowing the stack, and rebuilds the record.
+
 ## Refuses rather than approximates
 
-A `resource` carrying a value with no safe durable representation fails
-`AuditEntryNotEncodable` rather than being partially written or silently
-dropped. An unknown decommissioning step id fails `UnknownDecommissioningStep`
+A record carrying a value with no safe durable representation — a function,
+a circular reference, a `bigint`, a `Map`/`Set`/`RegExp`/binary array, in the
+resource, the policy or anywhere else — fails `AuditEntryNotEncodable`, with
+the refusal and the path it was found at, rather than being partially written
+or silently dropped. An unknown decommissioning step id fails `UnknownDecommissioningStep`
 rather than silently no-opping. No e-signature default ships, not even a
 no-op one — `Qadi.enforce`'s existing fail-closed behavior on an unwired
 obligation is the safe default already.

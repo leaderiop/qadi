@@ -627,8 +627,9 @@ two compile the same predicates apart from Prisma's own reserved column names.
 | `AuditStagingError` | error | `AuditStagingPort.ts` |
 | `AuditStagingHandle` | type | `AuditStagingPort.ts` |
 | `AuditEntry` | schema + type | `AuditEntry.ts` |
-| `AuditEntryNotEncodable` | error | `AuditEntry.ts` |
-| `encodeAuditEntry` | function | `AuditEntry.ts` |
+| `AuditEntryNotEncodable` | error | `AuditEntry.ts` — carries core's `EncodeRefusal` as `refusal`, and `reason`, that refusal as a sentence |
+| `encodeAuditEntry` | function | `AuditEntry.ts` — one `encodeSinkRecord` call: a row's `record` is the encoded wire, byte-identical to the decision stream's and forwarding's for the same record (ARCH-09) |
+| `decodeAuditEntry` | function | `AuditEntry.ts` — the guarded reader for a stored row: the record through core's depth-guarded `decodeSinkRecord`, then the row decoded as untrusted; returns `Result<{ entry, record }, SinkRecordNotDecodable>` (ARCH-09) |
 | `AuditDecisionSinkLive` | layer | `AuditDecisionSinkLive.ts` |
 | `AuditDecisionSinkOptions` | type | `AuditDecisionSinkLive.ts` |
 | `AuditTrailPortTest` | function | `AuditTrailPortTest.ts` |
