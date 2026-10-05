@@ -61,6 +61,21 @@ export type PortName =
   | "CustomPredicate"
   | "SignatureHistory";
 
+/**
+ * The span each port's read opens — one per port, closed.
+ *
+ * `PortAccess.ts` opens these spans and `@qadi/devtools` decodes them
+ * (BEH-QD-227), so the set is a closed union rather than five string literals
+ * kept in step by hand. Each port's description (`PortDescription.ts`) names
+ * its own, and both readers take it from there.
+ */
+export type PortSpanName =
+  | "qadi.attribute"
+  | "qadi.acted"
+  | "qadi.hasRelationship"
+  | "qadi.hasCustom"
+  | "qadi.hasSignature";
+
 const PORT_NAMES_BY_NAME: Record<PortName, true> = {
   AttributeResolver: true,
   DecisionHistory: true,
