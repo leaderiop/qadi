@@ -11,9 +11,12 @@ import {
   DecisionHistoryUnknown,
   EvaluationServicesNone,
   RelationshipResolverNever,
+  decisionCacheLayer,
+  eq,
   gte,
   hasAttribute,
   hasPermission,
+  literal,
   makeSubject,
   permission,
 } from "@qadi/core";
@@ -21,13 +24,14 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Component, StrictMode, Suspense, type ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import {
   Can,
   Cannot,
   QadiProvider,
   makeQadiAtoms,
   useDecisionSuspense,
+  useInvalidate,
   useSubject,
 } from "../src/index.ts";
 
@@ -179,6 +183,69 @@ describe("useDecisionSuspense", () => {
       </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("boundary")).toBeDefined());
+  });
+
+  it("suspends again while a settled decision is re-checked (ADR-QD-017)", async () => {
+    // BEH-QD-068: a decision being re-checked MUST still suspend. The only
+    // thing enforcing it is `suspendOnWaiting: true` in `hooks.ts` —
+    // `useAtomSuspense`'s default suspends on `Initial` alone and would hand
+    // back the previous allow. The resolver is parked by hand so the re-check
+    // window cannot be stepped over by `waitFor`'s polling.
+    const standing = hasAttribute("standing", eq(literal("good")));
+    const parked: { release: ((value: string) => void) | undefined } = { release: undefined };
+    const atoms = makeQadiAtoms(
+      Layer.mergeAll(
+        Layer.succeed(AttributeResolver, {
+          resolve: (_id: unknown, attribute: string) =>
+            attribute === "standing"
+              ? Effect.promise(
+                  () => new Promise<string>((resolve) => (parked.release = resolve)),
+                )
+              : Effect.succeed(undefined),
+        }),
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+        CustomPredicateNone,
+        SignatureHistoryNone,
+        decisionCacheLayer(),
+      ),
+    );
+    const answer = async (value: string) => {
+      await waitFor(() => expect(parked.release).toBeDefined());
+      const release = parked.release;
+      parked.release = undefined;
+      act(() => release?.(value));
+    };
+
+    const Probe = () => <span>{`decided:${useDecisionSuspense(standing)._tag}`}</span>;
+    const Invalidate = () => {
+      const invalidate = useInvalidate();
+      return <button type="button" data-testid="invalidate" onClick={invalidate} />;
+    };
+    render(
+      <QadiProvider atoms={atoms} subject={reader}>
+        <Suspense fallback={<span>checking</span>}>
+          <Probe />
+        </Suspense>
+        <Invalidate />
+      </QadiProvider>,
+    );
+
+    await answer("good");
+    await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined());
+
+    act(() => {
+      screen.getByTestId("invalidate").click();
+    });
+    await waitFor(() => expect(screen.getByText("checking")).toBeDefined());
+    // React keeps a suspended boundary's previous content in the DOM, hidden
+    // with an inline `display: none`, so "not on screen" is "absent or hidden".
+    const stale = screen.queryByText("decided:Allow");
+    expect(stale === null || stale.style.display === "none").toBe(true);
+
+    await answer("bad");
+    await waitFor(() => expect(screen.getByText("decided:Deny")).toBeDefined());
   });
 });
 
