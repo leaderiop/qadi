@@ -28,6 +28,9 @@
  * `testScope`-only rules apply there and a vitest body's
  * `switch`/`hasCustom`/`Effect.fnUntraced`/`any`/`Schema.TaggedError` usage, if
  * one ever appeared, is not what any of the budgets track.
+ * `DECISION_READ_BUDGET` is narrower still: `packages/*\/src` only, since a raw
+ * `AsyncResult` read is a library-surface concern and a test reads one on
+ * purpose to pin what `outcomeOf` makes of it.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -62,6 +65,7 @@
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -445,6 +449,47 @@ const SCHEMA_ERROR_BUDGET = {
 
 const SCHEMA_TAGGED_ERROR = /\bextends\s+Schema\.TaggedError\b/;
 
+/**
+ * Raw reads of a decision result's `AsyncResult` state in library source, by
+ * file and exact count (ADR-QD-017 as amended by ARCH-14, AGENTS.md §13).
+ *
+ * `outcomeOf` (`packages/react/src/DecisionOutcome.ts`) is the one read of a
+ * `DecisionResult`: every surface renders from the outcome it returns, and the
+ * outcome has no field through which a re-check's stale value or a failure's
+ * `previousSuccess` can leak. Before it there were three hand-kept readers of
+ * the same rule (`currentDecision`, `components.tsx`'s `classify`, `useGate.ts`'s
+ * `renderStateOf`) and a published guide that got it wrong — convention is what
+ * failed. What counts as a raw read is `RAW_DECISION_READ`
+ * (`scripts/lib/raw-decision-read.mjs`), the pattern the doc-fence gates use
+ * too. Same discipline as `SWITCH_BUDGET`, checked in both directions: a new
+ * read anywhere in `packages/*\/src` fails, and so does a budgeted one
+ * disappearing without this table changing.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const DECISION_READ_BUDGET = {
+  // `outcomeOf`'s `AsyncResult.isInitial(` and `result.waiting` — the read itself.
+  "packages/react/src/DecisionOutcome.ts": 2,
+  // Seed precedence and mismatch reporting (`makeSeededQuestion`'s `read`):
+  // one `isInitial` deciding whether the computed result replaces the seed, and
+  // two `isSuccess` deciding whether it disagrees with it. Upstream of what a
+  // consumer reads — it chooses which result the atom holds (ADR-QD-039) — so
+  // not a second reading of one.
+  "packages/react/src/HydrationEngine.ts": 3,
+};
+
+/**
+ * The function each `DECISION_READ_BUDGET` file's reads belong to, checked to
+ * exist verbatim — the rename guard `SWITCH_BUDGET_NAMES` gives its own table
+ * (BS-06).
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const DECISION_READ_BUDGET_NAMES = {
+  "packages/react/src/DecisionOutcome.ts": ["outcomeOf"],
+  "packages/react/src/HydrationEngine.ts": ["makeSeededQuestion"],
+};
+
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
 // this script scans — reuses the identical `as` keyword for namespacing, not
@@ -589,6 +634,9 @@ const anyLines = new Map();
 /** @type {Map<string, number[]>} */
 const schemaErrorLines = new Map();
 
+/** @type {Map<string, number[]>} */
+const decisionReadLines = new Map();
+
 for (const file of sources) {
   const rel = relative(ROOT, file);
   const isTestFile = testSourceSet.has(file);
@@ -697,6 +745,18 @@ for (const file of sources) {
       const found = schemaErrorLines.get(rel) ?? [];
       found.push(index + 1);
       schemaErrorLines.set(rel, found);
+    }
+
+    // Library source only (`packages/*/src`): a test reads raw results on
+    // purpose, to pin what `outcomeOf` reads them as. Every read on the line
+    // counts — `AsyncResult.isSuccess(r) && !r.waiting` is two.
+    if (!isTestFile && rel.startsWith("packages/")) {
+      const matches = line.match(RAW_DECISION_READ) ?? [];
+      if (matches.length > 0) {
+        const found = decisionReadLines.get(rel) ?? [];
+        for (let i = 0; i < matches.length; i += 1) found.push(index + 1);
+        decisionReadLines.set(rel, found);
+      }
     }
 
     for (const rule of RULES) {
@@ -935,6 +995,49 @@ for (const [rel, found] of schemaErrorLines) {
       `    Add it to SCHEMA_ERROR_BUDGET in scripts/check-house-style.mjs and AGENTS.md §4's table, ` +
       `naming which boundary it crosses — a conscious, reviewed opt-in, not a silent grep hit.`,
   );
+}
+
+// ---------------------------------------------------------------------------
+// AGENTS.md §13 / ADR-QD-017 — a decision result is read once, by `outcomeOf`.
+// Checked in both directions like SWITCH_BUDGET above: a new raw read anywhere
+// in library source is a second home for the stale-allow rule, and a budgeted
+// read disappearing means the table above describes code that moved.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(DECISION_READ_BUDGET)) {
+  const found = decisionReadLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [decision-read-budget] declares ${budget} raw decision read(s), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update DECISION_READ_BUDGET in scripts/check-house-style.mjs, with the reason, so the two agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of decisionReadLines) {
+  if (rel in DECISION_READ_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [decision-read-budget] Raw read of a decision result's AsyncResult state.\n` +
+      `    Read it with outcomeOf (or its projection currentDecision) instead — a waiting result still ` +
+      `holds the previous answer, and a failure keeps it as previousSuccess (ADR-QD-017, AGENTS.md §13).`,
+  );
+}
+
+// A declaration, not a mention: both files name their function in prose too,
+// so a bare word match would survive the rename it exists to catch.
+for (const [rel, names] of Object.entries(DECISION_READ_BUDGET_NAMES)) {
+  const content = readFileSync(join(ROOT, rel), "utf8");
+  for (const name of names) {
+    if (new RegExp(`\\b(?:const|function)\\s+${name}\\b`).test(content)) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [decision-read-budget-names] DECISION_READ_BUDGET's reason names \`${name}\`, but no ` +
+        `such identifier appears in this file any more — renamed without updating the budget's names.`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
