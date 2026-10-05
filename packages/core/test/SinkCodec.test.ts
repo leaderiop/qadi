@@ -12,6 +12,7 @@ import {
   AttributeResolveError,
   CustomPredicateError,
   DecisionHistoryUnavailable,
+  DecodeRefusal,
   EncodeRefusal,
   ERROR_CODES,
   errorCode,
@@ -30,6 +31,8 @@ import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import {
   decodeRecord,
+  decodeSinkRecord,
+  decodeSinkRecordString,
   encodeRecord,
   encodeRecordSync,
   encodeSinkRecord,
@@ -1514,6 +1517,254 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
           return (refusalOf(record)?._tag === "TooDeep") === exceedsJsonDepth(wire, P.MAX_DECODE_DEPTH);
         }),
         { numRuns: 200, seed: 7319 },
+      );
+    });
+  });
+});
+
+/** The refusal `decodeSinkRecordString` gives, or `undefined` when it accepts. */
+const decodeRefusalOf = (text: string): DecodeRefusal | undefined =>
+  Result.match(decodeSinkRecordString(text), {
+    onSuccess: () => undefined,
+    onFailure: (error) => error.refusal,
+  });
+
+/** The record `decodeSinkRecordString` rebuilds, failing the test on a refusal. */
+const recordOf = (text: string): SinkRecord =>
+  Result.match(decodeSinkRecordString(text), {
+    onSuccess: (record) => record,
+    onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
+  });
+
+const deepPolicyJson = (levels: number): string =>
+  `{"_tag":"Decision","evaluationId":"e","at":0,"policy":${'{"_tag":"Not","policy":'.repeat(levels)}{"_tag":"HasRole","role":"x"}${"}".repeat(levels)}}`;
+
+describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
+  describe("each reason", () => {
+    it("text that does not parse is NotJson", () => {
+      assert.deepStrictEqual(decodeRefusalOf("{"), DecodeRefusal.NotJson());
+    });
+
+    it("a 60,000-deep input is TooDeep, naming the bound, and nothing throws", () => {
+      assert.deepStrictEqual(decodeRefusalOf(deepPolicyJson(60_000)), DecodeRefusal.TooDeep({ maxDepth: P.MAX_DECODE_DEPTH }));
+    });
+
+    it("an unknown tag is Malformed", () => {
+      assert.strictEqual(decodeRefusalOf('{"_tag":"Nope"}')?._tag, "Malformed");
+    });
+
+    it("a typo'd field inside the embedded policy is Malformed, not a silent drop (CCR-QD-139)", () => {
+      const refusal = decodeRefusalOf(
+        '{"_tag":"Decision","evaluationId":"e","at":0,"policy":{"_tag":"HasRole","role":"admin","rloe":"admin"}}',
+      );
+      assert.strictEqual(refusal?._tag, "Malformed");
+    });
+
+    it("a refusal is a SinkRecordNotDecodable with its own stable code", () => {
+      const result = decodeSinkRecord({ _tag: "Nope" });
+      assert.isTrue(Result.isFailure(result));
+      if (Result.isFailure(result)) {
+        assert.strictEqual(result.failure._tag, "SinkRecordNotDecodable");
+        assert.strictEqual(errorCode(result.failure), "ACL091");
+      }
+    });
+
+    it("the value form agrees with the text form", () => {
+      assert.deepStrictEqual(
+        Result.isFailure(decodeSinkRecord(JSON.parse('{"_tag":"Nope"}'))),
+        decodeRefusalOf('{"_tag":"Nope"}') !== undefined,
+      );
+    });
+  });
+
+  describe("what the receiver keeps doing", () => {
+    it("a Decision record with no subjectId still decodes to the UNKNOWN_SUBJECT sentinel", () => {
+      const back = recordOf('{"_tag":"Decision","evaluationId":"e","at":0,"policy":{"_tag":"HasRole","role":"x"}}');
+      assert.strictEqual(back._tag === "Decision" ? back.subjectId : undefined, "<unknown subject: wire version skew>");
+    });
+
+    it("a Deny with no reason is refused", () => {
+      const text = JSON.stringify({
+        _tag: "Decision",
+        evaluationId: "e",
+        at: 0,
+        subjectId: "u1",
+        policy: { _tag: "HasRole", role: "x" },
+        decided: { _tag: "Deny", evaluationId: "e", subjectId: "u1", durationMillis: 1, trace: trace(false), obligations: [] },
+      });
+      assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+    });
+
+    it("an Allow carrying a reason is refused", () => {
+      const text = JSON.stringify({
+        _tag: "Decision",
+        evaluationId: "e",
+        at: 0,
+        subjectId: "u1",
+        policy: { _tag: "HasRole", role: "x" },
+        decided: {
+          _tag: "Allow",
+          evaluationId: "e",
+          subjectId: "u1",
+          durationMillis: 1,
+          trace: trace(true),
+          obligations: [],
+          reason: "a verdict that permits has nothing to refuse",
+        },
+      });
+      assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+    });
+
+    it("a record naming neither outcome becomes a Failed MissingResource marker (ticket 96, pinned here for ARCH-15)", () => {
+      const back = recordOf('{"_tag":"Decision","evaluationId":"e","at":0,"subjectId":"u1","policy":{"_tag":"HasRole","role":"x"}}');
+      const error = back._tag === "Decision" && back.outcome._tag === "Failed" ? back.outcome.error : undefined;
+      assert.strictEqual(error?._tag, "MissingResource");
+      if (error?._tag === "MissingResource") assert.include(error.attribute, "malformed record");
+    });
+
+    it("a record naming both outcomes prefers decided (ticket 155, pinned here for ARCH-15)", () => {
+      const text = JSON.stringify({
+        _tag: "Decision",
+        evaluationId: "e",
+        at: 0,
+        subjectId: "u1",
+        policy: { _tag: "HasRole", role: "x" },
+        decided: {
+          _tag: "Deny",
+          evaluationId: "e",
+          subjectId: "u1",
+          durationMillis: 1,
+          trace: trace(false),
+          obligations: [],
+          reason: "no",
+        },
+        failed: { _tag: "MissingResource", attribute: "owner" },
+      });
+      const back = recordOf(text);
+      assert.strictEqual(back._tag === "Decision" ? back.outcome._tag : undefined, "Decided");
+    });
+
+    it("an Error cause comes back as an Error carrying its message", () => {
+      const back = recordOf(stringOf(failedRecordWith(new Error("db down"))));
+      const error = back._tag === "Decision" && back.outcome._tag === "Failed" ? back.outcome.error : undefined;
+      const cause = error?._tag === "AttributeResolveError" ? error.cause : undefined;
+      assert.instanceOf(cause, Error);
+      assert.strictEqual(cause instanceof Error ? cause.message : undefined, "db down");
+    });
+  });
+
+  describe("properties", () => {
+    const leaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
+      FastCheck.constant(P.hasPermission(read)),
+      FastCheck.constantFrom("editor", "admin").map((r) => P.hasRole(r)),
+      FastCheck.integer({ min: 0, max: 5 }).map((n) => P.hasAttribute("clearance", M.gte(n))),
+      FastCheck.constant(P.hasAction("read")),
+    );
+
+    /** What a caller might put in `resource`, `params` or `cause`: JSON, and what JSON cannot carry. */
+    const loose: FastCheck.Arbitrary<unknown> = FastCheck.oneof(
+      FastCheck.jsonValue({ maxDepth: 3 }),
+      FastCheck.constantFrom<unknown>(
+        undefined,
+        Number.NaN,
+        10n,
+        () => 1,
+        new Date(0),
+        new Date(Number.NaN),
+        new Set([1]),
+        new Error("e"),
+        httpClientError(),
+        { a: undefined, b: 1 },
+        [1, undefined],
+      ),
+    );
+
+    const tree = (params: FastCheck.Arbitrary<unknown>): FastCheck.Arbitrary<P.Policy> =>
+      FastCheck.letrec<{ node: P.Policy }>((tie) => ({
+        node: FastCheck.oneof(
+          { maxDepth: 3 },
+          leaf,
+          params.map((p) => P.hasCustom("custom", p)),
+          FastCheck.array(tie("node"), { minLength: 1, maxLength: 3 }).map((ps) => P.allOf(ps)),
+          tie("node").map((p) => P.not(p)),
+          tie("node").map((p) => P.obliged(obligation("audit.log"), p)),
+        ),
+      })).node;
+
+    const outcome: FastCheck.Arbitrary<Decided | Failed> = FastCheck.oneof(
+      FastCheck.tuple(FastCheck.boolean(), FastCheck.string()).map(
+        ([allowed, reason]) =>
+          new Decided({
+            decision: allowed
+              ? new Allow({
+                  evaluationId: "e",
+                  subjectId: makeSubjectId("u1"),
+                  durationMillis: 1,
+                  trace: trace(true),
+                  visibleFields: undefined,
+                  obligations: [obligation("audit.log")],
+                })
+              : new Deny({
+                  evaluationId: "e",
+                  subjectId: makeSubjectId("u1"),
+                  durationMillis: 1,
+                  trace: { ...trace(false), reason },
+                  reason,
+                }),
+          }),
+      ),
+      loose.map((cause) => new Failed({ error: new AttributeResolveError({ attribute: "a", cause }) })),
+    );
+
+    it("round trip: whatever encodeSinkRecordString emits, decodeSinkRecordString rebuilds, up to the named normalisations (INV-QD-902)", () => {
+      FastCheck.assert(
+        FastCheck.property(tree(loose), FastCheck.option(loose, { nil: undefined }), outcome, (policy, value, result) => {
+          const record = new DecisionRecord({
+            evaluationId: "e",
+            at: 0,
+            subjectId: makeSubjectId("u1"),
+            policy,
+            ...(value === undefined ? {} : { resource: { value } }),
+            outcome: result,
+          });
+          const encoded = encodeSinkRecordString(record);
+          if (Result.isFailure(encoded)) return true;
+          const decoded = decodeSinkRecordString(encoded.success);
+          if (Result.isFailure(decoded) || decoded.success._tag !== "Decision") return false;
+          const back = decoded.success;
+          // `resource` and `policy` normalise exactly as JSON does: a `Date`
+          // becomes its ISO string and an `undefined` property is absent.
+          const asJson = (input: unknown): unknown => (input === undefined ? undefined : JSON.parse(JSON.stringify(input)));
+          assert.deepStrictEqual(back.resource, asJson(record.resource));
+          assert.deepStrictEqual(asJson(back.policy), asJson(record.policy));
+          assert.strictEqual(back.outcome._tag, record.outcome._tag);
+          // The cause normalises through `Schema.Defect()`; re-encoding the
+          // rebuilt record reproduces the same text, so nothing else moved.
+          return Result.match(encodeSinkRecordString(back), {
+            onSuccess: (again) => again === encoded.success,
+            onFailure: () => false,
+          });
+        }),
+        { numRuns: 300, seed: 6203 },
+      );
+    });
+
+    it("totality: decodeSinkRecordString never throws, over any string (INV-QD-903)", () => {
+      FastCheck.assert(
+        FastCheck.property(FastCheck.string(), (text) => {
+          decodeSinkRecordString(text);
+        }),
+        { numRuns: 500, seed: 3117 },
+      );
+    });
+
+    it("totality: decodeSinkRecord never throws, over any JSON value (INV-QD-903)", () => {
+      FastCheck.assert(
+        FastCheck.property(FastCheck.jsonValue(), (value) => {
+          decodeSinkRecord(value);
+          decodeSinkRecordString(JSON.stringify(value));
+        }),
+        { numRuns: 500, seed: 3118 },
       );
     });
   });

@@ -1,28 +1,46 @@
 /**
- * The wire form of a {@link SinkRecord}, so a sink can forward one to another
- * process.
+ * A {@link SinkRecord}'s wire form, owned in both directions: one call out, one
+ * call in.
  *
- * An in-memory sink hands a consumer the real objects. Anything that crosses a
- * boundary — a socket to a devtools page, a replica forwarding to a shared
- * store, a serverless function shipping its log before it dies — needs a form
- * that survives JSON and can be rebuilt on the far side. That is not a transport
- * concern: the wire *shape* is a contract two processes agree on, and it belongs
- * beside the record it describes rather than inside whichever transport happens
- * to carry it first.
+ * - **Outbound**: {@link encodeSinkRecord} turns a record into a verified JSON
+ *   value (`SinkRecordJson`), or a `SinkRecordNotEncodable` naming why and
+ *   where; {@link encodeSinkRecordString} gives the same as text.
+ * - **Inbound**: {@link decodeSinkRecord} turns untrusted `unknown` into a
+ *   record, or a `SinkRecordNotDecodable`; {@link decodeSinkRecordString} does
+ *   the same from text, adding "not JSON" as a reason.
  *
- * **Schema-derived, decoded as untrusted.** A record crossing a process boundary
- * crosses a trust boundary, which is the reasoning
+ * The guard, the projection, the schema encode, the depth bound and the
+ * rebuild are this module's implementation, so every sink (forwarding, the
+ * decision stream, the audit encoder, the devtools source) makes one call and
+ * puts the same bytes on the wire. Before ARCH-09 each assembled a different
+ * subset of them, and each defect in the shared guard was fixed one caller at
+ * a time.
+ *
+ * **Two invariants the interface carries.** Whatever the outbound operation
+ * emits, the inbound operation accepts, and rebuilds equal to the original up
+ * to the named normalisations below (INV-QD-902). Neither direction throws,
+ * whatever it is given, so one record can never end a feed (INV-QD-903).
+ *
+ * **Named normalisations.** A resolver error's `cause` crosses through
+ * `Schema.Defect()` on every path (ADR-QD-060): an `Error` keeps `name`,
+ * `message` and `cause`, a cycle is dropped, a `bigint` becomes `"10n"` and a
+ * non-finite number `null`. A record is never refused because of its `cause`,
+ * which is diagnostic, and an outage record is the one an operator most wants
+ * to see. A `Date` in `resource` or `params` crosses as its ISO string. A
+ * property whose value is `undefined` crosses as absent.
+ *
+ * **Schema-derived, decoded as untrusted.** A record crossing a process
+ * boundary crosses a trust boundary, which is the reasoning
  * [ADR-QD-002](../../../spec/decisions/002-schema-derived-policy-adt.md) applies to
- * policies — and hand-written codecs drifting from their types is the defect
- * this library was rewritten to remove. `decodeRecord` therefore validates; it
- * does not cast.
+ * policies, so the wire form is one schema and decoding validates rather than
+ * casts. The nine `EvaluationError` tags are `Schema.TaggedError` classes
+ * ([AGENTS.md §4](../../../AGENTS.md),
+ * [ADR-QD-060](../../../spec/decisions/060-schema-taggederror-for-the-nine-wire-crossing-errors.md)),
+ * so the class already *is* the wire schema of an error.
  *
- * **The nine `EvaluationError` tags are the one exception to "hand-written
- * class, Schema at the boundary"** ([AGENTS.md §4](../../../AGENTS.md),
- * [ADR-QD-060](../../../spec/decisions/060-schema-taggederror-for-the-nine-wire-crossing-errors.md)):
- * they are `Schema.TaggedError` classes, so the class already *is* the wire
- * schema and {@link EvaluationErrorSchema} below is nothing more than their
- * union — no second, hand-mapped description to drift from the first.
+ * **The seam for the wire's shape.** How the outcome is carried and any wire
+ * version handling live behind `decodeSinkRecord`, so they change in this
+ * module and nowhere else.
  */
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
@@ -44,7 +62,9 @@ import {
   PolicyTooDeep,
   RelationshipResolveError,
   SignatureHistoryUnavailable,
+  DecodeRefusal,
   EncodeRefusal,
+  SinkRecordNotDecodable,
   SinkRecordNotEncodable,
 } from "./Errors.ts";
 import type { OpaqueKind, WirePath } from "./Errors.ts";
@@ -414,7 +434,7 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
  * tests assert today's `MissingResource`-shaped fallback stays exactly as it
  * is until that dedicated marker lands.
  */
-export const fromWireUnsafe: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
+const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
   Match.tagsExhaustive({
     Obligations: (wire) =>
       new ObligationRecord({
@@ -694,6 +714,53 @@ export const encodeSinkRecord = (record: SinkRecord): Result.Result<SinkRecordJs
 export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string, SinkRecordNotEncodable> =>
   Result.map(encodeSinkRecord(record), (json) => JSON.stringify(json));
 
+/**
+ * Rebuilds a record from an already-validated wire value. Kept exported only
+ * until every caller has moved to {@link decodeSinkRecord} (ARCH-09 T10
+ * removes it).
+ */
+export const fromWireUnsafe: (wire: SinkRecordWire) => SinkRecord = rebuild;
+
+/** The wire schema's untrusted decoder, built once. */
+const decodeWire = Schema.decodeUnknownResult(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
+
+const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));
+
+/**
+ * Untrusted input as a record, or the reason it is not one.
+ *
+ * The depth guard runs first, so the schema's recursion through `Policy` and
+ * `Trace` cannot overflow; then the schema decode with
+ * `UNTRUSTED_DECODE_OPTIONS`; then the rebuild into record classes. It accepts
+ * whatever {@link encodeSinkRecord} emits (INV-QD-902).
+ *
+ * **The seam for the wire's shape.** How the outcome is carried, the
+ * neither/both fallbacks below (tickets 96 and 155) and any future version
+ * handling live behind this function, so no adapter observes them and a change
+ * to them is an edit to this module alone.
+ *
+ * No `Result.try` around the decode: the depth guard is what makes it safe, and
+ * a throw past it would be a library defect that should stay visible.
+ */
+export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
+  if (exceedsJsonDepth(input, MAX_DECODE_DEPTH)) {
+    return notDecodable(DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
+  }
+  const wire = decodeWire(input);
+  if (Result.isFailure(wire)) return notDecodable(DecodeRefusal.Malformed({ message: wire.failure.message }));
+  return Result.succeed(rebuild(wire.success));
+};
+
+/**
+ * JSON text as a record, or the reason it is not one: `NotJson` when the text
+ * does not parse, otherwise whatever {@link decodeSinkRecord} says. Never
+ * throws (INV-QD-903).
+ */
+export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
+  const parsed = Result.try((): unknown => JSON.parse(text));
+  return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeSinkRecord(parsed.success);
+};
+
 /** Encodes a record to a plain JSON value. */
 export const encodeRecord = Schema.encodeEffect(SinkRecordWire);
 
@@ -797,4 +864,4 @@ export const decodeRecordWire = (
  * a half-built record.
  */
 export const decodeRecord = (input: unknown) =>
-  Effect.map(decodeRecordWire(input), fromWireUnsafe);
+  Effect.map(decodeRecordWire(input), rebuild);
