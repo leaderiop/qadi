@@ -253,6 +253,8 @@ answered.
 | `PortTypes`, `PORTS` | type + constant | `Ports.ts` — the closed registry of the five port descriptions, keyed by `PortName`; a port name without an entry is a compile error wherever a derived type indexes it (ADR-QD-901) |
 | `PortServices`, `PortLayers`, `PortOverrides` | type | `Ports.ts` — the five port services as one union, one layer per port, and any subset of ports replaced by a layer of their own service |
 | `ServiceOf`, `ShapeOf`, `ArgsOf`, `AnswerOf`, `ErrorOf` | type | `Ports.ts` — a description's service, Shape, request tuple, answer and typed error, recovered from its type |
+| `DescriptionOf` | type | `Ports.ts` — the description of the port named `K`, spelled through the registry, so a function generic in the port keeps its name, service and answer correlated (`answers[d.port]` and `d.none.answer` agree) |
+| `tabulatePorts` | function | `Ports.ts` — one value per port, keyed by name, for values uniform across ports (an empty answer map per port) |
 | `portsLayer` | function | `Ports.ts` — every port at its fail-closed default unless an override names it; each override has its own slot, so order cannot matter |
 | `mapPorts`, `mergePorts`, `decoratePorts`, `forEveryPort` | function | `Ports.ts` — a layer per port from its description; the five as one layer; every port of a built environment rebuilt through one decorator (built once); a function run over every description in `PortName` order |
 | `PortVisitor`, `PortLayerVisitor`, `PortDecorator` | type | `Ports.ts` — the generic function types `forEveryPort`, `mapPorts` and `decoratePorts` take |

@@ -28,7 +28,9 @@ import {
   mapPorts,
   mergePorts,
   portsLayer,
+  tabulatePorts,
 } from "../src/Ports.ts";
+import type { PortName } from "../src/PortMetrics.ts";
 import type { PortServices } from "../src/Ports.ts";
 import { RelationshipResolver } from "../src/RelationshipResolver.ts";
 import { SignatureHistory } from "../src/SignatureHistory.ts";
@@ -125,6 +127,20 @@ describe("forEveryPort", () => {
       Object.keys(PORTS),
     );
     assert.strictEqual(PORTS.AttributeResolver, attributeResolverPort);
+  });
+});
+
+describe("tabulatePorts", () => {
+  it("builds one value per port, keyed by its name, in PortName order", () => {
+    const methods = tabulatePorts<{ readonly [K in PortName]: string }>((d) => d.method);
+    assert.deepStrictEqual(methods, {
+      AttributeResolver: "resolve",
+      DecisionHistory: "hasActed",
+      RelationshipResolver: "check",
+      CustomPredicate: "evaluate",
+      SignatureHistory: "signaturesFor",
+    });
+    assert.deepStrictEqual(Object.keys(methods), forEveryPort((d): string => d.port));
   });
 });
 
