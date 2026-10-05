@@ -96,8 +96,8 @@ describe("leaf policies", () => {
 
   it.effect("A Neq DENIAL SAYS THE VALUE MATCHED, not 'did not match'", () =>
     Effect.gen(function* () {
-      // `evaluateMatcher`'s `Neq` arm returns `value !== resolveRef(...)`, so
-      // a `Neq` denial fires exactly when the two values are EQUAL — the
+      // `judgeMatcher`'s `Neq` arm is `differsVerdict`, so a `Neq` denial with
+      // both operands present fires exactly when the two values are EQUAL — the
       // opposite direction from every other matcher, where denial means no
       // match was found. "did not match" would claim the reverse of what
       // happened; `Qadi.test.ts`'s "EVALUATES THE POLICY AGAINST THE GUARDED
@@ -179,6 +179,59 @@ describe("leaf policies", () => {
       if (d._tag !== "Deny") return;
       assert.strictEqual(d.reason, "resource attribute 'state' has no value");
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  // ARCH-08 D-08-d: the reason reads `judgeMatcher`'s `Verdict`, so the
+  // unresolved-reference sentence `Neq` had since CCR-QD-112 now covers `Eq`
+  // and `Dominates` too, and a value the matcher cannot compare says so.
+  it.effect("An Eq against an unresolved reference says so, not 'did not match'", () =>
+    Effect.gen(function* () {
+      // `tenant` is present; `subject("missing")` resolves to nothing, so no
+      // comparison ran and "did not match" would assert one that did.
+      const d = yield* evaluate(P.hasAttribute("tenant", M.eq(M.subject("missing"))));
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject attribute 'tenant' has no reference value to compare against");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { tenant: "t-1" } })))));
+
+  it.effect("A Dominates against an unresolved reference says so too", () =>
+    Effect.gen(function* () {
+      const policy = P.hasAttribute("clearance", M.dominates(M.resource("classification")));
+      const d = yield* evaluate(policy, { resource: { id: "doc-1" } });
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(
+        d.reason,
+        "subject attribute 'clearance' has no reference value to compare against",
+      );
+    }).pipe(
+      Effect.provide(testLayer(subjectWith({ attributes: { clearance: { level: 2, compartments: [] } } }))),
+    ));
+
+  it.effect("A non-finite or wrong-typed value is named incomparable", () =>
+    Effect.gen(function* () {
+      for (const level of [Number.POSITIVE_INFINITY, "5"]) {
+        const d = yield* evaluate(P.hasResourceAttribute("level", M.gte(3)), { resource: { level } });
+        assert.isFalse(isAllowed(d));
+        if (d._tag !== "Deny") continue;
+        assert.strictEqual(
+          d.reason,
+          "resource attribute 'level' is not a value this matcher can compare",
+          String(level),
+        );
+      }
+    }).pipe(Effect.provide(testLayer(subjectWith({})))));
+
+  it.effect("a composite over an unresolved reference still reads 'did not match'", () =>
+    Effect.gen(function* () {
+      // `someMatch` reports only whether its inner matcher held for some
+      // element, never why it did not (D-08-b): the known imprecision the bare
+      // `Neq` sentence above does not extend to.
+      const policy = P.hasAttribute("tags", M.someMatch(M.eq(M.subject("missing"))));
+      const d = yield* evaluate(policy);
+      assert.isFalse(isAllowed(d));
+      if (d._tag !== "Deny") return;
+      assert.strictEqual(d.reason, "subject attribute 'tags' did not match");
+    }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { tags: ["a", "b"] } })))));
 
   it.effect("A PRESENT-BUT-UNDEFINED VALUE IS STILL 'has no value'", () =>
     Effect.gen(function* () {

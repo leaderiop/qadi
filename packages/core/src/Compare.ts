@@ -46,8 +46,11 @@ import { isSecurityLabel, labelDominates } from "./SecurityLabel.ts";
  */
 export type Verdict = "Held" | "NotHeld" | "ValueAbsent" | "ReferenceAbsent" | "Incomparable";
 
-/** Whether a verdict holds: `Held`, and nothing else. */
-export const holds = (verdict: Verdict): boolean => verdict === "Held";
+/**
+ * Whether a verdict holds: `Held`, and nothing else. A type predicate, so a
+ * caller's other branch has the four denying verdicts to say why with.
+ */
+export const holds = (verdict: Verdict): verdict is "Held" => verdict === "Held";
 
 /**
  * A finite number. `Number.isFinite` does not coerce, so a non-number is false

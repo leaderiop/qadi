@@ -384,26 +384,27 @@ export interface MatcherContext {
 }
 
 /**
- * Known `ValueRef` dispatch sites (ED-03), so a sixth one is a deliberate,
+ * Known `ValueRef` dispatch sites (ED-03), so a fifth one is a deliberate,
  * reviewed addition rather than an accidental one nothing else names. Every
  * entry is exhaustive today — a new `ValueRef` tag is a compile error at all
- * five simultaneously — but that safety property says nothing about whether
+ * four simultaneously — but that safety property says nothing about whether
  * a *new* dispatcher should exist; this ledger is what makes that a
  * conscious question instead of a silent accretion, the same discipline
  * `SWITCH_BUDGET` gives the four budgeted switches:
  *
  *   1. `resolveRef` below (this file) — evaluates a ref against live context.
- *   2. `refIsUnresolved` (`Evaluate.ts`) — asks whether a ref failed to
- *      resolve, without evaluating it.
- *   3. `refText` (`Explanation.ts`) — renders a ref for a human-readable
+ *   2. `refText` (`Explanation.ts`) — renders a ref for a human-readable
  *      explanation.
- *   4. the predicate translator's ref folder (`Predicate.ts`) — folds a ref
+ *   3. the predicate translator's ref folder (`Predicate.ts`) — folds a ref
  *      to a SQL-independent constant or column reference.
- *   5. `refValue` (`@qadi/devtools`'s `Remedies.ts`) — synthesizes a witness
+ *   4. `refValue` (`@qadi/devtools`'s `Remedies.ts`) — synthesizes a witness
  *      value for a ref during remediation.
  *
- * Update this list — and only this list, not the count anywhere else — when
- * adding a sixth.
+ * A fifth, `refIsUnresolved` (`Evaluate.ts`), re-derived after the fact
+ * whether a ref had resolved, so the denial reason could say which operand was
+ * absent; `judgeMatcher`'s `Verdict` now says so directly, and it was deleted
+ * (ARCH-08 T12). Update this list — and only this list, not the count anywhere
+ * else — when adding one.
  */
 const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
   switch (ref._tag) {

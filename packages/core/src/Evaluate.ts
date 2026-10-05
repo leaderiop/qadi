@@ -31,13 +31,9 @@ import { DecisionSink } from "./DecisionSink.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { MissingAction, MissingResource, PolicyTooDeep } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
-import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
-import {
-  evaluateMatcher,
-  getByPath,
-  referencesAction,
-  referencesResource,
-} from "./Matcher.ts";
+import { holds } from "./Compare.ts";
+import type { Matcher, MatcherContext, Verdict } from "./Matcher.ts";
+import { judgeMatcher, referencesAction, referencesResource } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
@@ -321,102 +317,51 @@ const deny = (
 });
 
 /**
- * Why an attribute policy refused.
+ * Why an attribute policy refused, read from the matcher's `Verdict`.
  *
- * Two sentences rather than one, because an absent attribute and a present one
- * that compares wrong are different problems with the same fix rate of roughly
- * zero when they are reported identically. "did not match" is *true* of
- * `undefined` — every matcher fails it — so naming the absent case points at
- * the wiring, not at a comparison (INV-QD-029, and the mirror of what
- * `"Unknown"` does for relationships). This was not always true of `Neq`:
- * before CCR-QD-112, `Neq`'s absent-operand case matched rather than failed,
- * a real defect this comment did not describe as one. It is now fixed at the
- * source in `evaluateMatcher`, so the claim holds for every matcher again,
- * `Neq` included.
+ * One sentence per way a comparison can deny, so an absent attribute, an absent
+ * reference, an incomparable value and a genuine mismatch — four problems with
+ * four different fixes — are never reported as one another. "did not match" is
+ * reserved for a comparison that ran and came out false: saying it of one that
+ * never ran is the claim INV-QD-029 and BEH-QD-045 forbid. The value itself is
+ * never printed; the attribute *name* is in the sentence, its contents are the
+ * subject's data and stay out of a reason that reaches logs and, through
+ * `AccessDenied`, error handlers.
  *
- * `Neq` still breaks the pattern in its *defined*-value case, which CCR-QD-112
- * left alone because it was never wrong: it denies exactly when the value
- * **matches** the excluded reference — `evaluateMatcher`'s `Neq` arm returns
- * `value !== resolveRef(...)`, so a `false` there means the two were equal.
- * "did not match" would claim the opposite of what happened, naming a
- * mismatch where there was none. `Qadi.guard`'s own `EVALUATES THE POLICY
- * AGAINST THE GUARDED RESOURCE` test exercises exactly this shape — a `Neq`
- * that denies because the compared values agree (INV-QD-032) — which is what
- * makes the general sentence wrong for this one matcher rather than merely
- * imprecise.
+ * **`Neq` inverts the mismatch sentence.** A bare `Neq` denies with `NotHeld`
+ * exactly when the value *equals* the excluded reference, so "did not match"
+ * would claim the opposite of what happened; it reads "matched an excluded
+ * value" instead (`Qadi.guard`'s INV-QD-032 test exercises that shape).
  *
- * The value itself is still never printed. The attribute *name* was already in
- * the sentence; its contents are the subject's data and stay out of a reason
- * that reaches logs and, through `AccessDenied`, error handlers.
+ * **A composite speaks for itself.** `matcher` is what `HasAttribute`/
+ * `HasResourceAttribute` was given, and `judgeMatcher` reports a composite's own
+ * absence and shape, never its inner matcher's (D-08-b): `someMatch(neq(…))` or
+ * `fieldMatch("f", eq(subject("missing")))` that denies reads "did not match",
+ * which is true of the composite over its elements. That imprecision is known
+ * and pinned in `Evaluate.test.ts`.
  *
- * The excluded-value phrasing only fires for a **bare** `Neq` — `matcher`
- * here is whatever `HasAttribute`/`HasResourceAttribute` was given at the
- * policy's top level, not whatever comparison actually decided the result
- * several levels down. A `Neq` nested inside `FieldMatch`/`SomeMatch`/
- * `EveryMatch`/`Size` (e.g. `someMatch(neq(...))`, both already exercised by
- * `referencesAction`/`referencesResource` in `Matcher.test.ts`) still reads
- * the generic "did not match" when it denies, because `matcher._tag` here is
- * the outer combinator's tag, not `Neq`'s. That is imprecise, not backwards:
- * unlike the bare case CCR-QD-112 fixed, nothing here claims the opposite of
- * what happened, so it is left as a known imprecision (pinned in
- * `Evaluate.test.ts`) rather than a walk into the matcher tree to find the
- * deciding node — the composite's own denial is well described by the
- * generic sentence, since it genuinely is the composite that "did not
- * match", plural, over its elements.
- *
- * Even a bare `Neq` with a **defined** `value` is not always the "matched an
- * excluded value" case. `evaluateMatcher`'s `Neq` arm denies on either side
- * being unresolved (CCR-QD-112), so `value !== undefined` alone does not mean
- * the two operands were actually compared — `m.ref` (`M.subject("missing")`,
- * an unwired `ActionRef`, …) can resolve to `undefined` just as an attribute
- * can. Claiming a match there would repeat exactly the mistake INV-QD-029
- * names for the absent-`value` case, one level over: a denial asserting a
- * comparison that never ran. `refIsUnresolved` re-derives that from the ref
- * alone rather than threading a second return value out of `evaluateMatcher`,
- * whose boolean verdict does not say which operand (if either) was absent.
+ * History: before CCR-QD-112 `Neq`'s absent-operand case matched rather than
+ * failed; after it, the reason re-derived which operand was absent from the
+ * boolean `evaluateMatcher` returned, through a second `ValueRef` dispatcher
+ * kept in step with `resolveRef` by comment (ED-03's former entry 2), and only for
+ * `Neq` — so `eq(subject("missing"))` and `dominates(…)` against an absent
+ * reference still read "did not match", and `gte(3)` against `Infinity` or `"5"`
+ * hid that the value was not comparable at all. The verdict says which, once
+ * (ARCH-08, CCR-QD-173).
  */
+const DENIAL_TEXT: Record<Exclude<Verdict, "Held">, (matcher: Matcher) => string> = {
+  NotHeld: (matcher) => (matcher._tag === "Neq" ? "matched an excluded value" : "did not match"),
+  ValueAbsent: () => "has no value",
+  ReferenceAbsent: () => "has no reference value to compare against",
+  Incomparable: () => "is not a value this matcher can compare",
+};
+
 const attributeReason = (
   side: "subject" | "resource",
   attribute: string,
-  value: unknown,
+  verdict: Exclude<Verdict, "Held">,
   matcher: Matcher,
-  context: MatcherContext,
-): string => {
-  if (value === undefined) return `${side} attribute '${attribute}' has no value`;
-  if (matcher._tag !== "Neq") return `${side} attribute '${attribute}' did not match`;
-  return refIsUnresolved(matcher.ref, context)
-    ? `${side} attribute '${attribute}' has no reference value to compare against`
-    : `${side} attribute '${attribute}' matched an excluded value`;
-};
-
-/**
- * Whether a `Neq` matcher's reference side resolves to `undefined`.
- *
- * `Matcher.ts`'s own ref-resolver (`resolveRef`) is not exported — it is
- * internal to that module's `evaluateMatcher` — so this answers only the
- * narrower question `attributeReason` needs, on the same tags, rather than
- * duplicating a general-purpose resolver as public surface neither this file
- * nor any other caller needs. Its per-arm semantics must mirror `resolveRef`'s:
- * a new `ValueRef` tag needs an arm here that agrees with what `resolveRef`
- * would resolve it to, not just an arm that compiles.
- *
- * `Match.type<ValueRef>()`, hoisted to module scope per §5a, with each arm
- * returning a closure over `context` — the same shape as `Dispatch.bench.ts`'s
- * `hoisted` form — rather than `Match.value(ref)` rebuilt per call: this runs
- * on the `Neq`-denial path (`attributeReason` below), and denial is
- * authorization's routine outcome, not a cold path.
- */
-const refIsUnresolvedFor: (ref: ValueRef) => (context: MatcherContext) => boolean = Match.type<ValueRef>().pipe(
-  Match.tag("SubjectRef", (r) => (context: MatcherContext) => getByPath(context.subject, r.path) === undefined),
-  Match.tag("SubjectIdRef", () => () => false),
-  Match.tag("ResourceRef", (r) => (context: MatcherContext) => getByPath(context.resource, r.path) === undefined),
-  Match.tag("ActionRef", () => (context: MatcherContext) => context.action === undefined),
-  Match.tag("LiteralRef", (r) => () => r.value === undefined),
-  Match.exhaustive,
-);
-
-const refIsUnresolved = (ref: ValueRef, context: MatcherContext): boolean =>
-  refIsUnresolvedFor(ref)(context);
+): string => `${side} attribute '${attribute}' ${DENIAL_TEXT[verdict](matcher)}`;
 
 /**
  * Merges a composite's children's visible-field sets per its `FieldStrategy`.
@@ -619,7 +564,7 @@ const evaluateHasSignature = (
  * (`RolesAndDepth.test.ts` asserts the agreement in both directions).
  *
  * Not `Effect.suspend`-wrapped as a whole: a leaf tag's real comparison
- * (`subject.roles.has(...)`, `evaluateMatcher`) runs immediately, as part of
+ * (`subject.roles.has(...)`, `judgeMatcher`) runs immediately, as part of
  * building the `Effect.succeed(...)` this returns, rather than lazily when
  * that `Effect` is later run. A wrapper's *child*, though, is suspended
  * (`Not`/`Obliged`/`Labeled`): building the child's effect eagerly recursed
@@ -675,20 +620,13 @@ const evaluateNode = (
       if (resource === undefined && referencesResource(policy.matcher)) {
         return Effect.fail(new MissingResource({ attribute: policy.attribute }));
       }
-      return Effect.map(readAttribute("evaluate", subject, policy.attribute), (value) =>
-        evaluateMatcher(policy.matcher, value, matcherContext)
+      return Effect.map(readAttribute("evaluate", subject, policy.attribute), (value) => {
+        // One judgement gives both the decision and, on a denial, its reason.
+        const verdict = judgeMatcher(policy.matcher, value, matcherContext);
+        return holds(verdict)
           ? allow("HasAttribute", policy.fields)
-          : deny(
-              "HasAttribute",
-              attributeReason(
-                "subject",
-                policy.attribute,
-                value,
-                policy.matcher,
-                matcherContext,
-              ),
-            ),
-      );
+          : deny("HasAttribute", attributeReason("subject", policy.attribute, verdict, policy.matcher));
+      });
 
     case "HasResourceAttribute": {
       if (resource === undefined) {
@@ -706,18 +644,13 @@ const evaluateNode = (
       const value = Object.hasOwn(resource, policy.attribute)
         ? resource[policy.attribute]
         : undefined;
+      const verdict = judgeMatcher(policy.matcher, value, matcherContext);
       return Effect.succeed(
-        evaluateMatcher(policy.matcher, value, matcherContext)
+        holds(verdict)
           ? allow("HasResourceAttribute", policy.fields)
           : deny(
               "HasResourceAttribute",
-              attributeReason(
-                "resource",
-                policy.attribute,
-                value,
-                policy.matcher,
-                matcherContext,
-              ),
+              attributeReason("resource", policy.attribute, verdict, policy.matcher),
             ),
       );
     }
@@ -1261,7 +1194,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
       : Effect.void;
   // `Effect.suspend`, not a direct call: `evaluateNode` is a plain switch, not
   // an `Effect.gen`, so for a leaf tag (HasRole, HasPermission, …) calling it
-  // does the real comparison — `subject.roles.has(...)`, `evaluateMatcher` —
+  // does the real comparison — `subject.roles.has(...)`, `judgeMatcher` —
   // immediately, as part of building the `Effect.succeed(...)` it returns,
   // not lazily when that Effect later runs. Calling it here, unconditionally,
   // before the cache-hit check below, would pay that cost on every ask
