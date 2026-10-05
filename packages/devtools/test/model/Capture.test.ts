@@ -13,17 +13,12 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   allOf,
-  AttributeResolveError,
   AttributeResolver,
   attributeResolverFromRecord,
   CustomPredicate,
   customPredicateFromRecord,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   DecisionHistory,
   decisionHistoryFromEvents,
-  DecisionHistoryUnknown,
-  DecisionHistoryUnavailable,
   diffTraces,
   gte,
   hasActed,
@@ -36,10 +31,13 @@ import {
   makeSubject,
   makeSubjectId,
   relationshipResolverFromEdges,
-  RelationshipResolveError,
   RelationshipResolver,
-  RelationshipResolverNever,
   SignatureHistory,
+  scriptedPort,
+  PortReply,
+  relationshipResolverPort,
+  decisionHistoryPort,
+  portsLayer,
 } from "@qadi/core";
 import type { ActedResult, Decision, DecisionOutcome, RelatedResult } from "@qadi/core";
 
@@ -61,13 +59,11 @@ const decisionOf = (outcome: DecisionOutcome): Decision => {
 };
 
 /** A stand-in for a real deployment's ports. */
-const realPorts = Layer.mergeAll(
-  attributeResolverFromRecord({ clearance: 4, dept: "eng" }),
-  relationshipResolverFromEdges([{ subjectId: "alice", relation: "owner", resourceId: "doc-1" }]),
-  decisionHistoryFromEvents([{ subjectId: "alice", event: "raised", resourceId: "doc-1" }]),
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const realPorts = portsLayer({
+  AttributeResolver: attributeResolverFromRecord({ clearance: 4, dept: "eng" }),
+  RelationshipResolver: relationshipResolverFromEdges([{ subjectId: "alice", relation: "owner", resourceId: "doc-1" }]),
+  DecisionHistory: decisionHistoryFromEvents([{ subjectId: "alice", event: "raised", resourceId: "doc-1" }]),
+});
 
 const alice: SimulationInput = { subject: { id: "alice" }, resource: { id: "doc-1" } };
 
@@ -118,17 +114,9 @@ describe("capture fidelity — INV-QD-043", () => {
   // E2.3 — an outage replays as an outage, never as a miss.
   it.effect("a port that failed during capture fails the same way on replay", () =>
     Effect.gen(function* () {
-      const broken = Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          name: "broken",
-          resolve: (_subjectId, attribute) =>
-            Effect.fail(new AttributeResolveError({ attribute, cause: "store down" })),
-        }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("store down"), "broken").layer,
+      });
       const capture = capturing(broken);
       const policy = hasAttribute("clearance", gte(1));
 
@@ -150,23 +138,10 @@ describe("capture fidelity — INV-QD-043", () => {
 
   it.effect("a relationship outage replays as an outage", () =>
     Effect.gen(function* () {
-      const broken = Layer.mergeAll(
-        attributeResolverFromRecord({}),
-        Layer.succeed(RelationshipResolver, {
-          name: "broken",
-          check: (request) =>
-            Effect.fail(
-              new RelationshipResolveError({
-                relation: request.relation,
-                resourceId: request.resourceId,
-                cause: "graph down",
-              }),
-            ),
-        }),
-        DecisionHistoryUnknown,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: attributeResolverFromRecord({}),
+        RelationshipResolver: scriptedPort(relationshipResolverPort, () => PortReply.fail("graph down"), "broken").layer,
+      });
       const capture = capturing(broken);
 
       const liveRun = yield* simulate(hasRelationship("owner"), alice, {
@@ -182,19 +157,10 @@ describe("capture fidelity — INV-QD-043", () => {
 
   it.effect("a history outage replays as an outage", () =>
     Effect.gen(function* () {
-      const broken = Layer.mergeAll(
-        attributeResolverFromRecord({}),
-        RelationshipResolverNever,
-        Layer.succeed(DecisionHistory, {
-          name: "broken",
-          hasActed: (query) =>
-            Effect.fail(
-              new DecisionHistoryUnavailable({ event: query.event, cause: "journal down" }),
-            ),
-        }),
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: attributeResolverFromRecord({}),
+        DecisionHistory: scriptedPort(decisionHistoryPort, () => PortReply.fail("journal down"), "broken").layer,
+      });
       const capture = capturing(broken);
 
       const liveRun = yield* simulate(hasActed("raised"), alice, {
@@ -362,13 +328,10 @@ describe("what a capture records", () => {
 
   it.effect("counts a custom predicate's answer alongside the other three ports", () =>
     Effect.gen(function* () {
-      const withCustom = Layer.mergeAll(
-        attributeResolverFromRecord({ clearance: 4 }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        customPredicateFromRecord({ isOwner: () => Effect.succeed(true) }),
-        SignatureHistoryNone,
-      );
+      const withCustom = portsLayer({
+        AttributeResolver: attributeResolverFromRecord({ clearance: 4 }),
+        CustomPredicate: customPredicateFromRecord({ isOwner: () => Effect.succeed(true) }),
+      });
       const capture = capturing(withCustom);
       yield* simulate(
         allOf([hasAttribute("clearance", gte(2)), hasCustom("isOwner")]),
@@ -403,17 +366,9 @@ describe("what a replayed failure carries", () => {
    */
   it.effect("names the attribute, and carries the captured cause", () =>
     Effect.gen(function* () {
-      const broken = Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          name: "broken",
-          resolve: (_subjectId, attribute) =>
-            Effect.fail(new AttributeResolveError({ attribute, cause: "store down" })),
-        }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("store down"), "broken").layer,
+      });
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
@@ -436,23 +391,10 @@ describe("what a replayed failure carries", () => {
 
   it.effect("names the relation and the resource", () =>
     Effect.gen(function* () {
-      const broken = Layer.mergeAll(
-        attributeResolverFromRecord({}),
-        Layer.succeed(RelationshipResolver, {
-          name: "broken",
-          check: (request) =>
-            Effect.fail(
-              new RelationshipResolveError({
-                relation: request.relation,
-                resourceId: request.resourceId,
-                cause: "graph down",
-              }),
-            ),
-        }),
-        DecisionHistoryUnknown,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: attributeResolverFromRecord({}),
+        RelationshipResolver: scriptedPort(relationshipResolverPort, () => PortReply.fail("graph down"), "broken").layer,
+      });
       const capture = capturing(broken);
       yield* simulate(hasRelationship("owner"), alice, { source: live(capture.layer) });
 
@@ -470,19 +412,10 @@ describe("what a replayed failure carries", () => {
 
   it.effect("names the event", () =>
     Effect.gen(function* () {
-      const broken = Layer.mergeAll(
-        attributeResolverFromRecord({}),
-        RelationshipResolverNever,
-        Layer.succeed(DecisionHistory, {
-          name: "broken",
-          hasActed: (query) =>
-            Effect.fail(
-              new DecisionHistoryUnavailable({ event: query.event, cause: "journal down" }),
-            ),
-        }),
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: attributeResolverFromRecord({}),
+        DecisionHistory: scriptedPort(decisionHistoryPort, () => PortReply.fail("journal down"), "broken").layer,
+      });
       const capture = capturing(broken);
       yield* simulate(hasActed("raised"), alice, { source: live(capture.layer) });
 
@@ -503,17 +436,9 @@ describe("what a replayed failure carries", () => {
       // `cause` is typed `unknown`, so a resolver is free to give none. The
       // capture must still record *that* it broke, rather than storing the
       // string "undefined".
-      const broken = Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          name: "broken",
-          resolve: (_subjectId, attribute) =>
-            Effect.fail(new AttributeResolveError({ attribute, cause: undefined })),
-        }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail(undefined), "broken").layer,
+      });
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
@@ -530,13 +455,7 @@ describe("what a replayed failure carries", () => {
   it.effect("a port that was never reached captures nothing", () =>
     Effect.gen(function* () {
       const capture = capturing(
-        Layer.mergeAll(
-          attributeResolverFromRecord({}),
-          RelationshipResolverNever,
-          DecisionHistoryUnknown,
-          CustomPredicateNone,
-          SignatureHistoryNone,
-        ),
+        portsLayer({ AttributeResolver: attributeResolverFromRecord({}) }),
       );
       // No resource, so `hasRelationship` fails with `MissingResourceId`
       // before the port is consulted at all.
@@ -549,19 +468,9 @@ describe("what a replayed failure carries", () => {
 
   it.effect("a cause that is an Error keeps its message", () =>
     Effect.gen(function* () {
-      const broken = Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          name: "broken",
-          resolve: (_subjectId, attribute) =>
-            Effect.fail(
-              new AttributeResolveError({ attribute, cause: new Error("connection refused") }),
-            ),
-        }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail(new Error("connection refused")), "broken").layer,
+      });
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
@@ -575,17 +484,9 @@ describe("what a replayed failure carries", () => {
   it.effect("a cause that cannot be stringified does not take the capture down", () =>
     Effect.gen(function* () {
       const hostile = { toString: () => { throw new Error("no"); } };
-      const broken = Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          name: "broken",
-          resolve: (_subjectId, attribute) =>
-            Effect.fail(new AttributeResolveError({ attribute, cause: hostile })),
-        }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail(hostile), "broken").layer,
+      });
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
@@ -658,15 +559,12 @@ describe("replaying outside the captured set", () => {
 });
 
 describe("custom predicate capture", () => {
-  const withCustom = Layer.mergeAll(
-    attributeResolverFromRecord({}),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
-    customPredicateFromRecord({
+  const withCustom = portsLayer({
+    AttributeResolver: attributeResolverFromRecord({}),
+    CustomPredicate: customPredicateFromRecord({
       isOwner: (subject) => Effect.succeed(subject.id === "alice"),
     }),
-    SignatureHistoryNone,
-  );
+  });
 
   it.effect("a snapshot replays a custom predicate's trace", () =>
     Effect.gen(function* () {

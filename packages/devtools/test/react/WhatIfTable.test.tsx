@@ -10,17 +10,12 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import {
   allOf,
   anyOf,
   AttributeResolveError,
-  AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   Decided,
-  DecisionHistoryUnknown,
   Failed,
   gte,
   hasAttribute,
@@ -31,7 +26,10 @@ import {
   permission,
   permitWhen,
   rules,
-  RelationshipResolverNever,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
+  portsLayer,
 } from "@qadi/core";
 import type { DecisionOutcome, Policy } from "@qadi/core";
 import { live } from "../../src/model/SimulationSource.ts";
@@ -43,17 +41,9 @@ import { allow, deny } from "../helpers.ts";
 
 const read = permission("doc", "read");
 
-const brokenPorts = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, {
-    name: "broken",
-    resolve: (_subjectId: string, attribute: string) =>
-      Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-  }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const brokenPorts = portsLayer({
+  AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down"), "broken").layer,
+});
 
 const sweep = (
   policy: Policy,

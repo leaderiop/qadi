@@ -35,6 +35,9 @@ import {
   relationshipResolverFromEdges,
   toPredicate,
   portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import type { Decision, EvaluationError, Policy, RelationshipResolver } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
@@ -240,11 +243,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
 
   Given("a resolver that is down", function* () {
     yield* patch(() => ({
-      attributes: Layer.succeed(AttributeResolver, {
-        name: "broken",
-        resolve: (_id: string, attribute: string) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-      }),
+      attributes: scriptedPort(attributeResolverPort, () => PortReply.fail("down"), "broken").layer,
     }));
   });
 
@@ -253,10 +252,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   // (issue #100), not the shape any implementation is asked to produce.
   Given("a resolver that dies unexpectedly", function* () {
     yield* patch(() => ({
-      attributes: Layer.succeed(AttributeResolver, {
-        name: "dying",
-        resolve: () => Effect.die(new Error("boom")),
-      }),
+      attributes: scriptedPort(attributeResolverPort, () => PortReply.die(new Error("boom")), "dying").layer,
     }));
   });
 

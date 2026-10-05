@@ -9,20 +9,16 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import {
   attributeResolverFromRecord,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   decisionSinkRing,
-  DecisionHistoryUnknown,
   gte,
   hasActed,
   hasAttribute,
   hasRelationship,
   hasPermission,
   permission,
-  RelationshipResolverNever,
+  portsLayer,
 } from "@qadi/core";
 import type { Decision, DecisionOutcome } from "@qadi/core";
 import { emptyAnswers } from "../../src/model/Capture.ts";
@@ -37,13 +33,9 @@ const decisionOf = (outcome: DecisionOutcome): Decision => {
   return outcome.decision;
 };
 
-const realPorts = Layer.mergeAll(
-  attributeResolverFromRecord({ clearance: 7 }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const realPorts = portsLayer({
+  AttributeResolver: attributeResolverFromRecord({ clearance: 7 }),
+});
 
 const alice: SimulationInput = { subject: { id: "alice", permissions: ["doc:read"] } };
 

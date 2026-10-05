@@ -16,13 +16,9 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   allOf,
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   Decided,
   decisionSinkRing,
-  DecisionHistoryUnknown,
   evaluate,
   evaluationIdSequential,
   Failed,
@@ -31,8 +27,8 @@ import {
   hasRole,
   MissingResource,
   permission,
-  RelationshipResolverNever,
   role,
+  portsLayer,
 } from "@qadi/core";
 import type { DecisionOutcome, StoredRecord, Trace } from "@qadi/core";
 import {
@@ -346,14 +342,10 @@ describe("replay, reconstruct, and check — end to end", () => {
         Effect.result,
         Effect.provide(
           Layer.mergeAll(
+            portsLayer(),
             ring.layer,
             currentSubjectLayer(subject),
-            AttributeResolverNone,
-            DecisionHistoryUnknown,
-            RelationshipResolverNever,
             evaluationIdSequential("ev"),
-            CustomPredicateNone,
-            SignatureHistoryNone,
           ),
         ),
       );

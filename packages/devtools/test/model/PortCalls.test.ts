@@ -16,14 +16,12 @@ import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import {
   anyOf,
-  AttributeResolveError,
   AttributeResolver,
   AttributeResolverNone,
   currentSubjectLayer,
   CustomPredicate,
   customPredicateFromRecord,
   CustomPredicateNone,
-  SignatureHistoryNone,
   decisionHistoryFromEvents,
   DecisionHistory,
   DecisionHistoryUnknown,
@@ -40,6 +38,10 @@ import {
   RelationshipResolverNever,
   relationshipResolverFromEdges,
   toPredicate,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
+  portsLayer,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
@@ -63,13 +65,14 @@ interface Overrides {
 
 const services = (overrides?: Overrides) =>
   Layer.mergeAll(
+    portsLayer({
+      AttributeResolver: overrides?.attributes ?? AttributeResolverNone,
+      RelationshipResolver: overrides?.relationships ?? RelationshipResolverNever,
+      DecisionHistory: overrides?.history ?? DecisionHistoryUnknown,
+      CustomPredicate: overrides?.customPredicate ?? CustomPredicateNone,
+    }),
     currentSubjectLayer(alice),
-    overrides?.attributes ?? AttributeResolverNone,
-    overrides?.relationships ?? RelationshipResolverNever,
-    overrides?.history ?? DecisionHistoryUnknown,
     evaluationIdSequential("ev"),
-    overrides?.customPredicate ?? CustomPredicateNone,
-    SignatureHistoryNone,
   );
 
 const resolverOf = (record: Readonly<Record<string, unknown>>) =>
@@ -247,11 +250,7 @@ describe("what a row says", () => {
     Effect.gen(function* () {
       const log = yield* watch(hasAttribute("tier", gte(3)), {
         layers: {
-          attributes: Layer.succeed(AttributeResolver, {
-            name: "broken",
-            resolve: (_subjectId: string, attribute: string) =>
-              Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-          }),
+          attributes: scriptedPort(attributeResolverPort, () => PortReply.fail("down"), "broken").layer,
         },
       });
 

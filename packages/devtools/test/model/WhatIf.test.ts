@@ -8,17 +8,11 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import {
   allOf,
   anyOf,
-  AttributeResolveError,
-  AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   decisionSinkRing,
-  DecisionHistoryUnknown,
   eq,
   gte,
   hasAttribute,
@@ -30,7 +24,10 @@ import {
   obligation,
   obliged,
   permission,
-  RelationshipResolverNever,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
+  portsLayer,
 } from "@qadi/core";
 import type { DecisionOutcome } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
@@ -68,17 +65,9 @@ const compared = (self: Comparison) => {
 };
 
 /** Ports whose attribute resolver is down, for the rows that must be errors rather than denials. */
-const brokenPorts = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, {
-    name: "broken",
-    resolve: (_subjectId: string, attribute: string) =>
-      Effect.fail(new AttributeResolveError({ attribute, cause: "the store is down" })),
-  }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const brokenPorts = portsLayer({
+  AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("the store is down"), "broken").layer,
+});
 
 describe("compareOutcomes", () => {
   const decided = (outcome: DecisionOutcome) => outcome;
