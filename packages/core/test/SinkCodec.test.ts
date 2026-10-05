@@ -6,7 +6,18 @@ import * as FastCheck from "fast-check";
 import { Allow, Deny } from "../src/Decision.ts";
 import type { Trace } from "../src/Decision.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
-import { Decided, DecisionRecord, Failed, ObligationRecord } from "../src/DecisionRecord.ts";
+import {
+  Decided,
+  DecisionRecord,
+  Failed,
+  ObligationRecord,
+  stampRecord,
+  StoredDecisionRecord,
+  StoredObligationRecord,
+} from "../src/DecisionRecord.ts";
+import { makeDecisionLog } from "../src/DecisionLog.ts";
+import { evaluate } from "../src/Evaluate.ts";
+import { subjectWith, testLayer } from "./helpers.ts";
 import { exceedsJsonDepth } from "../src/DecodeDepthGuard.ts";
 import {
   AttributeResolveError,
@@ -33,8 +44,12 @@ import * as P from "../src/Policy.ts";
 import {
   decodeSinkRecord,
   decodeSinkRecordString,
+  decodeStoredRecord,
+  decodeStoredRecordString,
   encodeSinkRecord,
   encodeSinkRecordString,
+  encodeStoredRecord,
+  encodeStoredRecordString,
 } from "../src/SinkCodec.ts";
 import type { SinkRecordJson } from "../src/SinkCodec.ts";
 import * as V1 from "./fixtures/sinkWireV1.ts";
@@ -1753,4 +1768,178 @@ describe("decodeSinkRecord reads wire versions 1 and 2", () => {
       { numRuns: 300, seed: 1515 },
     );
   });
+});
+
+describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
+  const decision = (environment: string) =>
+    stampRecord(
+      new DecisionRecord({
+        evaluationId: "e-1",
+        at: 1,
+        subjectId: makeSubjectId("u1"),
+        policy: P.hasPermission(read),
+        outcome: new Decided({
+          decision: new Allow({
+            evaluationId: "e-1",
+            subjectId: makeSubjectId("u1"),
+            durationMillis: 2,
+            trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
+            visibleFields: undefined,
+            obligations: [],
+          }),
+        }),
+      }),
+      environment,
+    );
+  const failed = (environment: string) =>
+    stampRecord(
+      new DecisionRecord({
+        evaluationId: "e-2",
+        at: 2,
+        subjectId: makeSubjectId("u1"),
+        policy: P.hasPermission(read),
+        outcome: new Failed({ error: new MissingResource({ attribute: "owner" }) }),
+      }),
+      environment,
+    );
+  const obligations = (environment: string) =>
+    stampRecord(
+      new ObligationRecord({ evaluationId: "e-3", at: 3, outcome: "Discharged", obligationIds: ["o"] }),
+      environment,
+    );
+
+  const roundTrip = (stored: ReturnType<typeof decision>) =>
+    Result.flatMap(encodeStoredRecordString(stored), (text) =>
+      Result.mapError(decodeStoredRecordString(text), (error) => error.refusal._tag));
+
+  it("a decision, a failure and an obligation record round-trip with three labels", () => {
+    for (const [stored, environment] of [
+      [decision("Server"), "Server"],
+      [failed("Client"), "Client"],
+      [obligations("Edge"), "Edge"],
+    ] as const) {
+      const back = roundTrip(stored);
+      assert.isTrue(Result.isSuccess(back), environment);
+      if (Result.isSuccess(back)) {
+        assert.strictEqual(back.success.environment, environment);
+        assert.strictEqual(back.success._tag, stored._tag);
+        assert.strictEqual(back.success.evaluationId, stored.evaluationId);
+      }
+    }
+  });
+
+  it("the rebuilt record keeps its class, and a failure's cause is preserved", () => {
+    const back = Result.getOrThrow(decodeStoredRecordString(Result.getOrThrow(encodeStoredRecordString(failed("S")))));
+    assert.instanceOf(back, StoredDecisionRecord);
+    assert.isTrue(back._tag === "Decision" && back.outcome._tag === "Failed");
+    const withCause = Result.getOrThrow(
+      decodeStoredRecord({ environment: "S", record: JSON.parse(V2.V2_FAILED_ATTRIBUTE_ERROR_CAUSE) }),
+    );
+    const error = withCause._tag === "Decision" && withCause.outcome._tag === "Failed" ? withCause.outcome.error : undefined;
+    assert.strictEqual(error?._tag, "AttributeResolveError");
+    if (error?._tag === "AttributeResolveError") {
+      assert.instanceOf(error.cause, Error);
+      assert.strictEqual(error.cause instanceof Error ? error.cause.message : "", "db down");
+    }
+    const ob = Result.getOrThrow(decodeStoredRecord(Result.getOrThrow(encodeStoredRecord(obligations("E")))));
+    assert.instanceOf(ob, StoredObligationRecord);
+  });
+
+  it("the environment is the producer's and survives unchanged, whatever it says", () => {
+    for (const environment of ["Server", "", "édge ✓", "a\"b"]) {
+      const back = roundTrip(obligations(environment));
+      assert.strictEqual(Result.isSuccess(back) ? back.success.environment : "<refused>", environment);
+    }
+  });
+
+  it("pins the encoded envelope", () => {
+    assert.strictEqual(
+      Result.getOrThrow(encodeStoredRecordString(obligations("Edge"))),
+      '{"environment":"Edge","record":{"_tag":"Obligations","version":2,"evaluationId":"e-3","at":3,"outcome":"Discharged","obligationIds":["o"]}}',
+    );
+  });
+
+  it("an unknown top-level envelope key is ignored, as on the record (ADR-QD-903 D-15-c)", () => {
+    const back = decodeStoredRecord({ environment: "Edge", record: JSON.parse(V2.V2_OBLIGATIONS), cursor: "x" });
+    assert.isTrue(Result.isSuccess(back));
+  });
+
+  it("an envelope with a bad environment or no record is Malformed", () => {
+    for (const input of [
+      { environment: 1, record: JSON.parse(V2.V2_OBLIGATIONS) },
+      { record: JSON.parse(V2.V2_OBLIGATIONS) },
+      { environment: "Edge" },
+      "text",
+      [1],
+      null,
+    ]) {
+      const back = decodeStoredRecord(input);
+      assert.isTrue(Result.isFailure(back) && back.failure.refusal._tag === "Malformed", JSON.stringify(input));
+    }
+  });
+
+  it("a record the envelope carries is decoded by decodeSinkRecord's rules", () => {
+    const unsupported = decodeStoredRecord({ environment: "E", record: { ...JSON.parse(V2.V2_OBLIGATIONS), version: 3 } });
+    assert.isTrue(Result.isFailure(unsupported) && unsupported.failure.refusal._tag === "UnsupportedVersion");
+    const v1 = decodeStoredRecord({ environment: "E", record: JSON.parse(V1.V1_OBLIGATIONS) });
+    assert.isTrue(Result.isSuccess(v1));
+    assert.isTrue(Result.isFailure(decodeStoredRecordString("{not json")));
+    const notJson = decodeStoredRecordString("{not json");
+    assert.isTrue(Result.isFailure(notJson) && notJson.failure.refusal._tag === "NotJson");
+  });
+
+  it("a bare record is refused without legacyEnvironment and stamped with it when given", () => {
+    const bare = JSON.parse(V2.V2_OBLIGATIONS);
+    const refused = decodeStoredRecord(bare);
+    assert.isTrue(Result.isFailure(refused) && refused.failure.refusal._tag === "Malformed");
+    const stamped = decodeStoredRecord(bare, { legacyEnvironment: "Server" });
+    assert.isTrue(Result.isSuccess(stamped) && stamped.success.environment === "Server");
+    const viaText = decodeStoredRecordString(V2.V2_OBLIGATIONS, { legacyEnvironment: "Old" });
+    assert.isTrue(Result.isSuccess(viaText) && viaText.success.environment === "Old");
+  });
+
+  it("an envelope is not mistaken for a bare record when legacyEnvironment is given", () => {
+    const back = decodeStoredRecord({ environment: "Edge", record: JSON.parse(V2.V2_OBLIGATIONS) }, {
+      legacyEnvironment: "Server",
+    });
+    assert.isTrue(Result.isSuccess(back) && back.success.environment === "Edge");
+  });
+
+  it("a non-JSON-safe resource is refused, not thrown", () => {
+    const stored = stampRecord(
+      new DecisionRecord({
+        evaluationId: "e-4",
+        at: 4,
+        subjectId: makeSubjectId("u1"),
+        policy: P.hasPermission(read),
+        resource: { id: "r", tags: new Set(["x"]) },
+        outcome: new Failed({ error: new MissingResource({ attribute: "owner" }) }),
+      }),
+      "Server",
+    );
+    const refused = encodeStoredRecord(stored);
+    assert.isTrue(Result.isFailure(refused) && refused.failure.refusal._tag === "Opaque");
+  });
+
+  // C7, flipped: a host's served backlog now decodes element by element.
+  it.effect("a backlog served through the envelope decodes element by element", () =>
+    Effect.gen(function* () {
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      yield* evaluate(P.hasPermission(read)).pipe(Effect.provide(log.layer));
+      yield* log.ingest(new ObligationRecord({ evaluationId: "x", at: 1, outcome: "Refused", obligationIds: [] }), "Edge");
+
+      const served: ReadonlyArray<unknown> = JSON.parse(
+        JSON.stringify((yield* log.snapshot).flatMap((stored) => {
+          const json = encodeStoredRecord(stored);
+          return Result.isSuccess(json) ? [json.success] : [];
+        })),
+      );
+      assert.strictEqual(served.length, 2);
+      const back = served.map((element) => decodeStoredRecord(element));
+      assert.isTrue(back.every(Result.isSuccess));
+      assert.deepStrictEqual(
+        back.map((r) => (Result.isSuccess(r) ? r.success.environment : "")).sort(),
+        ["Edge", "Server"],
+      );
+    }).pipe(Effect.provide(testLayer(subjectWith({ permissions: ["doc:read"] })))));
 });

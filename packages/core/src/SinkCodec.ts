@@ -41,14 +41,23 @@
  * **The seam for the wire's shape.** How the outcome is carried and any wire
  * version handling live behind `decodeSinkRecord`, so they change in this
  * module and nowhere else.
+ *
+ * **A stored record's envelope** ({@link StoredRecordJson}, ARCH-11). A decision
+ * log's reader — `/__decisions`'s frames, `/__decisions/backlog`'s elements —
+ * needs the producer's environment too, which a `SinkRecord` deliberately does
+ * not carry. It travels in `{ environment, record }`, built by the same
+ * pipeline: {@link encodeStoredRecord} is {@link encodeSinkRecord} plus the
+ * label, and {@link decodeStoredRecord} reads the envelope and hands `record` to
+ * {@link decodeSinkRecord}, so the version dispatch, the depth guard and the
+ * strict decode apply unchanged. Forwarding and audit never see the envelope.
  */
 import * as Match from "effect/Match";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type { Trace } from "./Decision.ts";
-import type { DecisionOutcome, SinkRecord } from "./DecisionRecord.ts";
-import { Decided, DecisionRecord, Failed, ObligationRecord } from "./DecisionRecord.ts";
+import type { DecisionOutcome, SinkRecord, StoredRecord } from "./DecisionRecord.ts";
+import { Decided, DecisionRecord, Failed, ObligationRecord, stampRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
 import {
@@ -770,4 +779,103 @@ export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, Sink
 export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
   const parsed = Result.try((): unknown => JSON.parse(text));
   return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeSinkRecord(parsed.success);
+};
+
+// ---------------------------------------------------------------------------
+// The stored-record envelope (ARCH-11 D-11-e)
+// ---------------------------------------------------------------------------
+
+/**
+ * A stored record on the wire: the producer's environment beside the record's
+ * own wire form.
+ *
+ * An envelope rather than an `environment` field on the record wire, because
+ * forwarding and `@qadi/audit` read the record wire too and never asked for a
+ * label. The `version` key lives inside `record` (ADR-QD-903), so the envelope
+ * itself is unversioned: a later change to it is additive at its top level,
+ * which {@link decodeStoredRecord} ignores, or a new `record` version.
+ *
+ * Schema-first (ADR-QD-002), type derived: the encoded side of what
+ * {@link encodeStoredRecord} returns. Decoding it alone is a description, not a
+ * reader — use {@link decodeStoredRecord}.
+ */
+export const StoredRecordJson = Schema.Struct({ environment: Schema.String, record: SinkRecordJson });
+
+export type StoredRecordJson = typeof StoredRecordJson.Type;
+
+/**
+ * A stored record as a verified JSON envelope, or the reason it cannot be one.
+ *
+ * {@link encodeSinkRecord} on the record, with the environment beside it — the
+ * same refusals, the same `cause` normalisation, the same bytes forwarding
+ * sends. Never throws.
+ */
+export const encodeStoredRecord = (
+  stored: StoredRecord,
+): Result.Result<StoredRecordJson, SinkRecordNotEncodable> =>
+  Result.map(encodeSinkRecord(stored), (record) => ({ environment: stored.environment, record }));
+
+/** A stored record as JSON text, or the reason it cannot be. Never throws. */
+export const encodeStoredRecordString = (
+  stored: StoredRecord,
+): Result.Result<string, SinkRecordNotEncodable> =>
+  Result.map(encodeStoredRecord(stored), (json) => JSON.stringify(json));
+
+/** How {@link decodeStoredRecord} reads a frame that is not an envelope. */
+export interface DecodeStoredRecordOptions {
+  /**
+   * Accept a bare record — what a server older than the envelope sends — and
+   * stamp it with this label, which is the only thing such a server cannot say.
+   * Without it, a bare record is refused as `Malformed`, so an older server is
+   * reported rather than silently mislabelled.
+   *
+   * @deprecated Accepted for one minor so a newer reader can read an older
+   * server (ARCH-11 D-11-e). Remove in the minor after next.
+   */
+  readonly legacyEnvironment?: string | undefined;
+}
+
+const notAnEnvelope = (message: string) => notDecodable(DecodeRefusal.Malformed({ message }));
+
+/**
+ * Untrusted input as a stored record, or the reason it is not one.
+ *
+ * The envelope is read first — an own `environment` that must be a string, an
+ * own `record` — and `record` then goes through {@link decodeSinkRecord}, so
+ * every rule about the record (depth, version, strictness inside the policy) is
+ * that function's. A top-level envelope key this reader does not declare is
+ * ignored, as {@link decodeSinkRecord} ignores one on the record (ADR-QD-903
+ * D-15-c): a newer server's additive metadata must not refuse every frame for
+ * the length of a rolling deploy.
+ *
+ * The record is rebuilt and stamped here, with `stampRecord`, so the
+ * environment is the producer's, never the reader's. Never throws.
+ */
+export const decodeStoredRecord = (
+  input: unknown,
+  options?: DecodeStoredRecordOptions,
+): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
+  if (!isJsonObject(input)) return notAnEnvelope("a stored record is a JSON object { environment, record }");
+  if (Object.hasOwn(input, "environment") || Object.hasOwn(input, "record")) {
+    const environment = ownValue(input, "environment");
+    if (typeof environment !== "string") return notAnEnvelope("a stored record's environment is not a string");
+    if (!Object.hasOwn(input, "record")) return notAnEnvelope("a stored record names no record");
+    return Result.map(decodeSinkRecord(ownValue(input, "record")), (record) => stampRecord(record, environment));
+  }
+  const legacy = options?.legacyEnvironment;
+  return legacy === undefined
+    ? notAnEnvelope("a bare record, not a stored-record envelope { environment, record }")
+    : Result.map(decodeSinkRecord(input), (record) => stampRecord(record, legacy));
+};
+
+/**
+ * JSON text as a stored record, or the reason it is not one: `NotJson` when
+ * the text does not parse, otherwise whatever {@link decodeStoredRecord} says.
+ */
+export const decodeStoredRecordString = (
+  text: string,
+  options?: DecodeStoredRecordOptions,
+): Result.Result<StoredRecord, SinkRecordNotDecodable> => {
+  const parsed = Result.try((): unknown => JSON.parse(text));
+  return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeStoredRecord(parsed.success, options);
 };
