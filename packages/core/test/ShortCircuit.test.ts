@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
-import type { FieldStrategy } from "../src/Policy.ts";
-import { anyOfStopsAtAllow, rulesDecisiveEffect } from "../src/ShortCircuit.ts";
+import type { Combining, FieldStrategy } from "../src/Policy.ts";
+import { anyOfStopsAtAllow, effectiveCombining, rulesDecisiveEffect } from "../src/ShortCircuit.ts";
 
 /** In-process values outside the union, built via `JSON.parse` (no `as`, AGENTS.md §6). */
 const BOGUS_VALUES = ["Xor", "toString", "constructor", "__proto__", "hasOwnProperty"];
@@ -32,5 +32,19 @@ describe("rulesDecisiveEffect (INV-QD-017)", () => {
 
   it("FirstApplicable has no overriding effect", () => {
     assert.isUndefined(rulesDecisiveEffect("FirstApplicable"));
+  });
+
+  it("a value outside the union decides as DenyOverrides — prototype keys included (C9)", () => {
+    for (const raw of BOGUS_VALUES) {
+      const bogus: Combining = JSON.parse(JSON.stringify(raw));
+      assert.strictEqual(effectiveCombining(bogus), "DenyOverrides", raw);
+      assert.strictEqual(rulesDecisiveEffect(bogus), "Deny", raw);
+    }
+  });
+
+  it("a known value is its own effective algorithm", () => {
+    for (const combining of ["DenyOverrides", "PermitOverrides", "FirstApplicable"] as const) {
+      assert.strictEqual(effectiveCombining(combining), combining);
+    }
   });
 });

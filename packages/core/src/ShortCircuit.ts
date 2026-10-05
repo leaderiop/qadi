@@ -59,15 +59,31 @@ const DECISIVE_EFFECT_BY_COMBINING: Record<Combining, RuleEffect | undefined> = 
 };
 
 /**
+ * The algorithm a rule table is actually walked under: its own `combining`, or
+ * `DenyOverrides` for a value outside the union.
+ *
+ * Decode rejects such a value (ADR-QD-006), so only a policy built in process
+ * reaches here with one. A bare lookup used to walk `"Xor"` as
+ * `FirstApplicable` and `"toString"` as an algorithm with no decisive effect —
+ * both able to permit where the author's lost `DenyOverrides` would have
+ * denied. `DenyOverrides` is the one fallback that cannot permit anything the
+ * real algorithm would refuse, the same fail-closed rule an unknown field
+ * strategy follows (CCR-QD-174, ARCH-12 C9). Both interpreters read it:
+ * `rulesDecisiveEffect` below for where the walk stops, and `toPredicate`'s
+ * plan for which formula a table becomes.
+ */
+export const effectiveCombining = (combining: Combining): Combining =>
+  Object.hasOwn(DECISIVE_EFFECT_BY_COMBINING, combining) ? combining : "DenyOverrides";
+
+/**
  * The effect that ends a `rules` walk, or `undefined` when the first rule that
  * applies at all is already final.
  *
  * `DenyOverrides` stops at the first applying `Deny` and `PermitOverrides` at the
  * first applying `Permit` — nothing later can beat it (INV-QD-017).
  * `FirstApplicable` has no overriding effect: whichever rule applies first
- * decides, so every applying rule is final.
+ * decides, so every applying rule is final. A value outside the union is read
+ * through {@link effectiveCombining}, so it stops where `DenyOverrides` does.
  */
 export const rulesDecisiveEffect = (combining: Combining): RuleEffect | undefined =>
-  Object.hasOwn(DECISIVE_EFFECT_BY_COMBINING, combining)
-    ? DECISIVE_EFFECT_BY_COMBINING[combining]
-    : undefined;
+  DECISIVE_EFFECT_BY_COMBINING[effectiveCombining(combining)];

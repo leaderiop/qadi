@@ -115,6 +115,29 @@ describe("the deciding rule", () => {
     }));
 });
 
+describe("a combining value outside the union (C9)", () => {
+  it.effect("a rule table with an unknown combining denies where DenyOverrides would (C9)", () =>
+    Effect.gen(function* () {
+      // Built in process via `JSON.parse` (no `as`, AGENTS.md §6); decode rejects
+      // these. A bare `Record` lookup read `undefined` for "Xor" — walking as
+      // `FirstApplicable` — and an inherited function for "toString", which
+      // never equals an effect: both permitted where the author's lost
+      // `DenyOverrides` denies. The most restrictive algorithm is the only
+      // fallback that cannot permit what the real one would refuse
+      // (CCR-QD-174, ARCH-12 C9).
+      const subject = subjectWith({ id: "u1", roles: ["a", "b"] });
+      const rows = [P.permitWhen(P.hasRole("a")), P.denyWhen(P.hasRole("b"))];
+      const reference = yield* run(P.rules(rows, { combining: "DenyOverrides" }), subject);
+      assert.isFalse(isAllowed(reference));
+      for (const raw of ["Xor", "toString", "constructor", "__proto__", "hasOwnProperty"]) {
+        const bogus: P.Combining = JSON.parse(JSON.stringify(raw));
+        const d = yield* run(P.rules(rows, { combining: bogus }), subject);
+        assert.isFalse(isAllowed(d), raw);
+        assert.strictEqual(d.trace.reason, reference.trace.reason, raw);
+      }
+    }));
+});
+
 describe("order is meaning", () => {
   it.effect("a reordered table decides differently", () =>
     Effect.gen(function* () {

@@ -807,6 +807,19 @@ describe("a rule table becomes a set-based formula", () => {
       });
     }));
 
+  it.effect("an unknown combining translates as DenyOverrides, as the evaluator decides (C9)", () =>
+    Effect.gen(function* () {
+      // `formulaFor`'s `Match.exhaustive` threw a `MatchError` on a value
+      // outside the union, and the walk's stop rule read a prototype member.
+      // Both now read `effectiveCombining` (CCR-QD-174).
+      const rs = [P.permitWhen(owned), P.denyWhen(sealed)];
+      const reference = yield* translate(P.rules(rs, { combining: "DenyOverrides" }));
+      for (const raw of ["Xor", "toString", "__proto__"]) {
+        const bogus: P.Combining = JSON.parse(JSON.stringify(raw));
+        assert.deepStrictEqual(yield* translate(P.rules(rs, { combining: bogus })), reference, raw);
+      }
+    }));
+
   it.effect("the algorithms disagree, and the formulas do too", () =>
     Effect.gen(function* () {
       const rs = [P.permitWhen(owned), P.denyWhen(sealed)];

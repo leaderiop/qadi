@@ -35,7 +35,7 @@ import { permissionKey } from "./Permission.ts";
 import { DEFAULT_MAX_DEPTH, fieldsOf, foldPolicy, policyDepth } from "./Policy.ts";
 import { askActedAny, readAttribute } from "./PortAccess.ts";
 import type { Combining, Policy, RuleEffect } from "./Policy.ts";
-import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
+import { anyOfStopsAtAllow, effectiveCombining, rulesDecisiveEffect } from "./ShortCircuit.ts";
 
 // ---------------------------------------------------------------------------
 // The predicate
@@ -547,7 +547,11 @@ const compileTree = (
           if (next.done) throw new Error("toPredicate: Rules folded fewer children than rows");
           rules.push({ effect: rule.effect, plan: next.value });
         }
-        return planned({ _tag: "RuleTable", rules, combining: p.combining });
+        // The effective algorithm, not the raw field: a value outside the union
+        // walks and translates as `DenyOverrides`, as the evaluator decides it
+        // (`ShortCircuit.ts`), rather than reaching `formulaFor`'s
+        // `Match.exhaustive` and throwing (CCR-QD-174).
+        return planned({ _tag: "RuleTable", rules, combining: effectiveCombining(p.combining) });
       },
     }),
   );
