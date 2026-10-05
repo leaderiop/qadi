@@ -22,7 +22,7 @@ import * as Result from "effect/Result";
 import type { SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { DecisionSinkShape } from "./DecisionSink.ts";
-import type { SinkRecordNotEncodable } from "./Errors.ts";
+import type { SinkRecordNotEncodable, WireVersion } from "./Errors.ts";
 import { encodeSinkRecord } from "./SinkCodec.ts";
 import type { SinkRecordJson } from "./SinkCodec.ts";
 
@@ -87,6 +87,11 @@ export const decisionSinkForwarding = (options: {
   readonly send: (encoded: SinkRecordJson) => Effect.Effect<void, unknown>;
   /** Called when a record could not be encoded or delivered. Replaces the log. */
   readonly onFailure?: (error: unknown) => void;
+  /**
+   * The wire version `send` receives; defaults to `DEFAULT_WIRE_VERSION`.
+   * Version 2 only once every receiver reads it (ADR-QD-903).
+   */
+  readonly wireVersion?: WireVersion | undefined;
 }): Layer.Layer<DecisionSink> => {
   // Captured once so the narrowing survives the closures below — an
   // `options.onFailure?.(...)` inside would be dead defensiveness, and
@@ -119,7 +124,7 @@ export const decisionSinkForwarding = (options: {
 
   return Layer.succeed(DecisionSink, {
     record: (record) =>
-      Effect.sync(() => encodeSinkRecord(record)).pipe(
+      Effect.sync(() => encodeSinkRecord(record, { wireVersion: options.wireVersion })).pipe(
         Effect.flatMap(
           Result.match({
             onFailure: reportRefusal,

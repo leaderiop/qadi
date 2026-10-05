@@ -11,11 +11,14 @@ import { DecisionRecord, Failed, ObligationRecord } from "../src/DecisionRecord.
 import { decisionSinkAll, decisionSinkForwarding } from "../src/DecisionSinkForwarding.ts";
 import { decisionSinkRing } from "../src/DecisionSinkRing.ts";
 import { PolicyTooDeep, SinkRecordNotEncodable } from "../src/Errors.ts";
+import type { WireVersion } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { decodeSinkRecord, encodeSinkRecord } from "../src/SinkCodec.ts";
+import { DEFAULT_WIRE_VERSION, decodeSinkRecord, encodeSinkRecord } from "../src/SinkCodec.ts";
+import * as V1 from "./fixtures/sinkWireV1.ts";
+import * as V2 from "./fixtures/sinkWireV2.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
 
 const read = permission("doc", "read");
@@ -54,6 +57,27 @@ describe("decisionSinkForwarding", () => {
         Result.match(encodeSinkRecord(stored), { onSuccess: (json) => json, onFailure: () => "refused" }),
       );
     }).pipe(Effect.provide(testLayer(allowed))));
+
+  it.effect("send receives the wire version it is configured with, and DEFAULT_WIRE_VERSION's otherwise", () =>
+    Effect.gen(function* () {
+      const record = new ObligationRecord({ evaluationId: "g", at: 1, outcome: "Discharged", obligationIds: ["audit.log"] });
+      const sentAs = (wireVersion: WireVersion | undefined) => {
+        const sent: Array<string> = [];
+        const forwarding = decisionSinkForwarding({
+          send: (encoded) => Effect.sync(() => void sent.push(JSON.stringify(encoded))),
+          wireVersion,
+        });
+        return Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          yield* sink.record(record);
+          return sent;
+        }).pipe(Effect.provide(forwarding));
+      };
+
+      assert.deepStrictEqual(yield* sentAs(1), [V1.V1_OBLIGATIONS]);
+      assert.deepStrictEqual(yield* sentAs(2), [V2.V2_OBLIGATIONS]);
+      assert.deepStrictEqual(yield* sentAs(undefined), [DEFAULT_WIRE_VERSION === 1 ? V1.V1_OBLIGATIONS : V2.V2_OBLIGATIONS]);
+    }));
 
   it.effect("a send that FAILS cannot change the decision", () =>
     Effect.gen(function* () {

@@ -62,6 +62,7 @@ import type {
   SinkRecord,
   SinkRecordNotEncodable,
   StandingEvaluationServices,
+  WireVersion,
 } from "@qadi/core";
 import { assert, classifyEnforcementError, CurrentSubject, encodeSinkRecordString } from "@qadi/core";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
@@ -123,8 +124,11 @@ import { SubjectExtractor } from "./SubjectExtractor.ts";
  * UTF-8-encoding step `HttpApiBuilder`'s own `encodeSseStream` ends with,
  * rather than each frame carrying its own `TextEncoder` call.
  */
-export const frame: Filter.Filter<SinkRecord, string, SinkRecordNotEncodable> = (record) =>
-  Result.map(encodeSinkRecordString(record), (data) =>
+export const frame: Filter.Filter<SinkRecord, string, SinkRecordNotEncodable> = (record) => frameAs(record, undefined);
+
+/** {@link frame}, written as the given wire version (`undefined`: the default). */
+const frameAs = (record: SinkRecord, wireVersion: WireVersion | undefined) =>
+  Result.map(encodeSinkRecordString(record, { wireVersion }), (data) =>
     Sse.encoder.write({ _tag: "Event", event: "message", id: undefined, data }),
   );
 
@@ -163,11 +167,12 @@ const reportRefused = Effect.fn("qadi.http.decisionStream.refused")(function* (
  */
 export const decisionFrames = (
   stream: Stream.Stream<SinkRecord>,
-  options?: Pick<DecisionStreamOptions, "onRefused">,
+  options?: Pick<DecisionStreamOptions, "onRefused" | "wireVersion">,
 ): Stream.Stream<string> => {
   const onRefused = options?.onRefused;
+  const wireVersion = options?.wireVersion;
   return Stream.filterMapEffect(stream, (record: SinkRecord) =>
-    Result.match(frame(record), {
+    Result.match(frameAs(record, wireVersion), {
       onSuccess: (data) => Effect.succeed(Result.succeed(data)),
       onFailure: (refusal) => reportRefused(refusal, onRefused),
     }),
@@ -211,6 +216,12 @@ export interface DecisionStreamOptions {
    * either way, and the feed carries on: one record never ends it.
    */
   readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
+  /**
+   * The wire version each frame's data is written as; defaults to
+   * `@qadi/core`'s `DEFAULT_WIRE_VERSION`. Version 2 only once every
+   * subscriber reads it (ADR-QD-903).
+   */
+  readonly wireVersion?: WireVersion | undefined;
 }
 
 /**

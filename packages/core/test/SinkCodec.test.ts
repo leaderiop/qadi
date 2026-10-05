@@ -24,13 +24,14 @@ import {
   SignatureHistoryUnavailable,
   WIRE_VERSIONS,
 } from "../src/Errors.ts";
-import type { EvaluationError } from "../src/Errors.ts";
+import type { EvaluationError, WireVersion } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import {
+  DEFAULT_WIRE_VERSION,
   decodeSinkRecord,
   decodeSinkRecordString,
   encodeSinkRecord,
@@ -1087,10 +1088,14 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       assert.deepStrictEqual(refusalOf(recordWith({ policy: cyclic })), EncodeRefusal.Circular({ path: ["policy"] }));
     });
 
-    it("a hand-built 300-deep trace is TooDeep at [decided, trace]", () => {
+    it("a hand-built 300-deep trace is TooDeep at where each version carries the trace", () => {
+      const record = decidedWith(P.hasPermission(read), nestedTrace(300));
+      const refusal = (wireVersion: WireVersion) =>
+        Result.match(encodeSinkRecord(record, { wireVersion }), { onSuccess: () => undefined, onFailure: (error) => error.refusal });
+      assert.deepStrictEqual(refusal(1), EncodeRefusal.TooDeep({ path: ["decided", "trace"], maxDepth: P.MAX_DECODE_DEPTH }));
       assert.deepStrictEqual(
-        refusalOf(decidedWith(P.hasPermission(read), nestedTrace(300))),
-        EncodeRefusal.TooDeep({ path: ["decided", "trace"], maxDepth: P.MAX_DECODE_DEPTH }),
+        refusal(2),
+        EncodeRefusal.TooDeep({ path: ["outcome", "decision", "trace"], maxDepth: P.MAX_DECODE_DEPTH }),
       );
     });
 
@@ -1423,6 +1428,34 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
       );
     });
 
+    it("two versions, one meaning: whenever both encode, v1 and v2 bytes decode to the same record (INV-QD-905)", () => {
+      let both = 0;
+      FastCheck.assert(
+        FastCheck.property(tree(loose), FastCheck.option(loose, { nil: undefined }), outcome, (policy, value, result) => {
+          const record = new DecisionRecord({
+            evaluationId: "e",
+            at: 0,
+            subjectId: makeSubjectId("u1"),
+            policy,
+            ...(value === undefined ? {} : { resource: { value } }),
+            outcome: result,
+          });
+          const v1 = encodeSinkRecordString(record, { wireVersion: 1 });
+          const v2 = encodeSinkRecordString(record, { wireVersion: 2 });
+          // The same record is refused or accepted alike: every hazard is in
+          // the record, not in how its outcome is spelled.
+          assert.strictEqual(Result.isSuccess(v1), Result.isSuccess(v2));
+          if (Result.isFailure(v1) || Result.isFailure(v2)) return true;
+          both += 1;
+          assert.notStrictEqual(v1.success, v2.success);
+          assert.deepStrictEqual(recordOf(v1.success), recordOf(v2.success));
+          return true;
+        }),
+        { numRuns: 300, seed: 6204 },
+      );
+      assert.isAbove(both, 100);
+    });
+
     it("totality: decodeSinkRecordString never throws, over any string (INV-QD-903)", () => {
       FastCheck.assert(
         FastCheck.property(FastCheck.string(), (text) => {
@@ -1571,6 +1604,66 @@ describe("v1 bytes: a decided record encodes byte-identically to 1caf04c", () =>
 
   it("a decision carrying resource, action and cache", () => {
     assert.strictEqual(encoded(goldenFullEnvelope), V1.V1_DECISION_FULL_ENVELOPE);
+  });
+});
+
+/**
+ * The bytes a record puts on the wire as version 2: the same records as the
+ * v1 goldens above, against the hand-written `fixtures/sinkWireV2.ts`.
+ */
+describe("v2 bytes: wireVersion 2 writes the version-2 goldens", () => {
+  const v2Of = (record: SinkRecord): string =>
+    Result.match(encodeSinkRecordString(record, { wireVersion: 2 }), {
+      onSuccess: (text) => text,
+      onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
+    });
+  const goldenTrace = { policyTag: "HasPermission" as const, allowed: true, children: [], obligations: [] };
+
+  it("a decided record", () => {
+    const record = new DecisionRecord({
+      evaluationId: "g",
+      at: 1,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasPermission(read),
+      outcome: new Decided({
+        decision: new Allow({
+          evaluationId: "g",
+          subjectId: makeSubjectId("u1"),
+          durationMillis: 2,
+          trace: { ...goldenTrace, visibleFields: ["id"] },
+          visibleFields: ["id"],
+          obligations: [obligation("audit.log")],
+        }),
+      }),
+    });
+    assert.strictEqual(v2Of(record), V2.V2_DECIDED_ALLOW);
+  });
+
+  it("a Failed record", () => {
+    assert.strictEqual(v2Of(goldenFailed(new MissingResource({ attribute: "owner" }))), V2.V2_FAILED_MISSING_RESOURCE);
+  });
+
+  it("a Failed record whose resolver cause is an Error", () => {
+    assert.strictEqual(v2Of(goldenFailedCause), V2.V2_FAILED_ATTRIBUTE_ERROR_CAUSE);
+  });
+
+  it("an obligation record", () => {
+    assert.strictEqual(v2Of(goldenObligations), V2.V2_OBLIGATIONS);
+  });
+
+  it("a decision carrying resource, action and cache", () => {
+    assert.strictEqual(v2Of(goldenFullEnvelope), V2.V2_DECISION_FULL_ENVELOPE);
+  });
+
+  it("wireVersion 1 writes the version-1 goldens, whatever the default", () => {
+    const v1Of = (record: SinkRecord) => Result.getOrUndefined(encodeSinkRecordString(record, { wireVersion: 1 }));
+    assert.strictEqual(v1Of(goldenObligations), V1.V1_OBLIGATIONS);
+    assert.strictEqual(v1Of(goldenFailedCause), V1.V1_FAILED_ATTRIBUTE_ERROR_CAUSE);
+  });
+
+  it("with no option, the writer writes DEFAULT_WIRE_VERSION", () => {
+    const expected = DEFAULT_WIRE_VERSION === 1 ? V1.V1_OBLIGATIONS : V2.V2_OBLIGATIONS;
+    assert.strictEqual(stringOf(goldenObligations), expected);
   });
 });
 

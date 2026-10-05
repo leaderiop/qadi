@@ -28,7 +28,7 @@ import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
-import type { SinkRecord } from "@qadi/core";
+import type { SinkRecord, WireVersion } from "@qadi/core";
 import { DecisionSink } from "@qadi/core";
 import { encodeAuditEntry } from "./AuditEntry.ts";
 import { AuditTrailPort } from "./AuditTrailPort.ts";
@@ -48,6 +48,13 @@ export interface AuditDecisionSinkOptions {
    * millisecond number, as every existing caller passes, is unaffected.
    */
   readonly resetTimeoutMs?: Duration.Input;
+  /**
+   * The wire version each row's `record` is written as; defaults to
+   * `@qadi/core`'s `DEFAULT_WIRE_VERSION`. A row outlives the process that
+   * wrote it, so version 2 only once every reader of the store reads it
+   * (ADR-QD-903).
+   */
+  readonly wireVersion?: WireVersion | undefined;
 }
 
 const DEFAULT_FAILURE_THRESHOLD = 5;
@@ -128,7 +135,7 @@ export const AuditDecisionSinkLive = (
       const record = (sinkRecord: SinkRecord): Effect.Effect<void> =>
         Effect.gen(function* () {
           // 1. Encode. A refusal never reaches staging or the trail at all.
-          const encoded = yield* Effect.result(encodeAuditEntry(sinkRecord));
+          const encoded = yield* Effect.result(encodeAuditEntry(sinkRecord, { wireVersion: options?.wireVersion }));
           if (Result.isFailure(encoded)) {
             yield* Metric.update(writesEncodeFailed, 1);
             return;

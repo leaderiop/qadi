@@ -37,7 +37,7 @@ import * as Match from "effect/Match";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import type { EncodeRefusal, SinkRecord } from "@qadi/core";
+import type { EncodeRefusal, SinkRecord, SinkRecordEncodeOptions } from "@qadi/core";
 import {
   DecodeRefusal,
   decodeSinkRecord,
@@ -116,11 +116,16 @@ export type AuditEntry = typeof AuditEntry.Type;
  * counted as a write failure and tripped the breaker during an outage
  * (ARCH-09). Refuses rather than approximates: an unsafe record fails
  * `AuditEntryNotEncodable`, never partially written or silently dropped.
+ *
+ * Written as `options.wireVersion`, or `@qadi/core`'s `DEFAULT_WIRE_VERSION`
+ * (ADR-QD-903): a row is read back by whatever reads the store, so version 2
+ * only once every such reader reads it.
  */
 export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(function* (
   record: SinkRecord,
+  options?: SinkRecordEncodeOptions,
 ) {
-  const json = yield* Effect.fromResult(encodeSinkRecord(record)).pipe(
+  const json = yield* Effect.fromResult(encodeSinkRecord(record, options)).pipe(
     Effect.mapError(
       (error) =>
         new AuditEntryNotEncodable({

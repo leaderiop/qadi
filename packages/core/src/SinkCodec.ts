@@ -67,7 +67,7 @@ import {
   SinkRecordNotEncodable,
   WIRE_VERSIONS,
 } from "./Errors.ts";
-import type { OpaqueKind, WirePath } from "./Errors.ts";
+import type { OpaqueKind, WirePath, WireVersion } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
 import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 
@@ -596,27 +596,59 @@ const traceExceeds = (trace: Trace, maxDepth: number): boolean => {
  * `policyDepth` is memoised per policy object and already computed for any
  * record `evaluate` produced; it throws only on a cycle.
  */
-const preEncodeHazard: (record: SinkRecord) => EncodeRefusal | undefined = Match.type<SinkRecord>().pipe(
-  Match.tagsExhaustive({
-    Obligations: () => undefined,
-    Decision: (record) => {
-      const depth = Result.try(() => policyDepth(record.policy));
-      if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: ["policy"] });
-      if (depth.success > MAX_DECODE_DEPTH) {
-        return EncodeRefusal.TooDeep({ path: ["policy"], maxDepth: MAX_DECODE_DEPTH });
-      }
-      return record.outcome._tag === "Decided" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH)
-        ? EncodeRefusal.TooDeep({ path: ["decided", "trace"], maxDepth: MAX_DECODE_DEPTH })
-        : undefined;
-    },
-  }),
-);
+const preEncodeHazard: (record: SinkRecord) => (tracePath: WirePath) => EncodeRefusal | undefined =
+  Match.type<SinkRecord>().pipe(
+    Match.tagsExhaustive({
+      Obligations: () => () => undefined,
+      Decision: (record) => (tracePath: WirePath) => {
+        const depth = Result.try(() => policyDepth(record.policy));
+        if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: ["policy"] });
+        if (depth.success > MAX_DECODE_DEPTH) {
+          return EncodeRefusal.TooDeep({ path: ["policy"], maxDepth: MAX_DECODE_DEPTH });
+        }
+        return record.outcome._tag === "Decided" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH)
+          ? EncodeRefusal.TooDeep({ path: tracePath, maxDepth: MAX_DECODE_DEPTH })
+          : undefined;
+      },
+    }),
+  );
+
+/** The encoders, one per version, built once. */
+const encodeWireV1 = Schema.encodeResult(SinkRecordWireV1);
+const encodeWireV2 = Schema.encodeResult(SinkRecordWire);
 
 /**
- * The version-1 encoder, built once: what this module writes until the
- * version-2 writer becomes the default (ADR-QD-903).
+ * The wire version a sender writes when it does not say: version 1, in this
+ * release (ADR-QD-903 Phase A).
+ *
+ * Readers of version 2 ship before writers of it. This release reads both and
+ * still writes version 1, so a reader on an earlier release keeps reading
+ * everything a writer on this one sends; a sender whose every reader has
+ * upgraded may opt into version 2 with `wireVersion: 2`.
  */
-const encodeWireV1 = Schema.encodeResult(SinkRecordWireV1);
+export const DEFAULT_WIRE_VERSION: WireVersion = 1;
+
+/** Which wire version {@link encodeSinkRecord} writes. */
+export interface SinkRecordEncodeOptions {
+  /** Defaults to {@link DEFAULT_WIRE_VERSION}. */
+  readonly wireVersion?: WireVersion | undefined;
+}
+
+/** Where a decided record's trace sits in each version's bytes, for a refusal's path. */
+const TRACE_PATH: { readonly [V in WireVersion]: WirePath } = {
+  1: ["decided", "trace"],
+  2: ["outcome", "decision", "trace"],
+};
+
+/**
+ * The record's wire value, as the given version's bytes. Version 1 is the
+ * version-2 projection downgraded, so there is one projection and the two
+ * byte formats cannot disagree about what a record holds.
+ */
+const encodeAs = (record: SinkRecord, wireVersion: WireVersion): Result.Result<SinkRecordJson, Schema.SchemaError> => {
+  const wire = project(record);
+  return wireVersion === 1 ? encodeWireV1(downgradeToV1(wire)) : encodeWireV2(wire);
+};
 
 /** A thrown value's message, without letting a hostile `toString` throw again. */
 const describeThrown = (thrown: unknown): string =>
@@ -630,21 +662,29 @@ const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFai
 /**
  * A record as a verified JSON wire value, or the reason it cannot be one.
  *
+ * Written as `options.wireVersion`, or {@link DEFAULT_WIRE_VERSION}: version-1
+ * bytes for a reader on an earlier release, version-2 bytes otherwise
+ * (ADR-QD-903). Both decode to the same record (INV-QD-905).
+ *
  * Runs the depth pre-checks, the schema encode (so every resolver error's
  * `cause` crosses through `Schema.Defect()`, ADR-QD-060), and then one walk
  * over the encoded output. What it returns `JSON.stringify` renders without
  * throwing and {@link decodeSinkRecord} accepts (INV-QD-902); it never
  * throws, whatever the record holds (INV-QD-903).
  */
-export const encodeSinkRecord = (record: SinkRecord): Result.Result<SinkRecordJson, SinkRecordNotEncodable> => {
+export const encodeSinkRecord = (
+  record: SinkRecord,
+  options?: SinkRecordEncodeOptions,
+): Result.Result<SinkRecordJson, SinkRecordNotEncodable> => {
+  const wireVersion = options?.wireVersion ?? DEFAULT_WIRE_VERSION;
   const refuse = (refusal: EncodeRefusal) =>
     Result.fail(new SinkRecordNotEncodable({ recordTag: record._tag, evaluationId: record.evaluationId, refusal }));
 
-  const before = Result.try({ try: () => preEncodeHazard(record), catch: encodeFailed });
+  const before = Result.try({ try: () => preEncodeHazard(record)(TRACE_PATH[wireVersion]), catch: encodeFailed });
   if (Result.isFailure(before)) return refuse(before.failure);
   if (before.success !== undefined) return refuse(before.success);
 
-  const encoded = Result.try({ try: () => encodeWireV1(downgradeToV1(project(record))), catch: encodeFailed });
+  const encoded = Result.try({ try: () => encodeAs(record, wireVersion), catch: encodeFailed });
   if (Result.isFailure(encoded)) return refuse(encoded.failure);
   if (Result.isFailure(encoded.success)) return refuse(encodeFailed(encoded.success.failure));
   const json = encoded.success.success;
@@ -662,8 +702,11 @@ export const encodeSinkRecord = (record: SinkRecord): Result.Result<SinkRecordJs
  * value is cycle-free, at most `MAX_DECODE_DEPTH` levels deep, holds no
  * `bigint`, and has no `toJSON` but `Date`'s.
  */
-export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string, SinkRecordNotEncodable> =>
-  Result.map(encodeSinkRecord(record), (json) => JSON.stringify(json));
+export const encodeSinkRecordString = (
+  record: SinkRecord,
+  options?: SinkRecordEncodeOptions,
+): Result.Result<string, SinkRecordNotEncodable> =>
+  Result.map(encodeSinkRecord(record, options), (json) => JSON.stringify(json));
 
 /**
  * The untrusted decoders, one per version, built once.

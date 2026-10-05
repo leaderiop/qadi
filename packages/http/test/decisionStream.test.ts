@@ -18,6 +18,7 @@ import {
   ObligationRecord,
   RelationshipResolver,
   decisionSinkFeed,
+  DEFAULT_WIRE_VERSION,
   decisionSinkForwarding,
   encodeSinkRecordString,
   gte,
@@ -37,7 +38,7 @@ import {
   PortReply,
   attributeResolverPort,
 } from "@qadi/core";
-import type { AuthSubject, SinkRecordNotEncodable, Trace } from "@qadi/core";
+import type { AuthSubject, SinkRecordNotEncodable, Trace, WireVersion } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
@@ -782,5 +783,38 @@ describe("one record cannot end the feed", () => {
       assert.strictEqual(logs[0]?.annotations["qadi.refusal"], "Opaque");
       assert.strictEqual(logs[0]?.annotations["qadi.path"], "resource.tags");
       assert.strictEqual(logs[0]?.annotations["evaluationId"], "refused");
+    }));
+});
+
+/**
+ * The version each frame is written as (ADR-QD-903): the default unless the
+ * route says otherwise. The obligation record's bytes are short enough to pin
+ * whole, in both versions.
+ */
+describe("decisionFrames writes the wire version it is given", () => {
+  const record = new ObligationRecord({ evaluationId: "g", at: 1, outcome: "Discharged", obligationIds: ["audit.log"] });
+  const V1 = '{"_tag":"Obligations","evaluationId":"g","at":1,"outcome":"Discharged","obligationIds":["audit.log"]}';
+  const V2 = '{"_tag":"Obligations","version":2,"evaluationId":"g","at":1,"outcome":"Discharged","obligationIds":["audit.log"]}';
+  const framedAs = (wireVersion: WireVersion | undefined) =>
+    Effect.map(
+      Stream.runCollect(decisionFrames(Stream.make(record), wireVersion === undefined ? undefined : { wireVersion })),
+      (frames) => Array.from(frames),
+    );
+
+  it.effect("wireVersion 2 frames version-2 bytes", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* framedAs(2), [`data: ${V2}\n\n`]);
+    }));
+
+  it.effect("wireVersion 1 frames version-1 bytes", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* framedAs(1), [`data: ${V1}\n\n`]);
+    }));
+
+  it.effect("with no wireVersion, the frame is DEFAULT_WIRE_VERSION's bytes, the same frame as `frame`", () =>
+    Effect.gen(function* () {
+      const framed = yield* framedAs(undefined);
+      assert.deepStrictEqual(framed, [`data: ${DEFAULT_WIRE_VERSION === 1 ? V1 : V2}\n\n`]);
+      assert.deepStrictEqual(framed, [Result.getOrUndefined(frame(record))]);
     }));
 });
