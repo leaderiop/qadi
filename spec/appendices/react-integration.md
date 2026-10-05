@@ -179,7 +179,7 @@ is hidden. When the difference matters, read the decision.
 ## 5. Read the whole decision
 
 ```tsx
-import { permits, useDecision } from "@qadi/react";
+import { currentDecision, permits, useDecision } from "@qadi/react";
 import { hasPermission, permission } from "@qadi/core";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 
@@ -188,20 +188,25 @@ const canEditDoc = hasPermission(permission("doc", "write"));
 export const EditPanel = () => {
   const result = useDecision(canEditDoc);
 
-  if (AsyncResult.isInitial(result)) return <span>Checking…</span>;
+  // `currentDecision` first: a result being re-checked still holds the old
+  // answer, and this is the read that refuses it.
+  const decision = currentDecision(result);
+  if (decision !== undefined) {
+    // `permits`, not `isAllowed`: while a server-rendered page's seed stands in
+    // for this client's own answer, the value is a `SeededAllow`/`SeededDeny` —
+    // a projection of the server's decision, not an evaluation — and `permits`
+    // is the one verdict read that accepts every case.
+    return permits(decision) ? <Editor /> : <span>Read only</span>;
+  }
 
   // A failure is not a denial. An unreachable attribute store means we do not
   // know, and saying "you may not" would send the user — and whoever they
   // complain to — after the wrong problem entirely.
-  if (AsyncResult.isFailure(result)) {
+  if (AsyncResult.isFailure(result) && !result.waiting) {
     return <span>Could not check your permissions. Try again.</span>;
   }
 
-  // `permits`, not `isAllowed`: while a server-rendered page's seed stands in for
-  // this client's own answer, the value is a `SeededAllow`/`SeededDeny` — a
-  // projection of the server's decision, not an evaluation — and `permits` is the
-  // one verdict read that accepts every case.
-  return permits(result.value) ? <Editor /> : <span>Read only</span>;
+  return <span>Checking…</span>;
 };
 
 const Editor = () => <textarea />;

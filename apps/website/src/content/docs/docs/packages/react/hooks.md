@@ -40,7 +40,7 @@ and failed. That is safe for hiding a control and useless for explaining why
 it is hidden; reach for `useDecision` when the difference matters.
 
 ```tsx
-import { permits, useCan, useDecision } from "@qadi/react";
+import { currentDecision, permits, useCan, useDecision } from "@qadi/react";
 import { hasPermission, permission } from "@qadi/core";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 
@@ -53,15 +53,22 @@ export const useEditable = (): boolean => useCan(canEditDoc);
 export const EditPanel = () => {
   const result = useDecision(canEditDoc);
 
-  if (AsyncResult.isInitial(result)) return <span>Checking…</span>;
-  if (AsyncResult.isFailure(result)) {
+  // `currentDecision` first: a result being re-checked still holds the old
+  // answer, and this is the read that refuses it.
+  const decision = currentDecision(result);
+  if (decision !== undefined) {
+    // `permits`, not `isAllowed`: the value is a `ClientDecision`, which is this
+    // client's own evaluation or, on a server-rendered page's first frames, the
+    // server's seed.
+    return permits(decision) ? <textarea /> : <span>Read only</span>;
+  }
+
+  // A failure is not a denial.
+  if (AsyncResult.isFailure(result) && !result.waiting) {
     return <span>Could not check your permissions. Try again.</span>;
   }
 
-  // `permits`, not `isAllowed`: the value is a `ClientDecision`, which is this
-  // client's own evaluation or, on a server-rendered page's first frames, the
-  // server's seed.
-  return permits(result.value) ? <textarea /> : <span>Read only</span>;
+  return <span>Checking…</span>;
 };
 ```
 

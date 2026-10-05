@@ -33,6 +33,7 @@ import {
   dehydrateDecisions,
   hydrateDecisions,
   makeQadiAtoms,
+  permits,
   useDecision,
   useDecisionSuspense,
   useInvalidate,
@@ -593,5 +594,143 @@ describe("through a provider, as an application reads it", () => {
     await waitFor(() => expect(screen.getByTestId("verdict").textContent).toBe("Deny"));
     // … and the disagreement is announced exactly once (BEH-QD-152).
     expect(seen).toEqual([{ seeded: "SeededAllow", decided: "Deny" }]);
+  });
+});
+
+/**
+ * The guide's "read the whole decision" example (`react-integration.md` §5, and
+ * the website's `hooks.md`), driven through the states a re-check passes through.
+ *
+ * Both documents are compiled by a merge gate, which proves the example calls
+ * real signatures and nothing about what it renders. What it rendered was the
+ * editor while an allow was being re-checked: `Success, waiting: true` is neither
+ * `Initial` nor `Failure`, so the old ladder fell through to the previous verdict
+ * (ARCH-14 C5). The component below is the one the documents now carry.
+ */
+describe("the guide's read-the-whole-decision example", () => {
+  const canEditDoc = hasAttribute("standing", eq(literal("good")));
+
+  /** What the resolver answers with, once released: a value, or an outage. */
+  type Answer = Effect.Effect<string | undefined, AttributeResolveError>;
+
+  const controlledAtoms = () => {
+    const parked: { release: ((answer: Answer) => void) | undefined } = { release: undefined };
+    const atoms = makeQadiAtoms(
+      Layer.mergeAll(
+        Layer.succeed(AttributeResolver, {
+          resolve: (_id: unknown, attribute: string) =>
+            attribute === "standing"
+              ? Effect.flatten(
+                  Effect.promise(
+                    () => new Promise<Answer>((resolve) => (parked.release = resolve)),
+                  ),
+                )
+              : Effect.succeed(undefined),
+        }),
+        RelationshipResolverNever,
+        DecisionHistoryUnknown,
+        EvaluationIdLive,
+        CustomPredicateNone,
+        SignatureHistoryNone,
+        decisionCacheLayer(),
+      ),
+    );
+    /** Answers the parked lookup, then forgets it so the next one can be awaited. */
+    const answer = async (value: Answer) => {
+      await waitFor(() => expect(parked.release).toBeDefined());
+      const release = parked.release;
+      parked.release = undefined;
+      act(() => release?.(value));
+    };
+    return { atoms, answer };
+  };
+
+  const Editor = () => <textarea data-testid="editor" />;
+
+  const EditPanel = () => {
+    const result = useDecision(canEditDoc);
+
+    // `currentDecision` first: a result being re-checked still holds the old
+    // answer, and this is the read that refuses it.
+    const decision = currentDecision(result);
+    if (decision !== undefined) {
+      // `permits`, not `isAllowed`: while a server-rendered page's seed stands in
+      // for this client's own answer, the value is a `SeededAllow`/`SeededDeny` —
+      // a projection of the server's decision, not an evaluation — and `permits`
+      // is the one verdict read that accepts every case.
+      return permits(decision) ? <Editor /> : <span>Read only</span>;
+    }
+
+    // A failure is not a denial. An unreachable attribute store means we do not
+    // know, and saying "you may not" would send the user — and whoever they
+    // complain to — after the wrong problem entirely.
+    if (AsyncResult.isFailure(result) && !result.waiting) {
+      return <span>Could not check your permissions. Try again.</span>;
+    }
+
+    return <span>Checking…</span>;
+  };
+
+  const Invalidate = () => {
+    const invalidate = useInvalidate();
+    return <button type="button" data-testid="invalidate" onClick={invalidate} />;
+  };
+
+  const mount = (atoms: ReturnType<typeof makeQadiAtoms>) =>
+    render(
+      <QadiProvider atoms={atoms} subject={reader}>
+        <EditPanel />
+        <Invalidate />
+      </QadiProvider>,
+    );
+
+  const invalidate = () =>
+    act(() => {
+      screen.getByTestId("invalidate").click();
+    });
+
+  it("does not show the editor while an allow is being re-checked (ADR-QD-017)", async () => {
+    const { atoms, answer } = controlledAtoms();
+    mount(atoms);
+
+    await answer(Effect.succeed("good"));
+    await waitFor(() => expect(screen.getByTestId("editor")).toBeDefined());
+
+    invalidate();
+    // The re-check is parked: the previous allow is still in the result, marked
+    // `waiting`, and it is not an answer.
+    await waitFor(() => expect(screen.getByText("Checking…")).toBeDefined());
+    expect(screen.queryByTestId("editor")).toBeNull();
+
+    await answer(Effect.succeed("suspended"));
+    await waitFor(() => expect(screen.getByText("Read only")).toBeDefined());
+    expect(screen.queryByTestId("editor")).toBeNull();
+  });
+
+  it("shows 'could not check', never the editor, when a re-check after an allow fails", async () => {
+    const { atoms, answer } = controlledAtoms();
+    mount(atoms);
+
+    await answer(Effect.succeed("good"));
+    await waitFor(() => expect(screen.getByTestId("editor")).toBeDefined());
+
+    invalidate();
+    await waitFor(() => expect(screen.getByText("Checking…")).toBeDefined());
+    expect(screen.queryByTestId("editor")).toBeNull();
+
+    // `Failure` with the old allow kept as its `previousSuccess`, and not waiting.
+    await answer(Effect.fail(new AttributeResolveError({ attribute: "standing", cause: "down" })));
+    await waitFor(() =>
+      expect(screen.getByText("Could not check your permissions. Try again.")).toBeDefined(),
+    );
+    expect(screen.queryByTestId("editor")).toBeNull();
+
+    // And a re-check after that failure is checking again, not still failed.
+    invalidate();
+    await waitFor(() => expect(screen.getByText("Checking…")).toBeDefined());
+    expect(screen.queryByTestId("editor")).toBeNull();
+
+    await answer(Effect.succeed("good"));
+    await waitFor(() => expect(screen.getByTestId("editor")).toBeDefined());
   });
 });
