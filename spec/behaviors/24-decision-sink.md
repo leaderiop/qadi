@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-24                                    |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-903, CCR-QD-904)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-902, CCR-QD-903)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.7 (2026-10-05): ARCH-11 — BEH-QD-185 rewritten for `makeDecisionLog` (one positive-integer bound; `decisionSinkRing` removed); BEH-QD-187's example is a log and a forwarder; BEH-QD-188 requires an ingested record to reach live readers; BEH-QD-906 (a reader sees each retained record once, across backlog and live) added (ADR-QD-904, CCR-QD-905)<br>1.6 (2026-10-05): BEH-QD-187 — `send` receives wire version 2; receivers upgrade before senders (ADR-QD-903, CCR-QD-904)<br>1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-902, CCR-QD-903)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 _Previous: [23 — HTTP Enforcement](./23-http.md)_
 
@@ -181,40 +181,109 @@ the outcome is a closed two-tag union rather than an optional decision beside an
 optional error: exactly one is always present, and a shape permitting both or
 neither would push a "cannot happen" branch onto every consumer.
 
-## BEH-QD-185: The record ring is bounded by default
+## BEH-QD-185: A decision log is bounded by default, with one bound
 
 ```ts
-export const decisionSinkRing: (options: {
+export const DEFAULT_LOG_CAPACITY: 500;
+export const makeDecisionLog: (options: {
   readonly environment: string;
   readonly capacity?: number;
-}) => { layer: Layer<DecisionSink>; snapshot: Effect<ReadonlyArray<StoredRecord>>; clear: Effect<void> };
+}) => Effect<DecisionLog>;
+export interface DecisionLog {
+  readonly environment: string;
+  readonly capacity: number;
+  readonly layer: Layer<DecisionSink>;
+  readonly ingest: (record: SinkRecord, environment?: string) => Effect<void>;
+  readonly snapshot: Effect<ReadonlyArray<StoredRecord>>;
+  readonly clear: Effect<void>;
+  readonly read: Effect<DecisionLogRead, never, Scope>;
+  readonly readEntries: (after?: LogCursor) => Effect<DecisionLogEntries, never, Scope>;
+}
 ```
 
 ```
-REQUIREMENT: `decisionSinkRing` MUST be bounded by default, and MUST reject a
-             capacity that is not a non-negative integer.
+REQUIREMENT: A decision log MUST be bounded by default, by one `capacity` that
+             bounds both the retained backlog and how far a live reader may
+             lag, and MUST reject a capacity that is not a positive integer.
 ```
 
 Bounded by default, **unlike `decisionCacheLayer`**, and the asymmetry is the
 point: a cache is normally scoped to one request and dies with it, while a record
 log exists to be read later and so is long-lived by nature. An unbounded default
-would be a memory leak in every application that wired one. Oldest records are
-dropped first.
+would be a memory leak in every application that wired one. The oldest
+**arrival** is dropped first; `snapshot` and a reader's backlog are presented in
+`storedRecordOrder`.
 
-A capacity that is negative makes the drop condition unsatisfiable and a `NaN`
-one makes it always false — silently unbounding a log that was asked to be
-bounded — so both are rejected at construction, as
+**One bound, not two.** The ring and the feed this replaced each had their own
+(500 and 256 by default), kept "in step" by a comment that agreed on the
+direction of eviction and not on the number — so which bound a reader met
+depended on whether a row came through the backlog or the live stream. Devtools'
+`DEFAULT_TIMELINE_CAPACITY` is now defined as `DEFAULT_LOG_CAPACITY`, not a
+literal kept equal to it.
+
+**Zero is refused.** The same number sizes the live buffer, and a zero-capacity
+`PubSub` accepts nothing, so a log of zero would be a sink that silently keeps and
+streams nothing. A negative capacity makes eviction's exit condition
+unsatisfiable and a `NaN` one makes it always false — silently unbounding a log
+that was asked to be bounded — so all are rejected at construction, as
 [BEH-QD-166](./21-decision-cache.md) requires of the cache.
 
 ```
-REQUIREMENT: `environment` MUST be required.
+REQUIREMENT: `environment` MUST be required, and stated nowhere else.
 ```
 
 A merged server/client timeline whose rows are unlabelled is the thing a
 cross-environment record log most exists to prevent, and a default would let that
-happen silently. It is a plain `string`, not a closed union, because nothing
-branches on it: it is a label a reader sees, not an input a decision is computed
-from. Closed unions are reserved here for values that decide something.
+happen silently. It is stated once, at the producer: a reader takes it off each
+record, and over SSE off each frame
+([BEH-QD-907](./26-decision-stream.md#beh-qd-907-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)).
+It is a plain `string`, not a closed union, because nothing branches on it: it is
+a label a reader sees, not an input a decision is computed from. Closed unions
+are reserved here for values that decide something.
+
+The log is still one **implementation** of the write-only port
+([BEH-QD-181](#beh-qd-181-the-sink-is-optional-and-write-only)): `layer` provides
+`DecisionSink`, and the readable surface belongs to the log, never to the port
+([ADR-QD-904](../decisions/904-a-decision-log-is-a-sink-and-its-own-history.md)).
+
+> **Rewritten in CCR-QD-905 (ARCH-11).** This requirement described
+> `decisionSinkRing`, removed with `decisionSinkFeed` when one decision log
+> replaced both. The superseded text:
+>
+> ## BEH-QD-185: The record ring is bounded by default
+>
+> ```ts
+> export const decisionSinkRing: (options: {
+>   readonly environment: string;
+>   readonly capacity?: number;
+> }) => { layer: Layer<DecisionSink>; snapshot: Effect<ReadonlyArray<StoredRecord>>; clear: Effect<void> };
+> ```
+>
+> ```
+> REQUIREMENT: `decisionSinkRing` MUST be bounded by default, and MUST reject a
+>              capacity that is not a non-negative integer.
+> ```
+>
+> Bounded by default, **unlike `decisionCacheLayer`**, and the asymmetry is the
+> point: a cache is normally scoped to one request and dies with it, while a record
+> log exists to be read later and so is long-lived by nature. An unbounded default
+> would be a memory leak in every application that wired one. Oldest records are
+> dropped first.
+>
+> A capacity that is negative makes the drop condition unsatisfiable and a `NaN`
+> one makes it always false — silently unbounding a log that was asked to be
+> bounded — so both are rejected at construction, as
+> [BEH-QD-166](./21-decision-cache.md) requires of the cache.
+>
+> ```
+> REQUIREMENT: `environment` MUST be required.
+> ```
+>
+> A merged server/client timeline whose rows are unlabelled is the thing a
+> cross-environment record log most exists to prevent, and a default would let that
+> happen silently. It is a plain `string`, not a closed union, because nothing
+> branches on it: it is a label a reader sees, not an input a decision is computed
+> from. Closed unions are reserved here for values that decide something.
 
 ## BEH-QD-186: An evaluation id may be supplied
 
@@ -293,10 +362,10 @@ refusal names its reason and its path, and `send` only ever sees a value that
 versioned reads only version 1, so every receiver upgrades before the sender
 ([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
 
-The in-process ring answers "what did *this* process decide", and three of the
-six deployments Qadi runs in cannot be served by that: a replicated server has
-n rings and a reader reaches whichever one answered, a serverless function's ring
-dies with the invocation, and a browser talking to a separate API origin has two
+The in-process decision log answers "what did *this* process decide", and three
+of the six deployments Qadi runs in cannot be served by that: a replicated server
+has n logs and a reader reaches whichever one answered, a serverless function's
+log dies with the invocation, and a browser talking to a separate API origin has two
 processes of which one has no page.
 
 **The topology is a choice of sink, not a change to the evaluator**
@@ -327,7 +396,9 @@ REQUIREMENT: `decisionSinkAll` MUST write to every sink given, in order.
 
 Merging two `Layer`s for one service does **not** do this — the later simply
 wins, and the first sink silently sees nothing. A server with devtools wants a
-local ring *and* a forwarder, so the fan-out is explicit. Sequential, because
+local decision log *and* a forwarder, so the fan-out is explicit. (A log is no
+longer paired with a feed this way: one log is both
+([BEH-QD-906](#beh-qd-906-a-reader-sees-each-retained-record-once-across-backlog-and-live)).) Sequential, because
 these run inside the evaluation and a sink that would benefit from concurrency is
 one already violating the rule above.
 
@@ -338,16 +409,23 @@ readonly ingest: (record: SinkRecord, environment?: string) => Effect<void>;
 ```
 
 ```
-REQUIREMENT: `ingest` MUST stamp the environment it is given, not the ring's own.
+REQUIREMENT: `ingest` MUST stamp the environment it is given, not the log's own.
+REQUIREMENT: An ingested record MUST reach every live reader of the log, as well
+             as its backlog.
 ```
+
+> **Amended in CCR-QD-905 (ARCH-11).** The first requirement said "not the
+> ring's own". The second is new: the ring an aggregator ingested into reached
+> no live reader, so an `Edge` record could not reach a devtools dock by any
+> path (C10).
 
 The receiving half of forwarding: a replica forwards, an aggregator ingests, and
 one merged timeline exists somewhere a reader can actually reach.
 
-`environment` is a parameter rather than the ring's own field precisely because a
+`environment` is a parameter rather than the log's own field precisely because a
 merged log holds rows from several processes — stamping them all with the
 aggregator's label would erase the one distinction the merge exists to preserve.
-It falls back to the ring's label for a caller ingesting its own records.
+It falls back to the log's label for a caller ingesting its own records.
 
 ```
 REQUIREMENT: An ingested record MUST respect `capacity` like any other.
@@ -355,6 +433,47 @@ REQUIREMENT: An ingested record MUST respect `capacity` like any other.
 
 An aggregator taking records from n replicas is where an unbounded log would hurt
 most, so there is one bound and one eviction path for both routes in.
+
+
+## BEH-QD-906: A reader sees each retained record once, across backlog and live
+
+> **Invariant:** [INV-QD-906](../invariants.md#inv-qd-906-a-log-reader-sees-every-retained-record-exactly-once)
+
+```ts
+export interface DecisionLogRead {
+  readonly backlog: ReadonlyArray<StoredRecord>;
+  readonly live: Stream<StoredRecord>;
+}
+readonly read: Effect<DecisionLogRead, never, Scope>;
+```
+
+```
+REQUIREMENT: A `read` MUST hand over, together, every record the log retained
+             when it was taken (`backlog`) and every record appended after
+             (`live`), with no record lost between the two and none in both.
+REQUIREMENT: `backlog` MUST be presented in `storedRecordOrder`; eviction MUST
+             be by arrival.
+REQUIREMENT: The guarantee MUST hold whatever other fibers record, ingest or
+             read concurrently.
+```
+
+A host used to assemble this from two modules — read a ring's snapshot, then
+subscribe to a feed — and lost every record made between the two under the
+feed's default, or repeated its replay window otherwise (ARCH-11 C9). Neither
+outcome was something a host could fix from outside: the handoff needs a
+sequence number shared by the backlog and the stream. The log keeps it, and the
+order of two steps is the whole mechanism — it appends before it publishes, and
+a reader subscribes before it snapshots — so a record that lands between a
+reader's subscription and its snapshot is in the snapshot and filtered out of the
+live half by the snapshot's high-water mark.
+
+A `DecisionLog` is a devtools `Source` as it is
+([BEH-QD-203](./27-devtools-timeline.md)), and `/__decisions` serves the same
+`read` per connection
+([BEH-QD-907](./26-decision-stream.md#beh-qd-907-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)).
+Exactly-once is per read: across several sources, or a reconnect, the timeline's
+identity rule still absorbs a repeat
+([INV-QD-039](../invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival)).
 
 ---
 

@@ -109,9 +109,9 @@ having verified one.
 | [21 — Decision Cache](./behaviors/21-decision-cache.md) | BEH-QD-161–168 |
 | [22 — The Promise Facade](./behaviors/22-promise-facade.md) | BEH-QD-169–173 |
 | [23 — HTTP Enforcement](./behaviors/23-http.md) | BEH-QD-174–180 |
-| [24 — The Decision Sink](./behaviors/24-decision-sink.md) | BEH-QD-181–188 |
+| [24 — The Decision Sink](./behaviors/24-decision-sink.md) | BEH-QD-181–188, BEH-QD-906 |
 | [25 — Inspection](./behaviors/25-inspection.md) | BEH-QD-189–200 |
-| [26 — The Decision Stream](./behaviors/26-decision-stream.md) | BEH-QD-201–202 |
+| [26 — The Decision Stream](./behaviors/26-decision-stream.md) | BEH-QD-201–202, BEH-QD-904, BEH-QD-907–909 |
 | [27 — The Devtools Timeline](./behaviors/27-devtools-timeline.md) | BEH-QD-203–210, BEH-QD-235 |
 | [28 — The Devtools Screens](./behaviors/28-devtools-screens.md) | BEH-QD-211–218, BEH-QD-233–234 |
 | [29 — The Subject Simulator](./behaviors/29-devtools-simulator.md) | BEH-QD-219–226 |

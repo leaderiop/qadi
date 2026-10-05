@@ -298,3 +298,7 @@ entries:
     file: "903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md"
     title: "The record wire is versioned, its outcome is exclusive, and its envelope tolerates unknown keys"
     status: "Accepted — amends ADR-QD-002, ADR-QD-056, ADR-QD-060"
+  - id: "ADR-QD-904"
+    file: "904-a-decision-log-is-a-sink-and-its-own-history.md"
+    title: "A decision log is a sink and its own history"
+    status: "Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050"

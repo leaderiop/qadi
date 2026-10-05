@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-047                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.1 (2026-10-05): `Source` is one scoped `read`; a `DecisionLog` is a source as is; `sourceFromFeed` removed (ADR-QD-904) (CCR-QD-905)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 ---
 
@@ -113,3 +113,14 @@ package no test covered.
   had to learn to read a package's `exports` map; before that it assumed
   `src/index.ts` was the only one, and the dock's exports would have been
   invisible to `scripts/check-api-surface.mjs`, gate 13.
+
+## Amendment (2026-10-05, CCR-QD-905)
+
+**`Source` is one scoped `read`.** It was `{ backlog?: Effect<…>; live: Stream<…> }`,
+two fields a consumer ran one after the other — and a record made between them was
+lost. It is `{ read: Effect<SourceRead, never, Scope> }` now, `SourceRead` keeping
+the absent-versus-empty `backlog?` this ADR's model relies on. A `DecisionLog`
+satisfies it as is, so `sourceFromFeed` is removed rather than replaced, and
+`sourceFromEventSource` reads the server's prelude as its backlog and each
+record's environment off the wire. The headless/React split is unchanged
+([ADR-QD-904](./904-a-decision-log-is-a-sink-and-its-own-history.md)).

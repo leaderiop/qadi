@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-905)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -237,8 +237,8 @@ REQUIREMENT: No time-to-live may be offered.
 
 There is none: the bound is `capacity`, evicted by insertion order rather than
 by age. A TTL control would imply a cache design the library does not have. The
-cache card must also not be confused with the record log — `decisionSinkRing`
-has its own `clear`.
+cache card must also not be confused with the record log — a decision log has
+its own `clear`.
 
 ## BEH-QD-217: The React panel is keyed by question
 

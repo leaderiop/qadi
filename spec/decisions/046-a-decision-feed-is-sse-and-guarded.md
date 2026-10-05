@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-046                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-10-05): one record can never end the feed; a refused record is reported (ADR-QD-902) (CCR-QD-903)<br>1.1 (2026-09-07): `decisionStreamRoute` gains an optional `reauth` — periodic re-extraction of the subject and re-evaluation of the policy against an open connection, closing the window a connect-time-only check leaves for a principal revoked after connecting; documented here and in BEH-QD-202, having shipped in code (`DecisionStreamOptions`, `reauthCheck`) without either being updated (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.3 (2026-10-05): the stream serves a decision log: a backlog prelude, a `synced` marker, an environment-carrying envelope and an optional `Last-Event-ID` resume (ADR-QD-904) (CCR-QD-905)<br>1.2 (2026-10-05): one record can never end the feed; a refused record is reported (ADR-QD-902) (CCR-QD-903)<br>1.1 (2026-09-07): `decisionStreamRoute` gains an optional `reauth` — periodic re-extraction of the subject and re-evaluation of the policy against an open connection, closing the window a connect-time-only check leaves for a principal revoked after connecting; documented here and in BEH-QD-202, having shipped in code (`DecisionStreamOptions`, `reauthCheck`) without either being updated (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 ---
 
@@ -108,3 +108,19 @@ own frame and is reported, through `DecisionStreamOptions.onRefused` or a warnin
 naming the refusal, its path and the evaluation
 ([ADR-QD-902](./902-sinkcodec-owns-both-directions.md),
 [BEH-QD-904](../behaviors/26-decision-stream.md#beh-qd-904-one-record-never-ends-the-feed-and-a-refused-one-is-reported)).
+
+## Amendment (2026-10-05, CCR-QD-905)
+
+**A minimal protocol of ours now exists**, and "no protocol of ours" above is no
+longer literally true. `decisionStreamRoute` takes a decision log
+(`DecisionLogReader`) rather than a feed's stream, and per connection makes one
+`read`: the backlog as `event: backlog` frames, one `event: synced` frame
+(`{"backlog":n}`), then live `message` frames. Every record frame's data is the
+stored-record envelope `{ environment, record }`, so a reader states no label and
+an `Edge` record an aggregator ingested arrives labelled `Edge`; every record
+frame's SSE `id` is its log cursor, and a reconnect's `Last-Event-ID` from the
+same log epoch is sent only what it missed. `decisionBacklogRoute` serves the
+backlog as JSON at `/__decisions/backlog`, guarded the same way. SSE, the guard,
+the absence of an environment-variable gate and `reauth` are unchanged
+([ADR-QD-904](./904-a-decision-log-is-a-sink-and-its-own-history.md),
+[BEH-QD-907](../behaviors/26-decision-stream.md#beh-qd-907-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)–[BEH-QD-909](../behaviors/26-decision-stream.md#beh-qd-909-a-reconnect-resumes-where-it-left-off)).

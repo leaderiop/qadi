@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-045                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-05): `send` receives a verified `SinkRecordJson`; an encode refusal reaches `onFailure`, never `send` (ADR-QD-902) (CCR-QD-903)<br>1.0 (2026-08-24): Initial release (CCR-QD-064) |
+> | Change History | 1.2 (2026-10-05): the ring + feed pairing recipe is gone; one decision log is the in-process sink, and the topology statement stands (ADR-QD-904) (CCR-QD-905)<br>1.1 (2026-10-05): `send` receives a verified `SinkRecordJson`; an encode refusal reaches `onFailure`, never `send` (ADR-QD-902) (CCR-QD-903)<br>1.0 (2026-08-24): Initial release (CCR-QD-064) |
 
 ---
 
@@ -110,3 +110,15 @@ deployment shape is choosing a sink, never editing the evaluator.
 send failure's. An encode refusal is not a delivery failure, and was reported as
 one ([ADR-QD-902](./902-sinkcodec-owns-both-directions.md)). The seam is
 unchanged: core still ships no transport.
+
+## Amendment (2026-10-05, CCR-QD-905)
+
+**"Ring + forwarder via `decisionSinkAll`" is no longer how an in-process reader
+is served.** `decisionSinkRing` and `decisionSinkFeed` are removed; one decision
+log ([ADR-QD-904](./904-a-decision-log-is-a-sink-and-its-own-history.md)) is the
+sink, the backlog and the live stream, and its `ingest` — the receiving half of
+forwarding — reaches live readers too. Where this ADR says "ring", read "decision
+log". `decisionSinkAll` stays, for a log beside a forwarder. The decision itself
+stands: the topology is still a choice of sink, the port is still write-only, and
+the log is one implementation of it that also happens to be readable — exactly
+what this ADR said reading back would be.

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-27                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-903, CCR-QD-904)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-904, CCR-QD-905)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-903, CCR-QD-904)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -29,11 +29,21 @@ headless model at `@qadi/devtools`, and the React dock at
 ## BEH-QD-203: A source is what the devtools reads, never a transport
 
 ```ts
-export interface Source {
-  readonly backlog?: Effect<ReadonlyArray<StoredRecord>>;
+export interface SourceRead {
+  readonly backlog?: ReadonlyArray<StoredRecord>;
   readonly live: Stream<StoredRecord>;
 }
+export interface Source {
+  readonly read: Effect<SourceRead, never, Scope>;
+}
 ```
+
+> **Amended in CCR-QD-905 (ARCH-11).** `Source` was `{ backlog?: Effect<…>;
+> live: Stream<…> }`: two fields a consumer ran one after the other, so a record
+> made between them was lost, and nothing stopped a consumer running `live`
+> without `backlog`. It is one scoped `read` now, which hands both over together;
+> a `DecisionLog` satisfies it as is
+> ([BEH-QD-906](./24-decision-sink.md#beh-qd-906-a-reader-sees-each-retained-record-once-across-backlog-and-live)).
 
 ```
 REQUIREMENT: Every screen MUST consume a `Source`, and no screen may know what
@@ -43,28 +53,42 @@ REQUIREMENT: Every screen MUST consume a `Source`, and no screen may know what
 The mirror image of the write-only `DecisionSink`
 ([BEH-QD-181](./24-decision-sink.md)): core knows nothing about transports
 because the port cannot be read, and the devtools knows nothing about them
-because a `Source` is the only shape it consumes. `sourceFromRecords`,
-`sourceFromFeed` and `sourceFromEventSource` are the three that exist; a fourth
-costs no change anywhere else.
+because a `Source` is the only shape it consumes. `sourceFromRecords`, a
+`DecisionLog` passed as is, and `sourceFromEventSource` are the three that exist;
+a fourth costs no change anywhere else. (`sourceFromFeed` was the third until
+ARCH-11 removed it with the feed.)
 
 ```
-REQUIREMENT: `backlog` MUST be absent when the sink cannot answer for the past,
-             and MUST NOT default to an empty array.
+REQUIREMENT: `SourceRead.backlog` MUST be absent when the source cannot answer
+             for the past, and MUST NOT default to an empty array.
 ```
 
-Two different facts. Absent is "this sink has no history to give" — true of a
-bare `decisionSinkFeed` — while an empty array is "it has, and there is none". A
+Two different facts. Absent is "this source has no history to give" — true of
+an SSE server older than the prelude, or one that sent none within
+`syncTimeout` — while an empty array is "it has, and there is none" (a `synced`
+frame after no `backlog` frames). A
 reader can say *no history available* for the first and *no decisions yet* for
 the second, and a defaulted empty array would make the first unsayable.
 
 ```
-REQUIREMENT: The environment MUST be stamped by the source, not read off a
-             record.
+REQUIREMENT: The environment MUST be stamped once, by the producing log, and
+             carried on the wire; a reader MUST NOT state it, and stamps only a
+             legacy frame, with the label it was given for that purpose.
 ```
 
-Core deliberately does not claim one, because it cannot know whether it is in a
-browser, on a server or at an edge ([BEH-QD-182](./24-decision-sink.md)). The
-adapter does, and applies it at the same boundary `decisionSinkRing` does.
+Core's evaluator deliberately does not claim one, because it cannot know whether
+it is in a browser, on a server or at an edge ([BEH-QD-182](./24-decision-sink.md)).
+The process that makes the log does, and says so once
+([BEH-QD-185](./24-decision-sink.md)); `/__decisions` carries it in each frame's
+envelope ([BEH-QD-907](./26-decision-stream.md#beh-qd-907-the-backlog-travels-on-the-stream-and-every-frame-names-its-producer)),
+and `sourceFromEventSource` reads it from there. Only a bare record from a server
+older than the envelope is stamped by the reader, with `legacyEnvironment`.
+
+> **Superseded in CCR-QD-905 (ARCH-11).** The requirement read: "The environment
+> MUST be stamped by the source, not read off a record." It made the reader's
+> label win for every live row and the sink's for every backlog row, with
+> nothing checking the two agreed — and an `Edge` record could only ever be shown
+> with the reader's label.
 
 ## BEH-QD-235: Several sources are one source
 
@@ -84,24 +108,26 @@ during the render and a browser re-checking after it
 that row saying *pairs shown*, and [BEH-QD-207](#beh-qd-207-rows-are-paired-by-evaluation-and-roles-come-from-time)
 can only pair what reached one `Timeline`.
 
-It was unreachable through the public API. `decisionSinkRing.ingest` accepts a
-record from elsewhere, but a ring answers for the past and not for the future, so
-a **second live stream** had nowhere to go. The three constructors each produce
-one `Source` and `useTimeline` consumes one; nothing joined them.
+It was unreachable through the public API: a ring's `ingest` accepted a record
+from elsewhere, but a ring answered for the past and not for the future, so a
+**second live stream** had nowhere to go, and each constructor produced one
+`Source` while `useTimeline` consumes one. Each part is read once, in the merged
+read's scope, so each keeps its own atomic handoff.
 
 ```
-REQUIREMENT: The merged `backlog` MUST be absent when every input's is absent.
+REQUIREMENT: The merged `SourceRead.backlog` MUST be absent when every input's
+             is absent.
 ```
 
 The direct consequence of [BEH-QD-203](#beh-qd-203-a-source-is-what-the-devtools-reads-never-a-transport)'s
 second requirement, and the reason this function is not a one-liner. Absent means
 *cannot answer for the past*; empty means *can, and there was nothing*. Merging
-two bare feeds and answering `[]` would report a history as checked and empty
+two live-only sources and answering `[]` would report a history as checked and empty
 when none could be checked at all — the exact distinction that requirement exists
 to preserve, destroyed by the operation meant to combine them.
 
 ```
-REQUIREMENT: A merged backlog MUST be ordered by time.
+REQUIREMENT: A merged backlog MUST be ordered by `storedRecordOrder`.
 ```
 
 The reader is one chronological table and two processes interleave. Ordering by
@@ -112,8 +138,8 @@ either happened, which is the one arrangement that makes a pair unreadable.
 REQUIREMENT: `mergeSources` MUST NOT deduplicate.
 ```
 
-Duplicates are expected: a feed built with `replay` re-delivers, and `EventSource`
-reconnects on its own. The timeline already folds by evaluation id
+Duplicates are expected across sources: `EventSource` reconnects on its own and
+reads the server's backlog again, and two sources may carry one record. The timeline already folds by evaluation id
 ([BEH-QD-205](#beh-qd-205-one-timeline-ordered-unique-and-joined)), so doing it
 here as well would be two places to be wrong — and the one that silently hid a
 replay would be the one nobody was looking at.
@@ -141,8 +167,11 @@ far side that disagrees about the wire form — and a reader who cannot tell the
 apart debugs the wrong one. `"too-deep"` became its own reason when the sender
 started refusing to emit such a record (ARCH-09): a current `@qadi/core` never
 sends one, so the fix is upgrading the sender, not the reader. The reason comes
-from `@qadi/core`'s `decodeSinkRecordString`, the one inbound operation, mapped
-from its closed `DecodeRefusal`. `"unsupported-version"` is a server newer than
+from `@qadi/core`'s `decodeStoredRecordString` — the envelope read, then
+`decodeSinkRecord` on its `record` — mapped from its closed `DecodeRefusal`. A
+bare record with no `legacyEnvironment` is `"not-a-record"`, and so is every
+frame a panel older than the envelope reads from a newer server: loud, not
+silently mislabelled. `"unsupported-version"` is a server newer than
 this panel, writing a wire version its `@qadi/core` does not read
 ([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)):
 the fix is upgrading the panel, which is exactly what `"not-a-record"` would
@@ -164,7 +193,9 @@ REQUIREMENT: Entries MUST be ordered by `at`, under a total order.
 `at` comes off a `Clock` in whichever process made the decision and a merge
 interleaves several, so it can be any number a caller's clock produced —
 including `NaN` from a hand-built or hostile record. An unknown time sorts after
-every known one and two unknowns keep arrival order. A comparator that left a
+every known one and two unknowns keep arrival order: core's `storedRecordOrder`,
+the one order a stored record is read in
+([INV-QD-039](../invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival)). A comparator that left a
 pair unordered would let the view rearrange itself between renders for no
 visible reason.
 
@@ -198,8 +229,10 @@ REQUIREMENT: Capacity MUST be a non-negative integer, and the oldest entry goes
              first.
 ```
 
-Agreeing with `decisionSinkRing` in both respects, so a reader sees one eviction
-policy rather than two.
+The default is `DEFAULT_LOG_CAPACITY` itself (`DEFAULT_TIMELINE_CAPACITY` is
+defined as it), and the oldest goes first as a decision log evicts, so a reader
+sees one eviction policy and one number rather than two. Non-negative rather than
+positive, unlike the log's: a view of zero is coherent, a buffer of zero is not.
 
 ## BEH-QD-206: Four verdict classes, and ERROR is one of them
 
@@ -402,8 +435,8 @@ REQUIREMENT: `clear` MUST empty the view only.
 ```
 
 It does not reach back to any sink's own log. A devtools panel emptying a
-server's record buffer is a surprising amount of authority for a button, and
-`decisionSinkRing` has its own `clear` for callers who mean that.
+server's record buffer is a surprising amount of authority for a button, and a
+decision log has its own `clear` for callers who mean that.
 
 ```
 REQUIREMENT: Pausing MUST freeze the view without stopping the recording.
