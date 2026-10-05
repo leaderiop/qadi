@@ -14,6 +14,14 @@
  *    server that sends none";
  * 3. a default (`message`) frame per record made after that.
  *
+ * **Every `backlog` and `message` frame has an SSE `id`**, the record's
+ * `LogCursor` as `<epoch>.<seq>`; `synced` has none, so the last id a reader saw
+ * is always a record's. A reconnecting `EventSource` sends it back as
+ * `Last-Event-ID`, and when it names this log's epoch the prelude holds only
+ * what followed it — a reconnect costs what was missed, not the whole backlog
+ * again. An unparseable header, or another epoch's (a restarted process), gets
+ * the full backlog.
+ *
  * Every `backlog` and `message` frame's data is a stored-record envelope,
  * `{ environment, record }` (`@qadi/core`'s `encodeStoredRecordString`): the
  * producer's label travels with the record, so a reader never states it
@@ -69,6 +77,7 @@
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
+import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
@@ -79,6 +88,8 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type {
   DecisionLogReader,
   EnforcementErrorClass,
+  LogCursor,
+  LogEntry,
   Permission,
   Policy,
   Resource,
@@ -86,7 +97,14 @@ import type {
   StandingEvaluationServices,
   StoredRecord,
 } from "@qadi/core";
-import { assert, classifyEnforcementError, CurrentSubject, encodeStoredRecordString } from "@qadi/core";
+import {
+  assert,
+  classifyEnforcementError,
+  CurrentSubject,
+  encodeStoredRecordString,
+  formatLogCursor,
+  parseLogCursor,
+} from "@qadi/core";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { NO_RESOURCE } from "./RequirePermission.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
@@ -110,7 +128,8 @@ export type DecisionStreamSynced = typeof DecisionStreamSynced.Type;
 
 /**
  * One stored record as an SSE frame of the given event — `event: backlog` /
- * `data: <envelope>`, or `data: <envelope>` alone for `message` — produced by
+ * `data: <envelope>`, or `data: <envelope>` alone for `message`, with an `id:`
+ * line when a cursor is given (ARCH-11 D-11-g) — produced by
  * `effect/encoding/Sse`'s own `encoder.write` rather than a hand-built template
  * string (H6, ADR-QD-072). That is the same encoder `HttpApiBuilder`'s
  * `HttpApiSchema.StreamSse` machinery calls internally; the machinery itself is
@@ -133,9 +152,15 @@ export type DecisionStreamSynced = typeof DecisionStreamSynced.Type;
  * directly against a plain record.
  */
 export const frame =
-  (event: DecisionFrameEvent): Filter.Filter<StoredRecord, string, SinkRecordNotEncodable> => (stored) =>
+  (event: DecisionFrameEvent, cursor?: LogCursor): Filter.Filter<StoredRecord, string, SinkRecordNotEncodable> =>
+  (stored) =>
     Result.map(encodeStoredRecordString(stored), (data) =>
-      Sse.encoder.write({ _tag: "Event", event, id: undefined, data }),
+      Sse.encoder.write({
+        _tag: "Event",
+        event,
+        id: cursor === undefined ? undefined : formatLogCursor(cursor),
+        data,
+      }),
     );
 
 /** The `synced` frame: the backlog is over, and how many frames it was. */
@@ -172,8 +197,9 @@ const reportRefused = Effect.fn("qadi.http.decisionStream.refused")(function* (
 });
 
 /**
- * One read of a decision log as SSE frames: each backlog record as a `backlog`
- * frame, then {@link syncedFrame}, then each live record as a `message` frame.
+ * One read of a decision log as SSE frames: each backlog entry as a `backlog`
+ * frame, then {@link syncedFrame}, then each live entry as a `message` frame,
+ * every record frame carrying its entry's cursor as its SSE `id`.
  * A refused record is reported (`onRefused`, else a warning) and dropped, so
  * one record never ends the stream; the `synced` count is the backlog frames
  * actually sent.
@@ -184,21 +210,21 @@ const reportRefused = Effect.fn("qadi.http.decisionStream.refused")(function* (
  */
 export const decisionFrames = (
   read: {
-    readonly backlog: ReadonlyArray<StoredRecord>;
-    readonly live: Stream.Stream<StoredRecord>;
+    readonly backlog: ReadonlyArray<LogEntry>;
+    readonly live: Stream.Stream<LogEntry>;
   },
   options?: Pick<DecisionStreamOptions, "onRefused">,
 ): Stream.Stream<string> => {
   const onRefused = options?.onRefused;
   const framed =
     (event: DecisionFrameEvent) =>
-    (stored: StoredRecord): Effect.Effect<Result.Result<string, SinkRecordNotEncodable>> =>
-      Result.match(frame(event)(stored), {
+    (entry: LogEntry): Effect.Effect<Result.Result<string, SinkRecordNotEncodable>> =>
+      Result.match(frame(event, entry.cursor)(entry.record), {
         onSuccess: (data) => Effect.succeed(Result.succeed(data)),
         onFailure: (refusal) => reportRefused(refusal, onRefused),
       });
   const prelude: Effect.Effect<ReadonlyArray<string>> = Effect.map(
-    Effect.forEach(read.backlog, (stored) => framed("backlog")(stored)),
+    Effect.forEach(read.backlog, (entry) => framed("backlog")(entry)),
     (results) => results.flatMap((result) => (Result.isSuccess(result) ? [result.success] : [])),
   );
   return Stream.unwrap(
@@ -375,11 +401,16 @@ export const decisionStreamRoute = <P extends Permission>(
       // `Stream.encodeText` — UTF-8 bytes, the same final step
       // `HttpApiBuilder`'s own `encodeSseStream` ends with — rather than each
       // frame carrying its own `TextEncoder.encode` call.
+      // A reconnecting `EventSource` names the last record it received; a
+      // header that is not one of this log's cursors is no cursor at all.
+      const after = Option.getOrUndefined(
+        Option.flatMap(Option.fromNullishOr(request.headers["last-event-id"]), parseLogCursor),
+      );
       // `Stream.unwrap` gives the read the response stream's scope: the
       // subscription opens when the body is first pulled and closes with it.
-      const frames = Stream.unwrap(Effect.map(log.read, (read) => decisionFrames(read, options))).pipe(
-        Stream.encodeText,
-      );
+      const frames = Stream.unwrap(
+        Effect.map(log.readEntries(after), (read) => decisionFrames(read, options)),
+      ).pipe(Stream.encodeText);
       // `Stream.mergeEffect`: the recheck loop runs concurrently for the
       // stream's lifetime, fails the whole stream the moment it fails,
       // and is itself interrupted the moment the stream ends for any

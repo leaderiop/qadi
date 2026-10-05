@@ -29,8 +29,10 @@
  * writes a sink that forwards somewhere durable (`@qadi/audit`).
  */
 import * as Chunk from "effect/Chunk";
+import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
@@ -68,6 +70,55 @@ export interface DecisionLogRead {
    */
   readonly live: Stream.Stream<StoredRecord>;
 }
+
+/**
+ * Where one record sits in one log: the log's epoch and the record's sequence
+ * number in it.
+ *
+ * The epoch is the `Clock` time the log was made (ADR-QD-012: read from
+ * `Clock`, so a `TestClock` fixes it), which makes a restarted process's
+ * sequence numbers unambiguous — a cursor from a log that no longer exists
+ * names a different epoch and is not mistaken for a position in this one. It
+ * is what `/__decisions` sends as each frame's SSE `id`, and what a
+ * reconnecting `EventSource` sends back as `Last-Event-ID`.
+ */
+export interface LogCursor {
+  readonly epoch: number;
+  readonly seq: number;
+}
+
+/** One retained record and where it sits in its log. */
+export interface LogEntry {
+  readonly cursor: LogCursor;
+  readonly record: StoredRecord;
+}
+
+/** What one `readEntries` hands a reader: `read`'s halves, each record with its cursor. */
+export interface DecisionLogEntries {
+  readonly backlog: ReadonlyArray<LogEntry>;
+  readonly live: Stream.Stream<LogEntry>;
+}
+
+/** A cursor as text: `<epoch>.<seq>`, both non-negative integers. */
+export const formatLogCursor = (cursor: LogCursor): string => `${cursor.epoch}.${cursor.seq}`;
+
+const CURSOR = /^(\d+)\.(\d+)$/;
+
+/**
+ * A cursor from text, or `None` when the text is not exactly `<epoch>.<seq>`.
+ *
+ * Strict, because the text is a request header a client controls: anything
+ * else — a sign, an exponent, a fraction, an integer past
+ * `Number.MAX_SAFE_INTEGER`, a third segment — is not a cursor, and a reader
+ * that sent one gets the full backlog rather than a guess.
+ */
+export const parseLogCursor = (text: string): Option.Option<LogCursor> => {
+  const match = CURSOR.exec(text);
+  if (match === null) return Option.none();
+  const epoch = Number(match[1]);
+  const seq = Number(match[2]);
+  return Number.isSafeInteger(epoch) && Number.isSafeInteger(seq) ? Option.some({ epoch, seq }) : Option.none();
+};
 
 export interface DecisionLog {
   /**
@@ -108,24 +159,30 @@ export interface DecisionLog {
    * the scope does.
    */
   readonly read: Effect.Effect<DecisionLogRead, never, Scope.Scope>;
+  /**
+   * `read`, with each record's cursor — and, given a cursor from this log, only
+   * what followed it.
+   *
+   * A reconnecting reader passes the cursor of the last record it received, so
+   * it is sent only what it missed rather than the whole backlog again. A
+   * cursor from another epoch (another log, or this process before a restart)
+   * says nothing about this log, so the backlog is whole. `read` is this
+   * without a cursor, mapped to records: there is one implementation.
+   */
+  readonly readEntries: (after?: LogCursor) => Effect.Effect<DecisionLogEntries, never, Scope.Scope>;
 }
 
 /**
  * The part of a log a reader needs. `decisionStreamRoute` takes this, so a test
  * passes a structural fake and a route cannot write to the log it serves.
  */
-export type DecisionLogReader = Pick<DecisionLog, "read">;
+export type DecisionLogReader = Pick<DecisionLog, "read" | "readEntries">;
 
-/** One retained record and the sequence number that orders its arrival. */
-interface Entry {
-  readonly seq: number;
-  readonly stored: StoredRecord;
-}
+/** Entries in `storedRecordOrder` of their records: how a backlog is presented. */
+const byRecord = (a: LogEntry, b: LogEntry) => storedRecordOrder(a.record, b.record);
 
-const presented = (entries: Chunk.Chunk<Entry>): ReadonlyArray<StoredRecord> =>
-  Chunk.toReadonlyArray(entries)
-    .map((entry) => entry.stored)
-    .sort(storedRecordOrder);
+const presented = (entries: Chunk.Chunk<LogEntry>): ReadonlyArray<LogEntry> =>
+  Chunk.toReadonlyArray(entries).toSorted(byRecord);
 
 /**
  * A log's half died: reported, and the other half still runs (INV-QD-035).
@@ -173,7 +230,11 @@ export const makeDecisionLog = (options: {
     );
   }
 
-  return Effect.map(PubSub.sliding<Entry>({ capacity }), (pubsub) => {
+  return Effect.gen(function* () {
+    // Read once, here: a log's epoch is when it was made (ADR-QD-012). The
+    // record path itself reads no clock.
+    const epoch = yield* Clock.currentTimeMillis;
+    const pubsub = yield* PubSub.sliding<LogEntry>({ capacity });
     // A `Chunk`, not an `Array`: this drops from the head on every append once
     // full, and `Array.prototype.shift` re-indexes every remaining element.
     //
@@ -182,12 +243,12 @@ export const makeDecisionLog = (options: {
     // mid-callback, so a reassignment inside `Effect.sync` is exactly as atomic
     // as `Ref.modify`. That is what lets `append` number and retain a record in
     // one step, and `read` take its snapshot and high-water mark in another.
-    let entries: Chunk.Chunk<Entry> = Chunk.empty();
+    let entries: Chunk.Chunk<LogEntry> = Chunk.empty();
     let seq = 0;
 
-    const append = (record: SinkRecord, environment: string): Entry => {
+    const append = (record: SinkRecord, environment: string): LogEntry => {
       seq += 1;
-      const entry: Entry = { seq, stored: stampRecord(record, environment) };
+      const entry: LogEntry = { cursor: { epoch, seq }, record: stampRecord(record, environment) };
       entries = Chunk.append(entries, entry);
       if (Chunk.size(entries) > capacity) entries = Chunk.drop(entries, 1);
       return entry;
@@ -220,6 +281,24 @@ export const makeDecisionLog = (options: {
         isolate("append"),
       );
 
+    const readEntries = (after?: LogCursor): Effect.Effect<DecisionLogEntries, never, Scope.Scope> =>
+      Effect.gen(function* () {
+        // Subscribe, **then** snapshot. Every record appended after this point
+        // is published after it too, so it reaches this subscription; every
+        // record appended before the snapshot is in it. `seq` at the snapshot
+        // is the line between the two: nothing at or below it may arrive live.
+        const subscription = yield* PubSub.subscribe(pubsub);
+        const { retained, highWater } = yield* Effect.sync(() => ({ retained: presented(entries), highWater: seq }));
+        // A cursor from this epoch has already seen everything at or below it.
+        const resumeAfter = after !== undefined && after.epoch === epoch ? after.seq : 0;
+        return {
+          backlog: retained.filter((entry) => entry.cursor.seq > resumeAfter),
+          live: Stream.fromSubscription(subscription).pipe(
+            Stream.filter((entry) => entry.cursor.seq > highWater),
+          ),
+        };
+      });
+
     return {
       environment: options.environment,
       capacity,
@@ -227,28 +306,15 @@ export const makeDecisionLog = (options: {
         record: (record) => accept(record, options.environment),
       }),
       ingest: (record, environment) => accept(record, environment ?? options.environment),
-      snapshot: Effect.sync(() => presented(entries)),
+      snapshot: Effect.sync(() => presented(entries).map((entry) => entry.record)),
       clear: Effect.sync(() => {
         entries = Chunk.empty();
       }),
-      read: Effect.gen(function* () {
-        // Subscribe, **then** snapshot. Every record appended after this point
-        // is published after it too, so it reaches this subscription; every
-        // record appended before the snapshot is in it. `seq` at the snapshot
-        // is the line between the two: nothing at or below it may arrive live.
-        const subscription = yield* PubSub.subscribe(pubsub);
-        const { backlog, highWater } = yield* Effect.sync(() => ({
-          backlog: presented(entries),
-          highWater: seq,
-        }));
-        return {
-          backlog,
-          live: Stream.fromSubscription(subscription).pipe(
-            Stream.filter((entry) => entry.seq > highWater),
-            Stream.map((entry) => entry.stored),
-          ),
-        };
-      }),
+      read: Effect.map(readEntries(), ({ backlog, live }) => ({
+        backlog: backlog.map((entry) => entry.record),
+        live: Stream.map(live, (entry) => entry.record),
+      })),
+      readEntries,
     };
   });
 };

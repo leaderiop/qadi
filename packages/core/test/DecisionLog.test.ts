@@ -21,9 +21,10 @@ import * as Latch from "effect/Latch";
 import * as Option from "effect/Option";
 import * as Scheduler from "effect/Scheduler";
 import * as Stream from "effect/Stream";
+import * as TestClock from "effect/testing/TestClock";
 import * as FastCheck from "fast-check";
 import { isAllowed } from "../src/Decision.ts";
-import { DEFAULT_LOG_CAPACITY, makeDecisionLog } from "../src/DecisionLog.ts";
+import { DEFAULT_LOG_CAPACITY, formatLogCursor, makeDecisionLog, parseLogCursor } from "../src/DecisionLog.ts";
 import type { DecisionLog } from "../src/DecisionLog.ts";
 import { ObligationRecord, StoredDecisionRecord, StoredObligationRecord } from "../src/DecisionRecord.ts";
 import type { StoredRecord } from "../src/DecisionRecord.ts";
@@ -434,4 +435,85 @@ describe("makeDecisionLog — a sink cannot change a decision (INV-QD-035)", () 
       assert.strictEqual(withLog._tag, without._tag);
       assert.deepStrictEqual(withLog.trace, without.trace);
     }).pipe(Effect.provide(testLayer(allowed))));
+});
+
+describe("makeDecisionLog — cursors and resume (D-11-g)", () => {
+  const seqs = (entries: ReadonlyArray<{ readonly cursor: { readonly seq: number } }>) =>
+    entries.map((entry) => entry.cursor.seq);
+
+  it.effect("the epoch is the clock's, read once when the log is made", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(1_700_000_000_000);
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      yield* TestClock.adjust("1 hour");
+      yield* log.ingest(obligations("a"));
+
+      const { backlog } = yield* Effect.scoped(log.readEntries());
+      assert.deepStrictEqual(backlog.map((entry) => entry.cursor), [{ epoch: 1_700_000_000_000, seq: 1 }]);
+    }));
+
+  it.effect("every entry carries its cursor, backlog and live, in arrival order", () =>
+    Effect.gen(function* () {
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      yield* log.ingest(obligations("a"));
+      yield* log.ingest(obligations("b"));
+
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const { backlog, live } = yield* log.readEntries();
+          yield* log.ingest(obligations("c"));
+          const next = Array.from(yield* Stream.runCollect(Stream.take(live, 1)));
+          assert.deepStrictEqual(seqs(backlog), [1, 2]);
+          assert.deepStrictEqual(seqs(next), [3]);
+          assert.strictEqual(next[0]?.record.evaluationId, "c");
+        }),
+      );
+    }));
+
+  it.effect("a cursor from this log yields only what followed it", () =>
+    Effect.gen(function* () {
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      for (const id of ["a", "b", "c", "d"]) yield* log.ingest(obligations(id));
+      const all = yield* Effect.scoped(log.readEntries());
+      const second = all.backlog[1]?.cursor;
+      assert.isDefined(second);
+
+      const resumed = yield* Effect.scoped(log.readEntries(second));
+      assert.deepStrictEqual(resumed.backlog.map((entry) => entry.record.evaluationId), ["c", "d"]);
+
+      // Resuming from the newest record misses nothing and repeats nothing.
+      const last = all.backlog[3]?.cursor;
+      assert.deepStrictEqual((yield* Effect.scoped(log.readEntries(last))).backlog, []);
+    }));
+
+  it.effect("a cursor from another epoch yields the full backlog", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(5_000);
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      yield* log.ingest(obligations("a"));
+      yield* log.ingest(obligations("b"));
+
+      const restarted = yield* Effect.scoped(log.readEntries({ epoch: 4_000, seq: 1 }));
+      assert.deepStrictEqual(seqs(restarted.backlog), [1, 2]);
+    }));
+
+  it.effect("read is readEntries without a cursor, mapped to records", () =>
+    Effect.gen(function* () {
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      yield* log.ingest(obligations("x", 2));
+      yield* log.ingest(obligations("y", 1));
+      const records = yield* Effect.scoped(Effect.map(log.read, (r) => r.backlog));
+      const entries = yield* Effect.scoped(Effect.map(log.readEntries(), (r) => r.backlog));
+      assert.deepStrictEqual(records, entries.map((entry) => entry.record));
+      assert.deepStrictEqual(ids(records), ["y", "x"]);
+    }));
+
+  it("formats and parses a cursor, strictly", () => {
+    assert.strictEqual(formatLogCursor({ epoch: 1_700_000_000_000, seq: 42 }), "1700000000000.42");
+    assert.deepStrictEqual(parseLogCursor("1700000000000.42"), Option.some({ epoch: 1_700_000_000_000, seq: 42 }));
+    assert.deepStrictEqual(parseLogCursor("0.0"), Option.some({ epoch: 0, seq: 0 }));
+    for (const malformed of ["", "1", "1.", ".1", "1.2.3", "-1.2", "1.-2", "1e3.4", "1.5e1", " 1.2", "1.2 ", "a.b", "99999999999999999999.1"]) {
+      assert.isTrue(Option.isNone(parseLogCursor(malformed)), JSON.stringify(malformed));
+    }
+  });
 });

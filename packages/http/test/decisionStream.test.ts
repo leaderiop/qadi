@@ -149,7 +149,10 @@ const EvaluationServicesTest = EvaluationServicesNone;
 const stored = (record: SinkRecord, environment = "Server"): StoredRecord => stampRecord(record, environment);
 
 /** A reader that holds nothing and streams nothing: for routes this file only constructs. */
-const emptyReader: DecisionLogReader = { read: Effect.succeed({ backlog: [], live: Stream.empty }) };
+const emptyReader: DecisionLogReader = {
+  read: Effect.succeed({ backlog: [], live: Stream.empty }),
+  readEntries: () => Effect.succeed({ backlog: [], live: Stream.empty }),
+};
 
 /** The `data:` of a frame — the text after `data: `, up to the blank line. */
 const dataOf = (framed: string): string => framed.split("\n").find((line) => line.startsWith("data: "))?.slice(6) ?? "";
@@ -751,7 +754,7 @@ describe("one record cannot end the feed", () => {
     Effect.gen(function* () {
       const log = yield* logWith(poisoned);
       const subscriber = Effect.scoped(
-        Effect.flatMap(log.read, (read) =>
+        Effect.flatMap(log.readEntries(), (read) =>
           Stream.runCollect(
             Stream.take(decisionFrames(read, onRefused === undefined ? undefined : { onRefused }), 3),
           )),
@@ -784,7 +787,7 @@ describe("one record cannot end the feed", () => {
       }).pipe(Effect.provide(log.layer));
 
       const frames = yield* Effect.scoped(
-        Effect.flatMap(log.read, (read) =>
+        Effect.flatMap(log.readEntries(), (read) =>
           Stream.runCollect(
             Stream.take(decisionFrames(read, { onRefused: (refusal) => void refused.push(refusal) }), 3),
           )),
@@ -809,7 +812,7 @@ describe("one record cannot end the feed", () => {
       }).pipe(Effect.provide(log.layer));
 
       const frames = yield* Effect.scoped(
-        Effect.flatMap(log.read, (read) => Stream.runCollect(Stream.take(decisionFrames(read), 1))),
+        Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(decisionFrames(read), 1))),
       ).pipe(
         Effect.provide(
           Logger.layer([
@@ -841,14 +844,17 @@ describe("decisionFrames writes wire version 2", () => {
 
   it.effect("a frame's data is the record's version-2 bytes in the envelope, the same frame as `frame`", () =>
     Effect.gen(function* () {
+      const cursor = { epoch: 1_700, seq: 4 };
       const framed = Array.from(
-        yield* Stream.runCollect(decisionFrames({ backlog: [], live: Stream.make(stored(record, "Edge")) })),
+        yield* Stream.runCollect(
+          decisionFrames({ backlog: [], live: Stream.make({ cursor, record: stored(record, "Edge") }) }),
+        ),
       );
       assert.deepStrictEqual(framed, [
         `event: synced\ndata: {"backlog":0}\n\n`,
-        `data: {"environment":"Edge","record":${V2}}\n\n`,
+        `id: 1700.4\ndata: {"environment":"Edge","record":${V2}}\n\n`,
       ]);
-      assert.deepStrictEqual(framed[1], Result.getOrUndefined(frame("message")(stored(record, "Edge"))));
+      assert.deepStrictEqual(framed[1], Result.getOrUndefined(frame("message", cursor)(stored(record, "Edge"))));
     }));
 });
 
@@ -866,7 +872,7 @@ describe("the backlog travels on the stream", () => {
   const framesOf = (log: DecisionLogReader, count: number, after?: Effect.Effect<void>) =>
     Effect.scoped(
       Effect.gen(function* () {
-        const read = yield* log.read;
+        const read = yield* log.readEntries();
         if (after !== undefined) yield* after;
         return Array.from(yield* Stream.runCollect(Stream.take(decisionFrames(read), count)));
       }),
@@ -952,3 +958,88 @@ describe("the backlog travels on the stream", () => {
       assert.strictEqual(environmentOf(frames[0] ?? ""), "past@Edge");
     }));
 });
+
+/**
+ * Resume on reconnect (ARCH-11 D-11-g): every record frame carries its cursor as
+ * its SSE `id`, and a reconnect that sends one back as `Last-Event-ID` is sent
+ * only what it missed. Read through the route's own response, since the header
+ * is the route's input.
+ */
+describe("resume with Last-Event-ID", () => {
+  const obligations = (evaluationId: string, at = 1) =>
+    new ObligationRecord({ evaluationId, at, outcome: "Discharged", obligationIds: ["o"] });
+
+  /** The route's response for one connection, read up to and including `synced`. */
+  const prelude = (handler: (request: Request) => Promise<Response>, lastEventId?: string) =>
+    Effect.gen(function* () {
+      const response = yield* Effect.promise(() =>
+        handler(
+          new Request("http://localhost/__decisions", {
+            headers: lastEventId === undefined ? bearer(ALICE) : { ...bearer(ALICE), "last-event-id": lastEventId },
+          }),
+        ),
+      );
+      const body = response.body;
+      if (body === null) return assert.fail("no body");
+      const reader = body.getReader();
+      const decoder = new TextDecoder();
+      let text = "";
+      while (!text.includes("event: synced")) {
+        const chunk = yield* Effect.promise(() => reader.read());
+        if (chunk.done) break;
+        text += decoder.decode(chunk.value);
+      }
+      yield* Effect.promise(() => reader.cancel());
+      return text.split("\n\n").filter((f) => f.length > 0);
+    });
+
+  const idOf = (framed: string): string | undefined =>
+    framed.split("\n").find((line) => line.startsWith("id: "))?.slice(4);
+
+  it.effect("every backlog frame carries its cursor as its id; synced carries none", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(1_700);
+      const { log, layer } = yield* appLayer;
+      yield* log.ingest(obligations("a"));
+      yield* log.ingest(obligations("b"));
+      const frames = yield* prelude(HttpRouter.toWebHandler(layer).handler);
+
+      assert.deepStrictEqual(frames.map(idOf), ["1700.1", "1700.2", undefined]);
+    }));
+
+  it.effect("a reconnect with Last-Event-ID receives only missed records, then synced", () =>
+    Effect.gen(function* () {
+      const { log, layer } = yield* appLayer;
+      const { handler } = HttpRouter.toWebHandler(layer);
+      yield* log.ingest(obligations("seen"));
+      const first = yield* prelude(handler);
+      const lastSeen = idOf(first[0] ?? "");
+      assert.isDefined(lastSeen);
+
+      // The connection drops; two records are made while it is down.
+      yield* log.ingest(obligations("missed-1"));
+      yield* log.ingest(obligations("missed-2"));
+      const resumed = yield* prelude(handler, lastSeen);
+
+      assert.deepStrictEqual(resumed.map(eventOf), ["backlog", "backlog", "synced"]);
+      assert.deepStrictEqual(
+        resumed.slice(0, 2).map((f) => Result.getOrUndefined(Result.map(decodeStoredRecordString(dataOf(f)), (r) => r.evaluationId))),
+        ["missed-1", "missed-2"],
+      );
+      assert.strictEqual(dataOf(resumed[2] ?? ""), '{"backlog":2}');
+    }));
+
+  it.effect("a Last-Event-ID that is not this log's cursor gets the full backlog", () =>
+    Effect.gen(function* () {
+      const { log, layer } = yield* appLayer;
+      const { handler } = HttpRouter.toWebHandler(layer);
+      yield* log.ingest(obligations("a"));
+      yield* log.ingest(obligations("b"));
+
+      for (const header of ["not-a-cursor", "1.1.1", "999.1"]) {
+        const frames = yield* prelude(handler, header);
+        assert.deepStrictEqual(frames.map(eventOf), ["backlog", "backlog", "synced"], header);
+      }
+    }));
+});
+
