@@ -428,10 +428,11 @@ const isDefaultFieldStrategy = (kind: "All" | "Any", strategy: FieldStrategy): b
  * describe a difference that cannot exist.
  *
  * Two conditions must both hold before the strategy is worth a word: fewer
- * than two parts and `mergeFields` (`Evaluate.ts`) already agrees on every
- * result regardless of strategy — merging zero or one field set is the same
- * answer under `Intersection`, `Union` and `First` alike — so a single-part
- * composite's strategy is not a real difference to report. And the default
+ * than two parts and `FieldLattice.ts` already agrees on every result
+ * regardless of strategy — merging no field set is top under all three, and
+ * merging one discloses exactly it (the `singletonIsIdentity` law) under
+ * `Intersection`, `Union` and `First` alike — so a single-part composite's
+ * strategy is not a real difference to report. And the default
  * strategy needs no mention because that is what a bare "and"/"either…or" has
  * always meant; only a departure from it changes what the sentence must say
  * to keep two non-equivalent policies from rendering identically.

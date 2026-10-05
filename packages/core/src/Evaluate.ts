@@ -24,13 +24,15 @@ import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import type { CacheOutcome } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
-import type { Decision, Trace, VisibleFields } from "./Decision.ts";
-import { Allow, Deny, intersectFields } from "./Decision.ts";
+import type { Decision, Trace } from "./Decision.ts";
+import { Allow, Deny } from "./Decision.ts";
 import { Decided, DecisionRecord, Failed } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { MissingAction, MissingResource, PolicyTooDeep } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
+import type { VisibleFields } from "./FieldLattice.ts";
+import { mergeFields } from "./FieldLattice.ts";
 import { holds } from "./Compare.ts";
 import type { Matcher, MatcherContext, Verdict } from "./Matcher.ts";
 import { judgeMatcher, referencesAction, referencesResource } from "./Matcher.ts";
@@ -46,7 +48,7 @@ import {
   readAttribute,
 } from "./PortAccess.ts";
 import { DEFAULT_MAX_DEPTH, POLICY_TAGS, policyDepth } from "./Policy.ts";
-import type { FieldStrategy, Policy, Rule, RuleEffect } from "./Policy.ts";
+import type { Policy, Rule, RuleEffect } from "./Policy.ts";
 import { RelationshipResolver } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
 import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
@@ -362,71 +364,6 @@ const attributeReason = (
   verdict: Exclude<Verdict, "Held">,
   matcher: Matcher,
 ): string => `${side} attribute '${attribute}' ${DENIAL_TEXT[verdict](matcher)}`;
-
-/**
- * Merges a composite's children's visible-field sets per its `FieldStrategy`.
- *
- * The one direction a strategy bug must never fail in is widening: merging
- * must never grant a field no child granted. `Intersection`/`Union`/`First`'s
- * algebra is stated where each policy builder documents its default
- * (`Policy.ts`) and in `spec/behaviors/03-policy-adt.md`; the `default: never`
- * arm below exists because that direction has failed before (ADR-QD-034).
- */
-const mergeFields = (
-  strategy: FieldStrategy,
-  sets: ReadonlyArray<VisibleFields>,
-): VisibleFields => {
-  switch (strategy) {
-    case "Intersection":
-      return sets.reduce<VisibleFields>((acc, cur) => intersectFields(acc, cur), undefined);
-    case "Union": {
-      // Absorbing on undefined: if any allowing branch grants all fields, the
-      // union grants all fields, since undefined is the top of the lattice,
-      // not the empty set.
-      //
-      // Was `sets.reduce`-shaped, folding pairwise through `unionFields` —
-      // each step spread both sides into a fresh array, wrapped that in a
-      // fresh `Set`, and spread the `Set` back out, four allocations per
-      // iteration to rebuild everything accumulated so far from scratch.
-      // Accumulating into one `Set` across a single pass and materializing
-      // the result array exactly once avoids all of that.
-      if (sets.length === 0) return undefined;
-      const merged = new Set<string>();
-      for (const set of sets) {
-        if (set === undefined) return undefined;
-        for (const field of set) merged.add(field);
-      }
-      // Sorted for the same reason `intersectFields`/`unionFields` are
-      // (`Decision.ts`): `merged`'s iteration order depends on which set
-      // happened to contribute a field first, so two allOf/anyOf trees with
-      // the same allowing children in a different order produced the same
-      // field set but different `Allow.visibleFields` bytes on the wire.
-      return [...merged].sort();
-    }
-    case "First":
-      return sets.length === 0 ? undefined : sets[0];
-    default: {
-      // Unreachable, and load-bearing for the same reason as `resolveRef`'s
-      // (`Matcher.ts`), but fixed to the OPPOSITE fallback value, because this
-      // lattice's danger direction is the opposite of `resolveRef`'s (CM-07):
-      // `const exhaustive: never = strategy` alone does NOT make `return
-      // exhaustive` return anything in particular at runtime for a hand-built,
-      // in-process `FieldStrategy` outside the known three — `never`-typing a
-      // `const` changes nothing about what it holds, so this would have
-      // returned the bogus strategy *string* itself, not "all fields" the way
-      // the comment below describes. `undefined` is this lattice's TOP
-      // (`Decision.ts`'s `VisibleFields` doc comment) — an allow that names no
-      // restriction shows every field — so returning `undefined` here would
-      // be the exact widening this comment warns against, not a safe
-      // fallback. `[]`, a present-but-empty restriction, is: it grants zero
-      // fields rather than every field, the one direction a field-strategy
-      // bug must never fail in (ADR-QD-034).
-      const exhaustive: never = strategy;
-      void exhaustive;
-      return [];
-    }
-  }
-};
 
 // ---------------------------------------------------------------------------
 // The port-reading arms. The reads themselves — question, span, metric and
@@ -925,6 +862,11 @@ const stepAnyOf = (fold: AnyOfFold, trace: Trace): Trace | undefined => {
       // depends on the order the author wrote the branches in. Accepted, and
       // stated: collecting from every branch would force exhaustive
       // evaluation and repeal INV-QD-005 for any tree carrying a duty.
+      //
+      // Returning `trace.visibleFields` *is* the merge: `!exhaustive` means
+      // `FieldLattice.ts`'s `decidedByFirst` law holds, so `merge(sets)` is
+      // `sets[0]`. Not a `mergeFields` call — that would allocate a one-element
+      // array on the hot path for the same answer.
       return allow("AnyOf", trace.visibleFields, fold.children, undefined, fold.obligations);
     }
   } else {

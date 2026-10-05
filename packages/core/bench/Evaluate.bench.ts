@@ -206,7 +206,7 @@ const missed = hasAttribute("tier", gte(3));
 /**
  * Eight `hasPermission` arms, each restricted to a distinct, overlapping field
  * set, folded under `Intersection` — the only combination that reaches
- * `mergeFields`'s `Intersection` arm and, through it, `intersectFields`'s
+ * `mergeFields`'s `Intersection` row and, through it, `intersectFields`'s
  * O(|a|·|b|) pairwise `compareFieldPaths` over eight arrays instead of the
  * single-array case `wide` above exercises with no field restriction at all.
  */
@@ -219,7 +219,7 @@ const fieldHeavy = allOf(
 
 /**
  * The same eight field-restricted arms as `fieldHeavy`, folded by an `anyOf`
- * under `Union` — the only workload that reaches `mergeFields`'s inline `Union`
+ * under `Union` — the only workload that reaches `mergeFields`'s single-pass `Union`
  * path with field sets to accumulate (`anyOfUnion` below carries no `fields`,
  * so its merge returns at the first unrestricted set). Added for ARCH-12's
  * D-12-b, which moves that path into `FieldLattice.ts`'s law table.

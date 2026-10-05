@@ -280,7 +280,7 @@ describe("explain", () => {
   });
 
   it("never mentions fieldStrategy for a single-part composite, since no strategy can differ there", () => {
-    // `mergeFields` (`Evaluate.ts`) proves any strategy over zero or one field
+    // `FieldLattice.ts`'s `mergeFields` proves any strategy over zero or one field
     // set is the same result — `Intersection`/`Union`/`First` all reduce to
     // that lone set — so a single-part composite's strategy is not a real
     // difference for the rendering to report, whatever value it carries.

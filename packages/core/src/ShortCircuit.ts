@@ -14,12 +14,15 @@
  * Only the rules that name an *outcome* live here. `allOf` stops at its first
  * denial under every strategy and needs no function to say so.
  *
- * Each rule is a `Record` over its closed union rather than a `Match`: TypeScript
- * requires every key (TS2741), so a fourth strategy is a compile error exactly as
- * `Match.exhaustive` would make it — but a hand-built, in-process value outside
- * the union (the schema is bypassed by the smart constructors) reads as the safe
- * answer instead of throwing a `MatchError` out of an authorization decision.
- * `mergeFields` carries a runtime `default` arm for the same reason.
+ * The combining rule is a `Record` over its closed union rather than a `Match`:
+ * TypeScript requires every key (TS2741), so a fourth algorithm is a compile
+ * error exactly as `Match.exhaustive` would make it — but a hand-built,
+ * in-process value outside the union (the schema is bypassed by the smart
+ * constructors) reads as the safe answer instead of throwing a `MatchError` out
+ * of an authorization decision. The field-strategy rule is not a table of this
+ * module's own any more: whether an `anyOf` may stop is a fact about the merge,
+ * so it is `FieldLattice.ts`'s `decidedByFirst` law, and this module is the
+ * adapter both interpreters read it through (ADR-QD-077, ADR-QD-092).
  *
  * Every lookup is guarded by `Object.hasOwn`. A bare `TABLE[value]` reads an
  * *inherited* member for a key `Object.prototype` supplies (`"toString"`,
@@ -32,25 +35,22 @@
  *
  * Deliberately out of the barrel (AGENTS.md §9), like `PortAccess.ts`.
  */
+import { fieldStrategyLaws } from "./FieldLattice.ts";
 import type { Combining, FieldStrategy, RuleEffect } from "./Policy.ts";
-
-const STOPS_AT_ALLOW_BY_STRATEGY: Record<FieldStrategy, boolean> = {
-  First: true,
-  Intersection: false,
-  Union: false,
-};
 
 /**
  * Whether an `anyOf` may stop at its first allowing child.
  *
  * `First` may: one allowing child already decides it (ADR-QD-013). `Union` and
  * `Intersection` may not, because they merge every allowing child's visible
- * fields and so must see them all. A value outside the union, including a key
- * `Object.prototype` supplies, reads as `false` — "must see everything", the
- * direction that sees more, never less (CCR-QD-174).
+ * fields and so must see them all. The fact is the field lattice's —
+ * `fieldStrategyLaws(strategy).decidedByFirst` — and so is the answer for a
+ * value outside the union, including a key `Object.prototype` supplies:
+ * `false`, "must see everything", the direction that sees more, never less
+ * (CCR-QD-174).
  */
 export const anyOfStopsAtAllow = (strategy: FieldStrategy): boolean =>
-  Object.hasOwn(STOPS_AT_ALLOW_BY_STRATEGY, strategy) && STOPS_AT_ALLOW_BY_STRATEGY[strategy];
+  fieldStrategyLaws(strategy).decidedByFirst;
 
 const DECISIVE_EFFECT_BY_COMBINING: Record<Combining, RuleEffect | undefined> = {
   DenyOverrides: "Deny",

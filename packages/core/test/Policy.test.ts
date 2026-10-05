@@ -446,11 +446,11 @@ describe("Policy serialization", () => {
 
   it.effect("rejects an unknown fieldStrategy value, rather than silently widening (MH-01)", () =>
     Effect.gen(function* () {
-      // `mergeFields`'s default arm (Evaluate.ts) says a fourth strategy
-      // would compile and silently merge to "all fields" — the top of the
-      // field lattice — because its return type already includes
-      // `undefined`. That claim is structural (TypeScript's `never` check);
-      // this pins the runtime half of the same guard, at the one boundary an
+      // A fourth strategy cannot compile — `FieldLattice.ts`'s law table is
+      // keyed by the closed union (TS2741), and an in-process value outside it
+      // reads the table's fail-closed row, never "all fields", the top of the
+      // field lattice. That claim is structural; this pins the runtime half of
+      // the same guard, at the one boundary an
       // unknown strategy could actually arrive through: a persisted policy
       // decoded from untrusted JSON. `FieldStrategy` is a closed
       // `Schema.Literals(["Intersection", "Union", "First"])`, so a fourth

@@ -179,6 +179,12 @@ test("resolveRef — 64 dispatches, one policy tree", async ({ bench }) => {
 // merge it selects, not dispatch alone. `intersectFields` is bound locally: a
 // cross-module call pays a module-runner getter per call under vitest bench,
 // which is not production cost and would be paid identically by all three.
+//
+// Outcome (2026-10-05, load average 7–160, ranges not figures): table ≈0.97×
+// the switch, `Match.value` ≈1.1×; end to end, six paired runs of the pre- and
+// post-move evaluators, `field-heavy` Intersection +6.2% / Union −1.0% on the
+// mean of means, medians the other way — noise. The table was taken, and the
+// switch transcribed below is now history (ADR-QD-092).
 // ---------------------------------------------------------------------------
 
 type FieldSets = ReadonlyArray<VisibleFields>;
@@ -200,7 +206,7 @@ const mergeUnion = (sets: FieldSets): VisibleFields => {
 
 const mergeFirst = (sets: FieldSets): VisibleFields => (sets.length === 0 ? undefined : sets[0]);
 
-/** Transcribed from `Evaluate.ts`'s `mergeFields`, `default` arm included. */
+/** Transcribed from `Evaluate.ts`'s former `mergeFields`, `default` arm included. */
 const mergeViaSwitch = (strategy: FieldStrategy, sets: FieldSets): VisibleFields => {
   switch (strategy) {
     case "Intersection":

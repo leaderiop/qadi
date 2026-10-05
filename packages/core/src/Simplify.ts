@@ -17,6 +17,7 @@
  * definition.
  */
 import * as Match from "effect/Match";
+import { fieldStrategyLaws } from "./FieldLattice.ts";
 import type { FieldStrategy, Policy } from "./Policy.ts";
 import { foldPolicy } from "./Policy.ts";
 
@@ -44,8 +45,13 @@ import { foldPolicy } from "./Policy.ts";
  * `allOf([allOf([], { fieldStrategy: "Union" }), x], { fieldStrategy: "Union" })`
  * grants every field, and flattening it to `x` granted only `x`'s (CCR-QD-174,
  * ARCH-12 C4). An empty child is absorbed only where top is the merge's unit
- * (`Intersection`), or under `anyOf`, where an empty child denies and so
- * contributes no field set to merge at all.
+ * — `FieldLattice.ts`'s `emptyIsUnit` law, true for `Intersection` alone — or
+ * under `anyOf`, where an empty child denies and so contributes no field set to
+ * merge at all. That last clause is a fact about the combinator, not the
+ * lattice, so it stays here. A strategy outside the union has no law that
+ * holds, and its non-empty children were never safe to absorb either: the
+ * parent merges to `[]` whatever its children are, and so does the flattened
+ * one — it is the unwrap below that the unknown strategy forbids.
  */
 const absorbable = (
   child: Policy,
@@ -54,23 +60,19 @@ const absorbable = (
 ): child is Extract<Policy, { _tag: "AllOf" | "AnyOf" }> =>
   child._tag === tag &&
   child.fieldStrategy === fieldStrategy &&
-  (tag === "AnyOf" || child.policies.length > 0 || fieldStrategy === "Intersection");
+  (tag === "AnyOf" || child.policies.length > 0 || fieldStrategyLaws(fieldStrategy).emptyIsUnit);
 
 /**
- * The strategies whose one-input merge discloses exactly that input, read
- * through `Object.hasOwn` so a key `Object.prototype` supplies is not one.
+ * Whether a one-child composite may be replaced by its child: when the merge of
+ * one input discloses exactly that input — `FieldLattice.ts`'s
+ * `singletonIsIdentity` law, true for the three known strategies.
  *
  * A strategy outside the union merges to `[]` — no fields — so replacing its
  * one-child composite with the child would widen from none to that child's
  * (CCR-QD-174, ARCH-12 C4).
  */
-const KNOWN: Readonly<Record<FieldStrategy, true>> = {
-  Intersection: true,
-  Union: true,
-  First: true,
-};
-
-const unwrappable = (fieldStrategy: FieldStrategy): boolean => Object.hasOwn(KNOWN, fieldStrategy);
+const unwrappable = (fieldStrategy: FieldStrategy): boolean =>
+  fieldStrategyLaws(fieldStrategy).singletonIsIdentity;
 
 const flatten = (
   policies: ReadonlyArray<Policy>,

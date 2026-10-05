@@ -332,20 +332,27 @@ inside them is fine.
 `Match.value(x)` rebuilds per call, which is fine for a translator invoked once
 per request and is worth avoiding on a per-node evaluation path.
 
-**Four switches remain unconverted**, and the exception is enforced rather than
+**Three switches remain unconverted**, and the exception is enforced rather than
 remembered: `scripts/check-house-style.mjs` carries a `SWITCH_BUDGET` naming each
 file and its exact count, and gate 4 fails on any deviation.
 
 | Location | Dispatches on |
 | -------- | ------------- |
 | `Evaluate.ts` — `evaluateNode` | `policy._tag` |
-| `Evaluate.ts` — `mergeFields` | the `FieldStrategy` literal union |
 | `Matcher.ts` — `judgeMatcher` | `self._tag` |
 | `Matcher.ts` — `resolveRef` | `ref._tag` |
 
-All four run once per policy node or matcher node per evaluation — and in `filter`
+All three run once per policy node or matcher node per evaluation — and in `filter`
 and `decideSubjects`, once per element on top of that — where their handlers close
 over per-call state so the matcher cannot be hoisted to module scope.
+
+`mergeFields` was the fourth, a `switch` on the `FieldStrategy` literal union.
+ARCH-12 replaced it with `FieldLattice.ts`'s own-property law table — one closed
+`Record<FieldStrategy, StrategyLaws>` row per strategy, read through `Object.hasOwn`,
+with a reachable, tested fail-closed row for a value outside the union — and measured
+first, as this section requires (ADR-QD-092): per dispatch, with the merge work each
+arm selects, the table ran at **≈0.97×** the switch and `Match.value` at **≈1.1×**,
+and the two field-heavy `Evaluate.bench.ts` workloads stayed within run-to-run noise.
 
 **Now measured** (`pnpm bench`, ADR-QD-034). At the dispatch site a `switch` is
 **1.6–2.4×** faster than a hoisted `Match` whose arms return a closure, and
@@ -389,13 +396,15 @@ The port reads in `PortAccess.ts`, and the root `evaluate`, stay
 open question this paragraph used to describe is the one §5's table closed.
 
 **Each of these switches must remain exhaustive by construction.** Two of the four
-were not, and they were the two this section had failed to declare: `resolveRef`
-returns `unknown` and `mergeFields` returns `… | undefined`, so a new tag compiled
-and returned `undefined` silently. `resolveRef` would then deny everything;
-`mergeFields` would merge to the **top** of the field lattice and *widen*
-visibility. Both now carry a `default` arm assigning the scrutinee to `never`,
+there were then were not, and they were the two this section had failed to declare:
+`resolveRef` returns `unknown` and `mergeFields` returned `… | undefined`, so a new
+tag compiled and returned `undefined` silently. `resolveRef` would then deny
+everything; `mergeFields` would merge to the **top** of the field lattice and
+*widen* visibility. Both gained a `default` arm assigning the scrutinee to `never`,
 which is free at runtime and makes a new tag the same compile error
-`Match.tagsExhaustive` gives. A switch whose return type cannot absorb `undefined`
+`Match.tagsExhaustive` gives. `resolveRef` still carries it; `mergeFields` is no
+longer a switch, and its law table makes a missing strategy a TS2741 compile error
+and an unknown one a fail-closed row instead (ADR-QD-092). A switch whose return type cannot absorb `undefined`
 — `evaluateNode` and `judgeMatcher` — already gets TS2366 and needs no guard.
 (`judgeMatcher` returns a `Verdict`; it took the switch from `evaluateMatcher`,
 now its one-line `holds(…)` adapter, in ARCH-08 — ADR-QD-091.)

@@ -7,10 +7,9 @@
  * could not be asserted on at all.
  */
 import * as Data from "effect/Data";
-import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
-import type { Containment } from "./FieldPath.ts";
-import { compareShapes, project as projectPaths, shapeOf } from "./FieldPath.ts";
+import type { VisibleFields } from "./FieldLattice.ts";
+import { project as projectPaths } from "./FieldPath.ts";
 import type { SubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
 import { POLICY_TAGS } from "./Policy.ts";
@@ -202,173 +201,12 @@ export const projectVisible = <A extends Resource>(
 };
 
 // ---------------------------------------------------------------------------
-// Field visibility lattice
+// Field visibility lattice — lives in `FieldLattice.ts` (ARCH-12, ADR-QD-092),
+// re-exported here so `@qadi/core` and `@qadi/core/Decision` keep resolving.
 // ---------------------------------------------------------------------------
 
-/**
- * A visible-field set, or the absence of one — and the absence is not
- * "nothing visible." `undefined` is this lattice's **top**: an allow that
- * names no restriction shows every field, the same way an `AllOf` with no
- * `fields` narrowing anywhere in it grants the whole record. `[]` (an empty,
- * *present* array) is a different, ordinary value — a restriction to zero
- * fields — and the two must never be confused for one another.
- *
- * Named rather than left as an inline `ReadonlyArray<string> | undefined` at
- * every one of its call sites (D8, issue #107): the invariant lived only in
- * comments repeated at each declaration, which is exactly the kind of fact a
- * reader skips past and a future edit can drift from silently, since nothing
- * checks that a comment stays attached to its field. A named alias puts the
- * same sentence in exactly one place and lets every signature below carry it
- * by reference — `intersectFields`/`unionFields`'s own bodies are the two
- * functions this invariant is load-bearing for, and both are typed against
- * this alias rather than restating the union.
- *
- * Deliberately **not** a branded type. Branding would force every caller
- * constructing or narrowing a visible-field set — `Policy.ts`'s per-node
- * `fields?` builders, `Qadi.ts`'s `project`, every fixture across this
- * workspace's tests — through an explicit `Brand.nominal`/unwrap step for a
- * union that is otherwise completely ordinary `ReadonlyArray<string> |
- * undefined` data, for no soundness gained: nothing here needs to forbid an
- * *arbitrary* array of strings from being treated as a visible-field set the
- * way, say, `SubjectId` forbids an arbitrary string from being treated as an
- * identity. The alias is scoped to `Decision.ts`'s own lattice functions and
- * the two record types whose fields flow through them (`Trace.visibleFields`,
- * `Allow.visibleFields`) — the same "field-visibility merge logic" this item
- * was scoped to — rather than swept through `Policy.ts`'s builder options,
- * `Explanation.ts`, `TraceDiff.ts`, `@qadi/react`'s `Hydration.ts` and
- * `@qadi/devtools`'s `Inspect.ts`, which describe the identical shape for a
- * related but distinct purpose (a policy-authoring input, an explanation
- * rendering, a diff, a wire payload, a devtools projection) in five other
- * files; widening the alias's reach that far is a larger, cross-package
- * rename this "softest item" of the sweep was explicitly scoped to avoid
- * forcing.
- */
-export type VisibleFields = ReadonlyArray<string> | undefined;
-
-/**
- * Which side a `Containment` result keeps, or neither.
- *
- * Built once at module scope rather than per pair: `intersectFields`'s loop
- * below runs this up to `|a|·|b|` times for a single node, and every one of
- * those pairs used to rebuild `Match.value(cmp)` — arms and all — from
- * scratch (AGENTS.md §5a favors a hoisted `Match.type` on exactly this kind
- * of per-node-or-hotter dispatch). `Match.exhaustive` still makes a future
- * `Containment` member a compile error here, same as before.
- *
- * `"Equal"` is its own answer, `"Either"`, rather than folded into `"B"`: two
- * specs that denote the same set (`"title"` and `"title.**"`) are both correct
- * to keep, and keeping the right-hand operand's text made which one survived
- * depend on argument position (ARCH-12 C5). `intersectFields` breaks the tie
- * by text instead.
- */
-type ContainmentKeep = "A" | "B" | "Either" | undefined;
-const CONTAINMENT_KEEP: (self: Containment) => ContainmentKeep = Match.type<
-  Containment
->().pipe(
-  Match.when("Equal", () => "Either" as const),
-  Match.when("BLessA", () => "B" as const),
-  Match.when("ALessB", () => "A" as const),
-  Match.when("Incomparable", () => undefined),
-  Match.exhaustive,
-);
-
-/**
- * Intersects two visible-field sets.
- *
- * `undefined` means "all fields" — the top of the lattice — so intersecting it
- * with any set yields that set.
- *
- * Pairwise via `compareFieldPaths` rather than an exact-string-set filter: a
- * field spec may be a dot-path with a `*`/`**` wildcard, and `"address.**"`
- * must intersect with `"address.street"` to `"address.street"`, not to `[]`
- * — an exact-string filter would silently deny something a caller's own
- * narrower spec already grants. Every pair with no subsumption relationship
- * contributes nothing (`Incomparable`), which is the conservative, fails-
- * closed direction.
- *
- * `shapeOf` runs once per spec, not once per pair. The comparison itself is
- * O(|a|·|b|), and `compareFieldPaths` computes both operands' `shapeOf` —
- * `split(".")` plus two array allocations — on every call; over the same
- * array pairwise-compared |b| (or |a|) times, that recomputed an identical
- * shape from scratch every time. `compareShapes` takes the already-computed
- * shape instead, so each spec's `shapeOf` is paid for exactly once here,
- * however many pairs it is compared across.
- *
- * The result is sorted before returning: `kept`'s insertion order otherwise
- * depends on which operand happens to be walked as the outer loop, so
- * `intersectFields([a,b],[c])` and `intersectFields([c],[a,b])` were equal as
- * sets but could differ as arrays — and that array becomes
- * `Allow.visibleFields`, which flows into `DecisionRecord` and the audit sink
- * wire path.
- *
- * Sorting alone did not make the output independent of operand order. Two
- * specs with the same shape (`"title"` and `"title.**"`, INV-QD-004) compare
- * `"Equal"`, and the right-hand one's text used to be kept, so swapping the
- * operands swapped the representative (ARCH-12 C5, CCR-QD-174). On `"Equal"`
- * the lexicographically smaller text is kept now, which makes the result
- * byte-for-byte commutative, and an n-ary fold byte-for-byte independent of
- * input order. The claim is exactly that — independent of order — and not
- * "canonical": when one side is `undefined` the other is returned as authored,
- * unsorted, and two policies naming one set with different text still produce
- * different bytes.
- */
-export const intersectFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
-  if (a === undefined) return b;
-  if (b === undefined) return a;
-  // Paired with its own shape rather than parallel arrays walked by index:
-  // `noUncheckedIndexedAccess` would otherwise type every lookup as possibly
-  // `undefined`, for an invariant (same length, same order) a pairing already
-  // guarantees outright.
-  const shapedA = a.map((spec) => ({ spec, shape: shapeOf(spec) }));
-  const shapedB = b.map((spec) => ({ spec, shape: shapeOf(spec) }));
-  const kept: Array<string> = [];
-  for (const specA of shapedA) {
-    for (const specB of shapedB) {
-      const cmp = compareShapes(specA.shape, specB.shape);
-      // Hoisted to a module-scope table (`CONTAINMENT_KEEP`, AGENTS.md §5a:
-      // `Match.type` builds its matcher once; `Match.value` rebuilds it per
-      // call, which this O(|a|·|b|) loop calls up to |a|·|b| times per node).
-      // `Incomparable` contributes nothing — the conservative, fails-closed
-      // direction the doc comment above describes.
-      const keep = CONTAINMENT_KEEP(cmp);
-      if (keep === "B") kept.push(specB.spec);
-      else if (keep === "A") kept.push(specA.spec);
-      else if (keep === "Either") kept.push(specA.spec < specB.spec ? specA.spec : specB.spec);
-    }
-  }
-  return [...new Set(kept)].sort();
-};
-
-/**
- * Unions two visible-field sets, preserving "all fields" as absorbing.
- *
- * No path-aware algorithm change needed here, unlike `intersectFields`:
- * applying every spec in both sides and unioning the results is correct
- * regardless of overlap — a redundant, subsumed entry (e.g. `"address.street"`
- * alongside `"address.**"`) projects identically to omitting it, so exact-set
- * union stays correct even though the strings themselves may now be paths.
- *
- * `mergeFields`'s own `Union` arm (`Evaluate.ts`) no longer folds through this
- * pairwise — it accumulates every child's set into one `Set` in a single pass,
- * which is why a repo-wide grep finds no production caller left for this
- * export. It stays exported anyway, as `intersectFields`'s two-operand
- * counterpart on the public surface (`spec/overview.md`): a caller merging
- * exactly two field sets outside the evaluator — composing two independently
- * computed decisions' visibility, say — reaches for the same combinator
- * `intersectFields` already models, not a hand-rolled `Set` union. Deleting it
- * would be a breaking change to a documented export for a combinator that is
- * still correct and still cheap at this arity; the pattern this doc comment
- * used to warn readers about was folding it pairwise across N sets, which
- * nothing in this codebase does any more.
- *
- * Sorted before returning, for the reason `intersectFields` is: insertion
- * order would otherwise depend on which operand is walked first, and that
- * order reaches `Allow.visibleFields` on the wire.
- */
-export const unionFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
-  if (a === undefined || b === undefined) return undefined;
-  return [...new Set([...a, ...b])].sort();
-};
+export { intersectFields, mergeFields, unionFields } from "./FieldLattice.ts";
+export type { VisibleFields } from "./FieldLattice.ts";
 
 // ---------------------------------------------------------------------------
 // Rendering

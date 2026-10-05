@@ -263,7 +263,7 @@ const EXEMPTIONS = {
  * dispatcher was converted to `Match` and §5a now overstates the exceptions,
  * which is a documentation change this gate should insist on rather than allow.
  *
- * The four here all dispatch once per policy node or matcher node per
+ * The three here all dispatch once per policy node or matcher node per
  * evaluation — and in `filter` and `decideSubjects`, once per element on top of
  * that — with handlers closing over per-call state, so the matcher cannot be
  * hoisted to module scope the way §5a's preferred form requires. **Now
@@ -276,9 +276,10 @@ const EXEMPTIONS = {
  * @type {Readonly<Record<string, number>>}
  */
 const SWITCH_BUDGET = {
-  // `evaluateNode` on `policy._tag`, and `mergeFields` on the `FieldStrategy`
-  // literal union — which §5a would otherwise route to `Match.value`.
-  "packages/core/src/Evaluate.ts": 2,
+  // `evaluateNode` on `policy._tag`. (`mergeFields` on the `FieldStrategy`
+  // literal union was the second until ARCH-12 replaced it with
+  // `FieldLattice.ts`'s own-property law table, measured first: ADR-QD-092.)
+  "packages/core/src/Evaluate.ts": 1,
   // `judgeMatcher` on `self._tag` (it hosted in `evaluateMatcher` until
   // ARCH-08 T8, which made `evaluateMatcher` its one-line adapter), and
   // `resolveRef` on `ref._tag`.
@@ -297,7 +298,7 @@ const SWITCH = /\bswitch\s*\(/;
  * @type {Readonly<Record<string, ReadonlyArray<string>>>}
  */
 const SWITCH_BUDGET_NAMES = {
-  "packages/core/src/Evaluate.ts": ["evaluateNode", "mergeFields"],
+  "packages/core/src/Evaluate.ts": ["evaluateNode"],
   "packages/core/src/Matcher.ts": ["judgeMatcher", "resolveRef"],
 };
 

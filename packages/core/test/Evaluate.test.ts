@@ -1097,77 +1097,13 @@ describe("field visibility", () => {
       Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
     ));
 
-  it.effect(
-    "AnyOf/Union dedupes overlapping fields across three or more allowing children",
-    () =>
-      Effect.gen(function* () {
-        // `mergeFields`'s `Union` arm accumulates into a single `Set` across
-        // every child in one pass rather than folding pairwise through
-        // `unionFields` — this exercises that with three sets, two of which
-        // overlap, so a bug that rebuilt from the wrong starting point or
-        // dropped a set partway through would either lose "b" or keep a
-        // duplicate.
-        const policy = P.anyOf(
-          [
-            P.hasPermission(read, { fields: ["a", "b"] }),
-            P.hasPermission(write, { fields: ["b", "c"] }),
-            P.hasAttribute("level", M.gte(1), { fields: ["d"] }),
-          ],
-          { fieldStrategy: "Union" },
-        );
-        const d = yield* evaluate(policy);
-        assert.strictEqual(d.trace.policyTag, "AnyOf");
-        if (d._tag !== "Allow") return;
-        assert.deepStrictEqual([...(d.visibleFields ?? [])].sort(), ["a", "b", "c", "d"]);
-      }).pipe(
-        Effect.provide(
-          testLayer(
-            subjectWith({ permissions: ["doc:read", "doc:write"], attributes: { level: 5 } }),
-          ),
-        ),
-      ),
-  );
-
-  it.effect(
-    "AnyOf/Union stays absorbing on undefined even with other sets ahead of it",
-    () =>
-      Effect.gen(function* () {
-        // `unionFields` is absorbing on `undefined` — an unrestricted allowing
-        // child means "all fields" no matter what the others grant. Proven
-        // with the unrestricted child in the middle of the list, not first or
-        // last, so a single-pass rewrite cannot short-circuit correctly by
-        // accident only for an edge position.
-        const policy = P.anyOf(
-          [
-            P.hasPermission(read, { fields: ["a"] }),
-            P.hasRole("editor"),
-            P.hasAttribute("level", M.gte(1), { fields: ["d"] }),
-          ],
-          { fieldStrategy: "Union" },
-        );
-        const d = yield* evaluate(policy);
-        if (d._tag !== "Allow") return;
-        assert.isUndefined(d.visibleFields);
-      }).pipe(
-        Effect.provide(
-          testLayer(
-            subjectWith({
-              permissions: ["doc:read"],
-              roles: ["editor"],
-              attributes: { level: 5 },
-            }),
-          ),
-        ),
-      ),
-  );
-
-  it.effect("mergeFields' default arm denies every field against an unrecognized strategy (CM-07)", () =>
+  it.effect("a strategy outside the union grants no fields (CM-07)", () =>
     Effect.gen(function* () {
-      // `mergeFields`'s `default: { const exhaustive: never = strategy; ... }`
-      // is unreachable from TS and from decoded JSON (`Schema.Literals`
-      // rejects an unknown strategy at the boundary), but reachable from a
-      // hand-built, in-process `Policy` — the same vector CM-07 raises for
-      // `resolveRef` (`Matcher.ts`). Built via `JSON.parse` rather than `as`
+      // Unreachable from TS and from decoded JSON (`Schema.Literals` rejects an
+      // unknown strategy at the boundary), but reachable from a hand-built,
+      // in-process `Policy` — the same vector CM-07 raises for `resolveRef`
+      // (`Matcher.ts`). `mergeFields` was a switch whose `default` arm this
+      // pinned; it is `FieldLattice.ts`'s fail-closed row now (ARCH-12). Built via `JSON.parse` rather than `as`
       // (AGENTS.md §6 bans type assertions, enforced in tests too, via
       // `no-type-assertion`): its `any` return needs no cast to assign into a
       // `FieldStrategy`-typed option.
@@ -1176,8 +1112,8 @@ describe("field visibility", () => {
       const d = yield* evaluate(policy);
       assert.isTrue(isAllowed(d));
       if (d._tag !== "Allow") return;
-      // `undefined` is this lattice's TOP (every field visible) — the arm
-      // must NOT fall back to it. `[]` denies every field, the fail-closed
+      // `undefined` is this lattice's TOP (every field visible) — the
+      // fail-closed row must NOT answer it. `[]` denies every field, the fail-closed
       // direction a field-strategy bug must never fail in (ADR-QD-034).
       assert.deepStrictEqual(d.visibleFields, []);
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));

@@ -55,6 +55,11 @@ export const DEFAULT_MAX_DEPTH = 64;
  * - `Intersection` — visible in *every* allowing child (least privilege)
  * - `Union` — visible in *any* allowing child; forces full evaluation
  * - `First` — the first allowing child's set; short-circuits
+ *
+ * What each value *means* — its merge, and the laws `ShortCircuit.ts` and
+ * `Simplify.ts` read — is one row of `FieldLattice.ts`'s law table, and a
+ * value outside the union (in-process only; decode rejects it) grants no
+ * fields (ADR-QD-092).
  */
 export const FieldStrategy = Schema.Literals(["Intersection", "Union", "First"]);
 export type FieldStrategy = typeof FieldStrategy.Type;

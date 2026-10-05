@@ -252,7 +252,7 @@ export const isJsonSafe = (value: unknown): boolean => {
  * compile cleanly and fall through this function's `else` branch as though it
  * were a `Decision`, silently reusing that branch's `resource`/`policy`
  * guard on a shape it was never written for. `Match.tagsExhaustive` makes a
- * new tag here the same compile error §5a's `resolveRef`/`mergeFields`
+ * new tag here the same compile error §5a's `resolveRef`
  * `never`-arm fix already gives elsewhere in this codebase, for the identical
  * reason: this is the AGENTS.md §5a house pattern, not the `SWITCH_BUDGET`'s —
  * a ternary was never a `switch` statement, so this conversion needs no

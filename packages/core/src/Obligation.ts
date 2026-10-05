@@ -53,12 +53,12 @@ export const obligation = (
 /**
  * Combines two obligation sets.
  *
- * Union, always — never intersection, and the asymmetry with `intersectFields`
- * is deliberate. An absent field set is the *top* of its lattice, so narrowing
- * discloses less and is safe; an absent obligation set is the *bottom* of this
- * one, so narrowing would let a caller discharge fewer duties than an allowing
- * branch required. That is a quiet grant, which is why there is no strategy to
- * configure here (ADR-QD-019).
+ * Union, always — never intersection, and the asymmetry with
+ * `FieldLattice.ts`'s `intersectFields` is deliberate. An absent field set is
+ * the *top* of its lattice, so narrowing discloses less and is safe; an absent
+ * obligation set is the *bottom* of this one, so narrowing would let a caller
+ * discharge fewer duties than an allowing branch required. That is a quiet
+ * grant, which is why there is no strategy to configure here (ADR-QD-019).
  *
  * Identity is the whole value rather than the `id`: the same obligation reached
  * twice through a diamond appears once, while two duties sharing an id with

@@ -48,7 +48,7 @@ export const parseFieldPath = (spec: string): ReadonlyArray<string> => spec.spli
 /**
  * A spec's shape — the concrete path leading to its terminal, and how far past
  * it the spec reaches. Exported so a caller comparing the same spec against
- * many others — `Decision.ts`'s `intersectFields`, pairwise over two whole
+ * many others — `FieldLattice.ts`'s `intersectFields`, pairwise over two whole
  * arrays — can compute each side's shape once with {@link shapeOf} and reuse
  * it across every pair via {@link compareShapes}, instead of paying
  * `parseFieldPath` + two array allocations again on every single comparison.
@@ -89,7 +89,7 @@ const isStrictPrefix = (shorter: ReadonlyArray<string>, longer: ReadonlyArray<st
   shorter.length < longer.length && shorter.every((segment, i) => segment === longer[i]);
 
 // ---------------------------------------------------------------------------
-// Comparing two specs — the fix `Decision.ts`'s `intersectFields` needs
+// Comparing two specs — the fix `FieldLattice.ts`'s `intersectFields` needs
 // ---------------------------------------------------------------------------
 
 /**
@@ -130,7 +130,7 @@ export const compareFieldPaths = (specA: string, specB: string): Containment =>
  * {@link compareFieldPaths}'s comparison, taking each side's already-computed
  * {@link SpecShape} rather than the raw spec strings.
  *
- * The split exists for `Decision.ts`'s `intersectFields`: comparing every spec
+ * The split exists for `FieldLattice.ts`'s `intersectFields`: comparing every spec
  * in one field set against every spec in another is O(|a|·|b|), and
  * `compareFieldPaths` alone would recompute `shapeOf` on both operands — a
  * `split(".")` plus two array allocations — on every single pair, most of them
