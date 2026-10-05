@@ -8,7 +8,7 @@
  * caller, and AGENTS.md §5a's exception is not worth the words it takes to
  * describe. This file supplies the denominator.
  *
- * Eight workloads, chosen because each stresses a different part of the
+ * The workloads below were chosen because each stresses a different part of the
  * evaluator rather than because they are realistic policies:
  *
  *   one node          the floor — how much of an evaluation is fixed overhead
@@ -28,6 +28,22 @@
  *                     both sites AGENTS.md names have a row here
  *   resolver miss     the port path, and the only workload that emits a
  *                     `qadi.attribute` span
+ *   anyOf First       `anyOf` of 8 whose last child allows — the anyOf fold's
+ *                     longest `First` walk (ARCH-13 T1)
+ *   anyOf Union       `anyOf` of 8 that all allow, under `Union` — the
+ *                     exhaustive anyOf path, which never stops early
+ *   rules First…      `FirstApplicable` over 8 rows, only the last applying
+ *   rules DenyOv…     `DenyOverrides` over 8 applying permits — must ask every
+ *                     row, because a later deny would win (INV-QD-017)
+ *   rules PermitOv…   `PermitOverrides` over 8 applying denies — must ask every
+ *                     row, the mirror image
+ *   deep rules        10 levels alternating `rules([permitWhen(inner)])` with
+ *                     `allOf`, the rules recursion path
+ *
+ * The last six exist because `allOf` was the only combinator measured on its
+ * own: `anyOf` appeared only inside `deep`, always `First` with two children,
+ * and `rules` not at all, so a change to either of their folds was invisible
+ * here (ARCH-13 C8).
  *
  * The layers are the deterministic ones, so nothing here measures I/O: no
  * attribute store, no relationship graph. That is deliberate — a benchmark whose
@@ -59,7 +75,18 @@ import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
 import { eq, fieldMatch, gte, literal, neq, subject, subjectId } from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
-import { allOf, anyOf, hasAttribute, hasPermission, labeled, not, obliged } from "../src/Policy.ts";
+import {
+  allOf,
+  anyOf,
+  denyWhen,
+  hasAttribute,
+  hasPermission,
+  labeled,
+  not,
+  obliged,
+  permitWhen,
+  rules,
+} from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
 import { filter } from "../src/Qadi.ts";
 import { decideSubjects } from "../src/SubjectSet.ts";
@@ -220,6 +247,56 @@ const wrapperHeavy: Policy = Array.from({ length: 10 }).reduce<Policy>(
   hasPermission(read),
 );
 
+/**
+ * `anyOf` of 8 under `First`, whose first seven children deny (`alice` holds
+ * `read`, not `write`) and whose last allows — the longest walk `First` can take
+ * before it stops, so every step of the anyOf fold runs.
+ */
+const anyOfFirst = anyOf([
+  ...Array.from({ length: 7 }, () => hasPermission(write)),
+  hasPermission(read),
+]);
+
+/**
+ * `anyOf` of 8 that all allow, under `Union` — the anyOf path that never stops
+ * early, because every allowing child widens the field set.
+ */
+const anyOfUnion = anyOf(
+  Array.from({ length: 8 }, () => hasPermission(read)),
+  { fieldStrategy: "Union" },
+);
+
+/** `FirstApplicable` over 8 rows where only the last applies — the longest first-applicable walk. */
+const rulesFirstApplicable = rules([
+  ...Array.from({ length: 7 }, () => permitWhen(hasPermission(write))),
+  permitWhen(hasPermission(read)),
+]);
+
+/**
+ * `DenyOverrides` over 8 applying permits. No row can settle the table before
+ * the last, because a later applying deny would override (INV-QD-017).
+ */
+const rulesDenyOverrides = rules(
+  Array.from({ length: 8 }, () => permitWhen(hasPermission(read))),
+  { combining: "DenyOverrides" },
+);
+
+/** `PermitOverrides` over 8 applying denies — the mirror image, which also asks every row. */
+const rulesPermitOverrides = rules(
+  Array.from({ length: 8 }, () => denyWhen(hasPermission(read))),
+  { combining: "PermitOverrides" },
+);
+
+/**
+ * Ten levels alternating a one-row `rules` table with an `allOf`, so the rules
+ * dispatcher's recursion is measured the way `deep` measures `allOf`/`anyOf`'s.
+ */
+const deepRules: Policy = Array.from({ length: 10 }).reduce<Policy>(
+  (inner, _, index) =>
+    index % 2 === 0 ? rules([permitWhen(inner)]) : allOf([inner, hasPermission(read)]),
+  hasPermission(read),
+);
+
 const items = Array.from({ length: 500 }, (_, index) => ({
   id: `doc-${index}`,
   ownerId: index % 2 === 0 ? "alice" : "bob",
@@ -243,26 +320,26 @@ test("evaluate", async ({ bench }) => {
     bench("resolver miss — one port call", () => {
       resolvingRuntime.runSync(evaluate(missed));
     }),
+    bench("anyOf First — 8, last allows", () => run(anyOfFirst)),
+    bench("anyOf Union — 8", () => run(anyOfUnion)),
+    bench("rules FirstApplicable — 8, last applies", () => run(rulesFirstApplicable)),
+    bench("rules DenyOverrides — 8 permits", () => run(rulesDenyOverrides)),
+    bench("rules PermitOverrides — 8 denies", () => run(rulesPermitOverrides)),
+    bench("deep rules — 10 nested", () => run(deepRules)),
     options,
   );
 });
 
 test("filter — 500 items", async ({ bench }) => {
-  await bench.compare(
-    bench("hasPermission", () => {
-      runtime.runSync(filter(one, items));
-    }),
-    options,
-  );
+  await bench("hasPermission", () => {
+    runtime.runSync(filter(one, items));
+  }).run(options);
 });
 
 test("decideSubjects — 500 subjects", async ({ bench }) => {
-  await bench.compare(
-    bench("hasPermission", () => {
-      runtime.runSync(decideSubjects(one, subjects));
-    }),
-    options,
-  );
+  await bench("hasPermission", () => {
+    runtime.runSync(decideSubjects(one, subjects));
+  }).run(options);
 });
 
 /**
@@ -310,6 +387,31 @@ test("evaluate — wide, concurrency", async ({ bench }) => {
     bench("sequential (default)", () => run(wide)),
     bench("concurrency: unbounded", () => {
       runtime.runSync(evaluate(wide, { concurrency: "unbounded" }));
+    }),
+    options,
+  );
+});
+
+/**
+ * The same comparison for the other two combinators, so each of the three
+ * concurrent branches — which ADR-QD-026 requires to fold in declaration order
+ * — is measured, not only `allOf`'s (ARCH-13 T1).
+ */
+test("evaluate — anyOf Union 8, concurrency", async ({ bench }) => {
+  await bench.compare(
+    bench("sequential (default)", () => run(anyOfUnion)),
+    bench("concurrency: unbounded", () => {
+      runtime.runSync(evaluate(anyOfUnion, { concurrency: "unbounded" }));
+    }),
+    options,
+  );
+});
+
+test("evaluate — rules DenyOverrides 8, concurrency", async ({ bench }) => {
+  await bench.compare(
+    bench("sequential (default)", () => run(rulesDenyOverrides)),
+    bench("concurrency: unbounded", () => {
+      runtime.runSync(evaluate(rulesDenyOverrides, { concurrency: "unbounded" }));
     }),
     options,
   );
