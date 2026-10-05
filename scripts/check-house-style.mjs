@@ -474,6 +474,9 @@ const SCHEMA_TAGGED_ERROR = /\bextends\s+Schema\.TaggedError\b/;
  * @type {Readonly<Record<string, number>>}
  */
 const PORT_DOUBLE_BUDGET = {
+  // A `Failed` record's resolver error, as one of the record shapes whose
+  // encode cost is measured (ARCH-09 T5).
+  "packages/core/bench/SinkCodec.bench.ts": 1,
   // A registered predicate's own failure, returned through the registry —
   // the value under test is what `customPredicateFromRecord` passes on.
   "packages/core/test/CustomPredicate.test.ts": 1,

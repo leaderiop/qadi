@@ -497,15 +497,16 @@ export const SinkRecordJson = Schema.toEncoded(SinkRecordWire);
 
 export type SinkRecordJson = typeof SinkRecordWire.Encoded;
 
-/** One step of a walk: an object key or array index, and the value under it. */
-type WireEntry = readonly [key: string | number, child: unknown];
-
-/** A container the walk has entered and not yet left. */
+/**
+ * A container the walk has entered and not yet left: an array's items, or an
+ * object's own enumerable string keys.
+ */
 interface WalkFrame {
   readonly container: object;
-  readonly entries: ReadonlyArray<WireEntry>;
+  readonly items: ReadonlyArray<unknown> | undefined;
+  readonly keys: ReadonlyArray<string>;
+  readonly length: number;
   readonly depth: number;
-  readonly isArray: boolean;
   index: number;
 }
 
@@ -543,10 +544,13 @@ const hasCustomToJSON = (value: object): boolean =>
 const hasEnumerableSymbolKey = (value: object): boolean =>
   Object.getOwnPropertySymbols(value).some((key) => Object.prototype.propertyIsEnumerable.call(value, key));
 
-const entriesOf = (value: object): ReadonlyArray<WireEntry> =>
-  Array.isArray(value)
-    ? Array.from(value, (child: unknown, index): WireEntry => [index, child])
-    : Object.entries(value);
+/** A plain object — `Object.prototype` or no prototype — needs no brand lookup. */
+const isPlainObject = (value: object): boolean => {
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+};
+
+const NO_KEYS: ReadonlyArray<string> = [];
 
 /**
  * The first value in an encoded record that would not survive JSON as itself,
@@ -570,10 +574,7 @@ const wireHazard = (root: unknown, maxDepth: number): EncodeRefusal | undefined 
   const onPath = new Set<object>();
   const stack: Array<WalkFrame> = [];
   const pathHere = (): WirePath =>
-    stack.flatMap((frame) => {
-      const entry = frame.entries[frame.index - 1];
-      return entry === undefined ? [] : [entry[0]];
-    });
+    stack.map((frame) => (frame.items === undefined ? (frame.keys[frame.index - 1] ?? "") : frame.index - 1));
 
   const visit = (value: unknown, depth: number, isElement: boolean): EncodeRefusal | undefined => {
     if (value === undefined) {
@@ -591,15 +592,22 @@ const wireHazard = (root: unknown, maxDepth: number): EncodeRefusal | undefined 
       return Number.isNaN(value.getTime()) ? EncodeRefusal.NonFinite({ path: pathHere() }) : undefined;
     }
     if (onPath.has(value)) return EncodeRefusal.Circular({ path: pathHere() });
-    const brand = brandOf(value);
-    if (hasCustomToJSON(value)) return EncodeRefusal.Opaque({ path: pathHere(), kind: "CustomToJSON", brand });
-    const isArray = Array.isArray(value);
-    if (!isArray && brand !== "Object") {
-      return EncodeRefusal.Opaque({ path: pathHere(), kind: opaqueKindOf(value, brand), brand });
+    if (Array.isArray(value)) {
+      onPath.add(value);
+      stack.push({ container: value, items: value, keys: NO_KEYS, length: value.length, depth, index: 0 });
+      return undefined;
+    }
+    if (hasCustomToJSON(value)) {
+      return EncodeRefusal.Opaque({ path: pathHere(), kind: "CustomToJSON", brand: brandOf(value) });
+    }
+    if (!isPlainObject(value)) {
+      const brand = brandOf(value);
+      if (brand !== "Object") return EncodeRefusal.Opaque({ path: pathHere(), kind: opaqueKindOf(value, brand), brand });
     }
     if (hasEnumerableSymbolKey(value)) return EncodeRefusal.Unrepresentable({ path: pathHere(), kind: "symbol" });
+    const keys = Object.keys(value);
     onPath.add(value);
-    stack.push({ container: value, entries: entriesOf(value), depth, isArray, index: 0 });
+    stack.push({ container: value, items: undefined, keys, length: keys.length, depth, index: 0 });
     return undefined;
   };
 
@@ -608,14 +616,16 @@ const wireHazard = (root: unknown, maxDepth: number): EncodeRefusal | undefined 
   while (stack.length > 0) {
     const frame = stack[stack.length - 1];
     if (frame === undefined) break;
-    const entry = frame.entries[frame.index];
-    if (entry === undefined) {
+    if (frame.index >= frame.length) {
       onPath.delete(frame.container);
       stack.pop();
       continue;
     }
+    const index = frame.index;
     frame.index += 1;
-    const refusal = visit(entry[1], frame.depth + 1, frame.isArray);
+    const child: unknown =
+      frame.items === undefined ? Reflect.get(frame.container, frame.keys[index] ?? "") : frame.items[index];
+    const refusal = visit(child, frame.depth + 1, frame.items !== undefined);
     if (refusal !== undefined) return refusal;
   }
   return undefined;
