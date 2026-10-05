@@ -30,6 +30,10 @@ test.describe("the server's decision log in the dock", () => {
     // The chief editor holds `devtools:read`, so `/__decisions` is not refused.
     await context.addCookies(as("hakim"));
     await page.goto("/edge/double-count");
+    // The dock mounts client-side after hydration. Clicking before it does
+    // only passes by winning that race; this test is about what the dock
+    // shows, so it waits for the dock, as a reader would see the page.
+    await expect(page.getByTestId("qadi-devtools")).toBeVisible();
 
     await page.click('[data-testid="edge-call"]');
     await expect(page.getByTestId("edge-result")).toContainText("forward failures 0", {

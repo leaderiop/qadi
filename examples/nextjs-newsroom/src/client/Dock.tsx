@@ -184,6 +184,12 @@ export const Dock = () => {
           </p>
         )
         : null}
+      {/* The dock is fixed to the bottom 45vh of the viewport and sits above the
+          page, so without room to scroll into, whatever a page renders in its
+          lower half is under it and cannot be clicked — `/edge/double-count`'s
+          button was, once the dock had mounted. A spacer as tall as the dock
+          lets every element scroll clear of it. */}
+      <div aria-hidden="true" style={{ height: "45vh" }} />
       <DevtoolsDock
         source={source}
         catalogue={{ policies: catalogue, roles }}
