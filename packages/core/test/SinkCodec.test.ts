@@ -480,6 +480,7 @@ describe("the wire is untrusted", () => {
         evaluationId: "e",
         at: 0,
         policy: P.hasPermission(read),
+        failed: { _tag: "MissingResource", attribute: "owner" },
       });
       assert.strictEqual(back._tag, "Decision");
       // A distinctive sentinel (PH-03), not `""`: `SubjectId` is a total,
@@ -596,7 +597,7 @@ describe("the wire's recursive positions are depth-bounded before Schema recurse
   const wireWithNestedPolicy = (depth: number): unknown => {
     let policy: unknown = { _tag: "HasRole", role: "x" };
     for (let i = 0; i < depth; i++) policy = { _tag: "Not", policy };
-    return { _tag: "Decision", evaluationId: "e", at: 0, policy };
+    return { _tag: "Decision", evaluationId: "e", at: 0, policy, failed: { _tag: "MissingResource", attribute: "owner" } };
   };
 
   // Nests a `Trace` `depth` deep through its own recursive `children` array —
@@ -698,6 +699,7 @@ describe("decodeSinkRecord rejects an excess property inside its embedded Policy
           evaluationId: "e",
           at: 0,
           policy: { _tag: "HasRole", role: "admin" },
+          failed: { _tag: "MissingResource", attribute: "owner" },
         }),
       );
       assert.strictEqual(result._tag, "Success");
@@ -1212,7 +1214,9 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
 
   describe("what the receiver keeps doing", () => {
     it("a Decision record with no subjectId still decodes to the UNKNOWN_SUBJECT sentinel", () => {
-      const back = recordOf('{"_tag":"Decision","evaluationId":"e","at":0,"policy":{"_tag":"HasRole","role":"x"}}');
+      const back = recordOf(
+        '{"_tag":"Decision","evaluationId":"e","at":0,"policy":{"_tag":"HasRole","role":"x"},"failed":{"_tag":"MissingResource","attribute":"owner"}}',
+      );
       assert.strictEqual(back._tag === "Decision" ? back.subjectId : undefined, "<unknown subject: wire version skew>");
     });
 
@@ -1248,33 +1252,22 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
       assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
     });
 
-    it("a record naming neither outcome becomes a Failed MissingResource marker (ticket 96, pinned here for ARCH-15)", () => {
-      const back = recordOf('{"_tag":"Decision","evaluationId":"e","at":0,"subjectId":"u1","policy":{"_tag":"HasRole","role":"x"}}');
-      const error = back._tag === "Decision" && back.outcome._tag === "Failed" ? back.outcome.error : undefined;
-      assert.strictEqual(error?._tag, "MissingResource");
-      if (error?._tag === "MissingResource") assert.include(error.attribute, "malformed record");
+    it("a record naming neither outcome is refused, not given an invented error (ticket 96)", () => {
+      const refusal = decodeRefusalOf(
+        '{"_tag":"Decision","evaluationId":"e","at":0,"subjectId":"u1","policy":{"_tag":"HasRole","role":"x"}}',
+      );
+      assert.strictEqual(refusal?._tag, "Malformed");
+      assert.include(refusal?._tag === "Malformed" ? refusal.message : "", "names no outcome");
     });
 
-    it("a record naming both outcomes prefers decided (ticket 155, pinned here for ARCH-15)", () => {
+    it("a record naming both outcomes is refused, not silently given one (ticket 155)", () => {
       const text = JSON.stringify({
-        _tag: "Decision",
-        evaluationId: "e",
-        at: 0,
-        subjectId: "u1",
-        policy: { _tag: "HasRole", role: "x" },
-        decided: {
-          _tag: "Deny",
-          evaluationId: "e",
-          subjectId: "u1",
-          durationMillis: 1,
-          trace: trace(false),
-          obligations: [],
-          reason: "no",
-        },
+        ...JSON.parse(V1.V1_DECIDED_DENY),
         failed: { _tag: "MissingResource", attribute: "owner" },
       });
-      const back = recordOf(text);
-      assert.strictEqual(back._tag === "Decision" ? back.outcome._tag : undefined, "Decided");
+      const refusal = decodeRefusalOf(text);
+      assert.strictEqual(refusal?._tag, "Malformed");
+      assert.include(refusal?._tag === "Malformed" ? refusal.message : "", "names both outcomes");
     });
 
     it("an Error cause comes back as an Error carrying its message", () => {

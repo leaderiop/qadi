@@ -305,15 +305,15 @@ describe("AuditEntry default decode (characterization, replaced by ARCH-15 T1/T2
   const failed = { _tag: "MissingResource", attribute: "owner" };
   const decodeRow = (record: unknown) => Effect.result(Schema.decodeUnknownEffect(AuditEntry)({ record }));
 
-  it.effect("P6a: a record naming neither outcome decodes", () =>
-    Effect.gen(function* () {
-      assert.isTrue(Result.isSuccess(yield* decodeRow(envelope)));
-    }));
+  it("a row whose record names neither outcome is refused by decodeAuditEntry (ticket 96)", () => {
+    const result = decodeAuditEntry({ record: envelope });
+    assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", "names no outcome");
+  });
 
-  it.effect("P6b: a record naming both outcomes decodes", () =>
-    Effect.gen(function* () {
-      assert.isTrue(Result.isSuccess(yield* decodeRow({ ...envelope, decided, failed })));
-    }));
+  it("a row whose record names both outcomes is refused by decodeAuditEntry (ticket 155)", () => {
+    const result = decodeAuditEntry({ record: { ...envelope, decided, failed } });
+    assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", "names both outcomes");
+  });
 
   it.effect("P6e: a typo inside the embedded policy decodes, with the typo silently dropped", () =>
     Effect.gen(function* () {

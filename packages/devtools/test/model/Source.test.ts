@@ -327,10 +327,12 @@ describe("sourceFromEventSource", () => {
       }),
   );
 
-  // E1.3 — the one malformation the codec tolerates rather than rejects.
-  it.effect("a Decision frame with no outcome arrives as Failed, never as a verdict", () =>
+  // E1.3 — a record naming no outcome is not a record: dropped as malformed,
+  // never rebuilt as a verdict or as an invented error (tickets 96, 155).
+  it.effect("a Decision frame with no outcome is dropped as not-a-record, never rebuilt", () =>
     Effect.gen(function* () {
       const fake = fakeEventSource();
+      const reported: Array<readonly [string, MalformedReason]> = [];
       const frame = JSON.stringify({
         _tag: "Decision",
         evaluationId: "broken",
@@ -339,11 +341,12 @@ describe("sourceFromEventSource", () => {
         policy: { _tag: "HasPermission", permission: { resource: "doc", action: "read" } },
       });
 
-      const got = yield* collect(fake, [frame], 1);
+      const got = yield* collect(fake, [frame, frameOf(decisionRecord({ evaluationId: "after" }))], 1, {
+        onMalformed: (bad, reason) => reported.push([bad, reason]),
+      });
 
-      assert.strictEqual(got[0]?._tag, "Decision");
-      if (got[0]?._tag !== "Decision") return;
-      assert.strictEqual(got[0].outcome._tag, "Failed");
+      assert.deepStrictEqual(reported, [[frame, "not-a-record"]]);
+      assert.strictEqual(got[0]?.evaluationId, "after");
     }));
 
   /**

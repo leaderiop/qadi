@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.10                                           |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-902, CCR-QD-903)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-901, CCR-QD-901)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.10 (2026-10-05): BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-904)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-902, CCR-QD-903)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-901, CCR-QD-901)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -588,8 +588,8 @@ REQUIREMENT: `encodeSinkRecord` MUST refuse, naming the refusal and the path it
              it is not (`Map`, `Set`, `RegExp`, binary data, `Error`, a boxed
              primitive, a custom `toJSON`, any other built-in) — MUST refuse
              anything `decodeSinkRecord` would refuse, and MUST NOT throw.
-REQUIREMENT: A decision record naming neither outcome MUST decode to a `Failed`
-             that says so.
+REQUIREMENT: A decision record naming neither outcome, or both, MUST be refused
+             by `decodeSinkRecord`; it MUST NOT decode to a record.
 ```
 
 `cause` is `unknown` — whatever a caller's resolver threw — so it may be an
@@ -616,12 +616,19 @@ hazard: JSON drops the key and decode reads it as absent. A valid `Date` in
 and the `cause` normalisation above, are the only ways a decoded record differs
 from the one encoded ([INV-QD-902](../invariants.md#inv-qd-902-whatever-the-record-codec-emits-it-accepts)).
 
-The "neither outcome" fallback is unreachable for anything this library
-encodes, but the wire is untrusted. A row reading "the sender sent neither
-outcome" beats a silently dropped record, and it can never be mistaken for a
-decision. Its shape (a `MissingResource` marker) is pinned behind
-`decodeSinkRecord` for the plan that replaces it with an exclusive outcome
-union.
+A record naming neither outcome, or both, is unreachable for anything this
+library encodes, but the wire is untrusted, so the decode refuses it as
+`Malformed` ("names no outcome", "names both outcomes"). A record is not
+something to be repaired at the receiver: no outcome is invented and none is
+chosen.
+
+> **Corrected in CCR-QD-904.** This requirement used to read "A decision record
+> naming neither outcome MUST decode to a `Failed` that says so", and the decode
+> invented a `MissingResource` error for it — indistinguishable by code
+> (`ACL004`) from a real resolver-wiring failure, so a devtools row or a metric
+> bucketed by code could not tell a missing attribute from a malformed record
+> (ticket 96). A record naming both outcomes silently kept `decided`, an
+> artifact of the order the fields were checked in (ticket 155).
 
 **Optional fields normalise.** `Schema.optional` drops an absent key on decode,
 so a field written as explicitly `undefined` arrives absent. Both read as

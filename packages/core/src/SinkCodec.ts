@@ -111,11 +111,53 @@ const EvaluationErrorSchema = Schema.Union([
  * non-validating brand (`Identity.ts`), so `""` is itself a legal subject id
  * a real caller could hold, and using it for "unknown" would make the two
  * indistinguishable to a devtools row or an audit reviewer reading the
- * decoded record back. Matches this file's own idiom for the same problem
- * one field over — `rebuild`'s "no outcome" fallback names the malformation
- * in the value rather than reusing a value a real record could also produce.
+ * decoded record back.
  */
 const UNKNOWN_SUBJECT = makeSubjectId("<unknown subject: wire version skew>");
+
+/**
+ * The `Decision` member's fields, in the order they are written: the order is
+ * part of the bytes (the v1 goldens pin it).
+ */
+const decisionFields = {
+  _tag: Schema.Literal("Decision"),
+  evaluationId: Schema.String,
+  at: Schema.Number,
+  // Optional on the wire, though never absent from anything this module
+  // encodes: `SinkRecordWire` crosses process boundaries (a devtools
+  // socket, a replica forwarding to a shared store), and a sender running
+  // an older version during a rolling deploy predates this field. Rejecting
+  // such a record outright would silently drop real decisions for the
+  // length of the deploy; `rebuild` falls back to {@link UNKNOWN_SUBJECT}
+  // instead — not `""`, which `SubjectId`'s brand (a total, non-validating
+  // `Brand.nominal`, `Identity.ts`) accepts as a legal id in its own right,
+  // making "the sender predates this field" indistinguishable downstream
+  // from "this subject's real id happens to be the empty string" (PH-03).
+  subjectId: Schema.optional(Schema.String),
+  policy: Policy,
+  resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+  action: Schema.optional(Schema.String),
+  cache: Schema.optional(Schema.Literals(["hit", "coalesced", "miss"])),
+  decided: Schema.optional(DecisionWire),
+  failed: Schema.optional(EvaluationErrorSchema),
+};
+
+type DecisionWireFields = Schema.Struct.Type<typeof decisionFields>;
+
+/**
+ * A decision record names exactly one outcome: `decided` or `failed`.
+ *
+ * The two optional fields admit four states and only two are meaningful, so a
+ * record naming neither or both is refused here, at decode, rather than given
+ * an outcome its sender never sent (tickets 96 and 155, CCR-QD-904). Before,
+ * "neither" became a fabricated `MissingResource`, indistinguishable by code
+ * (`ACL004`) from a real resolver failure, and "both" silently preferred
+ * `decided`, an artifact of check order.
+ */
+const exactlyOneOutcome = Schema.makeFilter((wire: DecisionWireFields) =>
+  (wire.decided === undefined) !== (wire.failed === undefined) ||
+  (wire.decided === undefined ? "a decision record names no outcome" : "a decision record names both outcomes"),
+);
 
 /**
  * The wire form of a {@link SinkRecord} — the one schema both operations are
@@ -123,28 +165,7 @@ const UNKNOWN_SUBJECT = makeSubjectId("<unknown subject: wire version skew>");
  * side, and the four operations.
  */
 const SinkRecordWire = Schema.Union([
-  Schema.Struct({
-    _tag: Schema.Literal("Decision"),
-    evaluationId: Schema.String,
-    at: Schema.Number,
-    // Optional on the wire, though never absent from anything this module
-    // encodes: `SinkRecordWire` crosses process boundaries (a devtools
-    // socket, a replica forwarding to a shared store), and a sender running
-    // an older version during a rolling deploy predates this field. Rejecting
-    // such a record outright would silently drop real decisions for the
-    // length of the deploy; `rebuild` falls back to {@link UNKNOWN_SUBJECT}
-    // instead — not `""`, which `SubjectId`'s brand (a total, non-validating
-    // `Brand.nominal`, `Identity.ts`) accepts as a legal id in its own right,
-    // making "the sender predates this field" indistinguishable downstream
-    // from "this subject's real id happens to be the empty string" (PH-03).
-    subjectId: Schema.optional(Schema.String),
-    policy: Policy,
-    resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
-    action: Schema.optional(Schema.String),
-    cache: Schema.optional(Schema.Literals(["hit", "coalesced", "miss"])),
-    decided: Schema.optional(DecisionWire),
-    failed: Schema.optional(EvaluationErrorSchema),
-  }),
+  Schema.Struct(decisionFields).check(exactlyOneOutcome),
   Schema.Struct({
     _tag: Schema.Literal("Obligations"),
     evaluationId: Schema.String,
@@ -155,6 +176,25 @@ const SinkRecordWire = Schema.Union([
 ]);
 
 type SinkRecordWire = typeof SinkRecordWire.Type;
+
+/**
+ * A decoded wire record whose outcome is exactly one of the two, by type.
+ *
+ * A schema check does not narrow a TypeScript type, so the decoded type still
+ * admits four outcome states; {@link isExclusive} narrows it to the two the
+ * check admits, and {@link rebuild} takes only those, so it has no arm to
+ * fabricate an outcome in.
+ */
+type ExclusiveSinkRecordWire =
+  | Extract<SinkRecordWire, { readonly _tag: "Obligations" }>
+  | (Omit<DecisionWireFields, "decided" | "failed"> &
+      (
+        | { readonly decided: NonNullable<DecisionWireFields["decided"]>; readonly failed?: undefined }
+        | { readonly decided?: undefined; readonly failed: NonNullable<DecisionWireFields["failed"]> }
+      ));
+
+const isExclusive = (wire: SinkRecordWire): wire is ExclusiveSinkRecordWire =>
+  wire._tag === "Obligations" || (wire.decided === undefined) !== (wire.failed === undefined);
 
 /**
  * The wire projection of a record, ready for the schema encode.
@@ -202,33 +242,11 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
  * `Match.tagsExhaustive` over `SinkRecordWire`, not an `if (wire._tag === …)`,
  * for the reason {@link project} gives.
  *
- * `decided` absent and `failed` absent cannot both hold for a record this
- * module produced, but the wire is untrusted, so the fallback is a `Failed`
- * naming the malformation rather than a cast or a thrown error. A devtools row
- * saying "the sender sent neither outcome" is more useful than a dropped
- * record, and it can never be mistaken for a decision.
- *
- * **Known conflation, tracked rather than fixed here (audit tickets 96 and
- * 155).** Both branches below reuse `MissingResource`/`ACL004` — a real
- * resolver-wiring failure's tag — as a stand-in for "the sender violated
- * the wire protocol", which is a different failure class wearing another
- * error's identity: a devtools row or a metric bucketed by `ACL004` cannot
- * tell "a policy read a missing attribute" from "a wire record was
- * malformed" apart.
- *
- * A dedicated tag (say `MalformedWireRecord`) is the right fix, but
- * `EvaluationError` (`Errors.ts`) is a closed union, not an open one: every
- * member must also gain an `ERROR_CODES` entry, a member in this file's
- * `EvaluationErrorSchema` union (ADR-QD-060), *and* an arm in `@qadi/http`'s
- * `QadiHttpError.ts` `Match.tagsExhaustive` over `EnforcementError` — by that
- * file's own doc comment, deliberately built to fail the build until someone
- * decides the new tag's status code. That is a cross-package, exported-type
- * change, out of scope for this file alone. Pinned instead:
- * `SinkCodec.test.ts`'s ticket 96 and 155 tests, written as hand-built JSON
- * through `decodeSinkRecordString`, assert today's `MissingResource`-shaped
- * fallback stays exactly as it is until that dedicated marker lands.
+ * It takes only an {@link ExclusiveSinkRecordWire}: a record naming neither
+ * outcome or both is refused by the decode (tickets 96 and 155, CCR-QD-904),
+ * so the outcome below is total by type and there is no fallback arm.
  */
-const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
+const rebuild: (wire: ExclusiveSinkRecordWire) => SinkRecord = Match.type<ExclusiveSinkRecordWire>().pipe(
   Match.tagsExhaustive({
     Obligations: (wire) =>
       new ObligationRecord({
@@ -252,23 +270,9 @@ const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>
         ...(wire.action === undefined ? {} : { action: wire.action }),
         ...(wire.cache === undefined ? {} : { cache: wire.cache }),
         outcome:
-          // Ticket 155: a wire record naming BOTH `decided` and `failed` — which
-          // this module never encodes, but the wire is untrusted — silently
-          // prefers `decided`. There is no principled reason to pick one outcome
-          // over the other for a record that names both; today's preference is
-          // an artifact of check order, not a decision. See the conflation note
-          // above for why a dedicated "both present" marker isn't added here.
           wire.decided !== undefined
             ? new Decided({ decision: decodeDecision(wire.decided) })
-            : wire.failed !== undefined
-              ? new Failed({ error: wire.failed })
-              : // Ticket 96: a wire record naming NEITHER outcome fabricates a
-                // `MissingResource` — reusing ACL004, a resolver-wiring failure's
-                // code, for what is actually a protocol violation. See the
-                // conflation note above.
-                new Failed({
-                  error: new MissingResource({ attribute: "<malformed record: no outcome>" }),
-                }),
+            : new Failed({ error: wire.failed }),
       }),
   }),
 );
@@ -552,8 +556,8 @@ const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDe
  * whatever {@link encodeSinkRecord} emits (INV-QD-902).
  *
  * **The seam for the wire's shape.** How the outcome is carried, the
- * neither/both fallbacks below (tickets 96 and 155) and any future version
- * handling live behind this function, so no adapter observes them and a change
+ * refusal of a record naming neither outcome or both (tickets 96 and 155,
+ * CCR-QD-904) and any future version handling live behind this function, so no adapter observes them and a change
  * to them is an edit to this module alone.
  *
  * The depth guard is `DecodeDepthGuard.ts`'s, shared with `Policy.ts`'s own
@@ -573,6 +577,11 @@ export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, Sink
   }
   const wire = decodeWire(input);
   if (Result.isFailure(wire)) return notDecodable(DecodeRefusal.Malformed({ message: wire.failure.message }));
+  // Unreachable after the schema's `exactlyOneOutcome` check; the predicate
+  // is what narrows the type for `rebuild`, and its refusal says the same.
+  if (!isExclusive(wire.success)) {
+    return notDecodable(DecodeRefusal.Malformed({ message: "a decision record names no outcome, or both" }));
+  }
   return Result.succeed(rebuild(wire.success));
 };
 
