@@ -11,6 +11,8 @@ import {
   PgliteEngine,
   PgliteEngineTest,
   ROWS,
+  ROWS_PG,
+  ROWS_SQLITE,
   SqliteEngine,
   SqliteEngineTest,
 } from "./sqlEngines.ts";
@@ -20,22 +22,30 @@ import {
  * PGlite and SQLite through `node:sqlite`, rather than against a JavaScript
  * model of either. MySQL has no embeddable Node engine, so S2 carries the
  * guarantee to it structurally. The row universe is the 48-row table
- * `sqlEngines.ts` seeds; every property samples 300 predicates at a fixed seed,
- * so a failure reproduces.
+ * `sqlEngines.ts` seeds, one per engine: they differ only in `score`, because
+ * SQLite stores `NaN` as `NULL`. Every property samples 300 predicates at a
+ * fixed seed, so a failure reproduces.
  */
 
 const tree: FastCheck.Arbitrary<Predicate> = treeOf(leaf);
 const predicates = FastCheck.sample(tree, { numRuns: 300, seed: 2048 });
 
-const expected = (predicate: Predicate): ReadonlyArray<number> =>
-  ROWS.filter((row) => evaluatePredicate(predicate, row)).map((row) => row.id);
+type Dialect = "postgres" | "sqlite";
+
+const ROWS_OF: Readonly<Record<Dialect, typeof ROWS>> = { postgres: ROWS_PG, sqlite: ROWS_SQLITE };
+
+/** The ids `evaluatePredicate` admits from `dialect`'s table. */
+const expected = (predicate: Predicate, dialect: Dialect = "postgres"): ReadonlyArray<number> =>
+  ROWS_OF[dialect].filter((row) => evaluatePredicate(predicate, row)).map((row) => row.id);
 
 const mapRefused =
   (context: unknown) =>
   (error: EngineRefused): EngineRefused =>
     new EngineRefused({ message: `${error.message}\n${JSON.stringify(context)}` });
 
-layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
+// Booting PGlite's WASM engine and seeding it is the slow part of this file, and
+// on a loaded machine it outlasts vitest's 10 s default hook timeout.
+layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest), { timeout: "120 seconds" })(
   "INV-QD-047 against real SQL engines",
   (it) => {
     it.effect("S1: postgres (PGlite) returns exactly the reference's rows", () =>
@@ -58,7 +68,7 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
           const rows = yield* engine
             .query(fragment)
             .pipe(Effect.mapError(mapRefused({ predicate, fragment })));
-          assert.deepStrictEqual(rows, expected(predicate), JSON.stringify({ predicate, fragment }));
+          assert.deepStrictEqual(rows, expected(predicate, "sqlite"), JSON.stringify({ predicate, fragment }));
         }
       }));
 
@@ -71,14 +81,22 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
       assert.isAbove(negatedNullable.length, 20);
     });
 
-    it.effect("S2: mysql is sqlite's text modulo quote characters, with identical params", () =>
+    // SQLite's ranges carry the finite guard (CCR-QD-172) and MySQL's do not,
+    // because MySQL cannot store a non-finite number; that is the only difference
+    // besides quoting, so it is the only thing removed before comparing.
+    const withoutFiniteGuard = (text: string): string =>
+      text.replaceAll(/\(("[A-Za-z_][A-Za-z0-9_]*") (>=|<) \? AND \1 - \1 = 0\)/g, "$1 $2 ?");
+
+    it.effect("S2: mysql is sqlite's text modulo quote characters and the finite guard, with identical params", () =>
       Effect.gen(function* () {
+        let guards = 0;
         for (const predicate of predicates) {
           const sqlite = yield* compileSql(predicate, { dialect: "sqlite" });
           const mysql = yield* compileSql(predicate, { dialect: "mysql" });
+          if (withoutFiniteGuard(sqlite.text) !== sqlite.text) guards += 1;
           assert.strictEqual(
             mysql.text,
-            sqlite.text.replaceAll('"', "`"),
+            withoutFiniteGuard(sqlite.text).replaceAll('"', "`"),
             JSON.stringify({ predicate }),
           );
           // mysql2 binds a boolean itself; sqlite's table binds it as 1/0.
@@ -88,10 +106,12 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
             JSON.stringify({ predicate }),
           );
         }
+        // Not vacuous: the sample has ranges, so the guard really is stripped.
+        assert.isAbove(guards, 20);
       }));
 
     // S3: a nullability declaration can only narrow or refuse (ADR-QD-079). The
-    // table's truth is `level` and `tag` nullable, `tenantId` and `sealed` NOT NULL.
+    // table's truth is `level`, `tag` and `score` nullable, `tenantId` and `sealed` NOT NULL.
     const compileWith = (predicate: Predicate, dialect: "postgres" | "sqlite", nullable: ReadonlySet<string>) =>
       Effect.result(compileSql(predicate, { dialect, nullable }));
 
@@ -102,7 +122,7 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
       Effect.gen(function* () {
         const pg = yield* PgliteEngine;
         const lite = yield* SqliteEngine;
-        const declared: ReadonlySet<string> = new Set(["level", "tag"]);
+        const declared: ReadonlySet<string> = new Set(["level", "tag", "score"]);
         let shorter = 0;
         for (const predicate of predicates) {
           const unknown = yield* compileSql(predicate, { dialect: "postgres" });
@@ -114,7 +134,7 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
             const rows = yield* engine
               .query(fragment)
               .pipe(Effect.mapError(mapRefused({ predicate, fragment })));
-            assert.deepStrictEqual(rows, expected(predicate), JSON.stringify({ dialect, predicate, fragment }));
+            assert.deepStrictEqual(rows, expected(predicate, dialect), JSON.stringify({ dialect, predicate, fragment }));
             if (dialect === "postgres" && fragment.text.length < unknown.text.length) shorter += 1;
           }
         }
@@ -126,7 +146,7 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
       Effect.gen(function* () {
         const pg = yield* PgliteEngine;
         const lite = yield* SqliteEngine;
-        const everything: ReadonlySet<string> = new Set(["tenantId", "level", "tag", "sealed"]);
+        const everything: ReadonlySet<string> = new Set(["tenantId", "level", "tag", "sealed", "score"]);
         for (const predicate of predicates) {
           for (const [dialect, engine] of [
             ["postgres", pg],
@@ -136,7 +156,7 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
             const rows = yield* engine
               .query(fragment)
               .pipe(Effect.mapError(mapRefused({ predicate, fragment })));
-            assert.deepStrictEqual(rows, expected(predicate), JSON.stringify({ dialect, predicate, fragment }));
+            assert.deepStrictEqual(rows, expected(predicate, dialect), JSON.stringify({ dialect, predicate, fragment }));
           }
         }
       }));
@@ -161,7 +181,7 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
             const rows = yield* engine
               .query(fragment)
               .pipe(Effect.mapError(mapRefused({ predicate, fragment })));
-            const reference = expected(predicate);
+            const reference = expected(predicate, dialect);
             assert.isTrue(
               isSubset(rows, reference),
               JSON.stringify({ dialect, predicate, fragment, rows, reference }),
@@ -171,6 +191,43 @@ layer(Layer.mergeAll(PgliteEngineTest, SqliteEngineTest))(
         }
         // Not vacuous: a wrong declaration really does lose rows, and that is all it can do.
         assert.isAbove(strictSubsets, 0);
+      }));
+
+    // S5 is the defect CCR-QD-172 found: a plain `>=`/`<` admits non-finite
+    // rows. PostgreSQL admits `Infinity` (and `NaN`, which it orders above every
+    // number) under `>= 3` and `-Infinity` under `< 3`; SQLite admits the two
+    // infinities. `evaluatePredicate` denies every non-finite value under a
+    // range, and so must the compiled query.
+    it.effect("S5: a non-finite score is never admitted where evaluatePredicate denies it", () =>
+      Effect.gen(function* () {
+        const gte: Predicate = { _tag: "Compare", column: "score", op: "Gte", value: 3 };
+        const lt: Predicate = { _tag: "Compare", column: "score", op: "Lt", value: 3 };
+        const cases: ReadonlyArray<Predicate> = [
+          gte,
+          lt,
+          { _tag: "Negate", predicate: gte },
+          { _tag: "Negate", predicate: lt },
+        ];
+        const pg = yield* PgliteEngine;
+        const lite = yield* SqliteEngine;
+        for (const [dialect, engine] of [
+          ["postgres", pg],
+          ["sqlite", lite],
+        ] as const) {
+          for (const predicate of cases) {
+            const fragment = yield* compileSql(predicate, { dialect });
+            const rows = yield* engine
+              .query(fragment)
+              .pipe(Effect.mapError(mapRefused({ predicate, fragment })));
+            const reference = expected(predicate, dialect);
+            assert.deepStrictEqual(rows, reference, JSON.stringify({ dialect, predicate, fragment }));
+          }
+        }
+        // Not vacuous: each table holds the values the defect was about.
+        const nonFinite = (dialect: Dialect) =>
+          ROWS_OF[dialect].filter((row) => row.score !== null && !Number.isFinite(row.score)).length;
+        assert.isAbove(nonFinite("postgres"), nonFinite("sqlite"));
+        assert.isAbove(nonFinite("sqlite"), 0);
       }));
 
     // S4 characterises an accepted limitation (N2, BEH-QD-244), it does not fix

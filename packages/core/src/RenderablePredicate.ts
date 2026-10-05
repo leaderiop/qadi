@@ -22,6 +22,12 @@
  * columns may hold NULL (`ColumnNullability`). It never folds anything on the
  * strength of one, so a wrong declaration can only make a renderer under-admit
  * or fail loudly, never admit a row `evaluatePredicate` denies (ADR-QD-079).
+ *
+ * A renderer also says which columns can hold a non-finite number
+ * (`ColumnFiniteness`), and a `Range` on such a column carries a guard that
+ * excludes `±Infinity`/`NaN` rows (`FiniteGuard`), because a target's plain
+ * `>=`/`<` admits some of them where `evaluatePredicate` admits none
+ * (CCR-QD-172).
  */
 import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
@@ -77,6 +83,39 @@ export type Negation = "TwoValued" | "ThreeValued";
  */
 export type NullGuard = "None" | "AdmitNull" | "ExcludeNull";
 
+/**
+ * Which columns the target can hold a non-finite number (`Infinity`,
+ * `-Infinity`, `NaN`) in, as the renderer declares it.
+ *
+ * - `Unrepresentable`: no column can (MySQL's `DOUBLE`/`FLOAT` cannot store
+ *   them), so no `Range` needs a guard.
+ * - `Unknown`: any column may. This is what a schema-blind renderer
+ *   (`@qadi/predicate-sql` on PostgreSQL and SQLite) declares, and it takes no
+ *   declaration from its caller: a wrong "this column is finite" would
+ *   over-admit (ADR-QD-079's lie-safety).
+ * - `Declared`: only the named columns may (`@qadi/predicate-prisma`, which has
+ *   no column arithmetic and so must know a field's type to guard it).
+ */
+export type ColumnFiniteness =
+  | { readonly _tag: "Unrepresentable" }
+  | { readonly _tag: "Unknown" }
+  | { readonly _tag: "Declared"; readonly floating: ReadonlySet<string> };
+
+/**
+ * What a `Range` does about a non-finite row value, derived rather than restated.
+ *
+ * - `None`: render the plain comparison.
+ * - `ExcludeNonFinite`: conjoin a check that the row value is finite. PostgreSQL
+ *   orders `NaN` above every number and both PostgreSQL and SQLite compare the
+ *   infinities like numbers, so a plain `col >= 3` admits `Infinity` and `NaN`,
+ *   and `col < 3` admits `-Infinity`, where `evaluatePredicate` admits neither.
+ *
+ * The guard is a conjunct inside the leaf, so it can only remove rows the plain
+ * operator would admit, never add one — under a two-valued `CASE WHEN` and a
+ * three-valued `NOT` alike.
+ */
+export type FiniteGuard = "None" | "ExcludeNonFinite";
+
 /** The rules a renderer declares to `toRenderable`. */
 export interface RenderRules {
   /** How strictly a column name is constrained. */
@@ -87,6 +126,8 @@ export interface RenderRules {
   readonly maxInValues: number;
   readonly nullability: ColumnNullability;
   readonly negation: Negation;
+  /** Which columns may hold a non-finite number; decides each `Range`'s `finiteGuard`. */
+  readonly finiteness: ColumnFiniteness;
 }
 
 /** The default `RenderRules.maxInValues`: an unbounded `IN` is a resource-exhaustion vector. */
@@ -108,7 +149,8 @@ export type EqualityLiteral = string | number | boolean;
  * to refuse and nothing left to decide.
  *
  * - `Equals` with `negated: false` is `Eq`, with `negated: true` is `Neq`.
- * - `Range`'s `bound` is always a finite number (`isRangeBound`).
+ * - `Range`'s `bound` is always a finite number (`isRangeBound`), and its
+ *   `finiteGuard` says whether the *row* value must be checked too.
  * - `OneOf`'s `values` are the non-`null` members of a `MemberOf`, non-empty by
  *   construction; a `null` member is carried by `nullGuard: "AdmitNull"`.
  * - No folding: `All`, `Any` and `Not` preserve the AST's structure, which is what
@@ -131,6 +173,7 @@ export type RenderableNode =
       readonly op: "Gte" | "Lt";
       readonly bound: number;
       readonly nullGuard: NullGuard;
+      readonly finiteGuard: FiniteGuard;
     }
   | {
       readonly _tag: "OneOf";
@@ -252,6 +295,39 @@ const nullGuardFor = (leaf: Predicate, column: string, ctx: Classify): NullGuard
     evaluatePredicate(leaf, { [column]: null }) ? "Admits" : "Denies"
   ][ctx.rules.negation][ctx.polarity];
 
+/** The three values no plain `>=`/`<` treats the way `evaluatePredicate` does. */
+const NON_FINITE: ReadonlyArray<number> = [
+  Number.POSITIVE_INFINITY,
+  Number.NEGATIVE_INFINITY,
+  Number.NaN,
+];
+
+/**
+ * Whether the target may hold a non-finite number in `column`. A module-scope
+ * `Match.tagsExhaustive`, so a new `ColumnFiniteness` case is a compile error here
+ * rather than a silent `false` — which would drop the guard, the fail-open
+ * direction.
+ */
+const mayHoldNonFinite: (finiteness: ColumnFiniteness) => (column: string) => boolean =
+  Match.type<ColumnFiniteness>().pipe(
+    Match.tagsExhaustive({
+      Unrepresentable: () => () => false,
+      Unknown: () => () => true,
+      Declared: (f) => (column: string) => f.floating.has(column),
+    }),
+  );
+
+/**
+ * The finite guard for a `Range` leaf. Like `nullGuardFor`, the reference
+ * decides: the guard is needed exactly when the target can hold a non-finite
+ * value in the column *and* `evaluatePredicate` denies one on this leaf.
+ */
+const finiteGuardFor = (leaf: Predicate, column: string, rules: RenderRules): FiniteGuard =>
+  mayHoldNonFinite(rules.finiteness)(column) &&
+  NON_FINITE.some((value) => !evaluatePredicate(leaf, { [column]: value }))
+    ? "ExcludeNonFinite"
+    : "None";
+
 const isEqualityLiteral = (value: SafeLiteral): value is EqualityLiteral => value !== null;
 
 const FLIP: Record<Polarity, Polarity> = { Positive: "Negative", Negative: "Positive" };
@@ -284,11 +360,11 @@ const dispatch: (predicate: Predicate) => (ctx: Classify) => Classified = Match.
           `value for column '${p.column}' is not a safe query parameter`,
         );
       }
-      // `evaluatePredicate`'s `Gte`/`Lt` are false unless *both* sides are numbers
-      // and the bound is finite, so anything else is a constant `false`, not a
+      // `evaluatePredicate`'s `Gte`/`Lt` are false unless *both* sides are finite
+      // numbers, so a bound that is not one is a constant `false`, not a
       // comparison the target would coerce: `int_col >= '10'` is admitted by
       // PostgreSQL, SQLite and MySQL alike, and `null >= x` is not a question a
-      // renderer should ask.
+      // renderer should ask. The row side is the `finiteGuard`'s job.
       if (p.op === "Gte" || p.op === "Lt") {
         if (!isRangeBound(value)) return ok({ _tag: "Constant", value: false });
         return ok({
@@ -297,6 +373,7 @@ const dispatch: (predicate: Predicate) => (ctx: Classify) => Classified = Match.
           op: p.op,
           bound: value,
           nullGuard: nullGuardFor(p, p.column, ctx),
+          finiteGuard: finiteGuardFor(p, p.column, ctx.rules),
         });
       }
       if (value === null) {

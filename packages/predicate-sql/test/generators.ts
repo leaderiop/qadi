@@ -3,7 +3,8 @@
  * (`EngineAgreement.test.ts`).
  *
  * Every leaf is type-consistent with the fixture table (`tenantId` and `tag` are
- * text, `level` an integer, `sealed` a boolean), which is what lets a real
+ * text, `level` an integer, `sealed` a boolean, `score` a float that may hold
+ * `±Infinity` and, on PostgreSQL, `NaN`), which is what lets a real
  * engine be the oracle: a literal whose JS type differs from its column's is the
  * accepted N2 limitation, characterised separately (S4) rather than fuzzed.
  */
@@ -56,6 +57,23 @@ export const leaf: FastCheck.Arbitrary<Predicate> = FastCheck.oneof(
   ),
   FastCheck.subarray([0, 3, 5, null]).map(
     (vs): Predicate => ({ _tag: "MemberOf", column: "level", values: vs }),
+  ),
+  // `score` is the float column, the only one that can hold a non-finite value
+  // (CCR-QD-172): ranges, finite equality and membership over it.
+  FastCheck.integer({ min: 0, max: 5 }).map(
+    (n): Predicate => ({ _tag: "Compare", column: "score", op: "Gte", value: n }),
+  ),
+  FastCheck.integer({ min: 0, max: 5 }).map(
+    (n): Predicate => ({ _tag: "Compare", column: "score", op: "Lt", value: n }),
+  ),
+  FastCheck.constantFrom(0, 3, 5).map(
+    (v): Predicate => ({ _tag: "Compare", column: "score", op: "Eq", value: v }),
+  ),
+  FastCheck.constantFrom(0, 3, 5).map(
+    (v): Predicate => ({ _tag: "Compare", column: "score", op: "Neq", value: v }),
+  ),
+  FastCheck.subarray([0, 3, 5]).map(
+    (vs): Predicate => ({ _tag: "MemberOf", column: "score", values: vs }),
   ),
 );
 

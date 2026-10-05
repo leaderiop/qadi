@@ -681,6 +681,7 @@ describe("compilePrismaWhere — refusal parity with toRenderable", () => {
     maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
     nullability: { _tag: "Declared", nullable: options.nullable },
     negation: "ThreeValued",
+    finiteness: { _tag: "Unrepresentable" },
   });
 
   const columnArb = FastCheck.constantFrom("tenantId", "level", "a b", "é", "gte", "NOT", "Gte");

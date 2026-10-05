@@ -393,6 +393,11 @@ export const compilePrismaWhere = Effect.fn("qadi.predicatePrisma.compilePrismaW
       nullability: { _tag: "Declared", nullable: options.nullable },
       // Prisma's `{NOT: inner}` is the target's own, three-valued `NOT`.
       negation: "ThreeValued",
+      // T6 (ARCH-08): Prisma has no column arithmetic, so it cannot render the
+      // finite guard without knowing which fields are floats. Until it takes
+      // that declaration, it is told no column can hold a non-finite value —
+      // the known gap CCR-QD-172 records.
+      finiteness: { _tag: "Unrepresentable" },
     };
     const node = yield* toRenderable(predicate, rules).pipe(
       Effect.tapError(() => Metric.update(compiledRefusedTotal, 1)),

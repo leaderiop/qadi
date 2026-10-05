@@ -22,6 +22,8 @@ import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import { DEFAULT_MAX_IN_VALUES, toRenderable } from "@qadi/core";
 import type {
+  ColumnFiniteness,
+  FiniteGuard,
   IdentifierRule,
   NullGuard,
   Predicate,
@@ -108,6 +110,41 @@ const SYNTAX: Record<SqlDialect, DialectSyntax> = {
   },
 };
 
+/**
+ * Which columns each dialect can hold a non-finite number in.
+ *
+ * PostgreSQL's `double precision`/`real`/`numeric` hold `±Infinity` and `NaN`, and
+ * SQLite's `REAL` holds `±Infinity`; this package never sees a schema, so on
+ * either any column may (`Unknown`). MySQL's `DOUBLE`/`FLOAT` cannot store any of
+ * the three, so a MySQL `Range` needs no guard and its text is unchanged. There
+ * is deliberately no option to declare a PostgreSQL or SQLite column finite: a
+ * wrong declaration would over-admit, which is the one direction a declaration
+ * here must never be able to move (ADR-QD-079).
+ */
+const FINITENESS: Record<SqlDialect, ColumnFiniteness> = {
+  postgres: { _tag: "Unknown" },
+  mysql: { _tag: "Unrepresentable" },
+  sqlite: { _tag: "Unknown" },
+};
+
+/**
+ * What a `Range`'s `FiniteGuard` adds to its comparison (`expression`).
+ *
+ * `col - col = 0` is the one text that excludes all three non-finite values on
+ * both engines (CCR-QD-172, measured on PGlite and `node:sqlite` across
+ * `double precision`, `real`, `numeric`, `int`, `bigint`, `REAL` and `INTEGER`):
+ * `Infinity - Infinity` is `NaN`, PostgreSQL's `NaN = 0` is false, and SQLite
+ * reads a stored `NaN` as `NULL`. It never overflows, because the operands are
+ * equal. A bound such as `col <= 1.7976931348623157e308` was rejected: PostgreSQL
+ * refuses it against `int` ("invalid input") and `real` ("out of range"). Being a
+ * conjunct inside the leaf, the guard only ever removes rows, and under `Not`'s
+ * `CASE WHEN` it is still exactly the reference's answer.
+ */
+const FINITE_GUARDED: Record<FiniteGuard, (column: string, expression: string) => string> = {
+  None: (_column, expression) => expression,
+  ExcludeNonFinite: (column, expression) => `(${expression} AND ${column} - ${column} = 0)`,
+};
+
 // `Range`'s two operators, and `Equals`'s two. Plain literal→literal `Record`s,
 // not `Match.value` rebuilt per call (RH-01): zero per-call state, and the
 // renderer calls them once per rendered leaf, the per-node shape AGENTS.md §5a
@@ -180,11 +217,15 @@ const dispatchNode: (
       return GUARDED[n.nullGuard](column, comparison);
     },
 
+    // The finite guard goes inside the null guard, so a nullable column reads
+    // `((col >= $1 AND col - col = 0) OR …)`. `toRenderable` never gives a `Range`
+    // `AdmitNull` (the reference denies a NULL row under `Gte`/`Lt`), but the
+    // order is the one that would stay correct if it did.
     Range: (n) => (syntax: DialectSyntax, params: Array<SqlSafeValue>) => {
       const column = syntax.quote(n.column);
       params.push(syntax.bind(n.bound));
       const comparison = `${column} ${RANGE_OPERATOR[n.op]} ${syntax.placeholder(params.length)}`;
-      return GUARDED[n.nullGuard](column, comparison);
+      return GUARDED[n.nullGuard](column, FINITE_GUARDED[n.finiteGuard](column, comparison));
     },
 
     // A `null` member is not in `values`: `col IN (NULL, ...)` never matches even
@@ -299,6 +340,7 @@ export const compileSql = Effect.fn("qadi.predicateSql.compileSql")(function* (
         : { _tag: "Declared", nullable: options.nullable },
     // `Not` renders `CASE WHEN`, which makes it two-valued itself.
     negation: "TwoValued",
+    finiteness: FINITENESS[options.dialect],
   };
 
   const node = yield* toRenderable(predicate, rules).pipe(

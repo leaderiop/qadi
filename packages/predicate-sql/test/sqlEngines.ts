@@ -1,7 +1,7 @@
 /**
  * Real SQL engines as the oracle: PostgreSQL through PGlite (WASM, the real
  * PostgreSQL query engine) and SQLite through `node:sqlite`, each holding the
- * 48-row table `ROWS` describes.
+ * 48-row table `ROWS_PG` / `ROWS_SQLITE` describe.
  *
  * `interpretSqlFragment` was a JavaScript re-implementation of the grammar
  * `compileSql` emits, written by the people who wrote the compiler, and a model
@@ -29,25 +29,67 @@ export type EngineRow = {
   readonly level: number | null;
   readonly tag: string | null;
   readonly sealed: boolean;
+  readonly score: number | null;
 };
 
 /**
- * The row universe: `tenantId` x `level` x `tag` x `sealed`, 2 x 4 x 3 x 2 = 48.
- * `level` and `tag` may be NULL; `tenantId` and `sealed` may not.
+ * `score`'s values on PostgreSQL: a `double precision` column, the only column
+ * type that can hold the non-finite values CCR-QD-172 found both engines admit
+ * under a plain `>=`/`<`. PostgreSQL also stores `NaN`, and orders it above
+ * every number.
  */
-export const ROWS: ReadonlyArray<EngineRow> = (() => {
+export const SCORES_PG: ReadonlyArray<number | null> = [
+  null,
+  0,
+  3,
+  5,
+  Number.POSITIVE_INFINITY,
+  Number.NEGATIVE_INFINITY,
+  Number.NaN,
+];
+
+/**
+ * `score`'s values on SQLite: a `REAL` column. SQLite stores `±Infinity` as real
+ * infinities but stores `NaN` as `NULL`, so a reference row holding `NaN` would
+ * not describe the stored row; the SQLite universe has no `NaN`.
+ */
+export const SCORES_SQLITE: ReadonlyArray<number | null> = [
+  null,
+  0,
+  3,
+  5,
+  Number.POSITIVE_INFINITY,
+  Number.NEGATIVE_INFINITY,
+];
+
+/**
+ * The row universe: `tenantId` x `level` x `tag` x `sealed`, 2 x 4 x 3 x 2 = 48,
+ * with `score` assigned cyclically from `scores` so the universe stays 48 rows.
+ * `level`, `tag` and `score` may be NULL; `tenantId` and `sealed` may not.
+ */
+const rowsWith = (scores: ReadonlyArray<number | null>): ReadonlyArray<EngineRow> => {
   const rows: Array<EngineRow> = [];
   for (const tenantId of ["t-1", "t-2"]) {
     for (const level of [null, 0, 3, 5]) {
       for (const tag of [null, "red", "blue"]) {
         for (const sealed of [false, true]) {
-          rows.push({ id: rows.length + 1, tenantId, level, tag, sealed });
+          const score = scores[rows.length % scores.length] ?? null;
+          rows.push({ id: rows.length + 1, tenantId, level, tag, sealed, score });
         }
       }
     }
   }
   return rows;
-})();
+};
+
+/** The PostgreSQL table's rows, `NaN` scores included. */
+export const ROWS_PG: ReadonlyArray<EngineRow> = rowsWith(SCORES_PG);
+
+/** The SQLite table's rows: the same, with no `NaN` score (SQLite stores it as `NULL`). */
+export const ROWS_SQLITE: ReadonlyArray<EngineRow> = rowsWith(SCORES_SQLITE);
+
+/** The PostgreSQL rows, under the name the callers that predate `score` use. */
+export const ROWS: ReadonlyArray<EngineRow> = ROWS_PG;
 
 /** The engine refused the query (a syntax, type or binding error). */
 export class EngineRefused extends Data.TaggedError("EngineRefused")<{
@@ -80,15 +122,18 @@ const acquirePglite = Effect.tryPromise({
   try: async () => {
     const db = new PGlite();
     await db.exec(
-      `CREATE TABLE r (id int PRIMARY KEY, "tenantId" text NOT NULL, level int, tag text, sealed boolean NOT NULL)`,
+      `CREATE TABLE r (id int PRIMARY KEY, "tenantId" text NOT NULL, level int, tag text, sealed boolean NOT NULL, score double precision)`,
     );
-    for (const row of ROWS) {
-      await db.query(`INSERT INTO r VALUES ($1, $2, $3, $4, $5)`, [
+    for (const row of ROWS_PG) {
+      // PGlite binds a non-finite number reliably only as PostgreSQL's own
+      // spelling ('Infinity', '-Infinity', 'NaN') under an explicit cast.
+      await db.query(`INSERT INTO r VALUES ($1, $2, $3, $4, $5, $6::float8)`, [
         row.id,
         row.tenantId,
         row.level,
         row.tag,
         row.sealed,
+        row.score === null || Number.isFinite(row.score) ? row.score : String(row.score),
       ]);
     }
     return db;
@@ -133,12 +178,12 @@ const acquireSqlite = Effect.try({
   try: () => {
     const db = new DatabaseSync(":memory:");
     db.exec(
-      `CREATE TABLE r (id INTEGER PRIMARY KEY, "tenantId" TEXT NOT NULL, level INTEGER, tag TEXT, sealed INTEGER NOT NULL)`,
+      `CREATE TABLE r (id INTEGER PRIMARY KEY, "tenantId" TEXT NOT NULL, level INTEGER, tag TEXT, sealed INTEGER NOT NULL, score REAL)`,
     );
-    const insert = db.prepare(`INSERT INTO r VALUES (?, ?, ?, ?, ?)`);
-    for (const row of ROWS) {
+    const insert = db.prepare(`INSERT INTO r VALUES (?, ?, ?, ?, ?, ?)`);
+    for (const row of ROWS_SQLITE) {
       // SQLite stores a boolean as 1/0 and neither Node driver binds a JS boolean.
-      insert.run(row.id, row.tenantId, row.level, row.tag, row.sealed ? 1 : 0);
+      insert.run(row.id, row.tenantId, row.level, row.tag, row.sealed ? 1 : 0, row.score);
     }
     return db;
   },

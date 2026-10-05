@@ -128,6 +128,8 @@ describe("compileSql — refusal parity with toRenderable", () => {
         ? { _tag: "Unknown" }
         : { _tag: "Declared", nullable: options.nullable },
     negation: "TwoValued",
+    // The postgres dialect's: any column may hold a non-finite number.
+    finiteness: { _tag: "Unknown" },
   });
 
   const columnArb = FastCheck.constantFrom("tenantId", "level", "a b", 'x"y', "é", "gte", "NOT");
@@ -274,8 +276,8 @@ describe("compileSql — golden fragments, one row per dialect", () => {
       // describe block below for why.
       const ops: ReadonlyArray<readonly [Predicate, string]> = [
         [{ _tag: "Compare", column: "c", op: "Eq", value: 1 }, '"c" = $1'],
-        [{ _tag: "Compare", column: "c", op: "Gte", value: 1 }, '"c" >= $1'],
-        [{ _tag: "Compare", column: "c", op: "Lt", value: 1 }, '"c" < $1'],
+        [{ _tag: "Compare", column: "c", op: "Gte", value: 1 }, '("c" >= $1 AND "c" - "c" = 0)'],
+        [{ _tag: "Compare", column: "c", op: "Lt", value: 1 }, '("c" < $1 AND "c" - "c" = 0)'],
       ];
       for (const [predicate, text] of ops) {
         const fragment = yield* render(predicate, "postgres");
@@ -474,12 +476,38 @@ describe("compileSql — NULL handling agrees with evaluatePredicate's ===/!==",
   it.effect("Gte/Lt with a genuine number still compiles to a real comparison", () =>
     Effect.gen(function* () {
       assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Gte", value: 10 }, "postgres"), {
-        text: '"c" >= $1',
+        text: '("c" >= $1 AND "c" - "c" = 0)',
         params: [10],
       });
       assert.deepStrictEqual(yield* render({ _tag: "Compare", column: "c", op: "Lt", value: 10 }, "postgres"), {
-        text: '"c" < $1',
+        text: '("c" < $1 AND "c" - "c" = 0)',
         params: [10],
+      });
+    }));
+
+  // CCR-QD-172: a plain `>=`/`<` admits non-finite rows on PostgreSQL (`Infinity`,
+  // and `NaN`, which it orders above every number) and SQLite (the infinities),
+  // where `evaluatePredicate` admits none. MySQL's floating types cannot hold
+  // them, so its text is unchanged.
+  it.effect("a Range on postgres and sqlite excludes non-finite rows; mysql does not need to", () =>
+    Effect.gen(function* () {
+      const gte: Predicate = { _tag: "Compare", column: "score", op: "Gte", value: 3 };
+      assert.deepStrictEqual(yield* render(gte, "postgres"), {
+        text: '("score" >= $1 AND "score" - "score" = 0)',
+        params: [3],
+      });
+      assert.deepStrictEqual(yield* render(gte, "sqlite"), {
+        text: '("score" >= ? AND "score" - "score" = 0)',
+        params: [3],
+      });
+      assert.deepStrictEqual(yield* render(gte, "mysql"), {
+        text: "`score` >= ?",
+        params: [3],
+      });
+      // Inside the CASE WHEN negation the guard is still a conjunct of the leaf.
+      assert.deepStrictEqual(yield* render({ _tag: "Negate", predicate: gte }, "postgres"), {
+        text: 'CASE WHEN (("score" >= $1 AND "score" - "score" = 0)) THEN FALSE ELSE TRUE END',
+        params: [3],
       });
     }));
 

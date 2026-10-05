@@ -8,6 +8,8 @@ import { evaluatePredicate } from "../src/Predicate.ts";
 import type { CompareOp, Predicate } from "../src/Predicate.ts";
 import { DEFAULT_MAX_IN_VALUES, toRenderable } from "../src/RenderablePredicate.ts";
 import type {
+  ColumnFiniteness,
+  FiniteGuard,
   NullGuard,
   RenderableNode,
   RenderRules,
@@ -23,6 +25,7 @@ const RULES: RenderRules = {
   maxInValues: DEFAULT_MAX_IN_VALUES,
   nullability: { _tag: "Unknown" },
   negation: "TwoValued",
+  finiteness: { _tag: "Unknown" },
 };
 
 const declared = (...columns: ReadonlyArray<string>): RenderRules["nullability"] => ({
@@ -61,10 +64,14 @@ type Row = Readonly<Record<string, unknown>>;
 
 const COLUMNS = ["a", "n", "b"] as const;
 
-/** Every value a table cell could hold, including ones of the wrong type for the column. */
+/**
+ * Every value a table cell could hold, including ones of the wrong type for the
+ * column, and the non-finite numbers a float column can hold (CCR-QD-172).
+ */
 const cell: FastCheck.Arbitrary<unknown> = FastCheck.oneof(
   FastCheck.constantFrom("x", "y", "3", ""),
   FastCheck.constantFrom(0, 1, 3, 5, -2),
+  FastCheck.constantFrom(Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN),
   FastCheck.boolean(),
   FastCheck.constant(null),
 );
@@ -117,9 +124,15 @@ const sampleRows = FastCheck.sample(rows, { numRuns: 25, seed: 1024 });
 
 /**
  * Evaluates a `RenderableNode` in two-valued logic, applying every `NullGuard`
- * literally. A guard is a no-op here (R3): it only matters to a target whose
- * comparisons can be UNKNOWN, which `EngineAgreement.test.ts` in each renderer
- * package checks against a real engine.
+ * and `FiniteGuard` literally. A null guard is a no-op here (R3): it only
+ * matters to a target whose comparisons can be UNKNOWN, which
+ * `EngineAgreement.test.ts` in each renderer package checks against a real
+ * engine.
+ *
+ * A `Range` compares the way a target's plain `>=`/`<` does — any number,
+ * non-finite ones included (PostgreSQL also orders `NaN` above every number) —
+ * and only its `finiteGuard` keeps a non-finite cell out. That is the belief the
+ * guard exists to correct, so it is modelled rather than assumed away.
  *
  * Rows hold every column (a table has no absent columns), so `undefined` is out
  * of scope here; `Predicate.test.ts` keeps covering it.
@@ -131,6 +144,17 @@ const guarded = (guard: NullGuard, cell: unknown, inner: boolean): boolean =>
     Match.when("ExcludeNull", () => inner && cell !== null),
     Match.exhaustive,
   );
+
+/** What `ExcludeNonFinite` conjoins: the cell is a finite number. */
+const finitePasses = (guard: FiniteGuard, cell: number): boolean =>
+  Match.value(guard).pipe(
+    Match.when("None", () => true),
+    Match.when("ExcludeNonFinite", () => Number.isFinite(cell)),
+    Match.exhaustive,
+  );
+
+/** A target's `>=`, which (like PostgreSQL's) orders `NaN` above every number. */
+const targetAtLeast = (cell: number, bound: number): boolean => Number.isNaN(cell) || cell >= bound;
 
 const evaluateRenderable: (node: RenderableNode, row: Row) => boolean = (node, row) =>
   Match.value(node).pipe(
@@ -147,7 +171,8 @@ const evaluateRenderable: (node: RenderableNode, row: Row) => boolean = (node, r
         const cellValue = row[n.column];
         const inner =
           typeof cellValue === "number" &&
-          (n.op === "Gte" ? cellValue >= n.bound : cellValue < n.bound);
+          finitePasses(n.finiteGuard, cellValue) &&
+          (n.op === "Gte" ? targetAtLeast(cellValue, n.bound) : !targetAtLeast(cellValue, n.bound));
         return guarded(n.nullGuard, cellValue, inner);
       },
       OneOf: (n) => guarded(n.nullGuard, row[n.column], n.values.some((v) => v === row[n.column])),
@@ -314,6 +339,7 @@ describe("toRenderable classifies each predicate tag", () => {
         op: "Gte",
         bound: 3,
         nullGuard: "None",
+        finiteGuard: "ExcludeNonFinite",
       });
       assert.deepStrictEqual(yield* render(compare("n", "Lt", -1.5)), {
         _tag: "Range",
@@ -321,6 +347,7 @@ describe("toRenderable classifies each predicate tag", () => {
         op: "Lt",
         bound: -1.5,
         nullGuard: "None",
+        finiteGuard: "ExcludeNonFinite",
       });
       for (const value of ["10", true, false, null]) {
         for (const op of ["Gte", "Lt"] as const) {
@@ -414,7 +441,14 @@ describe("toRenderable's null guards follow negation and polarity", () => {
         inner: {
           _tag: "Any",
           parts: [
-            { _tag: "Range", column: "n", op: "Gte", bound: 3, nullGuard: "ExcludeNull" },
+            {
+              _tag: "Range",
+              column: "n",
+              op: "Gte",
+              bound: 3,
+              nullGuard: "ExcludeNull",
+              finiteGuard: "ExcludeNonFinite",
+            },
             {
               _tag: "All",
               parts: [
@@ -716,7 +750,14 @@ describe("toRenderable with a declared nullability", () => {
         yield* render(negate(compare("a", "Gte", 3)), { nullability, negation: "ThreeValued" }),
         {
           _tag: "Not",
-          inner: { _tag: "Range", column: "a", op: "Gte", bound: 3, nullGuard: "None" },
+          inner: {
+            _tag: "Range",
+            column: "a",
+            op: "Gte",
+            bound: 3,
+            nullGuard: "None",
+            finiteGuard: "ExcludeNonFinite",
+          },
         },
       );
     }));
@@ -872,6 +913,102 @@ describe("Gte/Lt: the evaluator and the classifier share one bound rule", () => 
           }
         }
       }
+    }));
+});
+
+// ---------------------------------------------------------------------------
+// R9: the finite guard (CCR-QD-172)
+// ---------------------------------------------------------------------------
+
+describe("R9: a Range excludes non-finite rows exactly where the target can hold them", () => {
+  const FINITENESS: ReadonlyArray<readonly [string, ColumnFiniteness]> = [
+    ["Unrepresentable", { _tag: "Unrepresentable" }],
+    ["Unknown", { _tag: "Unknown" }],
+    ["Declared n", { _tag: "Declared", floating: new Set(["n"]) }],
+  ];
+
+  /** Every `Range` in a tree, with its column. */
+  const rangesOf = (node: RenderableNode): ReadonlyArray<Extract<RenderableNode, { _tag: "Range" }>> =>
+    Match.value(node).pipe(
+      Match.tagsExhaustive({
+        Constant: () => [],
+        IsNull: () => [],
+        Equals: () => [],
+        Range: (n) => [n],
+        OneOf: () => [],
+        All: (n) => n.parts.flatMap(rangesOf),
+        Any: (n) => n.parts.flatMap(rangesOf),
+        Not: (n) => rangesOf(n.inner),
+      }),
+    );
+
+  const mayHold = (finiteness: ColumnFiniteness, col: string): boolean =>
+    finiteness._tag === "Unknown" || (finiteness._tag === "Declared" && finiteness.floating.has(col));
+
+  it.effect(
+    "R9: a Range's finiteGuard is ExcludeNonFinite exactly when the target may hold a non-finite value and the reference denies one",
+    () =>
+      Effect.gen(function* () {
+        let guardedRanges = 0;
+        let unguardedRanges = 0;
+        for (const [name, finiteness] of FINITENESS) {
+          for (const predicate of predicates) {
+            const node = yield* render(predicate, { finiteness });
+            for (const range of rangesOf(node)) {
+              const leaf = compare(range.column, range.op, range.bound);
+              const deniesOne = [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN].some(
+                (value) => !evaluatePredicate(leaf, { [range.column]: value }),
+              );
+              const expected = mayHold(finiteness, range.column) && deniesOne ? "ExcludeNonFinite" : "None";
+              assert.strictEqual(range.finiteGuard, expected, JSON.stringify({ name, range }));
+              if (range.finiteGuard === "ExcludeNonFinite") guardedRanges += 1;
+              else unguardedRanges += 1;
+            }
+          }
+        }
+        // Not vacuous: both answers occur.
+        assert.isAbove(guardedRanges, 0);
+        assert.isAbove(unguardedRanges, 0);
+      }),
+  );
+
+  it.effect("R9: under every declaration, the guarded renderable equals the reference on the rows the target can hold", () =>
+    Effect.gen(function* () {
+      for (const [name, finiteness] of FINITENESS) {
+        // A row with a non-finite cell in a column the target cannot hold one in
+        // is not a row that target can return, so it is out of scope.
+        const representable = sampleRows.filter((row) =>
+          COLUMNS.every((col) => {
+            const value = row[col];
+            return typeof value !== "number" || Number.isFinite(value) || mayHold(finiteness, col);
+          }),
+        );
+        assert.isAbove(representable.length, 3, name);
+        for (const predicate of predicates) {
+          const node = yield* render(predicate, { finiteness });
+          for (const row of representable) {
+            assert.strictEqual(
+              evaluateRenderable(node, row),
+              evaluatePredicate(predicate, row),
+              JSON.stringify({ name, predicate, row, node }),
+            );
+          }
+        }
+      }
+    }));
+
+  it.effect("R9: without the guard a plain range admits the non-finite rows the reference denies", () =>
+    Effect.gen(function* () {
+      // The defect the guard closes, stated against the test interpreter: the
+      // same leaf, classified as if the target could not hold the values, admits
+      // `Infinity` under `Gte` and `-Infinity` under `Lt`.
+      const unguarded = yield* render(compare("n", "Gte", 3), { finiteness: { _tag: "Unrepresentable" } });
+      assert.isTrue(evaluateRenderable(unguarded, { n: Number.POSITIVE_INFINITY }));
+      assert.isFalse(evaluatePredicate(compare("n", "Gte", 3), { n: Number.POSITIVE_INFINITY }));
+      const lt = yield* render(compare("n", "Lt", 3), { finiteness: { _tag: "Unrepresentable" } });
+      assert.isTrue(evaluateRenderable(lt, { n: Number.NEGATIVE_INFINITY }));
+      const guarded = yield* render(compare("n", "Lt", 3));
+      assert.isFalse(evaluateRenderable(guarded, { n: Number.NEGATIVE_INFINITY }));
     }));
 });
 
