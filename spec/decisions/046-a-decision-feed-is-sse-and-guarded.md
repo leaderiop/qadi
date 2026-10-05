@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-046                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-09-07): `decisionStreamRoute` gains an optional `reauth` — periodic re-extraction of the subject and re-evaluation of the policy against an open connection, closing the window a connect-time-only check leaves for a principal revoked after connecting; documented here and in BEH-QD-202, having shipped in code (`DecisionStreamOptions`, `reauthCheck`) without either being updated (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.2 (2026-10-05): one record can never end the feed; a refused record is reported (ADR-QD-902) (CCR-QD-903)<br>1.1 (2026-09-07): `decisionStreamRoute` gains an optional `reauth` — periodic re-extraction of the subject and re-evaluation of the policy against an open connection, closing the window a connect-time-only check leaves for a principal revoked after connecting; documented here and in BEH-QD-202, having shipped in code (`DecisionStreamOptions`, `reauthCheck`) without either being updated (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 ---
 
@@ -97,3 +97,14 @@ that can change.
 - (−) No unguarded variant means a developer running locally must still wire a
   permission and a policy. That is a real cost, accepted deliberately: the thing
   being served is other people's authorization decisions.
+
+## Amendment (2026-10-05, CCR-QD-903)
+
+**One record can never end the feed.** Every subscriber reads the same feed, and a
+record whose framing threw — a resolver `cause` with a reference cycle did — ended
+every open connection. Framing is now one call to `@qadi/core`'s
+`encodeSinkRecordString`, which never throws; a record it refuses drops only its
+own frame and is reported, through `DecisionStreamOptions.onRefused` or a warning
+naming the refusal, its path and the evaluation
+([ADR-QD-902](./902-sinkcodec-owns-both-directions.md),
+[BEH-QD-904](../behaviors/26-decision-stream.md#beh-qd-904-one-record-never-ends-the-feed-and-a-refused-one-is-reported)).

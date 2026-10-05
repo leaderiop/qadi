@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-24                                    |
-> | Revision       | 1.4                                            |
-> | Effective Date | 2026-09-08                                     |
+> | Revision       | 1.5                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
+> | Change History | 1.5 (2026-10-05): BEH-QD-187 — `send` receives a `SinkRecordJson` from `encodeSinkRecord`; an encode refusal never reaches `send` and is reported through `onFailure` as a `SinkRecordNotEncodable` (ADR-QD-902, CCR-QD-903)<br>1.4 (2026-09-08): BEH-QD-183's `DecisionRecord` ts-fence gained the two fields it omitted, `subjectId` and `cache`, matching the real class in `DecisionRecord.ts` (CCR-QD-132)<br>1.3 (2026-09-08): BEH-QD-187 — `onFailure` MUST receive the plain value `send` failed or died with, not an Effect `Cause` wrapping it; `decisionSinkForwarding` was handing the callback the raw `Cause` from `catchCause`, which does not match `error: unknown`'s documented meaning or the sibling `onDropped`/`onUnknownParent` convention (CCR-QD-122)<br>1.2 (2026-09-07): BEH-QD-181's `DecisionSinkShape.record` corrected from `DecisionRecord` to the actual `SinkRecord` (`DecisionRecord \| ObligationRecord`) (CCR-QD-110)<br>1.1 (2026-08-24): BEH-QD-187–188 — forwarding and ingest, so the topology is a choice of sink (CCR-QD-064)<br>1.0 (2026-08-23): Initial release (CCR-QD-060) |
 
 _Previous: [23 — HTTP Enforcement](./23-http.md)_
 
@@ -246,7 +246,7 @@ it receive.
 
 ```ts
 export const decisionSinkForwarding: (options: {
-  readonly send: (encoded: unknown) => Effect<void, unknown>;
+  readonly send: (encoded: SinkRecordJson) => Effect<void, unknown>;
   readonly onFailure?: (error: unknown) => void;
 }) => Layer<DecisionSink>;
 export const decisionSinkAll: (sinks: ReadonlyArray<Layer<DecisionSink>>) => Layer<DecisionSink>;
@@ -272,6 +272,22 @@ straight through, so a caller writing `onFailure: (error) =>
 Sentry.captureException(error)` got a `Cause` object with no `.message`,
 however `send` actually failed. `Cause.squash` now unwraps it before the
 callback sees it.
+
+```
+REQUIREMENT: `send` MUST receive the record as `encodeSinkRecord` produced it.
+             A record `encodeSinkRecord` refuses MUST NOT reach `send`, and MUST
+             be reported through `onFailure` as a `SinkRecordNotEncodable`, or,
+             with no `onFailure`, by a log line distinct from a send failure's.
+```
+
+An encode refusal is not a delivery failure. Before ARCH-09 the encode ran
+inside the same `catchCause` as `send`, so a record whose policy was nested too
+deep for the schema encode — or one a receiver would refuse — was reported as
+"could not be forwarded", and a `PolicyTooDeep` record, exactly the one an
+operator wants to see, never left the process with nothing saying why. Now the
+refusal names its reason and its path, and `send` only ever sees a value that
+`JSON.stringify` renders and a receiver's `decodeSinkRecord` accepts
+([ADR-QD-902](../decisions/902-sinkcodec-owns-both-directions.md)).
 
 The in-process ring answers "what did *this* process decide", and three of the
 six deployments Qadi runs in cannot be served by that: a replicated server has

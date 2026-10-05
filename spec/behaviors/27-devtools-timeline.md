@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-27                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-08-25                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -129,12 +129,18 @@ A devtools panel is what you are looking at when something is already wrong. A
 panel that dies on a bad frame fails exactly when it is needed.
 
 ```
-REQUIREMENT: `onMalformed` MUST distinguish `"not-json"` from `"not-a-record"`.
+REQUIREMENT: `onMalformed` MUST distinguish `"not-json"`, `"too-deep"` and
+             `"not-a-record"`.
 ```
 
-They are different problems with different fixes — a truncating proxy versus a
-`@qadi/core` on the far side that disagrees about the wire form — and a reader
-who cannot tell them apart debugs the wrong one. Reported rather than silent,
+They are different problems with different fixes — a truncating proxy, a sender
+older than (or foreign to) this wire's depth bound, and a `@qadi/core` on the
+far side that disagrees about the wire form — and a reader who cannot tell them
+apart debugs the wrong one. `"too-deep"` became its own reason when the sender
+started refusing to emit such a record (ARCH-09): a current `@qadi/core` never
+sends one, so the fix is upgrading the sender, not the reader. The reason comes
+from `@qadi/core`'s `decodeSinkRecordString`, the one inbound operation, mapped
+from its closed `DecodeRefusal`. Reported rather than silent,
 on the precedent of `onDropped`, `onUnknownParent` and `onFailure`: a reader
 dropping every frame while looking healthy is the defect, not the drop.
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                           |
 > | -------------- | ------------------------------------------------ |
 > | Document ID    | QADI-ADR-060                                      |
-> | Revision       | 1.0                                               |
-> | Effective Date | 2026-09-08                                        |
+> | Revision       | 1.1                                               |
+> | Effective Date | 2026-10-05                                        |
 > | Status         | Accepted                                          |
 > | Author         | Qadi Engineering                                  |
 > | Classification | Architecture Decision Record                      |
-> | Change History | 1.0 (2026-09-08): Initial release (CCR-QD-140)    |
+> | Change History | 1.1 (2026-10-05): `Schema.Defect()` governs `cause` on every outbound path; `EvaluationErrorSchema` is private (ADR-QD-902) (CCR-QD-903)<br>1.0 (2026-09-08): Initial release (CCR-QD-140)    |
 
 ---
 
@@ -159,3 +159,14 @@ Consequences of the class itself now being the schema:
 
 **Implemented**: `packages/core/src/Errors.ts`, `packages/core/src/Identity.ts`,
 `packages/core/src/SinkCodec.ts`, `packages/core/test/SinkCodec.test.ts`.
+
+## Amendment (2026-10-05, CCR-QD-903)
+
+"`cause`'s wire representation (`Schema.Defect()`) is a maintained library schema"
+was true on one outbound path of four: only forwarding ran a schema encode, and the
+decision stream, the audit encoder and the example route wrote an `Error` cause as
+`{}`. Every outbound path now encodes through `@qadi/core`'s `encodeSinkRecord`, so
+`Schema.Defect()` governs `cause` everywhere. The union of the nine classes is now
+private to `SinkCodec.ts` (`EvaluationErrorSchema` is no longer exported); the
+classes themselves remain the schema
+([ADR-QD-902](./902-sinkcodec-owns-both-directions.md)).

@@ -76,6 +76,8 @@ const source = sourceFromEventSource({
   environment: "Server",
   onMalformed: (frame, reason) => {
     // "not-json"      — a broken transport: a proxy truncated or injected.
+    // "too-deep"      — nested past the decode bound: an older or foreign
+    //                   sender, since a current one refuses to emit it.
     // "not-a-record"  — a protocol mismatch: the far side disagrees about the
     //                   wire form.
     console.warn(reason, frame);

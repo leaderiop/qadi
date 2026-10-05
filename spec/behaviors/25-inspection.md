@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-25                                    |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-901, CCR-QD-901)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-902, CCR-QD-903)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-901, CCR-QD-901)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -481,104 +481,147 @@ what has been **asked**, unchanged; `atoms.gates` says who is **asking**,
 keyed by component instance instead of by question. DOM highlighting is built
 on the second view (`@qadi/devtools`'s lens), not dropped.
 
-## BEH-QD-199: A record has a wire form, decoded as untrusted
+## BEH-QD-199: A record has a wire form, encoded and decoded by one operation each way
 
 ```ts
-export const SinkRecordWire: Schema.Codec<…>;
-export const toWire: (record: SinkRecord) => SinkRecordWire;
-export const fromWireUnsafe: (wire: SinkRecordWire) => SinkRecord;
-export const decodeRecord: (input: unknown) => Effect<SinkRecord, PolicyDecodeTooDeep | SchemaIssue>;
+export const SinkRecordJson: Schema.Codec<…>; // the encoded side of the one wire schema
+export type SinkRecordJson = …;
+export const encodeSinkRecord: (record: SinkRecord) => Result<SinkRecordJson, SinkRecordNotEncodable>;
+export const encodeSinkRecordString: (record: SinkRecord) => Result<string, SinkRecordNotEncodable>;
+export const decodeSinkRecord: (input: unknown) => Result<SinkRecord, SinkRecordNotDecodable>;
+export const decodeSinkRecordString: (text: string) => Result<SinkRecord, SinkRecordNotDecodable>;
 ```
 
 ```
-REQUIREMENT: `decodeRecord` MUST validate untrusted input, and MUST NOT produce
-             a half-built record.
+REQUIREMENT: Every outbound path — forwarding, the decision stream, the audit
+             encoder — MUST produce a record's wire form through
+             `encodeSinkRecord`/`encodeSinkRecordString`, and every inbound
+             path MUST read one through `decodeSinkRecord`/
+             `decodeSinkRecordString`. No adapter may assemble its own guard,
+             projection, encode or parse.
+REQUIREMENT: `decodeSinkRecord` MUST validate untrusted input, MUST NOT
+             produce a half-built record, and MUST NOT throw.
 ```
 
 An in-memory sink hands a consumer real objects. Anything crossing a process
 boundary — a socket to a devtools page, a replica forwarding to a shared store, a
 serverless function shipping its log before it dies — needs a form that survives
-JSON and rebuilds on the far side.
+JSON and rebuilds on the far side. Before
+[ADR-QD-902](../decisions/902-sinkcodec-owns-both-directions.md) every such path
+assembled its own subset of a guard, a projection and a schema encode, and each
+subset differed: an `Error` cause crossed as `{}` on two paths and as
+`{name, message}` on a third, and a cyclic cause ended every subscriber of the
+decision stream. One operation each way is what makes "the same wire" true.
 
 **A record crossing a process boundary crosses a trust boundary**, which is
 exactly the reasoning [ADR-QD-002](../decisions/002-schema-derived-policy-adt.md)
 applies to policies. So the wire form is a Schema and decoding validates rather
 than casts: a payload naming a policy shape the ADT does not have is refused,
-not walked.
+not walked. A refusal is a `SinkRecordNotDecodable` whose closed
+`DecodeRefusal` says why: `NotJson` (text only), `TooDeep` or `Malformed`.
 
-`decodeRecord` also pre-checks structural depth before `Schema` ever recurses
+`decodeSinkRecord` pre-checks structural depth before `Schema` ever recurses
 into the input — the same `DecodeDepthGuard.ts` guard, in the same order,
-`Policy.ts`'s own `fromJson`/`fromJsonValue` run, since `SinkRecordWire` embeds
+`Policy.ts`'s own `fromJson`/`fromJsonValue` run, since the wire embeds
 `Policy` and the self-recursive `TraceSchema` and neither has a depth cap of its
-own. A payload nested past that guard fails with `PolicyDecodeTooDeep` rather
-than the raw `RangeError` `Schema.suspend`'s own descent would otherwise raise.
+own. A payload nested past that guard is refused as `TooDeep` rather than
+raising the `RangeError` `Schema.suspend`'s own descent would otherwise raise.
 
 The wire shape lives beside the record it describes rather than inside whichever
 transport carries it first, because it is a contract two processes agree on, not
-a transport detail.
+a transport detail. Its outcome shape and any version handling live behind
+`decodeSinkRecord`, so they change in `SinkCodec.ts` alone.
 
 ```
-REQUIREMENT: `decodeRecord` MUST reject an excess property inside its embedded
-             `Policy`, not silently strip it.
+REQUIREMENT: `decodeSinkRecord` MUST reject an excess property inside its
+             embedded `Policy`, not silently strip it.
 ```
 
-`SinkRecordWire` embeds the same `Policy` schema across the identical trust
-boundary ADR-QD-002 describes, so it shares `Policy.ts`'s
-`UNTRUSTED_DECODE_OPTIONS` (`{ onExcessProperty: "error" }`) rather than
-decoding with `Schema`'s default `"ignore"`. Before CCR-QD-139 it did not: a
-wire record whose embedded policy carried a typo'd field —
-`{"_tag":"HasPermission","permision":...}` — decoded successfully, silently
-dropping the grant rather than reporting the typo, exactly the class of silent
-data loss ADR-QD-002 exists to rule out.
+The wire embeds the same `Policy` schema across the identical trust boundary
+ADR-QD-002 describes, so it shares `Policy.ts`'s `UNTRUSTED_DECODE_OPTIONS`
+(`{ onExcessProperty: "error" }`) rather than decoding with `Schema`'s default
+`"ignore"`. Before CCR-QD-139 it did not: a wire record whose embedded policy
+carried a typo'd field — `{"_tag":"HasPermission","permision":...}` — decoded
+successfully, silently dropping the grant rather than reporting the typo,
+exactly the class of silent data loss ADR-QD-002 exists to rule out.
 
 ```
-REQUIREMENT: An `EvaluationError` MUST cross carrying its tag and its stable
-             code, and MUST be rebuilt from the **tag**.
+REQUIREMENT: An `EvaluationError` MUST cross carrying its tag; its stable code
+             is derived from `_tag` on the receiving side (ADR-QD-060), and it
+             MUST be rebuilt from the tag.
 ```
 
 `ERROR_CODES` exists, by its own comment, "for logging and cross-process
-correlation"; this is that use. The code is written and then **ignored on
-decode** — trusting a sender's code to choose a class would let it name one
-error and receive another.
+correlation"; this is that use. The code is not carried on the wire: a receiver
+derives it from the decoded error's `_tag` with `errorCode`, which cannot drift
+from the tag the way a second, independently written wire value could, and a
+sender cannot make a receiver reconstruct one class by naming another's code.
 
-The mapping is no longer hand-written. Since
+> **Corrected in CCR-QD-903.** This requirement used to read "MUST cross carrying
+> its tag and its stable code". ADR-QD-060 dropped `code` from the wire in 0.5.0;
+> the requirement had not followed.
+
+The mapping is not hand-written. Since
 [ADR-QD-060](../decisions/060-schema-taggederror-for-the-nine-wire-crossing-errors.md)
 (narrowed by
 [ADR-QD-072](../decisions/072-schema-taggederror-for-accessdenied-and-undischargedobligation.md))
 the wire-crossing `EvaluationError` tags are `Schema.TaggedError` at their own
 definition in `Errors.ts` — the measured, budgeted exception `AGENTS.md §4`
-carries for exactly this class of error, not a blanket rule that forces a
-hand-written bridge. `EvaluationErrorSchema` (`SinkCodec.ts`) is nothing more
-than `Schema.Union` of those classes themselves: "no second, hand-mapped
-description to drift from the first" (`SinkCodec.ts`'s own doc comment). What
-survives as hand-written, and what the **round-trip property over generated
-policies** below actually guards, is `fromWireUnsafe`'s tag-driven rebuild: the
-`code` a sender writes is for logging and correlation only and is discarded on
-decode, so a sender cannot make a receiver reconstruct the wrong class by
-naming one error and sending another's code.
+carries for exactly this class of error. The wire's error member is nothing
+more than `Schema.Union` of those classes themselves, private to
+`SinkCodec.ts`. What survives as hand-written, and what the **round-trip
+property** below guards, is the tag-driven rebuild into record classes.
 
-## BEH-QD-200: What the wire cannot carry, it says so
+## BEH-QD-200: What the wire cannot carry, the sender refuses and names
 
 ```
-REQUIREMENT: An error's `cause` MUST be rendered to a string.
-```
-
-`cause` is `unknown` — whatever a caller's resolver threw — so it may be an
-`Error`, a circular object, or a function, none of which survive JSON. Rendering
-it keeps the diagnostic and puts the loss in the type instead of at the first
-unserializable value. An `Error` keeps its message; a value whose `toString`
-throws yields a fixed marker, because the encoder a transport calls must never be
-able to break the thing it observes.
-
-```
+REQUIREMENT: An error's `cause` MUST cross through `Schema.Defect()`: an
+             `Error` keeps `name`, `message` and `cause`, and any other value is
+             normalised to JSON (a cycle dropped, a `bigint` as "10n", a
+             non-finite number as `null`). A record MUST NOT be refused because
+             of its cause.
+REQUIREMENT: `encodeSinkRecord` MUST refuse, naming the refusal and the path it
+             was found at, any value that would not round-trip — a cycle, a
+             value nested deeper than the receiver's decode bound, `NaN` or
+             `±Infinity` or an invalid `Date`, a function, a symbol, a `bigint`,
+             an `undefined` array element, an object JSON renders as something
+             it is not (`Map`, `Set`, `RegExp`, binary data, `Error`, a boxed
+             primitive, a custom `toJSON`, any other built-in) — MUST refuse
+             anything `decodeSinkRecord` would refuse, and MUST NOT throw.
 REQUIREMENT: A decision record naming neither outcome MUST decode to a `Failed`
              that says so.
 ```
 
-Unreachable for anything this library encodes, but the wire is untrusted. A row
-reading "the sender sent neither outcome" beats a silently dropped record, and it
-can never be mistaken for a decision — which is the same reason `DecisionOutcome`
-is a closed two-tag union in the first place.
+`cause` is `unknown` — whatever a caller's resolver threw — so it may be an
+`Error`, a circular object, or a function. It is diagnostic, and an outage
+record is the one an operator most wants to see, so it is normalised rather than
+refused. `Schema.Defect()` is a maintained library schema, and now governs
+`cause` on every outbound path, not only forwarding (ADR-QD-902 amends
+ADR-QD-060).
+
+> **Corrected in CCR-QD-903.** This requirement used to read "An error's `cause`
+> MUST be rendered to a string". Since ADR-QD-060 forwarding wrote
+> `{name, message}`, and the decision stream and the audit encoder wrote `{}`.
+
+Everything else in a record is checked on the encoded output, by one walk, so no
+field can be missed: the refusal is a `SinkRecordNotEncodable` whose closed
+`EncodeRefusal` is `Circular`, `TooDeep`, `NonFinite`, `Unrepresentable`,
+`Opaque` or `EncodeFailed` (the schema rejected the record, or reading it
+threw). Each adapter reports a refusal in its own words and drops only that
+record.
+
+**Named normalisations.** A property whose value is `undefined` is absence, not a
+hazard: JSON drops the key and decode reads it as absent. A valid `Date` in
+`resource` or `params` crosses as its ISO string and decodes as a string. These,
+and the `cause` normalisation above, are the only ways a decoded record differs
+from the one encoded ([INV-QD-902](../invariants.md#inv-qd-902-whatever-the-record-codec-emits-it-accepts)).
+
+The "neither outcome" fallback is unreachable for anything this library
+encodes, but the wire is untrusted. A row reading "the sender sent neither
+outcome" beats a silently dropped record, and it can never be mistaken for a
+decision. Its shape (a `MissingResource` marker) is pinned behind
+`decodeSinkRecord` for the plan that replaces it with an exclusive outcome
+union.
 
 **Optional fields normalise.** `Schema.optional` drops an absent key on decode,
 so a field written as explicitly `undefined` arrives absent. Both read as

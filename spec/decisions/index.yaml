@@ -290,3 +290,7 @@ entries:
     file: "901-a-port-is-described-once.md"
     title: "A port is described once; its wrappers, default, environment and double are derived"
     status: "Accepted — amends ADR-QD-010, ADR-QD-040, ADR-QD-051, ADR-QD-077"
+  - id: "ADR-QD-902"
+    file: "902-sinkcodec-owns-both-directions.md"
+    title: "SinkCodec owns both directions of the record wire"
+    status: "Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-056, ADR-QD-060"

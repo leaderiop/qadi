@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-26                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.3 (2026-10-05): BEH-QD-904 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -77,6 +77,7 @@ export interface DecisionStreamOptions {
   readonly reauth?: {
     readonly interval: Duration.Input;
   };
+  readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
 }
 
 export const decisionStreamRoute: (
@@ -177,6 +178,42 @@ consults something that can change — a real deployment's does; an in-memory
 test double does not — so an interval nobody asked for would only be needless
 load for a deployment with no revocation source to notice. See
 [ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md) Rev 1.1.
+
+## BEH-QD-904: One record never ends the feed, and a refused one is reported
+
+> **Invariant:** [INV-QD-903](../invariants.md#inv-qd-903-the-record-codec-is-total)
+
+```ts
+export const frame: Filter<SinkRecord, string, SinkRecordNotEncodable>;
+export const decisionFrames: (
+  stream: Stream<SinkRecord>,
+  options?: Pick<DecisionStreamOptions, "onRefused">,
+) => Stream<string>;
+```
+
+```
+REQUIREMENT: No record MAY end the feed for any subscriber. A record that
+             cannot be framed MUST drop only its own frame.
+REQUIREMENT: A refused record MUST be reported — through `onRefused` when
+             given, otherwise by a warning naming the refusal, the path it was
+             found at, and the evaluation id. It MUST NOT be dropped silently.
+REQUIREMENT: A frame's data MUST be the record's `encodeSinkRecordString`
+             text: the same bytes forwarding sends and an audit row stores.
+```
+
+Every subscriber reads the same feed, so a throw while framing one record used
+to end every open `/__decisions` connection at once. It happened for a reachable
+input: an attribute store behind an HTTP client fails with an error whose
+`config` and `request` reference each other, the guard of the time did not walk
+a resolver's `cause`, and `JSON.stringify` threw. Framing is now one call to
+`@qadi/core`'s `encodeSinkRecordString`, which never throws, normalises a
+`cause` through `Schema.Defect()` rather than refusing it, and refuses with a
+reason whatever else would not round-trip
+([ADR-QD-902](../decisions/902-sinkcodec-owns-both-directions.md)).
+
+A refusal was silent before — the frame simply did not appear — against the
+precedent of `onFailure`, `onDropped` and `onMalformed`: a feed dropping records
+while looking healthy is the defect, not the drop.
 
 ---
 

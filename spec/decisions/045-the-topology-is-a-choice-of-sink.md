@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-045                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-064) |
+> | Change History | 1.1 (2026-10-05): `send` receives a verified `SinkRecordJson`; an encode refusal reaches `onFailure`, never `send` (ADR-QD-902) (CCR-QD-903)<br>1.0 (2026-08-24): Initial release (CCR-QD-064) |
 
 ---
 
@@ -100,3 +100,13 @@ deployment shape is choosing a sink, never editing the evaluator.
   would remove the hazard rather than warn about it.
 - (−) Nothing in this repository yet exercises a real socket, so the seam is
   proven against an in-memory `send` only.
+
+## Amendment (2026-10-05, CCR-QD-903)
+
+`send` now receives a `SinkRecordJson` — the record as `@qadi/core`'s
+`encodeSinkRecord` produced it, already verified to round-trip — rather than an
+`unknown`. A record `encodeSinkRecord` refuses never reaches `send`: the
+`SinkRecordNotEncodable` goes to `onFailure`, or to a log line distinct from a
+send failure's. An encode refusal is not a delivery failure, and was reported as
+one ([ADR-QD-902](./902-sinkcodec-owns-both-directions.md)). The seam is
+unchanged: core still ships no transport.
