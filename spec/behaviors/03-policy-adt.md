@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-03                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-09-07): Variant count corrected from thirteen to sixteen — `Rules`, `HasCustom` and `HasSignature` added to the table; BEH-QD-019's combinator list gained `hasCustom`, `hasSignature`, `rules`, `permitWhen`, `denyWhen`; the closing snippet's `Schema.Codec<Policy>` corrected to `Schema.Codec<Policy, PolicyEncoded>` — matches `spec/glossary.md` 1.7's correction<br>1.3 (2026-07-26): `HasActed` and `HasNotActed` (CCR-QD-016)<br>1.2 (2026-07-26): `Obliged` is the eleventh variant (CCR-QD-015)<br>1.1 (2026-07-26): `HasAction` is the tenth variant (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-10-05): BEH-QD-018 — a `fieldStrategy` outside the union grants no fields and never short-circuits; `Intersection`/`Union` are byte-for-byte independent of child order; `mergeFields` listed (ADR-QD-092, CCR-QD-174)<br>1.4 (2026-09-07): Variant count corrected from thirteen to sixteen — `Rules`, `HasCustom` and `HasSignature` added to the table; BEH-QD-019's combinator list gained `hasCustom`, `hasSignature`, `rules`, `permitWhen`, `denyWhen`; the closing snippet's `Schema.Codec<Policy>` corrected to `Schema.Codec<Policy, PolicyEncoded>` — matches `spec/glossary.md` 1.7's correction<br>1.3 (2026-07-26): `HasActed` and `HasNotActed` (CCR-QD-016)<br>1.2 (2026-07-26): `Obliged` is the eleventh variant (CCR-QD-015)<br>1.1 (2026-07-26): `HasAction` is the tenth variant (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [02 — Roles and Inheritance](./02-roles.md)_
 
@@ -84,6 +84,41 @@ REQUIREMENT: `fieldStrategy` MUST be a required field on `AllOf` and `AnyOf`,
 ```
 REQUIREMENT: An absent field set means ALL fields — the top of the lattice, not
              the empty set. Intersecting it with any set S yields S.
+```
+
+```
+REQUIREMENT: A `fieldStrategy` value outside the union MUST grant no fields
+             under both `allOf` and `anyOf`, and MUST NOT short-circuit an
+             `anyOf`. Decode rejects such a value; the requirement is about one
+             built in process.
+```
+
+```
+REQUIREMENT: Under `Intersection` and `Union` the merged set MUST NOT depend on
+             the order of the allowing children, byte for byte.
+```
+
+Two specs that denote the same set (`"title"` and `"title.**"`) meet as equal,
+and the meet keeps the lexicographically smaller text — so swapping two `allOf`
+children no longer changes `Allow.visibleFields`. What each strategy means, and
+the laws other modules read from it, live in one module, `FieldLattice.ts`
+([ADR-QD-092](../decisions/092-field-strategy-meaning-lives-beside-the-lattice.md)).
+`mergeFields` is the evaluator's own merge, exported so a caller combining several
+decisions' visibility by strategy does not reimplement it:
+
+```ts
+export const mergeFields: (
+  strategy: FieldStrategy,
+  sets: ReadonlyArray<VisibleFields>,
+) => VisibleFields;
+```
+
+```typescript
+import { mergeFields, type VisibleFields } from "@qadi/core";
+
+const either: VisibleFields = mergeFields("Union", [["a"], ["b"]]); // ["a", "b"]
+const both: VisibleFields = mergeFields("Intersection", [["a", "b"], ["b"]]); // ["b"]
+const nothingToMerge: VisibleFields = mergeFields("First", []); // undefined — every field
 ```
 
 ## BEH-QD-019: Combinators

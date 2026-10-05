@@ -113,9 +113,9 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive,
-  RelationshipResolverNever,
   allOf, anyOf, check, currentSubjectLayer, eq, hasAttribute,
   hasResourceAttribute, hasRole, labeled, literal, makeSubject, not, subjectId,
+  portsLayer,
 } from "@qadi/core";
 
 // Rules 1 and 2 deny. No node carries an effect, so they are hoisted into a
@@ -137,9 +137,7 @@ const canEdit = allOf([not(blocked), permitted]);
 
 const subject = makeSubject({ id: "u-1", roles: ["editor"], attributes: { status: "active" } });
 const resolvers = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer(),
   EvaluationIdLive,
 );
 

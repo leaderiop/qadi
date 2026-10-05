@@ -1,11 +1,6 @@
 import {
-  AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
-  RelationshipResolverNever,
   eq,
   gte,
   literal,
@@ -19,7 +14,12 @@ import {
   makeSubjectId,
   permission,
   subjectId,
+  portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
+import type { AttributeResolveError } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
@@ -28,11 +28,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import {
   Can,
+  DecisionOutcome,
   QadiProvider,
   currentDecision,
   dehydrateDecisions,
   hydrateDecisions,
   makeQadiAtoms,
+  outcomeOf,
   useDecision,
   useDecisionSuspense,
   useInvalidate,
@@ -54,27 +56,20 @@ const GENEROUS_TIMEOUT = 5000;
 
 const working = makeQadiAtoms(
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
+    portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
+    }),
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   ),
 );
 
 /** A context whose attribute lookups always fail. */
 const broken = makeQadiAtoms(
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, {
-      resolve: (_id: string, attribute: string) =>
-        Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
+    portsLayer({
+      AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("backend down")).layer,
     }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   ),
 );
 
@@ -312,20 +307,18 @@ describe("useDecisionSuspense", () => {
       let resolveAttribute: (() => void) | undefined;
       const controlled = makeQadiAtoms(
         Layer.mergeAll(
-          Layer.succeed(AttributeResolver, {
-            resolve: () =>
-              Effect.promise(
-                () =>
-                  new Promise<number>((resolve) => {
-                    resolveAttribute = () => resolve(1);
-                  }),
-              ),
+          portsLayer({
+            AttributeResolver: Layer.succeed(AttributeResolver, {
+              resolve: () =>
+                Effect.promise(
+                  () =>
+                    new Promise<number>((resolve) => {
+                      resolveAttribute = () => resolve(1);
+                    }),
+                ),
+            }),
           }),
-          RelationshipResolverNever,
-          DecisionHistoryUnknown,
           EvaluationIdLive,
-          CustomPredicateNone,
-          SignatureHistoryNone,
         ),
       );
       const SlowProbe = () => (
@@ -369,12 +362,10 @@ describe("useInvalidate", () => {
     let clearance = 0;
     const shifting = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, { resolve: () => Effect.sync(() => clearance) }),
-        RelationshipResolverNever,
-    DecisionHistoryUnknown,
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, { resolve: () => Effect.sync(() => clearance) }),
+        }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     );
 
@@ -442,15 +433,13 @@ describe("through a provider, as an application reads it", () => {
     let calls = 0;
     const atoms = makeQadiAtoms(
       Layer.mergeAll(
-        slow(() => {
-          calls += 1;
-          return answer;
+        portsLayer({
+          AttributeResolver: slow(() => {
+            calls += 1;
+            return answer;
+          }),
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
         // The one thing an application layer has that the cases above do not.
         decisionCacheLayer(),
       ),
@@ -480,7 +469,7 @@ describe("through a provider, as an application reads it", () => {
   });
 
   it("<Can> shows pending during a re-check, not the stale Allowed verdict (ticket 144)", async () => {
-    // `classify`'s `|| result.waiting` check in `components.tsx` is the
+    // `outcomeOf`'s `Rechecking`, which `<Can>` renders as `pending`, is the
     // ADR-QD-017 rule at the component layer: a decision being re-checked is
     // not yet an answer, whichever answer it held before. This drives that
     // exact path through `<Can>` rather than through the atom graph directly.
@@ -501,12 +490,8 @@ describe("through a provider, as an application reads it", () => {
 
     const atoms = makeQadiAtoms(
       Layer.mergeAll(
-        controlled,
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
+        portsLayer({ AttributeResolver: controlled }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
         decisionCacheLayer(),
       ),
     );
@@ -554,12 +539,8 @@ describe("through a provider, as an application reads it", () => {
     const seen: Array<{ readonly seeded: string; readonly decided: string }> = [];
     const atoms = makeQadiAtoms(
       Layer.mergeAll(
-        slow(() => "suspended"),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
+        portsLayer({ AttributeResolver: slow(() => "suspended") }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
         decisionCacheLayer(),
       ),
       {
@@ -592,6 +573,134 @@ describe("through a provider, as an application reads it", () => {
     // The client's own answer is what is in effect (INV-QD-028) …
     await waitFor(() => expect(screen.getByTestId("verdict").textContent).toBe("Deny"));
     // … and the disagreement is announced exactly once (BEH-QD-152).
-    expect(seen).toEqual([{ seeded: "Allow", decided: "Deny" }]);
+    expect(seen).toEqual([{ seeded: "SeededAllow", decided: "Deny" }]);
+  });
+});
+
+/**
+ * The guide's "read the whole decision" example (`react-integration.md` §5, and
+ * the website's `hooks.md`), driven through the states a re-check passes through.
+ *
+ * Both documents are compiled by a merge gate, which proves the example calls
+ * real signatures and nothing about what it renders. What it rendered was the
+ * editor while an allow was being re-checked: `Success, waiting: true` is neither
+ * `Initial` nor `Failure`, so the old ladder fell through to the previous verdict
+ * (ARCH-14 C5). The component below is the one the documents now carry: it
+ * reads the result once, with `outcomeOf`, and says what each outcome renders.
+ */
+describe("the guide's read-the-whole-decision example", () => {
+  const canEditDoc = hasAttribute("standing", eq(literal("good")));
+
+  /** What the resolver answers with, once released: a value, or an outage. */
+  type Answer = Effect.Effect<string | undefined, AttributeResolveError>;
+
+  const controlledAtoms = () => {
+    const parked: { release: ((answer: Answer) => void) | undefined } = { release: undefined };
+    const atoms = makeQadiAtoms(
+      Layer.mergeAll(
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, {
+            resolve: (_id: unknown, attribute: string) =>
+              attribute === "standing"
+                ? Effect.flatten(
+                    Effect.promise(
+                      () => new Promise<Answer>((resolve) => (parked.release = resolve)),
+                    ),
+                  )
+                : Effect.succeed(undefined),
+          }),
+        }),
+        EvaluationIdLive,
+        decisionCacheLayer(),
+      ),
+    );
+    /** Answers the parked lookup, then forgets it so the next one can be awaited. */
+    const answer = async (value: Answer) => {
+      await waitFor(() => expect(parked.release).toBeDefined());
+      const release = parked.release;
+      parked.release = undefined;
+      act(() => release?.(value));
+    };
+    return { atoms, answer };
+  };
+
+  const Editor = () => <textarea data-testid="editor" />;
+
+  const EditPanel = () =>
+    DecisionOutcome.$match(outcomeOf(useDecision(canEditDoc)), {
+      Pending: () => <span>Checking…</span>,
+      // A re-check carries no verdict: the result still holds the old answer,
+      // and `outcomeOf` gives it nowhere to go.
+      Rechecking: () => <span>Checking…</span>,
+      // A failure is not a denial. An unreachable attribute store means we do not
+      // know, and saying "you may not" would send the user — and whoever they
+      // complain to — after the wrong problem entirely.
+      Failed: () => <span>Could not check your permissions. Try again.</span>,
+      // An evaluated or a server-seeded allow; `isSeeded` tells them apart.
+      Allowed: () => <Editor />,
+      Denied: () => <span>Read only</span>,
+    });
+
+  const Invalidate = () => {
+    const invalidate = useInvalidate();
+    return <button type="button" data-testid="invalidate" onClick={invalidate} />;
+  };
+
+  const mount = (atoms: ReturnType<typeof makeQadiAtoms>) =>
+    render(
+      <QadiProvider atoms={atoms} subject={reader}>
+        <EditPanel />
+        <Invalidate />
+      </QadiProvider>,
+    );
+
+  const invalidate = () =>
+    act(() => {
+      screen.getByTestId("invalidate").click();
+    });
+
+  it("does not show the editor while an allow is being re-checked (ADR-QD-017)", async () => {
+    const { atoms, answer } = controlledAtoms();
+    mount(atoms);
+
+    await answer(Effect.succeed("good"));
+    await waitFor(() => expect(screen.getByTestId("editor")).toBeDefined());
+
+    invalidate();
+    // The re-check is parked: the previous allow is still in the result, marked
+    // `waiting`, and it is not an answer.
+    await waitFor(() => expect(screen.getByText("Checking…")).toBeDefined());
+    expect(screen.queryByTestId("editor")).toBeNull();
+
+    await answer(Effect.succeed("suspended"));
+    await waitFor(() => expect(screen.getByText("Read only")).toBeDefined());
+    expect(screen.queryByTestId("editor")).toBeNull();
+  });
+
+  it("shows 'could not check', never the editor, when a re-check after an allow fails", async () => {
+    const { atoms, answer } = controlledAtoms();
+    mount(atoms);
+
+    await answer(Effect.succeed("good"));
+    await waitFor(() => expect(screen.getByTestId("editor")).toBeDefined());
+
+    invalidate();
+    await waitFor(() => expect(screen.getByText("Checking…")).toBeDefined());
+    expect(screen.queryByTestId("editor")).toBeNull();
+
+    // `Failure` with the old allow kept as its `previousSuccess`, and not waiting.
+    await answer(Effect.fail(attributeResolverPort.failure([makeSubjectId("u"), "standing"], "down")));
+    await waitFor(() =>
+      expect(screen.getByText("Could not check your permissions. Try again.")).toBeDefined(),
+    );
+    expect(screen.queryByTestId("editor")).toBeNull();
+
+    // And a re-check after that failure is checking again, not still failed.
+    invalidate();
+    await waitFor(() => expect(screen.getByText("Checking…")).toBeDefined());
+    expect(screen.queryByTestId("editor")).toBeNull();
+
+    await answer(Effect.succeed("good"));
+    await waitFor(() => expect(screen.getByTestId("editor")).toBeDefined());
   });
 });

@@ -49,7 +49,10 @@ The `Context.Service` ports evaluation depends on — `CurrentSubject`,
 `SignatureHistory`, `EvaluationId`, `CustomPredicate`, and the two optional
 services, `DecisionCache` and `DecisionSink`. Every default here fails
 closed. This section also covers the inspection helpers built on these
-services, like `policyDepth`, `permissionProvenance`, and `diffTraces`.
+services, like `policyDepth`, `permissionProvenance`, and `diffTraces`, and
+the stack-safe tree folds `foldPolicy`, `foldExplanation` and `foldMatcher`
+that `policyDepth`, `simplify` and `explain` are built on, with `fieldsOf`,
+`matcherDepth` and the derived `POLICY_TAGS` beside them.
 
 [View on GitHub →](https://github.com/leaderiop/qadi/blob/main/spec/overview.md#services)
 

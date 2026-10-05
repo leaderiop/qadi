@@ -24,10 +24,7 @@ import {
   anyOf,
   AttributeResolveError,
   AttributeResolver,
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
   evaluate,
   evaluationIdSequential,
   gte,
@@ -35,9 +32,12 @@ import {
   hasRelationship,
   hasRole,
   makeSubject,
-  RelationshipResolverNever,
   relationshipResolverFromEdges,
-  SignatureHistoryNone,
+  toPredicate,
+  portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import type { Decision, EvaluationError, Policy, RelationshipResolver } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
@@ -76,8 +76,9 @@ interface PortCallsWorldState {
   readonly subjectAttributes: Record<string, unknown>;
   readonly subjectRoles: ReadonlyArray<string>;
   readonly subjectId: string;
-  readonly attributes: Layer.Layer<AttributeResolver>;
-  readonly relationships: Layer.Layer<RelationshipResolver>;
+  /** `undefined` is the port's fail-closed default (`portsLayer`). */
+  readonly attributes: Layer.Layer<AttributeResolver> | undefined;
+  readonly relationships: Layer.Layer<RelationshipResolver> | undefined;
   readonly capacity: number | undefined;
   readonly secret: string | undefined;
   readonly hostSaw: Array<string> | undefined;
@@ -90,8 +91,8 @@ const initialState: PortCallsWorldState = {
   subjectAttributes: {},
   subjectRoles: [],
   subjectId: "alice",
-  attributes: AttributeResolverNone,
-  relationships: RelationshipResolverNever,
+  attributes: undefined,
+  relationships: undefined,
   capacity: undefined,
   secret: undefined,
   hostSaw: undefined,
@@ -137,6 +138,7 @@ const theCall = (log: PortCallLog | undefined): PortCall => {
 const runPolicy = Effect.fn("port-calls.run")(function* (
   name: string,
   resource?: Record<string, unknown>,
+  mode: "evaluate" | "compile" = "evaluate",
 ) {
   const s = yield* read();
   const collector = collectPortCalls(s.capacity === undefined ? undefined : { capacity: s.capacity });
@@ -152,12 +154,8 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
         attributes: s.subjectAttributes,
       }),
     ),
-    s.attributes,
-    s.relationships,
-    DecisionHistoryUnknown,
+    portsLayer({ AttributeResolver: s.attributes, RelationshipResolver: s.relationships }),
     evaluationIdSequential("ev"),
-    CustomPredicateNone,
-    SignatureHistoryNone,
   );
 
   // An outer tracer that records every span, so the value-disclosure scenario
@@ -174,11 +172,23 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
   // unchanged from the original Cucumber-CLI suite, do not.
   const outer = collectingTracer(collected);
 
-  const result = yield* Effect.result(
-    evaluate(policyNamed(name), resource === undefined ? {} : { resource }).pipe(
-      Effect.provide(Layer.mergeAll(services, Layer.provideMerge(collector.layer, outer))),
-    ),
-  );
+  const environment = Layer.mergeAll(services, Layer.provideMerge(collector.layer, outer));
+
+  // `compile` runs the same policy through `toPredicate` instead: the second
+  // interpreter reads the same ports through the same module, and its reads
+  // should be recorded too — as compilation (BEH-QD-NEXT-d). Its outcome is not
+  // what these scenarios are about, so only the log is kept.
+  const result =
+    mode === "evaluate"
+      ? yield* Effect.result(
+          evaluate(policyNamed(name), resource === undefined ? {} : { resource }).pipe(
+            Effect.provide(environment),
+          ),
+        )
+      : undefined;
+  if (mode === "compile") {
+    yield* Effect.result(toPredicate(policyNamed(name)).pipe(Effect.provide(environment)));
+  }
 
   const log = yield* collector.snapshot;
   const spanValues = collected.flatMap((span) => [...span.attributes.values()]);
@@ -233,23 +243,16 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
 
   Given("a resolver that is down", function* () {
     yield* patch(() => ({
-      attributes: Layer.succeed(AttributeResolver, {
-        name: "broken",
-        resolve: (_id: string, attribute: string) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-      }),
+      attributes: scriptedPort(attributeResolverPort, () => PortReply.fail("down"), "broken").layer,
     }));
   });
 
   // A `resolve` that throws rather than failing — the shape `Evaluate.ts`'s
-  // `resolveAttribute` must catch and convert into `AttributeResolveError`
+  // `PortAccess.ts`'s `readAttribute` must catch and convert into `AttributeResolveError`
   // (issue #100), not the shape any implementation is asked to produce.
   Given("a resolver that dies unexpectedly", function* () {
     yield* patch(() => ({
-      attributes: Layer.succeed(AttributeResolver, {
-        name: "dying",
-        resolve: () => Effect.die(new Error("boom")),
-      }),
+      attributes: scriptedPort(attributeResolverPort, () => PortReply.die(new Error("boom")), "dying").layer,
     }));
   });
 
@@ -278,6 +281,10 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     yield* runPolicy(name);
   });
 
+  When("the {string} policy is compiled to a predicate under a collector", function* (name: string) {
+    yield* runPolicy(name, undefined, "compile");
+  });
+
   When(
     "the {string} policy is evaluated under a collector against {string}",
     function* (name: string, resourceId: string) {
@@ -299,6 +306,11 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Then("one AttributeResolver call is recorded", function* () {
     const s = yield* read();
     assert.equal(callsOf(s.log, "AttributeResolver").length, 1);
+  });
+
+  Then("that call was made by the {string} interpreter", function* (interpreter: string) {
+    const s = yield* read();
+    assert.equal(theCall(s.log).interpreter, interpreter);
   });
 
   Then("one RelationshipResolver call is recorded", function* () {

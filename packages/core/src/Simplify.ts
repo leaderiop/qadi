@@ -17,8 +17,9 @@
  * definition.
  */
 import * as Match from "effect/Match";
+import { fieldStrategyLaws } from "./FieldLattice.ts";
 import type { FieldStrategy, Policy } from "./Policy.ts";
-import { childrenOf } from "./Policy.ts";
+import { foldPolicy } from "./Policy.ts";
 
 /**
  * Whether a composite's children can be absorbed into a parent of the same tag.
@@ -35,15 +36,43 @@ import { childrenOf } from "./Policy.ts";
  * library exists, which makes this the failure mode that matters most and the one
  * an "obviously safe" rewrite walks into.
  *
- * Equal strategies are safe because each merge is associative: intersection and
- * union both are, and `First` takes the first child's set either way.
+ * Equal strategies are necessary, because each merge is associative:
+ * intersection and union both are, and `First` takes the first child's set
+ * either way. They are **not sufficient** when the absorbed child is **empty**.
+ * An empty `allOf` allows with `undefined` — what a merge of no inputs grants,
+ * the lattice's top — and top is `Intersection`'s unit but `Union`'s
+ * *absorbing* element, and `First` has no unit at all. So
+ * `allOf([allOf([], { fieldStrategy: "Union" }), x], { fieldStrategy: "Union" })`
+ * grants every field, and flattening it to `x` granted only `x`'s (CCR-QD-174,
+ * ARCH-12 C4). An empty child is absorbed only where top is the merge's unit
+ * — `FieldLattice.ts`'s `emptyIsUnit` law, true for `Intersection` alone — or
+ * under `anyOf`, where an empty child denies and so contributes no field set to
+ * merge at all. That last clause is a fact about the combinator, not the
+ * lattice, so it stays here. A strategy outside the union has no law that
+ * holds, and its non-empty children were never safe to absorb either: the
+ * parent merges to `[]` whatever its children are, and so does the flattened
+ * one — it is the unwrap below that the unknown strategy forbids.
  */
 const absorbable = (
   child: Policy,
   tag: "AllOf" | "AnyOf",
   fieldStrategy: FieldStrategy,
 ): child is Extract<Policy, { _tag: "AllOf" | "AnyOf" }> =>
-  child._tag === tag && child.fieldStrategy === fieldStrategy;
+  child._tag === tag &&
+  child.fieldStrategy === fieldStrategy &&
+  (tag === "AnyOf" || child.policies.length > 0 || fieldStrategyLaws(fieldStrategy).emptyIsUnit);
+
+/**
+ * Whether a one-child composite may be replaced by its child: when the merge of
+ * one input discloses exactly that input — `FieldLattice.ts`'s
+ * `singletonIsIdentity` law, true for the three known strategies.
+ *
+ * A strategy outside the union merges to `[]` — no fields — so replacing its
+ * one-child composite with the child would widen from none to that child's
+ * (CCR-QD-174, ARCH-12 C4).
+ */
+const unwrappable = (fieldStrategy: FieldStrategy): boolean =>
+  fieldStrategyLaws(fieldStrategy).singletonIsIdentity;
 
 const flatten = (
   policies: ReadonlyArray<Policy>,
@@ -101,8 +130,9 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
 
     AllOf: (p) => (simplifiedChildren: ReadonlyArray<Policy>) => {
       const children = flatten(simplifiedChildren, "AllOf", p.fieldStrategy);
-      // One child means the merge has one input, so every strategy yields that
-      // child's own field set and the wrapper carries nothing.
+      // One child means the merge has one input, so every known strategy yields
+      // that child's own field set and the wrapper carries nothing — but only a
+      // known one: outside the union the merge is `[]` (`unwrappable`).
       //
       // Deliberately `[only, ...rest]`, not `children[0]` plus a length check:
       // TS can't correlate "`children.length === 1`" with "`children[0]` is
@@ -114,7 +144,7 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
       // Destructuring keeps `only`'s definedness and "there was exactly one"
       // tied to the same fact, at the cost of one small discarded array.
       const [only, ...rest] = children;
-      return only !== undefined && rest.length === 0
+      return only !== undefined && rest.length === 0 && unwrappable(p.fieldStrategy)
         ? only
         : { ...p, policies: children };
     },
@@ -122,7 +152,7 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
     AnyOf: (p) => (simplifiedChildren: ReadonlyArray<Policy>) => {
       const children = flatten(simplifiedChildren, "AnyOf", p.fieldStrategy);
       const [only, ...rest] = children;
-      return only !== undefined && rest.length === 0
+      return only !== undefined && rest.length === 0 && unwrappable(p.fieldStrategy)
         ? only
         : { ...p, policies: children };
     },
@@ -188,44 +218,12 @@ const rebuild: (node: Policy) => (children: ReadonlyArray<Policy>) => Policy = M
 /**
  * Rewrites a policy to an equivalent one with fewer nodes.
  *
- * Walks with an explicit array-backed stack — the same technique
- * `DecodeDepthGuard.ts`'s `exceedsJsonDepth` and `Policy.ts`'s `policyDepth`
- * use, via the same `childrenOf` — rather than native recursion. A decoded
- * policy's nesting is bounded by `MAX_DECODE_DEPTH`, but a policy assembled
- * programmatically never crosses that boundary: the smart constructors do not
- * depth-check, so a loop of `not()` builds a tree exactly as deep as the loop
- * runs, and this function is reachable directly on a caller-held `Policy`
- * with no prior decode step at all.
+ * Folds through `foldPolicy` rather than recursing natively, so it cannot
+ * overflow the stack: a decoded policy's nesting is bounded by
+ * `MAX_DECODE_DEPTH`, but a policy assembled programmatically never crosses that
+ * boundary — the smart constructors do not depth-check, so a loop of `not()`
+ * builds a tree exactly as deep as the loop runs — and this function is
+ * reachable directly on a caller-held `Policy` with no prior decode step at all.
  */
-export const simplify = (policy: Policy): Policy => {
-  const results = new Map<Policy, Policy>();
-  const stack: Array<{ readonly node: Policy; readonly expanded: boolean }> = [
-    { node: policy, expanded: false },
-  ];
-  while (stack.length > 0) {
-    const frame = stack.pop();
-    if (frame === undefined) break;
-    if (frame.expanded) {
-      if (results.has(frame.node)) continue;
-      const children = childrenOf(frame.node).map((child) => {
-        const result = results.get(child);
-        if (result === undefined) {
-          throw new Error("simplify: child rewritten after its parent — traversal order bug");
-        }
-        return result;
-      });
-      results.set(frame.node, rebuild(frame.node)(children));
-      continue;
-    }
-    if (results.has(frame.node)) continue;
-    stack.push({ node: frame.node, expanded: true });
-    for (const child of childrenOf(frame.node)) {
-      stack.push({ node: child, expanded: false });
-    }
-  }
-  const result = results.get(policy);
-  if (result === undefined) {
-    throw new Error("simplify: root never rewritten — traversal order bug");
-  }
-  return result;
-};
+export const simplify = (policy: Policy): Policy =>
+  foldPolicy<Policy>(policy, (node, children) => rebuild(node)(children));

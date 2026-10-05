@@ -17,6 +17,9 @@
  *      server's now-stale allow.
  *   3. `Success` — this client's own denial, which is now the only answer.
  *
+ * The raw tag read is the exhibit, not an oversight: `outcomeOf` would fold
+ * these into outcomes, and the e2e test pins the raw sequence.
+ *
  * [BEH-QD-151]: ../../../../spec/behaviors/19-hydration.md
  */
 import { useRef, useSyncExternalStore } from "react";

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-045                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-064) |
+> | Change History | 1.2 (2026-10-05): the ring + feed pairing recipe is gone; one decision log is the in-process sink, and the topology statement stands (ADR-QD-097) (CCR-QD-181)<br>1.1 (2026-10-05): `send` receives a verified `SinkRecordJson`; an encode refusal reaches `onFailure`, never `send` (ADR-QD-095) (CCR-QD-179)<br>1.0 (2026-08-24): Initial release (CCR-QD-064) |
 
 ---
 
@@ -100,3 +100,25 @@ deployment shape is choosing a sink, never editing the evaluator.
   would remove the hazard rather than warn about it.
 - (−) Nothing in this repository yet exercises a real socket, so the seam is
   proven against an in-memory `send` only.
+
+## Amendment (2026-10-05, CCR-QD-179)
+
+`send` now receives a `SinkRecordJson` — the record as `@qadi/core`'s
+`encodeSinkRecord` produced it, already verified to round-trip — rather than an
+`unknown`. A record `encodeSinkRecord` refuses never reaches `send`: the
+`SinkRecordNotEncodable` goes to `onFailure`, or to a log line distinct from a
+send failure's. An encode refusal is not a delivery failure, and was reported as
+one ([ADR-QD-095](./095-sinkcodec-owns-both-directions.md)). The seam is
+unchanged: core still ships no transport.
+
+## Amendment (2026-10-05, CCR-QD-181)
+
+**"Ring + forwarder via `decisionSinkAll`" is no longer how an in-process reader
+is served.** `decisionSinkRing` and `decisionSinkFeed` are removed; one decision
+log ([ADR-QD-097](./097-a-decision-log-is-a-sink-and-its-own-history.md)) is the
+sink, the backlog and the live stream, and its `ingest` — the receiving half of
+forwarding — reaches live readers too. Where this ADR says "ring", read "decision
+log". `decisionSinkAll` stays, for a log beside a forwarder. The decision itself
+stands: the topology is still a choice of sink, the port is still write-only, and
+the log is one implementation of it that also happens to be readable — exactly
+what this ADR said reading back would be.

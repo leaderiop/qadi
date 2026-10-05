@@ -24,6 +24,7 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
@@ -98,7 +99,7 @@ const stagingFailedOpen = Metric.withAttributes(stagingTotal, { outcome: "failed
  * unlike `stagingFailedOpen`/`stagingSkippedOpen` below, both of which fire
  * only when `trailPort.write` never ran at all. `commitStaged` is only ever
  * called after `trailPort.write` has already **succeeded**
- * (`attemptWrite`'s `Exit.isSuccess(written)` branch), so the entry is
+ * (`record`'s `Exit.isSuccess(written)` branch), so the entry is
  * already durable in the trail by the time this can fire; what is lost is
  * only the staging store's own bookkeeping (the row stays marked
  * uncommitted, per the "leaks... forever" note above), not the entry.
@@ -134,153 +135,93 @@ export const AuditDecisionSinkLive = (
           }
           const entry = encoded.success;
 
-          // 2. Read breaker state, staging identically either way — only
-          // whether write() is attempted differs.
-          //
-          // A half-open breaker admits exactly one concurrent probe write:
-          // every other `record()` call racing this one while the breaker
-          // is half-open must behave as though it were still `Open`, or a
-          // recovering store would receive the whole of a `filter`/
-          // `filterStream` fan-out at once the instant `resetTimeoutMs`
-          // elapses, not the one trial write the option's own doc promises.
-          //
-          // A lost `claimProbe` has two distinct causes a single `"Open"`
-          // fallback would conflate: another caller already holds this
-          // half-open window's one slot (still `HalfOpen`), or the breaker
-          // moved on entirely while this call was in flight — most notably,
-          // the prober's write just succeeded and closed it. Re-reading
-          // `status` tells them apart: a `Closed` read means this entry can
-          // just write normally, rather than being logged and metered below
-          // as lost to a breaker that, by the time this line runs, is not
-          // open at all. Anything else (still `HalfOpen`, or re-`Open`ed by
-          // the prober's own failure) still means "not my probe to attempt",
-          // so it collapses to `"Open"` exactly as before.
-          const initialStatus = yield* breaker.status;
-          let status = initialStatus;
-          if (initialStatus === "HalfOpen" && !(yield* breaker.claimProbe)) {
-            const current = yield* breaker.status;
-            status = current === "Closed" ? "Closed" : "Open";
-          }
-          // This call holds the half-open window's one probe claim exactly
-          // when `status` is still `"HalfOpen"` here: the branch above only
-          // ever reassigns it away (to `"Closed"` or `"Open"`) when
-          // `claimProbe` was lost to another caller. See the write attempt
-          // below (ticket #38 / H4) for why this distinction matters.
-          const isProbe = status === "HalfOpen";
+          // 2. Ask the breaker for a permit, staging identically either way —
+          // only whether write() is attempted differs. The admission protocol
+          // (one probe per half-open window, the lost-claim re-read, release on
+          // every exit) lives in `CircuitBreaker.ts`'s `withPermit`.
+          yield* breaker.withPermit((permit) =>
+            Effect.gen(function* () {
+              const refused = permit._tag === "Refused";
 
-          // Ties "was staged" and "how to commit it" to one value, rather
-          // than a `handle` and a `stagingPort !== undefined` check that
-          // must always agree with each other — one Optional value the type
-          // checker can narrow on its own, instead of two variables a later
-          // edit could let drift apart.
-          let commitStaged: (() => Effect.Effect<void, AuditStagingError>) | undefined;
-          if (stagingPort !== undefined) {
-            // `Effect.exit`, not `Effect.result`: a `stage()` that defects —
-            // a misbehaving staging adapter throwing rather than failing with
-            // its typed `AuditStagingError` — must land in the same
-            // `stagingFailed`/`stagingFailedOpen` metric a typed failure
-            // does, not unwind straight out of `record()` unmetered. See
-            // `attemptWrite` below for the identical reasoning on `write()`.
-            const staged = yield* Effect.exit(stagingPort.stage(entry));
-            if (Exit.isSuccess(staged)) {
-              const handle = staged.value;
-              commitStaged = () => stagingPort.commit(handle);
-              yield* Metric.update(stagingStaged, 1);
-            } else if (status === "Open") {
-              // Staging failed and the breaker is Open, so the write below
-              // never runs either — this entry has no path to durability at
-              // all, the wired counterpart of the unwired-and-open case.
-              yield* Effect.logWarning(
-                "audit entry dropped: circuit breaker open and staging failed",
-              ).pipe(Effect.annotateLogs({ evaluationId: entry.record.evaluationId }));
-              yield* Metric.update(stagingFailedOpen, 1);
-            } else {
-              yield* Metric.update(stagingFailed, 1);
-            }
-          } else if (status === "Open") {
-            // The one case worth flagging specially: unwired and open means
-            // this evaluation's row is genuinely, unrecoverably lost. A
-            // metric alone is indistinguishable from an encode failure on a
-            // dashboard that only samples counters — a compliance-flavored
-            // pipeline should make this the loudest failure mode it has, not
-            // one requiring an operator to already suspect it. `evaluationId`
-            // only: a correlation handle, not the subject/resource/policy the
-            // entry itself carries.
-            yield* Effect.logWarning(
-              "audit entry dropped: circuit breaker open and no staging port wired",
-            ).pipe(Effect.annotateLogs({ evaluationId: entry.record.evaluationId }));
-            yield* Metric.update(stagingSkippedOpen, 1);
-          }
-
-          if (status === "Open") return;
-
-          // 3/4. Attempt the write and react.
-          //
-          // `Effect.exit`, not `Effect.result` (ticket #47): the latter only
-          // catches `trailPort.write`'s own `E` channel, so a defecting store
-          // adapter — the same class of problem `commitStaged`'s
-          // `Effect.catchCause` above already guards against for `commit` —
-          // used to unwind straight past the `else` branch below, leaving
-          // both `breaker.recordFailure` and `writesWriteFailed` unrun. A
-          // write that never resolves observably is exactly what the breaker
-          // exists to detect, so a defect has to reach `recordFailure` the
-          // same as a typed `AuditWriteError` does — not disappear into an
-          // unhandled defect the breaker and the metrics both stay blind to.
-          // The `Effect.onExit` around this whole block (below) still runs
-          // regardless, as a second line of defense for the probe claim
-          // specifically — `releaseProbe` is a no-op once `recordFailure`
-          // has already turned the half-open window back to `Open` itself.
-          const attemptWrite = Effect.gen(function* () {
-            const written = yield* Effect.exit(trailPort.write(entry));
-            if (Exit.isSuccess(written)) {
-              yield* breaker.recordSuccess;
-              if (commitStaged !== undefined) {
-                yield* Effect.catchCause(commitStaged(), (cause) =>
-                  Effect.logWarning(
-                    "audit staging commit failed: entry is durable in the trail, but its " +
-                      "staged copy will remain marked uncommitted in the staging store",
-                    cause,
-                  ).pipe(
-                    Effect.annotateLogs({ evaluationId: entry.record.evaluationId }),
-                    Effect.andThen(Metric.update(stagingCommitFailed, 1)),
-                  ),
-                );
+              // Ties "was staged" and "how to commit it" to one value, rather
+              // than a `handle` and a `stagingPort !== undefined` check that
+              // must always agree with each other — one Optional value the type
+              // checker can narrow on its own, instead of two variables a later
+              // edit could let drift apart.
+              let commitStaged: (() => Effect.Effect<void, AuditStagingError>) | undefined;
+              if (stagingPort !== undefined) {
+                // `Effect.exit`, not `Effect.result`: a `stage()` that defects —
+                // a misbehaving staging adapter throwing rather than failing with
+                // its typed `AuditStagingError` — must land in the same
+                // `stagingFailed`/`stagingFailedOpen` metric a typed failure
+                // does, not unwind straight out of `record()` unmetered. The
+                // write below is folded the same way.
+                const staged = yield* Effect.exit(stagingPort.stage(entry));
+                if (Exit.isSuccess(staged)) {
+                  const handle = staged.value;
+                  commitStaged = () => stagingPort.commit(handle);
+                  yield* Metric.update(stagingStaged, 1);
+                } else if (refused) {
+                  // Staging failed and the write below never runs either — this
+                  // entry has no path to durability at all, the wired
+                  // counterpart of the unwired-and-open case.
+                  yield* Effect.logWarning(
+                    "audit entry dropped: circuit breaker open and staging failed",
+                  ).pipe(Effect.annotateLogs({ evaluationId: entry.record.evaluationId }));
+                  yield* Metric.update(stagingFailedOpen, 1);
+                } else {
+                  yield* Metric.update(stagingFailed, 1);
+                }
+              } else if (refused) {
+                // The one case worth flagging specially: unwired and open means
+                // this evaluation's row is genuinely, unrecoverably lost. A
+                // metric alone is indistinguishable from an encode failure on a
+                // dashboard that only samples counters — a compliance-flavored
+                // pipeline should make this the loudest failure mode it has, not
+                // one requiring an operator to already suspect it. `evaluationId`
+                // only: a correlation handle, not the subject/resource/policy the
+                // entry itself carries.
+                yield* Effect.logWarning(
+                  "audit entry dropped: circuit breaker open and no staging port wired",
+                ).pipe(Effect.annotateLogs({ evaluationId: entry.record.evaluationId }));
+                yield* Metric.update(stagingSkippedOpen, 1);
               }
-              yield* Metric.update(writesWritten, 1);
-            } else {
-              yield* breaker.recordFailure;
-              // The staged entry, if any, is left alone — ticket #5's
-              // reconciliation contract, not this pipeline's to discard.
-              yield* Metric.update(writesWriteFailed, 1);
-            }
-          });
 
-          // Ticket #38 (H4), narrowed by ticket #47. `trailPort.write`
-          // itself now runs under `Effect.exit` (above), so a write that
-          // defects or is interrupted already reaches `recordFailure` — and,
-          // for the one call holding the half-open probe, `recordFailure`
-          // reopens the breaker exactly as `releaseProbe` would, leaving
-          // `releaseProbe` nothing to do. What this `Effect.onExit` still
-          // guards against is narrower than it was before #47: `written`'s
-          // `Exit` is only ever captured *after* `trailPort.write` itself has
-          // settled, so `recordSuccess`/`recordFailure`, `commitStaged`'s
-          // `Effect.catchCause`, and the metric updates that follow are all
-          // still ordinary interruptible steps a fiber can be cut off inside
-          // — e.g. interrupted after `written` resolves but before
-          // `recordFailure`'s own `Ref.modify` completes. `Effect.onExit`
-          // guarantees a finalizer on every path `attemptWrite` can end on
-          // regardless of where inside it that happens (confirmed by this
-          // file's own interruption test, and already relied on the same way
-          // in `DecisionCache.ts`) — unlike a plain `Effect.exit` followed by
-          // more steps, which a fiber interrupted mid-`attemptWrite` would
-          // never return to run. `breaker.releaseProbe` is itself a no-op
-          // once `attemptWrite` already settled normally, so this costs
-          // nothing on the ordinary path.
-          yield* isProbe
-            ? Effect.onExit(attemptWrite, (exit) =>
-                Exit.isFailure(exit) ? breaker.releaseProbe : Effect.void,
-              )
-            : attemptWrite;
+              // 3/4. Attempt the write and react. `attempt` runs the write
+              // under `Effect.exit` and records the outcome on the breaker
+              // (ticket #47: a defecting adapter must reach the breaker the same
+              // as a typed `AuditWriteError`). A *caller's* interruption is not
+              // folded, so `withPermit` releases a probe claim itself.
+              yield* Match.value(permit).pipe(
+                Match.tagsExhaustive({
+                  Refused: () => Effect.void,
+                  Admitted: (admitted) =>
+                    Effect.gen(function* () {
+                      const written = yield* admitted.attempt(trailPort.write(entry));
+                      if (Exit.isSuccess(written)) {
+                        if (commitStaged !== undefined) {
+                          yield* Effect.catchCause(commitStaged(), (cause) =>
+                            Effect.logWarning(
+                              "audit staging commit failed: entry is durable in the trail, but its " +
+                                "staged copy will remain marked uncommitted in the staging store",
+                              cause,
+                            ).pipe(
+                              Effect.annotateLogs({ evaluationId: entry.record.evaluationId }),
+                              Effect.andThen(Metric.update(stagingCommitFailed, 1)),
+                            ),
+                          );
+                        }
+                        yield* Metric.update(writesWritten, 1);
+                      } else {
+                        // The staged entry, if any, is left alone — ticket #5's
+                        // reconciliation contract, not this pipeline's to discard.
+                        yield* Metric.update(writesWriteFailed, 1);
+                      }
+                    }),
+                }),
+              );
+            }),
+          );
         });
 
       return { record };

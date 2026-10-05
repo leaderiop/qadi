@@ -21,13 +21,12 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
-  AttributeResolveError,
-  CustomPredicateNone,
+  attributeResolverPort,
   DecisionHistory,
-  DecisionHistoryUnavailable,
+  decisionHistoryPort,
+  portsLayer,
   RelationshipResolver,
-  RelationshipResolveError,
-  SignatureHistoryNone,
+  relationshipResolverPort,
 } from "@qadi/core";
 import type {
   ActedResult,
@@ -79,7 +78,8 @@ const attributes: Layer.Layer<AttributeResolver> = Layer.succeed(AttributeResolv
       // Fails with the port's own error, never a raw one. An attribute store
       // that is down must read as *the question could not be answered* — which
       // denies — and never as *the answer was no*.
-      Effect.mapError((cause) => new AttributeResolveError({ attribute, cause })),
+      // The port's own description builds the error, as every wrapper does.
+      Effect.mapError((cause) => attributeResolverPort.failure([subjectId, attribute], cause)),
     ),
 } satisfies AttributeResolverShape);
 
@@ -102,13 +102,7 @@ const relationships: Layer.Layer<RelationshipResolver> = Layer.succeed(Relations
         const answer = field(body, "related");
         return isRelated(answer) ? answer : "Unknown";
       }),
-      Effect.mapError((cause) =>
-        new RelationshipResolveError({
-          relation: request.relation,
-          resourceId: request.resourceId,
-          cause,
-        })
-      ),
+      Effect.mapError((cause) => relationshipResolverPort.failure([request], cause)),
     ),
 } satisfies RelationshipResolverShape);
 
@@ -127,21 +121,17 @@ const history: Layer.Layer<DecisionHistory> = Layer.succeed(DecisionHistory, {
         const answer = field(body, "answer");
         return isActed(answer) ? answer : "Unknown";
       }),
-      Effect.mapError((cause) => new DecisionHistoryUnavailable({ event: query.event, cause })),
+      Effect.mapError((cause) => decisionHistoryPort.failure([query], cause)),
     ),
 } satisfies DecisionHistoryShape);
 
 /** The ports, and the layer the devtools simulator's `Live` source is offered. */
-export const browserPorts: EvaluationPortsLayer = Layer.mergeAll(
-  attributes,
-  relationships,
-  history,
-  // No browser endpoint answers a `hasCustom` question in this example — every
-  // policy it authorizes uses only the built-in matchers — so the client's
-  // registry is the same fail-closed default a real deployment gets from an
-  // unwired one.
-  CustomPredicateNone,
-  // Same reasoning as CustomPredicateNone above: no policy here reaches for
-  // hasSignature either.
-  SignatureHistoryNone,
-);
+//
+// Only the three ports a browser endpoint answers are named. No policy here
+// reaches for `hasCustom` or `hasSignature`, so those two sit at the same
+// fail-closed defaults a real deployment gets from an unwired port.
+export const browserPorts: EvaluationPortsLayer = portsLayer({
+  AttributeResolver: attributes,
+  RelationshipResolver: relationships,
+  DecisionHistory: history,
+});

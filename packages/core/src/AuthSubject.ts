@@ -5,6 +5,8 @@
  * `HasPermission` check is O(1) and needs no role traversal at evaluation time.
  * Role inheritance is resolved once, when the subject is built.
  */
+import * as Equal from "effect/Equal";
+import type * as Equivalence from "effect/Equivalence";
 import { makeSubjectId } from "./Identity.ts";
 import type { SubjectId } from "./Identity.ts";
 import type { PermissionKey } from "./Permission.ts";
@@ -117,6 +119,22 @@ export const anonymous: AuthSubject = {
   permissions: new Set(),
   attributes: {},
 };
+
+/**
+ * Whether two subjects are the same subject, by structure.
+ *
+ * Ids compare by value, `roles` and `permissions` by content whatever order or
+ * `Set` object holds them, and a nested attribute object by its own structure.
+ *
+ * This is the rule `DecisionCache`'s key already relies on — it holds the whole
+ * `AuthSubject` and compares it with `Equal.equals`
+ * ([INV-QD-030](../../../spec/invariants.md#inv-qd-030-cache-key-uniqueness),
+ * [INV-QD-033](../../../spec/invariants.md#inv-qd-033-a-cached-decision-belongs-to-the-grants-that-earned-it))
+ * — named here so the library has one definition of "same subject" rather than
+ * a cache that compares deeply and an atom that compared shallowly.
+ */
+export const subjectEquivalence: Equivalence.Equivalence<AuthSubject> = (a, b) =>
+  Equal.equals(a, b);
 
 /**
  * A copy of the subject with additional attributes merged in.

@@ -1,14 +1,43 @@
 /**
- * `/__decisions` — a live feed of this process's decisions, as Server-Sent
- * Events.
+ * `/__decisions` — this process's decision log, as Server-Sent Events: what it
+ * already holds, then what it decides next.
+ *
+ * **What a reader receives, in order** (ADR-QD-097). One `log.read` per
+ * connection — subscribe, then snapshot — so the two halves cannot lose or
+ * repeat a record between them:
+ *
+ * 1. one `event: backlog` frame per record the log retained, oldest first in
+ *    `storedRecordOrder`;
+ * 2. one `event: synced` frame whose data is `{"backlog":n}`
+ *    ({@link DecisionStreamSynced}), `n` the backlog frames actually sent —
+ *    sent even when `n` is 0, so a reader can tell "no history" from "an older
+ *    server that sends none";
+ * 3. a default (`message`) frame per record made after that.
+ *
+ * **Every `backlog` and `message` frame has an SSE `id`**, the record's
+ * `LogCursor` as `<epoch>.<seq>`; `synced` has none, so the last id a reader saw
+ * is always a record's. A reconnecting `EventSource` sends it back as
+ * `Last-Event-ID`, and when it names this log's epoch the prelude holds only
+ * what followed it — a reconnect costs what was missed, not the whole backlog
+ * again. An unparseable header, or another epoch's (a restarted process), gets
+ * the full backlog.
+ *
+ * Every `backlog` and `message` frame's data is a stored-record envelope,
+ * `{ environment, record }` (`@qadi/core`'s `encodeStoredRecordString`): the
+ * producer's label travels with the record, so a reader never states it
+ * again, and an `Edge` record an aggregator ingested arrives labelled `Edge`.
+ * A reader older than the envelope ignores the named events and reports each
+ * `message` frame as `not-a-record` through its `onMalformed` — loudly, not as
+ * silently mislabelled rows.
  *
  * **SSE rather than a WebSocket**, and the reasoning is the traffic, not taste.
  * Records flow one way; a reader never sends a decision back. SSE is plain HTTP,
  * so it goes through the same `HttpRouter`, the same middleware and the same
  * `guardRoute` as every other route here — a socket would need an upgrade path
  * outside all three, and would have to re-answer authorization on its own terms.
- * `EventSource` also reconnects by itself, which pairs with the feed's `replay`
- * to make a dropped connection recover without any protocol of ours.
+ * `EventSource` also reconnects by itself, and a reconnect reads the backlog
+ * again, so a dropped connection recovers with the minimal protocol above and
+ * nothing more.
  *
  * Effect's own devtools uses a WebSocket, and that is right for what it is: a
  * bidirectional RPC channel. This is a feed.
@@ -48,95 +77,167 @@
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
+import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as Sse from "effect/encoding/Sse";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import type {
-  EvaluationServices,
+  DecisionLogReader,
+  EnforcementErrorClass,
+  LogCursor,
+  LogEntry,
   Permission,
   Policy,
   Resource,
-  SinkRecord,
+  SinkRecordNotEncodable,
+  StandingEvaluationServices,
+  StoredRecord,
 } from "@qadi/core";
-import { assert, CurrentSubject, isRecordJsonSafe, toWire } from "@qadi/core";
+import {
+  assert,
+  classifyEnforcementError,
+  CurrentSubject,
+  encodeStoredRecordString,
+  formatLogCursor,
+  parseLogCursor,
+} from "@qadi/core";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
-import type { EnforcementErrorClass } from "./QadiHttpError.ts";
-import { classifyEnforcementError } from "./QadiHttpError.ts";
 import { NO_RESOURCE } from "./RequirePermission.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
 
 /**
- * One record as an SSE frame — `data: <json>\n\n`, produced by
- * `effect/encoding/Sse`'s own `encoder.write` rather than a hand-
- * built template string (H6, ADR-QD-072). This is the same encoder
- * `HttpApiBuilder`'s own `HttpApiSchema.StreamSse` machinery calls
- * internally (`HttpApiBuilder.ts`'s `renderSseEvent`) — reused directly here
- * rather than through `StreamSse`/`HttpApiEndpoint` themselves, because that
- * machinery is inseparable from the full `HttpApi`/`HttpApiBuilder` request
- * pipeline (confirmed by reading the source, not assumed: `makeSseEncoder`/
- * `encodeSseStream` are internal, unexported functions reached only through
- * an `HttpApiEndpoint`'s declared `success` schema). Adopting it here would
- * mean moving this route off bare `HttpRouter`/`guardRoute` entirely — the
- * same move `RequirePermission.ts`'s doc comment on `handleEnforcementErrors`
- * explains bare `HttpRouter` was never a candidate for, and this route has
- * an additional reason of its own: the `reauth` recheck loop below is a
- * `Stream.mergeEffect` over the *response* stream, wired through
- * `guardRoute`'s connect-time check and this module's own periodic one,
- * with no `HttpApiMiddleware` equivalent for a mid-stream re-authorization.
- * Reusing the platform's own frame encoder gets the real fix this section
- * asked for — no more hand-built `data: …\n\n` template — without that
- * larger, separately-scoped migration.
- *
- * `id` is always `undefined` and `event` is always `"message"` (SSE's
- * default), matching what `data:`-mode `StreamSse` produces and what this
- * route always sent before: `Sse.encoder.write` omits both the `id:` and
- * `event:` lines for that combination, leaving `data: <json>\n\n` — byte for
- * byte what the old template produced.
- *
- * A caller's resource, and a policy's `HasCustom.params`/`Obligation.attributes`,
- * are all arbitrary `unknown`; a circular reference or a `BigInt` used to throw
- * a raw `TypeError` out of `JSON.stringify` inside `Stream.map`, killing this
- * SSE connection — and every other subscriber's, since they all read the same
- * stream — over one bad decision. `isRecordJsonSafe` is `@qadi/core`'s own
- * guard for exactly this ([SinkCodec.ts](../../core/src/SinkCodec.ts)) — it
- * walks `resource` **and** `policy`, not `resource` alone, which an earlier
- * version of this guard missed: a policy's own `HasCustom.params` or an
- * `Obligation`'s `attributes` reaches the same `JSON.stringify` call and can
- * carry the same unsafe values. Refusing just the one frame rather than the
- * whole feed matches how this route already behaves under backpressure:
- * `decisionSinkFeed` drops the oldest entry rather than blocking, so a record
- * failing to reach a subscriber is not a new failure mode here, only a new
- * reason for it.
- *
- * A `Filter`, not a plain function returning `Option`: `Stream.filterMap`
- * takes a `Filter` in this Effect version — `Result.succeed` keeps a value,
- * `Result.fail` drops it (`effect/Filter`'s own doc comment).
- *
- * Exported so the refusal can be tested directly against a plain
- * `SinkRecord`, rather than through a live SSE connection. Returns the
- * framed `string` now, not a `Uint8Array` — `decisionStreamRoute` pipes the
- * whole filtered stream through `Stream.encodeText` once, the same
- * UTF-8-encoding step `HttpApiBuilder`'s own `encodeSseStream` ends with,
- * rather than each frame carrying its own `TextEncoder` call.
+ * The SSE event a stored record is framed as: `backlog` for a record the log
+ * already held when the reader connected, `message` (SSE's default) for one
+ * made after. A closed union — a reader branches on it.
  */
-export const frame: Filter.Filter<SinkRecord, string> = (record) => {
-  if (!isRecordJsonSafe(record)) return Result.fail(record);
-  return Result.succeed(
-    Sse.encoder.write({
-      _tag: "Event",
-      event: "message",
-      id: undefined,
-      data: JSON.stringify(toWire(record)),
-    }),
+export type DecisionFrameEvent = "backlog" | "message";
+
+/**
+ * The `synced` frame's data: how many `backlog` frames preceded it.
+ *
+ * Its own schema rather than an ad hoc object, so a reader can decode it as
+ * untrusted input like any other frame.
+ */
+export const DecisionStreamSynced = Schema.Struct({ backlog: Schema.Number });
+
+export type DecisionStreamSynced = typeof DecisionStreamSynced.Type;
+
+/**
+ * One stored record as an SSE frame of the given event — `event: backlog` /
+ * `data: <envelope>`, or `data: <envelope>` alone for `message`, with an `id:`
+ * line when a cursor is given (ARCH-11 D-11-g) — produced by
+ * `effect/encoding/Sse`'s own `encoder.write` rather than a hand-built template
+ * string (H6, ADR-QD-072). That is the same encoder `HttpApiBuilder`'s
+ * `HttpApiSchema.StreamSse` machinery calls internally; the machinery itself is
+ * inseparable from the full `HttpApi` pipeline, and this route's `reauth`
+ * recheck is a `Stream.mergeEffect` over the response stream with no
+ * `HttpApiMiddleware` equivalent, so the encoder is reused directly.
+ *
+ * For `message`, `Sse.encoder.write` omits the `event:` line, so a live frame
+ * is `data: <json>\n\n` — what an `EventSource`'s `message` listener reads.
+ *
+ * **One call, to `@qadi/core`'s `encodeStoredRecordString`.** The frame's data
+ * is the stored-record envelope `{ environment, record }`, whose `record` is the
+ * same bytes forwarding sends and an audit row stores; every rule about what can
+ * cross lives in the codec, over the whole encoded record (ARCH-09). A refused
+ * record drops only its own frame: the refusal is the filter's failure value,
+ * reported by {@link decisionFrames}, and the stream carries on.
+ *
+ * A `Filter`: `Result.succeed` keeps a value, `Result.fail` drops it
+ * (`effect/Filter`'s own doc comment). Exported so the refusal can be tested
+ * directly against a plain record.
+ */
+export const frame =
+  (event: DecisionFrameEvent, cursor?: LogCursor): Filter.Filter<StoredRecord, string, SinkRecordNotEncodable> =>
+  (stored) =>
+    Result.map(encodeStoredRecordString(stored), (data) =>
+      Sse.encoder.write({
+        _tag: "Event",
+        event,
+        id: cursor === undefined ? undefined : formatLogCursor(cursor),
+        data,
+      }),
+    );
+
+/** The `synced` frame: the backlog is over, and how many frames it was. */
+export const syncedFrame = (backlog: number): string =>
+  Sse.encoder.write({
+    _tag: "Event",
+    event: "synced",
+    id: undefined,
+    data: JSON.stringify(Schema.encodeSync(DecisionStreamSynced)({ backlog })),
+  });
+
+/**
+ * Reports one refused record, then drops its frame: `onRefused` when the
+ * caller supplied one, otherwise a warning naming the refusal, where in the
+ * record it was found, and the evaluation. Runs only on the refusal branch,
+ * so a framed record pays for no span.
+ */
+const reportRefused = Effect.fn("qadi.http.decisionStream.refused")(function* (
+  refusal: SinkRecordNotEncodable,
+  onRefused: ((refusal: SinkRecordNotEncodable) => void) | undefined,
+) {
+  if (onRefused === undefined) {
+    yield* Effect.logWarning("qadi/http: a decision record could not be framed").pipe(
+      Effect.annotateLogs({
+        "qadi.refusal": refusal.refusal._tag,
+        "qadi.path": "path" in refusal.refusal ? refusal.refusal.path.join(".") : "",
+        evaluationId: refusal.evaluationId,
+      }),
+    );
+  } else {
+    yield* Effect.sync(() => onRefused(refusal));
+  }
+  return Result.fail(refusal);
+});
+
+/**
+ * One read of a decision log as SSE frames: each backlog entry as a `backlog`
+ * frame, then {@link syncedFrame}, then each live entry as a `message` frame,
+ * every record frame carrying its entry's cursor as its SSE `id`.
+ * A refused record is reported (`onRefused`, else a warning) and dropped, so
+ * one record never ends the stream; the `synced` count is the backlog frames
+ * actually sent.
+ *
+ * Exported for the same reason `frame` and `reauthCheck` are: the route's body
+ * is this stream, UTF-8 encoded, and it is tested directly as well as through
+ * the route.
+ */
+export const decisionFrames = (
+  read: {
+    readonly backlog: ReadonlyArray<LogEntry>;
+    readonly live: Stream.Stream<LogEntry>;
+  },
+  options?: Pick<DecisionStreamOptions, "onRefused">,
+): Stream.Stream<string> => {
+  const onRefused = options?.onRefused;
+  const framed =
+    (event: DecisionFrameEvent) =>
+    (entry: LogEntry): Effect.Effect<Result.Result<string, SinkRecordNotEncodable>> =>
+      Result.match(frame(event, entry.cursor)(entry.record), {
+        onSuccess: (data) => Effect.succeed(Result.succeed(data)),
+        onFailure: (refusal) => reportRefused(refusal, onRefused),
+      });
+  const prelude: Effect.Effect<ReadonlyArray<string>> = Effect.map(
+    Effect.forEach(read.backlog, (entry) => framed("backlog")(entry)),
+    (results) => results.flatMap((result) => (Result.isSuccess(result) ? [result.success] : [])),
+  );
+  return Stream.unwrap(
+    Effect.map(prelude, (frames) =>
+      Stream.fromIterable([...frames, syncedFrame(frames.length)]).pipe(
+        Stream.concat(Stream.filterMapEffect(read.live, framed("message"))),
+      )),
   );
 };
 
 /**
  * `reauthCheck` classifies an `assert` failure through
- * {@link classifyEnforcementError} (`QadiHttpError.ts`) rather than collapsing
+ * {@link classifyEnforcementError} (`@qadi/core`'s `Errors.ts`) rather than collapsing
  * every one of these to a single "denied" literal, which is exactly the
  * failure/denial conflation
  * [INV-QD-006](../../../spec/invariants.md#inv-qd-006-failure-is-not-denial)
@@ -146,12 +247,13 @@ export const frame: Filter.Filter<SinkRecord, string> = (record) => {
  * from "this feed is temporarily unavailable, retry." (GR-01/TS-01)
  *
  * This module used to carry its own copy of that same three-bucket
- * partition, independently `Match.tagsExhaustive` over the same eleven tags
- * `toResponse` (`QadiHttpError.ts`) sorts to pick an HTTP status — two
- * exhaustive matches that could each compile cleanly while silently
- * disagreeing with each other on a moved or added tag. Importing the shared
- * classification instead closes that gap: there is now exactly one place
- * that decides which bucket a tag falls into.
+ * partition, independently matched over the same eleven tags `toResponse`
+ * (`QadiHttpError.ts`) sorts to pick an HTTP status — two exhaustive matches
+ * that could each compile cleanly while silently disagreeing with each other
+ * on a moved or added tag. The classification then moved into `QadiHttpError.ts`,
+ * and now lives in `@qadi/core`'s `ENFORCEMENT_ERROR_CLASSES`, beside
+ * `ERROR_CODES`: there is exactly one place that decides which bucket a tag
+ * falls into, and it is not specific to HTTP.
  */
 
 export interface DecisionStreamOptions {
@@ -164,6 +266,12 @@ export interface DecisionStreamOptions {
   readonly reauth?: {
     readonly interval: Duration.Input;
   };
+  /**
+   * Called once for each record that cannot be framed — `encodeStoredRecordString`
+   * refused it — in place of the default warning. The record's frame is dropped
+   * either way, and the stream carries on: one record never ends it.
+   */
+  readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
 }
 
 /**
@@ -209,10 +317,9 @@ export interface DecisionStreamOptions {
  * this library. The stream still fails closed either way — only the label
  * stops lying about which one happened.
  *
- * Exported for the same reason `frame` is: testing the merged `Stream`
- * through a real, live SSE connection has no existing pattern in this repo
- * (`decisionStream.test.ts`'s own note) — this is a plain `Effect`, testable
- * directly against `TestClock` without one.
+ * Exported for the same reason `frame` is: a recheck is driven by a schedule,
+ * and through a real SSE response that schedule runs on wall-clock time — this
+ * is a plain `Effect`, testable directly against `TestClock` without one.
  */
 export const reauthCheck = (
   request: HttpServerRequest.HttpServerRequest,
@@ -221,7 +328,7 @@ export const reauthCheck = (
 ): Effect.Effect<
   void,
   EnforcementErrorClass | "extraction-failed",
-  Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
+  StandingEvaluationServices | SubjectExtractor
 > =>
   SubjectExtractor.extract(request).pipe(
     Effect.tapError((error) =>
@@ -243,14 +350,16 @@ export const reauthCheck = (
   );
 
 /**
- * Mounts `/__decisions`, streaming the feed to callers the policy permits.
+ * Mounts `/__decisions`, streaming a decision log to callers the policy permits.
  *
- * The `stream` comes from `decisionSinkFeed`, so records reach it without the
- * evaluation ever waiting on a reader: publishing is synchronous and drops the
- * oldest entry rather than blocking.
+ * `log` is anything that can `read` — a `DecisionLog`, or a structural fake in
+ * a test — so a route cannot write to the log it serves. The log's live half
+ * never makes an evaluation wait on a reader: publishing is synchronous and
+ * slides out the oldest unread entry rather than blocking.
  *
- * Every subscriber gets its own subscription, so two open devtools pages do not
- * steal records from one another.
+ * Every connection makes its own `read`, inside the response stream's scope, so
+ * two open devtools pages do not steal records from one another and a closed
+ * connection releases its subscription.
  *
  * Built on `addGuardedRoute`, which registers with `PermissionRegistry` the
  * same way it does for any other bare `HttpRouter` route — otherwise
@@ -271,7 +380,7 @@ export const reauthCheck = (
 export const decisionStreamRoute = <P extends Permission>(
   permission: P,
   policy: Policy,
-  stream: Stream.Stream<SinkRecord>,
+  log: DecisionLogReader,
   options?: DecisionStreamOptions,
 ) => {
   if (options?.reauth !== undefined && Duration.toMillis(options.reauth.interval) <= 0) {
@@ -292,7 +401,16 @@ export const decisionStreamRoute = <P extends Permission>(
       // `Stream.encodeText` — UTF-8 bytes, the same final step
       // `HttpApiBuilder`'s own `encodeSseStream` ends with — rather than each
       // frame carrying its own `TextEncoder.encode` call.
-      const frames = Stream.filterMap(stream, frame).pipe(Stream.encodeText);
+      // A reconnecting `EventSource` names the last record it received; a
+      // header that is not one of this log's cursors is no cursor at all.
+      const after = Option.getOrUndefined(
+        Option.flatMap(Option.fromNullishOr(request.headers["last-event-id"]), parseLogCursor),
+      );
+      // `Stream.unwrap` gives the read the response stream's scope: the
+      // subscription opens when the body is first pulled and closes with it.
+      const frames = Stream.unwrap(
+        Effect.map(log.readEntries(after), (read) => decisionFrames(read, options)),
+      ).pipe(Stream.encodeText);
       // `Stream.mergeEffect`: the recheck loop runs concurrently for the
       // stream's lifetime, fails the whole stream the moment it fails,
       // and is itself interrupted the moment the stream ends for any
@@ -317,9 +435,7 @@ export const decisionStreamRoute = <P extends Permission>(
       // via `addGuardedRoute`), so capturing and re-providing that
       // context is what discharges them here rather than leaving them
       // for a caller who cannot see this route's internals to supply.
-      const context = yield* Effect.context<
-        Exclude<EvaluationServices, CurrentSubject> | SubjectExtractor
-      >();
+      const context = yield* Effect.context<StandingEvaluationServices | SubjectExtractor>();
       return HttpServerResponse.stream(Stream.provideContext(guarded, context), {
         contentType: "text/event-stream",
         headers: {

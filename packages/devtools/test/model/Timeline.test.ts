@@ -341,7 +341,7 @@ describe("joining a decision to its obligation outcome", () => {
 
 describe("capacity", () => {
   // E2.7
-  it("drops the oldest, exactly as decisionSinkRing evicts", () => {
+  it("drops the oldest, as a decision log evicts", () => {
     const timeline = fold(
       ["a", "b", "c", "d"].map((id, index) =>
         decisionRecord({ evaluationId: id, at: 100 + index }),

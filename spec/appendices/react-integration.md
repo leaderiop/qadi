@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-APP-REACT                                 |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Appendix — Worked Example                      |
-> | Change History | 1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
+> | Change History | 1.2 (2026-10-05): §5's "read the whole decision" example rendered the editor while an allow was being re-checked — `Success` with `waiting: true` is neither `Initial` nor `Failure`, so the ladder fell through to the previous verdict; it now reads the result once with `outcomeOf` (ADR-QD-093, CCR-QD-175)<br>1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
 
 ---
 
@@ -52,11 +52,8 @@ attributes, somewhere to resolve relationships, and a source of evaluation ids.
 ```typescript
 import {
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -68,12 +65,8 @@ const AttributeResolverHttp = Layer.succeed(AttributeResolver, {
 });
 
 export const QadiLive = Layer.mergeAll(
-  AttributeResolverHttp,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer({ AttributeResolver: AttributeResolverHttp }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 ```
 
@@ -92,26 +85,20 @@ whole policy tree to arrive at the atom it was always going to find. Hoisting is
 a performance habit here, not a correctness requirement.
 
 ```typescript
-import { allOf, hasPermission, hasRole, permission } from "@qadi/core";
+import { allOf, hasPermission, hasRole, permission, portsLayer } from "@qadi/core";
 import { makeQadiAtoms } from "@qadi/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
 } from "@qadi/core";
 
 const QadiLive = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer({
+    AttributeResolver: Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
+  }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 export const qadi = makeQadiAtoms(QadiLive);
@@ -179,29 +166,36 @@ is hidden. When the difference matters, read the decision.
 ## 5. Read the whole decision
 
 ```tsx
-import { useDecision } from "@qadi/react";
-import { isAllowed, hasPermission, permission } from "@qadi/core";
-import * as AsyncResult from "effect/reactivity/AsyncResult";
+import { DecisionOutcome, outcomeOf, useDecision } from "@qadi/react";
+import { hasPermission, permission } from "@qadi/core";
 
 const canEditDoc = hasPermission(permission("doc", "write"));
 
-export const EditPanel = () => {
-  const result = useDecision(canEditDoc);
-
-  if (AsyncResult.isInitial(result)) return <span>Checking…</span>;
-
-  // A failure is not a denial. An unreachable attribute store means we do not
-  // know, and saying "you may not" would send the user — and whoever they
-  // complain to — after the wrong problem entirely.
-  if (AsyncResult.isFailure(result)) {
-    return <span>Could not check your permissions. Try again.</span>;
-  }
-
-  return isAllowed(result.value) ? <Editor /> : <span>Read only</span>;
-};
+export const EditPanel = () =>
+  DecisionOutcome.$match(outcomeOf(useDecision(canEditDoc)), {
+    Pending: () => <span>Checking…</span>,
+    // A re-check carries no verdict: the result still holds the old answer,
+    // and `outcomeOf` gives it nowhere to go.
+    Rechecking: () => <span>Checking…</span>,
+    // A failure is not a denial. An unreachable attribute store means we do not
+    // know, and saying "you may not" would send the user — and whoever they
+    // complain to — after the wrong problem entirely.
+    Failed: () => <span>Could not check your permissions. Try again.</span>,
+    // An evaluated allow, or — while a server-rendered page's seed stands in for
+    // this client's own answer — a `SeededAllow`. `isSeeded` tells them apart.
+    Allowed: () => <Editor />,
+    Denied: () => <span>Read only</span>,
+  });
 
 const Editor = () => <textarea />;
 ```
+
+`outcomeOf` is the one read of a decision result. Reading the `AsyncResult`
+yourself — `isInitial`, then `isFailure`, then the value — renders the editor
+while an allow is being re-checked, because a re-checked result is a `Success`
+still holding the old answer; and a failed re-check keeps that answer as its
+`previousSuccess`, which `AsyncResult.value` and `getOrElse` return. Neither
+reaches an outcome.
 
 ## 6. Decisions about a specific resource
 
@@ -311,7 +305,8 @@ While the re-check runs, decisions report as *pending*, not as their previous
 value — a decision being re-checked is not a decision
 ([ADR-QD-017](../decisions/017-stale-decisions-are-not-decisions.md)). If that
 flash is unwelcome for a particular control, `useDecision` hands you the raw
-`AsyncResult` and its `waiting` flag, and the choice.
+`AsyncResult` and its `waiting` flag, and the choice — `outcomeOf` tells
+`Rechecking` from `Pending` without reading the flag yourself.
 
 ### Identity changes, not just authority changes
 
@@ -337,15 +332,15 @@ decisions take over.
 For interfaces that would rather not write pending branches by hand.
 
 ```tsx
-import { useDecisionSuspense } from "@qadi/react";
-import { isAllowed, hasPermission, permission } from "@qadi/core";
+import { permits, useDecisionSuspense } from "@qadi/react";
+import { hasPermission, permission } from "@qadi/core";
 import { Suspense } from "react";
 
 const canReadDoc = hasPermission(permission("doc", "read"));
 
 const Body = () => {
   const decision = useDecisionSuspense(canReadDoc);
-  return <article>{isAllowed(decision) ? "the document" : "not for you"}</article>;
+  return <article>{permits(decision) ? "the document" : "not for you"}</article>;
 };
 
 export const Page = () => (
@@ -405,8 +400,8 @@ Two levels, and most tests want the first.
 graph. Proving them needs a registry, not a DOM.
 
 ```typescript
-import { EvaluationServicesNone, hasRole, isAllowed, makeSubject } from "@qadi/core";
-import { makeQadiAtoms } from "@qadi/react";
+import { EvaluationServicesNone, hasRole, makeSubject } from "@qadi/core";
+import { makeQadiAtoms, permits } from "@qadi/react";
 import * as Effect from "effect/Effect";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 
@@ -423,7 +418,7 @@ export const adminIsAllowed = Effect.gen(function* () {
   );
 
   registry.dispose();
-  return isAllowed(decision);
+  return permits(decision);
 });
 ```
 
@@ -445,6 +440,36 @@ export const withQadi = (subject: AuthSubject | undefined, ui: ReactNode) => {
     </QadiProvider>
   );
 };
+```
+
+## Seeing who is asking
+
+An instrumented provider records each guard in its atom set's `gates` registry, beside
+`atoms.asked()` ([ADR-QD-080](../decisions/080-a-gate-registry-belongs-to-its-atom-set.md)).
+Read it with `instances()` and `subscribe()`, or `useGateInstances()` inside the provider.
+
+```tsx
+import { EvaluationServicesNone } from "@qadi/core";
+import type { AuthSubject } from "@qadi/core";
+import { QadiProvider, makeQadiAtoms } from "@qadi/react";
+import type { ReactNode } from "react";
+
+const debugAtoms = makeQadiAtoms(EvaluationServicesNone);
+
+// Outside React, or from a second root: the registry is a plain value.
+export const guardCount = (): number => debugAtoms.gates.instances().length;
+
+export const DebugApp = ({
+  subject,
+  children,
+}: {
+  readonly subject: AuthSubject | undefined;
+  readonly children: ReactNode;
+}) => (
+  <QadiProvider atoms={debugAtoms} subject={subject} instrument>
+    {children}
+  </QadiProvider>
+);
 ```
 
 ## Pitfalls

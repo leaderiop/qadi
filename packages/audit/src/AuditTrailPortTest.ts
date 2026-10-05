@@ -3,8 +3,8 @@
  *
  * Any consumer wiring `AuditDecisionSinkLive` needs a deterministic port for
  * their own tests — this is directly useful beyond `@qadi/audit`'s own suite,
- * not just internal test infrastructure. Mirrors `@qadi/testing`'s
- * `recordingAttributeResolver`: a factory returning the `Layer` alongside a
+ * not just internal test infrastructure. Mirrors `@qadi/core`'s
+ * `recordingPort`: a factory returning the `Layer` alongside a
  * live read of what it recorded, rather than a bare `Layer` constant nothing
  * could inspect.
  */

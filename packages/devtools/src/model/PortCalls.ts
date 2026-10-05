@@ -26,6 +26,8 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Tracer from "effect/Tracer";
+import { forEveryPort } from "@qadi/core";
+import type { PortSpanName } from "@qadi/core";
 
 /** The five ports an evaluation can touch, named as `wiringReport` names them. */
 export type PortCallPort = PortCall["_tag"];
@@ -41,22 +43,36 @@ export type PortCallPort = PortCall["_tag"];
  * Narrowing the name once makes `rowOf` exhaustive, so a sixth span is a
  * compile error rather than a blank row.
  */
-const PORT_SPANS = [
-  "qadi.attribute",
-  "qadi.acted",
-  "qadi.hasRelationship",
-  "qadi.hasCustom",
-  "qadi.hasSignature",
-] as const;
+const PORT_SPANS: ReadonlyArray<PortSpanName> = forEveryPort((d) => d.span);
 
-type PortSpan = (typeof PORT_SPANS)[number];
+/**
+ * Every span a port read opens — `@qadi/core`'s `PortSpanName`, which each
+ * port's description names (BEH-QD-227). Read from there rather than listed
+ * here, so the collector and `PortAccess.ts` cannot name different spans.
+ */
+type PortSpan = PortSpanName;
 
 const isPortSpan = (name: string): name is PortSpan =>
   PORT_SPANS.some((one) => one === name);
 
+/**
+ * Which interpreter made a call — `qadi.interpreter` on the span, a closed pair.
+ *
+ * `undefined` is "not recorded", the same reading every other field here has:
+ * an older `@qadi/core` that does not annotate the span, or a value outside the
+ * pair, is not guessed at.
+ */
+export type PortCallInterpreter = "evaluate" | "toPredicate";
+
 interface PortCallBase {
   /** The span this row was read from. */
   readonly span: string;
+  /**
+   * Whether the evaluator or `toPredicate` asked. Both emit `qadi.attribute` and
+   * `qadi.acted`, and without this a translation's reads would read as the
+   * evaluator's.
+   */
+  readonly interpreter: PortCallInterpreter | undefined;
   /** When the call started, in epoch millis — the same clock `DecisionRecord.at` uses. */
   readonly at: number;
   /**
@@ -187,7 +203,7 @@ export interface PortCallCollector {
  * A tracer that records the five port spans and passes everything through.
  *
  * State lives in this function's closure rather than the layer's, so `snapshot`
- * can read what the layer wrote — the arrangement `decisionSinkRing` and
+ * can read what the layer wrote — the arrangement a decision log and
  * `capturing` both use, and the reason providing the returned layer twice shares
  * one log.
  */
@@ -257,6 +273,7 @@ export const collectPortCalls = (options?: {
 const rowOf = (span: Tracer.Span, name: PortSpan): PortCall => {
   const base = {
     span: span.name,
+    interpreter: interpreterAt(span),
     at: Number(span.status.startTime / 1_000_000n),
     durationMillis: durationOf(span),
     subjectId: stringAt(span, "qadi.subject_id"),
@@ -333,6 +350,12 @@ const durationOf = (span: Tracer.Span): number | undefined =>
 const stringAt = (span: Tracer.Span, key: string): string | undefined => {
   const value = span.attributes.get(key);
   return typeof value === "string" ? value : undefined;
+};
+
+/** Narrows `qadi.interpreter` to the closed pair; anything else is not recorded. */
+const interpreterAt = (span: Tracer.Span): PortCallInterpreter | undefined => {
+  const value = stringAt(span, "qadi.interpreter");
+  return value === "evaluate" || value === "toPredicate" ? value : undefined;
 };
 
 const numberAt = (span: Tracer.Span, key: string): number | undefined => {

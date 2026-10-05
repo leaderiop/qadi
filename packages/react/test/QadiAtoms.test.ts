@@ -7,20 +7,16 @@
  */
 import {
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   EvaluationServicesNone,
-  RelationshipResolverNever,
-  decisionSinkRing,
+  makeDecisionLog,
   gte,
   hasAttribute,
   hasPermission,
   hasRole,
-  isAllowed,
   makeSubject,
   permission,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -28,6 +24,7 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
+import { permits } from "../src/SeededDecision.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
@@ -41,18 +38,16 @@ const baseLayer = EvaluationServicesNone;
 /** Counts how many times an attribute lookup actually happens. */
 const countingLayer = (counter: { count: number }) =>
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, {
-      resolve: () =>
-        Effect.sync(() => {
-          counter.count += 1;
-          return undefined;
-        }),
+    portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, {
+        resolve: () =>
+          Effect.sync(() => {
+            counter.count += 1;
+            return undefined;
+          }),
+      }),
     }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   );
 
 const registries: Array<AtomRegistry.AtomRegistry> = [];
@@ -94,17 +89,17 @@ describe("makeQadiAtoms", () => {
     registry.set(atoms.subject, reader);
 
     const decision = await settle(registry, atoms, canRead);
-    expect(isAllowed(decision)).toBe(true);
+    expect(permits(decision)).toBe(true);
   });
 
   it("re-decides when the subject changes", async () => {
     const atoms = makeQadiAtoms(baseLayer);
     const registry = makeRegistry();
     registry.set(atoms.subject, reader);
-    expect(isAllowed(await settle(registry, atoms, isAdmin))).toBe(false);
+    expect(permits(await settle(registry, atoms, isAdmin))).toBe(false);
 
     registry.set(atoms.subject, makeSubject({ id: "u2", roles: ["admin"] }));
-    expect(isAllowed(await settle(registry, atoms, isAdmin))).toBe(true);
+    expect(permits(await settle(registry, atoms, isAdmin))).toBe(true);
   });
 
   it("does not re-decide when a fresh but structurally equal subject replaces the current one (RC-01)", async () => {
@@ -128,6 +123,52 @@ describe("makeQadiAtoms", () => {
 
     expect(counter.count).toBe(countAfterFirst);
     expect(registry.get(atoms.decision(needsLookup))).toBe(decisionBefore);
+  });
+
+  it("does not re-decide when the replacement subject's nested attributes are equal by structure", async () => {
+    // The shallow comparison this atom used to make (`Object.is` per attribute
+    // key) called two subjects whose `org` is an equal-but-distinct object
+    // different, and re-ran every mounted decision for it. `subjectEquivalence`
+    // is the deep rule `DecisionCache`'s key already uses.
+    const counter = { count: 0 };
+    const atoms = makeQadiAtoms(countingLayer(counter));
+    const registry = makeRegistry();
+    registry.set(
+      atoms.subject,
+      makeSubject({ id: "u1", permissions: ["doc:read"], attributes: { org: { id: 1 } } }),
+    );
+    await settle(registry, atoms, needsLookup);
+    const decisionBefore = registry.get(atoms.decision(needsLookup));
+    const countAfterFirst = counter.count;
+
+    registry.set(
+      atoms.subject,
+      makeSubject({ id: "u1", permissions: ["doc:read"], attributes: { org: { id: 1 } } }),
+    );
+    await Promise.resolve();
+
+    expect(counter.count).toBe(countAfterFirst);
+    expect(registry.get(atoms.decision(needsLookup))).toBe(decisionBefore);
+  });
+
+  it("still re-decides when a nested attribute really changed", async () => {
+    const counter = { count: 0 };
+    const atoms = makeQadiAtoms(countingLayer(counter));
+    const registry = makeRegistry();
+    registry.set(
+      atoms.subject,
+      makeSubject({ id: "u1", permissions: ["doc:read"], attributes: { org: { id: 1 } } }),
+    );
+    await settle(registry, atoms, needsLookup);
+    const countAfterFirst = counter.count;
+
+    registry.set(
+      atoms.subject,
+      makeSubject({ id: "u1", permissions: ["doc:read"], attributes: { org: { id: 2 } } }),
+    );
+    await settle(registry, atoms, needsLookup);
+
+    expect(counter.count).toBeGreaterThan(countAfterFirst);
   });
 
   it("returns the same atom for the same policy", () => {
@@ -220,8 +261,8 @@ describe("makeQadiAtoms", () => {
     registry.set(tenantA.subject, reader);
     registry.set(tenantB.subject, makeSubject({ id: "other" }));
 
-    expect(isAllowed(await settle(registry, tenantA, canRead))).toBe(true);
-    expect(isAllowed(await settle(registry, tenantB, canRead))).toBe(false);
+    expect(permits(await settle(registry, tenantA, canRead))).toBe(true);
+    expect(permits(await settle(registry, tenantB, canRead))).toBe(false);
   });
 });
 
@@ -423,19 +464,19 @@ describe("a DecisionSink wired into the runtime layer", () => {
     // `Effect.serviceOption` inside the atom runtime, which is what makes
     // "one UI, two streams" true on the browser side rather than merely
     // plausible.
-    const ring = decisionSinkRing({ environment: "Client" });
+    const log = Effect.runSync(makeDecisionLog({ environment: "Client" }));
 
-    const set = makeQadiAtoms(Layer.merge(baseLayer, ring.layer));
+    const set = makeQadiAtoms(Layer.merge(baseLayer, log.layer));
     const registry = makeRegistry();
     registry.set(set.subject, reader);
     registry.get(set.decision(canRead));
 
     await vi.waitFor(async () => {
-      const stored = await Effect.runPromise(ring.snapshot);
+      const stored = await Effect.runPromise(log.snapshot);
       expect(stored.length).toBe(1);
     });
 
-    const stored = await Effect.runPromise(ring.snapshot);
+    const stored = await Effect.runPromise(log.snapshot);
     // Stamped by the sink, not by core — which cannot know it is in a browser.
     expect(stored[0]?.environment).toBe("Client");
     expect(stored[0]?._tag).toBe("Decision");

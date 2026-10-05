@@ -1,15 +1,16 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
 import type { Trace } from "../src/Decision.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import * as P from "../src/Policy.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 /** Applies to everyone; the row an author reaches for as a catch-all. */
 const always = P.allOf([]);
@@ -115,6 +116,29 @@ describe("the deciding rule", () => {
     }));
 });
 
+describe("a combining value outside the union (C9)", () => {
+  it.effect("a rule table with an unknown combining denies where DenyOverrides would (C9)", () =>
+    Effect.gen(function* () {
+      // Built in process via `JSON.parse` (no `as`, AGENTS.md §6); decode rejects
+      // these. A bare `Record` lookup read `undefined` for "Xor" — walking as
+      // `FirstApplicable` — and an inherited function for "toString", which
+      // never equals an effect: both permitted where the author's lost
+      // `DenyOverrides` denies. The most restrictive algorithm is the only
+      // fallback that cannot permit what the real one would refuse
+      // (CCR-QD-174, ARCH-12 C9).
+      const subject = subjectWith({ id: "u1", roles: ["a", "b"] });
+      const rows = [P.permitWhen(P.hasRole("a")), P.denyWhen(P.hasRole("b"))];
+      const reference = yield* run(P.rules(rows, { combining: "DenyOverrides" }), subject);
+      assert.isFalse(isAllowed(reference));
+      for (const raw of ["Xor", "toString", "constructor", "__proto__", "hasOwnProperty"]) {
+        const bogus: P.Combining = JSON.parse(JSON.stringify(raw));
+        const d = yield* run(P.rules(rows, { combining: bogus }), subject);
+        assert.isFalse(isAllowed(d), raw);
+        assert.strictEqual(d.trace.reason, reference.trace.reason, raw);
+      }
+    }));
+});
+
 describe("order is meaning", () => {
   it.effect("a reordered table decides differently", () =>
     Effect.gen(function* () {
@@ -160,7 +184,7 @@ describe("INV-QD-017: a rule list stops at the first rule that cannot be overrid
     Effect.gen(function* () {
       const counter = { calls: 0 };
       const d = yield* evaluate(policy).pipe(
-        Effect.provide(testLayer(editor, { attributes: countingResolver(counter) })),
+        Effect.provide(testLayer(editor, { AttributeResolver: countingResolver(counter) })),
       );
       return { allowed: isAllowed(d), calls: counter.calls, trace: d.trace };
     });
@@ -368,13 +392,10 @@ describe("rules compose with the rest of the ADT", () => {
     Effect.gen(function* () {
       // Not "that row did not apply". A resolver outage inside a rule table
       // must not read as the table falling through to its default deny.
-      const failing = Layer.succeed(AttributeResolver, {
-        resolve: (_id: string, attribute: string) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-      });
+      const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
       const r = yield* Effect.result(
         evaluate(P.rules([P.denyWhen(P.hasAttribute("risk", M.gte(1))), P.permitWhen(always)]))
-          .pipe(Effect.provide(testLayer(editor, { attributes: failing }))),
+          .pipe(Effect.provide(testLayer(editor, { AttributeResolver: failing }))),
       );
       assert.strictEqual(r._tag, "Failure");
     }));

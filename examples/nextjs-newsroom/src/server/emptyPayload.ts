@@ -22,6 +22,7 @@ import type { AuthSubject } from "@qadi/core";
 import type { DehydratedDecisions } from "@qadi/react";
 
 export const emptyPayload = (subject: AuthSubject): DehydratedDecisions => ({
+  version: 2,
   subjectId: subject.id,
   entries: [],
 });

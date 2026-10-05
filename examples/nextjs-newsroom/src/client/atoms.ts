@@ -15,17 +15,19 @@
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { decisionCacheLayer, decisionSinkAll, decisionSinkFeed, decisionSinkRing, EvaluationIdLive } from "@qadi/core";
+import { decisionCacheLayer, EvaluationIdLive, makeDecisionLog } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
 import { makeQadiAtoms } from "@qadi/react";
 import type { HydrationMismatch } from "@qadi/react";
 import { browserPorts } from "./ports.ts";
 
-/** The browser's own decisions, for a reader who opened the dock late. */
-export const clientRing = decisionSinkRing({ environment: "Client", capacity: 300 });
-
-/** The browser's own decisions, for a reader watching. */
-export const clientFeed = Effect.runSync(decisionSinkFeed({ capacity: 128, replay: 16 }));
+/**
+ * The browser's own decisions: their sink, their backlog and their live stream.
+ *
+ * The dock reads it as a source directly — a decision log is one — and its
+ * label is stated here, once.
+ */
+export const clientLog = Effect.runSync(makeDecisionLog({ environment: "Client", capacity: 300 }));
 
 /** What the browser's ports were asked, on the same terms as the server's. */
 export const clientPortCalls = collectPortCalls({ capacity: 200 });
@@ -70,7 +72,7 @@ export const browserLayer = Layer.mergeAll(
   browserPorts,
   EvaluationIdLive,
   decisionCacheLayer({ capacity: 256 }),
-  decisionSinkAll([clientRing.layer, clientFeed.layer]),
+  clientLog.layer,
   clientPortCalls.layer,
 );
 

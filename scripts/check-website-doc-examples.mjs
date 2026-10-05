@@ -15,10 +15,16 @@
  * that pin exists for Astro/Starlight tooling lag, not for what a reader
  * experiences copying a snippet into their own project. A snippet's job is to
  * prove it compiles against the real published library types.
+ *
+ * It also refuses a raw read of a decision result in a fence that imports
+ * `@qadi/react`, through the same `refuseRawDecisionReads` the spec checker
+ * runs (ARCH-14, ADR-QD-093): compiling cannot tell a stale allow from a
+ * correct one.
  */
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { compileFencedExamples } from "./lib/extract-code-fences.mjs";
+import { refuseRawDecisionReads } from "./lib/raw-decision-read.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const DOCS = join(ROOT, "apps/website/src/content/docs");
@@ -55,6 +61,10 @@ try {
   }
   throw error;
 }
+
+// Before compiling: a fence that compiles can still render a stale allow, and
+// that is the defect this checker once let through (ARCH-14 C5, ADR-QD-093).
+refuseRawDecisionReads({ root: ROOT, files, label: "website-doc-examples" });
 
 compileFencedExamples({
   root: ROOT,

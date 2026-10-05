@@ -10,8 +10,9 @@
  * hydrate.
  *
  * The reason matters as much as the count, because the three causes want three
- * different fixes: a mismatched subject is a cache-key bug, an unregistered atom
- * set is a wiring mistake, and an undecodable policy is version skew.
+ * different fixes: a mismatched subject is a cache-key bug, a payload of a version
+ * this client does not read is a deploy in flight, and an undecodable policy is
+ * version skew.
  */
 import type { Policy, Resource } from "@qadi/core";
 import { GateState } from "./Guards.tsx";

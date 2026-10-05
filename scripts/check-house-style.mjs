@@ -28,6 +28,12 @@
  * `testScope`-only rules apply there and a vitest body's
  * `switch`/`hasCustom`/`Effect.fnUntraced`/`any`/`Schema.TaggedError` usage, if
  * one ever appeared, is not what any of the budgets track.
+ * `DECISION_READ_BUDGET` is narrower still: `packages/*\/src` only, since a raw
+ * `AsyncResult` read is a library-surface concern and a test reads one on
+ * purpose to pin what `outcomeOf` makes of it. The seventh,
+ * `PORT_DOUBLE_BUDGET`, is the reverse: test-scope only (`packages/<pkg>/test`,
+ * `packages/<pkg>/bench`, `features/step-definitions`), because what it
+ * guards is how a test describes a broken port.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -57,11 +63,12 @@
  *     consuming the published packages, not this library's own
  *     implementation. `examples/nextjs-newsroom` is exercised instead by
  *     `pnpm --filter @qadi/example-nextjs check` (step 15 of `pnpm check`)
- *     and `apps/website` by `scripts/check-website-build.mjs` (step 23) —
+ *     and `apps/website` by `node scripts/check-website-build.mjs` (step 24) —
  *     both hold it to its own toolchain's rules, not this library's.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -263,7 +270,7 @@ const EXEMPTIONS = {
  * dispatcher was converted to `Match` and §5a now overstates the exceptions,
  * which is a documentation change this gate should insist on rather than allow.
  *
- * The four here all dispatch once per policy node or matcher node per
+ * The three here all dispatch once per policy node or matcher node per
  * evaluation — and in `filter` and `decideSubjects`, once per element on top of
  * that — with handlers closing over per-call state, so the matcher cannot be
  * hoisted to module scope the way §5a's preferred form requires. **Now
@@ -276,10 +283,13 @@ const EXEMPTIONS = {
  * @type {Readonly<Record<string, number>>}
  */
 const SWITCH_BUDGET = {
-  // `evaluateNode` on `policy._tag`, and `mergeFields` on the `FieldStrategy`
-  // literal union — which §5a would otherwise route to `Match.value`.
-  "packages/core/src/Evaluate.ts": 2,
-  // `evaluateMatcher` on `self._tag`, and `resolveRef` on `ref._tag`.
+  // `evaluateNode` on `policy._tag`. (`mergeFields` on the `FieldStrategy`
+  // literal union was the second until ARCH-12 replaced it with
+  // `FieldLattice.ts`'s own-property law table, measured first: ADR-QD-092.)
+  "packages/core/src/Evaluate.ts": 1,
+  // `judgeMatcher` on `self._tag` (it hosted in `evaluateMatcher` until
+  // ARCH-08 T8, which made `evaluateMatcher` its one-line adapter), and
+  // `resolveRef` on `ref._tag`.
   "packages/core/src/Matcher.ts": 2,
 };
 
@@ -295,8 +305,8 @@ const SWITCH = /\bswitch\s*\(/;
  * @type {Readonly<Record<string, ReadonlyArray<string>>>}
  */
 const SWITCH_BUDGET_NAMES = {
-  "packages/core/src/Evaluate.ts": ["evaluateNode", "mergeFields"],
-  "packages/core/src/Matcher.ts": ["evaluateMatcher", "resolveRef"],
+  "packages/core/src/Evaluate.ts": ["evaluateNode"],
+  "packages/core/src/Matcher.ts": ["judgeMatcher", "resolveRef"],
 };
 
 /**
@@ -350,12 +360,12 @@ const HAS_CUSTOM_EXEMPT_PREFIXES = ["packages/core/src/", "packages/testing/src/
  * `HAS_CUSTOM_BUDGET` enforce for their own exceptions: an escape hatch with
  * no friction becomes the default, so a new `Effect.fnUntraced` call site
  * anywhere is a conscious, reviewed edit to this list and to AGENTS.md §5's
- * table, not a convention left to be remembered. The port-call wrappers
- * (`resolveAttribute`, `evaluateActed`, `evaluateHasRelationship`,
- * `evaluateHasCustom`, `evaluateHasSignature`) and the root `evaluate` are
+ * table, not a convention left to be remembered. The port reads in
+ * `PortAccess.ts` (`readAttribute`, `askActedAny`, `askActedForResource`,
+ * `askRelationship`, `askCustom`, `askSignature`) and the root `evaluate` are
  * deliberately **not** in this budget — ADR-QD-051 keeps those traced as
  * product observability, not incidental cost — and neither is
- * `requireScopedResourceId`, a helper rather than a per-node dispatch point.
+ * `requireResourceId`, a helper rather than a per-node dispatch point.
  *
  * @type {Readonly<Record<string, number>>}
  */
@@ -441,6 +451,118 @@ const SCHEMA_ERROR_BUDGET = {
 };
 
 const SCHEMA_TAGGED_ERROR = /\bextends\s+Schema\.TaggedError\b/;
+
+/**
+ * Raw reads of a decision result's `AsyncResult` state in library source, by
+ * file and exact count (ADR-QD-017 as amended by ARCH-14, AGENTS.md §13).
+ *
+ * `outcomeOf` (`packages/react/src/DecisionOutcome.ts`) is the one read of a
+ * `DecisionResult`: every surface renders from the outcome it returns, and the
+ * outcome has no field through which a re-check's stale value or a failure's
+ * `previousSuccess` can leak. Before it there were three hand-kept readers of
+ * the same rule (`currentDecision`, `components.tsx`'s `classify`, `useGate.ts`'s
+ * `renderStateOf`) and a published guide that got it wrong — convention is what
+ * failed. What counts as a raw read is `RAW_DECISION_READ`
+ * (`scripts/lib/raw-decision-read.mjs`), the pattern the doc-fence gates use
+ * too. Same discipline as `SWITCH_BUDGET`, checked in both directions: a new
+ * read anywhere in `packages/*\/src` fails, and so does a budgeted one
+ * disappearing without this table changing.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const DECISION_READ_BUDGET = {
+  // `outcomeOf`'s `AsyncResult.isInitial(` and `result.waiting` — the read itself.
+  "packages/react/src/DecisionOutcome.ts": 2,
+  // Seed precedence and mismatch reporting (`makeSeededQuestion`'s `read`):
+  // one `isInitial` deciding whether the computed result replaces the seed, and
+  // two `isSuccess` deciding whether it disagrees with it. Upstream of what a
+  // consumer reads — it chooses which result the atom holds (ADR-QD-039) — so
+  // not a second reading of one.
+  "packages/react/src/HydrationEngine.ts": 3,
+};
+
+/**
+ * The function each `DECISION_READ_BUDGET` file's reads belong to, checked to
+ * exist verbatim — the rename guard `SWITCH_BUDGET_NAMES` gives its own table
+ * (BS-06).
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const DECISION_READ_BUDGET_NAMES = {
+  "packages/react/src/DecisionOutcome.ts": ["outcomeOf"],
+  "packages/react/src/HydrationEngine.ts": ["makeSeededQuestion"],
+};
+
+/**
+ * Test files that construct a port's typed error by hand, by file and exact
+ * count of lines doing so (ARCH-10, ADR-QD-094).
+ *
+ * Every port's description builds its own error (`failure`), and
+ * `@qadi/core`'s `scriptedPort` derives a failing, dying or throwing double
+ * from it — so a test that needs a broken port writes
+ * `scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer`
+ * rather than a hand-written `Layer.succeed(AttributeResolver, { … new
+ * AttributeResolveError(…) … })`. Before ARCH-10 there were 65 such failing
+ * layers in 27 files plus 19 dying ones, each restating the port's error
+ * shape; a port whose error gained a field broke every one of them.
+ *
+ * The **seventh budget, and the only test-scope one**: the six above guard
+ * shipped source, this guards how tests describe a broken port. The files
+ * below construct an error as a *value* the test needs to hold — an
+ * instance-identity check, a codec round trip, an error a registered predicate
+ * or an HTTP fixture returns, a cause matrix driven without a port — or a
+ * double the scripted one cannot express (a latch). Checked in both
+ * directions like the others: a new file, or a count that moves either way,
+ * fails until this table is edited with its reason.
+ *
+ * Scope is the test-scope set this script already scans (`packages/<pkg>/test`,
+ * `packages/<pkg>/bench`) plus `features/step-definitions`. The Gherkin
+ * step files under `features/features/` are not scanned by this script at all.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const PORT_DOUBLE_BUDGET = {
+  // A `Failed` record's resolver error, as one of the record shapes whose
+  // encode cost is measured (ARCH-09 T5).
+  "packages/core/bench/SinkCodec.bench.ts": 1,
+  // A registered predicate's own failure, returned through the registry —
+  // the value under test is what `customPredicateFromRecord` passes on.
+  "packages/core/test/CustomPredicate.test.ts": 1,
+  // A failure after a latch opens, so N concurrent asks share one in-flight
+  // compute; a script answers synchronously and cannot wait on the latch.
+  "packages/core/test/DecisionCache.test.ts": 1,
+  // Errors as values: `EvaluationError`/`QadiError` membership and codes.
+  "packages/core/test/Errors.test.ts": 5,
+  // The port's own error must reach the caller as the same instance.
+  "packages/core/test/Evaluate.test.ts": 1,
+  // `catchPortDefect`'s cause matrix, driven on raw effects without a port.
+  "packages/core/test/PortAccess.test.ts": 2,
+  // The port's own error must survive translation as the same instance.
+  "packages/core/test/Predicate.test.ts": 1,
+  // The port's own error must reach the caller as the same instance.
+  "packages/core/test/SignatureHistory.test.ts": 1,
+  // Every error round-trips through the wire codec, and a resolver error's
+  // `cause` is the position the record codec must carry or refuse (ARCH-09);
+  // and the golden bytes of a resolver error carrying an `Error` cause (ARCH-15).
+  "packages/core/test/SinkCodec.test.ts": 11,
+  // An error as a value, for its `_tag`/code.
+  "packages/core/test/Tokens.test.ts": 1,
+  // A `Failed` record carrying a resolver `cause`, as data the audit encoder
+  // must persist or refuse (ARCH-09).
+  "packages/audit/test/helpers.ts": 1,
+  // A comparison row's error, as data handed to the table.
+  "packages/devtools/test/react/WhatIfTable.test.tsx": 1,
+  // Every enforcement error's response mapping.
+  "packages/http/test/QadiHttpError.test.ts": 12,
+  // A `Failed` record carrying a resolver `cause`, as data a frame must carry
+  // or refuse without ending the feed (ARCH-09).
+  "packages/http/test/decisionStream.test.ts": 1,
+  // The fixture every HTTP enforcement test iterates over.
+  "packages/http/test/fixtures/everyHttpEnforcementFailure.ts": 5,
+};
+
+const PORT_ERROR_CONSTRUCTION =
+  /\bnew\s+(AttributeResolveError|RelationshipResolveError|DecisionHistoryUnavailable|CustomPredicateError|SignatureHistoryUnavailable)\s*\(/;
 
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
@@ -586,6 +708,10 @@ const anyLines = new Map();
 /** @type {Map<string, number[]>} */
 const schemaErrorLines = new Map();
 
+/** @type {Map<string, number[]>} */
+const decisionReadLines = new Map();
+const portDoubleLines = new Map();
+
 for (const file of sources) {
   const rel = relative(ROOT, file);
   const isTestFile = testSourceSet.has(file);
@@ -638,7 +764,7 @@ for (const file of sources) {
       importSpan = 0;
     }
 
-    // All five budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
+    // These five budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
     // UNTRACED_BUDGET/ANY_BUDGET/SCHEMA_ERROR_BUDGET are keyed to specific src
     // files) — a test
     // file's switch, hasCustom, Effect.fnUntraced or any usage, if one ever
@@ -696,6 +822,26 @@ for (const file of sources) {
       schemaErrorLines.set(rel, found);
     }
 
+    // Library source only (`packages/*/src`): a test reads raw results on
+    // purpose, to pin what `outcomeOf` reads them as. Every read on the line
+    // counts — `AsyncResult.isSuccess(r) && !r.waiting` is two.
+    if (!isTestFile && rel.startsWith("packages/")) {
+      const matches = line.match(RAW_DECISION_READ) ?? [];
+      if (matches.length > 0) {
+        const found = decisionReadLines.get(rel) ?? [];
+        for (let i = 0; i < matches.length; i += 1) found.push(index + 1);
+        decisionReadLines.set(rel, found);
+      }
+    }
+    // Test-scope only, unlike every budget above: PORT_DOUBLE_BUDGET is about
+    // how tests describe a broken port, and shipped source constructs these
+    // errors legitimately (each port's description, `PortAccess.ts`).
+    if ((isTestFile || rel.startsWith("features/")) && PORT_ERROR_CONSTRUCTION.test(line)) {
+      const found = portDoubleLines.get(rel) ?? [];
+      found.push(index + 1);
+      portDoubleLines.set(rel, found);
+    }
+
     for (const rule of RULES) {
       if (isTestFile && !rule.testScope) continue;
       if (exempt.includes(rule.id)) continue;
@@ -744,7 +890,7 @@ for (const [rel, found] of switchLines) {
 }
 
 // `SWITCH_BUDGET` keys on file + exact count alone, which a rename cannot
-// trip: `evaluateNode`/`mergeFields`/`evaluateMatcher`/`resolveRef` renamed to
+// trip: `evaluateNode`/`mergeFields`/`judgeMatcher`/`resolveRef` renamed to
 // anything else would still leave the count matching, while AGENTS.md §5a's
 // table (and the prose comment above `SWITCH_BUDGET` itself) silently name a
 // symbol that no longer exists. Checked here as a plain grep-per-name against
@@ -935,6 +1081,49 @@ for (const [rel, found] of schemaErrorLines) {
 }
 
 // ---------------------------------------------------------------------------
+// AGENTS.md §13 / ADR-QD-017 — a decision result is read once, by `outcomeOf`.
+// Checked in both directions like SWITCH_BUDGET above: a new raw read anywhere
+// in library source is a second home for the stale-allow rule, and a budgeted
+// read disappearing means the table above describes code that moved.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(DECISION_READ_BUDGET)) {
+  const found = decisionReadLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [decision-read-budget] declares ${budget} raw decision read(s), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update DECISION_READ_BUDGET in scripts/check-house-style.mjs, with the reason, so the two agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of decisionReadLines) {
+  if (rel in DECISION_READ_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [decision-read-budget] Raw read of a decision result's AsyncResult state.\n` +
+      `    Read it with outcomeOf (or its projection currentDecision) instead — a waiting result still ` +
+      `holds the previous answer, and a failure keeps it as previousSuccess (ADR-QD-017, AGENTS.md §13).`,
+  );
+}
+
+// A declaration, not a mention: both files name their function in prose too,
+// so a bare word match would survive the rename it exists to catch.
+for (const [rel, names] of Object.entries(DECISION_READ_BUDGET_NAMES)) {
+  const content = readFileSync(join(ROOT, rel), "utf8");
+  for (const name of names) {
+    if (new RegExp(`\\b(?:const|function)\\s+${name}\\b`).test(content)) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [decision-read-budget-names] DECISION_READ_BUDGET's reason names \`${name}\`, but no ` +
+        `such identifier appears in this file any more — renamed without updating the budget's names.`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // §4 — Data.TaggedError tags carry no "qadi/" prefix, checked across line
 // breaks. A per-line regex here would miss `Data.TaggedError(\n  "qadi/X",\n)`
 // — most of Errors.ts's classes are written exactly that way — so this reads
@@ -1006,6 +1195,35 @@ for (const file of sources) {
         `submodules: import * as X from "effect/X".\n    ${m[0].replace(/\s+/g, " ")}`,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// ARCH-10 — a test that needs a broken port scripts it from the port's
+// description (`scriptedPort`), rather than hand-writing the port's error.
+// Checked in both directions like the budgets above.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(PORT_DOUBLE_BUDGET)) {
+  const found = portDoubleLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [port-double-budget] declares ${budget} line(s) constructing a port error, found ` +
+        `${found.length}${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update PORT_DOUBLE_BUDGET in scripts/check-house-style.mjs so the two agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of portDoubleLines) {
+  if (rel in PORT_DOUBLE_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [port-double-budget] A test constructs a port error by hand.\n` +
+      `    A broken port is \`scriptedPort(<port>Port, () => PortReply.fail(cause)).layer\` ` +
+      `(@qadi/core); a test that needs the error as a value is added to PORT_DOUBLE_BUDGET ` +
+      `in scripts/check-house-style.mjs with its exact count and reason.`,
+  );
 }
 
 // ---------------------------------------------------------------------------

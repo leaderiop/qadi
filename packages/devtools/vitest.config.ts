@@ -27,9 +27,9 @@ export default defineConfig({
     // config's directory. `stryker.devtools.mjs` invokes vitest with
     // `--dir packages/devtools` from the repo root, which left the bare
     // string looking for `<repo-root>/test/setupTests.ts` and failing every
-    // test file with `ERR_MODULE_NOT_FOUND` (CCR-QD-119) — `@qadi/react`'s
-    // otherwise-identical config has the same latent bug, unexercised only
-    // because `src/react` is excluded from mutation testing.
+    // test file with `ERR_MODULE_NOT_FOUND` (CCR-QD-119). `@qadi/react`'s
+    // config had the same latent bug until `stryker.react.mjs` (ARCH-14)
+    // first exercised it; it now resolves its setup file the same way.
     setupFiles: [fileURLToPath(new URL("./test/setupTests.ts", import.meta.url))],
   },
 });

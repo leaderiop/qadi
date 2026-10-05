@@ -16,11 +16,7 @@ import * as Layer from "effect/Layer";
 import {
   allOf,
   anyOf,
-  AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   Failed,
   gte,
   hasActed,
@@ -33,7 +29,10 @@ import {
   obligation,
   obliged,
   permission,
-  RelationshipResolverNever,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
+  portsLayer,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { policyLabel } from "../../src/model/Catalogue.ts";
@@ -55,17 +54,9 @@ const sighting = (policy: Policy): PolicySighting => ({
   lastAt: 100,
 });
 
-const brokenPorts = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, {
-    name: "broken",
-    resolve: (_subjectId: string, attribute: string) =>
-      Effect.fail(new AttributeResolveError({ attribute, cause: "the store is down" })),
-  }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const brokenPorts = portsLayer({
+  AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("the store is down"), "broken").layer,
+});
 
 const entryOf = (record: Parameters<typeof ingestAll>[1][number]): TimelineEntry => {
   const [entry] = ingestAll(emptyTimeline(), [record]).entries;
@@ -782,13 +773,9 @@ describe("a defect in the layer the host supplied", () => {
    * would look merely unresponsive.
    */
   it("is reported rather than swallowed", async () => {
-    const dying = Layer.mergeAll(
-      Layer.effect(AttributeResolver, Effect.die(new Error("the layer exploded"))),
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
-      CustomPredicateNone,
-      SignatureHistoryNone,
-    );
+    const dying = portsLayer({
+      AttributeResolver: Layer.effect(AttributeResolver, Effect.die(new Error("the layer exploded"))),
+    });
     render(<Simulator sightings={[sighting(hasAttribute("clearance", gte(5)))]} ports={dying} />);
 
     act(() => {

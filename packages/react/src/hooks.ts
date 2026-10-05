@@ -6,14 +6,16 @@
  * or cancellation logic here — the registry does all of it, which is why two
  * components asking the same question cost one evaluation rather than two.
  */
-import type { AuthSubject, Decision, Policy, Resource } from "@qadi/core";
-import { isAllowed, project } from "@qadi/core";
+import type { AuthSubject, Policy, Resource } from "@qadi/core";
+import { projectVisible } from "@qadi/core";
 import { useAtomSuspense } from "@effect/atom-react/Hooks";
 import * as Atom from "effect/reactivity/Atom";
-import { useCallback, useEffect, useMemo } from "react";
-import type { DecisionResult, QadiAtoms } from "./QadiAtoms.ts";
-import { currentDecision } from "./QadiAtoms.ts";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import type { GateInstance } from "./GateRegistry.ts";
+import type { DecisionResult } from "./DecisionOutcome.ts";
+import type { QadiAtoms } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
+import type { ClientDecision } from "./SeededDecision.ts";
 import { useGate } from "./useGate.ts";
 
 /** The subject under authorization, or `undefined` while it is still loading. */
@@ -25,9 +27,11 @@ export const useSubject = (): AuthSubject | undefined => {
 /**
  * The decision for a policy, as observable state.
  *
- * This is the primitive the rest of the package is built from, and the only
- * hook that keeps all three outcomes apart: not known yet, decided, and
- * could not be determined.
+ * The raw result, unread: the one surface that hands back an `AsyncResult`,
+ * as ADR-QD-017's deliberate stale-while-revalidate opt-in. Read it with
+ * `outcomeOf`, which keeps all five outcomes apart — not known yet, being
+ * re-checked, allowed, denied, and could not be determined — and gives a
+ * re-check or a failure no verdict to show.
  */
 export const useDecision = (policy: Policy, resource?: Resource): DecisionResult =>
   useGate("useDecision", policy, resource).result;
@@ -35,22 +39,19 @@ export const useDecision = (policy: Policy, resource?: Resource): DecisionResult
 /**
  * Whether the subject satisfies the policy.
  *
- * `false` covers four different situations — pending, rechecking, denied, and
- * failed — so it is safe for hiding a control and useless for explaining why
- * it is hidden. It reads through {@link currentDecision}, which also reports
- * `undefined` while a previously-allowed decision is being re-checked
+ * `true` exactly when the outcome is `Allowed`. `false` covers pending,
+ * rechecking, denied and failed — `outcomeOf` tells them apart — so it is safe
+ * for hiding a control and useless for explaining why it is hidden. A control
+ * whose allow is being re-checked reads `false` like one never decided
  * ([ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md):
- * "a decision being re-checked is not a decision"), so a `Rechecking` control
- * collapses into the same `false` as one that has never been decided. Reach
- * for {@link useDecision} when the difference matters.
+ * "a decision being re-checked is not a decision"). Reach for
+ * {@link useDecision} and `outcomeOf` when the difference matters.
  */
-export const useCan = (policy: Policy, resource?: Resource): boolean => {
+export const useCan = (policy: Policy, resource?: Resource): boolean =>
   // `useGate` directly rather than through `useDecision`, so this instance
   // registers **once**, as itself. Nesting the two would report one `useCan`
   // as two instances, the inner one labelled `useDecision`.
-  const decision = currentDecision(useGate("useCan", policy, resource).result);
-  return decision !== undefined && isAllowed(decision);
-};
+  useGate("useCan", policy, resource).outcome._tag === "Allowed";
 
 /**
  * The decision for a policy, suspending until it is known.
@@ -59,7 +60,7 @@ export const useCan = (policy: Policy, resource?: Resource): boolean => {
  * is the point: an unreachable attribute store should surface as an error, not
  * as a hidden button.
  */
-export const useDecisionSuspense = (policy: Policy, resource?: Resource): Decision => {
+export const useDecisionSuspense = (policy: Policy, resource?: Resource): ClientDecision => {
   const { atoms } = useQadiContext("useDecisionSuspense");
   const atom = useMemo(
     () =>
@@ -74,7 +75,9 @@ export const useDecisionSuspense = (policy: Policy, resource?: Resource): Decisi
   // `@effect/atom-react`'s own `useAtomSuspense` — closed, not experimental;
   // see ADR-QD-014's Reversal section for why. `suspendOnWaiting: true`
   // preserves ADR-QD-017 ("a decision being re-checked is not a decision") —
-  // the library's default only suspends on `Initial`, not on `waiting`.
+  // the library's default only suspends on `Initial`, not on `waiting`. This is
+  // the one read of a result `outcomeOf` delegates rather than performs, and
+  // `DecisionOutcome.ts`'s module comment says why (ARCH-14 D-14-e).
   return useAtomSuspense(atom, { suspendOnWaiting: true }).value;
 };
 
@@ -140,8 +143,10 @@ export const useProjected = <A extends Resource>(
   policy: Policy,
   data: A,
 ): Partial<A> => {
-  const decision = currentDecision(useGate("useProjected", policy, data).result);
-  return decision === undefined ? {} : project(decision, data);
+  const { outcome } = useGate("useProjected", policy, data);
+  // `Allowed` carries one of the two allow classes, both of which carry
+  // `visibleFields`; every other outcome projects to nothing.
+  return outcome._tag === "Allowed" ? projectVisible(outcome.decision.visibleFields, data) : {};
 };
 
 /**
@@ -157,4 +162,22 @@ export const useInvalidate = (): (() => void) => {
   return useCallback(() => {
     registry.set(atoms.invalidate, undefined);
   }, [registry, atoms]);
+};
+
+/**
+ * Every live guard under this provider's gate registry, re-rendering its caller
+ * as guards mount, unmount and change what they render.
+ *
+ * The host-side adapter ADR-QD-053 sanctions: it holds guard *instances*, never
+ * a decision (AGENTS.md §13), and it re-renders only its caller, never a guard.
+ * It reads the provider's effective registry (the `gates` prop, else
+ * `atoms.gates`), so a host using the override gets the right one without
+ * knowing which it is. Empty unless the provider is `instrument`ed. Outside a
+ * provider, read `atoms.gates` with `useSyncExternalStore` instead.
+ */
+export const useGateInstances = (): ReadonlyArray<GateInstance> => {
+  const { gates } = useQadiContext("useGateInstances");
+  // The third argument is the server snapshot: no effect runs during SSR, so the
+  // registry is empty there, and `[]` is the correct answer.
+  return useSyncExternalStore(gates.subscribe, gates.instances, gates.instances);
 };

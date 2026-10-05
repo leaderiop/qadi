@@ -64,7 +64,7 @@ authorization contexts in the same page are structurally unable to see each
 other's decisions.
 
 ```typescript
-import { currentDecision, makeQadiAtoms } from "@qadi/react";
+import { DecisionOutcome, currentDecision, makeQadiAtoms, outcomeOf } from "@qadi/react";
 import type { QadiLayer } from "@qadi/react";
 import { hasPermission, permission } from "@qadi/core";
 
@@ -80,9 +80,19 @@ const atoms = makeQadiAtoms(qadiLayer, {
 
 const canReadDoc = hasPermission(permission("doc", "read"));
 const decisionAtom = atoms.decision(canReadDoc);
-// `currentDecision(result)` reads back `undefined` whenever `result.waiting`
-// is true — even though `result` may still be a `Success` carrying last
-// decision's value underneath.
+// `outcomeOf(result)` reads `Rechecking` whenever `result` is being
+// re-checked — even though it may still be a `Success` carrying the last
+// decision underneath — and `currentDecision(result)`, its projection, reads
+// back `undefined`.
+export const describe = (result: Parameters<typeof outcomeOf>[0]): string =>
+  DecisionOutcome.$match(outcomeOf(result), {
+    Pending: () => "not known yet",
+    Rechecking: () => "re-checking",
+    Failed: () => "could not check",
+    Allowed: () => "allowed",
+    Denied: () => "denied",
+  });
+export const settled = currentDecision;
 ```
 
 ## Waiting is not a decision
@@ -93,8 +103,10 @@ that's stale-while-revalidate, a feature. For authorization it's an
 over-permission: the subject may have just signed out, had a grant revoked,
 or been swapped for a different subject whose decision is still in flight.
 Every convenience API in this package reads a waiting result as **not
-decided**, full stop — `currentDecision` returns `undefined`, not the stale
-value. See [ADR-QD-017](https://github.com/leaderiop/qadi/blob/main/spec/decisions/017-stale-decisions-are-not-decisions.md).
+decided**, full stop — `outcomeOf` returns `Rechecking` and `currentDecision`
+returns `undefined`, not the stale value. A failed re-check is the same: the
+`Failure` keeps the last allow as `previousSuccess`, and `outcomeOf` reads it as
+`Failed`, carrying only the cause. See [ADR-QD-017](https://github.com/leaderiop/qadi/blob/main/spec/decisions/017-stale-decisions-are-not-decisions.md).
 
 **Invalidation** is what puts a decision into `waiting` on purpose: writing
 to `atoms.invalidate` discards every held decision and re-evaluates the

@@ -16,14 +16,12 @@ import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import {
   anyOf,
-  AttributeResolveError,
   AttributeResolver,
   AttributeResolverNone,
   currentSubjectLayer,
   CustomPredicate,
   customPredicateFromRecord,
   CustomPredicateNone,
-  SignatureHistoryNone,
   decisionHistoryFromEvents,
   DecisionHistory,
   DecisionHistoryUnknown,
@@ -39,6 +37,11 @@ import {
   RelationshipResolver,
   RelationshipResolverNever,
   relationshipResolverFromEdges,
+  toPredicate,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
+  portsLayer,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
@@ -62,13 +65,14 @@ interface Overrides {
 
 const services = (overrides?: Overrides) =>
   Layer.mergeAll(
+    portsLayer({
+      AttributeResolver: overrides?.attributes ?? AttributeResolverNone,
+      RelationshipResolver: overrides?.relationships ?? RelationshipResolverNever,
+      DecisionHistory: overrides?.history ?? DecisionHistoryUnknown,
+      CustomPredicate: overrides?.customPredicate ?? CustomPredicateNone,
+    }),
     currentSubjectLayer(alice),
-    overrides?.attributes ?? AttributeResolverNone,
-    overrides?.relationships ?? RelationshipResolverNever,
-    overrides?.history ?? DecisionHistoryUnknown,
     evaluationIdSequential("ev"),
-    overrides?.customPredicate ?? CustomPredicateNone,
-    SignatureHistoryNone,
   );
 
 const resolverOf = (record: Readonly<Record<string, unknown>>) =>
@@ -246,11 +250,7 @@ describe("what a row says", () => {
     Effect.gen(function* () {
       const log = yield* watch(hasAttribute("tier", gte(3)), {
         layers: {
-          attributes: Layer.succeed(AttributeResolver, {
-            name: "broken",
-            resolve: (_subjectId: string, attribute: string) =>
-              Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-          }),
+          attributes: scriptedPort(attributeResolverPort, () => PortReply.fail("down"), "broken").layer,
         },
       });
 
@@ -479,5 +479,48 @@ describe("what the collector keeps", () => {
       yield* run;
 
       assert.strictEqual((yield* collector.snapshot).calls.length, 2);
+    }));
+});
+
+describe("which interpreter asked", () => {
+  const read = hasAttribute("tier", gte(3));
+
+  it.effect("a translation's read is marked toPredicate and an evaluation's evaluate", () =>
+    Effect.gen(function* () {
+      const collector = collectPortCalls();
+      const layer = Layer.mergeAll(
+        services({ attributes: resolverOf({ tier: 5 }) }),
+        collector.layer,
+      );
+
+      yield* toPredicate(read).pipe(Effect.provide(layer));
+      yield* evaluate(read).pipe(Effect.provide(layer));
+
+      const { calls } = yield* collector.snapshot;
+      assert.deepStrictEqual(
+        calls.map((call) => call.interpreter),
+        ["toPredicate", "evaluate"],
+      );
+    }));
+
+  it.effect("an unannotated span, or an unexpected value, reads as not recorded", () =>
+    Effect.gen(function* () {
+      const collector = collectPortCalls();
+
+      yield* Effect.void.pipe(
+        Effect.withSpan("qadi.attribute"),
+        Effect.andThen(
+          Effect.void.pipe(
+            Effect.withSpan("qadi.attribute", { attributes: { "qadi.interpreter": "bogus" } }),
+          ),
+        ),
+        Effect.provide(collector.layer),
+      );
+
+      const { calls } = yield* collector.snapshot;
+      assert.deepStrictEqual(
+        calls.map((call) => call.interpreter),
+        [undefined, undefined],
+      );
     }));
 });

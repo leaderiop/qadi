@@ -15,6 +15,10 @@ export default defineConfig({
     // `afterEach`, which only exists when `test.globals` is `true`. This
     // config does not set `globals`, so the cleanup is registered explicitly
     // here instead — see `test/setupTests.ts`.
-    setupFiles: ["./test/setupTests.ts"],
+    // Resolved against this file, not the process CWD: `stryker.react.mjs`
+    // runs vitest from the repo root with `--dir packages/react`, which left a
+    // bare "./test/setupTests.ts" pointing at `<repo-root>/test/` and failing
+    // every file (the same fix `packages/devtools/vitest.config.ts` carries).
+    setupFiles: [fileURLToPath(new URL("./test/setupTests.ts", import.meta.url))],
   },
 });

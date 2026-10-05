@@ -2,7 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Metric from "effect/Metric";
 import type { Predicate } from "@qadi/core";
-import { compilePrismaWhere } from "../src/index.ts";
+import { compile } from "./fixture.ts";
 
 /** Isolates one test's counts from the process-wide registry every other test shares. */
 const isolatedMetrics = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -21,7 +21,7 @@ describe("qadi_predicate_prisma_compiled_total", () => {
       const eq: Predicate = { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" };
       const snapshots = yield* isolatedMetrics(
         Effect.gen(function* () {
-          yield* compilePrismaWhere(eq);
+          yield* compile(eq);
           return yield* Metric.snapshot;
         }),
       );
@@ -41,7 +41,7 @@ describe("qadi_predicate_prisma_compiled_total", () => {
       const unsafe: Predicate = { _tag: "Compare", column: "x", op: "Eq", value: { bad: 1 } };
       const snapshots = yield* isolatedMetrics(
         Effect.gen(function* () {
-          yield* Effect.result(compilePrismaWhere(unsafe));
+          yield* Effect.result(compile(unsafe));
           return yield* Metric.snapshot;
         }),
       );

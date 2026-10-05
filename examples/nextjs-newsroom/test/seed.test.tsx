@@ -17,12 +17,9 @@ import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
   currentSubjectLayer,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   decide,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
+  portsLayer,
 } from "@qadi/core";
 import type { AttributeResolverShape, SubjectId } from "@qadi/core";
 import {
@@ -70,12 +67,8 @@ describe("a seeded decision, with no Next in the way", () => {
         Effect.map((decision) => [{ policy: inGoodStanding, decision }]),
         Effect.provide(
           Layer.mergeAll(
-            good,
-            RelationshipResolverNever,
-            DecisionHistoryUnknown,
+            portsLayer({ AttributeResolver: good }),
             EvaluationIdLive,
-            CustomPredicateNone,
-            SignatureHistoryNone,
             currentSubjectLayer(omar),
           ),
         ),
@@ -84,18 +77,11 @@ describe("a seeded decision, with no Next in the way", () => {
     );
     const payload = dehydrateDecisions(entries);
     expect(payload.entries).toHaveLength(1);
-    expect(payload.entries[0]?.allowed).toBe(true);
+    expect(payload.entries[0]?.decision._tag).toBe("Allow");
 
     // The browser half.
     const atoms = makeQadiAtoms(
-      Layer.mergeAll(
-        silent,
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      ),
+      Layer.merge(portsLayer({ AttributeResolver: silent }), EvaluationIdLive),
     );
     const initialValues = Array.from(hydrateDecisions(atoms, payload, omar));
     expect(initialValues).toHaveLength(1);
@@ -106,9 +92,9 @@ describe("a seeded decision, with no Next in the way", () => {
       </QadiProvider>,
     );
 
-    // The whole question. `Allow` means the seed covered the gap; `none` means
-    // it did not, and the guard rendered pending with a seed sitting unread.
-    expect(screen.getByTestId("probe").textContent).toBe("Allow");
+    // The whole question. `SeededAllow` means the seed covered the gap; `none`
+    // means it did not, and the guard rendered pending with a seed sitting unread.
+    expect(screen.getByTestId("probe").textContent).toBe("SeededAllow");
     cleanup();
   });
 });

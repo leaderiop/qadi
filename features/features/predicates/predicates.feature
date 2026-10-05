@@ -30,6 +30,20 @@ Feature: Predicate output
     Then the predicate is false
     And the query need not be run
 
+  Scenario: An attribute service that dies during compilation is an error, not a crash
+    Given a subject "alice"
+    And the attribute service dies unexpectedly
+    When the risk policy is compiled to a predicate
+    Then compilation fails with an AttributeResolveError
+
+  Scenario: A role that already decides the filter asks no store
+    Given a subject "alice"
+    And the subject has role "editor"
+    And the attribute service is down
+    When the editor-or-risk policy is compiled to a predicate
+    Then the predicate is true
+    And the attribute service was never asked
+
   Scenario: A relationship cannot be compiled
     Given a subject "alice"
     When the ownership relationship policy is compiled to a predicate
@@ -58,3 +72,16 @@ Feature: Predicate output
     And the subject has attribute "tenantId" of "t-1"
     When the sealed-rows rule table is compiled to a predicate
     Then the predicate and the evaluator agree on every row
+
+  # A float column can hold an infinite value. The evaluator denies it under
+  # every range; before CCR-QD-172 the compiled filter admitted it, a filter
+  # wider than the policy.
+  Scenario: A resource whose level is infinite is denied by the evaluator and excluded by the filter
+    Given a subject "alice"
+    When the "at least 3" level policy is compiled to a predicate
+    Then the "at least 3" level policy and its predicate both refuse a level of "Infinity"
+
+  Scenario: A resource whose level is minus infinity is denied below a bound and excluded by the filter
+    Given a subject "alice"
+    When the "below 3" level policy is compiled to a predicate
+    Then the "below 3" level policy and its predicate both refuse a level of "-Infinity"

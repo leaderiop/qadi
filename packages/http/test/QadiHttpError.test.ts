@@ -19,6 +19,7 @@ import {
   RelationshipResolveError,
   SignatureHistoryUnavailable,
   UndischargedObligation,
+  classifyEnforcementError,
   makeResourceId,
   makeSubjectId,
 } from "@qadi/core";
@@ -26,19 +27,34 @@ import * as Effect from "effect/Effect";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Schema from "effect/Schema";
+import * as SchemaAST from "effect/SchemaAST";
 import type * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { describe, expect, it } from "vitest";
 import {
+  AccessDeniedRefused,
+  AttributeResolveErrorResponse,
   CustomPredicateErrorResponse,
   DecisionHistoryUnavailableResponse,
+  MissingActionResponse,
+  MissingResourceIdResponse,
+  MissingResourceResponse,
+  PolicyTooDeepResponse,
   RelationshipResolveErrorResponse,
   SignatureHistoryUnavailableResponse,
   SubjectExtractionFailed,
+  SubjectExtractionRefused,
+  UndischargedObligationRefused,
+  ENFORCEMENT_ERROR_WIRE,
+  HTTP_ENFORCEMENT_ERROR_SCHEMAS,
+  HTTP_ENFORCEMENT_TAGS,
+  HTTP_STATUS_BY_CLASS,
   handleEnforcementErrors,
   logDenial,
+  projectHttpEnforcementFailure,
   subjectExtractionFailedResponse,
   toResponse,
 } from "../src/index.ts";
+import { everyHttpEnforcementFailure } from "./fixtures/everyHttpEnforcementFailure.ts";
 
 /**
  * Runs `effect`, capturing every `Effect.log*` message emitted during it —
@@ -230,4 +246,193 @@ describe("the redacted *Response schemas", () => {
     const encoded = Schema.encodeSync(SignatureHistoryUnavailableResponse)(error);
     expect(encoded).toEqual({ _tag: "SignatureHistoryUnavailable", subjectId, resourceId });
   });
+
+  it("AttributeResolveErrorResponse encodes the tag and `attribute`, never `cause`", () => {
+    const error = new AttributeResolveError({ attribute: "clearance", cause: "postgres://user:pw@db" });
+    const encoded = Schema.encodeSync(AttributeResolveErrorResponse)(error);
+    expect(encoded).toEqual({ _tag: "AttributeResolveError", attribute: "clearance" });
+  });
+});
+
+/**
+ * Characterization of the whole closed domain (ARCH-04 T1). Both tables below
+ * are read off `everyHttpEnforcementFailure`, whose mapped type makes a
+ * missing tag a compile error, so these tests cannot silently stop covering a
+ * tag. The *expected* values are written out by hand, never derived from the
+ * code under test: they are BEH-QD-177's table and the disclosure review's
+ * per-tag field lists.
+ */
+const wireSchemaByTag = {
+  AccessDenied: AccessDeniedRefused,
+  UndischargedObligation: UndischargedObligationRefused,
+  AttributeResolveError: AttributeResolveErrorResponse,
+  RelationshipResolveError: RelationshipResolveErrorResponse,
+  DecisionHistoryUnavailable: DecisionHistoryUnavailableResponse,
+  CustomPredicateError: CustomPredicateErrorResponse,
+  SignatureHistoryUnavailable: SignatureHistoryUnavailableResponse,
+  MissingAction: MissingActionResponse,
+  MissingResource: MissingResourceResponse,
+  MissingResourceId: MissingResourceIdResponse,
+  PolicyTooDeep: PolicyTooDeepResponse,
+  SubjectExtractionFailed: SubjectExtractionRefused,
+} as const;
+
+/**
+ * The `httpApiStatus` annotation `HttpApiSchema.status` writes and
+ * `HttpApiBuilder`'s encoder reads. `HttpApiSchema.getStatusErrorSchema` is
+ * `@internal`, so the public `SchemaAST.resolveAt` reads the same key.
+ */
+const httpApiStatusOf = (schema: Schema.Top): number | undefined =>
+  SchemaAST.resolveAt<number>("httpApiStatus")(schema.ast);
+
+describe("the two routing shapes", () => {
+  it("answer the same status for every tag", () => {
+    const tags = [
+      "AccessDenied",
+      "UndischargedObligation",
+      "AttributeResolveError",
+      "RelationshipResolveError",
+      "DecisionHistoryUnavailable",
+      "CustomPredicateError",
+      "SignatureHistoryUnavailable",
+      "MissingAction",
+      "MissingResource",
+      "MissingResourceId",
+      "PolicyTooDeep",
+    ] as const;
+    for (const tag of tags) {
+      const status = toResponse(everyHttpEnforcementFailure[tag]()).status;
+      expect(httpApiStatusOf(wireSchemaByTag[tag]), tag).toBe(status);
+    }
+    expect(httpApiStatusOf(wireSchemaByTag.SubjectExtractionFailed)).toBe(502);
+  });
+});
+
+describe("ENFORCEMENT_ERROR_WIRE", () => {
+  // Hand-written, independent of every table under test: BEH-QD-177.
+  const expectedStatus = {
+    AccessDenied: 403,
+    UndischargedObligation: 403,
+    AttributeResolveError: 502,
+    RelationshipResolveError: 502,
+    DecisionHistoryUnavailable: 502,
+    CustomPredicateError: 502,
+    SignatureHistoryUnavailable: 502,
+    MissingAction: 500,
+    MissingResource: 500,
+    MissingResourceId: 500,
+    PolicyTooDeep: 500,
+    SubjectExtractionFailed: 502,
+  } as const;
+
+  for (const tag of HTTP_ENFORCEMENT_TAGS) {
+    it(`${tag}: status, annotation and class all agree`, () => {
+      const entry = ENFORCEMENT_ERROR_WIRE[tag];
+      expect(entry.status).toBe(expectedStatus[tag]);
+      expect(httpApiStatusOf(entry.schema)).toBe(entry.status);
+      expect(HTTP_STATUS_BY_CLASS[entry.class]).toBe(entry.status);
+    });
+  }
+
+  it("holds exactly the twelve tags, in the declared OpenAPI order", () => {
+    expect(Object.keys(ENFORCEMENT_ERROR_WIRE)).toEqual([
+      "AccessDenied",
+      "UndischargedObligation",
+      "SubjectExtractionFailed",
+      "AttributeResolveError",
+      "RelationshipResolveError",
+      "DecisionHistoryUnavailable",
+      "CustomPredicateError",
+      "SignatureHistoryUnavailable",
+      "MissingAction",
+      "MissingResource",
+      "MissingResourceId",
+      "PolicyTooDeep",
+    ]);
+    expect(new Set(HTTP_ENFORCEMENT_TAGS)).toEqual(new Set(Object.keys(ENFORCEMENT_ERROR_WIRE)));
+    expect(HTTP_ENFORCEMENT_TAGS).toHaveLength(12);
+    expect(HTTP_ENFORCEMENT_ERROR_SCHEMAS).toHaveLength(12);
+  });
+
+  it("each entry's class is what classifyEnforcementError says for its real error", () => {
+    for (const tag of HTTP_ENFORCEMENT_TAGS) {
+      const entry = ENFORCEMENT_ERROR_WIRE[tag];
+      if (tag !== "SubjectExtractionFailed") {
+        expect(classifyEnforcementError(everyHttpEnforcementFailure[tag]()), tag).toBe(entry.class);
+      }
+    }
+    expect(ENFORCEMENT_ERROR_WIRE.SubjectExtractionFailed.class).toBe("outage");
+  });
+
+  for (const tag of HTTP_ENFORCEMENT_TAGS) {
+    it(`${tag}: projecting then encoding leaks none of the sensitive values`, () => {
+      const entry = ENFORCEMENT_ERROR_WIRE[tag];
+      const projected = projectHttpEnforcementFailure(everyHttpEnforcementFailure[tag]());
+      const json = JSON.stringify(Schema.encodeUnknownSync(entry.schema)(projected));
+      expect(json).toContain(tag);
+      for (const leaked of ["postgres://", "trace", "TypeError", "obligationIds", "token service"]) {
+        expect(json, `${tag} leaked ${leaked}`).not.toContain(leaked);
+      }
+    });
+  }
+
+  it("SignatureHistoryUnavailable's projection carries resourceId only when the error had one", () => {
+    const subjectId = makeSubjectId("u-1");
+    const scoped = projectHttpEnforcementFailure(
+      new SignatureHistoryUnavailable({ subjectId, resourceId: makeResourceId("doc-1"), cause: "down" }),
+    );
+    const unscoped = projectHttpEnforcementFailure(new SignatureHistoryUnavailable({ subjectId, cause: "down" }));
+    expect(scoped).toEqual({ _tag: "SignatureHistoryUnavailable", subjectId, resourceId: "doc-1" });
+    expect(unscoped).toEqual({ _tag: "SignatureHistoryUnavailable", subjectId });
+    expect("resourceId" in unscoped).toBe(false);
+  });
+
+  it("the projection of a real AccessDenied drops the trace before the encoder", () => {
+    const projected = projectHttpEnforcementFailure(everyHttpEnforcementFailure.AccessDenied());
+    expect(Object.keys(projected).sort()).toEqual(["_tag", "policyTag", "reason", "subjectId"]);
+    expect("trace" in projected).toBe(false);
+  });
+});
+
+describe("every HttpApi wire schema encodes only its declared fields", () => {
+  const expectedKeys = {
+    AccessDenied: ["_tag", "policyTag", "reason", "subjectId"],
+    UndischargedObligation: ["_tag"],
+    AttributeResolveError: ["_tag", "attribute"],
+    RelationshipResolveError: ["_tag", "relation", "resourceId"],
+    DecisionHistoryUnavailable: ["_tag", "event"],
+    CustomPredicateError: ["_tag", "name"],
+    SignatureHistoryUnavailable: ["_tag", "resourceId", "subjectId"],
+    MissingAction: ["_tag", "expected"],
+    MissingResource: ["_tag", "attribute"],
+    MissingResourceId: ["_tag", "relation"],
+    PolicyTooDeep: ["_tag", "maxDepth"],
+    SubjectExtractionFailed: ["_tag"],
+  } as const;
+
+  const everyTag = [
+    "AccessDenied",
+    "UndischargedObligation",
+    "AttributeResolveError",
+    "RelationshipResolveError",
+    "DecisionHistoryUnavailable",
+    "CustomPredicateError",
+    "SignatureHistoryUnavailable",
+    "MissingAction",
+    "MissingResource",
+    "MissingResourceId",
+    "PolicyTooDeep",
+    "SubjectExtractionFailed",
+  ] as const;
+
+  for (const tag of everyTag) {
+    it(`${tag}: exact key set, and none of the sensitive values`, () => {
+      const encoded = Schema.encodeUnknownSync(wireSchemaByTag[tag])(everyHttpEnforcementFailure[tag]());
+      expect(Object.keys(encoded).sort()).toEqual([...expectedKeys[tag]]);
+      const json = JSON.stringify(encoded);
+      for (const leaked of ["postgres://", "trace", "TypeError", "obligationIds", "token service"]) {
+        expect(json, `${tag} leaked ${leaked}`).not.toContain(leaked);
+      }
+    });
+  }
 });

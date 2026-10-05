@@ -1,11 +1,12 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
-import { explain, renderExplanation } from "../src/Explanation.ts";
+import { explain, foldExplanation, renderExplanation } from "../src/Explanation.ts";
 import type { Requirement } from "../src/Explanation.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
+import { chain } from "./helpers.ts";
 
 /**
  * Narrows an `Explanation` to a `Requirement`, asserting the tag along the way.
@@ -279,7 +280,7 @@ describe("explain", () => {
   });
 
   it("never mentions fieldStrategy for a single-part composite, since no strategy can differ there", () => {
-    // `mergeFields` (`Evaluate.ts`) proves any strategy over zero or one field
+    // `FieldLattice.ts`'s `mergeFields` proves any strategy over zero or one field
     // set is the same result — `Intersection`/`Union`/`First` all reduce to
     // that lone set — so a single-part composite's strategy is not a real
     // difference for the rendering to report, whatever value it carries.
@@ -575,5 +576,73 @@ describe("explain", () => {
       assert.strictEqual(depth, n);
       assert.strictEqual(node._tag, "Requirement");
     },
+    60_000,
   );
+
+  it("renderExplanation survives a 100k-deep Negated chain (ARCH-02 N1)", () => {
+    // `explain` was stack-safe and its renderer was not: this overflowed at
+    // about 734 levels, well below what `explain` itself handles.
+    const n = 100_000;
+    const leaf = renderExplanation(explain(P.hasRole("a")));
+    const text = renderExplanation(explain(chain(P.not, n, P.hasRole("a"))));
+    const prefix = "does not hold that ";
+    assert.isTrue(text.startsWith(`${prefix}(`));
+    // n prefixes, the leaf, and a parenthesis pair around each of the n - 1
+    // inner Negated nodes (the leaf is atomic and so unwrapped).
+    assert.strictEqual(text.length, prefix.length * n + leaf.length + 2 * (n - 1));
+    assert.isTrue(text.endsWith(`${leaf}${")".repeat(n - 1)}`));
+  }, 60_000);
+
+  it("renderExplanation renders a 250k-wide anyOf with every separator", () => {
+    const children: ReadonlyArray<P.Policy> = Array.from({ length: 250_000 }, () =>
+      P.hasRole("a"),
+    );
+    const text = renderExplanation(explain(P.anyOf(children)));
+    assert.strictEqual(text.split(" or ").length, 250_000);
+  }, 60_000);
+
+  it("foldExplanation folds children in order, once per shared node", () => {
+    const shared = explain(P.hasRole("s"));
+    const tree = explain(P.allOf([P.hasRole("a"), P.hasRole("b")]));
+    const seen = foldExplanation<string>(tree, (node, children) =>
+      node._tag === "Requirement" ? node.detail : `[${children.join(",")}]`,
+    );
+    assert.strictEqual(seen, "[a,b]");
+    let combines = 0;
+    foldExplanation<number>({ _tag: "All", parts: [shared, shared], fieldStrategy: "Intersection" }, () => {
+      combines += 1;
+      return 0;
+    });
+    assert.strictEqual(combines, 2);
+  });
+
+  it("a child shared by identity is explained once, and both parts are the same object", () => {
+    const shared = P.labeled("shared", P.not(P.hasRole("editor")));
+    const e = explain(P.allOf([shared, shared]));
+    assert.strictEqual(e._tag, "All");
+    if (e._tag !== "All") return;
+    assert.strictEqual(e.parts[0], e.parts[1]);
+  });
+
+  it("explain over a 100k-deep matcher completes (ARCH-02 N2)", () => {
+    const e = explain(P.hasAttribute("x", chain(M.size, 100_000, M.eq(M.literal(1)))));
+    assert.strictEqual(e._tag, "Requirement");
+    if (e._tag !== "Requirement") return;
+    assert.isTrue(e.detail.startsWith("the subject's x has a size that has a size that"));
+    assert.isTrue(e.detail.endsWith("equals 1"));
+  }, 60_000);
+
+  it("a wide, programmatically-built node (250k direct children) explains without spreading", () => {
+    // The width twin of the 100k-deep test above (`Simplify.test.ts` and
+    // `RolesAndDepth.test.ts` already carry theirs): a fold that spread a
+    // node's children into an argument list would throw a raw `RangeError`
+    // well before this.
+    const children: ReadonlyArray<P.Policy> = Array.from({ length: 250_000 }, () =>
+      P.hasRole("a"),
+    );
+    const result = explain(P.anyOf(children));
+    assert.strictEqual(result._tag, "Any");
+    if (result._tag !== "Any") return;
+    assert.strictEqual(result.parts.length, 250_000);
+  }, 60_000);
 });

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-15                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-019) |
+> | Change History | 1.1 (2026-10-05): BEH-QD-112 — a `combining` outside the union decides as `DenyOverrides` in both interpreters (ADR-QD-092, CCR-QD-174)<br>1.0 (2026-07-26): Initial release (CCR-QD-019) |
 
 _Previous: [14 — Subject Sets](./14-subject-sets.md)_
 
@@ -63,6 +63,17 @@ and which inherits `not`'s inversion of the fail-closed default.
 | `FirstApplicable` | the first rule that applies |
 | `DenyOverrides` | the first applying `Deny`; failing that, the first applying `Permit` |
 | `PermitOverrides` | the first applying `Permit`; failing that, the first applying `Deny` |
+
+```
+REQUIREMENT: A `combining` value outside the union MUST decide as
+             `DenyOverrides`, in `evaluate` and `toPredicate` alike.
+```
+
+Decode rejects such a value, so only a table built in process carries one. It used
+to walk as `FirstApplicable` (`"Xor"`) or as an algorithm with no decisive effect
+(`"toString"`), and `toPredicate` threw on it. `DenyOverrides` is the one fallback
+that cannot permit what the author's lost algorithm would have refused
+([ADR-QD-092](../decisions/092-field-strategy-meaning-lives-beside-the-lattice.md)).
 
 ```
 REQUIREMENT: The decision's visible-field set and obligations MUST be the
@@ -186,10 +197,7 @@ rules)` loop.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   currentSubjectLayer,
   decide,
@@ -203,6 +211,7 @@ import {
   permitWhen,
   rules,
   subjectId,
+  portsLayer,
 } from "@qadi/core";
 
 const table = rules(
@@ -230,9 +239,7 @@ const program = decide(table, {
   ),
   Effect.provide(
     Layer.mergeAll(
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
+      portsLayer(),
       EvaluationIdLive,
     ),
   ),

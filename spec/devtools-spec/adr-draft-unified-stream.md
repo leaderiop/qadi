@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-0XX (unallocated)                     |
-> | Revision       | 0.3                                            |
+> | Revision       | 0.4                                            |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — **implementable**; allocation still pending CCR |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record (draft)           |
-> | Change History | 0.3 (2026-08-24): Two of the four remaining gaps are closed — the id is threaded and a transport exists (CCR-QD-066)<br>0.2 (2026-08-24): The pairing mechanism corrected — it did not exist when this was written, and half of it exists now (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.4 (2026-10-05): the badge's source and the transport item name the decision log that replaced the ring and the feed (ADR-QD-097, CCR-QD-181)<br>0.3 (2026-08-24): Two of the four remaining gaps are closed — the id is threaded and a transport exists (CCR-QD-066)<br>0.2 (2026-08-24): The pairing mechanism corrected — it did not exist when this was written, and half of it exists now (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -60,9 +60,19 @@ the policy, resource, action and start time — so two rows can be shown as one
 story rather than two ids that happen to match.
 
 **The environment badge is real, and comes from the sink**, not from core:
-`decisionSinkRing` requires an `environment` and stamps it. Core deliberately
-does not claim one, since it cannot know whether it is in a browser, on a server
-or at an edge.
+a decision log requires an `environment` and stamps it, once, where the log is
+made; over SSE it travels inside each frame. Core's evaluator deliberately does
+not claim one, since it cannot know whether it is in a browser, on a server or
+at an edge.
+
+> **Corrected 2026-10-05 (CCR-QD-181).** This paragraph read:
+>
+> `decisionSinkRing` requires an `environment` and stamps it.
+>
+> The ring is replaced by the decision log
+> ([ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md)).
+> Under the ring the badge was stated a second time by the SSE reader, and the
+> reader's label won for every live row.
 
 ## What is still missing
 
@@ -74,22 +84,37 @@ Naming these so the draft cannot again claim more than it has.
   non-reactively, since the id is correlation metadata and not an input to the
   decision — and passes it as `EvaluateOptions.evaluationId`. A hydrated decision
   and its client re-check now carry one id, and `Hydration.test.ts` asserts both
-  that and the no-seed case minting a fresh one. `hydrationSeedFor` stayed out of
+  that and the no-seed case minting a fresh one. The seed lookup stayed out of
   the barrel: threading was an internal change, as this draft required.
-- **A transport exists.** `decisionSinkForwarding` + `decisionSinkFeed` +
-  `decisionStreamRoute` carry server decisions to a reader over guarded SSE, and
-  `ingest` merges several processes into one timeline
+- **A transport exists.** `decisionSinkForwarding` + a decision log +
+  `decisionStreamRoute` carry server decisions to a reader over guarded SSE —
+  the backlog first, then live — and `ingest` merges several processes into one
+  timeline
   ([ADR-QD-045](../decisions/045-the-topology-is-a-choice-of-sink.md),
-  [ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md)).
+  [ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md),
+  [ADR-QD-097](../decisions/097-a-decision-log-is-a-sink-and-its-own-history.md)).
+
+  > **Corrected 2026-10-05 (CCR-QD-181).** This item named
+  > `decisionSinkFeed`, since replaced by the decision log.
 
 **Still open:**
 
 - **The server half is near-empty by default.** `dehydrateDecisions` ships a
-  reduced trace unless `includeTrace: true`, the rebuild fallback hardcodes
-  `policyTag: "AllOf"`, and a denial's reason becomes the literal `"hydrated"`.
-  A paired row's explanation panel will render nothing until a payload opts in.
-  That is a disclosure boundary rather than a defect, so the fix is for the UI to
-  say "trace not disclosed" rather than for the payload to loosen.
+  tagged `Withheld` disclosure unless `includeTrace: true`, so a hydrated
+  decision has no trace for a paired row's explanation panel to render until a
+  payload opts in. That is a disclosure boundary rather than a defect, and the
+  type now says so: a seed (`SeededAllow`/`SeededDeny`) carries no trace at all
+  unless it was `Disclosed`, so there is no fabricated tag to mistake for a real
+  one, and the UI's job is to say "trace not disclosed" for a `Withheld` seed
+  rather than for the payload to loosen.
+
+  > **Superseded in CCR-QD-156.** This bullet previously read: "`dehydrateDecisions`
+  > ships a reduced trace unless `includeTrace: true`, the rebuild fallback hardcodes
+  > `policyTag: "AllOf"`, and a denial's reason becomes the literal `"hydrated"`."
+  > The reduced trace and the `"hydrated"` reason are gone, replaced by `Withheld`.
+  > The `"AllOf"` claim was only ever true of a payload with **no** `trace` field at
+  > all — hand-crafted or version-skewed input; a default payload's reduced trace
+  > carried the real root tag.
 - ~~**Nothing renders any of it.**~~ Closed. The timeline was built in
   CCR-QD-067 and `mergeSources` (BEH-QD-235, CCR-QD-076) is what finally lets a
   server's decisions and a browser's re-checks reach **one** of them, which is

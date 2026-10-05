@@ -1,11 +1,25 @@
 import { assert, describe, it } from "@effect/vitest";
-import { makeCallRecorder } from "../src/CallRecorder.ts";
 import {
   AttributeResolver,
   CustomPredicate,
   DecisionHistory,
+  PortReply,
   RelationshipResolver,
+  SignatureHistory,
   anyOf,
+  attributeResolverFromRecord,
+  attributeResolverPort,
+  customPredicateFromRecord,
+  customPredicatePort,
+  decisionHistoryFromEvents,
+  decisionHistoryPort,
+  makeResourceId,
+  makeSubjectId,
+  recordingPort,
+  relationshipResolverPort,
+  scriptedPort,
+  signatureHistoryFromSignatures,
+  signatureHistoryPort,
   evaluate,
   gte,
   hasActed,
@@ -25,20 +39,10 @@ import * as Layer from "effect/Layer";
 import * as TestClock from "effect/testing/TestClock";
 import {
   administrator,
-  edgeRelationshipResolver,
   qadiReviewLayer,
-  eventDecisionHistory,
-  failingAttributeResolver,
-  failingCustomPredicate,
-  failingDecisionHistory,
-  failingRelationshipResolver,
-  failingSignatureHistory,
   qadiTestLayer,
   nobody,
   policies,
-  recordingAttributeResolver,
-  recordingCustomPredicate,
-  recordingSignatureHistory,
   subjectWith,
   viewer,
 } from "../src/index.ts";
@@ -201,220 +205,167 @@ describe("the clock", () => {
     }).pipe(Effect.provide(qadiTestLayer(administrator, { clock: "test" }))));
 });
 
-describe("recording resolvers", () => {
-  it.effect("records which attributes were asked for", () =>
+describe("ports and data options", () => {
+  it.effect("an explicit port wins over the matching data option", () =>
     Effect.gen(function* () {
-      const resolver = recordingAttributeResolver({ tier: 5 });
+      const d = yield* evaluate(hasAttribute("tier", gte(3)));
+      assert.isFalse(isAllowed(d));
+    }).pipe(
+      Effect.provide(
+        qadiTestLayer(nobody, {
+          attributes: { tier: 5 },
+          ports: {
+            AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.answer(1)).layer,
+          },
+        }),
+      ),
+    ));
+
+  it.effect("a port left out of `ports` keeps its data option", () =>
+    Effect.gen(function* () {
+      assert.isTrue(isAllowed(yield* evaluate(hasAttribute("tier", gte(3)))));
+    }).pipe(
+      Effect.provide(
+        qadiTestLayer(nobody, {
+          attributes: { tier: 5 },
+          ports: { CustomPredicate: customPredicateFromRecord({}) },
+        }),
+      ),
+    ));
+
+  it.effect("a recording port records what an evaluation asked, in order", () =>
+    Effect.gen(function* () {
+      const resolver = recordingPort(attributeResolverPort, attributeResolverFromRecord({ tier: 5 }));
       // anyOf/First short-circuits, so only the first attribute is fetched.
       const policy = anyOf([hasAttribute("tier", gte(1)), hasAttribute("other", gte(1))]);
 
       yield* evaluate(policy).pipe(
-        Effect.provide(qadiTestLayer(nobody, { attributeResolver: resolver.layer })),
+        Effect.provide(qadiTestLayer(nobody, { ports: { AttributeResolver: resolver.layer } })),
       );
 
-      assert.deepStrictEqual([...resolver.calls], ["tier"]);
+      assert.deepStrictEqual(resolver.calls, [[nobody.id, "tier"]]);
     }));
 
-  it.effect("records relationship queries", () =>
-    Effect.gen(function* () {
-      const resolver = edgeRelationshipResolver([
-        { subjectId: "u1", relation: "owner", resourceId: "d1" },
-      ]);
-      yield* evaluate(hasRelationship("owner"), { resource: { id: "d1" } }).pipe(
-        Effect.provide(
-          qadiTestLayer(subjectWith({ id: "u1" }), {
-            relationshipResolver: resolver.layer,
-          }),
-        ),
-      );
-      assert.deepStrictEqual([...resolver.calls], ["u1 owner d1"]);
-    }));
-
-  it.effect("ANSWERS Unrelated for an edge it does not hold, never Unknown", () =>
+  it.effect("the relationships option ANSWERS Unrelated for an edge it does not hold, never Unknown", () =>
     Effect.gen(function* () {
       // A fixture edge list is the store, so a miss is a closed-world "no" and
       // the denial should name the missing edge. `"Unknown"` is reserved for a
       // resolver that was never wired (INV-QD-029), which this one plainly was.
-      const resolver = edgeRelationshipResolver([
-        { subjectId: "u1", relation: "owner", resourceId: "d1" },
-      ]);
-      const d = yield* evaluate(hasRelationship("owner"), {
-        resource: { id: "d2" },
-      }).pipe(
-        Effect.provide(
-          qadiTestLayer(subjectWith({ id: "u1" }), {
-            relationshipResolver: resolver.layer,
-          }),
-        ),
-      );
+      const d = yield* evaluate(hasRelationship("owner"), { resource: { id: "d2" } });
       assert.strictEqual(d._tag, "Deny");
       if (d._tag !== "Deny") return;
       assert.strictEqual(d.reason, "subject 'u1' has no 'owner' relation to 'd2'");
+    }).pipe(
+      Effect.provide(
+        qadiTestLayer(subjectWith({ id: "u1" }), {
+          relationships: [{ subjectId: "u1", relation: "owner", resourceId: "d1" }],
+        }),
+      ),
+    ));
+
+  it.effect("a failing port surfaces an error, not a denial, for every port", () =>
+    Effect.gen(function* () {
+      const failing = { resource: { id: "d1" } };
+      const cases = [
+        {
+          policy: hasAttribute("x", gte(1)),
+          ports: { AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer },
+          tag: "AttributeResolveError",
+        },
+        {
+          policy: hasRelationship("owner"),
+          ports: {
+            RelationshipResolver: scriptedPort(relationshipResolverPort, () => PortReply.fail("down")).layer,
+          },
+          tag: "RelationshipResolveError",
+        },
+        {
+          policy: hasActed("raised"),
+          ports: { DecisionHistory: scriptedPort(decisionHistoryPort, () => PortReply.fail("down")).layer },
+          tag: "DecisionHistoryUnavailable",
+        },
+        {
+          policy: hasCustom("isOwner"),
+          ports: { CustomPredicate: scriptedPort(customPredicatePort, () => PortReply.fail("down")).layer },
+          tag: "CustomPredicateError",
+        },
+        {
+          policy: hasSignature("approved"),
+          ports: { SignatureHistory: scriptedPort(signatureHistoryPort, () => PortReply.fail("down")).layer },
+          tag: "SignatureHistoryUnavailable",
+        },
+      ];
+      for (const { policy, ports, tag } of cases) {
+        const r = yield* Effect.result(
+          evaluate(policy, failing).pipe(Effect.provide(qadiTestLayer(subjectWith({ id: "u1" }), { ports }))),
+        );
+        assert.strictEqual(r._tag, "Failure", tag);
+        if (r._tag === "Failure") assert.strictEqual(r.failure._tag, tag);
+      }
     }));
 
-  it.effect("failingAttributeResolver surfaces an error, not a denial", () =>
+  it.effect("a registry wired through `ports` fails on an unlisted name rather than denying", () =>
     Effect.gen(function* () {
-      const r = yield* Effect.result(
-        evaluate(hasAttribute("x", gte(1))).pipe(
-          Effect.provide(
-            qadiTestLayer(nobody, { attributeResolver: failingAttributeResolver() }),
-          ),
-        ),
-      );
+      const r = yield* Effect.result(evaluate(hasCustom("isOwner")));
       assert.strictEqual(r._tag, "Failure");
-    }));
+    }).pipe(
+      Effect.provide(qadiTestLayer(nobody, { ports: { CustomPredicate: customPredicateFromRecord({}) } })),
+    ));
 
-  it.effect("recordingCustomPredicate records the name and answers from its table", () =>
+  it.effect("each data option is that port's core fixture, and says so", () =>
     Effect.gen(function* () {
-      const registry = recordingCustomPredicate({ isOwner: true });
-
-      const d = yield* evaluate(hasCustom("isOwner")).pipe(
-        Effect.provide(qadiTestLayer(nobody, { customPredicate: registry.layer })),
-      );
-
-      assert.isTrue(isAllowed(d));
-      assert.deepStrictEqual([...registry.calls], ["isOwner"]);
-    }));
-
-  it.effect("recordingCustomPredicate fails on an unlisted name rather than denying", () =>
-    Effect.gen(function* () {
-      const registry = recordingCustomPredicate({});
-
-      const r = yield* Effect.result(
-        evaluate(hasCustom("isOwner")).pipe(
-          Effect.provide(qadiTestLayer(nobody, { customPredicate: registry.layer })),
-        ),
-      );
-
-      assert.strictEqual(r._tag, "Failure");
-      assert.deepStrictEqual([...registry.calls], ["isOwner"]);
-    }));
-
-  it.effect("failingCustomPredicate surfaces an error, not a denial", () =>
-    Effect.gen(function* () {
-      const r = yield* Effect.result(
-        evaluate(hasCustom("isOwner")).pipe(
-          Effect.provide(
-            qadiTestLayer(nobody, { customPredicate: failingCustomPredicate() }),
-          ),
-        ),
-      );
-      assert.strictEqual(r._tag, "Failure");
-    }));
-
-  it.effect("failingRelationshipResolver surfaces an error, not a denial", () =>
-    Effect.gen(function* () {
-      const r = yield* Effect.result(
-        evaluate(hasRelationship("owner"), { resource: { id: "d1" } }).pipe(
-          Effect.provide(
-            qadiTestLayer(subjectWith({ id: "u1" }), {
-              relationshipResolver: failingRelationshipResolver(),
-            }),
-          ),
-        ),
-      );
-      assert.strictEqual(r._tag, "Failure");
-      if (r._tag === "Failure") assert.strictEqual(r.failure._tag, "RelationshipResolveError");
-    }));
-
-  it.effect("failingDecisionHistory surfaces an error, not a denial", () =>
-    Effect.gen(function* () {
-      const r = yield* Effect.result(
-        evaluate(hasActed("raised"), { resource: { id: "inv-1" } }).pipe(
-          Effect.provide(
-            qadiTestLayer(subjectWith({ id: "u1" }), {
-              decisionHistory: failingDecisionHistory(),
-            }),
-          ),
-        ),
-      );
-      assert.strictEqual(r._tag, "Failure");
-      if (r._tag === "Failure") assert.strictEqual(r.failure._tag, "DecisionHistoryUnavailable");
-    }));
-
-  it.effect("failingSignatureHistory surfaces an error, not a denial", () =>
-    Effect.gen(function* () {
-      const r = yield* Effect.result(
-        evaluate(hasSignature("approved"), { resource: { id: "d1" } }).pipe(
-          Effect.provide(
-            qadiTestLayer(subjectWith({ id: "u1" }), {
-              signatureHistory: failingSignatureHistory(),
-            }),
-          ),
-        ),
-      );
-      assert.strictEqual(r._tag, "Failure");
-      if (r._tag === "Failure")
-        assert.strictEqual(r.failure._tag, "SignatureHistoryUnavailable");
-    }));
-
-  it.effect("recording fixtures set a descriptive name for diagnostics", () =>
-    Effect.gen(function* () {
-      // `${inner.name ?? "?"}` is how `attributeResolverRetrying` and
-      // `relationshipResolverRetrying` (`@qadi/core`) render a wrapped
-      // resolver's identity — an omitted `name` here would silently render
-      // as "?" wherever one of those combinators wraps a recording fixture.
-      const attributeContext = yield* Layer.build(recordingAttributeResolver({}).layer);
-      assert.strictEqual(
-        Context.get(attributeContext, AttributeResolver).name,
-        "recordingAttributeResolver",
-      );
-
-      const customPredicateContext = yield* Layer.build(recordingCustomPredicate({}).layer);
-      assert.strictEqual(
-        Context.get(customPredicateContext, CustomPredicate).name,
-        "recordingCustomPredicate",
-      );
-
-      const relationshipContext = yield* Layer.build(edgeRelationshipResolver([]).layer);
-      assert.strictEqual(
-        Context.get(relationshipContext, RelationshipResolver).name,
-        "edgeRelationshipResolver",
-      );
-
-      const historyContext = yield* Layer.build(eventDecisionHistory([]).layer);
-      assert.strictEqual(
-        Context.get(historyContext, DecisionHistory).name,
-        "eventDecisionHistory",
-      );
-    }).pipe(Effect.scoped));
+      // Diagnostics read these names (`@qadi/devtools`' wiring panel, the
+      // wrappers' composed names), so the fixture a data option builds is named.
+      assert.strictEqual((yield* AttributeResolver).name, "attributeResolverFromRecord");
+      assert.strictEqual((yield* RelationshipResolver).name, "relationshipResolverFromEdges");
+      assert.strictEqual((yield* DecisionHistory).name, "decisionHistoryFromEvents");
+      assert.strictEqual((yield* SignatureHistory).name, "signatureHistoryFromSignatures");
+      assert.strictEqual((yield* CustomPredicate).name, "CustomPredicateNone");
+    }).pipe(
+      Effect.provide(
+        qadiTestLayer(nobody, { attributes: {}, relationships: [], history: [], signatures: [] }),
+      ),
+    ));
 });
 
-describe("eventDecisionHistory", () => {
+describe("the history option", () => {
   const clerk = subjectWith({ id: "u1" });
+  const clerkId = makeSubjectId("u1");
 
-  it.effect("records its queries and answers a keyed question", () =>
+  it.effect("answers a keyed question, and a recording port shows what was asked", () =>
     Effect.gen(function* () {
-      const history = eventDecisionHistory([
-        { subjectId: "u1", event: "raised", resourceId: "inv-1" },
-      ]);
+      const history = recordingPort(
+        decisionHistoryPort,
+        decisionHistoryFromEvents([{ subjectId: "u1", event: "raised", resourceId: "inv-1" }]),
+      );
+      const layer = qadiTestLayer(clerk, { ports: { DecisionHistory: history.layer } });
 
-      const own = yield* evaluate(hasNotActed("raised"), {
-        resource: { id: "inv-1" },
-      }).pipe(Effect.provide(qadiTestLayer(clerk, { decisionHistory: history.layer })));
-      const other = yield* evaluate(hasNotActed("raised"), {
-        resource: { id: "inv-2" },
-      }).pipe(Effect.provide(qadiTestLayer(clerk, { decisionHistory: history.layer })));
+      const own = yield* evaluate(hasNotActed("raised"), { resource: { id: "inv-1" } }).pipe(
+        Effect.provide(layer),
+      );
+      const other = yield* evaluate(hasNotActed("raised"), { resource: { id: "inv-2" } }).pipe(
+        Effect.provide(layer),
+      );
 
       assert.isFalse(isAllowed(own));
       assert.isTrue(isAllowed(other));
-      assert.deepStrictEqual(
-        [...history.calls],
-        ["u1 raised inv-1", "u1 raised inv-2"],
-      );
+      assert.deepStrictEqual(history.calls, [
+        [{ subjectId: clerkId, event: "raised", resourceId: makeResourceId("inv-1") }],
+        [{ subjectId: clerkId, event: "raised", resourceId: makeResourceId("inv-2") }],
+      ]);
     }));
 
   it.effect("answers 'ever, at all' when the query carries no resource", () =>
     Effect.gen(function* () {
-      const history = eventDecisionHistory([
-        { subjectId: "u1", event: "raised", resourceId: "inv-9" },
-      ]);
-      const d = yield* evaluate(hasActed("raised", { scope: "Any" })).pipe(
-        Effect.provide(qadiTestLayer(clerk, { decisionHistory: history.layer })),
-      );
+      const d = yield* evaluate(hasActed("raised", { scope: "Any" }));
       assert.isTrue(isAllowed(d));
-      assert.deepStrictEqual([...history.calls], ["u1 raised"]);
-    }));
+    }).pipe(
+      Effect.provide(
+        qadiTestLayer(clerk, {
+          history: [{ subjectId: "u1", event: "raised", resourceId: "inv-9" }],
+        }),
+      ),
+    ));
 
   it.effect("the `history` shorthand wires the same layer", () =>
     Effect.gen(function* () {
@@ -438,25 +389,31 @@ describe("eventDecisionHistory", () => {
     }).pipe(Effect.provide(qadiTestLayer(clerk))));
 });
 
-describe("recordingSignatureHistory", () => {
-  it.effect("pins the record-key format: subject alone vs subject+resource", () =>
+describe("the signatures option", () => {
+  it.effect("asks subject-global and resource-scoped questions as different queries", () =>
     Effect.gen(function* () {
-      const history = recordingSignatureHistory([
-        { subjectId: "subjectA", resourceId: "resourceX", meaning: "approved" },
-      ]);
+      const history = recordingPort(
+        signatureHistoryPort,
+        signatureHistoryFromSignatures([
+          { subjectId: "subjectA", resourceId: "resourceX", meaning: "approved" },
+        ]),
+      );
 
       yield* evaluate(hasSignature("approved", { scope: "Any" })).pipe(
         Effect.provide(
-          qadiTestLayer(subjectWith({ id: "subjectA" }), { signatureHistory: history.layer }),
+          qadiTestLayer(subjectWith({ id: "subjectA" }), { ports: { SignatureHistory: history.layer } }),
         ),
       );
       yield* evaluate(hasSignature("approved"), { resource: { id: "resourceX" } }).pipe(
         Effect.provide(
-          qadiTestLayer(subjectWith({ id: "subjectB" }), { signatureHistory: history.layer }),
+          qadiTestLayer(subjectWith({ id: "subjectB" }), { ports: { SignatureHistory: history.layer } }),
         ),
       );
 
-      assert.deepStrictEqual([...history.calls], ["subjectA", "subjectB resourceX"]);
+      assert.deepStrictEqual(history.calls, [
+        [{ subjectId: makeSubjectId("subjectA"), resourceId: undefined }],
+        [{ subjectId: makeSubjectId("subjectB"), resourceId: makeResourceId("resourceX") }],
+      ]);
     }));
 });
 
@@ -494,7 +451,7 @@ describe("qadiReviewLayer", () => {
 
   it.effect("carries the same fixtures as the full layer", () =>
     Effect.gen(function* () {
-      // One element, deliberately: `recordingAttributeResolver` answers every
+      // One element, deliberately: `attributeResolverFromRecord` answers every
       // subject from one table, so a longer list here would demonstrate the
       // leak INV-QD-016 names rather than the option pass-through.
       const { subjects: allowed } = yield* filterSubjects(hasAttribute("tier", gte(3)), [
@@ -502,36 +459,4 @@ describe("qadiReviewLayer", () => {
       ]);
       assert.deepStrictEqual(allowed.map((s) => s.id), [nobody.id]);
     }).pipe(Effect.provide(qadiReviewLayer({ attributes: { tier: 5 } }))));
-});
-
-describe("CallRecorder", () => {
-  it("starts empty", () => {
-    const recorder = makeCallRecorder();
-    assert.deepStrictEqual([...recorder.calls], []);
-  });
-
-  it("calls is live — it reflects records made after the property was first read", () => {
-    const recorder = makeCallRecorder();
-    const before = recorder.calls;
-    recorder.record("a");
-    recorder.record("b");
-    assert.deepStrictEqual([...before], []);
-    assert.deepStrictEqual([...recorder.calls], ["a", "b"]);
-  });
-
-  it("preserves record order, including a repeated entry", () => {
-    const recorder = makeCallRecorder();
-    recorder.record("x");
-    recorder.record("y");
-    recorder.record("x");
-    assert.deepStrictEqual([...recorder.calls], ["x", "y", "x"]);
-  });
-
-  it("two recorders never share state", () => {
-    const a = makeCallRecorder();
-    const b = makeCallRecorder();
-    a.record("only a");
-    assert.deepStrictEqual([...a.calls], ["only a"]);
-    assert.deepStrictEqual([...b.calls], []);
-  });
 });

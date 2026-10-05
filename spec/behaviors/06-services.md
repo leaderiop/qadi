@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-06                                    |
-> | Revision       | 1.6                                            |
-> | Effective Date | 2026-09-19                                     |
+> | Revision       | 1.8                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.8 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -87,12 +87,20 @@ matrix. Twice is a pattern, not an oversight, and it is the reason
 > **Invariant:** [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed)
 
 ```ts
-export const AttributeResolverNone: Layer.Layer<AttributeResolver>;
-export const RelationshipResolverNever: Layer.Layer<RelationshipResolver>;
-export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory>;
+export const AttributeResolverNone: Layer.Layer<AttributeResolver>;       // answers undefined
+export const RelationshipResolverNever: Layer.Layer<RelationshipResolver>; // answers "Unknown"
+export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory>;        // answers "Unknown"
+export const CustomPredicateNone: Layer.Layer<CustomPredicate>;           // answers false
+export const SignatureHistoryNone: Layer.Layer<SignatureHistory>;         // answers [] (frozen)
 export const CurrentSubjectAnonymous: Layer.Layer<CurrentSubject>;
 export const EvaluationIdLive: Layer.Layer<EvaluationId>;
 ```
+
+The five port defaults are each derived from the port's description —
+`AttributeResolverNone = nonePort(attributeResolverPort)` — whose `none` field is the
+only statement of the name and the answer; `@qadi/devtools`' replay reads the same
+field for a request its capture never saw
+([ADR-QD-094](../decisions/094-a-port-is-described-once.md)).
 
 ```
 REQUIREMENT: Every default layer MUST fail closed. An unwired relationship
@@ -144,9 +152,25 @@ REQUIREMENT: A denial's reason MUST NOT assert a fact about a store that was not
 | --------- | ------------ |
 | a wired relationship store holds no such edge | `subject 'u1' has no 'owner' relation to 'doc-1'` |
 | the port answers `"Unknown"` (unwired, or a wired resolver with no answer for this relation) | `no relationship resolver could confirm the 'owner' relation to 'doc-1'` |
-| a non-`Neq` attribute is present and compares wrong | `subject attribute 'level' did not match` |
-| a `Neq` attribute is present and equals the excluded value | `subject attribute 'homeTenant' matched an excluded value` |
-| an attribute is absent or unresolved | `subject attribute 'level' has no value` |
+| a non-`Neq` attribute is present and compares wrong (`NotHeld`), or a composite matcher does not hold | `subject attribute 'level' did not match` |
+| a `Neq` attribute is present and equals the excluded value (`NotHeld`) | `subject attribute 'homeTenant' matched an excluded value` |
+| an attribute is absent or unresolved (`ValueAbsent`) | `subject attribute 'level' has no value` |
+| an `Eq`, `Neq` or `Dominates` reference resolves to nothing (`ReferenceAbsent`) | `subject attribute 'tenant' has no reference value to compare against` |
+| the value is not one the matcher can compare — `Infinity` or `"5"` under `gte(3)`, a non-label under `dominates`, a non-array under `someMatch` (`Incomparable`) | `resource attribute 'level' is not a value this matcher can compare` |
+
+The rows are read from `judgeMatcher`'s `Verdict`
+([BEH-QD-305](./04-matchers.md#beh-qd-305-comparison-semantics-have-one-owner)),
+so which operand was absent, or whether the value was comparable at all, is
+what the comparison itself reported rather than a second guess made afterwards.
+
+> **Corrected (CCR-QD-173).** The unresolved-reference row named `Neq` alone,
+> because the reason was re-derived after the fact from the boolean
+> `evaluateMatcher` returned, and only for `Neq`. So `eq(subject("missing"))`
+> against a present attribute, and `dominates(resource("label"))` against an
+> absent label, read "did not match" — a comparison that never ran, which is
+> what this behavior forbids. And `gte(3)` against `Infinity` or `"5"` read
+> "did not match" too: true, but it hid that the value was not comparable at
+> all.
 
 > **Corrected.** `Neq` denies exactly when the value **matches** the excluded
 > reference, so the general "did not match" row was backwards for it — it
@@ -167,7 +191,7 @@ REQUIREMENT: A denial's reason MUST NOT assert a fact about a store that was not
 > cannot verify; it says only what every "Unknown" answer has in common — that
 > nothing confirmed the relation.
 
-Both relationship rows **deny**, and so do all three attribute rows. Nothing here
+Both relationship rows **deny**, and so do all five attribute rows. Nothing here
 changes a verdict — [BEH-QD-043](#beh-qd-043-defaults-fail-closed) and
 [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) are untouched —
 which is exactly why it needs stating: no assertion about a verdict can observe
@@ -221,6 +245,138 @@ was never actually verified. This was previously implicit — spread across
 `CurrentSubject.ts`'s "Build this per request" comment, ADR-QD-032's aside
 about a long-lived runtime holding one subject, and ADR-QD-058's capture-side
 scoping — with no single normative statement of it (WD-05).
+
+## BEH-QD-308: Every port has the standard wrapper set
+
+> **Invariant:** [INV-QD-095](../invariants.md#inv-qd-095-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description)
+
+```ts
+export const attributeResolverRetrying:  (schedule) => (layer) => Layer<AttributeResolver>;
+export const attributeResolverBounded:   (permits: number) => (layer) => Layer<AttributeResolver, InvalidBoundedPermits>;
+export const attributeResolverTimingOut: (duration: Duration.Input) => (layer) => Layer<AttributeResolver>;
+// …and the same three for relationshipResolver, customPredicate, decisionHistory, signatureHistory
+```
+
+Each wrapper is derived from its port's description (`PortDerivation.ts`), so the
+fifteen are one rule applied five times rather than fifteen hand-written bodies — two
+of which had drifted (only one of three retrying wrappers annotated its attempts, and
+two ports had no deadline at all).
+
+```
+REQUIREMENT: Each of the five ports MUST export `…Retrying`, `…Bounded` and
+             `…TimingOut`.
+
+REQUIREMENT: A retrying wrapper MUST annotate `qadi.attempts` on the caller's
+             current span with the number of times the port was actually invoked
+             (1 when the first attempt succeeds), whichever way the retried call
+             settles, and MUST count each failed attempt in
+             `qadi_port_retries_total` under the port's name. It MUST surface the
+             port's own error once the schedule is exhausted.
+
+REQUIREMENT: A bounded wrapper MUST run no more than `permits` calls at once, and
+             MUST reject a permit count that is not a positive integer at
+             construction with `InvalidBoundedPermits` rather than build a layer
+             that deadlocks.
+
+REQUIREMENT: A timing-out wrapper MUST fail a call that does not settle within
+             its deadline with the port's own typed error — its cause an `Error`
+             reading "<port>.<method> did not settle within the configured
+             deadline" — and MUST count it in `qadi_port_timeouts_total`. A call
+             that settles in time MUST pass through unchanged.
+
+REQUIREMENT: Each wrapper MUST name itself around the implementation it wraps
+             ("<inner> (retrying)", "(bounded N)", "(timing out)"), reading "?"
+             for an unnamed inner ([BEH-QD-196](./25-inspection.md)).
+```
+
+## BEH-QD-309: An environment names only what it overrides
+
+> **Invariant:** [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed)
+
+```ts
+export const portsLayer: (overrides?: PortOverrides) => Layer.Layer<PortServices>;
+export type PortOverrides = { readonly [K in PortName]?: Layer.Layer</* K's service */> | undefined };
+```
+
+```
+REQUIREMENT: `portsLayer(overrides)` MUST place each override in its own port's
+             slot and every other port at its fail-closed default (BEH-QD-043).
+             An `undefined` override MUST mean the default. The order in which
+             overrides are written MUST NOT change the result.
+
+REQUIREMENT: An override MUST provide the service of the slot it names; a layer
+             for another port in that slot MUST be a compile error.
+```
+
+Merging a layer *after* `EvaluationServicesNone` used to override one port only
+when the override came last; written first, the default silently won and every
+policy reaching that port denied. A slot per port removes the order. A host wires
+`portsLayer({ AttributeResolver: directory, DecisionHistory: auditLog })` and the
+ports it does not use need no mention.
+
+```typescript
+import { attributeResolverFromRecord, EvaluationIdLive, portsLayer } from "@qadi/core";
+import * as Layer from "effect/Layer";
+
+// Every other port sits at its fail-closed default.
+const services = Layer.merge(
+  portsLayer({ AttributeResolver: attributeResolverFromRecord({ clearance: 5 }) }),
+  EvaluationIdLive,
+);
+```
+
+## BEH-QD-310: A port can be scripted
+
+> **Invariant:** [INV-QD-095](../invariants.md#inv-qd-095-every-port-is-described-once-and-every-derived-layer-agrees-with-its-description)
+
+```ts
+export const scriptedPort: (port, script: (...request) => PortReply<A> | undefined, name?) => PortDouble;
+export const recordingPort: (port, layer, observe?: (request, exit) => void) => PortDouble;
+export const replyTable: (port, entries: ReadonlyArray<readonly [request, PortReply<A>]>) => PortScript;
+export type PortReply<A> = Answer(value) | Fail(cause) | Die(defect) | Throw(error);
+```
+
+```
+REQUIREMENT: `scriptedPort` MUST, per request, answer the scripted value, fail
+             with the port's own error built by its description's `failure` from
+             the request and the scripted cause, die with the scripted defect, or
+             throw the scripted error synchronously from the method body; a
+             request the script leaves `undefined` MUST answer the description's
+             fail-closed `none` answer. It MUST log every request, in order, as
+             the port method's parameters.
+
+REQUIREMENT: `recordingPort` MUST pass every exit of the port it wraps through
+             unchanged — a recording observes a failure without absorbing it —
+             and MUST report each settled exit to `observe`.
+
+REQUIREMENT: `replyTable` MUST match a request by the description's `key`, so two
+             requests the capture/replay key treats as one share a reply.
+```
+
+```typescript
+import {
+  PortReply,
+  attributeResolverPort,
+  makeSubjectId,
+  replyTable,
+  scriptedPort,
+} from "@qadi/core";
+
+// One subject's store is down; every other request answers the default.
+const flaky = scriptedPort(attributeResolverPort, (subjectId) =>
+  subjectId === "bob" ? PortReply.fail("store down") : undefined,
+);
+
+// A table keyed exactly as a capture keys it: alice's clearance is 5,
+// anything else is the fail-closed default.
+const table = scriptedPort(
+  attributeResolverPort,
+  replyTable(attributeResolverPort, [[[makeSubjectId("alice"), "clearance"], PortReply.answer(5)]]),
+);
+
+// `flaky.calls` and `table.calls` list every request, in order.
+export { flaky, table };
+```
 
 ---
 

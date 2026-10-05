@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-050                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-09-19                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-09-19): Deployment requirement added for `Live` — it is a cross-subject attribute/relationship/history/signature read capability, not merely a data-source choice, and sealing (this ADR's own decision) does not restrict who may ask about whom; the host must gate the page or the `ports` prop to callers already authorized for that capability (.issues/medium/jessie-frazelle-JF-02.md)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.2 (2026-10-05): the sealed-sweep consequence names a decision log in place of the removed `decisionSinkRing` (ADR-QD-097) (CCR-QD-181)<br>1.1 (2026-09-19): Deployment requirement added for `Live` — it is a cross-subject attribute/relationship/history/signature read capability, not merely a data-source choice, and sealing (this ADR's own decision) does not restrict who may ask about whom; the host must gate the page or the `ports` prop to callers already authorized for that capability (.issues/medium/jessie-frazelle-JF-02.md)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 ---
 
@@ -140,3 +140,10 @@ from a debug panel.
 
 **Inferring the clock from the duration.** Zero is ambiguous, so this would
 report *not measured* for every fast evaluation.
+
+## Amendment (2026-10-05, CCR-QD-181)
+
+The Consequences' "a forty-row sweep next to a real `decisionSinkRing` leaves it
+empty" is now checked against a decision log (`makeDecisionLog`), which replaced
+the ring ([ADR-QD-097](./097-a-decision-log-is-a-sink-and-its-own-history.md));
+the property is unchanged.

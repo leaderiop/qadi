@@ -158,10 +158,11 @@ describe("HydrationMetrics", () => {
     const REASONS = [
       "ForeignSubject",
       "PayloadSubjectMismatch",
-      "UnregisteredAtoms",
       "MalformedEntry",
       "UndecodablePolicy",
       "EntryTooDeep",
+      "UnsupportedPayloadVersion",
+      "MalformedPayload",
     ] as const;
 
     it.effect("names every drop reason, in order", () =>

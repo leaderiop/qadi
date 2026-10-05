@@ -1,26 +1,18 @@
 /**
  * `Layers.test.ts` covers each default layer's happy path in one line; this is
- * `RelationshipResolver`'s own depth, matching `DecisionCache.test.ts`.
+ * `RelationshipResolver`'s own depth, matching `DecisionCache.test.ts`. Its
+ * wrappers (`…Retrying`, `…Bounded`, `…TimingOut`) are pinned for every port at
+ * once by `PortConformance.test.ts`.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as Fiber from "effect/Fiber";
-import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
-import * as Ref from "effect/Ref";
-import * as Result from "effect/Result";
-import * as Schedule from "effect/Schedule";
-import * as TestClock from "effect/testing/TestClock";
-import { RelationshipResolveError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import type { RelatedResult } from "../src/RelationshipResolver.ts";
 import {
   RelationshipResolver,
   RelationshipResolverNever,
-  relationshipResolverBounded,
   relationshipResolverFromEdges,
-  relationshipResolverRetrying,
-  relationshipResolverTimingOut,
 } from "../src/RelationshipResolver.ts";
 
 /**
@@ -183,182 +175,5 @@ describe("RelationshipResolver", () => {
           );
         }),
     );
-  });
-
-  describe("relationshipResolverRetrying", () => {
-    /** A resolver that fails `failures` times, then succeeds, counting attempts via `attempts`. */
-    const flakyLayer = (
-      failures: number,
-      attempts: Ref.Ref<number>,
-    ): Layer.Layer<RelationshipResolver> =>
-      Layer.succeed(RelationshipResolver, {
-        check: (request) =>
-          Ref.updateAndGet(attempts, (n) => n + 1).pipe(
-            Effect.flatMap((n) =>
-              n <= failures
-                ? Effect.fail(
-                    new RelationshipResolveError({
-                      relation: request.relation,
-                      resourceId: request.resourceId,
-                      cause: "flaky",
-                    }),
-                  )
-                : Effect.succeed("Related"),
-            ),
-          ),
-      });
-
-    it.effect("eventually succeeds once the schedule outlasts the failures", () =>
-      Effect.gen(function* () {
-        const attempts = yield* Ref.make(0);
-        const retrying = relationshipResolverRetrying(Schedule.recurs(5))(flakyLayer(2, attempts));
-
-        const result = yield* check(retrying, {
-          subjectId: "alice",
-          relation: "owner",
-          resourceId: "doc-1",
-        });
-
-        assert.strictEqual(result, "Related");
-        assert.strictEqual(yield* Ref.get(attempts), 3);
-      }));
-
-    it.effect("surfaces the original error once the schedule is exhausted", () =>
-      Effect.gen(function* () {
-        const attempts = yield* Ref.make(0);
-        const retrying = relationshipResolverRetrying(Schedule.recurs(2))(
-          flakyLayer(999, attempts),
-        );
-
-        const result = yield* Effect.result(
-          check(retrying, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
-        );
-
-        assert.strictEqual(result._tag, "Failure");
-        assert.strictEqual(yield* Ref.get(attempts), 3);
-      }));
-  });
-
-  describe("relationshipResolverBounded", () => {
-    it.effect("never runs more than `permits` calls at once", () =>
-      Effect.gen(function* () {
-        const inFlight = yield* Ref.make(0);
-        const peak = yield* Ref.make(0);
-        const gate = yield* Latch.make();
-
-        const blocking: Layer.Layer<RelationshipResolver> = Layer.succeed(RelationshipResolver, {
-          check: () =>
-            Effect.gen(function* () {
-              const current = yield* Ref.updateAndGet(inFlight, (n) => n + 1);
-              yield* Ref.update(peak, (max) => Math.max(max, current));
-              yield* gate.await;
-              yield* Ref.update(inFlight, (n) => n - 1);
-              // `Effect.gen` infers from the generator's return, so the literal
-              // needs pinning — the object literal's contextual type does not
-              // reach inside.
-              return "Related" as const;
-            }),
-        });
-
-        const bounded = relationshipResolverBounded(2)(blocking);
-
-        // Provided once around the whole batch — see the equivalent comment
-        // in AttributeResolver.test.ts for why per-asker `Effect.provide`
-        // would give each its own independent semaphore.
-        const results = yield* Effect.gen(function* () {
-          const fibers = yield* Effect.forEach(Array.from({ length: 5 }, (_, i) => i), (i) =>
-            Effect.forkChild(
-              RelationshipResolver.check({
-                subjectId: makeSubjectId(`u${i}`),
-                relation: "owner",
-                resourceId: makeResourceId("d"),
-                depth: undefined,
-              }),
-            ),
-          );
-          for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
-          assert.strictEqual(yield* Ref.get(inFlight), 2);
-          assert.strictEqual(yield* Ref.get(peak), 2);
-          yield* gate.open;
-          return yield* Effect.forEach(fibers, (f) => Effect.result(Fiber.join(f)));
-        }).pipe(Effect.provide(bounded));
-
-        for (const result of results) assert.strictEqual(result._tag, "Success");
-        assert.strictEqual(yield* Ref.get(inFlight), 0);
-      }));
-
-    it.effect("forwards the checked value transparently", () =>
-      Effect.gen(function* () {
-        const bounded = relationshipResolverBounded(1)(relationshipResolverFromEdges([
-          { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
-        ]));
-        assertRelated(
-          yield* check(bounded, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
-        );
-        assertUnrelated(
-          yield* check(bounded, { subjectId: "bob", relation: "owner", resourceId: "doc-1" }),
-        );
-      }));
-
-    it.effect(
-      "fails fast with InvalidBoundedPermits instead of deadlocking every call, for permits <= 0",
-      () =>
-        Effect.gen(function* () {
-          // Same defect and fix as attributeResolverBounded's identically-named
-          // test — see that file's comment for why `it.effect`/`TestClock`
-          // itself is what proves this doesn't just hang instead.
-          for (const permits of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-            const bounded = relationshipResolverBounded(permits)(
-              relationshipResolverFromEdges([]),
-            );
-            const result = yield* Effect.result(
-              check(bounded, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
-            );
-
-            assert.isTrue(Result.isFailure(result), `permits ${permits} should fail fast`);
-            if (!Result.isFailure(result)) continue;
-            assert.strictEqual(result.failure._tag, "InvalidBoundedPermits");
-            if (result.failure._tag !== "InvalidBoundedPermits") continue;
-            if (Number.isNaN(permits)) assert.isNaN(result.failure.permits);
-            else assert.strictEqual(result.failure.permits, permits);
-          }
-        }),
-    );
-  });
-
-  // JM-01/WV-01/SP-01's sibling case for this port: a resolver that never
-  // settles must produce a typed evaluation failure, not a hung decision.
-  describe("relationshipResolverTimingOut", () => {
-    it.effect("fails with a typed RelationshipResolveError once the deadline passes, for a resolver that never answers", () =>
-      Effect.gen(function* () {
-        const timingOut = relationshipResolverTimingOut("1 second")(
-          Layer.succeed(RelationshipResolver, { check: () => Effect.never }),
-        );
-
-        const fiber = yield* Effect.forkChild(
-          Effect.result(
-            check(timingOut, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
-          ),
-        );
-        yield* TestClock.adjust("1 second");
-        const result = yield* Fiber.join(fiber);
-
-        assert.isTrue(Result.isFailure(result));
-        if (!Result.isFailure(result)) return;
-        assert.strictEqual(result.failure._tag, "RelationshipResolveError");
-        assert.strictEqual(result.failure.relation, "owner");
-      }));
-
-    it.effect("does not affect a resolver that settles well within the deadline", () =>
-      Effect.gen(function* () {
-        const timingOut = relationshipResolverTimingOut("1 second")(
-          relationshipResolverFromEdges([
-            { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
-          ]),
-        );
-        assertRelated(
-          yield* check(timingOut, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
-        );
-      }));
   });
 });

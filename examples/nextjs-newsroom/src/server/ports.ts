@@ -20,10 +20,10 @@ import {
   attributeResolverRetrying,
   attributeResolverTimingOut,
   AttributeResolver,
-  CustomPredicateNone,
   decisionHistoryFromEvents,
+  decisionHistoryTimingOut,
+  portsLayer,
   relationshipResolverFromEdges,
-  SignatureHistoryNone,
 } from "@qadi/core";
 import type { AttributeResolverShape, SubjectId } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -100,9 +100,19 @@ const history = decisionHistoryFromEvents([
  * `attributeResolverRetrying` is above: so the composition this library
  * recommends for a real remote resolver is the one this example actually
  * shows, not just the one its doc comments describe.
+ *
+ * `history` gets a deadline too, now that every port has the full wrapper set:
+ * a hung audit log would otherwise hold the request open, and a decision that
+ * cannot be made in time should fail as `DecisionHistoryUnavailable` rather
+ * than not at all.
+ *
+ * `portsLayer` names only the ports this host wires. The two it does not —
+ * `CustomPredicate` and `SignatureHistory` — sit at their fail-closed
+ * defaults: no policy here reaches for `hasCustom` (every rule is expressible
+ * with the built-in matchers) or `hasSignature`.
  */
-export const ports: EvaluationPortsLayer = Layer.mergeAll(
-  attributes.pipe(
+export const ports: EvaluationPortsLayer = portsLayer({
+  AttributeResolver: attributes.pipe(
     attributeResolverTimingOut("5 seconds"),
     attributeResolverRetrying(Schedule.recurs(2)),
     attributeResolverBounded(8),
@@ -113,13 +123,6 @@ export const ports: EvaluationPortsLayer = Layer.mergeAll(
     // which is what AGENTS.md §4's `orDie` ban actually guards.
     Layer.orDie,
   ),
-  relationships,
-  history,
-  // This newsroom has no policy that reaches for `hasCustom` — every rule is
-  // expressible with the built-in matchers — so the registry is left at its
-  // fail-closed default rather than wired to anything.
-  CustomPredicateNone,
-  // Same reasoning as CustomPredicateNone above: no policy here reaches for
-  // hasSignature, so the port is left at its fail-closed default too.
-  SignatureHistoryNone,
-);
+  RelationshipResolver: relationships,
+  DecisionHistory: history.pipe(decisionHistoryTimingOut("5 seconds")),
+});

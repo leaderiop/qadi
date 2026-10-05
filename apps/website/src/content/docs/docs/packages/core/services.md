@@ -84,7 +84,9 @@ reads nothing back. Whatever happens inside a sink — a failure, even a defect
 [@qadi/audit](/docs/packages/audit/).
 
 ```ts
-import { decisionSinkRing } from "@qadi/core";
+import * as Effect from "effect/Effect";
+import { makeDecisionLog } from "@qadi/core";
 
-const withRingBuffer = decisionSinkRing({ environment: "staging", capacity: 500 });
+// A sink that is also a readable history: `log.layer` is the `DecisionSink`.
+const log = Effect.runSync(makeDecisionLog({ environment: "staging", capacity: 500 }));
 ```

@@ -7,20 +7,19 @@
  * synchronous `check` plus an async `checkAsync` that nothing ever called —
  * the async path was unreachable because evaluation was synchronous.
  */
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
-import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
-import * as Semaphore from "effect/Semaphore";
 import { RelationshipResolveError } from "./Errors.ts";
-import { InvalidBoundedPermits } from "./Errors.ts";
+import type { InvalidBoundedPermits } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
-import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
-import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
+import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
+import type { PortDescription } from "./PortDescription.ts";
 
 export interface RelationshipCheck {
   readonly subjectId: SubjectId;
@@ -45,8 +44,8 @@ export interface RelationshipCheck {
    * unbounded mandate — that is a real grant, not an oversight, and an
    * implementation accepting it must still terminate on its own. Every
    * resolver shipped with this library today (`relationshipResolverFromEdges`,
-   * `@qadi/testing`'s `edgeRelationshipResolver`) checks direct edges only and
-   * ignores `depth` entirely, so neither is a tested reference for the
+   * which `@qadi/testing`'s `relationships` option also builds) checks direct
+   * edges only and ignores `depth` entirely, so it is not a tested reference for the
    * traversal case this obligation describes; a resolver that does traverse
    * has no conformance test to check itself against yet.
    */
@@ -73,8 +72,8 @@ export interface RelationshipCheck {
  * default — is the common source, but not the only one: a wired resolver may
  * answer it too, for a relation it has genuinely no answer for (a graph store
  * with no namespace for this relation, say). The port cannot tell the two
- * apart, which is why `evaluateHasRelationship` (`Evaluate.ts`) does not name
- * wiring as the cause in the denial it produces (BEH-QD-045) — doing so would
+ * apart, which is why `evaluateHasRelationship` (`Evaluate.ts`, over
+ * `PortAccess.ts`'s `askRelationship`) does not name wiring as the cause in the denial it produces (BEH-QD-045) — doing so would
  * assert a fact about a store INV-QD-029 forbids asserting without having
  * consulted it. A resolver that is wired and unreachable is a
  * `RelationshipResolveError`, which is an error, not an answer.
@@ -87,8 +86,8 @@ export interface RelationshipResolverShape {
   /**
    * Answers a relationship question.
    *
-   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
-   * `evaluateHasRelationship` catches a defect from this call and converts it
+   * An implementation is not required to fail cleanly. `PortAccess.ts`'s
+   * `askRelationship` catches a defect from this call and converts it
    * into this same `RelationshipResolveError`, matching
    * `AttributeResolverShape.resolve`'s own contract — see its doc comment for
    * why (issue #100).
@@ -115,6 +114,43 @@ export class RelationshipResolver extends Context.Service<
 }
 
 /**
+ * The relationship port, described once (`PortDescription.ts`).
+ *
+ * A request is keyed by `(subjectId, relation, resourceId)` — never by the
+ * relation alone, and not by `depth`, which is traversal fuel rather than part
+ * of the question.
+ */
+export const relationshipResolverPort: PortDescription<
+  "RelationshipResolver",
+  RelationshipResolver,
+  RelationshipResolverShape,
+  [request: RelationshipCheck],
+  RelatedResult,
+  RelationshipResolveError
+> = {
+  port: "RelationshipResolver",
+  method: "check",
+  span: "qadi.hasRelationship",
+  service: RelationshipResolver,
+  invoke: (shape) => (request) => shape.check(request),
+  make: (name, call) => ({ name, check: call }),
+  failure: ([request], cause) =>
+    new RelationshipResolveError({
+      relation: request.relation,
+      resourceId: request.resourceId,
+      cause,
+    }),
+  defect: ([request], cause) =>
+    new RelationshipResolveError({
+      relation: request.relation,
+      resourceId: request.resourceId,
+      cause: Cause.squash(cause),
+    }),
+  key: ([request]) => JSON.stringify([request.subjectId, request.relation, request.resourceId]),
+  none: { name: "RelationshipResolverNever", answer: "Unknown" },
+};
+
+/**
  * Knows nothing, so every relationship policy denies.
  *
  * The default, and deliberately fail-closed: an unwired resolver must not grant
@@ -125,11 +161,10 @@ export class RelationshipResolver extends Context.Service<
  * ever visible in the denial's reason. `"Unrelated"` is what a wired store says
  * when it looked and found no edge; this layer never looked, and a denial that
  * claimed otherwise sent developers to audit a graph they had not connected.
+ * Derived from {@link relationshipResolverPort}'s `none` (ADR-QD-040).
  */
-export const RelationshipResolverNever: Layer.Layer<RelationshipResolver> = Layer.succeed(
-  RelationshipResolver,
-  { name: "RelationshipResolverNever", check: () => Effect.succeed("Unknown") },
-);
+export const RelationshipResolverNever: Layer.Layer<RelationshipResolver> =
+  nonePort(relationshipResolverPort);
 
 /**
  * One edge to seed {@link relationshipResolverFromEdges} with.
@@ -154,8 +189,9 @@ export interface RelationshipEdgeInput {
  * gives per-field `Equal`/`Hash`, so `HashSet` membership compares each field
  * independently and the collision is unrepresentable, not just harder to hit.
  *
- * Exported so `@qadi/testing`'s `edgeRelationshipResolver` can reuse this
- * exact class instead of pasting an identical one: a value class with no
+ * Exported so a consumer building its own edge fixture can reuse this exact
+ * class instead of pasting an identical one (as `@qadi/testing` once had to):
+ * a value class with no
  * behavior beyond structural equality has nothing sensitive to leak by being
  * public, and a future change to its equality semantics now has one
  * definition to reach, not two that could silently drift apart in the exact
@@ -199,80 +235,44 @@ export const relationshipResolverFromEdges = (
  * Wraps a resolver layer so every `check` call retries on
  * `RelationshipResolveError` under the given schedule before surfacing it.
  *
- * Additive, not a change to {@link RelationshipResolverShape} — see
- * `attributeResolverRetrying` in `AttributeResolver.ts`, the same combinator
- * for the sibling service.
+ * Additive, not a change to {@link RelationshipResolverShape} — the same
+ * wrapper `attributeResolverRetrying` is for the sibling service, derived from
+ * {@link relationshipResolverPort} by `PortDerivation.ts`'s `retryingPort`:
+ * it annotates `qadi.attempts` on the caller's span and counts failed
+ * attempts in `portRetriesTotal`.
  */
-export const relationshipResolverRetrying =
-  (schedule: Schedule.Schedule<unknown, RelationshipResolveError>) =>
-  (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver> =>
-    wrapService(RelationshipResolver, layer, (inner) => ({
-      name: `${inner.name ?? "?"} (retrying)`,
-      check: (request) =>
-        inner
-          .check(request)
-          .pipe(
-            Effect.tapError(() => Metric.update(portRetriesTotal, "RelationshipResolver")),
-            Effect.retry(schedule),
-          ),
-    }));
+export const relationshipResolverRetrying: (
+  schedule: Schedule.Schedule<unknown, RelationshipResolveError>,
+) => (layer: Layer.Layer<RelationshipResolver>) => Layer.Layer<RelationshipResolver> =
+  retryingPort(relationshipResolverPort);
 
 /**
  * Wraps a resolver layer so no more than `permits` calls to `check` run at
  * once, queuing the rest.
  *
- * The sibling of `attributeResolverBounded` in `AttributeResolver.ts` — see
- * that doc comment for why this exists and why `effect/Semaphore` rather than
- * a rate limiter. `Qadi.filter`'s `concurrency` bounds fan-out across policy
- * evaluations, not calls into this specific resolver, so a `HasRelationship`-
- * heavy policy evaluated over a large collection under `concurrency:
- * "unbounded"` has nothing else standing between it and this resolver's
- * backing store.
- *
- * `permits <= 0` fails fast with `InvalidBoundedPermits` instead of an
- * unexplained hang the first time a caller reaches the wrapped resolver — the
- * same fix as `attributeResolverBounded`'s, for the identical reason:
- * `Semaphore.make` performs no validation of its own.
+ * `Qadi.filter`'s `concurrency` bounds fan-out across policy evaluations, not
+ * calls into this specific resolver, so a `HasRelationship`-heavy policy
+ * evaluated over a large collection under `concurrency: "unbounded"` has
+ * nothing else standing between it and this resolver's backing store.
+ * `permits` that is not a positive integer fails construction with
+ * `InvalidBoundedPermits`. Derived by `PortDerivation.ts`'s `boundedPort`.
  */
-export const relationshipResolverBounded =
-  (permits: number) =>
-  (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver, InvalidBoundedPermits> =>
-    wrapServiceEffect(RelationshipResolver, layer, (inner) =>
-      Effect.map(boundedPermits(permits), (semaphore) => ({
-        name: `${inner.name ?? "?"} (bounded ${permits})`,
-        check: (request) => Semaphore.withPermit(semaphore)(inner.check(request)),
-      })),
-    );
+export const relationshipResolverBounded: (
+  permits: number,
+) => (
+  layer: Layer.Layer<RelationshipResolver>,
+) => Layer.Layer<RelationshipResolver, InvalidBoundedPermits> =
+  boundedPort(relationshipResolverPort);
 
 /**
  * Wraps a resolver layer so a `check` call that does not settle within
  * `duration` fails with a typed `RelationshipResolveError` instead of holding
  * its caller open indefinitely — the sibling of `attributeResolverTimingOut`
- * in `AttributeResolver.ts` (JM-01/WV-01/SP-01); see that doc comment for why
- * this is needed alongside, not instead of, `*Retrying`/`*Bounded`, and for
- * the composition order (outermost `*Bounded`, innermost `*Retrying`,
- * `*TimingOut` bounding each individual attempt).
+ * (JM-01/WV-01/SP-01); see that doc comment for why this is needed alongside,
+ * not instead of, `*Retrying`/`*Bounded`, and for the composition order.
+ * Derived by `PortDerivation.ts`'s `timingOutPort`.
  */
-export const relationshipResolverTimingOut =
-  (duration: Duration.Input) =>
-  (layer: Layer.Layer<RelationshipResolver>): Layer.Layer<RelationshipResolver> =>
-    wrapService(RelationshipResolver, layer, (inner) => ({
-      name: `${inner.name ?? "?"} (timing out)`,
-      check: (request) =>
-        inner.check(request).pipe(
-          Effect.timeout(duration),
-          Effect.catchTag("TimeoutError", () =>
-            Metric.update(portTimeoutsTotal, "RelationshipResolver").pipe(
-              Effect.flatMap(() =>
-                Effect.fail(
-                  new RelationshipResolveError({
-                    relation: request.relation,
-                    resourceId: request.resourceId,
-                    cause: new Error(`RelationshipResolver.check did not settle within the configured deadline`),
-                  }),
-                ),
-              ),
-            ),
-          ),
-        ),
-    }));
+export const relationshipResolverTimingOut: (
+  duration: Duration.Input,
+) => (layer: Layer.Layer<RelationshipResolver>) => Layer.Layer<RelationshipResolver> =
+  timingOutPort(relationshipResolverPort);

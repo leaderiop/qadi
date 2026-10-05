@@ -8,6 +8,7 @@ import * as Effect from "effect/Effect";
 import * as Metric from "effect/Metric";
 import {
   Allow,
+  AttributeResolveError,
   Decided,
   DecisionRecord,
   Failed,
@@ -76,6 +77,31 @@ export const failedRecord = (options?: {
     policy: readPolicy,
     outcome: new Failed({ error: new MissingResource({ attribute: "doc.ownerId" }) }),
   });
+
+/**
+ * A `Failed` record whose resolver error carries `cause` — what an
+ * attribute-store outage produces, and the position `encodeAuditEntry`'s guard
+ * never walked before ARCH-09.
+ */
+export const failedWithCause = (cause: unknown, evaluationId = "poisoned"): SinkRecord =>
+  new DecisionRecord({
+    evaluationId,
+    at: 2_000,
+    subjectId: makeSubjectId("alice"),
+    policy: readPolicy,
+    outcome: new Failed({ error: new AttributeResolveError({ attribute: "clearance", cause }) }),
+  });
+
+/**
+ * The error an axios-style HTTP client throws: an `Error` whose own enumerable
+ * `config`/`request` properties reference each other (ARCH-09 probe 9).
+ */
+export const httpClientError = (): Error => {
+  const config: { url: string; request?: unknown } = { url: "https://attributes.internal/x" };
+  const request = { config };
+  config.request = request;
+  return Object.assign(new Error("Request failed with status code 503"), { config, request });
+};
 
 export const obligationRecord = (options?: {
   readonly evaluationId?: string;

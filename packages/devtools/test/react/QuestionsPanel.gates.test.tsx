@@ -43,7 +43,7 @@ describe("the two views, side by side", () => {
     render(<QuestionsPanel questions={asked} />);
     assert.include(
       screen.getByTestId("qadi-gates-absent").textContent ?? "",
-      "gateInstances()",
+      "useGateInstances()",
     );
   });
 

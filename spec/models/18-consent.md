@@ -120,8 +120,6 @@ would let a role's scope restore a field the consent excluded.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolveError,
   RelationshipResolver,
@@ -134,6 +132,7 @@ import {
   makeSubject,
   permission,
   project,
+  portsLayer,
 } from "@qadi/core";
 
 // The caller's register. It applies validity periods and withdrawal itself;
@@ -181,11 +180,9 @@ const canReadForTreatment = allOf([
 declare const record: { id: string; medications: string; mentalHealthNotes: string };
 
 const services = Layer.mergeAll(
+  portsLayer({ RelationshipResolver: ConsentRegisterResolver }),
   currentSubjectLayer(makeSubject({ id: "dr-yusra", permissions: ["record:read"] })),
-  ConsentRegisterResolver,
-  AttributeResolverNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
 );
 
 // `resource` must carry a string `id`; without one this fails with

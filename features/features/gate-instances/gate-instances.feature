@@ -72,3 +72,10 @@ Feature: Finding the component a missing control belongs to
     When the page renders with instrumentation
     And the page unmounts
     Then no guard is registered
+
+  Scenario: Two atom sets do not see each other's guards
+    Given a page with 1 guard on "doc:read"
+    And a second page, under its own atom set, with 1 guard on "admin"
+    When both pages render with instrumentation
+    Then the first atom set lists 1 guard on "doc:read"
+    And the second atom set lists 1 guard on "admin"

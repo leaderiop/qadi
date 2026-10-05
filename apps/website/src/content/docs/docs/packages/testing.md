@@ -31,8 +31,8 @@ const layer = qadiTestLayer(subjectWith({ permissions: ["doc:read"] }), {
 });
 ```
 
-`TestLayerOptions` also accepts `relationships`, `history`, `signatures`, an
-`idPrefix`, and a `clock` of `"live"` (the default) or `"test"` — set `"test"`
+`TestLayerOptions` also accepts `relationships`, `history`, `signatures`,
+`ports` (below), an `idPrefix`, and a `clock` of `"live"` (the default) or `"test"` — set `"test"`
 outside `it.effect`, where no ambient `TestClock` exists, to make
 `durationMillis` reproducibly zero when two decisions are compared field by
 field. `qadiReviewLayer` is the subject-less half, for wiring the same
@@ -64,32 +64,71 @@ export const subjectWith: (config: {
 Deliberately small and boring — these exist so a test can say what it is
 about, not to model a realistic domain.
 
-## Recording fixtures
+## Overriding a port
 
-`recordingAttributeResolver`, `edgeRelationshipResolver`,
-`eventDecisionHistory`, `recordingCustomPredicate`, and
-`recordingSignatureHistory` each return `{ layer, calls }`. That shape is the
-real reason to reach for them: a test can assert not just the decision but
-**the work done to reach it**, which is how short-circuiting is verified.
+Each data option — `attributes`, `relationships`, `history`, `signatures` —
+becomes that port's `@qadi/core` fixture. To wire any port directly, pass it
+under `ports`, keyed by port name. An entry there wins over the matching data
+option, and every port you do not name stays at its fail-closed default:
 
-```ts
-import { recordingAttributeResolver } from "@qadi/testing";
+```typescript
+import { customPredicateFromRecord } from "@qadi/core";
+import { qadiTestLayer, subjectWith } from "@qadi/testing";
+import * as Effect from "effect/Effect";
 
-const { layer, calls } = recordingAttributeResolver({ clearance: 5 });
-
-// … run the evaluation with `layer` provided …
-
-// `calls` names every attribute actually resolved — asserting it is empty
-// proves a policy short-circuited before reaching this port at all.
+const layer = qadiTestLayer(subjectWith({ id: "u1" }), {
+  attributes: { clearance: 5 },
+  ports: {
+    CustomPredicate: customPredicateFromRecord({ isOwner: () => Effect.succeed(true) }),
+  },
+});
 ```
 
-`failingAttributeResolver` and `failingCustomPredicate` are the complementary
-fixtures for exercising the failure path — an attribute store that is down,
-rather than one that answers — so a test can prove a failure surfaces as
-`Failure` and never as a denial.
+## Scripted and recording ports
 
-`recordingAttributeResolver` is deliberately **subject-blind**: one flat table
+The doubles are `@qadi/core`'s, derived from each port's description, so they
+work for every port alike: `scriptedPort` answers, fails with the port's own
+error, dies or throws per request, and `recordingPort` wraps a real port and
+keeps the requests it saw. Both return `{ layer, calls }`, which is the real
+reason to reach for them: a test can assert not just the decision but **the
+work done to reach it**, which is how short-circuiting is verified.
+
+```typescript
+import {
+  PortReply,
+  anyOf,
+  attributeResolverFromRecord,
+  attributeResolverPort,
+  evaluate,
+  gte,
+  hasAttribute,
+  recordingPort,
+  scriptedPort,
+} from "@qadi/core";
+import { qadiTestLayer, subjectWith } from "@qadi/testing";
+import * as Effect from "effect/Effect";
+
+// An attribute store that is down: every lookup fails with AttributeResolveError,
+// so a test can prove a failure surfaces as `Failure` and never as a denial.
+const down = scriptedPort(attributeResolverPort, () => PortReply.fail("down"));
+
+// A real table, recorded.
+const table = recordingPort(attributeResolverPort, attributeResolverFromRecord({ tier: 5 }));
+
+const program = evaluate(anyOf([hasAttribute("tier", gte(1)), hasAttribute("other", gte(1))])).pipe(
+  Effect.provide(qadiTestLayer(subjectWith({}), { ports: { AttributeResolver: table.layer } })),
+);
+// After running `program`, `table.calls` is `[["test-subject", "tier"]]` —
+// `anyOf` stopped at the first allow. `down.layer` in the same slot makes
+// `program` fail rather than deny.
+export { down, program };
+```
+
+A script is consulted once per request, so a per-key fault is a function of
+the request — `(subjectId, attribute) => attribute === "x" ? PortReply.fail("down")
+: undefined` — and `undefined` falls through to the port's fail-closed answer.
+
+`attributeResolverFromRecord` is deliberately **subject-blind**: one flat table
 answers every subject, which is fine while a test names exactly one, and a
 cross-subject leak the moment a batch runs over several — a test that cares
-about subject-keyed answers wires its own resolver rather than reaching for
-this one.
+about subject-keyed answers scripts the resolver on its `subjectId` instead.

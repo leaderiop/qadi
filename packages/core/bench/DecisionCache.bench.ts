@@ -68,12 +68,9 @@ test("DecisionCache.getOrCompute — hit", async ({ bench }) => {
   const policy = hasPermission(read);
   runtime.runSync(evaluate(policy)); // warm the entry once, outside the timed loop
 
-  await bench.compare(
-    bench("repeated lookup, same subject/policy/resource", () => {
-      runtime.runSync(evaluate(policy));
-    }),
-    options,
-  );
+  await bench("repeated lookup, same subject/policy/resource", () => {
+    runtime.runSync(evaluate(policy));
+  }).run(options);
 });
 
 test("DecisionCache.getOrCompute — hit, realistic tree", async ({ bench }) => {
@@ -83,12 +80,9 @@ test("DecisionCache.getOrCompute — hit, realistic tree", async ({ bench }) => 
   const runtime = ManagedRuntime.make(Layer.mergeAll(services, decisionCacheLayer()));
   runtime.runSync(evaluate(realisticTree));
 
-  await bench.compare(
-    bench("repeated lookup, same subject/tree/resource", () => {
-      runtime.runSync(evaluate(realisticTree));
-    }),
-    options,
-  );
+  await bench("repeated lookup, same subject/tree/resource", () => {
+    runtime.runSync(evaluate(realisticTree));
+  }).run(options);
 });
 
 test("DecisionCache.getOrCompute — hit, fresh-but-equal subject per lookup", async ({
@@ -117,12 +111,9 @@ test("DecisionCache.getOrCompute — hit, fresh-but-equal subject per lookup", a
   const freshAlice = () => fromRoles({ id: "alice", roles: [editor] });
   runtime.runSync(evaluate(realisticTree).pipe(Effect.provide(currentSubjectLayer(freshAlice()))));
 
-  await bench.compare(
-    bench("distinct-but-equal subject object per call", () => {
-      runtime.runSync(evaluate(realisticTree).pipe(Effect.provide(currentSubjectLayer(freshAlice()))));
-    }),
-    options,
-  );
+  await bench("distinct-but-equal subject object per call", () => {
+    runtime.runSync(evaluate(realisticTree).pipe(Effect.provide(currentSubjectLayer(freshAlice()))));
+  }).run(options);
 });
 
 test("DecisionCache.getOrCompute — miss", async ({ bench }) => {
@@ -133,10 +124,7 @@ test("DecisionCache.getOrCompute — miss", async ({ bench }) => {
   let counter = 0;
   const nextPolicy = (): Policy => hasPermission(permission("document", `read-${counter++}`));
 
-  await bench.compare(
-    bench("distinct policy per call, cache grows across the run", () => {
-      runtime.runSync(evaluate(nextPolicy()));
-    }),
-    options,
-  );
+  await bench("distinct policy per call, cache grows across the run", () => {
+    runtime.runSync(evaluate(nextPolicy()));
+  }).run(options);
 });

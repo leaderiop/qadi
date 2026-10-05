@@ -3,31 +3,34 @@
  * Suspense promise, StrictMode remounting, and registry disposal.
  */
 import {
-  AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
   EvaluationServicesNone,
-  RelationshipResolverNever,
+  decisionCacheLayer,
+  eq,
   gte,
   hasAttribute,
   hasPermission,
+  literal,
   makeSubject,
   permission,
+  portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Component, StrictMode, Suspense, type ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import {
   Can,
   Cannot,
   QadiProvider,
   makeQadiAtoms,
   useDecisionSuspense,
+  useInvalidate,
   useSubject,
 } from "../src/index.ts";
 
@@ -39,15 +42,10 @@ const working = makeQadiAtoms(EvaluationServicesNone);
 
 const broken = makeQadiAtoms(
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, {
-      resolve: (_id: string, attribute: string) =>
-        Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
+    portsLayer({
+      AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("backend down")).layer,
     }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   ),
 );
 
@@ -142,14 +140,12 @@ describe("failure rendering", () => {
 /** A resolver that answers on a later tick, so a decision is genuinely async. */
 const slow = makeQadiAtoms(
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, {
-      resolve: () => Effect.delay(Effect.succeed(0), "1 millis"),
+    portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.delay(Effect.succeed(0), "1 millis"),
+      }),
     }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   ),
 );
 
@@ -179,6 +175,67 @@ describe("useDecisionSuspense", () => {
       </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("boundary")).toBeDefined());
+  });
+
+  it("suspends again while a settled decision is re-checked (ADR-QD-017)", async () => {
+    // BEH-QD-068: a decision being re-checked MUST still suspend. The only
+    // thing enforcing it is `suspendOnWaiting: true` in `hooks.ts` —
+    // `useAtomSuspense`'s default suspends on `Initial` alone and would hand
+    // back the previous allow. The resolver is parked by hand so the re-check
+    // window cannot be stepped over by `waitFor`'s polling.
+    const standing = hasAttribute("standing", eq(literal("good")));
+    const parked: { release: ((value: string) => void) | undefined } = { release: undefined };
+    const atoms = makeQadiAtoms(
+      Layer.mergeAll(
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, {
+            resolve: (_id: unknown, attribute: string) =>
+              attribute === "standing"
+                ? Effect.promise(
+                    () => new Promise<string>((resolve) => (parked.release = resolve)),
+                  )
+                : Effect.succeed(undefined),
+          }),
+        }),
+        EvaluationIdLive,
+        decisionCacheLayer(),
+      ),
+    );
+    const answer = async (value: string) => {
+      await waitFor(() => expect(parked.release).toBeDefined());
+      const release = parked.release;
+      parked.release = undefined;
+      act(() => release?.(value));
+    };
+
+    const Probe = () => <span>{`decided:${useDecisionSuspense(standing)._tag}`}</span>;
+    const Invalidate = () => {
+      const invalidate = useInvalidate();
+      return <button type="button" data-testid="invalidate" onClick={invalidate} />;
+    };
+    render(
+      <QadiProvider atoms={atoms} subject={reader}>
+        <Suspense fallback={<span>checking</span>}>
+          <Probe />
+        </Suspense>
+        <Invalidate />
+      </QadiProvider>,
+    );
+
+    await answer("good");
+    await waitFor(() => expect(screen.getByText("decided:Allow")).toBeDefined());
+
+    act(() => {
+      screen.getByTestId("invalidate").click();
+    });
+    await waitFor(() => expect(screen.getByText("checking")).toBeDefined());
+    // React keeps a suspended boundary's previous content in the DOM, hidden
+    // with an inline `display: none`, so "not on screen" is "absent or hidden".
+    const stale = screen.queryByText("decided:Allow");
+    expect(stale === null || stale.style.display === "none").toBe(true);
+
+    await answer("bad");
+    await waitFor(() => expect(screen.getByText("decided:Deny")).toBeDefined());
   });
 });
 
@@ -226,18 +283,16 @@ describe("atom sharing under React (AC-05)", () => {
     const counter = { count: 0 };
     const counting = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.sync(() => {
-              counter.count += 1;
-              return 5;
-            }),
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, {
+            resolve: () =>
+              Effect.sync(() => {
+                counter.count += 1;
+                return 5;
+              }),
+          }),
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     );
 

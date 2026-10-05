@@ -15,32 +15,22 @@
  * ([ADR-QD-041](../../../spec/decisions/041-a-mismatch-is-announced.md)).
  */
 import type { ClientHydrationDropReason, Decision, Policy, Resource } from "@qadi/core";
-import { isAllowed } from "@qadi/core";
 import * as Match from "effect/Match";
+import type { SeededDecision } from "./SeededDecision.ts";
+import { permits } from "./SeededDecision.ts";
 
 /** A server seed and this client's own answer, disagreeing about one question. */
 export interface HydrationMismatch {
   readonly policy: Policy;
   /** The resource the question was asked about, if any. */
   readonly resource: Resource | undefined;
-  /** What the server said, as hydrated. */
-  readonly seeded: Decision;
+  /** What the server said, as hydrated — a projection, not an evaluation. */
+  readonly seeded: SeededDecision;
   /** What this client decided — the answer now in effect. */
   readonly decided: Decision;
 }
 
 export type HydrationMismatchReporter = (mismatch: HydrationMismatch) => void;
-
-/**
- * Whether the two answers disagree.
- *
- * The **verdict** only. Two allows differing in `visibleFields` or obligations
- * are not a mismatch: what a developer sees, and what this exists to explain,
- * is a control appearing and then disappearing. Field-set differences would
- * report every projection difference as a wiring problem.
- */
-export const isMismatch = (seeded: Decision, decided: Decision): boolean =>
-  isAllowed(seeded) !== isAllowed(decided);
 
 /**
  * Whether to warn by default.
@@ -56,8 +46,8 @@ export const isMismatch = (seeded: Decision, decided: Decision): boolean =>
 export const isDevelopment = (): boolean =>
   typeof process !== "undefined" && process.env.NODE_ENV !== "production";
 
-const verdict = (decision: Decision): string =>
-  isAllowed(decision) ? "allowed" : "denied";
+const verdict = (decision: Decision | SeededDecision): string =>
+  permits(decision) ? "allowed" : "denied";
 
 const warnMismatch = (mismatch: HydrationMismatch): void => {
   // The client's reason is the payload: after a `HasRelationship` policy meets
@@ -65,11 +55,11 @@ const warnMismatch = (mismatch: HydrationMismatch): void => {
   // 'owner' relation to 'doc-1'", which is the diagnosis.
   const because =
     mismatch.decided._tag === "Deny" ? ` — ${mismatch.decided.reason}` : "";
-  // The **client's** trace names the policy, not the seed's. A hydrated trace is
-  // a reduced projection whose `policyTag` is the server's root — and for a
-  // payload shipped without `includeTrace` it is a stand-in, `"AllOf"`, naming
-  // nothing. Only this client's own trace is guaranteed to describe the policy
-  // actually in question.
+  // The **client's** trace names the policy, because a seed carries no trace
+  // unless the server disclosed one (`Disclosure.Withheld` is the default), and
+  // even a disclosed one is the server's evaluation, not the one now in effect.
+  // Only this client's own trace is the evaluation that actually answered the
+  // question.
   console.warn(
     `[qadi] hydration mismatch for ${mismatch.decided.trace.policyTag}: the server ` +
       `${verdict(mismatch.seeded)}, this client ${verdict(mismatch.decided)}${because}. ` +
@@ -88,6 +78,36 @@ export const hydrationMismatchReporter = (
   supplied: HydrationMismatchReporter | undefined,
 ): HydrationMismatchReporter | undefined =>
   supplied ?? (isDevelopment() ? warnMismatch : undefined);
+
+/**
+ * Told when two live guards registered the same id with one gate registry.
+ *
+ * React's `useId` is unique within a root; two hydrated roots derive ids from
+ * tree position and so collide. The registry keeps both guards (the second under
+ * a disambiguated id) and says so once per id.
+ */
+export type GateIdCollisionReporter = (id: string) => void;
+
+const warnGateIdCollision = (id: string): void => {
+  console.warn(
+    `[qadi] two React roots minted the gate id "${id}" for one gate registry. ` +
+      `Both guards are kept, the second under a disambiguated panel id. Give each ` +
+      `root a distinct \`identifierPrefix\` in its hydrateRoot/createRoot options ` +
+      `to fix the cause.`,
+  );
+};
+
+/**
+ * The reporter a gate registry will use, or `undefined` for none.
+ *
+ * The sibling of {@link hydrationMismatchReporter}: a development-mode warning
+ * by default, replaced outright by a supplied callback, which then runs in
+ * production too.
+ */
+export const gateIdCollisionReporter = (
+  supplied: GateIdCollisionReporter | undefined,
+): GateIdCollisionReporter | undefined =>
+  supplied ?? (isDevelopment() ? warnGateIdCollision : undefined);
 
 /**
  * Told which entries a payload discarded.
@@ -161,13 +181,6 @@ const explain: (reason: ClientHydrationDropReason) => string = Match.type<
       "rendered for the same user, and that no cache is serving one user's page to another",
   ),
   Match.when(
-    "UnregisteredAtoms",
-    () =>
-      "the atom set was not built by makeQadiAtoms, so it has no seed to write to. " +
-      "A wrapper, a proxy or a test double is not registered — pass the atom set " +
-      "itself",
-  ),
-  Match.when(
     "MalformedEntry",
     () =>
       "an entry's shape didn't match what this client expects — a field other than " +
@@ -186,6 +199,20 @@ const explain: (reason: ClientHydrationDropReason) => string = Match.type<
     () =>
       "an entry nested deeper than this client will walk. That is not a shape a " +
       "well-behaved server produces — check what fed this payload",
+  ),
+  Match.when(
+    "UnsupportedPayloadVersion",
+    () =>
+      "the payload's version is one this client does not read. A page cached by one " +
+      "deploy and hydrated by the next does this for as long as the deploy takes; if " +
+      "it persists, the server and the client are running different @qadi/react releases",
+  ),
+  Match.when(
+    "MalformedPayload",
+    () =>
+      "the payload is not shaped like a dehydrated payload — not an object, no " +
+      "entries array, or an unrecognised key. Check that what reached hydrateDecisions " +
+      "is the JSON dehydrateDecisions produced, unmodified",
   ),
   Match.exhaustive,
 );

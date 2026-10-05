@@ -39,6 +39,7 @@ import type {
   Trace,
 } from "@qadi/core";
 import type { TimelineEntry } from "./Timeline.ts";
+import { foldTree } from "./TreeFold.ts";
 
 /**
  * `NeverResolved` is not "unknown" — it is a fact, and a useful one: this
@@ -101,9 +102,13 @@ export interface InspectNode {
  *
  * `trace` may be absent — a failed evaluation produced none — and the whole
  * tree is then `NeverResolved`, which is truthful: nothing was decided.
+ *
+ * Built by a fold over zipped positions, so it is stack-safe for any nesting
+ * depth: `explain` is, and the tree built from its output used to overflow at
+ * about 1,759 levels (ARCH-02 C3d).
  */
 export const inspect = (policy: Policy, trace: Trace | undefined): InspectNode =>
-  build(explain(policy), trace, "$", undefined);
+  foldTree(position(explain(policy), trace, "$", undefined), childrenOfPosition, toInspectNode);
 
 /**
  * The tree for a timeline row, or nothing.
@@ -148,11 +153,22 @@ export const isTruncated = (node: InspectNode): boolean =>
   node.children.length > 0 &&
   node.children.every(isNeverResolved);
 
-/** Every node of the tree, parents before children. */
-export const flattenTree = (node: InspectNode): ReadonlyArray<InspectNode> => [
-  node,
-  ...node.children.flatMap(flattenTree),
-];
+/**
+ * Every node of the tree, parents before children.
+ *
+ * An explicit-stack pre-order loop rather than a fold: folding would concatenate
+ * a result array per level, which for a 100k-deep chain is about 5·10⁹ element
+ * copies. Children are pushed in reverse so they pop in order.
+ */
+export const flattenTree = (node: InspectNode): ReadonlyArray<InspectNode> => {
+  const flat: Array<InspectNode> = [];
+  const stack: Array<InspectNode> = [node];
+  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
+    flat.push(next);
+    for (const child of next.children.toReversed()) stack.push(child);
+  }
+  return flat;
+};
 
 interface Part {
   readonly explanation: Explanation;
@@ -233,32 +249,53 @@ const shapeOf: (self: Explanation) => Shape = Match.type<Explanation>().pipe(
   }),
 );
 
-const build = (
+const statusOf = (trace: Trace | undefined): NodeStatus =>
+  trace === undefined ? "NeverResolved" : trace.allowed ? "Allowed" : "Denied";
+
+/**
+ * One place in the zipped tree: an explanation node, the trace node at the same
+ * index (if evaluation reached it), its address, and its shape.
+ *
+ * A *virtual* node — the fold walks positions, not the explanation, because
+ * zipping needs the trace and the path to travel down with each child, and no
+ * domain adapter can describe that. `shapeOf` runs once, in {@link position}.
+ */
+interface Position {
+  readonly trace: Trace | undefined;
+  readonly path: string;
+  readonly effect: RuleEffect | undefined;
+  readonly shape: Shape;
+}
+
+const position = (
   explanation: Explanation,
   trace: Trace | undefined,
   path: string,
   effect: RuleEffect | undefined,
-): InspectNode => {
-  const shape = shapeOf(explanation);
-  return {
-    path,
-    kind: shape.kind,
-    label: shape.label,
-    detail: shape.detail,
-    status: statusOf(trace),
-    reason: trace?.reason,
-    visibleFields: trace?.visibleFields,
-    restrictsFields: shape.restrictsFields,
-    obligations: trace?.obligations ?? [],
-    effect,
-    // A part with no trace child at its index was short-circuited, and so is
-    // everything beneath it — passing `undefined` down is what makes the whole
-    // subtree read as unexamined rather than as denied.
-    children: shape.parts.map((child, index) =>
-      build(child.explanation, trace?.children[index], `${path}.${index}`, child.effect),
-    ),
-  };
-};
+): Position => ({ trace, path, effect, shape: shapeOf(explanation) });
 
-const statusOf = (trace: Trace | undefined): NodeStatus =>
-  trace === undefined ? "NeverResolved" : trace.allowed ? "Allowed" : "Denied";
+/**
+ * A position's children: one per explanation part. A part with no trace child at
+ * its index was short-circuited, and so is everything beneath it — passing
+ * `undefined` down is what makes the whole subtree read as unexamined rather than
+ * as denied.
+ */
+const childrenOfPosition = (self: Position): ReadonlyArray<Position> =>
+  self.shape.parts.map((child, index) =>
+    position(child.explanation, self.trace?.children[index], `${self.path}.${index}`, child.effect),
+  );
+
+/** One node of the tree, from its position and its already-built children. */
+const toInspectNode = (self: Position, children: ReadonlyArray<InspectNode>): InspectNode => ({
+  path: self.path,
+  kind: self.shape.kind,
+  label: self.shape.label,
+  detail: self.shape.detail,
+  status: statusOf(self.trace),
+  reason: self.trace?.reason,
+  visibleFields: self.trace?.visibleFields,
+  restrictsFields: self.shape.restrictsFields,
+  obligations: self.trace?.obligations ?? [],
+  effect: self.effect,
+  children,
+});

@@ -202,10 +202,7 @@ to put it.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   currentSubjectLayer,
   enforce,
@@ -217,6 +214,7 @@ import {
   obligation,
   obliged,
   type Policy,
+  portsLayer,
 } from "@qadi/core";
 
 declare const readRecord: Effect.Effect<string>;
@@ -229,6 +227,7 @@ const mayRead: Policy = obliged(
 );
 
 const services = Layer.mergeAll(
+  portsLayer(),
   currentSubjectLayer(
     makeSubject({
       id: "dr-amina",
@@ -236,9 +235,6 @@ const services = Layer.mergeAll(
       attributes: { purpose: "treatment" },
     }),
   ),
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
 );
 

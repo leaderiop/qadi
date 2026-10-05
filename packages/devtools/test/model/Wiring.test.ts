@@ -18,7 +18,7 @@ import {
   attributeResolverRetrying,
   currentSubjectLayer,
   decisionCacheLayer,
-  decisionSinkRing,
+  makeDecisionLog,
   evaluate,
   gte,
   hasAttribute,
@@ -27,6 +27,8 @@ import {
   permission,
   portCallsTotal,
   portRetriesTotal,
+  portTimeoutsTotal,
+  predicatePortCallsTotal,
   signatureHistoryFromSignatures,
 } from "@qadi/core";
 import { qadiTestLayer, subjectWith } from "@qadi/testing";
@@ -157,7 +159,7 @@ describe("wiringReport", () => {
       const report = yield* wiringReport;
       const card = report.ports.find((port) => port.port === "DecisionSink");
       assert.isTrue(card?.present);
-    }).pipe(Effect.provide(decisionSinkRing({ environment: "Server" }).layer)));
+    }).pipe(Effect.provide(Layer.unwrap(Effect.map(makeDecisionLog({ environment: "Server" }), (log) => log.layer)))));
 
   it.effect("CurrentSubject's absence says nothing about the application", () =>
     Effect.gen(function* () {
@@ -247,7 +249,7 @@ describe("portActivity", () => {
           { subjectId: "u-1", resourceId: "doc-1", meaning: "approved" },
         ]);
         yield* evaluate(hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
-          Effect.provide(qadiTestLayer(subjectWith({ id: "u-1" }), { signatureHistory: history })),
+          Effect.provide(qadiTestLayer(subjectWith({ id: "u-1" }), { ports: { SignatureHistory: history } })),
         );
 
         const activity = yield* portActivity;
@@ -277,7 +279,21 @@ describe("portActivity", () => {
 
         const activity = yield* portActivity;
         assert.deepStrictEqual(activity, [
-          { port: "AttributeResolver", calls: 1, retries: 0 },
+          { port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 },
+        ]);
+      }),
+    ));
+
+  it.effect("a translation's calls are reported apart from the evaluator's", () =>
+    isolated(
+      Effect.gen(function* () {
+        yield* Metric.update(predicatePortCallsTotal, "AttributeResolver");
+
+        // `calls` keeps meaning what the evaluator counted; the translation's
+        // reads are their own field, and a port reached only by translation
+        // still appears.
+        assert.deepStrictEqual(yield* portActivity, [
+          { port: "AttributeResolver", calls: 0, retries: 0, timeouts: 0, translationCalls: 1 },
         ]);
       }),
     ));
@@ -288,8 +304,31 @@ describe("portActivity", () => {
         yield* Metric.update(portRetriesTotal, "RelationshipResolver");
 
         assert.deepStrictEqual(yield* portActivity, [
-          { port: "RelationshipResolver", calls: 0, retries: 1 },
+          { port: "RelationshipResolver", calls: 0, retries: 1, timeouts: 0, translationCalls: 0 },
         ]);
+      }),
+    ));
+
+  // D-10-i: every port can carry a deadline now, and a timeout is what tells a
+  // slow store from a down one. Nothing read `qadi_port_timeouts_total` before.
+  it.effect("a port that only ever timed out still appears, with its timeouts", () =>
+    isolated(
+      Effect.gen(function* () {
+        yield* Metric.update(portTimeoutsTotal, "DecisionHistory");
+
+        assert.deepStrictEqual(yield* portActivity, [
+          { port: "DecisionHistory", calls: 0, retries: 0, timeouts: 1, translationCalls: 0 },
+        ]);
+      }),
+    ));
+
+  it.effect("touching the timeout frequency alone still reports nothing reached", () =>
+    isolated(
+      Effect.gen(function* () {
+        // `preregisteredWords` puts every port in the snapshot at zero once the
+        // metric is read; the `> 0` filter keeps those out.
+        yield* Metric.value(portTimeoutsTotal);
+        assert.deepStrictEqual(yield* portActivity, []);
       }),
     ));
 });

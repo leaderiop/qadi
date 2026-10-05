@@ -13,7 +13,17 @@
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type { SubjectId } from "./Identity.ts";
-import { isSecurityLabel, labelDominates } from "./SecurityLabel.ts";
+import {
+  atLeastVerdict,
+  belowVerdict,
+  differsVerdict,
+  dominatesVerdict,
+  equalsVerdict,
+  holds,
+  memberVerdict,
+} from "./Compare.ts";
+import type { Verdict } from "./Compare.ts";
+import { foldTree } from "./TreeFold.ts";
 
 // ---------------------------------------------------------------------------
 // Value references
@@ -94,8 +104,8 @@ const Exists = Schema.TaggedStruct("Exists", {});
 // `Schema.Finite`, not `Schema.Number`: a decoded policy is untrusted JSON
 // (§7, ADR-QD-002), and JSON has no literal spelling for `Infinity` but
 // `1e400` still decodes to it (see `gte`'s doc comment below). `Schema.Number`
-// would let that bound through decode and defer entirely to
-// `evaluateMatcher`'s `Number.isFinite` runtime guard; `Schema.Finite`
+// would let that bound through decode and defer entirely to the runtime
+// finite check (`Compare.ts`'s `atLeastVerdict`/`belowVerdict`); `Schema.Finite`
 // rejects it at the trust boundary instead, the same boundary-not-runtime
 // preference `isSecurityLabel` (`SecurityLabel.ts`) makes for `level`. The
 // runtime guard stays regardless — it is still what catches a *resolved
@@ -249,9 +259,9 @@ export const exists = (): Matcher => ({ _tag: "Exists" });
  * reachable as a `SecurityLabel` level is. The **resolved attribute value**
  * cannot be schema-checked this way — it comes back from an arbitrary
  * `AttributeResolver`, not from decoding a `Matcher` — so it is still checked
- * with `Number.isFinite` at evaluation time (see `evaluateMatcher`'s `Gte`
- * case). Left unguarded there, an `Infinity`-valued attribute would dominate
- * every finite bound via `>=` — the failure mode CCR-QD-115 closed (the value
+ * for finiteness at evaluation time (`Compare.ts`'s `atLeastVerdict`, which
+ * `judgeMatcher`'s `Gte` arm applies). Left unguarded there, an `Infinity`-valued attribute would dominate
+ * every finite bound via `>=` — the failure mode CCR-QD-116 closed (the value
  * side was unguarded until then, so an `Infinity`-valued attribute satisfied
  * every `gte(...)` bound regardless of the bound itself).
  */
@@ -356,6 +366,13 @@ const containsValue = (value: unknown, needle: unknown): boolean => {
   return false;
 };
 
+/**
+ * How one comparison came out — `judgeMatcher`'s answer. Declared in `Compare.ts`
+ * (internal), re-exported here as its public home so `judgeMatcher`'s signature
+ * is nameable.
+ */
+export type { Verdict } from "./Compare.ts";
+
 /** The subject, resource and action a matcher may reference. */
 export interface MatcherContext {
   /** The subject's attributes. Its identity is `subjectId`, kept separate. */
@@ -367,26 +384,27 @@ export interface MatcherContext {
 }
 
 /**
- * Known `ValueRef` dispatch sites (ED-03), so a sixth one is a deliberate,
+ * Known `ValueRef` dispatch sites (ED-03), so a fifth one is a deliberate,
  * reviewed addition rather than an accidental one nothing else names. Every
  * entry is exhaustive today — a new `ValueRef` tag is a compile error at all
- * five simultaneously — but that safety property says nothing about whether
+ * four simultaneously — but that safety property says nothing about whether
  * a *new* dispatcher should exist; this ledger is what makes that a
  * conscious question instead of a silent accretion, the same discipline
  * `SWITCH_BUDGET` gives the four budgeted switches:
  *
  *   1. `resolveRef` below (this file) — evaluates a ref against live context.
- *   2. `refIsUnresolved` (`Evaluate.ts`) — asks whether a ref failed to
- *      resolve, without evaluating it.
- *   3. `refText` (`Explanation.ts`) — renders a ref for a human-readable
+ *   2. `refText` (`Explanation.ts`) — renders a ref for a human-readable
  *      explanation.
- *   4. the predicate translator's ref folder (`Predicate.ts`) — folds a ref
+ *   3. the predicate translator's ref folder (`Predicate.ts`) — folds a ref
  *      to a SQL-independent constant or column reference.
- *   5. `refValue` (`@qadi/devtools`'s `Remedies.ts`) — synthesizes a witness
+ *   4. `refValue` (`@qadi/devtools`'s `Remedies.ts`) — synthesizes a witness
  *      value for a ref during remediation.
  *
- * Update this list — and only this list, not the count anywhere else — when
- * adding a sixth.
+ * A fifth, `refIsUnresolved` (`Evaluate.ts`), re-derived after the fact
+ * whether a ref had resolved, so the denial reason could say which operand was
+ * absent; `judgeMatcher`'s `Verdict` now says so directly, and it was deleted
+ * (ARCH-08 T12). Update this list — and only this list, not the count anywhere
+ * else — when adding one.
  */
 const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
   switch (ref._tag) {
@@ -427,6 +445,83 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
 };
 
 /**
+ * A matcher node's immediate children: the one wrapped matcher of
+ * `FieldMatch`/`SomeMatch`/`EveryMatch`/`Size`, and none for the other eight.
+ *
+ * The per-tag structural fact {@link foldMatcher} folds over, and the one place
+ * a new `Matcher` tag has to say whether it nests — `Match.tagsExhaustive`
+ * makes a missed arm a compile error, so `referencesAction`,
+ * `referencesResource` and `matcherDepth` stay in lockstep by construction
+ * (SM-04/WZ-04).
+ */
+const matcherChildrenOf: (self: Matcher) => ReadonlyArray<Matcher> = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    FieldMatch: (m) => [m.matcher],
+    SomeMatch: (m) => [m.matcher],
+    EveryMatch: (m) => [m.matcher],
+    Size: (m) => [m.matcher],
+    Eq: () => [],
+    Neq: () => [],
+    Dominates: () => [],
+    In: () => [],
+    Exists: () => [],
+    Gte: () => [],
+    Lt: () => [],
+    Contains: () => [],
+  }),
+);
+
+/** The value reference a matcher node itself carries, if its tag carries one. */
+const refOf: (self: Matcher) => ValueRef | undefined = Match.type<Matcher>().pipe(
+  Match.tagsExhaustive({
+    Eq: (m) => m.ref,
+    Neq: (m) => m.ref,
+    Dominates: (m) => m.ref,
+    FieldMatch: () => undefined,
+    SomeMatch: () => undefined,
+    EveryMatch: () => undefined,
+    Size: () => undefined,
+    In: () => undefined,
+    Exists: () => undefined,
+    Gte: () => undefined,
+    Lt: () => undefined,
+    Contains: () => undefined,
+  }),
+);
+
+/**
+ * Folds a matcher bottom-up, without native recursion.
+ *
+ * `combine` receives a node and the results for its children, in
+ * `matcherChildrenOf` order. The `Matcher` twin of `foldPolicy`: a thin adapter
+ * over the internal `TreeFold.ts`. A matcher assembled in process has no decode
+ * bound either, and every walker over one used to recurse natively — so
+ * `referencesAction(size^10000(eq(action())))` threw a raw `RangeError`
+ * (ARCH-02 N2).
+ */
+export const foldMatcher = <R>(
+  self: Matcher,
+  combine: (node: Matcher, children: ReadonlyArray<R>) => R,
+): R => foldTree(self, matcherChildrenOf, combine);
+
+const isTrue = (value: boolean): boolean => value;
+
+/**
+ * How deeply a matcher nests: a leaf is `0` and each wrapper adds one.
+ *
+ * Counted the way {@link evaluateMatcher} recurses — one level per
+ * `FieldMatch`/`SomeMatch`/`EveryMatch`/`Size` — so the number bounds the
+ * evaluator's native recursion over the matcher. `policyDepth` adds it for a
+ * matcher-bearing leaf (ARCH-02 D-02-f).
+ */
+export const matcherDepth = (self: Matcher): number =>
+  foldMatcher<number>(self, (_node, children) => {
+    let deepest = 0;
+    for (const depth of children) if (depth > deepest) deepest = depth;
+    return children.length === 0 ? 0 : 1 + deepest;
+  });
+
+/**
  * Builds a "does this matcher reference `leafTag` anywhere within it" walker.
  *
  * `referencesAction` and `referencesResource` below are this walker applied to
@@ -434,29 +529,14 @@ const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
  * construction (SM-04/WZ-04: every new `Matcher` tag needs an arm in both, in
  * lockstep, forever), so one parameterized tree walk replaces two copies that
  * could only ever drift by accident. Built once per call, at module scope
- * below (not per evaluation, so `Match.type`'s "build once" preference from
- * AGENTS.md §5a still holds) — `Match.tagsExhaustive` still makes a missed arm
- * a compile error for both resulting walkers.
+ * below — `matcherChildrenOf` and `refOf` make a missed tag a compile error for
+ * both resulting walkers, and folding through {@link foldMatcher} makes them
+ * stack-safe.
  */
-const referencesRef = (leafTag: "ActionRef" | "ResourceRef"): ((self: Matcher) => boolean) => {
-  const walk: (self: Matcher) => boolean = Match.type<Matcher>().pipe(
-    Match.tagsExhaustive({
-      Eq: (m) => m.ref._tag === leafTag,
-      Neq: (m) => m.ref._tag === leafTag,
-      Dominates: (m) => m.ref._tag === leafTag,
-      FieldMatch: (m) => walk(m.matcher),
-      SomeMatch: (m) => walk(m.matcher),
-      EveryMatch: (m) => walk(m.matcher),
-      Size: (m) => walk(m.matcher),
-      In: () => false,
-      Exists: () => false,
-      Gte: () => false,
-      Lt: () => false,
-      Contains: () => false,
-    }),
-  );
-  return walk;
-};
+const referencesRef =
+  (leafTag: "ActionRef" | "ResourceRef"): ((self: Matcher) => boolean) =>
+  (self) =>
+    foldMatcher<boolean>(self, (node, children) => refOf(node)?._tag === leafTag || children.some(isTrue));
 
 /**
  * True when a matcher reads the action anywhere within it.
@@ -480,73 +560,75 @@ export const referencesAction: (self: Matcher) => boolean = referencesRef("Actio
  */
 export const referencesResource: (self: Matcher) => boolean = referencesRef("ResourceRef");
 
+/*
+ * Module-local bindings of `Compare.ts`'s verdicts, read once at load. The
+ * matcher switch runs once per node per evaluation, and under a module runner
+ * that turns each imported binding into a getter (vitest's, which `pnpm bench`
+ * uses) a direct call paid that getter on every node: `Compare.bench.ts`
+ * measured `judgeMatcher` at ~2.4x the old `evaluateMatcher` per leaf until these
+ * were added (ARCH-08 T8, D-08-c). They are the same function objects, so the
+ * rules still have one definition.
+ */
+const equalsLocal = equalsVerdict;
+const differsLocal = differsVerdict;
+const dominatesLocal = dominatesVerdict;
+const memberLocal = memberVerdict;
+const atLeastLocal = atLeastVerdict;
+const belowLocal = belowVerdict;
+const holdsLocal = holds;
+
 /**
- * Evaluates a matcher against a value.
+ * How a matcher came out against a value: a `Verdict`, not just whether it held.
+ *
+ * The leaf arms (`Eq`, `Neq`, `Dominates`, `In`, `Gte`, `Lt`) are `Compare.ts`'s
+ * verdicts, the one statement of what each comparison means, shared with
+ * `evaluatePredicate` — so a primitive matcher and its predicate leaf are one
+ * function (INV-QD-091). The structural arms say only what they themselves know:
+ * `ValueAbsent` when their own value is `undefined`, `Incomparable` when it is the
+ * wrong shape, and otherwise `Held`/`NotHeld`. A composite never passes an inner
+ * absence up, so a `FieldMatch` over a missing reference still reads "did not
+ * match" (D-08-b).
+ *
+ * The evaluator calls this once per matcher-bearing leaf and reads both the
+ * decision and the denial reason from the verdict, rather than re-deriving which
+ * operand was missing after a boolean came back (ADR-QD-091).
  *
  * Pure and synchronous: matchers never perform I/O, so they need no Effect.
  * Attribute *resolution* may be effectful, but that happens before this point.
  */
-export const evaluateMatcher = (
-  self: Matcher,
-  value: unknown,
-  context: MatcherContext,
-): boolean => {
+export const judgeMatcher = (self: Matcher, value: unknown, context: MatcherContext): Verdict => {
   // Budgeted switch #4 of 4 (AGENTS.md §5a, SWITCH_BUDGET in
   // scripts/check-house-style.mjs) — a per-node dispatch, so `Match` costs
-  // 1.6-2.4x more here (ADR-QD-034). No `default: never` guard: the `boolean`
+  // 1.6-2.4x more here (ADR-QD-034). No `default: never` guard: the `Verdict`
   // return type already makes a missed arm TS2366 (see `resolveRef` above for
   // the sibling case where the return type can't do that and the guard is
   // load-bearing instead).
   switch (self._tag) {
-    case "Eq": {
-      const other = resolveRef(self.ref, context);
-      // Fails closed on either side: an absent operand is unknown, not
-      // "equal to nothing", so this denies even when `value` and `other`
-      // are undefined for the same reason (CCR-QD-112).
-      return value !== undefined && other !== undefined && value === other;
-    }
-    case "Neq": {
-      const other = resolveRef(self.ref, context);
-      // Mirrors `Eq` (CCR-QD-112): an absent operand denies rather than
-      // matching. Before this, `value !== resolveRef(...)` was `true`
-      // whenever exactly one side was `undefined`.
-      return value !== undefined && other !== undefined && value !== other;
-    }
-    case "Dominates": {
-      // Incomparable labels deny, which is what a dominance test means. The
-      // four-valued `compareLabels` exists for explaining that; a matcher only
-      // answers "did this match".
-      const other = resolveRef(self.ref, context);
-      return (
-        isSecurityLabel(value) && isSecurityLabel(other) && labelDominates(value, other)
-      );
-    }
+    // Every primitive rule — absent operands (CCR-QD-112), finite operands on
+    // both sides of a range (CCR-QD-116, CCR-QD-120, CCR-QD-172), strict versus
+    // SameValueZero equality — is `Compare.ts`'s, stated once there.
+    case "Eq":
+      return equalsLocal(value, resolveRef(self.ref, context));
+    case "Neq":
+      return differsLocal(value, resolveRef(self.ref, context));
+    case "Dominates":
+      return dominatesLocal(value, resolveRef(self.ref, context));
     case "In":
-      return self.values.includes(value);
+      return memberLocal(value, self.values);
     case "Exists":
-      return value !== undefined && value !== null;
+      return value === undefined ? "ValueAbsent" : value === null ? "NotHeld" : "Held";
     case "Gte":
-      // `value` is guarded the same way the bound is (see `gte`'s doc
-      // comment): an attribute that itself decoded to `Infinity` must not
-      // dominate every bound the way an unguarded one would (CCR-QD-115).
-      return (
-        typeof value === "number" &&
-        Number.isFinite(value) &&
-        Number.isFinite(self.value) &&
-        value >= self.value
-      );
+      return atLeastLocal(value, self.value);
     case "Lt":
-      // Symmetric with `Gte` above, for the same reason and the same doc
-      // comment — `Infinity < finiteBound` already fails closed without this,
-      // but the guard is added for consistency rather than left asymmetric.
-      return (
-        typeof value === "number" &&
-        Number.isFinite(value) &&
-        Number.isFinite(self.value) &&
-        value < self.value
-      );
+      return belowLocal(value, self.value);
     case "Contains":
-      return containsValue(value, self.value);
+      return value === undefined
+        ? "ValueAbsent"
+        : !Array.isArray(value) && typeof value !== "string"
+          ? "Incomparable"
+          : containsValue(value, self.value)
+            ? "Held"
+            : "NotHeld";
     // `Object.hasOwn` rather than `value[self.field]` alone, for the same
     // reason `getByPath` above needs it: `field` is attacker-writable in a
     // decoded policy, and without the guard `self.field` naming
@@ -554,25 +636,50 @@ export const evaluateMatcher = (
     // of reporting the field absent. A genuinely missing own property still
     // evaluates the inner matcher against `undefined`, exactly as before.
     case "FieldMatch":
-      return (
-        isObject(value) &&
-        evaluateMatcher(
-          self.matcher,
-          Object.hasOwn(value, self.field) ? value[self.field] : undefined,
-          context,
-        )
-      );
+      return value === undefined
+        ? "ValueAbsent"
+        : !isObject(value)
+          ? "Incomparable"
+          : heldOrNot(
+              holdsLocal(
+                judgeMatcher(
+                  self.matcher,
+                  Object.hasOwn(value, self.field) ? value[self.field] : undefined,
+                  context,
+                ),
+              ),
+            );
     case "SomeMatch":
-      return (
-        Array.isArray(value) && value.some((v) => evaluateMatcher(self.matcher, v, context))
-      );
+      return value === undefined
+        ? "ValueAbsent"
+        : !Array.isArray(value)
+          ? "Incomparable"
+          : heldOrNot(value.some((v) => holdsLocal(judgeMatcher(self.matcher, v, context))));
     case "EveryMatch":
-      return (
-        Array.isArray(value) && value.every((v) => evaluateMatcher(self.matcher, v, context))
-      );
+      return value === undefined
+        ? "ValueAbsent"
+        : !Array.isArray(value)
+          ? "Incomparable"
+          : heldOrNot(value.every((v) => holdsLocal(judgeMatcher(self.matcher, v, context))));
     case "Size": {
+      if (value === undefined) return "ValueAbsent";
       const length = lengthOf(value);
-      return length !== undefined && evaluateMatcher(self.matcher, length, context);
+      return length === undefined
+        ? "Incomparable"
+        : heldOrNot(holdsLocal(judgeMatcher(self.matcher, length, context)));
     }
   }
 };
+
+/** A composite's own answer: whether its inner matcher held, never why it did not (D-08-b). */
+const heldOrNot = (held: boolean): Verdict => (held ? "Held" : "NotHeld");
+
+/**
+ * Evaluates a matcher against a value: whether {@link judgeMatcher}'s verdict
+ * holds.
+ *
+ * Pure and synchronous: matchers never perform I/O, so they need no Effect.
+ * Attribute *resolution* may be effectful, but that happens before this point.
+ */
+export const evaluateMatcher = (self: Matcher, value: unknown, context: MatcherContext): boolean =>
+  holdsLocal(judgeMatcher(self, value, context));

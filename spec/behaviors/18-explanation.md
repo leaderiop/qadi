@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-18                                    |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-09-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
+> | Change History | 1.4 (2026-10-04): BEH-QD-141 — `explain` and `renderExplanation` MUST NOT exhaust the call stack, matchers included; BEH-QD-303 added (`foldExplanation`) (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-09-07): BEH-QD-139 gains an explicit requirement that `fieldStrategy` and `HasRelationship.depth` appear when non-default; `depth` was missing from the rendering entirely (INV-QD-031, issue 45, CCR-QD-114)<br>1.2 (2026-08-23): BEH-QD-137 — a rendering denotes exactly one policy; composite children are parenthesised (ADR-QD-042, INV-QD-031, CCR-QD-057)<br>1.1 (2026-08-23): BEH-QD-144 — `renderTrace`, the decision-side counterpart to `renderExplanation` (ADR-QD-039, CCR-QD-053)<br>1.0 (2026-07-26): Initial release (CCR-QD-028) |
 
 _Previous: [17 — Concurrent Evaluation](./17-concurrency.md)_
 
@@ -154,6 +154,12 @@ REQUIREMENT: Every `Policy` variant, every `Matcher` and every `ValueRef` MUST
 REQUIREMENT: `explain` MUST NOT fail and MUST NOT refuse a policy.
 ```
 
+```
+REQUIREMENT: `explain` and `renderExplanation` MUST NOT exhaust the call stack for
+             any caller-held policy, whatever its nesting depth or width and
+             including a deeply nested matcher.
+```
+
 Deliberately unlike `toPredicate`, which refuses what it cannot translate
 ([BEH-QD-123](./16-predicates.md)). A partial *translation* returns wrong rows,
 so refusing is the safe answer; a partial *explanation* is just an incomplete
@@ -259,6 +265,28 @@ const why: string = renderTrace(decision.trace);
 // The same tree with the caller's own emphasis, for a terminal that has none.
 const plain: string = renderTrace(decision.trace, { term: (t) => t });
 ```
+
+## BEH-QD-303: An explanation folds bottom-up through the same seam
+
+> **Invariant:** [INV-QD-090](../invariants.md#inv-qd-090-a-pure-walk-over-a-caller-held-tree-never-exhausts-the-call-stack)
+> **See:** [ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md)
+
+```ts
+export const foldExplanation: <R>(
+  self: Explanation,
+  combine: (node: Explanation, children: ReadonlyArray<R>) => R,
+) => R;
+```
+
+```
+REQUIREMENT: `foldExplanation` MUST combine a node only after its children, in the
+             order the node lists them (`Table` rows in row order), combine a
+             shared subtree once, and MUST NOT exhaust the call stack.
+```
+
+`explain` was already stack-safe and the code reading its output was not:
+`renderExplanation(explain(not^n(…)))` overflowed at about n = 734, lower than
+`explain` itself handles. `renderExplanation` now folds through this.
 
 ---
 

@@ -28,6 +28,8 @@ import {
   EvaluationId,
   portCallsTotal,
   portRetriesTotal,
+  portTimeoutsTotal,
+  predicatePortCallsTotal,
   RelationshipResolver,
   SignatureHistory,
 } from "@qadi/core";
@@ -108,8 +110,23 @@ export const wiringReport: Effect.Effect<WiringReport> = Effect.gen(function* ()
 
 export interface PortActivity {
   readonly port: string;
+  /** Calls the evaluator made (`qadi_port_calls_total`). */
   readonly calls: number;
   readonly retries: number;
+  /**
+   * Calls that hit their deadline inside a timing-out wrapper
+   * (`qadi_port_timeouts_total`). With every port able to carry a deadline, a
+   * timeout is the signal that tells a slow store from a down one: a store
+   * that stopped answering produces no failed attempt for `retries` to count
+   * until the deadline converts the hang into one.
+   */
+  readonly timeouts: number;
+  /**
+   * Calls `toPredicate` made (`qadi_predicate_port_calls_total`), kept apart
+   * from `calls` so that field keeps meaning what it always meant. Only the two
+   * ports translation can read ever have a non-zero value.
+   */
+  readonly translationCalls: number;
 }
 
 /**
@@ -144,15 +161,30 @@ export const portActivity: Effect.Effect<ReadonlyArray<PortActivity>> = Effect.g
   // branch in it.
   const calls = yield* Metric.value(portCallsTotal);
   const retries = yield* Metric.value(portRetriesTotal);
+  const timeouts = yield* Metric.value(portTimeoutsTotal);
+  const translated = yield* Metric.value(predicatePortCallsTotal);
 
-  const ports = new Set([...calls.occurrences.keys(), ...retries.occurrences.keys()]);
+  const ports = new Set([
+    ...calls.occurrences.keys(),
+    ...retries.occurrences.keys(),
+    ...timeouts.occurrences.keys(),
+    ...translated.occurrences.keys(),
+  ]);
   return [...ports]
     .map((port) => ({
       port,
       calls: calls.occurrences.get(port) ?? 0,
       retries: retries.occurrences.get(port) ?? 0,
+      timeouts: timeouts.occurrences.get(port) ?? 0,
+      translationCalls: translated.occurrences.get(port) ?? 0,
     }))
-    .filter((activity) => activity.calls > 0 || activity.retries > 0);
+    .filter(
+      (activity) =>
+        activity.calls > 0 ||
+        activity.retries > 0 ||
+        activity.timeouts > 0 ||
+        activity.translationCalls > 0,
+    );
 });
 
 const nameOf = (service: Option.Option<{ readonly name?: string | undefined }>): string | undefined =>

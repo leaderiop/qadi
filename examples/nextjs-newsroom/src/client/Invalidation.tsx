@@ -7,6 +7,9 @@
  * not to. During a re-check they disagree, and the one that disagrees by
  * reporting the *old* answer is the one that would have kept a revoked user's
  * button live.
+ *
+ * The raw `AsyncResult` read is the exhibit, not an oversight: do not "fix" it to
+ * `outcomeOf`, or the page stops showing the mistake it exists to show.
  */
 import { useState } from "react";
 import * as AsyncResult from "effect/reactivity/AsyncResult";

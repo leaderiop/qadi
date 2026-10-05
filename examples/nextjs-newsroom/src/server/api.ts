@@ -28,17 +28,20 @@ import * as HttpServer from "effect/http/HttpServer";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Option from "effect/Option";
+import * as Result from "effect/Result";
 import {
   AttributeResolver,
   DecisionHistory,
-  decodeRecord,
+  decodeSinkRecordString,
   makeResourceId,
   RelationshipResolver,
 } from "@qadi/core";
-import type { ActedResult, RelatedResult } from "@qadi/core";
+import type { ActedResult, DecodeRefusal, RelatedResult } from "@qadi/core";
 import {
   addGuardedRoute,
+  decisionBacklogRoute,
   decisionStreamRoute,
   permissionRegistryRoute,
   PermissionRegistryLive,
@@ -47,7 +50,7 @@ import {
 import { articleById } from "../domain/articles.ts";
 import { canReadArticle, canReadDevtools } from "../domain/policies.ts";
 import { readArticle, readDevtools } from "../domain/permissions.ts";
-import { AppLayer, feed, ring } from "./layer.ts";
+import { AppLayer, log } from "./layer.ts";
 import { userFromCookieHeader } from "./session.ts";
 
 /**
@@ -177,26 +180,40 @@ const ArticleRoute = addGuardedRoute(
     }),
 )((_authorized, article) => Effect.succeed(json(article)));
 
-/** The past, for a dock that opened after the decisions were made. */
-const BacklogRoute = addGuardedRoute(
-  "GET",
-  "/backlog",
-  readDevtools,
-  canReadDevtools,
-  () => Effect.succeed({}),
-)(() => Effect.map(ring.snapshot, json));
+/**
+ * Why an ingested body was refused, as the 400's text.
+ *
+ * A sender newer than this aggregator — writing a wire version its
+ * `@qadi/core` does not read — is told apart from a body that is not a record
+ * at all, because the fix is different: upgrade the aggregator, not the
+ * sender (ADR-QD-096).
+ */
+const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefusal>().pipe(
+  Match.tagsExhaustive({
+    NotJson: (refusal) => `not a decision record: ${refusal._tag}`,
+    TooDeep: (refusal) => `not a decision record: ${refusal._tag}`,
+    Malformed: (refusal) => `not a decision record: ${refusal._tag}`,
+    UnsupportedVersion: (refusal) =>
+      `unsupported wire version ${JSON.stringify(refusal.version)}: this aggregator reads ${refusal.supported.join(", ")}`,
+  }),
+);
 
 /**
  * The edge aggregator's receiving half.
  *
- * A serverless invocation cannot keep a ring — the process ends and takes it
+ * A serverless invocation cannot keep a log — the process ends and takes it
  * with it — so it forwards each record before returning and this ingests it,
  * stamped `Edge` rather than with this process's own environment
- * ([BEH-QD-188](../../../../spec/behaviors/24-decision-sink.md)).
+ * ([BEH-QD-188](../../../../spec/behaviors/24-decision-sink.md)). The ingested
+ * record reaches the log's backlog **and** every open `/__decisions`
+ * connection, labelled `Edge` on the wire — which is how the dock's Log shows
+ * an Edge row.
  *
- * A malformed body is a 400 and nothing else. `decodeRecord` validates untrusted
- * input, and an aggregator that half-built a record from a bad frame would be
- * the defect the wire codec exists to prevent.
+ * A malformed body is a 400 naming why, and nothing else; a record of a wire
+ * version this aggregator does not read is a 400 saying so.
+ * `decodeSinkRecordString` validates untrusted input — not JSON, nested past
+ * the decode bound, or not a record — and an aggregator that half-built a
+ * record from a bad frame would be the defect the wire codec exists to prevent.
  *
  * Unguarded, which is a demo's licence and not a pattern: a real aggregator
  * authenticates its emitters. Said out loud, because `/__decisions` deliberately
@@ -207,17 +224,17 @@ const IngestRoute = HttpRouter.add(
   "/aggregator/ingest",
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
-    const body = yield* request.json.pipe(Effect.result);
+    const body = yield* request.text.pipe(Effect.result);
     if (body._tag === "Failure") {
-      return HttpServerResponse.text("not JSON", { status: 400 });
+      return HttpServerResponse.text("unreadable body", { status: 400 });
     }
 
-    const record = yield* decodeRecord(body.success).pipe(Effect.result);
-    if (record._tag === "Failure") {
-      return HttpServerResponse.text("not a decision record", { status: 400 });
+    const record = decodeSinkRecordString(body.success);
+    if (Result.isFailure(record)) {
+      return HttpServerResponse.text(refusedBecause(record.failure.refusal), { status: 400 });
     }
 
-    yield* ring.ingest(record.success, "Edge");
+    yield* log.ingest(record.success, "Edge");
     return HttpServerResponse.empty({ status: 204 });
   }),
 );
@@ -227,9 +244,9 @@ const Routes = Layer.mergeAll(
   RelationshipPort,
   HistoryPort,
   ArticleRoute,
-  BacklogRoute,
   IngestRoute,
-  decisionStreamRoute(readDevtools, canReadDevtools, feed.stream),
+  decisionStreamRoute(readDevtools, canReadDevtools, log),
+  decisionBacklogRoute(readDevtools, canReadDevtools, log),
   permissionRegistryRoute(readDevtools, canReadDevtools),
 );
 

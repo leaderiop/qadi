@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-17                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.1                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-027) |
+> | Change History | 1.1 (2026-10-05): BEH-QD-134 restated to match INV-QD-020 after CCR-QD-152 (CCR-QD-171)<br>1.0 (2026-07-26): Initial release (CCR-QD-027) |
 
 _Previous: [16 — Predicate Output](./16-predicates.md)_
 
@@ -122,14 +122,37 @@ that made concurrency undesignable before combining algorithms shipped.
 > **Invariant:** [INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)
 
 ```
-REQUIREMENT: A resolver failure in any concurrently evaluated branch MUST fail the
-             evaluation, even when a sibling branch denied.
+REQUIREMENT: A resolver failure in a concurrently evaluated branch MUST fail the
+             evaluation exactly when a sequential evaluation would reach that
+             branch: a failure at an index before the child that settles the
+             composite fails it; a failure after that index MUST be discarded
+             with the speculative trace (INV-QD-020).
 ```
 
-Under the sequential path a denial short-circuits before the failing branch is
-reached, so the same tree can fail under concurrency and deny without it. Both are
-correct: an error is not a decision, and concurrency surfaces errors a sequential
-walk would never have provoked.
+> **See:** [INV-QD-020](../invariants.md#inv-qd-020-concurrency-changes-lookups-never-decisions),
+> [ADR-QD-026](../decisions/026-concurrent-evaluation.md) ("A failure is folded by
+> the same declaration order as a decision")
+
+Concurrency still runs every child, so it can *provoke* a failure the sequential
+walk never would — but it must not *surface* one. Each concurrent child is run
+through `Effect.exit` and the exits are folded in declaration order with the same
+fold the sequential path drives: the first index that is either decisive or
+failing wins, and nothing later-indexed is observed. Dispatching the children
+fail-fast instead made the answer depend on which fiber the scheduler finished
+first — `allOf([hasRole("legal"), hasAttribute("boom", …)])` with an always-failing
+`boom` resolver denied sequentially at index 0, and concurrently either denied or
+failed by chance. Since CCR-QD-152 that tree denies on both paths.
+
+Failure is still not denial (INV-QD-006): a failure the sequential walk *would*
+reach — one at or before the settling index — fails the evaluation under
+concurrency too, and is never turned into a `Deny`.
+
+> **Superseded (CCR-QD-171).** This behavior previously required a failure in
+> *any* concurrent branch to fail the evaluation "even when a sibling branch
+> denied", and said "the same tree can fail under concurrency and deny without
+> it. Both are correct". CCR-QD-152 made INV-QD-020 cover which error surfaces
+> and changed the code and ADR-QD-026 to match, but left this document behind; it
+> contradicted the invariant from 2026-09-19 until this revision.
 
 ## BEH-QD-135: Worked example
 
@@ -137,16 +160,14 @@ walk would never have provoked.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   check,
   currentSubjectLayer,
   hasRelationship,
   hasRole,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 // Three independent relationship branches against a remote graph store. Sequential
@@ -164,10 +185,8 @@ const program = check(canAdminister, {
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
+      portsLayer(),
       currentSubjectLayer(makeSubject({ id: "u-1", roles: ["staff"] })),
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
     ),
   ),

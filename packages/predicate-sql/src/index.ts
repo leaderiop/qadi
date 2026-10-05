@@ -7,21 +7,47 @@
  * ADR-QD-054 authorizes: optional, separately versioned, installed only by a
  * caller who wants it.
  *
- * The three dialects share one recursive renderer; what differs is a small
- * syntax table (identifier quoting, placeholder style). See
+ * This package is a *renderer*. What a `Predicate` may hold and what it means —
+ * which values are safe to bind, what `Compare` means against NULL and against
+ * a non-number, that an empty `MemberOf` is false, which columns are refused,
+ * how large an `IN` list may be — is `@qadi/core`'s `toRenderable`
+ * (ADR-QD-079); it hands this module a closed `RenderableNode` tree with every
+ * decision already made, and what is left here is syntax. The three dialects
+ * share one recursive renderer; what differs is a small syntax table
+ * (identifier quoting, placeholder style, how a literal is bound). See
  * `spec/behaviors/31-predicate-compilation.md`.
  */
-import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
-import type { CompareOp, Predicate } from "@qadi/core";
+import { DEFAULT_MAX_IN_VALUES, toRenderable } from "@qadi/core";
+import type {
+  ColumnFiniteness,
+  FiniteGuard,
+  IdentifierRule,
+  NullGuard,
+  Predicate,
+  RenderableNode,
+  RenderRules,
+  SafeLiteral,
+} from "@qadi/core";
+
+export { PredicateNotRenderable } from "@qadi/core";
 
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
 
 export type SqlDialect = "postgres" | "mysql" | "sqlite";
+
+/**
+ * The only shapes a driver can bind as a parameter: `@qadi/core`'s `SafeLiteral`.
+ *
+ * Kept as this package's own name for compatibility; the rule itself
+ * (`isSafeLiteral`) lives in core, beside `evaluatePredicate`, so the two
+ * dialect packages cannot drift apart on it (CCR-QD-120 was that drift).
+ */
+export type SqlSafeValue = SafeLiteral;
 
 /** A parameterized SQL fragment: `text` names placeholders, `params` binds them. */
 export interface SqlFragment {
@@ -33,32 +59,17 @@ export interface CompileSqlOptions {
   readonly dialect: SqlDialect;
   /** Refuses a `MemberOf` whose member count exceeds this. Default 1000. */
   readonly maxInValues?: number;
+  /**
+   * Which columns accept NULL. Absent declares nothing (every column may), and
+   * the output is what it was before this option existed. Declared, a column
+   * outside the set is NOT NULL: `Neq` renders a plain `!=` with no `OR col IS
+   * NULL`, and a null comparison on it refuses (ADR-QD-079). A wrong declaration
+   * can only under-admit or refuse, never admit a row the predicate denies.
+   */
+  readonly nullable?: ReadonlySet<string>;
+  /** How strictly a column name is constrained. Default `"Ascii"`. */
+  readonly identifiers?: IdentifierRule;
 }
-
-/**
- * A `Predicate` this package refuses to render — an unsafe value, or a
- * `MemberOf` past `maxInValues`. Never thrown; a typed Effect failure, the
- * same shape `@qadi/core`'s `PolicyNotTranslatable` uses, declared here rather
- * than shared, since `@qadi/core` has no reason to know this error exists.
- *
- * `@qadi/predicate-prisma` declares its own `PredicateNotRenderable` with the
- * identical `_tag` (ticket 95) — deliberately, not an oversight ADR-QD-008's
- * "the `_tag` is the identity" would otherwise flag. The two are independent
- * declarations with identical shapes (`predicateTag`, `reason`), and neither
- * package imports the other's error type. The collision is benign because the
- * two packages are mutually exclusive in practice — a caller compiles to SQL
- * or to Prisma, not both from the same predicate — so no single
- * `Effect.catchTag`/`Match` site is expected to see both at once. If one ever
- * did, the two are structurally indistinguishable at that site by tag alone,
- * which is the cost of this choice, accepted rather than renaming either and
- * breaking a public API for a situation neither package's callers hit.
- */
-export class PredicateNotRenderable extends Data.TaggedError("PredicateNotRenderable")<{
-  readonly predicateTag: string;
-  readonly reason: string;
-}> {}
-
-const DEFAULT_MAX_IN_VALUES = 1000;
 
 // ---------------------------------------------------------------------------
 // Dialect syntax table
@@ -68,118 +79,100 @@ interface DialectSyntax {
   readonly quote: (identifier: string) => string;
   /** `paramCount` is the 1-based position of the just-pushed parameter. */
   readonly placeholder: (paramCount: number) => string;
+  /**
+   * The value a driver is handed for a safe literal (ADR-QD-079). Identity for
+   * postgres and mysql; sqlite stores a boolean as 1/0 and neither Node driver
+   * (`node:sqlite`, `better-sqlite3`) can take a JavaScript boolean as a
+   * parameter, so it maps `true`/`false` to `1`/`0`.
+   */
+  readonly bind: (value: SqlSafeValue) => SqlSafeValue;
 }
+
+const bindIdentity = (value: SqlSafeValue): SqlSafeValue => value;
+const bindSqlite = (value: SqlSafeValue): SqlSafeValue =>
+  typeof value === "boolean" ? (value ? 1 : 0) : value;
 
 const SYNTAX: Record<SqlDialect, DialectSyntax> = {
   postgres: {
     quote: (id) => `"${id}"`,
     placeholder: (n) => `$${n}`,
+    bind: bindIdentity,
   },
   mysql: {
     quote: (id) => `\`${id}\``,
     placeholder: () => "?",
+    bind: bindIdentity,
   },
   sqlite: {
     quote: (id) => `"${id}"`,
     placeholder: () => "?",
+    bind: bindSqlite,
   },
 };
 
-// `Neq` is deliberately excluded from this table's domain, not merely
-// unused: it never renders as a simple "column op placeholder" shape — a
-// NULL-valued column must still admit, which `renderNode`'s `Compare` case
-// handles before this function is ever reached. Narrowing the parameter type
-// (rather than leaving an exhaustive-but-dead "Neq" arm here) makes that
-// unreachable by construction instead of by convention.
-//
-// A plain literal→literal `Record`, not `Match.value` rebuilt per call
-// (RH-01): this has zero per-call state — the same "easiest possible hoist"
-// `dispatchNode` above already documents doing for its own per-node dispatch
-// (AGENTS.md §5a) — so it needs neither `Match.type`'s module-scope matcher
-// nor `Match.value`'s per-call one, both of which exist to dispatch on a
-// scrutinee this table never varies by call. `renderNode`'s `Compare` case
-// calls this once per rendered `Compare` node, the exact per-node-evaluation
-// shape §5a measures `Match.value` at 3.5–7.7× slower on.
-const COMPARE_OPERATOR: Record<Exclude<CompareOp, "Neq">, string> = {
-  Eq: "=",
+/**
+ * Which columns each dialect can hold a non-finite number in.
+ *
+ * PostgreSQL's `double precision`/`real`/`numeric` hold `±Infinity` and `NaN`, and
+ * SQLite's `REAL` holds `±Infinity`; this package never sees a schema, so on
+ * either any column may (`Unknown`). MySQL's `DOUBLE`/`FLOAT` cannot store any of
+ * the three, so a MySQL `Range` needs no guard and its text is unchanged. There
+ * is deliberately no option to declare a PostgreSQL or SQLite column finite: a
+ * wrong declaration would over-admit, which is the one direction a declaration
+ * here must never be able to move (ADR-QD-079).
+ */
+const FINITENESS: Record<SqlDialect, ColumnFiniteness> = {
+  postgres: { _tag: "Unknown" },
+  mysql: { _tag: "Unrepresentable" },
+  sqlite: { _tag: "Unknown" },
+};
+
+/**
+ * What a `Range`'s `FiniteGuard` adds to its comparison (`expression`).
+ *
+ * `col - col = 0` is the one text that excludes all three non-finite values on
+ * both engines (CCR-QD-172, measured on PGlite and `node:sqlite` across
+ * `double precision`, `real`, `numeric`, `int`, `bigint`, `REAL` and `INTEGER`):
+ * `Infinity - Infinity` is `NaN`, PostgreSQL's `NaN = 0` is false, and SQLite
+ * reads a stored `NaN` as `NULL`. It never overflows, because the operands are
+ * equal. A bound such as `col <= 1.7976931348623157e308` was rejected: PostgreSQL
+ * refuses it against `int` ("invalid input") and `real` ("out of range"). Being a
+ * conjunct inside the leaf, the guard only ever removes rows, and under `Not`'s
+ * `CASE WHEN` it is still exactly the reference's answer.
+ */
+const FINITE_GUARDED: Record<FiniteGuard, (column: string, expression: string) => string> = {
+  None: (_column, expression) => expression,
+  ExcludeNonFinite: (column, expression) => `(${expression} AND ${column} - ${column} = 0)`,
+};
+
+// `Range`'s two operators, and `Equals`'s two. Plain literal→literal `Record`s,
+// not `Match.value` rebuilt per call (RH-01): zero per-call state, and the
+// renderer calls them once per rendered leaf, the per-node shape AGENTS.md §5a
+// measures `Match.value` at 3.5–7.7× slower on.
+const RANGE_OPERATOR: Record<"Gte" | "Lt", string> = {
   Gte: ">=",
   Lt: "<",
 };
-const compareOperator = (op: Exclude<CompareOp, "Neq">): string => COMPARE_OPERATOR[op];
+const EQUALS_OPERATOR: Record<"Eq" | "Neq", string> = {
+  Eq: "=",
+  Neq: "!=",
+};
 
 /**
- * `unknown`, safely: the only shapes a driver can bind as a parameter.
+ * What a leaf's `NullGuard` adds to its rendered comparison (`expression`).
  *
- * Deliberately excludes `Date`, unlike an earlier version of this function —
- * `evaluatePredicate`'s `compare` (`@qadi/core`'s `Predicate.ts`) requires
- * `typeof value === "number"` for `Gte`/`Lt`, so a `Date` there is always
- * `false` in the reference evaluator, while a real SQL engine's `>=`/`<`
- * performs a real date comparison against the row — INV-QD-047 disagreement,
- * in the direction that matters: the compiled SQL would admit rows the
- * reference evaluator denies. `Eq`'s `===` has the same problem from the
- * other side — two distinct `Date` instances holding the same instant are
- * never `===`, so a `Date` `Eq` is reference-evaluator-false for any row a
- * caller would actually construct, while SQL's `=` matches correctly.
- * Refusing to compile a `Date`-valued `Compare`/`MemberOf` is the ADR-QD-024
- * "refuse rather than approximate" answer to a comparison the reference
- * evaluator does not actually support.
- *
- * The `number` branch requires `Number.isFinite` for the same reason
- * (CCR-QD-120), catching this package up to `@qadi/predicate-prisma`'s
- * already-correct sibling. `NaN`/`Infinity`/`-Infinity` all satisfy bare
- * `typeof value === "number"`, and the `Gte`/`Lt` render guard below excluded
- * only `NaN`, and only for those two operators — so a `Compare` with op
- * `Eq`/`Neq` (or a `MemberOf`) against `NaN` reached `params.push` and bound
- * `NaN` as a real parameter. PostgreSQL documents `NaN = NaN` as **true**,
- * unlike IEEE 754 and unlike `evaluatePredicate`'s `===`, which is false for
- * every row: an INV-QD-047 disagreement in the admit-more direction.
- * `Infinity`/`-Infinity` are ordinary numbers to `>=`/`<` on both sides, so
- * whether they diverge needs a real engine to settle — refusing all three
- * here is the same "refuse rather than approximate" answer as the `Date` case
- * above, given before that question has to be answered empirically.
- *
- * This widening supersedes the `Gte`/`Lt` guard's own `NaN` arm: a `NaN`
- * bound now *refuses* rather than rendering `FALSE`. `FALSE` was correct and
- * more precise, but it was correct for two operators out of four, and a
- * compiler that refuses a value in `Eq` while quietly folding it in `Gte` is
- * a second definition of "safe value" in one file. `@qadi/predicate-prisma`
- * already refuses all four; the two dialect packages now agree on which
- * predicates compile at all.
- *
- * A type predicate, not plain `boolean` (BC-02): the return type used to
- * discard the very safety proof this function exists to establish, leaving
- * `params` typed `Array<unknown>` downstream — every `params.push` after a
- * passing check was safe only by the reviewer trusting the call order, the
- * exact arrangement that lets a future arm push an unchecked value with no
- * compile error. `SqlSafeValue` below names the narrowed type once, so
- * `params`'s own type (`SqlFragment.params`, `renderNode`'s parameter) can
- * require it instead of `unknown`, and the unsafe-push defect class becomes
- * one the compiler catches. `isSafeIdentifier` just below keeps its
- * `boolean` return: identifiers are refused, never bound as a parameter, so
- * there is no downstream value for a narrowed type to protect.
+ * `AdmitNull` is what `Neq` and a `null` `MemberOf` member need: `col != $1`
+ * alone is UNKNOWN on a NULL row, which `WHERE` excludes, where
+ * `evaluatePredicate`'s `null !== value` is true. `ExcludeNull` is only produced
+ * for a three-valued target (`Negation: "ThreeValued"`), which this package is
+ * not — `Not` renders `CASE WHEN` below — but the table is total because
+ * `NullGuard` is a closed union.
  */
-export type SqlSafeValue = string | number | boolean | null;
-
-const isSafeValue = (value: unknown): value is SqlSafeValue =>
-  value === null ||
-  typeof value === "string" ||
-  (typeof value === "number" && Number.isFinite(value)) ||
-  typeof value === "boolean";
-
-/**
- * A column identifier this package will quote and render.
- *
- * `Predicate.column` is a plain `string` on an AST that crosses a trust
- * boundary (AGENTS.md §7: policies are persisted and re-parsed from untrusted
- * JSON). Every dialect's `quote` wraps the identifier in a delimiter but never
- * doubles an embedded one, so a column like `x" = $1 OR 1=1 --` would escape
- * the identifier and start emitting SQL text. Values are parameterized and
- * therefore safe by construction; identifiers are interpolated and are not —
- * this is the one place `renderNode` builds SQL text from caller data, so it
- * is refused rather than escaped, matching `isSafeValue`'s policy above.
- */
-const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const isSafeIdentifier = (column: string): boolean => SAFE_IDENTIFIER.test(column);
+const GUARDED: Record<NullGuard, (column: string, expression: string) => string> = {
+  None: (_column, expression) => expression,
+  AdmitNull: (column, expression) => `(${expression} OR ${column} IS NULL)`,
+  ExcludeNull: (column, expression) => `(${expression} AND ${column} IS NOT NULL)`,
+};
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -191,220 +184,124 @@ const isSafeIdentifier = (column: string): boolean => SAFE_IDENTIFIER.test(colum
  * `params` is mutated rather than threaded, matching `Predicate.ts`'s own
  * `and`/`or` (`const kept: Array<Predicate> = []`) — this is a single-pass,
  * single-owner accumulator local to one `compileSql` call, not shared state.
+ *
+ * Total and pure: every refusal (an unsafe value or column, a `MemberOf` past
+ * `maxInValues`) was made by `toRenderable` before this runs, so a
+ * `RenderableNode` always renders.
  */
-// A module-scope `Match.type<Predicate>()`, built once (AGENTS.md §5a) rather
-// than `Match.value(predicate)` rebuilt on every call — `renderNode` recurses
-// once per `Predicate` node (`And`/`Or`'s `Effect.forEach` below), the exact
-// per-node-evaluation shape §5a calls out. Unlike `@qadi/predicate-prisma`'s
-// sibling, each call here also carries per-call state (`syntax`, `params`,
-// `maxInValues`) that cannot be closed over by a matcher built once at module
-// scope — so `dispatchNode` matches on the `Predicate` alone and every arm
-// returns a function of that per-call state instead, mirroring how
-// `Evaluate.ts`'s own `evaluateNode` receives its per-call arguments
-// (`subject`, `request`, …) as plain parameters rather than closing over
-// them. `renderNode` below is the curried, argument-taking entry point
-// callers (and the arms' own recursive calls) actually use.
+// A module-scope `Match.type<RenderableNode>()`, built once (AGENTS.md §5a)
+// rather than `Match.value(node)` rebuilt on every call — `renderNode` recurses
+// once per node, the exact per-node shape §5a calls out. Each call also carries
+// per-call state (`syntax`, `params`) that a matcher built once at module scope
+// cannot close over, so `dispatchNode` matches on the node alone and every arm
+// returns a function of that state instead. `renderNode` below is the curried,
+// argument-taking entry point callers (and the arms' own recursion) use.
 const dispatchNode: (
-  predicate: Predicate,
-) => (
-  syntax: DialectSyntax,
-  params: Array<SqlSafeValue>,
-  maxInValues: number,
-) => Effect.Effect<string, PredicateNotRenderable> = Match.type<Predicate>().pipe(
+  node: RenderableNode,
+) => (syntax: DialectSyntax, params: Array<SqlSafeValue>) => string = Match.type<RenderableNode>().pipe(
   Match.tagsExhaustive({
-    True: () => () => Effect.succeed("TRUE"),
-    False: () => () => Effect.succeed("FALSE"),
+    Constant: (n) => () => (n.value ? "TRUE" : "FALSE"),
 
-      // `null` is on the safe allowlist but is not a value SQL's `=`/`!=`
-      // can bind: `col = NULL` and `col != NULL` are never true for any row,
-      // not even one where `col` genuinely `IS NULL` — SQL's three-valued
-      // logic treats a NULL-valued side of any `=`/`!=` as unknown, and
-      // `WHERE` excludes unknown. `evaluatePredicate`'s `===`/`!==` has no
-      // such third value. This was a real defect, caught by running the
-      // compiled SQL against a real engine, not designed in from the start:
-      // the differential property test's own interpreter re-implements
-      // `===`/`!==` in JS and so agreed with the bug rather than catching it.
-      Compare: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, _maxInValues: number) => {
-        if (!isSafeIdentifier(p.column)) {
-          return Effect.fail(
-            new PredicateNotRenderable({
-              predicateTag: "Compare",
-              reason: `column '${p.column}' is not a safe identifier`,
-            }),
-          );
-        }
-        // Checked into a local first, not re-read as `p.value` below (BC-02):
-        // `isSafeValue` narrows a variable it is called on directly, but
-        // TypeScript does not narrow a property access (`p.value`) across a
-        // later, separate reference to that same property — the guard would
-        // type-check as a no-op protection if the rest of this arm kept
-        // reading `p.value` instead of this local.
-        const { value } = p;
-        if (!isSafeValue(value)) {
-          return Effect.fail(
-            new PredicateNotRenderable({
-              predicateTag: "Compare",
-              reason: `value for column '${p.column}' is not a safe query parameter`,
-            }),
-          );
-        }
-        // evaluatePredicate's compare requires typeof === "number" on BOTH
-        // sides for Gte/Lt and is otherwise always False — a string or
-        // boolean slips past isSafeValue's allowlist (built for Eq/Neq's
-        // `===`, where any of those compare validly) straight into a real
-        // range comparison: PostgreSQL coerces `int_col >= '10'` to a number,
-        // and SQLite/MySQL coerce via type affinity, admitting rows the
-        // reference evaluator refused. `NaN` used to be excluded here too, on
-        // the same numeric side — PostgreSQL orders NaN above every other
-        // value rather than refusing the comparison, while `NaN >= x`/
-        // `NaN < x` is always false in evaluatePredicate. It is excluded
-        // earlier now, by `isSafeValue` itself (CCR-QD-120), which covers
-        // Eq/Neq/MemberOf as well and refuses rather than folding to FALSE;
-        // anything reaching this line that is `typeof === "number"` is
-        // therefore already finite, so a plain `typeof` guard is all that is
-        // left to do. Mirrors `@qadi/predicate-prisma`'s identical guard, and
-        // this file's own FALSE for a null-literal Gte/Lt just below.
-        if ((p.op === "Gte" || p.op === "Lt") && typeof value !== "number") {
-          return Effect.succeed("FALSE");
-        }
-        const column = syntax.quote(p.column);
-        if (value === null) {
-          if (p.op === "Eq") return Effect.succeed(`${column} IS NULL`);
-          if (p.op === "Neq") return Effect.succeed(`${column} IS NOT NULL`);
-          // Gte/Lt against a null literal is handled by the numeric guard
-          // above (typeof null !== "number").
-          return Effect.succeed("FALSE");
-        }
-        params.push(value);
-        const placeholder = syntax.placeholder(params.length);
-        // Neq admits a NULL-valued column too — `null !== against` is true
-        // for any non-null `against` — which plain `!=` alone would exclude.
-        if (p.op === "Neq") return Effect.succeed(`(${column} != ${placeholder} OR ${column} IS NULL)`);
-        return Effect.succeed(`${column} ${compareOperator(p.op)} ${placeholder}`);
-      },
+    // `col = NULL` and `col != NULL` are never true for any row, not even one
+    // where `col` genuinely `IS NULL`: SQL's three-valued logic treats a
+    // NULL-valued side of any `=`/`!=` as unknown, and `WHERE` excludes unknown.
+    // `toRenderable` already turned a null comparison into `IsNull`, so this is
+    // the one place that emits `IS [NOT] NULL`.
+    IsNull: (n) => (syntax: DialectSyntax) =>
+      `${syntax.quote(n.column)} IS ${n.negated ? "NOT " : ""}NULL`,
 
-      MemberOf: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, maxInValues: number) => {
-        if (!isSafeIdentifier(p.column)) {
-          return Effect.fail(
-            new PredicateNotRenderable({
-              predicateTag: "MemberOf",
-              reason: `column '${p.column}' is not a safe identifier`,
-            }),
-          );
-        }
-        // [].includes(x) is always false — the correct, not degenerate,
-        // translation, and never rendered as an invalid or ambiguous IN ().
-        if (p.values.length === 0) return Effect.succeed("FALSE");
-        if (p.values.length > maxInValues) {
-          return Effect.fail(
-            new PredicateNotRenderable({
-              predicateTag: "MemberOf",
-              reason: `${p.values.length} values exceeds maxInValues (${maxInValues})`,
-            }),
-          );
-        }
-        // `.filter(isSafeValue)`, not a second read of `p.values` (BC-02):
-        // the type predicate narrows the returned array to
-        // `Array<SqlSafeValue>`, and the `.some` check just above guarantees
-        // this filter drops nothing — every element already passed the same
-        // predicate — so this is a type-level narrowing, not a behavior
-        // change.
-        const safeValues = p.values.filter(isSafeValue);
-        if (safeValues.length !== p.values.length) {
-          return Effect.fail(
-            new PredicateNotRenderable({
-              predicateTag: "MemberOf",
-              reason: `a value for column '${p.column}' is not a safe query parameter`,
-            }),
-          );
-        }
-        const column = syntax.quote(p.column);
-        // A `null` member needs its own `IS NULL`, for the same reason a
-        // `null` Compare value does: `col IN (NULL, ...)` never matches even
-        // a row where `col IS NULL`, because `col = NULL` inside IN's
-        // expansion is unknown, not true.
-        const hasNull = safeValues.includes(null);
-        const nonNull = safeValues.filter((value) => value !== null);
-        if (nonNull.length === 0) return Effect.succeed(`${column} IS NULL`);
-        const placeholders = nonNull.map((value) => {
-          params.push(value);
-          return syntax.placeholder(params.length);
-        });
-        const inClause = `${column} IN (${placeholders.join(", ")})`;
-        return Effect.succeed(hasNull ? `(${inClause} OR ${column} IS NULL)` : inClause);
-      },
+    Equals: (n) => (syntax: DialectSyntax, params: Array<SqlSafeValue>) => {
+      const column = syntax.quote(n.column);
+      params.push(syntax.bind(n.value));
+      const comparison = `${column} ${EQUALS_OPERATOR[n.negated ? "Neq" : "Eq"]} ${syntax.placeholder(params.length)}`;
+      return GUARDED[n.nullGuard](column, comparison);
+    },
 
-      // An empty `predicates` array is unreachable through `toPredicate`
-      // (`and`/`or` simplify to True/False before ever building a node), but
-      // `Predicate` is a plain hand-constructible type, so a caller-built one
-      // is real input. "TRUE"/"FALSE" match `evaluatePredicate`'s own
-      // `.every`/`.some` on an empty array, so the compiled fragment and the
-      // reference interpreter still agree on this shape.
-      // **Sequential**, which is `Effect.forEach`'s default and is load-bearing
-      // here (mirrors WhatIf.ts:221's note on the same default): `params` is
-      // mutated rather than threaded (see the doc comment above this
-      // function), so each child's `params.push` must happen in the same
-      // order its placeholder text is emitted below. Adding `{ concurrency }`
-      // to either `forEach` would let children push out of render order while
-      // the rendered SQL's placeholder numbers stay fixed to that order,
-      // silently binding parameter values to the wrong placeholders.
-      And: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, maxInValues: number) =>
-        Effect.map(
-          Effect.forEach(p.predicates, (inner) => renderNode(inner, syntax, params, maxInValues)),
-          (parts) => (parts.length === 0 ? "TRUE" : `(${parts.join(" AND ")})`),
-        ),
+    // The finite guard goes inside the null guard, so a nullable column reads
+    // `((col >= $1 AND col - col = 0) OR …)`. `toRenderable` never gives a `Range`
+    // `AdmitNull` (the reference denies a NULL row under `Gte`/`Lt`), but the
+    // order is the one that would stay correct if it did.
+    Range: (n) => (syntax: DialectSyntax, params: Array<SqlSafeValue>) => {
+      const column = syntax.quote(n.column);
+      params.push(syntax.bind(n.bound));
+      const comparison = `${column} ${RANGE_OPERATOR[n.op]} ${syntax.placeholder(params.length)}`;
+      return GUARDED[n.nullGuard](column, FINITE_GUARDED[n.finiteGuard](column, comparison));
+    },
 
-      Or: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, maxInValues: number) =>
-        Effect.map(
-          Effect.forEach(p.predicates, (inner) => renderNode(inner, syntax, params, maxInValues)),
-          (parts) => (parts.length === 0 ? "FALSE" : `(${parts.join(" OR ")})`),
-        ),
+    // A `null` member is not in `values`: `col IN (NULL, ...)` never matches even
+    // a NULL row, because `col = NULL` inside IN's expansion is unknown. It was
+    // carried here by `nullGuard: "AdmitNull"`, which adds `OR col IS NULL`.
+    OneOf: (n) => (syntax: DialectSyntax, params: Array<SqlSafeValue>) => {
+      const column = syntax.quote(n.column);
+      const placeholders = n.values.map((value) => {
+        params.push(syntax.bind(value));
+        return syntax.placeholder(params.length);
+      });
+      return GUARDED[n.nullGuard](column, `${column} IN (${placeholders.join(", ")})`);
+    },
 
-      // No double-negation elimination. `Simplify.ts` never runs on a
-      // `Predicate`, only on a `Policy`, and this compiler renders exactly
-      // what the AST says — nesting is preserved even though the rendered
-      // shape below is no longer a bare "NOT (NOT (...))".
-      //
-      // A plain `NOT (<inner>)` is not NULL-safe: SQL's three-valued logic
-      // makes `NOT` of an UNKNOWN inner condition (any leaf comparing a
-      // NULL-valued column — `Compare`'s `Eq`/`Gte`/`Lt` against a non-null
-      // literal render a plain `col op $n`, which is UNKNOWN, not FALSE, when
-      // `col IS NULL`) still UNKNOWN, and `WHERE` excludes UNKNOWN exactly
-      // like FALSE. But `evaluatePredicate`'s negation is
-      // `!evaluatePredicate(p.predicate, row)`, which is `true` whenever the
-      // inner comparison came back `false` — NULL-valued row included. Unlike
-      // `Compare`/`MemberOf`, which correct at a known column with `OR <col>
-      // IS NULL`, `Negate` wraps an arbitrary subtree spanning any number of
-      // columns, so there is no single column to OR against.
-      //
-      // `CASE WHEN` sidesteps that: an UNKNOWN condition never satisfies
-      // `WHEN`, so it falls to `ELSE` the same as a `FALSE` condition would —
-      // collapsing SQL's three-valued result to the two-valued one
-      // `evaluatePredicate` assumes, using `<inner>` exactly once so no
-      // placeholder is bound twice (`?`-style dialects consume placeholders
-      // positionally; duplicating rendered text would double the `?` count
-      // without doubling `params`).
-      Negate: (p) => (syntax: DialectSyntax, params: Array<SqlSafeValue>, maxInValues: number) =>
-        Effect.map(
-          renderNode(p.predicate, syntax, params, maxInValues),
-          (inner) => `CASE WHEN (${inner}) THEN FALSE ELSE TRUE END`,
-        ),
-    }),
-  );
+    // An empty `parts` array is unreachable through `toPredicate` (`and`/`or`
+    // simplify to True/False before ever building a node), but `Predicate` is a
+    // plain hand-constructible type, so a caller-built one is real input.
+    // "TRUE"/"FALSE" match `evaluatePredicate`'s own `.every`/`.some` on an empty
+    // array, so the compiled fragment and the reference interpreter still agree
+    // on this shape.
+    //
+    // **In order**, which `Array.map` guarantees and is load-bearing here
+    // (mirrors WhatIf.ts:221's note on the same default): `params` is mutated
+    // rather than threaded, so each child's `params.push` must happen in the same
+    // order its placeholder text is emitted below. Rendering children out of
+    // order would silently bind parameter values to the wrong placeholders.
+    All: (n) => (syntax: DialectSyntax, params: Array<SqlSafeValue>) =>
+      n.parts.length === 0
+        ? "TRUE"
+        : `(${n.parts.map((part) => renderNode(part, syntax, params)).join(" AND ")})`,
+
+    Any: (n) => (syntax: DialectSyntax, params: Array<SqlSafeValue>) =>
+      n.parts.length === 0
+        ? "FALSE"
+        : `(${n.parts.map((part) => renderNode(part, syntax, params)).join(" OR ")})`,
+
+    // No double-negation elimination: `toRenderable` preserves structure, and
+    // this renders exactly what the tree says — nesting is preserved even though
+    // the rendered shape below is no longer a bare "NOT (NOT (...))".
+    //
+    // A plain `NOT (<inner>)` is not NULL-safe: SQL's three-valued logic makes
+    // `NOT` of an UNKNOWN inner condition (any leaf comparing a NULL-valued
+    // column) still UNKNOWN, and `WHERE` excludes UNKNOWN exactly like FALSE. But
+    // `evaluatePredicate`'s negation is `!evaluatePredicate(p.predicate, row)`,
+    // which is `true` whenever the inner comparison came back `false` — NULL-valued
+    // row included. `Not` wraps an arbitrary subtree spanning any number of
+    // columns, so there is no single column to OR against.
+    //
+    // `CASE WHEN` sidesteps that: an UNKNOWN condition never satisfies `WHEN`, so
+    // it falls to `ELSE` the same as a `FALSE` condition would — collapsing SQL's
+    // three-valued result to the two-valued one `evaluatePredicate` assumes, using
+    // `<inner>` exactly once so no placeholder is bound twice (`?`-style dialects
+    // consume placeholders positionally; duplicating rendered text would double
+    // the `?` count without doubling `params`). This is why this package declares
+    // `negation: "TwoValued"` to `toRenderable`, and why no leaf needs a guard
+    // under a `Negate`.
+    Not: (n) => (syntax: DialectSyntax, params: Array<SqlSafeValue>) =>
+      `CASE WHEN (${renderNode(n.inner, syntax, params)}) THEN FALSE ELSE TRUE END`,
+  }),
+);
 
 /**
- * `renderNode`'s curried, argument-taking entry point — every call site
- * (`compileSql` below, and the arms' own recursive `And`/`Or`/`Negate` calls
+ * `dispatchNode`'s curried, argument-taking entry point — every call site
+ * (`compileSql` below, and the arms' own recursive `All`/`Any`/`Not` calls
  * above) uses this, not `dispatchNode` directly, so the per-call `syntax`/
- * `params`/`maxInValues` thread exactly as they did before the matcher was
- * hoisted to module scope.
+ * `params` thread exactly as they did before the matcher was hoisted to module
+ * scope.
  */
 const renderNode = (
-  predicate: Predicate,
+  node: RenderableNode,
   syntax: DialectSyntax,
   params: Array<SqlSafeValue>,
-  maxInValues: number,
-): Effect.Effect<string, PredicateNotRenderable> => dispatchNode(predicate)(syntax, params, maxInValues);
+): string => dispatchNode(node)(syntax, params);
+
+/** No column is reserved for SQL: a quoted identifier cannot collide with syntax. */
+const NO_RESERVED_COLUMNS: ReadonlySet<string> = new Set();
 
 /**
  * Compile volume and refusal rate, by outcome. Both declared once, module
@@ -424,21 +321,36 @@ const compiledRefusedTotal = Metric.withAttributes(compiledTotal, { outcome: "re
 /**
  * Compiles a `Predicate` into a parameterized SQL fragment.
  *
- * Refuses rather than approximates: an unsafe `Compare`/`MemberOf` value, or a
- * `MemberOf` past `maxInValues`, fails `PredicateNotRenderable` rather than
- * being stringified into the fragment. See `spec/behaviors/31-predicate-compilation.md`.
+ * Refuses rather than approximates: an unsafe `Compare`/`MemberOf` value or
+ * column, or a `MemberOf` past `maxInValues`, fails `PredicateNotRenderable`
+ * (`@qadi/core`'s, re-exported here) rather than being stringified into the
+ * fragment. See `spec/behaviors/31-predicate-compilation.md`.
  */
 export const compileSql = Effect.fn("qadi.predicateSql.compileSql")(function* (
   predicate: Predicate,
   options: CompileSqlOptions,
 ) {
-  const params: Array<SqlSafeValue> = [];
-  const syntax = SYNTAX[options.dialect];
-  const maxInValues = options.maxInValues ?? DEFAULT_MAX_IN_VALUES;
+  const rules: RenderRules = {
+    identifiers: options.identifiers ?? "Ascii",
+    reservedColumns: NO_RESERVED_COLUMNS,
+    maxInValues: options.maxInValues ?? DEFAULT_MAX_IN_VALUES,
+    nullability:
+      options.nullable === undefined
+        ? { _tag: "Unknown" }
+        : { _tag: "Declared", nullable: options.nullable },
+    // `Not` renders `CASE WHEN`, which makes it two-valued itself.
+    negation: "TwoValued",
+    finiteness: FINITENESS[options.dialect],
+    // `col - col = 0` (`FINITE_GUARDED`) expresses the guard on every dialect.
+    finiteExclusion: "Expressible",
+  };
 
-  const text = yield* renderNode(predicate, syntax, params, maxInValues).pipe(
+  const node = yield* toRenderable(predicate, rules).pipe(
     Effect.tapError(() => Metric.update(compiledRefusedTotal, 1)),
   );
+
+  const params: Array<SqlSafeValue> = [];
+  const text = renderNode(node, SYNTAX[options.dialect], params);
 
   yield* Metric.update(compiledSucceededTotal, 1);
 

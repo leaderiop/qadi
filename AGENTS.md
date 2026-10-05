@@ -124,11 +124,27 @@ export const AttributeResolverFromSubject: Layer.Layer<AttributeResolver, never,
 ```
 
 Layers live beside the service they implement, not in a file of their own:
-`AttributeResolver.ts` holds the Shape, the `Context.Service` class, the
-fail-closed default (`AttributeResolverNone`), a fixture builder
-(`attributeResolverFromRecord`), and the `…Retrying`/`…Bounded` wrappers, all
-in one module — the same shape repeats in `RelationshipResolver.ts` and
-`CustomPredicate.ts`. A standalone file is for a layer with its own
+`AttributeResolver.ts` holds the Shape, the `Context.Service` class, the port's
+**description** (`attributeResolverPort`), the fail-closed default
+(`AttributeResolverNone`), a fixture builder (`attributeResolverFromRecord`),
+and the `…Retrying`/`…Bounded`/`…TimingOut` wrappers, all in one module — the
+same shape repeats in each of the five port modules (`RelationshipResolver.ts`,
+`CustomPredicate.ts`, `DecisionHistory.ts`, `SignatureHistory.ts`).
+
+**A port's wrappers and default are derived from its description, not written
+by hand** (ADR-QD-094). The description states the port's facts once — name,
+method, span, a lens onto its one method, its typed-error constructors, its
+request key and its fail-closed answer — and each exported layer is a one-line
+derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
+`export const DecisionHistoryUnknown = nonePort(decisionHistoryPort)`. The
+derivations live in `PortDerivation.ts` (internal; it absorbed the old
+`RetryingLayer.ts`), the doubles in `PortDoubles.ts`, and the closed registry
+of all five in `Ports.ts`. A new port is a description, a `PortName` member and
+its registry lines; the compiler asks for the rest. A test that needs a broken
+port scripts it (`scriptedPort`) rather than hand-writing a failing layer — see
+§6's `PORT_DOUBLE_BUDGET`.
+
+A standalone file is for a layer with its own
 substantial dependency surface, distinct from the service it implements:
 `packages/http/src/PermissionRegistry.ts`'s `PermissionRegistryLive` and
 `packages/audit/src/AuditDecisionSinkLive.ts` are that case, and their file
@@ -277,21 +293,29 @@ machine variance. The rest land close to, or (on `deep`) better than,
 ticket #101's own end-to-end estimate (≈30–43% single-combinator, ≈54–66%
 ten-level-deep) — real, not merely predicted.
 
-The boundary stops exactly at these three. `resolveAttribute`, `evaluateActed`,
-`evaluateHasRelationship`, `evaluateHasCustom`, `evaluateHasSignature` (the
-port-call wrappers) and the root `evaluate` stay `Effect.fn` and traced:
-ADR-QD-051 ("a span says what was asked, and a tracer is what reads it back")
-treats those spans as product observability a deployment wires a real tracer
-to consume, not incidental cost, and none of the six runs once per policy
-*node* the way the three above do. `requireScopedResourceId` is a small
-helper called from inside `evaluateActed`, not a per-node dispatch point, and
-was considered and rejected for conversion on the same grounds (issue #102).
+The boundary stops exactly at these three. The port reads in `PortAccess.ts` —
+`readAttribute` (and the `resolveAttribute` span under it), `askActedAny`,
+`askActedForResource`, `askRelationship`, `askCustom`, `askSignature` — and the
+root `evaluate` stay `Effect.fn` and traced: ADR-QD-051 ("a span says what was
+asked, and a tracer is what reads it back") treats those spans as product
+observability a deployment wires a real tracer to consume, not incidental cost,
+and none of them runs once per policy *node* the way the three above do. (They
+moved there from `Evaluate.ts` in ADR-QD-077 so that `toPredicate` reads its
+ports the same way; `Evaluate.ts`'s `evaluateActed` family are now plain
+functions that turn an answer into a verdict.) `requireScopedResourceId`, now
+`requireResourceId` in `PortAccess.ts`, is a small helper called from inside the
+acted and signature reads, not a per-node dispatch point, and was considered and
+rejected for conversion on the same grounds (issue #102).
 
 Converting anything not in the table above needs a benchmark first, the same
 qualifier §5a's `SWITCH_BUDGET` carries — `scripts/check-house-style.mjs`'s
 `UNTRACED_BUDGET` enforces the count in both directions, so a new
 `Effect.fnUntraced` call site anywhere in `packages/*/src` fails the gate
 until this table and the budget agree.
+
+A shared child-walk driver replacing the three was measured and rejected
+(ADR-QD-073 addendum, 2026-10-05). Reopening it needs a new measurement, not
+a new argument.
 
 ## 5a. Dispatch — `Match`, not `switch`
 
@@ -328,20 +352,27 @@ inside them is fine.
 `Match.value(x)` rebuilds per call, which is fine for a translator invoked once
 per request and is worth avoiding on a per-node evaluation path.
 
-**Four switches remain unconverted**, and the exception is enforced rather than
+**Three switches remain unconverted**, and the exception is enforced rather than
 remembered: `scripts/check-house-style.mjs` carries a `SWITCH_BUDGET` naming each
 file and its exact count, and gate 4 fails on any deviation.
 
 | Location | Dispatches on |
 | -------- | ------------- |
 | `Evaluate.ts` — `evaluateNode` | `policy._tag` |
-| `Evaluate.ts` — `mergeFields` | the `FieldStrategy` literal union |
-| `Matcher.ts` — `evaluateMatcher` | `self._tag` |
+| `Matcher.ts` — `judgeMatcher` | `self._tag` |
 | `Matcher.ts` — `resolveRef` | `ref._tag` |
 
-All four run once per policy node or matcher node per evaluation — and in `filter`
+All three run once per policy node or matcher node per evaluation — and in `filter`
 and `decideSubjects`, once per element on top of that — where their handlers close
 over per-call state so the matcher cannot be hoisted to module scope.
+
+`mergeFields` was the fourth, a `switch` on the `FieldStrategy` literal union.
+ARCH-12 replaced it with `FieldLattice.ts`'s own-property law table — one closed
+`Record<FieldStrategy, StrategyLaws>` row per strategy, read through `Object.hasOwn`,
+with a reachable, tested fail-closed row for a value outside the union — and measured
+first, as this section requires (ADR-QD-092): per dispatch, with the merge work each
+arm selects, the table ran at **≈0.97×** the switch and `Match.value` at **≈1.1×**,
+and the two field-heavy `Evaluate.bench.ts` workloads stayed within run-to-run noise.
 
 **Now measured** (`pnpm bench`, ADR-QD-034). At the dispatch site a `switch` is
 **1.6–2.4×** faster than a hoisted `Match` whose arms return a closure, and
@@ -380,19 +411,23 @@ That measurement is what answered the question: §5 above records the outcome
 the per-node cost compounds (`evaluateAllOf`, `evaluateAnyOf`, `evaluateRules`),
 budgeted and enforced in both directions by `UNTRACED_BUDGET`. That is the
 current, measured boundary, not a fourth site still under discussion.
-`resolveAttribute`, the port-call wrappers, and the root `evaluate` stay
+The port reads in `PortAccess.ts`, and the root `evaluate`, stay
 `Effect.fn` and traced on purpose, per ADR-QD-051's reasoning in §5 — the
 open question this paragraph used to describe is the one §5's table closed.
 
 **Each of these switches must remain exhaustive by construction.** Two of the four
-were not, and they were the two this section had failed to declare: `resolveRef`
-returns `unknown` and `mergeFields` returns `… | undefined`, so a new tag compiled
-and returned `undefined` silently. `resolveRef` would then deny everything;
-`mergeFields` would merge to the **top** of the field lattice and *widen*
-visibility. Both now carry a `default` arm assigning the scrutinee to `never`,
+there were then were not, and they were the two this section had failed to declare:
+`resolveRef` returns `unknown` and `mergeFields` returned `… | undefined`, so a new
+tag compiled and returned `undefined` silently. `resolveRef` would then deny
+everything; `mergeFields` would merge to the **top** of the field lattice and
+*widen* visibility. Both gained a `default` arm assigning the scrutinee to `never`,
 which is free at runtime and makes a new tag the same compile error
-`Match.tagsExhaustive` gives. A switch whose return type cannot absorb `undefined`
-— `evaluateNode` and `evaluateMatcher` — already gets TS2366 and needs no guard.
+`Match.tagsExhaustive` gives. `resolveRef` still carries it; `mergeFields` is no
+longer a switch, and its law table makes a missing strategy a TS2741 compile error
+and an unknown one a fail-closed row instead (ADR-QD-092). A switch whose return type cannot absorb `undefined`
+— `evaluateNode` and `judgeMatcher` — already gets TS2366 and needs no guard.
+(`judgeMatcher` returns a `Verdict`; it took the switch from `evaluateMatcher`,
+now its one-line `holds(…)` adapter, in ARCH-08 — ADR-QD-091.)
 
 The budget is an exact count and not a per-file pass, deliberately: a blanket
 exemption would let the next `switch` into these two files unnoticed, and they are
@@ -449,6 +484,20 @@ directions like the others, not a convention left to be remembered. The one
 entry there today is `features/step-definitions/CustomPredicateWhenSteps.ts`
 — the BDD acceptance step that exercises `hasCustom` itself.
 
+**A test that needs a broken port scripts it; constructing a port's error by
+hand in a test is a sixth budget, `PORT_DOUBLE_BUDGET`** (ADR-QD-094). Every
+port's description builds its own error, and `@qadi/core`'s `scriptedPort`
+derives a failing, dying or throwing double from it:
+`scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer`.
+Before this budget there were 65 hand-written failing port layers in 27 test
+files plus 19 dying ones, each restating its port's error shape. Unlike the
+five above it is **test-scope**, not src-scope — shipped source constructs
+these errors legitimately (each port's description, `PortAccess.ts`); what it
+guards is how a test describes a broken port. A file on the list needs the
+error as a value (an instance-identity check, a codec round trip, a cause
+matrix with no port) or a double a script cannot express (a latch), with its
+exact line count and reason, checked in both directions.
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal
@@ -484,6 +533,7 @@ shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 | `…Live` / `…Test` / `Default` | layers |
 | `is…` | type guards |
 | `…Shape` | a service's payload interface |
+| `…Port` | a port's description (`attributeResolverPort`) — the value its wrappers, default and doubles are derived from (ADR-QD-094); distinct from the service class it describes |
 | `…Like` | structural brand for requirement bubbling |
 | `…Refused` | `@qadi/http`'s tag-only, `httpApiStatus`-annotated wire schema for a real error class the response body must not carry full-fielded (`AccessDeniedRefused`, `UndischargedObligationRefused`, `SubjectExtractionRefused`, `QadiHttpError.ts`) — a different, exported *const* from the class its `_tag` matches, deliberately: the identifier names the disclosure decision ("this crosses the wire refused, not admitted"), the `_tag` still names the failure. Corroborated in GVR-05: a reader grepping a shared tag across `@qadi/core` and `@qadi/http` lands on two exports for one concept, on purpose. |
 
@@ -590,9 +640,21 @@ state-management layer of its own. The rules that keep it that way:
   > paragraph's history is about pass unchanged.
 - **Submodule imports, as everywhere else:**
   `import * as Atom from "effect/reactivity/Atom"`.
-- **Read decisions through `currentDecision`.** It is the single place the rule
-  "a decision being re-checked is not a decision" lives (ADR-QD-017). A new
-  consumer that reads `AsyncResult.isSuccess` directly will report stale allows.
+- **Read decisions through `outcomeOf`.** It is the single place the rule
+  "a decision being re-checked is not a decision" lives (ADR-QD-017, as amended
+  by ADR-QD-093): it reads a `DecisionResult` into one of five
+  `DecisionOutcome`s — `Pending`, `Rechecking`, `Allowed`, `Denied`, `Failed` —
+  and only `Allowed` carries an allow. `currentDecision` is its projection for a
+  caller that wants only a settled decision. A new consumer that reads
+  `AsyncResult` state directly — `isSuccess`, `waiting`, or a failure's
+  `previousSuccess` — will report stale allows. `DECISION_READ_BUDGET` in
+  `scripts/check-house-style.mjs` refuses such a read in `packages/*/src`
+  outside its two budgeted files (`DecisionOutcome.ts`, and
+  `HydrationEngine.ts`'s seed precedence, which chooses what the atom holds
+  rather than reading it), checked in both directions; the two doc-fence gates
+  (`check-doc-examples.mjs`, `check-website-doc-examples.mjs`) refuse it in a
+  compiled fence that imports `@qadi/react`, unless the fence says why with a
+  `// qadi:raw-decision-read — <reason>` line.
 - **Atoms are keyed structurally.** `Atom.family` compares with `Equal.equals`,
   so two separately built but equal policies share one atom and an inline policy
   still shares. Hoist to module scope or `useMemo` anyway — the hash is cached
@@ -603,10 +665,12 @@ state-management layer of its own. The rules that keep it that way:
   nothing — caching, sharing and invalidation are properties of the atoms, and
   proving them through components only makes the test slower and vaguer.
 - **A guard may record that it exists, what it renders now, and where — never
-  a retained verdict** (ADR-QD-053). `GateRegistry.ts` is a module-scope map a
-  guard writes to from an effect — the shape `HydrationSeed.ts` already uses —
-  carrying its policy, its resource, its current render state, and a ref React
-  filled in. Nothing re-renders because a guard registered, and nothing in
+  a retained verdict** (ADR-QD-053). Each atom set's `gates` registry
+  (`makeGateRegistry`, ADR-QD-080) is what a guard writes to from an effect,
+  through a handle only `@qadi/react` can reach — carrying its policy, its
+  resource, its current render state, and a ref React filled in. No module-scope
+  state is left in this package: hydration's seed lookup is a closure the atom set
+  owns (`QadiAtoms.hydrate`, ADR-QD-078) and so is this. Nothing re-renders because a guard registered, and nothing in
   that file can affect what one renders.
 
   This section previously read as forbidding it, and `@qadi/devtools`'s React
@@ -614,25 +678,37 @@ state-management layer of its own. The rules that keep it that way:
   twice over."* It would not, and the two rules it was said to breach are both
   still intact. Decisions are still not in React state, and the React glue in
   `QadiProvider.tsx` is `@effect/atom-react`'s `useAtomValue` (CCR-QD-150), not
-  a hand-rolled subscription of its own — `GateRegistry.ts` exposes its own,
-  separate `subscribe`/`snapshot` pair for exactly the instance-registry
+  a hand-rolled subscription of its own — `makeGateRegistry` exposes its own,
+  separate `subscribe`/`instances` pair for exactly the instance-registry
   purpose this bullet describes.
 
   **Correction:** this section, and ADR-QD-053, previously went on to say
   present-tense "and it is `@qadi/devtools`, a DOM package already, that
   subscribes." `@qadi/devtools` has no dependency on `@qadi/react` at all
-  (`GateRegistry.ts` lives in `@qadi/react`) and `DevtoolsDock.tsx` takes
+  (the registry lives in `@qadi/react`) and `DevtoolsDock.tsx` takes
   `gates` as a plain, one-shot prop — it does not subscribe to anything.
   What subscribes is the **host** wiring the two packages together:
-  `examples/nextjs-newsroom/src/client/Dock.tsx` calls `useSyncExternalStore(
-  subscribeGates, gateInstances, gateInstances)` and passes the result down as
-  `gates`. That is the correct place for it — `@qadi/devtools`'s panel is
+  `examples/nextjs-newsroom/src/client/Dock.tsx` calls `useGateInstances()`
+  (or `useSyncExternalStore(atoms.gates.subscribe, atoms.gates.instances,
+  atoms.gates.instances)`) and passes the result down as `gates`. That is the correct place for it — `@qadi/devtools`'s panel is
   meant to render for a host that has no `@qadi/react` at all, fed `gates`
   from wherever it likes — not a gap in `@qadi/devtools` to close.
 
   What the argument actually established is that the **atom layer** cannot see
   instances, which is true and is why the panel is still keyed by question. A
   component knows perfectly well that it exists; nothing was asking it.
+
+  > **Corrected in CCR-QD-160.** This bullet used to say `GateRegistry.ts` "is a
+  > module-scope map a guard writes to from an effect", shared by every
+  > `QadiProvider` in the process, and that the host calls
+  > `useSyncExternalStore(subscribeGates, gateInstances, gateInstances)`. Both are
+  > gone. The registry is per atom set, the scope `asked()` already had, so two
+  > tenants no longer list each other's guards and a hydrated root can no longer
+  > replace another's. The host call is `useGateInstances()` inside the provider,
+  > or `useSyncExternalStore(atoms.gates.subscribe, atoms.gates.instances,
+  > atoms.gates.instances)` outside it. The write side is not exported, because
+  > the kind is not a caller's to choose. `@qadi/devtools` is still fed `gates` as
+  > a plain prop and still has no dependency on `@qadi/react`.
 - **Instrumentation is opt-in, and off means absent.** `QadiProvider`'s
   `instrument` defaults to `false`, and with it off no guard registers and no
   marker element is rendered — not a wrapper that does nothing, no wrapper. A

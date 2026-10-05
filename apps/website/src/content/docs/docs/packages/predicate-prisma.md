@@ -24,7 +24,13 @@ import * as Effect from "effect/Effect";
 import { toPredicate } from "@qadi/core";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
 
-const where = toPredicate(visible).pipe(Effect.flatMap(compilePrismaWhere));
+// Which columns accept NULL, and which are Float/Decimal, declared once for the model.
+const nullable = new Set(["deletedAt", "note"]);
+const floating = new Set(["amount"]);
+
+const where = toPredicate(visible).pipe(
+  Effect.flatMap((predicate) => compilePrismaWhere(predicate, { nullable, floating })),
+);
 // { tenantId: "t-1" }
 
 const rows = await prisma.invoice.findMany({ where });
@@ -34,16 +40,41 @@ const rows = await prisma.invoice.findMany({ where });
 never sees a generated Prisma schema, so it cannot claim a narrower type.
 Assign the result to your own model's `WhereInput` at the call site.
 
+## Declare which columns accept NULL
+
+`compilePrismaWhere`'s second argument is required: `{ nullable }`, the set of
+columns that accept NULL. `nullableFieldsOf(model)` builds it from a DMMF model
+that keeps `isRequired` (`getDMMF` from `@prisma/internals`; Prisma 7's runtime
+`Prisma.dmmf` strips it, so write the set out by hand there).
+Prisma refuses any filter that mentions `null` on a required field, and a plain
+`NOT` over a nullable column's comparison silently drops the NULL rows the
+evaluator admits, so the compiler needs this one schema fact. A wrong
+declaration can only lose rows or fail loudly; it never admits a row the
+predicate denies.
+
+## Declare which columns hold floating-point numbers
+
+`compilePrismaWhere` also requires `{ floating }`, the set of `Float` and
+`Decimal` columns, which can hold `Infinity`/`-Infinity`.
+`floatingFieldsOf(Prisma.dmmf.datamodel.models[i])` derives it, because Prisma 7's
+runtime DMMF keeps each field's `type`. A `gte`/`lt` on such a column fails with
+`PredicateNotRenderable` (`refusal: "NonFiniteColumn"`): Prisma has no filter that
+keeps an infinite row out of a range, and the evaluator never admits one.
+Equality and `in` on the column still compile.
+
 ## Refuses rather than approximates
 
 A `Predicate`'s comparison values are `unknown`. A value outside the safe
-allowlist (`string | number | boolean | null | Date`) fails with
+allowlist (`string | finite number | boolean | null`) fails with
 `PredicateNotRenderable` rather than being handed to Prisma's query engine.
+`Date` is refused too, as is a `MemberOf` past `maxInValues` (default 1000) and a
+column outside the identifier rule or named like one of Prisma's operator keywords.
 
 ## Agreement with the evaluator
 
 Every `WhereInput` this package renders is checked, by property, against
-`@qadi/core`'s own `evaluatePredicate`. See
+`@qadi/core`'s own `evaluatePredicate` — by running it through a real Prisma Client
+over SQLite. See
 [31 — Predicate Compilation](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/31-predicate-compilation.md).
 
 ## License

@@ -6,16 +6,11 @@
  */
 import {
   Allow,
-  AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   Deny,
   EvaluationIdLive,
   EvaluationServicesNone,
   MAX_DECODE_DEPTH,
-  RelationshipResolverNever,
   eq,
   hasAttribute,
   hasPermission,
@@ -25,6 +20,10 @@ import {
   makeSubjectId,
   obligation,
   permission,
+  portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -32,10 +31,12 @@ import type * as Atom from "effect/reactivity/Atom";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
-import type { DehydratedEntry, HydrationDrop } from "../src/Hydration.ts";
-import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
-import type { DecisionResult, HydrationMismatch } from "../src/QadiAtoms.ts";
-import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
+import type { HydrationDrop } from "../src/Hydration.ts";
+import { dehydrateDecisions, hydrateDecisions, isSeeded } from "../src/Hydration.ts";
+import type { DecisionResult } from "../src/DecisionOutcome.ts";
+import { currentDecision } from "../src/DecisionOutcome.ts";
+import type { HydrationMismatch, QadiAtoms } from "../src/QadiAtoms.ts";
+import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { InitialValues } from "../src/QadiProvider.tsx";
 
 /**
@@ -123,9 +124,13 @@ describe("dehydrateDecisions", () => {
 
     expect(payload.subjectId).toBe("u1");
     expect(payload.entries).toHaveLength(1);
-    expect(first(payload.entries).allowed).toBe(true);
-    expect(first(payload.entries).visibleFields).toEqual(["id", "title"]);
-    expect(first(payload.entries).obligations?.map((o) => o.id)).toEqual(["audit.log"]);
+    const { decision } = first(payload.entries);
+    expect(payload.version).toBe(2);
+    expect(decision._tag).toBe("Allow");
+    expect(decision._tag === "Allow" && decision.visibleFields).toEqual(["id", "title"]);
+    expect(decision._tag === "Allow" && decision.obligations.map((o) => o.id)).toEqual([
+      "audit.log",
+    ]);
   });
 
   it("WITHHOLDS the trace and the denial reason by default", () => {
@@ -133,18 +138,26 @@ describe("dehydrateDecisions", () => {
     // sentence explaining the refusal — the policy's internal structure plus which
     // branch THIS subject failed, readable by any script on the page.
     const payload = dehydrateDecisions([{ policy: isAdmin, decision: serverDeny("u1") }]);
-    const entry = first(payload.entries);
+    const { decision } = first(payload.entries);
 
-    expect(entry.reason).toBe("hydrated");
-    expect(entry.trace?.children).toEqual([]);
+    // Withheld is a closed, tagged case on the wire — not a reduced trace and a
+    // stand-in "hydrated" reason posing as the real ones.
+    expect(decision.disclosure).toEqual({ _tag: "Withheld" });
+    expect(Object.keys(decision)).not.toContain("trace");
+    expect(Object.keys(decision)).not.toContain("reason");
     expect(JSON.stringify(payload)).not.toContain("lacks role");
+    expect(JSON.stringify(payload)).not.toContain("hydrated");
   });
 
   it("discloses the trace only when asked", () => {
     const payload = dehydrateDecisions([{ policy: isAdmin, decision: serverDeny("u1") }], {
       includeTrace: true,
     });
-    expect(first(payload.entries).reason).toBe("subject lacks role 'admin'");
+    const { disclosure } = first(payload.entries).decision;
+    expect(disclosure._tag).toBe("Disclosed");
+    expect(disclosure._tag === "Disclosed" && "reason" in disclosure && disclosure.reason).toBe(
+      "subject lacks role 'admin'",
+    );
     expect(JSON.stringify(payload)).toContain("lacks role");
   });
 
@@ -244,7 +257,7 @@ describe("dehydrateDecisions", () => {
     // every real subject id and fell into the same `PayloadSubjectMismatch`
     // branch a genuinely wrong subject does — indistinguishable from a real
     // mismatch even though nothing was ever mismatched.
-    const dropped: Array<HydrationDrop<DehydratedEntry>> = [];
+    const dropped: Array<HydrationDrop<unknown>> = [];
     const empty = dehydrateDecisions([]);
     const seeded = hydrateDecisions(atoms, empty, alice, {
       onDropped: (d) => dropped.push(d),
@@ -476,7 +489,7 @@ describe("hydrateDecisions", () => {
   // nested past the call stack's limit raised a raw `RangeError` defect here
   // instead of the fail-closed "drop the entry" every other malformed-payload
   // path in this module gets — the exact gap `Policy.ts`'s own
-  // `fromJson`/`fromJsonValue` and `SinkCodec.ts`'s `decodeRecordWire` guard
+  // `fromJson`/`fromJsonValue` and `SinkCodec.ts`'s `decodeSinkRecord` guard
   // against, and this module's own doc comments named as "tracked separately".
   it("drops an entry nested past MAX_DECODE_DEPTH rather than raising a raw RangeError", () => {
     let policy: unknown = { _tag: "HasRole", role: "x" };
@@ -560,15 +573,30 @@ describe("hydrateDecisions", () => {
     registry.dispose();
   });
 
-  it("seeds nothing for an atom set it did not build", () => {
-    // Fail-closed, and the same shape as every other refusal here: an atom set
-    // that did not come from `makeQadiAtoms` — a wrapper, a proxy, a test double
-    // — has no seed atoms to write to. Seeding nothing leaves every decision
-    // `Initial`, so the client asks each question properly.
-    const foreign = { ...atoms };
+  it("a spread copy of the atom set seeds the real questions", () => {
+    // A copy's `decision`/`decisionFor` are the real ones, so what it seeds is
+    // what it reads. This used to be refused whole, because the seed lookup was a
+    // side table keyed on the atom set's identity: a property of the keying, not
+    // a defence of anything.
+    const copy = { ...atoms };
     const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]);
 
-    expect([...hydrateDecisions(foreign, payload, alice)]).toEqual([]);
+    const seeded = [...hydrateDecisions(copy, payload, alice)];
+    expect(seeded).toHaveLength(1);
+
+    const registry = seedsBeforeSubject(seeded);
+    expect(currentDecision(registry.get(copy.decision(canRead)))?._tag).toBe("SeededAllow");
+    registry.dispose();
+  });
+
+  it("a hand-built double seeds only what its own `hydrate` returns", () => {
+    // `hydrate` is the capability, and a double supplying its own is the caller's
+    // code rather than a trust crossing: `hydrateDecisions` forwards, it decides
+    // nothing (AGENTS.md §14).
+    const double: QadiAtoms = { ...atoms, hydrate: () => [] };
+    const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]);
+
+    expect([...hydrateDecisions(double, payload, alice)]).toEqual([]);
   });
 
   it("still covers the window before this client can answer", () => {
@@ -578,7 +606,7 @@ describe("hydrateDecisions", () => {
     const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("u1") }]);
     const registry = seedsBeforeSubject(hydrateDecisions(atoms, payload, alice));
 
-    expect(currentDecision(registry.get(atoms.decision(canRead)))?._tag).toBe("Allow");
+    expect(currentDecision(registry.get(atoms.decision(canRead)))?._tag).toBe("SeededAllow");
     registry.dispose();
   });
 
@@ -597,15 +625,24 @@ describe("hydrateDecisions", () => {
 
   it("uses the disclosed trace when one was shipped", () => {
     // The `includeTrace` path through `rebuild`: the seeded decision carries the
-    // server's own trace rather than the reduced stand-in.
+    // server's own trace and reason, as a tagged `Disclosed` case.
     const payload = dehydrateDecisions([{ policy: isAdmin, decision: serverDeny("u1") }], {
       includeTrace: true,
     });
-    const registry = registryWith(hydrateDecisions(atoms, payload, alice));
+    const registry = seedsBeforeSubject(hydrateDecisions(atoms, payload, alice));
 
     const decision = currentDecision(registry.get(atoms.decision(isAdmin)));
-    expect(decision?.trace.reason).toBe("subject lacks role 'admin'");
-    expect(decision?._tag === "Deny" && decision.reason).toBe("subject lacks role 'admin'");
+    expect(decision?._tag).toBe("SeededDeny");
+    expect(decision !== undefined && isSeeded(decision) && decision.disclosure._tag).toBe(
+      "Disclosed",
+    );
+    const disclosure = decision !== undefined && isSeeded(decision) ? decision.disclosure : undefined;
+    expect(disclosure?._tag === "Disclosed" && "reason" in disclosure && disclosure.reason).toBe(
+      "subject lacks role 'admin'",
+    );
+    expect(disclosure?._tag === "Disclosed" && disclosure.trace.reason).toBe(
+      "subject lacks role 'admin'",
+    );
     registry.dispose();
   });
 
@@ -629,11 +666,11 @@ describe("hydrateDecisions", () => {
     });
 
     const payload = dehydrateDecisions([{ policy: canRead, decision: unrestricted }]);
-    const registry = registryWith(hydrateDecisions(atoms, payload, alice));
+    const registry = seedsBeforeSubject(hydrateDecisions(atoms, payload, alice));
 
     const decision = currentDecision(registry.get(atoms.decision(canRead)));
-    expect(decision?._tag).toBe("Allow");
-    expect(decision?._tag === "Allow" && decision.visibleFields).toBeUndefined();
+    expect(decision?._tag).toBe("SeededAllow");
+    expect(decision?._tag === "SeededAllow" && decision.visibleFields).toBeUndefined();
     registry.dispose();
   });
 
@@ -664,15 +701,15 @@ describe("hydrateDecisions", () => {
     const registry = seedsBeforeSubject(hydrateDecisions(atoms, minimal, alice));
     const decision = currentDecision(registry.get(atoms.decision(isAdmin)));
 
-    expect(decision?._tag).toBe("Deny");
-    expect(decision?._tag === "Deny" && decision.reason).toBe("hydrated");
-    expect(decision?.trace.children).toEqual([]);
-    // Pinned per `rebuild`'s doc comment: the fabricated trace's `policyTag` is
-    // an arbitrary member of the closed `Policy["_tag"]` union, not a claim that
-    // this entry was an `AllOf` policy. A future change to the sentinel is a
-    // documented, deliberate choice, not an accident this test should let pass
-    // silently.
-    expect(decision?.trace.policyTag).toBe("AllOf");
+    // A payload from before `version` carries a `trace` or a `reason` that was
+    // either fabricated or indistinguishable from a real one, so it is read as
+    // withheld: no invented "AllOf" trace root and no "hydrated" sentence.
+    expect(decision?._tag).toBe("SeededDeny");
+    expect(decision !== undefined && isSeeded(decision) && decision.disclosure).toEqual({
+      _tag: "Withheld",
+    });
+    expect(decision).not.toHaveProperty("trace");
+    expect(decision).not.toHaveProperty("reason");
     registry.dispose();
   });
 
@@ -744,7 +781,7 @@ describe("hydration mismatch", () => {
     await awaitDecided(registry, watched.decision(isAdmin));
 
     expect(seen).toHaveLength(1);
-    expect(first(seen).seeded._tag).toBe("Allow");
+    expect(first(seen).seeded._tag).toBe("SeededAllow");
     expect(first(seen).decided._tag).toBe("Deny");
     // `toEqual`, not `toBe`: the policy reported is the one `hydrateDecisions`
     // DECODED from the payload, which is a distinct object equal to `isAdmin`.
@@ -820,15 +857,10 @@ describe("hydration mismatch", () => {
     const seen: Array<HydrationMismatch> = [];
     const failing = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+        portsLayer({
+          AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );
@@ -1091,12 +1123,8 @@ describe("a re-check that settles asynchronously", () => {
     const seen: Array<HydrationMismatch> = [];
     const watched = makeQadiAtoms(
       Layer.mergeAll(
-        slowResolver(answer),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
+        portsLayer({ AttributeResolver: slowResolver(answer) }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );
@@ -1126,7 +1154,7 @@ describe("a re-check that settles asynchronously", () => {
     // headroom nobody can justify a number for.
     await vi.waitFor(() => expect(seen).toHaveLength(1));
 
-    expect(seen[0]?.seeded._tag).toBe("Allow");
+    expect(seen[0]?.seeded._tag).toBe("SeededAllow");
     expect(seen[0]?.decided._tag).toBe("Deny");
     unmount();
     registry.dispose();

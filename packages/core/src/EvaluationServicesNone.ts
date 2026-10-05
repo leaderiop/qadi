@@ -36,27 +36,21 @@
  * commented in place as a deliberate exception.
  */
 import * as Layer from "effect/Layer";
-import { AttributeResolverNone } from "./AttributeResolver.ts";
-import type { CurrentSubject } from "./CurrentSubject.ts";
-import { CustomPredicateNone } from "./CustomPredicate.ts";
-import { DecisionHistoryUnknown } from "./DecisionHistory.ts";
 import { EvaluationIdLive } from "./EvaluationId.ts";
-import type { EvaluationServices } from "./Evaluate.ts";
-import { RelationshipResolverNever } from "./RelationshipResolver.ts";
-import { SignatureHistoryNone } from "./SignatureHistory.ts";
+import type { StandingEvaluationServices } from "./Evaluate.ts";
+import { portsLayer } from "./Ports.ts";
 
 /**
- * `Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever,
- * DecisionHistoryUnknown, EvaluationIdLive, CustomPredicateNone,
- * SignatureHistoryNone)` — nothing more.
+ * `Layer.merge(portsLayer(), EvaluationIdLive)` — every port at its
+ * fail-closed default, plus `EvaluationIdLive`; nothing more.
+ *
+ * One line over the registry (`Ports.ts`) rather than a hand list of the five
+ * named defaults, so a port added to the registry is here without an edit
+ * (ADR-QD-094). To override one port, pass it to `portsLayer` instead of
+ * merging a layer after this one: `portsLayer({ AttributeResolver: … })`
+ * places it in its own slot, where order cannot silently keep the default.
  */
-export const EvaluationServicesNone: Layer.Layer<
-  Exclude<EvaluationServices, CurrentSubject>
-> = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+export const EvaluationServicesNone: Layer.Layer<StandingEvaluationServices> = Layer.merge(
+  portsLayer(),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );

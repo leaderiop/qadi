@@ -78,9 +78,12 @@ test.describe("what crosses to the browser", () => {
   test("a denial's reason is withheld unless the page asks", async () => {
     const html = await served("/edge/leakage", "yasmine");
 
-    // The default payload replaces a denial's reason with the literal
-    // "hydrated"; the opt-in one names the branch that refused.
-    expect(html).toContain("hydrated");
+    // The default payload carries a tagged `Withheld` where a denial's reason
+    // would be, with no invented stand-in sentence; the opt-in one, which this
+    // page also prints, names the branch that refused (BEH-QD-147).
+    expect(html).toContain("Withheld");
+    // `\b`, because "dehydrated" is ordinary prose on this page.
+    expect(html).not.toMatch(/\bhydrated\b/);
     expect(html).toContain("may read this article");
   });
 });
@@ -188,13 +191,13 @@ test.describe("the browser half", () => {
     );
   });
 
-  test("a copy of the atom set seeds nothing", async ({ context, page }) => {
+  test("a copy of the atom set seeds the same questions", async ({ context, page }) => {
     await context.addCookies(as("omar"));
-    await page.goto("/edge/unregistered");
+    await page.goto("/edge/wrapped-atoms");
 
     await expect(page.getByTestId("registered-count")).toHaveText("1");
-    await expect(page.getByTestId("foreign-count")).toHaveText("0");
-    await expect(page.getByTestId("unregistered-drops")).toContainText("UnregisteredAtoms");
+    await expect(page.getByTestId("copy-count")).toHaveText("1");
+    await expect(page.getByTestId("wrapped-drops")).toContainText("none");
   });
 
   test("a payload for another subject is refused whole", async ({ context, page }) => {

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -126,9 +126,17 @@ like a correctly-denying policy rather than a broken port.
 REQUIREMENT: A query the capture never saw MUST answer the fail-closed default.
 ```
 
-`undefined` for an attribute, `Unknown` for a relationship and for history —
-what a real deployment gets from an unwired port
-([INV-QD-007](../invariants.md)).
+`undefined` for an attribute, `Unknown` for a relationship and for history,
+`false` for a custom predicate, no signatures — what a real deployment gets from
+an unwired port ([INV-QD-007](../invariants.md)). The answer is read from the
+port's description (`none`), not re-declared here.
+
+`CapturedAnswers` is keyed by port name (`AttributeResolver`, …), and each map by
+that port description's `key`, so the capture and the replay agree about a key by
+construction. Both are written once over `@qadi/core`'s port registry —
+`capturing` is `decoratePorts`, `replayLayer` is each port's `scriptedPort` — so a
+port added to the registry is captured and replayed with no edit here
+([ADR-QD-094](../decisions/094-a-port-is-described-once.md)).
 
 ## BEH-QD-222: A what-if sweep varies the input in both directions
 
@@ -173,6 +181,18 @@ REQUIREMENT: A requirement no remedy could be built for MUST be named, with the 
 A remedy row that does not remedy is worse than an absent one, because the reader
 takes it as *and even that would not help*.
 
+```
+REQUIREMENT: A sweep's remedy derivation and a matcher witness MUST NOT exhaust the
+             call stack for any caller-held policy or matcher, whatever its nesting
+             depth.
+```
+
+`remedyEdits`, `sweepPlan` and `whatIf` have no `maxDepth` to consult, and a policy
+built with the smart constructors is not bounded by the decode limit, so the
+derivation is a fold over `foldPolicy` and `foldMatcher` rather than a native
+recursion that crashed at about two thousand levels (ARCH-02,
+[ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md)).
+
 ## BEH-QD-223: A matcher is read backwards to a witness, or declined
 
 ```ts
@@ -188,6 +208,23 @@ rather than against a test's restatement of what the matcher means. `Eq` compare
 with `===`, so a literal object is passed through by reference rather than
 copied; `Contains` and `SomeMatch` want the needle *inside* an array; `Size`
 wants a value with a `length`.
+
+```
+REQUIREMENT: Every leaf witness MUST be judged by `judgeMatcher` before it is
+             offered, and declined — "the synthesised value does not satisfy
+             the matcher" — when its verdict is not `Held`.
+```
+
+Reading a matcher backwards is a second belief about what a comparison accepts,
+and it lagged the evaluator's: `gte(Infinity)`, `gte(-Infinity)` and `gte(NaN)`
+offered the bound itself, `eq(literal(NaN))` offered `NaN`, and
+`eq(literal(undefined))` offered `undefined` — none of which the evaluator
+accepts (CCR-QD-173). Checking each leaf makes the requirement above true by
+construction, whatever comparison semantics do next. Only leaves are judged: a
+wrapper's witness (`{field: v}`, `[v]`, an array of length `v`) holds exactly when
+its child's does, so the check costs no recursion and the derivation stays
+stack-safe at any depth (BEH-QD-222). `Gte` also declines a non-finite bound with
+its own reason, as `Lt` already did.
 
 ```
 REQUIREMENT: Where no witness can be derived, the reason MUST be reported.

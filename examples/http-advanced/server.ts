@@ -17,7 +17,8 @@
  *     `loadResource`, so the policy is evaluated against the *real* resource
  *     and the handler receives the `Authorized` witness. A resource-scoped
  *     re-check inside the handler via `guard` is defense in depth.
- *  4. The `/__decisions` SSE route fed from `decisionSinkFeed`, with
+ *  4. The `/__decisions` SSE route serving a decision log — its backlog, a
+ *     `synced` marker, then live frames, resumable with `Last-Event-ID` — with
  *     `reauth` — the stream re-extracts the subject and re-checks the policy on
  *     an interval, so a revocation mid-stream ends the connection.
  *  5. The `/__permissions` registry route, served **behind a policy**, merging
@@ -46,12 +47,11 @@ import {
   AttributeResolveError,
   AttributeResolver,
   CurrentSubject,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
   decisionCacheLayer,
-  decisionSinkFeed,
   EvaluationIdLive,
   guard,
+  makeDecisionLog,
+  ENFORCEMENT_ERROR_TAGS,
   gte,
   hasAttribute,
   hasPermission,
@@ -59,11 +59,9 @@ import {
   makeSubject,
   permission,
   permissionKey,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
+  portsLayer,
 } from "@qadi/core";
 import {
-  ENFORCEMENT_ERROR_TAGS,
   PermissionRegistryLive,
   RequirePermissionLive,
   SubjectExtractionFailed,
@@ -225,22 +223,20 @@ const AttributeServices = Layer.succeed(AttributeResolver, {
   },
 });
 
-const EvaluationServices = Layer.mergeAll(
-  AttributeServices,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+// Only the attribute store is wired; every other port sits at its fail-closed
+// default, so a policy reaching one denies rather than borrowing an answer.
+const EvaluationServices = Layer.merge(
+  portsLayer({ AttributeResolver: AttributeServices }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 const main = Effect.gen(function* () {
-  // The feed is both halves of the decision pipeline: evaluations publish
-  // into `feed.layer`'s `DecisionSink`, and `/__decisions` streams
-  // `feed.stream` out as SSE frames.
-  const feed = yield* decisionSinkFeed({ capacity: 1024, replay: 16 });
+  // One decision log is the whole pipeline: evaluations record into
+  // `log.layer`'s `DecisionSink`, and `/__decisions` serves the log — what it
+  // already holds, then what it decides next, each frame labelled "Server".
+  const log = yield* makeDecisionLog({ environment: "Server", capacity: 1024 });
 
-  const DecisionStream = decisionStreamRoute(readPermission, readPolicy, feed.stream, {
+  const DecisionStream = decisionStreamRoute(readPermission, readPolicy, log, {
     // Mid-stream re-authorization: every 30s the route re-extracts the
     // subject from the same request and re-checks the policy. A revocation
     // ends the stream; a broken credential store ends it too.
@@ -267,7 +263,7 @@ const main = Effect.gen(function* () {
   const WithEvaluation = WithSubjects.pipe(Layer.provideMerge(EvaluationServices));
   const WithCache = WithEvaluation.pipe(Layer.provideMerge(decisionCacheLayer()));
   const AppLayer = WithCache.pipe(
-    Layer.provideMerge(feed.layer),
+    Layer.provideMerge(log.layer),
     Layer.provideMerge(HttpServer.layerServices),
   );
 

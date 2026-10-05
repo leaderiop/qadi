@@ -8,7 +8,7 @@
  * caller, and AGENTS.md §5a's exception is not worth the words it takes to
  * describe. This file supplies the denominator.
  *
- * Eight workloads, chosen because each stresses a different part of the
+ * The workloads below were chosen because each stresses a different part of the
  * evaluator rather than because they are realistic policies:
  *
  *   one node          the floor — how much of an evaluation is fixed overhead
@@ -19,6 +19,9 @@
  *                     that reaches `mergeFields`/`intersectFields` —
  *                     O(|a|·|b|) pairwise `compareFieldPaths`, on the same
  *                     per-node path §5a protects with a switch budget
+ *   field-heavy Union the same eight arms in an `anyOf` under `Union`, the
+ *                     only workload whose merge accumulates field sets
+ *                     (ARCH-12 T4)
  *   obligation-heavy  `allOf` of 8 distinct `Obliged` children, the only
  *                     workload that folds `unionObligations`'s linear
  *                     `.some(Equal.equals(...))` scan over several obligations
@@ -28,6 +31,22 @@
  *                     both sites AGENTS.md names have a row here
  *   resolver miss     the port path, and the only workload that emits a
  *                     `qadi.attribute` span
+ *   anyOf First       `anyOf` of 8 whose last child allows — the anyOf fold's
+ *                     longest `First` walk (ARCH-13 T1)
+ *   anyOf Union       `anyOf` of 8 that all allow, under `Union` — the
+ *                     exhaustive anyOf path, which never stops early
+ *   rules First…      `FirstApplicable` over 8 rows, only the last applying
+ *   rules DenyOv…     `DenyOverrides` over 8 applying permits — must ask every
+ *                     row, because a later deny would win (INV-QD-017)
+ *   rules PermitOv…   `PermitOverrides` over 8 applying denies — must ask every
+ *                     row, the mirror image
+ *   deep rules        10 levels alternating `rules([permitWhen(inner)])` with
+ *                     `allOf`, the rules recursion path
+ *
+ * The last six exist because `allOf` was the only combinator measured on its
+ * own: `anyOf` appeared only inside `deep`, always `First` with two children,
+ * and `rules` not at all, so a change to either of their folds was invisible
+ * here (ARCH-13 C8).
  *
  * The layers are the deterministic ones, so nothing here measures I/O: no
  * attribute store, no relationship graph. That is deliberate — a benchmark whose
@@ -50,17 +69,26 @@ import { test } from "vitest";
 import { AttributeResolver } from "../src/AttributeResolver.ts";
 import { fromRoles } from "../src/AuthSubject.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
-import { CustomPredicateNone } from "../src/CustomPredicate.ts";
-import { SignatureHistoryNone } from "../src/SignatureHistory.ts";
-import { DecisionHistoryUnknown } from "../src/DecisionHistory.ts";
 import { EvaluationIdLive } from "../src/EvaluationId.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
 import { eq, fieldMatch, gte, literal, neq, subject, subjectId } from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
-import { allOf, anyOf, hasAttribute, hasPermission, not, obliged } from "../src/Policy.ts";
+import {
+  allOf,
+  anyOf,
+  denyWhen,
+  hasAttribute,
+  hasPermission,
+  labeled,
+  not,
+  obliged,
+  permitWhen,
+  rules,
+} from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
+import { portsLayer } from "../src/Ports.ts";
 import { filter } from "../src/Qadi.ts";
 import { decideSubjects } from "../src/SubjectSet.ts";
 // `RelationshipResolver.ts` used to contain literal NUL bytes as a key
@@ -68,7 +96,6 @@ import { decideSubjects } from "../src/SubjectSet.ts";
 // finding that made gate 9 read files with `readFileSync` rather than shelling
 // out (CCR-QD-034). The NUL bytes are gone (see check-api-surface.mjs's
 // `exportsOf`), but the `readFileSync` choice there stands regardless.
-import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
 import { role } from "../src/Role.ts";
 
 const read = permission("document", "read");
@@ -92,17 +119,15 @@ const services = Layer.mergeAll(EvaluationServicesNone, currentSubjectLayer(alic
  * port — the path a subject hit never reaches.
  */
 const resolving = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, {
-    name: "record",
-    resolve: (_subjectId, attribute: string) =>
-      Effect.succeed(attribute === "tier" ? 5 : undefined),
+  portsLayer({
+    AttributeResolver: Layer.succeed(AttributeResolver, {
+      name: "record",
+      resolve: (_subjectId, attribute: string) =>
+        Effect.succeed(attribute === "tier" ? 5 : undefined),
+    }),
   }),
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   currentSubjectLayer(alice),
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 /**
@@ -176,7 +201,7 @@ const missed = hasAttribute("tier", gte(3));
 /**
  * Eight `hasPermission` arms, each restricted to a distinct, overlapping field
  * set, folded under `Intersection` — the only combination that reaches
- * `mergeFields`'s `Intersection` arm and, through it, `intersectFields`'s
+ * `mergeFields`'s `Intersection` row and, through it, `intersectFields`'s
  * O(|a|·|b|) pairwise `compareFieldPaths` over eight arrays instead of the
  * single-array case `wide` above exercises with no field restriction at all.
  */
@@ -185,6 +210,20 @@ const fieldHeavy = allOf(
     hasPermission(read, { fields: [`id`, `field${index}`, `shared.a`, `shared.b`] }),
   ),
   { fieldStrategy: "Intersection" },
+);
+
+/**
+ * The same eight field-restricted arms as `fieldHeavy`, folded by an `anyOf`
+ * under `Union` — the only workload that reaches `mergeFields`'s single-pass `Union`
+ * path with field sets to accumulate (`anyOfUnion` below carries no `fields`,
+ * so its merge returns at the first unrestricted set). Added for ARCH-12's
+ * D-12-b, which moves that path into `FieldLattice.ts`'s law table.
+ */
+const fieldHeavyUnion = anyOf(
+  Array.from({ length: 8 }, (_, index) =>
+    hasPermission(read, { fields: [`id`, `field${index}`, `shared.a`, `shared.b`] }),
+  ),
+  { fieldStrategy: "Union" },
 );
 
 /**
@@ -203,6 +242,73 @@ const obligationHeavy = allOf(
   ),
 );
 
+/**
+ * Ten nested wrappers, cycling `labeled`/`not`/`obliged` — the only workload
+ * whose nodes are *all* single-child wrappers. `deep` above is built from
+ * `allOf`/`anyOf`/`not` only, so it under-samples the `Labeled`/`Obliged` arms
+ * of `evaluateNode`, and those are the arms whose child call ARCH-02 T14
+ * suspends; without this the change would be unmeasured where it lands.
+ */
+const wrapperHeavy: Policy = Array.from({ length: 10 }).reduce<Policy>(
+  (inner, _, index) =>
+    index % 3 === 0
+      ? labeled(`level-${index}`, inner)
+      : index % 3 === 1
+        ? not(inner)
+        : obliged(obligation(`duty-${index}`), inner),
+  hasPermission(read),
+);
+
+/**
+ * `anyOf` of 8 under `First`, whose first seven children deny (`alice` holds
+ * `read`, not `write`) and whose last allows — the longest walk `First` can take
+ * before it stops, so every step of the anyOf fold runs.
+ */
+const anyOfFirst = anyOf([
+  ...Array.from({ length: 7 }, () => hasPermission(write)),
+  hasPermission(read),
+]);
+
+/**
+ * `anyOf` of 8 that all allow, under `Union` — the anyOf path that never stops
+ * early, because every allowing child widens the field set.
+ */
+const anyOfUnion = anyOf(
+  Array.from({ length: 8 }, () => hasPermission(read)),
+  { fieldStrategy: "Union" },
+);
+
+/** `FirstApplicable` over 8 rows where only the last applies — the longest first-applicable walk. */
+const rulesFirstApplicable = rules([
+  ...Array.from({ length: 7 }, () => permitWhen(hasPermission(write))),
+  permitWhen(hasPermission(read)),
+]);
+
+/**
+ * `DenyOverrides` over 8 applying permits. No row can settle the table before
+ * the last, because a later applying deny would override (INV-QD-017).
+ */
+const rulesDenyOverrides = rules(
+  Array.from({ length: 8 }, () => permitWhen(hasPermission(read))),
+  { combining: "DenyOverrides" },
+);
+
+/** `PermitOverrides` over 8 applying denies — the mirror image, which also asks every row. */
+const rulesPermitOverrides = rules(
+  Array.from({ length: 8 }, () => denyWhen(hasPermission(read))),
+  { combining: "PermitOverrides" },
+);
+
+/**
+ * Ten levels alternating a one-row `rules` table with an `allOf`, so the rules
+ * dispatcher's recursion is measured the way `deep` measures `allOf`/`anyOf`'s.
+ */
+const deepRules: Policy = Array.from({ length: 10 }).reduce<Policy>(
+  (inner, _, index) =>
+    index % 2 === 0 ? rules([permitWhen(inner)]) : allOf([inner, hasPermission(read)]),
+  hasPermission(read),
+);
+
 const items = Array.from({ length: 500 }, (_, index) => ({
   id: `doc-${index}`,
   ownerId: index % 2 === 0 ? "alice" : "bob",
@@ -219,32 +325,34 @@ test("evaluate", async ({ bench }) => {
     bench("one node", () => run(one)),
     bench("wide — allOf of 8", () => run(wide)),
     bench("deep — 10 levels", () => run(deep)),
+    bench("wrapper-heavy — 10 nested labeled/not/obliged", () => run(wrapperHeavy)),
     bench("matcher-heavy — 3 refs", () => run(matchers)),
     bench("field-heavy — allOf of 8 under Intersection", () => run(fieldHeavy)),
+    bench("field-heavy — anyOf of 8 under Union", () => run(fieldHeavyUnion)),
     bench("obligation-heavy — allOf of 8 distinct obligations", () => run(obligationHeavy)),
     bench("resolver miss — one port call", () => {
       resolvingRuntime.runSync(evaluate(missed));
     }),
+    bench("anyOf First — 8, last allows", () => run(anyOfFirst)),
+    bench("anyOf Union — 8", () => run(anyOfUnion)),
+    bench("rules FirstApplicable — 8, last applies", () => run(rulesFirstApplicable)),
+    bench("rules DenyOverrides — 8 permits", () => run(rulesDenyOverrides)),
+    bench("rules PermitOverrides — 8 denies", () => run(rulesPermitOverrides)),
+    bench("deep rules — 10 nested", () => run(deepRules)),
     options,
   );
 });
 
 test("filter — 500 items", async ({ bench }) => {
-  await bench.compare(
-    bench("hasPermission", () => {
-      runtime.runSync(filter(one, items));
-    }),
-    options,
-  );
+  await bench("hasPermission", () => {
+    runtime.runSync(filter(one, items));
+  }).run(options);
 });
 
 test("decideSubjects — 500 subjects", async ({ bench }) => {
-  await bench.compare(
-    bench("hasPermission", () => {
-      runtime.runSync(decideSubjects(one, subjects));
-    }),
-    options,
-  );
+  await bench("hasPermission", () => {
+    runtime.runSync(decideSubjects(one, subjects));
+  }).run(options);
 });
 
 /**
@@ -292,6 +400,31 @@ test("evaluate — wide, concurrency", async ({ bench }) => {
     bench("sequential (default)", () => run(wide)),
     bench("concurrency: unbounded", () => {
       runtime.runSync(evaluate(wide, { concurrency: "unbounded" }));
+    }),
+    options,
+  );
+});
+
+/**
+ * The same comparison for the other two combinators, so each of the three
+ * concurrent branches — which ADR-QD-026 requires to fold in declaration order
+ * — is measured, not only `allOf`'s (ARCH-13 T1).
+ */
+test("evaluate — anyOf Union 8, concurrency", async ({ bench }) => {
+  await bench.compare(
+    bench("sequential (default)", () => run(anyOfUnion)),
+    bench("concurrency: unbounded", () => {
+      runtime.runSync(evaluate(anyOfUnion, { concurrency: "unbounded" }));
+    }),
+    options,
+  );
+});
+
+test("evaluate — rules DenyOverrides 8, concurrency", async ({ bench }) => {
+  await bench.compare(
+    bench("sequential (default)", () => run(rulesDenyOverrides)),
+    bench("concurrency: unbounded", () => {
+      runtime.runSync(evaluate(rulesDenyOverrides, { concurrency: "unbounded" }));
     }),
     options,
   );

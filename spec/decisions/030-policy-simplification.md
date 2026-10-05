@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-030                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted — amended by ADR-QD-092               |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-031) |
+> | Change History | 1.1 (2026-10-05): Amendment — the flatten and unwrap conditions read the field lattice's laws (ADR-QD-092, CCR-QD-174)<br>1.0 (2026-07-26): Initial release (CCR-QD-031) |
 
 ---
 
@@ -178,3 +178,36 @@ scoped to say so.
 ---
 
 _Related: [ADR-QD-027](./027-policy-explanation.md) · [ADR-QD-024](./024-predicate-output.md) · [INV-QD-004](../invariants.md#inv-qd-004-field-visibility-is-a-lattice-with-undefined-at-the-top) · [Roadmap](../roadmap.md)_
+
+## Amendment (2026-10-05): equal strategies were necessary, not sufficient
+
+"Associativity makes the merge equivalent" holds for non-empty children. It does not
+hold for an **empty** one. An empty `allOf` allows with `undefined` — the merge of no
+inputs, the lattice's top — and top is `Intersection`'s unit but `Union`'s
+*absorbing* element, while `First` has no unit at all. So
+
+```ts
+allOf([allOf([], { fieldStrategy: "Union" }), x], { fieldStrategy: "Union" })
+```
+
+grants every field, and its flattened form, `x`, grants only `x`'s: a narrowing, but
+a change to `visibleFields` all the same, against INV-QD-024. The single-child unwrap
+had a second, in-process-only gap: a composite whose `fieldStrategy` is outside the
+union merges to `[]`, so unwrapping its one child **widened** from no fields to the
+child's. The property never found either, because its generator never built a
+same-strategy `Union`/`First` composite around an empty same-strategy child under an
+allowing subject (CCR-QD-174, ARCH-12 C4).
+
+The two conditions are now:
+
+| Rewrite | Applies when |
+| ------- | ------------ |
+| Single-child composite | the strategy's `singletonIsIdentity` law holds — the three known strategies |
+| Same-strategy nesting | equal strategies, and — for `allOf` — the nested composite is non-empty or the strategy's `emptyIsUnit` law holds (`Intersection` alone) |
+
+Both laws are `FieldLattice.ts`'s, read rather than restated, so `Simplify.ts` no
+longer carries its own argument about what each strategy means
+([ADR-QD-092](./092-field-strategy-meaning-lives-beside-the-lattice.md)). An empty
+nested `anyOf` is still absorbed: it denies, so it contributes no field set. The
+INV-QD-024 property's generator gained an arm that builds the empty-child case, and
+a vacuity guard counts it.

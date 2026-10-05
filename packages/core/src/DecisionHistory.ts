@@ -13,13 +13,19 @@
  * list, and React's `Can` re-evaluates on render, so a component mounting would
  * record accesses that never happened.
  */
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
-import type { DecisionHistoryUnavailable } from "./Errors.ts";
+import type * as Schedule from "effect/Schedule";
+import { DecisionHistoryUnavailable } from "./Errors.ts";
+import type { InvalidBoundedPermits } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
+import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
+import type { PortDescription } from "./PortDescription.ts";
 
 /**
  * What the port can say about a past event.
@@ -55,9 +61,9 @@ export interface DecisionHistoryShape {
   /**
    * Answers `hasActed`/`hasNotActed`.
    *
-   * An implementation is not required to fail cleanly. `Evaluate.ts`'s
-   * `evaluateActed` catches a defect from this call and converts it into this
-   * same `DecisionHistoryUnavailable`, matching `AttributeResolverShape.resolve`'s
+   * An implementation is not required to fail cleanly. `PortAccess.ts`'s
+   * `askActedAny`/`askActedForResource` catch a defect from this call and
+   * convert it into this same `DecisionHistoryUnavailable`, matching `AttributeResolverShape.resolve`'s
    * own contract — see its doc comment for why (issue #100).
    */
   readonly hasActed: (
@@ -74,17 +80,43 @@ export class DecisionHistory extends Context.Service<
 }
 
 /**
+ * The decision-history port, described once (`PortDescription.ts`).
+ *
+ * A request is keyed by `(subjectId, event, resourceId)`, with an absent
+ * resource as `null`, so an "ever, at all" question stays distinct from any
+ * resource-scoped one.
+ */
+export const decisionHistoryPort: PortDescription<
+  "DecisionHistory",
+  DecisionHistory,
+  DecisionHistoryShape,
+  [query: ActedQuery],
+  ActedResult,
+  DecisionHistoryUnavailable
+> = {
+  port: "DecisionHistory",
+  method: "hasActed",
+  span: "qadi.acted",
+  service: DecisionHistory,
+  invoke: (shape) => (query) => shape.hasActed(query),
+  make: (name, call) => ({ name, hasActed: call }),
+  failure: ([query], cause) => new DecisionHistoryUnavailable({ event: query.event, cause }),
+  defect: ([query], cause) =>
+    new DecisionHistoryUnavailable({ event: query.event, cause: Cause.squash(cause) }),
+  key: ([query]) => JSON.stringify([query.subjectId, query.event, query.resourceId ?? null]),
+  none: { name: "DecisionHistoryUnknown", answer: "Unknown" },
+};
+
+/**
  * Knows nothing, so every history policy denies.
  *
  * The default. Unlike `RelationshipResolverNever` this needs no polarity
  * argument: `"Unknown"` is not "did not act", so `hasNotActed` denies under it
  * just as `hasActed` does. That is why the port is three-valued
  * ([INV-QD-007](../../../spec/invariants.md#inv-qd-007-defaults-fail-closed)).
+ * Derived from {@link decisionHistoryPort}'s `none` (ADR-QD-040).
  */
-export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory> = Layer.succeed(
-  DecisionHistory,
-  { name: "DecisionHistoryUnknown", hasActed: () => Effect.succeed("Unknown") },
-);
+export const DecisionHistoryUnknown: Layer.Layer<DecisionHistory> = nonePort(decisionHistoryPort);
 
 /**
  * One event to seed {@link decisionHistoryFromEvents} with.
@@ -115,9 +147,10 @@ export interface ActedAnywhereInput {
  * membership compares each field independently and the collision is
  * unrepresentable, not just harder to hit.
  *
- * Exported so `@qadi/testing`'s `eventDecisionHistory` can reuse these exact
- * classes instead of pasting identical ones — see `RelationshipEdge` in
- * `RelationshipResolver.ts` for the same reasoning.
+ * Exported, as `RelationshipEdge` in `RelationshipResolver.ts` is: a value
+ * class with no behaviour beyond structural equality has nothing to leak, and
+ * a consumer building its own history fixture reuses these exact classes
+ * rather than pasting identical ones.
  */
 export class ActedEvent extends Data.Class<ActedEventInput> {}
 
@@ -162,3 +195,41 @@ export const decisionHistoryFromEvents = (
       ),
   });
 };
+
+/**
+ * Wraps a history layer so every `hasActed` call retries on
+ * `DecisionHistoryUnavailable` under the given schedule before surfacing it —
+ * `attributeResolverRetrying` for this port: it annotates `qadi.attempts` on
+ * the caller's span and counts failed attempts in `portRetriesTotal`. Derived
+ * from {@link decisionHistoryPort} by `PortDerivation.ts`'s `retryingPort`.
+ */
+export const decisionHistoryRetrying: (
+  schedule: Schedule.Schedule<unknown, DecisionHistoryUnavailable>,
+) => (layer: Layer.Layer<DecisionHistory>) => Layer.Layer<DecisionHistory> =
+  retryingPort(decisionHistoryPort);
+
+/**
+ * Wraps a history layer so no more than `permits` calls to `hasActed` run at
+ * once, queuing the rest — `attributeResolverBounded` for this port. A history
+ * policy evaluated over a large collection under `concurrency: "unbounded"`
+ * otherwise reaches the audit store once per item, all at once. `permits` that
+ * is not a positive integer fails construction with `InvalidBoundedPermits`.
+ */
+export const decisionHistoryBounded: (
+  permits: number,
+) => (
+  layer: Layer.Layer<DecisionHistory>,
+) => Layer.Layer<DecisionHistory, InvalidBoundedPermits> = boundedPort(decisionHistoryPort);
+
+/**
+ * Wraps a history layer so a `hasActed` call that does not settle within
+ * `duration` fails with a typed `DecisionHistoryUnavailable` instead of
+ * holding its caller open — `attributeResolverTimingOut` for this port (see
+ * its doc comment for the composition order), and counts in
+ * `portTimeoutsTotal`. A hung audit store held an evaluation open with no
+ * library-provided deadline until every port had this wrapper (ARCH-10 E1).
+ */
+export const decisionHistoryTimingOut: (
+  duration: Duration.Input,
+) => (layer: Layer.Layer<DecisionHistory>) => Layer.Layer<DecisionHistory> =
+  timingOutPort(decisionHistoryPort);

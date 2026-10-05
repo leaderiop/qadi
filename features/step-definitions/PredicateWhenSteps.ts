@@ -2,13 +2,17 @@ import { defineSteps } from "@effect-cucumber/vitest";
 import type { Policy } from "@qadi/core";
 import {
   allOf,
+  anyOf,
   denyWhen,
   eq,
+  gte,
+  hasAttribute,
   hasPermission,
   hasRelationship,
   hasResourceAttribute,
   hasRole,
   literal,
+  lt,
   obligation,
   obliged,
   permission,
@@ -42,7 +46,22 @@ export const sealedRows = (): Policy =>
     }),
   ]);
 
+/**
+ * The two range policies the non-finite scenarios compile (CCR-QD-172), by the
+ * name a scenario gives them. Exported for `PredicateThenSteps.ts`, which needs
+ * the same tree to ask the evaluator.
+ */
+export const levelPolicy = (name: string): Policy => {
+  if (name === "at least 3") return hasResourceAttribute("level", gte(3));
+  if (name === "below 3") return hasResourceAttribute("level", lt(3));
+  throw new Error(`no level policy named "${name}"`);
+};
+
 export const predicateWhenSteps = defineSteps<World>(({ When }) => {
+  When("the {string} level policy is compiled to a predicate", function* (name: string) {
+    yield* compile(levelPolicy(name));
+  });
+
   When("the tenancy policy is compiled to a predicate", function* () {
     yield* compile(tenancy());
   });
@@ -63,6 +82,16 @@ export const predicateWhenSteps = defineSteps<World>(({ When }) => {
 
   When("the field-restricted policy is compiled to a predicate", function* () {
     yield* compile(hasPermission(permission("doc", "read"), { fields: ["id"] }));
+  });
+
+  When("the risk policy is compiled to a predicate", function* () {
+    yield* compile(hasAttribute("riskScore", lt(50)));
+  });
+
+  When("the editor-or-risk policy is compiled to a predicate", function* () {
+    // The role alone decides it, so no lookup is owed: `anyOf` stops at its
+    // first allowing child, as the evaluator does (INV-QD-005).
+    yield* compile(anyOf([hasRole("editor"), hasAttribute("riskScore", lt(50))]));
   });
 
   When("the sealed-rows rule table is compiled to a predicate", function* () {

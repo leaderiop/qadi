@@ -100,8 +100,6 @@ re-parents often enough that subtree rewrites dominate.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -111,6 +109,7 @@ import {
   hasRelationship,
   hasRole,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 // The caller's tenancy store. The materialised root-to-self path of a resource
@@ -148,7 +147,10 @@ const canViewProject = anyOf([
 const program = check(canViewProject, { resource: { id: "project-atlas" } }).pipe(
   Effect.provide(currentSubjectLayer(makeSubject({ id: "u-olivia" }))),
   Effect.provide(
-    Layer.mergeAll(TenancyTreeResolver, AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive),
+    Layer.mergeAll(
+      portsLayer({ RelationshipResolver: TenancyTreeResolver }),
+      EvaluationIdLive,
+    ),
   ),
 );
 // A `member` grant on `org-acme` allows: the organisation sits in the project's

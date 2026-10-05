@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-053                                   |
-> | Revision       | 1.0                                            |
-> | Effective Date | 2026-08-24                                     |
-> | Status         | Accepted                                       |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-05                                     |
+> | Status         | Accepted — amended by ADR-QD-080, ADR-QD-093   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-08-24): Initial release (CCR-QD-073) |
+> | Change History | 1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
 
 ---
 
@@ -48,8 +48,13 @@ point at it.**
 
 ### The registry
 
-`GateRegistry.ts` is a module-scope `Map` a guard writes to from an effect —
-the shape `HydrationSeed.ts` already uses for the seed lookup. An entry carries
+> **Amended by ADR-QD-080.** The registry is no longer module-scope: each atom
+> set owns one (`atoms.gates`, built by `makeGateRegistry`), written through a handle
+> only `@qadi/react` can reach, so "asked" and "asking" share one scope. The sentence
+> below is the original decision and is kept for the record.
+
+`GateRegistry.ts` is a module-scope `Map` a guard writes to from an effect. An
+entry carries
 the instance's `useId`, which surface it is, its policy, its resource, what it
 rendered, and the marker element.
 
@@ -59,6 +64,11 @@ calling it. Registering in the primitive and again in its callers would report
 one `<Can>` as two instances, the inner one labelled a hook its author never
 wrote. Every surface calls `useGate` naming itself, and `useDecision` is simply
 the case whose name is `"useDecision"`.
+
+> **Amended by ADR-QD-093.** What an entry records as "what it rendered" is
+> `GateRenderState = DecisionOutcome["_tag"]` — derived from the one read of the
+> result (`outcomeOf`), not a restated union kept in step with a second reader, so
+> the registry records exactly the outcome the guard rendered from.
 
 ### Opt-in, and off means absent
 
@@ -145,6 +155,11 @@ nothing re-renders because a guard registered. The React glue is still **one**
 > together — `examples/nextjs-newsroom/src/client/Dock.tsx` does exactly this.
 > That is the correct place for it: `@qadi/devtools`'s panel is meant to render
 > for a host with no `@qadi/react` at all, fed `gates` from wherever it likes.
+
+> **Correction (2026-10-04, ADR-QD-080).** The host call is now `useGateInstances()`
+> inside the provider, or `useSyncExternalStore(atoms.gates.subscribe,
+> atoms.gates.instances, atoms.gates.instances)` outside it. The module-scope
+> `subscribeGates`/`gateInstances` pair no longer exists.
 
 **Enumerable is not the same as locatable.** A hook has no node of its own, so it
 appears in the list and its highlight is disabled with the reason on it. A panel

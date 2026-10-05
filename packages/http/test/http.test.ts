@@ -24,15 +24,11 @@ import * as HttpServer from "effect/http/HttpServer";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import {
-  AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
   anonymous,
   decisionCacheLayer,
+  ENFORCEMENT_ERROR_TAGS,
   guard,
   gte,
   hasAttribute,
@@ -40,11 +36,14 @@ import {
   makeSubject,
   permission,
   permissionKey,
+  portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
 import {
-  ENFORCEMENT_ERROR_TAGS,
   PermissionRegistryLive,
   permissionRegistryRoute,
   permissionRegistryRouteUnguarded,
@@ -161,12 +160,8 @@ const CountingAttributeResolver = Layer.succeed(AttributeResolver, {
 const RegistryLayer = registerApi(Api).pipe(Layer.provideMerge(PermissionRegistryLive));
 
 const EvaluationServicesTest = Layer.mergeAll(
-  CountingAttributeResolver,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer({ AttributeResolver: CountingAttributeResolver }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 // Composed through named intermediate steps, deliberately: chaining every
@@ -462,24 +457,17 @@ describe("@qadi/http", () => {
         // surfaces the outage, and a second, identical request after the
         // dependency recovers must reach the handler normally.
         let calls = 0;
-        const flaky = Layer.succeed(AttributeResolver, {
-          resolve: (subjectId, attribute) => {
-            calls += 1;
-            return calls === 1
-              ? Effect.fail(new AttributeResolveError({ attribute, cause: "transient outage" }))
-              : Effect.succeed(subjectId === "alice" ? 5 : 0);
-          },
-        });
+        const flaky = scriptedPort(attributeResolverPort, (subjectId) =>
+          ++calls === 1
+            ? PortReply.fail("transient outage")
+            : PortReply.answer(subjectId === "alice" ? 5 : 0),
+        ).layer;
         const app = WithRegistry.pipe(
           Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
           Layer.provideMerge(
             Layer.mergeAll(
-              flaky,
-              RelationshipResolverNever,
-              DecisionHistoryUnknown,
+              portsLayer({ AttributeResolver: flaky }),
               EvaluationIdLive,
-              CustomPredicateNone,
-              SignatureHistoryNone,
             ),
           ),
           Layer.provideMerge(decisionCacheLayer()),
@@ -707,21 +695,16 @@ describe("@qadi/http", () => {
       // is not hand-caught any more — it propagates to HttpApiMiddleware's
       // own encoder, which is what actually puts real field data in the body
       // instead of the empty one `toResponse` always sent.
-      const failingResolver = Layer.succeed(AttributeResolver, {
-        resolve: (_subjectId, attribute) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "attribute store unreachable" })),
-      });
+      const failingResolver = scriptedPort(attributeResolverPort, () =>
+        PortReply.fail("attribute store unreachable"),
+      ).layer;
 
       const app = AttributeRoutes.pipe(
         Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
         Layer.provideMerge(
           Layer.mergeAll(
-            failingResolver,
-            RelationshipResolverNever,
-            DecisionHistoryUnknown,
+            portsLayer({ AttributeResolver: failingResolver }),
             EvaluationIdLive,
-            CustomPredicateNone,
-            SignatureHistoryNone,
           ),
         ),
         Layer.provideMerge(decisionCacheLayer()),
@@ -770,20 +753,14 @@ describe("@qadi/http", () => {
       );
 
       const secretCause = new Error("connect ECONNREFUSED 10.0.0.42:5432 (attribute-store-primary.internal)");
-      const failingResolver = Layer.succeed(AttributeResolver, {
-        resolve: (_subjectId, attribute) => Effect.fail(new AttributeResolveError({ attribute, cause: secretCause })),
-      });
+      const failingResolver = scriptedPort(attributeResolverPort, () => PortReply.fail(secretCause)).layer;
 
       const app = AttributeRoutes.pipe(
         Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
         Layer.provideMerge(
           Layer.mergeAll(
-            failingResolver,
-            RelationshipResolverNever,
-            DecisionHistoryUnknown,
+            portsLayer({ AttributeResolver: failingResolver }),
             EvaluationIdLive,
-            CustomPredicateNone,
-            SignatureHistoryNone,
           ),
         ),
         Layer.provideMerge(decisionCacheLayer()),

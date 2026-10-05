@@ -105,7 +105,11 @@ const PortCard: FC<{
           // Distinct from absent: this port is wired, and nothing has reached it.
           ? "never called"
           : `${activity.calls} call${activity.calls === 1 ? "" : "s"}${
-            activity.retries === 0 ? "" : ` · ${activity.retries} retried`
+            activity.translationCalls === 0
+              ? ""
+              : ` · ${activity.translationCalls} from translation`
+          }${activity.retries === 0 ? "" : ` · ${activity.retries} retried`}${
+            activity.timeouts === 0 ? "" : ` · ${activity.timeouts} timed out`
           }`}
       </span>
     </div>
@@ -151,6 +155,13 @@ const RecentCalls: FC<{
           data-testid="qadi-port-call"
         >
           <span>{describe(call)}</span>
+          {call.interpreter === "toPredicate" ? (
+            // Only the translation is labelled: an evaluation is the default
+            // reading, and an unrecorded interpreter is not guessed at.
+            <span style={muted} data-testid="qadi-port-call-interpreter">
+              translation
+            </span>
+          ) : null}
           <span style={muted} data-testid="qadi-port-call-duration">
             {call.durationMillis === undefined
               // Not zero. A zero is a call that finished instantly.
@@ -224,7 +235,7 @@ const stateOf = (port: PortReport): string => {
  * The cache card, which must not be confused with the record log.
  *
  * `clear` on a `DecisionCache` discards completed decisions so the next
- * question is recomputed; `decisionSinkRing`'s `clear` discards the *log of
+ * question is recomputed; a decision log's `clear` discards the *log of
  * what was decided*. Conflating them would let a reader empty their audit view
  * while meaning to invalidate a cache.
  *

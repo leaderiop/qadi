@@ -45,11 +45,11 @@ export const DocumentsGroup = HttpApiGroup.make("documents")
     // schemas (ADR-QD-075), so every enforcement outcome it can produce is
     // already in this call's static error channel automatically, the same
     // way `documents.read()`/`documents.health()` get it below with nothing
-    // endpoint-specific to write. The 403 denial tags are empty-bodied on
-    // the wire by design (a trace names every node and why it refused —
-    // that is not for the caller), so a denial arrives client-side as
-    // `HttpClientError` with status 403; the outage tags carry real bodies
-    // and decode into typed errors.
+    // endpoint-specific to write. The 403 denial tags carry a
+    // redacted body, never the trace (a trace names every node and why it
+    // refused — that is not for the caller); the outage tags carry their own
+    // redacted bodies. Every one decodes into a typed error from the same
+    // `ENFORCEMENT_ERROR_WIRE` table.
     HttpApiEndpoint.get("me", "/me", {
       success: Schema.Struct({ subjectId: Schema.String }),
     }).pipe((endpoint) =>

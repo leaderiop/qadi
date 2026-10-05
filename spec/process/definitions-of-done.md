@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-02                                   |
-> | Revision       | 1.11                                           |
-> | Effective Date | 2026-09-19                                     |
+> | Revision       | 1.12                                           |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.11 (2026-09-19): Step 6's tstyche note re-verified and dated — `tstyche --list` now names a `"rc"` resolution for TypeScript 7 (`7.0.1-rc`) where ADR-QD-037 (1.1) recorded none, but that build is the `typescript-go`/`tsgo` native-compiler preview and `tstyche --target rc` fails outright (`ERR_MODULE_NOT_FOUND`) against it, so the `6.0.3` pin's justification is re-affirmed rather than silently stale (ADR-QD-037 revision 1.3, .issues/medium/sebastian-mckenzie-SM-01.md, .issues/medium/nathan-shively-sanders-NS-02.md)<br>1.10 (2026-09-08): The `pnpm format:check` note below (no merge-gate table change) corrected from a stale, undated "127 of 145 files" — itself already drifted from AGENTS.md §17's own then-current count — to a dated snapshot, matching §17's own CCR-QD-121 correction, so the two stop drifting independently of each other again<br>1.9 (2026-09-06): Two new steps — mutation testing for `@qadi/http` (ADR-QD-036, CCR-QD-108), inserted as step 21 because `mutation` runs ahead of the website steps in `pnpm check`'s chain, renumbering the former steps 21/22 to 22/23; and a publish-status documentation gate (CCR-QD-109), appended as step 24, closing the drift an adoption audit found in README.md/CONTRIBUTING.md/spec/roadmap.md/apps/website/PRODUCT.md after the `0.4.0` version bump<br>1.8 (2026-09-06): Three stale step-number references corrected — two prose mentions of "step 16" for the devtools mutation gate (it shifted to step 17 when CCR-QD-076 inserted step 15), and "Step 15 is new in CCR-QD-026" for the core mutation gate (also shifted, to step 16); the table itself was never wrong, only cross-references to it that a nearly-any-paragraph token match couldn't catch (CCR-QD-096)<br>1.7 (2026-09-04): Step 8's acceptance suite moved from the `@cucumber/cucumber` CLI to `@effect-cucumber/vitest`; the command text is unchanged (`pnpm --filter @qadi/features test`), only what it runs — and step 2 (`tsc -p tsconfig.test.json`) now also typechecks the 24 new `features/features/**/*.steps.test.ts` runner files, previously unchecked by any `tsc` invocation<br>1.6 (2026-08-30): Step 22 becomes runtime-scoped — it runs on every `check.yml` leg whose Node satisfies astro's `engines.node`, read from its manifest rather than restated (ADR-QD-059, CCR-QD-092)<br>1.5 (2026-08-28): Step 22 — `apps/website` itself must type-check and build; step 21 alone only checked its embedded doc snippets (found in review, CCR-QD-091)<br>1.4 (2026-08-27): Step 21 — doc-snippet type-checking for `apps/website` (wayfinder #25, CCR-QD-090)<br>1.3 (2026-08-25): Step 20 — mutation testing for `@qadi/audit` (ADR-QD-056, CCR-QD-086)<br>1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.12 (2026-10-05): Step 22 — mutation testing for `@qadi/react`'s decision read, `stryker run stryker.react.mjs`, scoped to `DecisionOutcome.ts` alone (ADR-QD-093, CCR-QD-175); inserted inside `mutation`, so the website and publish-status steps renumber 22–24 → 23–25<br>1.11 (2026-09-19): Step 6's tstyche note re-verified and dated — `tstyche --list` now names a `"rc"` resolution for TypeScript 7 (`7.0.1-rc`) where ADR-QD-037 (1.1) recorded none, but that build is the `typescript-go`/`tsgo` native-compiler preview and `tstyche --target rc` fails outright (`ERR_MODULE_NOT_FOUND`) against it, so the `6.0.3` pin's justification is re-affirmed rather than silently stale (ADR-QD-037 revision 1.3, .issues/medium/sebastian-mckenzie-SM-01.md, .issues/medium/nathan-shively-sanders-NS-02.md)<br>1.10 (2026-09-08): The `pnpm format:check` note below (no merge-gate table change) corrected from a stale, undated "127 of 145 files" — itself already drifted from AGENTS.md §17's own then-current count — to a dated snapshot, matching §17's own CCR-QD-121 correction, so the two stop drifting independently of each other again<br>1.9 (2026-09-06): Two new steps — mutation testing for `@qadi/http` (ADR-QD-036, CCR-QD-108), inserted as step 21 because `mutation` runs ahead of the website steps in `pnpm check`'s chain, renumbering the former steps 21/22 to 22/23; and a publish-status documentation gate (CCR-QD-109), appended as step 24, closing the drift an adoption audit found in README.md/CONTRIBUTING.md/spec/roadmap.md/apps/website/PRODUCT.md after the `0.4.0` version bump<br>1.8 (2026-09-06): Three stale step-number references corrected — two prose mentions of "step 16" for the devtools mutation gate (it shifted to step 17 when CCR-QD-076 inserted step 15), and "Step 15 is new in CCR-QD-026" for the core mutation gate (also shifted, to step 16); the table itself was never wrong, only cross-references to it that a nearly-any-paragraph token match couldn't catch (CCR-QD-096)<br>1.7 (2026-09-04): Step 8's acceptance suite moved from the `@cucumber/cucumber` CLI to `@effect-cucumber/vitest`; the command text is unchanged (`pnpm --filter @qadi/features test`), only what it runs — and step 2 (`tsc -p tsconfig.test.json`) now also typechecks the 24 new `features/features/**/*.steps.test.ts` runner files, previously unchecked by any `tsc` invocation<br>1.6 (2026-08-30): Step 22 becomes runtime-scoped — it runs on every `check.yml` leg whose Node satisfies astro's `engines.node`, read from its manifest rather than restated (ADR-QD-059, CCR-QD-092)<br>1.5 (2026-08-28): Step 22 — `apps/website` itself must type-check and build; step 21 alone only checked its embedded doc snippets (found in review, CCR-QD-091)<br>1.4 (2026-08-27): Step 21 — doc-snippet type-checking for `apps/website` (wayfinder #25, CCR-QD-090)<br>1.3 (2026-08-25): Step 20 — mutation testing for `@qadi/audit` (ADR-QD-056, CCR-QD-086)<br>1.2 (2026-08-25): Steps 18 and 19 — mutation testing for `@qadi/predicate-sql` and `@qadi/predicate-prisma` (ADR-QD-054, CCR-QD-080)<br>1.1 (2026-08-25): The document control caught up with five CCRs that had edited this table without touching it — CCR-QD-026 (step 13), CCR-QD-034 (step 11), CCR-QD-038 (step 12), CCR-QD-039 (the `SWITCH_BUDGET` note) and CCR-QD-048 (steps 5–6). Step 14 tabled, having run untabled since CCR-QD-067; steps 15 and 16 added (CCR-QD-075)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 
@@ -43,11 +43,12 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 19 | `stryker run stryker.predicate-prisma.mjs` | Mutation score on `packages/predicate-prisma` is at or above 80% |
 | 20 | `stryker run stryker.audit.mjs` | Mutation score on `packages/audit` is at or above 80% |
 | 21 | `stryker run stryker.http.mjs` | Mutation score on `packages/http` is at or above 80% |
-| 22 | `node scripts/check-website-doc-examples.mjs` | Every runnable example in `apps/website`'s docs content compiles |
-| 23 | `node scripts/check-website-build.mjs` | `apps/website` type-checks and builds (`astro check && astro build`) on every matrix leg whose Node satisfies astro's own `engines.node`; below that floor the step states the skip and names the leg that does build |
-| 24 | `node scripts/check-publish-status.mjs` | Publish-status prose in `README.md`, `CONTRIBUTING.md`, `spec/roadmap.md`, `apps/website/PRODUCT.md` and `apps/website/src/pages/index.astro` (checked twice — the hero badge and the "Where it stands" status card) matches `package.json`'s version |
+| 22 | `stryker run stryker.react.mjs` | Mutation score on `@qadi/react`'s decision read (`DecisionOutcome.ts`) is at or above 80% |
+| 23 | `node scripts/check-website-doc-examples.mjs` | Every runnable example in `apps/website`'s docs content compiles |
+| 24 | `node scripts/check-website-build.mjs` | `apps/website` type-checks and builds (`astro check && astro build`) on every matrix leg whose Node satisfies astro's own `engines.node`; below that floor the step states the skip and names the leg that does build |
+| 25 | `node scripts/check-publish-status.mjs` | Publish-status prose in `README.md`, `CONTRIBUTING.md`, `spec/roadmap.md`, `apps/website/PRODUCT.md` and `apps/website/src/pages/index.astro` (checked twice — the hero badge and the "Where it stands" status card) matches `package.json`'s version |
 
-Step 22 (`node scripts/check-website-doc-examples.mjs`) is a sibling of step 9
+Step 23 (`node scripts/check-website-doc-examples.mjs`) is a sibling of step 9
 (`node scripts/check-doc-examples.mjs`), not an extension of it (wayfinder
 #25): it walks `apps/website/src/content/docs` instead of `spec/`, shares the
 same fence extraction via `scripts/lib/extract-code-fences.mjs`, and compiles
@@ -56,14 +57,14 @@ under the workspace's own TypeScript 7.x rather than `apps/website`'s local
 snippet-copying reader experiences. It checks the *content* embedded in
 `apps/website`'s docs, not the app itself: neither `tsc -b tsconfig.json`
 (step 1) nor `oxlint` (step 3) reaches `.astro` files or this workspace
-member, so without step 23 a broken Astro page, an invalid component prop, or
+member, so without step 24 a broken Astro page, an invalid component prop, or
 a sidebar `slug:` pointing at a file that doesn't exist would fail
-`astro build` locally but ship past a green `pnpm check`. Step 23 closes that
+`astro build` locally but ship past a green `pnpm check`. Step 24 closes that
 gap the same way step 15 closes it for the Next.js example — one workspace
 boundary, one step, `check-dod-table.mjs`'s stated reason for not expanding
 past `pnpm --filter`.
 
-Step 23 became runtime-scoped in CCR-QD-092: it now runs on every
+Step 24 (`node scripts/check-website-build.mjs`) became runtime-scoped in CCR-QD-092: it now runs on every
 `check.yml` matrix leg whose Node satisfies the floor `apps/website`'s own
 toolchain (Astro) declares, reading that floor from the installed `astro`
 manifest rather than restating it, via `node scripts/check-website-build.mjs`.
@@ -210,7 +211,18 @@ number needed to move with them (`node scripts/check-dod-table.mjs`
 verifies this rather than trusting the renumbering was done by hand
 correctly).
 
-Step 24 is new in CCR-QD-109. `README.md`, `CONTRIBUTING.md`,
+Step 22 is new in CCR-QD-175, and inserted inside `mutation` for the same
+reason step 21 was, so the two website steps and the publish-status step
+moved again, to 23, 24 and 25. `stryker.react.mjs` mutates exactly one file,
+`packages/react/src/DecisionOutcome.ts` — the one read of a decision result
+every `@qadi/react` surface renders from ([ADR-QD-093](../decisions/093-a-decision-is-read-once.md)).
+`stryker.config.mjs` keeps the rest of `@qadi/react` out because it is a
+binding plus render code; this file is neither, and a surviving mutant in it
+is a re-check reading as its old allow (ADR-QD-017) or a failure reading as a
+denial (INV-QD-006). Scoped the way step 17 scopes `@qadi/devtools` to its
+model: mutate what decides, not what renders.
+
+Step 25 (step 24 when added) is new in CCR-QD-109. `README.md`, `CONTRIBUTING.md`,
 `spec/roadmap.md`, `apps/website/PRODUCT.md` and
 `apps/website/src/pages/index.astro` each hardcode the current package
 version and a publish-status claim, and a changeset version bump

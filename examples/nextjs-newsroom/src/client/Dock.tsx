@@ -11,10 +11,13 @@
  * part a reader actually has to copy.
  *
  * **The source is two sources.** The server's decisions arrive over SSE from
- * `/api/__decisions`; the browser's own come from an in-process feed. They carry
- * one `evaluationId` — the client's re-check continues the server's evaluation
- * rather than starting an unrelated one — so merging them is what makes the log
- * show them as a pair rather than as two unrelated rows in two panels.
+ * `/api/__decisions` — its backlog first, then live, each frame labelled by the
+ * process that made it (`Server`, or `Edge` for a record the aggregator
+ * ingested); the browser's own come from its in-process decision log, passed
+ * as is. They carry one `evaluationId` — the client's re-check continues the
+ * server's evaluation rather than starting an unrelated one — so merging them
+ * is what makes the log show them as a pair rather than as two unrelated rows
+ * in two panels. No environment is named here: each producer names its own.
  */
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import * as Effect from "effect/Effect";
@@ -25,21 +28,19 @@ import {
   mergeSources,
   portActivity,
   sourceFromEventSource,
-  sourceFromFeed,
   wiringReport,
 } from "@qadi/devtools";
 import type { HydrationActivity, PortActivity, PortCallLog, WiringReport } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
-import { gateInstances, subscribeGates, useInvalidate, useSubject } from "@qadi/react";
+import { useGateInstances, useInvalidate, useSubject } from "@qadi/react";
 import { catalogue } from "../domain/policies.ts";
 import { readDevtools } from "../domain/permissions.ts";
 import { allRoles } from "../domain/roles.ts";
 import {
   atoms,
   browserLayer,
-  clientFeed,
+  clientLog,
   clientPortCalls,
-  clientRing,
   mismatchSnapshot,
   subscribeMismatches,
 } from "./atoms.ts";
@@ -66,7 +67,6 @@ const makeSource = () =>
   mergeSources([
     sourceFromEventSource({
       url: "/api/__decisions",
-      environment: "Server",
       withCredentials: true,
       // A frame that does not decode is one row lost, never the stream. The
       // panel is what you are looking at when something is already wrong.
@@ -74,11 +74,7 @@ const makeSource = () =>
         console.warn(`qadi: dropped a ${reason} frame`, frame.slice(0, 120));
       },
     }),
-    sourceFromFeed({
-      stream: clientFeed.stream,
-      environment: "Client",
-      backlog: clientRing.snapshot,
-    }),
+    clientLog,
   ]);
 
 /** Parent names `resolveRoleGraph` could not resolve. Collected once. */
@@ -124,7 +120,9 @@ export const Dock = () => {
   // changes — and never on a re-render that changes nothing about it.
   const source = useMemo(makeSource, [subject?.id]);
 
-  const gates = useSyncExternalStore(subscribeGates, gateInstances, gateInstances);
+  // Who is asking, from the provider's own registry — the one `atoms.asked()`
+  // below belongs to, so the two halves of the Questions panel share a scope.
+  const gates = useGateInstances();
   const mismatches = useSyncExternalStore(
     subscribeMismatches,
     mismatchSnapshot,
@@ -186,6 +184,12 @@ export const Dock = () => {
           </p>
         )
         : null}
+      {/* The dock is fixed to the bottom 45vh of the viewport and sits above the
+          page, so without room to scroll into, whatever a page renders in its
+          lower half is under it and cannot be clicked — `/edge/double-count`'s
+          button was, once the dock had mounted. A spacer as tall as the dock
+          lets every element scroll clear of it. */}
+      <div aria-hidden="true" style={{ height: "45vh" }} />
       <DevtoolsDock
         source={source}
         catalogue={{ policies: catalogue, roles }}

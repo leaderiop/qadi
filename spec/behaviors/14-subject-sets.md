@@ -199,10 +199,7 @@ never say NGAC.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   anyOf,
   filterSubjects,
   hasRole,
@@ -211,6 +208,7 @@ import {
   eq,
   subjectId,
   type AuthSubject,
+  portsLayer,
 } from "@qadi/core";
 
 const canRead = anyOf([hasRole("auditor"), hasResourceAttribute("owner", eq(subjectId()))]);
@@ -223,9 +221,7 @@ const staff: ReadonlyArray<AuthSubject> = [
 
 // No `currentSubjectLayer`: this environment names nobody, and that is the point.
 const reviewEnvironment = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer(),
   EvaluationIdLive,
 );
 

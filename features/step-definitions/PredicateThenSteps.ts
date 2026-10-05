@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { evaluatePredicate } from "@qadi/core";
 import type { Predicate } from "@qadi/core";
 import { agreesWith } from "./Bridge.ts";
-import { sealedRows } from "./PredicateWhenSteps.ts";
+import { levelPolicy, sealedRows } from "./PredicateWhenSteps.ts";
 import { readState, World, type WorldState } from "./SharedWorld.ts";
 
 const compiled = (s: WorldState): Predicate => {
@@ -36,6 +36,23 @@ export const predicateThenSteps = defineSteps<World>(({ Then }) => {
     assert.deepEqual(compiled(s), { _tag: "Compare", column: "tenantId", op: "Eq", value: "t-1" });
   });
 
+  Then("the predicate is true", function* () {
+    const s = yield* readState();
+    assert.deepEqual(compiled(s), { _tag: "True" });
+  });
+
+  /** A failure, as opposed to a refusal: the policy was translatable, a port was not. */
+  Then("compilation fails with an {word}", function* (tag: string) {
+    const s = yield* readState();
+    assert.equal(s.predicate, undefined, "a predicate was produced");
+    assert.equal(s.refusedTag, tag);
+  });
+
+  Then("the attribute service was never asked", function* () {
+    const s = yield* readState();
+    assert.equal(s.attributeCalls, 0);
+  });
+
   Then("the predicate is false", function* () {
     const s = yield* readState();
     assert.deepEqual(compiled(s), { _tag: "False" });
@@ -53,6 +70,17 @@ export const predicateThenSteps = defineSteps<World>(({ Then }) => {
     assert.equal(s.predicate, undefined, "a predicate was produced");
     assert.equal(s.refusedTag, tag);
   });
+
+  Then(
+    "the {string} level policy and its predicate both refuse a level of {string}",
+    function* (name: string, level: string) {
+      const s = yield* readState();
+      const row = { level: Number(level) };
+      assert.equal(evaluatePredicate(compiled(s), row), false, "the filter admitted the row");
+      // Agreement with a filter that refused means the evaluator refused too.
+      assert.ok(yield* agreesWith(levelPolicy(name), [row]), "the evaluator allowed the row");
+    },
+  );
 
   Then("the predicate and the evaluator agree on every row", function* () {
     // INV-QD-018 as a scenario. Two interpreters over one tree, compared rather

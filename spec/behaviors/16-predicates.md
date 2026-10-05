@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-16                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-09-08                                     |
+> | Revision       | 1.6                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
+> | Change History | 1.6 (2026-10-05): BEH-QD-122 — a `Compare`/`MemberOf` leaf is `Compare.ts`'s verdict, the function `judgeMatcher` applies (ADR-QD-091, CCR-QD-173); BEH-QD-127 — the generated rows include non-finite values, where `toPredicate` failed open until CCR-QD-172<br>1.5 (2026-10-04): BEH-QD-121/122 cross-reference BEH-QD-271 — core still emits no dialect, but now says what is renderable (`toRenderable`) (ADR-QD-079, CCR-QD-158)<br>1.4 (2026-10-04): BEH-QD-266 — an over-deep policy is `PolicyTooDeep` before the fields refusal whatever the child order, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-10-04): BEH-QD-123 — a failing port fails the translation with its own typed error; BEH-QD-264/265/266 — a defecting port fails typed, translation stops where the evaluator stops, a refusal depends on the tree alone; BEH-QD-127 — points at INV-QD-058 for faulty ports (CCR-QD-153, ADR-QD-077)<br>1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
 
 _Previous: [15 — Rule Tables](./15-rules.md)_
 
@@ -73,6 +73,25 @@ intended semantics, over their own rows, in their own suite.
 It is also what makes [BEH-QD-127](#beh-qd-127-the-two-interpreters-agree)
 obtainable at all.
 
+```
+REQUIREMENT: A `Compare` or `MemberOf` leaf MUST evaluate as `Compare.ts`'s
+             verdict for the row's cell — the same function `judgeMatcher`
+             applies to a resolved value — and hold exactly when that verdict
+             is `Held` (BEH-QD-305, INV-QD-091). In particular `Gte`/`Lt` hold
+             only when both the cell and the bound are finite numbers, and
+             `MemberOf` never holds for an absent cell.
+```
+
+Until CCR-QD-172 `evaluatePredicate` kept its own copy of the comparison rules,
+and that copy checked only the bound for finiteness: `gte(3)` admitted an
+`Infinity` row and `lt(3)` a `-Infinity` row that `evaluate` denied.
+
+Core still owns no dialect — [BEH-QD-121](#beh-qd-121-a-predicate-is-abstract-and-qadi-owns-no-dialect)
+stands — but it now says what a renderer may render: `toRenderable`
+([BEH-QD-271](31-predicate-compilation.md#beh-qd-271-a-predicate-is-classified-once-in-core-into-a-renderable-tree))
+classifies a `Predicate` once into a closed tree of already-validated nodes, so a
+dialect package prints syntax and decides nothing about NULLs, numbers or safety.
+
 ## BEH-QD-123: Untranslatable fails; nothing is approximated
 
 ```ts
@@ -117,7 +136,8 @@ and two resource paths compared is `column op column`, which `Predicate` cannot
 express.
 
 ```
-REQUIREMENT: A failure MUST fail the translation rather than fold to `False`
+REQUIREMENT: A port failure MUST fail the translation **with that port's own
+             typed error** rather than fold to `False`
              ([INV-QD-006](../invariants.md#inv-qd-006-failure-is-not-denial)),
              and a policy reading an absent action MUST fail
              ([INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one)).
@@ -127,6 +147,140 @@ The subject-side fold is the reason the subset splits where it does: a
 subject-keyed lookup costs **one call per translation**, and a row-keyed one costs
 one per row — precisely the O(n) a predicate exists to avoid. The history port
 splits on `scope` for exactly that reason.
+
+## BEH-QD-264: A defecting port fails translation typed, not dead
+
+> **See:** [BEH-QD-261](./05-evaluator.md), [ADR-QD-077](../decisions/077-both-interpreters-read-ports-through-one-module.md)
+
+```
+REQUIREMENT: A port that dies — throws out of its own Effect construction, or
+             `Effect.die`s — during `toPredicate` MUST surface as that port's own
+             typed error (`AttributeResolveError` for `AttributeResolver.resolve`,
+             `DecisionHistoryUnavailable` for `DecisionHistory.hasActed`), exactly
+             as it does through `evaluate`.
+```
+
+A defect bypasses `Effect.retry` and `Effect.catchTag`, which only ever see the
+typed error channel, so a caller who retried a flaky store around `evaluate` had
+that guarantee and a caller who retried it around `toPredicate` did not. The
+conversion lives in `PortAccess.ts`, which both interpreters read their ports
+through, so it holds for every port read core makes.
+
+```
+REQUIREMENT: A port's own typed failure MUST pass through as the same value, and
+             an interruption MUST NOT be converted into a retryable error.
+```
+
+Converting an interruption would let a caller's `Effect.retry` retry work that was
+deliberately cancelled.
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import {
+  AttributeResolver,
+  currentSubjectLayer,
+  hasAttribute,
+  lt,
+  makeSubject,
+  toPredicate,
+  portsLayer,
+} from "@qadi/core";
+
+// An adapter that throws instead of failing — the shape issue #100 is about.
+const dying = Layer.succeed(AttributeResolver, {
+  resolve: () => Effect.die(new Error("the store crashed")),
+});
+
+const services = Layer.mergeAll(
+  portsLayer({ AttributeResolver: dying }),
+  currentSubjectLayer(makeSubject({ id: "u-1", roles: [], attributes: {} })),
+);
+
+// The defect arrives as the port's own typed error, so `catchTag` sees it — and
+// so would `Effect.retry`.
+const outcome = toPredicate(hasAttribute("riskScore", lt(50))).pipe(
+  Effect.catchTag("AttributeResolveError", (e) =>
+    Effect.succeed(`could not read '${e.attribute}'`),
+  ),
+  Effect.provide(services),
+);
+```
+
+## BEH-QD-265: Translation asks no port a constant has already decided
+
+> **See:** [BEH-QD-034](./05-evaluator.md), [INV-QD-005](../invariants.md#inv-qd-005-short-circuit-preservation), [INV-QD-017](../invariants.md), [ADR-QD-013](../decisions/013-short-circuit-default.md)
+
+```
+REQUIREMENT: A composite MUST stop asking its children at the first child that
+             translates to a *constant* settling it under the evaluator's own rule:
+             a `False` for `allOf`; a `True` for an `anyOf` that may stop at an
+             allow (`fieldStrategy: "First"`); and for a rule table the condition
+             that is `True` with the effect nothing later can beat — any applying
+             rule under `FirstApplicable`, a `Deny` under `DenyOverrides`, a
+             `Permit` under `PermitOverrides`.
+```
+
+Translation asks no port the evaluator would not, and fails on no port the
+evaluator would not reach. An `anyOf` under `Union` or `Intersection` must see
+every child, as it does in the evaluator, so it does not stop.
+
+```
+REQUIREMENT: Pruning MUST NOT change a successful predicate.
+```
+
+A pruned `allOf` child could only have been `and`-ed with a `False`; a pruned
+`anyOf` child could only have been `or`-ed with a `True`; a pruned rule-table
+suffix contributes only `False` terms under `FirstApplicable`, cannot undo a
+`True` permit under `PermitOverrides`, and cannot undo `Negate(Or(denies)) =
+False` under `DenyOverrides`. Pruning removes port calls and failures the
+evaluator would also never reach, and nothing else. The rule for each composite
+lives in `ShortCircuit.ts`, read by both interpreters.
+
+## BEH-QD-266: A refusal depends on the tree alone
+
+```
+REQUIREMENT: `PolicyNotTranslatable` and `PolicyTooDeep` MUST depend on the policy
+             tree alone — not on the subject, the action, or any port's answer —
+             and a refusal anywhere in the tree MUST win over a port failure
+             elsewhere in it.
+```
+
+A policy that refuses for one caller refuses for all of them. Otherwise
+`anyOf([hasRole("editor"), hasRelationship("owner")])` would translate for editors
+and refuse for everyone else: a policy that works in development for admins and
+fails in production. The tree is planned first (every refusal is produced there,
+first one in depth-first declaration order); only then does anything run.
+
+```
+REQUIREMENT: `MissingAction` MUST be raised when the walk **reaches** a node that
+             needs an action, as the evaluator does
+             ([INV-QD-011](../invariants.md#inv-qd-011-a-policy-that-reads-the-action-cannot-be-evaluated-without-one)),
+             not statically.
+```
+
+`PolicyNotTranslatable` and `PolicyTooDeep` are properties of the tree;
+`MissingAction` and port errors are properties of the request and the stores.
+
+```
+REQUIREMENT: An over-deep policy MUST be refused with `PolicyTooDeep` before the
+             fields check, so a policy that is both too deep and
+             field-restricting is `PolicyTooDeep` whatever its child order.
+```
+
+```
+REQUIREMENT: `toPredicate` MUST NOT raise a defect for any `maxDepth` a caller
+             supplies: the refusal pass folds the tree and translation builds
+             each negation's child lazily, so neither overflows the call stack.
+```
+
+Before [ADR-QD-090](../decisions/090-a-tree-is-folded-through-one-seam.md) the
+refusal pass was an early-exit search in child order, so
+`allOf([hasRole("editor", { fields: ["a"] }), deep])` was
+`PolicyNotTranslatable` and the reversed order was `PolicyTooDeep` — which of the
+two a caller saw depended on child order. And a recursion that was only as safe as
+the caller's `maxDepth` raised a `RangeError` for `toPredicate(not^1000(…), {
+maxDepth: 1e9 })`.
 
 ## BEH-QD-124: A duty and a column restriction both refuse
 
@@ -201,7 +355,14 @@ REQUIREMENT: For every translatable policy P and row R,
 Two interpreters over one tree must agree, and nothing structural makes them.
 This is asserted by a `FastCheck` property over generated policies **and**
 generated rows — including rows missing a column, since `undefined` must read the
-same way on both sides.
+same way on both sides, and rows holding `Infinity`, `-Infinity` and `NaN`, which
+a float column can hold and which are where the two interpreters diverged until
+CCR-QD-172.
+
+Under **faulty** ports the same two interpreters must also fail only as the
+evaluator would: see
+[INV-QD-058](../invariants.md#inv-qd-058-translation-fails-only-as-evaluation-would),
+which states it and whose properties enforce it.
 
 It is the first test in the library comparing two independent implementations of
 the same semantics, and it is the only evidence that would make a second
@@ -215,8 +376,6 @@ Tenancy with an explicit deny, pushed into the query.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   allOf,
   currentSubjectLayer,
   denyWhen,
@@ -234,6 +393,7 @@ import {
   type Predicate,
   type PolicyNotTranslatable,
   type EvaluationError,
+  portsLayer,
 } from "@qadi/core";
 
 // Tenancy, then the rule table on top of it. Nothing here mentions a query.
@@ -252,11 +412,10 @@ const visible = allOf([
 // No `EvaluationId`: no decision is produced. No `RelationshipResolver` either —
 // a relationship cannot fold, so a policy needing one never reaches here.
 const services = Layer.mergeAll(
+  portsLayer(),
   currentSubjectLayer(
     makeSubject({ id: "u-1", roles: ["auditor"], attributes: { tenantId: "t-1" } }),
   ),
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
 );
 
 // The auditor row folds to `True`, so the whole table reduces to "not sealed".

@@ -15,20 +15,29 @@ import { join, relative } from "node:path";
 
 export const COMPILED_EXTENSIONS = { typescript: "ts", tsx: "tsx" };
 
+/**
+ * The compiled fences in a Markdown source: each one's extension, its text, and
+ * the 1-based line of the source its first line sits on (so a checker reading
+ * the text can report `file:line`).
+ */
 export const extractCodeFences = (source) => {
   const blocks = [];
   const lines = source.split("\n");
   let current = null;
 
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     const fence = /^[ \t]*```(\w*)/.exec(line);
     if (fence !== null) {
       if (current === null) {
         const ext = COMPILED_EXTENSIONS[fence[1]];
-        current = ext === undefined ? undefined : { ext, lines: [] };
+        current = ext === undefined ? undefined : { ext, lines: [], startLine: index + 2 };
       } else {
         if (current !== undefined) {
-          blocks.push({ ext: current.ext, source: current.lines.join("\n") });
+          blocks.push({
+            ext: current.ext,
+            source: current.lines.join("\n"),
+            startLine: current.startLine,
+          });
         }
         current = null;
       }

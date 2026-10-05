@@ -18,4 +18,5 @@ model Row {
   level     Int?
   tag       String?
   sealed    Boolean
+  score     Float?
 }

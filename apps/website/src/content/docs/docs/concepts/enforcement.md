@@ -106,7 +106,8 @@ lets you answer "which branch actually refused?" without re-running the
 evaluation through `decide` just to get visibility back. That's also the
 disclosure line to keep in mind: a trace names every node's tag and reasoning,
 so it belongs in a log or a thrown error, never in a response body —
-`@qadi/http`'s `toResponse` returns an empty body for every enforcement error
+`@qadi/http`'s `toResponse` returns an empty body for every enforcement error, and
+`RequirePermission` projects a denial down to `subjectId`, `policyTag` and `reason`,
 for exactly this reason.
 
 ```ts

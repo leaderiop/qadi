@@ -41,9 +41,9 @@ import {
   decide,
   Decided,
   DecisionRecord,
+  encodeSinkRecord,
   EvaluationIdLive,
   isAllowed,
-  toWire,
 } from "@qadi/core";
 import { canReadArticle } from "../../../../src/domain/policies.ts";
 import { articleById } from "../../../../src/domain/articles.ts";
@@ -112,14 +112,21 @@ export const GET = async (request: Request): Promise<Response> => {
     verdict: isAllowed(decision) ? "Allow" : "Deny",
     // Forwarded before this returned, which is the property the topology needs.
     forwardFailures: failures,
-    wire: toWire(
-      new DecisionRecord({
-        evaluationId: decision.evaluationId,
-        at: now,
-        subjectId: decision.subjectId,
-        policy: canReadArticle,
-        outcome: new Decided({ decision }),
-      }),
+    // The one wire every sink emits, or the reason this record has none.
+    ...Result.match(
+      encodeSinkRecord(
+        new DecisionRecord({
+          evaluationId: decision.evaluationId,
+          at: now,
+          subjectId: decision.subjectId,
+          policy: canReadArticle,
+          outcome: new Decided({ decision }),
+        }),
+      ),
+      {
+        onSuccess: (wire) => ({ wire }),
+        onFailure: (refused) => ({ wireRefused: refused.refusal._tag }),
+      },
     ),
   });
 };

@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import type {
@@ -12,8 +12,6 @@ import type {
   SinkRecord,
 } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
-import { DEFAULT_RING_CAPACITY, decisionSinkRing } from "../src/DecisionSinkRing.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { obligation } from "../src/Obligation.ts";
 import { decide, enforce } from "../src/Qadi.ts";
@@ -22,6 +20,8 @@ import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 const read = permission("doc", "read");
 
@@ -50,10 +50,7 @@ const collecting = (): {
 };
 
 /** An attribute store that is broken, so evaluation raises instead of deciding. */
-const brokenAttributes = Layer.succeed(AttributeResolver, {
-  resolve: (_subjectId, attribute) =>
-    Effect.fail(new AttributeResolveError({ attribute, cause: "store offline" })),
-});
+const brokenAttributes = scriptedPort(attributeResolverPort, () => PortReply.fail("store offline")).layer;
 
 const allowed = subjectWith({ permissions: ["doc:read"] });
 
@@ -161,7 +158,7 @@ describe("DecisionSink — failures are observable", () => {
       // And the caller still sees the error, untouched.
       assert.isTrue(result._tag === "Failure");
     }).pipe(
-      Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes })),
+      Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes })),
     ));
 
   const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
@@ -176,7 +173,7 @@ describe("DecisionSink — failures are observable", () => {
         Effect.result(evaluate(P.hasAttribute("clearance", M.gte(3))))
           .pipe(
             Effect.provide(
-              testLayer(subjectWith({}), { attributes: brokenAttributes }),
+              testLayer(subjectWith({}), { AttributeResolver: brokenAttributes }),
             ),
           )
           .pipe(Effect.flatMap(() => Metric.snapshot)),
@@ -290,7 +287,7 @@ describe("DecisionSink — record ordering", () => {
         yield* isolatedMetrics(
           Effect.result(
             evaluate(P.hasAttribute("clearance", M.gte(3))).pipe(Effect.provide(sink)),
-          ).pipe(Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes }))),
+          ).pipe(Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes }))),
         );
 
         assert.deepStrictEqual(countsAtRecordTime, [1]);
@@ -402,7 +399,7 @@ describe("DecisionSink — a sink cannot change a decision", () => {
         assert.include(JSON.stringify(result.failure), "AttributeResolveError");
       }
     }).pipe(
-      Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes })),
+      Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes })),
     ));
 
   it.effect("no sink provided changes nothing and records nothing", () =>
@@ -456,132 +453,6 @@ describe("EvaluateOptions.evaluationId", () => {
       const third = yield* evaluate(P.hasPermission(read));
 
       assert.strictEqual(third.evaluationId, "eval-3");
-    }).pipe(Effect.provide(testLayer(allowed))));
-});
-
-describe("decisionSinkRing", () => {
-  it.effect("stores records and stamps the environment", () =>
-    Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
-
-      yield* evaluate(P.hasPermission(read)).pipe(Effect.provide(ring.layer));
-
-      const stored = yield* ring.snapshot;
-      assert.strictEqual(stored.length, 1);
-      const first = stored[0];
-      assert.strictEqual(first?.environment, "Server");
-      // Narrowed on `_tag` — a stored record is now a decision OR an obligation
-      // event, and a reader must say which it expects.
-      assert.strictEqual(first?._tag, "Decision");
-      if (first?._tag === "Decision") assert.strictEqual(first.outcome._tag, "Decided");
-    }).pipe(Effect.provide(testLayer(allowed))));
-
-  it.effect("drops the oldest once capacity is reached", () =>
-    Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Client", capacity: 2 });
-
-      yield* evaluate(P.hasPermission(read), { evaluationId: "a" }).pipe(
-        Effect.provide(ring.layer),
-      );
-      yield* evaluate(P.hasPermission(read), { evaluationId: "b" }).pipe(
-        Effect.provide(ring.layer),
-      );
-      yield* evaluate(P.hasPermission(read), { evaluationId: "c" }).pipe(
-        Effect.provide(ring.layer),
-      );
-
-      const stored = yield* ring.snapshot;
-      assert.deepStrictEqual(
-        stored.map((r) => r.evaluationId),
-        ["b", "c"],
-      );
-    }).pipe(Effect.provide(testLayer(allowed))));
-
-  it.effect("holds exactly `capacity` records, not one more", () =>
-    Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server", capacity: 1 });
-
-      yield* evaluate(P.hasPermission(read), { evaluationId: "a" }).pipe(
-        Effect.provide(ring.layer),
-      );
-      yield* evaluate(P.hasPermission(read), { evaluationId: "b" }).pipe(
-        Effect.provide(ring.layer),
-      );
-
-      const stored = yield* ring.snapshot;
-      assert.strictEqual(stored.length, 1);
-      assert.strictEqual(stored[0]?.evaluationId, "b");
-    }).pipe(Effect.provide(testLayer(allowed))));
-
-  it.effect("capacity 0 stores nothing but still evaluates", () =>
-    Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server", capacity: 0 });
-
-      const d = yield* evaluate(P.hasPermission(read)).pipe(Effect.provide(ring.layer));
-
-      assert.isTrue(isAllowed(d));
-      assert.deepStrictEqual(yield* ring.snapshot, []);
-    }).pipe(Effect.provide(testLayer(allowed))));
-
-  it.effect("clear empties the log", () =>
-    Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
-
-      yield* evaluate(P.hasPermission(read)).pipe(Effect.provide(ring.layer));
-      yield* ring.clear;
-
-      assert.deepStrictEqual(yield* ring.snapshot, []);
-    }).pipe(Effect.provide(testLayer(allowed))));
-
-  it.effect("records failures as well as decisions", () =>
-    Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
-
-      yield* Effect.result(
-        evaluate(P.hasAttribute("clearance", M.gte(3))).pipe(Effect.provide(ring.layer)),
-      );
-
-      const stored = yield* ring.snapshot;
-      const first = stored[0];
-      assert.strictEqual(first?._tag, "Decision");
-      if (first?._tag === "Decision") assert.strictEqual(first.outcome._tag, "Failed");
-    }).pipe(
-      Effect.provide(testLayer(subjectWith({}), { attributes: brokenAttributes })),
-    ));
-
-  it("defaults to a bounded capacity, unlike the cache", () => {
-    // Bounded by default because a record log is long-lived by nature, where a
-    // cache is normally scoped to one request. Checking only that the default
-    // is a positive, bounded number rather than pinning its exact value keeps
-    // this a behavior test rather than a change-detector on a tuning constant.
-    assert.isAbove(DEFAULT_RING_CAPACITY, 0);
-  });
-
-  it("rejects a capacity that is not a non-negative integer", () => {
-    assert.throws(
-      () => decisionSinkRing({ environment: "Server", capacity: -1 }),
-      /non-negative integer/,
-    );
-    assert.throws(
-      () => decisionSinkRing({ environment: "Server", capacity: 1.5 }),
-      /non-negative integer/,
-    );
-    assert.throws(
-      () => decisionSinkRing({ environment: "Server", capacity: Number.NaN }),
-      /non-negative integer/,
-    );
-  });
-
-  it.effect("a snapshot is a copy, not a live view", () =>
-    Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
-
-      yield* evaluate(P.hasPermission(read)).pipe(Effect.provide(ring.layer));
-      const before = yield* ring.snapshot;
-      yield* evaluate(P.hasPermission(read)).pipe(Effect.provide(ring.layer));
-
-      assert.strictEqual(before.length, 1);
-      assert.strictEqual((yield* ring.snapshot).length, 2);
     }).pipe(Effect.provide(testLayer(allowed))));
 });
 

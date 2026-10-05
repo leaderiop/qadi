@@ -7,13 +7,12 @@
  * could not be asserted on at all.
  */
 import * as Data from "effect/Data";
-import * as Match from "effect/Match";
-import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
-import type { Containment } from "./FieldPath.ts";
-import { compareShapes, project as projectPaths, shapeOf } from "./FieldPath.ts";
+import type { VisibleFields } from "./FieldLattice.ts";
+import { project as projectPaths } from "./FieldPath.ts";
 import type { SubjectId } from "./Identity.ts";
 import { Obligation } from "./Obligation.ts";
+import { POLICY_TAGS } from "./Policy.ts";
 import type { Policy } from "./Policy.ts";
 import type { Resource } from "./Resource.ts";
 
@@ -52,53 +51,19 @@ export interface Trace {
 }
 
 /**
- * Every tag a `Trace` node can carry — the policy union's tags.
- *
- * Written out as a `Record<Policy["_tag"], true>` rather than an array
- * literal: a schema needs the literals at construction, and `Policy` is a
- * union of structs rather than a list of tags, so this still repeats the
- * ADT's tags by hand. What changed is which direction is checked. A bare
- * `as const satisfies ReadonlyArray<Policy["_tag"]>` on an array only checks
- * that every *listed* string is a valid tag — a subset check — never that
- * every tag in the union is listed, so a new `Policy` variant added without
- * a matching entry here compiled cleanly and silently rejected (on encode)
- * any Decision whose trace carried it. `Record<Policy["_tag"], true>` forces
- * the reverse: TypeScript requires every key of the type to be present in the
- * object literal (TS2741 otherwise), so a missing tag is a compile error here
- * instead of a `TraceSchema` encode failure the first time a Decision using
- * the new tag reaches it.
- */
-const TRACE_TAGS_BY_TAG: Record<Policy["_tag"], true> = {
-  HasPermission: true,
-  HasRole: true,
-  HasAttribute: true,
-  HasResourceAttribute: true,
-  HasRelationship: true,
-  HasAction: true,
-  HasActed: true,
-  HasNotActed: true,
-  HasCustom: true,
-  HasSignature: true,
-  AllOf: true,
-  AnyOf: true,
-  Rules: true,
-  Not: true,
-  Obliged: true,
-  Labeled: true,
-};
-
-/** `TRACE_TAGS_BY_TAG`'s keys, in the array form `Schema.Literals` takes. */
-const TRACE_TAGS: ReadonlyArray<Policy["_tag"]> = Record.keys(TRACE_TAGS_BY_TAG);
-
-/**
  * A `Trace` on the wire. Recursive through `children`, like the policy codec.
+ *
+ * `policyTag` takes its literals from `POLICY_TAGS`, which `Policy.ts` derives
+ * from the schema union itself, so a new `Policy` tag is accepted here with no
+ * edit — the exhaustiveness a hand-written exhaustive tag record used
+ * to buy by compile error is now structural (ARCH-02 C5).
  *
  * Lives beside `Trace` itself rather than beside whichever boundary first
  * needed it: `SinkCodec.ts`'s wire form of a `Decision`, `@qadi/react`'s
  * `Hydration.ts` (a `Trace` crosses a trust boundary there too), and now
  * `Errors.ts`'s `AccessDenied` (ADR-QD-072) all import this one definition
  * rather than each describing `Trace`'s shape again — duplicating
- * `TRACE_TAGS`/this recursion in a second file is exactly the drift
+ * the tag list or this recursion in a second file is exactly the drift
  * ADR-QD-002's reasoning warns about. Originally defined in `SinkCodec.ts`;
  * moved here so `Errors.ts` can reach it too without a
  * `Errors.ts` → `SinkCodec.ts` → `Errors.ts` cycle (`SinkCodec.ts` already
@@ -107,7 +72,7 @@ const TRACE_TAGS: ReadonlyArray<Policy["_tag"]> = Record.keys(TRACE_TAGS_BY_TAG)
 export const TraceSchema: Schema.Codec<Trace> = Schema.suspend(
   (): Schema.Codec<Trace> =>
     Schema.Struct({
-      policyTag: Schema.Literals(TRACE_TAGS),
+      policyTag: Schema.Literals(POLICY_TAGS),
       label: Schema.optional(Schema.String),
       allowed: Schema.Boolean,
       reason: Schema.optional(Schema.String),
@@ -186,8 +151,21 @@ const isFieldOf = <A extends Resource>(
 export const project = <A extends Resource>(
   decision: Decision,
   data: A,
+): Partial<A> => (isAllowed(decision) ? projectVisible(decision.visibleFields, data) : {});
+
+/**
+ * Projects a record down to a visible-field set, with no decision in hand.
+ *
+ * The body of {@link project} after its verdict check, factored out so a
+ * consumer holding a field set but not a core `Allow` — `@qadi/react`'s seeded
+ * allow, which is a projection of the server's decision and not one — projects
+ * through the same code rather than a copy of it ([BEH-QD-051](../../../spec/behaviors/07-enforcement.md)).
+ * See {@link project} for what the result's type does and does not promise.
+ */
+export const projectVisible = <A extends Resource>(
+  visibleFields: VisibleFields,
+  data: A,
 ): Partial<A> => {
-  if (!isAllowed(decision)) return {};
   // A shallow copy, not `return data` — the restricted branch below always
   // builds a fresh `out` object, and returning the caller's own reference
   // here would let a caller who mutates the unrestricted result silently
@@ -195,9 +173,9 @@ export const project = <A extends Resource>(
   // disagree on. `BEH-QD-051`'s requirement ("MUST project to the whole
   // record") is unaffected either way — it says nothing about aliasing — so
   // this is an implementation fix, not a documented-behavior change.
-  if (decision.visibleFields === undefined) return { ...data };
+  if (visibleFields === undefined) return { ...data };
 
-  const projected = projectPaths(data, decision.visibleFields);
+  const projected = projectPaths(data, visibleFields);
 
   // Not a write through `out[field] = …` — TS permits reading a
   // generic-indexed type but not writing through one (TS2862) — but also not
@@ -223,156 +201,12 @@ export const project = <A extends Resource>(
 };
 
 // ---------------------------------------------------------------------------
-// Field visibility lattice
+// Field visibility lattice — lives in `FieldLattice.ts` (ARCH-12, ADR-QD-092),
+// re-exported here so `@qadi/core` and `@qadi/core/Decision` keep resolving.
 // ---------------------------------------------------------------------------
 
-/**
- * A visible-field set, or the absence of one — and the absence is not
- * "nothing visible." `undefined` is this lattice's **top**: an allow that
- * names no restriction shows every field, the same way an `AllOf` with no
- * `fields` narrowing anywhere in it grants the whole record. `[]` (an empty,
- * *present* array) is a different, ordinary value — a restriction to zero
- * fields — and the two must never be confused for one another.
- *
- * Named rather than left as an inline `ReadonlyArray<string> | undefined` at
- * every one of its call sites (D8, issue #107): the invariant lived only in
- * comments repeated at each declaration, which is exactly the kind of fact a
- * reader skips past and a future edit can drift from silently, since nothing
- * checks that a comment stays attached to its field. A named alias puts the
- * same sentence in exactly one place and lets every signature below carry it
- * by reference — `intersectFields`/`unionFields`'s own bodies are the two
- * functions this invariant is load-bearing for, and both are typed against
- * this alias rather than restating the union.
- *
- * Deliberately **not** a branded type. Branding would force every caller
- * constructing or narrowing a visible-field set — `Policy.ts`'s per-node
- * `fields?` builders, `Qadi.ts`'s `project`, every fixture across this
- * workspace's tests — through an explicit `Brand.nominal`/unwrap step for a
- * union that is otherwise completely ordinary `ReadonlyArray<string> |
- * undefined` data, for no soundness gained: nothing here needs to forbid an
- * *arbitrary* array of strings from being treated as a visible-field set the
- * way, say, `SubjectId` forbids an arbitrary string from being treated as an
- * identity. The alias is scoped to `Decision.ts`'s own lattice functions and
- * the two record types whose fields flow through them (`Trace.visibleFields`,
- * `Allow.visibleFields`) — the same "field-visibility merge logic" this item
- * was scoped to — rather than swept through `Policy.ts`'s builder options,
- * `Explanation.ts`, `TraceDiff.ts`, `@qadi/react`'s `Hydration.ts` and
- * `@qadi/devtools`'s `Inspect.ts`, which describe the identical shape for a
- * related but distinct purpose (a policy-authoring input, an explanation
- * rendering, a diff, a wire payload, a devtools projection) in five other
- * files; widening the alias's reach that far is a larger, cross-package
- * rename this "softest item" of the sweep was explicitly scoped to avoid
- * forcing.
- */
-export type VisibleFields = ReadonlyArray<string> | undefined;
-
-/**
- * Which side a `Containment` result keeps, or neither.
- *
- * Built once at module scope rather than per pair: `intersectFields`'s loop
- * below runs this up to `|a|·|b|` times for a single node, and every one of
- * those pairs used to rebuild `Match.value(cmp)` — arms and all — from
- * scratch (AGENTS.md §5a favors a hoisted `Match.type` on exactly this kind
- * of per-node-or-hotter dispatch). `Match.exhaustive` still makes a future
- * `Containment` member a compile error here, same as before.
- */
-type ContainmentKeep = "A" | "B" | undefined;
-const CONTAINMENT_KEEP: (self: Containment) => ContainmentKeep = Match.type<
-  Containment
->().pipe(
-  Match.whenOr("Equal", "BLessA", () => "B" as const),
-  Match.when("ALessB", () => "A" as const),
-  Match.when("Incomparable", () => undefined),
-  Match.exhaustive,
-);
-
-/**
- * Intersects two visible-field sets.
- *
- * `undefined` means "all fields" — the top of the lattice — so intersecting it
- * with any set yields that set.
- *
- * Pairwise via `compareFieldPaths` rather than an exact-string-set filter: a
- * field spec may be a dot-path with a `*`/`**` wildcard, and `"address.**"`
- * must intersect with `"address.street"` to `"address.street"`, not to `[]`
- * — an exact-string filter would silently deny something a caller's own
- * narrower spec already grants. Every pair with no subsumption relationship
- * contributes nothing (`Incomparable`), which is the conservative, fails-
- * closed direction.
- *
- * `shapeOf` runs once per spec, not once per pair. The comparison itself is
- * O(|a|·|b|), and `compareFieldPaths` computes both operands' `shapeOf` —
- * `split(".")` plus two array allocations — on every call; over the same
- * array pairwise-compared |b| (or |a|) times, that recomputed an identical
- * shape from scratch every time. `compareShapes` takes the already-computed
- * shape instead, so each spec's `shapeOf` is paid for exactly once here,
- * however many pairs it is compared across.
- *
- * The result is sorted before returning: `kept`'s insertion order otherwise
- * depends on which operand happens to be walked as the outer loop, so
- * `intersectFields([a,b],[c])` and `intersectFields([c],[a,b])` were equal as
- * sets but could differ as arrays — and that array becomes
- * `Allow.visibleFields`, which flows into `DecisionRecord` and the audit sink
- * wire path. A canonical order makes byte-equality of the wire form track
- * semantic equality of the field set, which `TraceDiff.sameFields` already
- * has to work around by sorting before comparing.
- */
-export const intersectFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
-  if (a === undefined) return b;
-  if (b === undefined) return a;
-  // Paired with its own shape rather than parallel arrays walked by index:
-  // `noUncheckedIndexedAccess` would otherwise type every lookup as possibly
-  // `undefined`, for an invariant (same length, same order) a pairing already
-  // guarantees outright.
-  const shapedA = a.map((spec) => ({ spec, shape: shapeOf(spec) }));
-  const shapedB = b.map((spec) => ({ spec, shape: shapeOf(spec) }));
-  const kept: Array<string> = [];
-  for (const specA of shapedA) {
-    for (const specB of shapedB) {
-      const cmp = compareShapes(specA.shape, specB.shape);
-      // Hoisted to a module-scope table (`CONTAINMENT_KEEP`, AGENTS.md §5a:
-      // `Match.type` builds its matcher once; `Match.value` rebuilds it per
-      // call, which this O(|a|·|b|) loop calls up to |a|·|b| times per node).
-      // `Incomparable` contributes nothing — the conservative, fails-closed
-      // direction the doc comment above describes.
-      const keep = CONTAINMENT_KEEP(cmp);
-      if (keep === "B") kept.push(specB.spec);
-      else if (keep === "A") kept.push(specA.spec);
-    }
-  }
-  return [...new Set(kept)].sort();
-};
-
-/**
- * Unions two visible-field sets, preserving "all fields" as absorbing.
- *
- * No path-aware algorithm change needed here, unlike `intersectFields`:
- * applying every spec in both sides and unioning the results is correct
- * regardless of overlap — a redundant, subsumed entry (e.g. `"address.street"`
- * alongside `"address.**"`) projects identically to omitting it, so exact-set
- * union stays correct even though the strings themselves may now be paths.
- *
- * `mergeFields`'s own `Union` arm (`Evaluate.ts`) no longer folds through this
- * pairwise — it accumulates every child's set into one `Set` in a single pass,
- * which is why a repo-wide grep finds no production caller left for this
- * export. It stays exported anyway, as `intersectFields`'s two-operand
- * counterpart on the public surface (`spec/overview.md`): a caller merging
- * exactly two field sets outside the evaluator — composing two independently
- * computed decisions' visibility, say — reaches for the same combinator
- * `intersectFields` already models, not a hand-rolled `Set` union. Deleting it
- * would be a breaking change to a documented export for a combinator that is
- * still correct and still cheap at this arity; the pattern this doc comment
- * used to warn readers about was folding it pairwise across N sets, which
- * nothing in this codebase does any more.
- *
- * Sorted before returning, for the reason `intersectFields` is: insertion
- * order would otherwise depend on which operand is walked first, and that
- * order reaches `Allow.visibleFields` on the wire.
- */
-export const unionFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
-  if (a === undefined || b === undefined) return undefined;
-  return [...new Set([...a, ...b])].sort();
-};
+export { intersectFields, mergeFields, unionFields } from "./FieldLattice.ts";
+export type { VisibleFields } from "./FieldLattice.ts";
 
 // ---------------------------------------------------------------------------
 // Rendering

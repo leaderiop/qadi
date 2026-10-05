@@ -8,28 +8,26 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import {
   allOf,
   anyOf,
-  AttributeResolveError,
-  AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  decisionSinkRing,
-  DecisionHistoryUnknown,
+  makeDecisionLog,
   eq,
   gte,
   hasAttribute,
   hasPermission,
   hasRelationship,
   hasRole,
+  labeled,
   literal,
   obligation,
   obliged,
   permission,
-  RelationshipResolverNever,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
+  portsLayer,
 } from "@qadi/core";
 import type { DecisionOutcome } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
@@ -44,6 +42,7 @@ import {
   whatIf,
 } from "../../src/index.ts";
 import type { Comparison, SimulationEdit, SimulationInput, WhatIfRow } from "../../src/index.ts";
+import { chain } from "../helpers.ts";
 
 const read = permission("doc", "read");
 
@@ -66,17 +65,9 @@ const compared = (self: Comparison) => {
 };
 
 /** Ports whose attribute resolver is down, for the rows that must be errors rather than denials. */
-const brokenPorts = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, {
-    name: "broken",
-    resolve: (_subjectId: string, attribute: string) =>
-      Effect.fail(new AttributeResolveError({ attribute, cause: "the store is down" })),
-  }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const brokenPorts = portsLayer({
+  AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("the store is down"), "broken").layer,
+});
 
 describe("compareOutcomes", () => {
   const decided = (outcome: DecisionOutcome) => outcome;
@@ -340,6 +331,15 @@ describe("sweepPlan — what a sweep would cost, before it costs it", () => {
     assert.strictEqual(plan.evaluations, 3);
   });
 
+  it("plans a sweep over a 100k-deep caller-held policy without overflowing (ARCH-02 C7)", () => {
+    // The public entry point the simulator uses. The remedy derivation behind it
+    // recursed natively and crashed at about 2,000 levels; `sweepPlan` has no
+    // `maxDepth` to consult, so the derivation itself has to be stack-safe.
+    const policy = chain((p) => labeled("l", p), 100_000, hasRole("admin"));
+    const plan = sweepPlan(policy, alice);
+    assert.isTrue(plan.edits.some((edit) => edit.label === "with role admin"));
+  }, 60_000);
+
   // E3.2, closed here rather than in JOB 3: the count only exists once there is
   // a sweep to count.
   it("says whether the sweep performs I/O", () => {
@@ -399,7 +399,7 @@ describe("a sweep is sealed, forty rows at a time", () => {
    */
   it.effect("writes no record, however many rows it runs", () =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
       const wide: SimulationInput = {
         subject: {
           id: "alice",
@@ -410,11 +410,11 @@ describe("a sweep is sealed, forty rows at a time", () => {
       };
 
       const report = yield* whatIf(eitherWay, wide, { pairs: true }).pipe(
-        Effect.provide(ring.layer),
+        Effect.provide(log.layer),
       );
 
       assert.isAbove(report.rows.length, 20);
-      assert.deepStrictEqual(yield* ring.snapshot, []);
+      assert.deepStrictEqual(yield* log.snapshot, []);
     }));
 
   it.effect("decides every row from the panel's subject", () =>

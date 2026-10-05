@@ -1,10 +1,11 @@
 /**
  * One ordered timeline, folded from records that arrive however they arrive.
  *
- * The devtools reads several processes at once — a browser's own ring, a
- * server's SSE feed, an aggregator merging replicas — and none of them promises
- * order, uniqueness or completeness. `EventSource` reconnects on its own and the
- * feed may be replaying, so the same record arrives twice; a merge interleaves
+ * The devtools reads several processes at once — a browser's own decision log,
+ * a server's SSE stream, an aggregator merging replicas — and none of them
+ * promises order, uniqueness or completeness across sources. `EventSource`
+ * reconnects on its own and re-reads the server's backlog, so the same record
+ * arrives twice; a merge interleaves
  * two clocks, so records arrive out of order; and a decision's obligation
  * outcome is emitted from a different module *after* `evaluate` returned, so the
  * two halves of one story arrive separately and sometimes backwards.
@@ -20,7 +21,9 @@
  * atom graph and the components.
  */
 import * as Data from "effect/Data";
+import * as Order from "effect/Order";
 import type { DecisionRecord, ObligationRecord, StoredRecord } from "@qadi/core";
+import { DEFAULT_LOG_CAPACITY, storedRecordOrder } from "@qadi/core";
 
 /** One evaluation, as one process saw it. */
 export class TimelineDecision extends Data.TaggedClass("TimelineDecision")<{
@@ -61,14 +64,21 @@ export interface Timeline {
   readonly capacity: number;
 }
 
-/** Matches `DEFAULT_RING_CAPACITY`, so a reader is not bounded twice by two numbers. */
-export const DEFAULT_TIMELINE_CAPACITY = 500;
+/**
+ * How many entries a timeline keeps by default: the decision log's own bound.
+ *
+ * Defined as core's `DEFAULT_LOG_CAPACITY` rather than a literal kept equal to
+ * it by a comment, so a reader of a default log is not bounded twice by two
+ * numbers that drifted apart.
+ */
+export const DEFAULT_TIMELINE_CAPACITY: number = DEFAULT_LOG_CAPACITY;
 
 export const emptyTimeline = (options?: { readonly capacity?: number }): Timeline => {
   const capacity = options?.capacity ?? DEFAULT_TIMELINE_CAPACITY;
-  // Non-negative rather than positive, agreeing with `decisionSinkRing`: a
-  // zero-capacity timeline is a coherent "keep nothing", where a zero-capacity
-  // `PubSub` would be silently dead. Checked here for the reason the ring gives
+  // Non-negative rather than positive, unlike the decision log's: a
+  // zero-capacity timeline is a coherent "keep nothing" view, where a log's
+  // capacity also sizes a `PubSub` that would be silently dead at zero.
+  // Checked here for the reason the log gives
   // — a negative bound makes the drop loop's exit condition unsatisfiable and a
   // `NaN` one makes it always false, unbounding a thing asked to be bounded.
   if (!(Number.isInteger(capacity) && capacity >= 0)) {
@@ -176,6 +186,21 @@ const sameEvaluation = (
 const last = <A>(items: ReadonlyArray<A>): A | undefined => items[items.length - 1];
 
 /**
+ * True when an entry `a` must appear after one `b`, by core's `storedRecordOrder`.
+ *
+ * The comparator is shared — it is the one order a stored record is read in
+ * (INV-QD-039), so a merged backlog and this timeline cannot disagree — and this
+ * file asks only the greater-than question. A three-way answer was never read
+ * here: `insert` asks "does this existing entry belong after the newcomer", and
+ * a comparator's `-1` and `0` are the same answer to that. Two unknown (`NaN`)
+ * times are equal, so neither is after the other and the newcomer lands after
+ * its equals, in arrival order.
+ *
+ * Hoisted to module scope: `insert` runs once per ingested record.
+ */
+const isAfter = Order.isGreaterThan(storedRecordOrder);
+
+/**
  * Places one entry in an already-ordered list.
  *
  * An insertion rather than an append-and-re-sort, and the reason is that the
@@ -195,7 +220,7 @@ const insert = (
   entries: ReadonlyArray<TimelineEntry>,
   entry: TimelineEntry,
 ): ReadonlyArray<TimelineEntry> => {
-  const at = entries.findIndex((existing) => isAfter(existing.at, entry.at));
+  const at = entries.findIndex((existing) => isAfter(existing, entry));
   // Ties place the newcomer last among its equals, which is what a log reads
   // like: things that happened at the same instant appear in the order they
   // reached the reader.
@@ -205,27 +230,7 @@ const insert = (
 };
 
 /**
- * True when a record timed `a` must appear after one timed `b`.
- *
- * A predicate rather than a three-way comparator, because only one of the three
- * answers was ever read: `insert` asks "does this existing entry belong after
- * the newcomer", and a comparator's `-1` and `0` are the same answer to that
- * question. Two mutants swapping them survived the whole suite, which is how
- * the distinction was found to be dead.
- *
- * `at` comes off a `Clock` in whichever process made the decision and this
- * merges several of them, so it can be anything — including `NaN` from a
- * hand-built or hostile record. An unknown time sorts after every known one,
- * and two unknowns keep the order they arrived in.
- */
-const isAfter = (a: number, b: number): boolean => {
-  const aUnknown = Number.isNaN(a);
-  const bUnknown = Number.isNaN(b);
-  return aUnknown || bUnknown ? aUnknown && !bUnknown : a > b;
-};
-
-/**
- * Drops the oldest, exactly as `decisionSinkRing` evicts.
+ * Drops the oldest, as a decision log evicts.
  *
  * Unconditional: `slice` from a clamped offset is the whole rule, and the
  * under-capacity guard it replaces had no observable else — slicing from zero

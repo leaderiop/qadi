@@ -1,12 +1,24 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
+import * as Option from "effect/Option";
+import * as Schedule from "effect/Schedule";
+import type * as Tracer from "effect/Tracer";
 import * as FastCheck from "fast-check";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
+import type { Decision } from "../src/Decision.ts";
 import { isAllowed } from "../src/Decision.ts";
-import { DecisionHistory } from "../src/DecisionHistory.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
+import type { ActedResult } from "../src/DecisionHistory.ts";
+import { DecisionHistory, decisionHistoryPort } from "../src/DecisionHistory.ts";
+import {
+  AttributeResolveError,
+  DecisionHistoryUnavailable,
+  MissingAction,
+  PolicyNotTranslatable,
+} from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -14,7 +26,9 @@ import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import type { Predicate } from "../src/Predicate.ts";
 import { evaluatePredicate, toPredicate } from "../src/Predicate.ts";
-import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { chain, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 const tenant = subjectWith({
   id: "u-1",
@@ -33,7 +47,7 @@ const acted = Layer.succeed(DecisionHistory, {
   hasActed: (query) => Effect.succeed(query.event === "onboarded" ? "Acted" : "NotActed"),
 });
 
-const layer = testLayer(tenant, { attributes: resolving, history: acted });
+const layer = testLayer(tenant, { AttributeResolver: resolving, DecisionHistory: acted });
 
 const translate = (policy: P.Policy, options?: { readonly action?: string }) =>
   toPredicate(policy, options).pipe(Effect.provide(layer));
@@ -383,13 +397,10 @@ describe("untranslatable fails loudly and never widens", () => {
 
   it.effect("INV-QD-006: a broken lookup fails rather than folding to False", () =>
     Effect.gen(function* () {
-      const broken = Layer.succeed(AttributeResolver, {
-        resolve: (_id: string, attribute: string) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-      });
+      const broken = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
       const r = yield* Effect.result(
         toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
-          Effect.provide(testLayer(tenant, { attributes: broken })),
+          Effect.provide(testLayer(tenant, { AttributeResolver: broken })),
         ),
       );
       assert.strictEqual(r._tag, "Failure");
@@ -462,7 +473,7 @@ describe("untranslatable fails loudly and never widens", () => {
 
   it.effect("an extremely deep, hand-built tree fails with PolicyTooDeep, not a stack overflow", () =>
     Effect.gen(function* () {
-      // `restrictsFields` runs before `translateNode`'s own depth-bounded walk
+      // `restrictsFields` runs before `compile`
       // and, unlike it, is plain synchronous recursion rather than
       // Effect-trampolined — so it has to bound its own recursion before
       // reaching a depth this deep, or the call stack overflows first with a
@@ -474,6 +485,78 @@ describe("untranslatable fails loudly and never widens", () => {
       if (r._tag !== "Failure") return;
       assert.strictEqual(r.failure._tag, "PolicyTooDeep");
     }));
+});
+
+describe("toPredicate is stack-safe for any maxDepth the caller sets (ARCH-02 D-02-g)", () => {
+  const deepTranslate = (policy: P.Policy) =>
+    Effect.result(toPredicate(policy, { maxDepth: 200_000 })).pipe(Effect.provide(layer));
+
+  it.effect("a 100k-deep not chain translates without a defect", () =>
+    Effect.gen(function* () {
+      // 100,000 negations of a constant fold back to the constant, an even count
+      // leaving it unchanged: `hasRole("editor")` is `True` for this tenant.
+      const r = yield* deepTranslate(chain(P.not, 100_000, P.hasRole("editor")));
+      assert.strictEqual(r._tag, "Success");
+      if (r._tag !== "Success") return;
+      assert.deepStrictEqual(r.success, { _tag: "True" });
+      const odd = yield* deepTranslate(chain(P.not, 100_001, P.hasRole("editor")));
+      assert.deepStrictEqual(odd._tag === "Success" ? odd.success : undefined, { _tag: "False" });
+    }),
+    60_000,
+  );
+
+  it.effect("a 100k-deep labeled chain translates without a defect", () =>
+    Effect.gen(function* () {
+      const r = yield* deepTranslate(chain((p) => P.labeled("l", p), 100_000, P.hasRole("editor")));
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "True" });
+    }),
+    60_000,
+  );
+
+  it.effect("a 10k-deep chain over a column predicate nests Negate and stays intact", () =>
+    Effect.gen(function* () {
+      const column = P.hasResourceAttribute("ownerId", M.eq(M.literal("u-1")));
+      const r = yield* deepTranslate(chain(P.not, 10_000, column));
+      assert.strictEqual(r._tag, "Success");
+      if (r._tag !== "Success") return;
+      // Walked iteratively: ten thousand negations, then the comparison.
+      let depth = 0;
+      let node: Predicate = r.success;
+      while (node._tag === "Negate") {
+        depth += 1;
+        node = node.predicate;
+      }
+      assert.strictEqual(depth, 10_000);
+      assert.strictEqual(node._tag, "Compare");
+    }),
+    60_000,
+  );
+
+  it.effect("a 250k-wide allOf with one restricting leaf at the end is refused as untranslatable", () =>
+    Effect.gen(function* () {
+      const leaves: Array<P.Policy> = Array.from({ length: 250_000 }, () => P.hasRole("editor"));
+      leaves.push(P.hasRole("editor", { fields: ["a"] }));
+      const r = yield* Effect.result(translate(P.allOf(leaves)));
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure._tag, "PolicyNotTranslatable");
+    }),
+    60_000,
+  );
+
+  it.effect("a policy both too deep and field-restricting is PolicyTooDeep in either order", () =>
+    Effect.gen(function* () {
+      const restricting = P.hasRole("editor", { fields: ["a"] });
+      const deep = chain(P.not, 5, P.hasRole("x"));
+      for (const policy of [P.allOf([restricting, deep]), P.allOf([deep, restricting])]) {
+        const r = yield* Effect.result(toPredicate(policy, { maxDepth: 2 })).pipe(
+          Effect.provide(layer),
+        );
+        assert.strictEqual(r._tag === "Failure" ? r.failure._tag : r._tag, "PolicyTooDeep");
+      }
+    }),
+    60_000,
+  );
 });
 
 describe("restrictsFields protects every tag, not just HasPermission and Not", () => {
@@ -722,6 +805,19 @@ describe("a rule table becomes a set-based formula", () => {
       });
     }));
 
+  it.effect("an unknown combining translates as DenyOverrides, as the evaluator decides (C9)", () =>
+    Effect.gen(function* () {
+      // `formulaFor`'s `Match.exhaustive` threw a `MatchError` on a value
+      // outside the union, and the walk's stop rule read a prototype member.
+      // Both now read `effectiveCombining` (CCR-QD-174).
+      const rs = [P.permitWhen(owned), P.denyWhen(sealed)];
+      const reference = yield* translate(P.rules(rs, { combining: "DenyOverrides" }));
+      for (const raw of ["Xor", "toString", "__proto__"]) {
+        const bogus: P.Combining = JSON.parse(JSON.stringify(raw));
+        assert.deepStrictEqual(yield* translate(P.rules(rs, { combining: bogus })), reference, raw);
+      }
+    }));
+
   it.effect("the algorithms disagree, and the formulas do too", () =>
     Effect.gen(function* () {
       const rs = [P.permitWhen(owned), P.denyWhen(sealed)];
@@ -751,16 +847,30 @@ describe("a rule table becomes a set-based formula", () => {
 describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows", () => {
   type Row = Record<string, unknown>;
 
+  /**
+   * `JSON.stringify` with the non-finite numbers spelled out.
+   *
+   * Plain `JSON.stringify` prints `-Infinity` and `NaN` as `null`, so a failure
+   * on a `-Infinity` row would report `"level":null` — the one value it is not.
+   */
+  const show = (u: unknown): string =>
+    JSON.stringify(u, (_key, value: unknown) =>
+      typeof value === "number" && !Number.isFinite(value) ? String(value) : value,
+    );
+
   const rows: FastCheck.Arbitrary<Row> = FastCheck.record({
     tenantId: FastCheck.constantFrom("t-1", "t-2"),
     ownerId: FastCheck.constantFrom("u-1", "u-2"),
     // Not just integers. A well-typed column never exercises the path where two
     // interpreters diverge, and a real text column holding "3" is exactly where
-    // a coercing comparison admits a row the evaluator refuses.
+    // a coercing comparison admits a row the evaluator refuses. A non-finite
+    // row value, like a numeric string, is where the two interpreters diverged
+    // (CCR-QD-172): a float column can hold `±Infinity` and `NaN`.
     level: FastCheck.oneof(
       FastCheck.integer({ min: 0, max: 5 }),
       FastCheck.constantFrom("3", "0"),
       FastCheck.constant(null),
+      FastCheck.constantFrom(Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN),
     ),
     tag: FastCheck.constantFrom("red", "blue", "green"),
     sealed: FastCheck.boolean(),
@@ -784,7 +894,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
       P.hasResourceAttribute("level", M.gte(n)),
     ),
     FastCheck.integer({ min: 0, max: 5 }).map((n) => P.hasResourceAttribute("level", M.lt(n))),
-    // Not just finite integers (CCR-QD-115). `Matcher.ts`'s `gte`/`lt` guard
+    // Not just finite integers (CCR-QD-120). `Matcher.ts`'s `gte`/`lt` guard
     // their bound with `Number.isFinite` because a bound arrives from
     // untrusted JSON, where `1e400` decodes to `Infinity`; `compare` in
     // `Predicate.ts` did not, so `M.gte(-Infinity)` admitted every numeric row
@@ -873,7 +983,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
           assert.strictEqual(
             admitted,
             isAllowed(decision),
-            `disagreement on ${JSON.stringify({ policy, row, predicate })}`,
+            `disagreement on ${show({ policy, row, predicate })}`,
           );
         }
       }
@@ -881,7 +991,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
 
   // The named case the property above now samples, kept as its own test
   // because a seeded sample is not evidence a reader can check by eye
-  // (CCR-QD-115, issue #65). Before the `Number.isFinite` guard in `compare`,
+  // (CCR-QD-120, issue #65). Before the `Number.isFinite` guard in `compare`,
   // `toPredicate` on this policy admitted every row with a numeric `level`
   // while `evaluate` on the identical policy denied every one — the exact
   // failure mode ADR-QD-024 warns would make `toPredicate` worse than not
@@ -902,6 +1012,293 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
         const decision = yield* evaluate(policy, { resource: row }).pipe(Effect.provide(layer));
         assert.isFalse(isAllowed(decision));
         assert.isFalse(evaluatePredicate(predicate, row));
+      }
+    }));
+
+  // D-08-h: membership follows the absent-operand rule. A column absent from the
+  // row is `undefined`, and `[undefined].includes(undefined)` is true, so before
+  // this both interpreters admitted the row — agreeing, and both wrong by the
+  // rule every other comparison follows (INV-QD-092).
+  it.effect("a MemberOf on an absent column denies, even when its values hold undefined", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute("missing", M.inArray([undefined, "x"]));
+      const predicate = yield* translate(policy);
+      const row = { level: 3 };
+      const decision = yield* evaluate(policy, { resource: row }).pipe(Effect.provide(layer));
+      assert.isFalse(isAllowed(decision));
+      assert.isFalse(evaluatePredicate(predicate, row));
+      assert.isFalse(evaluatePredicate({ _tag: "MemberOf", column: "missing", values: [undefined] }, row));
+    }));
+
+  // The row side of the same rule (CCR-QD-172). Before it, `gte(3)` admitted an
+  // `Infinity` row and `lt(3)` a `-Infinity` row through `toPredicate` while
+  // `evaluate` denied both — ADR-QD-024's worst case, a filter wider than the
+  // evaluator. `not(…)` is the mirror: there the predicate under-admitted.
+  it.effect("a non-finite row value denies on both sides, never admits on one", () =>
+    Effect.gen(function* () {
+      const cases = [
+        P.hasResourceAttribute("level", M.gte(3)),
+        P.hasResourceAttribute("level", M.lt(3)),
+        P.not(P.hasResourceAttribute("level", M.gte(3))),
+        P.not(P.hasResourceAttribute("level", M.lt(3))),
+      ];
+      for (const policy of cases) {
+        const predicate = yield* translate(policy);
+        for (const level of [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN]) {
+          const row = { level };
+          const decision = yield* evaluate(policy, { resource: row }).pipe(Effect.provide(layer));
+          assert.strictEqual(evaluatePredicate(predicate, row), isAllowed(decision), show({ policy, level }));
+        }
+      }
+    }));
+
+  // -------------------------------------------------------------------------
+  // INV-QD-NEXT — translation fails only as evaluation would. The properties
+  // above sample well-behaved ports; these sample *faulty* ones, because a
+  // property is only as strong as the untidiness of its data (see this
+  // invariant's own lesson, INV-QD-018). Each port answers, fails typed, dies,
+  // or throws synchronously, and every call is logged, so the two interpreters
+  // are compared on *what they asked* as well as on what they concluded.
+  // -------------------------------------------------------------------------
+
+  // Each port's behaviour is a `PortReply` (`PortDescription.ts`): answer, fail
+  // with the port's own error, die, or throw synchronously while building the
+  // effect — the four things `scriptedPort` can do with one request.
+  interface PortWorld {
+    readonly riskScore: PortReply<number | undefined>;
+    readonly absent: PortReply<number | undefined>;
+    readonly onboarded: PortReply<ActedResult>;
+    readonly never: PortReply<ActedResult>;
+  }
+
+  type PortCallKey = "attr:riskScore" | "attr:absent" | "acted:onboarded" | "acted:never";
+
+  /** ~70% an answer, ~10% each fault, so most trees still translate. */
+  const behavior = <A>(answer: FastCheck.Arbitrary<A>): FastCheck.Arbitrary<PortReply<A>> =>
+    FastCheck.oneof(
+      { arbitrary: answer.map((value) => PortReply.answer(value)), weight: 7 },
+      { arbitrary: FastCheck.constant<PortReply<A>>(PortReply.fail("down")), weight: 1 },
+      { arbitrary: FastCheck.constant<PortReply<A>>(PortReply.die(new Error("die"))), weight: 1 },
+      { arbitrary: FastCheck.constant<PortReply<A>>(PortReply.throw(new Error("throw"))), weight: 1 },
+    );
+
+  const acted: FastCheck.Arbitrary<ActedResult> = FastCheck.constantFrom(
+    "Acted",
+    "NotActed",
+    "Unknown",
+  );
+
+  const worlds: FastCheck.Arbitrary<PortWorld> = FastCheck.record({
+    riskScore: behavior(FastCheck.oneof(FastCheck.integer({ min: 0, max: 5 }), FastCheck.constant(undefined))),
+    absent: behavior(FastCheck.constant(undefined)),
+    onboarded: behavior(acted),
+    never: behavior(acted),
+  });
+
+  const noDeaths = <A>(b: PortReply<A>): PortReply<A> =>
+    b._tag === "Die" || b._tag === "Throw" ? PortReply.fail("down") : b;
+
+  const withoutDeaths = (world: PortWorld): PortWorld => ({
+    riskScore: noDeaths(world.riskScore),
+    absent: noDeaths(world.absent),
+    onboarded: noDeaths(world.onboarded),
+    never: noDeaths(world.never),
+  });
+
+  /**
+   * Ports driven by `world`, appending to `log` before honouring each call. A
+   * scripted port consults its script synchronously at the call, so `Throw`
+   * throws while *building* the effect, as a careless adapter would.
+   */
+  const worldLayer = (world: PortWorld, log: Array<PortCallKey>) =>
+    testLayer(tenant, {
+      AttributeResolver: scriptedPort(attributeResolverPort, (_id, attribute) => {
+        const key = attribute === "riskScore" ? "riskScore" : "absent";
+        log.push(key === "riskScore" ? "attr:riskScore" : "attr:absent");
+        return world[key];
+      }).layer,
+      DecisionHistory: scriptedPort(decisionHistoryPort, (query) => {
+        const key = query.event === "onboarded" ? "onboarded" : "never";
+        log.push(key === "onboarded" ? "acted:onboarded" : "acted:never");
+        return world[key];
+      }).layer,
+    });
+
+  /** A failure as the label two interpreters must agree on — tag plus what it names. */
+  const labelOfError = (error: unknown): string => {
+    if (error instanceof AttributeResolveError) return `AttributeResolveError:${error.attribute}`;
+    if (error instanceof DecisionHistoryUnavailable) {
+      return `DecisionHistoryUnavailable:${error.event}`;
+    }
+    if (error instanceof MissingAction) return `MissingAction:${String(error.expected)}`;
+    return typeof error === "object" && error !== null && "_tag" in error
+      ? `other:${String(error._tag)}`
+      : "unknown";
+  };
+
+  const labelOfCause = (cause: Cause.Cause<unknown>): string =>
+    Cause.hasDies(cause) ? "DEFECT" : labelOfError(Cause.squash(cause));
+
+  const labelOfEvaluation = (exit: Exit.Exit<Decision, unknown>): string =>
+    Exit.isSuccess(exit) ? (isAllowed(exit.value) ? "allow" : "deny") : labelOfCause(exit.cause);
+
+  const labelOfTranslation = (exit: Exit.Exit<Predicate, unknown>): string => {
+    if (Exit.isFailure(exit)) return labelOfCause(exit.cause);
+    if (exit.value._tag === "True") return "allow";
+    return exit.value._tag === "False" ? "deny" : `predicate:${exit.value._tag}`;
+  };
+
+  /** Resource-free trees: nothing a column could make row-dependent. */
+  const freeLeaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
+    FastCheck.constantFrom("editor", "admin").map((r) => P.hasRole(r)),
+    FastCheck.constant(P.hasPermission(permission("doc", "read"))),
+    FastCheck.constant(P.hasPermission(permission("doc", "delete"))),
+    FastCheck.constantFrom("seniority", "riskScore", "absent").map((a) =>
+      P.hasAttribute(a, M.gte(3)),
+    ),
+    FastCheck.constantFrom("onboarded", "never").map((e) => P.hasActed(e, { scope: "Any" })),
+    FastCheck.constantFrom("onboarded", "never").map((e) => P.hasNotActed(e, { scope: "Any" })),
+    FastCheck.constantFrom("read", "write").map((a) => P.hasAction(a)),
+  );
+
+  const strategy = FastCheck.constantFrom(
+    "First" as const,
+    "Intersection" as const,
+    "Union" as const,
+  );
+
+  const freeTree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth: 4, withCrossShrink: true },
+      freeLeaf,
+      FastCheck.array(tie("node"), { maxLength: 3 }).map((ps) => P.allOf(ps)),
+      FastCheck.tuple(FastCheck.array(tie("node"), { maxLength: 3 }), strategy).map(
+        ([ps, fieldStrategy]) => P.anyOf(ps, { fieldStrategy }),
+      ),
+      tie("node").map(P.not),
+      tie("node").map((p) => P.labeled("l", p)),
+      FastCheck.tuple(
+        FastCheck.array(
+          FastCheck.tuple(tie("node"), FastCheck.boolean()).map(([c, permits]) =>
+            permits ? P.permitWhen(c) : P.denyWhen(c),
+          ),
+          { maxLength: 3 },
+        ),
+        FastCheck.constantFrom(
+          "FirstApplicable" as const,
+          "DenyOverrides" as const,
+          "PermitOverrides" as const,
+        ),
+      ).map(([rs, combining]) => P.rules(rs, { combining })),
+    ),
+  })).node;
+
+  const actions = FastCheck.constantFrom<string | undefined>(undefined, "read", "write");
+
+  it.effect("PROPERTY: on resource-free trees the two interpreters make the same port calls and end the same way", () =>
+    Effect.gen(function* () {
+      // INV-QD-NEXT (2). The strongest statement available: not merely "the
+      // same answer" but "asked the same stores, in the same order" — so a
+      // translation that asks a port the evaluator would have skipped, or
+      // fails where the evaluator decided, is a counterexample.
+      const cases = FastCheck.sample(FastCheck.tuple(freeTree, worlds, actions), {
+        numRuns: 200,
+        seed: 2048,
+      });
+
+      for (const [policy, world, action] of cases) {
+        const evalLog: Array<PortCallKey> = [];
+        const predLog: Array<PortCallKey> = [];
+        const evaluated = yield* Effect.exit(
+          evaluate(policy, {
+            resource: { id: "r" },
+            ...(action === undefined ? {} : { action }),
+          }).pipe(Effect.provide(worldLayer(world, evalLog))),
+        );
+        const translated = yield* Effect.exit(
+          toPredicate(policy, action === undefined ? undefined : { action }).pipe(
+            Effect.provide(worldLayer(world, predLog)),
+          ),
+        );
+
+        const where = JSON.stringify({ policy, world, action });
+        assert.deepStrictEqual(predLog, evalLog, `different port calls on ${where}`);
+        assert.strictEqual(
+          labelOfTranslation(translated),
+          labelOfEvaluation(evaluated),
+          `different outcome on ${where}`,
+        );
+      }
+    }));
+
+  it.effect("PROPERTY: a translation that succeeds agrees with the evaluator on every row, and a failure is typed", () =>
+    Effect.gen(function* () {
+      // INV-QD-NEXT (1) and (3), over full trees with columns.
+      const cases = FastCheck.sample(FastCheck.tuple(tree, worlds), { numRuns: 120, seed: 4096 });
+      const sample = FastCheck.sample(rows, { numRuns: 12, seed: 4096 });
+
+      for (const [policy, world] of cases) {
+        const predLog: Array<PortCallKey> = [];
+        const translated = yield* Effect.exit(
+          toPredicate(policy).pipe(Effect.provide(worldLayer(world, predLog))),
+        );
+        const where = JSON.stringify({ policy, world });
+
+        if (Exit.isFailure(translated)) {
+          assert.isFalse(Cause.hasDies(translated.cause), `a defect on ${where}`);
+          assert.match(
+            labelOfCause(translated.cause),
+            /^(AttributeResolveError|DecisionHistoryUnavailable|MissingAction):/,
+            `an unexpected failure on ${where}`,
+          );
+          continue;
+        }
+
+        for (const row of sample) {
+          const rowLog: Array<PortCallKey> = [];
+          const verdict = yield* Effect.exit(
+            evaluate(policy, { resource: row }).pipe(Effect.provide(worldLayer(world, rowLog))),
+          );
+          assert.isTrue(Exit.isSuccess(verdict), `the evaluator failed on a row where translation succeeded: ${where}`);
+          if (!Exit.isSuccess(verdict)) continue;
+          assert.strictEqual(
+            evaluatePredicate(translated.value, row),
+            isAllowed(verdict.value),
+            `disagreement on ${show({ policy, world, row })}`,
+          );
+          for (const key of rowLog) {
+            assert.include(predLog, key, `the evaluator asked ${key}, which translation never did: ${where}`);
+          }
+        }
+      }
+    }));
+
+  it.effect("PROPERTY: a port that dies reads as a port that fails, through both interpreters", () =>
+    Effect.gen(function* () {
+      // INV-QD-NEXT (1), stated as an equivalence: replacing every death with
+      // the port's own typed failure changes nothing either interpreter says.
+      const cases = FastCheck.sample(FastCheck.tuple(tree, worlds), { numRuns: 120, seed: 8192 });
+      const row = { tenantId: "t-1", ownerId: "u-1", level: 3, tag: "red", sealed: false };
+
+      for (const [policy, world] of cases) {
+        const tame = withoutDeaths(world);
+        const where = JSON.stringify({ policy, world });
+
+        const translatedBy = (w: PortWorld) =>
+          Effect.exit(toPredicate(policy).pipe(Effect.provide(worldLayer(w, []))));
+        const evaluatedBy = (w: PortWorld) =>
+          Effect.exit(
+            evaluate(policy, { resource: row }).pipe(Effect.provide(worldLayer(w, []))),
+          );
+
+        const [dyingT, tameT] = [yield* translatedBy(world), yield* translatedBy(tame)];
+        assert.strictEqual(labelOfTranslation(dyingT), labelOfTranslation(tameT), `translation on ${where}`);
+        if (Exit.isSuccess(dyingT) && Exit.isSuccess(tameT)) {
+          assert.deepStrictEqual(dyingT.value, tameT.value, `predicate on ${where}`);
+        }
+
+        const [dyingE, tameE] = [yield* evaluatedBy(world), yield* evaluatedBy(tame)];
+        assert.strictEqual(labelOfEvaluation(dyingE), labelOfEvaluation(tameE), `evaluation on ${where}`);
       }
     }));
 });
@@ -935,5 +1332,499 @@ describe("qadi_predicates_translated_total", () => {
           s.type === "Counter" && s.id === "qadi_predicates_translated_total",
       );
       assert.isUndefined(counter);
+    }));
+});
+
+/**
+ * A port that *dies* — throws out of its own Effect construction, or
+ * `Effect.die`s — must reach a caller of `toPredicate` as the port's own typed
+ * error, exactly as it does through `evaluate` (issue #100, BEH-QD-261). A
+ * defect would sail past `Effect.retry` and `Effect.catchTag`, which only ever
+ * see the typed channel.
+ */
+describe("BEH-QD-NEXT-a: a defecting port fails translation typed, not dead", () => {
+  const riskPolicy = P.hasAttribute("riskScore", M.lt(50));
+  const actedPolicy = P.hasActed("onboarded", { scope: "Any" });
+
+  const run = (policy: P.Policy, overrides: Parameters<typeof testLayer>[1]) =>
+    Effect.result(
+      toPredicate(policy).pipe(Effect.provide(testLayer(subjectWith({}), overrides))),
+    );
+
+  it.effect("a dying AttributeResolver surfaces as AttributeResolveError", () =>
+    Effect.gen(function* () {
+      const dying = scriptedPort(attributeResolverPort, () => PortReply.die(new Error("boom"))).layer;
+      const r = yield* run(riskPolicy, { AttributeResolver: dying });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, AttributeResolveError);
+      if (!(r.failure instanceof AttributeResolveError)) return;
+      assert.strictEqual(r.failure.attribute, "riskScore");
+    }));
+
+  it.effect("a synchronously throwing AttributeResolver surfaces as AttributeResolveError", () =>
+    Effect.gen(function* () {
+      const throwing = scriptedPort(attributeResolverPort, () =>
+        PortReply.throw(new Error("boom")),
+      ).layer;
+      const r = yield* run(riskPolicy, { AttributeResolver: throwing });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, AttributeResolveError);
+    }));
+
+  it.effect("a dying DecisionHistory surfaces as DecisionHistoryUnavailable", () =>
+    Effect.gen(function* () {
+      const dying = scriptedPort(decisionHistoryPort, () => PortReply.die(new Error("boom"))).layer;
+      const r = yield* run(actedPolicy, { DecisionHistory: dying });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, DecisionHistoryUnavailable);
+      if (!(r.failure instanceof DecisionHistoryUnavailable)) return;
+      assert.strictEqual(r.failure.event, "onboarded");
+    }));
+
+  it.effect("a port's own typed failure is the same instance after translation", () =>
+    Effect.gen(function* () {
+      const original = new AttributeResolveError({ attribute: "riskScore", cause: "down" });
+      const failing = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.fail(original),
+      });
+      const r = yield* run(riskPolicy, { AttributeResolver: failing });
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.strictEqual(r.failure, original);
+    }));
+
+  it.effect("an interrupting port is never converted into a retryable error", () =>
+    Effect.gen(function* () {
+      const interrupting = Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.interrupt,
+      });
+      const exit = yield* Effect.exit(
+        toPredicate(riskPolicy).pipe(
+          Effect.provide(testLayer(subjectWith({}), { AttributeResolver: interrupting })),
+        ),
+      );
+      assert.isTrue(Exit.isFailure(exit));
+      if (!Exit.isFailure(exit)) return;
+      assert.isTrue(Cause.hasInterruptsOnly(exit.cause));
+    }));
+
+  it.effect("Effect.retry sees a defecting port, and a later answer translates", () =>
+    Effect.gen(function* () {
+      let attempt = 0;
+      const flaky = scriptedPort(attributeResolverPort, () =>
+        ++attempt <= 2 ? PortReply.die(new Error("boom")) : PortReply.answer(9),
+      );
+      const predicate = yield* toPredicate(P.hasAttribute("riskScore", M.gte(5))).pipe(
+        Effect.provide(testLayer(subjectWith({}), { AttributeResolver: flaky.layer })),
+        Effect.retry(Schedule.recurs(2)),
+      );
+      assert.deepStrictEqual(predicate, { _tag: "True" });
+      assert.strictEqual(flaky.calls.length, 3);
+    }));
+});
+
+/**
+ * `toPredicate`'s port reads are spans too (ADR-QD-051, BEH-QD-NEXT-d): the same
+ * `qadi.attribute`/`qadi.acted` the evaluator emits, under `qadi.toPredicate`,
+ * annotated `qadi.interpreter: "toPredicate"` so a trace reader can tell a
+ * translation's read from an evaluation's.
+ */
+describe("BEH-QD-NEXT-d: translation's port reads are spans", () => {
+  const named = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
+    spans.find((s) => s.name === name);
+  const attributesOf = (span: Tracer.Span | undefined): Record<string, unknown> =>
+    span === undefined ? {} : Object.fromEntries(span.attributes);
+
+  const resolver = Layer.succeed(AttributeResolver, {
+    name: "record",
+    resolve: (_id: string, attribute: string) => Effect.succeed(attribute === "riskScore" ? 20 : undefined),
+  });
+
+  it.effect("a resolved attribute spans under qadi.toPredicate and records no value", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u9" }), { AttributeResolver: resolver }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      const span = named(spans, "qadi.attribute");
+      const root = named(spans, "qadi.toPredicate");
+      assert.isDefined(span);
+      assert.isDefined(root);
+      assert.deepStrictEqual(attributesOf(span), {
+        "qadi.attribute": "riskScore",
+        "qadi.subject_id": "u9",
+        "qadi.interpreter": "toPredicate",
+        "qadi.resolved": true,
+      });
+      // The parent is the translation, not some ambient span.
+      assert.deepStrictEqual(
+        Option.map(span?.parent ?? Option.none(), (p) => p.spanId),
+        Option.some(root?.spanId),
+      );
+    }));
+
+  it.effect("an attribute the subject carries emits no span", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ attributes: { riskScore: 20 } }), { AttributeResolver: resolver }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.isUndefined(named(spans, "qadi.attribute"));
+    }));
+
+  it.effect("a failing port's span still carries the question", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
+      yield* Effect.result(
+        toPredicate(P.hasAttribute("riskScore", M.lt(50))).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(subjectWith({ id: "u9" }), { AttributeResolver: failing }),
+              collectingTracer(spans),
+            ),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributesOf(named(spans, "qadi.attribute")), {
+        "qadi.attribute": "riskScore",
+        "qadi.subject_id": "u9",
+        "qadi.interpreter": "toPredicate",
+      });
+    }));
+
+  it.effect("a history question spans as qadi.acted, scoped to Any", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasActed("onboarded", { scope: "Any" })).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u9" }), { DecisionHistory: acted }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(attributesOf(named(spans, "qadi.acted")), {
+        "qadi.subject_id": "u9",
+        "qadi.event": "onboarded",
+        "qadi.scope": "Any",
+        "qadi.interpreter": "toPredicate",
+        "qadi.answer": "Acted",
+      });
+    }));
+});
+
+/**
+ * Translation asks no port a constant has already decided (BEH-QD-NEXT-b), and a
+ * refusal depends on the tree alone (BEH-QD-NEXT-c). Each case is the shape
+ * ARCH-01's E8 found diverging from the evaluator, kept as a named test because a
+ * seeded property sample is not evidence a reader can check by eye.
+ */
+describe("BEH-QD-NEXT-b: translation stops where the evaluator stops", () => {
+  /** A resolver that always fails typed; its `calls` are how often it was asked. */
+  const failingResolver = () => scriptedPort(attributeResolverPort, () => PortReply.fail("down"));
+
+  const askWith = (
+    policy: P.Policy,
+    attributes: Layer.Layer<AttributeResolver>,
+    options?: { readonly action?: string; readonly subject?: ReturnType<typeof subjectWith> },
+  ) =>
+    Effect.result(
+      toPredicate(policy, options?.action === undefined ? undefined : { action: options.action }).pipe(
+        Effect.provide(testLayer(options?.subject ?? tenant, { AttributeResolver: attributes })),
+      ),
+    );
+
+  const broken = P.hasAttribute("riskScore", M.gte(1));
+
+  it.effect("an anyOf stops at a role that already allows", () =>
+    Effect.gen(function* () {
+      const resolver = failingResolver();
+      const r = yield* askWith(P.anyOf([P.hasRole("editor"), broken]), resolver.layer);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "True" });
+      assert.strictEqual(resolver.calls.length, 0);
+    }));
+
+  it.effect("under Union an anyOf must see every child, as the evaluator does", () =>
+    Effect.gen(function* () {
+      const resolver = failingResolver();
+      const policy = P.anyOf([P.hasRole("editor"), broken], { fieldStrategy: "Union" });
+      const r = yield* askWith(policy, resolver.layer);
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, AttributeResolveError);
+      assert.strictEqual(resolver.calls.length, 1);
+    }));
+
+  it.effect("an allOf stops at a role that already denies", () =>
+    Effect.gen(function* () {
+      const resolver = failingResolver();
+      const r = yield* askWith(P.allOf([P.hasRole("admin"), broken]), resolver.layer);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "False" });
+      assert.strictEqual(resolver.calls.length, 0);
+    }));
+
+  it.effect("PermitOverrides stops at a permit that already holds", () =>
+    Effect.gen(function* () {
+      const resolver = failingResolver();
+      const policy = P.rules([P.permitWhen(P.hasRole("editor")), P.permitWhen(broken)], {
+        combining: "PermitOverrides",
+      });
+      const r = yield* askWith(policy, resolver.layer);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "True" });
+      assert.strictEqual(resolver.calls.length, 0);
+    }));
+
+  it.effect("DenyOverrides stops at a deny that already holds", () =>
+    Effect.gen(function* () {
+      const resolver = failingResolver();
+      const policy = P.rules([P.denyWhen(P.hasRole("editor")), P.permitWhen(broken)], {
+        combining: "DenyOverrides",
+      });
+      const r = yield* askWith(policy, resolver.layer);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "False" });
+      assert.strictEqual(resolver.calls.length, 0);
+    }));
+
+  it.effect("DenyOverrides does not stop at a permit — a later deny could still beat it", () =>
+    Effect.gen(function* () {
+      const resolver = failingResolver();
+      const policy = P.rules([P.permitWhen(P.hasRole("editor")), P.denyWhen(broken)], {
+        combining: "DenyOverrides",
+      });
+      const r = yield* askWith(policy, resolver.layer);
+      assert.strictEqual(r._tag, "Failure");
+      assert.strictEqual(resolver.calls.length, 1);
+    }));
+
+  it.effect("FirstApplicable stops at the first rule that applies, whatever its effect", () =>
+    Effect.gen(function* () {
+      const resolver = failingResolver();
+      const policy = P.rules([P.denyWhen(P.hasRole("editor")), P.permitWhen(broken)], {
+        combining: "FirstApplicable",
+      });
+      const r = yield* askWith(policy, resolver.layer);
+      assert.deepStrictEqual(r._tag === "Success" ? r.success : undefined, { _tag: "False" });
+      assert.strictEqual(resolver.calls.length, 0);
+    }));
+
+  it.effect("a rule that does not apply is walked past", () =>
+    Effect.gen(function* () {
+      const resolver = failingResolver();
+      const policy = P.rules([P.permitWhen(P.hasRole("admin")), P.permitWhen(broken)], {
+        combining: "FirstApplicable",
+      });
+      const r = yield* askWith(policy, resolver.layer);
+      assert.strictEqual(r._tag, "Failure");
+      assert.strictEqual(resolver.calls.length, 1);
+    }));
+});
+
+describe("BEH-QD-NEXT-c: a refusal depends on the tree alone", () => {
+  const throwing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
+
+  const outcomeFor = (
+    policy: P.Policy,
+    subject: ReturnType<typeof subjectWith>,
+    options?: { readonly action?: string },
+  ) =>
+    Effect.result(
+      toPredicate(policy, options).pipe(
+        Effect.provide(testLayer(subject, { AttributeResolver: throwing })),
+      ),
+    );
+
+  it.effect("an untranslatable node refuses for the subject a constant would have decided", () =>
+    Effect.gen(function* () {
+      // For an editor the role alone decides this anyOf, so a walk that pruned
+      // before it refused would translate it. It must refuse for everyone.
+      const policy = P.anyOf([P.hasRole("editor"), P.hasRelationship("owner")]);
+      for (const subject of [tenant, subjectWith({})]) {
+        const r = yield* outcomeFor(policy, subject);
+        assert.strictEqual(r._tag, "Failure");
+        if (r._tag !== "Failure") return;
+        assert.instanceOf(r.failure, PolicyNotTranslatable);
+        if (!(r.failure instanceof PolicyNotTranslatable)) return;
+        assert.strictEqual(r.failure.policyTag, "HasRelationship");
+      }
+    }));
+
+  it.effect("a refusal anywhere wins over a port fault earlier in the tree", () =>
+    Effect.gen(function* () {
+      const policy = P.allOf([P.hasAttribute("riskScore", M.gte(1)), P.hasCustom("x")]);
+      const r = yield* outcomeFor(policy, tenant);
+      assert.strictEqual(r._tag, "Failure");
+      if (r._tag !== "Failure") return;
+      assert.instanceOf(r.failure, PolicyNotTranslatable);
+      if (!(r.failure instanceof PolicyNotTranslatable)) return;
+      assert.strictEqual(r.failure.policyTag, "HasCustom");
+    }));
+
+  it.effect("a missing action is raised on reach, not statically", () =>
+    Effect.gen(function* () {
+      // Not reached: a constant already decided, so no action was needed.
+      const unreached = yield* outcomeFor(
+        P.anyOf([P.hasRole("editor"), P.hasAction("read")]),
+        tenant,
+      );
+      assert.deepStrictEqual(unreached._tag === "Success" ? unreached.success : undefined, {
+        _tag: "True",
+      });
+      const alsoUnreached = yield* outcomeFor(
+        P.allOf([P.hasRole("admin"), P.hasAction("read")]),
+        tenant,
+      );
+      assert.deepStrictEqual(alsoUnreached._tag === "Success" ? alsoUnreached.success : undefined, {
+        _tag: "False",
+      });
+
+      // Reached: nothing decided first, so the evaluator fails here too.
+      const reached = yield* outcomeFor(
+        P.allOf([P.hasRole("editor"), P.hasAction("read")]),
+        tenant,
+      );
+      assert.strictEqual(reached._tag, "Failure");
+      if (reached._tag !== "Failure") return;
+      assert.instanceOf(reached.failure, MissingAction);
+      if (!(reached.failure instanceof MissingAction)) return;
+      assert.strictEqual(reached.failure.expected, "read");
+    }));
+});
+
+/**
+ * The refusal's *reason* is part of what a caller reads when a policy cannot
+ * become a filter (BEH-QD-123), and the plan/run split moved every sentence out of
+ * the walk and into `compile`. Pinned verbatim, with the tag, so a rewording is a
+ * deliberate edit and not a silent one.
+ */
+describe("BEH-QD-123: each refusal names its node and says why", () => {
+  const refusal = (policy: P.Policy) =>
+    Effect.map(Effect.result(translate(policy)), (r) => {
+      if (r._tag !== "Failure" || !(r.failure instanceof PolicyNotTranslatable)) {
+        throw new Error("expected a PolicyNotTranslatable failure");
+      }
+      return { policyTag: r.failure.policyTag, reason: r.failure.reason };
+    });
+
+  const cases: ReadonlyArray<readonly [string, P.Policy, string, string]> = [
+    [
+      "a matcher that reads the resource",
+      P.hasAttribute("owner", M.eq(M.resource("ownerId"))),
+      "HasAttribute",
+      "the matcher compares against the resource, which is a column",
+    ],
+    [
+      "a resource matcher with no predicate form",
+      P.hasResourceAttribute("name", M.exists()),
+      "HasResourceAttribute",
+      "matcher 'Exists' on column 'name' has no predicate form",
+    ],
+    [
+      "a resource-scoped acted question",
+      P.hasActed("approved", { scope: "Resource" }),
+      "HasActed",
+      "a resource-scoped history question is keyed by the row",
+    ],
+    [
+      "a resource-scoped not-acted question",
+      P.hasNotActed("approved", { scope: "Resource" }),
+      "HasNotActed",
+      "a resource-scoped history question is keyed by the row",
+    ],
+    [
+      "a relationship",
+      P.hasRelationship("owner"),
+      "HasRelationship",
+      "a relationship is keyed by the row's id and cannot fold",
+    ],
+    [
+      "a custom predicate",
+      P.hasCustom("isOwner"),
+      "HasCustom",
+      "'isOwner' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression",
+    ],
+    [
+      "a signature",
+      P.hasSignature("approved"),
+      "HasSignature",
+      "a signature is looked up through an external port and cannot fold into a resource-independent expression",
+    ],
+    [
+      "an obligation",
+      P.obliged(obligation("log", { channel: "audit" }), P.hasRole("editor")),
+      "Obliged",
+      "a predicate cannot carry an obligation, and rows would be handed over with it unmet",
+    ],
+    [
+      "a field restriction",
+      P.hasPermission(permission("doc", "read"), { fields: ["id"] }),
+      "HasPermission",
+      "the policy restricts visible fields, and a predicate selects rows rather than columns",
+    ],
+  ];
+
+  for (const [name, policy, policyTag, reason] of cases) {
+    it.effect(`${name} refuses with the ${policyTag} tag and its reason`, () =>
+      Effect.gen(function* () {
+        assert.deepStrictEqual(yield* refusal(policy), { policyTag, reason });
+      }));
+  }
+
+  it.effect("a refusal inside not, a label, or a rule table is still that node's refusal", () =>
+    Effect.gen(function* () {
+      for (const policy of [
+        P.not(P.hasRelationship("owner")),
+        P.labeled("l", P.hasRelationship("owner")),
+        P.rules([P.permitWhen(P.hasRelationship("owner"))]),
+        P.allOf([P.hasRole("editor"), P.hasRelationship("owner")]),
+        P.anyOf([P.hasRole("editor"), P.hasRelationship("owner")]),
+      ]) {
+        const r = yield* refusal(policy);
+        assert.strictEqual(r.policyTag, "HasRelationship");
+      }
+    }));
+
+  it.effect("the first refusal in declaration order wins", () =>
+    Effect.gen(function* () {
+      const r = yield* refusal(P.allOf([P.hasCustom("a"), P.hasRelationship("owner")]));
+      assert.strictEqual(r.policyTag, "HasCustom");
+      const s = yield* refusal(
+        P.rules([P.permitWhen(P.hasRelationship("owner")), P.denyWhen(P.hasCustom("a"))]),
+      );
+      assert.strictEqual(s.policyTag, "HasRelationship");
+    }));
+});
+
+describe("qadi.toPredicate names the translation it was asked", () => {
+  it.effect("annotates the subject, the policy tag and the predicate it produced", () =>
+    Effect.gen(function* () {
+      const spans: Array<Tracer.Span> = [];
+      yield* toPredicate(P.hasRole("editor")).pipe(
+        Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u9", roles: ["editor"] })), collectingTracer(spans))),
+      );
+
+      const span = spans.find((s) => s.name === "qadi.toPredicate");
+      assert.deepStrictEqual(Object.fromEntries(span?.attributes ?? []), {
+        "qadi.subject_id": "u9",
+        "qadi.policy_tag": "HasRole",
+        "qadi.predicate_tag": "True",
+      });
     }));
 });

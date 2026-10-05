@@ -103,18 +103,6 @@ describe("field-strategy edge cases", () => {
       assert.isUndefined(d.visibleFields);
     }).pipe(Effect.provide(testLayer(subjectWith({})))));
 
-  it.effect("Union absorbs to all-fields when one branch is unrestricted", () =>
-    Effect.gen(function* () {
-      const policy = P.anyOf(
-        [P.hasRole("a"), P.hasRole("b")],
-        { fieldStrategy: "Union" },
-      );
-      const d = yield* evaluate(policy);
-      if (d._tag !== "Allow") return;
-      // Both branches grant all fields, so the union does too.
-      assert.isUndefined(d.visibleFields);
-    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] })))));
-
   it.effect("AllOf accepts an explicit First strategy, taking the first child's fields", () =>
     Effect.gen(function* () {
       // Unusual but representable: take the first child's field set rather
@@ -122,9 +110,8 @@ describe("field-strategy edge cases", () => {
       // short-circuits before any merge happens. The two children carry
       // *different* field sets so First's choice is distinguishable from
       // what Intersection (`["b"]`) or Union (`["a", "b", "c"]`) would
-      // produce — the general "accepts an explicit strategy" case, sitting
-      // apart from the following path-shaped-field test's unmerged-verbatim
-      // guarantee.
+      // produce. First's by-reference, unmerged result is a lattice law
+      // (`FieldLattice.test.ts`).
       const policy = P.allOf(
         [
           P.hasPermission(permission("doc", "read"), { fields: ["a", "b"] }),
@@ -136,26 +123,6 @@ describe("field-strategy edge cases", () => {
       assert.isTrue(isAllowed(d));
       if (d._tag !== "Allow") return;
       assert.deepStrictEqual(d.visibleFields, ["a", "b"]);
-    }).pipe(
-      Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
-    ));
-
-  it.effect("AllOf/First takes the first child's path-shaped field set verbatim, unmerged", () =>
-    Effect.gen(function* () {
-      // First never calls mergeFields's Intersection/Union arms at all — it
-      // just returns sets[0] — so a path-aware field spec on the SECOND
-      // child must never leak in, wildcard or not.
-      const policy = P.allOf(
-        [
-          P.hasPermission(permission("doc", "read"), { fields: ["contact.email"] }),
-          P.hasPermission(permission("doc", "write"), { fields: ["contact.**"] }),
-        ],
-        { fieldStrategy: "First" },
-      );
-      const d = yield* evaluate(policy);
-      assert.isTrue(isAllowed(d));
-      if (d._tag !== "Allow") return;
-      assert.deepStrictEqual(d.visibleFields, ["contact.email"]);
     }).pipe(
       Effect.provide(testLayer(subjectWith({ permissions: ["doc:read", "doc:write"] }))),
     ));
@@ -175,7 +142,7 @@ describe("attribute resolution", () => {
 
       const d = yield* evaluate(P.hasAttribute("level", M.gte(1))).pipe(
         Effect.provide(
-          testLayer(subjectWith({ attributes: { level: 5 } }), { attributes: counting }),
+          testLayer(subjectWith({ attributes: { level: 5 } }), { AttributeResolver: counting }),
         ),
       );
 

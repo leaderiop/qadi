@@ -5,19 +5,17 @@ import * as Metric from "effect/Metric";
 import * as Schedule from "effect/Schedule";
 import {
   AttributeResolver,
-  AttributeResolverNone,
-  attributeResolverBounded,
   attributeResolverFromRecord,
   attributeResolverRetrying,
+  attributeResolverPort,
 } from "../src/AttributeResolver.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
+import { customPredicateFromRecord } from "../src/CustomPredicate.ts";
 import { isAllowed } from "../src/Decision.ts";
 import {
   DecisionHistory,
-  DecisionHistoryUnknown,
   decisionHistoryFromEvents,
 } from "../src/DecisionHistory.ts";
-import { AttributeResolveError, RelationshipResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
 import { makeResourceId } from "../src/Identity.ts";
@@ -29,58 +27,35 @@ import {
 import * as M from "../src/Matcher.ts";
 import * as P from "../src/Policy.ts";
 import {
+  portCallsTotal,
+  portRetriesTotal,
+  portTimeoutsTotal,
+  predicatePortCallsTotal,
+} from "../src/PortMetrics.ts";
+import { toPredicate } from "../src/Predicate.ts";
+import {
   RelationshipResolver,
-  RelationshipResolverNever,
-  relationshipResolverBounded,
   relationshipResolverFromEdges,
   relationshipResolverRetrying,
+  relationshipResolverPort,
 } from "../src/RelationshipResolver.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 describe("a port says which implementation it is", () => {
   // Before this, a service value was an anonymous object literal, so the only
   // way to distinguish a fail-closed default from a real store was to call it
   // and infer from the answer. An operator seeing "everything denies" could not
-  // see that `AttributeResolverNone` was wired.
-
-  it.effect("the fail-closed defaults name themselves", () =>
-    Effect.gen(function* () {
-      const attribute = yield* AttributeResolver;
-      const relationship = yield* RelationshipResolver;
-      const history = yield* DecisionHistory;
-
-      assert.strictEqual(attribute.name, "AttributeResolverNone");
-      assert.strictEqual(relationship.name, "RelationshipResolverNever");
-      assert.strictEqual(history.name, "DecisionHistoryUnknown");
-    }).pipe(
-      Effect.provide(
-        Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, DecisionHistoryUnknown),
-      ),
-    ));
+  // see that `AttributeResolverNone` was wired. Every port's named default and
+  // every wrapper's composed name are pinned for all five ports by
+  // `PortConformance.test.ts`; what stays here is everything else.
 
   it.effect("EvaluationId names both of its implementations", () =>
     Effect.gen(function* () {
       const live = yield* EvaluationId;
       assert.strictEqual(live.name, "EvaluationIdLive");
     }).pipe(Effect.provide(EvaluationIdLive)));
-
-  it.effect("a wrapper names itself around what it wrapped", () =>
-    Effect.gen(function* () {
-      // The whole stack, not just the outermost layer — otherwise wrapping a
-      // real store in a retry would lose the identity a panel most needs.
-      const resolver = yield* AttributeResolver;
-      assert.strictEqual(resolver.name, "attributeResolverFromRecord (retrying)");
-    }).pipe(
-      Effect.provide(
-        attributeResolverRetrying(Schedule.recurs(1))(attributeResolverFromRecord({})),
-      ),
-    ));
-
-  it.effect("a bounded wrapper names its permit count", () =>
-    Effect.gen(function* () {
-      const resolver = yield* AttributeResolver;
-      assert.strictEqual(resolver.name, "AttributeResolverNone (bounded 2)");
-    }).pipe(Effect.provide(attributeResolverBounded(2)(AttributeResolverNone))));
 
   it.effect("the other implementations name themselves too", () =>
     Effect.gen(function* () {
@@ -99,71 +74,6 @@ describe("a port says which implementation it is", () => {
       const ids = yield* EvaluationId;
       assert.strictEqual(ids.name, "evaluationIdSequential(req)");
     }).pipe(Effect.provide(evaluationIdSequential("req"))));
-
-  it.effect("the relationship wrappers compose their names too", () =>
-    Effect.gen(function* () {
-      const resolver = yield* RelationshipResolver;
-      assert.strictEqual(resolver.name, "RelationshipResolverNever (retrying)");
-    }).pipe(
-      Effect.provide(relationshipResolverRetrying(Schedule.recurs(1))(RelationshipResolverNever)),
-    ));
-
-  it.effect("a bounded relationship wrapper names its permit count", () =>
-    Effect.gen(function* () {
-      const resolver = yield* RelationshipResolver;
-      assert.strictEqual(resolver.name, "RelationshipResolverNever (bounded 3)");
-    }).pipe(Effect.provide(relationshipResolverBounded(3)(RelationshipResolverNever))));
-
-  it.effect("wrapping an UNNAMED resolver falls back rather than reading undefined", () =>
-    Effect.gen(function* () {
-      // The `?? "?"` branch, which every other wrapper test skips by wrapping
-      // something already named. Without it the composed name would read
-      // "undefined (retrying)".
-      const resolver = yield* AttributeResolver;
-      assert.strictEqual(resolver.name, "? (retrying)");
-    }).pipe(
-      Effect.provide(
-        attributeResolverRetrying(Schedule.recurs(1))(
-          Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
-        ),
-      ),
-    ));
-
-  it.effect("an unnamed BOUNDED attribute resolver falls back too", () =>
-    Effect.gen(function* () {
-      const resolver = yield* AttributeResolver;
-      assert.strictEqual(resolver.name, "? (bounded 4)");
-    }).pipe(
-      Effect.provide(
-        attributeResolverBounded(4)(
-          Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
-        ),
-      ),
-    ));
-
-  it.effect("an unnamed RETRYING relationship resolver falls back too", () =>
-    Effect.gen(function* () {
-      const resolver = yield* RelationshipResolver;
-      assert.strictEqual(resolver.name, "? (retrying)");
-    }).pipe(
-      Effect.provide(
-        relationshipResolverRetrying(Schedule.recurs(1))(
-          Layer.succeed(RelationshipResolver, { check: () => Effect.succeed("Unknown") }),
-        ),
-      ),
-    ));
-
-  it.effect("wrapping an UNNAMED relationship resolver falls back too", () =>
-    Effect.gen(function* () {
-      const resolver = yield* RelationshipResolver;
-      assert.strictEqual(resolver.name, "? (bounded 1)");
-    }).pipe(
-      Effect.provide(
-        relationshipResolverBounded(1)(
-          Layer.succeed(RelationshipResolver, { check: () => Effect.succeed("Unknown") }),
-        ),
-      ),
-    ));
 
   it.effect("a caller's own resolver may say nothing", () =>
     Effect.gen(function* () {
@@ -191,7 +101,7 @@ describe("port activity is counted", () => {
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                attributes: attributeResolverFromRecord({ clearance: 5 }),
+                AttributeResolver: attributeResolverFromRecord({ clearance: 5 }),
               }),
             ),
           )
@@ -243,34 +153,55 @@ describe("port activity is counted", () => {
       assert.strictEqual(calls?.state.occurrences.get("DecisionHistory"), 1);
     }));
 
+  it.effect("a custom predicate counts against CustomPredicate", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasCustom("isOwner"))
+          .pipe(
+            Effect.provide(
+              testLayer(subjectWith({}), {
+                CustomPredicate: customPredicateFromRecord({
+                  isOwner: () => Effect.succeed(true),
+                }),
+              }),
+            ),
+          )
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
+      assert.strictEqual(calls?.state.occurrences.get("CustomPredicate"), 1);
+    }));
+
+  it.effect("a signature lookup counts against SignatureHistory", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } })
+          .pipe(Effect.provide(testLayer(subjectWith({}))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const calls = frequencyOf(snapshots, "qadi_port_calls_total");
+      assert.strictEqual(calls?.state.occurrences.get("SignatureHistory"), 1);
+    }));
+
   it.effect("a retried relationship check counts under its own port key", () =>
     Effect.gen(function* () {
       // Keyed per port, so a degrading relationship store is not read as a
       // degrading attribute store.
       let attempts = 0;
-      const flaky = Layer.succeed(RelationshipResolver, {
-        name: "flaky",
-        check: () =>
-          Effect.suspend(() => {
-            attempts += 1;
-            return attempts < 2
-              ? Effect.fail(
-                  new RelationshipResolveError({
-                    relation: "owner",
-                    resourceId: makeResourceId("doc-1"),
-                    cause: "flaky",
-                  }),
-                )
-              : Effect.succeed("Related" as const);
-          }),
-      });
+      const flaky = scriptedPort(
+        relationshipResolverPort,
+        () => (++attempts < 2 ? PortReply.fail("flaky") : PortReply.answer("Related")),
+        "flaky",
+      ).layer;
 
       const snapshots = yield* isolatedMetrics(
         evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } })
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                relationships: relationshipResolverRetrying(Schedule.recurs(3))(flaky),
+                RelationshipResolver: relationshipResolverRetrying(Schedule.recurs(3))(flaky),
               }),
             ),
           )
@@ -279,36 +210,56 @@ describe("port activity is counted", () => {
 
       const retries = frequencyOf(snapshots, "qadi_port_retries_total");
       assert.strictEqual(retries?.state.occurrences.get("RelationshipResolver"), 1);
-      // Not "undefined" — `preregisteredWords` puts every retrying port in
-      // the snapshot at zero once the metric is touched at all, rather than
-      // letting an untouched one stay a silently missing word.
-      assert.strictEqual(retries?.state.occurrences.get("AttributeResolver"), 0);
+      // Not "undefined" — `preregisteredWords` puts every port in the
+      // snapshot at zero once the metric is touched at all, rather than
+      // letting an untouched one stay a silently missing word. All five, now
+      // that every port has a retrying wrapper (ARCH-10).
+      for (const port of [
+        "AttributeResolver",
+        "DecisionHistory",
+        "CustomPredicate",
+        "SignatureHistory",
+      ]) {
+        assert.strictEqual(retries?.state.occurrences.get(port), 0, port);
+      }
+    }));
+
+  it.effect("every port is preregistered in the timeout frequency too", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Metric.update(portTimeoutsTotal, "SignatureHistory").pipe(
+          Effect.flatMap(() => Metric.snapshot),
+        ),
+      );
+      const timeouts = frequencyOf(snapshots, "qadi_port_timeouts_total");
+      assert.strictEqual(timeouts?.state.occurrences.get("SignatureHistory"), 1);
+      for (const port of [
+        "AttributeResolver",
+        "DecisionHistory",
+        "RelationshipResolver",
+        "CustomPredicate",
+      ]) {
+        assert.strictEqual(timeouts?.state.occurrences.get(port), 0, port);
+      }
     }));
 
   it.effect("a retried attempt counts against the retry frequency", () =>
     Effect.gen(function* () {
+      // The script is consulted once per attempt: the retrying wrapper
+      // re-invokes `resolve` for each one, so the double answers the third.
       let attempts = 0;
-      const flaky = Layer.succeed(AttributeResolver, {
-        name: "flaky",
-        // `Effect.suspend`, so each retry re-evaluates the body. Returning an
-        // already-constructed `Effect.fail` would have `retry` re-run the same
-        // failed value forever, and the fixture — not the code — would be what
-        // the test proved.
-        resolve: (_subjectId, attribute) =>
-          Effect.suspend(() => {
-            attempts += 1;
-            return attempts < 3
-              ? Effect.fail(new AttributeResolveError({ attribute, cause: "flaky" }))
-              : Effect.succeed(5);
-          }),
-      });
+      const flaky = scriptedPort(
+        attributeResolverPort,
+        () => (++attempts < 3 ? PortReply.fail("flaky") : PortReply.answer(5)),
+        "flaky",
+      ).layer;
 
       const snapshots = yield* isolatedMetrics(
         evaluate(P.hasAttribute("clearance", M.gte(1)))
           .pipe(
             Effect.provide(
               testLayer(subjectWith({}), {
-                attributes: attributeResolverRetrying(Schedule.recurs(3))(flaky),
+                AttributeResolver: attributeResolverRetrying(Schedule.recurs(3))(flaky),
               }),
             ),
           )
@@ -323,6 +274,121 @@ describe("port activity is counted", () => {
       const calls = frequencyOf(snapshots, "qadi_port_calls_total");
       assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
     }));
+});
+
+/**
+ * `toPredicate` reads the same two ports the evaluator does, so its traffic is
+ * counted too — in a sibling metric, because `qadi_port_calls_total` keeps its
+ * meaning and its registry key (ADR-QD-052).
+ */
+describe("translation's port activity is counted separately", () => {
+  const frequencyOf = (snapshots: ReadonlyArray<Metric.Metric.Snapshot>, id: string) =>
+    snapshots.find(
+      (s): s is Extract<Metric.Metric.Snapshot, { type: "Frequency" }> =>
+        s.type === "Frequency" && s.id === id,
+    );
+
+  it.effect("an attribute lookup and a history query count against their ports", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        toPredicate(
+          P.allOf([P.hasAttribute("clearance", M.gte(1)), P.hasActed("approved", { scope: "Any" })]),
+        )
+          .pipe(
+            Effect.provide(
+              testLayer(subjectWith({}), {
+                AttributeResolver: attributeResolverFromRecord({ clearance: 5 }),
+              }),
+            ),
+          )
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const calls = frequencyOf(snapshots, "qadi_predicate_port_calls_total");
+      assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
+      assert.strictEqual(calls?.state.occurrences.get("DecisionHistory"), 1);
+      // The evaluator's series is not touched by a translation.
+      assert.isUndefined(frequencyOf(snapshots, "qadi_port_calls_total"));
+    }));
+
+  it.effect("both ports are preregistered, so an untouched one reads zero", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        toPredicate(P.hasAttribute("clearance", M.gte(1)))
+          .pipe(
+            Effect.provide(
+              testLayer(subjectWith({}), {
+                AttributeResolver: attributeResolverFromRecord({ clearance: 5 }),
+              }),
+            ),
+          )
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      const calls = frequencyOf(snapshots, "qadi_predicate_port_calls_total");
+      assert.strictEqual(calls?.state.occurrences.get("AttributeResolver"), 1);
+      assert.strictEqual(calls?.state.occurrences.get("DecisionHistory"), 0);
+    }));
+
+  it.effect("an attribute already on the subject counts nothing in either series", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        toPredicate(P.hasAttribute("clearance", M.gte(1)))
+          .pipe(Effect.provide(testLayer(subjectWith({ attributes: { clearance: 5 } }))))
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      assert.isUndefined(frequencyOf(snapshots, "qadi_predicate_port_calls_total"));
+      assert.isUndefined(frequencyOf(snapshots, "qadi_port_calls_total"));
+    }));
+
+  it.effect("an evaluation does not count in the translation series", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        evaluate(P.hasAttribute("clearance", M.gte(1)))
+          .pipe(
+            Effect.provide(
+              testLayer(subjectWith({}), {
+                AttributeResolver: attributeResolverFromRecord({ clearance: 5 }),
+              }),
+            ),
+          )
+          .pipe(Effect.flatMap(() => Metric.snapshot)),
+      );
+
+      assert.isUndefined(frequencyOf(snapshots, "qadi_predicate_port_calls_total"));
+      assert.strictEqual(
+        frequencyOf(snapshots, "qadi_port_calls_total")?.state.occurrences.get("AttributeResolver"),
+        1,
+      );
+    }));
+
+  it("the descriptions are pinned, because the description is part of the registry key", () => {
+    // `effect/Metric` keys its registry on `type:id:description` (ADR-QD-052):
+    // rewording either string silently creates a second metric.
+    assert.strictEqual(
+      predicatePortCallsTotal.description,
+      "Calls toPredicate made into a resolver or history port while folding a policy, by port. " +
+        "The evaluator's calls are qadi_port_calls_total.",
+    );
+    assert.strictEqual(
+      portCallsTotal.description,
+      "Calls the evaluator made into a resolver or history port, by port. " +
+        "Scoped to Evaluate.ts only — Predicate.ts's translateNode reaches the " +
+        "same ports via a second interpreter and is not counted here.",
+    );
+    // Widening the two wrapper metrics' `preregisteredWords` to every port
+    // (ARCH-10) changes no registry key: the words are not part of it. These
+    // two descriptions are, so they are pinned too.
+    assert.strictEqual(
+      portRetriesTotal.description,
+      "Failed port attempts inside a retrying wrapper, by port.",
+    );
+    assert.strictEqual(
+      portTimeoutsTotal.description,
+      "Port calls that hit their deadline inside a timing-out wrapper, by port.",
+    );
+  });
 });
 
 describe("EvaluationServicesNone", () => {

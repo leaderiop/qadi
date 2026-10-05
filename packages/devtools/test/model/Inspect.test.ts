@@ -45,7 +45,7 @@ import {
 } from "../../src/model/Inspect.ts";
 import type { InspectNode } from "../../src/model/Inspect.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
-import { decisionRecord, failedRecord, obligationRecord } from "../helpers.ts";
+import { chain, decisionRecord, failedRecord, obligationRecord } from "../helpers.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -402,6 +402,63 @@ describe("depth", () => {
     assert.strictEqual(flattenTree(tree).length, 51);
     assert.strictEqual(at(tree, "$" + ".0".repeat(50))?.label, "doc:read");
   });
+});
+
+describe("stack safety — a caller-held policy of any nesting depth (ARCH-02 C3d)", () => {
+  const n = 100_000;
+
+  it("inspect over a 100k-deep chain is all NeverResolved, addressed `$`, `$.0`, `$.0.0`, …", () => {
+    const tree = inspect(chain(not, n, hasRole("a")), undefined);
+    let depth = 0;
+    let node: InspectNode | undefined = tree;
+    while (node !== undefined) {
+      assert.strictEqual(node.status, "NeverResolved");
+      // The length, not the content: comparing every path as text would flatten
+      // 100k ropes of up to 200k characters each.
+      assert.strictEqual(node.path.length, 1 + 2 * depth);
+      depth += 1;
+      node = node.children[0];
+    }
+    assert.strictEqual(depth, n + 1);
+  }, 60_000);
+
+  it("flattenTree lists a 100k-deep chain in pre-order", () => {
+    const tree = inspect(chain(not, n, hasRole("a")), undefined);
+    const flat = flattenTree(tree);
+    assert.strictEqual(flat.length, n + 1);
+    assert.strictEqual(flat[0], tree);
+    assert.strictEqual(flat[1]?.path.length, 3);
+    assert.strictEqual(flat[n]?.path.length, 1 + 2 * n);
+  }, 60_000);
+
+  it("flattenTree keeps siblings in order, parents before children", () => {
+    const tree = inspect(allOf([allOf([hasRole("a"), hasRole("b")]), hasRole("c")]), undefined);
+    assert.deepStrictEqual(
+      flattenTree(tree).map((node) => node.path),
+      ["$", "$.0", "$.0.0", "$.0.1", "$.1"],
+    );
+  }, 60_000);
+
+  it("inspect zips a real trace of a 100k-deep chain, Allowed and Denied alternating", async () => {
+    const policy = chain(not, n, hasRole("reader"));
+    const decision = await Effect.runPromise(
+      evaluate(policy, { maxDepth: Infinity }).pipe(
+        Effect.provide(Layer.mergeAll(currentSubjectLayer(alice), services)),
+      ),
+    );
+    const tree = inspect(policy, decision.trace);
+    // `alice` holds `reader`, so the leaf allows and each `not` flips it.
+    let depth = 0;
+    let node: InspectNode | undefined = tree;
+    let expected = n % 2 === 0 ? "Allowed" : "Denied";
+    while (node !== undefined) {
+      assert.strictEqual(node.status, expected);
+      expected = expected === "Denied" ? "Allowed" : "Denied";
+      depth += 1;
+      node = node.children[0];
+    }
+    assert.strictEqual(depth, n + 1);
+  }, 60_000);
 });
 
 const fail = (): never => {

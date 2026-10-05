@@ -90,7 +90,7 @@ test.describe("a guard can be found on screen", () => {
   });
 
   test("uninstrumented, there is no marker at all", async ({ page }) => {
-    // `/edge/unregistered` renders with `dock={false}` and instrumentation on;
+    // `/edge/wrapped-atoms` renders with `dock={false}` and instrumentation on;
     // the index renders with `instrument={false}`. Off means absent — not a
     // wrapper with a no-op style, no wrapper.
     await page.goto("/");

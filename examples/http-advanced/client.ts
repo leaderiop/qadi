@@ -17,9 +17,10 @@
  *    each guarded call's static error type — no endpoint declares its own
  *    subset. What arrives client-side depends on what the middleware puts on
  *    the wire:
- *      - Denials (403) are **empty-bodied by design** — a trace names every
- *        node and why it refused, which is not for the caller — so a denial
- *        surfaces as the typed `HttpClientError` carrying `status: 403`.
+ *      - Denials (403) never carry the trace — it names every node and why
+ *        the policy refused, which is not for the caller — only the
+ *        redacted `ENFORCEMENT_ERROR_WIRE` projection (`AccessDenied`:
+ *        subject, policy tag, root reason; `UndischargedObligation`: the tag).
  *      - Outages (502) carry real bodies encoded through the declared
  *        schemas, so they decode into *named* errors: `AttributeResolveError`
  *        means the attribute store broke, never "you may not" (INV-QD-006, at
@@ -92,7 +93,7 @@ const program = Effect.gen(function* () {
     const me = yield* client.documents.me();
     console.log(`me as alice: subjectId=${me.subjectId}`);
 
-    // 3. Guarded endpoint, anonymous — 403, empty body, typed error.
+    // 3. Guarded endpoint, anonymous — 403, redacted body, typed error.
     currentToken = undefined;
     yield* client.documents.me().pipe(
       Effect.catchTag("HttpClientError", (error) =>

@@ -121,6 +121,7 @@ import {
   RelationshipResolverNever, SignatureHistoryNone, allOf, anyOf,
   check, currentSubjectLayer, eq, hasAttribute, hasResourceAttribute, inArray,
   literal, lt, makeSubject, type AttributeResolveError, type EvaluationError,
+  portsLayer,
 } from "@qadi/core";
 
 // The caller's geolocation service, bound to the request in scope. It answers
@@ -154,13 +155,9 @@ const canOpenControlledDesign = allOf([
 ]);
 
 const services = Layer.mergeAll(
+  portsLayer({ AttributeResolver: PlacementResolver }),
   currentSubjectLayer(makeSubject({ id: "u-9", roles: ["engineer"] })),
-  PlacementResolver,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 const program: Effect.Effect<boolean, EvaluationError> = check(

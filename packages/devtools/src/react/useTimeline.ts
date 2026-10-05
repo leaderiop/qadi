@@ -50,7 +50,7 @@ export const useTimeline = (
   useEffect(() => {
     const fiber = Effect.runFork(runSource(store, source));
     // Interrupted on unmount, so a panel that is closed stops reading — and,
-    // with an SSE source, closes the connection through the stream's scope
+    // with an SSE source, closes the connection through the read's scope
     // rather than leaving a browser retrying a feed nobody is watching.
     return () => {
       Effect.runFork(Fiber.interrupt(fiber));

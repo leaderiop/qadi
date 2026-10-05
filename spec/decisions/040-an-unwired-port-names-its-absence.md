@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-040                                   |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-09-07                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-09-07): The `"Unknown"` row's denial text corrected — it claimed a resolver was unwired, which this ADR's own "Positive" consequence already says is not the only source of `"Unknown"` (BEH-QD-045, issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-055) |
+> | Change History | 1.2 (2026-10-05): the attribute reason table gains two rows — an unresolved `Eq`/`Neq`/`Dominates` reference, and an incomparable value — read from `judgeMatcher`'s `Verdict` (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-09-07): The `"Unknown"` row's denial text corrected — it claimed a resolver was unwired, which this ADR's own "Positive" consequence already says is not the only source of `"Unknown"` (BEH-QD-045, issue 45, CCR-QD-114)<br>1.0 (2026-08-23): Initial release (CCR-QD-055) |
 
 _Extends: [ADR-QD-020](./020-decision-history-port.md), which made the history
 port three-valued and explicitly left the relationship port boolean._
@@ -142,6 +142,17 @@ now says so:
 > [INV-QD-029](../invariants.md#inv-qd-029-a-denial-names-only-what-was-consulted)'s
 > current text.
 
+> **Corrected (CCR-QD-173).** Two more rows, and a different source for all of
+> them. An `Eq`, `Neq` or `Dominates` whose reference resolves to nothing reads
+> `has no reference value to compare against` — only `Neq` did, because the
+> reason was re-derived from `evaluateMatcher`'s boolean after the fact, and
+> `eq(subject("missing"))` still read "did not match" about a comparison that
+> never ran. A value the matcher cannot compare (`Infinity` or `"5"` under
+> `gte(3)`) reads `is not a value this matcher can compare`. Every row is now
+> read from `judgeMatcher`'s `Verdict`
+> ([ADR-QD-091](091-comparison-semantics-have-one-owner.md)); the full table is
+> [BEH-QD-045](../behaviors/06-services.md#beh-qd-045-a-denials-reason-names-only-what-was-consulted).
+
 `HasResourceAttribute` gets the mirror. "has no value" rather than "is not set"
 deliberately: an attribute present on the record with the value `undefined`
 reaches the same branch, and "is not set" would be a claim about the record's
@@ -195,3 +206,13 @@ for a smaller benefit, since safety was never at stake here. It buys a library
 whose first-run failure mode explains itself. The predecessor's documentation
 problem was not that it said nothing; it was that it said things that were not
 true.
+
+## Amendment (2026-10-05, CCR-QD-177)
+
+Each named default is now `nonePort(<port>Port)`: the answer it gives lives in the
+port's description (`none: { name, answer }`), and `@qadi/devtools`' replay reads the
+same field instead of re-declaring it. Names and answers are unchanged —
+`AttributeResolverNone` (`undefined`), `RelationshipResolverNever` (`"Unknown"`),
+`DecisionHistoryUnknown` (`"Unknown"`), `CustomPredicateNone` (`false`),
+`SignatureHistoryNone` (`[]`, frozen) — and `PortConformance.test.ts` asserts both
+for every port ([ADR-QD-094](./094-a-port-is-described-once.md)).
