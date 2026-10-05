@@ -285,3 +285,42 @@ describe("decodeAuditEntry — the guarded reader (ARCH-09)", () => {
       assert.strictEqual(decoded.record.evaluationId, "e1");
     }));
 });
+
+/**
+ * What the row schema alone, under `Schema`'s default options, accepted at
+ * `899465c` — the decode `decodeAuditEntry` exists so no reader relies on.
+ * Each pin is replaced by the ARCH-15 task that changes it.
+ */
+describe("AuditEntry default decode (characterization, replaced by ARCH-15 T1/T2)", () => {
+  const policy = { _tag: "HasPermission", permission: { resource: "doc", action: "read" } };
+  const envelope = { _tag: "Decision", evaluationId: "g", at: 1, subjectId: "u1", policy };
+  const decided = {
+    _tag: "Allow",
+    evaluationId: "g",
+    subjectId: "u1",
+    durationMillis: 2,
+    trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
+    obligations: [],
+  };
+  const failed = { _tag: "MissingResource", attribute: "owner" };
+  const decodeRow = (record: unknown) => Effect.result(Schema.decodeUnknownEffect(AuditEntry)({ record }));
+
+  it.effect("P6a: a record naming neither outcome decodes", () =>
+    Effect.gen(function* () {
+      assert.isTrue(Result.isSuccess(yield* decodeRow(envelope)));
+    }));
+
+  it.effect("P6b: a record naming both outcomes decodes", () =>
+    Effect.gen(function* () {
+      assert.isTrue(Result.isSuccess(yield* decodeRow({ ...envelope, decided, failed })));
+    }));
+
+  it.effect("P6e: a typo inside the embedded policy decodes, with the typo silently dropped", () =>
+    Effect.gen(function* () {
+      const result = yield* decodeRow({ ...envelope, policy: { ...policy, permision: "x" }, decided });
+      assert.isTrue(Result.isSuccess(result));
+      if (Result.isSuccess(result) && result.success.record._tag === "Decision") {
+        assert.isFalse(Predicate.hasProperty(result.success.record.policy, "permision"));
+      }
+    }));
+});

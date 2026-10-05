@@ -36,6 +36,7 @@ import {
   encodeSinkRecordString,
 } from "../src/SinkCodec.ts";
 import type { SinkRecordJson } from "../src/SinkCodec.ts";
+import * as V1 from "./fixtures/sinkWireV1.ts";
 
 const read = permission("doc", "read");
 
@@ -1404,12 +1405,53 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
 });
 
 /**
- * The bytes a `Decided` record puts on the wire, pinned at commit 1caf04c —
- * before the decision codec moved into `DecisionWire.ts` (ARCH-05 T1). The move
- * must not change a byte of what the record wire carries between processes
- * (ADR-QD-060, BEH-QD-199), so these are literals, not re-derived.
+ * The bytes a record puts on the wire as version 1, pinned as literals in
+ * `fixtures/sinkWireV1.ts`. The three `Decided` goldens were pinned at commit
+ * 1caf04c — before the decision codec moved into `DecisionWire.ts` (ARCH-05
+ * T1) — and the move must not change a byte of what the record wire carries
+ * between processes (ADR-QD-060, BEH-QD-199), so these are literals, not
+ * re-derived.
  */
-describe("a decided record encodes byte-identically to 1caf04c", () => {
+/** The `Failed` record the v1 `Failed` goldens were captured from. */
+const goldenFailed = (error: EvaluationError): SinkRecord =>
+  new DecisionRecord({
+    evaluationId: "g",
+    at: 1,
+    subjectId: makeSubjectId("u1"),
+    policy: P.hasPermission(read),
+    outcome: new Failed({ error }),
+  });
+
+/** The obligation record `V1_OBLIGATIONS` was captured from. */
+const goldenObligations: SinkRecord = new ObligationRecord({
+  evaluationId: "g",
+  at: 1,
+  outcome: "Discharged",
+  obligationIds: ["audit.log"],
+});
+
+/** The decision `V1_DECISION_FULL_ENVELOPE` was captured from: every optional envelope field set. */
+const goldenFullEnvelope: SinkRecord = new DecisionRecord({
+  evaluationId: "g",
+  at: 1,
+  subjectId: makeSubjectId("u1"),
+  policy: P.hasPermission(read),
+  resource: { id: "doc-1", owner: "u1" },
+  action: "read",
+  cache: "hit",
+  outcome: new Decided({
+    decision: new Allow({
+      evaluationId: "g",
+      subjectId: makeSubjectId("u1"),
+      durationMillis: 2,
+      trace: { policyTag: "HasPermission", allowed: true, children: [], obligations: [] },
+      visibleFields: undefined,
+      obligations: [],
+    }),
+  }),
+});
+
+describe("v1 bytes: a decided record encodes byte-identically to 1caf04c", () => {
   const goldenRecord = (decision: Allow | Deny): SinkRecord =>
     new DecisionRecord({
       evaluationId: "g",
@@ -1437,10 +1479,7 @@ describe("a decided record encodes byte-identically to 1caf04c", () => {
         obligations: [obligation("audit.log")],
       }),
     );
-    assert.strictEqual(
-      encoded(record),
-      '{"_tag":"Decision","evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decided":{"_tag":"Allow","evaluationId":"g","subjectId":"u1","durationMillis":2,"trace":{"policyTag":"HasPermission","allowed":true,"children":[],"visibleFields":["id"],"obligations":[]},"visibleFields":["id"],"obligations":[{"id":"audit.log","attributes":{},"advisory":false}]}}',
-    );
+    assert.strictEqual(encoded(record), V1.V1_DECIDED_ALLOW);
   });
 
   it("an Allow with no visibleFields (everything visible)", () => {
@@ -1454,10 +1493,7 @@ describe("a decided record encodes byte-identically to 1caf04c", () => {
         obligations: [],
       }),
     );
-    assert.strictEqual(
-      encoded(record),
-      '{"_tag":"Decision","evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decided":{"_tag":"Allow","evaluationId":"g","subjectId":"u1","durationMillis":2,"trace":{"policyTag":"HasPermission","allowed":true,"children":[],"obligations":[]},"obligations":[]}}',
-    );
+    assert.strictEqual(encoded(record), V1.V1_DECIDED_ALLOW_ALL_FIELDS);
   });
 
   it("a Deny", () => {
@@ -1470,9 +1506,52 @@ describe("a decided record encodes byte-identically to 1caf04c", () => {
         reason: "no",
       }),
     );
+    assert.strictEqual(encoded(record), V1.V1_DECIDED_DENY);
+  });
+
+  it("a Failed record", () => {
+    assert.strictEqual(encoded(goldenFailed(new MissingResource({ attribute: "owner" }))), V1.V1_FAILED_MISSING_RESOURCE);
+  });
+
+  it("a Failed record whose resolver cause is an Error", () => {
     assert.strictEqual(
-      encoded(record),
-      '{"_tag":"Decision","evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"decided":{"_tag":"Deny","evaluationId":"g","subjectId":"u1","durationMillis":2,"trace":{"policyTag":"HasPermission","allowed":false,"reason":"no","children":[],"obligations":[]},"obligations":[],"reason":"no"}}',
+      encoded(goldenFailed(new AttributeResolveError({ attribute: "clearance", cause: new Error("db down") }))),
+      V1.V1_FAILED_ATTRIBUTE_ERROR_CAUSE,
     );
+  });
+
+  it("an obligation record", () => {
+    assert.strictEqual(encoded(goldenObligations), V1.V1_OBLIGATIONS);
+  });
+
+  it("a decision carrying resource, action and cache", () => {
+    assert.strictEqual(encoded(goldenFullEnvelope), V1.V1_DECISION_FULL_ENVELOPE);
+  });
+});
+
+/**
+ * What the v1 reader did at `899465c`, before ARCH-15 — each pin is replaced,
+ * in the task that changes it, by the test that asserts the new behaviour.
+ */
+describe("v1 characterization at 899465c (replaced by ARCH-15 T1/T4/T5)", () => {
+  it("P3: an unknown top-level envelope key is refused", () => {
+    const text = JSON.stringify({ ...JSON.parse(V1.V1_DECIDED_ALLOW), traceparent: "00-abc" });
+    assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+  });
+
+  it("P5: a pre-0.5 failed.code is refused", () => {
+    assert.strictEqual(decodeRefusalOf(V1.V1_PRE05_FAILED_WITH_CODE)?._tag, "Malformed");
+  });
+
+  it("P7: an unknown key inside decided is refused", () => {
+    const text = V1.V1_DECIDED_ALLOW.replace('"durationMillis":2', '"durationMillis":2,"ttl":60');
+    assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+  });
+
+  it("a cause rendered to a string decodes, as that string", () => {
+    const text = V1.V1_FAILED_ATTRIBUTE_ERROR_CAUSE.replace('{"name":"Error","message":"db down"}', '"Error: db down"');
+    const back = recordOf(text);
+    const error = back._tag === "Decision" && back.outcome._tag === "Failed" ? back.outcome.error : undefined;
+    assert.strictEqual(error?._tag === "AttributeResolveError" ? error.cause : undefined, "Error: db down");
   });
 });
