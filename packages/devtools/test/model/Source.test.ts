@@ -15,13 +15,15 @@ import { assert, describe, it } from "@effect/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as TestClock from "effect/testing/TestClock";
 import * as Result from "effect/Result";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Stream from "effect/Stream";
-import { encodeSinkRecordString, makeDecisionLog, MAX_DECODE_DEPTH } from "@qadi/core";
-import type { SinkRecord, StoredRecord } from "@qadi/core";
+import { encodeSinkRecordString, encodeStoredRecordString, makeDecisionLog, MAX_DECODE_DEPTH } from "@qadi/core";
+import type { StoredRecord } from "@qadi/core";
 import {
+  type DecisionEventName,
   type DecisionEventSource,
   type MalformedReason,
   mergeSources,
@@ -33,7 +35,7 @@ import { makeTimelineStore, runSource } from "../../src/model/TimelineStore.ts";
 import { decisionRecord, obligationRecord } from "../helpers.ts";
 
 /**
- * A fake `EventSource` whose frames are queued **before** the stream is run.
+ * A fake `EventSource` whose frames are queued **before** the source is read.
  *
  * The first version of this file forked a collector, yielded once, and then
  * emitted. That hung every case here: the fork had not yet reached the point
@@ -42,27 +44,29 @@ import { decisionRecord, obligationRecord } from "../helpers.ts";
  * about, built by the person who wrote the warning.
  *
  * So nothing is timed. Frames are queued up front and flushed the moment the
- * adapter has attached **both** handlers — a point the fake can see, and which
- * does not depend on the order the adapter attaches them in. `runCollect` then
- * finds them already in the queue and terminates on `take`.
+ * adapter has attached **every** handler — the three decision events and the
+ * error one — a point the fake can see, and which does not depend on the order
+ * the adapter attaches them in. `read` then finds them already queued: a
+ * `message` first ends its wait at once (an older server, no prelude), and a
+ * `synced` ends it with a backlog.
  */
 const fakeEventSource = () => {
-  let onMessage: ((data: string) => void) | undefined;
+  const handlers = new Map<DecisionEventName, (data: string) => void>();
   let onError: (() => void) | undefined;
   let closed = false;
   let failFirst = false;
-  const pending: Array<string> = [];
+  const pending: Array<{ readonly event: DecisionEventName; readonly data: string }> = [];
 
   const flush = () => {
-    if (onMessage === undefined || onError === undefined) return;
+    if (handlers.size < 3 || onError === undefined) return;
     if (failFirst) onError();
-    for (const frame of pending) onMessage(frame);
+    for (const frame of pending) handlers.get(frame.event)?.(frame.data);
     pending.length = 0;
   };
 
   const source: DecisionEventSource = {
-    onMessage: (handler) => {
-      onMessage = handler;
+    onEvent: (event, handler) => {
+      handlers.set(event, handler);
       flush();
     },
     onError: (handler) => {
@@ -76,7 +80,10 @@ const fakeEventSource = () => {
 
   return {
     open: () => source,
-    queue: (frames: ReadonlyArray<string>) => pending.push(...frames),
+    /** Queues `message` frames — what a server sends live, and all an older one sends. */
+    queue: (frames: ReadonlyArray<string>) => pending.push(...frames.map((data) => ({ event: "message" as const, data }))),
+    /** Queues one frame of any event. */
+    queueEvent: (event: DecisionEventName, data: string) => pending.push({ event, data }),
     queueFailure: () => {
       failFirst = true;
     },
@@ -98,7 +105,6 @@ const collect = (
   Effect.gen(function* () {
     const source = sourceFromEventSource({
       url: "/__decisions",
-      environment: "Server",
       open: fake.open,
       ...(options?.onMalformed === undefined ? {} : { onMalformed: options.onMalformed }),
       ...(options?.onDisconnect === undefined ? {} : { onDisconnect: options.onDisconnect }),
@@ -132,12 +138,16 @@ const backlogOf = (source: Source) => Effect.scoped(Effect.map(source.read, (rea
 /** Whether one scoped read of `source` has a `backlog` key at all. */
 const hasBacklog = (source: Source) => Effect.scoped(Effect.map(source.read, (read) => "backlog" in read));
 
-/** A record as the frame data a current sender emits: the one outbound operation's text. */
-const frameOf = (record: SinkRecord): string =>
-  Result.match(encodeSinkRecordString(record), {
+/** A record as the frame data a current server emits: the stored-record envelope's text. */
+const frameOf = (record: StoredRecord): string =>
+  Result.match(encodeStoredRecordString(record), {
     onSuccess: (text) => text,
     onFailure: (error) => assert.fail(`refused: ${error.refusal._tag}`),
   });
+
+/** Record JSON text inside an envelope, kept byte-for-byte: what a current server sends around it. */
+const enveloped = (recordText: string, environment = "Server"): string =>
+  `{"environment":${JSON.stringify(environment)},"record":${recordText}}`;
 
 /** Reads one log annotation without an `as`. */
 const annotationOf = (annotations: unknown, key: string): unknown =>
@@ -191,6 +201,165 @@ describe("a DecisionLog used as a source", () => {
 });
 
 describe("sourceFromEventSource", () => {
+  /** A source over `fake`, read once: its backlog (absent stays absent) and `count` live records. */
+  const readOnce = (
+    fake: ReturnType<typeof fakeEventSource>,
+    count: number,
+    options?: { readonly legacyEnvironment?: string; readonly onMalformed?: (frame: string, reason: MalformedReason) => void },
+  ) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const source = sourceFromEventSource({ url: "/__decisions", open: fake.open, ...options });
+        const read = yield* source.read;
+        const live = Array.from(yield* Stream.runCollect(Stream.take(read.live, count)));
+        return { hasBacklog: "backlog" in read, backlog: read.backlog, live };
+      }),
+    );
+  const ids = (records: ReadonlyArray<StoredRecord> | undefined) => (records ?? []).map((r) => r.evaluationId);
+
+  describe("the prelude (ADR-QD-904)", () => {
+    it.effect("a prelude becomes the backlog, in storedRecordOrder", () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "late", at: 300 })));
+        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "early", at: 100 })));
+        fake.queueEvent("synced", '{"backlog":2}');
+        fake.queue([frameOf(decisionRecord({ evaluationId: "live", at: 400 }))]);
+
+        const got = yield* readOnce(fake, 1);
+        assert.deepStrictEqual(ids(got.backlog), ["early", "late"]);
+        assert.deepStrictEqual(ids(got.live), ["live"]);
+      }));
+
+    it.effect("synced with zero backlog frames is an empty backlog, not an absent one (BEH-QD-203)", () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        fake.queueEvent("synced", '{"backlog":0}');
+        fake.queue([frameOf(decisionRecord({ evaluationId: "live" }))]);
+
+        const got = yield* readOnce(fake, 1);
+        assert.isTrue(got.hasBacklog);
+        assert.deepStrictEqual(got.backlog, []);
+        assert.deepStrictEqual(ids(got.live), ["live"]);
+      }));
+
+    it.effect("a server that sends no prelude: the first message makes the backlog absent and is still delivered live", () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        fake.queue([frameOf(decisionRecord({ evaluationId: "first" })), frameOf(decisionRecord({ evaluationId: "second" }))]);
+
+        const got = yield* readOnce(fake, 2);
+        assert.isFalse(got.hasBacklog);
+        assert.deepStrictEqual(ids(got.live), ["first", "second"]);
+      }));
+
+    it.effect("a silent old server: after syncTimeout the backlog is absent and the stream still runs", () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        let opened = false;
+        const source = sourceFromEventSource({
+          url: "/__decisions",
+          syncTimeout: "500 millis",
+          open: () => {
+            opened = true;
+            return fake.open();
+          },
+        });
+
+        const reading = yield* Effect.forkChild(
+          Effect.scoped(Effect.map(source.read, (read) => "backlog" in read)),
+          { startImmediately: true },
+        );
+        assert.isTrue(opened);
+        yield* TestClock.adjust("499 millis");
+        assert.isUndefined(reading.pollUnsafe());
+        yield* TestClock.adjust("1 millis");
+        assert.isFalse(yield* Fiber.join(reading));
+      }));
+
+    it.effect("a timeout keeps the backlog frames that did arrive, and delivers them live", () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "partial" })));
+        const source = sourceFromEventSource({ url: "/__decisions", syncTimeout: "1 second", open: fake.open });
+
+        const reading = yield* Effect.forkChild(
+          Effect.scoped(
+            Effect.flatMap(source.read, (read) =>
+              Effect.map(Stream.runCollect(Stream.take(read.live, 1)), (live) => ({
+                hasBacklog: "backlog" in read,
+                live: Array.from(live),
+              }))),
+          ),
+          { startImmediately: true },
+        );
+        yield* TestClock.adjust("1 second");
+        const got = yield* Fiber.join(reading);
+        assert.isFalse(got.hasBacklog);
+        assert.deepStrictEqual(ids(got.live), ["partial"]);
+      }));
+
+    it.effect("a reconnect's backlog frames arrive live, and its synced is ignored", () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        fake.queueEvent("synced", '{"backlog":0}');
+        // The connection dropped and `EventSource` reconnected: the server
+        // sends its prelude again on the same `EventSource`.
+        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "again" })));
+        fake.queueEvent("synced", '{"backlog":1}');
+        fake.queue([frameOf(decisionRecord({ evaluationId: "next" }))]);
+
+        const got = yield* readOnce(fake, 2);
+        assert.deepStrictEqual(got.backlog, []);
+        assert.deepStrictEqual(ids(got.live), ["again", "next"]);
+      }));
+
+    it.effect("a backlog frame that does not decode is reported and left out of the backlog", () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        const reported: Array<readonly [string, MalformedReason]> = [];
+        fake.queueEvent("backlog", "}{ not json");
+        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "kept" })));
+        fake.queueEvent("synced", '{"backlog":2}');
+        fake.queue([frameOf(decisionRecord({ evaluationId: "live" }))]);
+
+        const got = yield* readOnce(fake, 1, { onMalformed: (frame, reason) => reported.push([frame, reason]) });
+        assert.deepStrictEqual(ids(got.backlog), ["kept"]);
+        assert.deepStrictEqual(reported, [["}{ not json", "not-json"]]);
+      }));
+  });
+
+  describe("the environment comes off the wire", () => {
+    it.effect("the environment is the frame's, not the reader's", () =>
+      Effect.gen(function* () {
+        const fake = fakeEventSource();
+        fake.queueEvent("backlog", frameOf(decisionRecord({ evaluationId: "edge-1", environment: "Edge" })));
+        fake.queueEvent("synced", '{"backlog":1}');
+        fake.queue([frameOf(decisionRecord({ evaluationId: "srv-1", environment: "Server" }))]);
+
+        const got = yield* readOnce(fake, 1);
+        assert.deepStrictEqual(got.backlog?.map((r) => r.environment), ["Edge"]);
+        assert.deepStrictEqual(got.live.map((r) => r.environment), ["Server"]);
+      }));
+
+    it.effect("a bare frame is stamped with legacyEnvironment, and is not-a-record without it", () =>
+      Effect.gen(function* () {
+        const bare = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" })));
+
+        const withLabel = fakeEventSource();
+        withLabel.queue([bare]);
+        const stamped = yield* readOnce(withLabel, 1, { legacyEnvironment: "Legacy" });
+        assert.deepStrictEqual(stamped.live.map((r) => r.environment), ["Legacy"]);
+
+        const without = fakeEventSource();
+        const reported: Array<readonly [string, MalformedReason]> = [];
+        without.queue([bare, frameOf(decisionRecord({ evaluationId: "after" }))]);
+        const got = yield* readOnce(without, 1, { onMalformed: (frame, reason) => reported.push([frame, reason]) });
+        assert.deepStrictEqual(reported, [[bare, "not-a-record"]]);
+        assert.deepStrictEqual(ids(got.live), ["after"]);
+      }));
+  });
+
   it.effect("a well-formed frame becomes a stamped record", () =>
     Effect.gen(function* () {
       const fake = fakeEventSource();
@@ -199,7 +368,7 @@ describe("sourceFromEventSource", () => {
       assert.strictEqual(got.length, 1);
       assert.strictEqual(got[0]?.evaluationId, "a");
       assert.strictEqual(got[0]?.environment, "Server");
-      // Same prototype-preservation guarantee `sourceFromFeed` pins: a
+      // Stamped by core's `stampRecord` inside the decode: a
       // `{ ...record, environment }` spread would silently drop `.pipe`.
       assert.strictEqual(typeof got[0]?.pipe, "function");
     }));
@@ -230,7 +399,7 @@ describe("sourceFromEventSource", () => {
       const got = yield* collect(
         fake,
         [
-          JSON.stringify({ _tag: "Decision", evaluationId: 42 }),
+          enveloped(JSON.stringify({ _tag: "Decision", evaluationId: 42 })),
           frameOf(decisionRecord({ evaluationId: "after" })),
         ],
         1,
@@ -277,13 +446,13 @@ describe("sourceFromEventSource", () => {
         for (let i = 0; i < MAX_DECODE_DEPTH + 10; i++) {
           policy = { _tag: "Not", policy };
         }
-        const deepFrame = JSON.stringify({
+        const deepFrame = enveloped(JSON.stringify({
           _tag: "Decision",
           evaluationId: "too-deep",
           at: 0,
           subjectId: "attacker",
           policy,
-        });
+        }));
 
         const got = yield* collect(
           fake,
@@ -304,13 +473,13 @@ describe("sourceFromEventSource", () => {
     Effect.gen(function* () {
       const fake = fakeEventSource();
       const reported: Array<readonly [string, MalformedReason]> = [];
-      const frame = JSON.stringify({
+      const frame = enveloped(JSON.stringify({
         _tag: "Decision",
         evaluationId: "broken",
         at: 1,
         subjectId: "alice",
         policy: { _tag: "HasPermission", permission: { resource: "doc", action: "read" } },
-      });
+      }));
 
       const got = yield* collect(fake, [frame, frameOf(decisionRecord({ evaluationId: "after" }))], 1, {
         onMalformed: (bad, reason) => reported.push([bad, reason]),
@@ -328,16 +497,19 @@ describe("sourceFromEventSource", () => {
   describe("wire versions", () => {
     const record = decisionRecord({ evaluationId: "versioned" });
     /** The record as a server on this release frames it (version 2), or as an older one did (version 1). */
-    const framed = (wireVersion: 1 | 2): string => {
-      const v2 = frameOf(record);
+    /** The record's own wire text, version 2 or a hand-built version 1. */
+    const recordText = (wireVersion: 1 | 2): string => {
+      const v2 = JSON.stringify(JSON.parse(frameOf(record)).record);
       if (wireVersion === 2) return v2;
       // Version 1 by hand, the way a release before the versioned wire wrote
       // it: no `version`, and the decision under `decided`, last.
       const { version: _version, outcome, ...envelope } = JSON.parse(v2);
       return JSON.stringify({ ...envelope, decided: outcome.decision });
     };
-    const withField = (text: string, key: string, value: unknown): string =>
-      JSON.stringify({ ...JSON.parse(text), [key]: value });
+    const framed = (wireVersion: 1 | 2): string => enveloped(recordText(wireVersion));
+    /** A frame whose record carries one more field. */
+    const withField = (wireVersion: 1 | 2, key: string, value: unknown): string =>
+      enveloped(JSON.stringify({ ...JSON.parse(recordText(wireVersion)), [key]: value }));
 
     it.effect("a v2 frame and a v1 frame from an older server decode to the same record", () =>
       Effect.gen(function* () {
@@ -349,14 +521,14 @@ describe("sourceFromEventSource", () => {
 
     it.effect("a frame with an unknown envelope key decodes (a newer server's additive metadata)", () =>
       Effect.gen(function* () {
-        const got = yield* collect(fakeEventSource(), [withField(framed(2), "traceparent", "00-abc")], 1);
+        const got = yield* collect(fakeEventSource(), [withField(2, "traceparent", "00-abc")], 1);
         assert.strictEqual(got[0]?.evaluationId, "versioned");
       }));
 
     it.effect("a v1 frame naming both outcomes is dropped as not-a-record", () =>
       Effect.gen(function* () {
         const reported: Array<readonly [string, MalformedReason]> = [];
-        const both = withField(framed(1), "failed", { _tag: "MissingResource", attribute: "owner" });
+        const both = withField(1, "failed", { _tag: "MissingResource", attribute: "owner" });
         const got = yield* collect(fakeEventSource(), [both, framed(2)], 1, {
           onMalformed: (frame, reason) => reported.push([frame, reason]),
         });
@@ -367,7 +539,7 @@ describe("sourceFromEventSource", () => {
     it.effect("a version-3 frame is dropped as unsupported-version, not as not-a-record", () =>
       Effect.gen(function* () {
         const reported: Array<readonly [string, MalformedReason]> = [];
-        const newer = withField(framed(2), "version", 3);
+        const newer = withField(2, "version", 3);
         const got = yield* collect(fakeEventSource(), [newer, framed(2)], 1, {
           onMalformed: (frame, reason) => reported.push([frame, reason]),
         });
@@ -446,18 +618,6 @@ describe("sourceFromEventSource", () => {
       assert.isTrue(fake.wasClosed());
     }));
 
-  // E1.5 — SSE cannot answer for the past on its own.
-  it.effect("has no backlog: a live feed cannot answer for the past", () =>
-    Effect.gen(function* () {
-      const fake = fakeEventSource();
-      const source = sourceFromEventSource({
-        url: "/__decisions",
-        environment: "Server",
-        open: fake.open,
-      });
-      assert.isFalse(yield* hasBacklog(source));
-    }));
-
 });
 
 /**
@@ -489,12 +649,12 @@ describe("the default EventSource", () => {
     addEventListener(type: string, listener: (event: { data: string }) => void) {
       this.registered.push(type);
       this.listeners.set(type, listener);
-      if (this.listeners.size < 2) return;
+      if (this.listeners.size < 4) return;
       // Both are driven: the error one must reach `onDisconnect`, and the
-      // message one must reach the stream.
+      // message one must reach the stream — an older server's first frame.
       this.listeners.get("error")?.({ data: "" });
       this.listeners.get("message")?.({
-        data: frameOf(decisionRecord({ evaluationId: "viaGlobal" })),
+        data: frameOf(decisionRecord({ evaluationId: "viaGlobal", environment: "Edge" })),
       });
     }
     close() {
@@ -517,7 +677,6 @@ describe("the default EventSource", () => {
 
       const source = sourceFromEventSource({
         url: "/__decisions",
-        environment: "Edge",
         withCredentials: true,
       });
 
@@ -528,6 +687,7 @@ describe("the default EventSource", () => {
       assert.strictEqual(instance?.url, "/__decisions");
       assert.strictEqual(instance?.options?.withCredentials, true);
       assert.strictEqual(got[0]?.evaluationId, "viaGlobal");
+      // The frame's label, not one this reader stated.
       assert.strictEqual(got[0]?.environment, "Edge");
       assert.strictEqual(closed, 1);
     }));
@@ -540,14 +700,13 @@ describe("the default EventSource", () => {
    * no-op — the test would pass while the real panel never learned it had been
    * disconnected. Two mutants of that line survived on exactly that.
    */
-  it.effect("registers message and error, and defaults withCredentials to false", () =>
+  it.effect("registers the three decision events and error, and defaults withCredentials to false", () =>
     Effect.gen(function* () {
       vi.stubGlobal("EventSource", FakeEventSource);
       let disconnects = 0;
 
       const source = sourceFromEventSource({
         url: "/__decisions",
-        environment: "Server",
         onDisconnect: () => {
           disconnects += 1;
         },
@@ -556,7 +715,7 @@ describe("the default EventSource", () => {
       yield* liveOf(source, 1);
 
       const instance = instances[0];
-      assert.deepStrictEqual(instance?.registered, ["message", "error"]);
+      assert.deepStrictEqual(instance?.registered, ["message", "backlog", "synced", "error"]);
       assert.strictEqual(instance?.options?.withCredentials, false);
       assert.strictEqual(disconnects, 1);
     }));
@@ -568,7 +727,7 @@ describe("the default EventSource", () => {
     // cleanly and then dies when someone opens it is the worst place to learn
     // this. Same reasoning as `makeDecisionLog`'s capacity check.
     assert.throws(
-      () => sourceFromEventSource({ url: "/__decisions", environment: "Server" }),
+      () => sourceFromEventSource({ url: "/__decisions" }),
       /no global EventSource[\s\S]*Supply `open`/,
     );
   });
@@ -577,7 +736,7 @@ describe("the default EventSource", () => {
     vi.stubGlobal("EventSource", undefined);
     const fake = fakeEventSource();
     assert.isDefined(
-      sourceFromEventSource({ url: "/__decisions", environment: "Server", open: fake.open }).read,
+      sourceFromEventSource({ url: "/__decisions", open: fake.open }).read,
     );
   });
 });

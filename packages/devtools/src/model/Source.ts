@@ -16,15 +16,17 @@
  * a `Source` as it is, with no adapter; the SSE source is the second
  * implementation of the same seam, reading the same `read` over HTTP.
  */
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
 import * as Match from "effect/Match";
+import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import type { DecodeRefusal, StoredRecord } from "@qadi/core";
-import { decodeSinkRecordString, stampRecord, storedRecordOrder } from "@qadi/core";
+import { decodeStoredRecordString, storedRecordOrder } from "@qadi/core";
 
 /** What one `read` of a source hands its reader. */
 export interface SourceRead {
@@ -69,6 +71,13 @@ export const sourceFromRecords = (records: ReadonlyArray<StoredRecord>): Source 
 });
 
 /**
+ * The SSE events `/__decisions` sends (ADR-QD-904): `backlog` frames, one
+ * `synced`, then `message` frames. A closed union — the adapter registers one
+ * listener per name.
+ */
+export type DecisionEventName = "backlog" | "synced" | "message";
+
+/**
  * The part of `EventSource` this module uses.
  *
  * A structural subset rather than the DOM type, so the SSE adapter can be
@@ -78,29 +87,62 @@ export const sourceFromRecords = (records: ReadonlyArray<StoredRecord>): Source 
  * backlog-and-merge path is exactly what a *server-side* aggregator would run.
  */
 export interface DecisionEventSource {
-  readonly onMessage: (handler: (data: string) => void) => void;
+  readonly onEvent: (event: DecisionEventName, handler: (data: string) => void) => void;
   readonly onError: (handler: () => void) => void;
   readonly close: () => void;
 }
 
+/** One frame as it arrived, before anything decided what it is. */
+interface Frame {
+  readonly event: DecisionEventName;
+  readonly data: string;
+}
+
+/** How long `read` waits for a prelude before deciding the server sends none. */
+const DEFAULT_SYNC_TIMEOUT: Duration.Input = "2 seconds";
+
 /**
- * `/__decisions` as a source.
+ * `/__decisions` as a source: one connection, whose prelude is the backlog and
+ * whose remainder is the live stream.
+ *
+ * `read` opens the connection in its scope and waits for the first of three
+ * things: `synced`, after which the `backlog` frames received so far are the
+ * backlog (an empty one when the server held nothing — not an absent one); a
+ * `message` frame first, which is a server older than the prelude, so the
+ * backlog is **absent** and that frame is the first live one; or `syncTimeout`
+ * passing with neither, a silent older server, so the backlog is absent and the
+ * stream still runs. Waiting is on `Effect.sleep`, so `TestClock` drives it.
+ *
+ * **The environment comes off the wire.** Every frame is a stored-record
+ * envelope decoded by `@qadi/core`'s `decodeStoredRecordString`, which stamps
+ * the producer's label; this reader states none. A bare record — a server
+ * older than the envelope — is stamped with `legacyEnvironment` when given,
+ * and reported `not-a-record` otherwise.
  *
  * **Every failure here degrades a row, never the stream.** A frame that is not
  * JSON, a frame that does not decode, a server that goes away — none of them may
  * take down a devtools panel, because the panel is the thing you are looking at
- * when something is already wrong. Both are reported rather than swallowed, on
+ * when something is already wrong. Each is reported rather than swallowed, on
  * the precedent of `onDropped`, `onUnknownParent` and `onFailure`: silently
  * dropping every frame while looking healthy is the defect, not the drop.
  *
- * `EventSource` reconnects by itself and the server may be replaying, so the
- * same record can arrive twice. Deduplication is the timeline's job, not this
- * module's.
+ * `EventSource` reconnects by itself and the server sends its backlog again on
+ * the new connection, so the same record can arrive twice — its `backlog`
+ * frames then arrive on the live half, and a repeated `synced` is ignored.
+ * Deduplication is the timeline's job, not this module's.
  */
 export const sourceFromEventSource = (options: {
   readonly url: string;
-  readonly environment: string;
   readonly withCredentials?: boolean;
+  /**
+   * The label for a bare record from a server older than the envelope.
+   *
+   * @deprecated Accepted for one minor so this reader can read an older server
+   * (ARCH-11 D-11-e). Remove in the minor after next.
+   */
+  readonly legacyEnvironment?: string;
+  /** How long to wait for the prelude. Defaults to two seconds. */
+  readonly syncTimeout?: Duration.Input;
   /** Replaces the browser `EventSource`. Supply one to test without a network. */
   readonly open?: (url: string, withCredentials: boolean) => DecisionEventSource;
   /** A frame arrived that is not a record. Replaces the default log. */
@@ -120,29 +162,66 @@ export const sourceFromEventSource = (options: {
   }
   const open = options.open ?? openEventSource;
   const withCredentials = options.withCredentials ?? false;
-
-  // The connection opens inside `read`'s scope and closes with it, so closing
-  // the panel closes the connection rather than leaving a browser retrying a
-  // feed nobody reads.
-  const frames = Stream.callback<string>((queue) =>
-    Effect.gen(function* () {
-      const source = open(options.url, withCredentials);
-      source.onMessage((data) => {
-        Queue.offerUnsafe(queue, data);
-      });
-      source.onError(() => {
-        options.onDisconnect?.();
-      });
-      yield* Effect.addFinalizer(() => Effect.sync(() => source.close()));
-    }),
-  );
+  const decode = decodeFrame(options.legacyEnvironment, options.onMalformed);
 
   return {
-    read: Effect.succeed({
-      live: Stream.filterMapEffect(frames, decodeFrame(options.environment, options.onMalformed)),
+    read: Effect.gen(function* () {
+      const frames = yield* Queue.unbounded<Frame>();
+      // The connection lives exactly as long as the read's scope, so closing
+      // the panel closes it rather than leaving a browser retrying a stream
+      // nobody reads.
+      yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          const source = open(options.url, withCredentials);
+          for (const event of DECISION_EVENTS) {
+            source.onEvent(event, (data) => {
+              Queue.offerUnsafe(frames, { event, data });
+            });
+          }
+          source.onError(() => {
+            options.onDisconnect?.();
+          });
+          return source;
+        }),
+        (source) => Effect.sync(() => source.close()),
+      );
+
+      // Frames taken while waiting for the prelude, in arrival order. Kept
+      // outside the timed wait, so a timeout loses none of them: they go to
+      // the live half.
+      const early: Array<Frame> = [];
+      const awaitPrelude = (): Effect.Effect<boolean> =>
+        Effect.flatMap(Queue.take(frames), (next) => {
+          if (next.event === "synced") return Effect.succeed(true);
+          early.push(next);
+          return next.event === "message" ? Effect.succeed(false) : awaitPrelude();
+        });
+      const synced = yield* Effect.timeoutOption(awaitPrelude(), options.syncTimeout ?? DEFAULT_SYNC_TIMEOUT);
+
+      const liveAfter = (first: ReadonlyArray<Frame>): Stream.Stream<StoredRecord> =>
+        Stream.concat(Stream.fromIterable(first), Stream.fromQueue(frames)).pipe(
+          // A `synced` on the live half is a reconnect's: nothing to decode.
+          Stream.filter((frame) => frame.event !== "synced"),
+          Stream.map((frame) => frame.data),
+          Stream.filterMapEffect(decode),
+        );
+
+      // No prelude — an older server, or a silent one: the backlog is absent,
+      // and whatever arrived while waiting is the start of the live half.
+      if (Option.isNone(synced) || !synced.value) return { live: liveAfter([...early]) };
+
+      // The prelude completed, so every early frame is a `backlog` one.
+      const backlog: Array<StoredRecord> = [];
+      for (const frame of early) {
+        const decoded = yield* decode(frame.data);
+        if (Result.isSuccess(decoded)) backlog.push(decoded.success);
+      }
+      return { backlog: backlog.sort(storedRecordOrder), live: liveAfter([]) };
     }),
   };
 };
+
+const DECISION_EVENTS: ReadonlyArray<DecisionEventName> = ["message", "backlog", "synced"];
 
 /**
  * Several sources as one.
@@ -200,22 +279,23 @@ const reasonOf: (refusal: DecodeRefusal) => MalformedReason = Match.type<DecodeR
 );
 
 /**
- * One SSE frame to one record, or a reported drop.
+ * One SSE frame to one stored record, or a reported drop.
  *
- * One call to `@qadi/core`'s `decodeSinkRecordString`, which parses, guards
- * depth and validates; this adds only the environment stamp and the report.
+ * One call to `@qadi/core`'s `decodeStoredRecordString`, which parses, reads
+ * the envelope, guards depth, validates and stamps the producer's label; this
+ * adds only the report.
  *
  * A `FilterEffect` rather than a map: `Result.fail` skips the element, which is
  * exactly "this frame was not a record" without inventing a placeholder row or
  * failing the stream.
  */
 const decodeFrame = (
-  environment: string,
+  legacyEnvironment: string | undefined,
   onMalformed: ((frame: string, reason: MalformedReason) => void) | undefined,
 ): Filter.FilterEffect<string, StoredRecord, string> =>
 (frame) =>
-  Result.match(decodeSinkRecordString(frame), {
-    onSuccess: (record) => Effect.succeed(Result.succeed(stampRecord(record, environment))),
+  Result.match(decodeStoredRecordString(frame, { legacyEnvironment }), {
+    onSuccess: (record) => Effect.succeed(Result.succeed(record)),
     onFailure: (error) => malformed(frame, reasonOf(error.refusal), onMalformed),
   });
 
@@ -254,7 +334,8 @@ const malformed = (
   );
 
 /**
- * The browser's `EventSource`, wrapped down to the three members this uses.
+ * The browser's `EventSource`, wrapped down to the three members this uses:
+ * one listener per decision event, the error listener, and `close`.
  *
  * Read off the global inside the function rather than at module scope, because
  * `@qadi/devtools`'s root entry point is the headless model and a server-side
@@ -263,7 +344,7 @@ const malformed = (
 const openEventSource = (url: string, withCredentials: boolean): DecisionEventSource => {
   const source = new EventSource(url, { withCredentials });
   return {
-    onMessage: (handler) => source.addEventListener("message", (event) => handler(event.data)),
+    onEvent: (event, handler) => source.addEventListener(event, (message) => handler(message.data)),
     onError: (handler) => source.addEventListener("error", () => handler()),
     close: () => source.close(),
   };
