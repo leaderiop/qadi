@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-025                                   |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-07-26                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.2 (2026-09-08): Added a correction blockquote under "Decision" — five more `stryker run` invocations (`@qadi/devtools`'s model, `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/audit`, `@qadi/http`) joined the original `packages/core` one since 1.1, and `mutation` no longer runs last in `pnpm check`'s chain (CCR-QD-119)<br>1.1 (2026-07-26): Named the step by position rather than index — it said "step 9" while the gate table had it at 10, and a new gate has since made it 11 (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-026) |
+> | Change History | 1.3 (2026-10-05): A seventh `stryker run` — `stryker.react.mjs`, scoped to `@qadi/react`'s `DecisionOutcome.ts` alone — the one exception to `@qadi/react`'s exclusion; the mutation steps are now 16-22 and the three after them 23-25 (ADR-QD-093, CCR-QD-175)<br>1.2 (2026-09-08): Added a correction blockquote under "Decision" — five more `stryker run` invocations (`@qadi/devtools`'s model, `@qadi/predicate-sql`, `@qadi/predicate-prisma`, `@qadi/audit`, `@qadi/http`) joined the original `packages/core` one since 1.1, and `mutation` no longer runs last in `pnpm check`'s chain (CCR-QD-119)<br>1.1 (2026-07-26): Named the step by position rather than index — it said "step 9" while the gate table had it at 10, and a new gate has since made it 11 (CCR-QD-038)<br>1.0 (2026-07-26): Initial release (CCR-QD-026) |
 
 ---
 
@@ -57,6 +57,16 @@ exercised.
 > "Scoped to `packages/core`" and "In `pnpm check`, not beside it" subsections
 > below describe only the original, `packages/core`-only shape this ADR shipped
 > with and are otherwise unchanged.
+
+> **Amended (revision 1.3, CCR-QD-175).** A seventh invocation, `stryker run
+> stryker.react.mjs`, now follows the six above, so the mutation steps are 16-22
+> and `spec:website-examples`, `website` and `spec:publish` are steps 23-25. It
+> mutates one file, `packages/react/src/DecisionOutcome.ts` — the one read of a
+> decision result every `@qadi/react` surface renders from (ADR-QD-093). The rest
+> of `@qadi/react` stays excluded for the reason `stryker.config.mjs` gives (a
+> binding plus render code); this file is pure decision logic, and a surviving
+> mutant in it is a stale allow (ADR-QD-017), so the exclusion's own reason does
+> not reach it.
 
 Three parts, each with a reason that is not obvious from the config file:
 

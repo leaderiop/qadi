@@ -87,7 +87,7 @@ jobs:
           #
           # One step of `pnpm check` is runtime-scoped rather than identical
           # on both legs: the website build (`node scripts/check-website-build.mjs`,
-          # step 23 per spec/process/definitions-of-done.md) builds `apps/website`
+          # step 24 per spec/process/definitions-of-done.md) builds `apps/website`
           # on whichever leg satisfies Astro's own `engines.node` floor and
           # states the skip in one log line on the leg that does not. See
           # ADR-QD-059 — this does not change which steps run, only what one
@@ -105,11 +105,11 @@ jobs:
 
       # The mutation HTML reports are the artefact you want when a score drops,
       # and they are the one thing `pnpm check` produces that a log cannot show.
-      # Six suites (`stryker run` plus `stryker.devtools.mjs`, `stryker.predicate-sql.mjs`,
-      # `stryker.predicate-prisma.mjs`, `stryker.audit.mjs` and `stryker.http.mjs` —
-      # steps 16–21 per spec/process/definitions-of-done.md), six sibling report directories —
-      # `upload-artifact`'s `path` does not glob sibling directories from one
-      # entry, so each needs naming or one of the six reports is produced in CI
+      # Seven suites (`stryker run` plus `stryker.devtools.mjs`, `stryker.predicate-sql.mjs`,
+      # `stryker.predicate-prisma.mjs`, `stryker.audit.mjs`, `stryker.http.mjs` and
+      # `stryker.react.mjs` — steps 16–22 per spec/process/definitions-of-done.md), seven
+      # sibling report directories — `upload-artifact`'s `path` does not glob sibling
+      # directories from one entry, so each needs naming or one of the seven reports is produced in CI
       # and thrown away silently (found in review: only `reports/mutation/`,
       # core's own, was ever uploaded).
       #
@@ -118,7 +118,7 @@ jobs:
       # (no per-matrix-leg suffix, unlike v3) — `fail-fast: false` above keeps
       # both legs of this matrix running to completion, so without the suffix
       # whichever leg's upload lands second collides with the first and errors,
-      # silently (`continue-on-error` below), dropping that leg's six reports
+      # silently (`continue-on-error` below), dropping that leg's seven reports
       # rather than the one this comment already names. Both legs mutate the
       # same source, but a survivor set can still differ by runtime, so both
       # are worth keeping.
@@ -140,5 +140,6 @@ jobs:
             reports/mutation-predicate-prisma/
             reports/mutation-audit/
             reports/mutation-http/
+            reports/mutation-react/
           if-no-files-found: ignore
           retention-days: 14

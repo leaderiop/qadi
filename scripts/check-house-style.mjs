@@ -60,7 +60,7 @@
  *     consuming the published packages, not this library's own
  *     implementation. `examples/nextjs-newsroom` is exercised instead by
  *     `pnpm --filter @qadi/example-nextjs check` (step 15 of `pnpm check`)
- *     and `apps/website` by `scripts/check-website-build.mjs` (step 23) —
+ *     and `apps/website` by `node scripts/check-website-build.mjs` (step 24) —
  *     both hold it to its own toolchain's rules, not this library's.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";

@@ -25,12 +25,12 @@ and save the full gate for before you push:
   — the affected package's own suite, without the other eight.
 
 None of the three replaces `pnpm check` — coverage thresholds, mutation
-testing, spec traceability, and the rest of the twenty-four steps only run
+testing, spec traceability, and the rest of the twenty-five steps only run
 there — but for the common loop (edit one package, check it typechecks and
 its tests pass) they are what to reach for, and `pnpm check` is what to run
 once, before you push.
 
-Six of those twenty-four steps are independent Stryker mutation runs, chained
+Seven of those twenty-five steps are independent Stryker mutation runs, chained
 sequentially by `&&` in the `mutation` script (`package.json`) because they
 share no state to coordinate — sequential is simply what `&&` gives, not a
 requirement. Nothing currently parallelizes or shards them, so their combined
@@ -139,7 +139,7 @@ stays frozen at its own, unrelated version; it is not a publish-status signal
 for anything under `packages/`. `.changeset/` holds no pending changesets.
 `pnpm publish`, never `npm publish` — AGENTS.md §16 explains why the
 workspace-time `catalog:`/`workspace:*` protocols require it (the release workflow does this for you).
-`scripts/check-publish-status.mjs` (merge gate 24) keeps this paragraph's
+`node scripts/check-publish-status.mjs` (merge gate 25) keeps this paragraph's
 version honest going forward — it fails if a version quoted here, in
 README.md, in spec/roadmap.md, or in apps/website/PRODUCT.md ever disagrees
 with what every `packages/*/package.json` agrees on (RC-01/DH-05: it used to

@@ -12,7 +12,9 @@
  * used by tests, so mutating it mostly measures the test doubles. `@qadi/react`
  * is excluded for a different reason: it is a thin binding over
  * `effect/reactivity` plus render code, neither of which a mutant here
- * would be scoring against a test double (CCR-QD-119) — see
+ * would be scoring against a test double (CCR-QD-119) — with one scoped
+ * exception, `stryker.react.mjs`, for the single file in it that is decision
+ * logic rather than binding or render code (`DecisionOutcome.ts`, ADR-QD-093) — see
  * `spec/decisions/032-promise-facade.md` for `@qadi/promise`'s own reason, a
  * third and different one again.
  *
