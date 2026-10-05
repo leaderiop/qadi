@@ -8,19 +8,18 @@
  * which is the only honest way to test "no flash".
  */
 import type { ReactNode } from "react";
-import * as AsyncResult from "effect/reactivity/AsyncResult";
 import type { Policy, Resource } from "@qadi/core";
 import type { DeniedNode } from "@qadi/react";
-import { Can, currentDecision, permits, useDecision } from "@qadi/react";
+import { Can, outcomeOf, useDecision } from "@qadi/react";
 import { badge, card, mono, muted } from "../ui/theme.ts";
 
 /**
- * A guard, and a label saying which of the four states it is in.
+ * A guard, and a label saying which of the five states it is in.
  *
- * `currentDecision`, never `AsyncResult.isSuccess`: a result that is `waiting`
+ * `outcomeOf`, never `AsyncResult.isSuccess`: a result that is `waiting`
  * carries the *previous* decision, and for authorization that staleness is an
- * over-permission however brief. This is the single place that rule lives in a
- * consumer, and reading the result directly is how a stale allow gets rendered
+ * over-permission however brief. Reading the result directly is how a stale
+ * allow gets rendered
  * ([ADR-QD-017](../../../../spec/decisions/017-stale-decisions-are-not-decisions.md)).
  */
 export const GateState = ({
@@ -32,30 +31,11 @@ export const GateState = ({
   readonly resource?: Resource;
   readonly label: string;
 }) => {
-  const result = useDecision(policy, resource);
-
-  // The same five states, in the same order, as `@qadi/react`'s internal
-  // `renderStateOf` — the one the gate registry records and the devtools React
-  // panel displays. Written out rather than imported because `useGate.ts` is
-  // deliberately out of the barrel; kept identical so a reader comparing this
-  // page to that panel is comparing like with like.
-  //
-  // The **order** is the substance. `isInitial` first, so a question being
-  // asked for the first time reads *Pending* rather than *Rechecking*; `waiting`
-  // before `isFailure`, so a re-check in flight never renders the previous
-  // answer. `currentDecision` enforces the same thing for the value.
-  const decision = currentDecision(result);
-  const state = AsyncResult.isInitial(result)
-    ? "Pending"
-    : result.waiting
-    ? "Rechecking"
-    : AsyncResult.isFailure(result)
-    ? "Failed"
-    : decision === undefined
-    ? "Pending"
-    : permits(decision)
-    ? "Allowed"
-    : "Denied";
+  // The five states come from `@qadi/react`'s own `outcomeOf` — the same read
+  // the gate registry records and the devtools React panel displays — so this
+  // page and that panel compare like with like by construction, not by a copy
+  // kept in step.
+  const state = outcomeOf(useDecision(policy, resource))._tag;
 
   return (
     <span style={{ ...mono, marginRight: "1rem" }} data-testid={`state-${label}`} data-state={state}>
