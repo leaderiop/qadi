@@ -8,6 +8,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
@@ -21,7 +22,8 @@ import {
   attributeResolverTimingOut,
 } from "../src/AttributeResolver.ts";
 import { makeSubjectId } from "../src/Identity.ts";
-import { collectingTracer, forkAllAndSettle } from "./helpers.ts";
+import { portTimeoutsTotal } from "../src/PortMetrics.ts";
+import { collectingTracer, forkAllAndSettle, isolatedMetrics } from "./helpers.ts";
 
 /** A resolver that fails `failures` times, then succeeds, counting attempts via `attempts`. */
 const flakyLayer = (failures: number, attempts: Ref.Ref<number>): Layer.Layer<AttributeResolver> =>
@@ -228,7 +230,17 @@ describe("attributeResolverTimingOut", () => {
       if (!Result.isFailure(result)) return;
       assert.strictEqual(result.failure._tag, "AttributeResolveError");
       assert.strictEqual(result.failure.attribute, "dept");
-    }));
+      // The deadline message and the timeout metric were pinned by nothing
+      // (ARCH-10 E13): a reworded message or a dropped counter passed.
+      assert.instanceOf(result.failure.cause, Error);
+      if (!(result.failure.cause instanceof Error)) return;
+      assert.strictEqual(
+        result.failure.cause.message,
+        "AttributeResolver.resolve did not settle within the configured deadline",
+      );
+      const timeouts = yield* Metric.value(portTimeoutsTotal);
+      assert.strictEqual(timeouts.occurrences.get("AttributeResolver"), 1);
+    }).pipe(isolatedMetrics));
 
   it.effect("does not affect a resolver that settles well within the deadline", () =>
     Effect.gen(function* () {

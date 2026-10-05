@@ -14,14 +14,17 @@
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CustomPredicateError, InvalidBoundedPermits } from "./Errors.ts";
-import { portRetriesTotal } from "./PortMetrics.ts";
 import type { Resource } from "./Resource.ts";
-import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
+import {
+  boundedPermits,
+  retryCountingAttempts,
+  wrapService,
+  wrapServiceEffect,
+} from "./RetryingLayer.ts";
 
 export interface CustomPredicateShape {
   /**
@@ -117,8 +120,12 @@ export const customPredicateFromRecord = (
  * Wraps a registry layer so every `evaluate` call retries on
  * `CustomPredicateError` under the given schedule before surfacing it.
  *
- * Mirrors `attributeResolverRetrying` exactly — see its own doc comment for
- * why this is additive rather than a change to `CustomPredicateShape`.
+ * The same combinator as `attributeResolverRetrying` — see its own doc comment
+ * for why this is additive rather than a change to `CustomPredicateShape`. Both
+ * annotate `qadi.attempts` on the caller's span and count failed attempts in
+ * `portRetriesTotal` through the shared `retryCountingAttempts`
+ * (`RetryingLayer.ts`). Until ARCH-10 this one did neither, while this comment
+ * claimed it mirrored the attribute wrapper exactly.
  */
 export const customPredicateRetrying =
   (schedule: Schedule.Schedule<unknown, CustomPredicateError>) =>
@@ -126,12 +133,11 @@ export const customPredicateRetrying =
     wrapService(CustomPredicate, layer, (inner) => ({
       name: `${inner.name ?? "?"} (retrying)`,
       evaluate: (name, subject, resource, params) =>
-        inner
-          .evaluate(name, subject, resource, params)
-          .pipe(
-            Effect.tapError(() => Metric.update(portRetriesTotal, "CustomPredicate")),
-            Effect.retry(schedule),
-          ),
+        retryCountingAttempts(
+          "CustomPredicate",
+          schedule,
+          inner.evaluate(name, subject, resource, params),
+        ),
     }));
 
 /**

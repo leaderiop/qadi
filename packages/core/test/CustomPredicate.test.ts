@@ -20,6 +20,7 @@ import * as Layer from "effect/Layer";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
+import type * as Tracer from "effect/Tracer";
 import { makeSubject } from "../src/AuthSubject.ts";
 import {
   CustomPredicate,
@@ -29,7 +30,7 @@ import {
   customPredicateRetrying,
 } from "../src/CustomPredicate.ts";
 import { CustomPredicateError } from "../src/Errors.ts";
-import { forkAllAndSettle } from "./helpers.ts";
+import { collectingTracer, forkAllAndSettle } from "./helpers.ts";
 
 const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
 
@@ -144,6 +145,43 @@ describe("customPredicateRetrying", () => {
 
       assert.strictEqual(result._tag, "Failure");
       assert.strictEqual(yield* Ref.get(attempts), 3);
+    }));
+
+  // KH-01, for this port too: this wrapper's doc said it mirrored
+  // `attributeResolverRetrying` exactly, but it recorded no attempt count.
+  it.effect("the qadi.attempts span annotation matches the real call count, even when every attempt fails", () =>
+    Effect.gen(function* () {
+      const attempts = yield* Ref.make(0);
+      const spans: Array<Tracer.Span> = [];
+      const retrying = customPredicateRetrying(Schedule.recurs(2))(flakyLayer(999, attempts));
+
+      yield* Effect.result(
+        Effect.withSpan("test-span")(
+          CustomPredicate.evaluate("x", alice, undefined, undefined).pipe(Effect.provide(retrying)),
+        ).pipe(Effect.provide(collectingTracer(spans))),
+      );
+
+      const span = spans.find((s) => s.name === "test-span");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.deepStrictEqual(Object.fromEntries(span.attributes), { "qadi.attempts": 3 });
+    }));
+
+  it.effect("the qadi.attempts span annotation counts the failed attempts and the one that answered", () =>
+    Effect.gen(function* () {
+      const attempts = yield* Ref.make(0);
+      const spans: Array<Tracer.Span> = [];
+      const retrying = customPredicateRetrying(Schedule.recurs(5))(flakyLayer(2, attempts));
+
+      const result = yield* Effect.withSpan("test-span")(
+        CustomPredicate.evaluate("x", alice, undefined, undefined).pipe(Effect.provide(retrying)),
+      ).pipe(Effect.provide(collectingTracer(spans)));
+
+      assert.isTrue(result);
+      const span = spans.find((s) => s.name === "test-span");
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.deepStrictEqual(Object.fromEntries(span.attributes), { "qadi.attempts": 3 });
     }));
 });
 

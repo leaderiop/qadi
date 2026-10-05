@@ -12,14 +12,18 @@ import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
-import * as Ref from "effect/Ref";
 import type * as Schedule from "effect/Schedule";
 import * as Semaphore from "effect/Semaphore";
 import { AttributeResolveError } from "./Errors.ts";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
-import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
-import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
+import { portTimeoutsTotal } from "./PortMetrics.ts";
+import {
+  boundedPermits,
+  retryCountingAttempts,
+  wrapService,
+  wrapServiceEffect,
+} from "./RetryingLayer.ts";
 
 export interface AttributeResolverShape {
   /**
@@ -118,9 +122,8 @@ export const attributeResolverFromRecord = (
  * happened. `portRetriesTotal` (`PortMetrics.ts`) already counts failed
  * attempts, but as a process-wide aggregate with no correlation back to the
  * request that triggered them — this annotation is the per-call signal that
- * aggregate cannot give. `Effect.ensuring`, not a `tap` on only the success or
- * only the failure path: the count is worth recording whichever way the
- * retried call finally settles, and a finalizer runs either way.
+ * aggregate cannot give. The accounting lives in `RetryingLayer.ts`'s
+ * `retryCountingAttempts`, shared with every other `*Retrying` wrapper.
  */
 export const attributeResolverRetrying =
   (schedule: Schedule.Schedule<unknown, AttributeResolveError>) =>
@@ -130,29 +133,11 @@ export const attributeResolverRetrying =
       // the whole stack rather than losing the base implementation's identity.
       name: `${inner.name ?? "?"} (retrying)`,
       resolve: (subjectId, attribute) =>
-        Effect.gen(function* () {
-          const attempts = yield* Ref.make(0);
-          // Incremented once per actual invocation of `inner.resolve`, not
-          // once per failure — counting failures instead double-counts the
-          // exhausting failure, the one `Effect.retry` decides not to retry:
-          // `tapError` cannot see that decision, so it always assumed
-          // another call was coming. This wraps the real call site instead,
-          // so the count is exactly how many times `resolve` actually ran,
-          // whether the run this settles on succeeds or the schedule gives up.
-          const attempt = Effect.gen(function* () {
-            yield* Ref.update(attempts, (n) => n + 1);
-            return yield* inner.resolve(subjectId, attribute);
-          });
-          return yield* attempt.pipe(
-            Effect.tapError(() => Metric.update(portRetriesTotal, "AttributeResolver")),
-            Effect.retry(schedule),
-            Effect.ensuring(
-              Effect.flatMap(Ref.get(attempts), (n) =>
-                Effect.annotateCurrentSpan({ "qadi.attempts": n }),
-              ),
-            ),
-          );
-        }),
+        retryCountingAttempts(
+          "AttributeResolver",
+          schedule,
+          inner.resolve(subjectId, attribute),
+        ),
     }));
 
 /**

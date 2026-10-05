@@ -7,13 +7,17 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
+import * as Metric from "effect/Metric";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as TestClock from "effect/testing/TestClock";
+import type * as Tracer from "effect/Tracer";
 import { RelationshipResolveError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
+import { portTimeoutsTotal } from "../src/PortMetrics.ts";
 import type { RelatedResult } from "../src/RelationshipResolver.ts";
+import { collectingTracer, isolatedMetrics } from "./helpers.ts";
 import {
   RelationshipResolver,
   RelationshipResolverNever,
@@ -237,6 +241,45 @@ describe("RelationshipResolver", () => {
         assert.strictEqual(result._tag, "Failure");
         assert.strictEqual(yield* Ref.get(attempts), 3);
       }));
+
+    // KH-01, for this port too: a trace reader must see N store round trips,
+    // not one deceptively slow call. Mirrors `AttributeResolver.test.ts`.
+    it.effect("the qadi.attempts span annotation matches the real call count, even when every attempt fails", () =>
+      Effect.gen(function* () {
+        const attempts = yield* Ref.make(0);
+        const spans: Array<Tracer.Span> = [];
+        const retrying = relationshipResolverRetrying(Schedule.recurs(2))(
+          flakyLayer(999, attempts),
+        );
+
+        yield* Effect.result(
+          Effect.withSpan("test-span")(
+            check(retrying, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
+          ).pipe(Effect.provide(collectingTracer(spans))),
+        );
+
+        const span = spans.find((s) => s.name === "test-span");
+        assert.isDefined(span);
+        if (span === undefined) return;
+        assert.deepStrictEqual(Object.fromEntries(span.attributes), { "qadi.attempts": 3 });
+      }));
+
+    it.effect("the qadi.attempts span annotation counts the failed attempts and the one that answered", () =>
+      Effect.gen(function* () {
+        const attempts = yield* Ref.make(0);
+        const spans: Array<Tracer.Span> = [];
+        const retrying = relationshipResolverRetrying(Schedule.recurs(5))(flakyLayer(2, attempts));
+
+        const result = yield* Effect.withSpan("test-span")(
+          check(retrying, { subjectId: "alice", relation: "owner", resourceId: "doc-1" }),
+        ).pipe(Effect.provide(collectingTracer(spans)));
+
+        assertRelated(result);
+        const span = spans.find((s) => s.name === "test-span");
+        assert.isDefined(span);
+        if (span === undefined) return;
+        assert.deepStrictEqual(Object.fromEntries(span.attributes), { "qadi.attempts": 3 });
+      }));
   });
 
   describe("relationshipResolverBounded", () => {
@@ -347,7 +390,17 @@ describe("RelationshipResolver", () => {
         if (!Result.isFailure(result)) return;
         assert.strictEqual(result.failure._tag, "RelationshipResolveError");
         assert.strictEqual(result.failure.relation, "owner");
-      }));
+        // The deadline message and the timeout metric were pinned by nothing
+        // (ARCH-10 E13): a reworded message or a dropped counter passed.
+        assert.instanceOf(result.failure.cause, Error);
+        if (!(result.failure.cause instanceof Error)) return;
+        assert.strictEqual(
+          result.failure.cause.message,
+          "RelationshipResolver.check did not settle within the configured deadline",
+        );
+        const timeouts = yield* Metric.value(portTimeoutsTotal);
+        assert.strictEqual(timeouts.occurrences.get("RelationshipResolver"), 1);
+      }).pipe(isolatedMetrics));
 
     it.effect("does not affect a resolver that settles well within the deadline", () =>
       Effect.gen(function* () {

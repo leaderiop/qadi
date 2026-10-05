@@ -19,8 +19,13 @@ import * as Semaphore from "effect/Semaphore";
 import { RelationshipResolveError } from "./Errors.ts";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
-import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
-import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
+import { portTimeoutsTotal } from "./PortMetrics.ts";
+import {
+  boundedPermits,
+  retryCountingAttempts,
+  wrapService,
+  wrapServiceEffect,
+} from "./RetryingLayer.ts";
 
 export interface RelationshipCheck {
   readonly subjectId: SubjectId;
@@ -201,7 +206,9 @@ export const relationshipResolverFromEdges = (
  *
  * Additive, not a change to {@link RelationshipResolverShape} — see
  * `attributeResolverRetrying` in `AttributeResolver.ts`, the same combinator
- * for the sibling service.
+ * for the sibling service. Like it, this annotates `qadi.attempts` on the
+ * caller's span and counts failed attempts in `portRetriesTotal`, through the
+ * shared `retryCountingAttempts` (`RetryingLayer.ts`).
  */
 export const relationshipResolverRetrying =
   (schedule: Schedule.Schedule<unknown, RelationshipResolveError>) =>
@@ -209,12 +216,7 @@ export const relationshipResolverRetrying =
     wrapService(RelationshipResolver, layer, (inner) => ({
       name: `${inner.name ?? "?"} (retrying)`,
       check: (request) =>
-        inner
-          .check(request)
-          .pipe(
-            Effect.tapError(() => Metric.update(portRetriesTotal, "RelationshipResolver")),
-            Effect.retry(schedule),
-          ),
+        retryCountingAttempts("RelationshipResolver", schedule, inner.check(request)),
     }));
 
 /**
