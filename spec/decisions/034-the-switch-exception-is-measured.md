@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-034                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-27                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted — amended by ADR-QD-092               |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-09-07): Addendum — the cited benchmark has drifted since this ADR was written and was never re-run; the workload and end-to-end figures below are historical, not currently reproducible<br>1.0 (2026-07-27): Initial release (CCR-QD-040) |
+> | Change History | 1.2 (2026-10-05): Addendum — `mergeFields` is no longer a switch; the budget is three, measured first (ADR-QD-092, CCR-QD-174)<br>1.1 (2026-09-07): Addendum — the cited benchmark has drifted since this ADR was written and was never re-run; the workload and end-to-end figures below are historical, not currently reproducible<br>1.0 (2026-07-27): Initial release (CCR-QD-040) |
 
 ---
 
@@ -185,6 +185,25 @@ on one day — rather than a continuously verified property. Re-running the
 benchmark and updating this addendum with fresh numbers is out of scope for
 this audit pass; this note only flags that the exercise is due, not what its
 result would be.
+
+
+## Addendum (2026-10-05): `mergeFields` is no longer a switch
+
+[ADR-QD-092](./092-field-strategy-meaning-lives-beside-the-lattice.md) replaced the
+`FieldStrategy` switch with `FieldLattice.ts`'s own-property law table, so the budget
+is **three**: `evaluateNode`, `judgeMatcher` and `resolveRef`. The table's fail-closed
+row — `[]` for a strategy outside the union, every law `false` — is reachable and
+tested, where the `default: never` arm this ADR added was an unreachable line; and a
+missing strategy is a TS2741 compile error in the table, the guarantee the arm gave.
+The two-unguarded-switches finding above is history: `resolveRef` keeps its arm, and
+`mergeFields` has nothing left to guard.
+
+The conversion was measured first, as this ADR requires. Per dispatch, with the merge
+each arm selects: the table at ≈0.97× the switch and `Match.value` at ≈1.1×. End to
+end, six paired runs: `field-heavy` `Intersection` +6.2% and `Union` −1.0% on the mean
+of means, with medians moving the other way — inside run-to-run noise on a machine at
+load average 7–160. Ranges, not figures, in this ADR's own sense; ADR-QD-092 has the
+table.
 
 ---
 

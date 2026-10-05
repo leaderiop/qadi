@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-26                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.1 (2026-07-26): E3 shipped; the recommended subset is complete (CCR-QD-019)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
+> | Change History | 1.2 (2026-10-05): `mergeFields` now lives in `FieldLattice.ts` (ADR-QD-092, CCR-QD-174)<br>1.1 (2026-07-26): E3 shipped; the recommended subset is complete (CCR-QD-019)<br>1.0 (2026-07-26): Initial release (CCR-QD-008) |
 
 ---
 
@@ -239,7 +239,7 @@ because narrowing disclosure is safe, whereas narrowing a duty lets a caller
 discharge less than an allowing branch required. Obligations union, always, and
 there is no strategy to configure.
 
-`mergeFields` in `Evaluate.ts` is the only place sibling results combine today,
+`mergeFields` in `FieldLattice.ts` is the only place sibling results combine today,
 and it is the shape the obligation analogue should take: one function called
 from `evaluateAllOf` and `evaluateAnyOf`, strategy named rather than implied.
 One constraint bounds the whole design — an obligation is **data returned with a

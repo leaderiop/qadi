@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-07                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.1 (2026-08-25): Field names may be dot-paths with a `*`/`**` wildcard terminal (BEH-QD-056); the leaf-variant list corrected from four to the real seven; the worked example extended (CCR-QD-078)<br>1.0 (2026-07-26): Initial release (CCR-QD-006) |
+> | Change History | 1.2 (2026-10-05): the `First` path-shaped evidence row points at `FieldLattice.test.ts` (ADR-QD-092, CCR-QD-174)<br>1.1 (2026-08-25): Field names may be dot-paths with a `*`/`**` wildcard terminal (BEH-QD-056); the leaf-variant list corrected from four to the real seven; the worked example extended (CCR-QD-078)<br>1.0 (2026-07-26): Initial release (CCR-QD-006) |
 
 ---
 
@@ -297,7 +297,7 @@ and `First` keeps short-circuiting
 | `enforceProjected` narrows the result, returns everything when unrestricted, ignores absent fields, and fails closed | `packages/core/test/Qadi.test.ts` — `describe("Qadi.enforceProjected")` |
 | Path parsing, `*`/`**` depth semantics, and `compareFieldPaths`'s subsumption relation (including the `Incomparable` boundary) | `packages/core/test/FieldPath.test.ts` |
 | A bare literal, `*`, and `**` project identically through the public `project`/`intersectFields` API, including the fail-closed `*`-boundary case | `packages/core/test/Matcher.test.ts` — the path-aware cases in `describe("field lattice")`/`describe("project")` |
-| `mergeFields` needs no change: a path-shaped field survives `Intersection`/`Union`/`First` through the real evaluator | `packages/core/test/Evaluate.test.ts`, `packages/core/test/Layers.test.ts` — the path-aware cases in `describe("field visibility")`/`describe("field-strategy edge cases")` |
+| `mergeFields` needs no change: a path-shaped field survives `Intersection`/`Union`/`First` through the real evaluator | `packages/core/test/Evaluate.test.ts` — the path-aware cases in `describe("field visibility")`; `packages/core/test/FieldLattice.test.ts` — `First`'s by-reference result and the n-ary merge properties over path-shaped specs (ARCH-12 moved `First`'s verbatim case there from `Layers.test.ts`) |
 | The double-negation guard (`not(not(p))`) holds identically for a path-shaped field | `packages/core/test/Simplify.test.ts` |
 | Explanation rendering, the wire codec, and the round-trip generator all treat a path-shaped spec opaquely | `packages/core/test/Explanation.test.ts`, `packages/core/test/SinkCodec.test.ts`, `packages/core/test/Policy.test.ts` |
 | Acceptance | `REQ-QD-007` (`features/features/field-visibility/field-visibility.feature`), `REQ-QD-008` (`features/features/serialization/round-trip.feature`) |

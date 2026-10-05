@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-20                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-031) |
+> | Change History | 1.1 (2026-10-05): BEH-QD-154 — flattening an empty nested `allOf` requires a strategy whose empty merge is its unit, and a composite under a strategy outside the union is not unwrapped (ADR-QD-092, CCR-QD-174)<br>1.0 (2026-07-26): Initial release (CCR-QD-031) |
 
 _Previous: [19 — Decision Hydration](./19-hydration.md)_
 
@@ -38,12 +38,17 @@ reads to see the rule an author wrote. Rewriting it silently would make
 > **Invariant:** [INV-QD-024](../invariants.md#inv-qd-024-simplification-changes-the-tree-and-nothing-a-caller-can-observe)
 
 ```
-REQUIREMENT: A composite with exactly one child MUST be replaced by that child.
+REQUIREMENT: A composite with exactly one child MUST be replaced by that child,
+             when its `fieldStrategy` is one of the three in the union. A
+             composite whose `fieldStrategy` is outside the union MUST NOT be
+             unwrapped: it grants no fields, and its child might grant some.
 ```
 
 ```
 REQUIREMENT: A composite nested inside a composite of the same tag MUST be
-             flattened ONLY when both carry the same `fieldStrategy`.
+             flattened ONLY when both carry the same `fieldStrategy`, AND —
+             for `allOf` — the nested composite is non-empty or that
+             strategy's empty merge is its unit (`Intersection`).
 ```
 
 The condition is the correctness argument.
@@ -52,6 +57,15 @@ reaches the same verdict as its flattened form and exposes a **different field s
 so an unconditional flatten would be verdict-preserving and *disclosure-changing*,
 widening or narrowing what a caller may read while every allow-or-deny assertion
 still passed.
+
+Equal strategies are not enough on their own. An empty `allOf` allows with every
+field — top, the merge of no inputs — and top is `Intersection`'s unit but
+`Union`'s absorbing element, while `First` has no unit at all. So
+`allOf([allOf([], { fieldStrategy: "Union" }), x], { fieldStrategy: "Union" })`
+grants every field, and flattening it to `x` grants only `x`'s. The conditions are
+`FieldLattice.ts`'s `emptyIsUnit` and `singletonIsIdentity` laws, read rather than
+restated ([ADR-QD-092](../decisions/092-field-strategy-meaning-lives-beside-the-lattice.md)).
+An empty nested `anyOf` is still absorbed: it denies, so it contributes no field set.
 
 ```
 REQUIREMENT: An empty `allOf` or `anyOf` MUST be left unchanged.
