@@ -1,15 +1,16 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
 import type { Trace } from "../src/Decision.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import * as P from "../src/Policy.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 /** Applies to everyone; the row an author reaches for as a catch-all. */
 const always = P.allOf([]);
@@ -368,10 +369,7 @@ describe("rules compose with the rest of the ADT", () => {
     Effect.gen(function* () {
       // Not "that row did not apply". A resolver outage inside a rule table
       // must not read as the table falling through to its default deny.
-      const failing = Layer.succeed(AttributeResolver, {
-        resolve: (_id: string, attribute: string) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-      });
+      const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
       const r = yield* Effect.result(
         evaluate(P.rules([P.denyWhen(P.hasAttribute("risk", M.gte(1))), P.permitWhen(always)]))
           .pipe(Effect.provide(testLayer(editor, { AttributeResolver: failing }))),

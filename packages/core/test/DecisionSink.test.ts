@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as TestClock from "effect/testing/TestClock";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import type {
@@ -13,7 +13,6 @@ import type {
 } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { DEFAULT_RING_CAPACITY, decisionSinkRing } from "../src/DecisionSinkRing.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { obligation } from "../src/Obligation.ts";
 import { decide, enforce } from "../src/Qadi.ts";
@@ -22,6 +21,8 @@ import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 const read = permission("doc", "read");
 
@@ -50,10 +51,7 @@ const collecting = (): {
 };
 
 /** An attribute store that is broken, so evaluation raises instead of deciding. */
-const brokenAttributes = Layer.succeed(AttributeResolver, {
-  resolve: (_subjectId, attribute) =>
-    Effect.fail(new AttributeResolveError({ attribute, cause: "store offline" })),
-});
+const brokenAttributes = scriptedPort(attributeResolverPort, () => PortReply.fail("store offline")).layer;
 
 const allowed = subjectWith({ permissions: ["doc:read"] });
 

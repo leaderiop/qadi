@@ -7,6 +7,7 @@ import {
   AttributeResolver,
   attributeResolverFromRecord,
   attributeResolverRetrying,
+  attributeResolverPort,
 } from "../src/AttributeResolver.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { customPredicateFromRecord } from "../src/CustomPredicate.ts";
@@ -15,7 +16,6 @@ import {
   DecisionHistory,
   decisionHistoryFromEvents,
 } from "../src/DecisionHistory.ts";
-import { AttributeResolveError, RelationshipResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { EvaluationServicesNone } from "../src/EvaluationServicesNone.ts";
 import { makeResourceId } from "../src/Identity.ts";
@@ -37,8 +37,11 @@ import {
   RelationshipResolver,
   relationshipResolverFromEdges,
   relationshipResolverRetrying,
+  relationshipResolverPort,
 } from "../src/RelationshipResolver.ts";
 import { isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 describe("a port says which implementation it is", () => {
   // Before this, a service value was an anonymous object literal, so the only
@@ -187,22 +190,11 @@ describe("port activity is counted", () => {
       // Keyed per port, so a degrading relationship store is not read as a
       // degrading attribute store.
       let attempts = 0;
-      const flaky = Layer.succeed(RelationshipResolver, {
-        name: "flaky",
-        check: () =>
-          Effect.suspend(() => {
-            attempts += 1;
-            return attempts < 2
-              ? Effect.fail(
-                  new RelationshipResolveError({
-                    relation: "owner",
-                    resourceId: makeResourceId("doc-1"),
-                    cause: "flaky",
-                  }),
-                )
-              : Effect.succeed("Related" as const);
-          }),
-      });
+      const flaky = scriptedPort(
+        relationshipResolverPort,
+        () => (++attempts < 2 ? PortReply.fail("flaky") : PortReply.answer("Related")),
+        "flaky",
+      ).layer;
 
       const snapshots = yield* isolatedMetrics(
         evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } })
@@ -253,21 +245,14 @@ describe("port activity is counted", () => {
 
   it.effect("a retried attempt counts against the retry frequency", () =>
     Effect.gen(function* () {
+      // The script is consulted once per attempt: the retrying wrapper
+      // re-invokes `resolve` for each one, so the double answers the third.
       let attempts = 0;
-      const flaky = Layer.succeed(AttributeResolver, {
-        name: "flaky",
-        // `Effect.suspend`, so each retry re-evaluates the body. Returning an
-        // already-constructed `Effect.fail` would have `retry` re-run the same
-        // failed value forever, and the fixture — not the code — would be what
-        // the test proved.
-        resolve: (_subjectId, attribute) =>
-          Effect.suspend(() => {
-            attempts += 1;
-            return attempts < 3
-              ? Effect.fail(new AttributeResolveError({ attribute, cause: "flaky" }))
-              : Effect.succeed(5);
-          }),
-      });
+      const flaky = scriptedPort(
+        attributeResolverPort,
+        () => (++attempts < 3 ? PortReply.fail("flaky") : PortReply.answer(5)),
+        "flaky",
+      ).layer;
 
       const snapshots = yield* isolatedMetrics(
         evaluate(P.hasAttribute("clearance", M.gte(1)))

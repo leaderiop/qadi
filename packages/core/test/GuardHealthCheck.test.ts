@@ -2,12 +2,14 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as TestClock from "effect/testing/TestClock";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import { createGuardHealthCheck } from "../src/GuardHealthCheck.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 const canRead = P.hasPermission(permission("doc", "read"));
 
@@ -60,9 +62,7 @@ describe("createGuardHealthCheck", () => {
       // reports `healthy: false` exactly as it does for a port that fails
       // cleanly — an operator polling this learns the resolver is broken
       // instead of the health check itself dying.
-      const dying: Layer.Layer<AttributeResolver> = Layer.succeed(AttributeResolver, {
-        resolve: () => Effect.die(new Error("resolver exploded")),
-      });
+      const dying: Layer.Layer<AttributeResolver> = scriptedPort(attributeResolverPort, () => PortReply.die(new Error("resolver exploded"))).layer;
       const policy = P.hasAttribute("plan", M.eq(M.literal("pro")));
 
       return Effect.gen(function* () {

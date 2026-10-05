@@ -6,17 +6,17 @@ import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Metric from "effect/Metric";
-import * as Ref from "effect/Ref";
 import * as References from "effect/References";
 import * as Schedule from "effect/Schedule";
 import * as Tracer from "effect/Tracer";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
-import { CustomPredicate, customPredicateFromRecord } from "../src/CustomPredicate.ts";
+import { customPredicateFromRecord, customPredicatePort } from "../src/CustomPredicate.ts";
 import {
   DecisionHistory,
   DecisionHistoryUnknown,
   decisionHistoryFromEvents,
+  decisionHistoryPort,
 } from "../src/DecisionHistory.ts";
 import {
   AttributeResolveError,
@@ -33,9 +33,12 @@ import * as P from "../src/Policy.ts";
 import {
   RelationshipResolver,
   relationshipResolverFromEdges,
+  relationshipResolverPort,
 } from "../src/RelationshipResolver.ts";
-import { SignatureHistory, signatureHistoryFromSignatures } from "../src/SignatureHistory.ts";
+import { signatureHistoryFromSignatures, signatureHistoryPort } from "../src/SignatureHistory.ts";
 import { chain, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -591,15 +594,11 @@ describe("leaf policies", () => {
 
   it.effect("HasSignature propagates a wired-but-unreachable store as a typed failure", () =>
     Effect.gen(function* () {
-      const failure = new SignatureHistoryUnavailable({
-        subjectId: subjectWith({ id: "u1" }).id,
-        resourceId: undefined,
-        cause: "store offline",
-      });
-      const layer = Layer.succeed(SignatureHistory, {
-        name: "broken",
-        signaturesFor: () => Effect.fail(failure),
-      });
+      const layer = scriptedPort(
+        signatureHistoryPort,
+        () => PortReply.fail("store offline"),
+        "broken",
+      ).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
@@ -899,10 +898,7 @@ describe("short-circuiting", () => {
     Effect.gen(function* () {
       // A broken lookup must not be silently reported as "not authorized" —
       // that would mask an outage as a permissions problem.
-      const failing = Layer.succeed(AttributeResolver, {
-        resolve: (_id: string, attribute: string) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "boom" })),
-      });
+      const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("boom")).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasAttribute("x", M.exists())).pipe(
@@ -989,16 +985,7 @@ describe("short-circuiting", () => {
     Effect.gen(function* () {
       // Same rule as the attribute case: an unreachable relationship store is
       // an outage, not a decision that the subject lacks the relationship.
-      const failing = Layer.succeed(RelationshipResolver, {
-        check: (request) =>
-          Effect.fail(
-            new RelationshipResolveError({
-              relation: request.relation,
-              resourceId: request.resourceId,
-              cause: "boom",
-            }),
-          ),
-      });
+      const failing = scriptedPort(relationshipResolverPort, () => PortReply.fail("boom")).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasRelationship("owner"), doc).pipe(
@@ -1871,12 +1858,7 @@ describe("decision history", () => {
     Effect.gen(function* () {
       // The strongest temptation in the library: for a separation-of-duty check
       // a denial *feels* safe. It makes an outage look like "you raised this".
-      const failing = Layer.succeed(DecisionHistory, {
-        hasActed: (query) =>
-          Effect.fail(
-            new DecisionHistoryUnavailable({ event: query.event, cause: "boom" }),
-          ),
-      });
+      const failing = scriptedPort(decisionHistoryPort, () => PortReply.fail("boom")).layer;
       const r = yield* Effect.result(
         evaluate(P.hasNotActed("raised"), invoice).pipe(
           Effect.provide(testLayer(clerk, { DecisionHistory: failing })),
@@ -2795,11 +2777,7 @@ describe("observability", () => {
       yield* Effect.result(
         evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
           Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" }), {
-              AttributeResolver: Layer.succeed(AttributeResolver, {
-                name: "broken",
-                resolve: (_subjectId, attribute: string) =>
-                  Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-              }),
+              AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down"), "broken").layer,
             }), collectingTracer(spans))),
         ),
       );
@@ -3560,9 +3538,7 @@ describe("concurrent evaluation", () => {
       // resolver too, and concurrent evaluation must fail with the same error.
       const policy = P.allOf([P.hasRole("editor"), P.hasAttribute("boom", M.gte(1))]);
 
-      const failing = Layer.succeed(AttributeResolver, {
-        resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
-      });
+      const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
       const sequential = yield* Effect.result(
         evaluate(policy, { resource }).pipe(Effect.provide(testLayer(subject, { AttributeResolver: failing }))),
@@ -3591,9 +3567,7 @@ describe("concurrent evaluation", () => {
         // `Deny` — the exact non-determinism this ticket fixed. Now both agree.
         const policy = P.allOf([P.hasRole("legal"), P.hasAttribute("boom", M.gte(1))]);
 
-        const failing = Layer.succeed(AttributeResolver, {
-          resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
-        });
+        const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
         const sequential = yield* Effect.result(
           evaluate(policy, { resource }).pipe(
@@ -3622,9 +3596,7 @@ describe("concurrent evaluation", () => {
       // walk still reaches index 1's failing resolver.
       const policy = P.anyOf([P.hasRole("suspended"), P.hasAttribute("boom", M.gte(1))]);
 
-      const failing = Layer.succeed(AttributeResolver, {
-        resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
-      });
+      const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
       const sequential = yield* Effect.result(
         evaluate(policy, { resource }).pipe(Effect.provide(testLayer(subject, { AttributeResolver: failing }))),
@@ -3651,9 +3623,7 @@ describe("concurrent evaluation", () => {
         // (CCR-QD-152).
         const policy = P.anyOf([P.hasRole("editor"), P.hasAttribute("boom", M.gte(1))]);
 
-        const failing = Layer.succeed(AttributeResolver, {
-          resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
-        });
+        const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
         const sequential = yield* Effect.result(
           evaluate(policy, { resource }).pipe(
@@ -3811,12 +3781,9 @@ describe("concurrent evaluation", () => {
         // Fails every `fail-*` attribute lookup, distinguishably by name; never
         // touches `hasRole`, which reads the subject directly and never calls
         // this resolver at all.
-        const faultyAttributes = Layer.succeed(AttributeResolver, {
-          resolve: (_id: string, attribute: string) =>
-            attribute.startsWith("fail-")
-              ? Effect.fail(new AttributeResolveError({ attribute, cause: "boom" }))
-              : Effect.succeed(undefined),
-        });
+        const faultyAttributes = scriptedPort(attributeResolverPort, (_id, attribute) =>
+          attribute.startsWith("fail-") ? PortReply.fail("boom") : undefined,
+        ).layer;
 
         const runWith = (policy: P.Policy, concurrency: number | "unbounded" | undefined) =>
           Effect.result(
@@ -3898,9 +3865,7 @@ describe("concurrent evaluation", () => {
 describe("port defects become typed errors", () => {
   it.effect("a dying AttributeResolver surfaces as AttributeResolveError", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(AttributeResolver, {
-        resolve: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(attributeResolverPort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasAttribute("x", M.exists())).pipe(
@@ -3917,9 +3882,7 @@ describe("port defects become typed errors", () => {
 
   it.effect("a dying DecisionHistory surfaces as DecisionHistoryUnavailable", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(DecisionHistory, {
-        hasActed: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(decisionHistoryPort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasActed("raised"), { resource: { id: "inv-1" } }).pipe(
@@ -3936,9 +3899,7 @@ describe("port defects become typed errors", () => {
 
   it.effect("a dying RelationshipResolver surfaces as RelationshipResolveError", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(RelationshipResolver, {
-        check: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(relationshipResolverPort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
@@ -3955,9 +3916,7 @@ describe("port defects become typed errors", () => {
 
   it.effect("a dying CustomPredicate surfaces as CustomPredicateError", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(CustomPredicate, {
-        evaluate: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(customPredicatePort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasCustom("isOwner")).pipe(
@@ -3979,9 +3938,7 @@ describe("port defects become typed errors", () => {
 
   it.effect("a dying SignatureHistory surfaces as SignatureHistoryUnavailable", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(SignatureHistory, {
-        signaturesFor: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(signatureHistoryPort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
@@ -4027,23 +3984,19 @@ describe("port defects become typed errors", () => {
         // recover from an adapter that threw instead of failing. A resolver
         // that dies twice and then succeeds is retried exactly as one that
         // *fails* twice and then succeeds would be (mirrors
-        // `AttributeResolver.test.ts`'s `attributeResolverRetrying` proof,
-        // one layer up: `Effect.retry` here wraps `evaluate` itself, not the
-        // port layer).
-        const attempts = yield* Ref.make(0);
-        const flaky = Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Ref.updateAndGet(attempts, (n) => n + 1).pipe(
-              Effect.flatMap((n) => (n <= 2 ? Effect.die(new Error("boom")) : Effect.succeed(9))),
-            ),
-        });
+        // `PortConformance.test.ts`'s retrying proof, one layer up:
+        // `Effect.retry` here wraps `evaluate` itself, not the port layer).
+        let attempt = 0;
+        const flaky = scriptedPort(attributeResolverPort, () =>
+          ++attempt <= 2 ? PortReply.die(new Error("boom")) : PortReply.answer(9),
+        );
 
         const decision = yield* evaluate(P.hasAttribute("x", M.gte(5))).pipe(
-          Effect.provide(testLayer(subjectWith({}), { AttributeResolver: flaky })),
+          Effect.provide(testLayer(subjectWith({}), { AttributeResolver: flaky.layer })),
           Effect.retry(Schedule.recurs(2)),
         );
 
-        assert.strictEqual(yield* Ref.get(attempts), 3);
+        assert.strictEqual(flaky.calls.length, 3);
         assert.isTrue(isAllowed(decision));
       }),
   );
@@ -4052,21 +4005,18 @@ describe("port defects become typed errors", () => {
     "Effect.retry exhausts and still surfaces the typed error, not the defect",
     () =>
       Effect.gen(function* () {
-        const attempts = yield* Ref.make(0);
-        const alwaysDies = Layer.succeed(AttributeResolver, {
-          resolve: () => Ref.updateAndGet(attempts, (n) => n + 1).pipe(Effect.andThen(Effect.die(new Error("boom")))),
-        });
+        const alwaysDies = scriptedPort(attributeResolverPort, () => PortReply.die(new Error("boom")));
 
         const r = yield* Effect.result(
           evaluate(P.hasAttribute("x", M.gte(5))).pipe(
-            Effect.provide(testLayer(subjectWith({}), { AttributeResolver: alwaysDies })),
+            Effect.provide(testLayer(subjectWith({}), { AttributeResolver: alwaysDies.layer })),
             Effect.retry(Schedule.recurs(2)),
           ),
         );
 
         // 1 initial call + 2 retries = 3 attempts, matching
         // `attributeResolverRetrying`'s own exhaustion test.
-        assert.strictEqual(yield* Ref.get(attempts), 3);
+        assert.strictEqual(alwaysDies.calls.length, 3);
         assert.strictEqual(r._tag, "Failure");
         if (r._tag !== "Failure") return;
         assert.instanceOf(r.failure, AttributeResolveError);

@@ -46,16 +46,19 @@ export const scriptedPort = <
   Args extends ReadonlyArray<unknown>,
   A,
   E,
+  S extends PortScript<Args, A>,
 >(
   d: PortDescription<N, Self, Shape, Args, A, E>,
-  script: PortScript<NoInfer<Args>, NoInfer<A>>,
+  script: S,
   name: string = `scripted ${d.port}`,
 ): PortDouble<Self, Args> => {
   const log = MutableRef.make<ReadonlyArray<Args>>(Arr.empty());
   const unscripted: Effect.Effect<A, E> = Effect.succeed(d.none.answer);
-  // `NoInfer` on `script`/`entries`/`observe`: the description alone decides
-  // `Args` and `A`, so a script written `() => …` is not read as a port that
-  // takes no arguments.
+  // `script` is its own type parameter, checked against `PortScript<Args, A>`
+  // rather than typed as it: the description alone then decides `Args` and
+  // `A`, so a script written `() => …` or `(subjectId) => …` is not read as a
+  // port taking fewer arguments, and still gets its parameters' types from
+  // the constraint.
   // Built once per double, not per call (AGENTS.md §5a): each arm returns the
   // reply's effect as a function of the request it answers.
   const replyWith: (reply: PortReply<A>) => (args: Args) => Effect.Effect<A, E> = Match.type<

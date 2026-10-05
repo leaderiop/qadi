@@ -6,7 +6,7 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Ref from "effect/Ref";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { isAllowed } from "../src/Decision.ts";
@@ -18,6 +18,8 @@ import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { forkAllAndSettle, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 describe("DecisionCache", () => {
   /** Answerable only through the resolver, so lookups are countable. */
@@ -543,15 +545,10 @@ describe("DecisionCache", () => {
 
   it.effect("a failed compute is not cached — the next ask, once nothing is in flight, retries", () =>
     Effect.gen(function* () {
-      const invocations = yield* Ref.make(0);
-      const alwaysFails = Layer.succeed(AttributeResolver, {
-        resolve: (_id, attribute) =>
-          Ref.updateAndGet(invocations, (n) => n + 1).pipe(
-            Effect.flatMap((n) =>
-              Effect.fail(new AttributeResolveError({ attribute, cause: `down (attempt ${n})` })),
-            ),
-          ),
-      });
+      let attempt = 0;
+      const alwaysFails = scriptedPort(attributeResolverPort, () =>
+        PortReply.fail(`down (attempt ${++attempt})`),
+      );
 
       const [first, second, size] = yield* Effect.gen(function* () {
         const a = yield* Effect.result(evaluate(needsLookup));
@@ -560,7 +557,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { AttributeResolver: alwaysFails }),
+            testLayer(alice, { AttributeResolver: alwaysFails.layer }),
             decisionCacheLayer(),
           ),
         ),
@@ -570,7 +567,7 @@ describe("DecisionCache", () => {
       assert.strictEqual(second._tag, "Failure");
       // Not memoized: the second ask re-ran the resolver rather than replaying
       // the first ask's failure from a stale entry.
-      assert.strictEqual(yield* Ref.get(invocations), 2);
+      assert.strictEqual(alwaysFails.calls.length, 2);
       // And nothing failed ever becomes a completed entry.
       assert.strictEqual(size, 0);
     }));
