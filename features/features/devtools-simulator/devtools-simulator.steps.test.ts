@@ -26,14 +26,8 @@ import * as Ref from "effect/Ref";
 import {
   Allow,
   anyOf,
-  AttributeResolveError,
-  AttributeResolver,
   attributeResolverFromRecord,
-  CustomPredicateNone,
   decisionSinkRing,
-  DecisionHistory,
-  DecisionHistoryUnavailable,
-  DecisionHistoryUnknown,
   Decided,
   DecisionRecord,
   diffTraces,
@@ -44,13 +38,14 @@ import {
   makeSubjectId,
   ObligationRecord,
   permission,
-  RelationshipResolveError,
-  RelationshipResolver,
-  RelationshipResolverNever,
-  SignatureHistory,
-  SignatureHistoryNone,
-  SignatureHistoryUnavailable,
   stampRecord,
+  portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
+  relationshipResolverPort,
+  decisionHistoryPort,
+  signatureHistoryPort,
 } from "@qadi/core";
 import type { DecisionOutcome, Policy, StoredRecord, Trace } from "@qadi/core";
 import {
@@ -89,41 +84,26 @@ const policies: Record<string, Policy> = {
 };
 
 /** Ports whose every answer fails, so a run that reaches one cannot decide. */
-const brokenPorts: EvaluationPortsLayer = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, {
-    name: "broken",
-    resolve: (_subjectId: string, attribute: string) =>
-      Effect.fail(new AttributeResolveError({ attribute, cause: "the store is down" })),
-  }),
-  Layer.succeed(RelationshipResolver, {
-    name: "broken",
-    check: (request) =>
-      Effect.fail(
-        new RelationshipResolveError({
-          relation: request.relation,
-          resourceId: request.resourceId,
-          cause: "the store is down",
-        }),
-      ),
-  }),
-  Layer.succeed(DecisionHistory, {
-    name: "broken",
-    hasActed: (query) =>
-      Effect.fail(new DecisionHistoryUnavailable({ event: query.event, cause: "down" })),
-  }),
-  CustomPredicateNone,
-  Layer.succeed(SignatureHistory, {
-    name: "broken",
-    signaturesFor: (query) =>
-      Effect.fail(
-        new SignatureHistoryUnavailable({
-          subjectId: query.subjectId,
-          resourceId: query.resourceId,
-          cause: "the store is down",
-        }),
-      ),
-  }),
-);
+const brokenPorts: EvaluationPortsLayer = portsLayer({
+  AttributeResolver: scriptedPort(
+    attributeResolverPort,
+    () => PortReply.fail("the store is down"),
+    "broken",
+  ).layer,
+  RelationshipResolver: scriptedPort(
+    relationshipResolverPort,
+    () => PortReply.fail("the store is down"),
+    "broken",
+  ).layer,
+  DecisionHistory: scriptedPort(decisionHistoryPort, () => PortReply.fail("down"), "broken").layer,
+  // `CustomPredicate` stays at its fail-closed default: an unwired registry
+  // denies rather than fails, which is what the scenarios expect of it.
+  SignatureHistory: scriptedPort(
+    signatureHistoryPort,
+    () => PortReply.fail("the store is down"),
+    "broken",
+  ).layer,
+});
 
 const policyNamed = (name: string): Policy => {
   const found = policies[name];
@@ -258,13 +238,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     "a real resolver answering {string} with {int}",
     function* (attribute: string, value: number) {
       yield* patch(() => ({
-        ports: Layer.mergeAll(
-          attributeResolverFromRecord({ [attribute]: value }),
-          RelationshipResolverNever,
-          DecisionHistoryUnknown,
-          CustomPredicateNone,
-          SignatureHistoryNone,
-        ),
+        ports: portsLayer({ AttributeResolver: attributeResolverFromRecord({ [attribute]: value }) }),
       }));
     },
   );

@@ -24,10 +24,7 @@ import {
   anyOf,
   AttributeResolveError,
   AttributeResolver,
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
   evaluate,
   evaluationIdSequential,
   gte,
@@ -35,10 +32,9 @@ import {
   hasRelationship,
   hasRole,
   makeSubject,
-  RelationshipResolverNever,
   relationshipResolverFromEdges,
-  SignatureHistoryNone,
   toPredicate,
+  portsLayer,
 } from "@qadi/core";
 import type { Decision, EvaluationError, Policy, RelationshipResolver } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
@@ -77,8 +73,9 @@ interface PortCallsWorldState {
   readonly subjectAttributes: Record<string, unknown>;
   readonly subjectRoles: ReadonlyArray<string>;
   readonly subjectId: string;
-  readonly attributes: Layer.Layer<AttributeResolver>;
-  readonly relationships: Layer.Layer<RelationshipResolver>;
+  /** `undefined` is the port's fail-closed default (`portsLayer`). */
+  readonly attributes: Layer.Layer<AttributeResolver> | undefined;
+  readonly relationships: Layer.Layer<RelationshipResolver> | undefined;
   readonly capacity: number | undefined;
   readonly secret: string | undefined;
   readonly hostSaw: Array<string> | undefined;
@@ -91,8 +88,8 @@ const initialState: PortCallsWorldState = {
   subjectAttributes: {},
   subjectRoles: [],
   subjectId: "alice",
-  attributes: AttributeResolverNone,
-  relationships: RelationshipResolverNever,
+  attributes: undefined,
+  relationships: undefined,
   capacity: undefined,
   secret: undefined,
   hostSaw: undefined,
@@ -154,12 +151,8 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
         attributes: s.subjectAttributes,
       }),
     ),
-    s.attributes,
-    s.relationships,
-    DecisionHistoryUnknown,
+    portsLayer({ AttributeResolver: s.attributes, RelationshipResolver: s.relationships }),
     evaluationIdSequential("ev"),
-    CustomPredicateNone,
-    SignatureHistoryNone,
   );
 
   // An outer tracer that records every span, so the value-disclosure scenario
