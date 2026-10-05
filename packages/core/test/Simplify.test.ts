@@ -181,6 +181,10 @@ describe("simplify", () => {
     FastCheck.constant(P.hasPermission(permission("doc", "read"))),
     FastCheck.constant(P.hasPermission(permission("doc", "read"), { fields: ["id"] })),
     FastCheck.constant(P.hasPermission(permission("doc", "meta"), { fields: ["author"] })),
+    // A restriction three of the four subjects below hold, so the empty-child
+    // cases (the `tree` arm marked ARCH-12 T9) reach an *allowing* outcome with
+    // a restriction to lose.
+    FastCheck.constant(P.hasRole("editor", { fields: ["id"] })),
     FastCheck.constantFrom("seniority", "absent").map((a) => P.hasAttribute(a, M.gte(1))),
     FastCheck.constant(P.hasResourceAttribute("ownerId", M.eq(M.subjectId()))),
     FastCheck.constant(P.hasRelationship("owner")),
@@ -204,6 +208,22 @@ describe("simplify", () => {
         FastCheck.array(tie("node"), { maxLength: 3 }),
         strategies,
       ).map(([ps, fieldStrategy]) => P.anyOf(ps, { fieldStrategy })),
+      // ARCH-12 T9: a same-strategy composite holding an *empty* same-strategy
+      // child, first or last. Absorbing that child is sound only where an empty
+      // merge is the unit (`Intersection`), and the property never generated
+      // the case on its own in 120 samples (ARCH-12 C4).
+      FastCheck.tuple(strategies, FastCheck.array(tie("node"), { maxLength: 2 }), FastCheck.boolean()).map(
+        ([fieldStrategy, rest, emptyFirst]) => {
+          const empty = P.allOf([], { fieldStrategy });
+          return P.allOf(emptyFirst ? [empty, ...rest] : [...rest, empty], { fieldStrategy });
+        },
+      ),
+      FastCheck.tuple(strategies, FastCheck.array(tie("node"), { maxLength: 2 }), FastCheck.boolean()).map(
+        ([fieldStrategy, rest, emptyFirst]) => {
+          const empty = P.anyOf([], { fieldStrategy });
+          return P.anyOf(emptyFirst ? [empty, ...rest] : [...rest, empty], { fieldStrategy });
+        },
+      ),
       tie("node").map(P.not),
       tie("node").map((p) => P.labeled("l", p)),
       tie("node").map((p) => P.obliged(obligation("audit.log"), p)),
@@ -215,6 +235,20 @@ describe("simplify", () => {
       ).map((rs) => P.rules(rs)),
     ),
   })).node;
+
+  /** Whether `policy` contains a `Union`/`First` `allOf` holding an empty same-strategy `allOf` (C4's shape). */
+  const holdsUnsafeEmptyChild: (policy: P.Policy) => boolean = (policy) =>
+    P.foldPolicy<boolean>(policy, (node, children) =>
+      children.some((holds) => holds) ||
+      (node._tag === "AllOf" &&
+        node.fieldStrategy !== "Intersection" &&
+        node.policies.some(
+          (child) =>
+            child._tag === "AllOf" &&
+            child.fieldStrategy === node.fieldStrategy &&
+            child.policies.length === 0,
+        )),
+    );
 
   /** Four subjects, because a rewrite sound for one may not be sound for another. */
   const subjects = [
@@ -236,11 +270,13 @@ describe("simplify", () => {
       // field-strategy trap in particular is invisible unless two branches allow
       // with different field sets.
       let shrunk = 0;
+      let emptyChildCases = 0;
       const resource = { id: "doc-1", ownerId: "u-1" };
 
       for (const policy of FastCheck.sample(tree, { numRuns: 120, seed: 1030 })) {
         const simplified = simplify(policy);
         if (JSON.stringify(simplified) !== JSON.stringify(policy)) shrunk += 1;
+        if (holdsUnsafeEmptyChild(policy)) emptyChildCases += 1;
 
         for (const subject of subjects) {
           const run = (p: P.Policy) =>
@@ -270,16 +306,36 @@ describe("simplify", () => {
       // Vacuity guard. If nothing ever shrank, the property above would hold for a
       // `simplify` that returned its argument.
       //
-      // The threshold is set below the MEASURED value (17 of 120 trees under
-      // seed 1030, numRuns 120 — see the `FastCheck.sample` call above)
+      // The threshold is set below the MEASURED value (66 of 120 trees under
+      // seed 1030, numRuns 120 — see the `FastCheck.sample` call above; it was
+      // 17 until ARCH-12 T9 added the empty-child arms and the restricted
+      // `editor` leaf, which gave the generator more to shrink)
       // rather than at a round number, because the sample is seeded: a guard
       // tuned to a lucky run is how a property test becomes flaky, which is worse
       // than a weak one. Widening the generator is the way to raise this, not
       // raising the number. (JH-06: recorded here, next to the threshold,
       // specifically so changing `tree`'s shape or either of the two numbers
-      // above is a visible prompt to re-measure and re-justify `10`, rather
+      // above is a visible prompt to re-measure and re-justify `40`, rather
       // than a silently stale margin.)
-      assert.isAbove(shrunk, 10, `only ${shrunk} of 120 trees shrank`);
+      assert.isAbove(shrunk, 40, `only ${shrunk} of 120 trees shrank`);
+
+      // Second vacuity guard (ARCH-12 T9): how many sampled trees hold the case
+      // C4 was — a `Union`/`First` `allOf` with an empty same-strategy `allOf`
+      // child. The generator could build one before T9 but did not, under
+      // this seed, in a way an allowing subject reached — which is why the
+      // property never found C4. Measured 30 of 120 after; the floor sits below
+      // it for the reason the threshold above does.
+      //
+      // Checked once against the pre-T2 `absorbable` (the empty-child clause
+      // removed, not committed): this property failed, seed 1030, on
+      // `allOf([allOf([], Union), anyOf([hasPermission(doc:read, ["id"]),
+      // anyOf([], Union)], Union)], Union)` for u-1 — simplified `["id"]`
+      // against the original's `undefined` (every field).
+      assert.isAbove(
+        emptyChildCases,
+        15,
+        `only ${emptyChildCases} of 120 trees hold an empty Union/First child`,
+      );
     }));
 
   it.effect("PROPERTY: simplifying is idempotent on every generated tree", () =>
