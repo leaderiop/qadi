@@ -1,10 +1,11 @@
 /**
  * One ordered timeline, folded from records that arrive however they arrive.
  *
- * The devtools reads several processes at once — a browser's own ring, a
- * server's SSE feed, an aggregator merging replicas — and none of them promises
- * order, uniqueness or completeness. `EventSource` reconnects on its own and the
- * feed may be replaying, so the same record arrives twice; a merge interleaves
+ * The devtools reads several processes at once — a browser's own decision log,
+ * a server's SSE stream, an aggregator merging replicas — and none of them
+ * promises order, uniqueness or completeness across sources. `EventSource`
+ * reconnects on its own and re-reads the server's backlog, so the same record
+ * arrives twice; a merge interleaves
  * two clocks, so records arrive out of order; and a decision's obligation
  * outcome is emitted from a different module *after* `evaluate` returned, so the
  * two halves of one story arrive separately and sometimes backwards.
@@ -22,7 +23,7 @@
 import * as Data from "effect/Data";
 import * as Order from "effect/Order";
 import type { DecisionRecord, ObligationRecord, StoredRecord } from "@qadi/core";
-import { storedRecordOrder } from "@qadi/core";
+import { DEFAULT_LOG_CAPACITY, storedRecordOrder } from "@qadi/core";
 
 /** One evaluation, as one process saw it. */
 export class TimelineDecision extends Data.TaggedClass("TimelineDecision")<{
@@ -63,14 +64,21 @@ export interface Timeline {
   readonly capacity: number;
 }
 
-/** Matches `DEFAULT_RING_CAPACITY`, so a reader is not bounded twice by two numbers. */
-export const DEFAULT_TIMELINE_CAPACITY = 500;
+/**
+ * How many entries a timeline keeps by default: the decision log's own bound.
+ *
+ * Defined as core's `DEFAULT_LOG_CAPACITY` rather than a literal kept equal to
+ * it by a comment, so a reader of a default log is not bounded twice by two
+ * numbers that drifted apart.
+ */
+export const DEFAULT_TIMELINE_CAPACITY: number = DEFAULT_LOG_CAPACITY;
 
 export const emptyTimeline = (options?: { readonly capacity?: number }): Timeline => {
   const capacity = options?.capacity ?? DEFAULT_TIMELINE_CAPACITY;
-  // Non-negative rather than positive, agreeing with `decisionSinkRing`: a
-  // zero-capacity timeline is a coherent "keep nothing", where a zero-capacity
-  // `PubSub` would be silently dead. Checked here for the reason the ring gives
+  // Non-negative rather than positive, unlike the decision log's: a
+  // zero-capacity timeline is a coherent "keep nothing" view, where a log's
+  // capacity also sizes a `PubSub` that would be silently dead at zero.
+  // Checked here for the reason the log gives
   // — a negative bound makes the drop loop's exit condition unsatisfiable and a
   // `NaN` one makes it always false, unbounding a thing asked to be bounded.
   if (!(Number.isInteger(capacity) && capacity >= 0)) {
@@ -222,7 +230,7 @@ const insert = (
 };
 
 /**
- * Drops the oldest, exactly as `decisionSinkRing` evicts.
+ * Drops the oldest, as a decision log evicts.
  *
  * Unconditional: `slice` from a clamped offset is the whole rule, and the
  * under-capacity guard it replaces had no observable else — slicing from zero

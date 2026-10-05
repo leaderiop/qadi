@@ -14,11 +14,12 @@
 import { assert, describe, it } from "@effect/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as Result from "effect/Result";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Stream from "effect/Stream";
-import { encodeSinkRecordString, MAX_DECODE_DEPTH } from "@qadi/core";
+import { encodeSinkRecordString, makeDecisionLog, MAX_DECODE_DEPTH } from "@qadi/core";
 import type { SinkRecord, StoredRecord } from "@qadi/core";
 import {
   type DecisionEventSource,
@@ -26,9 +27,9 @@ import {
   mergeSources,
   type Source,
   sourceFromEventSource,
-  sourceFromFeed,
   sourceFromRecords,
 } from "../../src/model/Source.ts";
+import { makeTimelineStore, runSource } from "../../src/model/TimelineStore.ts";
 import { decisionRecord, obligationRecord } from "../helpers.ts";
 
 /**
@@ -108,8 +109,28 @@ const collect = (
 
     // Bounded by `take`, and every call below queues at least `count` decodable
     // frames before this runs, so it terminates without waiting on anything.
-    return Array.from(yield* Stream.runCollect(Stream.take(source.live, count)));
+    return yield* liveOf(source, count);
   });
+
+/** One scoped read of `source`, and exactly `count` of its live records. */
+const liveOf = (source: Source, count: number) =>
+  Effect.scoped(
+    Effect.flatMap(source.read, (read) =>
+      Effect.map(Stream.runCollect(Stream.take(read.live, count)), (records) => Array.from(records))),
+  );
+
+/** One scoped read of `source`, and every live record until its stream ends. */
+const allLiveOf = (source: Source) =>
+  Effect.scoped(
+    Effect.flatMap(source.read, (read) =>
+      Effect.map(Stream.runCollect(read.live), (records) => Array.from(records))),
+  );
+
+/** The backlog one scoped read of `source` returns — absent stays absent. */
+const backlogOf = (source: Source) => Effect.scoped(Effect.map(source.read, (read) => read.backlog));
+
+/** Whether one scoped read of `source` has a `backlog` key at all. */
+const hasBacklog = (source: Source) => Effect.scoped(Effect.map(source.read, (read) => "backlog" in read));
 
 /** A record as the frame data a current sender emits: the one outbound operation's text. */
 const frameOf = (record: SinkRecord): string =>
@@ -130,92 +151,42 @@ describe("sourceFromRecords", () => {
       const records = [decisionRecord({ evaluationId: "a" })];
       const source = sourceFromRecords(records);
 
-      assert.isDefined(source.backlog);
-      assert.deepStrictEqual(yield* source.backlog, records);
-      assert.deepStrictEqual(Array.from(yield* Stream.runCollect(source.live)), []);
+      assert.deepStrictEqual(yield* backlogOf(source), records);
+      assert.deepStrictEqual(yield* allLiveOf(source), []);
     }));
 
   // E1.7 — zero records ever.
   it.effect("an empty set is an empty backlog, not a missing one", () =>
     Effect.gen(function* () {
       const source = sourceFromRecords([]);
-      assert.isDefined(source.backlog);
-      assert.deepStrictEqual(yield* source.backlog, []);
+      assert.isTrue(yield* hasBacklog(source));
+      assert.deepStrictEqual(yield* backlogOf(source), []);
     }));
 });
 
-describe("sourceFromFeed", () => {
-  it.effect("stamps the environment core deliberately does not claim", () =>
+/**
+ * A `DecisionLog` is a `Source` as it is — no adapter (ARCH-11 D-11-c). Its
+ * stamping, prototype preservation and handoff are tested where they live, in
+ * `@qadi/core`'s `DecisionLog.test.ts`; this pins only that the timeline gets
+ * the backlog, then the live records, each exactly once.
+ */
+describe("a DecisionLog used as a source", () => {
+  it.effect("hands the timeline its backlog then its live records, exactly once", () =>
     Effect.gen(function* () {
-      const record = decisionRecord({ evaluationId: "a" });
-      const { environment: _dropped, ...bare } = record;
+      const log = yield* makeDecisionLog({ environment: "Client" });
+      yield* log.ingest(obligationRecord({ evaluationId: "past", at: 1 }));
 
-      const source = sourceFromFeed({
-        stream: Stream.fromArray<SinkRecord>([bare]),
-        environment: "Client",
-      });
+      const store = makeTimelineStore();
+      const running = yield* Effect.forkChild(runSource(store, log), { startImmediately: true });
+      yield* log.ingest(obligationRecord({ evaluationId: "next", at: 2 }));
+      // The live half is pulled on the running fiber; let it drain.
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
+      yield* Fiber.interrupt(running);
 
-      const got = Array.from(yield* Stream.runCollect(source.live));
-      assert.strictEqual(got.length, 1);
-      assert.strictEqual(got[0]?.environment, "Client");
-      assert.strictEqual(got[0]?.evaluationId, "a");
-    }));
-
-  // E1.5 — a bare feed cannot answer for the past, and says so by absence.
-  it("without a backlog the key is absent, not present-and-undefined", () => {
-    const source = sourceFromFeed({
-      stream: Stream.fromArray<SinkRecord>([]),
-      environment: "Server",
-    });
-    // `in`, not `=== undefined`. Under `exactOptionalPropertyTypes` the two are
-    // different facts — "this sink cannot answer for the past" versus "it can,
-    // and the answer is nothing" — and a mutant that always set the key
-    // survived an `isUndefined` assertion, because a present `undefined` reads
-    // as absent through that lens.
-    assert.isFalse("backlog" in source);
-  });
-
-  it.effect("a supplied backlog is carried through untouched", () =>
-    Effect.gen(function* () {
-      const backlog = [decisionRecord({ evaluationId: "old" })];
-      const source = sourceFromFeed({
-        stream: Stream.fromArray<SinkRecord>([]),
-        environment: "Server",
-        backlog: Effect.succeed(backlog),
-      });
-
-      assert.isDefined(source.backlog);
-      assert.deepStrictEqual(yield* source.backlog, backlog);
-    }));
-
-  it.effect("obligation records travel the same path as decisions", () =>
-    Effect.gen(function* () {
-      const { environment: _dropped, ...bare } = obligationRecord({ evaluationId: "a" });
-      const source = sourceFromFeed({
-        stream: Stream.fromArray<SinkRecord>([bare]),
-        environment: "Server",
-      });
-
-      const got = Array.from(yield* Stream.runCollect(source.live));
-      assert.strictEqual(got[0]?._tag, "Obligations");
-      assert.strictEqual(got[0]?.environment, "Server");
-    }));
-
-  // A plain `{ ...record, environment }` spread of a `Data.TaggedClass` instance
-  // lands on `Object.prototype`, silently dropping `.pipe`/`Equal.equals`/
-  // `Hash.hash` — the exact failure `DecisionSinkRing.ts`'s `stampRecord`
-  // documents and exists to avoid. This pins that `sourceFromFeed` stamps
-  // through core's own `stampRecord` rather than re-implementing the spread.
-  it.effect("stamps through core's stampRecord, not a spread that drops the prototype", () =>
-    Effect.gen(function* () {
-      const { environment: _dropped, ...bare } = decisionRecord({ evaluationId: "a" });
-      const source = sourceFromFeed({
-        stream: Stream.fromArray<SinkRecord>([bare]),
-        environment: "Client",
-      });
-
-      const got = Array.from(yield* Stream.runCollect(source.live));
-      assert.strictEqual(typeof got[0]?.pipe, "function");
+      const entries = store.getSnapshot().entries;
+      assert.deepStrictEqual(entries.map((entry) => entry.evaluationId), ["past", "next"]);
+      assert.isTrue(entries.every((entry) => entry.environment === "Client"));
     }));
 });
 
@@ -476,15 +447,16 @@ describe("sourceFromEventSource", () => {
     }));
 
   // E1.5 — SSE cannot answer for the past on its own.
-  it("has no backlog: a live feed cannot answer for the past", () => {
-    const fake = fakeEventSource();
-    const source = sourceFromEventSource({
-      url: "/__decisions",
-      environment: "Server",
-      open: fake.open,
-    });
-    assert.isFalse("backlog" in source);
-  });
+  it.effect("has no backlog: a live feed cannot answer for the past", () =>
+    Effect.gen(function* () {
+      const fake = fakeEventSource();
+      const source = sourceFromEventSource({
+        url: "/__decisions",
+        environment: "Server",
+        open: fake.open,
+      });
+      assert.isFalse(yield* hasBacklog(source));
+    }));
 
 });
 
@@ -549,7 +521,7 @@ describe("the default EventSource", () => {
         withCredentials: true,
       });
 
-      const got = Array.from(yield* Stream.runCollect(Stream.take(source.live, 1)));
+      const got = yield* liveOf(source, 1);
 
       const instance = instances[0];
       assert.isDefined(instance);
@@ -581,7 +553,7 @@ describe("the default EventSource", () => {
         },
       });
 
-      yield* Stream.runCollect(Stream.take(source.live, 1));
+      yield* liveOf(source, 1);
 
       const instance = instances[0];
       assert.deepStrictEqual(instance?.registered, ["message", "error"]);
@@ -594,7 +566,7 @@ describe("the default EventSource", () => {
 
     // Thrown at construction, not from inside the stream: a panel that mounts
     // cleanly and then dies when someone opens it is the worst place to learn
-    // this. Same reasoning as `decisionSinkFeed`'s capacity check.
+    // this. Same reasoning as `makeDecisionLog`'s capacity check.
     assert.throws(
       () => sourceFromEventSource({ url: "/__decisions", environment: "Server" }),
       /no global EventSource[\s\S]*Supply `open`/,
@@ -605,7 +577,7 @@ describe("the default EventSource", () => {
     vi.stubGlobal("EventSource", undefined);
     const fake = fakeEventSource();
     assert.isDefined(
-      sourceFromEventSource({ url: "/__decisions", environment: "Server", open: fake.open }).live,
+      sourceFromEventSource({ url: "/__decisions", environment: "Server", open: fake.open }).read,
     );
   });
 });
@@ -618,18 +590,17 @@ describe("the default EventSource", () => {
  * about transports, so a transport in the way would test the wrong boundary.
  */
 describe("mergeSources", () => {
-  /** A producer that cannot answer for the past — a bare feed, or SSE. */
+  /** A producer that cannot answer for the past — an older server over SSE. */
   const liveOnly = (records: ReadonlyArray<StoredRecord>): Source => ({
-    live: Stream.fromArray(records),
+    read: Effect.succeed({ live: Stream.fromArray(records) }),
   });
 
-  /** A producer that can — a ring, or a captured session. */
+  /** A producer that can — a decision log, or a captured session. */
   const withBacklog = (
     backlog: ReadonlyArray<StoredRecord>,
     records: ReadonlyArray<StoredRecord> = [],
   ): Source => ({
-    backlog: Effect.succeed(backlog),
-    live: Stream.fromArray(records),
+    read: Effect.succeed({ backlog, live: Stream.fromArray(records) }),
   });
 
   // The reason this function exists. A server decides during the render and the
@@ -642,7 +613,7 @@ describe("mergeSources", () => {
         liveOnly([decisionRecord({ evaluationId: "ev-1", environment: "Client" })]),
       ]);
 
-      const got = Array.from(yield* Stream.runCollect(merged.live));
+      const got = yield* allLiveOf(merged);
 
       // Asserted as a set: under concurrent merging the arrival order is the
       // producers' order, not this array's, and asserting a sequence here would
@@ -672,15 +643,17 @@ describe("mergeSources", () => {
   it.live("does not make one producer wait for another to finish", () =>
     Effect.gen(function* () {
       const slow: Source = {
-        live: Stream.fromArray([decisionRecord({ evaluationId: "slow" })]).pipe(
-          Stream.mapEffect((record) => Effect.as(Effect.sleep("50 millis"), record)),
-        ),
+        read: Effect.succeed({
+          live: Stream.fromArray([decisionRecord({ evaluationId: "slow" })]).pipe(
+            Stream.mapEffect((record) => Effect.as(Effect.sleep("50 millis"), record)),
+          ),
+        }),
       };
       const fast: Source = {
-        live: Stream.fromArray([decisionRecord({ evaluationId: "fast" })]),
+        read: Effect.succeed({ live: Stream.fromArray([decisionRecord({ evaluationId: "fast" })]) }),
       };
 
-      const got = Array.from(yield* Stream.runCollect(mergeSources([slow, fast]).live));
+      const got = yield* allLiveOf(mergeSources([slow, fast]));
 
       // Second producer, first record.
       assert.deepStrictEqual(got.map((record) => record.evaluationId), ["fast", "slow"]);
@@ -696,8 +669,9 @@ describe("mergeSources", () => {
         ]),
       ]);
 
-      assert.isDefined(merged.backlog);
-      const got = merged.backlog === undefined ? [] : yield* merged.backlog;
+      const backlog = yield* backlogOf(merged);
+      assert.isDefined(backlog);
+      const got = backlog ?? [];
 
       assert.deepStrictEqual(
         got.map((record) => record.evaluationId),
@@ -718,8 +692,9 @@ describe("mergeSources", () => {
         withBacklog([decisionRecord({ evaluationId: "first", at: 1_000 })]),
       ]);
 
-      assert.isDefined(merged.backlog);
-      const got = merged.backlog === undefined ? [] : yield* merged.backlog;
+      const backlog = yield* backlogOf(merged);
+      assert.isDefined(backlog);
+      const got = backlog ?? [];
 
       assert.deepStrictEqual(
         got.map((record) => record.evaluationId),
@@ -730,14 +705,13 @@ describe("mergeSources", () => {
   // BEH-QD-203: absent means "cannot answer for the past", empty means "can, and
   // there was nothing". A merge of two feeds must not answer `[]` and so claim a
   // history was looked at.
-  // `in`, not `=== undefined`, and for the reason the `sourceFromFeed` case
-  // above gives: the key is absent, not present-and-undefined. A reader asking
-  // `"backlog" in source` — which is the honest way to ask "can this answer for
-  // the past" — must get `false`.
+  // `in`, not `=== undefined`: the key is absent, not present-and-undefined. A
+  // reader asking `"backlog" in read` — which is the honest way to ask "can this
+  // answer for the past" — must get `false`.
   it.effect("cannot answer for the past when no producer can", () =>
     Effect.gen(function* () {
       const merged = mergeSources([liveOnly([]), liveOnly([])]);
-      assert.isFalse("backlog" in merged);
+      assert.isFalse(yield* hasBacklog(merged));
     }));
 
   it.effect("one producer answering for the past is enough", () =>
@@ -745,8 +719,9 @@ describe("mergeSources", () => {
       const record = decisionRecord({ evaluationId: "kept" });
       const merged = mergeSources([liveOnly([]), withBacklog([record]), liveOnly([])]);
 
-      assert.isDefined(merged.backlog);
-      const got = merged.backlog === undefined ? [] : yield* merged.backlog;
+      const backlog = yield* backlogOf(merged);
+      assert.isDefined(backlog);
+      const got = backlog ?? [];
 
       // Exactly one, not three: a producer with no backlog contributes nothing
       // rather than an empty run the reader would have to distinguish.
@@ -756,12 +731,12 @@ describe("mergeSources", () => {
   it.effect("merging nothing answers nothing, and does not pretend to", () =>
     Effect.gen(function* () {
       const merged = mergeSources([]);
-      assert.isFalse("backlog" in merged);
-      assert.deepStrictEqual(Array.from(yield* Stream.runCollect(merged.live)), []);
+      assert.isFalse(yield* hasBacklog(merged));
+      assert.deepStrictEqual(yield* allLiveOf(merged), []);
     }));
 
-  // Deliberately not deduplicated. A feed built with `replay` re-delivers and
-  // `EventSource` reconnects on its own, so duplicates are expected — and the
+  // Deliberately not deduplicated. `EventSource` reconnects on its own and
+  // re-reads the server's backlog, so duplicates are expected — and the
   // timeline already folds by evaluation id. Doing it twice would be two places
   // to be wrong, and this pins the contract so a future "helpful" dedupe here
   // fails rather than silently hiding a replay.
@@ -770,7 +745,7 @@ describe("mergeSources", () => {
       const record = decisionRecord({ evaluationId: "ev-1", at: 1_000 });
       const merged = mergeSources([withBacklog([record]), withBacklog([record])]);
 
-      const got = merged.backlog === undefined ? [] : yield* merged.backlog;
+      const got = (yield* backlogOf(merged)) ?? [];
       assert.strictEqual(got.length, 2);
     }));
 });

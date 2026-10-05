@@ -26,17 +26,17 @@ import * as Ref from "effect/Ref";
 import * as Stream from "effect/Stream";
 import {
   currentSubjectLayer,
-  decisionSinkRing,
   EvaluationServicesNone,
   evaluate,
   hasPermission,
+  makeDecisionLog,
   makeSubject,
   ObligationRecord,
   permission,
   stampRecord,
 } from "@qadi/core";
 import type { Decision, StoredRecord } from "@qadi/core";
-import { emptyTimeline, ingestAll, mergeSources, pairedEntries } from "@qadi/devtools";
+import { emptyTimeline, ingestAll, mergeSources, pairedEntries, sourceFromRecords } from "@qadi/devtools";
 import type { Source } from "@qadi/devtools";
 
 const feature = await loadFeature(
@@ -50,15 +50,12 @@ const stripped = makeSubject({ id: "alice" });
 
 const ports = EvaluationServicesNone;
 
-/** A source that answers for the past and nothing else — a ring's shape. */
-const pastOnly = (records: ReadonlyArray<StoredRecord>): Source => ({
-  backlog: Effect.succeed(records),
-  live: Stream.empty,
-});
+/** A source that answers for the past and nothing else — a captured session. */
+const pastOnly = (records: ReadonlyArray<StoredRecord>): Source => sourceFromRecords(records);
 
-/** A source that answers only for what happens next — a feed's, or SSE's. */
+/** A source that answers only for what happens next — an older server over SSE. */
 const futureOnly = (records: ReadonlyArray<StoredRecord>): Source => ({
-  live: Stream.fromArray(records),
+  read: Effect.succeed({ live: Stream.fromArray(records) }),
 });
 
 const stamped = (at: number, environment: string): StoredRecord =>
@@ -72,22 +69,22 @@ const stamped = (at: number, environment: string): StoredRecord =>
     environment,
   );
 
-/** One real evaluation, recorded by its own ring, and the ring's snapshot. */
+/** One real evaluation, recorded by its own decision log, and the log's snapshot. */
 const decideInto = (
   environment: string,
   subject: typeof alice,
   evaluationId?: string,
 ): Effect.Effect<{ readonly decision: Decision; readonly records: ReadonlyArray<StoredRecord> }> =>
   Effect.gen(function* () {
-    const ring = decisionSinkRing({ environment });
+    const log = yield* makeDecisionLog({ environment });
     const decision = yield* evaluate(
       hasPermission(read),
       evaluationId === undefined ? undefined : { evaluationId },
     ).pipe(
-      Effect.provide(Layer.mergeAll(ports, currentSubjectLayer(subject), ring.layer)),
+      Effect.provide(Layer.mergeAll(ports, currentSubjectLayer(subject), log.layer)),
       Effect.orDie,
     );
-    return { decision, records: yield* ring.snapshot };
+    return { decision, records: yield* log.snapshot };
   });
 
 interface MergedSourcesWorldState {
@@ -134,9 +131,9 @@ const pushSource = Effect.fn("merged-sources.pushSource")(function* (source: Sou
 const past = Effect.fn("merged-sources.past")(function* () {
   const s = yield* read_();
   assert.ok(s.merged !== undefined, "nothing has been merged");
-  const backlog = s.merged.backlog;
+  const backlog = yield* Effect.scoped(Effect.map(s.merged.read, (r) => r.backlog));
   assert.ok(backlog !== undefined, "the merged source cannot answer for the past");
-  return yield* backlog;
+  return backlog;
 });
 
 describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
@@ -247,13 +244,13 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     const s = yield* read_();
     assert.ok(s.merged !== undefined, "nothing has been merged");
     // Absent, not empty. An empty array would say a history was looked at.
-    assert.equal(s.merged.backlog, undefined);
+    assert.equal(yield* Effect.scoped(Effect.map(s.merged.read, (r) => "backlog" in r)), false);
   });
 
   Then("the merged source can answer for the past", function* () {
     const s = yield* read_();
     assert.ok(s.merged !== undefined, "nothing has been merged");
-    assert.notEqual(s.merged.backlog, undefined);
+    assert.notEqual(yield* Effect.scoped(Effect.map(s.merged.read, (r) => r.backlog)), undefined);
   });
 
   Then(
@@ -273,7 +270,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Then("{int} records arrive live", function* (count: number) {
     const s = yield* read_();
     assert.ok(s.merged !== undefined, "nothing has been merged");
-    const got = yield* Stream.runCollect(s.merged.live);
+    const got = yield* Effect.scoped(Effect.flatMap(s.merged.read, (r) => Stream.runCollect(r.live)));
     assert.equal(Array.from(got).length, count);
   });
 });

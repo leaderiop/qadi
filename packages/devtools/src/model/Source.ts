@@ -8,35 +8,54 @@
  * and the devtools knows nothing about them because a `Source` is the only shape
  * it consumes.
  *
- * **A record log is two things, not one.** `backlog` is what a process already
- * decided, and `live` is what it decides next. A `decisionSinkRing` can answer
- * the first and not the second; a `decisionSinkFeed` answers the second and only
- * answers the first when it was built with `replay`. The pair is separate here
- * because the honest shape of the underlying sinks is a pair, and collapsing
- * them would force one of the two to be faked.
+ * **A record log is two things, read together.** `backlog` is what a process
+ * already decided, and `live` is what it decides next. They come from one scoped
+ * `read`, not two fields a consumer runs one after the other, so a source that
+ * can answer both — a `DecisionLog` — hands them over atomically: nothing made
+ * between the two is lost, and nothing is handed over twice. A `DecisionLog` is
+ * a `Source` as it is, with no adapter; the SSE source is the second
+ * implementation of the same seam, reading the same `read` over HTTP.
  */
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
 import * as Match from "effect/Match";
 import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
+import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import type { DecodeRefusal, SinkRecord, StoredRecord } from "@qadi/core";
+import type { DecodeRefusal, StoredRecord } from "@qadi/core";
 import { decodeSinkRecordString, stampRecord, storedRecordOrder } from "@qadi/core";
 
-export interface Source {
+/** What one `read` of a source hands its reader. */
+export interface SourceRead {
   /**
-   * Records made before the devtools started watching, when the sink can
+   * Records made before the reader started watching, when the source can
    * produce them.
    *
    * Optional rather than an empty default, and the distinction carries meaning:
-   * absent is "this sink cannot answer for the past", which is true of a bare
-   * feed, while an empty array is "it can, and there is nothing". A reader can
-   * say "no history available" for the first and "no decisions yet" for the
-   * second.
+   * absent is "this source cannot answer for the past", which is true of an
+   * older server that sends no backlog, while an empty array is "it can, and
+   * there is nothing". A reader can say "no history available" for the first
+   * and "no decisions yet" for the second.
    */
-  readonly backlog?: Effect.Effect<ReadonlyArray<StoredRecord>>;
+  readonly backlog?: ReadonlyArray<StoredRecord>;
+  /** Records made after the backlog was taken. Ends when the read's scope closes. */
   readonly live: Stream.Stream<StoredRecord>;
+}
+
+/**
+ * Where the devtools gets its records: one scoped read of the past and the
+ * future together.
+ *
+ * Scoped, because a live half holds a subscription or a connection, and closing
+ * the panel must release it. One read rather than a `backlog` effect beside a
+ * `live` stream, because two fields run independently cannot be atomic: a
+ * consumer that read the backlog and then subscribed lost whatever happened
+ * between (ARCH-11 C9), and one that ran `live` without `backlog` had no way to
+ * know.
+ */
+export interface Source {
+  readonly read: Effect.Effect<SourceRead, never, Scope.Scope>;
 }
 
 /**
@@ -46,30 +65,7 @@ export interface Source {
  * somebody exported. The whole timeline is exercisable without a transport.
  */
 export const sourceFromRecords = (records: ReadonlyArray<StoredRecord>): Source => ({
-  backlog: Effect.succeed(records),
-  live: Stream.empty,
-});
-
-/**
- * A `decisionSinkFeed`'s stream, stamped with where it ran.
- *
- * The stamping happens here because core does not do it: `decisionSinkFeed`
- * yields `SinkRecord`, deliberately, since core cannot know whether it is in a
- * browser, on a server or at an edge. It reuses core's own `stampRecord`
- * ([DecisionSinkRing.ts](../../../core/src/DecisionSinkRing.ts)) rather than a
- * local `{ ...record, environment }` spread — spreading a `Data.TaggedClass`
- * instance lands the result on `Object.prototype`, silently losing `.pipe`,
- * `Equal.equals` and `Hash.hash`, which is exactly the failure that module
- * documents and `stampRecord` exists to avoid.
- */
-export const sourceFromFeed = (options: {
-  readonly stream: Stream.Stream<SinkRecord>;
-  readonly environment: string;
-  /** Usually a paired `decisionSinkRing`'s `snapshot`. */
-  readonly backlog?: Effect.Effect<ReadonlyArray<StoredRecord>>;
-}): Source => ({
-  ...(options.backlog === undefined ? {} : { backlog: options.backlog }),
-  live: Stream.map(options.stream, (record) => stampRecord(record, options.environment)),
+  read: Effect.succeed({ backlog: records, live: Stream.empty }),
 });
 
 /**
@@ -115,16 +111,19 @@ export const sourceFromEventSource = (options: {
   // Checked here, at construction, rather than when the stream is first pulled:
   // a devtools panel that mounts cleanly and then produces a defect from inside
   // a stream the moment someone opens it is the worst place to learn this. The
-  // same reasoning `decisionSinkFeed` validates its capacity by.
+  // same reasoning `makeDecisionLog` validates its capacity by.
   if (options.open === undefined && typeof EventSource === "undefined") {
     throw new Error(
       "sourceFromEventSource: this runtime has no global EventSource. " +
-        "Supply `open` with an implementation, or use `sourceFromFeed` in-process.",
+        "Supply `open` with an implementation, or pass a `DecisionLog` in-process.",
     );
   }
   const open = options.open ?? openEventSource;
   const withCredentials = options.withCredentials ?? false;
 
+  // The connection opens inside `read`'s scope and closes with it, so closing
+  // the panel closes the connection rather than leaving a browser retrying a
+  // feed nobody reads.
   const frames = Stream.callback<string>((queue) =>
     Effect.gen(function* () {
       const source = open(options.url, withCredentials);
@@ -134,14 +133,14 @@ export const sourceFromEventSource = (options: {
       source.onError(() => {
         options.onDisconnect?.();
       });
-      // Registered against the stream's scope, so closing the panel closes the
-      // connection rather than leaving a browser retrying a feed nobody reads.
       yield* Effect.addFinalizer(() => Effect.sync(() => source.close()));
     }),
   );
 
   return {
-    live: Stream.filterMapEffect(frames, decodeFrame(options.environment, options.onMalformed)),
+    read: Effect.succeed({
+      live: Stream.filterMapEffect(frames, decodeFrame(options.environment, options.onMalformed)),
+    }),
   };
 };
 
@@ -154,40 +153,36 @@ export const sourceFromEventSource = (options: {
  * `EvaluateOptions.evaluationId` exists for — so pairing them is the point, and
  * `pairedEntries` can only pair what is in one `Timeline`.
  *
- * There was no way to get them there. `decisionSinkRing.ingest` takes a record
- * from elsewhere, but a ring answers for the past and not for the future, so a
- * second **live** stream had nowhere to go and the SSR topology's "pairs shown"
- * was unreachable through the public API.
+ * Each part is read once, in the merged read's scope, so every part keeps its
+ * own atomic handoff between backlog and live.
  *
  * **`backlog` is absent when every input's is absent**, and that is the part
  * worth reading twice. `Source` distinguishes absent — "this sink cannot answer
  * for the past" — from empty — "it can, and there was nothing"
  * ([BEH-QD-203](../../../spec/behaviors/27-devtools-timeline.md)). Merging two
- * bare feeds and answering `[]` would claim a history was checked when none
- * could be.
+ * live-only sources and answering `[]` would claim a history was checked when
+ * none could be.
  *
  * Ordered by `at`, because the reader is one chronological table and two
  * processes interleave — by core's `storedRecordOrder`, the one order a stored
 record is read in (INV-QD-039), so a merged backlog and the timeline cannot
 disagree about where an unknown (`NaN`) time goes; `sort` is stable, so two
-unknowns keep their arrival order. **Not** deduplicated: a feed built with `replay`
- * re-delivers and `EventSource` reconnects, and the timeline already folds by
+unknowns keep their arrival order. **Not** deduplicated: `EventSource` reconnects
+ * and re-reads, and the timeline already folds by
  * evaluation id — doing it here as well would be two places to be wrong.
  */
-export const mergeSources = (sources: ReadonlyArray<Source>): Source => {
-  const backlogs = sources.flatMap((source) =>
-    source.backlog === undefined ? [] : [source.backlog]
-  );
-
-  const backlog = backlogs.length === 0
-    ? undefined
-    : Effect.map(Effect.all(backlogs), (parts) => parts.flat().sort(storedRecordOrder));
-
-  return {
-    ...(backlog === undefined ? {} : { backlog }),
-    live: Stream.mergeAll(sources.map((source) => source.live), { concurrency: "unbounded" }),
-  };
-};
+export const mergeSources = (sources: ReadonlyArray<Source>): Source => ({
+  read: Effect.map(Effect.forEach(sources, (source) => source.read), (parts) => {
+    const backlogs = parts.flatMap((part) => (part.backlog === undefined ? [] : [part.backlog]));
+    const live = Stream.mergeAll(
+      parts.map((part) => part.live),
+      { concurrency: "unbounded" },
+    );
+    return backlogs.length === 0
+      ? { live }
+      : { backlog: backlogs.flat().sort(storedRecordOrder), live };
+  }),
+});
 
 /**
  * Why a frame was dropped, from the codec's own reason.

@@ -10,15 +10,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
-import type { SinkRecord } from "@qadi/core";
-import { sourceFromFeed, sourceFromRecords } from "../../src/model/Source.ts";
+import { sourceFromRecords } from "../../src/model/Source.ts";
 import { makeTimelineStore, runSource } from "../../src/model/TimelineStore.ts";
 import { decisionRecord, obligationRecord } from "../helpers.ts";
-
-const bare = (record: ReturnType<typeof decisionRecord>): SinkRecord => {
-  const { environment: _stamped, ...rest } = record;
-  return rest;
-};
 
 describe("makeTimelineStore", () => {
   it("notifies a subscriber when a record lands", () => {
@@ -207,14 +201,13 @@ describe("runSource", () => {
       );
     }));
 
-  // E1.5 seen from the store's side: a bare feed has no past to read.
+  // E1.5 seen from the store's side: a live-only source has no past to read.
   it.effect("a source with no backlog still drains the live stream", () =>
     Effect.gen(function* () {
       const store = makeTimelineStore();
-      const source = sourceFromFeed({
-        stream: Stream.fromArray<SinkRecord>([bare(decisionRecord({ evaluationId: "live" }))]),
-        environment: "Server",
-      });
+      const source = {
+        read: Effect.succeed({ live: Stream.fromArray([decisionRecord({ evaluationId: "live" })]) }),
+      };
 
       yield* runSource(store, source);
 
@@ -230,8 +223,10 @@ describe("runSource", () => {
       });
 
       yield* runSource(store, {
-        backlog: Effect.succeed([decisionRecord({ evaluationId: "old", at: 100 })]),
-        live: Stream.fromArray([decisionRecord({ evaluationId: "new", at: 200 })]),
+        read: Effect.succeed({
+          backlog: [decisionRecord({ evaluationId: "old", at: 100 })],
+          live: Stream.fromArray([decisionRecord({ evaluationId: "new", at: 200 })]),
+        }),
       });
 
       // A backlog arriving after a few live records would still land in the
@@ -264,10 +259,10 @@ describe("runSource", () => {
   /**
    * E1.6 — the ordinary shape of a reconnecting reader.
    *
-   * A feed built with `replay` hands a joining subscriber recent records, and a
-   * ring paired through `decisionSinkAll` holds the same ones. So the backlog
-   * and the live stream overlap by construction, and the timeline's identity
-   * rule is what keeps that from doubling every row on screen.
+   * One decision log never hands a reader the same record twice, but a reader
+   * merging sources, or an `EventSource` that reconnects and re-reads the
+   * server's backlog, can see one again. The timeline's identity rule is what
+   * keeps that from doubling every row on screen.
    */
   it.effect("a record in both the backlog and the live stream is one row", () =>
     Effect.gen(function* () {
@@ -275,8 +270,10 @@ describe("runSource", () => {
       const shared = decisionRecord({ evaluationId: "replayed", at: 100 });
 
       yield* runSource(store, {
-        backlog: Effect.succeed([shared]),
-        live: Stream.fromArray([shared, decisionRecord({ evaluationId: "fresh", at: 200 })]),
+        read: Effect.succeed({
+          backlog: [shared],
+          live: Stream.fromArray([shared, decisionRecord({ evaluationId: "fresh", at: 200 })]),
+        }),
       });
 
       assert.deepStrictEqual(
