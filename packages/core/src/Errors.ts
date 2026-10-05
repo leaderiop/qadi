@@ -441,20 +441,41 @@ export class SinkRecordNotEncodable extends Data.TaggedError("SinkRecordNotEncod
 }> {}
 
 /**
+ * A version of the record wire (ADR-QD-903).
+ *
+ * Version 1 is spelled by the absence of a `version` key — every `@qadi/core`
+ * before ADR-QD-903 wrote it — and carries a decision's outcome as two optional
+ * fields, `decided`/`failed`. Version 2 carries `version: 2` and the outcome as
+ * one tagged value. A closed union: a third version is a full-union edit.
+ *
+ * Declared here rather than in `SinkCodec.ts` because {@link DecodeRefusal}
+ * names it, and `Errors.ts` cannot import `SinkCodec.ts` (ADR-QD-037).
+ */
+export type WireVersion = 1 | 2;
+
+/** Every wire version `decodeSinkRecord` reads: version 1 for good, and version 2. */
+export const WIRE_VERSIONS: ReadonlyArray<WireVersion> = [1, 2];
+
+/**
  * Why `decodeSinkRecord` refused its input.
  *
- * A closed union, edited as a whole when a reason is added (a wire-version
- * check is expected to add one).
+ * A closed union, edited as a whole when a reason is added.
  *
  * - `NotJson`: the text did not parse as JSON (`decodeSinkRecordString` only).
  * - `TooDeep`: the input nests deeper than `maxDepth`; refused before the
  *   schema recurses into it.
- * - `Malformed`: the input is JSON but not a record this version accepts.
+ * - `Malformed`: the input is JSON but not a record of the version it claims —
+ *   including a decision naming neither outcome, or both.
+ * - `UnsupportedVersion`: the input's `version` is not one this reader reads
+ *   (`supported`). A different fix from `Malformed`: the sender is newer than
+ *   this reader, so upgrade the reader (ADR-QD-903). `version` is the value as
+ *   sent, which may be any JSON value.
  */
 export type DecodeRefusal = Data.TaggedEnum<{
   NotJson: Record<never, never>;
   TooDeep: { readonly maxDepth: number };
   Malformed: { readonly message: string };
+  UnsupportedVersion: { readonly version: unknown; readonly supported: ReadonlyArray<WireVersion> };
 }>;
 
 /** Constructors and guards for {@link DecodeRefusal}. */

@@ -215,6 +215,7 @@ const reasonOf: (refusal: DecodeRefusal) => MalformedReason = Match.type<DecodeR
     NotJson: (): MalformedReason => "not-json",
     TooDeep: (): MalformedReason => "too-deep",
     Malformed: (): MalformedReason => "not-a-record",
+    UnsupportedVersion: (): MalformedReason => "unsupported-version",
   }),
 );
 
@@ -241,18 +242,21 @@ const decodeFrame = (
 /**
  * Why a frame was dropped.
  *
- * The three are different problems with different fixes and the reader is owed
+ * The four are different problems with different fixes and the reader is owed
  * the distinction: `not-json` is a broken transport — a proxy that truncated
  * the stream, a reverse proxy injecting its own body — `too-deep` is JSON
  * nested past the bound every receiver decodes, which a current sender refuses
- * to emit, so it means an older or foreign sender; and `not-a-record` is a
- * protocol mismatch, usually a `@qadi/core` on the far side that does not
- * agree with this one about the wire form.
+ * to emit, so it means an older or foreign sender; `not-a-record` is a
+ * protocol mismatch, a record no version of the wire describes (a decision
+ * naming neither outcome or both, a field of the wrong type); and
+ * `unsupported-version` is a sender newer than this panel, writing a wire
+ * version its `@qadi/core` does not read — fixed by upgrading this panel, not
+ * the far side (ADR-QD-903).
  *
  * A closed union rather than a free string: this is a value a caller branches
  * on, and adding a reason should be a compile error at every consumer.
  */
-export type MalformedReason = "not-json" | "too-deep" | "not-a-record";
+export type MalformedReason = "not-json" | "too-deep" | "not-a-record" | "unsupported-version";
 
 /** Reports the drop, then filters the frame out. */
 const malformed = (

@@ -32,10 +32,17 @@ describe("encodeAuditEntry", () => {
   it.effect("encodes a Failed record", () =>
     Effect.gen(function* () {
       const entry = yield* encodeAuditEntry(failedRecord({ evaluationId: "e2" }));
-      assert.strictEqual(entry.record._tag, "Decision");
-      if (entry.record._tag === "Decision") {
-        assert.strictEqual(entry.record.failed?._tag, "MissingResource");
-      }
+      const record = entry.record;
+      assert.strictEqual(record._tag, "Decision");
+      const error =
+        record._tag !== "Decision"
+          ? undefined
+          : "version" in record
+            ? record.outcome._tag === "Failed"
+              ? record.outcome.error
+              : undefined
+            : record.failed;
+      assert.strictEqual(error?._tag, "MissingResource");
     }));
 
   it.effect("encodes an ObligationRecord", () =>

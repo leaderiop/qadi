@@ -22,6 +22,7 @@ import {
   PolicyTooDeep,
   RelationshipResolveError,
   SignatureHistoryUnavailable,
+  WIRE_VERSIONS,
 } from "../src/Errors.ts";
 import type { EvaluationError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
@@ -37,6 +38,7 @@ import {
 } from "../src/SinkCodec.ts";
 import type { SinkRecordJson } from "../src/SinkCodec.ts";
 import * as V1 from "./fixtures/sinkWireV1.ts";
+import * as V2 from "./fixtures/sinkWireV2.ts";
 
 const read = permission("doc", "read");
 
@@ -453,10 +455,9 @@ describe("every literal the wire admits is exercised", () => {
         }),
       );
 
-      assert.strictEqual(encoded._tag, "Decision");
-      if (encoded._tag === "Decision" && encoded.failed?._tag === "MissingAction") {
-        assert.strictEqual(encoded.failed.expected, "read");
-      }
+      const error = wireErrorOf(encoded);
+      assert.strictEqual(error?._tag, "MissingAction");
+      if (error?._tag === "MissingAction") assert.strictEqual(error.expected, "read");
     }));
 });
 
@@ -755,6 +756,16 @@ const jsonOf = (record: SinkRecord): SinkRecordJson =>
     onSuccess: (json) => json,
     onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
   });
+
+/** The error a `Failed` record's JSON carries, in either wire version. */
+const wireErrorOf = (json: SinkRecordJson) =>
+  json._tag !== "Decision"
+    ? undefined
+    : "version" in json
+      ? json.outcome._tag === "Failed"
+        ? json.outcome.error
+        : undefined
+      : json.failed;
 
 /** `decodeSinkRecord` lifted into `Effect`, for the generator-style tests above. */
 const decodeEffect = (input: unknown) => Effect.fromResult(decodeSinkRecord(input));
@@ -1451,6 +1462,11 @@ const goldenFailed = (error: EvaluationError): SinkRecord =>
     outcome: new Failed({ error }),
   });
 
+/** The `Failed` record whose resolver error carries an `Error` cause, as the goldens hold it. */
+const goldenFailedCause: SinkRecord = goldenFailed(
+  new AttributeResolveError({ attribute: "clearance", cause: new Error("db down") }),
+);
+
 /** The obligation record `V1_OBLIGATIONS` was captured from. */
 const goldenObligations: SinkRecord = new ObligationRecord({
   evaluationId: "g",
@@ -1544,7 +1560,7 @@ describe("v1 bytes: a decided record encodes byte-identically to 1caf04c", () =>
 
   it("a Failed record whose resolver cause is an Error", () => {
     assert.strictEqual(
-      encoded(goldenFailed(new AttributeResolveError({ attribute: "clearance", cause: new Error("db down") }))),
+      encoded(goldenFailedCause),
       V1.V1_FAILED_ATTRIBUTE_ERROR_CAUSE,
     );
   });
@@ -1559,18 +1575,180 @@ describe("v1 bytes: a decided record encodes byte-identically to 1caf04c", () =>
 });
 
 /**
- * What the v1 reader did at `899465c`, before ARCH-15 — each pin is replaced,
- * in the task that changes it, by the test that asserts the new behaviour.
+ * Both wire versions are read, for good (ADR-QD-903). Version 1 has no
+ * `version` key and carries the outcome as `decided`/`failed`; version 2
+ * carries `version: 2` and one tagged `outcome`. Each pair of fixtures is the
+ * same record, so each pair decodes to the same `SinkRecord`.
  */
-describe("v1 characterization at 899465c (replaced by ARCH-15 T5)", () => {
-  it("P5: a pre-0.5 failed.code is refused", () => {
-    assert.strictEqual(decodeRefusalOf(V1.V1_PRE05_FAILED_WITH_CODE)?._tag, "Malformed");
+describe("decodeSinkRecord reads wire versions 1 and 2", () => {
+  const goldenTrace = (allowed: boolean) => ({
+    policyTag: "HasPermission" as const,
+    allowed,
+    children: [],
+    obligations: [],
+  });
+  const decided = (decision: Allow | Deny): SinkRecord =>
+    new DecisionRecord({
+      evaluationId: "g",
+      at: 1,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasPermission(read),
+      outcome: new Decided({ decision }),
+    });
+  const pairs: ReadonlyArray<readonly [string, string, string, SinkRecord]> = [
+    [
+      "an Allow with visibleFields and an obligation",
+      V1.V1_DECIDED_ALLOW,
+      V2.V2_DECIDED_ALLOW,
+      decided(
+        new Allow({
+          evaluationId: "g",
+          subjectId: makeSubjectId("u1"),
+          durationMillis: 2,
+          trace: { ...goldenTrace(true), visibleFields: ["id"] },
+          visibleFields: ["id"],
+          obligations: [obligation("audit.log")],
+        }),
+      ),
+    ],
+    [
+      "an Allow with everything visible",
+      V1.V1_DECIDED_ALLOW_ALL_FIELDS,
+      V2.V2_DECIDED_ALLOW_ALL_FIELDS,
+      decided(
+        new Allow({
+          evaluationId: "g",
+          subjectId: makeSubjectId("u1"),
+          durationMillis: 2,
+          trace: goldenTrace(true),
+          visibleFields: undefined,
+          obligations: [],
+        }),
+      ),
+    ],
+    [
+      "a Deny",
+      V1.V1_DECIDED_DENY,
+      V2.V2_DECIDED_DENY,
+      decided(
+        new Deny({
+          evaluationId: "g",
+          subjectId: makeSubjectId("u1"),
+          durationMillis: 2,
+          trace: { ...goldenTrace(false), reason: "no" },
+          reason: "no",
+        }),
+      ),
+    ],
+    [
+      "a Failed record",
+      V1.V1_FAILED_MISSING_RESOURCE,
+      V2.V2_FAILED_MISSING_RESOURCE,
+      goldenFailed(new MissingResource({ attribute: "owner" })),
+    ],
+    [
+      "a Failed record with an Error cause",
+      V1.V1_FAILED_ATTRIBUTE_ERROR_CAUSE,
+      V2.V2_FAILED_ATTRIBUTE_ERROR_CAUSE,
+      goldenFailedCause,
+    ],
+    ["an obligation record", V1.V1_OBLIGATIONS, V2.V2_OBLIGATIONS, goldenObligations],
+    ["a full envelope", V1.V1_DECISION_FULL_ENVELOPE, V2.V2_DECISION_FULL_ENVELOPE, goldenFullEnvelope],
+  ];
+
+  for (const [name, v1, v2, original] of pairs) {
+    it(`${name}: v1 and v2 bytes decode to the same record, the one encoded`, () => {
+      assert.deepStrictEqual(recordOf(v1), recordOf(v2));
+      // Equal up to the named normalisations (INV-QD-902): what the writer's
+      // own output decodes to.
+      assert.deepStrictEqual(recordOf(v2), recordOf(stringOf(original)));
+    });
+  }
+
+  it("a v2 record with an unknown top-level key decodes; a legacy `decided` beside `outcome` is one", () => {
+    const text = JSON.stringify({ ...JSON.parse(V2.V2_FAILED_MISSING_RESOURCE), traceparent: "00-abc", decided: {} });
+    assert.deepStrictEqual(recordOf(text), recordOf(V2.V2_FAILED_MISSING_RESOURCE));
   });
 
-  it("a cause rendered to a string decodes, as that string", () => {
-    const text = V1.V1_FAILED_ATTRIBUTE_ERROR_CAUSE.replace('{"name":"Error","message":"db down"}', '"Error: db down"');
-    const back = recordOf(text);
-    const error = back._tag === "Decision" && back.outcome._tag === "Failed" ? back.outcome.error : undefined;
-    assert.strictEqual(error?._tag === "AttributeResolveError" ? error.cause : undefined, "Error: db down");
+  describe("a malformed v2 outcome is Malformed", () => {
+    const v2 = (outcome: unknown): string => JSON.stringify({ ...JSON.parse(V2.V2_FAILED_MISSING_RESOURCE), outcome });
+    const decision = JSON.parse(V2.V2_DECIDED_DENY).outcome.decision;
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      ["no outcome", JSON.stringify({ ...JSON.parse(V2.V2_FAILED_MISSING_RESOURCE), outcome: undefined })],
+      ["Decided with no decision", v2({ _tag: "Decided" })],
+      ["Failed with no error", v2({ _tag: "Failed" })],
+      ["Failed carrying a stray decision", v2({ _tag: "Failed", error: { _tag: "MissingResource", attribute: "owner" }, decision })],
+      ["an unknown outcome tag", v2({ _tag: "Skipped" })],
+      ["an error carrying a code, which version 2 never had", v2({ _tag: "Failed", error: { _tag: "MissingResource", attribute: "owner", code: "ACL004" } })],
+      ["an unknown key inside the decision", v2({ _tag: "Decided", decision: { ...decision, ttl: 60 } })],
+    ];
+    for (const [name, text] of cases) {
+      it(name, () => {
+        assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+      });
+    }
+
+    it("no subjectId: required in version 2, unlike version 1", () => {
+      const text = JSON.stringify({ ...JSON.parse(V2.V2_FAILED_MISSING_RESOURCE), subjectId: undefined });
+      assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+    });
+  });
+
+  describe("any other version is UnsupportedVersion, naming what was sent and what is read", () => {
+    const versions: ReadonlyArray<unknown> = [3, "2", null, 1, 2.5, { major: 2 }];
+    for (const version of versions) {
+      it(`version: ${JSON.stringify(version)}`, () => {
+        const text = JSON.stringify({ ...JSON.parse(V2.V2_FAILED_MISSING_RESOURCE), version });
+        assert.deepStrictEqual(decodeRefusalOf(text), DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
+      });
+    }
+
+    it("the supported versions are 1 and 2", () => {
+      assert.deepStrictEqual(WIRE_VERSIONS, [1, 2]);
+    });
+  });
+
+  describe("pre-0.5 rows (ADR-QD-060 dropped the error's code unversioned)", () => {
+    it("a v1 failed.code is tolerated, and nothing else about the error changes", () => {
+      assert.deepStrictEqual(recordOf(V1.V1_PRE05_FAILED_WITH_CODE), recordOf(V1.V1_FAILED_MISSING_RESOURCE));
+    });
+
+    it("a cause rendered to a string by the deleted renderCause decodes, as that string", () => {
+      const back = recordOf(V1.V1_PRE05_FAILED_RENDERED_CAUSE);
+      const error = back._tag === "Decision" && back.outcome._tag === "Failed" ? back.outcome.error : undefined;
+      assert.strictEqual(error?._tag === "AttributeResolveError" ? error.cause : undefined, "Error: db down");
+    });
+
+    it("only `code` is tolerated: any other excess key under failed is still refused", () => {
+      const text = V1.V1_PRE05_FAILED_WITH_CODE.replace('"code":"ACL004"', '"code2":"ACL004"');
+      assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+    });
+
+    it("only at failed: a `code` inside the embedded policy is still refused", () => {
+      const text = V1.V1_FAILED_MISSING_RESOURCE.replace('"action":"read"}}', '"action":"read"},"code":"x"}');
+      assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+    });
+  });
+
+  it("property: a v1 record naming no outcome, both, or an unknown nested key never decodes, and never throws (INV-QD-904)", () => {
+    const base = JSON.parse(V1.V1_DECIDED_DENY);
+    const failedWire = { _tag: "MissingResource", attribute: "owner" };
+    const malformed: FastCheck.Arbitrary<unknown> = FastCheck.oneof(
+      FastCheck.constant({ ...base, decided: undefined }),
+      FastCheck.constant({ ...base, failed: failedWire }),
+      FastCheck.string({ minLength: 1 })
+        .filter(
+          (key) =>
+            !["evaluationId", "subjectId", "durationMillis", "trace", "obligations", "reason", "_tag", "visibleFields", "__proto__"].includes(key),
+        )
+        .map((key) => ({ ...base, decided: { ...base.decided, [key]: 1 } })),
+      FastCheck.string({ minLength: 1 })
+        .filter((key) => !["_tag", "attribute", "code", "__proto__"].includes(key))
+        .map((key) => ({ ...base, decided: undefined, failed: { ...failedWire, [key]: 1 } })),
+    );
+    FastCheck.assert(
+      FastCheck.property(malformed, (input) => Result.isFailure(decodeSinkRecord(JSON.parse(JSON.stringify(input))))),
+      { numRuns: 300, seed: 1515 },
+    );
   });
 });

@@ -47,7 +47,7 @@ import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type { Trace } from "./Decision.ts";
-import type { SinkRecord } from "./DecisionRecord.ts";
+import type { DecisionOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
@@ -65,6 +65,7 @@ import {
   EncodeRefusal,
   SinkRecordNotDecodable,
   SinkRecordNotEncodable,
+  WIRE_VERSIONS,
 } from "./Errors.ts";
 import type { OpaqueKind, WirePath } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
@@ -103,36 +104,39 @@ const EvaluationErrorSchema = Schema.Union([
 ]);
 
 /**
- * The `subjectId` `rebuild` substitutes when a wire record's own `subjectId`
- * is absent — an older sender, mid rolling-deploy, predating that field
- * (`SinkRecordWire`'s own doc comment above).
+ * The `subjectId` a version-1 record gets when it has none — a sender that
+ * predates the field, mid rolling-deploy.
  *
  * A distinctive sentinel, not `""` (PH-03): `SubjectId` is a total,
  * non-validating brand (`Identity.ts`), so `""` is itself a legal subject id
  * a real caller could hold, and using it for "unknown" would make the two
  * indistinguishable to a devtools row or an audit reviewer reading the
  * decoded record back.
+ *
+ * Used by {@link upgradeV1} alone: version 2 requires `subjectId`
+ * (ADR-QD-903 D-15-i), so this skew can only arrive as version 1.
  */
 const UNKNOWN_SUBJECT = makeSubjectId("<unknown subject: wire version skew>");
 
+// ---------------------------------------------------------------------------
+// Version 1 — FROZEN (ADR-QD-903 D-15-d)
+// ---------------------------------------------------------------------------
+
 /**
- * The `Decision` member's fields, in the order they are written: the order is
- * part of the bytes (the v1 goldens pin it).
+ * A version-1 decision's fields, in the order they are written: the order is
+ * part of the bytes, pinned by `test/fixtures/sinkWireV1.ts`.
+ *
+ * **FROZEN.** Version 1 is read for good — audit rows are durable, and a row
+ * written before ADR-QD-903 must still read years later — so nothing here may
+ * change. A change to the wire is a new version.
+ *
+ * `subjectId` is optional because a sender older than the field omitted it;
+ * {@link upgradeV1} substitutes {@link UNKNOWN_SUBJECT}.
  */
-const decisionFields = {
+const decisionV1Fields = {
   _tag: Schema.Literal("Decision"),
   evaluationId: Schema.String,
   at: Schema.Number,
-  // Optional on the wire, though never absent from anything this module
-  // encodes: `SinkRecordWire` crosses process boundaries (a devtools
-  // socket, a replica forwarding to a shared store), and a sender running
-  // an older version during a rolling deploy predates this field. Rejecting
-  // such a record outright would silently drop real decisions for the
-  // length of the deploy; `rebuild` falls back to {@link UNKNOWN_SUBJECT}
-  // instead — not `""`, which `SubjectId`'s brand (a total, non-validating
-  // `Brand.nominal`, `Identity.ts`) accepts as a legal id in its own right,
-  // making "the sender predates this field" indistinguishable downstream
-  // from "this subject's real id happens to be the empty string" (PH-03).
   subjectId: Schema.optional(Schema.String),
   policy: Policy,
   resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
@@ -142,29 +146,25 @@ const decisionFields = {
   failed: Schema.optional(EvaluationErrorSchema),
 };
 
-type DecisionWireFields = Schema.Struct.Type<typeof decisionFields>;
+type DecisionV1Fields = Schema.Struct.Type<typeof decisionV1Fields>;
 
 /**
- * A decision record names exactly one outcome: `decided` or `failed`.
+ * A version-1 decision names exactly one outcome: `decided` or `failed`.
  *
  * The two optional fields admit four states and only two are meaningful, so a
  * record naming neither or both is refused here, at decode, rather than given
  * an outcome its sender never sent (tickets 96 and 155, CCR-QD-904). Before,
  * "neither" became a fabricated `MissingResource`, indistinguishable by code
  * (`ACL004`) from a real resolver failure, and "both" silently preferred
- * `decided`, an artifact of check order.
+ * `decided`, an artifact of check order. Version 2 cannot express either.
  */
-const exactlyOneOutcome = Schema.makeFilter((wire: DecisionWireFields) =>
+const exactlyOneOutcome = Schema.makeFilter((wire: DecisionV1Fields) =>
   (wire.decided === undefined) !== (wire.failed === undefined) ||
   (wire.decided === undefined ? "a decision record names no outcome" : "a decision record names both outcomes"),
 );
 
-/**
- * The wire form of a {@link SinkRecord} — the one schema both operations are
- * derived from. Module-private: callers see only `SinkRecordJson`, its encoded
- * side, and the four operations.
- */
-const obligationsFields = {
+/** A version-1 obligation record's fields. **FROZEN**, as {@link decisionV1Fields}. */
+const obligationsV1Fields = {
   _tag: Schema.Literal("Obligations"),
   evaluationId: Schema.String,
   at: Schema.Number,
@@ -172,38 +172,174 @@ const obligationsFields = {
   obligationIds: Schema.Array(Schema.String),
 };
 
-const SinkRecordWire = Schema.Union([
-  Schema.Struct(decisionFields).check(exactlyOneOutcome),
-  Schema.Struct(obligationsFields),
+/** Version-1 bytes: no `version` key, the outcome as `decided`/`failed`. **FROZEN.** */
+const SinkRecordWireV1 = Schema.Union([
+  Schema.Struct(decisionV1Fields).check(exactlyOneOutcome),
+  Schema.Struct(obligationsV1Fields),
 ]);
 
+type SinkRecordWireV1 = typeof SinkRecordWireV1.Type;
+
 /**
- * The envelope's declared top-level keys, per member, read from the schema's
- * own fields so they cannot drift from it.
+ * A decoded version-1 record whose outcome is exactly one of the two, by type.
+ *
+ * A schema check does not narrow a TypeScript type, so the decoded type still
+ * admits four outcome states; {@link isExclusive} narrows it to the two the
+ * check admits, and {@link upgradeV1} takes only those, so it has no arm to
+ * invent an outcome in.
  */
-const DECISION_KEYS: ReadonlySet<string> = new Set(Object.keys(decisionFields));
-const OBLIGATIONS_KEYS: ReadonlySet<string> = new Set(Object.keys(obligationsFields));
+type ExclusiveSinkRecordWireV1 =
+  | Extract<SinkRecordWireV1, { readonly _tag: "Obligations" }>
+  | (Omit<DecisionV1Fields, "decided" | "failed"> &
+      (
+        | { readonly decided: NonNullable<DecisionV1Fields["decided"]>; readonly failed?: undefined }
+        | { readonly decided?: undefined; readonly failed: NonNullable<DecisionV1Fields["failed"]> }
+      ));
+
+const isExclusive = (wire: SinkRecordWireV1): wire is ExclusiveSinkRecordWireV1 =>
+  wire._tag === "Obligations" || (wire.decided === undefined) !== (wire.failed === undefined);
+
+// ---------------------------------------------------------------------------
+// Version 2 (ADR-QD-903)
+// ---------------------------------------------------------------------------
+
+/**
+ * A decision's outcome on the wire: one tagged value, the same closed
+ * `Decided | Failed` the in-memory `DecisionRecord.outcome` is. "Both" and
+ * "neither" cannot be written down.
+ */
+const OutcomeWire = Schema.Union([
+  Schema.TaggedStruct("Decided", { decision: DecisionWire }),
+  Schema.TaggedStruct("Failed", { error: EvaluationErrorSchema }),
+]);
+
+type OutcomeWire = typeof OutcomeWire.Type;
+
+/** A version-2 decision's fields, in the order they are written. */
+const decisionV2Fields = {
+  _tag: Schema.Literal("Decision"),
+  version: Schema.Literal(2),
+  evaluationId: Schema.String,
+  at: Schema.Number,
+  subjectId: Schema.String,
+  policy: Policy,
+  resource: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+  action: Schema.optional(Schema.String),
+  cache: Schema.optional(Schema.Literals(["hit", "coalesced", "miss"])),
+  outcome: OutcomeWire,
+};
+
+/** A version-2 obligation record's fields. */
+const obligationsV2Fields = {
+  _tag: Schema.Literal("Obligations"),
+  version: Schema.Literal(2),
+  evaluationId: Schema.String,
+  at: Schema.Number,
+  outcome: Schema.Literals(["Discharged", "HandlerFailed", "Refused", "NotRequired"]),
+  obligationIds: Schema.Array(Schema.String),
+};
+
+/**
+ * The wire form of a {@link SinkRecord}, version 2: the one in-memory wire type.
+ *
+ * Module-private: callers see only `SinkRecordJson`, its encoded side, and the
+ * four operations. Version-1 bytes decode into {@link SinkRecordWireV1} and are
+ * upgraded into this type, so {@link rebuild} reads one shape.
+ */
+const SinkRecordWire = Schema.Union([Schema.Struct(decisionV2Fields), Schema.Struct(obligationsV2Fields)]);
 
 type SinkRecordWire = typeof SinkRecordWire.Type;
 
 /**
- * A decoded wire record whose outcome is exactly one of the two, by type.
- *
- * A schema check does not narrow a TypeScript type, so the decoded type still
- * admits four outcome states; {@link isExclusive} narrows it to the two the
- * check admits, and {@link rebuild} takes only those, so it has no arm to
- * fabricate an outcome in.
+ * Each member's declared top-level keys, read from the schema's own fields so
+ * they cannot drift from it: the envelope {@link envelopeOf} keeps.
  */
-type ExclusiveSinkRecordWire =
-  | Extract<SinkRecordWire, { readonly _tag: "Obligations" }>
-  | (Omit<DecisionWireFields, "decided" | "failed"> &
-      (
-        | { readonly decided: NonNullable<DecisionWireFields["decided"]>; readonly failed?: undefined }
-        | { readonly decided?: undefined; readonly failed: NonNullable<DecisionWireFields["failed"]> }
-      ));
+const DECISION_V1_KEYS: ReadonlySet<string> = new Set(Object.keys(decisionV1Fields));
+const OBLIGATIONS_V1_KEYS: ReadonlySet<string> = new Set(Object.keys(obligationsV1Fields));
+const DECISION_V2_KEYS: ReadonlySet<string> = new Set(Object.keys(decisionV2Fields));
+const OBLIGATIONS_V2_KEYS: ReadonlySet<string> = new Set(Object.keys(obligationsV2Fields));
 
-const isExclusive = (wire: SinkRecordWire): wire is ExclusiveSinkRecordWire =>
-  wire._tag === "Obligations" || (wire.decided === undefined) !== (wire.failed === undefined);
+/**
+ * A version-1 record as the version-2 type: `version: 2`, the outcome as one
+ * tagged value, and {@link UNKNOWN_SUBJECT} for a sender that predates
+ * `subjectId`.
+ *
+ * A function rather than a `Schema.decodeTo` transformation into
+ * `Schema.toType` of version 2, so the embedded `Policy` is walked once per
+ * decode, not twice (ARCH-15 C13). Total: it takes only an exclusive record.
+ */
+const upgradeV1: (wire: ExclusiveSinkRecordWireV1) => SinkRecordWire = Match.type<ExclusiveSinkRecordWireV1>().pipe(
+  Match.tagsExhaustive({
+    Obligations: (wire) => ({
+      _tag: "Obligations" as const,
+      version: 2 as const,
+      evaluationId: wire.evaluationId,
+      at: wire.at,
+      outcome: wire.outcome,
+      obligationIds: wire.obligationIds,
+    }),
+    Decision: (wire) => ({
+      _tag: "Decision" as const,
+      version: 2 as const,
+      evaluationId: wire.evaluationId,
+      at: wire.at,
+      subjectId: wire.subjectId ?? UNKNOWN_SUBJECT,
+      policy: wire.policy,
+      ...(wire.resource === undefined ? {} : { resource: wire.resource }),
+      ...(wire.action === undefined ? {} : { action: wire.action }),
+      ...(wire.cache === undefined ? {} : { cache: wire.cache }),
+      outcome:
+        wire.decided !== undefined
+          ? { _tag: "Decided" as const, decision: wire.decided }
+          : { _tag: "Failed" as const, error: wire.failed },
+    }),
+  }),
+);
+
+/** A decision's outcome as version 1 writes it: exactly one of two optional fields. */
+const toV1Outcome: (
+  outcome: OutcomeWire,
+) => Pick<DecisionV1Fields, "decided"> | Pick<DecisionV1Fields, "failed"> = Match.type<OutcomeWire>().pipe(
+  Match.tagsExhaustive({
+    Decided: (outcome) => ({ decided: outcome.decision }),
+    Failed: (outcome) => ({ failed: outcome.error }),
+  }),
+);
+
+/**
+ * A version-2 record as version-1 bytes would carry it: the inverse of
+ * {@link upgradeV1}, for the version-1 writer.
+ */
+const downgradeToV1: (wire: SinkRecordWire) => SinkRecordWireV1 = Match.type<SinkRecordWire>().pipe(
+  Match.tagsExhaustive({
+    Obligations: (wire) => ({
+      _tag: "Obligations" as const,
+      evaluationId: wire.evaluationId,
+      at: wire.at,
+      outcome: wire.outcome,
+      obligationIds: wire.obligationIds,
+    }),
+    Decision: (wire) => ({
+      _tag: "Decision" as const,
+      evaluationId: wire.evaluationId,
+      at: wire.at,
+      subjectId: wire.subjectId,
+      policy: wire.policy,
+      ...(wire.resource === undefined ? {} : { resource: wire.resource }),
+      ...(wire.action === undefined ? {} : { action: wire.action }),
+      ...(wire.cache === undefined ? {} : { cache: wire.cache }),
+      ...toV1Outcome(wire.outcome),
+    }),
+  }),
+);
+
+/** A record's outcome as the wire carries it. */
+const outcomeOf: (outcome: DecisionOutcome) => OutcomeWire = Match.type<DecisionOutcome>().pipe(
+  Match.tagsExhaustive({
+    Decided: (outcome) => ({ _tag: "Decided" as const, decision: encodeDecision(outcome.decision) }),
+    Failed: (outcome) => ({ _tag: "Failed" as const, error: outcome.error }),
+  }),
+);
 
 /**
  * The wire projection of a record, ready for the schema encode.
@@ -217,6 +353,7 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
   Match.tagsExhaustive({
     Obligations: (record) => ({
       _tag: "Obligations" as const,
+      version: 2 as const,
       evaluationId: record.evaluationId,
       at: record.at,
       outcome: record.outcome,
@@ -224,6 +361,7 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
     }),
     Decision: (record) => ({
       _tag: "Decision" as const,
+      version: 2 as const,
       evaluationId: record.evaluationId,
       at: record.at,
       subjectId: record.subjectId,
@@ -231,15 +369,21 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
       ...(record.resource === undefined ? {} : { resource: record.resource }),
       ...(record.action === undefined ? {} : { action: record.action }),
       ...(record.cache === undefined ? {} : { cache: record.cache }),
-      ...(record.outcome._tag === "Decided"
-        ? { decided: encodeDecision(record.outcome.decision) }
-        : { failed: record.outcome.error }),
+      outcome: outcomeOf(record.outcome),
     }),
   }),
 );
 
+/** A wire outcome as the record's own classes. */
+const rebuildOutcome: (outcome: OutcomeWire) => DecisionOutcome = Match.type<OutcomeWire>().pipe(
+  Match.tagsExhaustive({
+    Decided: (outcome) => new Decided({ decision: decodeDecision(outcome.decision) }),
+    Failed: (outcome) => new Failed({ error: outcome.error }),
+  }),
+);
+
 /**
- * Rebuilds a record from an already-validated wire value.
+ * Rebuilds a record from an already-validated version-2 wire value.
  *
  * **Not a validating step, and module-private for that reason.** It
  * `Match`-matches an already-typed `SinkRecordWire` into the record classes,
@@ -249,13 +393,11 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
  * entirely with nothing at the type level to stop it (PH-05).
  *
  * `Match.tagsExhaustive` over `SinkRecordWire`, not an `if (wire._tag === …)`,
- * for the reason {@link project} gives.
- *
- * It takes only an {@link ExclusiveSinkRecordWire}: a record naming neither
- * outcome or both is refused by the decode (tickets 96 and 155, CCR-QD-904),
- * so the outcome below is total by type and there is no fallback arm.
+ * for the reason {@link project} gives. The outcome is one tagged value and
+ * `subjectId` is required, so there is no fallback arm: version-1 skew is
+ * resolved by {@link upgradeV1} before this runs.
  */
-const rebuild: (wire: ExclusiveSinkRecordWire) => SinkRecord = Match.type<ExclusiveSinkRecordWire>().pipe(
+const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
   Match.tagsExhaustive({
     Obligations: (wire) =>
       new ObligationRecord({
@@ -268,35 +410,30 @@ const rebuild: (wire: ExclusiveSinkRecordWire) => SinkRecord = Match.type<Exclus
       new DecisionRecord({
         evaluationId: wire.evaluationId,
         at: wire.at,
-        // `?? UNKNOWN_SUBJECT` mirrors every other fallback in this file:
-        // unreachable for anything this module encodes, real for a wire
-        // record sent by an older process during a rolling deploy, before
-        // this field existed. See `UNKNOWN_SUBJECT`'s own doc comment (PH-03)
-        // for why the fallback is a sentinel and not `""`.
-        subjectId: wire.subjectId === undefined ? UNKNOWN_SUBJECT : makeSubjectId(wire.subjectId),
+        subjectId: makeSubjectId(wire.subjectId),
         policy: wire.policy,
         ...(wire.resource === undefined ? {} : { resource: wire.resource }),
         ...(wire.action === undefined ? {} : { action: wire.action }),
         ...(wire.cache === undefined ? {} : { cache: wire.cache }),
-        outcome:
-          wire.decided !== undefined
-            ? new Decided({ decision: decodeDecision(wire.decided) })
-            : new Failed({ error: wire.failed }),
+        outcome: rebuildOutcome(wire.outcome),
       }),
   }),
 );
 
 /**
  * The encoded form of a record: what {@link encodeSinkRecord} returns, what
- * forwarding's `send` receives, and what an audit row carries.
+ * forwarding's `send` receives, what an audit row carries, and what
+ * {@link decodeSinkRecord} reads — version-2 bytes or version-1 bytes, a closed
+ * union (ADR-QD-903).
  *
- * Derived from the one wire schema (ADR-QD-002), never hand-written:
- * `Schema.toEncoded` gives the schema whose `Type` is the wire's encoded
- * side, so `@qadi/audit` can embed it in its own row schema.
+ * Derived from the wire schemas (ADR-QD-002), never hand-written:
+ * `Schema.toEncoded` gives each schema whose `Type` is that version's encoded
+ * side, so `@qadi/audit` can embed it in its own row schema. Decoding it alone
+ * is a description of the bytes, not a reader: use {@link decodeSinkRecord}.
  */
-export const SinkRecordJson = Schema.toEncoded(SinkRecordWire);
+export const SinkRecordJson = Schema.Union([Schema.toEncoded(SinkRecordWire), Schema.toEncoded(SinkRecordWireV1)]);
 
-export type SinkRecordJson = typeof SinkRecordWire.Encoded;
+export type SinkRecordJson = typeof SinkRecordJson.Type;
 
 /**
  * A container the walk has entered and not yet left: an array's items, or an
@@ -475,8 +612,11 @@ const preEncodeHazard: (record: SinkRecord) => EncodeRefusal | undefined = Match
   }),
 );
 
-/** The wire schema's encoder, built once. */
-const encodeWire = Schema.encodeResult(SinkRecordWire);
+/**
+ * The version-1 encoder, built once: what this module writes until the
+ * version-2 writer becomes the default (ADR-QD-903).
+ */
+const encodeWireV1 = Schema.encodeResult(SinkRecordWireV1);
 
 /** A thrown value's message, without letting a hostile `toString` throw again. */
 const describeThrown = (thrown: unknown): string =>
@@ -504,7 +644,7 @@ export const encodeSinkRecord = (record: SinkRecord): Result.Result<SinkRecordJs
   if (Result.isFailure(before)) return refuse(before.failure);
   if (before.success !== undefined) return refuse(before.success);
 
-  const encoded = Result.try({ try: () => encodeWire(project(record)), catch: encodeFailed });
+  const encoded = Result.try({ try: () => encodeWireV1(downgradeToV1(project(record))), catch: encodeFailed });
   if (Result.isFailure(encoded)) return refuse(encoded.failure);
   if (Result.isFailure(encoded.success)) return refuse(encodeFailed(encoded.success.failure));
   const json = encoded.success.success;
@@ -526,17 +666,21 @@ export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string
   Result.map(encodeSinkRecord(record), (json) => JSON.stringify(json));
 
 /**
- * The wire schema's untrusted decoder, built once.
+ * The untrusted decoders, one per version, built once.
  *
  * Strict everywhere (`UNTRUSTED_DECODE_OPTIONS`): a typo'd field inside the
  * embedded policy fails rather than decoding with the grant silently dropped
- * (ADR-QD-002). It is handed the {@link envelopeOf} projection, so the one
+ * (ADR-QD-002). Each is handed the {@link envelopeOf} projection, so the one
  * place an unknown key is tolerated is the envelope's top level (GH-01,
  * ADR-QD-903).
  */
-const decodeWire = Schema.decodeUnknownResult(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
+const decodeWireV1 = Schema.decodeUnknownResult(SinkRecordWireV1, UNTRUSTED_DECODE_OPTIONS);
+const decodeWireV2 = Schema.decodeUnknownResult(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
 
 const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));
+
+const malformed = (error: { readonly message: string }) =>
+  notDecodable(DecodeRefusal.Malformed({ message: error.message }));
 
 /** A JSON object: what an envelope is, and what an array or a primitive is not. */
 const isJsonObject = (input: unknown): input is object =>
@@ -557,31 +701,78 @@ const ownValue = (input: object, key: string): unknown => Object.getOwnPropertyD
  * unknown `_tag` takes the decision's key set and fails in the decode, as it
  * always did.
  */
-const envelopeOf = (input: object): unknown => {
-  const keys = ownValue(input, "_tag") === "Obligations" ? OBLIGATIONS_KEYS : DECISION_KEYS;
-  return Object.fromEntries(Object.entries(input).filter(([key]) => keys.has(key)));
+const envelopeOf = (input: object, decisionKeys: ReadonlySet<string>, obligationsKeys: ReadonlySet<string>) => {
+  const keys = ownValue(input, "_tag") === "Obligations" ? obligationsKeys : decisionKeys;
+  return Object.entries(input).filter(([key]) => keys.has(key));
+};
+
+/**
+ * A pre-0.5 error's `code`, dropped (ADR-QD-903 D-15-g).
+ *
+ * ADR-QD-060 removed `code` from the error's wire form in 0.5.0, unversioned,
+ * and `@qadi/audit` had persisted rows since 0.3.0: every `Failed` row written
+ * by 0.3.x or 0.4.x carries `failed.code`. The version-1 reader tolerates
+ * exactly that key at exactly that position; any other excess key under
+ * `failed`, or a `code` anywhere else, is still refused.
+ */
+const withoutLegacyCode = (failed: unknown): unknown =>
+  isJsonObject(failed) ? Object.fromEntries(Object.entries(failed).filter(([key]) => key !== "code")) : failed;
+
+/** A version-1 envelope: its declared keys, with a pre-0.5 `failed.code` dropped. */
+const envelopeV1 = (input: object): unknown =>
+  Object.fromEntries(
+    envelopeOf(input, DECISION_V1_KEYS, OBLIGATIONS_V1_KEYS).map(([key, value]) =>
+      key === "failed" ? [key, withoutLegacyCode(value)] : [key, value],
+    ),
+  );
+
+/** A version-2 envelope: its declared keys. */
+const envelopeV2 = (input: object): unknown =>
+  Object.fromEntries(envelopeOf(input, DECISION_V2_KEYS, OBLIGATIONS_V2_KEYS));
+
+/** Version-1 bytes as a record: decoded, checked for one outcome, upgraded, rebuilt. */
+const decodeV1 = (input: object): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
+  const wire = decodeWireV1(envelopeV1(input));
+  if (Result.isFailure(wire)) return malformed(wire.failure);
+  // Unreachable after the schema's `exactlyOneOutcome` check; the predicate
+  // is what narrows the type for `upgradeV1`, and its refusal says the same.
+  if (!isExclusive(wire.success)) {
+    return notDecodable(DecodeRefusal.Malformed({ message: "a decision record names no outcome, or both" }));
+  }
+  return Result.succeed(rebuild(upgradeV1(wire.success)));
+};
+
+/** Version-2 bytes as a record. */
+const decodeV2 = (input: object): Result.Result<SinkRecord, SinkRecordNotDecodable> => {
+  const wire = decodeWireV2(envelopeV2(input));
+  return Result.isFailure(wire) ? malformed(wire.failure) : Result.succeed(rebuild(wire.success));
 };
 
 /**
  * Untrusted input as a record, or the reason it is not one.
  *
  * The depth guard runs first, so the schema's recursion through `Policy` and
- * `Trace` cannot overflow; then the schema decode with
- * `UNTRUSTED_DECODE_OPTIONS`; then the rebuild into record classes. It accepts
- * whatever {@link encodeSinkRecord} emits (INV-QD-902).
+ * `Trace` cannot overflow. Then the version: no `version` key is version 1,
+ * read for good; `version: 2` is version 2; any other value is
+ * `UnsupportedVersion` — the sender is newer than this reader — rather than
+ * `Malformed` (ADR-QD-903, the same convention ADR-QD-078 gives the hydration
+ * payload). Each version is projected onto its envelope's declared keys,
+ * decoded with `UNTRUSTED_DECODE_OPTIONS`, and rebuilt into record classes. It
+ * accepts whatever {@link encodeSinkRecord} emits (INV-QD-902), and a record
+ * decodes to the same `SinkRecord` whichever version carried it (INV-QD-905).
  *
- * **The seam for the wire's shape.** How the outcome is carried, the
- * refusal of a record naming neither outcome or both (tickets 96 and 155,
- * CCR-QD-904) and any future version handling live behind this function, so no adapter observes them and a change
- * to them is an edit to this module alone.
+ * **The seam for the wire's shape.** How the outcome is carried, the refusal
+ * of a record naming neither outcome or both (tickets 96 and 155,
+ * CCR-QD-904), and the version dispatch live behind this function, so no
+ * adapter observes them and a change to them is an edit to this module alone.
  *
  * The depth guard is `DecodeDepthGuard.ts`'s, shared with `Policy.ts`'s own
- * untrusted entry points: `SinkRecordWire` embeds `Policy` and the
- * self-recursive `TraceSchema`, neither bounded on its own, and without the
- * guard `Schema`'s descent raised a raw `RangeError` on a payload nested about
- * 60,000 levels deep. The decode options are `Policy.ts`'s too (CCR-QD-139), so
- * a typo'd field inside the embedded policy fails rather than decoding with
- * the grant silently dropped.
+ * untrusted entry points: the wire embeds `Policy` and the self-recursive
+ * `TraceSchema`, neither bounded on its own, and without the guard `Schema`'s
+ * descent raised a raw `RangeError` on a payload nested about 60,000 levels
+ * deep. The decode options are `Policy.ts`'s too (CCR-QD-139), so a typo'd
+ * field inside the embedded policy fails rather than decoding with the grant
+ * silently dropped.
  *
  * No `Result.try` around the decode: the depth guard is what makes it safe, and
  * a throw past it would be a library defect that should stay visible.
@@ -590,14 +781,15 @@ export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, Sink
   if (exceedsJsonDepth(input, MAX_DECODE_DEPTH)) {
     return notDecodable(DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
   }
-  const wire = decodeWire(isJsonObject(input) ? envelopeOf(input) : input);
-  if (Result.isFailure(wire)) return notDecodable(DecodeRefusal.Malformed({ message: wire.failure.message }));
-  // Unreachable after the schema's `exactlyOneOutcome` check; the predicate
-  // is what narrows the type for `rebuild`, and its refusal says the same.
-  if (!isExclusive(wire.success)) {
-    return notDecodable(DecodeRefusal.Malformed({ message: "a decision record names no outcome, or both" }));
+  if (!isJsonObject(input)) {
+    const wire = decodeWireV2(input);
+    return Result.isFailure(wire) ? malformed(wire.failure) : Result.succeed(rebuild(wire.success));
   }
-  return Result.succeed(rebuild(wire.success));
+  if (!Object.hasOwn(input, "version")) return decodeV1(input);
+  const version = ownValue(input, "version");
+  return version === 2
+    ? decodeV2(input)
+    : notDecodable(DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
 };
 
 /**
