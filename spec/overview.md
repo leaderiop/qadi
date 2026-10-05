@@ -657,18 +657,7 @@ favor of it.
 | ------ | ---- | ------ |
 | `qadiTestLayer` | layer | `QadiTestLayer.ts` |
 | `qadiReviewLayer` | layer | `QadiReviewLayer.ts` |
-| `recordingAttributeResolver` | layer | `RecordingAttributeResolver.ts` |
-| `edgeRelationshipResolver` | layer | `EdgeRelationshipResolver.ts` |
-| `eventDecisionHistory` | layer | `EventDecisionHistory.ts` |
-| `failingAttributeResolver` | layer | `FailingAttributeResolver.ts` |
-| `recordingCustomPredicate` | layer | `RecordingCustomPredicate.ts` |
-| `failingCustomPredicate` | layer | `FailingCustomPredicate.ts` |
-| `failingRelationshipResolver` | layer | `FailingRelationshipResolver.ts` |
-| `failingDecisionHistory` | layer | `FailingDecisionHistory.ts` |
-| `failingSignatureHistory` | layer | `FailingSignatureHistory.ts` |
-| `recordingSignatureHistory` | layer | `RecordingSignatureHistory.ts` |
-| `SignatureInput` | type, re-exported from `@qadi/core` | `RecordingSignatureHistory.ts` |
-| `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` |
+| `QadiTestServices`, `TestLayerOptions` | type | `QadiReviewLayer.ts` — `TestLayerOptions.ports` overrides any port by name (`PortOverrides`), winning over the matching data option; a failing, scripted or recording port is `@qadi/core`'s `scriptedPort`/`recordingPort`, which replaced this package's eleven per-port doubles (ADR-QD-901) |
 | `subjectWith`, `permissions`, `roles`, `policies` | fixture | `Fixtures.ts` |
 | `nobody`, `viewer`, `administrator` | fixture | `Fixtures.ts` |
 | `collectingTracer` | function | `CollectingTracer.ts` — the shared span-capturing `Tracer` five test files each hand-rolled a copy of before this consolidation |
@@ -779,7 +768,6 @@ standard the rest of the specification holds itself to.
 | `foldTree` (`@qadi/core/TreeFold.ts`) | Deliberately kept out of the barrel per AGENTS.md §9 — generic scaffolding behind `foldPolicy`, `foldExplanation` and `foldMatcher`, reachable only through the `./*` wildcard subpath. `@qadi/devtools` keeps a package-private twin (`src/model/TreeFold.ts`, not exported) rather than importing it, because AGENTS.md §1 forbids a cross-package subpath import (ADR-QD-090) |
 | `anyOfStopsAtAllow`, `rulesDecisiveEffect` (`@qadi/core/ShortCircuit.ts`) | Same reasoning as `PortAccess.ts` — the stop rules both interpreters read, reachable only via `@qadi/core/ShortCircuit`. Pure functions over `FieldStrategy` and `Combining`; a change to when `anyOf` may stop changes `evaluate` and `toPredicate` at once ([BEH-QD-265](behaviors/16-predicates.md)) |
 | `CircuitBreakerStatus`, `CircuitBreakerOptions`, `CircuitBreaker`, `Permit`, `Admitted`, `Refused`, `makeCircuitBreaker` (`@qadi/audit/CircuitBreaker.ts`) | Same reasoning, reachable via `@qadi/audit/CircuitBreaker`; `@qadi/audit`'s barrel exposes the breaker's effect on `record`, not the breaker type itself |
-| `CallRecorder`, `makeCallRecorder` (`@qadi/testing/CallRecorder.ts`) | Same reasoning, reachable via `@qadi/testing/CallRecorder`; a test-authoring helper, not fixture vocabulary |
 
 ## Worked example
 

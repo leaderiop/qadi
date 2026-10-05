@@ -64,25 +64,24 @@ export const run = Effect.fn("features.run")(function* (policy: Policy) {
         ...(w.relationships === undefined ? {} : { relationships: w.relationships }),
         // A store that is *down* and a port that is *unwired* are different
         // answers, and only one of them is a denial.
-        ...(w.historyUnreachable
-          ? { decisionHistory: unreachableHistory }
-          : w.events === undefined
+        ...(w.historyUnreachable || w.events === undefined ? {} : { history: w.events }),
+        ports: {
+          ...(w.historyUnreachable ? { DecisionHistory: unreachableHistory } : {}),
+          // `undefined` leaves `qadiTestLayer`'s own `CustomPredicateNone`
+          // default in place — nothing registered, so every name denies.
+          ...(w.customPredicates === undefined
             ? {}
-            : { history: w.events }),
-        // `undefined` leaves `qadiTestLayer`'s own `CustomPredicateNone`
-        // default in place — nothing registered, so every name denies.
-        ...(w.customPredicates === undefined
-          ? {}
-          : {
-              customPredicate: customPredicateFromRecord(
-                Object.fromEntries(
-                  Object.entries(w.customPredicates).map(([name, answer]) => [
-                    name,
-                    () => Effect.succeed(answer),
-                  ]),
+            : {
+                CustomPredicate: customPredicateFromRecord(
+                  Object.fromEntries(
+                    Object.entries(w.customPredicates).map(([name, answer]) => [
+                      name,
+                      () => Effect.succeed(answer),
+                    ]),
+                  ),
                 ),
-              ),
-            }),
+              }),
+        },
         // `undefined` leaves `qadiTestLayer`'s own `SignatureHistoryNone`
         // default in place — no signatures on file, so every hasSignature
         // node denies.
@@ -140,7 +139,7 @@ export const runSubjectSet = Effect.fn("features.runSubjectSet")(function* (poli
     makeSubject({ id: c.id, roles: c.roles, permissions: c.permissions }),
   );
 
-  // Keyed by subject id, not by `recordingAttributeResolver`'s flat table,
+  // Keyed by subject id, not by a flat table like `attributeResolverFromRecord`'s,
   // so `w.brokenCandidates` can single out one candidate's lookup — the
   // flaky-resolver scenario `decideSubjects`/`filterSubjects` now survive
   // (issue #107). Behaves exactly like `qadiReviewLayer({ attributes:
@@ -159,7 +158,7 @@ export const runSubjectSet = Effect.fn("features.runSubjectSet")(function* (poli
   const [reviewed, kept] = yield* Effect.all([
     decideSubjects(policy, subjects, options),
     filterSubjects(policy, subjects, options),
-  ]).pipe(Effect.provide(qadiReviewLayer({ attributeResolver })));
+  ]).pipe(Effect.provide(qadiReviewLayer({ ports: { AttributeResolver: attributeResolver } })));
 
   const review = reviewed.decisions.map(({ subject, decision }) => ({
     id: subject.id,
@@ -201,7 +200,7 @@ export const compile = Effect.fn("features.compile")(function* (policy: Policy) 
     Effect.provide(
       qadiTestLayer(subjectOf(w), {
         attributes: w.resolvedAttributes,
-        ...(w.attributeFault === "none" ? {} : { attributeResolver: faulted }),
+        ...(w.attributeFault === "none" ? {} : { ports: { AttributeResolver: faulted } }),
       }),
     ),
     Effect.result,

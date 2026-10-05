@@ -249,7 +249,7 @@ describe("portActivity", () => {
           { subjectId: "u-1", resourceId: "doc-1", meaning: "approved" },
         ]);
         yield* evaluate(hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
-          Effect.provide(qadiTestLayer(subjectWith({ id: "u-1" }), { signatureHistory: history })),
+          Effect.provide(qadiTestLayer(subjectWith({ id: "u-1" }), { ports: { SignatureHistory: history } })),
         );
 
         const activity = yield* portActivity;

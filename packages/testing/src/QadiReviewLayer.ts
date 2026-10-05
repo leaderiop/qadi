@@ -5,31 +5,23 @@
  * denial rather than an accidental allow.
  */
 import {
-  AttributeResolver,
-  AttributeResolverNone,
-  CustomPredicate,
-  CustomPredicateNone,
-  DecisionHistory,
-  DecisionHistoryUnknown,
-  RelationshipResolver,
-  RelationshipResolverNever,
-  SignatureHistory,
-  SignatureHistoryNone,
+  attributeResolverFromRecord,
+  decisionHistoryFromEvents,
   evaluationIdSequential,
+  portsLayer,
+  relationshipResolverFromEdges,
+  signatureHistoryFromSignatures,
 } from "@qadi/core";
 import type {
   ActedEventInput,
-  CurrentSubject,
   EvaluationServices,
+  PortOverrides,
   RelationshipEdgeInput,
+  SignatureInput,
+  StandingEvaluationServices,
 } from "@qadi/core";
 import * as Layer from "effect/Layer";
 import * as TestClock from "effect/testing/TestClock";
-import { edgeRelationshipResolver } from "./EdgeRelationshipResolver.ts";
-import { recordingAttributeResolver } from "./RecordingAttributeResolver.ts";
-import { eventDecisionHistory } from "./EventDecisionHistory.ts";
-import type { SignatureInput } from "./RecordingSignatureHistory.ts";
-import { recordingSignatureHistory } from "./RecordingSignatureHistory.ts";
 
 /**
  * Everything an evaluation needs.
@@ -110,21 +102,18 @@ export interface TestLayerOptions {
    */
   readonly clock?: "live" | "test";
   /**
-   * Supplies the resolver layer directly, taking precedence over
-   * `attributes`.
+   * Supplies any port's layer directly, keyed by port name
+   * (`{ AttributeResolver: … }`). An entry here wins over the matching data
+   * option above (`attributes`, `relationships`, `history`, `signatures`).
    *
-   * Needed because this layer already satisfies the requirement — an outer
-   * `Effect.provide` cannot override it, since the innermost provide wins.
+   * Needed because this layer already satisfies every port — an outer
+   * `Effect.provide` cannot override one, since the innermost provide wins.
+   * A failing, scripted or recording port is `@qadi/core`'s `scriptedPort` or
+   * `recordingPort` over that port's description (`attributeResolverPort`, …):
+   * `{ AttributeResolver: scriptedPort(attributeResolverPort, () =>
+   * PortReply.fail("down")).layer }`.
    */
-  readonly attributeResolver?: Layer.Layer<AttributeResolver>;
-  /** Supplies the relationship layer directly, taking precedence over `relationships`. */
-  readonly relationshipResolver?: Layer.Layer<RelationshipResolver>;
-  /** Supplies the history port directly, taking precedence over `history`. */
-  readonly decisionHistory?: Layer.Layer<DecisionHistory>;
-  /** Supplies the `HasCustom` registry directly. Defaults to `CustomPredicateNone`. */
-  readonly customPredicate?: Layer.Layer<CustomPredicate>;
-  /** Supplies the signature history port directly, taking precedence over `signatures`. */
-  readonly signatureHistory?: Layer.Layer<SignatureHistory>;
+  readonly ports?: PortOverrides;
 }
 
 /**
@@ -138,31 +127,41 @@ export interface TestLayerOptions {
  * `qadiTestLayer` is this plus a subject rather than a parallel copy: two
  * bodies resolving the same options would eventually disagree about a default,
  * and a fixture that fails *open* in one of them is not a failure anyone reads.
+ *
+ * Built on `@qadi/core`'s `portsLayer`, as core's own test helpers are, so
+ * neither lists the ports: a port added to the registry is here, at its
+ * fail-closed default, without an edit. Each data option becomes that port's
+ * core fixture (`attributeResolverFromRecord`, `relationshipResolverFromEdges`,
+ * `decisionHistoryFromEvents`, `signatureHistoryFromSignatures`); an explicit
+ * `ports` entry wins over the matching data option.
  */
 export const qadiReviewLayer = (
   options?: TestLayerOptions,
-): Layer.Layer<Exclude<QadiTestServices, CurrentSubject>> =>
+): Layer.Layer<StandingEvaluationServices> =>
   Layer.mergeAll(
-    options?.attributeResolver ??
-      (options?.attributes === undefined
-        ? AttributeResolverNone
-        : recordingAttributeResolver(options.attributes).layer),
-    options?.relationshipResolver ??
-      (options?.relationships === undefined
-        ? RelationshipResolverNever
-        : edgeRelationshipResolver(options.relationships).layer),
-    options?.decisionHistory ??
-      (options?.history === undefined
-        ? DecisionHistoryUnknown
-        : eventDecisionHistory(options.history).layer),
+    portsLayer({
+      ...options?.ports,
+      AttributeResolver:
+        options?.ports?.AttributeResolver ??
+        fixture(options?.attributes, attributeResolverFromRecord),
+      RelationshipResolver:
+        options?.ports?.RelationshipResolver ??
+        fixture(options?.relationships, relationshipResolverFromEdges),
+      DecisionHistory:
+        options?.ports?.DecisionHistory ?? fixture(options?.history, decisionHistoryFromEvents),
+      SignatureHistory:
+        options?.ports?.SignatureHistory ??
+        fixture(options?.signatures, signatureHistoryFromSignatures),
+    }),
     evaluationIdSequential(options?.idPrefix ?? "eval"),
-    options?.customPredicate ?? CustomPredicateNone,
-    options?.signatureHistory ??
-      (options?.signatures === undefined
-        ? SignatureHistoryNone
-        : recordingSignatureHistory(options.signatures).layer),
     clockLayer(options?.clock),
   );
+
+/** A data option's core fixture, or `undefined` (the port's default) when the option is absent. */
+const fixture = <D, Self>(
+  data: D | undefined,
+  build: (data: D) => Layer.Layer<Self>,
+): Layer.Layer<Self> | undefined => (data === undefined ? undefined : build(data));
 
 /**
  * `Layer.empty` for `live`, so nothing shadows the runtime's own clock.
