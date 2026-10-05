@@ -210,6 +210,9 @@ importers:
       '@qadi/devtools':
         specifier: workspace:*
         version: link:../packages/devtools
+      '@qadi/http':
+        specifier: workspace:*
+        version: link:../packages/http
       '@qadi/react':
         specifier: workspace:*
         version: link:../packages/react
