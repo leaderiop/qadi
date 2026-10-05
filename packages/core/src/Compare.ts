@@ -122,9 +122,15 @@ export const belowVerdict = (value: unknown, bound: unknown): Verdict =>
 /**
  * Whether `value` is one of `values`, by SameValueZero (`Array.prototype.includes`),
  * so `NaN` is a member of `[NaN]`.
+ *
+ * An absent value is `ValueAbsent` before membership is asked, even of a list
+ * holding `undefined` (D-08-h): `[undefined].includes(undefined)` is true, which
+ * made `inArray([undefined])` the one matcher an absent value satisfied. With it
+ * gone, "an absent value never satisfies a matcher" holds for every tag
+ * (INV-QD-092).
  */
 export const memberVerdict = (value: unknown, values: ReadonlyArray<unknown>): Verdict =>
-  values.includes(value) ? "Held" : value === undefined ? "ValueAbsent" : "NotHeld";
+  value === undefined ? "ValueAbsent" : values.includes(value) ? "Held" : "NotHeld";
 
 /**
  * Whether the label `value` dominates the label `reference`.

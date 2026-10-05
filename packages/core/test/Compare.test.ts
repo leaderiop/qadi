@@ -13,6 +13,8 @@ import {
 import type { CompareOp, Verdict } from "../src/Compare.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
+import * as FastCheck from "fast-check";
+import { matcherArbitrary } from "./helpers.ts";
 import { evaluatePredicate } from "../src/Predicate.ts";
 import type { Predicate } from "../src/Predicate.ts";
 
@@ -145,19 +147,24 @@ describe("Compare.ts: one owner of comparison semantics (BEH-QD-305)", () => {
     assert.strictEqual(belowVerdict(3, 3), "NotHeld");
   });
 
-  it("memberVerdict: SameValueZero membership; an absent value that is not a member is ValueAbsent", () => {
+  it("memberVerdict: an absent value first, then SameValueZero membership", () => {
     const lists: ReadonlyArray<ReadonlyArray<unknown>> = [[], [3], [Number.NaN], [null, "3"], [undefined], UNIVERSE];
     for (const values of lists) {
       for (const value of UNIVERSE) {
-        const expected: Verdict = values.includes(value)
-          ? "Held"
-          : value === undefined
-            ? "ValueAbsent"
-            : "NotHeld";
+        const expected: Verdict =
+          value === undefined ? "ValueAbsent" : values.includes(value) ? "Held" : "NotHeld";
         assert.strictEqual(memberVerdict(value, values), expected, `${show(value)} in ${show(values)}`);
       }
     }
     assert.strictEqual(memberVerdict(Number.NaN, [Number.NaN]), "Held");
+  });
+
+  // D-08-h: membership follows the absent-operand rule every other comparison
+  // does. Before it, `inArray([undefined])` was the one matcher true on an
+  // absent value, because `Array.prototype.includes` finds `undefined`.
+  it("memberVerdict: an absent value is not a member, even of a list holding undefined", () => {
+    assert.strictEqual(memberVerdict(undefined, [undefined]), "ValueAbsent");
+    assert.strictEqual(memberVerdict(undefined, [undefined, 1]), "ValueAbsent");
   });
 
   it("dominatesVerdict: labels only; disjoint compartments are NotHeld, not Incomparable", () => {
@@ -225,5 +232,49 @@ describe("INV-QD-091: a primitive matcher and its predicate leaf agree on every 
     // 14 Eq + 14 Neq + 6 Gte + 6 Lt + 6 In matchers, over 14 values.
     assert.strictEqual(NUMBERS.length, 6);
     assert.strictEqual(checked, (14 + 14 + 6 + 6 + 6) * 14);
+  });
+});
+
+// INV-QD-092: an absent value never satisfies a matcher. Every matcher tag,
+// nested, judged against `undefined`, is something other than `Held` — the rule
+// `Exists`, `Eq`/`Neq` (CCR-QD-112), the ranges and every composite already
+// followed, made total by membership following it too (D-08-h).
+describe("INV-QD-092: an absent value never satisfies a matcher", () => {
+  const ctx: M.MatcherContext = {
+    subject: { team: "eng" },
+    subjectId: makeSubjectId("u-1"),
+    resource: { ownerId: "u-1" },
+    action: "read",
+  };
+
+  /** `inArray` over lists that may hold `undefined` — the shape the shared generator never builds. */
+  const membership: FastCheck.Arbitrary<M.Matcher> = FastCheck.subarray([undefined, 1, "a", null], {
+    minLength: 1,
+  }).map(M.inArray);
+
+  const anyMatcher: FastCheck.Arbitrary<M.Matcher> = FastCheck.letrec<{ node: M.Matcher }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth: 3, withCrossShrink: true },
+      matcherArbitrary(2),
+      membership,
+      tie("node").map((m) => M.fieldMatch("a", m)),
+      tie("node").map(M.someMatch),
+      tie("node").map(M.everyMatch),
+      tie("node").map(M.size),
+    ),
+  })).node;
+
+  it("PROPERTY: judgeMatcher(m, undefined) is never Held, for every tag, nested", () => {
+    const matchers = FastCheck.sample(anyMatcher, { numRuns: 400, seed: 92 });
+    const tags = new Set<string>();
+    for (const matcher of matchers) {
+      M.foldMatcher<null>(matcher, (node) => {
+        tags.add(node._tag);
+        return null;
+      });
+      assert.notStrictEqual(M.judgeMatcher(matcher, undefined, ctx), "Held", JSON.stringify(matcher));
+    }
+    // Not vacuous: the sample reaches all twelve tags.
+    assert.strictEqual(tags.size, 12);
   });
 });

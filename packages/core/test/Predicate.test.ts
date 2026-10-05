@@ -1004,6 +1004,21 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
       }
     }));
 
+  // D-08-h: membership follows the absent-operand rule. A column absent from the
+  // row is `undefined`, and `[undefined].includes(undefined)` is true, so before
+  // this both interpreters admitted the row — agreeing, and both wrong by the
+  // rule every other comparison follows (INV-QD-092).
+  it.effect("a MemberOf on an absent column denies, even when its values hold undefined", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute("missing", M.inArray([undefined, "x"]));
+      const predicate = yield* translate(policy);
+      const row = { level: 3 };
+      const decision = yield* evaluate(policy, { resource: row }).pipe(Effect.provide(layer));
+      assert.isFalse(isAllowed(decision));
+      assert.isFalse(evaluatePredicate(predicate, row));
+      assert.isFalse(evaluatePredicate({ _tag: "MemberOf", column: "missing", values: [undefined] }, row));
+    }));
+
   // The row side of the same rule (CCR-QD-172). Before it, `gte(3)` admitted an
   // `Infinity` row and `lt(3)` a `-Infinity` row through `toPredicate` while
   // `evaluate` denied both — ADR-QD-024's worst case, a filter wider than the

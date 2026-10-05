@@ -173,16 +173,14 @@ describe("matchers", () => {
   });
 
   it("size short-circuits on an unmeasurable value rather than running the child matcher against `undefined`", () => {
-    // `M.inArray([undefined])` is a child matcher that is TRUE against
-    // `undefined` — the one value `Size` must never hand it. `gte`/`lt` can't
-    // demonstrate this: every number comparison against `undefined` is false
-    // regardless of whether the short-circuit runs, which is exactly why this
-    // survived as a mutant on `length !== undefined && …`. (Previously this
-    // probe was `eq(literal(undefined))`; `Eq` no longer matches `undefined`
-    // as of CCR-QD-112, so `In` — untouched by that fix — takes over.)
-    const trueOnUndefined = M.inArray([undefined]);
-    assert.isTrue(run(trueOnUndefined, undefined));
-    assert.isFalse(run(M.size(trueOnUndefined), 42));
+    // No matcher is true on `undefined` any more (INV-QD-092, D-08-h — the
+    // last one was `inArray([undefined])`), so the boolean cannot tell whether
+    // `Size` handed its child the unmeasurable length. The verdict can: a value
+    // with no length is `Incomparable`, where running the child against
+    // `undefined` would have come back `NotHeld`.
+    assert.isFalse(run(M.size(M.inArray([undefined])), 42));
+    assert.strictEqual(judge(M.size(M.inArray([undefined])), 42), "Incomparable");
+    assert.strictEqual(judge(M.size(M.exists()), 42), "Incomparable");
   });
 });
 
@@ -275,6 +273,11 @@ describe("empty-collection boundaries", () => {
     // here it agrees with (rather than contradicts) the present-empty-array
     // result — both deny.
     assert.isFalse(run(M.someMatch(M.exists()), undefined));
+  });
+
+  it("inArray never matches an absent value, even when its list holds undefined (D-08-h)", () => {
+    assert.isFalse(run(M.inArray([undefined]), undefined));
+    assert.strictEqual(judge(M.inArray([undefined, "a"]), undefined), "ValueAbsent");
   });
 
   it("inArray with an empty candidate list matches nothing, including undefined", () => {
@@ -450,10 +453,14 @@ describe("getByPath / fieldMatch refuse the prototype chain", () => {
   it("fieldMatch still evaluates the inner matcher against undefined for a genuinely missing own field", () => {
     // The __proto__/constructor fix must not change behavior for the
     // ordinary "field absent" case — only for names that resolve on the
-    // prototype chain. `inArray([undefined])` stands in for
-    // `eq(literal(undefined))` here for the same reason as the `Size` test
-    // above: `Eq` no longer matches `undefined` (CCR-QD-112).
-    assert.isTrue(run(M.fieldMatch("missing", M.inArray([undefined])), { a: 1 }));
+    // prototype chain. A missing own field reaches the inner matcher as
+    // `undefined`, which no matcher accepts (INV-QD-092), so the composite does
+    // not hold — and says `NotHeld`, not the inner `ValueAbsent` (D-08-b). The
+    // prototype case is the one that must not hold: `constructor` would
+    // resolve `Object.prototype.constructor`, which `exists()` accepts.
+    assert.strictEqual(judge(M.fieldMatch("missing", M.exists()), { a: 1 }), "NotHeld");
+    assert.isFalse(run(M.fieldMatch("constructor", M.exists()), { a: 1 }));
+    assert.isTrue(run(M.fieldMatch("a", M.exists()), { a: 1 }));
   });
 });
 
