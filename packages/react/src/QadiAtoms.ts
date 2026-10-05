@@ -25,7 +25,6 @@ import { CurrentSubject, DecisionCache, evaluate, subjectEquivalence } from "@qa
 import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Reactivity from "effect/reactivity/Reactivity";
@@ -41,7 +40,7 @@ import {
 import type { GateRegistry } from "./GateRegistry.ts";
 import { makeGateRegistry } from "./GateRegistry.ts";
 import { gateIdCollisionReporter } from "./HydrationWarning.ts";
-import type { ClientDecision } from "./SeededDecision.ts";
+import type { DecisionResult } from "./DecisionOutcome.ts";
 
 // `HydrationWarning.ts` is out of the barrel — its ambient-global boundary is
 // not a public surface — so the two types callers name are re-exported here.
@@ -70,33 +69,6 @@ export type QadiLayer = Layer.Layer<
   never,
   AtomRegistry.AtomRegistry | Reactivity.Reactivity
 >;
-
-/**
- * The observable state of one decision.
- *
- * `Initial` means the decision is not known yet — distinct from a `Deny`, and
- * distinct again from a `Failure`, which means the question could not be
- * answered at all. Collapsing those three into a boolean is what makes an
- * attribute-store outage look like a permissions problem.
- *
- * A success holds a {@link ClientDecision}: this client's own evaluation, or —
- * for the first frames of a server-rendered page — the server's seed, which is a
- * projection and not an evaluation. Read its verdict with `permits`.
- */
-export type DecisionResult = AsyncResult.AsyncResult<ClientDecision, EvaluationError>;
-
-/**
- * The decision, or `undefined` when there is not a current one.
- *
- * A result that is `waiting` carries the *previous* decision while a new one is
- * computed. For most data that staleness is a feature; for authorization it is
- * an over-permission, however brief — the subject has logged out, or their
- * grants have just been invalidated, and the answer on screen is the one from
- * before. Every consumer in this package goes through here, so a stale allow
- * reads as "not decided yet" rather than as permission.
- */
-export const currentDecision = (result: DecisionResult): ClientDecision | undefined =>
-  AsyncResult.isSuccess(result) && !result.waiting ? result.value : undefined;
 
 /** The reactivity key every decision atom is registered under. */
 const DECISIONS_KEY = "qadi/decisions";

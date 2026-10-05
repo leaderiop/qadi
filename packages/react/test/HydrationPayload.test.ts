@@ -29,7 +29,8 @@ import { describe, expect, it } from "vitest";
 import { dehydrateDecisions, hydrateDecisions, isSeeded, permits } from "../src/Hydration.ts";
 import type { HydrateOptions } from "../src/Hydration.ts";
 import type { HydrationDrop } from "../src/Hydration.ts";
-import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
+import { currentDecision } from "../src/DecisionOutcome.ts";
+import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 
 const read = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");

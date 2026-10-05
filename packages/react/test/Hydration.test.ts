@@ -34,8 +34,10 @@ import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
 import type { HydrationDrop } from "../src/Hydration.ts";
 import { dehydrateDecisions, hydrateDecisions, isSeeded } from "../src/Hydration.ts";
-import type { DecisionResult, HydrationMismatch, QadiAtoms } from "../src/QadiAtoms.ts";
-import { currentDecision, makeQadiAtoms } from "../src/QadiAtoms.ts";
+import type { DecisionResult } from "../src/DecisionOutcome.ts";
+import { currentDecision } from "../src/DecisionOutcome.ts";
+import type { HydrationMismatch, QadiAtoms } from "../src/QadiAtoms.ts";
+import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { InitialValues } from "../src/QadiProvider.tsx";
 
 /**

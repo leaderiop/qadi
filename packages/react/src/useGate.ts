@@ -21,7 +21,7 @@ import { useId, useMemo, useRef } from "react";
 import type { RefObject } from "react";
 import type { GateKind, GateRenderState } from "./GateRegistry.ts";
 import { gateWriterFor, useGateRegistration } from "./GateWriter.ts";
-import type { DecisionResult } from "./QadiAtoms.ts";
+import type { DecisionResult } from "./DecisionOutcome.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
 import { permits } from "./SeededDecision.ts";
 

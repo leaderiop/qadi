@@ -9,9 +9,8 @@
  * (ARCH-05, ADR-QD-028).
  */
 import { expect, test } from "tstyche";
-import type { Allow, Deny, EvaluationError } from "@qadi/core";
+import type { Allow, Deny } from "@qadi/core";
 import { isAllowed } from "@qadi/core";
-import type * as AsyncResult from "effect/reactivity/AsyncResult";
 import type { DeniedNode } from "../src/components.tsx";
 import type {
   ClientDecision,
@@ -19,8 +18,6 @@ import type {
   SeededDecision,
   SeededDeny,
 } from "../src/Hydration.ts";
-import type { DecisionResult } from "../src/QadiAtoms.ts";
-import { currentDecision } from "../src/QadiAtoms.ts";
 import { permits } from "../src/SeededDecision.ts";
 
 declare const anyDecision: ClientDecision;
@@ -45,9 +42,4 @@ test("a denied fallback is handed an evaluated or a seeded denial", () => {
   expect<Parameters<Extract<DeniedNode, (...args: never) => unknown>>[0]>().type.toBe<
     Deny | SeededDeny
   >();
-});
-
-test("a decision atom holds a ClientDecision, read through currentDecision", () => {
-  expect<DecisionResult>().type.toBe<AsyncResult.AsyncResult<ClientDecision, EvaluationError>>();
-  expect<ReturnType<typeof currentDecision>>().type.toBe<ClientDecision | undefined>();
 });
