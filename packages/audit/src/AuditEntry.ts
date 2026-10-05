@@ -18,7 +18,10 @@
  * to forget. Before ARCH-09 a row held the record's in-memory projection and
  * the store's own `JSON.stringify` did the rest, which wrote an `Error` cause
  * as `{}` and threw on a cyclic one. Read a row back with
- * {@link decodeAuditEntry}, which is depth-guarded.
+ * {@link decodeAuditEntry}, which is depth-guarded and applies every check the
+ * core decode applies — never with this schema alone, which under `Schema`'s
+ * default options strips a typo'd field inside the embedded policy rather than
+ * refusing it.
  *
  * Built on `@qadi/core`'s own wire schema rather than re-deriving
  * `Policy`/`Trace`/`Obligation` a second time: a wire form for a value crossing

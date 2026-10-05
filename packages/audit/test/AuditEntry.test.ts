@@ -287,11 +287,12 @@ describe("decodeAuditEntry — the guarded reader (ARCH-09)", () => {
 });
 
 /**
- * What the row schema alone, under `Schema`'s default options, accepted at
- * `899465c` — the decode `decodeAuditEntry` exists so no reader relies on.
- * Each pin is replaced by the ARCH-15 task that changes it.
+ * What the row schema alone, under `Schema`'s default options, accepts and
+ * `decodeAuditEntry` refuses: the reason a stored row is read back through
+ * the guarded reader and never through `Schema.decodeUnknown(AuditEntry)`
+ * (ARCH-15 C10).
  */
-describe("AuditEntry default decode (characterization, replaced by ARCH-15 T1/T2)", () => {
+describe("decodeAuditEntry refuses what the row schema alone would accept", () => {
   const policy = { _tag: "HasPermission", permission: { resource: "doc", action: "read" } };
   const envelope = { _tag: "Decision", evaluationId: "g", at: 1, subjectId: "u1", policy };
   const decided = {
@@ -303,7 +304,6 @@ describe("AuditEntry default decode (characterization, replaced by ARCH-15 T1/T2
     obligations: [],
   };
   const failed = { _tag: "MissingResource", attribute: "owner" };
-  const decodeRow = (record: unknown) => Effect.result(Schema.decodeUnknownEffect(AuditEntry)({ record }));
 
   it("a row whose record names neither outcome is refused by decodeAuditEntry (ticket 96)", () => {
     const result = decodeAuditEntry({ record: envelope });
@@ -315,9 +315,16 @@ describe("AuditEntry default decode (characterization, replaced by ARCH-15 T1/T2
     assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", "names both outcomes");
   });
 
-  it.effect("P6e: a typo inside the embedded policy decodes, with the typo silently dropped", () =>
+  it("a typo inside the embedded policy is refused, not silently dropped (P6e)", () => {
+    const result = decodeAuditEntry({ record: { ...envelope, policy: { ...policy, permision: "x" }, decided } });
+    assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", "permision");
+  });
+
+  it.effect("the row schema alone, by contrast, drops the same typo silently — so it is not a reader", () =>
     Effect.gen(function* () {
-      const result = yield* decodeRow({ ...envelope, policy: { ...policy, permision: "x" }, decided });
+      const result = yield* Effect.result(
+        Schema.decodeUnknownEffect(AuditEntry)({ record: { ...envelope, policy: { ...policy, permision: "x" }, decided } }),
+      );
       assert.isTrue(Result.isSuccess(result));
       if (Result.isSuccess(result) && result.success.record._tag === "Decision") {
         assert.isFalse(Predicate.hasProperty(result.success.record.policy, "permision"));
