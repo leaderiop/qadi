@@ -5,12 +5,12 @@
 > | Property       | Value                                                  |
 > | -------------- | ------------------------------------------------------ |
 > | Document ID    | QADI-ADR-079                                           |
-> | Revision       | 1.0                                                    |
-> | Effective Date | 2026-10-04                                             |
+> | Revision       | 1.1                                                    |
+> | Effective Date | 2026-10-05                                             |
 > | Status         | Accepted — amends ADR-QD-054                           |
 > | Author         | Qadi Engineering                                       |
 > | Classification | Architecture Decision Record                           |
-> | Change History | 1.0 (2026-10-04): Initial release (CCR-QD-157, CCR-QD-158) |
+> | Change History | 1.1 (2026-10-05): Amendment — (a)'s "the rule cannot lag" held for the bound only; (g) finiteness: a renderer-declared `ColumnFiniteness`, a derived `Range` guard, and why SQL takes no declaration while Prisma's `floating` narrows ADR-QD-054 once more (CCR-QD-172)<br>1.0 (2026-10-04): Initial release (CCR-QD-157, CCR-QD-158) |
 
 ---
 
@@ -130,3 +130,36 @@ same resource-exhaustion vector whichever grammar carries it.
   sqlite boolean bind failures in both drivers, all reproduced against the repository's own compiler source.
 - Accepted limitation, unchanged in kind: a literal whose JS type differs from the column's type can admit
   rows the reference denies on a coercing engine. See BEH-QD-244.
+
+## Amendment (CCR-QD-172)
+
+**(a)'s "so the rule cannot lag" was true of the bound only.** `evaluatePredicate`'s `Gte`/`Lt` and the
+classifier did share `isRangeBound` — for the *bound*. The row value was checked by neither: the comment
+beside the shared call said a non-finite row value could not make the interpreters disagree, and it could,
+because `evaluateMatcher` had guarded the resolved value since CCR-QD-116. `toPredicate` admitted an
+`Infinity` row under `gte(3)` and a `-Infinity` row under `lt(3)` that `evaluate` denied. `evaluatePredicate`
+now checks both operands, and the comparison rules themselves moved to one module both interpreters read
+([ADR-QD-091](./091-comparison-semantics-have-one-owner.md)); `isRangeBound` is that module's
+`isFiniteNumber` under the renderer-facing name.
+
+**(g) Finiteness is a renderer declaration, and a `Range` guard is derived from the reference.** Fixing the
+reference moved the over-admission rather than removing it: PostgreSQL and SQLite compare the infinities like
+numbers and PostgreSQL orders `NaN` above every number, so a plain `col >= $1` still admitted rows the
+reference now denies. `RenderRules` gains `finiteness: ColumnFiniteness`
+(`Unrepresentable | Unknown | Declared(floating)`) and `finiteExclusion: "Expressible" | "Inexpressible"`;
+`RenderableNode`'s `Range` gains `finiteGuard: "None" | "ExcludeNonFinite"`, set — like `nullGuard` — by
+asking `evaluatePredicate` whether it denies a non-finite value on the leaf. A target that cannot express the
+guard refuses the range (`RenderRefusal` gains `NonFiniteColumn`, written out as the full closed union).
+
+- `@qadi/predicate-sql` declares `Unknown` for postgres and sqlite and renders `(<range> AND col - col = 0)`,
+  the one text measured to exclude all three values on both engines and every numeric column type without
+  overflowing; `Unrepresentable` for mysql, whose floating types cannot hold them, so MySQL output is
+  unchanged. It takes **no** declaration from its caller: a wrong "this column is finite" would over-admit,
+  breaking (d)'s lie-safety, so the guard is unconditional where the engine can hold the values.
+- `@qadi/predicate-prisma` has no column arithmetic, and the bounded filter is unsound — Prisma 7.10 binds
+  `lte: Number.MAX_VALUE` as a decimal string SQLite reads back as `Infinity`. It declares `Declared(floating)`
+  from a required `floating` option and `Inexpressible`, so a range on a floating column refuses. This narrows
+  ADR-QD-054's "never sees a schema" by one more fact. It is the one declaration here that is **not**
+  lie-safe in both directions: declaring an `Int` column floating only refuses ranges, but leaving a `Float`
+  column out renders a plain range that can admit an infinite row. That is why it is required, and why
+  `floatingFieldsOf` derives it mechanically from a DMMF model's `type` (which Prisma 7's runtime DMMF keeps).

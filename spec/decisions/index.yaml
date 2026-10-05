@@ -286,3 +286,7 @@ entries:
     file: "090-a-tree-is-folded-through-one-seam.md"
     title: "A tree is folded through one seam, and nesting depth is a property of the policy"
     status: "Accepted — amends ADR-QD-034, ADR-QD-024"
+  - id: "ADR-QD-091"
+    file: "091-comparison-semantics-have-one-owner.md"
+    title: "Comparison semantics have one owner: Compare.ts and a five-way Verdict"
+    status: "Accepted — amends ADR-QD-079, ADR-QD-040"

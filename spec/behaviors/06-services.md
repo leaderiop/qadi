@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-06                                    |
-> | Revision       | 1.6                                            |
-> | Effective Date | 2026-09-19                                     |
+> | Revision       | 1.7                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -144,9 +144,25 @@ REQUIREMENT: A denial's reason MUST NOT assert a fact about a store that was not
 | --------- | ------------ |
 | a wired relationship store holds no such edge | `subject 'u1' has no 'owner' relation to 'doc-1'` |
 | the port answers `"Unknown"` (unwired, or a wired resolver with no answer for this relation) | `no relationship resolver could confirm the 'owner' relation to 'doc-1'` |
-| a non-`Neq` attribute is present and compares wrong | `subject attribute 'level' did not match` |
-| a `Neq` attribute is present and equals the excluded value | `subject attribute 'homeTenant' matched an excluded value` |
-| an attribute is absent or unresolved | `subject attribute 'level' has no value` |
+| a non-`Neq` attribute is present and compares wrong (`NotHeld`), or a composite matcher does not hold | `subject attribute 'level' did not match` |
+| a `Neq` attribute is present and equals the excluded value (`NotHeld`) | `subject attribute 'homeTenant' matched an excluded value` |
+| an attribute is absent or unresolved (`ValueAbsent`) | `subject attribute 'level' has no value` |
+| an `Eq`, `Neq` or `Dominates` reference resolves to nothing (`ReferenceAbsent`) | `subject attribute 'tenant' has no reference value to compare against` |
+| the value is not one the matcher can compare — `Infinity` or `"5"` under `gte(3)`, a non-label under `dominates`, a non-array under `someMatch` (`Incomparable`) | `resource attribute 'level' is not a value this matcher can compare` |
+
+The rows are read from `judgeMatcher`'s `Verdict`
+([BEH-QD-305](./04-matchers.md#beh-qd-305-comparison-semantics-have-one-owner)),
+so which operand was absent, or whether the value was comparable at all, is
+what the comparison itself reported rather than a second guess made afterwards.
+
+> **Corrected (CCR-QD-173).** The unresolved-reference row named `Neq` alone,
+> because the reason was re-derived after the fact from the boolean
+> `evaluateMatcher` returned, and only for `Neq`. So `eq(subject("missing"))`
+> against a present attribute, and `dominates(resource("label"))` against an
+> absent label, read "did not match" — a comparison that never ran, which is
+> what this behavior forbids. And `gte(3)` against `Infinity` or `"5"` read
+> "did not match" too: true, but it hid that the value was not comparable at
+> all.
 
 > **Corrected.** `Neq` denies exactly when the value **matches** the excluded
 > reference, so the general "did not match" row was backwards for it — it
@@ -167,7 +183,7 @@ REQUIREMENT: A denial's reason MUST NOT assert a fact about a store that was not
 > cannot verify; it says only what every "Unknown" answer has in common — that
 > nothing confirmed the relation.
 
-Both relationship rows **deny**, and so do all three attribute rows. Nothing here
+Both relationship rows **deny**, and so do all five attribute rows. Nothing here
 changes a verdict — [BEH-QD-043](#beh-qd-043-defaults-fail-closed) and
 [INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed) are untouched —
 which is exactly why it needs stating: no assertion about a verdict can observe

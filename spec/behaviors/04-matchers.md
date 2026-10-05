@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-04                                    |
-> | Revision       | 1.5                                            |
-> | Effective Date | 2026-09-08                                     |
+> | Revision       | 1.6                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.5 (2026-10-04): BEH-QD-304 added (`foldMatcher`, `matcherDepth`) and `referencesAction`/`referencesResource` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-116)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.6 (2026-10-05): BEH-QD-027 corrected — `lt`'s value guard is load-bearing (`-Infinity < 3`), not cosmetic (CCR-QD-172); `inArray` denies an absent value; BEH-QD-028 lists `judgeMatcher` and `Verdict`; BEH-QD-305 added — comparison semantics have one owner (ADR-QD-091, CCR-QD-173)<br>1.5 (2026-10-04): BEH-QD-304 added (`foldMatcher`, `matcherDepth`) and `referencesAction`/`referencesResource` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-116)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -157,6 +157,15 @@ REQUIREMENT: `gte` and `lt` MUST return false unless BOTH operands — the
 > evaluator denies (INV-QD-018).
 
 ```
+REQUIREMENT: `inArray` MUST deny an absent (`undefined`) value, even when its
+             list holds `undefined`. Membership is SameValueZero
+             (`Array.prototype.includes`, so `NaN` is a member of `[NaN]`), but
+             it is asked only of a present value: an absent value satisfies no
+             matcher (INV-QD-092). Before CCR-QD-173 `inArray([undefined])` was
+             the one matcher an absent value satisfied.
+```
+
+```
 REQUIREMENT: `contains` MUST apply to arrays and strings only.
              `someMatch`, `everyMatch` MUST apply to arrays only.
              `size` MUST apply to arrays and strings only.
@@ -166,6 +175,15 @@ REQUIREMENT: `contains` MUST apply to arrays and strings only.
 ## BEH-QD-028: Evaluation is pure
 
 ```ts
+export type Verdict = "Held" | "NotHeld" | "ValueAbsent" | "ReferenceAbsent" | "Incomparable";
+
+export const judgeMatcher: (
+  self: Matcher,
+  value: unknown,
+  context: MatcherContext,
+) => Verdict;
+
+/** `holds(judgeMatcher(self, value, context))` — whether the verdict is `Held`. */
 export const evaluateMatcher: (
   self: Matcher,
   value: unknown,
@@ -231,6 +249,73 @@ A matcher assembled in process has no decode bound either, and every walker over
 one recursed natively: `referencesAction(size^10000(eq(action())))` threw a raw
 `RangeError`. `matcherDepth` is what `policyDepth` adds for a matcher-bearing leaf
 ([BEH-QD-191](./25-inspection.md)).
+
+## BEH-QD-305: Comparison semantics have one owner
+
+> **Invariant:** [INV-QD-091](../invariants.md#inv-qd-091-a-primitive-matcher-and-its-predicate-leaf-are-one-function), [INV-QD-092](../invariants.md#inv-qd-092-an-absent-value-never-satisfies-a-matcher)
+> **See:** [ADR-QD-091](../decisions/091-comparison-semantics-have-one-owner.md)
+
+What `Eq`, `Neq`, `Gte`, `Lt`, membership and dominance *mean* is stated once,
+in core's internal `Compare.ts`, as a closed `Verdict`:
+
+| Verdict | Meaning |
+| ------- | ------- |
+| `Held` | the comparison ran and was true |
+| `NotHeld` | the comparison ran and was false |
+| `ValueAbsent` | the value being tested is `undefined` |
+| `ReferenceAbsent` | the value it is compared against (a resolved reference, a bound) is `undefined` |
+| `Incomparable` | both are present, but one is not a value this comparison can compare (a non-number or non-finite number under a range, a non-label under dominance) |
+
+```typescript
+import { eq, gte, judgeMatcher, makeSubjectId, subject } from "@qadi/core";
+import type { MatcherContext, Verdict } from "@qadi/core";
+
+const context: MatcherContext = {
+  subject: {},
+  subjectId: makeSubjectId("u-1"),
+  resource: undefined,
+  action: undefined,
+};
+
+const absent: Verdict = judgeMatcher(gte(3), undefined, context); // "ValueAbsent"
+const notComparable: Verdict = judgeMatcher(gte(3), Number.POSITIVE_INFINITY, context); // "Incomparable"
+const noReference: Verdict = judgeMatcher(eq(subject("tenantId")), "t-1", context); // "ReferenceAbsent"
+```
+
+```
+REQUIREMENT: The verdicts MUST be ordered: an absent value is reported before
+             an absent reference, and both before incomparability. Only `Held`
+             holds; `evaluateMatcher` MUST be exactly whether `judgeMatcher`'s
+             verdict is `Held`.
+```
+
+```
+REQUIREMENT: A primitive matcher's verdict (`Eq`, `Neq`, `Dominates`, `In`,
+             `Gte`, `Lt`) and the verdict `evaluatePredicate` applies to the
+             same comparison on a row MUST come from one function, so the two
+             interpreters' leaves cannot disagree (INV-QD-091).
+```
+
+```
+REQUIREMENT: A composite (`FieldMatch`, `SomeMatch`, `EveryMatch`, `Size`) MUST
+             report only its own absence (`ValueAbsent`) and shape
+             (`Incomparable`); otherwise it reports `Held` or `NotHeld`, never
+             its inner matcher's reason.
+```
+
+```
+REQUIREMENT: The evaluator's denial reason for `HasAttribute` and
+             `HasResourceAttribute` MUST be built from the verdict
+             (BEH-QD-045), not re-derived after a boolean.
+```
+
+Before this the rules lived in three hand-kept copies — `evaluateMatcher`,
+`evaluatePredicate`'s compare, and the renderable classifier — and every repair
+patched one copy that the others then had to follow: the absent-operand rule
+(CCR-QD-112), the finite value (CCR-QD-116), the finite bound (CCR-QD-120). The
+fourth was not followed, and `toPredicate` failed open on a non-finite row
+(CCR-QD-172). `Compare.ts` is out of the barrel (reachable as
+`@qadi/core/Compare`); `Verdict` and `judgeMatcher` are public from `Matcher.ts`.
 
 ---
 

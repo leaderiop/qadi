@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-31                                    |
-> | Revision       | 1.7                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.8                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-10-04): Dialect-free leaf rules move beside `evaluatePredicate` (ADR-QD-079, CCR-QD-158). BEH-QD-236 now says `@qadi/core` declares the one `PredicateNotRenderable` (reversing the per-package declaration and ticket 95) and shows the options both packages take; BEH-QD-238, BEH-QD-240 and BEH-QD-258 state the shared rules once (`isSafeLiteral`, `maxInValues` for both packages, `IdentifierRule`) and BEH-QD-238/242 replace the false claim that the two packages "agree on which predicates compile at all" with the exact difference, which is the renderer-declared reserved columns; BEH-QD-241/242 name real engines (PGlite, `node:sqlite`, Prisma over SQLite) as the check and record that the JavaScript readers are retired; BEH-QD-244 widens the accepted type-coercion limitation to `Eq`/`Neq`/`MemberOf` (N2), records SQLite boolean binding as `1`/`0` and the two-valued-`NOT` lie-safety rule; BEH-QD-271/265 added (classification once, in core; a nullability declaration can only narrow or refuse)<br>1.6 (2026-10-04): BEH-QD-244 gains a fourth REQUIREMENT and `compilePrismaWhere` gains a required `options.nullable` — a compiled Prisma `Negate` over a leaf on a nullable column dropped the NULL rows `evaluatePredicate` admits (`NOT UNKNOWN` is `UNKNOWN`), and a filter mentioning `null` on a required column is refused by Prisma at query time. Found by running 3000 random predicates through a real Prisma 7.10 client over SQLite: 127 result-set mismatches, every one under a `Negate`, none an over-admission. The leaf is now null-guarded by polarity (CCR-QD-157, ADR-QD-079)<br>1.5 (2026-09-08): BEH-QD-238's allowlist corrected again — the `number` branch is *finite* numbers, in both compilers. `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`/`±Infinity`, and its only exclusion was a `Gte`/`Lt`-specific guard, so a `NaN`-valued `Eq`/`Neq`/`MemberOf` bound `NaN` as a real parameter — and PostgreSQL's `NaN = NaN` is TRUE where `evaluatePredicate`'s `===` is false for every row (INV-QD-047). `@qadi/predicate-prisma` already refused all three; the two compilers now share one allowlist across all four `CompareOp`s, and a `NaN`-valued `Gte`/`Lt` refuses where it used to render `FALSE` (issue #65, CCR-QD-120)<br>1.4 (2026-09-07): BEH-QD-239 and BEH-QD-242 corrected — both encoded the belief that a vacuous `{OR: []}`/`{AND: []}` behaves the same nested inside `AND`/`OR`/`NOT` as it does at the top of the query; per real Prisma engine behavior it does not (Prisma issues #17367, #21856), and `@qadi/predicate-prisma`'s `renderNode` nested it verbatim, an audit's Critical finding (C1, issue 34). `renderNode` now constant-folds every `And`/`Or` child so a vacuous identity is never left nested, and `BEH-QD-242`'s agreement property is checked against a second, engine-accurate test reader in addition to the original JS-semantics one, since the original alone shares the same wrong belief and cannot see the difference (CCR-QD-111)<br>1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
+> | Change History | 1.8 (2026-10-05): BEH-QD-306 added — a range never admits a non-finite row the reference denies: `Range` gains `finiteGuard`, `RenderRules` gains `finiteness` and `finiteExclusion`, `compileSql` renders `col - col = 0` on postgres and sqlite, `compilePrismaWhere` takes a required `floating` and refuses a range on such a column (`NonFiniteColumn`); BEH-QD-241/242's engines hold a float column; BEH-QD-244 records PostgreSQL's `NaN` ordering as a found defect (CCR-QD-172)<br>1.7 (2026-10-04): Dialect-free leaf rules move beside `evaluatePredicate` (ADR-QD-079, CCR-QD-158). BEH-QD-236 now says `@qadi/core` declares the one `PredicateNotRenderable` (reversing the per-package declaration and ticket 95) and shows the options both packages take; BEH-QD-238, BEH-QD-240 and BEH-QD-258 state the shared rules once (`isSafeLiteral`, `maxInValues` for both packages, `IdentifierRule`) and BEH-QD-238/242 replace the false claim that the two packages "agree on which predicates compile at all" with the exact difference, which is the renderer-declared reserved columns; BEH-QD-241/242 name real engines (PGlite, `node:sqlite`, Prisma over SQLite) as the check and record that the JavaScript readers are retired; BEH-QD-244 widens the accepted type-coercion limitation to `Eq`/`Neq`/`MemberOf` (N2), records SQLite boolean binding as `1`/`0` and the two-valued-`NOT` lie-safety rule; BEH-QD-271/265 added (classification once, in core; a nullability declaration can only narrow or refuse)<br>1.6 (2026-10-04): BEH-QD-244 gains a fourth REQUIREMENT and `compilePrismaWhere` gains a required `options.nullable` — a compiled Prisma `Negate` over a leaf on a nullable column dropped the NULL rows `evaluatePredicate` admits (`NOT UNKNOWN` is `UNKNOWN`), and a filter mentioning `null` on a required column is refused by Prisma at query time. Found by running 3000 random predicates through a real Prisma 7.10 client over SQLite: 127 result-set mismatches, every one under a `Negate`, none an over-admission. The leaf is now null-guarded by polarity (CCR-QD-157, ADR-QD-079)<br>1.5 (2026-09-08): BEH-QD-238's allowlist corrected again — the `number` branch is *finite* numbers, in both compilers. `@qadi/predicate-sql`'s `isSafeValue` admitted `NaN`/`±Infinity`, and its only exclusion was a `Gte`/`Lt`-specific guard, so a `NaN`-valued `Eq`/`Neq`/`MemberOf` bound `NaN` as a real parameter — and PostgreSQL's `NaN = NaN` is TRUE where `evaluatePredicate`'s `===` is false for every row (INV-QD-047). `@qadi/predicate-prisma` already refused all three; the two compilers now share one allowlist across all four `CompareOp`s, and a `NaN`-valued `Gte`/`Lt` refuses where it used to render `FALSE` (issue #65, CCR-QD-120)<br>1.4 (2026-09-07): BEH-QD-239 and BEH-QD-242 corrected — both encoded the belief that a vacuous `{OR: []}`/`{AND: []}` behaves the same nested inside `AND`/`OR`/`NOT` as it does at the top of the query; per real Prisma engine behavior it does not (Prisma issues #17367, #21856), and `@qadi/predicate-prisma`'s `renderNode` nested it verbatim, an audit's Critical finding (C1, issue 34). `renderNode` now constant-folds every `And`/`Or` child so a vacuous identity is never left nested, and `BEH-QD-242`'s agreement property is checked against a second, engine-accurate test reader in addition to the original JS-semantics one, since the original alone shares the same wrong belief and cannot see the difference (CCR-QD-111)<br>1.3 (2026-09-07): BEH-QD-236's `compileSql` signature corrected — shown with an optional `options` and `dialect` required only inside it, but the real export requires `options: CompileSqlOptions` with `dialect` required inside that; spec text reconciled to the actual, simpler signature rather than the API being widened to match the doc<br>1.2 (2026-09-06): BEH-QD-238's allowlist corrected — `Date` compiled to a query that disagreed with `evaluatePredicate` (INV-QD-047/048), an audit finding, not a design choice; both compilers now refuse it. BEH-QD-258 added: a column colliding with the target's own syntax (a SQL quote character, or one of Prisma's `AND`/`OR`/`NOT`) refuses rather than escaping or compiling to something the column name did not mean (CCR-QD-106)<br>1.1 (2026-08-25): BEH-QD-244 — NULL handling fixed in both compilers after manual verification against real PostgreSQL, MySQL, SQLite and a SQLite-backed Prisma client found the original translation wrong; the numeric-string coercion limitation recorded as an accepted caveat (INV-QD-047, INV-QD-048, CCR-QD-081)<br>1.0 (2026-08-25): Initial release (CCR-QD-079) |
 
 _Previous: [30 — Port Calls](./30-port-calls.md)_
 
@@ -44,6 +44,7 @@ export const compileSql: (
 
 export interface CompilePrismaWhereOptions {
   readonly nullable: ReadonlySet<string>;
+  readonly floating: ReadonlySet<string>;
   readonly maxInValues?: number;
   readonly identifiers?: IdentifierRule;
 }
@@ -59,6 +60,18 @@ export interface PrismaModelLike {
 }
 
 export const nullableFieldsOf: (model: PrismaModelLike) => ReadonlySet<string>;
+
+export interface PrismaTypedFieldLike {
+  readonly name: string;
+  readonly kind: string;
+  readonly type: string;
+}
+
+export interface PrismaTypedModelLike {
+  readonly fields: ReadonlyArray<PrismaTypedFieldLike>;
+}
+
+export const floatingFieldsOf: (model: PrismaTypedModelLike) => ReadonlySet<string>;
 
 export const compilePrismaWhere: (
   predicate: Predicate,
@@ -286,9 +299,18 @@ grammar `compileSql` emits (`sqlInterpreter.ts`, retired in ADR-QD-079): that
 reader shared its author's belief and agreed with the original NULL defect and the
 `NaN` one, both of which a real engine found. MySQL has no embeddable Node engine,
 so its text is checked structurally — equal to SQLite's modulo identifier quote
-characters, with equal `params` — and the golden fixtures cover the rest. The
-generators are type-consistent with the table; a literal whose type differs from
-its column's is the accepted limitation of BEH-QD-244.
+characters and the finite guard MySQL does not need (BEH-QD-306), with equal
+`params` — and the golden fixtures cover the rest. The generators are
+type-consistent with the table; a literal whose type differs from its column's is
+the accepted limitation of BEH-QD-244.
+
+**The table holds a float column (CCR-QD-172).** Every column was text, integer
+or boolean, and an integer column cannot hold a non-finite value, so the property
+had never sampled one. `score` is PostgreSQL `double precision` holding `±Infinity`
+and `NaN`, and SQLite `REAL` holding `±Infinity` (SQLite stores `NaN` as `NULL`,
+so its reference rows hold none). The first run against it failed on both
+engines: a plain `"score" >= $1` admitted the infinite rows, and PostgreSQL the
+`NaN` ones.
 
 ## BEH-QD-242: The compiled Prisma `WhereInput` agrees with the reference interpreter
 
@@ -335,7 +357,10 @@ compiled `WhereInput` through Prisma Client 7.10 over an in-memory SQLite databa
 `evaluatePredicate`: exact agreement under the true nullability declaration; under
 a wrong one, a subset of the reference's rows or a loud Prisma refusal, never an
 over-admission; the vacuous-identity shapes of BEH-QD-239; and the NULL repros.
-Both JavaScript readers are retired. `matchesPrismaWhereEngine`'s fate was decided
+The fixture model gains a `score Float?` field holding `±Infinity`
+(CCR-QD-172); a range on it is refused (BEH-QD-306), and equality and membership
+on it agree with the reference. Both JavaScript readers are retired.
+`matchesPrismaWhereEngine`'s fate was decided
 by measurement rather than taste: `pnpm exec stryker run stryker.predicate-prisma.mjs`
 with and without the tests that use it kills the identical 107 of 173 mutants (the
 per-mutant statuses are equal), so the engine oracle and the goldens kill everything
@@ -489,6 +514,16 @@ valid on both, which is why a nullability declaration is an input
 declaration can only under-admit or fail loudly, never admit a row the
 predicate denies.
 
+**A real engine found a fourth one, independent of NULL (CCR-QD-172).**
+PostgreSQL orders `NaN` above every number, so `"score" >= $1` admits a `NaN` row
+that `evaluatePredicate` and `evaluate` both deny — an over-admission on any
+`double precision`, `real` or `numeric` column holding `'NaN'`. The same plain
+range admits `Infinity` under `>=` and `-Infinity` under `<` on PostgreSQL and
+SQLite alike. The reference itself had the row half of the bug: until the same
+CCR, `evaluatePredicate` checked only the bound for finiteness, so the engines
+*agreed* with a wrong reference on the infinities and only the end-to-end
+comparison with `evaluate` could see it. BEH-QD-306 is the fix at the renderer.
+
 ## BEH-QD-271: A predicate is classified once, in core, into a renderable tree
 
 ```
@@ -497,8 +532,10 @@ REQUIREMENT: `@qadi/core`'s `toRenderable(predicate, rules)` MUST turn a
              and MUST be the only place that decides what is safe to render:
              which values are safe literals, which columns pass the
              `IdentifierRule` and the renderer's `reservedColumns`, how large a
-             `MemberOf` may be, that `Gte`/`Lt` against a non-number is a
-             constant false, and what `Compare` means against NULL.
+             `MemberOf` may be, that `Gte`/`Lt` against a bound that is not a
+             finite number is a constant false, what `Compare` means against
+             NULL, and whether a `Range` must exclude non-finite rows
+             (BEH-QD-306).
 REQUIREMENT: `RenderableNode` MUST be a closed union (`Constant`, `IsNull`,
              `Equals`, `Range`, `OneOf`, `All`, `Any`, `Not`), and
              `toRenderable` MUST NOT fold: it preserves the AST's structure.
@@ -523,8 +560,10 @@ emit syntax; they decide nothing about NULLs, numbers or safety. Prisma keeps th
 one concern only it has — folding a vacuous `{AND: []}`/`{OR: []}`, a workaround for
 engine bugs (BEH-QD-239) — and a third dialect is a renderer and nothing more. A
 semantic fix such as CCR-QD-120 lands once. `RenderRules` carries the identifier
-rule, `reservedColumns`, `maxInValues`, the nullability declaration and
-`negation: "TwoValued" | "ThreeValued"`.
+rule, `reservedColumns`, `maxInValues`, the nullability declaration,
+`negation: "TwoValued" | "ThreeValued"`, which columns may hold a non-finite number
+(`finiteness`) and whether the renderer can exclude one from a range
+(`finiteExclusion`).
 
 ## BEH-QD-272: A nullability declaration can only narrow or refuse
 
@@ -554,6 +593,69 @@ opens a connection or reads a schema ([ADR-QD-079](../decisions/079-renderabilit
 narrows ADR-QD-054's "never sees a schema"). `nullableFieldsOf(model)` derives it
 from a DMMF model that keeps `isRequired`; Prisma 7's runtime `Prisma.dmmf` strips
 that field, so a caller there writes the set out.
+
+## BEH-QD-306: A range never admits a non-finite row the reference denies
+
+> **Invariant:** [INV-QD-061](../invariants.md#inv-qd-061-torenderable-preserves-evaluatepredicates-meaning-in-two-valued-logic), [INV-QD-047](../invariants.md#inv-qd-047-a-compiled-sql-fragment-admits-exactly-the-rows-the-predicate-admits), [INV-QD-048](../invariants.md#inv-qd-048-a-compiled-prisma-whereinput-admits-exactly-the-rows-the-predicate-admits)
+> **See:** [ADR-QD-079](../decisions/079-renderability-is-a-core-rule.md) (Amendment, CCR-QD-172)
+
+```ts
+export type ColumnFiniteness =
+  | { readonly _tag: "Unrepresentable" }
+  | { readonly _tag: "Unknown" }
+  | { readonly _tag: "Declared"; readonly floating: ReadonlySet<string> };
+
+export type FiniteGuard = "None" | "ExcludeNonFinite";
+export type FiniteExclusion = "Expressible" | "Inexpressible";
+```
+
+```
+REQUIREMENT: A `Range`'s `finiteGuard` MUST be `ExcludeNonFinite` exactly when
+             the renderer's `ColumnFiniteness` says the column may hold a
+             non-finite number and `evaluatePredicate` denies some non-finite
+             value on the leaf — the reference decides, as it does for NULL.
+REQUIREMENT: `compileSql` MUST render `ExcludeNonFinite` on postgres and sqlite
+             as a conjunct inside the leaf, `(<range> AND col - col = 0)`, and
+             MUST NOT offer a way to declare a column finite. MySQL cannot store
+             a non-finite number, so its ranges render without the guard.
+REQUIREMENT: A renderer that cannot express the guard (`finiteExclusion:
+             "Inexpressible"`) MUST refuse a `Range` that needs one, with
+             `refusal: "NonFiniteColumn"`, rather than render it plain.
+             `compilePrismaWhere` is that renderer: it takes a required
+             `floating` declaration (`floatingFieldsOf` derives it from a DMMF
+             model's `type`) and refuses `gte`/`lt` on those columns.
+```
+
+```typescript
+import * as Effect from "effect/Effect";
+import type { Predicate } from "@qadi/core";
+import { compileSql } from "@qadi/predicate-sql";
+
+const scoreAtLeast3: Predicate = { _tag: "Compare", column: "score", op: "Gte", value: 3 };
+
+// postgres: { text: '("score" >= $1 AND "score" - "score" = 0)', params: [3] }
+// mysql:    { text: "`score` >= ?", params: [3] }
+const postgres = Effect.runSync(compileSql(scoreAtLeast3, { dialect: "postgres" }));
+const mysql = Effect.runSync(compileSql(scoreAtLeast3, { dialect: "mysql" }));
+```
+
+`col - col = 0` is the one text measured to exclude all three values on both
+engines and every numeric column type (`double precision`, `real`, `numeric`,
+`int`, `bigint`, `REAL`, `INTEGER`): `Infinity - Infinity` is `NaN`, PostgreSQL's
+`NaN = 0` is false, and SQLite reads a stored `NaN` as `NULL`. It never overflows,
+because the operands are equal. A bound such as `col <= 1.7976931348623157e308`
+was rejected: PostgreSQL refuses it against `int` and `real`. Being a conjunct
+inside the leaf, the guard only removes rows — under `Not`'s `CASE WHEN` too.
+
+Prisma has neither form. It has no column arithmetic, and the bounded filter is
+unsound: Prisma 7.10 binds `lte: Number.MAX_VALUE` as a 309-digit decimal string,
+which SQLite reads back as `Infinity`, so `{gte: 3, lte: Number.MAX_VALUE}` still
+returns an `Infinity` row (and on an `Int` field Prisma refuses the bound). So a
+range on a declared-floating column refuses. The declaration is the one in this
+document that is not lie-safe: leaving a `Float` column out renders a plain range
+that can admit an infinite row, which is why it is required and derived
+mechanically. Declaring an `Int` column floating only refuses ranges that were
+safe.
 
 ---
 

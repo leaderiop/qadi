@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.1                                            |
-> | Effective Date | 2026-08-24                                     |
+> | Revision       | 1.2                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -200,6 +200,23 @@ rather than against a test's restatement of what the matcher means. `Eq` compare
 with `===`, so a literal object is passed through by reference rather than
 copied; `Contains` and `SomeMatch` want the needle *inside* an array; `Size`
 wants a value with a `length`.
+
+```
+REQUIREMENT: Every leaf witness MUST be judged by `judgeMatcher` before it is
+             offered, and declined — "the synthesised value does not satisfy
+             the matcher" — when its verdict is not `Held`.
+```
+
+Reading a matcher backwards is a second belief about what a comparison accepts,
+and it lagged the evaluator's: `gte(Infinity)`, `gte(-Infinity)` and `gte(NaN)`
+offered the bound itself, `eq(literal(NaN))` offered `NaN`, and
+`eq(literal(undefined))` offered `undefined` — none of which the evaluator
+accepts (CCR-QD-173). Checking each leaf makes the requirement above true by
+construction, whatever comparison semantics do next. Only leaves are judged: a
+wrapper's witness (`{field: v}`, `[v]`, an array of length `v`) holds exactly when
+its child's does, so the check costs no recursion and the derivation stays
+stack-safe at any depth (BEH-QD-222). `Gte` also declines a non-finite bound with
+its own reason, as `Lt` already did.
 
 ```
 REQUIREMENT: Where no witness can be derived, the reason MUST be reported.
