@@ -8,6 +8,11 @@
  * their `visibleFields` with the frozen merge. It must stay green across
  * ARCH-12 T5–T7 and is deleted once `FieldLattice.test.ts` tests the lattice at
  * its interface (ARCH-02's oracle pattern).
+ *
+ * One deliberate edit to the frozen copy: `oracleIntersect` takes ARCH-12 T5's
+ * tie-break (on `"Equal"`, keep the lexicographically smaller spec), so the
+ * oracle tracks the intended behaviour through the move rather than the
+ * order-dependent representative T5 removed.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -22,11 +27,12 @@ import { subjectWith, testLayer } from "./helpers.ts";
 
 // --- frozen copies ----------------------------------------------------------
 
-type ContainmentKeep = "A" | "B" | undefined;
+type ContainmentKeep = "A" | "B" | "Either" | undefined;
 const CONTAINMENT_KEEP: (self: Containment) => ContainmentKeep = Match.type<
   Containment
 >().pipe(
-  Match.whenOr("Equal", "BLessA", () => "B" as const),
+  Match.when("Equal", () => "Either" as const),
+  Match.when("BLessA", () => "B" as const),
   Match.when("ALessB", () => "A" as const),
   Match.when("Incomparable", () => undefined),
   Match.exhaustive,
@@ -43,6 +49,7 @@ const oracleIntersect = (a: VisibleFields, b: VisibleFields): VisibleFields => {
       const keep = CONTAINMENT_KEEP(compareShapes(specA.shape, specB.shape));
       if (keep === "B") kept.push(specB.spec);
       else if (keep === "A") kept.push(specA.spec);
+      else if (keep === "Either") kept.push(specA.spec < specB.spec ? specA.spec : specB.spec);
     }
   }
   return [...new Set(kept)].sort();

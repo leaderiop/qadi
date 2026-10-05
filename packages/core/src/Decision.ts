@@ -254,12 +254,19 @@ export type VisibleFields = ReadonlyArray<string> | undefined;
  * scratch (AGENTS.md §5a favors a hoisted `Match.type` on exactly this kind
  * of per-node-or-hotter dispatch). `Match.exhaustive` still makes a future
  * `Containment` member a compile error here, same as before.
+ *
+ * `"Equal"` is its own answer, `"Either"`, rather than folded into `"B"`: two
+ * specs that denote the same set (`"title"` and `"title.**"`) are both correct
+ * to keep, and keeping the right-hand operand's text made which one survived
+ * depend on argument position (ARCH-12 C5). `intersectFields` breaks the tie
+ * by text instead.
  */
-type ContainmentKeep = "A" | "B" | undefined;
+type ContainmentKeep = "A" | "B" | "Either" | undefined;
 const CONTAINMENT_KEEP: (self: Containment) => ContainmentKeep = Match.type<
   Containment
 >().pipe(
-  Match.whenOr("Equal", "BLessA", () => "B" as const),
+  Match.when("Equal", () => "Either" as const),
+  Match.when("BLessA", () => "B" as const),
   Match.when("ALessB", () => "A" as const),
   Match.when("Incomparable", () => undefined),
   Match.exhaustive,
@@ -292,9 +299,18 @@ const CONTAINMENT_KEEP: (self: Containment) => ContainmentKeep = Match.type<
  * `intersectFields([a,b],[c])` and `intersectFields([c],[a,b])` were equal as
  * sets but could differ as arrays — and that array becomes
  * `Allow.visibleFields`, which flows into `DecisionRecord` and the audit sink
- * wire path. A canonical order makes byte-equality of the wire form track
- * semantic equality of the field set, which `TraceDiff.sameFields` already
- * has to work around by sorting before comparing.
+ * wire path.
+ *
+ * Sorting alone did not make the output independent of operand order. Two
+ * specs with the same shape (`"title"` and `"title.**"`, INV-QD-004) compare
+ * `"Equal"`, and the right-hand one's text used to be kept, so swapping the
+ * operands swapped the representative (ARCH-12 C5, CCR-QD-174). On `"Equal"`
+ * the lexicographically smaller text is kept now, which makes the result
+ * byte-for-byte commutative, and an n-ary fold byte-for-byte independent of
+ * input order. The claim is exactly that — independent of order — and not
+ * "canonical": when one side is `undefined` the other is returned as authored,
+ * unsorted, and two policies naming one set with different text still produce
+ * different bytes.
  */
 export const intersectFields = (a: VisibleFields, b: VisibleFields): VisibleFields => {
   if (a === undefined) return b;
@@ -317,6 +333,7 @@ export const intersectFields = (a: VisibleFields, b: VisibleFields): VisibleFiel
       const keep = CONTAINMENT_KEEP(cmp);
       if (keep === "B") kept.push(specB.spec);
       else if (keep === "A") kept.push(specA.spec);
+      else if (keep === "Either") kept.push(specA.spec < specB.spec ? specA.spec : specB.spec);
     }
   }
   return [...new Set(kept)].sort();

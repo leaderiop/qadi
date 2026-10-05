@@ -158,20 +158,23 @@ describe("field lattice", () => {
   // `shapeOf` shape ("a" and "a.**" both denote {path: ["a"], reach:
   // Infinity} — see `FieldPath.ts`'s own comment on bare literals). When
   // `intersectFields` meets two such specs, `CONTAINMENT_KEEP`'s "Equal" arm
-  // always keeps the second (`B`) operand's literal text, so which of the two
-  // interchangeable strings survives depends on argument *position*, not on
-  // the algebra: built and run against this codebase's real `intersectFields`,
-  // `intersectFields(["a"], ["b.a.b","a","b.b.c"])` and its argument-swapped
-  // form return `["a.**"]` and `["a"]` respectively — different arrays, and
-  // `assert.deepStrictEqual` on the raw return correctly calls that a
-  // difference. Both arrays denote the identical disclosure, though: neither
+  // used to keep the second (`B`) operand's literal text, so which of the two
+  // interchangeable strings survived depended on argument *position*, not on
+  // the algebra: `intersectFields(["b.a.b","a","b.b.c"], ["a.**"])` and its
+  // argument-swapped form returned `["a.**"]` and `["a"]` respectively —
+  // different arrays, and `assert.deepStrictEqual` on the raw return
+  // correctly called that a difference. Both arrays denote the identical disclosure, though: neither
   // spec's `shapeOf` differs, so `project` reads them identically for any
   // data. The laws ADR-QD-030/ADR-QD-034 actually need — a merge is safe to
   // reorder or nest differently because *what a subject can see* does not
   // change — are exactly the semantic ones below, and are what
-  // `Simplify.ts`'s flattening actually leans on; nothing in this codebase
-  // claims `intersectFields`'s raw output is representative-stable, and this
-  // suite should not either.
+  // `Simplify.ts`'s flattening actually leans on.
+  //
+  // ARCH-12 C5 (CCR-QD-174) since made the raw output order-independent too:
+  // on `"Equal"` the lexicographically smaller text is kept, whichever side it
+  // is on, and the byte-level properties further down pin that. The two
+  // properties here stay semantic: disclosure is what they were written to
+  // protect.
   it("PROPERTY: intersectFields is commutative in what it discloses", () => {
     for (const [a, b, data] of FastCheck.sample(
       FastCheck.tuple(visibleFields, visibleFields, dataArb),
@@ -216,6 +219,42 @@ describe("field lattice", () => {
     }
     for (const a of FastCheck.sample(visibleFields, { numRuns: 300, seed: 2026 })) {
       assert.deepStrictEqual(unionFields(a, a), normalize(a), "idempotence");
+    }
+  });
+
+  // Byte-level order independence (ARCH-12 C5, D-12-c(ii)). Two specs with the
+  // identical shape (`"a"` and `"a.**"`) meet as `"Equal"`, and the meet keeps
+  // the lexicographically smaller text rather than whichever operand sits on
+  // the right — so which representative survives no longer depends on argument
+  // position, and `Allow.visibleFields` bytes no longer depend on child order.
+  it("an Equal pair keeps the lexicographically smaller spec, whichever side it is on", () => {
+    assert.deepStrictEqual(intersectFields(["title"], ["title.**"]), ["title"]);
+    assert.deepStrictEqual(intersectFields(["title.**"], ["title"]), ["title"]);
+  });
+
+  it("PROPERTY: intersectFields is byte-for-byte commutative", () => {
+    for (const [a, b] of FastCheck.sample(FastCheck.tuple(visibleFields, visibleFields), {
+      numRuns: 300,
+      seed: 2026,
+    })) {
+      assert.deepStrictEqual(intersectFields(a, b), intersectFields(b, a), JSON.stringify({ a, b }));
+    }
+  });
+
+  it("PROPERTY: an n-ary Intersection fold is byte-for-byte independent of input order", () => {
+    const setsAndPermutation = FastCheck.array(visibleFields, { minLength: 1, maxLength: 5 }).chain(
+      (sets) =>
+        FastCheck.shuffledSubarray(sets, { minLength: sets.length, maxLength: sets.length }).map(
+          (permuted) => [sets, permuted] as const,
+        ),
+    );
+    const fold = (sets: ReadonlyArray<VisibleFields>) =>
+      sets.reduce<VisibleFields>((acc, cur) => intersectFields(acc, cur), undefined);
+    for (const [sets, permuted] of FastCheck.sample(setsAndPermutation, {
+      numRuns: 300,
+      seed: 2026,
+    })) {
+      assert.deepStrictEqual(fold(permuted), fold(sets), JSON.stringify({ sets, permuted }));
     }
   });
 
