@@ -123,6 +123,17 @@ describe("encodeAuditEntry", () => {
     }));
 });
 
+describe("an audit row is the same wire the decision stream emits (ARCH-09)", () => {
+  it.effect("a resource carrying a Set refuses instead of persisting {}", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(
+        encodeAuditEntry(decisionRecord({ resource: { tags: new Set(["finance"]) } })),
+      );
+      assert.strictEqual(result._tag, "Failure");
+      if (result._tag === "Failure") assert.strictEqual(result.failure._tag, "AuditEntryNotEncodable");
+    }));
+});
+
 describe("AuditEntry — the schema is real, not decorative", () => {
   it.effect("a real entry round-trips through Schema encode/decode unchanged", () =>
     Effect.gen(function* () {

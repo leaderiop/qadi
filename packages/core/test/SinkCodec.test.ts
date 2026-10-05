@@ -988,6 +988,18 @@ describe("isJsonSafe", () => {
     const shared = { x: 1 };
     assert.isTrue(isJsonSafe({ a: shared, b: shared }));
   });
+
+  it("refuses a Map, a Set, a RegExp and a typed array — JSON.stringify renders each as {} or an index object", () => {
+    // ARCH-09 C8: each of these walked as a container of `Object.values` —
+    // none — and was accepted, then serialised as `{}` (or `{"0":1,"1":2}`),
+    // so an ABAC resource such as `{ tags: new Set(["finance"]) }` reached the
+    // audit trail and the decision stream as `{ tags: {} }` with no refusal.
+    assert.isFalse(isJsonSafe(new Map([["a", 1]])));
+    assert.isFalse(isJsonSafe(new Set([1])));
+    assert.isFalse(isJsonSafe(/x/));
+    assert.isFalse(isJsonSafe(new Uint8Array([1, 2])));
+    assert.isFalse(isJsonSafe({ tags: new Set(["finance"]) }));
+  });
 });
 
 describe("isRecordJsonSafe", () => {
@@ -1042,6 +1054,37 @@ describe("isRecordJsonSafe", () => {
     // The old, incomplete check would have let this through.
     assert.isTrue(record.resource === undefined || isJsonSafe(record.resource));
     assert.isFalse(isRecordJsonSafe(record));
+  });
+
+  const failedWithCause = (cause: unknown): SinkRecord =>
+    new DecisionRecord({
+      evaluationId: "e",
+      at: 0,
+      subjectId: makeSubjectId("u1"),
+      policy: P.hasPermission(read),
+      outcome: new Failed({ error: new AttributeResolveError({ attribute: "clearance", cause }) }),
+    });
+
+  it("is false when a Failed record's cause has a reference cycle (ARCH-09 T2)", () => {
+    // The axios-style shape: an `Error` whose own enumerable `config`/`request`
+    // properties point back into each other.
+    const config: { url: string; request?: unknown } = { url: "https://attributes.internal/x" };
+    const request = { config };
+    config.request = request;
+    const cause = Object.assign(new Error("Request failed with status code 503"), { config, request });
+    assert.isFalse(isRecordJsonSafe(failedWithCause(cause)));
+  });
+
+  it("is true for a plain Error cause", () => {
+    assert.isTrue(isRecordJsonSafe(failedWithCause(new Error("db down"))));
+  });
+
+  it("is false for a BigInt cause", () => {
+    assert.isFalse(isRecordJsonSafe(failedWithCause(10n)));
+  });
+
+  it("is true for a Decided record whose obligations' attributes are safe", () => {
+    assert.isTrue(isRecordJsonSafe(allowRecord));
   });
 
   it("is true when a HasCustom policy node's params is itself JSON-safe", () => {

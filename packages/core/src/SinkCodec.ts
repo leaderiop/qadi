@@ -26,8 +26,9 @@
  */
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
+import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
-import type { SinkRecord } from "./DecisionRecord.ts";
+import type { DecisionOutcome, SinkRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
@@ -186,6 +187,29 @@ export type SinkRecordWire = typeof SinkRecordWire.Type;
 const isJsonContainer = (value: unknown): value is object =>
   typeof value === "object" && value !== null && !(value instanceof Date);
 
+/**
+ * Built-ins `JSON.stringify` renders as `{}` (or as an index object), so a
+ * walk over their `Object.values` — none — would accept them and the value
+ * would cross as something it is not (ARCH-09 C8): `{ tags: new Set(["a"]) }`
+ * reached the audit trail as `{ tags: {} }`. `Error` is deliberately absent:
+ * every resolver error's `cause` is usually one, and this guard now walks the
+ * outcome too, so refusing it would refuse every outage record. ARCH-09's
+ * outbound operation replaces this guard, and with it this exception.
+ */
+const OPAQUE_BRANDS: ReadonlySet<string> = new Set([
+  "[object Map]",
+  "[object Set]",
+  "[object WeakMap]",
+  "[object WeakSet]",
+  "[object RegExp]",
+  "[object Promise]",
+  "[object ArrayBuffer]",
+  "[object DataView]",
+]);
+
+const isOpaqueBuiltIn = (value: object): boolean =>
+  ArrayBuffer.isView(value) || OPAQUE_BRANDS.has(Object.prototype.toString.call(value));
+
 const isJsonScalarSafe = (value: unknown): boolean => {
   if (value === null) return true;
   if (typeof value === "string" || typeof value === "boolean") return true;
@@ -199,6 +223,7 @@ const childrenOf = (value: object): ReadonlyArray<unknown> =>
 
 export const isJsonSafe = (value: unknown): boolean => {
   if (!isJsonContainer(value)) return isJsonScalarSafe(value);
+  if (isOpaqueBuiltIn(value)) return false;
 
   const onPath = new Set<object>([value]);
   const stack: Array<{
@@ -218,7 +243,7 @@ export const isJsonSafe = (value: unknown): boolean => {
     const child = frame.children[frame.index];
     frame.index += 1;
     if (isJsonContainer(child)) {
-      if (onPath.has(child)) return false;
+      if (onPath.has(child) || isOpaqueBuiltIn(child)) return false;
       onPath.add(child);
       stack.push({ value: child, children: childrenOf(child), index: 0 });
     } else if (!isJsonScalarSafe(child)) {
@@ -230,8 +255,41 @@ export const isJsonSafe = (value: unknown): boolean => {
 };
 
 /**
+ * True when an outcome's own caller-supplied `unknown` — a resolver error's
+ * `cause` — reaches the wire safely.
+ *
+ * `cause` is not an own enumerable property of a `Schema.TaggedError`
+ * instance, so a walk over the outcome object never sees it, while
+ * `JSON.stringify` does (through the class's `toJSON`) — which is how a cyclic
+ * `cause` passed this guard and then threw. A `Decided` outcome has no `unknown`
+ * of its own: its obligations' `attributes` come from the policy's `obliged`
+ * nodes, which the `policy` walk already covers.
+ */
+const isOutcomeJsonSafe: (outcome: DecisionOutcome) => boolean = Match.type<DecisionOutcome>().pipe(
+  Match.tagsExhaustive({
+    Decided: () => true,
+    Failed: (outcome) => !Predicate.hasProperty(outcome.error, "cause") || isJsonSafe(outcome.error.cause),
+  }),
+);
+
+/**
  * True when every caller-supplied `unknown` value a `SinkRecord` can carry
- * reaches the wire safely — `resource` **and** `policy`'s `HasCustom.params`.
+ * reaches the wire safely — `resource`, `policy`'s `HasCustom.params`, **and**
+ * the outcome: a resolver error's `cause`, and a decision's obligations'
+ * `attributes`.
+ *
+ * **The outcome is walked too (ARCH-09 T2).** The guard used to stop at
+ * `resource` and `policy`, so a `Failed` record whose `cause` held a reference
+ * cycle — the shape an axios-style HTTP client error has — or a `BigInt`
+ * passed it, and then threw out of `JSON.stringify`: on `@qadi/http`'s decision
+ * stream that ended every subscriber's connection, and in `@qadi/audit` it
+ * counted as a store failure, so five of them opened the circuit breaker and
+ * the healthy records after them were dropped. A plain `Error` cause still
+ * passes (it walks as `{}`, which is lossy until ARCH-09's outbound operation
+ * carries it through `Schema.Defect()`); opaque built-ins — `Map`, `Set`,
+ * `RegExp`, binary data — are refused anywhere in the record. ARCH-09's
+ * outbound operation, which walks the *encoded* record, is the permanent fix
+ * and replaces this guard.
  *
  * `isJsonSafe(resource)` alone is exactly the check both of its real-world
  * callers had, and exactly the gap this closes: a `policy` built with
@@ -263,7 +321,8 @@ export const isRecordJsonSafe: (record: SinkRecord) => boolean = Match.type<Sink
     Obligations: () => true,
     Decision: (record) =>
       (record.resource === undefined || isJsonSafe(record.resource)) &&
-      isJsonSafe(record.policy),
+      isJsonSafe(record.policy) &&
+      isOutcomeJsonSafe(record.outcome),
   }),
 );
 

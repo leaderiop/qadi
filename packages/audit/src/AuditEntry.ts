@@ -26,10 +26,11 @@ import type { SinkRecord } from "@qadi/core";
 import { isRecordJsonSafe, SinkRecordWire, toWire } from "@qadi/core";
 
 /**
- * A `SinkRecord` this package refuses to persist — `resource`, or `policy`'s
- * `HasCustom.params`, carrying a value with no safe durable representation
- * (a function, a circular reference, a `BigInt`, a class instance JSON
- * cannot round-trip), or a value the `AuditEntry` schema itself rejects.
+ * A `SinkRecord` this package refuses to persist — `resource`, `policy`'s
+ * `HasCustom.params`, or the outcome (a resolver error's `cause`) carrying a
+ * value with no safe durable representation (a function, a circular
+ * reference, a `BigInt`, a `Map`/`Set`/`RegExp`/binary array JSON renders as
+ * `{}`), or a value the `AuditEntry` schema itself rejects.
  *
  * Never thrown; a typed `Effect` failure, the same shape
  * `@qadi/predicate-sql`'s `PredicateNotRenderable` uses, declared here rather
@@ -74,7 +75,10 @@ export type AuditEntry = typeof AuditEntry.Type;
  * names this file as one of the two real-world call sites written against
  * that since-corrected premise. A circular or `BigInt`-valued `HasCustom.params`
  * sailed past the narrow guard and only failed later, uncaught, at the
- * store's own `JSON.stringify`.
+ * store's own `JSON.stringify`. The same was true of a cyclic or `BigInt`
+ * resolver `cause` until the guard walked the outcome too (ARCH-09 T2): the
+ * store's throw counted as a write failure, so an attribute-store outage
+ * tripped the breaker and dropped the healthy rows after it.
  */
 export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(function* (
   record: SinkRecord,

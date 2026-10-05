@@ -107,10 +107,14 @@ import { SubjectExtractor } from "./SubjectExtractor.ts";
  * SSE connection — and every other subscriber's, since they all read the same
  * stream — over one bad decision. `isRecordJsonSafe` is `@qadi/core`'s own
  * guard for exactly this ([SinkCodec.ts](../../core/src/SinkCodec.ts)) — it
- * walks `resource` **and** `policy`, not `resource` alone, which an earlier
- * version of this guard missed: a policy's own `HasCustom.params` or an
- * `Obligation`'s `attributes` reaches the same `JSON.stringify` call and can
- * carry the same unsafe values. Refusing just the one frame rather than the
+ * walks `resource`, `policy` **and** the outcome, not `resource` alone, which
+ * earlier versions of this guard missed: a policy's own `HasCustom.params`, an
+ * `Obligation`'s `attributes`, and a resolver error's `cause` all reach the
+ * same `JSON.stringify` call and can carry the same unsafe values — an
+ * HTTP-client error with a reference cycle as an attribute store's `cause`
+ * used to end every open `/__decisions` connection (ARCH-09 T2). It also
+ * refuses `Map`/`Set`/`RegExp`/binary data, which would otherwise cross as
+ * `{}`. ARCH-09's outbound operation in core is the permanent fix. Refusing just the one frame rather than the
  * whole feed matches how this route already behaves under backpressure:
  * `decisionSinkFeed` drops the oldest entry rather than blocking, so a record
  * failing to reach a subscriber is not a new failure mode here, only a new

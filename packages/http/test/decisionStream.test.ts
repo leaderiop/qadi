@@ -8,9 +8,12 @@
 import { assert, describe, it } from "@effect/vitest";
 import {
   Allow,
+  AttributeResolveError,
   Decided,
   DecisionRecord,
+  DecisionSink,
   EvaluationIdLive,
+  Failed,
   EvaluationServicesNone,
   ObligationRecord,
   RelationshipResolver,
@@ -93,6 +96,33 @@ const decisionRecord = (evaluationId: string, resource?: Record<string, unknown>
       }),
     }),
   });
+
+/**
+ * A `Failed` record whose resolver error carries `cause` — the shape an
+ * attribute-store outage produces, and the one position in a record the
+ * resource/policy guard never walked (ARCH-09 C3/C4).
+ */
+const failedWithCause = (cause: unknown, evaluationId = "poisoned") =>
+  new DecisionRecord({
+    evaluationId,
+    at: 1_000,
+    subjectId: makeSubjectId("alice"),
+    policy: readPolicy,
+    outcome: new Failed({ error: new AttributeResolveError({ attribute: "clearance", cause }) }),
+  });
+
+/**
+ * The error an axios-style HTTP client throws: an `Error` whose own enumerable
+ * `config`/`request` properties point back into each other. Used as an
+ * HTTP-backed resolver's `cause`, it is the realistic way a reference cycle
+ * reaches a decision record (ARCH-09 probe 9).
+ */
+const httpClientError = (): Error => {
+  const config: { url: string; request?: unknown } = { url: "https://attributes.internal/x" };
+  const request = { config };
+  config.request = request;
+  return Object.assign(new Error("Request failed with status code 503"), { config, request });
+};
 
 // Composed through named intermediate steps, deliberately: chaining every
 // `Layer.provideMerge` inline in one expression is an instantiation-depth
@@ -573,4 +603,53 @@ describe("frame", () => {
 
     assert.isTrue(Result.isSuccess(frame(obligations)));
   });
+});
+
+/**
+ * One record can never end the feed (ARCH-09 T1). A record `frame` cannot
+ * render must drop only its own frame: every subscriber reads the same
+ * `decisionSinkFeed`, so a throw inside `Stream.filterMap` would end every open
+ * `/__decisions` connection at once.
+ */
+describe("one record cannot end the feed", () => {
+  const twoSubscribersSee = (poisoned: DecisionRecord) =>
+    Effect.gen(function* () {
+      const feed = yield* decisionSinkFeed({ replay: 8 });
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord("good-1"));
+        yield* sink.record(poisoned);
+        yield* sink.record(decisionRecord("good-2"));
+      }).pipe(Effect.provide(feed.layer));
+
+      const subscriber = Stream.runCollect(Stream.take(Stream.filterMap(feed.stream, frame), 2));
+      return yield* Effect.all([Effect.exit(subscriber), Effect.exit(subscriber)], { concurrency: 2 });
+    });
+
+  it.effect(
+    "a Failed record whose cause is an HTTP-client error with a reference cycle does not end the feed: " +
+      "both subscribers receive the next record",
+    () =>
+      Effect.gen(function* () {
+        const exits = yield* twoSubscribersSee(failedWithCause(httpClientError()));
+        for (const exit of exits) {
+          assert.strictEqual(exit._tag, "Success");
+          if (exit._tag !== "Success") continue;
+          assert.strictEqual(exit.value.length, 2);
+          assert.include(exit.value[0] ?? "", '"evaluationId":"good-1"');
+          assert.include(exit.value[1] ?? "", '"evaluationId":"good-2"');
+        }
+      }),
+  );
+
+  it.effect("a BigInt cause does not end the feed", () =>
+    Effect.gen(function* () {
+      const exits = yield* twoSubscribersSee(failedWithCause(10n));
+      for (const exit of exits) {
+        assert.strictEqual(exit._tag, "Success");
+        if (exit._tag !== "Success") continue;
+        assert.strictEqual(exit.value.length, 2);
+        assert.include(exit.value[1] ?? "", '"evaluationId":"good-2"');
+      }
+    }));
 });

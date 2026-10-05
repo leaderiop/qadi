@@ -490,14 +490,21 @@ const PORT_DOUBLE_BUDGET = {
   "packages/core/test/Predicate.test.ts": 1,
   // The port's own error must reach the caller as the same instance.
   "packages/core/test/SignatureHistory.test.ts": 1,
-  // Every error round-trips through the wire codec.
-  "packages/core/test/SinkCodec.test.ts": 7,
+  // Every error round-trips through the wire codec, and a resolver error's
+  // `cause` is the position the record codec must carry or refuse (ARCH-09).
+  "packages/core/test/SinkCodec.test.ts": 8,
   // An error as a value, for its `_tag`/code.
   "packages/core/test/Tokens.test.ts": 1,
+  // A `Failed` record carrying a resolver `cause`, as data the audit encoder
+  // must persist or refuse (ARCH-09).
+  "packages/audit/test/helpers.ts": 1,
   // A comparison row's error, as data handed to the table.
   "packages/devtools/test/react/WhatIfTable.test.tsx": 1,
   // Every enforcement error's response mapping.
   "packages/http/test/QadiHttpError.test.ts": 12,
+  // A `Failed` record carrying a resolver `cause`, as data a frame must carry
+  // or refuse without ending the feed (ARCH-09).
+  "packages/http/test/decisionStream.test.ts": 1,
   // The fixture every HTTP enforcement test iterates over.
   "packages/http/test/fixtures/everyHttpEnforcementFailure.ts": 5,
 };

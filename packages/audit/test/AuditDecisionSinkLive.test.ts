@@ -10,7 +10,7 @@ import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
 import { AuditStagingError, AuditStagingPort } from "../src/AuditStagingPort.ts";
 import { AuditStagingPortTest } from "../src/AuditStagingPortTest.ts";
-import { decisionRecord, obligationRecord } from "./helpers.ts";
+import { decisionRecord, failedWithCause, httpClientError, obligationRecord } from "./helpers.ts";
 
 describe("AuditDecisionSinkLive — the assembled pipeline", () => {
   it.effect("a DecisionRecord writes through to the trail port", () =>
@@ -230,6 +230,40 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
 
       assert.strictEqual(written().length, 0);
     }));
+
+  it.effect(
+    "five poisoned Failed records do not trip the breaker for a JSON-text store; the next Decided record is written",
+    () =>
+      Effect.gen(function* () {
+        // ARCH-09 C5: the store BEH-QD-250's prose describes — it persists
+        // `JSON.stringify(entry)`, mapping a throw to `AuditWriteError`. A
+        // cyclic resolver cause used to reach it, throw, and count as a store
+        // failure; five of them opened the breaker and the healthy record
+        // after them was dropped.
+        const rows: Array<string> = [];
+        const trail = Layer.succeed(AuditTrailPort, {
+          write: (entry) =>
+            Effect.try({
+              try: () => {
+                rows.push(JSON.stringify(entry));
+              },
+              catch: (cause) => new AuditWriteError({ entry, cause }),
+            }),
+        });
+
+        yield* Effect.gen(function* () {
+          const sink = yield* DecisionSink;
+          for (let i = 0; i < 5; i++) {
+            yield* sink.record(failedWithCause(httpClientError(), `poisoned-${i}`));
+          }
+          yield* sink.record(decisionRecord({ evaluationId: "healthy" }));
+        }).pipe(
+          Effect.provide(Layer.provideMerge(AuditDecisionSinkLive({ failureThreshold: 5 }), trail)),
+        );
+
+        assert.isTrue(rows.some((row) => row.includes('"evaluationId":"healthy"')));
+      }),
+  );
 
   it.effect("AuditTrailPort is a real Layer requirement, not optional like staging", () =>
     Effect.gen(function* () {
