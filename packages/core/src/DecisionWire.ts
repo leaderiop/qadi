@@ -1,7 +1,7 @@
 /**
  * The wire form of a `Decision`, shared by every module that ships one.
  *
- * `SinkCodec.ts` embeds it in `SinkRecordWire`'s `decided` field, and
+ * `SinkCodec.ts` embeds it in the record wire's `decided` field, and
  * `@qadi/react`'s hydration payload derives its entry schema from
  * {@link DecisionWire}'s own fields rather than restating them. One definition
  * means one set of tests and no second hand-rolled codec drifting beside the
@@ -9,7 +9,7 @@
  *
  * [ADR-QD-028](../../../spec/decisions/028-decision-hydration.md) rejected
  * "serializing the whole `Decision` with a `Schema` codec" because decisions
- * were not a wire format. `SinkRecordWire` overtook that when it began carrying
+ * were not a wire format. The record wire overtook that when it began carrying
  * `decided` across processes (BEH-QD-199, CCR-QD-063), so the codec lives here,
  * in `@qadi/core`, where both consumers can reach it.
  */

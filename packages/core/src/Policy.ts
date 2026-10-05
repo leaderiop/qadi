@@ -989,7 +989,7 @@ export const MAX_DECODE_DEPTH = DEFAULT_MAX_DEPTH * 4;
  * struct a decode recurses into — `Matcher`, `Obligation`, `RuleStruct` — so
  * setting it once at each public entry point below covers the whole tree.
  *
- * Exported (CCR-QD-139) so `SinkCodec.ts`'s `decodeSinkRecordWireUnknown` — which
+ * Exported (CCR-QD-139) so `SinkCodec.ts`'s `decodeSinkRecord` — which
  * embeds this same `Policy` schema across the same trust boundary — can share it
  * rather than decode with `Schema`'s default `onExcessProperty: "ignore"`, the
  * exact silent-data-loss shape this option exists to rule out.

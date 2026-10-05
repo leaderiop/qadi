@@ -487,7 +487,7 @@ describe("hydrateDecisions", () => {
   // nested past the call stack's limit raised a raw `RangeError` defect here
   // instead of the fail-closed "drop the entry" every other malformed-payload
   // path in this module gets — the exact gap `Policy.ts`'s own
-  // `fromJson`/`fromJsonValue` and `SinkCodec.ts`'s `decodeRecordWire` guard
+  // `fromJson`/`fromJsonValue` and `SinkCodec.ts`'s `decodeSinkRecord` guard
   // against, and this module's own doc comments named as "tracked separately".
   it("drops an entry nested past MAX_DECODE_DEPTH rather than raising a raw RangeError", () => {
     let policy: unknown = { _tag: "HasRole", role: "x" };

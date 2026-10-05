@@ -42,13 +42,12 @@
  * version handling live behind `decodeSinkRecord`, so they change in this
  * module and nowhere else.
  */
-import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type { Trace } from "./Decision.ts";
-import type { DecisionOutcome, SinkRecord } from "./DecisionRecord.ts";
+import type { SinkRecord } from "./DecisionRecord.ts";
 import { Decided, DecisionRecord, Failed, ObligationRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
@@ -69,13 +68,7 @@ import {
 } from "./Errors.ts";
 import type { OpaqueKind, WirePath } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
-import {
-  MAX_DECODE_DEPTH,
-  Policy,
-  PolicyDecodeTooDeep,
-  policyDepth,
-  UNTRUSTED_DECODE_OPTIONS,
-} from "./Policy.ts";
+import { MAX_DECODE_DEPTH, Policy, policyDepth, UNTRUSTED_DECODE_OPTIONS } from "./Policy.ts";
 
 /**
  * An `EvaluationError` on the wire — the union of the nine wire-crossing
@@ -97,7 +90,7 @@ import {
  * (`Errors.ts`), which cannot drift from the tag the way a second,
  * independently-written wire value could.
  */
-export const EvaluationErrorSchema = Schema.Union([
+const EvaluationErrorSchema = Schema.Union([
   MissingResource,
   MissingAction,
   AttributeResolveError,
@@ -110,7 +103,7 @@ export const EvaluationErrorSchema = Schema.Union([
 ]);
 
 /**
- * The `subjectId` `fromWireUnsafe` substitutes when a wire record's own `subjectId`
+ * The `subjectId` `rebuild` substitutes when a wire record's own `subjectId`
  * is absent — an older sender, mid rolling-deploy, predating that field
  * (`SinkRecordWire`'s own doc comment above).
  *
@@ -119,13 +112,17 @@ export const EvaluationErrorSchema = Schema.Union([
  * a real caller could hold, and using it for "unknown" would make the two
  * indistinguishable to a devtools row or an audit reviewer reading the
  * decoded record back. Matches this file's own idiom for the same problem
- * one field over — `fromWireUnsafe`'s "no outcome" fallback names the malformation
+ * one field over — `rebuild`'s "no outcome" fallback names the malformation
  * in the value rather than reusing a value a real record could also produce.
  */
 const UNKNOWN_SUBJECT = makeSubjectId("<unknown subject: wire version skew>");
 
-/** The wire form of a {@link SinkRecord}. */
-export const SinkRecordWire = Schema.Union([
+/**
+ * The wire form of a {@link SinkRecord} — the one schema both operations are
+ * derived from. Module-private: callers see only `SinkRecordJson`, its encoded
+ * side, and the four operations.
+ */
+const SinkRecordWire = Schema.Union([
   Schema.Struct({
     _tag: Schema.Literal("Decision"),
     evaluationId: Schema.String,
@@ -135,7 +132,7 @@ export const SinkRecordWire = Schema.Union([
     // socket, a replica forwarding to a shared store), and a sender running
     // an older version during a rolling deploy predates this field. Rejecting
     // such a record outright would silently drop real decisions for the
-    // length of the deploy; `fromWireUnsafe` falls back to {@link UNKNOWN_SUBJECT}
+    // length of the deploy; `rebuild` falls back to {@link UNKNOWN_SUBJECT}
     // instead — not `""`, which `SubjectId`'s brand (a total, non-validating
     // `Brand.nominal`, `Identity.ts`) accepts as a legal id in its own right,
     // making "the sender predates this field" indistinguishable downstream
@@ -157,212 +154,15 @@ export const SinkRecordWire = Schema.Union([
   }),
 ]);
 
-export type SinkRecordWire = typeof SinkRecordWire.Type;
+type SinkRecordWire = typeof SinkRecordWire.Type;
 
 /**
- * True for a value `JSON.stringify` can round-trip without lying: no
- * `undefined`-swallowing, no function silently dropped, no cycle recursing
- * forever.
+ * The wire projection of a record, ready for the schema encode.
  *
- * A general walk, not one specialized to `resource` — it accepts any
- * `unknown` and descends through arbitrary nesting, which is what lets
- * {@link isRecordJsonSafe} below reuse it unchanged for `policy` too. This
- * doc comment used to claim `SinkRecord.resource` was "the one caller-supplied
- * `unknown` value that reaches the wire", which was false: `HasCustom.params`
- * (`Policy.ts`) is a second one, buried inside `policy` rather than sitting
- * beside it, and both of this guard's real-world consumers — `@qadi/audit`'s
- * `encodeAuditEntry`, `@qadi/http`'s decision-stream route — were written
- * against that premise and checked only `resource`. A resource or a policy
- * carrying a circular reference or a `BigInt` used to throw a `TypeError` out
- * of `JSON.stringify` at whichever boundary encoded it either way.
- *
- * **`NaN`, `Infinity` and `-Infinity` are refused, not accepted as numbers.**
- * `JSON.stringify` does not throw on them — it silently renders every one of
- * them as `null`, which is exactly the kind of lying this guard exists to
- * catch: a caller reading the round-tripped value back gets `null`, not the
- * non-finite number they wrote, and nothing on the way there ever failed.
- *
- * **Walks with an explicit array-backed stack, mirroring {@link exceedsJsonDepth}
- * (`DecodeDepthGuard.ts`), rather than recursing.** A guard meant to stand
- * between an adversarial value and the caller had the exact class of problem
- * it exists to guard against: a function-call-recursive walk exhausts the
- * call stack on the same deep-nesting input the depth guard was written to
- * catch before `Schema` ever saw it, and `isJsonSafe` sat downstream of that
- * guard on the audit-encode path without one of its own. `seen` used to track
- * the current path by copying it — `new Set(seen).add(value)` — into a fresh
- * `Set` at every node along the walk, which made the whole walk O(d²) even
- * with no sharing or cycles at all: a value nested `d` levels deep with no
- * branching copies a same-sized set `d` times. The stack below tracks the
- * current path with one mutable `Set` instead, added to on descent and
- * removed from on backtrack, so cycle detection and the walk itself are both
- * linear in the number of nodes visited. A value legitimately reachable twice
- * via two different paths (not a cycle) is still never falsely refused: it is
- * only ever in `onPath` while one of its occurrences is being walked.
- *
- * **Deliberately a second walker, not `exceedsJsonDepth` reused, because it
- * answers a different question (RP-05).** `exceedsJsonDepth` bound-checks
- * depth only, over raw not-yet-`Schema`-walked input that came from
- * `JSON.parse` — which cannot produce cycles, so it has none to detect; a
- * cyclic *in-memory* object would only make it terminate by walking the
- * cycle until the depth bound fires, reporting "too deep" for what is
- * actually "circular". `isJsonSafe` walks live, caller-constructed values —
- * `SinkRecord.resource`, `HasCustom.params` — where a genuine reference cycle
- * is the failure to catch, and depth is not the question at all: `Number.isFinite`
- * and function/`undefined` rejection above have no depth-guard analogue
- * either. Folding the two into one walker would need it to report both
- * "too deep" and "circular" from every call site, for two guards whose
- * callers want different things — `decodeRecordWire`'s depth guard runs
- * before `Schema` ever sees the input; this one runs on values that have
- * already been fully constructed and never touch `Schema` at all.
- */
-const isJsonContainer = (value: unknown): value is object =>
-  typeof value === "object" && value !== null && !(value instanceof Date);
-
-/**
- * Built-ins `JSON.stringify` renders as `{}` (or as an index object), so a
- * walk over their `Object.values` — none — would accept them and the value
- * would cross as something it is not (ARCH-09 C8): `{ tags: new Set(["a"]) }`
- * reached the audit trail as `{ tags: {} }`. `Error` is deliberately absent:
- * every resolver error's `cause` is usually one, and this guard now walks the
- * outcome too, so refusing it would refuse every outage record. ARCH-09's
- * outbound operation replaces this guard, and with it this exception.
- */
-const OPAQUE_BRANDS: ReadonlySet<string> = new Set([
-  "[object Map]",
-  "[object Set]",
-  "[object WeakMap]",
-  "[object WeakSet]",
-  "[object RegExp]",
-  "[object Promise]",
-  "[object ArrayBuffer]",
-  "[object DataView]",
-]);
-
-const isOpaqueBuiltIn = (value: object): boolean =>
-  ArrayBuffer.isView(value) || OPAQUE_BRANDS.has(Object.prototype.toString.call(value));
-
-const isJsonScalarSafe = (value: unknown): boolean => {
-  if (value === null) return true;
-  if (typeof value === "string" || typeof value === "boolean") return true;
-  if (typeof value === "number") return Number.isFinite(value);
-  if (value instanceof Date) return true;
-  return false;
-};
-
-const childrenOf = (value: object): ReadonlyArray<unknown> =>
-  Array.isArray(value) ? value : Object.values(value);
-
-export const isJsonSafe = (value: unknown): boolean => {
-  if (!isJsonContainer(value)) return isJsonScalarSafe(value);
-  if (isOpaqueBuiltIn(value)) return false;
-
-  const onPath = new Set<object>([value]);
-  const stack: Array<{
-    readonly value: object;
-    readonly children: ReadonlyArray<unknown>;
-    index: number;
-  }> = [{ value, children: childrenOf(value), index: 0 }];
-
-  while (stack.length > 0) {
-    const frame = stack[stack.length - 1];
-    if (frame === undefined) break;
-    if (frame.index >= frame.children.length) {
-      onPath.delete(frame.value);
-      stack.pop();
-      continue;
-    }
-    const child = frame.children[frame.index];
-    frame.index += 1;
-    if (isJsonContainer(child)) {
-      if (onPath.has(child) || isOpaqueBuiltIn(child)) return false;
-      onPath.add(child);
-      stack.push({ value: child, children: childrenOf(child), index: 0 });
-    } else if (!isJsonScalarSafe(child)) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-/**
- * True when an outcome's own caller-supplied `unknown` — a resolver error's
- * `cause` — reaches the wire safely.
- *
- * `cause` is not an own enumerable property of a `Schema.TaggedError`
- * instance, so a walk over the outcome object never sees it, while
- * `JSON.stringify` does (through the class's `toJSON`) — which is how a cyclic
- * `cause` passed this guard and then threw. A `Decided` outcome has no `unknown`
- * of its own: its obligations' `attributes` come from the policy's `obliged`
- * nodes, which the `policy` walk already covers.
- */
-const isOutcomeJsonSafe: (outcome: DecisionOutcome) => boolean = Match.type<DecisionOutcome>().pipe(
-  Match.tagsExhaustive({
-    Decided: () => true,
-    Failed: (outcome) => !Predicate.hasProperty(outcome.error, "cause") || isJsonSafe(outcome.error.cause),
-  }),
-);
-
-/**
- * True when every caller-supplied `unknown` value a `SinkRecord` can carry
- * reaches the wire safely — `resource`, `policy`'s `HasCustom.params`, **and**
- * the outcome: a resolver error's `cause`, and a decision's obligations'
- * `attributes`.
- *
- * **The outcome is walked too (ARCH-09 T2).** The guard used to stop at
- * `resource` and `policy`, so a `Failed` record whose `cause` held a reference
- * cycle — the shape an axios-style HTTP client error has — or a `BigInt`
- * passed it, and then threw out of `JSON.stringify`: on `@qadi/http`'s decision
- * stream that ended every subscriber's connection, and in `@qadi/audit` it
- * counted as a store failure, so five of them opened the circuit breaker and
- * the healthy records after them were dropped. A plain `Error` cause still
- * passes (it walks as `{}`, which is lossy until ARCH-09's outbound operation
- * carries it through `Schema.Defect()`); opaque built-ins — `Map`, `Set`,
- * `RegExp`, binary data — are refused anywhere in the record. ARCH-09's
- * outbound operation, which walks the *encoded* record, is the permanent fix
- * and replaces this guard.
- *
- * `isJsonSafe(resource)` alone is exactly the check both of its real-world
- * callers had, and exactly the gap this closes: a `policy` built with
- * `hasCustom(name, params)` (ADR-QD-055's escape hatch) carries its own
- * `unknown` — `params` — and neither `@qadi/audit`'s `encodeAuditEntry` nor
- * `@qadi/http`'s decision-stream route walked into it before refusing a
- * record. `isJsonSafe` itself needed no change to cover this: it already
- * walks an arbitrary object graph, and a `Policy` is exactly that — every
- * `HasCustom` node's `params`, however deep, is just another child in the
- * same recursive walk. Only a name for "check the whole record" was missing.
- *
- * An `ObligationRecord` carries neither field and is always safe.
- *
- * `Match.tagsExhaustive` rather than a ternary on `record._tag` (issue #109,
- * D6-D7 of `EFFECT-IDIOM-DASHBOARD.md`): `SinkRecord` has exactly two tags
- * today, so `record._tag === "Obligations" ? … : …` reads as
- * exhaustive but is not one by construction — a third `SinkRecord` tag would
- * compile cleanly and fall through this function's `else` branch as though it
- * were a `Decision`, silently reusing that branch's `resource`/`policy`
- * guard on a shape it was never written for. `Match.tagsExhaustive` makes a
- * new tag here the same compile error §5a's `resolveRef`/`mergeFields`
- * `never`-arm fix already gives elsewhere in this codebase, for the identical
- * reason: this is the AGENTS.md §5a house pattern, not the `SWITCH_BUDGET`'s —
- * a ternary was never a `switch` statement, so this conversion needs no
- * budget update.
- */
-export const isRecordJsonSafe: (record: SinkRecord) => boolean = Match.type<SinkRecord>().pipe(
-  Match.tagsExhaustive({
-    Obligations: () => true,
-    Decision: (record) =>
-      (record.resource === undefined || isJsonSafe(record.resource)) &&
-      isJsonSafe(record.policy) &&
-      isOutcomeJsonSafe(record.outcome),
-  }),
-);
-
-/**
- * The wire projection of a record, ready to be JSON-encoded.
- *
- * `Match.tagsExhaustive` over `SinkRecord`, not a ternary on `record._tag` —
- * see {@link isRecordJsonSafe}'s doc comment for why a ternary here is
- * false-exhaustive rather than merely stylistic.
+ * `Match.tagsExhaustive` over `SinkRecord`, not a ternary on `record._tag`
+ * (issue #109): `SinkRecord` has exactly two tags today, so a ternary reads as
+ * exhaustive without being one by construction — a third tag would compile and
+ * fall through as though it were the other. Here, a new tag is a compile error.
  */
 const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>().pipe(
   Match.tagsExhaustive({
@@ -390,23 +190,17 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
 );
 
 /**
- * Rebuilds a record from its wire projection.
+ * Rebuilds a record from an already-validated wire value.
  *
- * **Not a validating entry point (PH-05).** This performs no decoding —
- * it `Match`-matches an already-typed `SinkRecordWire` into the internal
- * record classes, nothing more. `decodeRecord` below is the sanctioned
- * receipt path for anything crossing the trust boundary this module exists
- * for: it runs the depth guard, then `Schema.decodeUnknownEffect` with
- * {@link UNTRUSTED_DECODE_OPTIONS}, *then* this function. The `…Unsafe`
- * suffix (AGENTS.md §8) names that at every import site — a caller who
- * concludes "the wire type is my contract" and calls this directly on a
- * `JSON.parse` result has skipped validation entirely, and nothing at the
- * type level stops it.
+ * **Not a validating step, and module-private for that reason.** It
+ * `Match`-matches an already-typed `SinkRecordWire` into the record classes,
+ * nothing more; {@link decodeSinkRecord} runs the depth guard and the
+ * untrusted schema decode first. It used to be exported as `fromWireUnsafe`,
+ * where a caller who called it on a `JSON.parse` result skipped validation
+ * entirely with nothing at the type level to stop it (PH-05).
  *
- * `Match.tagsExhaustive` over `SinkRecordWire`, not an `if (wire._tag === …)`
- * — see {@link isRecordJsonSafe}'s doc comment for why that reads as
- * exhaustive today (`SinkRecordWire` also has exactly two tags) without being
- * one by construction.
+ * `Match.tagsExhaustive` over `SinkRecordWire`, not an `if (wire._tag === …)`,
+ * for the reason {@link project} gives.
  *
  * `decided` absent and `failed` absent cannot both hold for a record this
  * module produced, but the wire is untrusted, so the fallback is a `Failed`
@@ -430,9 +224,9 @@ const project: (record: SinkRecord) => SinkRecordWire = Match.type<SinkRecord>()
  * file's own doc comment, deliberately built to fail the build until someone
  * decides the new tag's status code. That is a cross-package, exported-type
  * change, out of scope for this file alone. Pinned instead:
- * `SinkCodec.test.ts`'s "the wire is untrusted" and "both outcomes present"
- * tests assert today's `MissingResource`-shaped fallback stays exactly as it
- * is until that dedicated marker lands.
+ * `SinkCodec.test.ts`'s ticket 96 and 155 tests, written as hand-built JSON
+ * through `decodeSinkRecordString`, assert today's `MissingResource`-shaped
+ * fallback stays exactly as it is until that dedicated marker lands.
  */
 const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>().pipe(
   Match.tagsExhaustive({
@@ -478,12 +272,6 @@ const rebuild: (wire: SinkRecordWire) => SinkRecord = Match.type<SinkRecordWire>
       }),
   }),
 );
-
-/**
- * The wire projection of a record. Kept exported only until every caller has
- * moved to {@link encodeSinkRecord} (ARCH-09 T10 removes it).
- */
-export const toWire: (record: SinkRecord) => SinkRecordWire = project;
 
 /**
  * The encoded form of a record: what {@link encodeSinkRecord} returns, what
@@ -556,7 +344,7 @@ const NO_KEYS: ReadonlyArray<string> = [];
  * The first value in an encoded record that would not survive JSON as itself,
  * or `undefined` when the whole value round-trips.
  *
- * One iterative walk with one mutable on-path set, the technique `isJsonSafe`
+ * One iterative walk with one mutable on-path set, the technique the retired `isJsonSafe`
  * used, over the *encoded* output — so it cannot miss a field the way per-field
  * guards did: whatever the encode emitted is what it checks. Its depth count
  * matches `exceedsJsonDepth`'s (the root is depth 0, each child one more, and
@@ -725,13 +513,32 @@ export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string
   Result.map(encodeSinkRecord(record), (json) => JSON.stringify(json));
 
 /**
- * Rebuilds a record from an already-validated wire value. Kept exported only
- * until every caller has moved to {@link decodeSinkRecord} (ARCH-09 T10
- * removes it).
+ * The wire schema's untrusted decoder, built once.
+ *
+ * **Known gap, not fixed here (GH-01): this hard-rejects forward version
+ * skew, the mirror image of the backward skew `SinkRecordWire.subjectId`'s
+ * own doc comment says would be unacceptable.** `UNTRUSTED_DECODE_OPTIONS`
+ * sets `onExcessProperty: "error"` — correctly, for the embedded `Policy`,
+ * where an adversarial typo'd field must fail rather than decode silently
+ * (ADR-QD-002). But it applies to the whole envelope, not just `Policy`, so a
+ * NEWER sender that has gained an envelope-level field an OLDER receiver's
+ * schema does not know about hard-rejects the record outright — exactly the
+ * "silently drop real decisions for the length of the deploy" harm the
+ * subjectId comment above says a sender predating a field must not suffer,
+ * just on the envelope's *shape* instead of one field's presence.
+ *
+ * Not fixed locally because both ways to close it are wire-protocol design
+ * decisions, not local patches: either give the envelope a version/known-
+ * fields marker so an older reader can tolerate unknown envelope keys while
+ * `Policy` stays strict, or split the decode so `onExcessProperty: "error"`
+ * applies only at the `Policy`/`TraceSchema` positions and the envelope
+ * itself uses the default (lenient) excess-property handling — `Schema`'s
+ * `ParseOptions` apply to a whole decode call, not per nested schema, so the
+ * second option needs decoding the envelope and its embedded `Policy`
+ * separately rather than as one decode call. Either
+ * choice changes this module's wire contract and belongs in an ADR, per the
+ * recommendation on issue GH-01, not as a guess made in a doc comment.
  */
-export const fromWireUnsafe: (wire: SinkRecordWire) => SinkRecord = rebuild;
-
-/** The wire schema's untrusted decoder, built once. */
 const decodeWire = Schema.decodeUnknownResult(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
 
 const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));
@@ -748,6 +555,14 @@ const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDe
  * neither/both fallbacks below (tickets 96 and 155) and any future version
  * handling live behind this function, so no adapter observes them and a change
  * to them is an edit to this module alone.
+ *
+ * The depth guard is `DecodeDepthGuard.ts`'s, shared with `Policy.ts`'s own
+ * untrusted entry points: `SinkRecordWire` embeds `Policy` and the
+ * self-recursive `TraceSchema`, neither bounded on its own, and without the
+ * guard `Schema`'s descent raised a raw `RangeError` on a payload nested about
+ * 60,000 levels deep. The decode options are `Policy.ts`'s too (CCR-QD-139), so
+ * a typo'd field inside the embedded policy fails rather than decoding with
+ * the grant silently dropped.
  *
  * No `Result.try` around the decode: the depth guard is what makes it safe, and
  * a throw past it would be a library defect that should stay visible.
@@ -770,108 +585,3 @@ export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, 
   const parsed = Result.try((): unknown => JSON.parse(text));
   return Result.isFailure(parsed) ? notDecodable(DecodeRefusal.NotJson()) : decodeSinkRecord(parsed.success);
 };
-
-/** Encodes a record to a plain JSON value. */
-export const encodeRecord = Schema.encodeEffect(SinkRecordWire);
-
-/**
- * `encodeRecord`'s synchronous sibling — for a caller who already knows the
- * encode cannot fail and does not want to pay for the `Effect` wrapping.
- *
- * `SinkRecordWire`'s encode direction is provably total for anything `toWire`
- * produces: every field it and its nested schemas (`Policy`, `TraceSchema`,
- * `Obligation`, `EvaluationErrorSchema`) encode with is a plain structural
- * one — `Schema.Struct`/`Schema.Union`/`Schema.Array`/`Schema.optional` over
- * `Schema.String`/`Schema.Number`/`Schema.Literals`, none of it a `Schema.filter`
- * or other refinement that could reject an already-well-typed value on the way
- * *out*. The depth guard `Policy.ts`'s `MAX_DECODE_DEPTH`/`exceedsJsonDepth`
- * enforce is wrapped around **decode** specifically (`fromJson`,
- * `decodePolicyUnknown`) — a value already held as a typed `Policy` was
- * already validated at whichever decode produced it, and encoding it back out
- * does not re-walk that check. `DecisionSinkForwarding.ts`'s `record` is what
- * this exists for (issue #107) — it previously paid `Effect.flatMap` and the
- * `Effect`-returning encoder's own machinery for a step `@qadi/http`'s own
- * `DecisionStreamRoute.ts` already treats as total, calling `toWire` and
- * `JSON.stringify`-ing the result directly with no `Schema` encode step at
- * all.
- */
-export const encodeRecordSync = Schema.encodeSync(SinkRecordWire);
-
-/**
- * **Known gap, not fixed here (GH-01): this hard-rejects forward version
- * skew, the mirror image of the backward skew `SinkRecordWire.subjectId`'s
- * own doc comment says would be unacceptable.** `UNTRUSTED_DECODE_OPTIONS`
- * sets `onExcessProperty: "error"` — correctly, for the embedded `Policy`,
- * where an adversarial typo'd field must fail rather than decode silently
- * (ADR-QD-002). But it applies to the whole envelope, not just `Policy`, so a
- * NEWER sender that has gained an envelope-level field an OLDER receiver's
- * schema does not know about hard-rejects the record outright — exactly the
- * "silently drop real decisions for the length of the deploy" harm the
- * subjectId comment above says a sender predating a field must not suffer,
- * just on the envelope's *shape* instead of one field's presence.
- *
- * Not fixed locally because both ways to close it are wire-protocol design
- * decisions, not local patches: either give the envelope a version/known-
- * fields marker so an older reader can tolerate unknown envelope keys while
- * `Policy` stays strict, or split the decode so `onExcessProperty: "error"`
- * applies only at the `Policy`/`TraceSchema` positions and the envelope
- * itself uses the default (lenient) excess-property handling — `Schema`'s
- * `ParseOptions` apply to a whole decode call, not per nested schema, so the
- * second option needs decoding the envelope and its embedded `Policy`
- * separately rather than as one `Schema.decodeUnknownEffect` call. Either
- * choice changes this module's wire contract and belongs in an ADR, per the
- * recommendation on issue GH-01, not as a guess made in a doc comment.
- */
-const decodeSinkRecordWireUnknown = Schema.decodeUnknownEffect(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
-
-/**
- * Decodes a record's wire form from **untrusted** input.
- *
- * Pre-checks structural depth with {@link exceedsJsonDepth}
- * (`DecodeDepthGuard.ts`) before `Schema` ever recurses into the input — the
- * same shared guard, in the same order, `Policy.ts`'s own
- * `fromJson`/`fromJsonValue` run it in, and for the same reason:
- * `SinkRecordWire` embeds `Policy` and the self-recursive `TraceSchema`, and
- * neither has a depth cap of its own. Without this check, `Schema`'s own
- * descent through `Schema.suspend` raises a raw `RangeError` defect on a
- * payload nested past the call stack's limit — the exact class of
- * stack-overflow the 0.4.0 hardening fixed for
- * `Policy.fromJson`/`fromJsonValue`, still reachable through every
- * sink/hydration decode path that went through this file instead. Fails
- * with `PolicyDecodeTooDeep` rather than a second, look-alike error type —
- * the failure is the identical shape in both places, raw JSON nested deeper
- * than a decoder can safely walk, so a second class here would just be the
- * drift ADR-QD-002's reasoning warns about, one error type over.
- *
- * The guard itself used to be a second, hand-copied implementation kept in
- * lock-step with `Policy.ts`'s by doc comment alone rather than by the
- * compiler — exactly the drift ADR-QD-002 exists to rule out for the codec
- * it sits beside. `DecodeDepthGuard.ts` is the fix: one implementation,
- * imported by both call sites (and available to a third, `@qadi/react`'s
- * `Hydration.ts`, which decodes the same two recursive shapes from a
- * dehydrated payload and now guards them the same way).
- *
- * Also decodes with {@link UNTRUSTED_DECODE_OPTIONS} (CCR-QD-139), for the same
- * reason `Policy.ts`'s own untrusted entry points do: `SinkRecordWire` embeds
- * `Policy` across the identical trust boundary ADR-QD-002 describes, and without
- * it an excess property on an otherwise-valid tag — a typo'd
- * `{"_tag":"HasPermission","permision":...}` — decoded silently rather than
- * failing, dropping the grant rather than reporting the typo.
- */
-export const decodeRecordWire = (
-  input: unknown,
-): Effect.Effect<SinkRecordWire, PolicyDecodeTooDeep | Schema.SchemaError> =>
-  exceedsJsonDepth(input, MAX_DECODE_DEPTH)
-    ? Effect.fail(new PolicyDecodeTooDeep({ maxDepth: MAX_DECODE_DEPTH }))
-    : decodeSinkRecordWireUnknown(input);
-
-/**
- * Decodes an untrusted value into a `SinkRecord`.
- *
- * Validates first, then rebuilds. A malformed payload fails with a
- * `Schema.SchemaError`; a payload nested past {@link decodeRecordWire}'s
- * depth guard fails with `PolicyDecodeTooDeep`. Either way it never produces
- * a half-built record.
- */
-export const decodeRecord = (input: unknown) =>
-  Effect.map(decodeRecordWire(input), rebuild);

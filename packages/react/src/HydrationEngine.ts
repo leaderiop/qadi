@@ -209,7 +209,7 @@ const encodePolicy = Schema.encodeSync(PolicySchema);
  * `Schema`'s own recursive descent through `PolicySchema`'s `Schema.suspend` has
  * no depth cap of its own, so {@link hydrateWith} runs {@link exceedsJsonDepth}
  * over each entry before any of these, mirroring the guard-then-decode order
- * `SinkCodec.ts`'s `decodeRecordWire` uses for the identical trust boundary: a
+ * `SinkCodec.ts`'s `decodeSinkRecord` uses for the identical trust boundary: a
  * payload nested past the call stack's limit is dropped as a typed reason rather
  * than raising a raw `RangeError` defect.
  *

@@ -1,19 +1,20 @@
 /**
- * The record codec's outbound cost, old interface against new (ARCH-09 T5).
+ * The record codec's outbound cost per record (ARCH-09).
  *
- * The SSE route used to run `isRecordJsonSafe` and `JSON.stringify(toWire(r))`
- * — a partial walk and no schema encode — and forwarding ran
- * `encodeRecordSync(toWire(r))` — a schema encode and no walk. Both now make one
- * call, `encodeSinkRecordString` / `encodeSinkRecord`, which runs the depth
- * pre-checks, the schema encode and a walk over the whole encoded record. This
- * measures what that costs per record on three shapes:
+ * `encodeSinkRecordString` is what the decision stream frames with and
+ * `encodeSinkRecord` what forwarding and the audit encoder call: depth
+ * pre-checks, the schema encode, and one walk over the whole encoded record.
+ * Three shapes:
  *
  * - (a) a one-node `Decided` record;
  * - (b) an `allOf`×64 `Decided` record, the default-limit worst case;
  * - (c) a `Failed` record with an `Error` cause and a 20-key resource.
  *
- * The "old" cases are deleted once the old exports are (ARCH-09 T10), so the
- * file then benches only the current interface.
+ * When this replaced the per-caller guards (ARCH-09 T5, recorded in
+ * ADR-QD-902), the old paths were measured beside it in this file: by per-call
+ * minimum the new path cost about 1.8–1.9× the old forwarding encode and 2–3.7×
+ * the old SSE path, which ran no schema encode at all. The old cases went with
+ * the old exports.
  */
 import { test } from "vitest";
 import { Allow } from "../src/Decision.ts";
@@ -24,13 +25,7 @@ import { AttributeResolveError } from "../src/Errors.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import {
-  encodeRecordSync,
-  encodeSinkRecord,
-  encodeSinkRecordString,
-  isRecordJsonSafe,
-  toWire,
-} from "../src/SinkCodec.ts";
+import { encodeSinkRecord, encodeSinkRecordString } from "../src/SinkCodec.ts";
 
 const read = permission("doc", "read");
 
@@ -88,24 +83,12 @@ const cases: ReadonlyArray<readonly [string, SinkRecord]> = [
 ];
 
 for (const [name, record] of cases) {
-  test(`SSE frame data — ${name}`, async ({ bench }) => {
+  test(`outbound — ${name}`, async ({ bench }) => {
     await bench.compare(
-      bench("old: isRecordJsonSafe + JSON.stringify(toWire)", () => {
-        if (isRecordJsonSafe(record)) JSON.stringify(toWire(record));
-      }),
-      bench("new: encodeSinkRecordString", () => {
+      bench("encodeSinkRecordString (SSE frame data)", () => {
         encodeSinkRecordString(record);
       }),
-      options,
-    );
-  });
-
-  test(`forwarding value — ${name}`, async ({ bench }) => {
-    await bench.compare(
-      bench("old: encodeRecordSync(toWire)", () => {
-        encodeRecordSync(toWire(record));
-      }),
-      bench("new: encodeSinkRecord", () => {
+      bench("encodeSinkRecord (forwarding, audit)", () => {
         encodeSinkRecord(record);
       }),
       options,

@@ -304,6 +304,29 @@ describe("decisionSinkForwarding reports a refusal as a refusal (ARCH-09 T6)", (
       assert.isString(entry.annotations["evaluationId"]);
     }).pipe(Effect.provide(testLayer(allowed))));
 
+  it.effect("a refusal with no path (EncodeFailed) logs an empty qadi.path", () =>
+    Effect.gen(function* () {
+      const logs: Array<Record<string, unknown>> = [];
+      const hostile = {
+        get boom(): unknown {
+          throw new Error("getter exploded");
+        },
+      };
+
+      yield* evaluate(policy, { resource: { nested: hostile } }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            decisionSinkForwarding({ send: () => Effect.void }),
+            Logger.layer([Logger.make((o) => void logs.push(o.fiber.getRef(References.CurrentLogAnnotations)))]),
+          ),
+        ),
+      );
+
+      assert.strictEqual(logs.length, 1);
+      assert.strictEqual(logs[0]?.["qadi.refusal"], "EncodeFailed");
+      assert.strictEqual(logs[0]?.["qadi.path"], "");
+    }).pipe(Effect.provide(testLayer(allowed))));
+
   it.effect("an onFailure that throws on a refusal still cannot change the decision", () =>
     Effect.gen(function* () {
       const decision = yield* evaluate(policy, { resource: cyclicResource() }).pipe(

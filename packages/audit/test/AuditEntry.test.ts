@@ -123,7 +123,7 @@ describe("encodeAuditEntry", () => {
   // `HasCustom.params` (`Policy.ts`) is a second caller-supplied `unknown`
   // inside a `SinkRecord`, buried in `policy` rather than sitting beside it
   // as `resource` does. A guard that only checked `resource` let a circular
-  // or `BigInt`-valued `params` sail through to `toWire`/`JSON.stringify`
+  // or `BigInt`-valued `params` sail through to the store's `JSON.stringify`
   // uncaught, instead of failing cleanly with `AuditEntryNotEncodable`.
   it.effect("a policy carrying an unsafe HasCustom.params refuses, not just an unsafe resource", () =>
     Effect.gen(function* () {

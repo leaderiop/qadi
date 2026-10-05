@@ -572,12 +572,12 @@ describe("frame", () => {
       "even when the resource itself is safe",
     () => {
       // The defect three separate audit tickets (148, 154, 159) found: the old
-      // guard checked only `record.resource`, but `JSON.stringify(toWire(record))`
-      // also serializes the raw `policy` — and `HasCustom.params` is
+      // guard checked only `record.resource`, but the frame's stringify also
+      // serialized the raw `policy` — and `HasCustom.params` is
       // `Schema.Unknown`, so a circular value there threw the same raw
       // `TypeError` out of `Stream.filterMap` a bad resource used to, killing
-      // the shared feed for every subscriber. `frame` now delegates to
-      // `@qadi/core`'s `isRecordJsonSafe`, which walks `policy` too.
+      // the shared feed for every subscriber. `frame` now makes one
+      // `encodeSinkRecordString` call, whose walk covers the whole record.
       const circular: Record<string, unknown> = { a: 1 };
       circular.self = circular;
       const record = new DecisionRecord({

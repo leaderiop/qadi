@@ -279,7 +279,7 @@ const starOneView = (child: unknown): unknown => (isPlainObject(child) ? {} : ch
  * empty, its own contents one level beyond what `"*"` reaches.
  *
  * **Walks with an explicit array-backed stack, mirroring `exceedsJsonDepth`
- * (`DecodeDepthGuard.ts`) and `SinkCodec.ts`'s `isJsonSafe`, rather than
+ * (`DecodeDepthGuard.ts`) and `SinkCodec.ts`'s outbound walk, rather than
  * recursing.** This was function-call recursion, one frame per matching
  * segment, over two inputs a policy author controls: a `fields` spec, which
  * {@link parseFieldPath} splits with no length cap, and the resource it

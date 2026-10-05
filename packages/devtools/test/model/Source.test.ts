@@ -285,13 +285,13 @@ describe("sourceFromEventSource", () => {
    *
    * Before `SinkCodec.ts`'s inbound decode gained a depth guard ahead of
    * `Schema`'s recursive descent, a frame nesting a policy past the call
-   * stack's limit raised a raw `RangeError` *defect* out of `decodeRecord` —
+   * stack's limit raised a raw `RangeError` *defect* out of the decode —
    * and `decodeFrame`'s `Effect.result` only catches the typed error channel,
    * not a defect, so that `RangeError` would kill the whole `live` stream
    * rather than drop one row, freezing the timeline for every other frame
    * still arriving. This pins the fix from the consumer's side: the same
    * shape `SinkCodec.test.ts`'s `wireWithNestedPolicy` builds, decoded here
-   * through `sourceFromEventSource` rather than a direct `decodeRecord` call,
+   * through `sourceFromEventSource` rather than a direct `decodeSinkRecord` call,
    * must be reported and dropped like any other malformed frame — and the
    * stream must keep delivering what comes after it.
    */

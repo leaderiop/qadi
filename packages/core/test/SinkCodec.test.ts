@@ -30,18 +30,12 @@ import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import {
-  decodeRecord,
   decodeSinkRecord,
   decodeSinkRecordString,
-  encodeRecord,
-  encodeRecordSync,
   encodeSinkRecord,
   encodeSinkRecordString,
-  fromWireUnsafe,
-  isJsonSafe,
-  isRecordJsonSafe,
-  toWire,
 } from "../src/SinkCodec.ts";
+import type { SinkRecordJson } from "../src/SinkCodec.ts";
 
 const read = permission("doc", "read");
 
@@ -122,12 +116,9 @@ const allowRecord: SinkRecord = new DecisionRecord({
 describe("a record survives the wire", () => {
   it.effect("an allow round-trips through validation", () =>
     Effect.gen(function* () {
-      // Through the real schema, not just `toWire`/`fromWireUnsafe`: the wire form is
-      // decoded as untrusted, so the test must exercise the validating path a
-      // transport would use.
-      const encoded = yield* encodeRecord(toWire(allowRecord));
-      const json: unknown = JSON.parse(JSON.stringify(encoded));
-      const back = yield* decodeRecord(json);
+      // Through the real operations, text and all: the wire form is decoded as
+      // untrusted, so the test exercises the validating path a transport uses.
+      const back = recordOf(stringOf(allowRecord));
 
       assert.deepStrictEqual(back, allowRecord);
     }));
@@ -159,9 +150,7 @@ describe("a record survives the wire", () => {
         }),
       });
 
-      const back = yield* decodeRecord(
-        JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
-      );
+      const back = recordOf(stringOf(record));
       assert.deepStrictEqual(back, record);
     }));
 
@@ -183,9 +172,7 @@ describe("a record survives the wire", () => {
         }),
       });
 
-      const back = yield* decodeRecord(
-        JSON.parse(JSON.stringify(yield* encodeRecord(toWire(denial)))),
-      );
+      const back = recordOf(stringOf(denial));
       assert.deepStrictEqual(back, denial);
     }));
 
@@ -198,9 +185,7 @@ describe("a record survives the wire", () => {
         obligationIds: ["audit.log", "notify.owner"],
       });
 
-      const back = yield* decodeRecord(
-        JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
-      );
+      const back = recordOf(stringOf(record));
       assert.deepStrictEqual(back, record);
     }));
 
@@ -233,9 +218,7 @@ describe("a record survives the wire", () => {
         }),
       });
 
-      const back = yield* decodeRecord(
-        JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
-      );
+      const back = recordOf(stringOf(record));
       assert.deepStrictEqual(back, record);
     }));
 });
@@ -264,9 +247,7 @@ describe("optional fields normalise", () => {
         }),
       });
 
-      const back = yield* decodeRecord(
-        JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
-      );
+      const back = recordOf(stringOf(record));
 
       assert.strictEqual(back._tag, "Decision");
       if (back._tag === "Decision") {
@@ -290,9 +271,7 @@ describe("every error variant crosses, and its stable code is derivable from _ta
           outcome: new Failed({ error }),
         });
 
-        const back = yield* decodeRecord(
-          JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
-        );
+        const back = recordOf(stringOf(record));
 
         // Narrow to a decision record first — `SinkRecord` is a union, and an
         // obligation record has no `outcome._tag`.
@@ -334,9 +313,7 @@ describe("every error variant crosses, and its stable code is derivable from _ta
         }),
       });
 
-      const back = yield* decodeRecord(
-        JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
-      );
+      const back = recordOf(stringOf(record));
 
       assert.strictEqual(back._tag, "Decision");
       if (back._tag === "Decision" && back.outcome._tag === "Failed") {
@@ -374,13 +351,10 @@ describe("every error variant crosses, and its stable code is derivable from _ta
         }),
       });
 
-      const encoded = yield* encodeRecord(toWire(record));
-      assert.strictEqual(encoded._tag, "Decision");
-      if (encoded._tag === "Decision") {
-        // Reached JSON at all — a hostile `cause` did not throw the encoder —
-        // and round-trips through JSON.stringify without throwing either.
-        assert.doesNotThrow(() => JSON.stringify(encoded));
-      }
+      // Reached JSON at all — a hostile `cause` did not throw the encoder, and
+      // was not a reason to refuse the record — and the text decodes back.
+      const text = stringOf(record);
+      assert.strictEqual(recordOf(text)._tag, "Decision");
     }));
 });
 
@@ -391,9 +365,7 @@ describe("every literal the wire admits is exercised", () => {
       // without anything noticing.
       for (const cache of ["hit", "coalesced", "miss"] as const) {
         const record: SinkRecord = new DecisionRecord({ ...allowRecord, cache });
-        const back = yield* decodeRecord(
-          JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
-        );
+        const back = recordOf(stringOf(record));
         assert.strictEqual(back._tag, "Decision");
         if (back._tag === "Decision") assert.strictEqual(back.cache, cache);
       }
@@ -413,33 +385,31 @@ describe("every literal the wire admits is exercised", () => {
           outcome,
           obligationIds: ["audit.log"],
         });
-        const back = yield* decodeRecord(
-          JSON.parse(JSON.stringify(yield* encodeRecord(toWire(record)))),
-        );
+        const back = recordOf(stringOf(record));
         assert.strictEqual(back._tag, "Obligations");
         if (back._tag === "Obligations") assert.strictEqual(back.outcome, outcome);
       }
     }));
 
-  it("toWire omits an absent optional rather than writing undefined", () => {
-    const wire = toWire(
-      new DecisionRecord({
-        evaluationId: "e",
-        at: 0,
-        subjectId: makeSubjectId("u1"),
-        policy: P.hasPermission(read),
-        outcome: new Failed({ error: new PolicyTooDeep({ maxDepth: 8 }) }),
-      }),
+  it("an absent optional is absent from the JSON text, not written as undefined or null", () => {
+    const parsed: unknown = JSON.parse(
+      stringOf(
+        new DecisionRecord({
+          evaluationId: "e",
+          at: 0,
+          subjectId: makeSubjectId("u1"),
+          policy: P.hasPermission(read),
+          outcome: new Failed({ error: new PolicyTooDeep({ maxDepth: 8 }) }),
+        }),
+      ),
     );
 
-    assert.strictEqual(wire._tag, "Decision");
-    if (wire._tag === "Decision") {
-      // Asserted on the wire object itself, before the schema gets a chance to
-      // normalise it away.
-      assert.isFalse(Object.hasOwn(wire, "resource"));
-      assert.isFalse(Object.hasOwn(wire, "action"));
-      assert.isFalse(Object.hasOwn(wire, "cache"));
-      assert.isFalse(Object.hasOwn(wire, "decided"));
+    assert.isTrue(Predicate.isObject(parsed));
+    if (Predicate.isObject(parsed)) {
+      assert.isFalse(Object.hasOwn(parsed, "resource"));
+      assert.isFalse(Object.hasOwn(parsed, "action"));
+      assert.isFalse(Object.hasOwn(parsed, "cache"));
+      assert.isFalse(Object.hasOwn(parsed, "decided"));
     }
   });
 
@@ -449,16 +419,14 @@ describe("every literal the wire admits is exercised", () => {
       // instance itself (`Schema.UndefinedOr`, not an absent key) — the omission
       // this pins happens where it always has for every other optional field in
       // this file: `JSON.stringify` drops an `undefined`-valued key.
-      const encoded = yield* encodeRecord(
-        toWire(
-          new DecisionRecord({
-            evaluationId: "e",
-            at: 0,
-            subjectId: makeSubjectId("u1"),
-            policy: P.hasPermission(read),
-            outcome: new Failed({ error: new MissingAction({ expected: undefined }) }),
-          }),
-        ),
+      const encoded = jsonOf(
+        new DecisionRecord({
+          evaluationId: "e",
+          at: 0,
+          subjectId: makeSubjectId("u1"),
+          policy: P.hasPermission(read),
+          outcome: new Failed({ error: new MissingAction({ expected: undefined }) }),
+        }),
       );
       const json: unknown = JSON.parse(JSON.stringify(encoded));
 
@@ -474,16 +442,14 @@ describe("every literal the wire admits is exercised", () => {
 
   it.effect("a present MissingAction expectation is carried onto the JSON wire", () =>
     Effect.gen(function* () {
-      const encoded = yield* encodeRecord(
-        toWire(
-          new DecisionRecord({
-            evaluationId: "e",
-            at: 0,
-            subjectId: makeSubjectId("u1"),
-            policy: P.hasPermission(read),
-            outcome: new Failed({ error: new MissingAction({ expected: "read" }) }),
-          }),
-        ),
+      const encoded = jsonOf(
+        new DecisionRecord({
+          evaluationId: "e",
+          at: 0,
+          subjectId: makeSubjectId("u1"),
+          policy: P.hasPermission(read),
+          outcome: new Failed({ error: new MissingAction({ expected: "read" }) }),
+        }),
       );
 
       assert.strictEqual(encoded._tag, "Decision");
@@ -496,19 +462,19 @@ describe("every literal the wire admits is exercised", () => {
 describe("the wire is untrusted", () => {
   it.effect("a malformed payload fails rather than half-building a record", () =>
     Effect.gen(function* () {
-      const result = yield* Effect.result(decodeRecord({ _tag: "Decision" }));
+      const result = yield* Effect.result(decodeEffect({ _tag: "Decision" }));
       assert.strictEqual(result._tag, "Failure");
     }));
 
   it.effect("an unknown tag is refused", () =>
     Effect.gen(function* () {
-      const result = yield* Effect.result(decodeRecord({ _tag: "Whatever" }));
+      const result = yield* Effect.result(decodeEffect({ _tag: "Whatever" }));
       assert.strictEqual(result._tag, "Failure");
     }));
 
   it.effect("a Decision record with no subjectId — an older sender, mid rolling-deploy — still decodes", () =>
     Effect.gen(function* () {
-      const back = yield* decodeRecord({
+      const back = yield* decodeEffect({
         _tag: "Decision",
         evaluationId: "e",
         at: 0,
@@ -528,7 +494,7 @@ describe("the wire is untrusted", () => {
       // The policy travels as a real codec round-trip, so a hostile payload
       // cannot smuggle a shape the evaluator would then walk.
       const result = yield* Effect.result(
-        decodeRecord({
+        decodeEffect({
           _tag: "Decision",
           evaluationId: "e",
           at: 0,
@@ -544,7 +510,7 @@ describe("the wire is untrusted", () => {
       // sender omitting a field a tag actually requires decoded to an empty
       // string via `?? ""` rather than failing. Each tag is now its own
       // precisely-typed `Schema.TaggedError`, so the same omission is a
-      // decode failure instead — closer to what `decodeRecord`'s own doc
+      // decode failure instead — closer to what `decodeSinkRecord`'s own doc
       // comment already promises ("validates; does not cast").
       const payloads: ReadonlyArray<unknown> = [
         { _tag: "MissingResource" }, // missing `attribute`
@@ -558,7 +524,7 @@ describe("the wire is untrusted", () => {
 
       for (const failed of payloads) {
         const result = yield* Effect.result(
-          decodeRecord({
+          decodeEffect({
             _tag: "Decision",
             evaluationId: "e",
             at: 0,
@@ -578,7 +544,7 @@ describe("the wire is untrusted", () => {
       // "denied"; a sender that predates the field is a malformed record, not a
       // reason to put words in a denial's mouth.
       const result = yield* Effect.result(
-        decodeRecord({
+        decodeEffect({
           _tag: "Decision",
           evaluationId: "e",
           at: 0,
@@ -600,7 +566,7 @@ describe("the wire is untrusted", () => {
   it.effect("an Allow carrying a reason is refused", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        decodeRecord({
+        decodeEffect({
           _tag: "Decision",
           evaluationId: "e",
           at: 0,
@@ -619,79 +585,12 @@ describe("the wire is untrusted", () => {
       );
       assert.strictEqual(result._tag, "Failure");
     }));
-
-  it("a record naming neither outcome becomes a Failed that says so (ticket 96: pins the current MissingResource/ACL004 stand-in)", () => {
-    // Unreachable for anything this module encoded, but the wire is untrusted.
-    // A row saying "the sender sent neither outcome" beats a dropped record, and
-    // can never be mistaken for a decision.
-    //
-    // This pins today's *known-conflated* behavior (see the doc comment on
-    // `fromWireUnsafe`'s `outcome` fallback): a protocol violation is reported by
-    // reusing `MissingResource`, a genuine resolver-wiring failure's tag and
-    // `ACL004` code. A future dedicated marker replacing this should update
-    // this test alongside it, not merely satisfy it by accident.
-    const back = fromWireUnsafe({
-      _tag: "Decision",
-      evaluationId: "e",
-      at: 0,
-      subjectId: "u1",
-      policy: P.hasPermission(read),
-    });
-
-    assert.strictEqual(back._tag, "Decision");
-    if (back._tag === "Decision" && back.outcome._tag === "Failed") {
-      // The marker text is the whole value of this branch — a reader has to be
-      // able to tell a malformed payload from a real failure.
-      const error = back.outcome.error;
-      assert.strictEqual(error._tag, "MissingResource");
-      assert.strictEqual(ERROR_CODES[error._tag], "ACL004");
-      if (error._tag === "MissingResource") {
-        assert.include(error.attribute, "malformed record");
-      }
-    }
-  });
-
-  it("a record naming BOTH outcomes silently prefers `decided` (ticket 155: pins current behavior)", () => {
-    // Unreachable for anything this module encodes, but the wire is
-    // untrusted, and nothing today rejects a record naming both. See the
-    // conflation note on `fromWireUnsafe`'s `outcome` fallback: there is no
-    // principled reason `decided` wins over `failed` here — it is an
-    // artifact of check order, not a decision — and a dedicated "both
-    // present" marker is the right fix, tracked rather than built in this
-    // change (it would require a new `EvaluationError` tag touched by
-    // `@qadi/http`'s exhaustive `EnforcementError` match, among other call
-    // sites). This test exists so that changing the preference, or rejecting
-    // the record outright, is a deliberate edit to this test rather than an
-    // unnoticed behavior change.
-    const back = fromWireUnsafe({
-      _tag: "Decision",
-      evaluationId: "e",
-      at: 0,
-      subjectId: "u1",
-      policy: P.hasPermission(read),
-      decided: {
-        _tag: "Deny",
-        evaluationId: "e",
-        subjectId: "u1",
-        durationMillis: 1,
-        trace: trace(false),
-        obligations: [],
-        reason: "no",
-      },
-      failed: new MissingResource({ attribute: "owner" }),
-    });
-
-    assert.strictEqual(back._tag, "Decision");
-    if (back._tag === "Decision") {
-      assert.strictEqual(back.outcome._tag, "Decided");
-    }
-  });
 });
 
 describe("the wire's recursive positions are depth-bounded before Schema recurses", () => {
   // Nests a policy `n` `Not`s deep, terminating in a leaf — the same shape
   // `Policy.test.ts` uses to pin `Policy.ts`'s own `fromJson`/`fromJsonValue`
-  // guard, reused here because `decodeRecordWire`'s guard must refuse at the
+  // guard, reused here because `decodeSinkRecord`'s guard must refuse at the
   // identical bound.
   const wireWithNestedPolicy = (depth: number): unknown => {
     let policy: unknown = { _tag: "HasRole", role: "x" };
@@ -731,34 +630,30 @@ describe("the wire's recursive positions are depth-bounded before Schema recurse
   it.effect("a policy nested past MAX_DECODE_DEPTH fails typed, naming the bound", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        decodeRecord(wireWithNestedPolicy(P.MAX_DECODE_DEPTH + 10)),
+        decodeEffect(wireWithNestedPolicy(P.MAX_DECODE_DEPTH + 10)),
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
-        assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
-        if (result.failure._tag === "PolicyDecodeTooDeep") {
-          assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
-        }
+        assert.strictEqual(result.failure._tag, "SinkRecordNotDecodable");
+        assert.deepStrictEqual(result.failure.refusal, DecodeRefusal.TooDeep({ maxDepth: P.MAX_DECODE_DEPTH }));
       }
     }));
 
   it.effect("a trace nested past MAX_DECODE_DEPTH fails typed, naming the bound", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        decodeRecord(wireWithNestedTrace(P.MAX_DECODE_DEPTH + 10)),
+        decodeEffect(wireWithNestedTrace(P.MAX_DECODE_DEPTH + 10)),
       );
       assert.strictEqual(result._tag, "Failure");
       if (result._tag === "Failure") {
-        assert.strictEqual(result.failure._tag, "PolicyDecodeTooDeep");
-        if (result.failure._tag === "PolicyDecodeTooDeep") {
-          assert.strictEqual(result.failure.maxDepth, P.MAX_DECODE_DEPTH);
-        }
+        assert.strictEqual(result.failure._tag, "SinkRecordNotDecodable");
+        assert.deepStrictEqual(result.failure.refusal, DecodeRefusal.TooDeep({ maxDepth: P.MAX_DECODE_DEPTH }));
       }
     }));
 
   it.effect("a policy nested well within the bound still decodes", () =>
     Effect.gen(function* () {
-      const result = yield* Effect.result(decodeRecord(wireWithNestedPolicy(4)));
+      const result = yield* Effect.result(decodeEffect(wireWithNestedPolicy(4)));
       assert.strictEqual(result._tag, "Success");
     }));
 
@@ -769,13 +664,13 @@ describe("the wire's recursive positions are depth-bounded before Schema recurse
   // `fromJson`.
   it.effect("an extreme depth (60,000) fails through the Effect channel, never as a defect", () =>
     Effect.gen(function* () {
-      const result = yield* Effect.result(decodeRecord(wireWithNestedPolicy(60_000)));
+      const result = yield* Effect.result(decodeEffect(wireWithNestedPolicy(60_000)));
       assert.strictEqual(result._tag, "Failure");
     }));
 });
 
-describe("decodeRecord rejects an excess property inside its embedded Policy, matching Policy.ts", () => {
-  // `decodeSinkRecordWireUnknown` used to decode with no `ParseOptions` at all,
+describe("decodeSinkRecord rejects an excess property inside its embedded Policy, matching Policy.ts", () => {
+  // The inbound decode used to run with no `ParseOptions` at all,
   // unlike every one of `Policy.ts`'s own untrusted entry points — so a wire
   // record whose embedded policy carried a typo'd field decoded successfully,
   // silently dropping the grant rather than reporting the typo. Threading
@@ -784,7 +679,7 @@ describe("decodeRecord rejects an excess property inside its embedded Policy, ma
   it.effect("a typo'd field inside the embedded policy is a decode failure, not a silent drop", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        decodeRecord({
+        decodeEffect({
           _tag: "Decision",
           evaluationId: "e",
           at: 0,
@@ -797,7 +692,7 @@ describe("decodeRecord rejects an excess property inside its embedded Policy, ma
   it.effect("the positive control: the same embedded policy with no excess key still decodes", () =>
     Effect.gen(function* () {
       const result = yield* Effect.result(
-        decodeRecord({
+        decodeEffect({
           _tag: "Decision",
           evaluationId: "e",
           at: 0,
@@ -808,312 +703,22 @@ describe("decodeRecord rejects an excess property inside its embedded Policy, ma
     }));
 });
 
-describe("round-trip property", () => {
-  it("holds over generated policies", () => {
-    // The drift-catcher for what is still hand-written: `Decision`/`Allow`/`Deny`
-    // are ordinary domain classes, not `Schema.TaggedError`, so `encodeDecision`/
-    // `decodeDecision` still hand-map them the way the nine `EvaluationError`
-    // tags no longer need (ADR-QD-060). A hand-written codec drifting from its
-    // type is the defect this library was rewritten to remove — this is what
-    // stands in for the gate the policy codec gets, for the part still hand-written.
-    const leaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
-      FastCheck.constant(P.hasPermission(read)),
-      FastCheck.constantFrom("editor", "admin").map((r) => P.hasRole(r)),
-      FastCheck.integer({ min: 0, max: 5 }).map((n) =>
-        P.hasAttribute("clearance", M.gte(n)),
-      ),
-      FastCheck.constant(P.hasAction("read")),
-    );
-
-    const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
-      node: FastCheck.oneof(
-        { maxDepth: 3 },
-        leaf,
-        FastCheck.array(tie("node"), {
-          minLength: 1,
-          maxLength: 3,
-        }).map((ps) => P.allOf(ps)),
-        tie("node").map((p) => P.not(p)),
-        tie("node").map((p) => P.labeled("audit", p)),
-      ),
-    })).node;
-
-    FastCheck.assert(
-      FastCheck.property(
-        tree,
-        FastCheck.boolean(),
-        FastCheck.string(),
-        (policy, allowed, reason) => {
-          const decision: Allow | Deny = allowed
-            ? new Allow({
-                evaluationId: "e",
-                subjectId: makeSubjectId("u1"),
-                durationMillis: 1,
-                trace: trace(true),
-                visibleFields: undefined,
-                obligations: [],
-              })
-            : new Deny({
-                evaluationId: "e",
-                subjectId: makeSubjectId("u1"),
-                durationMillis: 1,
-                trace: { ...trace(false), reason },
-                reason,
-              });
-
-          const record: SinkRecord = new DecisionRecord({
-            evaluationId: "e",
-            at: 0,
-            subjectId: makeSubjectId("u1"),
-            policy,
-            outcome: new Decided({ decision }),
-          });
-
-          return JSON.stringify(fromWireUnsafe(toWire(record))) === JSON.stringify(record);
-        },
-      ),
-      // Explicit seed, matching every other FastCheck-based property test in
-      // this scope: a CI failure must replay byte-for-byte from a recorded
-      // seed, not only from whatever FastCheck happened to print on that
-      // run's log.
-      { numRuns: 200, seed: 1032 },
-    );
-  });
-
-  it("encodeRecordSync never throws, and agrees with encodeRecord, over generated records", () => {
-    // Issue #107: `DecisionSinkForwarding.ts` switched from `encodeRecord`
-    // (`Schema.encodeEffect`) to `encodeRecordSync` (`Schema.encodeSync`) on
-    // the claim that this encode is provably total for anything `toWire`
-    // produces. This is that claim, checked rather than only argued: 200
-    // generated policies, both decision outcomes, run through both encoders,
-    // asserting the sync one never throws and both agree byte-for-byte.
-    const leaf: FastCheck.Arbitrary<P.Policy> = FastCheck.oneof(
-      FastCheck.constant(P.hasPermission(read)),
-      FastCheck.constantFrom("editor", "admin").map((r) => P.hasRole(r)),
-      FastCheck.integer({ min: 0, max: 5 }).map((n) =>
-        P.hasAttribute("clearance", M.gte(n)),
-      ),
-      FastCheck.constant(P.hasAction("read")),
-    );
-
-    const tree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
-      node: FastCheck.oneof(
-        { maxDepth: 3 },
-        leaf,
-        FastCheck.array(tie("node"), {
-          minLength: 1,
-          maxLength: 3,
-        }).map((ps) => P.allOf(ps)),
-        tie("node").map((p) => P.not(p)),
-        tie("node").map((p) => P.obliged(obligation("audit.log"), p)),
-      ),
-    })).node;
-
-    FastCheck.assert(
-      FastCheck.property(tree, FastCheck.boolean(), FastCheck.string(), (policy, allowed, reason) => {
-        const decision: Allow | Deny = allowed
-          ? new Allow({
-              evaluationId: "e",
-              subjectId: makeSubjectId("u1"),
-              durationMillis: 1,
-              trace: trace(true),
-              visibleFields: undefined,
-              obligations: [obligation("audit.log")],
-            })
-          : new Deny({
-              evaluationId: "e",
-              subjectId: makeSubjectId("u1"),
-              durationMillis: 1,
-              trace: { ...trace(false), reason },
-              reason,
-            });
-
-        const record: SinkRecord = new DecisionRecord({
-          evaluationId: "e",
-          at: 0,
-          subjectId: makeSubjectId("u1"),
-          policy,
-          outcome: new Decided({ decision }),
-        });
-
-        const wire = toWire(record);
-        const sync = encodeRecordSync(wire);
-        const viaEffect = Effect.runSync(encodeRecord(wire));
-        return JSON.stringify(sync) === JSON.stringify(viaEffect);
-      }),
-      { numRuns: 200, seed: 4271 },
-    );
-  });
-});
-
-describe("isJsonSafe", () => {
-  it("accepts every plain-JSON leaf, null, and Date", () => {
-    assert.isTrue(isJsonSafe(null));
-    assert.isTrue(isJsonSafe("x"));
-    assert.isTrue(isJsonSafe(1));
-    assert.isTrue(isJsonSafe(true));
-    assert.isTrue(isJsonSafe(new Date()));
-  });
-
-  it("refuses undefined, functions, and other shapes JSON.stringify silently drops or lies about", () => {
-    assert.isFalse(isJsonSafe(undefined));
-    assert.isFalse(isJsonSafe(() => {}));
-    assert.isFalse(isJsonSafe(Symbol("x")));
-    assert.isFalse(isJsonSafe(1n));
-  });
-
-  it("refuses NaN and both infinities — JSON.stringify silently renders every one of them as null", () => {
-    assert.isFalse(isJsonSafe(Number.NaN));
-    assert.isFalse(isJsonSafe(Number.POSITIVE_INFINITY));
-    assert.isFalse(isJsonSafe(Number.NEGATIVE_INFINITY));
-    // Nested, not just at the top level — the same "round-trip without
-    // lying" contract applies at every depth the walk reaches.
-    assert.isFalse(isJsonSafe({ a: Number.NaN }));
-    assert.isFalse(isJsonSafe([1, Number.POSITIVE_INFINITY]));
-  });
-
-  it("still accepts every finite number, including zero and negatives", () => {
-    assert.isTrue(isJsonSafe(0));
-    assert.isTrue(isJsonSafe(-0));
-    assert.isTrue(isJsonSafe(-1.5));
-    assert.isTrue(isJsonSafe(Number.MAX_SAFE_INTEGER));
-  });
-
-  it("walks a plain object or array recursively", () => {
-    assert.isTrue(isJsonSafe({ a: 1, b: ["x", { c: null }] }));
-    assert.isFalse(isJsonSafe({ a: 1, b: () => {} }));
-    assert.isFalse(isJsonSafe([1, 2, undefined]));
-  });
-
-  it("refuses a circular reference rather than recursing forever", () => {
-    const circular: Record<string, unknown> = { a: 1 };
-    circular.self = circular;
-    assert.isFalse(isJsonSafe(circular));
-  });
-
-  it("does not falsely refuse a value reachable twice via two different paths", () => {
-    // The same non-cyclic child appearing under two keys is not a cycle —
-    // `seen` tracks the current path, not everything visited overall.
-    const shared = { x: 1 };
-    assert.isTrue(isJsonSafe({ a: shared, b: shared }));
-  });
-
-  it("refuses a Map, a Set, a RegExp and a typed array — JSON.stringify renders each as {} or an index object", () => {
-    // ARCH-09 C8: each of these walked as a container of `Object.values` —
-    // none — and was accepted, then serialised as `{}` (or `{"0":1,"1":2}`),
-    // so an ABAC resource such as `{ tags: new Set(["finance"]) }` reached the
-    // audit trail and the decision stream as `{ tags: {} }` with no refusal.
-    assert.isFalse(isJsonSafe(new Map([["a", 1]])));
-    assert.isFalse(isJsonSafe(new Set([1])));
-    assert.isFalse(isJsonSafe(/x/));
-    assert.isFalse(isJsonSafe(new Uint8Array([1, 2])));
-    assert.isFalse(isJsonSafe({ tags: new Set(["finance"]) }));
-  });
-});
-
-describe("isRecordJsonSafe", () => {
-  it("is true for an ObligationRecord, which carries neither unknown field", () => {
-    const record: SinkRecord = new ObligationRecord({
-      evaluationId: "e",
-      at: 0,
-      outcome: "Refused",
-      obligationIds: ["audit.log"],
-    });
-    assert.isTrue(isRecordJsonSafe(record));
-  });
-
-  it("is true for a Decision record whose resource and policy are both safe", () => {
-    const record: SinkRecord = new DecisionRecord({
-      evaluationId: "e",
-      at: 0,
-      subjectId: makeSubjectId("u1"),
-      policy: P.hasPermission(read),
-      resource: { id: "doc-1" },
-      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
-    });
-    assert.isTrue(isRecordJsonSafe(record));
-  });
-
-  it("is false when resource carries an unsafe value", () => {
-    const record: SinkRecord = new DecisionRecord({
-      evaluationId: "e",
-      at: 0,
-      subjectId: makeSubjectId("u1"),
-      policy: P.hasPermission(read),
-      resource: { fn: () => {} },
-      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
-    });
-    assert.isFalse(isRecordJsonSafe(record));
-  });
-
-  it("is false when a HasCustom policy node's params carries an unsafe value — the gap a resource-only check misses", () => {
-    // The regression this pins: a record whose `resource` is absent (or
-    // perfectly safe) but whose `policy` carries a `HasCustom` node with an
-    // unsafe `params` used to pass a `resource`-only check like the one
-    // `@qadi/audit`'s `encodeAuditEntry` and `@qadi/http`'s decision-stream
-    // route each had.
-    const record: SinkRecord = new DecisionRecord({
-      evaluationId: "e",
-      at: 0,
-      subjectId: makeSubjectId("u1"),
-      policy: P.hasCustom("isOwner", { onFail: () => {} }),
-      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
-    });
-
-    // The old, incomplete check would have let this through.
-    assert.isTrue(record.resource === undefined || isJsonSafe(record.resource));
-    assert.isFalse(isRecordJsonSafe(record));
-  });
-
-  const failedWithCause = (cause: unknown): SinkRecord =>
-    new DecisionRecord({
-      evaluationId: "e",
-      at: 0,
-      subjectId: makeSubjectId("u1"),
-      policy: P.hasPermission(read),
-      outcome: new Failed({ error: new AttributeResolveError({ attribute: "clearance", cause }) }),
-    });
-
-  it("is false when a Failed record's cause has a reference cycle (ARCH-09 T2)", () => {
-    // The axios-style shape: an `Error` whose own enumerable `config`/`request`
-    // properties point back into each other.
-    const config: { url: string; request?: unknown } = { url: "https://attributes.internal/x" };
-    const request = { config };
-    config.request = request;
-    const cause = Object.assign(new Error("Request failed with status code 503"), { config, request });
-    assert.isFalse(isRecordJsonSafe(failedWithCause(cause)));
-  });
-
-  it("is true for a plain Error cause", () => {
-    assert.isTrue(isRecordJsonSafe(failedWithCause(new Error("db down"))));
-  });
-
-  it("is false for a BigInt cause", () => {
-    assert.isFalse(isRecordJsonSafe(failedWithCause(10n)));
-  });
-
-  it("is true for a Decided record whose obligations' attributes are safe", () => {
-    assert.isTrue(isRecordJsonSafe(allowRecord));
-  });
-
-  it("is true when a HasCustom policy node's params is itself JSON-safe", () => {
-    const record: SinkRecord = new DecisionRecord({
-      evaluationId: "e",
-      at: 0,
-      subjectId: makeSubjectId("u1"),
-      policy: P.hasCustom("isOwner", { minClearance: 3 }),
-      outcome: new Failed({ error: new MissingResource({ attribute: "x" }) }),
-    });
-    assert.isTrue(isRecordJsonSafe(record));
-  });
-});
-
 /** The text `encodeSinkRecordString` produces, failing the test on a refusal. */
 const stringOf = (record: SinkRecord): string =>
   Result.match(encodeSinkRecordString(record), {
     onSuccess: (text) => text,
     onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
   });
+
+/** The value `encodeSinkRecord` produces, failing the test on a refusal. */
+const jsonOf = (record: SinkRecord): SinkRecordJson =>
+  Result.match(encodeSinkRecord(record), {
+    onSuccess: (json) => json,
+    onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
+  });
+
+/** `decodeSinkRecord` lifted into `Effect`, for the generator-style tests above. */
+const decodeEffect = (input: unknown) => Effect.fromResult(decodeSinkRecord(input));
 
 /** The refusal `encodeSinkRecord` gives, or `undefined` when it accepts. */
 const refusalOf = (record: SinkRecord): EncodeRefusal | undefined =>
@@ -1342,6 +947,23 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       assert.deepStrictEqual(refusal, EncodeRefusal.EncodeFailed({ message: "getter exploded" }));
     });
 
+    it("a thrown value that cannot even be described is still EncodeFailed, never a throw", () => {
+      const unprintable = {
+        toString: () => {
+          throw new Error("toString exploded");
+        },
+      };
+      const hostile = {
+        get boom(): unknown {
+          throw unprintable;
+        },
+      };
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { nested: hostile } })),
+        EncodeRefusal.EncodeFailed({ message: "a value that could not be described" }),
+      );
+    });
+
     it("the refusal names the record it refused", () => {
       const result = encodeSinkRecord(recordWith({ resource: { tags: new Set() } }));
       assert.isTrue(Result.isFailure(result));
@@ -1372,6 +994,16 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
     it("a shared, non-cyclic child reached twice is accepted", () => {
       const shared = { street: "Main St" };
       assert.isUndefined(refusalOf(recordWith({ resource: { billing: shared, shipping: shared } })));
+    });
+
+    it("every finite number is accepted, zero and negatives included", () => {
+      assert.isUndefined(
+        refusalOf(recordWith({ resource: { a: 0, b: -0, c: -1.5, d: Number.MAX_SAFE_INTEGER, e: null } })),
+      );
+    });
+
+    it("a HasCustom.params that is itself JSON-safe is accepted", () => {
+      assert.isUndefined(refusalOf(recordWith({ policy: P.hasCustom("isOwner", { minClearance: 3 }) })));
     });
 
     it("an ObligationRecord is accepted as it is", () => {
@@ -1688,6 +1320,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
           FastCheck.array(tie("node"), { minLength: 1, maxLength: 3 }).map((ps) => P.allOf(ps)),
           tie("node").map((p) => P.not(p)),
           tie("node").map((p) => P.obliged(obligation("audit.log"), p)),
+          tie("node").map((p) => P.labeled("audit", p)),
         ),
       })).node;
 
@@ -1773,7 +1406,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
 /**
  * The bytes a `Decided` record puts on the wire, pinned at commit 1caf04c —
  * before the decision codec moved into `DecisionWire.ts` (ARCH-05 T1). The move
- * must not change a byte of what `SinkRecordWire` carries between processes
+ * must not change a byte of what the record wire carries between processes
  * (ADR-QD-060, BEH-QD-199), so these are literals, not re-derived.
  */
 describe("a decided record encodes byte-identically to 1caf04c", () => {
@@ -1791,11 +1424,7 @@ describe("a decided record encodes byte-identically to 1caf04c", () => {
     children: [],
     obligations: [],
   });
-  const encoded = (record: SinkRecord): string => {
-    const viaOperation = stringOf(record);
-    assert.strictEqual(viaOperation, JSON.stringify(encodeRecordSync(toWire(record))));
-    return viaOperation;
-  };
+  const encoded = (record: SinkRecord): string => stringOf(record);
 
   it("an Allow with visibleFields and an obligation", () => {
     const record = goldenRecord(
