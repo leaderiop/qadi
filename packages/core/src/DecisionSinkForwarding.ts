@@ -1,10 +1,10 @@
 /**
  * Sinks that send records elsewhere, and sinks built from other sinks.
  *
- * The in-process ring answers "what did *this* process decide". Three of the six
- * deployments Qadi runs in cannot be served by that: a replicated server has n
- * rings and a reader reaches whichever one answered its request, a serverless
- * function's ring dies with the invocation, and a browser talking to a separate
+ * The in-process decision log answers "what did *this* process decide". Three of
+ * the six deployments Qadi runs in cannot be served by that: a replicated server
+ * has n logs and a reader reaches whichever one answered its request, a
+ * serverless function's log dies with the invocation, and a browser talking to a separate
  * API origin has two processes and one of them has no page.
  *
  * **The topology is a choice of sink, not a change to the evaluator.** That was
@@ -144,7 +144,7 @@ export const decisionSinkForwarding = (options: {
 /**
  * One sink that writes to all of them, in order.
  *
- * The shape a server with devtools actually wants: keep a local ring so the
+ * The shape a server with devtools actually wants: keep a local decision log so the
  * process can answer for itself, *and* forward to wherever the merged timeline
  * lives. Merging two `Layer`s for one service would not do it — the later one
  * simply wins — so this builds each and fans out across the shapes.

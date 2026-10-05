@@ -12,7 +12,7 @@ import * as Tracer from "effect/Tracer";
 import {
   allOf,
   anyOf,
-  decisionSinkRing,
+  makeDecisionLog,
   eq,
   gte,
   hasAttribute,
@@ -399,7 +399,7 @@ describe("a sweep is sealed, forty rows at a time", () => {
    */
   it.effect("writes no record, however many rows it runs", () =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
       const wide: SimulationInput = {
         subject: {
           id: "alice",
@@ -410,11 +410,11 @@ describe("a sweep is sealed, forty rows at a time", () => {
       };
 
       const report = yield* whatIf(eitherWay, wide, { pairs: true }).pipe(
-        Effect.provide(ring.layer),
+        Effect.provide(log.layer),
       );
 
       assert.isAbove(report.rows.length, 20);
-      assert.deepStrictEqual(yield* ring.snapshot, []);
+      assert.deepStrictEqual(yield* log.snapshot, []);
     }));
 
   it.effect("decides every row from the panel's subject", () =>

@@ -203,7 +203,7 @@ export interface PortCallCollector {
  * A tracer that records the five port spans and passes everything through.
  *
  * State lives in this function's closure rather than the layer's, so `snapshot`
- * can read what the layer wrote — the arrangement `decisionSinkRing` and
+ * can read what the layer wrote — the arrangement a decision log and
  * `capturing` both use, and the reason providing the returned layer twice shares
  * one log.
  */

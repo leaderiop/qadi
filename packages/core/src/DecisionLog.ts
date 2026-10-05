@@ -2,10 +2,10 @@
  * A decision log: one bounded sink that is also a readable history and a live
  * feed, with every record a reader is handed delivered exactly once.
  *
- * It replaces a ring (`decisionSinkRing`, the past), a feed (`decisionSinkFeed`,
- * the future) and the host-side pairing of the two through `decisionSinkAll`
- * and devtools' `sourceFromFeed`. Each half passed the deletion test alone; the
- * pairing did not. A host stated the environment label twice (sink and reader)
+ * It replaces the ring sink (the past) and the feed sink (the future) this
+ * package used to export, and the host-side pairing of the two through
+ * `decisionSinkAll` and a devtools adapter (ARCH-11). Each half passed the
+ * deletion test alone; the pairing did not. A host stated the environment label twice (sink and reader)
  * with nothing checking they agreed, kept two bounds in step by comment, and
  * could not avoid losing a record made between reading the ring and subscribing
  * to the feed — the recommended `replay: 0` lost every one (ARCH-11 C9). An

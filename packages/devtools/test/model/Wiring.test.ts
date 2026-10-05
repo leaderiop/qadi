@@ -18,7 +18,7 @@ import {
   attributeResolverRetrying,
   currentSubjectLayer,
   decisionCacheLayer,
-  decisionSinkRing,
+  makeDecisionLog,
   evaluate,
   gte,
   hasAttribute,
@@ -159,7 +159,7 @@ describe("wiringReport", () => {
       const report = yield* wiringReport;
       const card = report.ports.find((port) => port.port === "DecisionSink");
       assert.isTrue(card?.present);
-    }).pipe(Effect.provide(decisionSinkRing({ environment: "Server" }).layer)));
+    }).pipe(Effect.provide(Layer.unwrap(Effect.map(makeDecisionLog({ environment: "Server" }), (log) => log.layer)))));
 
   it.effect("CurrentSubject's absence says nothing about the application", () =>
     Effect.gen(function* () {

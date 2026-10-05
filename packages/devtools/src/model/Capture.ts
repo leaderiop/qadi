@@ -87,7 +87,7 @@ export const answerCount = (self: CapturedAnswers): number =>
  * would run it once per port for what is a single capture pass.
  *
  * State lives in this function's closure rather than the layer's, so `answers`
- * can read what the layer wrote — the same arrangement `decisionSinkRing` uses,
+ * can read what the layer wrote — the same arrangement a decision log uses,
  * and the reason providing the returned layer twice shares one capture.
  */
 export const capturing = (

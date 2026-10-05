@@ -18,7 +18,7 @@ import {
   allOf,
   currentSubjectLayer,
   Decided,
-  decisionSinkRing,
+  makeDecisionLog,
   evaluate,
   evaluationIdSequential,
   Failed,
@@ -336,21 +336,21 @@ describe("replay, reconstruct, and check — end to end", () => {
 
   const logged = (subject: ReturnType<typeof fromRoles>): Effect.Effect<TimelineEntry> =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
 
       yield* evaluate(policy).pipe(
         Effect.result,
         Effect.provide(
           Layer.mergeAll(
             portsLayer(),
-            ring.layer,
+            log.layer,
             currentSubjectLayer(subject),
             evaluationIdSequential("ev"),
           ),
         ),
       );
 
-      const [record] = yield* ring.snapshot;
+      const [record] = yield* log.snapshot;
       if (record === undefined) throw new Error("expected a record");
       return entryOf(record);
     });

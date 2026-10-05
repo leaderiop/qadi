@@ -9,7 +9,7 @@ import {
   AttributeResolver,
   EvaluationIdLive,
   EvaluationServicesNone,
-  decisionSinkRing,
+  makeDecisionLog,
   gte,
   hasAttribute,
   hasPermission,
@@ -464,19 +464,19 @@ describe("a DecisionSink wired into the runtime layer", () => {
     // `Effect.serviceOption` inside the atom runtime, which is what makes
     // "one UI, two streams" true on the browser side rather than merely
     // plausible.
-    const ring = decisionSinkRing({ environment: "Client" });
+    const log = Effect.runSync(makeDecisionLog({ environment: "Client" }));
 
-    const set = makeQadiAtoms(Layer.merge(baseLayer, ring.layer));
+    const set = makeQadiAtoms(Layer.merge(baseLayer, log.layer));
     const registry = makeRegistry();
     registry.set(set.subject, reader);
     registry.get(set.decision(canRead));
 
     await vi.waitFor(async () => {
-      const stored = await Effect.runPromise(ring.snapshot);
+      const stored = await Effect.runPromise(log.snapshot);
       expect(stored.length).toBe(1);
     });
 
-    const stored = await Effect.runPromise(ring.snapshot);
+    const stored = await Effect.runPromise(log.snapshot);
     // Stamped by the sink, not by core — which cannot know it is in a browser.
     expect(stored[0]?.environment).toBe("Client");
     expect(stored[0]?._tag).toBe("Decision");

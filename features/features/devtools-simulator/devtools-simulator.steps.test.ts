@@ -27,7 +27,7 @@ import {
   Allow,
   anyOf,
   attributeResolverFromRecord,
-  decisionSinkRing,
+  makeDecisionLog,
   Decided,
   DecisionRecord,
   diffTraces,
@@ -47,7 +47,7 @@ import {
   decisionHistoryPort,
   signatureHistoryPort,
 } from "@qadi/core";
-import type { DecisionOutcome, Policy, StoredRecord, Trace } from "@qadi/core";
+import type { DecisionLog, DecisionOutcome, Policy, StoredRecord, Trace } from "@qadi/core";
 import {
   baselineDiff,
   capturing,
@@ -128,7 +128,7 @@ const entryOf = (record: StoredRecord): TimelineEntry => {
 interface DevtoolsSimulatorWorldState {
   readonly input: SimulationInput;
   readonly ports: EvaluationPortsLayer | undefined;
-  readonly ring: ReturnType<typeof decisionSinkRing> | undefined;
+  readonly ring: DecisionLog | undefined;
   readonly outcome: DecisionOutcome | undefined;
   readonly secondOutcome: DecisionOutcome | undefined;
   readonly report: WhatIfReport | undefined;
@@ -227,7 +227,8 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   });
 
   Given("a decision sink is recording", function* () {
-    yield* patch(() => ({ ring: decisionSinkRing({ environment: "Server" }) }));
+    const ring = yield* makeDecisionLog({ environment: "Server" });
+    yield* patch(() => ({ ring }));
   });
 
   Given("every real resolver is broken", function* () {

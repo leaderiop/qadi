@@ -19,7 +19,7 @@ import * as Layer from "effect/Layer";
 import {
   DecisionCache,
   decisionCacheLayer,
-  decisionSinkRing,
+  makeDecisionLog,
   diffTraces,
   gte,
   hasAction,
@@ -109,12 +109,12 @@ describe("the seal", () => {
    */
   it.effect("writes nothing, even with a real sink in scope", () =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
 
-      yield* simulate(hasPermission(read), alice).pipe(Effect.provide(ring.layer));
-      yield* simulate(hasPermission(write), alice).pipe(Effect.provide(ring.layer));
+      yield* simulate(hasPermission(read), alice).pipe(Effect.provide(log.layer));
+      yield* simulate(hasPermission(write), alice).pipe(Effect.provide(log.layer));
 
-      assert.deepStrictEqual(yield* ring.snapshot, []);
+      assert.deepStrictEqual(yield* log.snapshot, []);
     }));
 
   /**

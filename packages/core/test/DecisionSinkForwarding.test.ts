@@ -5,11 +5,12 @@ import * as Logger from "effect/Logger";
 import * as Predicate from "effect/Predicate";
 import * as References from "effect/References";
 import * as Result from "effect/Result";
+import * as Stream from "effect/Stream";
 import { isAllowed } from "../src/Decision.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { DecisionRecord, Failed, ObligationRecord } from "../src/DecisionRecord.ts";
 import { decisionSinkAll, decisionSinkForwarding } from "../src/DecisionSinkForwarding.ts";
-import { decisionSinkRing } from "../src/DecisionSinkRing.ts";
+import { makeDecisionLog } from "../src/DecisionLog.ts";
 import { PolicyTooDeep, SinkRecordNotEncodable } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { makeSubjectId } from "../src/Identity.ts";
@@ -27,7 +28,7 @@ describe("decisionSinkForwarding", () => {
   it.effect("hands each record onward, already encoded", () =>
     Effect.gen(function* () {
       const sent: Array<unknown> = [];
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
 
       yield* evaluate(policy).pipe(
         Effect.provide(
@@ -38,7 +39,7 @@ describe("decisionSinkForwarding", () => {
                   sent.push(encoded);
                 }),
             }),
-            ring.layer,
+            log.layer,
           ]),
         ),
       );
@@ -47,7 +48,7 @@ describe("decisionSinkForwarding", () => {
       // Encoded, so a transport can hand it straight to JSON without knowing
       // anything about the record type — and encoded by the one outbound
       // operation, so it is exactly what any other sink emits for the record.
-      const [stored] = yield* ring.snapshot;
+      const [stored] = yield* log.snapshot;
       assert.isDefined(stored);
       if (stored === undefined) return;
       assert.deepStrictEqual(
@@ -363,7 +364,7 @@ describe("decisionSinkAll", () => {
     Effect.gen(function* () {
       // The shape a server with devtools wants: answer for itself locally AND
       // forward to wherever the merged timeline lives.
-      const local = decisionSinkRing({ environment: "Server" });
+      const local = yield* makeDecisionLog({ environment: "Server" });
       const sent: Array<unknown> = [];
       const remote = decisionSinkForwarding({
         send: (e) => Effect.sync(() => { sent.push(e); }),
@@ -381,8 +382,8 @@ describe("decisionSinkAll", () => {
     Effect.gen(function* () {
       // The trap this function exists to avoid, asserted rather than described:
       // `Layer.merge` on one tag keeps the last, so the first sink sees nothing.
-      const first = decisionSinkRing({ environment: "A" });
-      const second = decisionSinkRing({ environment: "B" });
+      const first = yield* makeDecisionLog({ environment: "A" });
+      const second = yield* makeDecisionLog({ environment: "B" });
 
       yield* evaluate(policy).pipe(
         Effect.provide(Layer.merge(first.layer, second.layer)),
@@ -478,12 +479,12 @@ describe("decisionSinkAll", () => {
 });
 
 describe("forward and ingest, end to end", () => {
-  it.effect("a record made in one process arrives in another's log", () =>
+  it.effect("a record made in one process arrives in another's log and its live readers", () =>
     Effect.gen(function* () {
       // Two processes, standing in for a replica and an aggregator. Nothing but
       // the encoded value crosses between them — which is the property that
       // makes replicas and serverless serviceable at all.
-      const aggregator = decisionSinkRing({ environment: "Aggregator" });
+      const aggregator = yield* makeDecisionLog({ environment: "Aggregator" });
       const wire: Array<unknown> = [];
 
       yield* evaluate(policy, { resource: { id: "doc-1" }, action: "read" }).pipe(
@@ -495,9 +496,18 @@ describe("forward and ingest, end to end", () => {
       // ... crosses a boundary ...
       const json: unknown = JSON.parse(JSON.stringify(wire[0]));
 
-      // ... and is ingested under the SENDER's label, not the aggregator's.
+      // ... and is ingested under the SENDER's label, not the aggregator's —
+      // reaching a reader already watching the aggregator, not only its
+      // backlog (ARCH-11 C10: the ring took it and no live reader ever saw it).
       const record = yield* Effect.fromResult(decodeSinkRecord(json));
-      yield* aggregator.ingest(record, "Replica-3");
+      const live = yield* Effect.scoped(
+        Effect.gen(function* () {
+          const reader = yield* aggregator.read;
+          yield* aggregator.ingest(record, "Replica-3");
+          return Array.from(yield* Stream.runCollect(Stream.take(reader.live, 1)));
+        }),
+      );
+      assert.deepStrictEqual(live.map((r) => r.environment), ["Replica-3"]);
 
       const stored = yield* aggregator.snapshot;
       assert.strictEqual(stored.length, 1);
@@ -511,9 +521,9 @@ describe("forward and ingest, end to end", () => {
       }
     }).pipe(Effect.provide(testLayer(allowed))));
 
-  it.effect("ingest falls back to the ring's own label", () =>
+  it.effect("ingest falls back to the log's own label", () =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const ring = yield* makeDecisionLog({ environment: "Server" });
 
       yield* ring.ingest(
         new ObligationRecord({
@@ -529,7 +539,7 @@ describe("forward and ingest, end to end", () => {
 
   it.effect("ingested records respect capacity like any other", () =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server", capacity: 2 });
+      const ring = yield* makeDecisionLog({ environment: "Server", capacity: 2 });
 
       for (const id of ["a", "b", "c"]) {
         yield* ring.ingest(
