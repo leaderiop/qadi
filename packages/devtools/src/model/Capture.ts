@@ -148,9 +148,11 @@ const record = <A, E>(
  * reconstructs the error *class* from which port it was, so the class is
  * already known and the cause is the only thing a capture has to carry.
  *
- * The same shape `SinkCodec`'s `renderCause` uses, for the same reason: a cause
- * is `unknown`, so it may be an `Error`, a plain object, or something that
- * cannot be stringified at all.
+ * A message string, not the cause itself: on the record wire a `cause` crosses
+ * through `Schema.Defect()` (ADR-QD-060), but a capture has no wire to
+ * survive, and a replay rebuilds the error class from the port, so the message
+ * is all it needs. A cause is `unknown`, so it may be an `Error`, a plain
+ * object, or something that cannot be stringified at all.
  */
 const renderError = (error: unknown): string => {
   const cause = Predicate.hasProperty(error, "cause") ? error.cause : undefined;

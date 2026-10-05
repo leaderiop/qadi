@@ -29,10 +29,12 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Result from "effect/Result";
 import {
   AttributeResolver,
   DecisionHistory,
-  decodeRecord,
+  decodeSinkRecordString,
+  encodeSinkRecord,
   makeResourceId,
   RelationshipResolver,
 } from "@qadi/core";
@@ -177,14 +179,38 @@ const ArticleRoute = addGuardedRoute(
     }),
 )((_authorized, article) => Effect.succeed(json(article)));
 
-/** The past, for a dock that opened after the decisions were made. */
+/**
+ * The past, for a dock that opened after the decisions were made.
+ *
+ * Each record crosses as the one wire every other path emits
+ * (`encodeSinkRecord`), beside the environment it was stamped with; a record
+ * that cannot be encoded is counted, not sent half-built. No reader in this
+ * repo consumes this route — the dock reads its own client ring — so this is
+ * the shape, not a protocol anything here depends on.
+ */
 const BacklogRoute = addGuardedRoute(
   "GET",
   "/backlog",
   readDevtools,
   canReadDevtools,
   () => Effect.succeed({}),
-)(() => Effect.map(ring.snapshot, json));
+)(() =>
+  Effect.map(ring.snapshot, (stored) => {
+    const records: Array<{ readonly environment: string; readonly record: unknown }> = [];
+    let refused = 0;
+    for (const entry of stored) {
+      Result.match(encodeSinkRecord(entry), {
+        onSuccess: (record) => {
+          records.push({ environment: entry.environment, record });
+        },
+        onFailure: () => {
+          refused += 1;
+        },
+      });
+    }
+    return json({ records, refused });
+  }),
+);
 
 /**
  * The edge aggregator's receiving half.
@@ -194,9 +220,10 @@ const BacklogRoute = addGuardedRoute(
  * stamped `Edge` rather than with this process's own environment
  * ([BEH-QD-188](../../../../spec/behaviors/24-decision-sink.md)).
  *
- * A malformed body is a 400 and nothing else. `decodeRecord` validates untrusted
- * input, and an aggregator that half-built a record from a bad frame would be
- * the defect the wire codec exists to prevent.
+ * A malformed body is a 400 naming why, and nothing else.
+ * `decodeSinkRecordString` validates untrusted input — not JSON, nested past
+ * the decode bound, or not a record — and an aggregator that half-built a
+ * record from a bad frame would be the defect the wire codec exists to prevent.
  *
  * Unguarded, which is a demo's licence and not a pattern: a real aggregator
  * authenticates its emitters. Said out loud, because `/__decisions` deliberately
@@ -207,14 +234,14 @@ const IngestRoute = HttpRouter.add(
   "/aggregator/ingest",
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
-    const body = yield* request.json.pipe(Effect.result);
+    const body = yield* request.text.pipe(Effect.result);
     if (body._tag === "Failure") {
-      return HttpServerResponse.text("not JSON", { status: 400 });
+      return HttpServerResponse.text("unreadable body", { status: 400 });
     }
 
-    const record = yield* decodeRecord(body.success).pipe(Effect.result);
-    if (record._tag === "Failure") {
-      return HttpServerResponse.text("not a decision record", { status: 400 });
+    const record = decodeSinkRecordString(body.success);
+    if (Result.isFailure(record)) {
+      return HttpServerResponse.text(`not a decision record: ${record.failure.refusal._tag}`, { status: 400 });
     }
 
     yield* ring.ingest(record.success, "Edge");

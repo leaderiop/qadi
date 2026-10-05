@@ -14,10 +14,11 @@
 import { assert, describe, it } from "@effect/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import * as Logger from "effect/Logger";
 import * as References from "effect/References";
 import * as Stream from "effect/Stream";
-import { MAX_DECODE_DEPTH, toWire } from "@qadi/core";
+import { encodeSinkRecordString, MAX_DECODE_DEPTH } from "@qadi/core";
 import type { SinkRecord, StoredRecord } from "@qadi/core";
 import {
   type DecisionEventSource,
@@ -110,7 +111,12 @@ const collect = (
     return Array.from(yield* Stream.runCollect(Stream.take(source.live, count)));
   });
 
-const frameOf = (record: SinkRecord): string => JSON.stringify(toWire(record));
+/** A record as the frame data a current sender emits: the one outbound operation's text. */
+const frameOf = (record: SinkRecord): string =>
+  Result.match(encodeSinkRecordString(record), {
+    onSuccess: (text) => text,
+    onFailure: (error) => assert.fail(`refused: ${error.refusal._tag}`),
+  });
 
 /** Reads one log annotation without an `as`. */
 const annotationOf = (annotations: unknown, key: string): unknown =>
@@ -270,9 +276,14 @@ describe("sourceFromEventSource", () => {
     }));
 
   /**
-   * H6 — `decodeRecord`'s depth guard, exercised through the real SSE path.
+   * H6 — the inbound depth guard, exercised through the real SSE path.
    *
-   * Before `SinkCodec.ts`'s `decodeRecordWire` gained a depth guard ahead of
+   * Reported as `too-deep`, its own reason since ARCH-09: a current sender
+   * refuses to emit such a record (`encodeSinkRecord`'s matching bound), so a
+   * too-deep frame means an older or foreign sender, a third fix distinct from
+   * a broken transport or a protocol mismatch.
+   *
+   * Before `SinkCodec.ts`'s inbound decode gained a depth guard ahead of
    * `Schema`'s recursive descent, a frame nesting a policy past the call
    * stack's limit raised a raw `RangeError` *defect* out of `decodeRecord` —
    * and `decodeFrame`'s `Effect.result` only catches the typed error channel,
@@ -311,7 +322,7 @@ describe("sourceFromEventSource", () => {
         );
 
         assert.strictEqual(reported.length, 1);
-        assert.strictEqual(reported[0]?.[1], "not-a-record");
+        assert.strictEqual(reported[0]?.[1], "too-deep");
         assert.strictEqual(got[0]?.evaluationId, "after");
       }),
   );

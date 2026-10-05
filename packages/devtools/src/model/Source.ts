@@ -17,11 +17,12 @@
  */
 import * as Effect from "effect/Effect";
 import type * as Filter from "effect/Filter";
+import * as Match from "effect/Match";
 import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
-import type { SinkRecord, StoredRecord } from "@qadi/core";
-import { decodeRecord, stampRecord } from "@qadi/core";
+import type { DecodeRefusal, SinkRecord, StoredRecord } from "@qadi/core";
+import { decodeSinkRecordString, stampRecord } from "@qadi/core";
 
 export interface Source {
   /**
@@ -204,7 +205,24 @@ export const mergeSources = (sources: ReadonlyArray<Source>): Source => {
 };
 
 /**
+ * Why a frame was dropped, from the codec's own reason.
+ *
+ * Built once at module scope (AGENTS.md §5a): a frame is decoded per message,
+ * and a matcher rebuilt per call is the slower form.
+ */
+const reasonOf: (refusal: DecodeRefusal) => MalformedReason = Match.type<DecodeRefusal>().pipe(
+  Match.tagsExhaustive({
+    NotJson: (): MalformedReason => "not-json",
+    TooDeep: (): MalformedReason => "too-deep",
+    Malformed: (): MalformedReason => "not-a-record",
+  }),
+);
+
+/**
  * One SSE frame to one record, or a reported drop.
+ *
+ * One call to `@qadi/core`'s `decodeSinkRecordString`, which parses, guards
+ * depth and validates; this adds only the environment stamp and the report.
  *
  * A `FilterEffect` rather than a map: `Result.fail` skips the element, which is
  * exactly "this frame was not a record" without inventing a placeholder row or
@@ -215,29 +233,26 @@ const decodeFrame = (
   onMalformed: ((frame: string, reason: MalformedReason) => void) | undefined,
 ): Filter.FilterEffect<string, StoredRecord, string> =>
 (frame) =>
-  Effect.gen(function* () {
-    const parsed = parseJson(frame);
-    if (Result.isFailure(parsed)) return yield* malformed(frame, "not-json", onMalformed);
-
-    const decoded = yield* Effect.result(decodeRecord(parsed.success));
-    if (Result.isFailure(decoded)) return yield* malformed(frame, "not-a-record", onMalformed);
-
-    return Result.succeed(stampRecord(decoded.success, environment));
+  Result.match(decodeSinkRecordString(frame), {
+    onSuccess: (record) => Effect.succeed(Result.succeed(stampRecord(record, environment))),
+    onFailure: (error) => malformed(frame, reasonOf(error.refusal), onMalformed),
   });
 
 /**
  * Why a frame was dropped.
  *
- * The two are different problems with different fixes and the reader is owed
+ * The three are different problems with different fixes and the reader is owed
  * the distinction: `not-json` is a broken transport — a proxy that truncated
- * the stream, a reverse proxy injecting its own body — while `not-a-record` is
- * a protocol mismatch, usually a `@qadi/core` on the far side that does not
+ * the stream, a reverse proxy injecting its own body — `too-deep` is JSON
+ * nested past the bound every receiver decodes, which a current sender refuses
+ * to emit, so it means an older or foreign sender; and `not-a-record` is a
+ * protocol mismatch, usually a `@qadi/core` on the far side that does not
  * agree with this one about the wire form.
  *
  * A closed union rather than a free string: this is a value a caller branches
- * on, and adding a third reason should be a compile error at every consumer.
+ * on, and adding a reason should be a compile error at every consumer.
  */
-export type MalformedReason = "not-json" | "not-a-record";
+export type MalformedReason = "not-json" | "too-deep" | "not-a-record";
 
 /** Reports the drop, then filters the frame out. */
 const malformed = (
@@ -253,19 +268,6 @@ const malformed = (
       : Effect.sync(() => onMalformed(frame, reason)),
     Result.fail(frame),
   );
-
-/**
- * `JSON.parse` throws, and a `try`/`catch` is the honest wrapper for it — the
- * same shape `SinkCodec`'s `renderCause` uses for the same reason.
- */
-const parseJson = (frame: string): Result.Result<unknown, string> => {
-  try {
-    const value: unknown = JSON.parse(frame);
-    return Result.succeed(value);
-  } catch {
-    return Result.fail(frame);
-  }
-};
 
 /**
  * The browser's `EventSource`, wrapped down to the three members this uses.
