@@ -69,3 +69,13 @@ writers.** An operator holding a rejected persisted policy cannot distinguish
 decode failure alone; that ambiguity is accepted rather than solved by this
 decision, and a future version discriminator on the envelope, if one is added,
 would need its own ADR rather than retrofitting one here.
+
+## Amendment (2026-10-05, CCR-QD-904)
+
+The version discriminator deferred above now exists for the **record wire**, not
+for policies: [ADR-QD-903](./903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)
+gives a `SinkRecord`'s wire a `version` key (absent meaning version 1) and lets a
+reader ignore a top-level envelope key it does not declare. `Policy` decoding is
+unchanged: an embedded policy — on the record wire or anywhere else — is decoded
+with `UNTRUSTED_DECODE_OPTIONS`, and readers of persisted policies still upgrade
+before writers.
