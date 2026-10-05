@@ -1,16 +1,11 @@
 import {
   AccessDenied,
   AttributeResolver,
-  AttributeResolverNone,
   AttributeResolveError,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   EvaluationServicesNone,
   MissingAction,
   PolicyTooDeep,
-  RelationshipResolverNever,
   UndischargedObligation,
   assert as assertCore,
   check as checkCore,
@@ -30,6 +25,7 @@ import {
   obliged,
   permission,
   relationshipResolverFromEdges,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -84,15 +80,13 @@ describe("makeQadi", () => {
     // INV-QD-006 crossing the boundary. Collapsing these — catching and returning
     // false — is what turns an attribute-store outage into a silent lockout.
     const broken = Layer.mergeAll(
-      Layer.succeed(AttributeResolver, {
-        resolve: () =>
-          Effect.fail(new AttributeResolveError({ attribute: "clearance", cause: "down" })),
+      portsLayer({
+        AttributeResolver: Layer.succeed(AttributeResolver, {
+          resolve: () =>
+            Effect.fail(new AttributeResolveError({ attribute: "clearance", cause: "down" })),
+        }),
       }),
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
     );
     const qadi = facade(broken);
 
@@ -210,12 +204,10 @@ describe("makeQadi", () => {
     // checks both outcomes: found, and not found.
     const owner = hasRelationship("owner");
     const withRelationships = Layer.mergeAll(
-      AttributeResolverNone,
-      relationshipResolverFromEdges([{ subjectId: "u-1", relation: "owner", resourceId: "doc-1" }]),
-      DecisionHistoryUnknown,
+      portsLayer({
+        RelationshipResolver: relationshipResolverFromEdges([{ subjectId: "u-1", relation: "owner", resourceId: "doc-1" }]),
+      }),
       EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
     );
     const qadi = facade(withRelationships);
 
@@ -316,12 +308,10 @@ describe("makeQadi", () => {
     const tenant = hasAttribute("clearance", gte(1));
     const withResolver = facade(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(5) }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(5) }),
+        }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     );
 

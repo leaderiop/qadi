@@ -8,14 +8,10 @@ import {
   Allow,
   AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   Deny,
   EvaluationIdLive,
   EvaluationServicesNone,
   MAX_DECODE_DEPTH,
-  RelationshipResolverNever,
   eq,
   hasAttribute,
   hasPermission,
@@ -25,6 +21,7 @@ import {
   makeSubjectId,
   obligation,
   permission,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -856,15 +853,13 @@ describe("hydration mismatch", () => {
     const seen: Array<HydrationMismatch> = [];
     const failing = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, {
+            resolve: () =>
+              Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+          }),
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );
@@ -1127,12 +1122,8 @@ describe("a re-check that settles asynchronously", () => {
     const seen: Array<HydrationMismatch> = [];
     const watched = makeQadiAtoms(
       Layer.mergeAll(
-        slowResolver(answer),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
+        portsLayer({ AttributeResolver: slowResolver(answer) }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );

@@ -7,12 +7,8 @@
  */
 import {
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   EvaluationServicesNone,
-  RelationshipResolverNever,
   decisionSinkRing,
   gte,
   hasAttribute,
@@ -20,6 +16,7 @@ import {
   hasRole,
   makeSubject,
   permission,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -41,18 +38,16 @@ const baseLayer = EvaluationServicesNone;
 /** Counts how many times an attribute lookup actually happens. */
 const countingLayer = (counter: { count: number }) =>
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, {
-      resolve: () =>
-        Effect.sync(() => {
-          counter.count += 1;
-          return undefined;
-        }),
+    portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, {
+        resolve: () =>
+          Effect.sync(() => {
+            counter.count += 1;
+            return undefined;
+          }),
+      }),
     }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   );
 
 const registries: Array<AtomRegistry.AtomRegistry> = [];

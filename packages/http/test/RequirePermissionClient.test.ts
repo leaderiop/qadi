@@ -36,11 +36,7 @@ import * as HttpServer from "effect/http/HttpServer";
 import {
   AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
   allOf,
   gte,
   hasAttribute,
@@ -50,6 +46,7 @@ import {
   obliged,
   permission,
   permissionKey,
+  portsLayer,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
@@ -150,12 +147,8 @@ const testLayer = (resolverDown: boolean) =>
     Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
     Layer.provideMerge(
       Layer.mergeAll(
-        attributeResolverTest(resolverDown),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
+        portsLayer({ AttributeResolver: attributeResolverTest(resolverDown) }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     ),
     Layer.provideMerge(HttpServer.layerServices),

@@ -26,11 +26,7 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import {
   AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
-  SignatureHistoryNone,
   anonymous,
   decisionCacheLayer,
   ENFORCEMENT_ERROR_TAGS,
@@ -41,6 +37,7 @@ import {
   makeSubject,
   permission,
   permissionKey,
+  portsLayer,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
@@ -161,12 +158,8 @@ const CountingAttributeResolver = Layer.succeed(AttributeResolver, {
 const RegistryLayer = registerApi(Api).pipe(Layer.provideMerge(PermissionRegistryLive));
 
 const EvaluationServicesTest = Layer.mergeAll(
-  CountingAttributeResolver,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer({ AttributeResolver: CountingAttributeResolver }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 // Composed through named intermediate steps, deliberately: chaining every
@@ -474,12 +467,8 @@ describe("@qadi/http", () => {
           Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
           Layer.provideMerge(
             Layer.mergeAll(
-              flaky,
-              RelationshipResolverNever,
-              DecisionHistoryUnknown,
+              portsLayer({ AttributeResolver: flaky }),
               EvaluationIdLive,
-              CustomPredicateNone,
-              SignatureHistoryNone,
             ),
           ),
           Layer.provideMerge(decisionCacheLayer()),
@@ -716,12 +705,8 @@ describe("@qadi/http", () => {
         Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
         Layer.provideMerge(
           Layer.mergeAll(
-            failingResolver,
-            RelationshipResolverNever,
-            DecisionHistoryUnknown,
+            portsLayer({ AttributeResolver: failingResolver }),
             EvaluationIdLive,
-            CustomPredicateNone,
-            SignatureHistoryNone,
           ),
         ),
         Layer.provideMerge(decisionCacheLayer()),
@@ -778,12 +763,8 @@ describe("@qadi/http", () => {
         Layer.provideMerge(subjectExtractorBearer(lookupSubject)),
         Layer.provideMerge(
           Layer.mergeAll(
-            failingResolver,
-            RelationshipResolverNever,
-            DecisionHistoryUnknown,
+            portsLayer({ AttributeResolver: failingResolver }),
             EvaluationIdLive,
-            CustomPredicateNone,
-            SignatureHistoryNone,
           ),
         ),
         Layer.provideMerge(decisionCacheLayer()),

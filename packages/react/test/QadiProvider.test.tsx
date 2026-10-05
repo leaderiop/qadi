@@ -1,12 +1,8 @@
 import {
   AttributeResolver,
   AttributeResolveError,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
   EvaluationServicesNone,
-  RelationshipResolverNever,
   eq,
   hasAttribute,
   literal,
@@ -15,6 +11,7 @@ import {
   makeSubject,
   permission,
   renderTrace,
+  portsLayer,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -113,15 +110,13 @@ describe("Can / Cannot", () => {
     // hand it — so it renders nothing, which is still closed.
     const failing = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, {
+            resolve: () =>
+              Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+          }),
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     );
     const needsAttribute = hasAttribute("dept", eq(literal("legal")));
@@ -208,15 +203,13 @@ describe("hooks", () => {
     // this suite rather than only a `useDecision`-level one.
     const failing = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, {
+            resolve: () =>
+              Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+          }),
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     );
     const needsAttribute = hasAttribute("dept", eq(literal("legal")));

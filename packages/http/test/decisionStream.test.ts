@@ -9,18 +9,13 @@ import { assert, describe, it } from "@effect/vitest";
 import {
   Allow,
   AttributeResolver,
-  AttributeResolverNone,
   AttributeResolveError,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   Decided,
-  DecisionHistoryUnknown,
   DecisionRecord,
   EvaluationIdLive,
   EvaluationServicesNone,
   ObligationRecord,
   RelationshipResolver,
-  RelationshipResolverNever,
   decisionSinkFeed,
   gte,
   hasAttribute,
@@ -35,6 +30,7 @@ import {
   permission,
   permissionKey,
   toWire,
+  portsLayer,
 } from "@qadi/core";
 import type { AuthSubject, Trace } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -343,13 +339,9 @@ describe("reauth", () => {
         // `AttributeResolver` in place of `AttributeResolverNone`, so the other
         // five ports are composed individually rather than through the bundle.
         const layer = Layer.mergeAll(
+          portsLayer({ AttributeResolver: brokenResolver }),
           subjectExtractorBearer(lookupSubject),
-          brokenResolver,
-          RelationshipResolverNever,
-          DecisionHistoryUnknown,
           EvaluationIdLive,
-          CustomPredicateNone,
-          SignatureHistoryNone,
         );
         const result = yield* reauthCheck(request, attributePolicy, {}).pipe(
           Effect.provide(layer),
@@ -384,13 +376,9 @@ describe("reauth", () => {
             Effect.succeed(check.resourceId === makeResourceId("doc-1") ? "Related" : "Unrelated"),
         });
         const layer = Layer.mergeAll(
+          portsLayer({ RelationshipResolver: relationshipResolver }),
           subjectExtractorBearer(lookupSubject),
-          AttributeResolverNone,
-          relationshipResolver,
-          DecisionHistoryUnknown,
           EvaluationIdLive,
-          CustomPredicateNone,
-          SignatureHistoryNone,
         );
 
         // With the real resource threaded through, the resolver sees

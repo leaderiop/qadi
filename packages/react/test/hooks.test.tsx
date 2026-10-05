@@ -1,11 +1,7 @@
 import {
   AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
-  RelationshipResolverNever,
   eq,
   gte,
   literal,
@@ -19,6 +15,7 @@ import {
   makeSubjectId,
   permission,
   subjectId,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -54,27 +51,23 @@ const GENEROUS_TIMEOUT = 5000;
 
 const working = makeQadiAtoms(
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
+    portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
+    }),
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   ),
 );
 
 /** A context whose attribute lookups always fail. */
 const broken = makeQadiAtoms(
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, {
-      resolve: (_id: string, attribute: string) =>
-        Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
+    portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, {
+        resolve: (_id: string, attribute: string) =>
+          Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
+      }),
     }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   ),
 );
 
@@ -312,20 +305,18 @@ describe("useDecisionSuspense", () => {
       let resolveAttribute: (() => void) | undefined;
       const controlled = makeQadiAtoms(
         Layer.mergeAll(
-          Layer.succeed(AttributeResolver, {
-            resolve: () =>
-              Effect.promise(
-                () =>
-                  new Promise<number>((resolve) => {
-                    resolveAttribute = () => resolve(1);
-                  }),
-              ),
+          portsLayer({
+            AttributeResolver: Layer.succeed(AttributeResolver, {
+              resolve: () =>
+                Effect.promise(
+                  () =>
+                    new Promise<number>((resolve) => {
+                      resolveAttribute = () => resolve(1);
+                    }),
+                ),
+            }),
           }),
-          RelationshipResolverNever,
-          DecisionHistoryUnknown,
           EvaluationIdLive,
-          CustomPredicateNone,
-          SignatureHistoryNone,
         ),
       );
       const SlowProbe = () => (
@@ -369,12 +360,10 @@ describe("useInvalidate", () => {
     let clearance = 0;
     const shifting = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, { resolve: () => Effect.sync(() => clearance) }),
-        RelationshipResolverNever,
-    DecisionHistoryUnknown,
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, { resolve: () => Effect.sync(() => clearance) }),
+        }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     );
 
@@ -442,15 +431,13 @@ describe("through a provider, as an application reads it", () => {
     let calls = 0;
     const atoms = makeQadiAtoms(
       Layer.mergeAll(
-        slow(() => {
-          calls += 1;
-          return answer;
+        portsLayer({
+          AttributeResolver: slow(() => {
+            calls += 1;
+            return answer;
+          }),
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
         // The one thing an application layer has that the cases above do not.
         decisionCacheLayer(),
       ),
@@ -501,12 +488,8 @@ describe("through a provider, as an application reads it", () => {
 
     const atoms = makeQadiAtoms(
       Layer.mergeAll(
-        controlled,
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
+        portsLayer({ AttributeResolver: controlled }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
         decisionCacheLayer(),
       ),
     );
@@ -554,12 +537,8 @@ describe("through a provider, as an application reads it", () => {
     const seen: Array<{ readonly seeded: string; readonly decided: string }> = [];
     const atoms = makeQadiAtoms(
       Layer.mergeAll(
-        slow(() => "suspended"),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
+        portsLayer({ AttributeResolver: slow(() => "suspended") }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
         decisionCacheLayer(),
       ),
       {

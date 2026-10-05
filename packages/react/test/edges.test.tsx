@@ -5,17 +5,14 @@
 import {
   AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
   EvaluationServicesNone,
-  RelationshipResolverNever,
   gte,
   hasAttribute,
   hasPermission,
   makeSubject,
   permission,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -39,15 +36,13 @@ const working = makeQadiAtoms(EvaluationServicesNone);
 
 const broken = makeQadiAtoms(
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, {
-      resolve: (_id: string, attribute: string) =>
-        Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
+    portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, {
+        resolve: (_id: string, attribute: string) =>
+          Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
+      }),
     }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   ),
 );
 
@@ -142,14 +137,12 @@ describe("failure rendering", () => {
 /** A resolver that answers on a later tick, so a decision is genuinely async. */
 const slow = makeQadiAtoms(
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, {
-      resolve: () => Effect.delay(Effect.succeed(0), "1 millis"),
+    portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.delay(Effect.succeed(0), "1 millis"),
+      }),
     }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   ),
 );
 
@@ -226,18 +219,16 @@ describe("atom sharing under React (AC-05)", () => {
     const counter = { count: 0 };
     const counting = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.sync(() => {
-              counter.count += 1;
-              return 5;
-            }),
+        portsLayer({
+          AttributeResolver: Layer.succeed(AttributeResolver, {
+            resolve: () =>
+              Effect.sync(() => {
+                counter.count += 1;
+                return 5;
+              }),
+          }),
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     );
 
