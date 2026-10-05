@@ -25,7 +25,15 @@ rather than re-deriving `Policy`/`Trace`/`Obligation` a second time. An audit
 row's `record` is the same JSON the decision stream and forwarding emit for
 that record (`encodeSinkRecord`'s output), so a store persists
 `JSON.stringify(entry)` as it is; read rows back with `decodeAuditEntry`, the
-depth-guarded reader. `encodeAuditEntry` refuses rather than approximates: a
+depth-guarded reader.
+
+Rows are versioned. A row's `record` is either wire version 1 — no `version`
+key, written by `@qadi/core` before the record wire was versioned — or wire
+version 2, with `version: 2` and the decision's outcome as one tagged
+`outcome`. A store keeps both for good, and `decodeAuditEntry` reads both,
+including rows written by `@qadi/audit` 0.3 and 0.4. Read rows back with
+`decodeAuditEntry`, not with the `AuditEntry` schema alone, which under
+`Schema`'s default options silently strips a typo inside the stored policy. `encodeAuditEntry` refuses rather than approximates: a
 record carrying a value with no safe durable representation — a function, a
 `Symbol`, a circular reference, a `Map`/`Set`/`RegExp` — fails
 `AuditEntryNotEncodable`, naming the refusal and its path, instead of being

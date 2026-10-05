@@ -338,3 +338,62 @@ describe("decodeAuditEntry refuses what the row schema alone would accept", () =
       }
     }));
 });
+
+/**
+ * A store holds rows of both wire versions for good (ADR-QD-903 D-15-h): rows
+ * written before version 2, rows written by a sender held at version 1, and
+ * version-2 rows. `decodeAuditEntry` reads every one, with the same envelope
+ * leniency and content strictness as the core decode.
+ */
+describe("decodeAuditEntry reads rows of both wire versions", () => {
+  const ROW_V1 =
+    '{"_tag":"Decision","evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"failed":{"_tag":"MissingResource","attribute":"owner"}}';
+  const ROW_V1_PRE05 =
+    '{"_tag":"Decision","evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"failed":{"_tag":"MissingResource","attribute":"owner","code":"ACL004"}}';
+  const ROW_V2 =
+    '{"_tag":"Decision","version":2,"evaluationId":"g","at":1,"subjectId":"u1","policy":{"_tag":"HasPermission","permission":{"resource":"doc","action":"read"}},"outcome":{"_tag":"Failed","error":{"_tag":"MissingResource","attribute":"owner"}}}';
+  const read = (record: string, sequenceNumber?: number) =>
+    decodeAuditEntry({ record: JSON.parse(record), ...(sequenceNumber === undefined ? {} : { sequenceNumber }) });
+
+  it("an archive mixing v1 and v2 rows decodes every row, each to the same record", () => {
+    const rows = [read(ROW_V1, 1), read(ROW_V2, 2)];
+    assert.isTrue(rows.every(Result.isSuccess));
+    const [v1, v2] = rows;
+    if (v1 !== undefined && v2 !== undefined && Result.isSuccess(v1) && Result.isSuccess(v2)) {
+      assert.deepStrictEqual(v1.success.record, v2.success.record);
+      assert.deepStrictEqual([v1.success.entry.sequenceNumber, v2.success.entry.sequenceNumber], [1, 2]);
+      assert.isFalse("version" in v1.success.entry.record);
+      assert.isTrue("version" in v2.success.entry.record);
+    }
+  });
+
+  it("a pre-0.5 row whose error still carries its code decodes, and the entry no longer carries it", () => {
+    const row = read(ROW_V1_PRE05);
+    assert.isTrue(Result.isSuccess(row));
+    if (Result.isSuccess(row)) {
+      assert.deepStrictEqual(row.success.record, Result.getOrUndefined(read(ROW_V1))?.record);
+      assert.notInclude(JSON.stringify(row.success.entry), "ACL004");
+    }
+  });
+
+  it("a row whose record carries an unknown envelope key decodes, and the entry drops the key", () => {
+    const row = read(JSON.stringify({ ...JSON.parse(ROW_V2), traceparent: "00-abc" }));
+    assert.isTrue(Result.isSuccess(row));
+    if (Result.isSuccess(row)) assert.notInclude(JSON.stringify(row.success.entry), "traceparent");
+  });
+
+  it("a row of an unknown version is UnsupportedVersion, not Malformed", () => {
+    const row = read(JSON.stringify({ ...JSON.parse(ROW_V2), version: 3 }));
+    assert.strictEqual(Result.isFailure(row) ? row.failure.refusal._tag : undefined, "UnsupportedVersion");
+  });
+
+  it.effect("a row encodeAuditEntry wrote as either version reads back to the record", () =>
+    Effect.gen(function* () {
+      const original = failedRecord({ evaluationId: "e2" });
+      for (const wireVersion of [1, 2] as const) {
+        const entry = yield* encodeAuditEntry(original, { wireVersion });
+        const row = decodeAuditEntry(JSON.parse(JSON.stringify(entry)));
+        assert.deepStrictEqual(Result.getOrUndefined(row)?.record, original);
+      }
+    }));
+});

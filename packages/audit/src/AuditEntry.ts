@@ -91,6 +91,12 @@ const describeRefusal: (refusal: EncodeRefusal) => string = Match.type<EncodeRef
  * `record` is the encoded wire (see this module's doc comment); its `Type` is
  * already JSON-shaped, so a store persists `JSON.stringify(entry)` as it is.
  *
+ * `record` is a closed union of two byte formats, by wire version
+ * (ADR-QD-903): version-2 bytes (`version: 2`, one tagged `outcome`) and
+ * version-1 bytes (no `version` key, `decided`/`failed`). A store keeps rows of
+ * both for good; narrow on `"version" in entry.record` to read one directly, or
+ * read it back with {@link decodeAuditEntry}, which reads either.
+ *
  * `sequenceNumber` is the optional gap-detection field a caller's own store
  * assigns — `@qadi/audit` never populates it. Only the caller's store has
  * cross-restart visibility into a global write order, the same constraint
@@ -139,7 +145,25 @@ export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(functio
   return entry;
 });
 
-const decodeEntry = Schema.decodeUnknownResult(AuditEntry, UNTRUSTED_DECODE_OPTIONS);
+/**
+ * The row's own fields, decoded as untrusted: an excess property at the row's
+ * top level, or a `sequenceNumber` that is not a number, is `Malformed`. The
+ * record is `unknown` here because `decodeSinkRecord` has already read it.
+ */
+const decodeRow = Schema.decodeUnknownResult(
+  Schema.Struct({ record: Schema.Unknown, sequenceNumber: Schema.optional(Schema.Number) }),
+  UNTRUSTED_DECODE_OPTIONS,
+);
+
+/**
+ * The row's record as `SinkRecordJson`, once `decodeSinkRecord` has accepted
+ * it. Default options, deliberately and only here: the strict read has run,
+ * so the one thing left to drop is what that read tolerates — an envelope key
+ * this version does not declare, a pre-0.5 `failed.code` (ADR-QD-903) — and
+ * the entry is the row as this version describes it, not a copy of whatever
+ * extra a newer writer added.
+ */
+const recordJsonOf = Schema.decodeUnknownResult(SinkRecordJson);
 
 const malformed = (message: string) =>
   Result.fail(new SinkRecordNotDecodable({ refusal: DecodeRefusal.Malformed({ message }) }));
@@ -152,7 +176,12 @@ const malformed = (message: string) =>
  * `decodeSinkRecord` first, which refuses input nested past the decode bound
  * before the schema recurses into it; decoding a row with the schema alone
  * died with a `RangeError` on a deeply nested stored policy. Only then is the
- * whole row decoded, now safe. A refusal is a value, never a throw.
+ * rest of the row decoded, now safe. A refusal is a value, never a throw.
+ *
+ * Reads both wire versions (ADR-QD-903): a store holds version-1 rows for
+ * good, and whatever leniency and strictness `decodeSinkRecord` applies —
+ * an unknown envelope key ignored, a typo inside the embedded policy refused,
+ * an unknown `version` refused as `UnsupportedVersion` — applies here too.
  */
 export const decodeAuditEntry = (
   input: unknown,
@@ -160,7 +189,10 @@ export const decodeAuditEntry = (
   if (!Predicate.hasProperty(input, "record")) return malformed("an audit row has no record");
   const record = decodeSinkRecord(input.record);
   if (Result.isFailure(record)) return Result.fail(record.failure);
-  const entry = decodeEntry(input);
-  if (Result.isFailure(entry)) return malformed(entry.failure.message);
-  return Result.succeed({ entry: entry.success, record: record.success });
+  const row = decodeRow(input);
+  if (Result.isFailure(row)) return malformed(row.failure.message);
+  const json = recordJsonOf(input.record);
+  if (Result.isFailure(json)) return malformed(json.failure.message);
+  const entry: AuditEntry = { record: json.success, sequenceNumber: row.success.sequenceNumber };
+  return Result.succeed({ entry, record: record.success });
 };

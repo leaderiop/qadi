@@ -55,6 +55,13 @@ export interface AuditArchive {
   readonly keyMaterial?: ReadonlyArray<KeyMaterial> | undefined;
 }
 
+/**
+ * The bundle's own format version, not the wire version of its entries.
+ *
+ * It stays `"1"` across ADR-QD-903: each entry's `record` says its own wire
+ * version (no `version` key for version 1, `version: 2` otherwise), and the
+ * bundle's shape did not change, so an archive may mix both and needs no bump.
+ */
 const ARCHIVE_VERSION = "1";
 
 /**
