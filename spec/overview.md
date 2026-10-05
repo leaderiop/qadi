@@ -164,7 +164,7 @@ for why that is a deliberate, open trade rather than an oversight.
 | `DEFAULT_MAX_IN_VALUES` | const | `RenderablePredicate.ts` — 1000 |
 | `SafeLiteral`, `IdentifierRule` | type | `PredicateLiteral.ts` |
 | `isSafeLiteral`, `isRangeBound`, `isRenderableIdentifier` | function | `PredicateLiteral.ts` — the dialect-free leaf rules; `evaluatePredicate`'s `Gte`/`Lt` and `toRenderable` call the same `isRangeBound` |
-| `EvaluationServices` | type | `Evaluate.ts` |
+| `EvaluationServices` | type | `Evaluate.ts` — `CurrentSubject \| EvaluationId \| PortServices`; the ports come from the registry (`Ports.ts`), so a port added there reaches every alias without an edit here (ADR-QD-901) |
 | `StandingEvaluationServices` | type | `Evaluate.ts` — `Exclude<EvaluationServices, CurrentSubject>`, the services a runtime holds while the subject travels per call; `SubjectSetServices`, `QadiRuntimeServices`, `EvaluationServicesNone`, `@qadi/promise`'s `QadiLayer`, `DecisionStreamRoute.ts` and `RequirePermissionLive` all use it (ADR-QD-081) |
 | `intersectFields`, `unionFields` | function | `Decision.ts` |
 | `VisibleFields` | type | `Decision.ts` — a named `ReadonlyArray<string> \| undefined`: `undefined` is the field-visibility lattice's top ("all fields"), not "none"; `intersectFields`/`unionFields` and `Trace`/`Allow`'s `visibleFields` field are typed against it rather than restating the union at each site (D8, issue #107) |
@@ -249,7 +249,13 @@ answered.
 | `PortDescription`, `PortShape`, `PortScript` | type | `PortDescription.ts` — a description's shape; `PortScript` is what a scripted double does with each request |
 | `PortReply` | type + constructors | `PortDescription.ts` — `Answer`, `Fail`, `Die` or `Throw`, a closed tagged union, with `PortReply.answer`/`fail`/`die`/`throw` |
 | `scriptedPort`, `recordingPort`, `replyTable`, `PortDouble` | test double | `PortDoubles.ts` — any port's scripted double (answers, fails with the port's own error, dies or throws per request; an unscripted request answers the fail-closed default) and recording decorator (observes without absorbing), each with a typed, in-order call log |
-| `EvaluationServicesNone` | layer | `EvaluationServicesNone.ts` — every optional port's fail-closed default, combined; excludes `CurrentSubject` (ADR-QD-022) |
+| `EvaluationServicesNone` | layer | `EvaluationServicesNone.ts` — `Layer.merge(portsLayer(), EvaluationIdLive)`: every port's fail-closed default plus `EvaluationIdLive`; excludes `CurrentSubject` (ADR-QD-022) |
+| `PortTypes`, `PORTS` | type + constant | `Ports.ts` — the closed registry of the five port descriptions, keyed by `PortName`; a port name without an entry is a compile error wherever a derived type indexes it (ADR-QD-901) |
+| `PortServices`, `PortLayers`, `PortOverrides` | type | `Ports.ts` — the five port services as one union, one layer per port, and any subset of ports replaced by a layer of their own service |
+| `ServiceOf`, `ShapeOf`, `ArgsOf`, `AnswerOf`, `ErrorOf` | type | `Ports.ts` — a description's service, Shape, request tuple, answer and typed error, recovered from its type |
+| `portsLayer` | function | `Ports.ts` — every port at its fail-closed default unless an override names it; each override has its own slot, so order cannot matter |
+| `mapPorts`, `mergePorts`, `decoratePorts`, `forEveryPort` | function | `Ports.ts` — a layer per port from its description; the five as one layer; every port of a built environment rebuilt through one decorator (built once); a function run over every description in `PortName` order |
+| `PortVisitor`, `PortLayerVisitor`, `PortDecorator` | type | `Ports.ts` — the generic function types `forEveryPort`, `mapPorts` and `decoratePorts` take |
 | `DecisionCache`, `decisionCacheLayer` | service + layer | `DecisionCache.ts` |
 | `DecisionSink` | service | `DecisionSink.ts` |
 | `decisionSinkRing`, `DEFAULT_RING_CAPACITY` | layer factory + constant | `DecisionSinkRing.ts` |

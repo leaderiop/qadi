@@ -28,6 +28,7 @@ export * from "./Policy.ts";
 export * from "./PortDescription.ts";
 export * from "./PortDoubles.ts";
 export * from "./PortMetrics.ts";
+export * from "./Ports.ts";
 export * from "./Predicate.ts";
 export * from "./PredicateLiteral.ts";
 export * from "./Qadi.ts";
