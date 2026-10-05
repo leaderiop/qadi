@@ -29,7 +29,7 @@ import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { PortDescription, PortShape } from "./PortDescription.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
-import type { PortName, RetryingPortName, TimingOutPortName } from "./PortMetrics.ts";
+import type { PortName } from "./PortMetrics.ts";
 
 /** Rebuilds `layer`'s service through `wrap`, once, when the returned layer itself builds. */
 export const wrapService = <Self, Shape>(
@@ -108,7 +108,7 @@ export const boundedPermits = (
  * runs either way.
  */
 export const retryCountingAttempts = <A, E>(
-  port: RetryingPortName,
+  port: PortName,
   schedule: Schedule.Schedule<unknown, E>,
   attempt: Effect.Effect<A, E>,
 ): Effect.Effect<A, E> =>
@@ -160,7 +160,7 @@ export const wrapPort = <
  */
 export const retryingPort =
   <
-    N extends RetryingPortName,
+    N extends PortName,
     Self,
     Shape extends PortShape,
     Args extends ReadonlyArray<unknown>,
@@ -223,7 +223,7 @@ export const boundedPort =
  */
 export const timingOutPort =
   <
-    N extends TimingOutPortName,
+    N extends PortName,
     Self,
     Shape extends PortShape,
     Args extends ReadonlyArray<unknown>,

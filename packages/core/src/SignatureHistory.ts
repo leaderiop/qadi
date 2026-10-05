@@ -25,12 +25,15 @@
  */
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import type * as Schedule from "effect/Schedule";
 import { SignatureHistoryUnavailable } from "./Errors.ts";
+import type { InvalidBoundedPermits } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
-import { nonePort } from "./PortDerivation.ts";
+import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import type { Signature } from "./Signature.ts";
 
@@ -191,3 +194,39 @@ export const signatureHistoryFromSignatures = (
       ]),
   });
 };
+
+/**
+ * Wraps a signature-history layer so every `signaturesFor` call retries on
+ * `SignatureHistoryUnavailable` under the given schedule before surfacing it —
+ * `attributeResolverRetrying` for this port: it annotates `qadi.attempts` on
+ * the caller's span and counts failed attempts in `portRetriesTotal`. Derived
+ * from {@link signatureHistoryPort} by `PortDerivation.ts`'s `retryingPort`.
+ */
+export const signatureHistoryRetrying: (
+  schedule: Schedule.Schedule<unknown, SignatureHistoryUnavailable>,
+) => (layer: Layer.Layer<SignatureHistory>) => Layer.Layer<SignatureHistory> =
+  retryingPort(signatureHistoryPort);
+
+/**
+ * Wraps a signature-history layer so no more than `permits` calls to
+ * `signaturesFor` run at once, queuing the rest — `attributeResolverBounded`
+ * for this port. `permits` that is not a positive integer fails construction
+ * with `InvalidBoundedPermits`.
+ */
+export const signatureHistoryBounded: (
+  permits: number,
+) => (
+  layer: Layer.Layer<SignatureHistory>,
+) => Layer.Layer<SignatureHistory, InvalidBoundedPermits> = boundedPort(signatureHistoryPort);
+
+/**
+ * Wraps a signature-history layer so a `signaturesFor` call that does not
+ * settle within `duration` fails with a typed `SignatureHistoryUnavailable`
+ * instead of holding its caller open — `attributeResolverTimingOut` for this
+ * port (see its doc comment for the composition order) — and counts in
+ * `portTimeoutsTotal`.
+ */
+export const signatureHistoryTimingOut: (
+  duration: Duration.Input,
+) => (layer: Layer.Layer<SignatureHistory>) => Layer.Layer<SignatureHistory> =
+  timingOutPort(signatureHistoryPort);

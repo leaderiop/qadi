@@ -16,12 +16,15 @@
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
+import type * as Schedule from "effect/Schedule";
 import { DecisionHistoryUnavailable } from "./Errors.ts";
+import type { InvalidBoundedPermits } from "./Errors.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
-import { nonePort } from "./PortDerivation.ts";
+import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 
 /**
@@ -191,3 +194,41 @@ export const decisionHistoryFromEvents = (
       ),
   });
 };
+
+/**
+ * Wraps a history layer so every `hasActed` call retries on
+ * `DecisionHistoryUnavailable` under the given schedule before surfacing it —
+ * `attributeResolverRetrying` for this port: it annotates `qadi.attempts` on
+ * the caller's span and counts failed attempts in `portRetriesTotal`. Derived
+ * from {@link decisionHistoryPort} by `PortDerivation.ts`'s `retryingPort`.
+ */
+export const decisionHistoryRetrying: (
+  schedule: Schedule.Schedule<unknown, DecisionHistoryUnavailable>,
+) => (layer: Layer.Layer<DecisionHistory>) => Layer.Layer<DecisionHistory> =
+  retryingPort(decisionHistoryPort);
+
+/**
+ * Wraps a history layer so no more than `permits` calls to `hasActed` run at
+ * once, queuing the rest — `attributeResolverBounded` for this port. A history
+ * policy evaluated over a large collection under `concurrency: "unbounded"`
+ * otherwise reaches the audit store once per item, all at once. `permits` that
+ * is not a positive integer fails construction with `InvalidBoundedPermits`.
+ */
+export const decisionHistoryBounded: (
+  permits: number,
+) => (
+  layer: Layer.Layer<DecisionHistory>,
+) => Layer.Layer<DecisionHistory, InvalidBoundedPermits> = boundedPort(decisionHistoryPort);
+
+/**
+ * Wraps a history layer so a `hasActed` call that does not settle within
+ * `duration` fails with a typed `DecisionHistoryUnavailable` instead of
+ * holding its caller open — `attributeResolverTimingOut` for this port (see
+ * its doc comment for the composition order), and counts in
+ * `portTimeoutsTotal`. A hung audit store held an evaluation open with no
+ * library-provided deadline until every port had this wrapper (ARCH-10 E1).
+ */
+export const decisionHistoryTimingOut: (
+  duration: Duration.Input,
+) => (layer: Layer.Layer<DecisionHistory>) => Layer.Layer<DecisionHistory> =
+  timingOutPort(decisionHistoryPort);

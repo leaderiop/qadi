@@ -13,13 +13,14 @@
  */
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Schedule from "effect/Schedule";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CustomPredicateError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
-import { boundedPort, nonePort, retryingPort } from "./PortDerivation.ts";
+import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { PortDescription } from "./PortDescription.ts";
 import type { Resource } from "./Resource.ts";
 
@@ -187,3 +188,17 @@ export const customPredicateBounded: (
 ) => (
   layer: Layer.Layer<CustomPredicate>,
 ) => Layer.Layer<CustomPredicate, InvalidBoundedPermits> = boundedPort(customPredicatePort);
+
+/**
+ * Wraps a registry layer so an `evaluate` call that does not settle within
+ * `duration` fails with a typed `CustomPredicateError` — its `reason` the
+ * deadline message — instead of holding its caller open:
+ * `attributeResolverTimingOut` for this port (see its doc comment for the
+ * composition order), counting in `portTimeoutsTotal`. A registered predicate
+ * calling out to a slow service had no library-provided deadline until every
+ * port had this wrapper (ARCH-10 E1).
+ */
+export const customPredicateTimingOut: (
+  duration: Duration.Input,
+) => (layer: Layer.Layer<CustomPredicate>) => Layer.Layer<CustomPredicate> =
+  timingOutPort(customPredicatePort);

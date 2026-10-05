@@ -29,7 +29,12 @@ import {
 } from "../src/EvaluationId.ts";
 import * as M from "../src/Matcher.ts";
 import * as P from "../src/Policy.ts";
-import { portCallsTotal, predicatePortCallsTotal } from "../src/PortMetrics.ts";
+import {
+  portCallsTotal,
+  portRetriesTotal,
+  portTimeoutsTotal,
+  predicatePortCallsTotal,
+} from "../src/PortMetrics.ts";
 import { toPredicate } from "../src/Predicate.ts";
 import {
   RelationshipResolver,
@@ -314,10 +319,37 @@ describe("port activity is counted", () => {
 
       const retries = frequencyOf(snapshots, "qadi_port_retries_total");
       assert.strictEqual(retries?.state.occurrences.get("RelationshipResolver"), 1);
-      // Not "undefined" — `preregisteredWords` puts every retrying port in
-      // the snapshot at zero once the metric is touched at all, rather than
-      // letting an untouched one stay a silently missing word.
-      assert.strictEqual(retries?.state.occurrences.get("AttributeResolver"), 0);
+      // Not "undefined" — `preregisteredWords` puts every port in the
+      // snapshot at zero once the metric is touched at all, rather than
+      // letting an untouched one stay a silently missing word. All five, now
+      // that every port has a retrying wrapper (ARCH-10).
+      for (const port of [
+        "AttributeResolver",
+        "DecisionHistory",
+        "CustomPredicate",
+        "SignatureHistory",
+      ]) {
+        assert.strictEqual(retries?.state.occurrences.get(port), 0, port);
+      }
+    }));
+
+  it.effect("every port is preregistered in the timeout frequency too", () =>
+    Effect.gen(function* () {
+      const snapshots = yield* isolatedMetrics(
+        Metric.update(portTimeoutsTotal, "SignatureHistory").pipe(
+          Effect.flatMap(() => Metric.snapshot),
+        ),
+      );
+      const timeouts = frequencyOf(snapshots, "qadi_port_timeouts_total");
+      assert.strictEqual(timeouts?.state.occurrences.get("SignatureHistory"), 1);
+      for (const port of [
+        "AttributeResolver",
+        "DecisionHistory",
+        "RelationshipResolver",
+        "CustomPredicate",
+      ]) {
+        assert.strictEqual(timeouts?.state.occurrences.get(port), 0, port);
+      }
     }));
 
   it.effect("a retried attempt counts against the retry frequency", () =>
@@ -460,6 +492,17 @@ describe("translation's port activity is counted separately", () => {
       "Calls the evaluator made into a resolver or history port, by port. " +
         "Scoped to Evaluate.ts only — Predicate.ts's translateNode reaches the " +
         "same ports via a second interpreter and is not counted here.",
+    );
+    // Widening the two wrapper metrics' `preregisteredWords` to every port
+    // (ARCH-10) changes no registry key: the words are not part of it. These
+    // two descriptions are, so they are pinned too.
+    assert.strictEqual(
+      portRetriesTotal.description,
+      "Failed port attempts inside a retrying wrapper, by port.",
+    );
+    assert.strictEqual(
+      portTimeoutsTotal.description,
+      "Port calls that hit their deadline inside a timing-out wrapper, by port.",
     );
   });
 });
