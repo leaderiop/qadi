@@ -19,6 +19,9 @@
  *                     that reaches `mergeFields`/`intersectFields` —
  *                     O(|a|·|b|) pairwise `compareFieldPaths`, on the same
  *                     per-node path §5a protects with a switch budget
+ *   field-heavy Union the same eight arms in an `anyOf` under `Union`, the
+ *                     only workload whose merge accumulates field sets
+ *                     (ARCH-12 T4)
  *   obligation-heavy  `allOf` of 8 distinct `Obliged` children, the only
  *                     workload that folds `unionObligations`'s linear
  *                     `.some(Equal.equals(...))` scan over several obligations
@@ -215,6 +218,20 @@ const fieldHeavy = allOf(
 );
 
 /**
+ * The same eight field-restricted arms as `fieldHeavy`, folded by an `anyOf`
+ * under `Union` — the only workload that reaches `mergeFields`'s inline `Union`
+ * path with field sets to accumulate (`anyOfUnion` below carries no `fields`,
+ * so its merge returns at the first unrestricted set). Added for ARCH-12's
+ * D-12-b, which moves that path into `FieldLattice.ts`'s law table.
+ */
+const fieldHeavyUnion = anyOf(
+  Array.from({ length: 8 }, (_, index) =>
+    hasPermission(read, { fields: [`id`, `field${index}`, `shared.a`, `shared.b`] }),
+  ),
+  { fieldStrategy: "Union" },
+);
+
+/**
  * Eight `Obliged` arms, each carrying a distinct obligation, folded under
  * `AllOf` — the only workload that gives `stepAllOf`'s
  * `unionObligations(fold.obligations, trace.obligations)` fold more than
@@ -316,6 +333,7 @@ test("evaluate", async ({ bench }) => {
     bench("wrapper-heavy — 10 nested labeled/not/obliged", () => run(wrapperHeavy)),
     bench("matcher-heavy — 3 refs", () => run(matchers)),
     bench("field-heavy — allOf of 8 under Intersection", () => run(fieldHeavy)),
+    bench("field-heavy — anyOf of 8 under Union", () => run(fieldHeavyUnion)),
     bench("obligation-heavy — allOf of 8 distinct obligations", () => run(obligationHeavy)),
     bench("resolver miss — one port call", () => {
       resolvingRuntime.runSync(evaluate(missed));

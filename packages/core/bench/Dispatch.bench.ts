@@ -32,8 +32,11 @@
  */
 import * as Match from "effect/Match";
 import { test } from "vitest";
+import { intersectFields } from "../src/Decision.ts";
+import type { VisibleFields } from "../src/Decision.ts";
 import { getByPath } from "../src/Matcher.ts";
 import type { ValueRef } from "../src/Matcher.ts";
+import type { FieldStrategy } from "../src/Policy.ts";
 
 interface Context {
   readonly subject: Readonly<Record<string, unknown>>;
@@ -158,6 +161,106 @@ test("resolveRef — 64 dispatches, one policy tree", async ({ bench }) => {
     }),
     bench("Match, per call", () => {
       for (const ref of tree) viaMatchValue(ref, context);
+    }),
+    options,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// `mergeFields` — the fourth budgeted switch, on the `FieldStrategy` literal
+// union, measured for ARCH-12's D-12-b: whether replacing it with an
+// own-property law table (`Object.hasOwn` + a property load + an indirect call)
+// costs anything at the dispatch site. The plan's rule: take the table if it is
+// within 1.2× of the switch per dispatch and `Evaluate.bench.ts`'s two
+// field-heavy means stay within run-to-run noise (≤ 10%).
+//
+// Every arm does the real merge work (`intersectFields`, a single-`Set` union,
+// `First`'s pass-through), so the comparison is dispatch in proportion to the
+// merge it selects, not dispatch alone. `intersectFields` is bound locally: a
+// cross-module call pays a module-runner getter per call under vitest bench,
+// which is not production cost and would be paid identically by all three.
+// ---------------------------------------------------------------------------
+
+type FieldSets = ReadonlyArray<VisibleFields>;
+
+const intersect = intersectFields;
+
+const mergeIntersection = (sets: FieldSets): VisibleFields =>
+  sets.reduce<VisibleFields>((acc, cur) => intersect(acc, cur), undefined);
+
+const mergeUnion = (sets: FieldSets): VisibleFields => {
+  if (sets.length === 0) return undefined;
+  const merged = new Set<string>();
+  for (const set of sets) {
+    if (set === undefined) return undefined;
+    for (const field of set) merged.add(field);
+  }
+  return [...merged].sort();
+};
+
+const mergeFirst = (sets: FieldSets): VisibleFields => (sets.length === 0 ? undefined : sets[0]);
+
+/** Transcribed from `Evaluate.ts`'s `mergeFields`, `default` arm included. */
+const mergeViaSwitch = (strategy: FieldStrategy, sets: FieldSets): VisibleFields => {
+  switch (strategy) {
+    case "Intersection":
+      return mergeIntersection(sets);
+    case "Union":
+      return mergeUnion(sets);
+    case "First":
+      return mergeFirst(sets);
+    default: {
+      const exhaustive: never = strategy;
+      void exhaustive;
+      return [];
+    }
+  }
+};
+
+interface Row {
+  readonly merge: (sets: FieldSets) => VisibleFields;
+  readonly decidedByFirst: boolean;
+}
+const LAWS: Readonly<Record<FieldStrategy, Row>> = {
+  Intersection: { merge: mergeIntersection, decidedByFirst: false },
+  Union: { merge: mergeUnion, decidedByFirst: false },
+  First: { merge: mergeFirst, decidedByFirst: true },
+};
+const FAIL_CLOSED: Row = { merge: () => [], decidedByFirst: false };
+
+/** The D-12-b(b) shape: one own-property law table, read through `Object.hasOwn`. */
+const mergeViaTable = (strategy: FieldStrategy, sets: FieldSets): VisibleFields =>
+  (Object.hasOwn(LAWS, strategy) ? LAWS[strategy] : FAIL_CLOSED).merge(sets);
+
+/** `Match.value` rebuilt per call — the form a naive §5a conversion produces. */
+const mergeViaMatchValue = (strategy: FieldStrategy, sets: FieldSets): VisibleFields =>
+  Match.value(strategy).pipe(
+    Match.when("Intersection", () => mergeIntersection(sets)),
+    Match.when("Union", () => mergeUnion(sets)),
+    Match.when("First", () => mergeFirst(sets)),
+    Match.orElse((): VisibleFields => []),
+  );
+
+/** A small, realistic allowing-children input: three overlapping restrictions. */
+const fieldSets: FieldSets = [
+  ["id", "title", "shared.a"],
+  ["id", "body", "shared.**"],
+  ["id", "shared.a", "author"],
+];
+
+/** Every strategy, in a fixed rotation, for the reason `refs` rotates arms above. */
+const strategies: ReadonlyArray<FieldStrategy> = ["Intersection", "Union", "First"];
+
+test("mergeFields — one dispatch", async ({ bench }) => {
+  await bench.compare(
+    bench("switch", () => {
+      for (const strategy of strategies) mergeViaSwitch(strategy, fieldSets);
+    }),
+    bench("own-property table", () => {
+      for (const strategy of strategies) mergeViaTable(strategy, fieldSets);
+    }),
+    bench("Match, per call", () => {
+      for (const strategy of strategies) mergeViaMatchValue(strategy, fieldSets);
     }),
     options,
   );
