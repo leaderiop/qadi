@@ -20,7 +20,9 @@
  * atom graph and the components.
  */
 import * as Data from "effect/Data";
+import * as Order from "effect/Order";
 import type { DecisionRecord, ObligationRecord, StoredRecord } from "@qadi/core";
+import { storedRecordOrder } from "@qadi/core";
 
 /** One evaluation, as one process saw it. */
 export class TimelineDecision extends Data.TaggedClass("TimelineDecision")<{
@@ -176,6 +178,21 @@ const sameEvaluation = (
 const last = <A>(items: ReadonlyArray<A>): A | undefined => items[items.length - 1];
 
 /**
+ * True when an entry `a` must appear after one `b`, by core's `storedRecordOrder`.
+ *
+ * The comparator is shared — it is the one order a stored record is read in
+ * (INV-QD-039), so a merged backlog and this timeline cannot disagree — and this
+ * file asks only the greater-than question. A three-way answer was never read
+ * here: `insert` asks "does this existing entry belong after the newcomer", and
+ * a comparator's `-1` and `0` are the same answer to that. Two unknown (`NaN`)
+ * times are equal, so neither is after the other and the newcomer lands after
+ * its equals, in arrival order.
+ *
+ * Hoisted to module scope: `insert` runs once per ingested record.
+ */
+const isAfter = Order.isGreaterThan(storedRecordOrder);
+
+/**
  * Places one entry in an already-ordered list.
  *
  * An insertion rather than an append-and-re-sort, and the reason is that the
@@ -195,33 +212,13 @@ const insert = (
   entries: ReadonlyArray<TimelineEntry>,
   entry: TimelineEntry,
 ): ReadonlyArray<TimelineEntry> => {
-  const at = entries.findIndex((existing) => isAfter(existing.at, entry.at));
+  const at = entries.findIndex((existing) => isAfter(existing, entry));
   // Ties place the newcomer last among its equals, which is what a log reads
   // like: things that happened at the same instant appear in the order they
   // reached the reader.
   return at === -1
     ? [...entries, entry]
     : [...entries.slice(0, at), entry, ...entries.slice(at)];
-};
-
-/**
- * True when a record timed `a` must appear after one timed `b`.
- *
- * A predicate rather than a three-way comparator, because only one of the three
- * answers was ever read: `insert` asks "does this existing entry belong after
- * the newcomer", and a comparator's `-1` and `0` are the same answer to that
- * question. Two mutants swapping them survived the whole suite, which is how
- * the distinction was found to be dead.
- *
- * `at` comes off a `Clock` in whichever process made the decision and this
- * merges several of them, so it can be anything — including `NaN` from a
- * hand-built or hostile record. An unknown time sorts after every known one,
- * and two unknowns keep the order they arrived in.
- */
-const isAfter = (a: number, b: number): boolean => {
-  const aUnknown = Number.isNaN(a);
-  const bUnknown = Number.isNaN(b);
-  return aUnknown || bUnknown ? aUnknown && !bUnknown : a > b;
 };
 
 /**

@@ -13,85 +13,11 @@
  * durable history writes a sink that forwards somewhere durable.
  */
 import * as Chunk from "effect/Chunk";
-import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Match from "effect/Match";
-import { DecisionRecord, ObligationRecord } from "./DecisionRecord.ts";
-import type { SinkRecord } from "./DecisionRecord.ts";
+import { stampRecord } from "./DecisionRecord.ts";
+import type { SinkRecord, StoredRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
-
-/** Where an evaluation ran. Stamped by the sink, never claimed by core. */
-export interface Stamped {
-  /**
-   * Where this evaluation happened — `"Server"`, `"Client"`, whatever a caller
-   * names its runtime.
-   *
-   * A plain `string`, not a closed union, and the distinction from the rest of
-   * this library is worth stating: nothing branches on this value. It is a
-   * label a reader sees, not an input a decision is computed from, so an
-   * unrecognised one degrades to an unfamiliar badge rather than to a wrong
-   * answer. Closed unions are reserved here for values that decide something.
-   */
-  readonly environment: string;
-}
-
-/**
- * A record as this sink stores it: whatever core reported, plus where it ran.
- *
- * Two sibling `Data.TaggedClass`es reusing `DecisionRecord`/`ObligationRecord`'s
- * own constructor parameter types, rather than one flat interface or a
- * `SinkRecord & Stamped` intersection: a consumer still narrows on `_tag` and
- * gets `policy` on a `Decision` and `obligationIds` on an `Obligations` — a
- * widened struct carrying both as optional would hand every reader a "cannot
- * happen" branch — and a plain `{ ...record, environment }` spread of a
- * `Data.TaggedClass` instance would silently place the result on
- * `Object.prototype`, losing `.pipe`/`Equal.equals`/`Hash`. `new` always sets
- * the correct prototype, so a real class per tag needs no such spread at all.
- */
-export class StoredDecisionRecord extends Data.TaggedClass("Decision")<
-  ConstructorParameters<typeof DecisionRecord>[0] & Stamped
-> {}
-
-export class StoredObligationRecord extends Data.TaggedClass("Obligations")<
-  ConstructorParameters<typeof ObligationRecord>[0] & Stamped
-> {}
-
-export type StoredRecord = StoredDecisionRecord | StoredObligationRecord;
-
-/**
- * Stamps a record with where it ran, preserving the record's own prototype.
- *
- * A plain `{ ...record, environment }` spread would place the result on
- * `Object.prototype`: `DecisionRecord`/`ObligationRecord` are `Data.TaggedClass`
- * instances, and spread only copies own enumerable keys, not the prototype
- * chain those classes hang `.pipe`, `Equal.equals` and `Hash.hash` from.
- * TypeScript does not catch this — the spread's type-level operator carries
- * `.pipe`'s signature into the result type regardless of whether the runtime
- * value has a working `.pipe` — so a `StoredRecord` built that way would
- * quietly stop honestly satisfying its own type. Spreading `record`'s fields
- * into a fresh class's constructor, below, is a different operation: `new`
- * builds a genuinely new instance with the right prototype, so nothing is lost.
- *
- * A module-scope `Match.type<SinkRecord>()`, built once (AGENTS.md §5a),
- * rather than `Match.value(record)` rebuilt on every call — `stampRecord` runs
- * once per record `decisionSinkRing`'s `record`/`ingest` accept, i.e. per
- * authorization decision whenever a `DecisionSink` is wired, the exact
- * per-call dispatch shape §5a's hoisted form exists for. Both arms close only
- * over `environment` (the per-call argument), not over anything from the
- * matcher's own construction, so hoisting needs no extra plumbing.
- */
-const stampRecordMatch: (
-  record: SinkRecord,
-) => (environment: string) => StoredRecord = Match.type<SinkRecord>().pipe(
-  Match.tagsExhaustive({
-    Decision: (r) => (environment: string) => new StoredDecisionRecord({ ...r, environment }),
-    Obligations: (r) => (environment: string) => new StoredObligationRecord({ ...r, environment }),
-  }),
-);
-
-export const stampRecord = (record: SinkRecord, environment: string): StoredRecord =>
-  stampRecordMatch(record)(environment);
 
 export const DEFAULT_RING_CAPACITY = 500;
 

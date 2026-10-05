@@ -17,6 +17,7 @@ import { evaluate } from "../src/Evaluate.ts";
 import type { DecisionSink, DecisionSinkShape } from "../src/DecisionSink.ts";
 import * as P from "../src/Policy.ts";
 import { permission } from "../src/Permission.ts";
+import type { StoredRecord } from "../src/index.ts";
 
 const read = permission("doc", "read");
 
@@ -53,4 +54,13 @@ test("a sink that can fail is unrepresentable", () => {
   expect<Effect.Effect<never, never>>().type.toBeAssignableTo<
     ReturnType<DecisionSinkShape["record"]>
   >();
+});
+
+test("StoredRecord is importable from @qadi/core and narrows on _tag", () => {
+  // Moved from `DecisionSinkRing.ts` to `DecisionRecord.ts` (ARCH-11 D-11-h);
+  // the package's public name for it must not move with it.
+  const narrow = (record: StoredRecord) =>
+    record._tag === "Decision" ? record.policy : record.obligationIds;
+  expect(narrow).type.toBe<(record: StoredRecord) => P.Policy | ReadonlyArray<string>>();
+  expect<StoredRecord["environment"]>().type.toBe<string>();
 });
