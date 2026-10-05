@@ -350,6 +350,58 @@ describe("sourceFromEventSource", () => {
     }));
 
   /**
+   * Wire versions (ADR-QD-903): a panel reads a server older than itself and
+   * one on its own version, and names a server newer than itself — whose fix
+   * is upgrading this panel — apart from a malformed record.
+   */
+  describe("wire versions", () => {
+    const record = decisionRecord({ evaluationId: "versioned" });
+    const framed = (wireVersion: 1 | 2): string =>
+      Result.match(encodeSinkRecordString(record, { wireVersion }), {
+        onSuccess: (text) => text,
+        onFailure: (error) => assert.fail(`refused: ${error.refusal._tag}`),
+      });
+    const withField = (text: string, key: string, value: unknown): string =>
+      JSON.stringify({ ...JSON.parse(text), [key]: value });
+
+    it.effect("a v2 frame and a v1 frame from an older server decode to the same record", () =>
+      Effect.gen(function* () {
+        const got = yield* collect(fakeEventSource(), [framed(2), framed(1)], 2);
+        assert.strictEqual(got.length, 2);
+        assert.deepStrictEqual(got[0], got[1]);
+        assert.strictEqual(got[0]?.evaluationId, "versioned");
+      }));
+
+    it.effect("a frame with an unknown envelope key decodes (a newer server's additive metadata)", () =>
+      Effect.gen(function* () {
+        const got = yield* collect(fakeEventSource(), [withField(framed(2), "traceparent", "00-abc")], 1);
+        assert.strictEqual(got[0]?.evaluationId, "versioned");
+      }));
+
+    it.effect("a v1 frame naming both outcomes is dropped as not-a-record", () =>
+      Effect.gen(function* () {
+        const reported: Array<readonly [string, MalformedReason]> = [];
+        const both = withField(framed(1), "failed", { _tag: "MissingResource", attribute: "owner" });
+        const got = yield* collect(fakeEventSource(), [both, framed(2)], 1, {
+          onMalformed: (frame, reason) => reported.push([frame, reason]),
+        });
+        assert.deepStrictEqual(reported, [[both, "not-a-record"]]);
+        assert.strictEqual(got[0]?.evaluationId, "versioned");
+      }));
+
+    it.effect("a version-3 frame is dropped as unsupported-version, not as not-a-record", () =>
+      Effect.gen(function* () {
+        const reported: Array<readonly [string, MalformedReason]> = [];
+        const newer = withField(framed(2), "version", 3);
+        const got = yield* collect(fakeEventSource(), [newer, framed(2)], 1, {
+          onMalformed: (frame, reason) => reported.push([frame, reason]),
+        });
+        assert.deepStrictEqual(reported, [[newer, "unsupported-version"]]);
+        assert.strictEqual(got[0]?.evaluationId, "versioned");
+      }));
+  });
+
+  /**
    * E1.1/E1.2 through the default reporter.
    *
    * The message and the annotation are asserted, not just the fact that

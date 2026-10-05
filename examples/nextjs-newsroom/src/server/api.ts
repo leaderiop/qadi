@@ -28,6 +28,7 @@ import * as HttpServer from "effect/http/HttpServer";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import {
@@ -38,7 +39,7 @@ import {
   makeResourceId,
   RelationshipResolver,
 } from "@qadi/core";
-import type { ActedResult, RelatedResult } from "@qadi/core";
+import type { ActedResult, DecodeRefusal, RelatedResult } from "@qadi/core";
 import {
   addGuardedRoute,
   decisionStreamRoute,
@@ -213,6 +214,24 @@ const BacklogRoute = addGuardedRoute(
 );
 
 /**
+ * Why an ingested body was refused, as the 400's text.
+ *
+ * A sender newer than this aggregator — writing a wire version its
+ * `@qadi/core` does not read — is told apart from a body that is not a record
+ * at all, because the fix is different: upgrade the aggregator, not the
+ * sender (ADR-QD-903).
+ */
+const refusedBecause: (refusal: DecodeRefusal) => string = Match.type<DecodeRefusal>().pipe(
+  Match.tagsExhaustive({
+    NotJson: (refusal) => `not a decision record: ${refusal._tag}`,
+    TooDeep: (refusal) => `not a decision record: ${refusal._tag}`,
+    Malformed: (refusal) => `not a decision record: ${refusal._tag}`,
+    UnsupportedVersion: (refusal) =>
+      `unsupported wire version ${JSON.stringify(refusal.version)}: this aggregator reads ${refusal.supported.join(", ")}`,
+  }),
+);
+
+/**
  * The edge aggregator's receiving half.
  *
  * A serverless invocation cannot keep a ring — the process ends and takes it
@@ -220,7 +239,8 @@ const BacklogRoute = addGuardedRoute(
  * stamped `Edge` rather than with this process's own environment
  * ([BEH-QD-188](../../../../spec/behaviors/24-decision-sink.md)).
  *
- * A malformed body is a 400 naming why, and nothing else.
+ * A malformed body is a 400 naming why, and nothing else; a record of a wire
+ * version this aggregator does not read is a 400 saying so.
  * `decodeSinkRecordString` validates untrusted input — not JSON, nested past
  * the decode bound, or not a record — and an aggregator that half-built a
  * record from a bad frame would be the defect the wire codec exists to prevent.
@@ -241,7 +261,7 @@ const IngestRoute = HttpRouter.add(
 
     const record = decodeSinkRecordString(body.success);
     if (Result.isFailure(record)) {
-      return HttpServerResponse.text(`not a decision record: ${record.failure.refusal._tag}`, { status: 400 });
+      return HttpServerResponse.text(refusedBecause(record.failure.refusal), { status: 400 });
     }
 
     yield* ring.ingest(record.success, "Edge");
