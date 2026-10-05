@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.10 (2026-10-05): BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-904)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-902, CCR-QD-903)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-901, CCR-QD-901)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
+> | Change History | 1.10 (2026-10-05): BEH-QD-199 — the reader ignores an unknown top-level envelope key and still refuses one at any nested position (GH-01, ADR-QD-903); BEH-QD-200 — a decision record naming neither outcome, or both, is refused rather than given an invented `MissingResource` or a silently chosen `decided` (tickets 96, 155, CCR-QD-904)<br>1.9 (2026-10-05): BEH-QD-199 — the record wire is one operation each way (`encodeSinkRecord`/`encodeSinkRecordString`, `decodeSinkRecord`/`decodeSinkRecordString`), and the error requirement no longer claims a wire-carried code; BEH-QD-200 — `cause` crosses through `Schema.Defect()` on every path, and the sender refuses, with a path, whatever would not round-trip (ADR-QD-902, CCR-QD-903)<br>1.8 (2026-10-05): BEH-QD-196's wrapper-naming requirement covers every derived wrapper, for all five ports; BEH-QD-197: `qadi_port_retries_total` and `qadi_port_timeouts_total` are keyed by all five ports, each preregistered (ADR-QD-901, CCR-QD-901)<br>1.7 (2026-10-04): BEH-QD-191 restated — `policyDepth` is exact in both directions, counts matcher nesting, and is stack-safe; BEH-QD-300–302 added (`foldPolicy`, `fieldsOf`, `POLICY_TAGS`) (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-197 — a second metric requirement: `qadi_predicate_port_calls_total` counts `toPredicate`'s port calls by port, and `qadi_port_calls_total` keeps counting the evaluator's only (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-08): BEH-QD-199 gains an explicit requirement that `decodeRecord` reject an excess property inside its embedded `Policy` — `decodeSinkRecordWireUnknown` decoded with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points (issue #78, CCR-QD-139)<br>1.4 (2026-09-08): BEH-QD-199's `decodeRecord` signature corrected to `Effect<SinkRecord, PolicyDecodeTooDeep \| SchemaIssue>` — the depth guard's error was missing from the doc entirely — and the untrusted-decode discussion gained a note on that guard (CCR-QD-134)<br>1.3 (2026-09-07): BEH-QD-194 gains an explicit requirement that `ObligationsChanged` compare by the whole duty, not `id` alone — `diffTraces` compared by `id` only, contradicting `Obligation.ts`'s own "not an identity" note (issue 45, CCR-QD-114)<br>1.2 (2026-08-24): BEH-QD-199–200 — the record's wire form (CCR-QD-063)<br>1.1 (2026-08-24): BEH-QD-195–198 — the obligation gate, port identity, port activity, and the questions an atom set was asked (CCR-QD-062)<br>1.0 (2026-08-24): Initial release (CCR-QD-061) |
 
 _Previous: [24 — The Decision Sink](./24-decision-sink.md)_
 
@@ -535,6 +535,9 @@ a transport detail. Its outcome shape and any version handling live behind
 ```
 REQUIREMENT: `decodeSinkRecord` MUST reject an excess property inside its
              embedded `Policy`, not silently strip it.
+REQUIREMENT: `decodeSinkRecord` MUST ignore a top-level envelope key it does
+             not declare, and MUST still refuse an undeclared key at any nested
+             position — the policy, the trace, the decision, the error.
 ```
 
 The wire embeds the same `Policy` schema across the identical trust boundary
@@ -544,6 +547,16 @@ ADR-QD-002 describes, so it shares `Policy.ts`'s `UNTRUSTED_DECODE_OPTIONS`
 carried a typo'd field — `{"_tag":"HasPermission","permision":...}` — decoded
 successfully, silently dropping the grant rather than reporting the typo,
 exactly the class of silent data loss ADR-QD-002 exists to rule out.
+
+The envelope is the one exception, and it is the top level only
+([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
+A newer sender adding envelope metadata — a `traceparent`, a host name — used to
+have every record refused by an older reader for the length of a rolling deploy
+(GH-01). `Schema`'s parse options apply to a whole decode call, so the reader
+projects the input onto the keys its member declares and then decodes that
+strictly: an unknown top-level key is ignored, and an unknown key one level
+down is refused as before. A change to content — anything nested — needs a new
+wire version, not a new envelope key.
 
 ```
 REQUIREMENT: An `EvaluationError` MUST cross carrying its tag; its stable code

@@ -164,16 +164,25 @@ const exactlyOneOutcome = Schema.makeFilter((wire: DecisionWireFields) =>
  * derived from. Module-private: callers see only `SinkRecordJson`, its encoded
  * side, and the four operations.
  */
+const obligationsFields = {
+  _tag: Schema.Literal("Obligations"),
+  evaluationId: Schema.String,
+  at: Schema.Number,
+  outcome: Schema.Literals(["Discharged", "HandlerFailed", "Refused", "NotRequired"]),
+  obligationIds: Schema.Array(Schema.String),
+};
+
 const SinkRecordWire = Schema.Union([
   Schema.Struct(decisionFields).check(exactlyOneOutcome),
-  Schema.Struct({
-    _tag: Schema.Literal("Obligations"),
-    evaluationId: Schema.String,
-    at: Schema.Number,
-    outcome: Schema.Literals(["Discharged", "HandlerFailed", "Refused", "NotRequired"]),
-    obligationIds: Schema.Array(Schema.String),
-  }),
+  Schema.Struct(obligationsFields),
 ]);
+
+/**
+ * The envelope's declared top-level keys, per member, read from the schema's
+ * own fields so they cannot drift from it.
+ */
+const DECISION_KEYS: ReadonlySet<string> = new Set(Object.keys(decisionFields));
+const OBLIGATIONS_KEYS: ReadonlySet<string> = new Set(Object.keys(obligationsFields));
 
 type SinkRecordWire = typeof SinkRecordWire.Type;
 
@@ -519,33 +528,39 @@ export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string
 /**
  * The wire schema's untrusted decoder, built once.
  *
- * **Known gap, not fixed here (GH-01): this hard-rejects forward version
- * skew, the mirror image of the backward skew `SinkRecordWire.subjectId`'s
- * own doc comment says would be unacceptable.** `UNTRUSTED_DECODE_OPTIONS`
- * sets `onExcessProperty: "error"` — correctly, for the embedded `Policy`,
- * where an adversarial typo'd field must fail rather than decode silently
- * (ADR-QD-002). But it applies to the whole envelope, not just `Policy`, so a
- * NEWER sender that has gained an envelope-level field an OLDER receiver's
- * schema does not know about hard-rejects the record outright — exactly the
- * "silently drop real decisions for the length of the deploy" harm the
- * subjectId comment above says a sender predating a field must not suffer,
- * just on the envelope's *shape* instead of one field's presence.
- *
- * Not fixed locally because both ways to close it are wire-protocol design
- * decisions, not local patches: either give the envelope a version/known-
- * fields marker so an older reader can tolerate unknown envelope keys while
- * `Policy` stays strict, or split the decode so `onExcessProperty: "error"`
- * applies only at the `Policy`/`TraceSchema` positions and the envelope
- * itself uses the default (lenient) excess-property handling — `Schema`'s
- * `ParseOptions` apply to a whole decode call, not per nested schema, so the
- * second option needs decoding the envelope and its embedded `Policy`
- * separately rather than as one decode call. Either
- * choice changes this module's wire contract and belongs in an ADR, per the
- * recommendation on issue GH-01, not as a guess made in a doc comment.
+ * Strict everywhere (`UNTRUSTED_DECODE_OPTIONS`): a typo'd field inside the
+ * embedded policy fails rather than decoding with the grant silently dropped
+ * (ADR-QD-002). It is handed the {@link envelopeOf} projection, so the one
+ * place an unknown key is tolerated is the envelope's top level (GH-01,
+ * ADR-QD-903).
  */
 const decodeWire = Schema.decodeUnknownResult(SinkRecordWire, UNTRUSTED_DECODE_OPTIONS);
 
 const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));
+
+/** A JSON object: what an envelope is, and what an array or a primitive is not. */
+const isJsonObject = (input: unknown): input is object =>
+  typeof input === "object" && input !== null && !Array.isArray(input);
+
+/** An own property's value, or `undefined`: never one inherited from a prototype. */
+const ownValue = (input: object, key: string): unknown => Object.getOwnPropertyDescriptor(input, key)?.value;
+
+/**
+ * The input with only the top-level keys its member declares.
+ *
+ * `Schema`'s parse options apply to a whole decode call, not to one position,
+ * so tolerating an unknown envelope key while refusing one inside the policy
+ * cannot be said to the decoder; it is said here instead, by handing the
+ * strict decode only what the envelope declares (ADR-QD-903 D-15-c). A newer
+ * sender's additive envelope metadata then no longer refuses the whole record
+ * for the length of a rolling deploy (GH-01). Nothing nested is touched. An
+ * unknown `_tag` takes the decision's key set and fails in the decode, as it
+ * always did.
+ */
+const envelopeOf = (input: object): unknown => {
+  const keys = ownValue(input, "_tag") === "Obligations" ? OBLIGATIONS_KEYS : DECISION_KEYS;
+  return Object.fromEntries(Object.entries(input).filter(([key]) => keys.has(key)));
+};
 
 /**
  * Untrusted input as a record, or the reason it is not one.
@@ -575,7 +590,7 @@ export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, Sink
   if (exceedsJsonDepth(input, MAX_DECODE_DEPTH)) {
     return notDecodable(DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
   }
-  const wire = decodeWire(input);
+  const wire = decodeWire(isJsonObject(input) ? envelopeOf(input) : input);
   if (Result.isFailure(wire)) return notDecodable(DecodeRefusal.Malformed({ message: wire.failure.message }));
   // Unreachable after the schema's `exactlyOneOutcome` check; the predicate
   // is what narrows the type for `rebuild`, and its refusal says the same.

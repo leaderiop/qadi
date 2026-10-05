@@ -706,6 +706,42 @@ describe("decodeSinkRecord rejects an excess property inside its embedded Policy
     }));
 });
 
+/**
+ * GH-01: a newer sender, mid rolling-deploy, may add envelope metadata an
+ * older reader does not know. The envelope is lenient and the content strict
+ * (ADR-QD-903): only a top-level key is ignored.
+ */
+describe("decodeSinkRecord ignores an unknown envelope key and refuses one anywhere nested", () => {
+  const withEnvelopeKey = (text: string): string => JSON.stringify({ ...JSON.parse(text), traceparent: "00-abc" });
+
+  it("a record with an unknown top-level key decodes, to the record without it (a newer sender)", () => {
+    assert.deepStrictEqual(recordOf(withEnvelopeKey(V1.V1_DECIDED_ALLOW)), recordOf(V1.V1_DECIDED_ALLOW));
+  });
+
+  it("an obligation record with an unknown top-level key decodes", () => {
+    assert.deepStrictEqual(recordOf(withEnvelopeKey(V1.V1_OBLIGATIONS)), recordOf(V1.V1_OBLIGATIONS));
+  });
+
+  it("an unknown key inside decided is still refused", () => {
+    const text = V1.V1_DECIDED_ALLOW.replace('"durationMillis":2', '"durationMillis":2,"ttl":60');
+    assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+  });
+
+  it("an unknown key inside failed is still refused", () => {
+    const text = V1.V1_FAILED_MISSING_RESOURCE.replace('"attribute":"owner"', '"attribute":"owner","retry":true');
+    assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
+  });
+
+  it("an unknown key inside the embedded policy is still refused, beside an ignored envelope key", () => {
+    const text = withEnvelopeKey(V1.V1_DECIDED_ALLOW.replace('"action":"read"}}', '"action":"read"},"permision":"x"}'));
+    assert.include(decodeRefusalOf(text)?._tag === "Malformed" ? JSON.stringify(decodeRefusalOf(text)) : "", "permision");
+  });
+
+  it("an array is not an envelope: refused, never projected into an empty record", () => {
+    assert.strictEqual(decodeRefusalOf("[1,2]")?._tag, "Malformed");
+  });
+});
+
 /** The text `encodeSinkRecordString` produces, failing the test on a refusal. */
 const stringOf = (record: SinkRecord): string =>
   Result.match(encodeSinkRecordString(record), {
@@ -1526,19 +1562,9 @@ describe("v1 bytes: a decided record encodes byte-identically to 1caf04c", () =>
  * What the v1 reader did at `899465c`, before ARCH-15 — each pin is replaced,
  * in the task that changes it, by the test that asserts the new behaviour.
  */
-describe("v1 characterization at 899465c (replaced by ARCH-15 T1/T4/T5)", () => {
-  it("P3: an unknown top-level envelope key is refused", () => {
-    const text = JSON.stringify({ ...JSON.parse(V1.V1_DECIDED_ALLOW), traceparent: "00-abc" });
-    assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
-  });
-
+describe("v1 characterization at 899465c (replaced by ARCH-15 T5)", () => {
   it("P5: a pre-0.5 failed.code is refused", () => {
     assert.strictEqual(decodeRefusalOf(V1.V1_PRE05_FAILED_WITH_CODE)?._tag, "Malformed");
-  });
-
-  it("P7: an unknown key inside decided is refused", () => {
-    const text = V1.V1_DECIDED_ALLOW.replace('"durationMillis":2', '"durationMillis":2,"ttl":60');
-    assert.strictEqual(decodeRefusalOf(text)?._tag, "Malformed");
   });
 
   it("a cause rendered to a string decodes, as that string", () => {
