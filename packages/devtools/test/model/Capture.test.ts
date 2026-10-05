@@ -32,17 +32,16 @@ import {
   makeSubjectId,
   relationshipResolverFromEdges,
   RelationshipResolver,
-  SignatureHistory,
   scriptedPort,
   PortReply,
   relationshipResolverPort,
   decisionHistoryPort,
   portsLayer,
+  forEveryPort,
+  mapPorts,
+  mergePorts,
 } from "@qadi/core";
-import type { ActedResult, Decision, DecisionOutcome, RelatedResult } from "@qadi/core";
-
-const unknownRelated: RelatedResult = "Unknown";
-const unknownActed: ActedResult = "Unknown";
+import type { Decision, DecisionOutcome } from "@qadi/core";
 import {
   answerCount,
   capturing,
@@ -244,52 +243,44 @@ describe("what a capture records", () => {
       );
     }).pipe(Effect.scoped));
 
-  it.effect("builds the wrapped ports exactly once, no matter how many of the five services a run reaches", () =>
+  it.effect("builds the wrapped ports exactly once, no matter how many of the ports a run reaches", () =>
     Effect.gen(function* () {
       let builds = 0;
-      const counted = Layer.effect(
-        AttributeResolver,
+      const counted = Layer.unwrap(
         Effect.sync(() => {
           builds += 1;
-          return { resolve: () => Effect.succeed(undefined) };
+          return portsLayer();
         }),
-      ).pipe(
-        Layer.merge(Layer.succeed(RelationshipResolver, { check: () => Effect.succeed(unknownRelated) })),
-        Layer.merge(Layer.succeed(DecisionHistory, { hasActed: () => Effect.succeed(unknownActed) })),
-        Layer.merge(Layer.succeed(CustomPredicate, { evaluate: () => Effect.succeed(false) })),
-        Layer.merge(Layer.succeed(SignatureHistory, { signaturesFor: () => Effect.succeed([]) })),
       );
 
       const context = yield* Layer.build(capturing(counted).layer);
-      // Reaching all five wrapped services is what the five separate
-      // `Layer.build(ports)` calls used to do independently — one per wrapper.
-      Context.get(context, AttributeResolver);
-      Context.get(context, RelationshipResolver);
-      Context.get(context, DecisionHistory);
-      Context.get(context, CustomPredicate);
-      Context.get(context, SignatureHistory);
+      // Reaching every wrapped service is what one `Layer.build(ports)` per
+      // wrapper used to do independently.
+      forEveryPort((d) => Context.get(context, d.service));
 
       assert.strictEqual(builds, 1);
     }).pipe(Effect.scoped));
 
   it.effect("wrapping something unnamed says so rather than dropping the stack", () =>
     Effect.gen(function* () {
-      const anonymous = Layer.mergeAll(
-        Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
-        Layer.succeed(RelationshipResolver, { check: () => Effect.succeed(unknownRelated) }),
-        Layer.succeed(DecisionHistory, { hasActed: () => Effect.succeed(unknownActed) }),
-        Layer.succeed(CustomPredicate, { evaluate: () => Effect.succeed(false) }),
-        Layer.succeed(SignatureHistory, { signaturesFor: () => Effect.succeed([]) }),
+      // Every port, each with no name at all.
+      const anonymous = mergePorts(
+        mapPorts((d) =>
+          Layer.succeed(d.service, {
+            ...d.make("x", () => Effect.succeed(d.none.answer)),
+            name: undefined,
+          }),
+        ),
       );
       const context = yield* Layer.build(capturing(anonymous).layer);
 
       // `?` rather than nothing: a panel showing "(capturing)" alone would
       // suggest the base implementation had no identity, when in fact it
       // declined to give one.
-      assert.strictEqual(Context.get(context, AttributeResolver).name, "? (capturing)");
-      assert.strictEqual(Context.get(context, RelationshipResolver).name, "? (capturing)");
-      assert.strictEqual(Context.get(context, DecisionHistory).name, "? (capturing)");
-      assert.strictEqual(Context.get(context, CustomPredicate).name, "? (capturing)");
+      assert.deepStrictEqual(
+        forEveryPort((d) => Context.get(context, d.service).name),
+        forEveryPort(() => "? (capturing)"),
+      );
     }).pipe(Effect.scoped));
 
   it.effect("a replay layer names itself a snapshot", () =>
