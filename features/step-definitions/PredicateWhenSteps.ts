@@ -5,6 +5,7 @@ import {
   anyOf,
   denyWhen,
   eq,
+  gte,
   hasAttribute,
   hasPermission,
   hasRelationship,
@@ -45,7 +46,22 @@ export const sealedRows = (): Policy =>
     }),
   ]);
 
+/**
+ * The two range policies the non-finite scenarios compile (CCR-QD-172), by the
+ * name a scenario gives them. Exported for `PredicateThenSteps.ts`, which needs
+ * the same tree to ask the evaluator.
+ */
+export const levelPolicy = (name: string): Policy => {
+  if (name === "at least 3") return hasResourceAttribute("level", gte(3));
+  if (name === "below 3") return hasResourceAttribute("level", lt(3));
+  throw new Error(`no level policy named "${name}"`);
+};
+
 export const predicateWhenSteps = defineSteps<World>(({ When }) => {
+  When("the {string} level policy is compiled to a predicate", function* (name: string) {
+    yield* compile(levelPolicy(name));
+  });
+
   When("the tenancy policy is compiled to a predicate", function* () {
     yield* compile(tenancy());
   });

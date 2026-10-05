@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { evaluatePredicate } from "@qadi/core";
 import type { Predicate } from "@qadi/core";
 import { agreesWith } from "./Bridge.ts";
-import { sealedRows } from "./PredicateWhenSteps.ts";
+import { levelPolicy, sealedRows } from "./PredicateWhenSteps.ts";
 import { readState, World, type WorldState } from "./SharedWorld.ts";
 
 const compiled = (s: WorldState): Predicate => {
@@ -70,6 +70,17 @@ export const predicateThenSteps = defineSteps<World>(({ Then }) => {
     assert.equal(s.predicate, undefined, "a predicate was produced");
     assert.equal(s.refusedTag, tag);
   });
+
+  Then(
+    "the {string} level policy and its predicate both refuse a level of {string}",
+    function* (name: string, level: string) {
+      const s = yield* readState();
+      const row = { level: Number(level) };
+      assert.equal(evaluatePredicate(compiled(s), row), false, "the filter admitted the row");
+      // Agreement with a filter that refused means the evaluator refused too.
+      assert.ok(yield* agreesWith(levelPolicy(name), [row]), "the evaluator allowed the row");
+    },
+  );
 
   Then("the predicate and the evaluator agree on every row", function* () {
     // INV-QD-018 as a scenario. Two interpreters over one tree, compared rather
