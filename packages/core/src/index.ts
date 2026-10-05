@@ -6,6 +6,7 @@ export * from "./CustomPredicate.ts";
 export * from "./Decision.ts";
 export * from "./DecisionCache.ts";
 export * from "./DecisionHistory.ts";
+export * from "./DecisionLog.ts";
 export * from "./DecisionRecord.ts";
 export * from "./DecisionSink.ts";
 export * from "./DecisionSinkFeed.ts";
