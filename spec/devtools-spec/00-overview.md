@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-00                                    |
-> | Revision       | 0.6 (draft)                                    |
+> | Revision       | 0.7 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                   |
-> | Change History | 0.6 (2026-08-24): Screens 3, 6 and 7 re-marked **Built** and four stale data claims corrected — resolver calls, port counts, wired implementations and hydration counts are all obtainable now (CCR-QD-074)<br>0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.7 (2026-10-05): the data plane is one decision log per process — the ring and the feed are gone, `ingest` reaches live readers, and `/__decisions` sends the backlog as a prelude (ADR-QD-904, CCR-QD-905)<br>0.6 (2026-08-24): Screens 3, 6 and 7 re-marked **Built** and four stale data claims corrected — resolver calls, port counts, wired implementations and hydration counts are all obtainable now (CCR-QD-074)<br>0.5 (2026-08-24): The surface exists for three of the six topologies; screens 1 and 2 built (CCR-QD-067)<br>0.4 (2026-08-24): The transport now exists; the topology table and the transport prose corrected against it (CCR-QD-066)<br>0.3 (2026-08-24): Six gaps closed in code; the feature table re-marked against what now exists (CCR-QD-061)<br>0.2 (2026-08-24): Audited against the code; the transport claim withdrawn, the topology table added, the feature set marked by what its data plane can actually supply (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -63,13 +63,23 @@ in an application that has not asked for one, and there should not be.
 > what fits in one.
 
 **Records also travel.** `decisionSinkForwarding` hands each record to a
-caller-supplied `send`, `decisionSinkFeed` buffers without ever blocking the
-evaluation, and `decisionStreamRoute` serves the result as Server-Sent Events at
-`/__decisions` — guarded by a policy, with no unguarded variant and no
-environment-variable gate
-([ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md)). A
-`decisionSinkRing`'s `ingest` is the receiving half, so several processes can
-merge into one timeline.
+caller-supplied `send`, and a process's **decision log** (`makeDecisionLog`) is
+its sink, its backlog and its live stream at once, publishing without ever
+blocking the evaluation. `decisionStreamRoute` serves the log as Server-Sent
+Events at `/__decisions` — the backlog as a prelude, a `synced` marker, then live
+frames, each naming the process that made the record — guarded by a policy, with
+no unguarded variant and no environment-variable gate
+([ADR-QD-046](../decisions/046-a-decision-feed-is-sse-and-guarded.md),
+[ADR-QD-904](../decisions/904-a-decision-log-is-a-sink-and-its-own-history.md)).
+The log's `ingest` is the receiving half, and an ingested record reaches the
+log's live readers as well as its backlog, so several processes merge into one
+timeline that a reader watching sees grow.
+
+> **Corrected 2026-10-05 (CCR-QD-905).** This paragraph named
+> `decisionSinkFeed` as the buffer and `decisionSinkRing`'s `ingest` as the
+> receiving half. Both were replaced by one decision log; an ingested record
+> used to reach the ring and never a live reader, so an `Edge` row could not
+> reach the dock.
 
 The client is a producer on the same terms: a `DecisionSink` provided in the
 layer `makeQadiAtoms` is built from records browser-side decisions, which is what
@@ -84,8 +94,8 @@ not then exist. The real spread, and where each now stands:
 
 | Topology | Decisions made | A page to host an overlay? | Data plane | Surface |
 | -------- | -------------- | -------------------------- | ---------- | ------- |
-| SPA, client-only | browser | yes | ✅ in-process ring | ✅ the dock |
-| SSR / hydration (Next.js) | both | yes, after hydration | ✅ ring + seeded pairing | ✅ the dock, pairs shown — **built**, `examples/nextjs-newsroom` |
+| SPA, client-only | browser | yes | ✅ in-process decision log | ✅ the dock |
+| SSR / hydration (Next.js) | both | yes, after hydration | ✅ decision log + seeded pairing | ✅ the dock, pairs shown — **built**, `examples/nextjs-newsroom` |
 | Backend-only service | server | **no** | ✅ SSE feed | ❌ reachable, not presentable |
 | SPA + separate API origin | both, two processes | yes | ✅ forward + ingest | ✅ the dock, over SSE |
 | Serverless / edge | server, ephemeral | no | ✅ forward before the process ends | ❌ needs an aggregator's page |
@@ -100,7 +110,7 @@ of which the first is now the open one:
   are reachable at `/__decisions` and the model that merges them imports no
   React, so a served page or a CLI is a second *shell* rather than a second
   implementation — but neither is written.
-- **An in-memory record log is per-process.** `decisionSinkRing` is exactly that,
+- **An in-memory record log is per-process.** A decision log is exactly that,
   so under replicas or serverless a reader must go to an aggregator rather than
   to whichever instance answered — `decisionSinkForwarding` plus `ingest` is that
   path, and choosing it is a choice of sink, not a change to the evaluator.
