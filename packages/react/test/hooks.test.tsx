@@ -28,12 +28,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import {
   Can,
+  DecisionOutcome,
   QadiProvider,
   currentDecision,
   dehydrateDecisions,
   hydrateDecisions,
   makeQadiAtoms,
-  permits,
+  outcomeOf,
   useDecision,
   useDecisionSuspense,
   useInvalidate,
@@ -605,7 +606,8 @@ describe("through a provider, as an application reads it", () => {
  * real signatures and nothing about what it renders. What it rendered was the
  * editor while an allow was being re-checked: `Success, waiting: true` is neither
  * `Initial` nor `Failure`, so the old ladder fell through to the previous verdict
- * (ARCH-14 C5). The component below is the one the documents now carry.
+ * (ARCH-14 C5). The component below is the one the documents now carry: it
+ * reads the result once, with `outcomeOf`, and says what each outcome renders.
  */
 describe("the guide's read-the-whole-decision example", () => {
   const canEditDoc = hasAttribute("standing", eq(literal("good")));
@@ -647,29 +649,20 @@ describe("the guide's read-the-whole-decision example", () => {
 
   const Editor = () => <textarea data-testid="editor" />;
 
-  const EditPanel = () => {
-    const result = useDecision(canEditDoc);
-
-    // `currentDecision` first: a result being re-checked still holds the old
-    // answer, and this is the read that refuses it.
-    const decision = currentDecision(result);
-    if (decision !== undefined) {
-      // `permits`, not `isAllowed`: while a server-rendered page's seed stands in
-      // for this client's own answer, the value is a `SeededAllow`/`SeededDeny` —
-      // a projection of the server's decision, not an evaluation — and `permits`
-      // is the one verdict read that accepts every case.
-      return permits(decision) ? <Editor /> : <span>Read only</span>;
-    }
-
-    // A failure is not a denial. An unreachable attribute store means we do not
-    // know, and saying "you may not" would send the user — and whoever they
-    // complain to — after the wrong problem entirely.
-    if (AsyncResult.isFailure(result) && !result.waiting) {
-      return <span>Could not check your permissions. Try again.</span>;
-    }
-
-    return <span>Checking…</span>;
-  };
+  const EditPanel = () =>
+    DecisionOutcome.$match(outcomeOf(useDecision(canEditDoc)), {
+      Pending: () => <span>Checking…</span>,
+      // A re-check carries no verdict: the result still holds the old answer,
+      // and `outcomeOf` gives it nowhere to go.
+      Rechecking: () => <span>Checking…</span>,
+      // A failure is not a denial. An unreachable attribute store means we do not
+      // know, and saying "you may not" would send the user — and whoever they
+      // complain to — after the wrong problem entirely.
+      Failed: () => <span>Could not check your permissions. Try again.</span>,
+      // An evaluated or a server-seeded allow; `isSeeded` tells them apart.
+      Allowed: () => <Editor />,
+      Denied: () => <span>Read only</span>,
+    });
 
   const Invalidate = () => {
     const invalidate = useInvalidate();

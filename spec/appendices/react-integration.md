@@ -179,38 +179,36 @@ is hidden. When the difference matters, read the decision.
 ## 5. Read the whole decision
 
 ```tsx
-import { currentDecision, permits, useDecision } from "@qadi/react";
+import { DecisionOutcome, outcomeOf, useDecision } from "@qadi/react";
 import { hasPermission, permission } from "@qadi/core";
-import * as AsyncResult from "effect/reactivity/AsyncResult";
 
 const canEditDoc = hasPermission(permission("doc", "write"));
 
-export const EditPanel = () => {
-  const result = useDecision(canEditDoc);
-
-  // `currentDecision` first: a result being re-checked still holds the old
-  // answer, and this is the read that refuses it.
-  const decision = currentDecision(result);
-  if (decision !== undefined) {
-    // `permits`, not `isAllowed`: while a server-rendered page's seed stands in
-    // for this client's own answer, the value is a `SeededAllow`/`SeededDeny` —
-    // a projection of the server's decision, not an evaluation — and `permits`
-    // is the one verdict read that accepts every case.
-    return permits(decision) ? <Editor /> : <span>Read only</span>;
-  }
-
-  // A failure is not a denial. An unreachable attribute store means we do not
-  // know, and saying "you may not" would send the user — and whoever they
-  // complain to — after the wrong problem entirely.
-  if (AsyncResult.isFailure(result) && !result.waiting) {
-    return <span>Could not check your permissions. Try again.</span>;
-  }
-
-  return <span>Checking…</span>;
-};
+export const EditPanel = () =>
+  DecisionOutcome.$match(outcomeOf(useDecision(canEditDoc)), {
+    Pending: () => <span>Checking…</span>,
+    // A re-check carries no verdict: the result still holds the old answer,
+    // and `outcomeOf` gives it nowhere to go.
+    Rechecking: () => <span>Checking…</span>,
+    // A failure is not a denial. An unreachable attribute store means we do not
+    // know, and saying "you may not" would send the user — and whoever they
+    // complain to — after the wrong problem entirely.
+    Failed: () => <span>Could not check your permissions. Try again.</span>,
+    // An evaluated allow, or — while a server-rendered page's seed stands in for
+    // this client's own answer — a `SeededAllow`. `isSeeded` tells them apart.
+    Allowed: () => <Editor />,
+    Denied: () => <span>Read only</span>,
+  });
 
 const Editor = () => <textarea />;
 ```
+
+`outcomeOf` is the one read of a decision result. Reading the `AsyncResult`
+yourself — `isInitial`, then `isFailure`, then the value — renders the editor
+while an allow is being re-checked, because a re-checked result is a `Success`
+still holding the old answer; and a failed re-check keeps that answer as its
+`previousSuccess`, which `AsyncResult.value` and `getOrElse` return. Neither
+reaches an outcome.
 
 ## 6. Decisions about a specific resource
 

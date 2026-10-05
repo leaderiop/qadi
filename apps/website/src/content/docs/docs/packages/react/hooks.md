@@ -24,25 +24,42 @@ export const useProjected: <A extends Record<string, unknown>>(
 export const useInvalidate: () => () => void;
 ```
 
-`DecisionResult` is an `AsyncResult<ClientDecision, EvaluationError>` and keeps four
-states apart, where a naive `{ allowed, loading, error }` shape keeps two and a
-half:
+`DecisionResult` is an `AsyncResult<ClientDecision, EvaluationError>`, and
+`outcomeOf` reads it into one of five cases, where a naive
+`{ allowed, loading, error }` shape keeps two and a half:
 
-| State | Meaning |
-| ----- | ------- |
-| `Initial` | Not known yet — no subject, or the first evaluation is running |
-| `Success`, `waiting: false` | Decided: allow or deny — or, before this client has answered, the server's seeded allow or deny |
-| `Success`, `waiting: true` | The previous decision, while a new one is computed |
-| `Failure` | The question could not be answered at all |
+| State | Meaning | `outcomeOf` |
+| ----- | ------- | ----------- |
+| `Initial` | Not known yet — no subject, or the first evaluation is running | `Pending` |
+| `Success`, `waiting: false` | Decided: allow or deny — or, before this client has answered, the server's seeded allow or deny | `Allowed` / `Denied` |
+| `Success`, `waiting: true` | The previous decision, while a new one is computed | `Rechecking` |
+| `Failure`, `waiting: false` | The question could not be answered at all | `Failed` |
+| `Failure`, `waiting: true` | The previous failure, while a new answer is computed | `Rechecking` |
 
-`useCan` returning `false` covers the last three of those — pending, denied,
-and failed. That is safe for hiding a control and useless for explaining why
-it is hidden; reach for `useDecision` when the difference matters.
+A re-check and a failure carry no verdict. Both still hold the last answer
+underneath — a waiting `Success` as its `value`, a `Failure` as its
+`previousSuccess`, which `AsyncResult.value` and `getOrElse` return — and
+`outcomeOf` is the read that gives neither anywhere to go.
+
+```ts
+export type DecisionOutcome =
+  | { readonly _tag: "Pending" }
+  | { readonly _tag: "Rechecking" }
+  | { readonly _tag: "Allowed"; readonly decision: Allow | SeededAllow }
+  | { readonly _tag: "Denied"; readonly decision: Deny | SeededDeny }
+  | { readonly _tag: "Failed"; readonly cause: Cause<EvaluationError> };
+export const outcomeOf: (result: DecisionResult) => DecisionOutcome;
+export const currentDecision: (result: DecisionResult) => ClientDecision | undefined;
+```
+
+`useCan` returning `false` covers every case but `Allowed` — pending,
+rechecking, denied, and failed. That is safe for hiding a control and useless
+for explaining why it is hidden; reach for `useDecision` and `outcomeOf` when
+the difference matters.
 
 ```tsx
-import { currentDecision, permits, useCan, useDecision } from "@qadi/react";
+import { DecisionOutcome, outcomeOf, useCan, useDecision } from "@qadi/react";
 import { hasPermission, permission } from "@qadi/core";
-import * as AsyncResult from "effect/reactivity/AsyncResult";
 
 const canEditDoc = hasPermission(permission("doc", "write"));
 
@@ -50,26 +67,17 @@ const canEditDoc = hasPermission(permission("doc", "write"));
 export const useEditable = (): boolean => useCan(canEditDoc);
 
 // Needed when a failure must read differently from a denial.
-export const EditPanel = () => {
-  const result = useDecision(canEditDoc);
-
-  // `currentDecision` first: a result being re-checked still holds the old
-  // answer, and this is the read that refuses it.
-  const decision = currentDecision(result);
-  if (decision !== undefined) {
-    // `permits`, not `isAllowed`: the value is a `ClientDecision`, which is this
-    // client's own evaluation or, on a server-rendered page's first frames, the
-    // server's seed.
-    return permits(decision) ? <textarea /> : <span>Read only</span>;
-  }
-
-  // A failure is not a denial.
-  if (AsyncResult.isFailure(result) && !result.waiting) {
-    return <span>Could not check your permissions. Try again.</span>;
-  }
-
-  return <span>Checking…</span>;
-};
+export const EditPanel = () =>
+  DecisionOutcome.$match(outcomeOf(useDecision(canEditDoc)), {
+    Pending: () => <span>Checking…</span>,
+    // A re-check carries no verdict: the result still holds the old answer.
+    Rechecking: () => <span>Checking…</span>,
+    // A failure is not a denial.
+    Failed: () => <span>Could not check your permissions. Try again.</span>,
+    // This client's own allow, or a server-rendered page's seeded one.
+    Allowed: () => <textarea />,
+    Denied: () => <span>Read only</span>,
+  });
 ```
 
 `useProjected` applies the same policy to decide both whether a record may be
