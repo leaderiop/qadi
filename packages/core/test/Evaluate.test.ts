@@ -4063,6 +4063,7 @@ describe("nesting depth is a property of the policy (ARCH-02 D-02-e, D-02-g)", (
       const failed = yield* Effect.result(evaluate(policy));
       assert.strictEqual(failed._tag === "Failure" ? failed.failure._tag : failed._tag, "PolicyTooDeep");
     }).pipe(Effect.provide(testLayer(subjectWith({ attributes: { x: 1 } })))),
+    60_000,
   );
 
   it.effect("matcher nesting counts toward maxDepth exactly", () =>

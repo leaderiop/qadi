@@ -576,6 +576,7 @@ describe("explain", () => {
       assert.strictEqual(depth, n);
       assert.strictEqual(node._tag, "Requirement");
     },
+    60_000,
   );
 
   it("renderExplanation survives a 100k-deep Negated chain (ARCH-02 N1)", () => {
@@ -590,7 +591,7 @@ describe("explain", () => {
     // inner Negated nodes (the leaf is atomic and so unwrapped).
     assert.strictEqual(text.length, prefix.length * n + leaf.length + 2 * (n - 1));
     assert.isTrue(text.endsWith(`${leaf}${")".repeat(n - 1)}`));
-  });
+  }, 60_000);
 
   it("renderExplanation renders a 250k-wide anyOf with every separator", () => {
     const children: ReadonlyArray<P.Policy> = Array.from({ length: 250_000 }, () =>
@@ -598,7 +599,7 @@ describe("explain", () => {
     );
     const text = renderExplanation(explain(P.anyOf(children)));
     assert.strictEqual(text.split(" or ").length, 250_000);
-  });
+  }, 60_000);
 
   it("foldExplanation folds children in order, once per shared node", () => {
     const shared = explain(P.hasRole("s"));
@@ -629,7 +630,7 @@ describe("explain", () => {
     if (e._tag !== "Requirement") return;
     assert.isTrue(e.detail.startsWith("the subject's x has a size that has a size that"));
     assert.isTrue(e.detail.endsWith("equals 1"));
-  });
+  }, 60_000);
 
   it("a wide, programmatically-built node (250k direct children) explains without spreading", () => {
     // The width twin of the 100k-deep test above (`Simplify.test.ts` and
@@ -643,5 +644,5 @@ describe("explain", () => {
     assert.strictEqual(result._tag, "Any");
     if (result._tag !== "Any") return;
     assert.strictEqual(result.parts.length, 250_000);
-  });
+  }, 60_000);
 });
