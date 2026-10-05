@@ -519,8 +519,9 @@ method forwards to `@qadi/core` ([ADR-QD-032](decisions/032-promise-facade.md)).
 | `PermissionRegistry`, `PermissionRegistryLive` | service + layer | `PermissionRegistry.ts` |
 | `registerApi`, `permissionRegistryRoute`, `permissionRegistryRouteUnguarded` | function + layer | `PermissionRegistry.ts` |
 | `decisionStreamRoute` | layer factory | `DecisionStreamRoute.ts` — takes an optional `DecisionStreamOptions.reauth` to re-authorize an open connection on an interval, ending it on the first failed recheck |
-| `DecisionStreamOptions` | type | `DecisionStreamRoute.ts` |
-| `frame` | function | `DecisionStreamRoute.ts` — one `SinkRecord` as an SSE frame, or `None` when it is not JSON-safe (`@qadi/core`'s `isRecordJsonSafe`, which checks both `resource` and `policy`); exported so the refusal is testable directly rather than only through a live connection |
+| `DecisionStreamOptions` | type | `DecisionStreamRoute.ts` — `reauth`, and `onRefused`: called for each record that cannot be framed, in place of the default warning (ARCH-09) |
+| `frame` | function | `DecisionStreamRoute.ts` — one `SinkRecord` as an SSE frame through `@qadi/core`'s `encodeSinkRecordString`, or its `SinkRecordNotEncodable` as the filter's failure value; exported so the refusal is testable directly rather than only through a live connection |
+| `decisionFrames` | function | `DecisionStreamRoute.ts` — the route's body before UTF-8 encoding: the feed through `frame`, a refused record reported (`onRefused`, else a warning) and dropped, so one record never ends the stream for any subscriber (ARCH-09); exported for the same reason `frame` is |
 | `reauthCheck` | function | `DecisionStreamRoute.ts` — one re-authorization attempt against a request already in hand, on `assert`'s permitted-and-discharged semantics (matching connect-time `guardRoute`); exported for the same reason `frame` is, so the periodic recheck `reauth` drives is testable directly against `TestClock` |
 | `EndpointDescriptor`, `PermissionRegistryData`, `PermissionRegistryShape` | type | `PermissionRegistry.ts` |
 | `toResponse` | function | `QadiHttpError.ts` — the bare-`HttpRouter` adapter's status mapping, `HTTP_STATUS_BY_CLASS[classifyEnforcementError(error)]`; every `EnforcementError` tag still gets an empty body here (ADR-QD-072) |

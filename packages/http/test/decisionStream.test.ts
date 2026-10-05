@@ -18,6 +18,8 @@ import {
   ObligationRecord,
   RelationshipResolver,
   decisionSinkFeed,
+  decisionSinkForwarding,
+  encodeSinkRecordString,
   gte,
   hasAttribute,
   hasCustom,
@@ -30,18 +32,18 @@ import {
   obliged,
   permission,
   permissionKey,
-  toWire,
   portsLayer,
   scriptedPort,
   PortReply,
   attributeResolverPort,
 } from "@qadi/core";
-import type { AuthSubject, Trace } from "@qadi/core";
+import type { AuthSubject, SinkRecordNotEncodable, Trace } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
+import * as References from "effect/References";
 import * as Result from "effect/Result";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
@@ -49,7 +51,7 @@ import * as Sse from "effect/encoding/Sse";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
-import { decisionStreamRoute, frame, reauthCheck } from "../src/DecisionStreamRoute.ts";
+import { decisionFrames, decisionStreamRoute, frame, reauthCheck } from "../src/DecisionStreamRoute.ts";
 import { PermissionRegistryLive, permissionRegistryRouteUnguarded } from "../src/PermissionRegistry.ts";
 import { SubjectExtractionFailed, subjectExtractorBearer } from "../src/SubjectExtractor.ts";
 
@@ -541,7 +543,10 @@ describe("frame", () => {
       _tag: "Event",
       event: "message",
       id: undefined,
-      data: JSON.stringify(toWire(record)),
+      data: Result.match(encodeSinkRecordString(record), {
+        onSuccess: (data) => data,
+        onFailure: () => assert.fail("refused"),
+      }),
     });
     assert.strictEqual(Result.isSuccess(encoded) ? encoded.success : undefined, expected);
   });
@@ -550,7 +555,12 @@ describe("frame", () => {
     const circular: Record<string, unknown> = { a: 1 };
     circular.self = circular;
     assert.doesNotThrow(() => frame(decisionRecord("bad", circular)));
-    assert.isTrue(Result.isFailure(frame(decisionRecord("bad", circular))));
+    const framed = frame(decisionRecord("bad", circular));
+    assert.isTrue(Result.isFailure(framed));
+    if (Result.isFailure(framed)) {
+      assert.strictEqual(framed.failure._tag, "SinkRecordNotEncodable");
+      assert.strictEqual(framed.failure.refusal._tag, "Circular");
+    }
   });
 
   it("encodes a Decision record with no resource at all", () => {
@@ -589,11 +599,13 @@ describe("frame", () => {
       });
 
       assert.doesNotThrow(() => frame(record));
-      assert.isTrue(Result.isFailure(frame(record)));
+      const framed = frame(record);
+      assert.isTrue(Result.isFailure(framed));
+      if (Result.isFailure(framed)) assert.strictEqual(framed.failure.refusal._tag, "Circular");
     },
   );
 
-  it("encodes a non-Decision SinkRecord (Obligations) unconditionally, never consulting isJsonSafe", () => {
+  it("encodes a non-Decision SinkRecord (Obligations)", () => {
     const obligations = new ObligationRecord({
       evaluationId: "obl-1",
       at: 1_000,
@@ -622,7 +634,7 @@ describe("one record cannot end the feed", () => {
         yield* sink.record(decisionRecord("good-2"));
       }).pipe(Effect.provide(feed.layer));
 
-      const subscriber = Stream.runCollect(Stream.take(Stream.filterMap(feed.stream, frame), 2));
+      const subscriber = Stream.runCollect(Stream.take(Stream.filterMap(feed.stream, frame), 3));
       return yield* Effect.all([Effect.exit(subscriber), Effect.exit(subscriber)], { concurrency: 2 });
     });
 
@@ -635,9 +647,15 @@ describe("one record cannot end the feed", () => {
         for (const exit of exits) {
           assert.strictEqual(exit._tag, "Success");
           if (exit._tag !== "Success") continue;
-          assert.strictEqual(exit.value.length, 2);
+          assert.strictEqual(exit.value.length, 3);
           assert.include(exit.value[0] ?? "", '"evaluationId":"good-1"');
-          assert.include(exit.value[1] ?? "", '"evaluationId":"good-2"');
+          // The cause crosses through `Schema.Defect()`, cycle dropped: the
+          // outage record is framed, not refused, and nothing after it is lost.
+          assert.include(
+            exit.value[1] ?? "",
+            '"cause":{"name":"Error","message":"Request failed with status code 503"}',
+          );
+          assert.include(exit.value[2] ?? "", '"evaluationId":"good-2"');
         }
       }),
   );
@@ -648,8 +666,121 @@ describe("one record cannot end the feed", () => {
       for (const exit of exits) {
         assert.strictEqual(exit._tag, "Success");
         if (exit._tag !== "Success") continue;
-        assert.strictEqual(exit.value.length, 2);
-        assert.include(exit.value[1] ?? "", '"evaluationId":"good-2"');
+        assert.strictEqual(exit.value.length, 3);
+        assert.include(exit.value[1] ?? "", '"cause":"10n"');
+        assert.include(exit.value[2] ?? "", '"evaluationId":"good-2"');
       }
+    }));
+
+  it.effect("an Error cause reaches the frame as {name, message} — the same bytes forwarding sends", () =>
+    Effect.gen(function* () {
+      const record = failedWithCause(new Error("db down"), "error-cause");
+      const sent: Array<unknown> = [];
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(record);
+      }).pipe(
+        Effect.provide(
+          decisionSinkForwarding({
+            send: (encoded) =>
+              Effect.sync(() => {
+                sent.push(encoded);
+              }),
+          }),
+        ),
+      );
+      assert.strictEqual(sent.length, 1);
+
+      const framed = frame(record);
+      assert.isTrue(Result.isSuccess(framed));
+      const expected = Sse.encoder.write({
+        _tag: "Event",
+        event: "message",
+        id: undefined,
+        data: JSON.stringify(sent[0]),
+      });
+      assert.strictEqual(Result.isSuccess(framed) ? framed.success : undefined, expected);
+      assert.include(expected, '"cause":{"name":"Error","message":"db down"}');
+    }));
+
+  /** The route's own body stream, read by two subscribers of one feed. */
+  const twoRouteSubscribersSee = (poisoned: DecisionRecord, onRefused?: (refusal: SinkRecordNotEncodable) => void) =>
+    Effect.gen(function* () {
+      const feed = yield* decisionSinkFeed({ replay: 8 });
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord("good-1"));
+        yield* sink.record(poisoned);
+        yield* sink.record(decisionRecord("good-2"));
+      }).pipe(Effect.provide(feed.layer));
+
+      const subscriber = Stream.runCollect(
+        Stream.take(decisionFrames(feed.stream, onRefused === undefined ? undefined : { onRefused }), 3),
+      );
+      return yield* Effect.all([Effect.exit(subscriber), Effect.exit(subscriber)], { concurrency: 2 });
+    });
+
+  it.effect("through the route's own stream, a cyclic or BigInt cause ends no subscriber", () =>
+    Effect.gen(function* () {
+      for (const cause of [httpClientError(), 10n]) {
+        const exits = yield* twoRouteSubscribersSee(failedWithCause(cause), () => undefined);
+        for (const exit of exits) {
+          assert.strictEqual(exit._tag, "Success");
+          if (exit._tag === "Success") assert.include(exit.value[2] ?? "", '"evaluationId":"good-2"');
+        }
+      }
+    }));
+
+  it.effect("a refused record calls onRefused once and the subscriber still receives the next record", () =>
+    Effect.gen(function* () {
+      const cyclic: Record<string, unknown> = { id: "doc-1" };
+      cyclic.self = cyclic;
+      const refused: Array<SinkRecordNotEncodable> = [];
+      const feed = yield* decisionSinkFeed({ replay: 8 });
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord("before"));
+        yield* sink.record(decisionRecord("refused", cyclic));
+        yield* sink.record(decisionRecord("after"));
+      }).pipe(Effect.provide(feed.layer));
+
+      const frames = yield* Stream.runCollect(
+        Stream.take(decisionFrames(feed.stream, { onRefused: (refusal) => void refused.push(refusal) }), 2),
+      );
+      assert.strictEqual(frames.length, 2);
+      assert.include(frames[1] ?? "", '"evaluationId":"after"');
+      assert.strictEqual(refused.length, 1);
+      assert.strictEqual(refused[0]?.evaluationId, "refused");
+      assert.strictEqual(refused[0]?.refusal._tag, "Circular");
+    }));
+
+  it.effect("with no onRefused, the refusal is logged with its reason and path", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const feed = yield* decisionSinkFeed({ replay: 8 });
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord("refused", { tags: new Set(["finance"]) }));
+        yield* sink.record(decisionRecord("after"));
+      }).pipe(Effect.provide(feed.layer));
+
+      const frames = yield* Stream.runCollect(Stream.take(decisionFrames(feed.stream), 1)).pipe(
+        Effect.provide(
+          Logger.layer([
+            Logger.make((o) => {
+              logs.push({
+                message: o.message,
+                annotations: o.fiber.getRef(References.CurrentLogAnnotations),
+              });
+            }),
+          ]),
+        ),
+      );
+      assert.include(frames[0] ?? "", '"evaluationId":"after"');
+      assert.strictEqual(logs.length, 1);
+      assert.include(String(logs[0]?.message), "could not be framed");
+      assert.strictEqual(logs[0]?.annotations["qadi.refusal"], "Opaque");
+      assert.strictEqual(logs[0]?.annotations["qadi.path"], "resource.tags");
+      assert.strictEqual(logs[0]?.annotations["evaluationId"], "refused");
     }));
 });

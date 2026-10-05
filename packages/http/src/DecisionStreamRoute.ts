@@ -60,15 +60,10 @@ import type {
   Policy,
   Resource,
   SinkRecord,
+  SinkRecordNotEncodable,
   StandingEvaluationServices,
 } from "@qadi/core";
-import {
-  assert,
-  classifyEnforcementError,
-  CurrentSubject,
-  isRecordJsonSafe,
-  toWire,
-} from "@qadi/core";
+import { assert, classifyEnforcementError, CurrentSubject, encodeSinkRecordString } from "@qadi/core";
 import { addGuardedRoute } from "./PermissionRegistry.ts";
 import { NO_RESOURCE } from "./RequirePermission.ts";
 import { SubjectExtractor } from "./SubjectExtractor.ts";
@@ -101,24 +96,21 @@ import { SubjectExtractor } from "./SubjectExtractor.ts";
  * `event:` lines for that combination, leaving `data: <json>\n\n` — byte for
  * byte what the old template produced.
  *
- * A caller's resource, and a policy's `HasCustom.params`/`Obligation.attributes`,
- * are all arbitrary `unknown`; a circular reference or a `BigInt` used to throw
- * a raw `TypeError` out of `JSON.stringify` inside `Stream.map`, killing this
- * SSE connection — and every other subscriber's, since they all read the same
- * stream — over one bad decision. `isRecordJsonSafe` is `@qadi/core`'s own
- * guard for exactly this ([SinkCodec.ts](../../core/src/SinkCodec.ts)) — it
- * walks `resource`, `policy` **and** the outcome, not `resource` alone, which
- * earlier versions of this guard missed: a policy's own `HasCustom.params`, an
- * `Obligation`'s `attributes`, and a resolver error's `cause` all reach the
- * same `JSON.stringify` call and can carry the same unsafe values — an
- * HTTP-client error with a reference cycle as an attribute store's `cause`
- * used to end every open `/__decisions` connection (ARCH-09 T2). It also
- * refuses `Map`/`Set`/`RegExp`/binary data, which would otherwise cross as
- * `{}`. ARCH-09's outbound operation in core is the permanent fix. Refusing just the one frame rather than the
- * whole feed matches how this route already behaves under backpressure:
- * `decisionSinkFeed` drops the oldest entry rather than blocking, so a record
- * failing to reach a subscriber is not a new failure mode here, only a new
- * reason for it.
+ * **One call, to `@qadi/core`'s `encodeSinkRecordString`
+ * ([SinkCodec.ts](../../core/src/SinkCodec.ts)).** The frame's data is the same
+ * bytes forwarding sends and an audit row stores, and every rule about what can
+ * cross lives there, over the whole encoded record. This route used to run its
+ * own subset — a resource/policy guard, then a bare stringify of the projection
+ * — which missed the outcome: a resolver `cause` with a reference cycle threw
+ * inside `Stream.filterMap` and ended every subscriber's stream at once, since
+ * they all read the same feed, and an `Error` cause crossed as `{}` (ARCH-09).
+ *
+ * A refused record drops only its own frame: the refusal is the filter's
+ * failure value, `decisionStreamRoute` reports it (`onRefused`, else a log),
+ * and the feed carries on. That matches how this route already behaves under
+ * backpressure — `decisionSinkFeed` drops the oldest entry rather than
+ * blocking — so a record failing to reach a subscriber is not a new failure
+ * mode here, only a new reason for it, and now a reported one.
  *
  * A `Filter`, not a plain function returning `Option`: `Stream.filterMap`
  * takes a `Filter` in this Effect version — `Result.succeed` keeps a value,
@@ -131,14 +123,53 @@ import { SubjectExtractor } from "./SubjectExtractor.ts";
  * UTF-8-encoding step `HttpApiBuilder`'s own `encodeSseStream` ends with,
  * rather than each frame carrying its own `TextEncoder` call.
  */
-export const frame: Filter.Filter<SinkRecord, string> = (record) => {
-  if (!isRecordJsonSafe(record)) return Result.fail(record);
-  return Result.succeed(
-    Sse.encoder.write({
-      _tag: "Event",
-      event: "message",
-      id: undefined,
-      data: JSON.stringify(toWire(record)),
+export const frame: Filter.Filter<SinkRecord, string, SinkRecordNotEncodable> = (record) =>
+  Result.map(encodeSinkRecordString(record), (data) =>
+    Sse.encoder.write({ _tag: "Event", event: "message", id: undefined, data }),
+  );
+
+/**
+ * Reports one refused record, then drops its frame: `onRefused` when the
+ * caller supplied one, otherwise a warning naming the refusal, where in the
+ * record it was found, and the evaluation. Runs only on the refusal branch,
+ * so a framed record pays for no span.
+ */
+const reportRefused = Effect.fn("qadi.http.decisionStream.refused")(function* (
+  refusal: SinkRecordNotEncodable,
+  onRefused: ((refusal: SinkRecordNotEncodable) => void) | undefined,
+) {
+  if (onRefused === undefined) {
+    yield* Effect.logWarning("qadi/http: a decision record could not be framed").pipe(
+      Effect.annotateLogs({
+        "qadi.refusal": refusal.refusal._tag,
+        "qadi.path": "path" in refusal.refusal ? refusal.refusal.path.join(".") : "",
+        evaluationId: refusal.evaluationId,
+      }),
+    );
+  } else {
+    yield* Effect.sync(() => onRefused(refusal));
+  }
+  return Result.fail(refusal);
+});
+
+/**
+ * The feed as SSE frames: each record through {@link frame}, a refused one
+ * reported (`onRefused`, else a warning) and dropped, so one record never ends
+ * the stream for any subscriber.
+ *
+ * Exported for the same reason `frame` and `reauthCheck` are: the route's body
+ * is this stream, UTF-8 encoded, and testing it through a live SSE connection
+ * has no pattern in this repo.
+ */
+export const decisionFrames = (
+  stream: Stream.Stream<SinkRecord>,
+  options?: Pick<DecisionStreamOptions, "onRefused">,
+): Stream.Stream<string> => {
+  const onRefused = options?.onRefused;
+  return Stream.filterMapEffect(stream, (record: SinkRecord) =>
+    Result.match(frame(record), {
+      onSuccess: (data) => Effect.succeed(Result.succeed(data)),
+      onFailure: (refusal) => reportRefused(refusal, onRefused),
     }),
   );
 };
@@ -174,6 +205,12 @@ export interface DecisionStreamOptions {
   readonly reauth?: {
     readonly interval: Duration.Input;
   };
+  /**
+   * Called once for each record that cannot be framed — `encodeSinkRecordString`
+   * refused it — in place of the default warning. The record's frame is dropped
+   * either way, and the feed carries on: one record never ends it.
+   */
+  readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
 }
 
 /**
@@ -302,7 +339,7 @@ export const decisionStreamRoute = <P extends Permission>(
       // `Stream.encodeText` — UTF-8 bytes, the same final step
       // `HttpApiBuilder`'s own `encodeSseStream` ends with — rather than each
       // frame carrying its own `TextEncoder.encode` call.
-      const frames = Stream.filterMap(stream, frame).pipe(Stream.encodeText);
+      const frames = decisionFrames(stream, options).pipe(Stream.encodeText);
       // `Stream.mergeEffect`: the recheck loop runs concurrently for the
       // stream's lifetime, fails the whole stream the moment it fails,
       // and is itself interrupted the moment the stream ends for any
