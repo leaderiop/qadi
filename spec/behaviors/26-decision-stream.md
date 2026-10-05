@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-26                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-10-05): BEH-QD-904 — a frame's data is wire version 2 (ADR-QD-903, CCR-QD-904)<br>1.3 (2026-10-05): BEH-QD-904 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.5 (2026-10-05): BEH-QD-201 — the stale `publishUnsafe` sentence corrected to what the code does (`publish`, and why) (CCR-QD-905)<br>1.4 (2026-10-05): BEH-QD-904 — a frame's data is wire version 2 (ADR-QD-903, CCR-QD-904)<br>1.3 (2026-10-05): BEH-QD-904 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -44,8 +44,20 @@ A `PubSub.sliding` drops its oldest entry when full, so a slow or absent reader
 costs the evaluation nothing — the only acceptable behaviour for something an
 authorization decision waits on
 ([INV-QD-035](../invariants.md#inv-qd-035-a-sink-cannot-change-a-decision)).
-`publishUnsafe` rather than `publish`, because the awaiting form would reintroduce
-exactly the blocking this removes.
+`publish` rather than `publishUnsafe`: `publishUnsafe` only tries the raw buffer
+and returns `false` on a full one without consulting the configured strategy, so
+it refused the *newest* record and kept the stale backlog, inverting the
+newest-wins policy. Sliding eviction lives in the strategy, which only `publish`
+reaches, and for a sliding `PubSub` that path is synchronous throughout, so the
+awaited form costs no blocking.
+
+> **Corrected in CCR-QD-905.** This paragraph previously read:
+>
+> `publishUnsafe` rather than `publish`, because the awaiting form would reintroduce
+> exactly the blocking this removes.
+>
+> The code had used `publish` since the newest-wins defect was found, and said
+> why in `DecisionSinkFeed.ts`; the spec stated the opposite.
 
 **Sliding rather than dropping.** A reader that reconnects wants the most recent
 decisions, not the oldest ones from before it left — the same reasoning
