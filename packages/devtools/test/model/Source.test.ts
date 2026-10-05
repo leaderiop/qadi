@@ -356,11 +356,15 @@ describe("sourceFromEventSource", () => {
    */
   describe("wire versions", () => {
     const record = decisionRecord({ evaluationId: "versioned" });
-    const framed = (wireVersion: 1 | 2): string =>
-      Result.match(encodeSinkRecordString(record, { wireVersion }), {
-        onSuccess: (text) => text,
-        onFailure: (error) => assert.fail(`refused: ${error.refusal._tag}`),
-      });
+    /** The record as a server on this release frames it (version 2), or as an older one did (version 1). */
+    const framed = (wireVersion: 1 | 2): string => {
+      const v2 = frameOf(record);
+      if (wireVersion === 2) return v2;
+      // Version 1 by hand, the way a release before the versioned wire wrote
+      // it: no `version`, and the decision under `decided`, last.
+      const { version: _version, outcome, ...envelope } = JSON.parse(v2);
+      return JSON.stringify({ ...envelope, decided: outcome.decision });
+    };
     const withField = (text: string, key: string, value: unknown): string =>
       JSON.stringify({ ...JSON.parse(text), [key]: value });
 

@@ -8,7 +8,7 @@
  * Only the public interface is used — `encodeSinkRecordString`,
  * `decodeSinkRecordString` and `@qadi/audit`'s `decodeAuditEntry` — and the
  * version-1 bytes are literals, written the way a release before the versioned
- * wire wrote them, never derived from the current encoder (ADR-QD-903).
+ * wire wrote them: nothing writes version 1 any more (ADR-QD-903).
  */
 import { describeFeature, loadFeature } from "@effect-cucumber/vitest";
 import assert from "node:assert/strict";
@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Predicate from "effect/Predicate";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
 import {
@@ -152,8 +153,8 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     yield* patch((s) => ({ read: Result.map(decodeAuditEntry(JSON.parse(s.text)), (row) => row.record) }));
   });
 
-  When("it is written as wire version {int}", function* (version: number) {
-    const written = encodeSinkRecordString(sent, { wireVersion: version === 1 ? 1 : 2 });
+  When("it is written", function* () {
+    const written = encodeSinkRecordString(sent);
     if (Result.isFailure(written)) throw new Error(`refused: ${written.failure.refusal._tag}`);
     yield* patch(() => ({ text: written.success, read: decodeSinkRecordString(written.success) }));
   });
@@ -188,12 +189,13 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     assert.strictEqual(read.failure.refusal._tag, "UnsupportedVersion");
   });
 
-  Then("the bytes carry no version and name the outcome as {string}", function* (field: string) {
+  Then("the bytes are wire version 2, naming the outcome {string}", function* (tag: string) {
     const { text } = yield* readState();
     const bytes: unknown = JSON.parse(text);
-    assert.ok(typeof bytes === "object" && bytes !== null);
-    assert.ok(!Object.hasOwn(bytes, "version"));
-    assert.ok(Object.hasOwn(bytes, field));
-    assert.strictEqual(text, SENT_V1);
+    assert.ok(Predicate.hasProperty(bytes, "version") && bytes.version === 2);
+    assert.ok(Predicate.hasProperty(bytes, "outcome") && Predicate.hasProperty(bytes.outcome, "_tag"));
+    assert.strictEqual(bytes.outcome._tag, tag);
+    assert.ok(!Object.hasOwn(bytes, "decided") && !Object.hasOwn(bytes, "failed"));
+    assert.strictEqual(text, SENT_V2);
   });
 });

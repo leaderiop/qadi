@@ -46,8 +46,8 @@ Feature: A decision record reads the same whichever wire version carried it
     When the audit row is read back
     Then it is read as the record that was sent
 
-  Scenario: A sender pinned to wire version 1 writes what an older reader accepts
+  Scenario: This version writes wire version 2, with the outcome as one tagged value
     Given a failed decision record
-    When it is written as wire version 1
-    Then the bytes carry no version and name the outcome as "failed"
+    When it is written
+    Then the bytes are wire version 2, naming the outcome "Failed"
     And they read back as the record that was sent

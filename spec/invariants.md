@@ -2559,9 +2559,9 @@ ways depending on which release recorded it.
 
 **Enforcement**: `packages/core/test/SinkCodec.test.ts` — "v1 and v2 bytes decode
 to the same record, the one encoded" over the golden fixtures
-(`test/fixtures/sinkWireV1.ts`, `test/fixtures/sinkWireV2.ts`), and the property
-"two versions, one meaning: whenever both encode, v1 and v2 bytes decode to the
-same record"; `packages/audit/test/AuditEntry.test.ts` — an archive mixing v1 and
+(`test/fixtures/sinkWireV1.ts`, `test/fixtures/sinkWireV2.ts`), and the property "two versions, one meaning":
+each generated record's version-2 bytes and the same record as version-1 bytes
+(rebuilt by hand, since nothing writes version 1 any more) decode alike; `packages/audit/test/AuditEntry.test.ts` — an archive mixing v1 and
 v2 rows decodes each to the same record; `packages/devtools/test/model/Source.test.ts`;
 `features/features/wire-versions/wire-versions.feature`.
 

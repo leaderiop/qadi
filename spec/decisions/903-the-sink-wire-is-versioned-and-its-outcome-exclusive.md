@@ -156,7 +156,16 @@ and the release notes say this in bold.
   that a newer sender added metadata. Making it observable would need either an
   effectful decode (a logger) or a second return value, each a change to
   ADR-QD-902's interface for a diagnostic; not taken.
-- **The v1 schema can never change.** It is frozen by golden fixtures.
+- **The v1 schema can never change.** It is frozen by golden fixtures, which
+  are now read-only: nothing writes version 1.
+- **A trace is one level deeper.** Version 2 carries a decision's trace at
+  `outcome.decision.trace`, one level below version 1's `decided.trace`, so a
+  trace at the very edge of the decode depth bound (`MAX_DECODE_DEPTH`) that
+  version 1 carried is refused at the sender as `TooDeep`. No evaluation under
+  the default `maxDepth` comes near it.
+- **`SinkRecordJson` stays the union.** The writer emits only the version-2
+  member, but the type is what a receiver of the wire or a stored row may hold,
+  so it is not narrowed to what this release writes.
 
 ## Alternatives considered
 

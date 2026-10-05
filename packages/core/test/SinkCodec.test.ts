@@ -24,14 +24,13 @@ import {
   SignatureHistoryUnavailable,
   WIRE_VERSIONS,
 } from "../src/Errors.ts";
-import type { EvaluationError, WireVersion } from "../src/Errors.ts";
+import type { EvaluationError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import {
-  DEFAULT_WIRE_VERSION,
   decodeSinkRecord,
   decodeSinkRecordString,
   encodeSinkRecord,
@@ -767,6 +766,20 @@ const wireErrorOf = (json: SinkRecordJson) =>
         : undefined
       : json.failed;
 
+/**
+ * A decision record's version-2 text as version 1 carried it — no `version`,
+ * the outcome as `decided` or `failed`, last — built by hand, since nothing in
+ * the library writes version 1 any more (ADR-QD-903 Phase C).
+ */
+const asV1Bytes = (v2: string): string => {
+  const { version: _version, outcome, ...envelope } = JSON.parse(v2);
+  return JSON.stringify(
+    envelope._tag === "Decision"
+      ? { ...envelope, ...(outcome._tag === "Decided" ? { decided: outcome.decision } : { failed: outcome.error }) }
+      : { ...envelope, outcome },
+  );
+};
+
 /** `decodeSinkRecord` lifted into `Effect`, for the generator-style tests above. */
 const decodeEffect = (input: unknown) => Effect.fromResult(decodeSinkRecord(input));
 
@@ -1091,13 +1104,9 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       assert.deepStrictEqual(refusalOf(recordWith({ policy: cyclic })), EncodeRefusal.Circular({ path: ["policy"] }));
     });
 
-    it("a hand-built 300-deep trace is TooDeep at where each version carries the trace", () => {
-      const record = decidedWith(P.hasPermission(read), nestedTrace(300));
-      const refusal = (wireVersion: WireVersion) =>
-        Result.match(encodeSinkRecord(record, { wireVersion }), { onSuccess: () => undefined, onFailure: (error) => error.refusal });
-      assert.deepStrictEqual(refusal(1), EncodeRefusal.TooDeep({ path: ["decided", "trace"], maxDepth: P.MAX_DECODE_DEPTH }));
+    it("a hand-built 300-deep trace is TooDeep at [outcome, decision, trace]", () => {
       assert.deepStrictEqual(
-        refusal(2),
+        refusalOf(decidedWith(P.hasPermission(read), nestedTrace(300))),
         EncodeRefusal.TooDeep({ path: ["outcome", "decision", "trace"], maxDepth: P.MAX_DECODE_DEPTH }),
       );
     });
@@ -1431,8 +1440,8 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
       );
     });
 
-    it("two versions, one meaning: whenever both encode, v1 and v2 bytes decode to the same record (INV-QD-905)", () => {
-      let both = 0;
+    it("two versions, one meaning: a record's v2 bytes and the same record as v1 bytes decode alike (INV-QD-905)", () => {
+      let checked = 0;
       FastCheck.assert(
         FastCheck.property(tree(loose), FastCheck.option(loose, { nil: undefined }), outcome, (policy, value, result) => {
           const record = new DecisionRecord({
@@ -1443,20 +1452,17 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
             ...(value === undefined ? {} : { resource: { value } }),
             outcome: result,
           });
-          const v1 = encodeSinkRecordString(record, { wireVersion: 1 });
-          const v2 = encodeSinkRecordString(record, { wireVersion: 2 });
-          // The same record is refused or accepted alike: every hazard is in
-          // the record, not in how its outcome is spelled.
-          assert.strictEqual(Result.isSuccess(v1), Result.isSuccess(v2));
-          if (Result.isFailure(v1) || Result.isFailure(v2)) return true;
-          both += 1;
-          assert.notStrictEqual(v1.success, v2.success);
-          assert.deepStrictEqual(recordOf(v1.success), recordOf(v2.success));
+          const v2 = encodeSinkRecordString(record);
+          if (Result.isFailure(v2)) return true;
+          checked += 1;
+          const v1 = asV1Bytes(v2.success);
+          assert.notStrictEqual(v1, v2.success);
+          assert.deepStrictEqual(recordOf(v1), recordOf(v2.success));
           return true;
         }),
         { numRuns: 300, seed: 6204 },
       );
-      assert.isAbove(both, 100);
+      assert.isAbove(checked, 100);
     });
 
     it("totality: decodeSinkRecordString never throws, over any string (INV-QD-903)", () => {
@@ -1480,15 +1486,7 @@ describe("decodeSinkRecord — the inbound operation (ARCH-09)", () => {
   });
 });
 
-/**
- * The bytes a record puts on the wire as version 1, pinned as literals in
- * `fixtures/sinkWireV1.ts`. The three `Decided` goldens were pinned at commit
- * 1caf04c — before the decision codec moved into `DecisionWire.ts` (ARCH-05
- * T1) — and the move must not change a byte of what the record wire carries
- * between processes (ADR-QD-060, BEH-QD-199), so these are literals, not
- * re-derived.
- */
-/** The `Failed` record the v1 `Failed` goldens were captured from. */
+/** The `Failed` record the `Failed` goldens were captured from. */
 const goldenFailed = (error: EvaluationError): SinkRecord =>
   new DecisionRecord({
     evaluationId: "g",
@@ -1503,7 +1501,7 @@ const goldenFailedCause: SinkRecord = goldenFailed(
   new AttributeResolveError({ attribute: "clearance", cause: new Error("db down") }),
 );
 
-/** The obligation record `V1_OBLIGATIONS` was captured from. */
+/** The obligation record `V1_OBLIGATIONS` and `V2_OBLIGATIONS` describe. */
 const goldenObligations: SinkRecord = new ObligationRecord({
   evaluationId: "g",
   at: 1,
@@ -1511,7 +1509,7 @@ const goldenObligations: SinkRecord = new ObligationRecord({
   obligationIds: ["audit.log"],
 });
 
-/** The decision `V1_DECISION_FULL_ENVELOPE` was captured from: every optional envelope field set. */
+/** The decision the full-envelope goldens describe: every optional envelope field set. */
 const goldenFullEnvelope: SinkRecord = new DecisionRecord({
   evaluationId: "g",
   at: 1,
@@ -1532,98 +1530,13 @@ const goldenFullEnvelope: SinkRecord = new DecisionRecord({
   }),
 });
 
-describe("v1 bytes: wireVersion 1 encodes byte-identically to 1caf04c", () => {
-  const goldenRecord = (decision: Allow | Deny): SinkRecord =>
-    new DecisionRecord({
-      evaluationId: "g",
-      at: 1,
-      subjectId: makeSubjectId("u1"),
-      policy: P.hasPermission(read),
-      outcome: new Decided({ decision }),
-    });
-  const goldenTrace = (allowed: boolean) => ({
-    policyTag: "HasPermission" as const,
-    allowed,
-    children: [],
-    obligations: [],
-  });
-  const encoded = (record: SinkRecord): string =>
-    Result.match(encodeSinkRecordString(record, { wireVersion: 1 }), {
-      onSuccess: (text) => text,
-      onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
-    });
-
-  it("an Allow with visibleFields and an obligation", () => {
-    const record = goldenRecord(
-      new Allow({
-        evaluationId: "g",
-        subjectId: makeSubjectId("u1"),
-        durationMillis: 2,
-        trace: { ...goldenTrace(true), visibleFields: ["id"] },
-        visibleFields: ["id"],
-        obligations: [obligation("audit.log")],
-      }),
-    );
-    assert.strictEqual(encoded(record), V1.V1_DECIDED_ALLOW);
-  });
-
-  it("an Allow with no visibleFields (everything visible)", () => {
-    const record = goldenRecord(
-      new Allow({
-        evaluationId: "g",
-        subjectId: makeSubjectId("u1"),
-        durationMillis: 2,
-        trace: goldenTrace(true),
-        visibleFields: undefined,
-        obligations: [],
-      }),
-    );
-    assert.strictEqual(encoded(record), V1.V1_DECIDED_ALLOW_ALL_FIELDS);
-  });
-
-  it("a Deny", () => {
-    const record = goldenRecord(
-      new Deny({
-        evaluationId: "g",
-        subjectId: makeSubjectId("u1"),
-        durationMillis: 2,
-        trace: { ...goldenTrace(false), reason: "no" },
-        reason: "no",
-      }),
-    );
-    assert.strictEqual(encoded(record), V1.V1_DECIDED_DENY);
-  });
-
-  it("a Failed record", () => {
-    assert.strictEqual(encoded(goldenFailed(new MissingResource({ attribute: "owner" }))), V1.V1_FAILED_MISSING_RESOURCE);
-  });
-
-  it("a Failed record whose resolver cause is an Error", () => {
-    assert.strictEqual(
-      encoded(goldenFailedCause),
-      V1.V1_FAILED_ATTRIBUTE_ERROR_CAUSE,
-    );
-  });
-
-  it("an obligation record", () => {
-    assert.strictEqual(encoded(goldenObligations), V1.V1_OBLIGATIONS);
-  });
-
-  it("a decision carrying resource, action and cache", () => {
-    assert.strictEqual(encoded(goldenFullEnvelope), V1.V1_DECISION_FULL_ENVELOPE);
-  });
-});
-
 /**
- * The bytes a record puts on the wire as version 2: the same records as the
- * v1 goldens above, against the hand-written `fixtures/sinkWireV2.ts`.
+ * The bytes a record puts on the wire: version 2, against the hand-written
+ * `fixtures/sinkWireV2.ts`. Version 1 is no longer written (ADR-QD-903 Phase
+ * C); its fixtures are read for good, below.
  */
-describe("v2 bytes: wireVersion 2 writes the version-2 goldens", () => {
-  const v2Of = (record: SinkRecord): string =>
-    Result.match(encodeSinkRecordString(record, { wireVersion: 2 }), {
-      onSuccess: (text) => text,
-      onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
-    });
+describe("v2 bytes: the writer writes the version-2 goldens", () => {
+  const v2Of = stringOf;
   const goldenTrace = { policyTag: "HasPermission" as const, allowed: true, children: [], obligations: [] };
 
   it("a decided record", () => {
@@ -1660,17 +1573,6 @@ describe("v2 bytes: wireVersion 2 writes the version-2 goldens", () => {
 
   it("a decision carrying resource, action and cache", () => {
     assert.strictEqual(v2Of(goldenFullEnvelope), V2.V2_DECISION_FULL_ENVELOPE);
-  });
-
-  it("wireVersion 1 writes the version-1 goldens, whatever the default", () => {
-    const v1Of = (record: SinkRecord) => Result.getOrUndefined(encodeSinkRecordString(record, { wireVersion: 1 }));
-    assert.strictEqual(v1Of(goldenObligations), V1.V1_OBLIGATIONS);
-    assert.strictEqual(v1Of(goldenFailedCause), V1.V1_FAILED_ATTRIBUTE_ERROR_CAUSE);
-  });
-
-  it("with no option, the writer writes DEFAULT_WIRE_VERSION", () => {
-    const expected = DEFAULT_WIRE_VERSION === 1 ? V1.V1_OBLIGATIONS : V2.V2_OBLIGATIONS;
-    assert.strictEqual(stringOf(goldenObligations), expected);
   });
 });
 

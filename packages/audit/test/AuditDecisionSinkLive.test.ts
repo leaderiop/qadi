@@ -4,8 +4,7 @@ import * as Fiber from "effect/Fiber";
 import * as Latch from "effect/Latch";
 import * as Layer from "effect/Layer";
 import * as TestClock from "effect/testing/TestClock";
-import { DecisionSink, DEFAULT_WIRE_VERSION } from "@qadi/core";
-import type { WireVersion } from "@qadi/core";
+import { DecisionSink } from "@qadi/core";
 import { AuditDecisionSinkLive } from "../src/AuditDecisionSinkLive.ts";
 import { AuditTrailPort, AuditWriteError } from "../src/AuditTrailPort.ts";
 import { AuditTrailPortTest } from "../src/AuditTrailPortTest.ts";
@@ -27,22 +26,15 @@ describe("AuditDecisionSinkLive — the assembled pipeline", () => {
       assert.strictEqual(written()[0]?.record.evaluationId, "e1");
     }));
 
-  it.effect("rows are written as the configured wire version, and DEFAULT_WIRE_VERSION's otherwise", () =>
+  it.effect("rows are written as wire version 2", () =>
     Effect.gen(function* () {
-      const writtenAs = (wireVersion: WireVersion | undefined) =>
-        Effect.gen(function* () {
-          const { layer: trail, written } = AuditTrailPortTest();
-          yield* Effect.gen(function* () {
-            const sink = yield* DecisionSink;
-            yield* sink.record(decisionRecord({ evaluationId: "e1" }));
-          }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive({ wireVersion }), trail)));
-          const record = written()[0]?.record;
-          return record === undefined ? undefined : "version" in record ? record.version : 1;
-        });
-
-      assert.strictEqual(yield* writtenAs(1), 1);
-      assert.strictEqual(yield* writtenAs(2), 2);
-      assert.strictEqual(yield* writtenAs(undefined), DEFAULT_WIRE_VERSION);
+      const { layer: trail, written } = AuditTrailPortTest();
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord({ evaluationId: "e1" }));
+      }).pipe(Effect.provide(Layer.provideMerge(AuditDecisionSinkLive(), trail)));
+      const record = written()[0]?.record;
+      assert.strictEqual(record !== undefined && "version" in record ? record.version : undefined, 2);
     }));
 
   it.effect("an ObligationRecord writes through too", () =>

@@ -388,13 +388,12 @@ describe("decodeAuditEntry reads rows of both wire versions", () => {
     assert.strictEqual(Result.isFailure(row) ? row.failure.refusal._tag : undefined, "UnsupportedVersion");
   });
 
-  it.effect("a row encodeAuditEntry wrote as either version reads back to the record", () =>
+  it.effect("a row encodeAuditEntry writes is version 2, and reads back to the record", () =>
     Effect.gen(function* () {
       const original = failedRecord({ evaluationId: "e2" });
-      for (const wireVersion of [1, 2] as const) {
-        const entry = yield* encodeAuditEntry(original, { wireVersion });
-        const row = decodeAuditEntry(JSON.parse(JSON.stringify(entry)));
-        assert.deepStrictEqual(Result.getOrUndefined(row)?.record, original);
-      }
+      const entry = yield* encodeAuditEntry(original);
+      assert.isTrue("version" in entry.record);
+      const row = decodeAuditEntry(JSON.parse(JSON.stringify(entry)));
+      assert.deepStrictEqual(Result.getOrUndefined(row)?.record, original);
     }));
 });

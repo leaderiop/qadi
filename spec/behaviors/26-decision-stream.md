@@ -10,7 +10,7 @@
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-10-05): BEH-QD-202 — `DecisionStreamOptions.wireVersion`, the wire version each frame is written as (ADR-QD-903, CCR-QD-904)<br>1.3 (2026-10-05): BEH-QD-904 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
+> | Change History | 1.4 (2026-10-05): BEH-QD-904 — a frame's data is wire version 2 (ADR-QD-903, CCR-QD-904)<br>1.3 (2026-10-05): BEH-QD-904 — one record never ends the feed; a refused record drops only its frame and is reported through `onRefused` or a warning; frames carry `encodeSinkRecordString`'s text (ADR-QD-902, CCR-QD-903)<br>1.2 (2026-10-04): `reauthCheck`'s signature corrected to `EnforcementErrorClass` or `"extraction-failed"` — it has classified an enforcement failure as `denied`, `outage` or `wiringMistake` since GR-01/TS-01, and the standing-services requirement set is now the named `StandingEvaluationServices` (ADR-QD-081, CCR-QD-155)<br>1.1 (2026-09-07): BEH-QD-202 — `decisionStreamRoute`'s optional `reauth`, a periodic re-extraction and re-evaluation against an open connection so a revoked principal's stream ends, documented for the first time (`DecisionStreamOptions`, `reauthCheck`; ADR-QD-046 Rev 1.1) (CCR-QD-110)<br>1.0 (2026-08-24): Initial release (CCR-QD-065) |
 
 _Previous: [25 — Inspection](./25-inspection.md)_
 
@@ -78,7 +78,6 @@ export interface DecisionStreamOptions {
     readonly interval: Duration.Input;
   };
   readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
-  readonly wireVersion?: WireVersion;
 }
 
 export const decisionStreamRoute: (
@@ -188,7 +187,7 @@ load for a deployment with no revocation source to notice. See
 export const frame: Filter<SinkRecord, string, SinkRecordNotEncodable>;
 export const decisionFrames: (
   stream: Stream<SinkRecord>,
-  options?: Pick<DecisionStreamOptions, "onRefused" | "wireVersion">,
+  options?: Pick<DecisionStreamOptions, "onRefused">,
 ) => Stream<string>;
 ```
 
@@ -210,7 +209,10 @@ a resolver's `cause`, and `JSON.stringify` threw. Framing is now one call to
 `@qadi/core`'s `encodeSinkRecordString`, which never throws, normalises a
 `cause` through `Schema.Defect()` rather than refusing it, and refuses with a
 reason whatever else would not round-trip
-([ADR-QD-902](../decisions/902-sinkcodec-owns-both-directions.md)).
+([ADR-QD-902](../decisions/902-sinkcodec-owns-both-directions.md)). The text is
+wire version 2, which a subscriber on a release before the versioned wire
+refuses, so subscribers upgrade before the server
+([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
 
 A refusal was silent before — the frame simply did not appear — against the
 precedent of `onFailure`, `onDropped` and `onMalformed`: a feed dropping records
