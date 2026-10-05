@@ -13,7 +13,16 @@
 import * as Match from "effect/Match";
 import * as Schema from "effect/Schema";
 import type { SubjectId } from "./Identity.ts";
-import { isSecurityLabel, labelDominates } from "./SecurityLabel.ts";
+import {
+  atLeastVerdict,
+  belowVerdict,
+  differsVerdict,
+  dominatesVerdict,
+  equalsVerdict,
+  holds,
+  memberVerdict,
+} from "./Compare.ts";
+import type { Verdict } from "./Compare.ts";
 import { foldTree } from "./TreeFold.ts";
 
 // ---------------------------------------------------------------------------
@@ -357,6 +366,13 @@ const containsValue = (value: unknown, needle: unknown): boolean => {
   return false;
 };
 
+/**
+ * How one comparison came out — `judgeMatcher`'s answer. Declared in `Compare.ts`
+ * (internal), re-exported here as its public home so `judgeMatcher`'s signature
+ * is nameable.
+ */
+export type { Verdict } from "./Compare.ts";
+
 /** The subject, resource and action a matcher may reference. */
 export interface MatcherContext {
   /** The subject's attributes. Its identity is `subjectId`, kept separate. */
@@ -543,73 +559,75 @@ export const referencesAction: (self: Matcher) => boolean = referencesRef("Actio
  */
 export const referencesResource: (self: Matcher) => boolean = referencesRef("ResourceRef");
 
+/*
+ * Module-local bindings of `Compare.ts`'s verdicts, read once at load. The
+ * matcher switch runs once per node per evaluation, and under a module runner
+ * that turns each imported binding into a getter (vitest's, which `pnpm bench`
+ * uses) a direct call paid that getter on every node: `Compare.bench.ts`
+ * measured `judgeMatcher` at ~2.4x the old `evaluateMatcher` per leaf until these
+ * were added (ARCH-08 T8, D-08-c). They are the same function objects, so the
+ * rules still have one definition.
+ */
+const equalsLocal = equalsVerdict;
+const differsLocal = differsVerdict;
+const dominatesLocal = dominatesVerdict;
+const memberLocal = memberVerdict;
+const atLeastLocal = atLeastVerdict;
+const belowLocal = belowVerdict;
+const holdsLocal = holds;
+
 /**
- * Evaluates a matcher against a value.
+ * How a matcher came out against a value: a `Verdict`, not just whether it held.
+ *
+ * The leaf arms (`Eq`, `Neq`, `Dominates`, `In`, `Gte`, `Lt`) are `Compare.ts`'s
+ * verdicts, the one statement of what each comparison means, shared with
+ * `evaluatePredicate` — so a primitive matcher and its predicate leaf are one
+ * function (INV-QD-091). The structural arms say only what they themselves know:
+ * `ValueAbsent` when their own value is `undefined`, `Incomparable` when it is the
+ * wrong shape, and otherwise `Held`/`NotHeld`. A composite never passes an inner
+ * absence up, so a `FieldMatch` over a missing reference still reads "did not
+ * match" (D-08-b).
+ *
+ * The evaluator calls this once per matcher-bearing leaf and reads both the
+ * decision and the denial reason from the verdict, rather than re-deriving which
+ * operand was missing after a boolean came back (ADR-QD-091).
  *
  * Pure and synchronous: matchers never perform I/O, so they need no Effect.
  * Attribute *resolution* may be effectful, but that happens before this point.
  */
-export const evaluateMatcher = (
-  self: Matcher,
-  value: unknown,
-  context: MatcherContext,
-): boolean => {
+export const judgeMatcher = (self: Matcher, value: unknown, context: MatcherContext): Verdict => {
   // Budgeted switch #4 of 4 (AGENTS.md §5a, SWITCH_BUDGET in
   // scripts/check-house-style.mjs) — a per-node dispatch, so `Match` costs
-  // 1.6-2.4x more here (ADR-QD-034). No `default: never` guard: the `boolean`
+  // 1.6-2.4x more here (ADR-QD-034). No `default: never` guard: the `Verdict`
   // return type already makes a missed arm TS2366 (see `resolveRef` above for
   // the sibling case where the return type can't do that and the guard is
   // load-bearing instead).
   switch (self._tag) {
-    case "Eq": {
-      const other = resolveRef(self.ref, context);
-      // Fails closed on either side: an absent operand is unknown, not
-      // "equal to nothing", so this denies even when `value` and `other`
-      // are undefined for the same reason (CCR-QD-112).
-      return value !== undefined && other !== undefined && value === other;
-    }
-    case "Neq": {
-      const other = resolveRef(self.ref, context);
-      // Mirrors `Eq` (CCR-QD-112): an absent operand denies rather than
-      // matching. Before this, `value !== resolveRef(...)` was `true`
-      // whenever exactly one side was `undefined`.
-      return value !== undefined && other !== undefined && value !== other;
-    }
-    case "Dominates": {
-      // Incomparable labels deny, which is what a dominance test means. The
-      // four-valued `compareLabels` exists for explaining that; a matcher only
-      // answers "did this match".
-      const other = resolveRef(self.ref, context);
-      return (
-        isSecurityLabel(value) && isSecurityLabel(other) && labelDominates(value, other)
-      );
-    }
+    // Every primitive rule — absent operands (CCR-QD-112), finite operands on
+    // both sides of a range (CCR-QD-116, CCR-QD-120, CCR-QD-172), strict versus
+    // SameValueZero equality — is `Compare.ts`'s, stated once there.
+    case "Eq":
+      return equalsLocal(value, resolveRef(self.ref, context));
+    case "Neq":
+      return differsLocal(value, resolveRef(self.ref, context));
+    case "Dominates":
+      return dominatesLocal(value, resolveRef(self.ref, context));
     case "In":
-      return self.values.includes(value);
+      return memberLocal(value, self.values);
     case "Exists":
-      return value !== undefined && value !== null;
+      return value === undefined ? "ValueAbsent" : value === null ? "NotHeld" : "Held";
     case "Gte":
-      // `value` is guarded the same way the bound is (see `gte`'s doc
-      // comment): an attribute that itself decoded to `Infinity` must not
-      // dominate every bound the way an unguarded one would (CCR-QD-116).
-      return (
-        typeof value === "number" &&
-        Number.isFinite(value) &&
-        Number.isFinite(self.value) &&
-        value >= self.value
-      );
+      return atLeastLocal(value, self.value);
     case "Lt":
-      // Symmetric with `Gte` and load-bearing: `-Infinity < bound` is true
-      // for every finite bound, so without the value guard an attribute that
-      // decoded to `-Infinity` satisfies every `lt(…)` (CCR-QD-116).
-      return (
-        typeof value === "number" &&
-        Number.isFinite(value) &&
-        Number.isFinite(self.value) &&
-        value < self.value
-      );
+      return belowLocal(value, self.value);
     case "Contains":
-      return containsValue(value, self.value);
+      return value === undefined
+        ? "ValueAbsent"
+        : !Array.isArray(value) && typeof value !== "string"
+          ? "Incomparable"
+          : containsValue(value, self.value)
+            ? "Held"
+            : "NotHeld";
     // `Object.hasOwn` rather than `value[self.field]` alone, for the same
     // reason `getByPath` above needs it: `field` is attacker-writable in a
     // decoded policy, and without the guard `self.field` naming
@@ -617,25 +635,50 @@ export const evaluateMatcher = (
     // of reporting the field absent. A genuinely missing own property still
     // evaluates the inner matcher against `undefined`, exactly as before.
     case "FieldMatch":
-      return (
-        isObject(value) &&
-        evaluateMatcher(
-          self.matcher,
-          Object.hasOwn(value, self.field) ? value[self.field] : undefined,
-          context,
-        )
-      );
+      return value === undefined
+        ? "ValueAbsent"
+        : !isObject(value)
+          ? "Incomparable"
+          : heldOrNot(
+              holdsLocal(
+                judgeMatcher(
+                  self.matcher,
+                  Object.hasOwn(value, self.field) ? value[self.field] : undefined,
+                  context,
+                ),
+              ),
+            );
     case "SomeMatch":
-      return (
-        Array.isArray(value) && value.some((v) => evaluateMatcher(self.matcher, v, context))
-      );
+      return value === undefined
+        ? "ValueAbsent"
+        : !Array.isArray(value)
+          ? "Incomparable"
+          : heldOrNot(value.some((v) => holdsLocal(judgeMatcher(self.matcher, v, context))));
     case "EveryMatch":
-      return (
-        Array.isArray(value) && value.every((v) => evaluateMatcher(self.matcher, v, context))
-      );
+      return value === undefined
+        ? "ValueAbsent"
+        : !Array.isArray(value)
+          ? "Incomparable"
+          : heldOrNot(value.every((v) => holdsLocal(judgeMatcher(self.matcher, v, context))));
     case "Size": {
+      if (value === undefined) return "ValueAbsent";
       const length = lengthOf(value);
-      return length !== undefined && evaluateMatcher(self.matcher, length, context);
+      return length === undefined
+        ? "Incomparable"
+        : heldOrNot(holdsLocal(judgeMatcher(self.matcher, length, context)));
     }
   }
 };
+
+/** A composite's own answer: whether its inner matcher held, never why it did not (D-08-b). */
+const heldOrNot = (held: boolean): Verdict => (held ? "Held" : "NotHeld");
+
+/**
+ * Evaluates a matcher against a value: whether {@link judgeMatcher}'s verdict
+ * holds.
+ *
+ * Pure and synchronous: matchers never perform I/O, so they need no Effect.
+ * Attribute *resolution* may be effectful, but that happens before this point.
+ */
+export const evaluateMatcher = (self: Matcher, value: unknown, context: MatcherContext): boolean =>
+  holdsLocal(judgeMatcher(self, value, context));

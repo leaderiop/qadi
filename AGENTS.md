@@ -340,7 +340,7 @@ file and its exact count, and gate 4 fails on any deviation.
 | -------- | ------------- |
 | `Evaluate.ts` — `evaluateNode` | `policy._tag` |
 | `Evaluate.ts` — `mergeFields` | the `FieldStrategy` literal union |
-| `Matcher.ts` — `evaluateMatcher` | `self._tag` |
+| `Matcher.ts` — `judgeMatcher` | `self._tag` |
 | `Matcher.ts` — `resolveRef` | `ref._tag` |
 
 All four run once per policy node or matcher node per evaluation — and in `filter`
@@ -396,7 +396,9 @@ and returned `undefined` silently. `resolveRef` would then deny everything;
 visibility. Both now carry a `default` arm assigning the scrutinee to `never`,
 which is free at runtime and makes a new tag the same compile error
 `Match.tagsExhaustive` gives. A switch whose return type cannot absorb `undefined`
-— `evaluateNode` and `evaluateMatcher` — already gets TS2366 and needs no guard.
+— `evaluateNode` and `judgeMatcher` — already gets TS2366 and needs no guard.
+(`judgeMatcher` returns a `Verdict`; it took the switch from `evaluateMatcher`,
+now its one-line `holds(…)` adapter, in ARCH-08 — ADR-QD-091.)
 
 The budget is an exact count and not a per-file pass, deliberately: a blanket
 exemption would let the next `switch` into these two files unnoticed, and they are

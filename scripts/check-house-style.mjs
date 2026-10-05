@@ -279,7 +279,9 @@ const SWITCH_BUDGET = {
   // `evaluateNode` on `policy._tag`, and `mergeFields` on the `FieldStrategy`
   // literal union — which §5a would otherwise route to `Match.value`.
   "packages/core/src/Evaluate.ts": 2,
-  // `evaluateMatcher` on `self._tag`, and `resolveRef` on `ref._tag`.
+  // `judgeMatcher` on `self._tag` (it hosted in `evaluateMatcher` until
+  // ARCH-08 T8, which made `evaluateMatcher` its one-line adapter), and
+  // `resolveRef` on `ref._tag`.
   "packages/core/src/Matcher.ts": 2,
 };
 
@@ -296,7 +298,7 @@ const SWITCH = /\bswitch\s*\(/;
  */
 const SWITCH_BUDGET_NAMES = {
   "packages/core/src/Evaluate.ts": ["evaluateNode", "mergeFields"],
-  "packages/core/src/Matcher.ts": ["evaluateMatcher", "resolveRef"],
+  "packages/core/src/Matcher.ts": ["judgeMatcher", "resolveRef"],
 };
 
 /**
@@ -744,7 +746,7 @@ for (const [rel, found] of switchLines) {
 }
 
 // `SWITCH_BUDGET` keys on file + exact count alone, which a rename cannot
-// trip: `evaluateNode`/`mergeFields`/`evaluateMatcher`/`resolveRef` renamed to
+// trip: `evaluateNode`/`mergeFields`/`judgeMatcher`/`resolveRef` renamed to
 // anything else would still leave the count matching, while AGENTS.md §5a's
 // table (and the prose comment above `SWITCH_BUDGET` itself) silently name a
 // symbol that no longer exists. Checked here as a plain grep-per-name against

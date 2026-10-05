@@ -22,6 +22,7 @@ const ctx: M.MatcherContext = {
 };
 
 const run = (matcher: M.Matcher, value: unknown) => M.evaluateMatcher(matcher, value, ctx);
+const judge = (matcher: M.Matcher, value: unknown) => M.judgeMatcher(matcher, value, ctx);
 
 describe("matchers", () => {
   it("eq compares against a literal", () => {
@@ -66,27 +67,6 @@ describe("matchers", () => {
     assert.isTrue(run(M.exists(), ""));
     assert.isFalse(run(M.exists(), null));
     assert.isFalse(run(M.exists(), undefined));
-  });
-
-  it("gte and lt require numbers", () => {
-    assert.isTrue(run(M.gte(3), 3));
-    assert.isFalse(run(M.gte(3), 2));
-    assert.isFalse(run(M.gte(3), "5"));
-    assert.isTrue(run(M.lt(3), 2));
-    assert.isFalse(run(M.lt(3), 3));
-  });
-
-  it("gte and lt reject a non-finite bound, mirroring SecurityLabel's Infinity/NaN guard", () => {
-    // A decoded policy is untrusted JSON (§7, ADR-QD-002): JSON has no literal
-    // spelling for `Infinity`, but `1e400` still decodes to it, so an
-    // `Infinity`/`NaN` bound is exactly as reachable here as an `Infinity`
-    // `SecurityLabel.level` is. Without the guard an `Infinity` bound would
-    // dominate every finite attribute value via `>=`.
-    assert.isFalse(run(M.gte(Number.POSITIVE_INFINITY), 1_000_000));
-    assert.isFalse(run(M.gte(Number.NaN), 5));
-    assert.isFalse(run(M.lt(Number.POSITIVE_INFINITY), 5));
-    assert.isFalse(run(M.lt(Number.NaN), 5));
-    assert.isFalse(run(M.lt(Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY));
   });
 
   it.effect(
@@ -141,23 +121,6 @@ describe("matchers", () => {
         assert.strictEqual(result._tag, "Failure");
       }),
   );
-
-  it("gte and lt reject a non-finite resolved value, not only a non-finite bound", () => {
-    // CCR-QD-116: an attribute that itself decoded to a non-finite number
-    // (e.g. stored as `1e400` and read back with `JSON.parse`) must not
-    // satisfy a range the way an unguarded `SecurityLabel.level` would. Each
-    // direction has its own load-bearing value: `+Infinity` for `Gte`
-    // (`Infinity >= 3` is `true`) and `-Infinity` for `Lt` (`-Infinity < 3`
-    // is `true`). The `Lt` guard is not cosmetic — before CCR-QD-172 nothing
-    // here evaluated `lt(3)` against `-Infinity`, so a mutant dropping it
-    // survived.
-    assert.isFalse(run(M.gte(3), Number.POSITIVE_INFINITY));
-    assert.isFalse(run(M.gte(3), Number.NEGATIVE_INFINITY));
-    assert.isFalse(run(M.gte(3), Number.NaN));
-    assert.isFalse(run(M.lt(3), Number.POSITIVE_INFINITY));
-    assert.isFalse(run(M.lt(3), Number.NEGATIVE_INFINITY));
-    assert.isFalse(run(M.lt(3), Number.NaN));
-  });
 
   it("contains works on arrays and strings only", () => {
     assert.isTrue(run(M.contains("a"), ["a", "b"]));
@@ -223,6 +186,64 @@ describe("matchers", () => {
   });
 });
 
+// What `judgeMatcher` reports, beyond whether a matcher held (ARCH-08 D-08-b).
+// The primitive comparisons' verdicts are `Compare.ts`'s and are pinned in
+// `Compare.test.ts` over every operand class; these pin what the structural
+// arms add on top: their own absence and shape, never an inner one.
+describe("judgeMatcher: the verdict a matcher reports (BEH-QD-305)", () => {
+  it("evaluateMatcher is exactly whether judgeMatcher's verdict holds", () => {
+    const matchers = FastCheck.sample(matcherArbitrary(3), { numRuns: 200, seed: 7 });
+    const values: ReadonlyArray<unknown> = [undefined, null, 0, 3, "eng", ["a"], { level: 3 }, Number.NaN];
+    for (const matcher of matchers) {
+      for (const value of values) {
+        assert.strictEqual(run(matcher, value), judge(matcher, value) === "Held", JSON.stringify(matcher));
+      }
+    }
+  });
+
+  it("a leaf reports the comparison's verdict, from Compare.ts", () => {
+    assert.strictEqual(judge(M.gte(3), 5), "Held");
+    assert.strictEqual(judge(M.gte(3), 2), "NotHeld");
+    assert.strictEqual(judge(M.gte(3), undefined), "ValueAbsent");
+    assert.strictEqual(judge(M.gte(3), Number.POSITIVE_INFINITY), "Incomparable");
+    assert.strictEqual(judge(M.lt(3), Number.NEGATIVE_INFINITY), "Incomparable");
+    assert.strictEqual(judge(M.lt(3), "2"), "Incomparable");
+    assert.strictEqual(judge(M.eq(M.literal("eng")), "eng"), "Held");
+    assert.strictEqual(judge(M.eq(M.subject("missing")), "eng"), "ReferenceAbsent");
+    assert.strictEqual(judge(M.neq(M.literal("eng")), "eng"), "NotHeld");
+    assert.strictEqual(judge(M.inArray(["a"]), "b"), "NotHeld");
+    assert.strictEqual(judge(M.dominates(M.literal({ level: 1, compartments: [] })), "x"), "Incomparable");
+  });
+
+  it("exists: absent is ValueAbsent, null is NotHeld", () => {
+    assert.strictEqual(judge(M.exists(), undefined), "ValueAbsent");
+    assert.strictEqual(judge(M.exists(), null), "NotHeld");
+    assert.strictEqual(judge(M.exists(), 0), "Held");
+  });
+
+  it("contains: absent is ValueAbsent, a non-array non-string is Incomparable", () => {
+    assert.strictEqual(judge(M.contains("a"), undefined), "ValueAbsent");
+    assert.strictEqual(judge(M.contains("a"), 5), "Incomparable");
+    assert.strictEqual(judge(M.contains("a"), ["b"]), "NotHeld");
+    assert.strictEqual(judge(M.contains("ell"), "hello"), "Held");
+  });
+
+  it("a composite reports its own absence and shape, never its inner matcher's", () => {
+    const inner = M.eq(M.subject("missing"));
+    for (const composite of [M.fieldMatch("f", inner), M.someMatch(inner), M.everyMatch(inner), M.size(inner)]) {
+      assert.strictEqual(judge(composite, undefined), "ValueAbsent", composite._tag);
+      assert.strictEqual(judge(composite, 42), "Incomparable", composite._tag);
+    }
+    // The inner reference is absent, but the composite only says it did not hold.
+    assert.strictEqual(judge(M.fieldMatch("f", inner), { f: "x" }), "NotHeld");
+    assert.strictEqual(judge(M.someMatch(inner), ["x"]), "NotHeld");
+    assert.strictEqual(judge(M.size(inner), "abc"), "NotHeld");
+    // `everyMatch` over an empty array is vacuously held, whatever the inner matcher.
+    assert.strictEqual(judge(M.everyMatch(inner), []), "Held");
+    assert.strictEqual(judge(M.fieldMatch("f", M.eq(M.literal("x"))), { f: "x" }), "Held");
+  });
+});
+
 describe("empty-collection boundaries", () => {
   // None of this is a bug: it is standard JS `Array.prototype.every`/`.some`
   // semantics, applied to a matcher whose input array can itself be absent.
@@ -274,6 +295,8 @@ describe("eq/neq against an unresolved reference (H2, CCR-QD-112)", () => {
   // `Matcher.ts`.
   it("eq denies against an unresolved reference — fails safe", () => {
     assert.isFalse(run(M.eq(M.subject("stae")), "eng"));
+    // And says why: the comparison never ran (ARCH-08 D-08-d).
+    assert.strictEqual(judge(M.eq(M.subject("stae")), "eng"), "ReferenceAbsent");
   });
 
   it("neq now ALSO denies against an unresolved reference, rather than matching everything", () => {
@@ -285,6 +308,9 @@ describe("eq/neq against an unresolved reference (H2, CCR-QD-112)", () => {
     assert.isFalse(run(M.neq(M.subject("stae")), "eng"));
     assert.isFalse(run(M.neq(M.subject("stae")), "anything at all"));
     assert.isFalse(run(M.neq(M.subject("stae")), undefined));
+    assert.strictEqual(judge(M.neq(M.subject("stae")), "eng"), "ReferenceAbsent");
+    // An absent value is reported first, ahead of the absent reference.
+    assert.strictEqual(judge(M.neq(M.subject("stae")), undefined), "ValueAbsent");
   });
 
   it("neq denies rather than matching when the ref resolves to nothing, across every ref kind", () => {
