@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-073                                   |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.2 (2026-10-04): amendment note only — the traced port reads it lists now live in `PortAccess.ts`; the three `fnUntraced` dispatchers and the budget are unchanged (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-19): PN-01 — the Context section's comparison against AGENTS.md §5a's numbers corrected to cite the per-dispatch ratios that survive ADR-QD-034's 2026-09-07 addendum, rather than the "2–4%/under 1%" end-to-end figures that addendum retracts as stale<br>1.0 (2026-09-09): Initial release (issue #102, CCR-QD-145) |
+> | Change History | 1.3 (2026-10-05): addendum — a single child-walk driver replacing the three dispatchers was measured and not adopted; the three functions and the budget are unchanged (ARCH-13, CCR-QD-176)<br>1.2 (2026-10-04): amendment note only — the traced port reads it lists now live in `PortAccess.ts`; the three `fnUntraced` dispatchers and the budget are unchanged (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-19): PN-01 — the Context section's comparison against AGENTS.md §5a's numbers corrected to cite the per-dispatch ratios that survive ADR-QD-034's 2026-09-07 addendum, rather than the "2–4%/under 1%" end-to-end figures that addendum retracts as stale<br>1.0 (2026-09-09): Initial release (issue #102, CCR-QD-145) |
 
 ---
 
@@ -191,6 +191,111 @@ was reading those specific span names (rather than the decision data
 `qadi.evaluate` itself carries) will see them disappear; nothing else in the
 public API changes, and `Trace.children` continues to name every combinator
 node that was evaluated by tag, independent of any span.
+
+> **Addendum 2026-10-05 (CCR-QD-176) — a single child-walk driver was measured and not adopted.**
+>
+> **What was proposed.** The three functions above carry three near-identical
+> copies of one child loop: walk the children in order and stop at the first
+> step that settles the composite, or, under `concurrency`, run every child,
+> fold the exits by declaration index, and re-raise the first failure by index
+> (ADR-QD-026). The 2026-10-05 architecture review proposed one driver,
+> `walkChildren`, as the only `Effect.fnUntraced` site, with the three folds
+> moved into an Effect-free `CombinatorFold.ts` (ARCH-13). The concrete cost of
+> the duplication is on record: CCR-QD-152's schedule fix needed three edits,
+> and the first pass missed `Rules`. The review itself conditioned the change
+> on a benchmark showing the driver costs nothing, because these are the
+> functions that run once per composite node on every evaluation.
+>
+> **What was measured.** Variants were built on copies of `packages/core/src`
+> at `e1d4cb6` and checked first: each type-checks, and each passes the core
+> suite unchanged (41 files, 1273 tests for the two driver variants; the four
+> evaluator files, 358 tests, for the folds-only one). In the order the plan
+> tries them:
+>
+> - **S2** — a generic driver in its own module, `ChildWalk.ts`, with one
+>   `runChild` closure per composite node.
+> - **S1** — an evaluator-specific driver inside `Evaluate.ts`, with no closure.
+> - **S0** — the folds moved to `CombinatorFold.ts`, with the three
+>   `fnUntraced` loops kept.
+> - **S2i** — S2 with both new modules inlined into `Evaluate.ts`. It measures
+>   only, and separates vitest's module-getter cost from the change's own cost.
+>
+> **A** is today's code and **A′** a byte-identical copy of it, the noise
+> control. All variants ran in one process, interleaved, rotating order. There
+> were two methods, each over all 26 composite, depth-scaling, width-scaling and
+> concurrency workloads of `Evaluate.bench.ts`:
+>
+> - **Paired vitest bench**, 6 runs per session.
+> - **In-process Node harness** with live ESM bindings and no getters,
+>   2 × 9 rounds × 250 ms per session.
+>
+> There were two sessions, on an Apple M3 Pro (12 cores) with Node 22.22.0.
+> Session 1 ran at a 1-minute load average of **165–198**. Session 2 ran at
+> **17–181**, mostly 20–50. The machine was shared with unrelated builds
+> throughout.
+>
+> **Result: DROP, under the gate's own inconclusive rule.** The gate needs the
+> noise band `N_w = |A′/A − 1|` to stay under 10% on every workload. In both
+> sessions the harness gave **N_w > 10% on 16 of 26 workloads** (up to 59%
+> and 61%). Over the six vitest runs, A's own p75 spread was **5–183%**. That
+> makes both sessions inconclusive. The planning spike earlier the same day,
+> at load 13–31, had already been inconclusive. The gate counts a second
+> inconclusive result as a DROP, because the burden of proof is on the change.
+>
+> **What the noise does not hide.** The per-run *minimum* latency is the one
+> statistic the load barely moves, and it was reproducible across both
+> sessions. A′ stayed within ±3% of A on 21 of 26 workloads in session 1 and
+> 24 of 26 in session 2, and within ±9% on every one. Each cell
+> below is A's minimum latency over V's (> 1: V faster), session 1 / session 2:
+>
+> | Workload | A′ | S0 | S1 | S2 | S2i |
+> | -------- | -- | -- | -- | -- | --- |
+> | `one node` (no composite, control) | 1.02 / 0.98 | 0.99 / 0.99 | 1.06 / 0.99 | 1.06 / 0.99 | 1.07 / 1.01 |
+> | `deep` — 10 levels | 1.07 / 1.00 | 0.94 / 0.92 | 0.98 / 0.93 | 1.01 / 0.92 | 1.05 / 1.00 |
+> | `deep rules` — 10 nested | 0.99 / 0.98 | 0.85 / 0.89 | 0.89 / 0.92 | 0.90 / 0.90 | 0.98 / 0.99 |
+> | `depth 40` | 1.03 / 1.01 | 0.87 / 0.87 | 0.86 / 0.87 | 0.86 / 0.86 | 0.98 / 0.97 |
+> | `width 32` | 0.99 / 0.99 | 0.87 / 0.89 | 0.92 / 0.94 | 0.90 / 0.92 | 0.98 / 0.98 |
+> | `anyOf First` — 8 | 1.03 / 1.01 | 0.90 / 0.94 | 0.93 / 0.96 | 0.94 / 0.96 | 0.99 / 1.00 |
+> | `allOf` 8, `concurrency: "unbounded"` | 1.00 / 1.08 | 0.79 / 0.84 | 0.78 / 0.86 | 0.79 / 0.85 | 0.83 / 0.86 |
+> | `anyOf Union` 8, `concurrency: "unbounded"` | 1.01 / 1.01 | 0.78 / 0.78 | 0.74 / 0.80 | 0.80 / 0.80 | 0.79 / 0.83 |
+>
+> Read as a direction, never as a figure ("ranges, not figures", above), the
+> data shows two separate costs:
+>
+> 1. **The module split costs up to 15% on the sequential composite workloads,
+>    and the loss grows with depth.** S2i inlines the same code and recovers it
+>    to within A′'s band, so under vitest this cost is the module-runner getter
+>    artefact. The harness was meant to tell artefact from real cost, and it
+>    could not do so at this noise level.
+> 2. **The concurrent `allOf`/`anyOf` path costs 14–26% in every variant,
+>    S2i included.** That cost is real. To avoid indexing `exits` under
+>    `noUncheckedIndexedAccess`, the shared driver pairs each exit with its
+>    child through an `Effect.map` per child. Today's `AllOf`/`AnyOf` branches
+>    need no pairing, because their fold reads only the trace, so they pay
+>    nothing; only `evaluateRules` already pays it. A shared driver must carry
+>    the child for `Rules`, so it puts that cost on all three.
+>
+> Neither rung passes, whichever reading of the noise is taken. Even with the
+> getter loss excused by S2i, the driver is measurably slower on the
+> concurrent path. The ladder therefore ends at DROP, and nothing was
+> committed: the three functions, `UNTRACED_BUDGET`, AGENTS.md §5's table and
+> this ADR's Decision are unchanged.
+>
+> **What would justify reopening it.** Four things would:
+>
+> - a quiet-machine measurement with every `N_w` ≤ 10%, which this addendum
+>   could not obtain;
+> - an Effect release that changes what `fromIteratorUnsafe`, `Effect.exit` or
+>   `Effect.map` cost on this path;
+> - a driver whose concurrent branch pairs exits with children without a
+>   per-child `Effect` and without an unchecked index;
+> - a fourth composite tag, which would make a fourth copy of the loop.
+>
+> A new argument is not enough; it needs a new measurement. The benchmark
+> coverage that made this measurement possible stays: `rules` × 3 algorithms,
+> `anyOf` `First`/`Union`, and per-combinator concurrency workloads in
+> `Evaluate.bench.ts` (ARCH-13 T1). So does the BEH-QD-134 correction
+> (CCR-QD-171).
 
 ---
 

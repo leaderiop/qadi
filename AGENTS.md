@@ -297,6 +297,10 @@ qualifier §5a's `SWITCH_BUDGET` carries — `scripts/check-house-style.mjs`'s
 `Effect.fnUntraced` call site anywhere in `packages/*/src` fails the gate
 until this table and the budget agree.
 
+A shared child-walk driver replacing the three was measured and rejected
+(ADR-QD-073 addendum, 2026-10-05). Reopening it needs a new measurement, not
+a new argument.
+
 ## 5a. Dispatch — `Match`, not `switch`
 
 Dispatching on a `_tag` uses `effect/Match`, never a `switch`.
