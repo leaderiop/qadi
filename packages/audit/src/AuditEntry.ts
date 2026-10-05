@@ -124,8 +124,8 @@ export type AuditEntry = typeof AuditEntry.Type;
  * `AuditEntryNotEncodable`, never partially written or silently dropped.
  *
  * Written as `options.wireVersion`, or `@qadi/core`'s `DEFAULT_WIRE_VERSION`
- * (ADR-QD-903): a row is read back by whatever reads the store, so version 2
- * only once every such reader reads it.
+ * (2, ADR-QD-903): a row is read back by whatever reads the store, so set 1
+ * while any such reader is on a release that reads only version 1.
  */
 export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(function* (
   record: SinkRecord,

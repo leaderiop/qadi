@@ -88,8 +88,9 @@ export const decisionSinkForwarding = (options: {
   /** Called when a record could not be encoded or delivered. Replaces the log. */
   readonly onFailure?: (error: unknown) => void;
   /**
-   * The wire version `send` receives; defaults to `DEFAULT_WIRE_VERSION`.
-   * Version 2 only once every receiver reads it (ADR-QD-903).
+   * The wire version `send` receives; defaults to `DEFAULT_WIRE_VERSION`
+   * (2). Set 1 while a receiver on a release before ADR-QD-903 remains: it
+   * reads only version 1.
    */
   readonly wireVersion?: WireVersion | undefined;
 }): Layer.Layer<DecisionSink> => {

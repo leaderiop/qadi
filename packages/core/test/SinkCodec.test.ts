@@ -435,13 +435,12 @@ describe("every literal the wire admits is exercised", () => {
       const json: unknown = JSON.parse(JSON.stringify(encoded));
 
       assert.strictEqual(encoded._tag, "Decision");
-      if (
-        Predicate.isObject(json) &&
-        Predicate.hasProperty(json, "failed") &&
-        Predicate.isObject(json.failed)
-      ) {
-        assert.isFalse(Object.hasOwn(json.failed, "expected"));
-      }
+      const error: unknown =
+        Predicate.hasProperty(json, "outcome") && Predicate.hasProperty(json.outcome, "error")
+          ? json.outcome.error
+          : undefined;
+      assert.isTrue(Predicate.isObject(error));
+      if (Predicate.isObject(error)) assert.isFalse(Object.hasOwn(error, "expected"));
     }));
 
   it.effect("a present MissingAction expectation is carried onto the JSON wire", () =>
@@ -803,9 +802,13 @@ const recordWith = (options: { readonly resource?: Record<string, unknown>; read
 /** The `cause` an encoded `Failed` record carries, read back from its JSON text. */
 const causeOnTheWire = (record: SinkRecord): unknown => {
   const parsed: unknown = JSON.parse(stringOf(record));
-  return Predicate.hasProperty(parsed, "failed") && Predicate.hasProperty(parsed.failed, "cause")
-    ? parsed.failed.cause
-    : "<absent>";
+  const error: unknown =
+    Predicate.hasProperty(parsed, "outcome") && Predicate.hasProperty(parsed.outcome, "error")
+      ? parsed.outcome.error
+      : Predicate.hasProperty(parsed, "failed")
+        ? parsed.failed
+        : undefined;
+  return Predicate.hasProperty(error, "cause") ? error.cause : "<absent>";
 };
 
 /** An axios-style HTTP client error: `config`/`request` reference each other. */
@@ -1066,7 +1069,7 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       });
       assert.strictEqual(
         stringOf(record),
-        '{"_tag":"Obligations","evaluationId":"o","at":1,"outcome":"Discharged","obligationIds":["audit.log"]}',
+        '{"_tag":"Obligations","version":2,"evaluationId":"o","at":1,"outcome":"Discharged","obligationIds":["audit.log"]}',
       );
     });
   });
@@ -1529,7 +1532,7 @@ const goldenFullEnvelope: SinkRecord = new DecisionRecord({
   }),
 });
 
-describe("v1 bytes: a decided record encodes byte-identically to 1caf04c", () => {
+describe("v1 bytes: wireVersion 1 encodes byte-identically to 1caf04c", () => {
   const goldenRecord = (decision: Allow | Deny): SinkRecord =>
     new DecisionRecord({
       evaluationId: "g",
@@ -1544,7 +1547,11 @@ describe("v1 bytes: a decided record encodes byte-identically to 1caf04c", () =>
     children: [],
     obligations: [],
   });
-  const encoded = (record: SinkRecord): string => stringOf(record);
+  const encoded = (record: SinkRecord): string =>
+    Result.match(encodeSinkRecordString(record, { wireVersion: 1 }), {
+      onSuccess: (text) => text,
+      onFailure: (error) => assert.fail(`refused: ${JSON.stringify(error.refusal)}`),
+    });
 
   it("an Allow with visibleFields and an obligation", () => {
     const record = goldenRecord(

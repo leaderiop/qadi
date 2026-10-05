@@ -291,8 +291,9 @@ refusal names its reason and its path, and `send` only ever sees a value that
 ([ADR-QD-902](../decisions/902-sinkcodec-owns-both-directions.md)).
 
 `wireVersion` chooses the wire version `send` receives, defaulting to
-`DEFAULT_WIRE_VERSION`. A receiver on an earlier release reads only version 1,
-so a sender opts into version 2 once every receiver has upgraded
+`DEFAULT_WIRE_VERSION` (version 2). A receiver on a release before the wire
+was versioned reads only version 1, so a sender facing one sets
+`wireVersion: 1` until it has upgraded
 ([ADR-QD-903](../decisions/903-the-sink-wire-is-versioned-and-its-outcome-exclusive.md)).
 
 The in-process ring answers "what did *this* process decide", and three of the

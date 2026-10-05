@@ -50,9 +50,9 @@ export interface AuditDecisionSinkOptions {
   readonly resetTimeoutMs?: Duration.Input;
   /**
    * The wire version each row's `record` is written as; defaults to
-   * `@qadi/core`'s `DEFAULT_WIRE_VERSION`. A row outlives the process that
-   * wrote it, so version 2 only once every reader of the store reads it
-   * (ADR-QD-903).
+   * `@qadi/core`'s `DEFAULT_WIRE_VERSION` (2). A row outlives the process
+   * that wrote it: set 1 while any reader of the store is on a release before
+   * ADR-QD-903, which reads only version 1.
    */
   readonly wireVersion?: WireVersion | undefined;
 }

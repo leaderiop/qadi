@@ -218,8 +218,8 @@ export interface DecisionStreamOptions {
   readonly onRefused?: (refusal: SinkRecordNotEncodable) => void;
   /**
    * The wire version each frame's data is written as; defaults to
-   * `@qadi/core`'s `DEFAULT_WIRE_VERSION`. Version 2 only once every
-   * subscriber reads it (ADR-QD-903).
+   * `@qadi/core`'s `DEFAULT_WIRE_VERSION` (2). Set 1 while a subscriber on a
+   * release before ADR-QD-903 remains: it reads only version 1.
    */
   readonly wireVersion?: WireVersion | undefined;
 }

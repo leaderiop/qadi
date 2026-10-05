@@ -184,9 +184,10 @@ describe("an audit row is the same wire the decision stream emits (ARCH-09)", ()
       const row: unknown = JSON.parse(JSON.stringify(entry));
       assert.deepStrictEqual(
         Predicate.hasProperty(row, "record") &&
-          Predicate.hasProperty(row.record, "failed") &&
-          Predicate.hasProperty(row.record.failed, "cause")
-          ? row.record.failed.cause
+          Predicate.hasProperty(row.record, "outcome") &&
+          Predicate.hasProperty(row.record.outcome, "error") &&
+          Predicate.hasProperty(row.record.outcome.error, "cause")
+          ? row.record.outcome.error.cause
           : undefined,
         { name: "Error", message: "db down" },
       );

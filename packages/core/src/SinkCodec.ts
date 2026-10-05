@@ -618,15 +618,14 @@ const encodeWireV1 = Schema.encodeResult(SinkRecordWireV1);
 const encodeWireV2 = Schema.encodeResult(SinkRecordWire);
 
 /**
- * The wire version a sender writes when it does not say: version 1, in this
- * release (ADR-QD-903 Phase A).
+ * The wire version a sender writes when it does not say: version 2
+ * (ADR-QD-903 Phase B).
  *
- * Readers of version 2 ship before writers of it. This release reads both and
- * still writes version 1, so a reader on an earlier release keeps reading
- * everything a writer on this one sends; a sender whose every reader has
- * upgraded may opt into version 2 with `wireVersion: 2`.
+ * Readers of version 2 ship before writers of it. A reader on a release
+ * before ADR-QD-903 reads only version 1, so a sender facing one sets
+ * `wireVersion: 1` until it has upgraded.
  */
-export const DEFAULT_WIRE_VERSION: WireVersion = 1;
+export const DEFAULT_WIRE_VERSION: WireVersion = 2;
 
 /** Which wire version {@link encodeSinkRecord} writes. */
 export interface SinkRecordEncodeOptions {
