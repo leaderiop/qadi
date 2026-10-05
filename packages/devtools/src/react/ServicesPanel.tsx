@@ -108,7 +108,9 @@ const PortCard: FC<{
             activity.translationCalls === 0
               ? ""
               : ` · ${activity.translationCalls} from translation`
-          }${activity.retries === 0 ? "" : ` · ${activity.retries} retried`}`}
+          }${activity.retries === 0 ? "" : ` · ${activity.retries} retried`}${
+            activity.timeouts === 0 ? "" : ` · ${activity.timeouts} timed out`
+          }`}
       </span>
     </div>
     <div style={{ ...muted, fontSize: font.sizeSmall }}>{port.consequence}</div>

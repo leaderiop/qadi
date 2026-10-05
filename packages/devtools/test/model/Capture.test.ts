@@ -31,7 +31,9 @@ import {
   hasCustom,
   hasNotActed,
   hasRelationship,
-  makeResourceId,
+  attributeResolverPort,
+  customPredicatePort,
+  makeSubject,
   makeSubjectId,
   relationshipResolverFromEdges,
   RelationshipResolveError,
@@ -45,12 +47,8 @@ const unknownRelated: RelatedResult = "Unknown";
 const unknownActed: ActedResult = "Unknown";
 import {
   answerCount,
-  attributeKey,
   capturing,
-  customPredicateKey,
   emptyAnswers,
-  historyKey,
-  relationshipKey,
   replayLayer,
 } from "../../src/model/Capture.ts";
 import { simulate } from "../../src/model/Simulation.ts";
@@ -145,7 +143,7 @@ describe("capture fidelity — INV-QD-043", () => {
       assert.strictEqual(replayed._tag, "Failed");
 
       // Recorded as a failure with its message, not as an absent value.
-      const recorded = answers.attributes.get(attributeKey(makeSubjectId("alice"), "clearance"));
+      const recorded = answers.AttributeResolver.get(attributeResolverPort.key([makeSubjectId("alice"), "clearance"]));
       assert.strictEqual(recorded?._tag, "Broke");
       assert.include(recorded?._tag === "Broke" ? recorded.message : "", "store down");
     }));
@@ -218,7 +216,7 @@ describe("what a capture records", () => {
       yield* simulate(hasAttribute("clearance", gte(2)), alice, { source: live(capture.layer) });
 
       const answers = yield* capture.answers;
-      const recorded = answers.attributes.get(attributeKey(makeSubjectId("alice"), "clearance"));
+      const recorded = answers.AttributeResolver.get(attributeResolverPort.key([makeSubjectId("alice"), "clearance"]));
 
       assert.deepStrictEqual(recorded, { _tag: "Answered", value: 4 });
     }));
@@ -234,7 +232,7 @@ describe("what a capture records", () => {
       );
 
       const answers = yield* capture.answers;
-      assert.strictEqual(answers.attributes.size, 2);
+      assert.strictEqual(answers.AttributeResolver.size, 2);
     }));
 
   // E2.5
@@ -247,67 +245,12 @@ describe("what a capture records", () => {
         { source: live(capture.layer) },
       );
 
-      assert.strictEqual((yield* capture.answers).attributes.size, 1);
+      assert.strictEqual((yield* capture.answers).AttributeResolver.size, 1);
     }));
 
-  // E2.6 — a relationship keyed by relation alone would answer the wrong
-  // resource's question after an edit changed the resource.
-  it("keys a relationship by subject, relation and resource together", () => {
-    const first = relationshipKey({
-      subjectId: makeSubjectId("alice"),
-      relation: "owner",
-      resourceId: makeResourceId("doc-1"),
-      depth: undefined,
-    });
-    const other = relationshipKey({
-      subjectId: makeSubjectId("alice"),
-      relation: "owner",
-      resourceId: makeResourceId("doc-2"),
-      depth: undefined,
-    });
-
-    assert.notStrictEqual(first, other);
-  });
-
-  // E2.7 — "ever, at all" is a different question from "to this resource".
-  it("keys an anywhere-history query apart from a resource-scoped one", () => {
-    const scoped = historyKey({
-      subjectId: makeSubjectId("alice"),
-      event: "raised",
-      resourceId: makeResourceId("doc-1"),
-    });
-    const anywhere = historyKey({
-      subjectId: makeSubjectId("alice"),
-      event: "raised",
-      resourceId: undefined,
-    });
-
-    assert.notStrictEqual(scoped, anywhere);
-  });
-
-  it("keys an attribute by subject, so a sweep cannot borrow another's answer", () => {
-    assert.notStrictEqual(
-      attributeKey(makeSubjectId("alice"), "clearance"),
-      attributeKey(makeSubjectId("bob"), "clearance"),
-    );
-  });
-
-  it("keys a custom predicate by subject, name and params, all three", () => {
-    const alice = makeSubjectId("alice");
-    const bob = makeSubjectId("bob");
-    assert.notStrictEqual(
-      customPredicateKey(alice, "isOwner", undefined),
-      customPredicateKey(bob, "isOwner", undefined),
-    );
-    assert.notStrictEqual(
-      customPredicateKey(alice, "isOwner", undefined),
-      customPredicateKey(alice, "isEditor", undefined),
-    );
-    assert.notStrictEqual(
-      customPredicateKey(alice, "isOwner", "doc-1"),
-      customPredicateKey(alice, "isOwner", "doc-2"),
-    );
-  });
+  // E2.6/E2.7 and the subject axis — how each port's request is keyed — are
+  // now each port's description's `key`, pinned exactly and for distinctness
+  // in `@qadi/core`'s `PortConformance.test.ts` ("request keys").
 
   it.effect("names itself around whatever it wrapped", () =>
     Effect.gen(function* () {
@@ -412,9 +355,9 @@ describe("what a capture records", () => {
 
       const answers = yield* capture.answers;
       assert.strictEqual(answerCount(answers), 3);
-      assert.strictEqual(answers.attributes.size, 1);
-      assert.strictEqual(answers.relationships.size, 1);
-      assert.strictEqual(answers.history.size, 1);
+      assert.strictEqual(answers.AttributeResolver.size, 1);
+      assert.strictEqual(answers.RelationshipResolver.size, 1);
+      assert.strictEqual(answers.DecisionHistory.size, 1);
     }));
 
   it.effect("counts a custom predicate's answer alongside the other three ports", () =>
@@ -446,8 +389,8 @@ describe("what a capture records", () => {
 
       yield* simulate(hasAttribute("dept", gte(0)), alice, { source: live(capture.layer) });
 
-      assert.strictEqual(first.attributes.size, 1);
-      assert.strictEqual((yield* capture.answers).attributes.size, 2);
+      assert.strictEqual(first.AttributeResolver.size, 1);
+      assert.strictEqual((yield* capture.answers).AttributeResolver.size, 2);
     }));
 });
 
@@ -574,8 +517,8 @@ describe("what a replayed failure carries", () => {
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
-      const recorded = (yield* capture.answers).attributes.get(
-        attributeKey(makeSubjectId("alice"), "clearance"),
+      const recorded = (yield* capture.answers).AttributeResolver.get(
+        attributeResolverPort.key([makeSubjectId("alice"), "clearance"]),
       );
       assert.strictEqual(recorded?._tag, "Broke");
       assert.include(
@@ -601,7 +544,7 @@ describe("what a replayed failure carries", () => {
         source: live(capture.layer),
       });
 
-      assert.strictEqual((yield* capture.answers).relationships.size, 0);
+      assert.strictEqual((yield* capture.answers).RelationshipResolver.size, 0);
     }));
 
   it.effect("a cause that is an Error keeps its message", () =>
@@ -622,8 +565,8 @@ describe("what a replayed failure carries", () => {
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
-      const recorded = (yield* capture.answers).attributes.get(
-        attributeKey(makeSubjectId("alice"), "clearance"),
+      const recorded = (yield* capture.answers).AttributeResolver.get(
+        attributeResolverPort.key([makeSubjectId("alice"), "clearance"]),
       );
       // The message, not `[object Error]` — it is the part a reviewer reads.
       assert.strictEqual(recorded?._tag === "Broke" ? recorded.message : "", "connection refused");
@@ -646,8 +589,8 @@ describe("what a replayed failure carries", () => {
       const capture = capturing(broken);
       yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
 
-      const recorded = (yield* capture.answers).attributes.get(
-        attributeKey(makeSubjectId("alice"), "clearance"),
+      const recorded = (yield* capture.answers).AttributeResolver.get(
+        attributeResolverPort.key([makeSubjectId("alice"), "clearance"]),
       );
       assert.strictEqual(
         recorded?._tag === "Broke" ? recorded.message : "",
@@ -748,9 +691,14 @@ describe("custom predicate capture", () => {
       yield* simulate(hasCustom("isOwner"), alice, { source: live(capture.layer) });
 
       const answers = yield* capture.answers;
-      assert.strictEqual(answers.custom.size, 1);
+      assert.strictEqual(answers.CustomPredicate.size, 1);
       assert.deepStrictEqual(
-        answers.custom.get(customPredicateKey(makeSubjectId("alice"), "isOwner", undefined)),
+        answers.CustomPredicate.get(customPredicatePort.key([
+          "isOwner",
+          makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} }),
+          undefined,
+          undefined,
+        ])),
         { _tag: "Answered", value: true },
       );
     }));

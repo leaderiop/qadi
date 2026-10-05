@@ -20,18 +20,14 @@
  * there in every mode, so no source — `Live` included — can reach the subject a
  * request would use, write a record, or touch the application's cache.
  */
-import * as Layer from "effect/Layer";
+import type * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import {
   attributeResolverFromRecord,
-  AttributeResolverNone,
-  CustomPredicateNone,
   decisionHistoryFromEvents,
-  DecisionHistoryUnknown,
+  portsLayer,
   relationshipResolverFromEdges,
-  RelationshipResolverNever,
   signatureHistoryFromSignatures,
-  SignatureHistoryNone,
 } from "@qadi/core";
 import type { CapturedAnswers } from "./Capture.ts";
 import { replayLayer } from "./Capture.ts";
@@ -119,32 +115,31 @@ const dispatch: (self: SimulationSource) => (input: SimulationInput) => Layer.La
  *
  * Not `@qadi/testing`'s: everything needed is already public in core, and
  * shipping test fixtures into an application's production bundle to power a
- * devtools panel would be a strange trade. The defaults are the same
- * fail-closed ones a real deployment gets when a port is left unwired, so a
- * simulation with no fixtures denies for exactly the reason a real evaluation
- * would.
+ * devtools panel would be a strange trade. A port with no fixture sits at
+ * the same fail-closed default a real deployment gets when a port is left
+ * unwired (`portsLayer`), so a simulation with no fixtures denies for exactly
+ * the reason a real evaluation would.
  */
 const fixtureLayer = (input: SimulationInput): Layer.Layer<EvaluationPorts> =>
-  Layer.mergeAll(
-    input.attributes === undefined
-      ? AttributeResolverNone
-      : attributeResolverFromRecord(input.attributes),
-    input.relationships === undefined
-      ? RelationshipResolverNever
-      : relationshipResolverFromEdges(input.relationships),
-    input.history === undefined
-      ? DecisionHistoryUnknown
-      : decisionHistoryFromEvents(input.history),
+  portsLayer({
+    AttributeResolver:
+      input.attributes === undefined ? undefined : attributeResolverFromRecord(input.attributes),
+    RelationshipResolver:
+      input.relationships === undefined
+        ? undefined
+        : relationshipResolverFromEdges(input.relationships),
+    DecisionHistory:
+      input.history === undefined ? undefined : decisionHistoryFromEvents(input.history),
     // `SimulationInput` has no form vocabulary for a custom predicate's
     // answer — unlike an attribute or an edge, there is no small typed value a
     // reviewer could type in that stands for arbitrary registered logic — so
-    // Fixtures mode always denies a `HasCustom` node, the same fail-closed
-    // default a real deployment gets from an unwired registry. Supplying a
-    // real answer needs `Snapshot` or `Live`.
-    CustomPredicateNone,
-    // Unlike HasCustom, SignatureHistory is data-fetching, so it earns the
-    // same declarative form attributes/edges/events get.
-    input.signatures === undefined
-      ? SignatureHistoryNone
-      : signatureHistoryFromSignatures(input.signatures),
-  );
+    // Fixtures mode leaves `CustomPredicate` at its default and always denies
+    // a `HasCustom` node, the same fail-closed default a real deployment gets
+    // from an unwired registry. Supplying a real answer needs `Snapshot` or
+    // `Live`. Unlike HasCustom, SignatureHistory is data-fetching, so it earns
+    // the same declarative form attributes/edges/events get.
+    SignatureHistory:
+      input.signatures === undefined
+        ? undefined
+        : signatureHistoryFromSignatures(input.signatures),
+  });

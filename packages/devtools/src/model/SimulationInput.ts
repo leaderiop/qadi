@@ -18,11 +18,9 @@ import { makeSubject } from "@qadi/core";
 import type {
   ActedEventInput,
   AuthSubject,
-  CurrentSubject,
   EvaluateOptions,
-  EvaluationId,
-  EvaluationServices,
   PermissionKey,
+  PortServices,
   RelationshipEdgeInput,
   Resource,
   SignatureInput,
@@ -73,8 +71,12 @@ export interface SimulationInput {
  * two runs can be compared field by field. A `Live` layer able to supply either
  * could change *what is being asked*, not merely how it is answered — so the
  * exclusion is in the type rather than in a convention.
+ *
+ * It is exactly `@qadi/core`'s `PortServices` — the registry's five ports —
+ * and is spelled as that alias rather than as an `Exclude` over
+ * `EvaluationServices`, which named the same set a third way.
  */
-export type EvaluationPorts = Exclude<EvaluationServices, CurrentSubject | EvaluationId>;
+export type EvaluationPorts = PortServices;
 
 /** Convenience for a caller composing a `LiveSource` by hand. */
 export type EvaluationPortsLayer = Layer.Layer<EvaluationPorts>;

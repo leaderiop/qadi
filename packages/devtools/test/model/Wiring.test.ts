@@ -27,6 +27,7 @@ import {
   permission,
   portCallsTotal,
   portRetriesTotal,
+  portTimeoutsTotal,
   predicatePortCallsTotal,
   signatureHistoryFromSignatures,
 } from "@qadi/core";
@@ -278,7 +279,7 @@ describe("portActivity", () => {
 
         const activity = yield* portActivity;
         assert.deepStrictEqual(activity, [
-          { port: "AttributeResolver", calls: 1, retries: 0, translationCalls: 0 },
+          { port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 },
         ]);
       }),
     ));
@@ -292,7 +293,7 @@ describe("portActivity", () => {
         // reads are their own field, and a port reached only by translation
         // still appears.
         assert.deepStrictEqual(yield* portActivity, [
-          { port: "AttributeResolver", calls: 0, retries: 0, translationCalls: 1 },
+          { port: "AttributeResolver", calls: 0, retries: 0, timeouts: 0, translationCalls: 1 },
         ]);
       }),
     ));
@@ -303,8 +304,31 @@ describe("portActivity", () => {
         yield* Metric.update(portRetriesTotal, "RelationshipResolver");
 
         assert.deepStrictEqual(yield* portActivity, [
-          { port: "RelationshipResolver", calls: 0, retries: 1, translationCalls: 0 },
+          { port: "RelationshipResolver", calls: 0, retries: 1, timeouts: 0, translationCalls: 0 },
         ]);
+      }),
+    ));
+
+  // D-10-i: every port can carry a deadline now, and a timeout is what tells a
+  // slow store from a down one. Nothing read `qadi_port_timeouts_total` before.
+  it.effect("a port that only ever timed out still appears, with its timeouts", () =>
+    isolated(
+      Effect.gen(function* () {
+        yield* Metric.update(portTimeoutsTotal, "DecisionHistory");
+
+        assert.deepStrictEqual(yield* portActivity, [
+          { port: "DecisionHistory", calls: 0, retries: 0, timeouts: 1, translationCalls: 0 },
+        ]);
+      }),
+    ));
+
+  it.effect("touching the timeout frequency alone still reports nothing reached", () =>
+    isolated(
+      Effect.gen(function* () {
+        // `preregisteredWords` puts every port in the snapshot at zero once the
+        // metric is read; the `> 0` filter keeps those out.
+        yield* Metric.value(portTimeoutsTotal);
+        assert.deepStrictEqual(yield* portActivity, []);
       }),
     ));
 });

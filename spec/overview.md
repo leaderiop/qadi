@@ -714,10 +714,9 @@ checked exactly as the first one's is (CCR-QD-067).
 | `simulate`, `simulationLayer` | function | `model/Simulation.ts` |
 | `SimulationSource`, `FixtureSource`, `SnapshotSource`, `LiveSource` | type | `model/SimulationSource.ts` |
 | `fixtures`, `snapshot`, `live`, `causesIO`, `portsOf` | function | `model/SimulationSource.ts` |
-| `Answer`, `CapturedAnswers` | type | `model/Capture.ts` |
+| `Answer`, `CapturedAnswers` | type | `model/Capture.ts` — `CapturedAnswers` is keyed by port name (`AttributeResolver`, …), each map keyed by that port's description's `key`, so a capture and its replay agree about a key by construction (INV-QD-043, ADR-QD-901) |
 | `emptyAnswers` | constant | `model/Capture.ts` |
-| `capturing`, `replayLayer`, `answerCount` | function | `model/Capture.ts` |
-| `attributeKey`, `relationshipKey`, `historyKey`, `customPredicateKey`, `signatureHistoryKey` | function | `model/Capture.ts` |
+| `capturing`, `replayLayer`, `answerCount` | function | `model/Capture.ts` — `capturing` is `@qadi/core`'s `decoratePorts`; `replayLayer` is each port's `scriptedPort`, answering an unseen request with the description's fail-closed `none` answer |
 | `EditDirection`, `EditKind`, `SimulationEdit` | type | `model/SimulationEdit.ts` |
 | `composeEdits`, `applyEdits`, `editParts` | function | `model/SimulationEdit.ts` |
 | `PairSweep` | type | `model/Edits.ts` |
@@ -738,7 +737,7 @@ checked exactly as the first one's is (CCR-QD-067).
 | `policyLabel`, `policiesSeen`, `catalogueOf` | function | `model/Catalogue.ts` |
 | `RoleNode`, `RoleSummary` | type | `model/RoleTree.ts` |
 | `roleSummary`, `grantPath`, `decidingSet` | function | `model/RoleTree.ts` |
-| `PortReport`, `CacheReport`, `WiringReport`, `PortActivity` | type | `model/Wiring.ts` |
+| `PortReport`, `CacheReport`, `WiringReport`, `PortActivity` | type | `model/Wiring.ts` — `PortActivity` carries `calls`, `retries`, `timeouts` (`qadi_port_timeouts_total`) and `translationCalls` |
 | `wiringReport`, `portActivity` | effect | `model/Wiring.ts` |
 | `GateInstanceLike`, `GateGroup`, `GateStateCount` | type | `model/Gates.ts` |
 | `gateGroups`, `isLocatable`, `locatableIds`, `instancesAsking` | function | `model/Gates.ts` |

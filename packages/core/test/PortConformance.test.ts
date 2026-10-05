@@ -500,6 +500,51 @@ describe("request keys", () => {
  * rendered into `reason` — and the rendering must be total, or a failure
  * would turn into a defect while being described.
  */
+describe("request keys tell apart the questions a capture must not confuse", () => {
+  const bob = makeSubject({ id: "bob", roles: [], permissions: [], attributes: {} });
+  const bobId = makeSubjectId("bob");
+  const other = makeResourceId("doc-2");
+
+  it("the subject is part of every port's key", () => {
+    // The axis a what-if sweep varies: a capture taken for alice must not
+    // answer a question asked about bob (INV-QD-043).
+    assert.notStrictEqual(
+      attributeResolverPort.key([aliceId, "clearance"]),
+      attributeResolverPort.key([bobId, "clearance"]),
+    );
+    assert.notStrictEqual(
+      customPredicatePort.key(["isOwner", alice, undefined, undefined]),
+      customPredicatePort.key(["isOwner", bob, undefined, undefined]),
+    );
+  });
+
+  it("a relationship is keyed by relation and resource together, never relation alone", () => {
+    const ask = (resourceId: typeof doc) =>
+      relationshipResolverPort.key([
+        { subjectId: aliceId, relation: "owner", resourceId, depth: undefined },
+      ]);
+    assert.notStrictEqual(ask(doc), ask(other));
+  });
+
+  it("an anywhere-history question is keyed apart from a resource-scoped one", () => {
+    assert.notStrictEqual(
+      decisionHistoryPort.key([{ subjectId: aliceId, event: "raised", resourceId: doc }]),
+      decisionHistoryPort.key([{ subjectId: aliceId, event: "raised", resourceId: undefined }]),
+    );
+  });
+
+  it("a custom predicate is keyed by its name and its params", () => {
+    assert.notStrictEqual(
+      customPredicatePort.key(["isOwner", alice, undefined, undefined]),
+      customPredicatePort.key(["isEditor", alice, undefined, undefined]),
+    );
+    assert.notStrictEqual(
+      customPredicatePort.key(["isOwner", alice, undefined, "doc-1"]),
+      customPredicatePort.key(["isOwner", alice, undefined, "doc-2"]),
+    );
+  });
+});
+
 describe("customPredicatePort's failure reason", () => {
   const reasonFor = (cause: unknown) =>
     customPredicatePort.failure(["isOwner", alice, undefined, undefined], cause).reason;
