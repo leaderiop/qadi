@@ -605,9 +605,21 @@ state-management layer of its own. The rules that keep it that way:
   > paragraph's history is about pass unchanged.
 - **Submodule imports, as everywhere else:**
   `import * as Atom from "effect/reactivity/Atom"`.
-- **Read decisions through `currentDecision`.** It is the single place the rule
-  "a decision being re-checked is not a decision" lives (ADR-QD-017). A new
-  consumer that reads `AsyncResult.isSuccess` directly will report stale allows.
+- **Read decisions through `outcomeOf`.** It is the single place the rule
+  "a decision being re-checked is not a decision" lives (ADR-QD-017, as amended
+  by ADR-QD-093): it reads a `DecisionResult` into one of five
+  `DecisionOutcome`s — `Pending`, `Rechecking`, `Allowed`, `Denied`, `Failed` —
+  and only `Allowed` carries an allow. `currentDecision` is its projection for a
+  caller that wants only a settled decision. A new consumer that reads
+  `AsyncResult` state directly — `isSuccess`, `waiting`, or a failure's
+  `previousSuccess` — will report stale allows. `DECISION_READ_BUDGET` in
+  `scripts/check-house-style.mjs` refuses such a read in `packages/*/src`
+  outside its two budgeted files (`DecisionOutcome.ts`, and
+  `HydrationEngine.ts`'s seed precedence, which chooses what the atom holds
+  rather than reading it), checked in both directions; the two doc-fence gates
+  (`check-doc-examples.mjs`, `check-website-doc-examples.mjs`) refuse it in a
+  compiled fence that imports `@qadi/react`, unless the fence says why with a
+  `// qadi:raw-decision-read — <reason>` line.
 - **Atoms are keyed structurally.** `Atom.family` compares with `Equal.equals`,
   so two separately built but equal policies share one atom and an inline policy
   still shares. Hoist to module scope or `useMemo` anyway — the hash is cached

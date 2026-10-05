@@ -34,10 +34,19 @@
  * `@qadi/promise` facade) and every package README were structurally outside
  * every compile gate; `scripts/check-website-doc-examples.mjs` covers
  * `apps/website`'s docs content separately and is unaffected by this.
+ *
+ * **A compiled fence that imports `@qadi/react` must not read a decision
+ * result raw (ARCH-14, ADR-QD-093).** The React guide's "read the whole
+ * decision" example compiled and rendered the editor during a re-check;
+ * `refuseRawDecisionReads` (`scripts/lib/raw-decision-read.mjs`, shared with
+ * the website checker) refuses `.waiting`, `.previousSuccess` and
+ * `AsyncResult`'s state reads in such a fence, unless it carries a
+ * `// qadi:raw-decision-read — <reason>` line.
  */
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { compileFencedExamples } from "./lib/extract-code-fences.mjs";
+import { refuseRawDecisionReads } from "./lib/raw-decision-read.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const SPEC = join(ROOT, "spec");
@@ -64,16 +73,22 @@ const packageReadmes = readdirSync(PACKAGES)
     }
   });
 
+const files = [
+  ...collectMarkdown(SPEC),
+  join(ROOT, "AGENTS.md"),
+  join(ROOT, "CONTRIBUTING.md"),
+  join(ROOT, "README.md"),
+  ...packageReadmes,
+];
+
+// Before compiling: a fence that compiles can still render a stale allow, and
+// that is the defect this checker once let through (ARCH-14 C5, ADR-QD-093).
+refuseRawDecisionReads({ root: ROOT, files, label: "doc-examples" });
+
 compileFencedExamples({
   root: ROOT,
   outDir: OUT,
-  files: [
-    ...collectMarkdown(SPEC),
-    join(ROOT, "AGENTS.md"),
-    join(ROOT, "CONTRIBUTING.md"),
-    join(ROOT, "README.md"),
-    ...packageReadmes,
-  ],
+  files,
   label: "doc-examples",
   // `spec/` is normative and AGENTS.md §12 makes running examples the
   // default there — a walk turning up zero blocks means this checker is
