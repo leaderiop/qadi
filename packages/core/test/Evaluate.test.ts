@@ -1182,6 +1182,24 @@ describe("field visibility", () => {
       assert.deepStrictEqual(d.visibleFields, []);
     }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["editor"] })))));
 
+  it.effect("an anyOf whose strategy names an Object.prototype member grants no fields (C3)", () =>
+    Effect.gen(function* () {
+      // A plain `Record` lookup on the strategy reads an inherited member for
+      // these keys — a function or an object, truthy — and an `anyOf` then
+      // stopped at its first allow and returned that child's `undefined`, the
+      // lattice's top (ARCH-12 C3). Built via `JSON.parse`, as CM-07's test is.
+      for (const raw of ["toString", "constructor", "__proto__", "hasOwnProperty"]) {
+        const bogus: P.FieldStrategy = JSON.parse(JSON.stringify(raw));
+        const d = yield* evaluate(
+          P.anyOf([P.hasRole("a"), P.hasRole("b", { fields: ["x"] })], { fieldStrategy: bogus }),
+        );
+        assert.isTrue(isAllowed(d), raw);
+        if (d._tag !== "Allow") return;
+        assert.deepStrictEqual(d.visibleFields, [], raw);
+        assert.strictEqual(d.trace.children.length, 2, `${raw}: must see every child`);
+      }
+    }).pipe(Effect.provide(testLayer(subjectWith({ roles: ["a", "b"] })))));
+
   it.effect("an unrestricted child means all fields", () =>
     Effect.gen(function* () {
       const policy = P.allOf([

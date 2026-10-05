@@ -1,5 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
+import type { FieldStrategy } from "../src/Policy.ts";
 import { anyOfStopsAtAllow, rulesDecisiveEffect } from "../src/ShortCircuit.ts";
+
+/** In-process values outside the union, built via `JSON.parse` (no `as`, AGENTS.md §6). */
+const BOGUS_VALUES = ["Xor", "toString", "constructor", "__proto__", "hasOwnProperty"];
 
 /**
  * The whole contract is a literal table — one row per strategy and per combining
@@ -10,6 +14,13 @@ describe("anyOfStopsAtAllow (ADR-QD-013, INV-QD-005)", () => {
     assert.isTrue(anyOfStopsAtAllow("First"));
     assert.isFalse(anyOfStopsAtAllow("Intersection"));
     assert.isFalse(anyOfStopsAtAllow("Union"));
+  });
+
+  it("a value outside the union never stops early — not even a prototype key", () => {
+    for (const raw of BOGUS_VALUES) {
+      const bogus: FieldStrategy = JSON.parse(JSON.stringify(raw));
+      assert.strictEqual(anyOfStopsAtAllow(bogus), false, raw);
+    }
   });
 });
 
