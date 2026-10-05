@@ -2,8 +2,25 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import { attributeResolverPort } from "../src/AttributeResolver.ts";
+import { makeSubject } from "../src/AuthSubject.ts";
+import { customPredicatePort } from "../src/CustomPredicate.ts";
+import { decisionHistoryPort } from "../src/DecisionHistory.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
-import { catchPortDefect } from "../src/PortAccess.ts";
+import { makeResourceId } from "../src/Identity.ts";
+import {
+  askActedAny,
+  askCustom,
+  askRelationship,
+  askSignature,
+  catchPortDefect,
+  readAttribute,
+} from "../src/PortAccess.ts";
+import { PortReply } from "../src/PortDescription.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { portsLayer } from "../src/Ports.ts";
+import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
+import { signatureHistoryPort } from "../src/SignatureHistory.ts";
 
 /**
  * `catchPortDefect`'s whole contract is a cause matrix: which shapes of cause it
@@ -81,5 +98,102 @@ describe("catchPortDefect", () => {
   it.effect("a success is untouched", () =>
     Effect.gen(function* () {
       assert.strictEqual(yield* convert(Effect.succeed(1)), 1);
+    }));
+});
+
+/**
+ * Each read builds a dying port's typed error through the port's own
+ * description (`defect`), with the request it actually sent — so these pin the
+ * wiring of the arguments, not only the error's tag (ARCH-10 T6).
+ */
+describe("a read's defect error is its port description's", () => {
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+  const doc = makeResourceId("doc-1");
+  const dying = Cause.die("dead");
+
+  const failureOf = <A, E>(effect: Effect.Effect<A, E>) =>
+    Effect.map(Effect.result(effect), (r) => (r._tag === "Failure" ? r.failure : undefined));
+
+  it.effect("AttributeResolver", () =>
+    Effect.gen(function* () {
+      const port = scriptedPort(attributeResolverPort, () => PortReply.die("dead"));
+      const error = yield* failureOf(
+        readAttribute("evaluate", alice, "level").pipe(
+          Effect.provide(portsLayer({ AttributeResolver: port.layer })),
+        ),
+      );
+      assert.deepStrictEqual(error, attributeResolverPort.defect([alice.id, "level"], dying));
+    }));
+
+  it.effect("DecisionHistory", () =>
+    Effect.gen(function* () {
+      const port = scriptedPort(decisionHistoryPort, () => PortReply.throw("dead"));
+      const error = yield* failureOf(
+        askActedAny("toPredicate", alice, "approved").pipe(
+          Effect.provide(portsLayer({ DecisionHistory: port.layer })),
+        ),
+      );
+      assert.deepStrictEqual(
+        error,
+        decisionHistoryPort.defect(
+          [{ subjectId: alice.id, event: "approved", resourceId: undefined }],
+          dying,
+        ),
+      );
+    }));
+
+  it.effect("RelationshipResolver", () =>
+    Effect.gen(function* () {
+      const port = scriptedPort(relationshipResolverPort, () => PortReply.die("dead"));
+      const error = yield* failureOf(
+        askRelationship(alice, "owner", "doc-1", 3).pipe(
+          Effect.provide(portsLayer({ RelationshipResolver: port.layer })),
+        ),
+      );
+      assert.deepStrictEqual(
+        error,
+        relationshipResolverPort.defect(
+          [{ subjectId: alice.id, relation: "owner", resourceId: doc, depth: 3 }],
+          dying,
+        ),
+      );
+      assert.deepStrictEqual(port.calls, [
+        [{ subjectId: alice.id, relation: "owner", resourceId: doc, depth: 3 }],
+      ]);
+    }));
+
+  it.effect("CustomPredicate, whose reason is still the rendered cause", () =>
+    Effect.gen(function* () {
+      const port = scriptedPort(customPredicatePort, () => PortReply.die("dead"));
+      const error = yield* failureOf(
+        askCustom(alice, { id: "doc-1" }, "isOwner", { strict: true }).pipe(
+          Effect.provide(portsLayer({ CustomPredicate: port.layer })),
+        ),
+      );
+      assert.strictEqual(error?._tag, "CustomPredicateError");
+      if (error === undefined) return;
+      assert.strictEqual(error.name, "isOwner");
+      // `Cause.pretty` of the cause the port actually died with — which carries
+      // the read's span annotations — so it is compared by what it must say
+      // rather than byte for byte against a cause rebuilt here.
+      assert.include(error.reason, "dead");
+      assert.strictEqual(
+        customPredicatePort.defect(["isOwner", alice, undefined, undefined], dying).reason,
+        Cause.pretty(dying),
+      );
+    }));
+
+  it.effect("SignatureHistory", () =>
+    Effect.gen(function* () {
+      const port = scriptedPort(signatureHistoryPort, () => PortReply.die("dead"));
+      const error = yield* failureOf(
+        askSignature(alice, "approved", undefined, "Resource", "doc-1").pipe(
+          Effect.provide(portsLayer({ SignatureHistory: port.layer })),
+        ),
+      );
+      assert.deepStrictEqual(
+        error,
+        signatureHistoryPort.defect([{ subjectId: alice.id, resourceId: doc }], dying),
+      );
     }));
 });
