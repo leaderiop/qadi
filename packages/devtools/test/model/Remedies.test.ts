@@ -32,6 +32,7 @@ import {
   hasResourceAttribute,
   hasRole,
   inArray,
+  judgeMatcher,
   labeled,
   literal,
   lt,
@@ -241,6 +242,84 @@ describe("satisfyingValue — every witness satisfies its own matcher", () => {
     assert.deepStrictEqual(witnesses(someMatch(fieldMatch("tag", eq(literal("x"))))), [
       { tag: "x" },
     ]);
+  });
+});
+
+// BEH-QD-223 by construction (ARCH-08 D-08-i): every leaf witness is checked
+// against `judgeMatcher` before it is offered, so a comparison rule the
+// synthesis does not know about cannot produce a remedy that fails to match.
+// The five below each produced such a witness before the check.
+describe("satisfyingValue — a witness the matcher rejects is never offered (BEH-QD-223)", () => {
+  it("declines a gte whose bound no finite value reaches", () => {
+    assert.strictEqual(declines(gte(Number.POSITIVE_INFINITY)), "no value at least Infinity can be synthesised");
+    assert.strictEqual(declines(gte(Number.NEGATIVE_INFINITY)), "no value at least -Infinity can be synthesised");
+    assert.strictEqual(declines(gte(Number.NaN)), "no value at least NaN can be synthesised");
+  });
+
+  it("declines an eq whose literal no value equals", () => {
+    // `NaN === NaN` is false, and an absent value satisfies no matcher.
+    assert.strictEqual(declines(eq(literal(Number.NaN))), "the synthesised value does not satisfy the matcher");
+    assert.strictEqual(declines(eq(literal(undefined))), "the synthesised value does not satisfy the matcher");
+  });
+
+  it("declines an in whose only member is undefined, which no value is a member of", () => {
+    assert.strictEqual(declines(inArray([undefined])), "the synthesised value does not satisfy the matcher");
+    // SameValueZero membership: `NaN` is a member of `[NaN]`, so it is offered.
+    assert.isTrue(Number.isNaN(witnesses(inArray([Number.NaN]))));
+  });
+
+  it("propagates a leaf's failed check outward, like any other refusal", () => {
+    assert.strictEqual(
+      declines(fieldMatch("x", eq(literal(Number.NaN)))),
+      "the synthesised value does not satisfy the matcher",
+    );
+  });
+
+  /**
+   * Every matcher up to two wrappers deep over a fixed set of leaves, non-finite
+   * bounds and `NaN`/`undefined` literals included. Exhaustive rather than
+   * sampled: the universe is small enough to walk whole.
+   */
+  const LEAVES: ReadonlyArray<Matcher> = [
+    ...[1, "legal", Number.NaN, undefined, null, { nested: true }].flatMap((v) => [eq(literal(v)), neq(literal(v))]),
+    eq(subjectId()),
+    eq(subject("dept")),
+    eq(subject("absent")),
+    eq(resource("owner")),
+    eq({ _tag: "ActionRef" }),
+    dominates(literal({ level: 2, compartments: [] })),
+    dominates(literal("secret")),
+    inArray([]),
+    inArray(["a"]),
+    inArray([undefined]),
+    inArray([Number.NaN, 1]),
+    exists(),
+    ...[5, 0, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN, Number.MAX_VALUE].flatMap((n) => [
+      gte(n),
+      lt(n),
+    ]),
+    contains("fin"),
+  ];
+  const wrap = (inner: ReadonlyArray<Matcher>): ReadonlyArray<Matcher> =>
+    inner.flatMap((m) => [fieldMatch("a", m), someMatch(m), everyMatch(m), size(m)]);
+  const UNIVERSE: ReadonlyArray<Matcher> = [...LEAVES, ...wrap(LEAVES), ...wrap(wrap(LEAVES))];
+
+  it("PROPERTY: every Value witness satisfies judgeMatcher, over every matcher two wrappers deep", () => {
+    let offered = 0;
+    let declined = 0;
+    for (const matcher of UNIVERSE) {
+      const found = satisfyingValue(matcher, alice);
+      if (found._tag === "Unsynthesisable") {
+        declined += 1;
+        continue;
+      }
+      offered += 1;
+      assert.strictEqual(judgeMatcher(matcher, found.value, context), "Held", JSON.stringify(matcher));
+    }
+    const leafTags = new Set(LEAVES.map((m) => m._tag));
+    assert.strictEqual(leafTags.size + 4, 12);
+    assert.isAbove(offered, 300);
+    assert.isAbove(declined, 300);
   });
 });
 
@@ -594,15 +673,30 @@ describe("remedyEdits — what it could not build, and why", () => {
   });
 
   /**
-   * `eq(literal(undefined))` is a policy that only an absent attribute
-   * satisfies, and `JSON.stringify` renders it as nothing at all. A label
-   * reading `with subject attribute x = ` would look like a formatting bug in
-   * the panel rather than like the odd policy it is.
+   * A witness `JSON.stringify` renders as nothing at all — a symbol, compared by
+   * reference — still gets a label: `with subject attribute x = ` would look like
+   * a formatting bug in the panel rather than like the odd policy it is.
    */
   it("renders a witness JSON cannot represent", () => {
-    assert.deepStrictEqual(labels(hasAttribute("x", eq(literal(undefined)))), [
+    const token = Symbol("token");
+    assert.deepStrictEqual(labels(hasAttribute("x", eq(literal(token)))), [
       "with subject attribute x = undefined",
     ]);
+  });
+
+  /**
+   * `eq(literal(undefined))` used to be offered as `x = undefined`, on the
+   * belief that only an absent attribute satisfies it. Nothing does: an absent
+   * value satisfies no matcher (CCR-QD-112, INV-QD-092), so the remedy was a
+   * row that does not remedy. It is skipped, and says why (ARCH-08 D-08-i).
+   */
+  it("skips a policy no value satisfies, rather than offering a remedy that fails", () => {
+    const sweep = remedyEdits(hasAttribute("x", eq(literal(undefined))), alice);
+    assert.deepStrictEqual(sweep.edits, []);
+    assert.deepStrictEqual(
+      sweep.skipped.map((one) => one.reason),
+      ["the synthesised value does not satisfy the matcher"],
+    );
   });
 });
 

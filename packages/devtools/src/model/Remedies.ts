@@ -19,8 +19,24 @@
  * absent one, because the reviewer reads it as "and even that would not help".
  */
 import * as Match from "effect/Match";
-import { foldMatcher, foldPolicy, getByPath, isSecurityLabel, permissionKey } from "@qadi/core";
-import type { HistoryScope, Matcher, Permission, Policy, Resource, ValueRef } from "@qadi/core";
+import {
+  foldMatcher,
+  foldPolicy,
+  getByPath,
+  isSecurityLabel,
+  judgeMatcher,
+  makeSubjectId,
+  permissionKey,
+} from "@qadi/core";
+import type {
+  HistoryScope,
+  Matcher,
+  MatcherContext,
+  Permission,
+  Policy,
+  Resource,
+  ValueRef,
+} from "@qadi/core";
 import { sameEdge, sameEvent } from "./Edits.ts";
 import type { SimulationEdit } from "./SimulationEdit.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
@@ -111,9 +127,44 @@ const dedupeBy = <A>(items: ReadonlyArray<A>, key: (item: A) => string): Readonl
  * `Eq` compares with `===`, so a literal object is passed through by reference
  * rather than copied; `Contains` and `SomeMatch` want the needle *inside* an
  * array; `Size` wants a value with a `length`.
+ *
+ * **And every leaf witness is checked, not just built** (BEH-QD-223, ARCH-08
+ * D-08-i). The arms below read each matcher backwards, which is a second belief
+ * about what a comparison accepts — and that belief lagged the evaluator's:
+ * `gte(Infinity)`, `eq(literal(NaN))` and `eq(literal(undefined))` all produced a
+ * witness `judgeMatcher` rejects. So a leaf's witness is judged by
+ * `judgeMatcher` itself before it is offered, and declined if it does not hold.
+ * Only leaves are judged: a wrapper's witness holds exactly when its one child's
+ * does, by construction of the wrapping (`{field: v}`, `[v]`, an array of length
+ * `v`), so checking the leaf checks the whole — and judging a leaf never
+ * recurses, so the fold stays stack-safe at any depth. Comparison semantics live
+ * in the leaves, so whatever they do next, a remedy cannot lie about them.
  */
-export const satisfyingValue = (matcher: Matcher, input: SimulationInput): Synthesised =>
-  foldMatcher<Synthesised>(matcher, (node, children) => witnessStep(node)(children, input));
+export const satisfyingValue = (matcher: Matcher, input: SimulationInput): Synthesised => {
+  const context = contextOf(input);
+  return foldMatcher<Synthesised>(matcher, (node, children) =>
+    checked(node, children.length === 0, witnessStep(node)(children, input), context),
+  );
+};
+
+/** The evaluator's view of a simulation input, so a witness is judged against what `evaluate` would see. */
+const contextOf = (input: SimulationInput): MatcherContext => ({
+  subject: input.subject.attributes ?? {},
+  subjectId: makeSubjectId(input.subject.id),
+  resource: input.resource,
+  action: input.action,
+});
+
+/** A leaf's witness, kept only if `judgeMatcher` holds it; a wrapper's passes through (see `satisfyingValue`). */
+const checked = (
+  node: Matcher,
+  isLeaf: boolean,
+  found: Synthesised,
+  context: MatcherContext,
+): Synthesised =>
+  isLeaf && found._tag === "Value" && judgeMatcher(node, found.value, context) !== "Held"
+    ? cannot("the synthesised value does not satisfy the matcher")
+    : found;
 
 const value = (v: unknown): Synthesised => ({ _tag: "Value", value: v });
 const cannot = (reason: string): Synthesised => ({ _tag: "Unsynthesisable", reason });
@@ -170,7 +221,15 @@ const witnessStep: (self: Matcher) => Step = Match.type<Matcher>().pipe(
       step(() =>
         m.values.length === 0 ? cannot("an empty `in` accepts nothing") : value(m.values[0])),
     Exists: () => step(() => value(true)),
-    Gte: (m) => step(() => value(m.value)),
+    // The bound itself, when it is a finite number: a non-finite bound has no
+    // value at or above it that `atLeastVerdict` accepts, so it declines with a
+    // specific reason here rather than the leaf check's generic one — the
+    // mirror of `Lt`'s guard below.
+    Gte: (m) =>
+      step(() =>
+        Number.isFinite(m.value)
+          ? value(m.value)
+          : cannot(`no value at least ${String(m.value)} can be synthesised`)),
     // `m.value - 1` is not a witness for every threshold: float rounding
     // swallows the subtraction once `m.value` is large enough (1e308 and its
     // own predecessor are the same float), and `Infinity`/`NaN` have no
