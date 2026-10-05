@@ -21,6 +21,8 @@ import {
 import type { AuthSubject, DecisionLog, SinkRecordNotEncodable } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Logger from "effect/Logger";
+import * as References from "effect/References";
 import * as Result from "effect/Result";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
@@ -135,6 +137,41 @@ describe("/__decisions/backlog", () => {
       assert.strictEqual(refused.length, 1);
       assert.strictEqual(refused[0]?.evaluationId, "bad");
       assert.strictEqual(refused[0]?.refusal._tag, "Opaque");
+    }));
+
+  it.effect("with no onRefused, each refusal is logged with its reason and path, and left out", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ message: unknown; annotations: Record<string, unknown> }> = [];
+      const hostile = {
+        get boom(): unknown {
+          throw new Error("getter exploded");
+        },
+      };
+      const layer = yield* serve((log) =>
+        Effect.gen(function* () {
+          yield* log.ingest(decision("opaque", { tags: new Set(["x"]) }));
+          yield* log.ingest(decision("throws", { nested: hostile }));
+          yield* log.ingest(decision("good"));
+        }),
+      );
+      const capture = Logger.layer([
+        Logger.make((o) => {
+          logs.push({ message: o.message, annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
+        }),
+      ]);
+      const { handler } = HttpRouter.toWebHandler(layer.pipe(Layer.provideMerge(capture)));
+      const response = yield* get(handler, "/__decisions/backlog", "alice-token");
+      const body: unknown = yield* Effect.promise(() => response.json());
+
+      assert.strictEqual(Array.isArray(body) ? body.length : -1, 1);
+      const refusals = logs.filter((l) => String(l.message).includes("could not be served in the backlog"));
+      assert.deepStrictEqual(
+        refusals.map((l) => [l.annotations["evaluationId"], l.annotations["qadi.refusal"], l.annotations["qadi.path"]]),
+        [
+          ["opaque", "Opaque", "resource.tags"],
+          ["throws", "EncodeFailed", ""],
+        ],
+      );
     }));
 
   it.effect("an empty log is an empty array", () =>

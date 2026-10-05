@@ -832,6 +832,40 @@ describe("one record cannot end the feed", () => {
       assert.strictEqual(logs[0]?.annotations["qadi.path"], "resource.tags");
       assert.strictEqual(logs[0]?.annotations["evaluationId"], "refused");
     }));
+
+  it.effect("a refusal with no path (EncodeFailed) is logged with an empty path", () =>
+    Effect.gen(function* () {
+      const logs: Array<{ annotations: Record<string, unknown> }> = [];
+      const log = yield* makeDecisionLog({ environment: "Server" });
+      // A getter that throws while the codec inspects the resource: the refusal
+      // is `EncodeFailed`, which carries a message and no path.
+      const hostile = {
+        get boom(): unknown {
+          throw new Error("getter exploded");
+        },
+      };
+      yield* Effect.gen(function* () {
+        const sink = yield* DecisionSink;
+        yield* sink.record(decisionRecord("refused", { nested: hostile }));
+        yield* sink.record(decisionRecord("after"));
+      }).pipe(Effect.provide(log.layer));
+
+      const frames = yield* Effect.scoped(
+        Effect.flatMap(log.readEntries(), (read) => Stream.runCollect(Stream.take(decisionFrames(read), 1))),
+      ).pipe(
+        Effect.provide(
+          Logger.layer([
+            Logger.make((o) => {
+              logs.push({ annotations: o.fiber.getRef(References.CurrentLogAnnotations) });
+            }),
+          ]),
+        ),
+      );
+      assert.include(frames[0] ?? "", '"evaluationId":"after"');
+      assert.strictEqual(logs.length, 1);
+      assert.strictEqual(logs[0]?.annotations["qadi.refusal"], "EncodeFailed");
+      assert.strictEqual(logs[0]?.annotations["qadi.path"], "");
+    }));
 });
 
 /**
