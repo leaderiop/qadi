@@ -5,8 +5,6 @@ import * as Metric from "effect/Metric";
 import * as Schedule from "effect/Schedule";
 import {
   AttributeResolver,
-  AttributeResolverNone,
-  attributeResolverBounded,
   attributeResolverFromRecord,
   attributeResolverRetrying,
 } from "../src/AttributeResolver.ts";
@@ -15,7 +13,6 @@ import { customPredicateFromRecord } from "../src/CustomPredicate.ts";
 import { isAllowed } from "../src/Decision.ts";
 import {
   DecisionHistory,
-  DecisionHistoryUnknown,
   decisionHistoryFromEvents,
 } from "../src/DecisionHistory.ts";
 import { AttributeResolveError, RelationshipResolveError } from "../src/Errors.ts";
@@ -38,8 +35,6 @@ import {
 import { toPredicate } from "../src/Predicate.ts";
 import {
   RelationshipResolver,
-  RelationshipResolverNever,
-  relationshipResolverBounded,
   relationshipResolverFromEdges,
   relationshipResolverRetrying,
 } from "../src/RelationshipResolver.ts";
@@ -49,46 +44,15 @@ describe("a port says which implementation it is", () => {
   // Before this, a service value was an anonymous object literal, so the only
   // way to distinguish a fail-closed default from a real store was to call it
   // and infer from the answer. An operator seeing "everything denies" could not
-  // see that `AttributeResolverNone` was wired.
-
-  it.effect("the fail-closed defaults name themselves", () =>
-    Effect.gen(function* () {
-      const attribute = yield* AttributeResolver;
-      const relationship = yield* RelationshipResolver;
-      const history = yield* DecisionHistory;
-
-      assert.strictEqual(attribute.name, "AttributeResolverNone");
-      assert.strictEqual(relationship.name, "RelationshipResolverNever");
-      assert.strictEqual(history.name, "DecisionHistoryUnknown");
-    }).pipe(
-      Effect.provide(
-        Layer.mergeAll(AttributeResolverNone, RelationshipResolverNever, DecisionHistoryUnknown),
-      ),
-    ));
+  // see that `AttributeResolverNone` was wired. Every port's named default and
+  // every wrapper's composed name are pinned for all five ports by
+  // `PortConformance.test.ts`; what stays here is everything else.
 
   it.effect("EvaluationId names both of its implementations", () =>
     Effect.gen(function* () {
       const live = yield* EvaluationId;
       assert.strictEqual(live.name, "EvaluationIdLive");
     }).pipe(Effect.provide(EvaluationIdLive)));
-
-  it.effect("a wrapper names itself around what it wrapped", () =>
-    Effect.gen(function* () {
-      // The whole stack, not just the outermost layer — otherwise wrapping a
-      // real store in a retry would lose the identity a panel most needs.
-      const resolver = yield* AttributeResolver;
-      assert.strictEqual(resolver.name, "attributeResolverFromRecord (retrying)");
-    }).pipe(
-      Effect.provide(
-        attributeResolverRetrying(Schedule.recurs(1))(attributeResolverFromRecord({})),
-      ),
-    ));
-
-  it.effect("a bounded wrapper names its permit count", () =>
-    Effect.gen(function* () {
-      const resolver = yield* AttributeResolver;
-      assert.strictEqual(resolver.name, "AttributeResolverNone (bounded 2)");
-    }).pipe(Effect.provide(attributeResolverBounded(2)(AttributeResolverNone))));
 
   it.effect("the other implementations name themselves too", () =>
     Effect.gen(function* () {
@@ -107,71 +71,6 @@ describe("a port says which implementation it is", () => {
       const ids = yield* EvaluationId;
       assert.strictEqual(ids.name, "evaluationIdSequential(req)");
     }).pipe(Effect.provide(evaluationIdSequential("req"))));
-
-  it.effect("the relationship wrappers compose their names too", () =>
-    Effect.gen(function* () {
-      const resolver = yield* RelationshipResolver;
-      assert.strictEqual(resolver.name, "RelationshipResolverNever (retrying)");
-    }).pipe(
-      Effect.provide(relationshipResolverRetrying(Schedule.recurs(1))(RelationshipResolverNever)),
-    ));
-
-  it.effect("a bounded relationship wrapper names its permit count", () =>
-    Effect.gen(function* () {
-      const resolver = yield* RelationshipResolver;
-      assert.strictEqual(resolver.name, "RelationshipResolverNever (bounded 3)");
-    }).pipe(Effect.provide(relationshipResolverBounded(3)(RelationshipResolverNever))));
-
-  it.effect("wrapping an UNNAMED resolver falls back rather than reading undefined", () =>
-    Effect.gen(function* () {
-      // The `?? "?"` branch, which every other wrapper test skips by wrapping
-      // something already named. Without it the composed name would read
-      // "undefined (retrying)".
-      const resolver = yield* AttributeResolver;
-      assert.strictEqual(resolver.name, "? (retrying)");
-    }).pipe(
-      Effect.provide(
-        attributeResolverRetrying(Schedule.recurs(1))(
-          Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
-        ),
-      ),
-    ));
-
-  it.effect("an unnamed BOUNDED attribute resolver falls back too", () =>
-    Effect.gen(function* () {
-      const resolver = yield* AttributeResolver;
-      assert.strictEqual(resolver.name, "? (bounded 4)");
-    }).pipe(
-      Effect.provide(
-        attributeResolverBounded(4)(
-          Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
-        ),
-      ),
-    ));
-
-  it.effect("an unnamed RETRYING relationship resolver falls back too", () =>
-    Effect.gen(function* () {
-      const resolver = yield* RelationshipResolver;
-      assert.strictEqual(resolver.name, "? (retrying)");
-    }).pipe(
-      Effect.provide(
-        relationshipResolverRetrying(Schedule.recurs(1))(
-          Layer.succeed(RelationshipResolver, { check: () => Effect.succeed("Unknown") }),
-        ),
-      ),
-    ));
-
-  it.effect("wrapping an UNNAMED relationship resolver falls back too", () =>
-    Effect.gen(function* () {
-      const resolver = yield* RelationshipResolver;
-      assert.strictEqual(resolver.name, "? (bounded 1)");
-    }).pipe(
-      Effect.provide(
-        relationshipResolverBounded(1)(
-          Layer.succeed(RelationshipResolver, { check: () => Effect.succeed("Unknown") }),
-        ),
-      ),
-    ));
 
   it.effect("a caller's own resolver may say nothing", () =>
     Effect.gen(function* () {
