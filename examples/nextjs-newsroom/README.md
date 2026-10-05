@@ -25,7 +25,8 @@ consumer gets. `pnpm build` first, therefore.
 | Path | What it is |
 | ---- | ---------- |
 | `app/api/[[...route]]/route.ts` | The whole Effect HTTP surface, in a dozen lines. `HttpRouter.toWebHandler` returns `(Request) => Promise<Response>`; a Route Handler *is* that. |
-| `src/server/api.ts` | Guarded routes, `/__permissions`, `/__decisions` (SSE), and the three port endpoints. Ordinary Effect that would run unchanged behind `HttpServer.serve`. |
+| `src/server/api.ts` | Guarded routes, `/__permissions`, `/__decisions` (SSE: the log's backlog, `synced`, then live), `/__decisions/backlog` (the same backlog as JSON), the edge aggregator's ingest, and the three port endpoints. Ordinary Effect that would run unchanged behind `HttpServer.serve`. |
+| `src/server/layer.ts` | **One decision log per process** — the sink, the backlog and the live stream in one value, labelled `Server` there and nowhere else. The browser has its own, labelled `Client` in `src/client/atoms.ts`. |
 | `src/server/runtime.ts` | One `ManagedRuntime` per process, pinned to `globalThis`. |
 | `src/server/decide.ts` | Name the questions, decide them in one pass, project the answers. |
 | `src/client/Providers.tsx` | `hydrateDecisions` → `initialValues` → `QadiProvider`. |
@@ -33,8 +34,10 @@ consumer gets. `pnpm build` first, therefore.
 | `src/domain/` | Six policies chosen for coverage: every port, a rule table, a negation, an obligation, field restriction, and the label lattice. |
 
 Four topologies are hosted: client-only (`/spa`), SSR/hydration (`/newsroom`),
-separate-origin-over-SSE (the dock's own feed), and serverless
-(`/api/edge/decide`, which forwards each record before the invocation ends).
+separate-origin-over-SSE (the dock reads the server's log over `/api/__decisions`),
+and serverless (`/api/edge/decide`, which forwards each record before the
+invocation ends; the aggregator ingests it into the server's log labelled `Edge`,
+and it reaches the dock's Log live).
 
 Eleven routes under `/edge` each make one thing go wrong on purpose. The index
 lists them.
@@ -76,8 +79,8 @@ two lines it saves are written out in `src/server/runtime.ts`.
 ### 3. A Route Handler and a Server Component are different module graphs
 
 Measured, not assumed. Two pages share a module-scope value; `app/api/…/route.ts`
-gets its own. So the `decisionSinkRing` the pages filled was **not** the ring
-`/__decisions` streamed: the backlog held 3 records (the API's own guard checks)
+gets its own. So the ring sink the pages filled (before the decision log replaced
+it) was **not** the one `/__decisions` streamed: the backlog held 3 records (the API's own guard checks)
 after a page had made eighteen decisions. The symptom is a devtools panel that
 looks like a transport bug and is not one.
 

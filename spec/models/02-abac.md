@@ -135,11 +135,7 @@ without one fails with `MissingResource` — a wiring mistake, not a decision.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
   allOf,
   attributeResolverFromRecord,
   check,
@@ -152,6 +148,7 @@ import {
   makeSubject,
   subject,
   type EvaluationError,
+  portsLayer,
 } from "@qadi/core";
 
 // A case worker may work a case that is still open, sits at their own site, and
@@ -167,13 +164,11 @@ const canWorkCase = allOf([
 // `clearance` is not, so the resolver supplies it — and only once the first two
 // branches have allowed. A closed case costs no lookup at all.
 const services = Layer.mergeAll(
+  portsLayer({
+    AttributeResolver: attributeResolverFromRecord({ clearance: 5 }),
+  }),
   currentSubjectLayer(makeSubject({ id: "u-42", attributes: { site: "lyon" } })),
-  attributeResolverFromRecord({ clearance: 5 }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 const program: Effect.Effect<boolean, EvaluationError> = check(canWorkCase, {
@@ -232,8 +227,9 @@ document does not propose it become one.
 The `@REQ-QD-004` feature file pins the two-source rule end to end: one scenario
 satisfies the policy from an attribute the subject carries, the next from an
 attribute only the resolver knows, the last denies when neither source has it.
-Asserting *which* attributes were asked for uses `recordingAttributeResolver`
-from the testing package, alongside `qadiTestLayer` and `subjectWith`.
+Asserting *which* attributes were asked for uses `@qadi/core`'s `recordingPort`
+over `attributeResolverPort`, wired through `qadiTestLayer`'s `ports` option
+alongside `subjectWith` from the testing package.
 
 ---
 

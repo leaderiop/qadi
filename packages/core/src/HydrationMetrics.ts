@@ -70,7 +70,7 @@ export type ClientHydrationDropReason =
   /**
    * The entry nested deeper than {@link exceedsJsonDepth} (`DecodeDepthGuard.ts`)
    * allows, checked before `decodeEntryFields`/`decodePolicy` ever recurse into
-   * it — the same guard-then-decode order `SinkCodec.ts`'s `decodeRecordWire`
+   * it — the same guard-then-decode order `SinkCodec.ts`'s `decodeSinkRecord`
    * uses for the identical trust boundary. Distinct from `MalformedEntry`: a
    * shape this schema cannot describe is a version-skew signal, while this one
    * is what an adversarial payload would try, and the two want different

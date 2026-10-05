@@ -23,15 +23,11 @@ import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import * as Record from "effect/Record";
-import type { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
-import type { CustomPredicate } from "./CustomPredicate.ts";
 import type { Trace } from "./Decision.ts";
-import type { DecisionHistory } from "./DecisionHistory.ts";
 import type { EvaluationError } from "./Errors.ts";
 import type { Policy } from "./Policy.ts";
-import type { RelationshipResolver } from "./RelationshipResolver.ts";
-import type { SignatureHistory } from "./SignatureHistory.ts";
+import type { PortServices } from "./Ports.ts";
 
 /**
  * The question a cached decision answers — everything that can change an answer.
@@ -102,17 +98,6 @@ export interface DecisionCacheKey {
 }
 
 /**
- * What `getOrCompute`'s `compute` argument — always `evaluateNode` — can
- * need or raise.
- */
-type EvaluationRequirements =
-  | AttributeResolver
-  | RelationshipResolver
-  | DecisionHistory
-  | CustomPredicate
-  | SignatureHistory;
-
-/**
  * Which of the cache's three documented paths a lookup took.
  *
  * `hit` — an already-completed entry. `coalesced` — joined another fiber's
@@ -164,8 +149,8 @@ export interface DecisionCacheShape {
    */
   readonly getOrCompute: (
     key: DecisionCacheKey,
-    compute: Effect.Effect<Trace, EvaluationError, EvaluationRequirements>,
-  ) => Effect.Effect<CacheLookup, EvaluationError, EvaluationRequirements>;
+    compute: Effect.Effect<Trace, EvaluationError, PortServices>,
+  ) => Effect.Effect<CacheLookup, EvaluationError, PortServices>;
   /**
    * How many completed entries are held. For tests and for a caller
    * reporting hit rates.

@@ -18,7 +18,7 @@ installed, imported, or mounted.
 ## Two entry points, and the split is the point
 
 ```ts
-import { emptyTimeline, ingest, sourceFromFeed } from "@qadi/devtools";
+import { emptyTimeline, ingest, sourceFromEventSource } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
 ```
 
@@ -31,8 +31,8 @@ pulling in a UI at all.
 ## The model absorbs a hostile feed
 
 Decision records arrive from several processes at once, and none of them
-promises order, uniqueness, or completeness: a reconnecting `EventSource` may
-replay a record that already arrived; merging two sources interleaves two
+promises order, uniqueness, or completeness: a reconnecting `EventSource` reads
+the server's backlog again, so a record may arrive twice; merging two sources interleaves two
 clocks; and a decision's obligation outcome is emitted after `evaluate`
 already returned, so the two halves of one story can arrive out of sequence.
 `Timeline` absorbs all of that, so everything downstream may assume its
@@ -41,26 +41,37 @@ entries are ordered, unique, and joined.
 ```ts
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
-import { decisionSinkFeed } from "@qadi/core";
-import { emptyTimeline, ingest, sourceFromFeed } from "@qadi/devtools";
+import { makeDecisionLog } from "@qadi/core";
+import { emptyTimeline, ingestAll } from "@qadi/devtools";
 
 const program = Effect.gen(function* () {
-  const feed = yield* decisionSinkFeed({ capacity: 512, replay: 64 });
-  const source = sourceFromFeed({ stream: feed.stream, environment: "Server" });
+  // One value per process: `log.layer` goes to the application as its
+  // `DecisionSink`, and the log itself is a `Source` devtools reads.
+  const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
 
-  // `feed.layer` goes to the application; the source is what devtools reads.
-  return yield* Stream.runFold(source.live, emptyTimeline(), ingest);
+  return yield* Effect.scoped(
+    Effect.gen(function* () {
+      // One read: the backlog, then the live stream — each record exactly once.
+      const { backlog, live } = yield* log.read;
+      const next = yield* Stream.runCollect(Stream.take(live, 10));
+      return ingestAll(emptyTimeline(), [...backlog, ...next]);
+    }),
+  );
 });
 ```
 
-Three source constructors cover different shapes of "the past" and "the
-future":
+A `Source` is one scoped `read` that hands over the past and the future
+together, so nothing made between them is lost or repeated. Three shapes cover
+it:
 
 | | Answers for the past | Answers for the future |
 | - | - | - |
 | `sourceFromRecords` | a fixed array | — |
-| `sourceFromFeed` | only if given a ring buffer's `snapshot` | in-process |
-| `sourceFromEventSource` | — | across processes, over SSE |
+| a `DecisionLog`, passed as is | its backlog | in-process |
+| `sourceFromEventSource` | the server's prelude, when it sends one | across processes, over SSE |
+
+The environment label is stated once, where the log is made; over SSE it
+travels inside each frame, so `sourceFromEventSource` states none.
 
 A frame that is not JSON, one that does not decode, or a server that
 disconnects each drops one row and reports why via an `onMalformed`/

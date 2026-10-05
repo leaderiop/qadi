@@ -86,19 +86,25 @@ export const makeTimelineStore = (options?: { readonly capacity?: number }): Tim
 /**
  * Drives a store from a source until interrupted.
  *
- * The backlog first, then the live stream, and in that order deliberately: a
- * reader opening the panel wants what already happened before what happens
- * next, and the timeline orders by `at` anyway, so a backlog arriving after a
- * few live records would still land in the right place — just later, with the
- * rows visibly rearranging under the cursor.
+ * One scoped `read`, then the backlog, then the live stream. The order is
+ * atomic now — a source hands both at once, so nothing made between them is
+ * lost and nothing is handed over twice — and it is still the order a reader
+ * wants: what already happened before what happens next, rather than rows
+ * visibly rearranging under the cursor as a late backlog lands among live ones.
+ * The scope closes when this is interrupted, which releases the source's
+ * subscription or connection.
  */
 export const runSource = Effect.fn("qadi.devtools.runSource")(function* (
   store: TimelineStore,
   source: Source,
 ) {
-  if (source.backlog !== undefined) {
-    const records = yield* source.backlog;
-    for (const record of records) store.accept(record);
-  }
-  yield* Stream.runForEach(source.live, (record) => Effect.sync(() => store.accept(record)));
+  yield* Effect.scoped(
+    Effect.gen(function* () {
+      const { backlog, live } = yield* source.read;
+      if (backlog !== undefined) {
+        for (const record of backlog) store.accept(record);
+      }
+      yield* Stream.runForEach(live, (record) => Effect.sync(() => store.accept(record)));
+    }),
+  );
 });

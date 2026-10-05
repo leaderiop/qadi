@@ -452,7 +452,7 @@ describe("Qadi.filterStream — concurrency across items", () => {
         yield* Fiber.join(fiber);
       }).pipe(
         Effect.provide(
-          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+          testLayer(subjectWith({}), { AttributeResolver: blockingResolver(invocations, gate) }),
         ),
       );
     }));
@@ -477,7 +477,7 @@ describe("Qadi.filterStream — concurrency across items", () => {
         yield* Fiber.join(fiber);
       }).pipe(
         Effect.provide(
-          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+          testLayer(subjectWith({}), { AttributeResolver: blockingResolver(invocations, gate) }),
         ),
       );
     }));
@@ -710,7 +710,7 @@ describe("Qadi.filter — concurrency across items", () => {
         yield* Fiber.join(fiber);
       }).pipe(
         Effect.provide(
-          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+          testLayer(subjectWith({}), { AttributeResolver: blockingResolver(invocations, gate) }),
         ),
       );
     }));
@@ -733,7 +733,7 @@ describe("Qadi.filter — concurrency across items", () => {
         yield* Fiber.join(fiber);
       }).pipe(
         Effect.provide(
-          testLayer(subjectWith({}), { attributes: blockingResolver(invocations, gate) }),
+          testLayer(subjectWith({}), { AttributeResolver: blockingResolver(invocations, gate) }),
         ),
       );
     }));

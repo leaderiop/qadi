@@ -102,8 +102,6 @@ one resolver per object type, the type fixed as a constant.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -120,6 +118,7 @@ import {
   makeSubject,
   resource,
   subjectId,
+  portsLayer,
 } from "@qadi/core";
 
 // The store's client. One network round trip per call; Qadi never sees it.
@@ -175,11 +174,9 @@ const canViewEmployee = anyOf([
 const alice = makeSubject({ id: "alice", roles: ["hr"], attributes: { region: "eu" } });
 
 const services = Layer.mergeAll(
+  portsLayer({ RelationshipResolver: StoreResolver }),
   currentSubjectLayer(alice),
-  StoreResolver,
-  AttributeResolverNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
 );
 
 const program = check(canViewEmployee, {

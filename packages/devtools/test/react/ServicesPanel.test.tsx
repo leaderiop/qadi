@@ -78,7 +78,7 @@ describe("the services panel", () => {
   // E4.7 — the two facts that look like one.
   it("distinguishes a port never called from one that is absent", () => {
     const activity: ReadonlyArray<PortActivity> = [
-      { port: "AttributeResolver", calls: 12, retries: 2, translationCalls: 0 },
+      { port: "AttributeResolver", calls: 12, retries: 2, timeouts: 0, translationCalls: 0 },
     ];
     render(<ServicesPanel wiring={wiring} activity={activity} />);
 
@@ -97,11 +97,24 @@ describe("the services panel", () => {
 
   it("does not mention retries when there were none", () => {
     render(
-      <ServicesPanel wiring={wiring} activity={[{ port: "AttributeResolver", calls: 1, retries: 0, translationCalls: 0 }]} />,
+      <ServicesPanel wiring={wiring} activity={[{ port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 }]} />,
     );
     assert.strictEqual(
       within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity").textContent,
       "1 call",
+    );
+  });
+
+  it("shows the timeouts beside the retries", () => {
+    render(
+      <ServicesPanel
+        wiring={wiring}
+        activity={[{ port: "AttributeResolver", calls: 3, retries: 2, timeouts: 1, translationCalls: 0 }]}
+      />,
+    );
+    assert.strictEqual(
+      within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity").textContent,
+      "3 calls · 2 retried · 1 timed out",
     );
   });
 
@@ -214,7 +227,7 @@ describe("recent port calls", () => {
     render(
       <ServicesPanel
         wiring={wiring}
-        activity={[{ port: "AttributeResolver", calls: 2, retries: 0, translationCalls: 3 }]}
+        activity={[{ port: "AttributeResolver", calls: 2, retries: 0, timeouts: 0, translationCalls: 3 }]}
       />,
     );
 
@@ -353,7 +366,7 @@ describe("recent port calls", () => {
   // footer now says which is which rather than describing only the first.
   it("keeps the counts and the calls apart in words", () => {
     const activity: ReadonlyArray<PortActivity> = [
-      { port: "AttributeResolver", calls: 91, retries: 0, translationCalls: 0 },
+      { port: "AttributeResolver", calls: 91, retries: 0, timeouts: 0, translationCalls: 0 },
     ];
     render(
       <ServicesPanel wiring={wiring} activity={activity} portCalls={logOf([attributeCall()])} />,

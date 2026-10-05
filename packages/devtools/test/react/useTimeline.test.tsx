@@ -11,14 +11,18 @@
 import { assert, describe, it } from "@effect/vitest";
 import { vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
-import { toWire } from "@qadi/core";
+import * as Result from "effect/Result";
+import { encodeStoredRecordString } from "@qadi/core";
 import { useMemo } from "react";
 import type { Source } from "../../src/model/Source.ts";
 import { sourceFromEventSource, sourceFromRecords } from "../../src/model/Source.ts";
 import { useTimeline, useTimelineStore } from "../../src/react/useTimeline.ts";
 import { decisionRecord } from "../helpers.ts";
 
-const frame = JSON.stringify(toWire(decisionRecord({ evaluationId: "streamed", at: 100 })));
+const frame = Result.getOrElse(
+  encodeStoredRecordString(decisionRecord({ evaluationId: "streamed", at: 100 })),
+  () => "refused",
+);
 
 const Panel = ({ source }: { readonly source: Source }) => {
   const { timeline, paused } = useTimeline(source);
@@ -57,9 +61,12 @@ describe("useTimeline", () => {
     let closed = 0;
     const source = sourceFromEventSource({
       url: "/__decisions",
-      environment: "Server",
       open: () => ({
-        onMessage: (handler) => handler(frame),
+        // An older server: no prelude, so the first `message` frame ends the
+        // wait and is delivered live.
+        onEvent: (event, handler) => {
+          if (event === "message") handler(frame);
+        },
         onError: () => {},
         close: () => {
           closed += 1;

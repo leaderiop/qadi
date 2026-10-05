@@ -16,11 +16,8 @@ import * as Metric from "effect/Metric";
 import * as Option from "effect/Option";
 import * as Record from "effect/Record";
 import type { Concurrency } from "effect/Types";
-import { AttributeResolver } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
-import { CustomPredicate } from "./CustomPredicate.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
-import { DecisionHistory } from "./DecisionHistory.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import type { CacheOutcome } from "./DecisionCache.ts";
 import { DecisionCache } from "./DecisionCache.ts";
@@ -39,6 +36,7 @@ import { judgeMatcher, referencesAction, referencesResource } from "./Matcher.ts
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { permissionKey } from "./Permission.ts";
+import type { PortServices } from "./Ports.ts";
 import {
   askActedAny,
   askActedForResource,
@@ -49,10 +47,8 @@ import {
 } from "./PortAccess.ts";
 import { DEFAULT_MAX_DEPTH, POLICY_TAGS, policyDepth } from "./Policy.ts";
 import type { Policy, Rule, RuleEffect } from "./Policy.ts";
-import { RelationshipResolver } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
 import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
-import { SignatureHistory } from "./SignatureHistory.ts";
 
 /**
  * Every decision `evaluate` reaches, tagged by outcome.
@@ -239,15 +235,13 @@ interface Evaluation {
   readonly concurrency: Concurrency | undefined;
 }
 
-/** Services an evaluation needs. */
-export type EvaluationServices =
-  | CurrentSubject
-  | AttributeResolver
-  | RelationshipResolver
-  | DecisionHistory
-  | EvaluationId
-  | CustomPredicate
-  | SignatureHistory;
+/**
+ * Services an evaluation needs: who is asking, an id for the evaluation, and
+ * the five ports (`PortServices`, `Ports.ts`). The ports come from the
+ * registry rather than a list here, so a port added to the registry reaches
+ * every alias of this type without an edit here (ADR-QD-094).
+ */
+export type EvaluationServices = CurrentSubject | EvaluationId | PortServices;
 
 /**
  * Everything an evaluation needs except who is asking.
@@ -265,22 +259,6 @@ export type EvaluationServices =
  * services by hand instead (ARCH-04).
  */
 export type StandingEvaluationServices = Exclude<EvaluationServices, CurrentSubject>;
-
-/**
- * The services a single recursive walk (`evaluateNode` and its lookup) reads —
- * `EvaluationServices` minus `CurrentSubject` and `EvaluationId`, which the
- * root `evaluate` resolves once and never threads into the walk itself.
- *
- * Named so `evaluateNode`'s return type and `evaluate`'s `lookupEffect`
- * annotation share one spelling instead of two independently maintained
- * copies of the same five-service union.
- */
-type WalkServices =
-  | AttributeResolver
-  | RelationshipResolver
-  | DecisionHistory
-  | CustomPredicate
-  | SignatureHistory;
 
 const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
 /** Shared empty children array for leaf verdicts — mirrors `NO_OBLIGATIONS`. */
@@ -519,7 +497,7 @@ const evaluateNode = (
   matcherContext: MatcherContext,
   depth: number,
   maxDepth: number,
-): Effect.Effect<Trace, EvaluationError, WalkServices> => {
+): Effect.Effect<Trace, EvaluationError, PortServices> => {
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
 
   const { action, resource } = request;
@@ -1201,7 +1179,7 @@ export const evaluate = Effect.fn("qadi.evaluate")(function* (
   // Annotated rather than inferred: the two branches are `Effect<CacheLookup>`
   // and `Effect<{trace, outcome: undefined}>`, and TypeScript unions the two
   // `Effect`s rather than widening `outcome`, which then has no common `.pipe`.
-  const lookupEffect: Effect.Effect<EvaluationLookup, EvaluationError, WalkServices> = Option.isSome(
+  const lookupEffect: Effect.Effect<EvaluationLookup, EvaluationError, PortServices> = Option.isSome(
     cache,
   )
     ? cache.value.getOrCompute(

@@ -125,10 +125,7 @@ operands are runtime data and neither side is pinned to a rung of the ladder.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   anyOf,
   check,
@@ -141,6 +138,7 @@ import {
   makeSubject,
   resource,
   subject,
+  portsLayer,
 } from "@qadi/core";
 
 // Bell-LaPadula: subject dominates object to read, object dominates subject to write.
@@ -170,10 +168,8 @@ const program = check(biba, {
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
+      portsLayer(),
       currentSubjectLayer(agent),
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
     ),
   ),

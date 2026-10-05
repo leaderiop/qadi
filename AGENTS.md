@@ -124,11 +124,27 @@ export const AttributeResolverFromSubject: Layer.Layer<AttributeResolver, never,
 ```
 
 Layers live beside the service they implement, not in a file of their own:
-`AttributeResolver.ts` holds the Shape, the `Context.Service` class, the
-fail-closed default (`AttributeResolverNone`), a fixture builder
-(`attributeResolverFromRecord`), and the `…Retrying`/`…Bounded` wrappers, all
-in one module — the same shape repeats in `RelationshipResolver.ts` and
-`CustomPredicate.ts`. A standalone file is for a layer with its own
+`AttributeResolver.ts` holds the Shape, the `Context.Service` class, the port's
+**description** (`attributeResolverPort`), the fail-closed default
+(`AttributeResolverNone`), a fixture builder (`attributeResolverFromRecord`),
+and the `…Retrying`/`…Bounded`/`…TimingOut` wrappers, all in one module — the
+same shape repeats in each of the five port modules (`RelationshipResolver.ts`,
+`CustomPredicate.ts`, `DecisionHistory.ts`, `SignatureHistory.ts`).
+
+**A port's wrappers and default are derived from its description, not written
+by hand** (ADR-QD-094). The description states the port's facts once — name,
+method, span, a lens onto its one method, its typed-error constructors, its
+request key and its fail-closed answer — and each exported layer is a one-line
+derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
+`export const DecisionHistoryUnknown = nonePort(decisionHistoryPort)`. The
+derivations live in `PortDerivation.ts` (internal; it absorbed the old
+`RetryingLayer.ts`), the doubles in `PortDoubles.ts`, and the closed registry
+of all five in `Ports.ts`. A new port is a description, a `PortName` member and
+its registry lines; the compiler asks for the rest. A test that needs a broken
+port scripts it (`scriptedPort`) rather than hand-writing a failing layer — see
+§6's `PORT_DOUBLE_BUDGET`.
+
+A standalone file is for a layer with its own
 substantial dependency surface, distinct from the service it implements:
 `packages/http/src/PermissionRegistry.ts`'s `PermissionRegistryLive` and
 `packages/audit/src/AuditDecisionSinkLive.ts` are that case, and their file
@@ -468,6 +484,20 @@ directions like the others, not a convention left to be remembered. The one
 entry there today is `features/step-definitions/CustomPredicateWhenSteps.ts`
 — the BDD acceptance step that exercises `hasCustom` itself.
 
+**A test that needs a broken port scripts it; constructing a port's error by
+hand in a test is a sixth budget, `PORT_DOUBLE_BUDGET`** (ADR-QD-094). Every
+port's description builds its own error, and `@qadi/core`'s `scriptedPort`
+derives a failing, dying or throwing double from it:
+`scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer`.
+Before this budget there were 65 hand-written failing port layers in 27 test
+files plus 19 dying ones, each restating its port's error shape. Unlike the
+five above it is **test-scope**, not src-scope — shipped source constructs
+these errors legitimately (each port's description, `PortAccess.ts`); what it
+guards is how a test describes a broken port. A file on the list needs the
+error as a value (an instance-identity check, a codec round trip, a cause
+matrix with no port) or a double a script cannot express (a latch), with its
+exact line count and reason, checked in both directions.
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal
@@ -503,6 +533,7 @@ shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 | `…Live` / `…Test` / `Default` | layers |
 | `is…` | type guards |
 | `…Shape` | a service's payload interface |
+| `…Port` | a port's description (`attributeResolverPort`) — the value its wrappers, default and doubles are derived from (ADR-QD-094); distinct from the service class it describes |
 | `…Like` | structural brand for requirement bubbling |
 | `…Refused` | `@qadi/http`'s tag-only, `httpApiStatus`-annotated wire schema for a real error class the response body must not carry full-fielded (`AccessDeniedRefused`, `UndischargedObligationRefused`, `SubjectExtractionRefused`, `QadiHttpError.ts`) — a different, exported *const* from the class its `_tag` matches, deliberately: the identifier names the disclosure decision ("this crosses the wire refused, not admitted"), the `_tag` still names the failure. Corroborated in GVR-05: a reader grepping a shared tag across `@qadi/core` and `@qadi/http` lands on two exports for one concept, on purpose. |
 

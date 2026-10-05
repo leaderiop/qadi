@@ -89,7 +89,6 @@ and the policy denies on the next call.
 
 ```typescript
 import {
-  AttributeResolverNone,
   EvaluationIdLive,
   allOf,
   check,
@@ -107,6 +106,7 @@ import {
   not,
   relationshipResolverFromEdges,
   subjectId,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -170,13 +170,14 @@ const program = Effect.gen(function* () {
   Effect.provide(currentSubjectLayer(makeSubject({ id: "u-amina", roles: ["approver"] }))),
   Effect.provide(
     Layer.mergeAll(
-      TaskAssignments,
-      AttributeResolverNone,
-      // An approval on a *different* invoice, so the first two calls allow and
-      // deny on their own terms and the keyed question is demonstrated.
-      decisionHistoryFromEvents([
-        { subjectId: "u-amina", event: "approved", resourceId: "invoice-1040" },
-      ]),
+      portsLayer({
+        RelationshipResolver: TaskAssignments,
+        // An approval on a *different* invoice, so the first two calls allow and
+        // deny on their own terms and the keyed question is demonstrated.
+        DecisionHistory: decisionHistoryFromEvents([
+          { subjectId: "u-amina", event: "approved", resourceId: "invoice-1040" },
+        ]),
+      }),
       EvaluationIdLive,
     ),
   ),

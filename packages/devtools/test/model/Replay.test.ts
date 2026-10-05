@@ -16,13 +16,9 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   allOf,
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   Decided,
-  decisionSinkRing,
-  DecisionHistoryUnknown,
+  makeDecisionLog,
   evaluate,
   evaluationIdSequential,
   Failed,
@@ -31,8 +27,8 @@ import {
   hasRole,
   MissingResource,
   permission,
-  RelationshipResolverNever,
   role,
+  portsLayer,
 } from "@qadi/core";
 import type { DecisionOutcome, StoredRecord, Trace } from "@qadi/core";
 import {
@@ -340,25 +336,21 @@ describe("replay, reconstruct, and check — end to end", () => {
 
   const logged = (subject: ReturnType<typeof fromRoles>): Effect.Effect<TimelineEntry> =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
 
       yield* evaluate(policy).pipe(
         Effect.result,
         Effect.provide(
           Layer.mergeAll(
-            ring.layer,
+            portsLayer(),
+            log.layer,
             currentSubjectLayer(subject),
-            AttributeResolverNone,
-            DecisionHistoryUnknown,
-            RelationshipResolverNever,
             evaluationIdSequential("ev"),
-            CustomPredicateNone,
-            SignatureHistoryNone,
           ),
         ),
       );
 
-      const [record] = yield* ring.snapshot;
+      const [record] = yield* log.snapshot;
       if (record === undefined) throw new Error("expected a record");
       return entryOf(record);
     });

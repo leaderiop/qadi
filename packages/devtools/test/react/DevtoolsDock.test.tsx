@@ -777,7 +777,7 @@ describe("the six screens", () => {
     await click(screen.getByRole("button", { name: "Services" }));
     assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
 
-    view.rerender(<DevtoolsDock activity={[{ port: "AttributeResolver", calls: 1, retries: 0, translationCalls: 0 }]} />);
+    view.rerender(<DevtoolsDock activity={[{ port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 }]} />);
     await act(async () => {});
 
     // Still on Services. A dock that reset its tab whenever a prop changed
@@ -865,7 +865,7 @@ describe("the six screens", () => {
           ],
           cache: { present: true, size: 3 },
         }}
-        activity={[{ port: "AttributeResolver", calls: 5, retries: 0, translationCalls: 0 }]}
+        activity={[{ port: "AttributeResolver", calls: 5, retries: 0, timeouts: 0, translationCalls: 0 }]}
         questions={[{ policy: hasPermission(read) }]}
         hydrationMismatches={1}
         onInvalidate={() => (invalidated += 1)}

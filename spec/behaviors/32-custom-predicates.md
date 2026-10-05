@@ -26,15 +26,13 @@ this is a name and never a function.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
   currentSubjectLayer,
   customPredicateFromRecord,
-  DecisionHistoryUnknown,
   enforceProjected,
   EvaluationIdLive,
   fromRoles,
   hasCustom,
-  RelationshipResolverNever,
+  portsLayer,
 } from "@qadi/core";
 
 // The policy names a check by string; the check itself lives in the registry
@@ -47,11 +45,8 @@ const isAuthor = customPredicateFromRecord({
 });
 
 const services = Layer.mergeAll(
-  AttributeResolverNone,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer({ CustomPredicate: isAuthor }),
   EvaluationIdLive,
-  isAuthor,
 );
 
 declare const loadDraft: (id: string) => Effect.Effect<{

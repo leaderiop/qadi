@@ -12,35 +12,36 @@
  * what is genuinely its own: what to do with the answer.
  *
  * Deliberately out of the barrel (AGENTS.md §9): scaffolding shared by the two
- * interpreters, like `RetryingLayer.ts`, reachable only through the `./*`
+ * interpreters, like `PortDerivation.ts`, reachable only through the `./*`
  * subpath.
+ *
+ * The per-port facts a read needs — the span it opens and the typed error a
+ * defect becomes — come from each port's description (`PortDescription.ts`,
+ * ADR-QD-094), so no port's error class or span name is spelled here. The
+ * defect *rule* — which causes are converted at all — stays here, in
+ * `catchPortDefect` (ADR-QD-077).
  */
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
-import { AttributeResolver } from "./AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
-import { CustomPredicate } from "./CustomPredicate.ts";
-import type { ActedResult } from "./DecisionHistory.ts";
-import { DecisionHistory } from "./DecisionHistory.ts";
-import {
-  AttributeResolveError,
-  CustomPredicateError,
-  DecisionHistoryUnavailable,
-  MissingResourceId,
-  RelationshipResolveError,
-  SignatureHistoryUnavailable,
-} from "./Errors.ts";
+import { CustomPredicate, customPredicatePort } from "./CustomPredicate.ts";
+import type { ActedQuery, ActedResult } from "./DecisionHistory.ts";
+import { DecisionHistory, decisionHistoryPort } from "./DecisionHistory.ts";
+import type { AttributeResolveError } from "./Errors.ts";
+import { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
 import { makeResourceId } from "./Identity.ts";
 import { DEFAULT_MAX_DEPTH } from "./Policy.ts";
 import { portCallsTotal, predicatePortCallsTotal } from "./PortMetrics.ts";
 import type { PredicatePortName } from "./PortMetrics.ts";
-import type { RelatedResult } from "./RelationshipResolver.ts";
-import { RelationshipResolver } from "./RelationshipResolver.ts";
+import type { RelatedResult, RelationshipCheck } from "./RelationshipResolver.ts";
+import { RelationshipResolver, relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
-import { SignatureHistory } from "./SignatureHistory.ts";
+import type { SignatureQuery } from "./SignatureHistory.ts";
+import { SignatureHistory, signatureHistoryPort } from "./SignatureHistory.ts";
 
 /**
  * Which interpreter is asking.
@@ -135,7 +136,7 @@ const countFor: (interpreter: Interpreter) => (port: PredicatePortName) => Effec
  * ([INV-QD-044](../../../spec/invariants.md)) — the same line
  * `dehydrateDecisions` draws with `includeTrace`.
  */
-const resolveAttribute = Effect.fn("qadi.attribute")(function* (
+const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
   interpreter: Interpreter,
   subject: AuthSubject,
   attribute: string,
@@ -150,9 +151,7 @@ const resolveAttribute = Effect.fn("qadi.attribute")(function* (
   });
   yield* countFor(interpreter)("AttributeResolver");
   const value = yield* AttributeResolver.resolve(subject.id, attribute).pipe(
-    catchPortDefect(
-      (cause) => new AttributeResolveError({ attribute, cause: Cause.squash(cause) }),
-    ),
+    catchPortDefect((cause) => attributeResolverPort.defect([subject.id, attribute], cause)),
   );
   // `undefined` is the absent sentinel every fail-closed default answers with;
   // `null` is a value a store genuinely returned.
@@ -209,14 +208,9 @@ const callHasActed = (
 ) =>
   Effect.gen(function* () {
     yield* countFor(interpreter)("DecisionHistory");
-    const answer = yield* DecisionHistory.hasActed({
-      subjectId: subject.id,
-      event,
-      resourceId,
-    }).pipe(
-      catchPortDefect(
-        (cause) => new DecisionHistoryUnavailable({ event, cause: Cause.squash(cause) }),
-      ),
+    const query: ActedQuery = { subjectId: subject.id, event, resourceId };
+    const answer = yield* DecisionHistory.hasActed(query).pipe(
+      catchPortDefect((cause) => decisionHistoryPort.defect([query], cause)),
     );
     // A closed three-valued enum, so this discloses nothing a policy tag does not.
     yield* Effect.annotateCurrentSpan({ "qadi.answer": answer });
@@ -230,7 +224,7 @@ const callHasActed = (
  * The answer is three-valued (`"Unknown"` matches neither polarity, so both deny
  * under an unwired port, ADR-QD-020); what to do with it is the caller's.
  */
-export const askActedAny = Effect.fn("qadi.acted")(function* (
+export const askActedAny = Effect.fn(decisionHistoryPort.span)(function* (
   interpreter: Interpreter,
   subject: AuthSubject,
   event: string,
@@ -257,7 +251,7 @@ export const askActedAny = Effect.fn("qadi.acted")(function* (
  * Takes the raw `resource.id` and fails with `MissingResourceId` when it is not a
  * string, after annotating the span with the question.
  */
-export const askActedForResource = Effect.fn("qadi.acted")(function* (
+export const askActedForResource = Effect.fn(decisionHistoryPort.span)(function* (
   interpreter: Interpreter,
   subject: AuthSubject,
   event: string,
@@ -331,7 +325,7 @@ const clampRelationshipDepth = (depth: number | undefined): number | undefined =
  * `"toPredicate"`. Takes the raw `resource.id` and fails with `MissingResourceId`
  * when it is not a string, after annotating the span with the question.
  */
-export const askRelationship = Effect.fn("qadi.hasRelationship")(function* (
+export const askRelationship = Effect.fn(relationshipResolverPort.span)(function* (
   subject: AuthSubject,
   relation: string,
   rawResourceId: unknown,
@@ -353,17 +347,14 @@ export const askRelationship = Effect.fn("qadi.hasRelationship")(function* (
     return yield* Effect.fail(new MissingResourceId({ relation }));
   }
   yield* Metric.update(portCallsTotal, "RelationshipResolver");
-  const resourceId = makeResourceId(rawResourceId);
-  const related: RelatedResult = yield* RelationshipResolver.check({
+  const request: RelationshipCheck = {
     subjectId: subject.id,
     relation,
-    resourceId,
+    resourceId: makeResourceId(rawResourceId),
     depth: clamped,
-  }).pipe(
-    catchPortDefect(
-      (cause) =>
-        new RelationshipResolveError({ relation, resourceId, cause: Cause.squash(cause) }),
-    ),
+  };
+  const related: RelatedResult = yield* RelationshipResolver.check(request).pipe(
+    catchPortDefect((cause) => relationshipResolverPort.defect([request], cause)),
   );
   yield* Effect.annotateCurrentSpan({ "qadi.answer": related });
   return related;
@@ -373,7 +364,7 @@ export const askRelationship = Effect.fn("qadi.hasRelationship")(function* (
  * Asks a registered custom predicate. Evaluator-only (translation refuses
  * `HasCustom`, ADR-QD-055).
  */
-export const askCustom = Effect.fn("qadi.hasCustom")(function* (
+export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   subject: AuthSubject,
   resource: Resource | undefined,
   name: string,
@@ -386,15 +377,9 @@ export const askCustom = Effect.fn("qadi.hasCustom")(function* (
   });
   yield* Metric.update(portCallsTotal, "CustomPredicate");
   const allowed = yield* CustomPredicate.evaluate(name, subject, resource, params).pipe(
-    catchPortDefect(
-      // `CustomPredicateError` has no `cause` field — unlike the other four
-      // port errors, it already represents its other failure mode (an
-      // unregistered name) as a human sentence in `reason`
-      // (`customPredicateFromRecord`, `Evaluate.test.ts`), not as a raw
-      // defect value. `Cause.pretty` matches that convention for a defect
-      // too, rather than inventing a second shape `reason` can hold.
-      (cause) => new CustomPredicateError({ name, reason: Cause.pretty(cause) }),
-    ),
+    // `CustomPredicateError` has no `cause` field, so the description renders
+    // a defect into `reason` with `Cause.pretty` (`customPredicatePort`).
+    catchPortDefect((cause) => customPredicatePort.defect([name, subject, resource, params], cause)),
   );
   yield* Effect.annotateCurrentSpan({ "qadi.answer": allowed });
   return allowed;
@@ -419,7 +404,7 @@ export interface SignatureAnswer {
  * elsewhere. `qadi.matched` rather than a three-valued `qadi.answer`: a
  * signature either matches or it doesn't, with no analogous middle state.
  */
-export const askSignature = Effect.fn("qadi.hasSignature")(function* (
+export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   subject: AuthSubject,
   meaning: string,
   signerRole: string | undefined,
@@ -439,18 +424,9 @@ export const askSignature = Effect.fn("qadi.hasSignature")(function* (
     ? makeResourceId(yield* requireResourceId(rawResourceId, meaning))
     : undefined;
   yield* Metric.update(portCallsTotal, "SignatureHistory");
-  const signatures = yield* SignatureHistory.signaturesFor({
-    subjectId: subject.id,
-    resourceId: signatureResourceId,
-  }).pipe(
-    catchPortDefect(
-      (cause) =>
-        new SignatureHistoryUnavailable({
-          subjectId: subject.id,
-          resourceId: signatureResourceId,
-          cause: Cause.squash(cause),
-        }),
-    ),
+  const query: SignatureQuery = { subjectId: subject.id, resourceId: signatureResourceId };
+  const signatures = yield* SignatureHistory.signaturesFor(query).pipe(
+    catchPortDefect((cause) => signatureHistoryPort.defect([query], cause)),
   );
   const matched = signatures.some(
     (s) => s.meaning === meaning && (signerRole === undefined || s.signerRole === signerRole),

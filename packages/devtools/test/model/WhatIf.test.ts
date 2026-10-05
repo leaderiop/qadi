@@ -8,17 +8,11 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import * as Tracer from "effect/Tracer";
 import {
   allOf,
   anyOf,
-  AttributeResolveError,
-  AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  decisionSinkRing,
-  DecisionHistoryUnknown,
+  makeDecisionLog,
   eq,
   gte,
   hasAttribute,
@@ -30,7 +24,10 @@ import {
   obligation,
   obliged,
   permission,
-  RelationshipResolverNever,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
+  portsLayer,
 } from "@qadi/core";
 import type { DecisionOutcome } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
@@ -68,17 +65,9 @@ const compared = (self: Comparison) => {
 };
 
 /** Ports whose attribute resolver is down, for the rows that must be errors rather than denials. */
-const brokenPorts = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, {
-    name: "broken",
-    resolve: (_subjectId: string, attribute: string) =>
-      Effect.fail(new AttributeResolveError({ attribute, cause: "the store is down" })),
-  }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const brokenPorts = portsLayer({
+  AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("the store is down"), "broken").layer,
+});
 
 describe("compareOutcomes", () => {
   const decided = (outcome: DecisionOutcome) => outcome;
@@ -410,7 +399,7 @@ describe("a sweep is sealed, forty rows at a time", () => {
    */
   it.effect("writes no record, however many rows it runs", () =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
       const wide: SimulationInput = {
         subject: {
           id: "alice",
@@ -421,11 +410,11 @@ describe("a sweep is sealed, forty rows at a time", () => {
       };
 
       const report = yield* whatIf(eitherWay, wide, { pairs: true }).pipe(
-        Effect.provide(ring.layer),
+        Effect.provide(log.layer),
       );
 
       assert.isAbove(report.rows.length, 20);
-      assert.deepStrictEqual(yield* ring.snapshot, []);
+      assert.deepStrictEqual(yield* log.snapshot, []);
     }));
 
   it.effect("decides every row from the panel's subject", () =>

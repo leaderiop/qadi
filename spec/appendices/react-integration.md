@@ -52,11 +52,8 @@ attributes, somewhere to resolve relationships, and a source of evaluation ids.
 ```typescript
 import {
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -68,12 +65,8 @@ const AttributeResolverHttp = Layer.succeed(AttributeResolver, {
 });
 
 export const QadiLive = Layer.mergeAll(
-  AttributeResolverHttp,
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer({ AttributeResolver: AttributeResolverHttp }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 ```
 
@@ -92,26 +85,20 @@ whole policy tree to arrive at the atom it was always going to find. Hoisting is
 a performance habit here, not a correctness requirement.
 
 ```typescript
-import { allOf, hasPermission, hasRole, permission } from "@qadi/core";
+import { allOf, hasPermission, hasRole, permission, portsLayer } from "@qadi/core";
 import { makeQadiAtoms } from "@qadi/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
 } from "@qadi/core";
 
 const QadiLive = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
+  portsLayer({
+    AttributeResolver: Layer.succeed(AttributeResolver, { resolve: () => Effect.succeed(undefined) }),
+  }),
   EvaluationIdLive,
-  CustomPredicateNone,
-  SignatureHistoryNone,
 );
 
 export const qadi = makeQadiAtoms(QadiLive);

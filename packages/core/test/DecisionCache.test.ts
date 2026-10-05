@@ -6,7 +6,7 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
 import * as Ref from "effect/Ref";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { isAllowed } from "../src/Decision.ts";
@@ -18,6 +18,8 @@ import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import { forkAllAndSettle, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 describe("DecisionCache", () => {
   /** Answerable only through the resolver, so lookups are countable. */
@@ -42,7 +44,7 @@ describe("DecisionCache", () => {
       yield* Effect.gen(function* () {
         yield* evaluate(needsLookup);
         yield* evaluate(needsLookup);
-      }).pipe(Effect.provide(testLayer(alice, { attributes: counting(calls) })));
+      }).pipe(Effect.provide(testLayer(alice, { AttributeResolver: counting(calls) })));
 
       assert.deepStrictEqual(calls, ["u-1:clearance", "u-1:clearance"]);
     }));
@@ -55,7 +57,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { attributes: counting(calls) }),
+            testLayer(alice, { AttributeResolver: counting(calls) }),
             decisionCacheLayer(),
           ),
         ),
@@ -78,7 +80,7 @@ describe("DecisionCache", () => {
         evaluate(needsLookup).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: counting(calls) }),
+              testLayer(alice, { AttributeResolver: counting(calls) }),
               decisionCacheLayer(),
             ),
           ),
@@ -101,7 +103,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { attributes: counting([]) }),
+            testLayer(alice, { AttributeResolver: counting([]) }),
             decisionCacheLayer(),
           ),
         ),
@@ -130,10 +132,10 @@ describe("DecisionCache", () => {
 
       const [forAlice, forBob] = yield* Effect.gen(function* () {
         const a = yield* evaluate(needsLookup).pipe(
-          Effect.provide(testLayer(alice, { attributes: resolver })),
+          Effect.provide(testLayer(alice, { AttributeResolver: resolver })),
         );
         const b = yield* evaluate(needsLookup).pipe(
-          Effect.provide(testLayer(bob, { attributes: resolver })),
+          Effect.provide(testLayer(bob, { AttributeResolver: resolver })),
         );
         return [a, b] as const;
       }).pipe(Effect.provide(decisionCacheLayer()));
@@ -213,7 +215,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { attributes: counting(calls, 0) }),
+            testLayer(alice, { AttributeResolver: counting(calls, 0) }),
             decisionCacheLayer(),
           ),
         ),
@@ -260,7 +262,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { attributes: counting(calls) }),
+            testLayer(alice, { AttributeResolver: counting(calls) }),
             decisionCacheLayer(),
           ),
         ),
@@ -332,10 +334,10 @@ describe("DecisionCache", () => {
 
         yield* Effect.gen(function* () {
           yield* evaluate(needsLookup).pipe(
-            Effect.provide(testLayer(first, { attributes: counting(calls) })),
+            Effect.provide(testLayer(first, { AttributeResolver: counting(calls) })),
           );
           yield* evaluate(needsLookup).pipe(
-            Effect.provide(testLayer(second, { attributes: counting(calls) })),
+            Effect.provide(testLayer(second, { AttributeResolver: counting(calls) })),
           );
         }).pipe(Effect.provide(decisionCacheLayer()));
 
@@ -365,10 +367,10 @@ describe("DecisionCache", () => {
 
       yield* Effect.gen(function* () {
         yield* evaluate(needsLookup).pipe(
-          Effect.provide(testLayer(rebuilt(), { attributes: counting(calls) })),
+          Effect.provide(testLayer(rebuilt(), { AttributeResolver: counting(calls) })),
         );
         yield* evaluate(needsLookup).pipe(
-          Effect.provide(testLayer(rebuilt(), { attributes: counting(calls) })),
+          Effect.provide(testLayer(rebuilt(), { AttributeResolver: counting(calls) })),
         );
       }).pipe(Effect.provide(decisionCacheLayer()));
 
@@ -389,7 +391,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { attributes: counting(calls) }),
+            testLayer(alice, { AttributeResolver: counting(calls) }),
             decisionCacheLayer(),
           ),
         ),
@@ -410,7 +412,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { attributes: counting(calls) }),
+            testLayer(alice, { AttributeResolver: counting(calls) }),
             decisionCacheLayer(),
           ),
         ),
@@ -429,7 +431,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { attributes: counting([]) }),
+            testLayer(alice, { AttributeResolver: counting([]) }),
             decisionCacheLayer(),
           ),
         ),
@@ -486,7 +488,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { attributes: counting(calls) }),
+            testLayer(alice, { AttributeResolver: counting(calls) }),
             decisionCacheLayer(),
           ),
         ),
@@ -530,7 +532,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: blockingResolver }),
+              testLayer(alice, { AttributeResolver: blockingResolver }),
               decisionCacheLayer(),
             ),
           ),
@@ -543,15 +545,10 @@ describe("DecisionCache", () => {
 
   it.effect("a failed compute is not cached — the next ask, once nothing is in flight, retries", () =>
     Effect.gen(function* () {
-      const invocations = yield* Ref.make(0);
-      const alwaysFails = Layer.succeed(AttributeResolver, {
-        resolve: (_id, attribute) =>
-          Ref.updateAndGet(invocations, (n) => n + 1).pipe(
-            Effect.flatMap((n) =>
-              Effect.fail(new AttributeResolveError({ attribute, cause: `down (attempt ${n})` })),
-            ),
-          ),
-      });
+      let attempt = 0;
+      const alwaysFails = scriptedPort(attributeResolverPort, () =>
+        PortReply.fail(`down (attempt ${++attempt})`),
+      );
 
       const [first, second, size] = yield* Effect.gen(function* () {
         const a = yield* Effect.result(evaluate(needsLookup));
@@ -560,7 +557,7 @@ describe("DecisionCache", () => {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(alice, { attributes: alwaysFails }),
+            testLayer(alice, { AttributeResolver: alwaysFails.layer }),
             decisionCacheLayer(),
           ),
         ),
@@ -570,7 +567,7 @@ describe("DecisionCache", () => {
       assert.strictEqual(second._tag, "Failure");
       // Not memoized: the second ask re-ran the resolver rather than replaying
       // the first ask's failure from a stale entry.
-      assert.strictEqual(yield* Ref.get(invocations), 2);
+      assert.strictEqual(alwaysFails.calls.length, 2);
       // And nothing failed ever becomes a completed entry.
       assert.strictEqual(size, 0);
     }));
@@ -605,7 +602,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: failingResolver }),
+              testLayer(alice, { AttributeResolver: failingResolver }),
               decisionCacheLayer(),
             ),
           ),
@@ -668,7 +665,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: resolver }),
+              testLayer(alice, { AttributeResolver: resolver }),
               decisionCacheLayer(),
             ),
           ),
@@ -729,7 +726,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: blockingResolver }),
+              testLayer(alice, { AttributeResolver: blockingResolver }),
               decisionCacheLayer(),
             ),
           ),
@@ -808,7 +805,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: resolver }),
+              testLayer(alice, { AttributeResolver: resolver }),
               decisionCacheLayer(),
             ),
           ),
@@ -920,7 +917,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: resolver }),
+              testLayer(alice, { AttributeResolver: resolver }),
               decisionCacheLayer(),
             ),
           ),
@@ -938,7 +935,7 @@ describe("DecisionCache", () => {
           evaluate(needsLookup).pipe(
             Effect.provide(
               Layer.mergeAll(
-                testLayer(alice, { attributes: counting([]) }),
+                testLayer(alice, { AttributeResolver: counting([]) }),
                 decisionCacheLayer({ capacity: -1 }),
               ),
             ),
@@ -960,7 +957,7 @@ describe("DecisionCache", () => {
           evaluate(needsLookup).pipe(
             Effect.provide(
               Layer.mergeAll(
-                testLayer(alice, { attributes: counting([]) }),
+                testLayer(alice, { AttributeResolver: counting([]) }),
                 decisionCacheLayer({ capacity: Number.NaN }),
               ),
             ),
@@ -982,7 +979,7 @@ describe("DecisionCache", () => {
           evaluate(needsLookup).pipe(
             Effect.provide(
               Layer.mergeAll(
-                testLayer(alice, { attributes: counting([]) }),
+                testLayer(alice, { AttributeResolver: counting([]) }),
                 decisionCacheLayer({ capacity: 1.5 }),
               ),
             ),
@@ -1005,7 +1002,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: counting(calls) }),
+              testLayer(alice, { AttributeResolver: counting(calls) }),
               decisionCacheLayer({ capacity: 0 }),
             ),
           ),
@@ -1024,7 +1021,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: counting([]) }),
+              testLayer(alice, { AttributeResolver: counting([]) }),
               decisionCacheLayer(),
             ),
           ),
@@ -1052,7 +1049,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: counting(calls) }),
+              testLayer(alice, { AttributeResolver: counting(calls) }),
               decisionCacheLayer({ capacity: 2 }),
             ),
           ),
@@ -1085,7 +1082,7 @@ describe("DecisionCache", () => {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              testLayer(alice, { attributes: blockingResolver }),
+              testLayer(alice, { AttributeResolver: blockingResolver }),
               decisionCacheLayer({ capacity: 1 }),
             ),
           ),
@@ -1113,7 +1110,7 @@ describe("DecisionCache", () => {
           }).pipe(
             Effect.provide(
               Layer.mergeAll(
-                testLayer(alice, { attributes: counting([]) }),
+                testLayer(alice, { AttributeResolver: counting([]) }),
                 decisionCacheLayer(),
               ),
             ),
@@ -1153,7 +1150,7 @@ describe("DecisionCache", () => {
           }).pipe(
             Effect.provide(
               Layer.mergeAll(
-                testLayer(alice, { attributes: blockingResolver }),
+                testLayer(alice, { AttributeResolver: blockingResolver }),
                 decisionCacheLayer(),
               ),
             ),
@@ -1259,7 +1256,7 @@ describe("DecisionCache", () => {
             }).pipe(
               Effect.provide(
                 Layer.mergeAll(
-                  testLayer(alice, { attributes: blockingResolver }),
+                  testLayer(alice, { AttributeResolver: blockingResolver }),
                   decisionCacheLayer(),
                 ),
               ),
@@ -1306,7 +1303,7 @@ describe("DecisionCache", () => {
         });
 
         const runtime = ManagedRuntime.make(
-          Layer.mergeAll(testLayer(alice, { attributes: blockingResolver }), decisionCacheLayer()),
+          Layer.mergeAll(testLayer(alice, { AttributeResolver: blockingResolver }), decisionCacheLayer()),
         );
 
         const fiberA = runtime.runFork(evaluate(needsLookup));

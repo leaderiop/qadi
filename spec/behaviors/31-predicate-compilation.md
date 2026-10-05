@@ -372,8 +372,6 @@ nothing a real Prisma does not.
 ```typescript
 import * as Effect from "effect/Effect";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   allOf,
   currentSubjectLayer,
   eq,
@@ -381,6 +379,7 @@ import {
   makeSubject,
   subject,
   toPredicate,
+  portsLayer,
 } from "@qadi/core";
 import * as Layer from "effect/Layer";
 import { compileSql } from "@qadi/predicate-sql";
@@ -390,9 +389,8 @@ import { compileSql } from "@qadi/predicate-sql";
 const visible = allOf([hasResourceAttribute("tenantId", eq(subject("tenantId")))]);
 
 const services = Layer.mergeAll(
+  portsLayer(),
   currentSubjectLayer(makeSubject({ id: "u-1", attributes: { tenantId: "t-1" } })),
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
 );
 
 const fragment = toPredicate(visible).pipe(

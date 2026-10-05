@@ -66,13 +66,10 @@ declare const loadDocument: (id: string) => Effect.Effect<{
 const program = loadDocument("doc-1").pipe(
   enforceProjected(canReadTitle),
   Effect.provide(currentSubjectLayer(fromRoles({ id: "u1", roles: [editor] }))),
-  // The combined fail-closed default for every port this policy doesn't use
-  // (`AttributeResolverNone`, `RelationshipResolverNever`,
-  // `DecisionHistoryUnknown`, `EvaluationIdLive`, `CustomPredicateNone`,
-  // `SignatureHistoryNone`) — hand-assembling the same six with
-  // `Layer.mergeAll` works too, but the moment a copy omits one, extending
-  // the policy with `hasCustom`/`hasSignature` dies with a missing-service
-  // defect instead of an answer.
+  // Every port at its fail-closed default, plus `EvaluationIdLive`. To wire
+  // one port, name only it: `Layer.merge(portsLayer({ AttributeResolver:
+  // directory }), EvaluationIdLive)` — the ports you leave out keep their
+  // defaults, whatever order you write them in.
   Effect.provide(EvaluationServicesNone),
 );
 // → { id: "doc-1", title: "…" }   `internalNotes` is not returned.

@@ -20,6 +20,14 @@ import type {
   EnforcementErrorTagOf,
 } from "../src/Errors.ts";
 import type { AccessDenied, UndischargedObligation } from "../src/Errors.ts";
+import type {
+  ERROR_CODES,
+  QadiError,
+  SinkRecordNotDecodable,
+  SinkRecordNotEncodable,
+  SinkRecordTag,
+} from "../src/Errors.ts";
+import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { ENFORCEMENT_DENIAL_TAGS, ENFORCEMENT_ERROR_CLASSES, ENFORCEMENT_ERROR_TAGS } from "../src/Errors.ts";
 import type { EvaluationServices, StandingEvaluationServices } from "../src/Evaluate.ts";
 
@@ -55,4 +63,15 @@ test("a table total over today's union is not total over a widened one", () => {
 test("StandingEvaluationServices is EvaluationServices without CurrentSubject", () => {
   expect<StandingEvaluationServices>().type.toBe<Exclude<EvaluationServices, CurrentSubject>>();
   expect<CurrentSubject>().type.not.toBeAssignableTo<StandingEvaluationServices>();
+});
+
+test("SinkRecordTag is exactly SinkRecord's tag, though Errors.ts cannot import it (ARCH-09)", () => {
+  expect<SinkRecordTag>().type.toBe<SinkRecord["_tag"]>();
+});
+
+test("the two record-codec refusals are QadiError members with codes", () => {
+  expect<SinkRecordNotEncodable>().type.toBeAssignableTo<QadiError>();
+  expect<SinkRecordNotDecodable>().type.toBeAssignableTo<QadiError>();
+  expect<(typeof ERROR_CODES)["SinkRecordNotEncodable"]>().type.toBe<"ACL019">();
+  expect<(typeof ERROR_CODES)["SinkRecordNotDecodable"]>().type.toBe<"ACL020">();
 });

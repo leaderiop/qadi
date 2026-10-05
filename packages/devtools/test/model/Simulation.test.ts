@@ -17,16 +17,9 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolveError,
-  AttributeResolver,
-  CustomPredicate,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   DecisionCache,
   decisionCacheLayer,
-  DecisionHistory,
-  DecisionHistoryUnknown,
-  decisionSinkRing,
+  makeDecisionLog,
   diffTraces,
   gte,
   hasAction,
@@ -35,8 +28,13 @@ import {
   hasRelationship,
   hasRole,
   permission,
-  RelationshipResolver,
-  RelationshipResolverNever,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
+  relationshipResolverPort,
+  decisionHistoryPort,
+  customPredicatePort,
+  portsLayer,
 } from "@qadi/core";
 import type { Decision, DecisionOutcome } from "@qadi/core";
 import { simulate, simulationLayer } from "../../src/model/Simulation.ts";
@@ -69,22 +67,10 @@ const decisionOf = (outcome: DecisionOutcome): Decision => {
  * pass.
  */
 const everyPortDies = Layer.mergeAll(
-  Layer.succeed(AttributeResolver, {
-    name: "live",
-    resolve: () => Effect.die("the simulator reached a live attribute store"),
-  }),
-  Layer.succeed(RelationshipResolver, {
-    name: "live",
-    check: () => Effect.die("the simulator reached a live relationship service"),
-  }),
-  Layer.succeed(DecisionHistory, {
-    name: "live",
-    hasActed: () => Effect.die("the simulator reached a live history port"),
-  }),
-  Layer.succeed(CustomPredicate, {
-    name: "live",
-    evaluate: () => Effect.die("the simulator reached a live custom predicate registry"),
-  }),
+  scriptedPort(attributeResolverPort, () => PortReply.die("the simulator reached a live attribute store"), "live").layer,
+  scriptedPort(relationshipResolverPort, () => PortReply.die("the simulator reached a live relationship service"), "live").layer,
+  scriptedPort(decisionHistoryPort, () => PortReply.die("the simulator reached a live history port"), "live").layer,
+  scriptedPort(customPredicatePort, () => PortReply.die("the simulator reached a live custom predicate registry"), "live").layer,
 );
 
 describe("the seal", () => {
@@ -123,12 +109,12 @@ describe("the seal", () => {
    */
   it.effect("writes nothing, even with a real sink in scope", () =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
 
-      yield* simulate(hasPermission(read), alice).pipe(Effect.provide(ring.layer));
-      yield* simulate(hasPermission(write), alice).pipe(Effect.provide(ring.layer));
+      yield* simulate(hasPermission(read), alice).pipe(Effect.provide(log.layer));
+      yield* simulate(hasPermission(write), alice).pipe(Effect.provide(log.layer));
 
-      assert.deepStrictEqual(yield* ring.snapshot, []);
+      assert.deepStrictEqual(yield* log.snapshot, []);
     }));
 
   /**
@@ -153,17 +139,9 @@ describe("simulate", () => {
   // E1.4 — a fixture typo must not crash a panel.
   it.effect("a broken port is a Failed outcome, never a throw", () =>
     Effect.gen(function* () {
-      const broken = Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          name: "broken",
-          resolve: (_subjectId, attribute) =>
-            Effect.fail(new AttributeResolveError({ attribute, cause: "store down" })),
-        }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
-        CustomPredicateNone,
-        SignatureHistoryNone,
-      );
+      const broken = portsLayer({
+        AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("store down"), "broken").layer,
+      });
 
       const outcome = yield* simulate(
         hasAttribute("clearance", gte(1)),

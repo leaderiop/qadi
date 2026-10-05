@@ -90,10 +90,10 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
   AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive,
-  RelationshipResolverNever,
   allOf, anyOf, check, currentSubjectLayer, gte, hasAttribute,
   hasResourceAttribute, inArray, lt, makeSubject,
   type Matcher, type Policy,
+  portsLayer,
 } from "@qadi/core";
 
 // public(0) < internal(1) < secret(2). A total order, no compartments.
@@ -128,10 +128,8 @@ const program = Effect.all([
 ]).pipe(
   Effect.provide(
     Layer.mergeAll(
+      portsLayer(),
       currentSubjectLayer(makeSubject({ id: "u-7", attributes: { clearance: 2 } })),
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
     ),
   ),
@@ -241,10 +239,7 @@ This is the model, entire, and it is byte-for-byte the tree
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   anyOf,
   check,
@@ -257,6 +252,7 @@ import {
   resource,
   subject,
   type SecurityLabel,
+  portsLayer,
 } from "@qadi/core";
 
 const blp = anyOf([
@@ -281,10 +277,8 @@ const program = check(blp, {
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
+      portsLayer(),
       currentSubjectLayer(makeSubject({ id: "u-7", attributes: { clearance } })),
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
     ),
   ),

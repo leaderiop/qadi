@@ -30,7 +30,10 @@
  * one ever appeared, is not what any of the budgets track.
  * `DECISION_READ_BUDGET` is narrower still: `packages/*\/src` only, since a raw
  * `AsyncResult` read is a library-surface concern and a test reads one on
- * purpose to pin what `outcomeOf` makes of it.
+ * purpose to pin what `outcomeOf` makes of it. The seventh,
+ * `PORT_DOUBLE_BUDGET`, is the reverse: test-scope only (`packages/<pkg>/test`,
+ * `packages/<pkg>/bench`, `features/step-definitions`), because what it
+ * guards is how a test describes a broken port.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -490,6 +493,77 @@ const DECISION_READ_BUDGET_NAMES = {
   "packages/react/src/HydrationEngine.ts": ["makeSeededQuestion"],
 };
 
+/**
+ * Test files that construct a port's typed error by hand, by file and exact
+ * count of lines doing so (ARCH-10, ADR-QD-094).
+ *
+ * Every port's description builds its own error (`failure`), and
+ * `@qadi/core`'s `scriptedPort` derives a failing, dying or throwing double
+ * from it — so a test that needs a broken port writes
+ * `scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer`
+ * rather than a hand-written `Layer.succeed(AttributeResolver, { … new
+ * AttributeResolveError(…) … })`. Before ARCH-10 there were 65 such failing
+ * layers in 27 files plus 19 dying ones, each restating the port's error
+ * shape; a port whose error gained a field broke every one of them.
+ *
+ * The **seventh budget, and the only test-scope one**: the six above guard
+ * shipped source, this guards how tests describe a broken port. The files
+ * below construct an error as a *value* the test needs to hold — an
+ * instance-identity check, a codec round trip, an error a registered predicate
+ * or an HTTP fixture returns, a cause matrix driven without a port — or a
+ * double the scripted one cannot express (a latch). Checked in both
+ * directions like the others: a new file, or a count that moves either way,
+ * fails until this table is edited with its reason.
+ *
+ * Scope is the test-scope set this script already scans (`packages/<pkg>/test`,
+ * `packages/<pkg>/bench`) plus `features/step-definitions`. The Gherkin
+ * step files under `features/features/` are not scanned by this script at all.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const PORT_DOUBLE_BUDGET = {
+  // A `Failed` record's resolver error, as one of the record shapes whose
+  // encode cost is measured (ARCH-09 T5).
+  "packages/core/bench/SinkCodec.bench.ts": 1,
+  // A registered predicate's own failure, returned through the registry —
+  // the value under test is what `customPredicateFromRecord` passes on.
+  "packages/core/test/CustomPredicate.test.ts": 1,
+  // A failure after a latch opens, so N concurrent asks share one in-flight
+  // compute; a script answers synchronously and cannot wait on the latch.
+  "packages/core/test/DecisionCache.test.ts": 1,
+  // Errors as values: `EvaluationError`/`QadiError` membership and codes.
+  "packages/core/test/Errors.test.ts": 5,
+  // The port's own error must reach the caller as the same instance.
+  "packages/core/test/Evaluate.test.ts": 1,
+  // `catchPortDefect`'s cause matrix, driven on raw effects without a port.
+  "packages/core/test/PortAccess.test.ts": 2,
+  // The port's own error must survive translation as the same instance.
+  "packages/core/test/Predicate.test.ts": 1,
+  // The port's own error must reach the caller as the same instance.
+  "packages/core/test/SignatureHistory.test.ts": 1,
+  // Every error round-trips through the wire codec, and a resolver error's
+  // `cause` is the position the record codec must carry or refuse (ARCH-09);
+  // and the golden bytes of a resolver error carrying an `Error` cause (ARCH-15).
+  "packages/core/test/SinkCodec.test.ts": 11,
+  // An error as a value, for its `_tag`/code.
+  "packages/core/test/Tokens.test.ts": 1,
+  // A `Failed` record carrying a resolver `cause`, as data the audit encoder
+  // must persist or refuse (ARCH-09).
+  "packages/audit/test/helpers.ts": 1,
+  // A comparison row's error, as data handed to the table.
+  "packages/devtools/test/react/WhatIfTable.test.tsx": 1,
+  // Every enforcement error's response mapping.
+  "packages/http/test/QadiHttpError.test.ts": 12,
+  // A `Failed` record carrying a resolver `cause`, as data a frame must carry
+  // or refuse without ending the feed (ARCH-09).
+  "packages/http/test/decisionStream.test.ts": 1,
+  // The fixture every HTTP enforcement test iterates over.
+  "packages/http/test/fixtures/everyHttpEnforcementFailure.ts": 5,
+};
+
+const PORT_ERROR_CONSTRUCTION =
+  /\bnew\s+(AttributeResolveError|RelationshipResolveError|DecisionHistoryUnavailable|CustomPredicateError|SignatureHistoryUnavailable)\s*\(/;
+
 // This is not a narrow edge case: `import * as Effect from "effect/Effect"`
 // — AGENTS.md §1's own mandated import style, on line 1 of nearly every file
 // this script scans — reuses the identical `as` keyword for namespacing, not
@@ -636,6 +710,7 @@ const schemaErrorLines = new Map();
 
 /** @type {Map<string, number[]>} */
 const decisionReadLines = new Map();
+const portDoubleLines = new Map();
 
 for (const file of sources) {
   const rel = relative(ROOT, file);
@@ -689,7 +764,7 @@ for (const file of sources) {
       importSpan = 0;
     }
 
-    // All five budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
+    // These five budgets are src-only by design (SWITCH_BUDGET/HAS_CUSTOM_BUDGET/
     // UNTRACED_BUDGET/ANY_BUDGET/SCHEMA_ERROR_BUDGET are keyed to specific src
     // files) — a test
     // file's switch, hasCustom, Effect.fnUntraced or any usage, if one ever
@@ -757,6 +832,14 @@ for (const file of sources) {
         for (let i = 0; i < matches.length; i += 1) found.push(index + 1);
         decisionReadLines.set(rel, found);
       }
+    }
+    // Test-scope only, unlike every budget above: PORT_DOUBLE_BUDGET is about
+    // how tests describe a broken port, and shipped source constructs these
+    // errors legitimately (each port's description, `PortAccess.ts`).
+    if ((isTestFile || rel.startsWith("features/")) && PORT_ERROR_CONSTRUCTION.test(line)) {
+      const found = portDoubleLines.get(rel) ?? [];
+      found.push(index + 1);
+      portDoubleLines.set(rel, found);
     }
 
     for (const rule of RULES) {
@@ -1112,6 +1195,35 @@ for (const file of sources) {
         `submodules: import * as X from "effect/X".\n    ${m[0].replace(/\s+/g, " ")}`,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// ARCH-10 — a test that needs a broken port scripts it from the port's
+// description (`scriptedPort`), rather than hand-writing the port's error.
+// Checked in both directions like the budgets above.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(PORT_DOUBLE_BUDGET)) {
+  const found = portDoubleLines.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [port-double-budget] declares ${budget} line(s) constructing a port error, found ` +
+        `${found.length}${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update PORT_DOUBLE_BUDGET in scripts/check-house-style.mjs so the two agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of portDoubleLines) {
+  if (rel in PORT_DOUBLE_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [port-double-budget] A test constructs a port error by hand.\n` +
+      `    A broken port is \`scriptedPort(<port>Port, () => PortReply.fail(cause)).layer\` ` +
+      `(@qadi/core); a test that needs the error as a value is added to PORT_DOUBLE_BUDGET ` +
+      `in scripts/check-house-style.mjs with its exact count and reason.`,
+  );
 }
 
 // ---------------------------------------------------------------------------

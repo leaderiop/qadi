@@ -109,8 +109,6 @@ itself instead of appearing as an anonymous comparison.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -122,6 +120,7 @@ import {
   hasRelationship,
   labeled,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 // The caller's store: standing earned in one community, already decayed.
@@ -157,7 +156,10 @@ const subject = makeSubject({ id: "u-1", attributes: { accountAgeDays: 412 } });
 const program = decide(mayCloseThread, { resource: { id: "community-rust" } }).pipe(
   Effect.provide(currentSubjectLayer(subject)),
   Effect.provide(
-    Layer.mergeAll(StandingResolver, AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive),
+    Layer.mergeAll(
+      portsLayer({ RelationshipResolver: StandingResolver }),
+      EvaluationIdLive,
+    ),
   ),
 );
 ```

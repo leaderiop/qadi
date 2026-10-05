@@ -96,8 +96,6 @@ passes `depth` and interprets nothing ([MOD-QD-003](./03-rebac.md)).
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   RelationshipResolver,
   type RelationshipCheck,
@@ -107,6 +105,7 @@ import {
   hasRelationship,
   hasRole,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 /** One row of the caller's list. `principal` is `user:…` or `group:…`. */
@@ -146,7 +145,10 @@ const canRead = anyOf([hasRole("engineering"), hasRelationship("reader")]);
 const program = check(canRead, { resource: { id: "doc-1" } }).pipe(
   Effect.provide(currentSubjectLayer(makeSubject({ id: "u-1" }))),
   Effect.provide(
-    Layer.mergeAll(AclResolver, AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive),
+    Layer.mergeAll(
+      portsLayer({ RelationshipResolver: AclResolver }),
+      EvaluationIdLive,
+    ),
   ),
 );
 ```

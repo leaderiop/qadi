@@ -108,7 +108,9 @@ const PortCard: FC<{
             activity.translationCalls === 0
               ? ""
               : ` · ${activity.translationCalls} from translation`
-          }${activity.retries === 0 ? "" : ` · ${activity.retries} retried`}`}
+          }${activity.retries === 0 ? "" : ` · ${activity.retries} retried`}${
+            activity.timeouts === 0 ? "" : ` · ${activity.timeouts} timed out`
+          }`}
       </span>
     </div>
     <div style={{ ...muted, fontSize: font.sizeSmall }}>{port.consequence}</div>
@@ -233,7 +235,7 @@ const stateOf = (port: PortReport): string => {
  * The cache card, which must not be confused with the record log.
  *
  * `clear` on a `DecisionCache` discards completed decisions so the next
- * question is recomputed; `decisionSinkRing`'s `clear` discards the *log of
+ * question is recomputed; a decision log's `clear` discards the *log of
  * what was decided*. Conflating them would let a reader empty their audit view
  * while meaning to invalidate a cache.
  *

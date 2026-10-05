@@ -9,8 +9,10 @@
     "typecheck": "tsc -b tsconfig.json && tsc -p tsconfig.test.json"
   },
   "dependencies": {
+    "@qadi/audit": "workspace:*",
     "@qadi/core": "workspace:*",
     "@qadi/devtools": "workspace:*",
+    "@qadi/http": "workspace:*",
     "@qadi/react": "workspace:*",
     "@qadi/testing": "workspace:*",
     "effect": "catalog:"

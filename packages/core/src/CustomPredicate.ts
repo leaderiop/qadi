@@ -11,17 +11,18 @@
  * legitimate answer — the same distinction `AttributeResolver.resolve`'s own
  * doc comment draws between an absent value and a broken lookup.
  */
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Metric from "effect/Metric";
 import type * as Schedule from "effect/Schedule";
-import * as Semaphore from "effect/Semaphore";
 import type { AuthSubject } from "./AuthSubject.ts";
-import { CustomPredicateError, InvalidBoundedPermits } from "./Errors.ts";
-import { portRetriesTotal } from "./PortMetrics.ts";
+import { CustomPredicateError } from "./Errors.ts";
+import type { InvalidBoundedPermits } from "./Errors.ts";
+import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
+import type { PortDescription } from "./PortDescription.ts";
 import type { Resource } from "./Resource.ts";
-import { boundedPermits, wrapService, wrapServiceEffect } from "./RetryingLayer.ts";
 
 export interface CustomPredicateShape {
   /**
@@ -65,17 +66,62 @@ export class CustomPredicate extends Context.Service<
 }
 
 /**
+ * A failure's cause as `CustomPredicateError.reason`, which is a sentence:
+ * a string stays as it is (a replayed outage, a scripted `"down"`), an `Error`
+ * gives its message (a deadline), anything else its `String` rendering.
+ * Total: a value whose `toString` throws renders as a placeholder rather than
+ * turning a typed failure into a defect.
+ */
+const renderReason = (cause: unknown): string => {
+  if (typeof cause === "string") return cause;
+  if (cause instanceof Error) return cause.message;
+  try {
+    return String(cause);
+  } catch {
+    return "<unrenderable cause>";
+  }
+};
+
+/**
+ * The custom-predicate port, described once (`PortDescription.ts`).
+ *
+ * A request is keyed by `(subjectId, name, params)` — not by the resource,
+ * which is arbitrary caller data rather than one id. `CustomPredicateError`
+ * has no `cause` field, so `failure` renders the cause into `reason`, and
+ * `defect` renders a defect with `Cause.pretty` — what `PortAccess.ts` always
+ * did (D-10-e).
+ */
+export const customPredicatePort: PortDescription<
+  "CustomPredicate",
+  CustomPredicate,
+  CustomPredicateShape,
+  [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
+  boolean,
+  CustomPredicateError
+> = {
+  port: "CustomPredicate",
+  method: "evaluate",
+  span: "qadi.hasCustom",
+  service: CustomPredicate,
+  invoke: (shape) => (name, subject, resource, params) =>
+    shape.evaluate(name, subject, resource, params),
+  make: (name, call) => ({ name, evaluate: call }),
+  failure: ([name], cause) => new CustomPredicateError({ name, reason: renderReason(cause) }),
+  defect: ([name], cause) => new CustomPredicateError({ name, reason: Cause.pretty(cause) }),
+  key: ([name, subject, , params]) => JSON.stringify([subject.id, name, params]),
+  none: { name: "CustomPredicateNone", answer: false },
+};
+
+/**
  * Registers nothing.
  *
  * The default. Every name denies — the same fail-closed shape as
  * `AttributeResolverNone`. This is a `succeed`, not a `fail`, for the same
  * reason: an application that never reaches for `hasCustom` should be able to
- * wire this in and never observe it again.
+ * wire this in and never observe it again. Derived from
+ * {@link customPredicatePort}'s `none` (ADR-QD-040).
  */
-export const CustomPredicateNone: Layer.Layer<CustomPredicate> = Layer.succeed(CustomPredicate, {
-  name: "CustomPredicateNone",
-  evaluate: () => Effect.succeed(false),
-});
+export const CustomPredicateNone: Layer.Layer<CustomPredicate> = nonePort(customPredicatePort);
 
 /**
  * Resolves from a static table of named predicate functions.
@@ -117,42 +163,42 @@ export const customPredicateFromRecord = (
  * Wraps a registry layer so every `evaluate` call retries on
  * `CustomPredicateError` under the given schedule before surfacing it.
  *
- * Mirrors `attributeResolverRetrying` exactly — see its own doc comment for
- * why this is additive rather than a change to `CustomPredicateShape`.
+ * The same wrapper as `attributeResolverRetrying` — see its own doc comment
+ * for why this is additive rather than a change to `CustomPredicateShape`.
+ * Both annotate `qadi.attempts` on the caller's span and count failed
+ * attempts in `portRetriesTotal`, derived from the port's description by
+ * `PortDerivation.ts`'s `retryingPort`. Until ARCH-10 this one did neither,
+ * while this comment claimed it mirrored the attribute wrapper exactly.
  */
-export const customPredicateRetrying =
-  (schedule: Schedule.Schedule<unknown, CustomPredicateError>) =>
-  (layer: Layer.Layer<CustomPredicate>): Layer.Layer<CustomPredicate> =>
-    wrapService(CustomPredicate, layer, (inner) => ({
-      name: `${inner.name ?? "?"} (retrying)`,
-      evaluate: (name, subject, resource, params) =>
-        inner
-          .evaluate(name, subject, resource, params)
-          .pipe(
-            Effect.tapError(() => Metric.update(portRetriesTotal, "CustomPredicate")),
-            Effect.retry(schedule),
-          ),
-    }));
+export const customPredicateRetrying: (
+  schedule: Schedule.Schedule<unknown, CustomPredicateError>,
+) => (layer: Layer.Layer<CustomPredicate>) => Layer.Layer<CustomPredicate> =
+  retryingPort(customPredicatePort);
 
 /**
  * Wraps a registry layer so no more than `permits` calls to `evaluate` run at
- * once, queuing the rest. Mirrors `attributeResolverBounded` exactly.
+ * once, queuing the rest — `attributeResolverBounded` for this port.
  *
- * Rejects `permits <= 0` rather than building a layer that deadlocks every
- * call. `Semaphore.make` performs no validation of its own — with `permits`
- * zero, negative, `NaN` or infinite, `free` is permanently below the `1`
- * every `withPermit` call needs, so every wrapped `evaluate` enqueues forever
- * with nothing able to wake it. Failing here, at layer construction, turns
- * that into a diagnosable {@link InvalidBoundedPermits} instead of an
- * unexplained hang the first time a caller reaches the wrapped predicate.
+ * `permits` that is not a positive integer fails construction with
+ * {@link InvalidBoundedPermits} rather than building a layer that deadlocks
+ * every call. Derived by `PortDerivation.ts`'s `boundedPort`.
  */
-export const customPredicateBounded =
-  (permits: number) =>
-  (layer: Layer.Layer<CustomPredicate>): Layer.Layer<CustomPredicate, InvalidBoundedPermits> =>
-    wrapServiceEffect(CustomPredicate, layer, (inner) =>
-      Effect.map(boundedPermits(permits), (semaphore) => ({
-        name: `${inner.name ?? "?"} (bounded ${permits})`,
-        evaluate: (name, subject, resource, params) =>
-          Semaphore.withPermit(semaphore)(inner.evaluate(name, subject, resource, params)),
-      })),
-    );
+export const customPredicateBounded: (
+  permits: number,
+) => (
+  layer: Layer.Layer<CustomPredicate>,
+) => Layer.Layer<CustomPredicate, InvalidBoundedPermits> = boundedPort(customPredicatePort);
+
+/**
+ * Wraps a registry layer so an `evaluate` call that does not settle within
+ * `duration` fails with a typed `CustomPredicateError` — its `reason` the
+ * deadline message — instead of holding its caller open:
+ * `attributeResolverTimingOut` for this port (see its doc comment for the
+ * composition order), counting in `portTimeoutsTotal`. A registered predicate
+ * calling out to a slow service had no library-provided deadline until every
+ * port had this wrapper (ARCH-10 E1).
+ */
+export const customPredicateTimingOut: (
+  duration: Duration.Input,
+) => (layer: Layer.Layer<CustomPredicate>) => Layer.Layer<CustomPredicate> =
+  timingOutPort(customPredicatePort);

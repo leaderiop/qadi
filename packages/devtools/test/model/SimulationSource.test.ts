@@ -9,20 +9,16 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import {
   attributeResolverFromRecord,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  decisionSinkRing,
-  DecisionHistoryUnknown,
+  makeDecisionLog,
   gte,
   hasActed,
   hasAttribute,
   hasRelationship,
   hasPermission,
   permission,
-  RelationshipResolverNever,
+  portsLayer,
 } from "@qadi/core";
 import type { Decision, DecisionOutcome } from "@qadi/core";
 import { emptyAnswers } from "../../src/model/Capture.ts";
@@ -37,13 +33,9 @@ const decisionOf = (outcome: DecisionOutcome): Decision => {
   return outcome.decision;
 };
 
-const realPorts = Layer.mergeAll(
-  attributeResolverFromRecord({ clearance: 7 }),
-  RelationshipResolverNever,
-  DecisionHistoryUnknown,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-);
+const realPorts = portsLayer({
+  AttributeResolver: attributeResolverFromRecord({ clearance: 7 }),
+});
 
 const alice: SimulationInput = { subject: { id: "alice", permissions: ["doc:read"] } };
 
@@ -166,24 +158,24 @@ describe("the seal holds in every mode — E3.3", () => {
    */
   it.effect("a Live simulation still writes no record", () =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
 
       yield* simulate(hasPermission(read), alice, { source: live(realPorts) }).pipe(
-        Effect.provide(ring.layer),
+        Effect.provide(log.layer),
       );
 
-      assert.deepStrictEqual(yield* ring.snapshot, []);
+      assert.deepStrictEqual(yield* log.snapshot, []);
     }));
 
   it.effect("a Snapshot simulation still writes no record", () =>
     Effect.gen(function* () {
-      const ring = decisionSinkRing({ environment: "Server" });
+      const log = yield* makeDecisionLog({ environment: "Server" });
 
       yield* simulate(hasPermission(read), alice, { source: snapshot(emptyAnswers) }).pipe(
-        Effect.provide(ring.layer),
+        Effect.provide(log.layer),
       );
 
-      assert.deepStrictEqual(yield* ring.snapshot, []);
+      assert.deepStrictEqual(yield* log.snapshot, []);
     }));
 
   it.effect("the subject is the panel's in every mode", () =>

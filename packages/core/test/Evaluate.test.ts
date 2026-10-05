@@ -6,17 +6,17 @@ import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Metric from "effect/Metric";
-import * as Ref from "effect/Ref";
 import * as References from "effect/References";
 import * as Schedule from "effect/Schedule";
 import * as Tracer from "effect/Tracer";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
-import { CustomPredicate, customPredicateFromRecord } from "../src/CustomPredicate.ts";
+import { customPredicateFromRecord, customPredicatePort } from "../src/CustomPredicate.ts";
 import {
   DecisionHistory,
   DecisionHistoryUnknown,
   decisionHistoryFromEvents,
+  decisionHistoryPort,
 } from "../src/DecisionHistory.ts";
 import {
   AttributeResolveError,
@@ -33,9 +33,12 @@ import * as P from "../src/Policy.ts";
 import {
   RelationshipResolver,
   relationshipResolverFromEdges,
+  relationshipResolverPort,
 } from "../src/RelationshipResolver.ts";
-import { SignatureHistory, signatureHistoryFromSignatures } from "../src/SignatureHistory.ts";
+import { signatureHistoryFromSignatures, signatureHistoryPort } from "../src/SignatureHistory.ts";
 import { chain, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -342,7 +345,7 @@ describe("leaf policies", () => {
     }).pipe(
       Effect.provide(
         testLayer(subjectWith({ id: "u1" }), {
-          relationships: relationshipResolverFromEdges([
+          RelationshipResolver: relationshipResolverFromEdges([
             { subjectId: "u1", relation: "owner", resourceId: "doc-1" },
           ]),
         }),
@@ -363,7 +366,7 @@ describe("leaf policies", () => {
     }).pipe(
       Effect.provide(
         testLayer(subjectWith({ id: "u1" }), {
-          relationships: relationshipResolverFromEdges([
+          RelationshipResolver: relationshipResolverFromEdges([
             { subjectId: "u1", relation: "owner", resourceId: "doc-1" },
           ]),
         }),
@@ -459,7 +462,7 @@ describe("leaf policies", () => {
             resource: { id: "doc-1" },
           }).pipe(
             Effect.provide(
-              testLayer(subjectWith({ id: "u1" }), { relationships: recordingResolver }),
+              testLayer(subjectWith({ id: "u1" }), { RelationshipResolver: recordingResolver }),
             ),
           );
         }
@@ -467,7 +470,7 @@ describe("leaf policies", () => {
         // not invent a bound where the caller asked for none.
         yield* evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
           Effect.provide(
-            testLayer(subjectWith({ id: "u1" }), { relationships: recordingResolver }),
+            testLayer(subjectWith({ id: "u1" }), { RelationshipResolver: recordingResolver }),
           ),
         );
 
@@ -515,7 +518,7 @@ describe("leaf policies", () => {
     }).pipe(
       Effect.provide(
         testLayer(subjectWith({ id: "u1" }), {
-          signatureHistory: signatureHistoryFromSignatures([
+          SignatureHistory: signatureHistoryFromSignatures([
             { subjectId: "u1", resourceId: "doc-1", meaning: "approved" },
           ]),
         }),
@@ -534,7 +537,7 @@ describe("leaf policies", () => {
         // later, this is the test that fails first, loudly, rather than
         // silently changing every deployment's behavior.
         const layer = testLayer(subjectWith({ id: "u1" }), {
-          signatureHistory: signatureHistoryFromSignatures([
+          SignatureHistory: signatureHistoryFromSignatures([
             { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signedAt: 0 },
           ]),
         });
@@ -556,7 +559,7 @@ describe("leaf policies", () => {
   it.effect("HasSignature matches signerRole when specified, and denies when it doesn't", () =>
     Effect.gen(function* () {
       const layer = testLayer(subjectWith({ id: "u1" }), {
-        signatureHistory: signatureHistoryFromSignatures([
+        SignatureHistory: signatureHistoryFromSignatures([
           { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signerRole: "manager" },
         ]),
       });
@@ -600,7 +603,7 @@ describe("leaf policies", () => {
       }).pipe(
         Effect.provide(
           testLayer(subjectWith({ id: "u1" }), {
-            signatureHistory: signatureHistoryFromSignatures([
+            SignatureHistory: signatureHistoryFromSignatures([
               { subjectId: "u1", resourceId: "doc-1", meaning: "rejected" },
             ]),
           }),
@@ -615,7 +618,7 @@ describe("leaf policies", () => {
     }).pipe(
       Effect.provide(
         testLayer(subjectWith({ id: "u1" }), {
-          signatureHistory: signatureHistoryFromSignatures([
+          SignatureHistory: signatureHistoryFromSignatures([
             { subjectId: "u1", meaning: "approved" },
           ]),
         }),
@@ -644,19 +647,15 @@ describe("leaf policies", () => {
 
   it.effect("HasSignature propagates a wired-but-unreachable store as a typed failure", () =>
     Effect.gen(function* () {
-      const failure = new SignatureHistoryUnavailable({
-        subjectId: subjectWith({ id: "u1" }).id,
-        resourceId: undefined,
-        cause: "store offline",
-      });
-      const layer = Layer.succeed(SignatureHistory, {
-        name: "broken",
-        signaturesFor: () => Effect.fail(failure),
-      });
+      const layer = scriptedPort(
+        signatureHistoryPort,
+        () => PortReply.fail("store offline"),
+        "broken",
+      ).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
-          Effect.provide(testLayer(subjectWith({ id: "u1" }), { signatureHistory: layer })),
+          Effect.provide(testLayer(subjectWith({ id: "u1" }), { SignatureHistory: layer })),
         ),
       );
       assert.strictEqual(r._tag, "Failure");
@@ -690,7 +689,7 @@ describe("leaf policies", () => {
         isOwner: () => Effect.succeed(true),
       });
       const d = yield* evaluate(P.hasCustom("isOwner")).pipe(
-        Effect.provide(testLayer(subjectWith({}), { customPredicate: registry })),
+        Effect.provide(testLayer(subjectWith({}), { CustomPredicate: registry })),
       );
       assert.isTrue(isAllowed(d));
     }));
@@ -701,7 +700,7 @@ describe("leaf policies", () => {
         isOwner: () => Effect.succeed(false),
       });
       const d = yield* evaluate(P.hasCustom("isOwner")).pipe(
-        Effect.provide(testLayer(subjectWith({}), { customPredicate: registry })),
+        Effect.provide(testLayer(subjectWith({}), { CustomPredicate: registry })),
       );
       assert.isFalse(isAllowed(d));
       if (d._tag !== "Deny") return;
@@ -713,7 +712,7 @@ describe("leaf policies", () => {
       const registry = customPredicateFromRecord({});
       const r = yield* Effect.result(
         evaluate(P.hasCustom("isOwner")).pipe(
-          Effect.provide(testLayer(subjectWith({}), { customPredicate: registry })),
+          Effect.provide(testLayer(subjectWith({}), { CustomPredicate: registry })),
         ),
       );
       assert.strictEqual(r._tag, "Failure");
@@ -905,7 +904,7 @@ describe("short-circuiting", () => {
       const d = yield* evaluate(policy).pipe(
         Effect.provide(
           testLayer(subjectWith({ roles: ["a"] }), {
-            attributes: countingResolver(counter),
+            AttributeResolver: countingResolver(counter),
           }),
         ),
       );
@@ -923,7 +922,7 @@ describe("short-circuiting", () => {
 
       const d = yield* evaluate(policy).pipe(
         Effect.provide(
-          testLayer(subjectWith({}), { attributes: countingResolver(counter) }),
+          testLayer(subjectWith({}), { AttributeResolver: countingResolver(counter) }),
         ),
       );
 
@@ -941,7 +940,7 @@ describe("short-circuiting", () => {
 
       yield* evaluate(policy).pipe(
         Effect.provide(
-          testLayer(subjectWith({}), { attributes: countingResolver(counter) }),
+          testLayer(subjectWith({}), { AttributeResolver: countingResolver(counter) }),
         ),
       );
 
@@ -952,14 +951,11 @@ describe("short-circuiting", () => {
     Effect.gen(function* () {
       // A broken lookup must not be silently reported as "not authorized" —
       // that would mask an outage as a permissions problem.
-      const failing = Layer.succeed(AttributeResolver, {
-        resolve: (_id: string, attribute: string) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "boom" })),
-      });
+      const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("boom")).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasAttribute("x", M.exists())).pipe(
-          Effect.provide(testLayer(subjectWith({}), { attributes: failing })),
+          Effect.provide(testLayer(subjectWith({}), { AttributeResolver: failing })),
         ),
       );
       assert.strictEqual(r._tag, "Failure");
@@ -992,7 +988,7 @@ describe("short-circuiting", () => {
       const d = yield* evaluate(policy, doc).pipe(
         Effect.provide(
           testLayer(subjectWith({ roles: ["a"] }), {
-            relationships: recordingRelationships(calls),
+            RelationshipResolver: recordingRelationships(calls),
           }),
         ),
       );
@@ -1009,7 +1005,7 @@ describe("short-circuiting", () => {
       const d = yield* evaluate(policy, doc).pipe(
         Effect.provide(
           testLayer(subjectWith({}), {
-            relationships: recordingRelationships(calls),
+            RelationshipResolver: recordingRelationships(calls),
           }),
         ),
       );
@@ -1029,7 +1025,7 @@ describe("short-circuiting", () => {
       const d = yield* evaluate(policy, doc).pipe(
         Effect.provide(
           testLayer(subjectWith({}), {
-            relationships: recordingRelationships(calls),
+            RelationshipResolver: recordingRelationships(calls),
           }),
         ),
       );
@@ -1042,20 +1038,11 @@ describe("short-circuiting", () => {
     Effect.gen(function* () {
       // Same rule as the attribute case: an unreachable relationship store is
       // an outage, not a decision that the subject lacks the relationship.
-      const failing = Layer.succeed(RelationshipResolver, {
-        check: (request) =>
-          Effect.fail(
-            new RelationshipResolveError({
-              relation: request.relation,
-              resourceId: request.resourceId,
-              cause: "boom",
-            }),
-          ),
-      });
+      const failing = scriptedPort(relationshipResolverPort, () => PortReply.fail("boom")).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasRelationship("owner"), doc).pipe(
-          Effect.provide(testLayer(subjectWith({}), { relationships: failing })),
+          Effect.provide(testLayer(subjectWith({}), { RelationshipResolver: failing })),
         ),
       );
       assert.strictEqual(r._tag, "Failure");
@@ -1237,7 +1224,7 @@ describe("decision metadata", () => {
       });
 
       const d = yield* evaluate(P.hasAttribute("x", M.gte(1))).pipe(
-        Effect.provide(testLayer(subjectWith({}), { attributes: slow })),
+        Effect.provide(testLayer(subjectWith({}), { AttributeResolver: slow })),
       );
 
       assert.isTrue(isAllowed(d));
@@ -1467,7 +1454,7 @@ describe("the action dimension", () => {
       const d = yield* evaluate(policy, { action: "read", resource: { id: "doc-1" } }).pipe(
         Effect.provide(
           testLayer(subjectWith({ id: "u1" }), {
-            relationships: Layer.succeed(RelationshipResolver, {
+            RelationshipResolver: Layer.succeed(RelationshipResolver, {
               check: (request) =>
                 Effect.sync(() => {
                   calls.push(request.relation);
@@ -1687,7 +1674,7 @@ describe("the integrity lattice", () => {
         }).pipe(
           Effect.provide(
             testLayer(subjectWith({ id: "u1", attributes: { integrity: label(3) } }), {
-              attributes: resolvingMark([], mark),
+              AttributeResolver: resolvingMark([], mark),
             }),
           ),
           Effect.map(isAllowed),
@@ -1718,7 +1705,7 @@ describe("the integrity lattice", () => {
               id: "u1",
               attributes: { integrity: label(3), effectiveIntegrity: label(3) },
             }),
-            { attributes: resolvingMark(shadowed, label(1)) },
+            { AttributeResolver: resolvingMark(shadowed, label(1)) },
           ),
         ),
       );
@@ -1734,7 +1721,7 @@ describe("the integrity lattice", () => {
       }).pipe(
         Effect.provide(
           testLayer(subjectWith({ id: "u1", attributes: { integrity: label(3) } }), {
-            attributes: resolvingMark(consulted, label(1)),
+            AttributeResolver: resolvingMark(consulted, label(1)),
           }),
         ),
       );
@@ -1758,7 +1745,7 @@ describe("decision history", () => {
   it.effect("hasActed allows when the event is recorded", () =>
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasActed("raised"), invoice).pipe(
-        Effect.provide(testLayer(clerk, { history: raisedIt })),
+        Effect.provide(testLayer(clerk, { DecisionHistory: raisedIt })),
       );
       assert.isTrue(isAllowed(d));
       assert.strictEqual(d.trace.policyTag, "HasActed");
@@ -1770,7 +1757,7 @@ describe("decision history", () => {
       // "no history is available" branch below, which fires only under an
       // unwired (`Unknown`-answering) port.
       const d = yield* evaluate(P.hasActed("approved"), invoice).pipe(
-        Effect.provide(testLayer(clerk, { history: raisedIt })),
+        Effect.provide(testLayer(clerk, { DecisionHistory: raisedIt })),
       );
       assert.isFalse(isAllowed(d));
       assert.strictEqual(d.trace.policyTag, "HasActed");
@@ -1783,7 +1770,7 @@ describe("decision history", () => {
       // "approve this invoice, unless you raised it" — the whole of dynamic
       // separation of duty.
       const d = yield* evaluate(P.hasNotActed("raised"), invoice).pipe(
-        Effect.provide(testLayer(clerk, { history: raisedIt })),
+        Effect.provide(testLayer(clerk, { DecisionHistory: raisedIt })),
       );
       assert.isFalse(isAllowed(d));
       assert.strictEqual(d.trace.policyTag, "HasNotActed");
@@ -1795,7 +1782,7 @@ describe("decision history", () => {
     Effect.gen(function* () {
       const d = yield* evaluate(P.hasNotActed("raised"), {
         resource: { id: "inv-2" },
-      }).pipe(Effect.provide(testLayer(clerk, { history: raisedIt })));
+      }).pipe(Effect.provide(testLayer(clerk, { DecisionHistory: raisedIt })));
       assert.isTrue(isAllowed(d));
       assert.strictEqual(d.trace.policyTag, "HasNotActed");
     }));
@@ -1815,7 +1802,7 @@ describe("decision history", () => {
       // makes "Unknown" three-valued rather than boolean.
       assert.strictEqual(acted.reason, "no history is available for 'raised'");
       assert.strictEqual(notActed.reason, "no history is available for 'raised'");
-    }).pipe(Effect.provide(testLayer(clerk, { history: DecisionHistoryUnknown }))));
+    }).pipe(Effect.provide(testLayer(clerk, { DecisionHistory: DecisionHistoryUnknown }))));
 
   it.effect("hasNotActed is NOT not(hasActed) — the difference is a grant", () =>
     Effect.gen(function* () {
@@ -1836,7 +1823,7 @@ describe("decision history", () => {
         { subjectId: "u1", event: "raised", resourceId: "inv-9" },
       ]);
       const d = yield* evaluate(P.hasActed("raised", { scope: "Any" })).pipe(
-        Effect.provide(testLayer(clerk, { history: everRaised })),
+        Effect.provide(testLayer(clerk, { DecisionHistory: everRaised })),
       );
       assert.isTrue(isAllowed(d));
     }));
@@ -1858,7 +1845,7 @@ describe("decision history", () => {
       });
 
       yield* evaluate(P.hasActed("raised", { scope: "Any" }), invoice).pipe(
-        Effect.provide(testLayer(clerk, { history: recording })),
+        Effect.provide(testLayer(clerk, { DecisionHistory: recording })),
       );
 
       assert.deepStrictEqual(queries, [undefined]);
@@ -1872,21 +1859,16 @@ describe("decision history", () => {
       assert.strictEqual(r.failure._tag, "MissingResourceId");
       if (r.failure._tag !== "MissingResourceId") return;
       assert.strictEqual(r.failure.relation, "raised");
-    }).pipe(Effect.provide(testLayer(clerk, { history: raisedIt }))));
+    }).pipe(Effect.provide(testLayer(clerk, { DecisionHistory: raisedIt }))));
 
   it.effect("an unreachable store is an error, not a denial", () =>
     Effect.gen(function* () {
       // The strongest temptation in the library: for a separation-of-duty check
       // a denial *feels* safe. It makes an outage look like "you raised this".
-      const failing = Layer.succeed(DecisionHistory, {
-        hasActed: (query) =>
-          Effect.fail(
-            new DecisionHistoryUnavailable({ event: query.event, cause: "boom" }),
-          ),
-      });
+      const failing = scriptedPort(decisionHistoryPort, () => PortReply.fail("boom")).layer;
       const r = yield* Effect.result(
         evaluate(P.hasNotActed("raised"), invoice).pipe(
-          Effect.provide(testLayer(clerk, { history: failing })),
+          Effect.provide(testLayer(clerk, { DecisionHistory: failing })),
         ),
       );
       assert.strictEqual(r._tag, "Failure");
@@ -1907,7 +1889,7 @@ describe("decision history", () => {
 
       const policy = P.allOf([P.hasRole("nobody"), P.hasNotActed("raised")]);
       const d = yield* evaluate(policy, invoice).pipe(
-        Effect.provide(testLayer(clerk, { history: recording })),
+        Effect.provide(testLayer(clerk, { DecisionHistory: recording })),
       );
 
       assert.isFalse(isAllowed(d));
@@ -1936,7 +1918,7 @@ describe("decision history", () => {
         { subjectId: "u1", event: "oil", resourceId: "shell" },
       ]);
       const wall = withinWall("oil");
-      const provide = Effect.provide(testLayer(clerk, { history: engagedWithShell }));
+      const provide = Effect.provide(testLayer(clerk, { DecisionHistory: engagedWithShell }));
 
       // Same company: allowed. Competitor: refused.
       assert.isTrue(isAllowed(yield* evaluate(wall, { resource: { id: "shell" } }).pipe(provide)));
@@ -1944,7 +1926,7 @@ describe("decision history", () => {
 
       // An analyst with no engagement anywhere may take a free first access.
       const fresh = Effect.provide(
-        testLayer(clerk, { history: decisionHistoryFromEvents([]) }),
+        testLayer(clerk, { DecisionHistory: decisionHistoryFromEvents([]) }),
       );
       assert.isTrue(isAllowed(yield* evaluate(wall, { resource: { id: "bp" } }).pipe(fresh)));
     }));
@@ -2088,14 +2070,14 @@ describe("task-based access control", () => {
       // The same policy, subject, resource and assignment. Only the recorded
       // event differs, which is the whole of "transient and consumable".
       const unspent = testLayer(approver, {
-        relationships: assigned,
-        history: decisionHistoryFromEvents([
+        RelationshipResolver: assigned,
+        DecisionHistory: decisionHistoryFromEvents([
           { subjectId: "u-amina", event: "approved", resourceId: "invoice-1040" },
         ]),
       });
       const spent = testLayer(approver, {
-        relationships: assigned,
-        history: decisionHistoryFromEvents([
+        RelationshipResolver: assigned,
+        DecisionHistory: decisionHistoryFromEvents([
           { subjectId: "u-amina", event: "approved", resourceId: "invoice-1041" },
         ]),
       });
@@ -2134,8 +2116,8 @@ describe("task-based access control", () => {
       const d = yield* evaluate(canApprove, openStep).pipe(
         Effect.provide(
           testLayer(subjectWith({ id: "u-amina" }), {
-            relationships: recordingEdges,
-            history: recordingEvents,
+            RelationshipResolver: recordingEdges,
+            DecisionHistory: recordingEvents,
           }),
         ),
       );
@@ -2374,7 +2356,7 @@ describe("obligations", () => {
       const d = yield* evaluate(policy, { resource: { id: "doc-1" } }).pipe(
         Effect.provide(
           testLayer(holder, {
-            relationships: Layer.succeed(RelationshipResolver, {
+            RelationshipResolver: Layer.succeed(RelationshipResolver, {
               check: (request) =>
                 Effect.sync(() => {
                   calls.push(request.relation);
@@ -2764,7 +2746,7 @@ describe("observability", () => {
       yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({ tier: 5 }) }),
+            testLayer(subjectWith({ id: "u1" }), { AttributeResolver: resolverOf({ tier: 5 }) }),
             collectingTracer(spans),
           ),
         ),
@@ -2785,7 +2767,7 @@ describe("observability", () => {
       yield* evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(subjectWith({ id: "u1" }), { attributes: resolverOf({}) }),
+            testLayer(subjectWith({ id: "u1" }), { AttributeResolver: resolverOf({}) }),
             collectingTracer(spans),
           ),
         ),
@@ -2802,11 +2784,7 @@ describe("observability", () => {
       yield* Effect.result(
         evaluate(P.hasAttribute("tier", M.gte(3))).pipe(
           Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" }), {
-              attributes: Layer.succeed(AttributeResolver, {
-                name: "broken",
-                resolve: (_subjectId, attribute: string) =>
-                  Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-              }),
+              AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down"), "broken").layer,
             }), collectingTracer(spans))),
         ),
       );
@@ -2834,7 +2812,7 @@ describe("observability", () => {
       ).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(subjectWith({ roles: ["editor"] }), { attributes: resolverOf({ tier: 5 }) }),
+            testLayer(subjectWith({ roles: ["editor"] }), { AttributeResolver: resolverOf({ tier: 5 }) }),
             collectingTracer(spans),
           ),
         ),
@@ -2853,7 +2831,7 @@ describe("observability", () => {
         resource: { id: "doc-1" },
       }).pipe(
         Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" }), {
-            history: decisionHistoryFromEvents([
+            DecisionHistory: decisionHistoryFromEvents([
               { subjectId: "u1", event: "raised", resourceId: "doc-9" },
             ]),
           }), collectingTracer(spans))),
@@ -2931,7 +2909,7 @@ describe("observability", () => {
 
       yield* evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
         Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" }), {
-            relationships: relationshipResolverFromEdges([
+            RelationshipResolver: relationshipResolverFromEdges([
               { subjectId: "u1", relation: "owner", resourceId: "doc-1" },
             ]),
           }), collectingTracer(spans))),
@@ -3000,7 +2978,7 @@ describe("observability", () => {
       yield* evaluate(P.hasCustom("isOwner")).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(subjectWith({ id: "u1" }), { customPredicate: registry }),
+            testLayer(subjectWith({ id: "u1" }), { CustomPredicate: registry }),
             collectingTracer(spans),
           ),
         ),
@@ -3024,7 +3002,7 @@ describe("observability", () => {
         Effect.provide(
           Layer.mergeAll(
             testLayer(subjectWith({ id: "u1" }), {
-              signatureHistory: signatureHistoryFromSignatures([
+              SignatureHistory: signatureHistoryFromSignatures([
                 { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signerRole: "manager" },
               ]),
             }),
@@ -3076,7 +3054,7 @@ describe("observability", () => {
         Effect.provide(
           Layer.mergeAll(
             testLayer(subjectWith({ id: "u1" }), {
-              signatureHistory: signatureHistoryFromSignatures([
+              SignatureHistory: signatureHistoryFromSignatures([
                 { subjectId: "u1", meaning: "approved", signerRole: "anyone" },
               ]),
             }),
@@ -3103,7 +3081,7 @@ describe("observability", () => {
       }).pipe(
         Effect.provide(
           testLayer(subjectWith({ id: "u1" }), {
-            signatureHistory: signatureHistoryFromSignatures([
+            SignatureHistory: signatureHistoryFromSignatures([
               { subjectId: "u1", resourceId: "doc-1", meaning: "approved", signerRole: "intern" },
             ]),
           }),
@@ -3129,7 +3107,7 @@ describe("observability", () => {
 
       yield* evaluate(P.hasAttribute("clearance", M.eq(M.literal(secret)))).pipe(
         Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u1" }), {
-            attributes: resolverOf({ clearance: secret }),
+            AttributeResolver: resolverOf({ clearance: secret }),
           }), collectingTracer(spans))),
       );
 
@@ -3375,14 +3353,14 @@ describe("concurrent evaluation", () => {
 
   /** Counts every attribute and relationship lookup an evaluation performs. */
   const counting = (calls: Array<string>) => ({
-    attributes: Layer.succeed(AttributeResolver, {
+    AttributeResolver: Layer.succeed(AttributeResolver, {
       resolve: (_id: string, attribute: string) =>
         Effect.sync(() => {
           calls.push(`attr:${attribute}`);
           return attribute === "riskScore" ? 10 : undefined;
         }),
     }),
-    relationships: Layer.succeed(RelationshipResolver, {
+    RelationshipResolver: Layer.succeed(RelationshipResolver, {
       check: (request: { readonly relation: string }) =>
         Effect.sync(() => {
           calls.push(`rel:${request.relation}`);
@@ -3567,16 +3545,14 @@ describe("concurrent evaluation", () => {
       // resolver too, and concurrent evaluation must fail with the same error.
       const policy = P.allOf([P.hasRole("editor"), P.hasAttribute("boom", M.gte(1))]);
 
-      const failing = Layer.succeed(AttributeResolver, {
-        resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
-      });
+      const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
       const sequential = yield* Effect.result(
-        evaluate(policy, { resource }).pipe(Effect.provide(testLayer(subject, { attributes: failing }))),
+        evaluate(policy, { resource }).pipe(Effect.provide(testLayer(subject, { AttributeResolver: failing }))),
       );
       const concurrent = yield* Effect.result(
         evaluate(policy, { resource, concurrency: "unbounded" }).pipe(
-          Effect.provide(testLayer(subject, { attributes: failing })),
+          Effect.provide(testLayer(subject, { AttributeResolver: failing })),
         ),
       );
 
@@ -3598,18 +3574,16 @@ describe("concurrent evaluation", () => {
         // `Deny` — the exact non-determinism this ticket fixed. Now both agree.
         const policy = P.allOf([P.hasRole("legal"), P.hasAttribute("boom", M.gte(1))]);
 
-        const failing = Layer.succeed(AttributeResolver, {
-          resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
-        });
+        const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
         const sequential = yield* Effect.result(
           evaluate(policy, { resource }).pipe(
-            Effect.provide(testLayer(subject, { attributes: failing })),
+            Effect.provide(testLayer(subject, { AttributeResolver: failing })),
           ),
         );
         const concurrent = yield* Effect.result(
           evaluate(policy, { resource, concurrency: "unbounded" }).pipe(
-            Effect.provide(testLayer(subject, { attributes: failing })),
+            Effect.provide(testLayer(subject, { AttributeResolver: failing })),
           ),
         );
 
@@ -3629,16 +3603,14 @@ describe("concurrent evaluation", () => {
       // walk still reaches index 1's failing resolver.
       const policy = P.anyOf([P.hasRole("suspended"), P.hasAttribute("boom", M.gte(1))]);
 
-      const failing = Layer.succeed(AttributeResolver, {
-        resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
-      });
+      const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
       const sequential = yield* Effect.result(
-        evaluate(policy, { resource }).pipe(Effect.provide(testLayer(subject, { attributes: failing }))),
+        evaluate(policy, { resource }).pipe(Effect.provide(testLayer(subject, { AttributeResolver: failing }))),
       );
       const concurrent = yield* Effect.result(
         evaluate(policy, { resource, concurrency: "unbounded" }).pipe(
-          Effect.provide(testLayer(subject, { attributes: failing })),
+          Effect.provide(testLayer(subject, { AttributeResolver: failing })),
         ),
       );
 
@@ -3658,18 +3630,16 @@ describe("concurrent evaluation", () => {
         // (CCR-QD-152).
         const policy = P.anyOf([P.hasRole("editor"), P.hasAttribute("boom", M.gte(1))]);
 
-        const failing = Layer.succeed(AttributeResolver, {
-          resolve: () => Effect.fail(new AttributeResolveError({ attribute: "boom", cause: "down" })),
-        });
+        const failing = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
         const sequential = yield* Effect.result(
           evaluate(policy, { resource }).pipe(
-            Effect.provide(testLayer(subject, { attributes: failing })),
+            Effect.provide(testLayer(subject, { AttributeResolver: failing })),
           ),
         );
         const concurrent = yield* Effect.result(
           evaluate(policy, { resource, concurrency: "unbounded" }).pipe(
-            Effect.provide(testLayer(subject, { attributes: failing })),
+            Effect.provide(testLayer(subject, { AttributeResolver: failing })),
           ),
         );
 
@@ -3818,19 +3788,16 @@ describe("concurrent evaluation", () => {
         // Fails every `fail-*` attribute lookup, distinguishably by name; never
         // touches `hasRole`, which reads the subject directly and never calls
         // this resolver at all.
-        const faultyAttributes = Layer.succeed(AttributeResolver, {
-          resolve: (_id: string, attribute: string) =>
-            attribute.startsWith("fail-")
-              ? Effect.fail(new AttributeResolveError({ attribute, cause: "boom" }))
-              : Effect.succeed(undefined),
-        });
+        const faultyAttributes = scriptedPort(attributeResolverPort, (_id, attribute) =>
+          attribute.startsWith("fail-") ? PortReply.fail("boom") : undefined,
+        ).layer;
 
         const runWith = (policy: P.Policy, concurrency: number | "unbounded" | undefined) =>
           Effect.result(
             evaluate(policy, {
               resource,
               ...(concurrency === undefined ? {} : { concurrency }),
-            }).pipe(Effect.provide(testLayer(subject, { attributes: faultyAttributes }))),
+            }).pipe(Effect.provide(testLayer(subject, { AttributeResolver: faultyAttributes }))),
           );
 
         let sawFailure = false;
@@ -3905,13 +3872,11 @@ describe("concurrent evaluation", () => {
 describe("port defects become typed errors", () => {
   it.effect("a dying AttributeResolver surfaces as AttributeResolveError", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(AttributeResolver, {
-        resolve: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(attributeResolverPort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasAttribute("x", M.exists())).pipe(
-          Effect.provide(testLayer(subjectWith({}), { attributes: dying })),
+          Effect.provide(testLayer(subjectWith({}), { AttributeResolver: dying })),
         ),
       );
 
@@ -3924,13 +3889,11 @@ describe("port defects become typed errors", () => {
 
   it.effect("a dying DecisionHistory surfaces as DecisionHistoryUnavailable", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(DecisionHistory, {
-        hasActed: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(decisionHistoryPort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasActed("raised"), { resource: { id: "inv-1" } }).pipe(
-          Effect.provide(testLayer(subjectWith({}), { history: dying })),
+          Effect.provide(testLayer(subjectWith({}), { DecisionHistory: dying })),
         ),
       );
 
@@ -3943,13 +3906,11 @@ describe("port defects become typed errors", () => {
 
   it.effect("a dying RelationshipResolver surfaces as RelationshipResolveError", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(RelationshipResolver, {
-        check: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(relationshipResolverPort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasRelationship("owner"), { resource: { id: "doc-1" } }).pipe(
-          Effect.provide(testLayer(subjectWith({}), { relationships: dying })),
+          Effect.provide(testLayer(subjectWith({}), { RelationshipResolver: dying })),
         ),
       );
 
@@ -3962,13 +3923,11 @@ describe("port defects become typed errors", () => {
 
   it.effect("a dying CustomPredicate surfaces as CustomPredicateError", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(CustomPredicate, {
-        evaluate: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(customPredicatePort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasCustom("isOwner")).pipe(
-          Effect.provide(testLayer(subjectWith({}), { customPredicate: dying })),
+          Effect.provide(testLayer(subjectWith({}), { CustomPredicate: dying })),
         ),
       );
 
@@ -3986,13 +3945,11 @@ describe("port defects become typed errors", () => {
 
   it.effect("a dying SignatureHistory surfaces as SignatureHistoryUnavailable", () =>
     Effect.gen(function* () {
-      const dying = Layer.succeed(SignatureHistory, {
-        signaturesFor: () => Effect.die(new Error("boom")),
-      });
+      const dying = scriptedPort(signatureHistoryPort, () => PortReply.die(new Error("boom"))).layer;
 
       const r = yield* Effect.result(
         evaluate(P.hasSignature("approved"), { resource: { id: "doc-1" } }).pipe(
-          Effect.provide(testLayer(subjectWith({ id: "u1" }), { signatureHistory: dying })),
+          Effect.provide(testLayer(subjectWith({ id: "u1" }), { SignatureHistory: dying })),
         ),
       );
 
@@ -4015,7 +3972,7 @@ describe("port defects become typed errors", () => {
 
       const r = yield* Effect.result(
         evaluate(P.hasAttribute("x", M.exists())).pipe(
-          Effect.provide(testLayer(subjectWith({}), { attributes: failing })),
+          Effect.provide(testLayer(subjectWith({}), { AttributeResolver: failing })),
         ),
       );
 
@@ -4034,23 +3991,19 @@ describe("port defects become typed errors", () => {
         // recover from an adapter that threw instead of failing. A resolver
         // that dies twice and then succeeds is retried exactly as one that
         // *fails* twice and then succeeds would be (mirrors
-        // `AttributeResolver.test.ts`'s `attributeResolverRetrying` proof,
-        // one layer up: `Effect.retry` here wraps `evaluate` itself, not the
-        // port layer).
-        const attempts = yield* Ref.make(0);
-        const flaky = Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Ref.updateAndGet(attempts, (n) => n + 1).pipe(
-              Effect.flatMap((n) => (n <= 2 ? Effect.die(new Error("boom")) : Effect.succeed(9))),
-            ),
-        });
+        // `PortConformance.test.ts`'s retrying proof, one layer up:
+        // `Effect.retry` here wraps `evaluate` itself, not the port layer).
+        let attempt = 0;
+        const flaky = scriptedPort(attributeResolverPort, () =>
+          ++attempt <= 2 ? PortReply.die(new Error("boom")) : PortReply.answer(9),
+        );
 
         const decision = yield* evaluate(P.hasAttribute("x", M.gte(5))).pipe(
-          Effect.provide(testLayer(subjectWith({}), { attributes: flaky })),
+          Effect.provide(testLayer(subjectWith({}), { AttributeResolver: flaky.layer })),
           Effect.retry(Schedule.recurs(2)),
         );
 
-        assert.strictEqual(yield* Ref.get(attempts), 3);
+        assert.strictEqual(flaky.calls.length, 3);
         assert.isTrue(isAllowed(decision));
       }),
   );
@@ -4059,21 +4012,18 @@ describe("port defects become typed errors", () => {
     "Effect.retry exhausts and still surfaces the typed error, not the defect",
     () =>
       Effect.gen(function* () {
-        const attempts = yield* Ref.make(0);
-        const alwaysDies = Layer.succeed(AttributeResolver, {
-          resolve: () => Ref.updateAndGet(attempts, (n) => n + 1).pipe(Effect.andThen(Effect.die(new Error("boom")))),
-        });
+        const alwaysDies = scriptedPort(attributeResolverPort, () => PortReply.die(new Error("boom")));
 
         const r = yield* Effect.result(
           evaluate(P.hasAttribute("x", M.gte(5))).pipe(
-            Effect.provide(testLayer(subjectWith({}), { attributes: alwaysDies })),
+            Effect.provide(testLayer(subjectWith({}), { AttributeResolver: alwaysDies.layer })),
             Effect.retry(Schedule.recurs(2)),
           ),
         );
 
         // 1 initial call + 2 retries = 3 attempts, matching
         // `attributeResolverRetrying`'s own exhaustion test.
-        assert.strictEqual(yield* Ref.get(attempts), 3);
+        assert.strictEqual(alwaysDies.calls.length, 3);
         assert.strictEqual(r._tag, "Failure");
         if (r._tag !== "Failure") return;
         assert.instanceOf(r.failure, AttributeResolveError);

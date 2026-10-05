@@ -26,6 +26,7 @@ import {
   makeSubject,
   makeSubjectId,
   permission,
+  attributeResolverPort,
 } from "@qadi/core";
 import type { EvaluationError, Trace } from "@qadi/core";
 import * as Cause from "effect/Cause";
@@ -165,7 +166,7 @@ describe("outcomeOf", () => {
     registry.set(atoms.invalidate, undefined);
     await inFlight();
     row("re-check in flight after allow");
-    await answer(Effect.fail(new AttributeResolveError({ attribute: "standing", cause: "down" })));
+    await answer(Effect.fail(attributeResolverPort.failure([makeSubjectId("u"), "standing"], "down")));
     await settledAt((r) => AsyncResult.isFailure(r) && !r.waiting);
     row("re-check failed after allow");
     registry.set(atoms.invalidate, undefined);
@@ -237,7 +238,7 @@ describe("outcomeOf", () => {
   });
 });
 
-const cause: EvaluationError = new AttributeResolveError({ attribute: "standing", cause: "down" });
+const cause: EvaluationError = attributeResolverPort.failure([makeSubjectId("u"), "standing"], "down");
 
 const decisionArbitrary: FastCheck.Arbitrary<ClientDecision> = FastCheck.constantFrom<
   ClientDecision

@@ -2,49 +2,41 @@ import "server-only";
 /**
  * Everything the server's evaluations run in, and everything the dock reads.
  *
- * The sink is `decisionSinkAll([ring, feed])` rather than two merged layers, and
- * that is not a style choice: merging two `Layer`s for one service makes the
- * later simply win and the first silently see nothing
- * ([BEH-QD-187](../../../../spec/behaviors/24-decision-sink.md)). Both are
- * wanted — the ring answers `/api/backlog` for the past, the feed answers
- * `/__decisions` for what happens next.
+ * **One decision log is the sink, the backlog and the feed.** Evaluations record
+ * into `log.layer`; `/__decisions` serves the log — what it already holds, then
+ * what it decides next — and `/__decisions/backlog` serves the past as JSON.
+ * The environment is stated once, here: every record the dock receives from
+ * this process arrives labelled `Server` because this line says so, not because
+ * the dock does.
  *
  * Pinned to `globalThis` rather than to module scope, and that is not belt and
  * braces. A Route Handler and a Server Component are **different module graphs**
  * in Next 16: two pages share a module-scope value and `app/api/…/route.ts` does
- * not, so a ring declared here plainly would become two — the pages filling one
+ * not, so a log declared here plainly would become two — the pages filling one
  * and `/__decisions` streaming the other. See `processGlobal.ts`.
  *
  * One per process, and deliberately so: building it per request would give every
- * page an empty log. The consequence is that the ring and the counters are
+ * page an empty log. The consequence is that the log and the counters are
  * **process-wide** — every user's decisions, every request's — which is what the
  * dock's hydration panel already says of itself and what `/edge/double-count`
  * exists to make concrete.
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import {
-  decisionCacheLayer,
-  decisionSinkAll,
-  decisionSinkFeed,
-  decisionSinkRing,
-  EvaluationIdLive,
-} from "@qadi/core";
+import { decisionCacheLayer, EvaluationIdLive, makeDecisionLog } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
-import { feedOnce, portCallsOnce, ringOnce } from "./processGlobal.ts";
+import { logOnce, portCallsOnce } from "./processGlobal.ts";
 import { ports } from "./ports.ts";
 
-/** Where this process's decisions are, for a reader arriving after the fact. */
-export const ring = ringOnce(() => decisionSinkRing({ environment: "Server", capacity: 500 }));
-
 /**
- * Where this process's decisions go, for a reader watching.
+ * This process's decisions: where they go, and where a reader finds them.
  *
- * `replay: 32` so a devtools page opened mid-session sees the last few rather
- * than an empty table until the next click. `runSync` is safe here because
- * `decisionSinkFeed` only allocates — it performs no I/O and cannot suspend.
+ * A dock opened mid-session receives every retained record before the live
+ * ones, not a replay window's worth. `runSync` is safe here because
+ * `makeDecisionLog` only reads the clock and allocates — it performs no I/O and
+ * cannot suspend.
  */
-export const feed = feedOnce(() => Effect.runSync(decisionSinkFeed({ capacity: 256, replay: 32 })));
+export const log = logOnce(() => Effect.runSync(makeDecisionLog({ environment: "Server", capacity: 500 })));
 
 /**
  * The tracer that records what each port was asked.
@@ -60,6 +52,6 @@ export const AppLayer = Layer.mergeAll(
   ports,
   EvaluationIdLive,
   decisionCacheLayer({ capacity: 512 }),
-  decisionSinkAll([ring.layer, feed.layer]),
+  log.layer,
   portCalls.layer,
 );

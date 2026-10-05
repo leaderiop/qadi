@@ -71,6 +71,7 @@ import {
   AttributeResolverNone, EvaluationIdLive, RelationshipResolverNever, allOf, anyOf,
   check, currentSubjectLayer, decisionHistoryFromEvents, eq, hasActed, hasNotActed,
   hasResourceAttribute, hasRole, labeled, literal, makeSubject,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -94,10 +95,8 @@ const engaged = decisionHistoryFromEvents([
 ]);
 
 const services = Layer.mergeAll(
+  portsLayer({ DecisionHistory: engaged }),
   currentSubjectLayer(makeSubject({ id: "an-1", roles: ["analyst"] })),
-  engaged,
-  AttributeResolverNone,
-  RelationshipResolverNever,
   EvaluationIdLive,
 );
 
@@ -128,6 +127,7 @@ import {
   AttributeResolverNone, DecisionHistoryUnknown, EvaluationIdLive, allOf, anyOf, check,
   currentSubjectLayer, eq, hasRelationship, hasResourceAttribute, hasRole, labeled,
   literal, makeSubject, relationshipResolverFromEdges, subject,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -155,14 +155,11 @@ const analyst = makeSubject({
   attributes: { wall: { "retail-banking": "bank-b" } },
 });
 const services = Layer.mergeAll(
-  AttributeResolverNone,
-  relationshipResolverFromEdges([
-    { subjectId: "an-1", relation: "engaged-with", resourceId: "obj-b1" },
-  ]),
-  // Present even though no branch reads history: `EvaluationServices` requires
-  // the port unconditionally, and omitting it leaves a residual requirement that
-  // only surfaces when something runs the program.
-  DecisionHistoryUnknown,
+  portsLayer({
+    RelationshipResolver: relationshipResolverFromEdges([
+      { subjectId: "an-1", relation: "engaged-with", resourceId: "obj-b1" },
+    ]),
+  }),
   EvaluationIdLive,
   currentSubjectLayer(analyst),
 );

@@ -1,12 +1,6 @@
 import {
-  AttributeResolver,
-  AttributeResolveError,
-  CustomPredicateNone,
-  SignatureHistoryNone,
   EvaluationIdLive,
-  DecisionHistoryUnknown,
   EvaluationServicesNone,
-  RelationshipResolverNever,
   eq,
   hasAttribute,
   literal,
@@ -15,9 +9,12 @@ import {
   makeSubject,
   permission,
   renderTrace,
+  portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
-import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { assert, afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -113,15 +110,10 @@ describe("Can / Cannot", () => {
     // hand it — so it renders nothing, which is still closed.
     const failing = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+        portsLayer({
+          AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     );
     const needsAttribute = hasAttribute("dept", eq(literal("legal")));
@@ -208,15 +200,10 @@ describe("hooks", () => {
     // this suite rather than only a `useDecision`-level one.
     const failing = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+        portsLayer({
+          AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
     );
     const needsAttribute = hasAttribute("dept", eq(literal("legal")));

@@ -166,3 +166,14 @@ commonest branch, and would make the span disagree with the metric about what a
 
 **Recording the resolved value.** The obvious next request, and the reason
 INV-QD-044 is written down rather than left to judgement.
+
+## Amendment (2026-10-05, CCR-QD-177)
+
+Every retrying wrapper annotates `qadi.attempts` on the caller's span, not only
+`attributeResolverRetrying`: `relationshipResolverRetrying` and
+`customPredicateRetrying` retried silently, though the latter's doc said it mirrored
+the attribute wrapper exactly. All retrying wrappers — five now — share one
+implementation. The port span names (`qadi.attribute`, `qadi.acted`,
+`qadi.hasRelationship`, `qadi.hasCustom`, `qadi.hasSignature`) are unchanged; they
+are read from each port's description (`span`) rather than spelled as literals
+([ADR-QD-094](./094-a-port-is-described-once.md)).

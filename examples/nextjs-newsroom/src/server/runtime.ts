@@ -5,7 +5,7 @@ import "server-only";
  * **Pinned to `globalThis`, and it is load-bearing.** Next's dev server
  * re-evaluates module graphs on every edit, so a plain module-scope
  * `ManagedRuntime.make` gives you a second runtime — a second decision cache, a
- * second sink, a second ring — while the first is still referenced by whatever
+ * second sink, a second log — while the first is still referenced by whatever
  * imported it earlier. The symptom is a devtools log that goes empty after a hot
  * reload and a cache that never hits, which reads as a Qadi bug and is not one.
  *
@@ -17,7 +17,7 @@ import "server-only";
  *
  * Disposed on SIGINT and SIGTERM. Neither fires in a serverless invocation,
  * which is why `/api/edge` uses a forwarding sink instead of relying on
- * teardown: a ring in a process that ends without notice takes its records with
+ * teardown: a log in a process that ends without notice takes its records with
  * it ([ADR-QD-045](../../../../spec/decisions/045-the-topology-is-a-choice-of-sink.md)).
  */
 import * as Effect from "effect/Effect";

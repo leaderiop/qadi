@@ -5,10 +5,9 @@ import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import * as Tracer from "effect/Tracer";
 import * as FastCheck from "fast-check";
-import { AttributeResolver } from "../src/AttributeResolver.ts";
+import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolver.ts";
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { isAllowed } from "../src/Decision.ts";
-import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -21,6 +20,8 @@ import {
   filterSubjectsStream,
 } from "../src/SubjectSet.ts";
 import { collectingTracer, subjectSetLayer, subjectWith, testLayer } from "./helpers.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { PortReply } from "../src/PortDescription.ts";
 
 const read = permission("doc", "read");
 const canRead = P.hasPermission(read);
@@ -189,7 +190,7 @@ describe("INV-QD-016: a batch decision is the decision made alone", () => {
       const { subjects: allowed } = yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
         nobody("cleared"),
         nobody("uncleared"),
-      ]).pipe(Effect.provide(subjectSetLayer({ attributes: recording })));
+      ]).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: recording })));
 
       assert.deepStrictEqual(asked, ["cleared/level", "uncleared/level"]);
       assert.deepStrictEqual(ids(allowed), ["cleared"]);
@@ -383,18 +384,15 @@ describe("request inputs and failures", () => {
         // both properties: the failing subject's `EvaluationError` never
         // becomes a `Deny` (it is not even a member of `decisions`), and the
         // subjects whose lookups succeeded still get a real decision.
-        const broken = Layer.succeed(AttributeResolver, {
-          resolve: (subjectId: string, attribute) =>
-            subjectId === "b"
-              ? Effect.fail(new AttributeResolveError({ attribute, cause: "down" }))
-              : Effect.succeed(9),
-        });
+        const broken = scriptedPort(attributeResolverPort, (subjectId) =>
+          subjectId === "b" ? PortReply.fail("down") : PortReply.answer(9),
+          ).layer;
 
         const outcome = yield* decideSubjects(P.hasAttribute("level", M.gte(3)), [
           nobody("a"),
           nobody("b"),
           nobody("c"),
-        ]).pipe(Effect.provide(subjectSetLayer({ attributes: broken })));
+        ]).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: broken })));
 
         assert.deepStrictEqual(
           outcome.decisions.map((d) => d.subject.id),
@@ -411,17 +409,14 @@ describe("request inputs and failures", () => {
 
   it.effect("filterSubjects carries the same failure forward, alongside the subjects it kept", () =>
     Effect.gen(function* () {
-      const broken = Layer.succeed(AttributeResolver, {
-        resolve: (subjectId: string, attribute) =>
-          subjectId === "b"
-            ? Effect.fail(new AttributeResolveError({ attribute, cause: "down" }))
-            : Effect.succeed(9),
-      });
+      const broken = scriptedPort(attributeResolverPort, (subjectId) =>
+        subjectId === "b" ? PortReply.fail("down") : PortReply.answer(9),
+        ).layer;
 
       const { subjects: allowed, failures } = yield* filterSubjects(
         P.hasAttribute("level", M.gte(3)),
         [nobody("a"), nobody("b"), nobody("c")],
-      ).pipe(Effect.provide(subjectSetLayer({ attributes: broken })));
+      ).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: broken })));
 
       assert.deepStrictEqual(ids(allowed), ["a", "c"]);
       assert.deepStrictEqual(
@@ -451,34 +446,28 @@ describe("request inputs and failures", () => {
       yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
         nobody("a"),
         nobody("b"),
-      ]).pipe(Effect.provide(subjectSetLayer({ attributes: slow })));
+      ]).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: slow })));
 
       assert.deepStrictEqual(log, ["start:a", "end:a", "start:b", "end:b"]);
     }));
 
   it.effect("does not stop at the first failing element — every element still runs", () =>
     Effect.gen(function* () {
-      let calls = 0;
-      const brokenAfterFirst = Layer.succeed(AttributeResolver, {
-        resolve: (subjectId, attribute) => {
-          calls += 1;
-          return subjectId === "a"
-            ? Effect.succeed(9)
-            : Effect.fail(new AttributeResolveError({ attribute, cause: "down" }));
-        },
-      });
+      const brokenAfterFirst = scriptedPort(attributeResolverPort, (subjectId) =>
+        subjectId === "a" ? PortReply.answer(9) : PortReply.fail("down"),
+      );
 
       yield* filterSubjects(P.hasAttribute("level", M.gte(3)), [
         nobody("a"),
         nobody("b"),
         nobody("c"),
-      ]).pipe(Effect.provide(subjectSetLayer({ attributes: brokenAfterFirst })));
+      ]).pipe(Effect.provide(subjectSetLayer({ AttributeResolver: brokenAfterFirst.layer })));
 
       // All three, not two: `Effect.partition` runs every element regardless
       // of an earlier one's failure, which is the whole point of this
       // rewrite (issue #107) — the third element is no longer skipped just
       // because the second one broke.
-      assert.strictEqual(calls, 3);
+      assert.strictEqual(brokenAfterFirst.calls.length, 3);
     }));
 });
 
@@ -569,7 +558,7 @@ describe("decideSubjectsStream", () => {
         decideSubjectsStream(
           P.hasAttribute("level", M.gte(3)),
           Stream.fromIterable([nobody("a"), nobody("b")]),
-        ).pipe(Stream.provide(subjectSetLayer({ attributes: slow }))),
+        ).pipe(Stream.provide(subjectSetLayer({ AttributeResolver: slow }))),
       );
 
       assert.deepStrictEqual(log, ["start:a", "end:a", "start:b", "end:b"]);
@@ -580,17 +569,14 @@ describe("decideSubjectsStream", () => {
       // Mirrors the array form's "a resolver failure fails the batch rather
       // than denying an element": the streamed sibling must not silently
       // swallow the failure into an empty or partial result.
-      const broken = Layer.succeed(AttributeResolver, {
-        resolve: (_subjectId, attribute) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-      });
+      const broken = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
 
       const r = yield* Effect.result(
         Stream.runCollect(
           decideSubjectsStream(
             P.hasAttribute("level", M.gte(3)),
             Stream.fromIterable([nobody("a"), nobody("b")]),
-          ).pipe(Stream.provide(subjectSetLayer({ attributes: broken }))),
+          ).pipe(Stream.provide(subjectSetLayer({ AttributeResolver: broken }))),
         ),
       );
 
@@ -610,19 +596,16 @@ describe("decideSubjectsStream", () => {
         // genuinely produced before the failure, and the stream still fails
         // outright rather than surfacing that partial progress to the caller.
         const observed: Array<string> = [];
-        const broken = Layer.succeed(AttributeResolver, {
-          resolve: (subjectId: string, attribute) =>
-            subjectId === "b"
-              ? Effect.fail(new AttributeResolveError({ attribute, cause: "down" }))
-              : Effect.succeed(9),
-        });
+        const broken = scriptedPort(attributeResolverPort, (subjectId) =>
+          subjectId === "b" ? PortReply.fail("down") : PortReply.answer(9),
+          ).layer;
 
         const r = yield* Effect.result(
           Stream.runForEach(
             decideSubjectsStream(
               P.hasAttribute("level", M.gte(3)),
               Stream.fromIterable([nobody("a"), nobody("b"), nobody("c")]),
-            ).pipe(Stream.provide(subjectSetLayer({ attributes: broken }))),
+            ).pipe(Stream.provide(subjectSetLayer({ AttributeResolver: broken }))),
             (decision) => Effect.sync(() => observed.push(decision.subject.id)),
           ),
         );

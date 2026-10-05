@@ -9,9 +9,6 @@
  */
 import {
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   EvaluationServicesNone,
   eq,
@@ -21,7 +18,7 @@ import {
   literal,
   makeSubject,
   permission,
-  RelationshipResolverNever,
+  portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -135,19 +132,17 @@ describe("instrumented, a guard says it exists", () => {
     // millisecond and only ever observe the before and after.
     let release: ((value: string) => void) | undefined;
     const controlled = Layer.mergeAll(
-      Layer.succeed(AttributeResolver, {
-        resolve: (_id: unknown, attribute: string) =>
-          attribute === "standing"
-            ? Effect.promise(
-                () => new Promise<string | undefined>((resolve) => (release = resolve)),
-              )
-            : Effect.succeed(undefined),
+      portsLayer({
+        AttributeResolver: Layer.succeed(AttributeResolver, {
+          resolve: (_id: unknown, attribute: string) =>
+            attribute === "standing"
+              ? Effect.promise(
+                  () => new Promise<string | undefined>((resolve) => (release = resolve)),
+                )
+              : Effect.succeed(undefined),
+        }),
       }),
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
-      CustomPredicateNone,
-      SignatureHistoryNone,
     );
     const set = makeQadiAtoms(controlled);
     current = set;

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-30                                    |
-> | Revision       | 1.2                                            |
-> | Effective Date | 2026-10-04                                     |
+> | Revision       | 1.3                                            |
+> | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 _Previous: [29 — The Subject Simulator](./29-devtools-simulator.md)_
 
@@ -33,6 +33,11 @@ the **port name** for cardinality, so an attribute name could never live in it.
 "qadi.hasCustom"        // qadi.custom_predicate, qadi.subject_id, qadi.interpreter, qadi.answer
 "qadi.hasSignature"     // qadi.subject_id, qadi.meaning, qadi.scope, qadi.signer_role, qadi.resource_id, qadi.interpreter, qadi.matched
 ```
+
+Each name is its port's description's `span` — a member of the closed
+`PortSpanName` — and both `PortAccess.ts`, which opens the span, and
+`@qadi/devtools`' `collectPortCalls`, which keeps it, read it there, so the two
+cannot name different spans ([ADR-QD-094](../decisions/094-a-port-is-described-once.md)).
 
 `qadi.interpreter` is `"evaluate"` or `"toPredicate"` (a closed pair): the span
 says which interpreter asked. `qadi.hasRelationship`, `qadi.hasCustom` and
@@ -187,3 +192,12 @@ REQUIREMENT: An absent collector MUST be named, not left blank.
 
 A card with no call list looks exactly like a port nothing asked — the two being
 the difference between a finding and a missing layer.
+
+```
+REQUIREMENT: A port's card MUST show its timeouts (`qadi_port_timeouts_total`)
+             beside its retries when there were any, and a port reached only by
+             a timeout MUST still appear.
+```
+
+With every port able to carry a deadline, a timeout is the signal that tells a
+slow store from a down one; until ARCH-10 nothing read the metric at all.

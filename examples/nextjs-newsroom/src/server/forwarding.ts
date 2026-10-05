@@ -9,9 +9,11 @@
  * on a network failure, so an aggregator answering 500 looks identical to one
  * that answered 204. `HttpClient.filterStatusOk` is what closes that gap — it
  * turns a non-2xx response into a typed `HttpClientError`, which flows
- * straight into `send`'s `(encoded: unknown) => Effect.Effect<void, unknown>`
+ * straight into `send`'s `(encoded: SinkRecordJson) => Effect.Effect<void, unknown>`
  * without any change to that seam (ADR-QD-064: `@qadi/core` stays
- * transport-agnostic).
+ * transport-agnostic). `encoded` is already verified to round-trip, so
+ * `bodyJson` cannot fail on it; a record that could not be encoded never
+ * reaches `send` and arrives at `onFailure` as a `SinkRecordNotEncodable`.
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -32,7 +34,7 @@ const INGEST_PATH = "/api/aggregator/ingest";
  */
 export const forwardingSink = (options: {
   readonly origin: string;
-  /** Called when a record could not be delivered, or was rejected. */
+  /** Called when a record could not be encoded, delivered, or was rejected. */
   readonly onFailure?: (error: unknown) => void;
 }): Layer.Layer<DecisionSink> =>
   decisionSinkForwarding({

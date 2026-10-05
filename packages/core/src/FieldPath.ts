@@ -5,7 +5,7 @@
  * *means*, not a new shape crossing the wire. `FieldOptions.fields` stays
  * `ReadonlyArray<string>` in `Policy.ts` — nothing here is `Schema`-encoded,
  * and nothing here is exported from `index.ts`'s barrel, for the same reason
- * `RetryingLayer.ts` isn't (`PortMetrics.ts` *is* barrel-exported — citing it
+ * `PortDerivation.ts` isn't (`PortMetrics.ts` *is* barrel-exported — citing it
  * here as a like-for-like exclusion was stale): this is machinery
  * `Decision.ts` calls, not a public surface of its own.
  *
@@ -279,7 +279,7 @@ const starOneView = (child: unknown): unknown => (isPlainObject(child) ? {} : ch
  * empty, its own contents one level beyond what `"*"` reaches.
  *
  * **Walks with an explicit array-backed stack, mirroring `exceedsJsonDepth`
- * (`DecodeDepthGuard.ts`) and `SinkCodec.ts`'s `isJsonSafe`, rather than
+ * (`DecodeDepthGuard.ts`) and `SinkCodec.ts`'s outbound walk, rather than
  * recursing.** This was function-call recursion, one frame per matching
  * segment, over two inputs a policy author controls: a `fields` spec, which
  * {@link parseFieldPath} splits with no length cap, and the resource it

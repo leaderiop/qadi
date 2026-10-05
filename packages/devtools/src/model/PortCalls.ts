@@ -26,6 +26,8 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Tracer from "effect/Tracer";
+import { forEveryPort } from "@qadi/core";
+import type { PortSpanName } from "@qadi/core";
 
 /** The five ports an evaluation can touch, named as `wiringReport` names them. */
 export type PortCallPort = PortCall["_tag"];
@@ -41,15 +43,14 @@ export type PortCallPort = PortCall["_tag"];
  * Narrowing the name once makes `rowOf` exhaustive, so a sixth span is a
  * compile error rather than a blank row.
  */
-const PORT_SPANS = [
-  "qadi.attribute",
-  "qadi.acted",
-  "qadi.hasRelationship",
-  "qadi.hasCustom",
-  "qadi.hasSignature",
-] as const;
+const PORT_SPANS: ReadonlyArray<PortSpanName> = forEveryPort((d) => d.span);
 
-type PortSpan = (typeof PORT_SPANS)[number];
+/**
+ * Every span a port read opens — `@qadi/core`'s `PortSpanName`, which each
+ * port's description names (BEH-QD-227). Read from there rather than listed
+ * here, so the collector and `PortAccess.ts` cannot name different spans.
+ */
+type PortSpan = PortSpanName;
 
 const isPortSpan = (name: string): name is PortSpan =>
   PORT_SPANS.some((one) => one === name);
@@ -202,7 +203,7 @@ export interface PortCallCollector {
  * A tracer that records the five port spans and passes everything through.
  *
  * State lives in this function's closure rather than the layer's, so `snapshot`
- * can read what the layer wrote — the arrangement `decisionSinkRing` and
+ * can read what the layer wrote — the arrangement a decision log and
  * `capturing` both use, and the reason providing the returned layer twice shares
  * one log.
  */

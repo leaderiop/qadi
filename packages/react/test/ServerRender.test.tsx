@@ -19,12 +19,8 @@
 import {
   Allow,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
   EvaluationServicesNone,
-  RelationshipResolverNever,
   eq,
   hasAttribute,
   hasPermission,
@@ -33,6 +29,7 @@ import {
   makeSubject,
   makeSubjectId,
   permission,
+  portsLayer,
 } from "@qadi/core";
 import type { AuthSubject, Trace } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -67,14 +64,12 @@ const needsAttribute = hasAttribute("tier", eq(literal("gold")));
 
 const slow = makeQadiAtoms(
   Layer.mergeAll(
-    Layer.succeed(AttributeResolver, {
-      resolve: () => Effect.delay(Effect.succeed("gold"), "1 millis"),
+    portsLayer({
+      AttributeResolver: Layer.succeed(AttributeResolver, {
+        resolve: () => Effect.delay(Effect.succeed("gold"), "1 millis"),
+      }),
     }),
-    RelationshipResolverNever,
-    DecisionHistoryUnknown,
     EvaluationIdLive,
-    CustomPredicateNone,
-    SignatureHistoryNone,
   ),
 );
 

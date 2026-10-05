@@ -85,39 +85,41 @@ reach back and alter the decision it was just given
 A cache hit doesn't skip the sink either — the trace was reused, but the
 sink still receives a full record for that call.
 
-Three implementations, composable through `decisionSinkAll`:
+Two implementations, composable through `decisionSinkAll`:
 
-- **`decisionSinkRing`** — a bounded, in-memory log (default capacity 500,
-  oldest dropped first) that a devtools overlay reads directly via
-  `snapshot`. Bounded by default, unlike the cache: a record log is by
-  nature long-lived, so an unbounded default would leak.
+- **`makeDecisionLog`** — one bounded, in-memory log (default capacity 500,
+  oldest arrival dropped first) that is the sink, the backlog and the live
+  stream at once. A devtools reader takes one scoped `read` — what the log
+  already holds, then what it decides next, each record exactly once — and
+  `/__decisions` serves the same `read` over SSE. Publishing to live readers
+  never blocks: a slow or absent reader costs the evaluation nothing. Bounded
+  by default, unlike the cache: a record log is by nature long-lived, so an
+  unbounded default would leak.
 - **`decisionSinkForwarding`** — projects each record onto the wire and
   hands it to a caller-supplied `send`. `send` must return promptly — it
   runs inside the evaluation itself — and a delivery failure is reported and
-  swallowed, never raised, for the same INV-QD-035 reason.
-- **`decisionSinkFeed`** — buffers records in a sliding `PubSub` and exposes
-  them as a `Stream`, the shape an SSE route or socket drains at its own
-  pace. Publishing never blocks and never fails: a slow or absent reader
-  costs the evaluation nothing.
+  swallowed, never raised, for the same INV-QD-035 reason. The receiving
+  process `ingest`s it into its own log, under the sender's label.
 
 ```typescript
 import * as Effect from "effect/Effect";
-import { decisionSinkRing, evaluate } from "@qadi/core";
+import { evaluate, makeDecisionLog } from "@qadi/core";
 
 declare const policy: import("@qadi/core").Policy;
 
-const sink = decisionSinkRing({ environment: "Server" });
-
 const recordTwo = Effect.gen(function* () {
-  yield* evaluate(policy);
-  yield* evaluate(policy);
-  return yield* sink.snapshot; // 2 records, one per call
-}).pipe(Effect.provide(sink.layer));
+  const log = yield* makeDecisionLog({ environment: "Server" });
+  yield* Effect.gen(function* () {
+    yield* evaluate(policy);
+    yield* evaluate(policy);
+  }).pipe(Effect.provide(log.layer));
+  return yield* log.snapshot; // 2 records, one per call
+});
 ```
 
 For the cache's concurrency-coalescing guarantees, the sink's exhaustive
-`Decision | Obligations` record shape, and the streaming route built on
-`decisionSinkFeed`, see
+`Decision | Obligations` record shape, and the streaming route that serves a
+decision log, see
 [21 — Decision Cache](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/21-decision-cache.md),
 [24 — Decision Sink](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/24-decision-sink.md), and
 [26 — Decision Stream](https://github.com/leaderiop/qadi/blob/main/spec/behaviors/26-decision-stream.md).

@@ -6,16 +6,11 @@
  */
 import {
   Allow,
-  AttributeResolveError,
   AttributeResolver,
-  CustomPredicateNone,
-  SignatureHistoryNone,
-  DecisionHistoryUnknown,
   Deny,
   EvaluationIdLive,
   EvaluationServicesNone,
   MAX_DECODE_DEPTH,
-  RelationshipResolverNever,
   eq,
   hasAttribute,
   hasPermission,
@@ -25,6 +20,10 @@ import {
   makeSubjectId,
   obligation,
   permission,
+  portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -490,7 +489,7 @@ describe("hydrateDecisions", () => {
   // nested past the call stack's limit raised a raw `RangeError` defect here
   // instead of the fail-closed "drop the entry" every other malformed-payload
   // path in this module gets — the exact gap `Policy.ts`'s own
-  // `fromJson`/`fromJsonValue` and `SinkCodec.ts`'s `decodeRecordWire` guard
+  // `fromJson`/`fromJsonValue` and `SinkCodec.ts`'s `decodeSinkRecord` guard
   // against, and this module's own doc comments named as "tracked separately".
   it("drops an entry nested past MAX_DECODE_DEPTH rather than raising a raw RangeError", () => {
     let policy: unknown = { _tag: "HasRole", role: "x" };
@@ -858,15 +857,10 @@ describe("hydration mismatch", () => {
     const seen: Array<HydrationMismatch> = [];
     const failing = makeQadiAtoms(
       Layer.mergeAll(
-        Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
+        portsLayer({
+          AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
         }),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );
@@ -1129,12 +1123,8 @@ describe("a re-check that settles asynchronously", () => {
     const seen: Array<HydrationMismatch> = [];
     const watched = makeQadiAtoms(
       Layer.mergeAll(
-        slowResolver(answer),
-        RelationshipResolverNever,
-        DecisionHistoryUnknown,
+        portsLayer({ AttributeResolver: slowResolver(answer) }),
         EvaluationIdLive,
-        CustomPredicateNone,
-        SignatureHistoryNone,
       ),
       { onHydrationMismatch: (m) => seen.push(m) },
     );

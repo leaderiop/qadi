@@ -102,10 +102,7 @@ the whole of the rule.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   anyOf,
   currentSubjectLayer,
@@ -115,6 +112,7 @@ import {
   hasResourceAttribute,
   inArray,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 // A type alias, not an interface: `enforceProjected` requires
@@ -156,13 +154,11 @@ const program = loadReport("rpt-1").pipe(
   }),
   Effect.provide(
     Layer.mergeAll(
+      portsLayer(),
       currentSubjectLayer(
         makeSubject({ id: "u-4", attributes: { clearanceLevel: 2 } }),
       ),
-      AttributeResolverNone,
-      RelationshipResolverNever,
       EvaluationIdLive,
-      DecisionHistoryUnknown,
     ),
   ),
 );

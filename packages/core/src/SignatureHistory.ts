@@ -23,12 +23,18 @@
  * `scope: "resource" | "subject"` split, mirrored from `HasActed`/
  * `HasNotActed` rather than inventing a second concept.
  */
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
+import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import type { SignatureHistoryUnavailable } from "./Errors.ts";
+import type * as Schedule from "effect/Schedule";
+import { SignatureHistoryUnavailable } from "./Errors.ts";
+import type { InvalidBoundedPermits } from "./Errors.ts";
 import { makeSubjectId } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
+import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
+import type { PortDescription } from "./PortDescription.ts";
 import type { Signature } from "./Signature.ts";
 
 export interface SignatureQuery {
@@ -63,17 +69,58 @@ export class SignatureHistory extends Context.Service<
 }
 
 /**
+ * The fail-closed answer: no signatures. Frozen, because one array is shared
+ * by every call that gets it — a caller pushing onto the answer must not
+ * change what the next caller is told.
+ */
+const NO_SIGNATURES: ReadonlyArray<Signature> = Object.freeze([]);
+
+/**
+ * The signature-history port, described once (`PortDescription.ts`).
+ *
+ * A request is keyed by `(subjectId, resourceId)`, with an absent resource as
+ * `null` — the same pair `signatureHistoryFromSignatures` groups by.
+ */
+export const signatureHistoryPort: PortDescription<
+  "SignatureHistory",
+  SignatureHistory,
+  SignatureHistoryShape,
+  [query: SignatureQuery],
+  ReadonlyArray<Signature>,
+  SignatureHistoryUnavailable
+> = {
+  port: "SignatureHistory",
+  method: "signaturesFor",
+  span: "qadi.hasSignature",
+  service: SignatureHistory,
+  invoke: (shape) => (query) => shape.signaturesFor(query),
+  make: (name, call) => ({ name, signaturesFor: call }),
+  failure: ([query], cause) =>
+    new SignatureHistoryUnavailable({
+      subjectId: query.subjectId,
+      resourceId: query.resourceId,
+      cause,
+    }),
+  defect: ([query], cause) =>
+    new SignatureHistoryUnavailable({
+      subjectId: query.subjectId,
+      resourceId: query.resourceId,
+      cause: Cause.squash(cause),
+    }),
+  key: ([query]) => JSON.stringify([query.subjectId, query.resourceId ?? null]),
+  none: { name: "SignatureHistoryNone", answer: NO_SIGNATURES },
+};
+
+/**
  * Knows of no signatures, so every `hasSignature` policy denies.
  *
  * The default. Unlike `DecisionHistoryUnknown`, no polarity argument applies
  * here — `hasSignature` has no `hasNotSigned` counterpart the way
  * `HasActed`/`HasNotActed` do, so an empty list denying is unambiguous
- * (INV-QD-007: defaults fail closed).
+ * (INV-QD-007: defaults fail closed). Derived from
+ * {@link signatureHistoryPort}'s `none` (ADR-QD-040).
  */
-export const SignatureHistoryNone: Layer.Layer<SignatureHistory> = Layer.succeed(
-  SignatureHistory,
-  { name: "SignatureHistoryNone", signaturesFor: () => Effect.succeed([]) },
-);
+export const SignatureHistoryNone: Layer.Layer<SignatureHistory> = nonePort(signatureHistoryPort);
 
 /**
  * One fixture signature, in the form a form or a test literal produces.
@@ -147,3 +194,39 @@ export const signatureHistoryFromSignatures = (
       ]),
   });
 };
+
+/**
+ * Wraps a signature-history layer so every `signaturesFor` call retries on
+ * `SignatureHistoryUnavailable` under the given schedule before surfacing it —
+ * `attributeResolverRetrying` for this port: it annotates `qadi.attempts` on
+ * the caller's span and counts failed attempts in `portRetriesTotal`. Derived
+ * from {@link signatureHistoryPort} by `PortDerivation.ts`'s `retryingPort`.
+ */
+export const signatureHistoryRetrying: (
+  schedule: Schedule.Schedule<unknown, SignatureHistoryUnavailable>,
+) => (layer: Layer.Layer<SignatureHistory>) => Layer.Layer<SignatureHistory> =
+  retryingPort(signatureHistoryPort);
+
+/**
+ * Wraps a signature-history layer so no more than `permits` calls to
+ * `signaturesFor` run at once, queuing the rest — `attributeResolverBounded`
+ * for this port. `permits` that is not a positive integer fails construction
+ * with `InvalidBoundedPermits`.
+ */
+export const signatureHistoryBounded: (
+  permits: number,
+) => (
+  layer: Layer.Layer<SignatureHistory>,
+) => Layer.Layer<SignatureHistory, InvalidBoundedPermits> = boundedPort(signatureHistoryPort);
+
+/**
+ * Wraps a signature-history layer so a `signaturesFor` call that does not
+ * settle within `duration` fails with a typed `SignatureHistoryUnavailable`
+ * instead of holding its caller open — `attributeResolverTimingOut` for this
+ * port (see its doc comment for the composition order) — and counts in
+ * `portTimeoutsTotal`.
+ */
+export const signatureHistoryTimingOut: (
+  duration: Duration.Input,
+) => (layer: Layer.Layer<SignatureHistory>) => Layer.Layer<SignatureHistory> =
+  timingOutPort(signatureHistoryPort);

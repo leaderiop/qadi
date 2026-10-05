@@ -160,16 +160,14 @@ concurrency too, and is never turned into a `Deny`.
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import {
-  AttributeResolverNone,
-  DecisionHistoryUnknown,
   EvaluationIdLive,
-  RelationshipResolverNever,
   allOf,
   check,
   currentSubjectLayer,
   hasRelationship,
   hasRole,
   makeSubject,
+  portsLayer,
 } from "@qadi/core";
 
 // Three independent relationship branches against a remote graph store. Sequential
@@ -187,10 +185,8 @@ const program = check(canAdminister, {
 }).pipe(
   Effect.provide(
     Layer.mergeAll(
+      portsLayer(),
       currentSubjectLayer(makeSubject({ id: "u-1", roles: ["staff"] })),
-      AttributeResolverNone,
-      RelationshipResolverNever,
-      DecisionHistoryUnknown,
       EvaluationIdLive,
     ),
   ),

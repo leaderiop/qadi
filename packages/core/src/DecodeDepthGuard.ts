@@ -7,7 +7,7 @@
  * `RangeError` mid-decode — confirmed empirically at 60,000 levels — rather
  * than a typed `Effect` failure. `Policy.ts`'s `fromJson`/`fromJsonValue` were
  * the first callers to guard against this (the 0.4.0 hardening), and
- * `SinkCodec.ts`'s `decodeRecordWire` needed the identical guard for the two
+ * `SinkCodec.ts`'s `decodeSinkRecord` needed the identical guard for the two
  * recursive positions it embeds — `Policy` itself, and the self-recursive
  * `TraceSchema` — since neither is bounded on its own.
  *

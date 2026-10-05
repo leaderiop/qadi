@@ -24,10 +24,7 @@ import {
   anyOf,
   AttributeResolveError,
   AttributeResolver,
-  AttributeResolverNone,
   currentSubjectLayer,
-  CustomPredicateNone,
-  DecisionHistoryUnknown,
   evaluate,
   evaluationIdSequential,
   gte,
@@ -35,10 +32,12 @@ import {
   hasRelationship,
   hasRole,
   makeSubject,
-  RelationshipResolverNever,
   relationshipResolverFromEdges,
-  SignatureHistoryNone,
   toPredicate,
+  portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import type { Decision, EvaluationError, Policy, RelationshipResolver } from "@qadi/core";
 import { collectPortCalls } from "@qadi/devtools";
@@ -77,8 +76,9 @@ interface PortCallsWorldState {
   readonly subjectAttributes: Record<string, unknown>;
   readonly subjectRoles: ReadonlyArray<string>;
   readonly subjectId: string;
-  readonly attributes: Layer.Layer<AttributeResolver>;
-  readonly relationships: Layer.Layer<RelationshipResolver>;
+  /** `undefined` is the port's fail-closed default (`portsLayer`). */
+  readonly attributes: Layer.Layer<AttributeResolver> | undefined;
+  readonly relationships: Layer.Layer<RelationshipResolver> | undefined;
   readonly capacity: number | undefined;
   readonly secret: string | undefined;
   readonly hostSaw: Array<string> | undefined;
@@ -91,8 +91,8 @@ const initialState: PortCallsWorldState = {
   subjectAttributes: {},
   subjectRoles: [],
   subjectId: "alice",
-  attributes: AttributeResolverNone,
-  relationships: RelationshipResolverNever,
+  attributes: undefined,
+  relationships: undefined,
   capacity: undefined,
   secret: undefined,
   hostSaw: undefined,
@@ -154,12 +154,8 @@ const runPolicy = Effect.fn("port-calls.run")(function* (
         attributes: s.subjectAttributes,
       }),
     ),
-    s.attributes,
-    s.relationships,
-    DecisionHistoryUnknown,
+    portsLayer({ AttributeResolver: s.attributes, RelationshipResolver: s.relationships }),
     evaluationIdSequential("ev"),
-    CustomPredicateNone,
-    SignatureHistoryNone,
   );
 
   // An outer tracer that records every span, so the value-disclosure scenario
@@ -247,11 +243,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
 
   Given("a resolver that is down", function* () {
     yield* patch(() => ({
-      attributes: Layer.succeed(AttributeResolver, {
-        name: "broken",
-        resolve: (_id: string, attribute: string) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "down" })),
-      }),
+      attributes: scriptedPort(attributeResolverPort, () => PortReply.fail("down"), "broken").layer,
     }));
   });
 
@@ -260,10 +252,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   // (issue #100), not the shape any implementation is asked to produce.
   Given("a resolver that dies unexpectedly", function* () {
     yield* patch(() => ({
-      attributes: Layer.succeed(AttributeResolver, {
-        name: "dying",
-        resolve: () => Effect.die(new Error("boom")),
-      }),
+      attributes: scriptedPort(attributeResolverPort, () => PortReply.die(new Error("boom")), "dying").layer,
     }));
   });
 
