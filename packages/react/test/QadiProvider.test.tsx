@@ -1,6 +1,4 @@
 import {
-  AttributeResolver,
-  AttributeResolveError,
   EvaluationIdLive,
   EvaluationServicesNone,
   eq,
@@ -12,9 +10,11 @@ import {
   permission,
   renderTrace,
   portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
-import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { assert, afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -111,10 +111,7 @@ describe("Can / Cannot", () => {
     const failing = makeQadiAtoms(
       Layer.mergeAll(
         portsLayer({
-          AttributeResolver: Layer.succeed(AttributeResolver, {
-            resolve: () =>
-              Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
-          }),
+          AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
         }),
         EvaluationIdLive,
       ),
@@ -204,10 +201,7 @@ describe("hooks", () => {
     const failing = makeQadiAtoms(
       Layer.mergeAll(
         portsLayer({
-          AttributeResolver: Layer.succeed(AttributeResolver, {
-            resolve: () =>
-              Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
-          }),
+          AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
         }),
         EvaluationIdLive,
       ),

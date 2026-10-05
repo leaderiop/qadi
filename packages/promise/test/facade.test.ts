@@ -26,6 +26,9 @@ import {
   permission,
   relationshipResolverFromEdges,
   portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -81,10 +84,7 @@ describe("makeQadi", () => {
     // false — is what turns an attribute-store outage into a silent lockout.
     const broken = Layer.mergeAll(
       portsLayer({
-        AttributeResolver: Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.fail(new AttributeResolveError({ attribute: "clearance", cause: "down" })),
-        }),
+        AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
       }),
       EvaluationIdLive,
     );

@@ -6,7 +6,6 @@
  */
 import {
   Allow,
-  AttributeResolveError,
   AttributeResolver,
   Deny,
   EvaluationIdLive,
@@ -22,6 +21,9 @@ import {
   obligation,
   permission,
   portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -854,10 +856,7 @@ describe("hydration mismatch", () => {
     const failing = makeQadiAtoms(
       Layer.mergeAll(
         portsLayer({
-          AttributeResolver: Layer.succeed(AttributeResolver, {
-            resolve: () =>
-              Effect.fail(new AttributeResolveError({ attribute: "dept", cause: "down" })),
-          }),
+          AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer,
         }),
         EvaluationIdLive,
       ),

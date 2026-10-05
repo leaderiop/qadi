@@ -34,8 +34,6 @@ import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import * as HttpApiTest from "effect/http-api/HttpApiTest";
 import * as HttpServer from "effect/http/HttpServer";
 import {
-  AttributeResolveError,
-  AttributeResolver,
   EvaluationIdLive,
   allOf,
   gte,
@@ -47,6 +45,9 @@ import {
   permission,
   permissionKey,
   portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
 import { assert, describe, it } from "@effect/vitest";
@@ -119,12 +120,7 @@ const Api = HttpApi.make("test").add(DocumentsGroup).middleware(RequirePermissio
 // observe or interfere with each other's resolver state regardless of
 // execution order or concurrency.
 const attributeResolverTest = (down: boolean) =>
-  Layer.succeed(AttributeResolver, {
-    resolve: (_subjectId, attribute) =>
-      down
-        ? Effect.fail(new AttributeResolveError({ attribute, cause: "store down" }))
-        : Effect.succeed(undefined),
-  });
+  scriptedPort(attributeResolverPort, () => (down ? PortReply.fail("store down") : undefined)).layer;
 
 const DocumentsHandlers = HttpApiBuilder.group(Api, "documents", (handlers) =>
   handlers

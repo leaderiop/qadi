@@ -1,5 +1,4 @@
 import {
-  AttributeResolveError,
   AttributeResolver,
   EvaluationIdLive,
   eq,
@@ -16,6 +15,9 @@ import {
   permission,
   subjectId,
   portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -62,10 +64,7 @@ const working = makeQadiAtoms(
 const broken = makeQadiAtoms(
   Layer.mergeAll(
     portsLayer({
-      AttributeResolver: Layer.succeed(AttributeResolver, {
-        resolve: (_id: string, attribute: string) =>
-          Effect.fail(new AttributeResolveError({ attribute, cause: "backend down" })),
-      }),
+      AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("backend down")).layer,
     }),
     EvaluationIdLive,
   ),

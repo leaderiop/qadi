@@ -8,8 +8,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import {
   Allow,
-  AttributeResolver,
-  AttributeResolveError,
   Decided,
   DecisionRecord,
   EvaluationIdLive,
@@ -31,6 +29,9 @@ import {
   permissionKey,
   toWire,
   portsLayer,
+  scriptedPort,
+  PortReply,
+  attributeResolverPort,
 } from "@qadi/core";
 import type { AuthSubject, Trace } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -331,13 +332,10 @@ describe("reauth", () => {
           new Request("http://localhost/__decisions", { headers: bearer(ALICE) }),
         );
         const logs: Array<unknown> = [];
-        const brokenResolver = Layer.succeed(AttributeResolver, {
-          resolve: () =>
-            Effect.fail(new AttributeResolveError({ attribute: "clearance", cause: "down" })),
-        });
+        // `attributePolicy` asks for `clearance`, so the error names it.
+        const brokenResolver = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
         // Deliberately not `EvaluationServicesNone`: this test needs a broken
-        // `AttributeResolver` in place of `AttributeResolverNone`, so the other
-        // five ports are composed individually rather than through the bundle.
+        // `AttributeResolver` in its slot, every other port at its default.
         const layer = Layer.mergeAll(
           portsLayer({ AttributeResolver: brokenResolver }),
           subjectExtractorBearer(lookupSubject),
