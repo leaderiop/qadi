@@ -104,8 +104,8 @@ const Exists = Schema.TaggedStruct("Exists", {});
 // `Schema.Finite`, not `Schema.Number`: a decoded policy is untrusted JSON
 // (§7, ADR-QD-002), and JSON has no literal spelling for `Infinity` but
 // `1e400` still decodes to it (see `gte`'s doc comment below). `Schema.Number`
-// would let that bound through decode and defer entirely to
-// `evaluateMatcher`'s `Number.isFinite` runtime guard; `Schema.Finite`
+// would let that bound through decode and defer entirely to the runtime
+// finite check (`Compare.ts`'s `atLeastVerdict`/`belowVerdict`); `Schema.Finite`
 // rejects it at the trust boundary instead, the same boundary-not-runtime
 // preference `isSecurityLabel` (`SecurityLabel.ts`) makes for `level`. The
 // runtime guard stays regardless — it is still what catches a *resolved
@@ -259,8 +259,8 @@ export const exists = (): Matcher => ({ _tag: "Exists" });
  * reachable as a `SecurityLabel` level is. The **resolved attribute value**
  * cannot be schema-checked this way — it comes back from an arbitrary
  * `AttributeResolver`, not from decoding a `Matcher` — so it is still checked
- * with `Number.isFinite` at evaluation time (see `evaluateMatcher`'s `Gte`
- * case). Left unguarded there, an `Infinity`-valued attribute would dominate
+ * for finiteness at evaluation time (`Compare.ts`'s `atLeastVerdict`, which
+ * `judgeMatcher`'s `Gte` arm applies). Left unguarded there, an `Infinity`-valued attribute would dominate
  * every finite bound via `>=` — the failure mode CCR-QD-116 closed (the value
  * side was unguarded until then, so an `Infinity`-valued attribute satisfied
  * every `gte(...)` bound regardless of the bound itself).

@@ -11,6 +11,10 @@ import {
   memberVerdict,
 } from "../src/Compare.ts";
 import type { CompareOp, Verdict } from "../src/Compare.ts";
+import { makeSubjectId } from "../src/Identity.ts";
+import * as M from "../src/Matcher.ts";
+import { evaluatePredicate } from "../src/Predicate.ts";
+import type { Predicate } from "../src/Predicate.ts";
 
 /**
  * The operand universe: one value of every class a comparison can be handed —
@@ -178,5 +182,48 @@ describe("Compare.ts: one owner of comparison semantics (BEH-QD-305)", () => {
     for (const [op, verdict] of named) {
       everyPair(`compareVerdict(${op})`, (value, reference) => compareVerdict(op, value, reference), verdict);
     }
+  });
+});
+
+// INV-QD-091: a primitive matcher and its predicate leaf are one function. The
+// leaves of `judgeMatcher` and `evaluatePredicate` both read `Compare.ts`, so
+// they agree by construction; this property is what says so, over every
+// operand class on both sides, non-finite bounds included. The pair count is
+// asserted so a shrunken universe fails rather than passing vacuously.
+describe("INV-QD-091: a primitive matcher and its predicate leaf agree on every operand class", () => {
+  const ctx: M.MatcherContext = {
+    subject: {},
+    subjectId: makeSubjectId("u-1"),
+    resource: undefined,
+    action: undefined,
+  };
+
+  const NUMBERS: ReadonlyArray<number> = UNIVERSE.filter((u): u is number => typeof u === "number");
+  const LISTS: ReadonlyArray<ReadonlyArray<unknown>> = [[], [3], [Number.NaN], [null, "3"], [undefined], UNIVERSE];
+
+  /** Each primitive matcher, beside the predicate leaf `toPredicate`'s `columnPredicate` maps it to. */
+  const pairs: ReadonlyArray<readonly [M.Matcher, Predicate]> = [
+    ...UNIVERSE.map((v) => [M.eq(M.literal(v)), { _tag: "Compare", column: "c", op: "Eq", value: v }] as const),
+    ...UNIVERSE.map((v) => [M.neq(M.literal(v)), { _tag: "Compare", column: "c", op: "Neq", value: v }] as const),
+    ...NUMBERS.map((n) => [M.gte(n), { _tag: "Compare", column: "c", op: "Gte", value: n }] as const),
+    ...NUMBERS.map((n) => [M.lt(n), { _tag: "Compare", column: "c", op: "Lt", value: n }] as const),
+    ...LISTS.map((vs) => [M.inArray(vs), { _tag: "MemberOf", column: "c", values: vs }] as const),
+  ];
+
+  it("PROPERTY: every primitive matcher and its predicate leaf agree on every operand class", () => {
+    let checked = 0;
+    for (const [matcher, leaf] of pairs) {
+      for (const x of UNIVERSE) {
+        assert.strictEqual(
+          holds(M.judgeMatcher(matcher, x, ctx)),
+          evaluatePredicate(leaf, { c: x }),
+          `${JSON.stringify(leaf, (_k, v: unknown) => (typeof v === "bigint" ? `${v}n` : v))} on ${show(x)}`,
+        );
+        checked += 1;
+      }
+    }
+    // 14 Eq + 14 Neq + 6 Gte + 6 Lt + 6 In matchers, over 14 values.
+    assert.strictEqual(NUMBERS.length, 6);
+    assert.strictEqual(checked, (14 + 14 + 6 + 6 + 6) * 14);
   });
 });
