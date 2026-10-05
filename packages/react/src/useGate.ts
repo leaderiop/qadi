@@ -12,36 +12,28 @@
  * them mislabelled. Every public surface calls this instead, naming what it is,
  * and `useDecision` is simply the case whose name is `"useDecision"`.
  *
+ * The result is read once, with `outcomeOf`, and that one object is both what
+ * the registry records (`outcome._tag`) and what the surface renders from. The
+ * panel and the guard therefore cannot disagree about what is on screen: they
+ * are not two reads kept in the same order, they are one read.
+ *
  * Out of the barrel (AGENTS.md §9): the kind is not a caller's to choose. A
  * consumer able to pass one could register a `<Can>` that does not exist.
  */
 import type { Policy, Resource } from "@qadi/core";
-import * as AsyncResult from "effect/reactivity/AsyncResult";
 import { useId, useMemo, useRef } from "react";
 import type { RefObject } from "react";
-import type { GateKind, GateRenderState } from "./GateRegistry.ts";
+import type { DecisionOutcome, DecisionResult } from "./DecisionOutcome.ts";
+import { outcomeOf } from "./DecisionOutcome.ts";
+import type { GateKind } from "./GateRegistry.ts";
 import { gateWriterFor, useGateRegistration } from "./GateWriter.ts";
-import type { DecisionResult } from "./DecisionOutcome.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
-import { permits } from "./SeededDecision.ts";
-
-/**
- * What an instance in this result state renders.
- *
- * Read off the same `AsyncResult` the component branches on, in the same order,
- * so the panel cannot disagree with the screen. `waiting` is checked before
- * failure for the reason `Can` checks it there: a decision being re-checked is
- * not yet an answer, whichever answer it held before.
- */
-export const renderStateOf = (result: DecisionResult): GateRenderState => {
-  if (AsyncResult.isInitial(result)) return "Pending";
-  if (result.waiting) return "Rechecking";
-  if (AsyncResult.isFailure(result)) return "Failed";
-  return permits(result.value) ? "Allowed" : "Denied";
-};
 
 export interface Gate {
+  /** The raw result, for `useDecision`, which hands it on unread (ADR-QD-017's opt-in). */
   readonly result: DecisionResult;
+  /** What the result means: the one read every other surface renders from. */
+  readonly outcome: DecisionOutcome;
   /** React's own id for this instance, so a marker can be labelled with it. */
   readonly id: string;
   /**
@@ -72,7 +64,7 @@ export const useGate = (kind: GateKind, policy: Policy, resource?: Resource): Ga
 
   const id = useId();
   const marker = useRef<HTMLSpanElement | null>(null);
-  const state = renderStateOf(result);
+  const outcome = outcomeOf(result);
   // Whether this surface has a node to point at. `Can` and `Cannot` wrap
   // children; a hook returns a value to a component that may render nothing.
   const wraps = kind === "Can" || kind === "Cannot";
@@ -86,7 +78,7 @@ export const useGate = (kind: GateKind, policy: Policy, resource?: Resource): Ga
   // `id` stays React's raw `useId`: it is hydration-stable and is what
   // `data-qadi-gate` renders. Only the registry rewrites an id, and only on a
   // collision (ADR-QD-080).
-  useGateRegistration(writer, { id, kind, atom, wraps, policy, resource, marker }, state);
+  useGateRegistration(writer, { id, kind, atom, wraps, policy, resource, marker }, outcome._tag);
 
-  return { result, id, ref: writer !== undefined && wraps ? marker : undefined };
+  return { result, outcome, id, ref: writer !== undefined && wraps ? marker : undefined };
 };

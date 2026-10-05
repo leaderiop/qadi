@@ -3,13 +3,15 @@
  * Declarative guards.
  *
  * These render nothing of their own; they choose between the nodes they are
- * given. All the state lives in the atoms.
+ * given. All the state lives in the atoms, and what a result means is read
+ * once, by `outcomeOf` (`DecisionOutcome.ts`): `Can` and `Cannot` only say what
+ * each of its five cases renders, so they cannot drift from each other, or from
+ * what the gate registry reports, on how a re-check or a failure reads.
  */
 import type { Deny, Policy, Resource } from "@qadi/core";
-import * as AsyncResult from "effect/reactivity/AsyncResult";
 import type { CSSProperties, ReactNode, RefObject } from "react";
-import type { ClientDecision, SeededDeny } from "./SeededDecision.ts";
-import { permits } from "./SeededDecision.ts";
+import { DecisionOutcome } from "./DecisionOutcome.ts";
+import type { SeededDeny } from "./SeededDecision.ts";
 import { useGate } from "./useGate.ts";
 
 /**
@@ -71,32 +73,6 @@ export type DeniedNode = ReactNode | ((decision: Deny | SeededDeny) => ReactNode
 const renderDenied = (node: DeniedNode, decision: Deny | SeededDeny): ReactNode =>
   typeof node === "function" ? node(decision) : node;
 
-/**
- * The three things a gate's result can be, read once so `Can` and `Cannot`
- * cannot drift on how they read it.
- *
- * Not `currentDecision` (`QadiAtoms.ts`): that helper collapses "still
- * waiting" and "failed" into one `undefined`, which is exactly right for a
- * consumer that only wants a settled `Decision` or nothing — but a guard
- * renders three visibly different things for those two cases (`pending` vs
- * `failure`), so it needs the distinction `currentDecision` deliberately
- * discards. This is the narrower ladder both `chosen` and `refused` share:
- * `waiting` checked before failure, on purpose — a decision being re-checked
- * is not yet an answer, whichever answer (or failure) it held before
- * (ADR-QD-017), and this is the one place that rule is written down for this
- * package's components.
- */
-type GateOutcome =
-  | { readonly _tag: "Pending" }
-  | { readonly _tag: "Failure" }
-  | { readonly _tag: "Settled"; readonly decision: ClientDecision };
-
-const classify = (result: ReturnType<typeof useGate>["result"]): GateOutcome => {
-  if (AsyncResult.isInitial(result) || result.waiting) return { _tag: "Pending" };
-  if (AsyncResult.isFailure(result)) return { _tag: "Failure" };
-  return { _tag: "Settled", decision: result.value };
-};
-
 export interface CanProps {
   readonly policy: Policy;
   /** The resource under consideration, if the policy inspects one. */
@@ -139,28 +115,37 @@ export const Can = ({
   failure,
   children,
 }: CanProps): ReactNode => {
-  const { result, id, ref } = useGate("Can", policy, resource);
+  const { outcome, id, ref } = useGate("Can", policy, resource);
   // The marker wraps whatever `chosen` returns, including `null`. That is the
   // case the lens exists for: a guard that rendered nothing still says
   // *where* the nothing is, which is the whole of "why is this button
   // missing".
-  return marked(chosen(result, children, fallback, pending, failure), id, ref);
+  return marked(chosen(outcome, children, fallback, pending, failure), id, ref);
 };
 
+/**
+ * What `Can` renders for each outcome.
+ *
+ * A re-check renders `pending`, like a first ask: a decision being re-checked
+ * is not yet an answer, whichever answer it held before (ADR-QD-017). A failure
+ * renders `failure`, else `fallback` when that is a node (CCR-QD-138: an
+ * explicit `null` is not an omission).
+ */
 const chosen = (
-  result: ReturnType<typeof useGate>["result"],
+  outcome: DecisionOutcome,
   children: ReactNode,
   fallback: DeniedNode,
   pending: ReactNode,
   failure: ReactNode,
-): ReactNode => {
-  const outcome = classify(result);
-  if (outcome._tag === "Pending") return pending;
-  if (outcome._tag === "Failure") {
-    return failure !== undefined ? failure : typeof fallback === "function" ? null : fallback;
-  }
-  return permits(outcome.decision) ? children : renderDenied(fallback, outcome.decision);
-};
+): ReactNode =>
+  DecisionOutcome.$match(outcome, {
+    Pending: () => pending,
+    Rechecking: () => pending,
+    Failed: () =>
+      failure !== undefined ? failure : typeof fallback === "function" ? null : fallback,
+    Allowed: () => children,
+    Denied: ({ decision }) => renderDenied(fallback, decision),
+  });
 
 export interface CannotProps {
   readonly policy: Policy;
@@ -185,18 +170,21 @@ export const Cannot = ({
   failure = null,
   children,
 }: CannotProps): ReactNode => {
-  const { result, id, ref } = useGate("Cannot", policy, resource);
-  return marked(refused(result, children, pending, failure), id, ref);
+  const { outcome, id, ref } = useGate("Cannot", policy, resource);
+  return marked(refused(outcome, children, pending, failure), id, ref);
 };
 
+/** What `Cannot` renders for each outcome: the mirror of `chosen`. */
 const refused = (
-  result: ReturnType<typeof useGate>["result"],
+  outcome: DecisionOutcome,
   children: DeniedNode,
   pending: ReactNode,
   failure: ReactNode,
-): ReactNode => {
-  const outcome = classify(result);
-  if (outcome._tag === "Pending") return pending;
-  if (outcome._tag === "Failure") return failure;
-  return permits(outcome.decision) ? null : renderDenied(children, outcome.decision);
-};
+): ReactNode =>
+  DecisionOutcome.$match(outcome, {
+    Pending: () => pending,
+    Rechecking: () => pending,
+    Failed: () => failure,
+    Allowed: () => null,
+    Denied: ({ decision }) => renderDenied(children, decision),
+  });

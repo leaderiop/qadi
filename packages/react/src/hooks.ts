@@ -13,11 +13,9 @@ import * as Atom from "effect/reactivity/Atom";
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { GateInstance } from "./GateRegistry.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
-import { currentDecision } from "./DecisionOutcome.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
 import type { ClientDecision } from "./SeededDecision.ts";
-import { permits } from "./SeededDecision.ts";
 import { useGate } from "./useGate.ts";
 
 /** The subject under authorization, or `undefined` while it is still loading. */
@@ -29,9 +27,11 @@ export const useSubject = (): AuthSubject | undefined => {
 /**
  * The decision for a policy, as observable state.
  *
- * This is the primitive the rest of the package is built from, and the only
- * hook that keeps all three outcomes apart: not known yet, decided, and
- * could not be determined.
+ * The raw result, unread: the one surface that hands back an `AsyncResult`,
+ * as ADR-QD-017's deliberate stale-while-revalidate opt-in. Read it with
+ * `outcomeOf`, which keeps all five outcomes apart — not known yet, being
+ * re-checked, allowed, denied, and could not be determined — and gives a
+ * re-check or a failure no verdict to show.
  */
 export const useDecision = (policy: Policy, resource?: Resource): DecisionResult =>
   useGate("useDecision", policy, resource).result;
@@ -39,22 +39,19 @@ export const useDecision = (policy: Policy, resource?: Resource): DecisionResult
 /**
  * Whether the subject satisfies the policy.
  *
- * `false` covers four different situations — pending, rechecking, denied, and
- * failed — so it is safe for hiding a control and useless for explaining why
- * it is hidden. It reads through {@link currentDecision}, which also reports
- * `undefined` while a previously-allowed decision is being re-checked
+ * `true` exactly when the outcome is `Allowed`. `false` covers pending,
+ * rechecking, denied and failed — `outcomeOf` tells them apart — so it is safe
+ * for hiding a control and useless for explaining why it is hidden. A control
+ * whose allow is being re-checked reads `false` like one never decided
  * ([ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md):
- * "a decision being re-checked is not a decision"), so a `Rechecking` control
- * collapses into the same `false` as one that has never been decided. Reach
- * for {@link useDecision} when the difference matters.
+ * "a decision being re-checked is not a decision"). Reach for
+ * {@link useDecision} and `outcomeOf` when the difference matters.
  */
-export const useCan = (policy: Policy, resource?: Resource): boolean => {
+export const useCan = (policy: Policy, resource?: Resource): boolean =>
   // `useGate` directly rather than through `useDecision`, so this instance
   // registers **once**, as itself. Nesting the two would report one `useCan`
   // as two instances, the inner one labelled `useDecision`.
-  const decision = currentDecision(useGate("useCan", policy, resource).result);
-  return decision !== undefined && permits(decision);
-};
+  useGate("useCan", policy, resource).outcome._tag === "Allowed";
 
 /**
  * The decision for a policy, suspending until it is known.
@@ -78,7 +75,9 @@ export const useDecisionSuspense = (policy: Policy, resource?: Resource): Client
   // `@effect/atom-react`'s own `useAtomSuspense` — closed, not experimental;
   // see ADR-QD-014's Reversal section for why. `suspendOnWaiting: true`
   // preserves ADR-QD-017 ("a decision being re-checked is not a decision") —
-  // the library's default only suspends on `Initial`, not on `waiting`.
+  // the library's default only suspends on `Initial`, not on `waiting`. This is
+  // the one read of a result `outcomeOf` delegates rather than performs, and
+  // `DecisionOutcome.ts`'s module comment says why (ARCH-14 D-14-e).
   return useAtomSuspense(atom, { suspendOnWaiting: true }).value;
 };
 
@@ -144,12 +143,10 @@ export const useProjected = <A extends Resource>(
   policy: Policy,
   data: A,
 ): Partial<A> => {
-  const decision = currentDecision(useGate("useProjected", policy, data).result);
-  // `permits` narrows to the two allow classes, both of which carry
-  // `visibleFields`; a denial of either kind projects to nothing.
-  return decision !== undefined && permits(decision)
-    ? projectVisible(decision.visibleFields, data)
-    : {};
+  const { outcome } = useGate("useProjected", policy, data);
+  // `Allowed` carries one of the two allow classes, both of which carry
+  // `visibleFields`; every other outcome projects to nothing.
+  return outcome._tag === "Allowed" ? projectVisible(outcome.decision.visibleFields, data) : {};
 };
 
 /**

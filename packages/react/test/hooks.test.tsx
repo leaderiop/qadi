@@ -481,7 +481,7 @@ describe("through a provider, as an application reads it", () => {
   });
 
   it("<Can> shows pending during a re-check, not the stale Allowed verdict (ticket 144)", async () => {
-    // `classify`'s `|| result.waiting` check in `components.tsx` is the
+    // `outcomeOf`'s `Rechecking`, which `<Can>` renders as `pending`, is the
     // ADR-QD-017 rule at the component layer: a decision being re-checked is
     // not yet an answer, whichever answer it held before. This drives that
     // exact path through `<Can>` rather than through the atom graph directly.

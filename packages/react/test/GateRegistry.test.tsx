@@ -124,11 +124,11 @@ describe("instrumented, a guard says it exists", () => {
   });
 
   it("reports 'Rechecking' during a re-check, not a stale Allowed/Denied (ticket 145)", async () => {
-    // `renderStateOf`'s waiting -> "Rechecking" mapping is the instrumented
-    // panel's half of ADR-QD-017 — the same "a decision being re-checked is
-    // not yet an answer" rule `components.tsx`'s `classify` follows for what a
-    // guard renders. Every other test in this file only ever observes a
-    // settled Allowed or Denied.
+    // `outcomeOf`'s waiting -> `Rechecking` read is the instrumented panel's
+    // half of ADR-QD-017 — the registry records `outcome._tag`, the same
+    // outcome `<Can>` renders from, so the "a decision being re-checked is not
+    // yet an answer" rule reaches both through one read. Every other test in
+    // this file only ever observes a settled Allowed or Denied.
     //
     // The resolver is held open by hand, not timed: `waitFor`'s real-time
     // polling could otherwise step over a re-check settling in under a

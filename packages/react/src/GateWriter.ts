@@ -13,11 +13,13 @@
  * no guard and no state of its own, so it is not the module-scope registry
  * [ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md)
  * removed. It is keyed on `object`, which is the real constraint, so this module
- * imports nothing local and no import cycle can form (ADR-QD-037).
+ * imports nothing local but the leaf `DecisionOutcome.ts`, and only its type, so
+ * no import cycle can form (ADR-QD-037).
  */
 import type { Policy, Resource } from "@qadi/core";
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
+import type { DecisionOutcome } from "./DecisionOutcome.ts";
 
 /** Which surface the instance is. */
 export type GateKind =
@@ -40,8 +42,12 @@ export type GateKind =
  * Neither carries the previous verdict, per
  * [ADR-QD-017](../../../spec/decisions/017-stale-decisions-are-not-decisions.md):
  * a decision being re-checked is not a decision.
+ *
+ * Derived from {@link DecisionOutcome}'s tag rather than restated, so a guard
+ * reports exactly the outcome it rendered from, and a sixth outcome is a sixth
+ * state.
  */
-export type GateRenderState = "Pending" | "Rechecking" | "Allowed" | "Denied" | "Failed";
+export type GateRenderState = DecisionOutcome["_tag"];
 
 export interface GateInstance {
   /**
