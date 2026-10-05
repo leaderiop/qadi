@@ -201,6 +201,9 @@ importers:
 
   features:
     dependencies:
+      '@qadi/audit':
+        specifier: workspace:*
+        version: link:../packages/audit
       '@qadi/core':
         specifier: workspace:*
         version: link:../packages/core

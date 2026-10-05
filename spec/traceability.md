@@ -378,6 +378,7 @@ is still a contract for readability, even where nothing enforces it.
 | REQ-QD-029 | `features/features/gate-instances/gate-instances.feature` | BEH-QD-217, BEH-QD-233, INV-QD-046, INV-QD-064 |
 | REQ-QD-030 | `features/features/merged-sources/merged-sources.feature` | BEH-QD-203, BEH-QD-207, BEH-QD-235 |
 | REQ-QD-031 | `features/features/custom-predicates/custom-predicates.feature` | BEH-QD-246, BEH-QD-247, INV-QD-049 |
+| REQ-QD-901 | `features/features/wire-versions/wire-versions.feature` | BEH-QD-199, BEH-QD-200, BEH-QD-905, INV-QD-904, INV-QD-905 |
 
 ## §6 Coverage targets
 
