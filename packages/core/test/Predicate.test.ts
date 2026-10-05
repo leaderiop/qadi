@@ -836,16 +836,30 @@ describe("a rule table becomes a set-based formula", () => {
 describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows", () => {
   type Row = Record<string, unknown>;
 
+  /**
+   * `JSON.stringify` with the non-finite numbers spelled out.
+   *
+   * Plain `JSON.stringify` prints `-Infinity` and `NaN` as `null`, so a failure
+   * on a `-Infinity` row would report `"level":null` — the one value it is not.
+   */
+  const show = (u: unknown): string =>
+    JSON.stringify(u, (_key, value: unknown) =>
+      typeof value === "number" && !Number.isFinite(value) ? String(value) : value,
+    );
+
   const rows: FastCheck.Arbitrary<Row> = FastCheck.record({
     tenantId: FastCheck.constantFrom("t-1", "t-2"),
     ownerId: FastCheck.constantFrom("u-1", "u-2"),
     // Not just integers. A well-typed column never exercises the path where two
     // interpreters diverge, and a real text column holding "3" is exactly where
-    // a coercing comparison admits a row the evaluator refuses.
+    // a coercing comparison admits a row the evaluator refuses. A non-finite
+    // row value, like a numeric string, is where the two interpreters diverged
+    // (CCR-QD-172): a float column can hold `±Infinity` and `NaN`.
     level: FastCheck.oneof(
       FastCheck.integer({ min: 0, max: 5 }),
       FastCheck.constantFrom("3", "0"),
       FastCheck.constant(null),
+      FastCheck.constantFrom(Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN),
     ),
     tag: FastCheck.constantFrom("red", "blue", "green"),
     sealed: FastCheck.boolean(),
@@ -958,7 +972,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
           assert.strictEqual(
             admitted,
             isAllowed(decision),
-            `disagreement on ${JSON.stringify({ policy, row, predicate })}`,
+            `disagreement on ${show({ policy, row, predicate })}`,
           );
         }
       }
@@ -987,6 +1001,28 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
         const decision = yield* evaluate(policy, { resource: row }).pipe(Effect.provide(layer));
         assert.isFalse(isAllowed(decision));
         assert.isFalse(evaluatePredicate(predicate, row));
+      }
+    }));
+
+  // The row side of the same rule (CCR-QD-172). Before it, `gte(3)` admitted an
+  // `Infinity` row and `lt(3)` a `-Infinity` row through `toPredicate` while
+  // `evaluate` denied both — ADR-QD-024's worst case, a filter wider than the
+  // evaluator. `not(…)` is the mirror: there the predicate under-admitted.
+  it.effect("a non-finite row value denies on both sides, never admits on one", () =>
+    Effect.gen(function* () {
+      const cases = [
+        P.hasResourceAttribute("level", M.gte(3)),
+        P.hasResourceAttribute("level", M.lt(3)),
+        P.not(P.hasResourceAttribute("level", M.gte(3))),
+        P.not(P.hasResourceAttribute("level", M.lt(3))),
+      ];
+      for (const policy of cases) {
+        const predicate = yield* translate(policy);
+        for (const level of [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN]) {
+          const row = { level };
+          const decision = yield* evaluate(policy, { resource: row }).pipe(Effect.provide(layer));
+          assert.strictEqual(evaluatePredicate(predicate, row), isAllowed(decision), show({ policy, level }));
+        }
       }
     }));
 
@@ -1216,7 +1252,7 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
           assert.strictEqual(
             evaluatePredicate(translated.value, row),
             isAllowed(verdict.value),
-            `disagreement on ${JSON.stringify({ policy, world, row })}`,
+            `disagreement on ${show({ policy, world, row })}`,
           );
           for (const key of rowLog) {
             assert.include(predLog, key, `the evaluator asked ${key}, which translation never did: ${where}`);

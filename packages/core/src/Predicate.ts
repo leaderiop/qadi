@@ -140,32 +140,25 @@ const dispatchCompare: (op: CompareOp) => (value: unknown, against: unknown) => 
       () => (value: unknown, against: unknown) =>
         value !== undefined && against !== undefined && value !== against,
     ),
-    // Mirrors `Gte`/`Lt` in the matcher, which are false for a non-number: a
-    // divergence here is a row the evaluator would have refused.
+    // Both operands must be finite numbers, exactly as in `evaluateMatcher`'s
+    // `Gte`/`Lt` (BEH-QD-027, CCR-QD-116); `isRangeBound` (`PredicateLiteral.ts`)
+    // is that check, and as a type predicate it leaves no `typeof` half behind.
     //
-    // `Number.isFinite` on the *bound* is the second half of that mirror
-    // (CCR-QD-120). `evaluateMatcher`'s `Gte`/`Lt` cases carry it — a bound is
-    // reachable from untrusted JSON (`1e400` decodes to `Infinity`; see
-    // `Matcher.ts`'s `gte` doc comment), and left unguarded an `Infinity`
-    // bound dominates every finite attribute value. `compare` had only the
-    // `typeof` half, so `translateMatcher` compiling `M.gte(-Infinity)` to
-    // `{op: "Gte", value: -Infinity}` gave a predicate that admitted every
-    // numeric row while `evaluate` on the identical policy denied every one —
-    // an INV-QD-018 divergence, and in the worst direction. The bound is the
-    // only side that needs it: a non-finite *row* value already agrees, since
-    // `NaN >= x` is false in both interpreters and `Infinity >= x` is true in
-    // both. `isRangeBound` (`PredicateLiteral.ts`) is that check, and the
-    // renderable classifier calls the same function, so the rule has one
-    // definition (ADR-QD-079).
+    // Until CCR-QD-172 only the bound was guarded (issue #65, CCR-QD-120), on
+    // the belief that a non-finite *row* value already agreed because
+    // `Infinity >= x` is true in both interpreters. It is not: the matcher
+    // denies it, so `gte(3)` admitted an `Infinity` row and `lt(3)` a
+    // `-Infinity` row here while `evaluate` denied both — an INV-QD-018
+    // divergence in the fail-open direction.
     Match.when(
       "Gte",
       () => (value: unknown, against: unknown) =>
-        typeof value === "number" && isRangeBound(against) && value >= against,
+        isRangeBound(value) && isRangeBound(against) && value >= against,
     ),
     Match.when(
       "Lt",
       () => (value: unknown, against: unknown) =>
-        typeof value === "number" && isRangeBound(against) && value < against,
+        isRangeBound(value) && isRangeBound(against) && value < against,
     ),
     Match.exhaustive,
   );
