@@ -16,6 +16,7 @@ import { Allow, project } from "../src/Decision.ts";
 import type { VisibleFields } from "../src/FieldLattice.ts";
 import {
   fieldStrategyLaws,
+  isFieldStrategy,
   intersectFields,
   mergeFields,
   unionFields,
@@ -352,6 +353,17 @@ describe("field lattice", () => {
       assert.deepStrictEqual(mergeFields(bogus, [undefined]), [], bogus);
       assert.deepStrictEqual(mergeFields(bogus, [["a"]]), [], bogus);
       assert.deepStrictEqual(mergeFields(bogus, []), [], bogus);
+    }
+  });
+
+  it("isFieldStrategy admits exactly the three strategies — not a prototype key, not a non-string", () => {
+    // The membership test `fieldStrategyLaws` and `Explanation.ts` share
+    // (ADR-QD-092 amendment, CCR-QD-183), so the sentence and the evaluator
+    // cannot disagree about which values are outside the union.
+    for (const strategy of KNOWN) assert.isTrue(isFieldStrategy(strategy), strategy);
+    for (const bogus of BOGUS) assert.isFalse(isFieldStrategy(bogus), bogus);
+    for (const other of [42, true, null, undefined, {}, Symbol("Union")]) {
+      assert.isFalse(isFieldStrategy(other), String(other));
     }
   });
 

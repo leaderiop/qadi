@@ -70,3 +70,25 @@ Feature: Policy explanation
     # would omit the thing that decides.
     When the rule table is described
     Then the description reads "a rule table where any applying deny row wins: [0] deny when requires role `suspended`; [1] permit when requires role `editor`"
+
+  # A field strategy or combining algorithm outside its closed union. Decode
+  # rejects one, so only a policy built in code carries it, and the evaluator
+  # reads it fail-closed. The description used to throw instead; now it says
+  # what the value is and what it is evaluated as (ADR-QD-092, CCR-QD-183).
+  Scenario Outline: A field strategy outside the union is named, and so is its effect
+    When a conjunction built in code with field strategy "<value>" is described
+    Then the description reads '<sentence>'
+
+    Examples:
+      | value    | sentence |
+      | Xor      | requires role `editor`, exposing only `id` and requires role `onCall`, but exposing no fields: its field strategy "Xor" is outside the closed union and is evaluated fail-closed |
+      | toString | requires role `editor`, exposing only `id` and requires role `onCall`, but exposing no fields: its field strategy "toString" is outside the closed union and is evaluated fail-closed |
+
+  Scenario Outline: A combining algorithm outside the union is named, and so is the one it is walked under
+    When a rule table built in code with combining "<value>" is described
+    Then the description reads '<sentence>'
+
+    Examples:
+      | value     | sentence |
+      | Xor       | a rule table where the combining algorithm "Xor" is outside the closed union and is evaluated under DenyOverrides, so any applying deny row wins: [0] permit when requires role `editor`; [1] deny when requires role `suspended` |
+      | __proto__ | a rule table where the combining algorithm "__proto__" is outside the closed union and is evaluated under DenyOverrides, so any applying deny row wins: [0] permit when requires role `editor`; [1] deny when requires role `suspended` |

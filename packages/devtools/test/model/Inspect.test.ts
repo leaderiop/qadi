@@ -35,7 +35,7 @@ import {
   role,
   rules,
 } from "@qadi/core";
-import type { Decision, Policy, Trace } from "@qadi/core";
+import type { Combining, Decision, FieldStrategy, Policy, Trace } from "@qadi/core";
 import {
   flattenTree,
   inspect,
@@ -135,6 +135,54 @@ describe("the shape of the tree", () => {
 
   it("a leaf outside a table has no effect", async () => {
     assert.isUndefined((await treeOf(hasPermission(read))).effect);
+  });
+});
+
+describe("a fieldStrategy or combining outside its closed union (ADR-QD-092, CCR-QD-183)", () => {
+  // Built in process via `JSON.parse` (no `as`); decode rejects every one, so
+  // only a policy assembled in code can carry them. The detail must say the
+  // value is outside the union and evaluated fail-closed, not show `Xor` beside
+  // `Intersection` as though it were a fourth strategy.
+  const RAW: ReadonlyArray<string> = [
+    "Xor",
+    "toString",
+    "constructor",
+    "__proto__",
+    "hasOwnProperty",
+    "",
+  ];
+  const outside = (raw: string) =>
+    `${JSON.stringify(raw)} (outside the union, evaluated fail-closed)`;
+
+  it("names an unknown fieldStrategy verbatim and says how it is evaluated", async () => {
+    for (const raw of RAW) {
+      const fieldStrategy: FieldStrategy = JSON.parse(JSON.stringify(raw));
+      const all = await treeOf(allOf([hasPermission(read), hasRole("reader")], { fieldStrategy }));
+      const any = await treeOf(anyOf([hasPermission(read)], { fieldStrategy }));
+      assert.deepStrictEqual([all.label, all.detail], ["all of", outside(raw)], raw);
+      assert.deepStrictEqual([any.label, any.detail], ["any of", outside(raw)], raw);
+    }
+  });
+
+  it("names an unknown combining verbatim and says how it is evaluated", async () => {
+    for (const raw of RAW) {
+      const combining: Combining = JSON.parse(JSON.stringify(raw));
+      const tree = await treeOf(rules([permitWhen(hasPermission(read))], { combining }));
+      assert.deepStrictEqual([tree.label, tree.detail], ["rules", outside(raw)], raw);
+    }
+  });
+
+  it("a value that is not a string is shown as itself, and an object is named", () => {
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      ["42", "42"],
+      ["true", "true"],
+      ["{}", "an object"],
+    ];
+    for (const [json, shown] of cases) {
+      const fieldStrategy: FieldStrategy = JSON.parse(json);
+      const tree = inspect(allOf([hasPermission(read)], { fieldStrategy }), undefined);
+      assert.strictEqual(tree.detail, `${shown} (outside the union, evaluated fail-closed)`, json);
+    }
   });
 });
 

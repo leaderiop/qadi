@@ -321,17 +321,29 @@ const FAIL_CLOSED: StrategyLaws = {
 };
 
 /**
- * What `strategy` means: its row, or {@link FAIL_CLOSED} for a value outside
- * the union.
+ * Whether `value` is one of the closed union's strategies — a row of this
+ * module's law table.
  *
- * `Object.hasOwn`, not a bare `LAWS[strategy]`: a key `Object.prototype`
- * supplies (`"toString"`, `"constructor"`, `"__proto__"`) would otherwise read
- * an inherited member — truthy, and not a row — which is how an `anyOf` once
- * stopped at its first allow on a corrupt strategy and granted every field
- * (CCR-QD-174, ARCH-12 C3).
+ * `Object.hasOwn`, not `value in LAWS` or a bare `LAWS[value]`: a key
+ * `Object.prototype` supplies (`"toString"`, `"constructor"`, `"__proto__"`)
+ * would otherwise read an inherited member — truthy, and not a row — which is
+ * how an `anyOf` once stopped at its first allow on a corrupt strategy and
+ * granted every field (CCR-QD-174, ARCH-12 C3). A value that is not a string at
+ * all (an untyped caller's `42` or `null`) is outside the union too.
+ *
+ * The one membership test for a strategy: {@link fieldStrategyLaws} reads it to
+ * pick a row, and `Explanation.ts` reads it to say in words that a value is
+ * outside the union rather than throw on it (ADR-QD-092 amendment, CCR-QD-183).
+ */
+export const isFieldStrategy = (value: unknown): value is FieldStrategy =>
+  typeof value === "string" && Object.hasOwn(LAWS, value);
+
+/**
+ * What `strategy` means: its row, or {@link FAIL_CLOSED} for a value outside
+ * the union, as {@link isFieldStrategy} judges it.
  */
 export const fieldStrategyLaws = (strategy: FieldStrategy): StrategyLaws =>
-  Object.hasOwn(LAWS, strategy) ? LAWS[strategy] : FAIL_CLOSED;
+  isFieldStrategy(strategy) ? LAWS[strategy] : FAIL_CLOSED;
 
 /**
  * Merges a composite's allowing children's field sets by its `fieldStrategy`.

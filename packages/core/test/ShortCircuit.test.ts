@@ -1,6 +1,11 @@
 import { assert, describe, it } from "@effect/vitest";
 import type { Combining, FieldStrategy } from "../src/Policy.ts";
-import { anyOfStopsAtAllow, effectiveCombining, rulesDecisiveEffect } from "../src/ShortCircuit.ts";
+import {
+  anyOfStopsAtAllow,
+  effectiveCombining,
+  isCombining,
+  rulesDecisiveEffect,
+} from "../src/ShortCircuit.ts";
 
 /** In-process values outside the union, built via `JSON.parse` (no `as`, AGENTS.md §6). */
 const BOGUS_VALUES = ["Xor", "toString", "constructor", "__proto__", "hasOwnProperty"];
@@ -39,6 +44,18 @@ describe("rulesDecisiveEffect (INV-QD-017)", () => {
       const bogus: Combining = JSON.parse(JSON.stringify(raw));
       assert.strictEqual(effectiveCombining(bogus), "DenyOverrides", raw);
       assert.strictEqual(rulesDecisiveEffect(bogus), "Deny", raw);
+    }
+  });
+
+  it("isCombining admits exactly the three algorithms — not a prototype key, not a non-string", () => {
+    // The membership test `effectiveCombining` and `Explanation.ts` share
+    // (ADR-QD-092 amendment, CCR-QD-183).
+    for (const combining of ["DenyOverrides", "PermitOverrides", "FirstApplicable"]) {
+      assert.isTrue(isCombining(combining), combining);
+    }
+    for (const raw of [...BOGUS_VALUES, ""]) assert.isFalse(isCombining(raw), raw);
+    for (const other of [42, true, null, undefined, {}, Symbol("DenyOverrides")]) {
+      assert.isFalse(isCombining(other), String(other));
     }
   });
 
