@@ -1,5 +1,24 @@
 # @qadi/audit
 
+## 0.11.0
+
+### Minor Changes
+
+- 9d9f249: One wire format: this release reads and writes only the formats 0.10 writes — record wire version 2, `{ environment, record }` stream envelopes, and `version: 2` hydration payloads. Every older format is refused, and each refusal is reported with its own reason (ADR-QD-096, ADR-QD-097 and ADR-QD-078, amended 2026-10-06; INV-QD-099 retired).
+
+  **Migration — read this first. Audit rows written before 0.10 (wire version 1, no `version` key) are no longer readable. Before upgrading anything that reads an audit store, re-encode every pre-0.10 row as version 2 with 0.10.x: read it with `decodeAuditEntry` and write it back with `encodeAuditEntry` from `@qadi/audit@0.10`, which reads version 1 and writes version 2. A row that is not migrated is refused by this release as `UnsupportedVersion` with `version: undefined`. It is reported, never skipped, never upgraded.** A peer on 0.9 or earlier, such as a forwarding sender or a `/__decisions` server, writes version-1 records and bare frames. **It must upgrade (0.10 or later is enough). There is no compatibility path.** A deployment that is entirely on 0.10 has nothing else to migrate. The website's "Upgrading to 0.11" page has the full guide.
+
+  - **Breaking (`@qadi/core`):** `decodeSinkRecord`/`decodeSinkRecordString` read wire version 2 only. A record with no `version` (a pre-0.10, version-1 record), or with any version other than 2, is refused as `DecodeRefusal.UnsupportedVersion`. `version` is `undefined` when absent. The record is never upgraded and never given a sentinel subject or an outcome. The pre-0.5 `failed.code` tolerance went with the version-1 reader. A JSON value that is not an object is still `Malformed`. `SinkRecordJson` is now the version-2 encoded type alone, not a union of versions. `WireVersion` narrows to `2` and `WIRE_VERSIONS` to `[2]`; both stay exported, because `UnsupportedVersion.supported` reports them.
+  - **Breaking (`@qadi/core`):** `DecodeStoredRecordOptions` is removed, along with its deprecated `legacyEnvironment` (scheduled for removal when it shipped). `decodeStoredRecord` and `decodeStoredRecordString` take no options, and a bare record (what a server older than 0.10 sends) is refused as `Malformed`.
+  - **Breaking (`@qadi/audit`):** `AuditEntry.record` is version-2 bytes only. A store adapter no longer needs to narrow on `"version" in entry.record`. `decodeAuditEntry` refuses a pre-0.10 row as `UnsupportedVersion` (see the migration above). `AuditArchive`'s `archiveVersion` stays `"1"`, and an archive bundled before 0.10 is migrated entry by entry.
+  - **Breaking (`@qadi/devtools`):** `sourceFromEventSource` loses `legacyEnvironment`. A bare frame is reported as `"not-a-record"`, and a version-1 record as `"unsupported-version"`. A `message` frame that arrives before `synced` no longer ends the prelude wait as a sign of an "older server". Every server since 0.10 sends the prelude first, so such a frame is delivered live. `syncTimeout` still bounds the wait for a server whose prelude has not arrived, which leaves the backlog absent.
+  - **Breaking (`@qadi/react`):** `hydrateDecisions` reads `version: 2` payloads only, as scheduled when 0.10 deprecated the older reader. A payload with no `version` (the format 0.9 and earlier wrote) is dropped whole as `UnsupportedPayloadVersion`, counted and reported like any other unsupported version, and the client re-decides those questions. `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` are removed. `hydrateDecisions` and `QadiAtoms.hydrate` take `DehydratedDecisions`.
+
+### Patch Changes
+
+- Updated dependencies [9d9f249]
+  - @qadi/core@0.11.0
+
 ## 0.10.0
 
 ### Minor Changes
