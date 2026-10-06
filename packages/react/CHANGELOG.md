@@ -1,5 +1,82 @@
 # @qadi/react
 
+## 0.10.0
+
+### Minor Changes
+
+- 1fd8700: `@qadi/audit`: the circuit breaker's half-open probe protocol now lives inside `CircuitBreaker.withPermit`, and three defects found while moving it are fixed.
+
+  **Fixes.** A probe interrupted while `stage()` was in flight used to hold its claim until the half-open age-out, doubling recovery time to twice `resetTimeoutMs`; the claim is now released on every exit from the moment it is taken. A write failure settling on an already-`Open` breaker no longer re-announces an `Open` transition (over-counting `qadi_audit_circuit_breaker_transitions_total`) or restarts the open window. A write's outcome now counts only toward the window that admitted it, so a late failure from before a trip cannot reopen a newer half-open window. Comments and BEH-QD-251 no longer claim that a caller's interruption of a write reaches the breaker; it is not a store failure.
+
+  **Breaking, for `@qadi/audit/CircuitBreaker` subpath imports only.** The `CircuitBreaker` interface is now `status` plus `withPermit`; `recordSuccess`, `recordFailure`, `claimProbe` and `releaseProbe` are no longer members. `Permit`, `Admitted` and `Refused` are new exports. `@qadi/audit`'s barrel and `AuditDecisionSinkLive` behave as before.
+
+- 1fd8700: Read a decision result once, with the new `outcomeOf`, and fix the documented example that rendered a stale allow.
+
+  - New exports `outcomeOf(result)` and `DecisionOutcome`: a `DecisionResult` read into one of five cases — `Pending`, `Rechecking`, `Allowed { decision }`, `Denied { decision }`, `Failed { cause }`. Only `Allowed` carries an allow. A re-check carries no verdict, and a failure carries only its `Cause`, never the `previousSuccess` an `AsyncResult.Failure` keeps (which `AsyncResult.value`/`getOrElse` return). Write `outcomeOf(useDecision(policy))` and `DecisionOutcome.$match` it.
+  - `Can`, `Cannot`, `useCan`, `useProjected` and the gate registry now all read through `outcomeOf`; what each renders is unchanged.
+  - `currentDecision` is now a projection of `outcomeOf` (same signature and answers). `DecisionResult` and `currentDecision` move from `QadiAtoms.ts` to `DecisionOutcome.ts`; their public names from `@qadi/react` are unchanged.
+  - `GateRenderState` is now `DecisionOutcome["_tag"]`, the same five strings.
+  - Docs: the React guide's "read the whole decision" example checked `isInitial`, then `isFailure`, then read `result.value`, which renders the editor while an allow is being re-checked (`Success` with `waiting: true`). If you copied it, replace the ladder with `outcomeOf`.
+
+- 1fd8700: **Breaking (`@qadi/react`).** The gate registry is owned by the atom set, not the process.
+
+  Every instrumented `QadiProvider` used to write its guards into one module-scope map, so two atom sets listed each other's guards, and two hydrated React roots (which derive `useId` from tree position and so mint the same id) silently replaced a still-mounted guard of the other. Each atom set now owns a registry, `atoms.gates`, beside `atoms.asked()`, and registration is a handle only `@qadi/react` can reach. A colliding id is kept, disambiguated as `<id>~<n>`, and reported once (`onGateIdCollision`, or a development warning naming `identifierPrefix`); `data-qadi-gate` still carries React's own id.
+
+  Removed, with no shim: `gateInstances`, `subscribeGates`, `registerGate`, `updateGateState` and `clearGatesUnsafe`. Added: `makeGateRegistry`, `GateRegistry`, `GateRegistryOptions`, `useGateInstances`, `QadiAtoms.gates`, `QadiAtomsOptions.onGateIdCollision` and `QadiProviderProps.gates` (hand one registry to several atom sets; it must come from `makeGateRegistry()`). `QadiContextValue` gains `gates`. `QadiAtoms` gains a required `gates` member, so a hand-written `QadiAtoms` test double stops compiling.
+
+  Migration:
+
+  ```ts
+  // before
+  useSyncExternalStore(subscribeGates, gateInstances, gateInstances);
+  // after, inside the provider
+  const gates = useGateInstances();
+  // after, outside it
+  useSyncExternalStore(atoms.gates.subscribe, atoms.gates.instances, atoms.gates.instances);
+  ```
+
+  `clearGatesUnsafe()` in a test becomes "build a fresh atom set per test".
+
+  `@qadi/devtools` is unchanged in behaviour; its empty-state text now names `useGateInstances()`.
+
+- 1fd8700: **Breaking (`@qadi/react`).** A server-rendered decision is now its own type, not a fabricated `Allow`/`Deny`.
+
+  Hydration used to rebuild a seed into a core `Allow`/`Deny`, which needs a trace and a deny reason, so both were made up whenever the server withheld them: a single-node trace with the reason `"hydrated"` (which `<Can fallback={(deny) => deny.reason}>` rendered), and a root of `"AllOf"` for a payload with no trace. A seed is now a `SeededAllow` or `SeededDeny` carrying a tagged `disclosure` (`Withheld`, or `Disclosed` with the server's own trace and reason), and a decision atom holds a `ClientDecision = Allow | Deny | SeededAllow | SeededDeny`.
+
+  What changes for you:
+
+  - `DecisionResult`, `currentDecision`'s return type and `useDecisionSuspense` now name a `ClientDecision`. `isAllowed` from `@qadi/core` rejects one on purpose; read the verdict with the new `permits`, and tell a seed from this client's own evaluation with `isSeeded`.
+  - `DeniedNode`'s function receives `Deny | SeededDeny`. A `SeededDeny` has no `reason` or `trace` of its own, so narrow with `isSeeded` before reading either.
+  - **Fail-closed note.** Code comparing `decision._tag === "Allow"` keeps compiling and now treats a seeded allow as not allowed. That is never a grant — the page may flash again — but it is a behaviour change; move to `permits`.
+  - `HydrationMismatch.seeded` is a `SeededDecision`.
+  - The dehydrated payload is `version: 2`, and each entry nests a `decision` derived from `@qadi/core`'s new `DecisionWire`. `hydrateDecisions` still reads the format that predates `version` (typed `DehydratedDecisionsV1`, deprecated, removed in the next minor release), always seeding it `Withheld`. Any other version is dropped as `UnsupportedPayloadVersion`.
+  - `hydrateDecisions` never throws: a value that is not an envelope is dropped as `MalformedPayload`. A disclosed trace whose root is not the entry's own policy is dropped as `MalformedEntry`.
+  - `UnregisteredAtoms` is removed from the closed drop-reason union (`ClientHydrationDropReason`, `hydrationDropReasons`), and `UnsupportedPayloadVersion` and `MalformedPayload` are added. An exhaustive `Match` over the reasons stops compiling until it handles them.
+  - `QadiAtoms` gains `hydrate`, the seeding capability `hydrateDecisions` delegates to. A spread copy or wrapper of an atom set now seeds the same questions its original does, instead of being refused whole.
+  - `HydrateOptions.onDropped` receives `HydrationDrop<unknown>`: the entries are what failed to decode.
+
+  `@qadi/core` gains `DecisionWire`/`DecisionWireAllow`/`DecisionWireDeny`, `encodeDecision`/`decodeDecision` (the decision's wire form, moved out of `SinkCodec` — `SinkRecordWire`'s bytes are unchanged, but a `Deny` without a `reason`, or an `Allow` with one, is now refused on decode instead of being given an invented `"denied"`), `projectVisible` (the body of `project` after its verdict check) and `subjectEquivalence` (the structural subject equality `DecisionCache` already used). `@qadi/react`'s `subject` atom now uses it, so a nested attribute object that is equal by structure no longer re-runs every mounted decision.
+
+  `@qadi/devtools` reads the same five hydration metrics unchanged; its drop-reason table follows the new set.
+
+### Patch Changes
+
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+  - @qadi/core@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes

@@ -1,5 +1,79 @@
 # @qadi/predicate-prisma
 
+## 0.10.0
+
+### Minor Changes
+
+- 1fd8700: `@qadi/audit`: the circuit breaker's half-open probe protocol now lives inside `CircuitBreaker.withPermit`, and three defects found while moving it are fixed.
+
+  **Fixes.** A probe interrupted while `stage()` was in flight used to hold its claim until the half-open age-out, doubling recovery time to twice `resetTimeoutMs`; the claim is now released on every exit from the moment it is taken. A write failure settling on an already-`Open` breaker no longer re-announces an `Open` transition (over-counting `qadi_audit_circuit_breaker_transitions_total`) or restarts the open window. A write's outcome now counts only toward the window that admitted it, so a late failure from before a trip cannot reopen a newer half-open window. Comments and BEH-QD-251 no longer claim that a caller's interruption of a write reaches the breaker; it is not a store failure.
+
+  **Breaking, for `@qadi/audit/CircuitBreaker` subpath imports only.** The `CircuitBreaker` interface is now `status` plus `withPermit`; `recordSuccess`, `recordFailure`, `claimProbe` and `releaseProbe` are no longer members. `Permit`, `Admitted` and `Refused` are new exports. `@qadi/audit`'s barrel and `AuditDecisionSinkLive` behave as before.
+
+- 1fd8700: Refuse a range on a floating-point column rather than admit infinite rows (breaking: `options.floating` is now required).
+
+  A `Float` or `Decimal` field can hold `Infinity`/`-Infinity`. A plain `{score: {gte: 3}}` returns the `Infinity` rows and `{score: {lt: 3}}` the `-Infinity` ones, which the evaluator denies. Prisma offers no filter that excludes them: it has no column arithmetic, and `{gte: 3, lte: Number.MAX_VALUE}` still returns the `Infinity` row, because Prisma binds the bound as a decimal string that SQLite reads back as `Infinity`. Measured on Prisma 7.10 over SQLite.
+
+  `compilePrismaWhere` now takes a declaration of which columns are floating, and a `gte`/`lt` on one fails `PredicateNotRenderable` with `refusal: "NonFiniteColumn"`. Equality and `in` on those columns still compile. New exports: `floatingFieldsOf`, `PrismaTypedModelLike` and `PrismaTypedFieldLike`. `floatingFieldsOf` reads each field's `type`, which Prisma 7's runtime DMMF keeps.
+
+  Leaving a `Float` column out of the declaration renders a plain range that can admit an infinite row, so derive the set rather than writing it by hand:
+
+  ```ts
+  // before
+  compilePrismaWhere(predicate, { nullable });
+  // after
+  compilePrismaWhere(predicate, {
+    nullable,
+    floating: new Set(["amount"]), // or floatingFieldsOf(model), model from Prisma.dmmf.datamodel.models
+  });
+  ```
+
+- 1fd8700: Fix `compilePrismaWhere` dropping NULL rows under `Negate` (breaking: `options.nullable` is now required).
+
+  A plain `{NOT: {level: {gte: 3}}}` renders `WHERE (NOT level >= ?)`, and SQL's `NOT UNKNOWN` is `UNKNOWN`, which `WHERE` excludes. `evaluatePredicate` admits a NULL-valued row there, so any negated tenancy or soft-delete policy on a nullable column silently lost rows. Found with a real Prisma 7.10 client over SQLite: 127 of 3000 random predicates mismatched, every one under a `Negate`, none an over-admission.
+
+  Prisma also refuses any filter that mentions `null` on a required column, so `Neq "t-1"` on a NOT NULL column failed at query time. Both need one schema fact per column, so `compilePrismaWhere` now takes a declaration of which columns accept NULL. New exports: `CompilePrismaWhereOptions`, `PrismaModelLike`, `PrismaFieldLike` and `nullableFieldsOf`. A null comparison on a column declared NOT NULL fails `PredicateNotRenderable`; a `null` member of its `MemberOf` is dropped. A wrong declaration can only lose rows or fail loudly, never admit a row the predicate denies. Output for an un-negated predicate on a nullable column is unchanged.
+
+  Migration:
+
+  ```ts
+  // before
+  compilePrismaWhere(predicate);
+  // after
+  compilePrismaWhere(predicate, {
+    nullable: new Set(["deletedAt", "note"]), // or nullableFieldsOf(model) from a DMMF that keeps isRequired
+  });
+  ```
+
+- 1fd8700: `compilePrismaWhere` becomes a renderer of `@qadi/core`'s `toRenderable`, and now applies the same rules `compileSql` does (breaking: new refusals).
+
+  What a predicate may hold is decided once, in `@qadi/core`, instead of in a copy per dialect package. The two packages used to disagree on which predicates compile at all (`first name`, `a.b` and a 1001-member `MemberOf` compiled here and refused by `@qadi/predicate-sql`, while `gte` and `NOT` did the reverse), against what the documentation claimed. They now refuse the same predicates, apart from Prisma's own reserved column names.
+
+  - **New refusal:** a `MemberOf` past `maxInValues` (default 1000, now an option here too) fails with `refusal: "TooManyValues"`.
+  - **New refusal:** a column outside the identifier rule fails with `refusal: "UnsafeColumn"`. The default rule is ASCII, `[A-Za-z_][A-Za-z0-9_]*`, so a Prisma field with a non-ASCII name such as `é` no longer compiles by default. Pass `identifiers: "UnicodeBmp"` to allow letters and digits of any script up to U+FFFF.
+  - `PredicateNotRenderable` is now `@qadi/core`'s class, re-exported. It gains a closed `refusal` field (`"UnsafeColumn" | "ReservedColumn" | "UnsafeValue" | "TooManyValues" | "NullOnNonNullableColumn"`) and its `predicateTag` narrows to `"Compare" | "MemberOf"`; `_tag` and `reason` are unchanged, and a Prisma operator keyword as a column is `"ReservedColumn"` with the same reason text as before.
+  - `CompilePrismaWhereOptions` gains optional `maxInValues` and `identifiers`.
+
+  Every `WhereInput` is now checked against a real Prisma Client over SQLite rather than only against JavaScript models of the engine.
+
+### Patch Changes
+
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+  - @qadi/core@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes

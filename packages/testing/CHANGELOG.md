@@ -1,5 +1,43 @@
 # @qadi/testing
 
+## 0.10.0
+
+### Minor Changes
+
+- 1fd8700: Each evaluation port is described once, and its wrappers, fail-closed default, test doubles and environment are derived from that description (ADR-QD-094, INV-QD-095).
+
+  - **Every port has the full wrapper set.** `decisionHistoryRetrying`, `decisionHistoryBounded`, `decisionHistoryTimingOut`, `signatureHistoryRetrying`, `signatureHistoryBounded`, `signatureHistoryTimingOut` and `customPredicateTimingOut` are new, so a hung history or signature store no longer holds an evaluation open with no deadline. Every retrying wrapper annotates `qadi.attempts` on the caller's span. Each wrapper's retry now re-invokes the port's method on every attempt rather than re-running the effect the first call returned.
+  - **Port descriptions.** `attributeResolverPort`, `relationshipResolverPort`, `customPredicatePort`, `decisionHistoryPort` and `signatureHistoryPort` state each port's name, method, span, typed-error constructors, request key and fail-closed answer. New types `PortDescription`, `PortShape`, `PortReply`, `PortScript`, `PortSpanName`.
+  - **Doubles.** `scriptedPort` answers, fails with the port's own error, dies or throws per request, and falls back to the fail-closed answer; `recordingPort` records a real port's requests without absorbing failures; `replyTable` keys a script by the port's request key. Each logs requests as typed tuples.
+  - **Registry and environments.** `PortTypes`, `PORTS`, `PortServices`, `PortLayers`, `PortOverrides`, `DescriptionOf` and the `ServiceOf`/`ShapeOf`/`ArgsOf`/`AnswerOf`/`ErrorOf` helpers; `portsLayer(overrides)` gives every port its fail-closed default unless named, and order no longer matters (overriding by merging after `EvaluationServicesNone` used to keep the default when the override came first); `mapPorts`, `mergePorts`, `decoratePorts`, `forEveryPort`, `tabulatePorts`. `EvaluationServices` is now `CurrentSubject | EvaluationId | PortServices`, the same union as before.
+  - **Breaking (`@qadi/core`):** `RetryingPortName` and `TimingOutPortName` are removed; use `PortName`. `qadi_port_retries_total` and `qadi_port_timeouts_total` now preregister all five ports. Their descriptions are unchanged, so no metric registry key moved. `@qadi/core/RetryingLayer` is gone; its helpers live in `@qadi/core/PortDerivation`.
+  - **Breaking (`@qadi/testing`):** `failingAttributeResolver`, `failingRelationshipResolver`, `failingDecisionHistory`, `failingCustomPredicate`, `failingSignatureHistory`, `recordingAttributeResolver`, `recordingCustomPredicate`, `recordingSignatureHistory`, `edgeRelationshipResolver`, `eventDecisionHistory`, `CallRecorder`/`makeCallRecorder` and the `SignatureInput` re-export are removed. Use `scriptedPort(<port>Port, () => PortReply.fail(cause)).layer` for a failing port and `recordingPort(<port>Port, layer)` for a recording one. `TestLayerOptions`' `attributeResolver`/`relationshipResolver`/`decisionHistory`/`customPredicate`/`signatureHistory` become one `ports` option keyed by port name (`{ ports: { AttributeResolver: layer } }`), which wins over the matching data option. The `attributes`/`relationships`/`history`/`signatures` options now build core's fixtures, so the implementation names a wiring panel shows for them change (`attributeResolverFromRecord`, …). `qadiReviewLayer` is typed `Layer<StandingEvaluationServices>`, the same set as before.
+  - **Breaking (`@qadi/devtools`):** `CapturedAnswers` is keyed by port name (`AttributeResolver`, `RelationshipResolver`, `DecisionHistory`, `CustomPredicate`, `SignatureHistory`) instead of `attributes`/`relationships`/`history`/`custom`/`signatures`; `attributeKey`, `relationshipKey`, `historyKey`, `customPredicateKey` and `signatureHistoryKey` are removed, so use each port description's `key`. Capture and replay keys are unchanged. `PortActivity` gains a required `timeouts` field read from `qadi_port_timeouts_total`, and the Services screen shows it.
+
+- 1fd8700: `@qadi/audit`: the circuit breaker's half-open probe protocol now lives inside `CircuitBreaker.withPermit`, and three defects found while moving it are fixed.
+
+  **Fixes.** A probe interrupted while `stage()` was in flight used to hold its claim until the half-open age-out, doubling recovery time to twice `resetTimeoutMs`; the claim is now released on every exit from the moment it is taken. A write failure settling on an already-`Open` breaker no longer re-announces an `Open` transition (over-counting `qadi_audit_circuit_breaker_transitions_total`) or restarts the open window. A write's outcome now counts only toward the window that admitted it, so a late failure from before a trip cannot reopen a newer half-open window. Comments and BEH-QD-251 no longer claim that a caller's interruption of a write reaches the breaker; it is not a store failure.
+
+  **Breaking, for `@qadi/audit/CircuitBreaker` subpath imports only.** The `CircuitBreaker` interface is now `status` plus `withPermit`; `recordSuccess`, `recordFailure`, `claimProbe` and `releaseProbe` are no longer members. `Permit`, `Admitted` and `Refused` are new exports. `@qadi/audit`'s barrel and `AuditDecisionSinkLive` behave as before.
+
+### Patch Changes
+
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+- Updated dependencies [1fd8700]
+  - @qadi/core@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes
